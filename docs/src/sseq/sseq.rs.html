@@ -24,8 +24,8 @@
     });
 </script>
 
-<style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu" role="button">&#9776;</div><a href='../../sseq/index.html'><div class='logo-container rust-logo'><img src='../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu"><img src="../../brush.svg" width="18" height="18" alt="Pick another theme!"></button><div id="theme-choices" role="menu"></div></div><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><button type="button" class="help-button">?</button>
-                <a id="settings-menu" href="../../settings.html"><img src="../../wheel.svg" width="18" height="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">  1</span>
+<style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu" role="button">&#9776;</div><a href='../../sseq/index.html'><div class='logo-container rust-logo'><img src='../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu"><img src="../../brush.svg" width="18" height="18" alt="Pick another theme!"></button><div id="theme-choices" role="menu"></div></div><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><button type="button" class="help-button">?</button>
+                <a id="settings-menu" href="../../settings.html"><img src="../../wheel.svg" width="18" height="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><div class="example-wrap"><pre class="line-numbers"><span id="1">  1</span>
 <span id="2">  2</span>
 <span id="3">  3</span>
 <span id="4">  4</span>
@@ -771,16 +771,16 @@
 <span id="744">744</span>
 <span id="745">745</span>
 <span id="746">746</span>
-</pre><div class="example-wrap"><pre class="rust ">
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">bigraded</span>::<span class="ident">DenseBigradedModule</span>;
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">differential</span>::<span class="ident">Differential</span>;
-<span class="kw">use</span> <span class="ident">bivec</span>::<span class="ident">BiVec</span>;
+</pre><pre class="rust">
+<span class="kw">use</span> <span class="kw">crate</span><span class="ident">::bigraded::DenseBigradedModule</span>;
+<span class="kw">use</span> <span class="kw">crate</span><span class="ident">::differential::Differential</span>;
+<span class="kw">use</span> <span class="ident">bivec::BiVec</span>;
 <span class="kw">use</span> <span class="ident">fp</span>::{
     <span class="ident">matrix</span>::{<span class="ident">Matrix</span>, <span class="ident">Subquotient</span>, <span class="ident">Subspace</span>},
-    <span class="ident">prime</span>::<span class="ident">ValidPrime</span>,
+    <span class="ident">prime::ValidPrime</span>,
     <span class="ident">vector</span>::{<span class="ident">FpVector</span>, <span class="ident">Slice</span>},
 };
-<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">marker</span>::<span class="ident">PhantomData</span>, <span class="ident">sync</span>::<span class="ident">Arc</span>};
+<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">marker::PhantomData</span>, <span class="ident">sync::Arc</span>};
 
 <span class="doccomment">/// The direction of the differentials</span>
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">SseqProfile</span> {
@@ -840,11 +840,11 @@
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>, <span class="ident">min_x</span>: <span class="ident">i32</span>, <span class="ident">min_y</span>: <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="self">Self</span> {
             <span class="ident">p</span>,
-            <span class="ident">classes</span>: <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">DenseBigradedModule</span>::<span class="ident">new</span>(<span class="ident">min_x</span>, <span class="ident">min_y</span>)),
-            <span class="ident">differentials</span>: <span class="ident">BiVec</span>::<span class="ident">new</span>(<span class="ident">min_x</span>),
-            <span class="ident">permanent_classes</span>: <span class="ident">BiVec</span>::<span class="ident">new</span>(<span class="ident">min_x</span>),
-            <span class="ident">page_data</span>: <span class="ident">BiVec</span>::<span class="ident">new</span>(<span class="ident">min_x</span>),
-            <span class="ident">invalid</span>: <span class="ident">BiVec</span>::<span class="ident">new</span>(<span class="ident">min_x</span>),
+            <span class="ident">classes</span>: <span class="ident">Arc::new</span>(<span class="ident">DenseBigradedModule::new</span>(<span class="ident">min_x</span>, <span class="ident">min_y</span>)),
+            <span class="ident">differentials</span>: <span class="ident">BiVec::new</span>(<span class="ident">min_x</span>),
+            <span class="ident">permanent_classes</span>: <span class="ident">BiVec::new</span>(<span class="ident">min_x</span>),
+            <span class="ident">page_data</span>: <span class="ident">BiVec::new</span>(<span class="ident">min_x</span>),
+            <span class="ident">invalid</span>: <span class="ident">BiVec::new</span>(<span class="ident">min_x</span>),
             <span class="ident">profile</span>: <span class="ident">PhantomData</span>,
         }
     }
@@ -858,10 +858,10 @@
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">classes</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">DenseBigradedModule</span><span class="op">&gt;</span> {
-        <span class="ident">Arc</span>::<span class="ident">clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">classes</span>)
+        <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">classes</span>)
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">range</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">x</span>: <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">std</span>::<span class="ident">ops</span>::<span class="ident">Range</span><span class="op">&lt;</span><span class="ident">i32</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">range</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">x</span>: <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">std::ops::Range</span><span class="op">&lt;</span><span class="ident">i32</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">classes</span>.<span class="ident">range</span>(<span class="ident">x</span>)
     }
 
@@ -882,16 +882,16 @@
         <span class="self">self</span>.<span class="ident">classes</span>.<span class="ident">set_dimension</span>(<span class="ident">x</span>, <span class="ident">y</span>, <span class="ident">dim</span>);
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">differentials</span>.<span class="ident">len</span>() <span class="op">=</span><span class="op">=</span> <span class="ident">x</span> {
             <span class="kw">let</span> <span class="ident">min_y</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">classes</span>.<span class="ident">min_y</span>();
-            <span class="self">self</span>.<span class="ident">differentials</span>.<span class="ident">push</span>(<span class="ident">BiVec</span>::<span class="ident">new</span>(<span class="ident">min_y</span>));
-            <span class="self">self</span>.<span class="ident">permanent_classes</span>.<span class="ident">push</span>(<span class="ident">BiVec</span>::<span class="ident">new</span>(<span class="ident">min_y</span>));
-            <span class="self">self</span>.<span class="ident">page_data</span>.<span class="ident">push</span>(<span class="ident">BiVec</span>::<span class="ident">new</span>(<span class="ident">min_y</span>));
-            <span class="self">self</span>.<span class="ident">invalid</span>.<span class="ident">push</span>(<span class="ident">BiVec</span>::<span class="ident">new</span>(<span class="ident">min_y</span>));
+            <span class="self">self</span>.<span class="ident">differentials</span>.<span class="ident">push</span>(<span class="ident">BiVec::new</span>(<span class="ident">min_y</span>));
+            <span class="self">self</span>.<span class="ident">permanent_classes</span>.<span class="ident">push</span>(<span class="ident">BiVec::new</span>(<span class="ident">min_y</span>));
+            <span class="self">self</span>.<span class="ident">page_data</span>.<span class="ident">push</span>(<span class="ident">BiVec::new</span>(<span class="ident">min_y</span>));
+            <span class="self">self</span>.<span class="ident">invalid</span>.<span class="ident">push</span>(<span class="ident">BiVec::new</span>(<span class="ident">min_y</span>));
         }
 
-        <span class="self">self</span>.<span class="ident">differentials</span>[<span class="ident">x</span>].<span class="ident">push</span>(<span class="ident">BiVec</span>::<span class="ident">new</span>(<span class="ident">P</span>::<span class="ident">MIN_R</span>));
-        <span class="self">self</span>.<span class="ident">page_data</span>[<span class="ident">x</span>].<span class="ident">push</span>(<span class="ident">BiVec</span>::<span class="ident">new</span>(<span class="ident">P</span>::<span class="ident">MIN_R</span>));
-        <span class="self">self</span>.<span class="ident">page_data</span>[<span class="ident">x</span>][<span class="ident">y</span>].<span class="ident">push</span>(<span class="ident">Subquotient</span>::<span class="ident">new_full</span>(<span class="self">self</span>.<span class="ident">p</span>, <span class="ident">dim</span>));
-        <span class="self">self</span>.<span class="ident">permanent_classes</span>[<span class="ident">x</span>].<span class="ident">push</span>(<span class="ident">Subspace</span>::<span class="ident">new</span>(<span class="self">self</span>.<span class="ident">p</span>, <span class="ident">dim</span> <span class="op">+</span> <span class="number">1</span>, <span class="ident">dim</span>));
+        <span class="self">self</span>.<span class="ident">differentials</span>[<span class="ident">x</span>].<span class="ident">push</span>(<span class="ident">BiVec::new</span>(<span class="ident">P::MIN_R</span>));
+        <span class="self">self</span>.<span class="ident">page_data</span>[<span class="ident">x</span>].<span class="ident">push</span>(<span class="ident">BiVec::new</span>(<span class="ident">P::MIN_R</span>));
+        <span class="self">self</span>.<span class="ident">page_data</span>[<span class="ident">x</span>][<span class="ident">y</span>].<span class="ident">push</span>(<span class="ident">Subquotient::new_full</span>(<span class="self">self</span>.<span class="ident">p</span>, <span class="ident">dim</span>));
+        <span class="self">self</span>.<span class="ident">permanent_classes</span>[<span class="ident">x</span>].<span class="ident">push</span>(<span class="ident">Subspace::new</span>(<span class="self">self</span>.<span class="ident">p</span>, <span class="ident">dim</span> <span class="op">+</span> <span class="number">1</span>, <span class="ident">dim</span>));
         <span class="self">self</span>.<span class="ident">invalid</span>[<span class="ident">x</span>].<span class="ident">push</span>(<span class="bool-val">false</span>);
     }
 
@@ -899,17 +899,17 @@
         <span class="self">self</span>.<span class="ident">permanent_classes</span>
             .<span class="ident">iter_mut</span>()
             .<span class="ident">flatten</span>()
-            .<span class="ident">for_each</span>(<span class="ident">Subspace</span>::<span class="ident">set_to_zero</span>);
+            .<span class="ident">for_each</span>(<span class="ident">Subspace::set_to_zero</span>);
         <span class="self">self</span>.<span class="ident">differentials</span>
             .<span class="ident">iter_mut</span>()
             .<span class="ident">flatten</span>()
             .<span class="ident">flatten</span>()
-            .<span class="ident">for_each</span>(<span class="ident">Differential</span>::<span class="ident">set_to_zero</span>);
+            .<span class="ident">for_each</span>(<span class="ident">Differential::set_to_zero</span>);
         <span class="self">self</span>.<span class="ident">page_data</span>
             .<span class="ident">iter_mut</span>()
             .<span class="ident">flatten</span>()
             .<span class="ident">flatten</span>()
-            .<span class="ident">for_each</span>(<span class="ident">Subquotient</span>::<span class="ident">set_to_full</span>);
+            .<span class="ident">for_each</span>(<span class="ident">Subquotient::set_to_full</span>);
         <span class="self">self</span>.<span class="ident">invalid</span>.<span class="ident">iter_mut</span>().<span class="ident">flatten</span>().<span class="ident">for_each</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="kw-2">*</span><span class="ident">x</span> <span class="op">=</span> <span class="bool-val">true</span>);
     }
 
@@ -939,8 +939,8 @@
         <span class="kw">let</span> <span class="ident">source_dim</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">classes</span>.<span class="ident">dimension</span>(<span class="ident">x</span>, <span class="ident">y</span>);
         <span class="kw">while</span> <span class="self">self</span>.<span class="ident">differentials</span>[<span class="ident">x</span>][<span class="ident">y</span>].<span class="ident">len</span>() <span class="op">&lt;</span><span class="op">=</span> <span class="ident">r</span> {
             <span class="kw">let</span> <span class="ident">r</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">differentials</span>[<span class="ident">x</span>][<span class="ident">y</span>].<span class="ident">len</span>();
-            <span class="kw">let</span> (<span class="ident">target_x</span>, <span class="ident">target_y</span>) <span class="op">=</span> <span class="ident">P</span>::<span class="ident">profile</span>(<span class="ident">r</span>, <span class="ident">x</span>, <span class="ident">y</span>);
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">differential</span> <span class="op">=</span> <span class="ident">Differential</span>::<span class="ident">new</span>(
+            <span class="kw">let</span> (<span class="ident">target_x</span>, <span class="ident">target_y</span>) <span class="op">=</span> <span class="ident">P::profile</span>(<span class="ident">r</span>, <span class="ident">x</span>, <span class="ident">y</span>);
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">differential</span> <span class="op">=</span> <span class="ident">Differential::new</span>(
                 <span class="self">self</span>.<span class="ident">p</span>,
                 <span class="ident">source_dim</span>,
                 <span class="self">self</span>.<span class="ident">classes</span>.<span class="ident">dimension</span>(<span class="ident">target_x</span>, <span class="ident">target_y</span>),
@@ -975,15 +975,15 @@
         <span class="ident">source</span>: <span class="ident">Slice</span>,
         <span class="ident">target</span>: <span class="ident">Slice</span>,
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
-        <span class="kw">let</span> (<span class="ident">tx</span>, <span class="ident">ty</span>) <span class="op">=</span> <span class="ident">P</span>::<span class="ident">profile</span>(<span class="ident">r</span>, <span class="ident">x</span>, <span class="ident">y</span>);
+        <span class="kw">let</span> (<span class="ident">tx</span>, <span class="ident">ty</span>) <span class="op">=</span> <span class="ident">P::profile</span>(<span class="ident">r</span>, <span class="ident">x</span>, <span class="ident">y</span>);
 
         <span class="self">self</span>.<span class="ident">extend_differential</span>(<span class="ident">r</span>, <span class="ident">x</span>, <span class="ident">y</span>);
         <span class="self">self</span>.<span class="ident">extend_page_data</span>(<span class="ident">r</span> <span class="op">+</span> <span class="number">1</span>, <span class="ident">x</span>, <span class="ident">y</span>);
         <span class="self">self</span>.<span class="ident">extend_page_data</span>(<span class="ident">r</span> <span class="op">+</span> <span class="number">1</span>, <span class="ident">tx</span>, <span class="ident">ty</span>);
 
-        <span class="kw">for</span> <span class="ident">r</span> <span class="kw">in</span> <span class="ident">P</span>::<span class="ident">MIN_R</span>..<span class="ident">r</span> {
+        <span class="kw">for</span> <span class="ident">r</span> <span class="kw">in</span> <span class="ident">P::MIN_R</span>..<span class="ident">r</span> {
             <span class="self">self</span>.<span class="ident">differentials</span>[<span class="ident">x</span>][<span class="ident">y</span>][<span class="ident">r</span>].<span class="ident">add</span>(<span class="ident">source</span>, <span class="prelude-val">None</span>);
-            <span class="kw">let</span> (<span class="ident">tx</span>, <span class="ident">ty</span>) <span class="op">=</span> <span class="ident">P</span>::<span class="ident">profile</span>(<span class="ident">r</span>, <span class="ident">x</span>, <span class="ident">y</span>);
+            <span class="kw">let</span> (<span class="ident">tx</span>, <span class="ident">ty</span>) <span class="op">=</span> <span class="ident">P::profile</span>(<span class="ident">r</span>, <span class="ident">x</span>, <span class="ident">y</span>);
             <span class="self">self</span>.<span class="ident">extend_page_data</span>(<span class="ident">r</span> <span class="op">+</span> <span class="number">1</span>, <span class="ident">tx</span>, <span class="ident">ty</span>);
         }
         <span class="kw">let</span> <span class="ident">is_new</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">differentials</span>[<span class="ident">x</span>][<span class="ident">y</span>][<span class="ident">r</span>].<span class="ident">add</span>(<span class="ident">source</span>, <span class="prelude-val">Some</span>(<span class="ident">target</span>));
@@ -995,7 +995,7 @@
                 <span class="kw">for</span> <span class="ident">r</span> <span class="kw">in</span> <span class="ident">r</span> <span class="op">+</span> <span class="number">1</span>..<span class="self">self</span>.<span class="ident">page_data</span>[<span class="ident">tx</span>][<span class="ident">ty</span>].<span class="ident">len</span>() {
                     <span class="self">self</span>.<span class="ident">page_data</span>[<span class="ident">tx</span>][<span class="ident">ty</span>][<span class="ident">r</span>].<span class="ident">quotient</span>(<span class="ident">target</span>);
 
-                    <span class="kw">let</span> (<span class="ident">px</span>, <span class="ident">py</span>) <span class="op">=</span> <span class="ident">P</span>::<span class="ident">profile_inverse</span>(<span class="ident">r</span>, <span class="ident">tx</span>, <span class="ident">ty</span>);
+                    <span class="kw">let</span> (<span class="ident">px</span>, <span class="ident">py</span>) <span class="op">=</span> <span class="ident">P::profile_inverse</span>(<span class="ident">r</span>, <span class="ident">tx</span>, <span class="ident">ty</span>);
                     <span class="kw">if</span> <span class="self">self</span>.<span class="ident">defined</span>(<span class="ident">px</span>, <span class="ident">py</span>) {
                         <span class="self">self</span>.<span class="ident">invalid</span>[<span class="ident">px</span>][<span class="ident">py</span>] <span class="op">=</span> <span class="bool-val">true</span>;
                     }
@@ -1024,16 +1024,16 @@
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">update_bidegree</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">x</span>: <span class="ident">i32</span>, <span class="ident">y</span>: <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">BiVec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">invalid</span>[<span class="ident">x</span>][<span class="ident">y</span>] <span class="op">=</span> <span class="bool-val">false</span>;
         <span class="kw">for</span> (<span class="ident">r</span>, <span class="ident">d</span>) <span class="kw">in</span> <span class="self">self</span>.<span class="ident">differentials</span>[<span class="ident">x</span>][<span class="ident">y</span>].<span class="ident">iter_mut_enum</span>() {
-            <span class="kw">let</span> (<span class="ident">tx</span>, <span class="ident">ty</span>) <span class="op">=</span> <span class="ident">P</span>::<span class="ident">profile</span>(<span class="ident">r</span>, <span class="ident">x</span>, <span class="ident">y</span>);
+            <span class="kw">let</span> (<span class="ident">tx</span>, <span class="ident">ty</span>) <span class="op">=</span> <span class="ident">P::profile</span>(<span class="ident">r</span>, <span class="ident">x</span>, <span class="ident">y</span>);
             <span class="ident">d</span>.<span class="ident">reduce_target</span>(<span class="self">self</span>.<span class="ident">page_data</span>[<span class="ident">tx</span>][<span class="ident">ty</span>][<span class="ident">r</span>].<span class="ident">zeros</span>());
         }
 
         <span class="comment">// For each page, the array of differentials to draw</span>
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">differentials</span>: <span class="ident">BiVec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span>
-            <span class="ident">BiVec</span>::<span class="ident">with_capacity</span>(<span class="ident">P</span>::<span class="ident">MIN_R</span>, <span class="self">self</span>.<span class="ident">differentials</span>[<span class="ident">x</span>][<span class="ident">y</span>].<span class="ident">len</span>());
+            <span class="ident">BiVec::with_capacity</span>(<span class="ident">P::MIN_R</span>, <span class="self">self</span>.<span class="ident">differentials</span>[<span class="ident">x</span>][<span class="ident">y</span>].<span class="ident">len</span>());
 
         <span class="kw">for</span> <span class="ident">r</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">page_data</span>[<span class="ident">x</span>][<span class="ident">y</span>].<span class="ident">range</span>().<span class="ident">skip</span>(<span class="number">1</span>) {
-            <span class="kw">let</span> (<span class="ident">tx</span>, <span class="ident">ty</span>) <span class="op">=</span> <span class="ident">P</span>::<span class="ident">profile</span>(<span class="ident">r</span> <span class="op">-</span> <span class="number">1</span>, <span class="ident">x</span>, <span class="ident">y</span>);
+            <span class="kw">let</span> (<span class="ident">tx</span>, <span class="ident">ty</span>) <span class="op">=</span> <span class="ident">P::profile</span>(<span class="ident">r</span> <span class="op">-</span> <span class="number">1</span>, <span class="ident">x</span>, <span class="ident">y</span>);
 
             <span class="self">self</span>.<span class="ident">page_data</span>[<span class="ident">x</span>][<span class="ident">y</span>][<span class="ident">r</span>].<span class="ident">clear_gens</span>();
 
@@ -1043,7 +1043,7 @@
                     <span class="ident">cur</span>.<span class="ident">add_gen</span>(<span class="ident">gen</span>.<span class="ident">as_slice</span>());
                 }
                 <span class="kw">if</span> <span class="ident">r</span> <span class="op">-</span> <span class="number">1</span> <span class="op">&lt;</span> <span class="self">self</span>.<span class="ident">differentials</span>[<span class="ident">x</span>][<span class="ident">y</span>].<span class="ident">len</span>() {
-                    <span class="ident">differentials</span>.<span class="ident">push</span>(<span class="macro">vec</span><span class="macro">!</span>[<span class="ident">Vec</span>::<span class="ident">new</span>(); <span class="self">self</span>.<span class="ident">page_data</span>[<span class="ident">x</span>][<span class="ident">y</span>][<span class="ident">r</span>].<span class="ident">dimension</span>()]);
+                    <span class="ident">differentials</span>.<span class="ident">push</span>(<span class="macro">vec!</span>[<span class="ident">Vec::new</span>(); <span class="self">self</span>.<span class="ident">page_data</span>[<span class="ident">x</span>][<span class="ident">y</span>][<span class="ident">r</span>].<span class="ident">dimension</span>()]);
                 }
             } <span class="kw">else</span> {
                 <span class="kw">let</span> <span class="ident">d</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">differentials</span>[<span class="ident">x</span>][<span class="ident">y</span>][<span class="ident">r</span> <span class="op">-</span> <span class="number">1</span>];
@@ -1052,14 +1052,14 @@
                 <span class="kw">let</span> <span class="ident">target_dim</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">dimension</span>(<span class="ident">tx</span>, <span class="ident">ty</span>);
 
                 <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">vectors</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">FpVector</span><span class="op">&gt;</span> <span class="op">=</span>
-                    <span class="ident">Vec</span>::<span class="ident">with_capacity</span>(<span class="self">self</span>.<span class="ident">page_data</span>[<span class="ident">x</span>][<span class="ident">y</span>][<span class="ident">r</span> <span class="op">-</span> <span class="number">1</span>].<span class="ident">dimension</span>());
+                    <span class="ident">Vec::with_capacity</span>(<span class="self">self</span>.<span class="ident">page_data</span>[<span class="ident">x</span>][<span class="ident">y</span>][<span class="ident">r</span> <span class="op">-</span> <span class="number">1</span>].<span class="ident">dimension</span>());
 
                 <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">drawn_differentials</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span>
-                    <span class="ident">Vec</span>::<span class="ident">with_capacity</span>(<span class="self">self</span>.<span class="ident">page_data</span>[<span class="ident">x</span>][<span class="ident">y</span>][<span class="ident">r</span> <span class="op">-</span> <span class="number">1</span>].<span class="ident">dimension</span>());
+                    <span class="ident">Vec::with_capacity</span>(<span class="self">self</span>.<span class="ident">page_data</span>[<span class="ident">x</span>][<span class="ident">y</span>][<span class="ident">r</span> <span class="op">-</span> <span class="number">1</span>].<span class="ident">dimension</span>());
 
-                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">dvec</span> <span class="op">=</span> <span class="ident">FpVector</span>::<span class="ident">new</span>(<span class="self">self</span>.<span class="ident">p</span>, <span class="ident">target_dim</span>);
+                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">dvec</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="self">self</span>.<span class="ident">p</span>, <span class="ident">target_dim</span>);
                 <span class="ident">vectors</span>.<span class="ident">extend</span>(<span class="self">self</span>.<span class="ident">page_data</span>[<span class="ident">x</span>][<span class="ident">y</span>][<span class="ident">r</span> <span class="op">-</span> <span class="number">1</span>].<span class="ident">gens</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">gen</span><span class="op">|</span> {
-                    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">FpVector</span>::<span class="ident">new</span>(<span class="self">self</span>.<span class="ident">p</span>, <span class="ident">target_dim</span> <span class="op">+</span> <span class="ident">source_dim</span>);
+                    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="self">self</span>.<span class="ident">p</span>, <span class="ident">target_dim</span> <span class="op">+</span> <span class="ident">source_dim</span>);
                     <span class="ident">result</span>
                         .<span class="ident">slice_mut</span>(<span class="ident">target_dim</span>, <span class="ident">target_dim</span> <span class="op">+</span> <span class="ident">source_dim</span>)
                         .<span class="ident">assign</span>(<span class="ident">gen</span>.<span class="ident">as_slice</span>());
@@ -1074,7 +1074,7 @@
                 }));
                 <span class="ident">differentials</span>.<span class="ident">push</span>(<span class="ident">drawn_differentials</span>);
 
-                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">matrix</span> <span class="op">=</span> <span class="ident">Matrix</span>::<span class="ident">from_rows</span>(<span class="self">self</span>.<span class="ident">p</span>, <span class="ident">vectors</span>, <span class="ident">source_dim</span> <span class="op">+</span> <span class="ident">target_dim</span>);
+                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">matrix</span> <span class="op">=</span> <span class="ident">Matrix::from_rows</span>(<span class="self">self</span>.<span class="ident">p</span>, <span class="ident">vectors</span>, <span class="ident">source_dim</span> <span class="op">+</span> <span class="ident">target_dim</span>);
                 <span class="ident">matrix</span>.<span class="ident">row_reduce</span>();
 
                 <span class="kw">let</span> <span class="ident">first_kernel_row</span> <span class="op">=</span> <span class="ident">matrix</span>.<span class="ident">find_first_row_in_block</span>(<span class="ident">target_dim</span>);
@@ -1104,7 +1104,7 @@
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">inconsistent</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">x</span>: <span class="ident">i32</span>, <span class="ident">y</span>: <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
         <span class="self">self</span>.<span class="ident">differentials</span>(<span class="ident">x</span>, <span class="ident">y</span>)
             .<span class="ident">iter</span>()
-            .<span class="ident">any</span>(<span class="ident">Differential</span>::<span class="ident">inconsistent</span>)
+            .<span class="ident">any</span>(<span class="ident">Differential::inconsistent</span>)
             <span class="op">|</span><span class="op">|</span> <span class="self">self</span>
                 .<span class="ident">differentials_hitting</span>(<span class="ident">x</span>, <span class="ident">y</span>)
                 .<span class="ident">any</span>(<span class="op">|</span>(<span class="kw">_</span>, <span class="ident">d</span>)<span class="op">|</span> <span class="ident">d</span>.<span class="ident">inconsistent</span>())
@@ -1120,8 +1120,8 @@
         <span class="ident">y</span>: <span class="ident">i32</span>,
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="kw">impl</span> <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> (<span class="ident">i32</span>, <span class="kw-2">&amp;</span><span class="lifetime">&#39;_</span> <span class="ident">Differential</span>)<span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;_</span> {
         <span class="kw">let</span> <span class="ident">max_r</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">page_data</span>[<span class="ident">x</span>][<span class="ident">y</span>].<span class="ident">len</span>() <span class="op">-</span> <span class="number">1</span>;
-        (<span class="ident">P</span>::<span class="ident">MIN_R</span>..<span class="ident">max_r</span>).<span class="ident">filter_map</span>(<span class="kw">move</span> <span class="op">|</span><span class="ident">r</span><span class="op">|</span> {
-            <span class="kw">let</span> (<span class="ident">sx</span>, <span class="ident">sy</span>) <span class="op">=</span> <span class="ident">P</span>::<span class="ident">profile_inverse</span>(<span class="ident">r</span>, <span class="ident">x</span>, <span class="ident">y</span>);
+        (<span class="ident">P::MIN_R</span>..<span class="ident">max_r</span>).<span class="ident">filter_map</span>(<span class="kw">move</span> <span class="op">|</span><span class="ident">r</span><span class="op">|</span> {
+            <span class="kw">let</span> (<span class="ident">sx</span>, <span class="ident">sy</span>) <span class="op">=</span> <span class="ident">P::profile_inverse</span>(<span class="ident">r</span>, <span class="ident">x</span>, <span class="ident">y</span>);
             <span class="prelude-val">Some</span>((<span class="ident">r</span>, <span class="self">self</span>.<span class="ident">differentials</span>.<span class="ident">get</span>(<span class="ident">sx</span>)<span class="question-mark">?</span>.<span class="ident">get</span>(<span class="ident">sy</span>)<span class="question-mark">?</span>.<span class="ident">get</span>(<span class="ident">r</span>)<span class="question-mark">?</span>))
         })
     }
@@ -1141,11 +1141,11 @@
     <span class="kw">use</span> <span class="ident">expect_test</span>::{<span class="ident">expect</span>, <span class="ident">Expect</span>};
 
     <span class="attribute">#[<span class="ident">test</span>]</span>
-    <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">clippy</span>::<span class="ident">cognitive_complexity</span>)]</span>
+    <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">clippy::cognitive_complexity</span>)]</span>
     <span class="kw">fn</span> <span class="ident">test_sseq_differential</span>() {
-        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">ValidPrime</span>::<span class="ident">new</span>(<span class="number">3</span>);
-        <span class="ident">fp</span>::<span class="ident">vector</span>::<span class="ident">initialize_limb_bit_index_table</span>(<span class="ident">p</span>);
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">sseq</span> <span class="op">=</span> <span class="ident">Sseq</span>::<span class="op">&lt;</span><span class="ident">Adams</span><span class="op">&gt;</span>::<span class="ident">new</span>(<span class="ident">p</span>, <span class="number">0</span>, <span class="number">0</span>);
+        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">ValidPrime::new</span>(<span class="number">3</span>);
+        <span class="ident">fp::vector::initialize_limb_bit_index_table</span>(<span class="ident">p</span>);
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">sseq</span> <span class="op">=</span> <span class="ident">Sseq</span>::<span class="op">&lt;</span><span class="ident">Adams</span><span class="op">&gt;</span><span class="ident">::new</span>(<span class="ident">p</span>, <span class="number">0</span>, <span class="number">0</span>);
         <span class="ident">sseq</span>.<span class="ident">set_dimension</span>(<span class="number">0</span>, <span class="number">0</span>, <span class="number">1</span>);
         <span class="ident">sseq</span>.<span class="ident">set_dimension</span>(<span class="number">1</span>, <span class="number">0</span>, <span class="number">2</span>);
         <span class="ident">sseq</span>.<span class="ident">set_dimension</span>(<span class="number">1</span>, <span class="number">1</span>, <span class="number">2</span>);
@@ -1157,16 +1157,16 @@
             <span class="number">2</span>,
             <span class="number">1</span>,
             <span class="number">0</span>,
-            <span class="ident">FpVector</span>::<span class="ident">from_slice</span>(<span class="ident">p</span>, <span class="kw-2">&amp;</span>[<span class="number">1</span>, <span class="number">1</span>]).<span class="ident">as_slice</span>(),
-            <span class="ident">FpVector</span>::<span class="ident">from_slice</span>(<span class="ident">p</span>, <span class="kw-2">&amp;</span>[<span class="number">0</span>, <span class="number">1</span>, <span class="number">2</span>]).<span class="ident">as_slice</span>(),
+            <span class="ident">FpVector::from_slice</span>(<span class="ident">p</span>, <span class="kw-2">&amp;</span>[<span class="number">1</span>, <span class="number">1</span>]).<span class="ident">as_slice</span>(),
+            <span class="ident">FpVector::from_slice</span>(<span class="ident">p</span>, <span class="kw-2">&amp;</span>[<span class="number">0</span>, <span class="number">1</span>, <span class="number">2</span>]).<span class="ident">as_slice</span>(),
         );
 
         <span class="ident">sseq</span>.<span class="ident">add_differential</span>(
             <span class="number">3</span>,
             <span class="number">1</span>,
             <span class="number">0</span>,
-            <span class="ident">FpVector</span>::<span class="ident">from_slice</span>(<span class="ident">p</span>, <span class="kw-2">&amp;</span>[<span class="number">1</span>, <span class="number">0</span>]).<span class="ident">as_slice</span>(),
-            <span class="ident">FpVector</span>::<span class="ident">from_slice</span>(<span class="ident">p</span>, <span class="kw-2">&amp;</span>[<span class="number">1</span>]).<span class="ident">as_slice</span>(),
+            <span class="ident">FpVector::from_slice</span>(<span class="ident">p</span>, <span class="kw-2">&amp;</span>[<span class="number">1</span>, <span class="number">0</span>]).<span class="ident">as_slice</span>(),
+            <span class="ident">FpVector::from_slice</span>(<span class="ident">p</span>, <span class="kw-2">&amp;</span>[<span class="number">1</span>]).<span class="ident">as_slice</span>(),
         );
 
         <span class="ident">sseq</span>.<span class="ident">update</span>();
@@ -1179,7 +1179,7 @@
             <span class="number">1</span>,
             <span class="number">0</span>,
             <span class="number">2</span>,
-            <span class="macro">expect</span><span class="macro">!</span>[[<span class="string">r#&quot;
+            <span class="macro">expect!</span>[[<span class="string">r#&quot;
             Generators:
             [1, 0]
             [0, 1]
@@ -1192,7 +1192,7 @@
             <span class="number">1</span>,
             <span class="number">0</span>,
             <span class="number">3</span>,
-            <span class="macro">expect</span><span class="macro">!</span>[[<span class="string">r#&quot;
+            <span class="macro">expect!</span>[[<span class="string">r#&quot;
             Generators:
             [1, 0]
 
@@ -1204,7 +1204,7 @@
             <span class="number">1</span>,
             <span class="number">0</span>,
             <span class="number">4</span>,
-            <span class="macro">expect</span><span class="macro">!</span>[[<span class="string">r#&quot;
+            <span class="macro">expect!</span>[[<span class="string">r#&quot;
             Generators:
 
             Zeros:
@@ -1216,7 +1216,7 @@
             <span class="number">1</span>,
             <span class="number">1</span>,
             <span class="number">2</span>,
-            <span class="macro">expect</span><span class="macro">!</span>[[<span class="string">r#&quot;
+            <span class="macro">expect!</span>[[<span class="string">r#&quot;
             Generators:
             [1, 0]
             [0, 1]
@@ -1230,7 +1230,7 @@
             <span class="number">0</span>,
             <span class="number">2</span>,
             <span class="number">2</span>,
-            <span class="macro">expect</span><span class="macro">!</span>[[<span class="string">r#&quot;
+            <span class="macro">expect!</span>[[<span class="string">r#&quot;
             Generators:
             [1, 0, 0]
             [0, 1, 0]
@@ -1244,7 +1244,7 @@
             <span class="number">0</span>,
             <span class="number">2</span>,
             <span class="number">3</span>,
-            <span class="macro">expect</span><span class="macro">!</span>[[<span class="string">r#&quot;
+            <span class="macro">expect!</span>[[<span class="string">r#&quot;
             Generators:
             [1, 0, 0]
             [0, 0, 1]
@@ -1259,7 +1259,7 @@
             <span class="number">0</span>,
             <span class="number">3</span>,
             <span class="number">2</span>,
-            <span class="macro">expect</span><span class="macro">!</span>[[<span class="string">r#&quot;
+            <span class="macro">expect!</span>[[<span class="string">r#&quot;
             Generators:
             [1]
 
@@ -1271,7 +1271,7 @@
             <span class="number">0</span>,
             <span class="number">3</span>,
             <span class="number">3</span>,
-            <span class="macro">expect</span><span class="macro">!</span>[[<span class="string">r#&quot;
+            <span class="macro">expect!</span>[[<span class="string">r#&quot;
             Generators:
             [1]
 
@@ -1283,7 +1283,7 @@
             <span class="number">0</span>,
             <span class="number">3</span>,
             <span class="number">4</span>,
-            <span class="macro">expect</span><span class="macro">!</span>[[<span class="string">r#&quot;
+            <span class="macro">expect!</span>[[<span class="string">r#&quot;
             Generators:
 
             Zeros:
@@ -1296,8 +1296,8 @@
             <span class="number">2</span>,
             <span class="number">1</span>,
             <span class="number">1</span>,
-            <span class="ident">FpVector</span>::<span class="ident">from_slice</span>(<span class="ident">p</span>, <span class="kw-2">&amp;</span>[<span class="number">1</span>, <span class="number">0</span>]).<span class="ident">as_slice</span>(),
-            <span class="ident">FpVector</span>::<span class="ident">from_slice</span>(<span class="ident">p</span>, <span class="kw-2">&amp;</span>[<span class="number">1</span>]).<span class="ident">as_slice</span>(),
+            <span class="ident">FpVector::from_slice</span>(<span class="ident">p</span>, <span class="kw-2">&amp;</span>[<span class="number">1</span>, <span class="number">0</span>]).<span class="ident">as_slice</span>(),
+            <span class="ident">FpVector::from_slice</span>(<span class="ident">p</span>, <span class="kw-2">&amp;</span>[<span class="number">1</span>]).<span class="ident">as_slice</span>(),
         );
         <span class="ident">sseq</span>.<span class="ident">update</span>();
         <span class="kw">let</span> <span class="ident">check</span> <span class="op">=</span> <span class="op">|</span><span class="ident">x</span>, <span class="ident">y</span>, <span class="ident">r</span>, <span class="ident">e</span>: <span class="ident">Expect</span><span class="op">|</span> {
@@ -1308,7 +1308,7 @@
             <span class="number">1</span>,
             <span class="number">0</span>,
             <span class="number">2</span>,
-            <span class="macro">expect</span><span class="macro">!</span>[[<span class="string">r#&quot;
+            <span class="macro">expect!</span>[[<span class="string">r#&quot;
             Generators:
             [1, 0]
             [0, 1]
@@ -1321,7 +1321,7 @@
             <span class="number">1</span>,
             <span class="number">0</span>,
             <span class="number">3</span>,
-            <span class="macro">expect</span><span class="macro">!</span>[[<span class="string">r#&quot;
+            <span class="macro">expect!</span>[[<span class="string">r#&quot;
             Generators:
             [1, 0]
 
@@ -1333,7 +1333,7 @@
             <span class="number">1</span>,
             <span class="number">0</span>,
             <span class="number">4</span>,
-            <span class="macro">expect</span><span class="macro">!</span>[[<span class="string">r#&quot;
+            <span class="macro">expect!</span>[[<span class="string">r#&quot;
             Generators:
             [1, 0]
 
@@ -1346,7 +1346,7 @@
             <span class="number">1</span>,
             <span class="number">1</span>,
             <span class="number">2</span>,
-            <span class="macro">expect</span><span class="macro">!</span>[[<span class="string">r#&quot;
+            <span class="macro">expect!</span>[[<span class="string">r#&quot;
             Generators:
             [1, 0]
             [0, 1]
@@ -1359,7 +1359,7 @@
             <span class="number">1</span>,
             <span class="number">1</span>,
             <span class="number">3</span>,
-            <span class="macro">expect</span><span class="macro">!</span>[[<span class="string">r#&quot;
+            <span class="macro">expect!</span>[[<span class="string">r#&quot;
             Generators:
             [0, 1]
 
@@ -1372,7 +1372,7 @@
             <span class="number">0</span>,
             <span class="number">2</span>,
             <span class="number">2</span>,
-            <span class="macro">expect</span><span class="macro">!</span>[[<span class="string">r#&quot;
+            <span class="macro">expect!</span>[[<span class="string">r#&quot;
             Generators:
             [1, 0, 0]
             [0, 1, 0]
@@ -1386,7 +1386,7 @@
             <span class="number">0</span>,
             <span class="number">2</span>,
             <span class="number">3</span>,
-            <span class="macro">expect</span><span class="macro">!</span>[[<span class="string">r#&quot;
+            <span class="macro">expect!</span>[[<span class="string">r#&quot;
             Generators:
             [1, 0, 0]
             [0, 0, 1]
@@ -1401,7 +1401,7 @@
             <span class="number">0</span>,
             <span class="number">3</span>,
             <span class="number">2</span>,
-            <span class="macro">expect</span><span class="macro">!</span>[[<span class="string">r#&quot;
+            <span class="macro">expect!</span>[[<span class="string">r#&quot;
             Generators:
             [1]
 
@@ -1413,7 +1413,7 @@
             <span class="number">0</span>,
             <span class="number">3</span>,
             <span class="number">3</span>,
-            <span class="macro">expect</span><span class="macro">!</span>[[<span class="string">r#&quot;
+            <span class="macro">expect!</span>[[<span class="string">r#&quot;
             Generators:
 
             Zeros:
@@ -1425,7 +1425,7 @@
             <span class="number">0</span>,
             <span class="number">3</span>,
             <span class="number">4</span>,
-            <span class="macro">expect</span><span class="macro">!</span>[[<span class="string">r#&quot;
+            <span class="macro">expect!</span>[[<span class="string">r#&quot;
             Generators:
 
             Zeros:
@@ -1437,9 +1437,9 @@
 
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">test_sseq_differential_2</span>() {
-        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">ValidPrime</span>::<span class="ident">new</span>(<span class="number">2</span>);
-        <span class="ident">fp</span>::<span class="ident">vector</span>::<span class="ident">initialize_limb_bit_index_table</span>(<span class="ident">p</span>);
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">sseq</span> <span class="op">=</span> <span class="ident">Sseq</span>::<span class="op">&lt;</span><span class="ident">Adams</span><span class="op">&gt;</span>::<span class="ident">new</span>(<span class="ident">p</span>, <span class="number">0</span>, <span class="number">0</span>);
+        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">ValidPrime::new</span>(<span class="number">2</span>);
+        <span class="ident">fp::vector::initialize_limb_bit_index_table</span>(<span class="ident">p</span>);
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">sseq</span> <span class="op">=</span> <span class="ident">Sseq</span>::<span class="op">&lt;</span><span class="ident">Adams</span><span class="op">&gt;</span><span class="ident">::new</span>(<span class="ident">p</span>, <span class="number">0</span>, <span class="number">0</span>);
 
         <span class="ident">sseq</span>.<span class="ident">set_dimension</span>(<span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>);
         <span class="ident">sseq</span>.<span class="ident">set_dimension</span>(<span class="number">1</span>, <span class="number">0</span>, <span class="number">2</span>);
@@ -1450,15 +1450,15 @@
             <span class="number">2</span>,
             <span class="number">1</span>,
             <span class="number">0</span>,
-            <span class="ident">FpVector</span>::<span class="ident">from_slice</span>(<span class="ident">p</span>, <span class="kw-2">&amp;</span>[<span class="number">1</span>, <span class="number">0</span>]).<span class="ident">as_slice</span>(),
-            <span class="ident">FpVector</span>::<span class="ident">from_slice</span>(<span class="ident">p</span>, <span class="kw-2">&amp;</span>[<span class="number">1</span>, <span class="number">0</span>]).<span class="ident">as_slice</span>(),
+            <span class="ident">FpVector::from_slice</span>(<span class="ident">p</span>, <span class="kw-2">&amp;</span>[<span class="number">1</span>, <span class="number">0</span>]).<span class="ident">as_slice</span>(),
+            <span class="ident">FpVector::from_slice</span>(<span class="ident">p</span>, <span class="kw-2">&amp;</span>[<span class="number">1</span>, <span class="number">0</span>]).<span class="ident">as_slice</span>(),
         );
         <span class="ident">sseq</span>.<span class="ident">add_differential</span>(
             <span class="number">2</span>,
             <span class="number">1</span>,
             <span class="number">0</span>,
-            <span class="ident">FpVector</span>::<span class="ident">from_slice</span>(<span class="ident">p</span>, <span class="kw-2">&amp;</span>[<span class="number">0</span>, <span class="number">1</span>]).<span class="ident">as_slice</span>(),
-            <span class="ident">FpVector</span>::<span class="ident">from_slice</span>(<span class="ident">p</span>, <span class="kw-2">&amp;</span>[<span class="number">1</span>, <span class="number">1</span>]).<span class="ident">as_slice</span>(),
+            <span class="ident">FpVector::from_slice</span>(<span class="ident">p</span>, <span class="kw-2">&amp;</span>[<span class="number">0</span>, <span class="number">1</span>]).<span class="ident">as_slice</span>(),
+            <span class="ident">FpVector::from_slice</span>(<span class="ident">p</span>, <span class="kw-2">&amp;</span>[<span class="number">1</span>, <span class="number">1</span>]).<span class="ident">as_slice</span>(),
         );
         <span class="ident">sseq</span>.<span class="ident">update</span>();
 
@@ -1470,7 +1470,7 @@
             <span class="number">1</span>,
             <span class="number">0</span>,
             <span class="number">2</span>,
-            <span class="macro">expect</span><span class="macro">!</span>[[<span class="string">r#&quot;
+            <span class="macro">expect!</span>[[<span class="string">r#&quot;
             Generators:
             [1, 0]
             [0, 1]
@@ -1483,7 +1483,7 @@
             <span class="number">1</span>,
             <span class="number">0</span>,
             <span class="number">3</span>,
-            <span class="macro">expect</span><span class="macro">!</span>[[<span class="string">r#&quot;
+            <span class="macro">expect!</span>[[<span class="string">r#&quot;
             Generators:
 
             Zeros:
@@ -1494,7 +1494,7 @@
             <span class="number">0</span>,
             <span class="number">2</span>,
             <span class="number">2</span>,
-            <span class="macro">expect</span><span class="macro">!</span>[[<span class="string">r#&quot;
+            <span class="macro">expect!</span>[[<span class="string">r#&quot;
             Generators:
             [1, 0]
             [0, 1]
@@ -1507,7 +1507,7 @@
             <span class="number">0</span>,
             <span class="number">2</span>,
             <span class="number">3</span>,
-            <span class="macro">expect</span><span class="macro">!</span>[[<span class="string">r#&quot;
+            <span class="macro">expect!</span>[[<span class="string">r#&quot;
             Generators:
 
             Zeros:
@@ -1519,5 +1519,5 @@
     }
 }
 </pre></div>
-</section><section id="search" class="content hidden"></section><section class="footer"></section><div id="rustdoc-vars" data-root-path="../../" data-current-crate="sseq" data-search-js="../../search-index.js"></div>
+</section><section id="search" class="content hidden"></section><div id="rustdoc-vars" data-root-path="../../" data-current-crate="sseq" data-search-index-js="../../search-index.js" data-search-js="../../search.js"></div>
     <script src="../../main.js"></script><script src="../../source-script.js"></script><script src="../../source-files.js"></script></body></html>

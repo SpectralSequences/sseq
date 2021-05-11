@@ -1,8 +1,8 @@
 'use strict';
-importScripts("./ext_webserver_wasm.js");
+importScripts("./rust_webserver_wasm.js");
 
 const { Sseq } = wasm_bindgen;
-const promise = wasm_bindgen("./ext_webserver_wasm_bg.wasm").catch(console.error).then(() => {
+const promise = wasm_bindgen("./rust_webserver_wasm_bg.wasm").catch(console.error).then(() => {
     self.sseq = Sseq.new((m) => self.postMessage(m));
 });
 

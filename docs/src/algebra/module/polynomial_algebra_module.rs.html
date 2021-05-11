@@ -24,8 +24,8 @@
     });
 </script>
 
-<style type="text/css">#crate-search{background-image:url("../../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu" role="button">&#9776;</div><a href='../../../algebra/index.html'><div class='logo-container rust-logo'><img src='../../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu"><img src="../../../brush.svg" width="18" height="18" alt="Pick another theme!"></button><div id="theme-choices" role="menu"></div></div><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><button type="button" class="help-button">?</button>
-                <a id="settings-menu" href="../../../settings.html"><img src="../../../wheel.svg" width="18" height="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">  1</span>
+<style type="text/css">#crate-search{background-image:url("../../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu" role="button">&#9776;</div><a href='../../../algebra/index.html'><div class='logo-container rust-logo'><img src='../../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu"><img src="../../../brush.svg" width="18" height="18" alt="Pick another theme!"></button><div id="theme-choices" role="menu"></div></div><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><button type="button" class="help-button">?</button>
+                <a id="settings-menu" href="../../../settings.html"><img src="../../../wheel.svg" width="18" height="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><div class="example-wrap"><pre class="line-numbers"><span id="1">  1</span>
 <span id="2">  2</span>
 <span id="3">  3</span>
 <span id="4">  4</span>
@@ -656,19 +656,19 @@
 <span id="629">629</span>
 <span id="630">630</span>
 <span id="631">631</span>
-</pre><div class="example-wrap"><pre class="rust ">
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
+</pre><pre class="rust">
+<span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
 
-<span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">vector</span>::{<span class="ident">FpVector</span>, <span class="ident">Slice</span>, <span class="ident">SliceMut</span>};
-<span class="kw">use</span> <span class="ident">once</span>::<span class="ident">OnceVec</span>;
+<span class="kw">use</span> <span class="ident">fp::vector</span>::{<span class="ident">FpVector</span>, <span class="ident">Slice</span>, <span class="ident">SliceMut</span>};
+<span class="kw">use</span> <span class="ident">once::OnceVec</span>;
 
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">algebra</span>::{<span class="ident">AdemAlgebraT</span>, <span class="ident">Algebra</span>};
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">algebra</span>::{<span class="ident">PolynomialAlgebra</span>, <span class="ident">PolynomialAlgebraMonomial</span>};
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">module</span>::<span class="ident">Module</span>;
+<span class="kw">use</span> <span class="kw">crate</span><span class="ident">::algebra</span>::{<span class="ident">AdemAlgebraT</span>, <span class="ident">Algebra</span>};
+<span class="kw">use</span> <span class="kw">crate</span><span class="ident">::algebra</span>::{<span class="ident">PolynomialAlgebra</span>, <span class="ident">PolynomialAlgebraMonomial</span>};
+<span class="kw">use</span> <span class="kw">crate</span><span class="ident">::module::Module</span>;
 
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">PolynomialAlgebraModule</span>: <span class="ident">PolynomialAlgebra</span> {
     <span class="kw">type</span> <span class="ident">Algebra</span>: <span class="ident">AdemAlgebraT</span>;
-    <span class="kw">fn</span> <span class="ident">algebra</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Algebra</span><span class="op">&gt;</span>;
+    <span class="kw">fn</span> <span class="ident">algebra</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="self">Self</span><span class="ident">::Algebra</span><span class="op">&gt;</span>;
 
     <span class="kw">fn</span> <span class="ident">sq_polynomial_generator_to_monomial</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
@@ -705,7 +705,7 @@
     }
 
     <span class="kw">fn</span> <span class="ident">top_truncation</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-        <span class="ident">i32</span>::<span class="ident">max_value</span>()
+        <span class="ident">i32::max_value</span>()
     }
 
     <span class="kw">fn</span> <span class="ident">sq_polynomial_generator_to_polynomial</span>(
@@ -716,7 +716,7 @@
         <span class="ident">input_degree</span>: <span class="ident">i32</span>,
         <span class="ident">input_index</span>: <span class="ident">usize</span>,
     ) {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">temp_monomial</span> <span class="op">=</span> <span class="ident">PolynomialAlgebraMonomial</span>::<span class="ident">new</span>(<span class="self">self</span>.<span class="ident">prime</span>());
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">temp_monomial</span> <span class="op">=</span> <span class="ident">PolynomialAlgebraMonomial::new</span>(<span class="self">self</span>.<span class="ident">prime</span>());
         <span class="kw">let</span> <span class="ident">q</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">algebra</span>().<span class="ident">adem_algebra</span>().<span class="ident">q</span>();
         <span class="ident">temp_monomial</span>.<span class="ident">degree</span> <span class="op">=</span> <span class="ident">q</span> <span class="op">*</span> <span class="ident">sq</span> <span class="op">+</span> <span class="ident">input_degree</span>;
         <span class="ident">temp_monomial</span>.<span class="ident">poly</span>.<span class="ident">extend_len</span>(
@@ -742,7 +742,7 @@
         <span class="ident">input_index</span>: <span class="ident">usize</span>,
     ) {
         <span class="kw">let</span> <span class="ident">q</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">algebra</span>().<span class="ident">adem_algebra</span>().<span class="ident">q</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">temp_monomial</span> <span class="op">=</span> <span class="ident">PolynomialAlgebraMonomial</span>::<span class="ident">new</span>(<span class="self">self</span>.<span class="ident">prime</span>());
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">temp_monomial</span> <span class="op">=</span> <span class="ident">PolynomialAlgebraMonomial::new</span>(<span class="self">self</span>.<span class="ident">prime</span>());
         <span class="ident">temp_monomial</span>.<span class="ident">degree</span> <span class="op">=</span> <span class="ident">q</span> <span class="op">*</span> <span class="ident">sq</span> <span class="op">+</span> <span class="ident">input_degree</span>;
         <span class="ident">temp_monomial</span>.<span class="ident">poly</span>.<span class="ident">extend_len</span>(
             <span class="self">self</span>.<span class="ident">polynomial_monomials</span>()
@@ -765,7 +765,7 @@
         <span class="ident">input_degree</span>: <span class="ident">i32</span>,
         <span class="ident">input_index</span>: <span class="ident">usize</span>,
     ) {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">temp_monomial</span> <span class="op">=</span> <span class="ident">PolynomialAlgebraMonomial</span>::<span class="ident">new</span>(<span class="self">self</span>.<span class="ident">prime</span>());
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">temp_monomial</span> <span class="op">=</span> <span class="ident">PolynomialAlgebraMonomial::new</span>(<span class="self">self</span>.<span class="ident">prime</span>());
         <span class="ident">temp_monomial</span>.<span class="ident">degree</span> <span class="op">=</span> <span class="number">1</span> <span class="op">+</span> <span class="ident">input_degree</span>;
         <span class="ident">temp_monomial</span>.<span class="ident">poly</span>.<span class="ident">extend_len</span>(
             <span class="self">self</span>.<span class="ident">polynomial_monomials</span>()
@@ -792,7 +792,7 @@
         <span class="ident">input_degree</span>: <span class="ident">i32</span>,
         <span class="ident">input_index</span>: <span class="ident">usize</span>,
     ) {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">temp_monomial</span> <span class="op">=</span> <span class="ident">PolynomialAlgebraMonomial</span>::<span class="ident">new</span>(<span class="self">self</span>.<span class="ident">prime</span>());
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">temp_monomial</span> <span class="op">=</span> <span class="ident">PolynomialAlgebraMonomial::new</span>(<span class="self">self</span>.<span class="ident">prime</span>());
         <span class="self">self</span>.<span class="ident">set_monomial_degree</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">temp_monomial</span>, <span class="ident">input_degree</span> <span class="op">+</span> <span class="number">1</span>);
         <span class="self">self</span>.<span class="ident">bockstein_exterior_generator_to_monomial</span>(
             <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">temp_monomial</span>,
@@ -881,14 +881,14 @@
         <span class="kw">let</span> <span class="ident">q</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">algebra</span>().<span class="ident">adem_algebra</span>().<span class="ident">q</span>();
         <span class="comment">// Build action table</span>
         <span class="comment">// degree -&gt; first square -&gt; monomial idx -&gt; result vector</span>
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">term</span> <span class="op">=</span> <span class="ident">FpVector</span>::<span class="ident">new</span>(<span class="ident">p</span>, <span class="number">0</span>);
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">reducer_a</span> <span class="op">=</span> <span class="ident">FpVector</span>::<span class="ident">new</span>(<span class="ident">p</span>, <span class="number">0</span>);
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">reducer_b</span> <span class="op">=</span> <span class="ident">FpVector</span>::<span class="ident">new</span>(<span class="ident">p</span>, <span class="number">0</span>);
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">table</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">with_capacity</span>(<span class="ident">degree</span> <span class="kw">as</span> <span class="ident">usize</span>);
-        <span class="kw">let</span> <span class="ident">dimension</span> <span class="op">=</span> <span class="ident">Algebra</span>::<span class="ident">dimension</span>(<span class="self">self</span>, <span class="ident">degree</span>, <span class="ident">i32</span>::<span class="ident">max_value</span>());
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">sq_table</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">with_capacity</span>(<span class="ident">dimension</span>);
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">term</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="number">0</span>);
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">reducer_a</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="number">0</span>);
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">reducer_b</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="number">0</span>);
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">table</span> <span class="op">=</span> <span class="ident">Vec::with_capacity</span>(<span class="ident">degree</span> <span class="kw">as</span> <span class="ident">usize</span>);
+        <span class="kw">let</span> <span class="ident">dimension</span> <span class="op">=</span> <span class="ident">Algebra::dimension</span>(<span class="self">self</span>, <span class="ident">degree</span>, <span class="ident">i32::max_value</span>());
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">sq_table</span> <span class="op">=</span> <span class="ident">Vec::with_capacity</span>(<span class="ident">dimension</span>);
         <span class="kw">for</span> <span class="ident">basis_idx</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">dimension</span> {
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">FpVector</span>::<span class="ident">new</span>(<span class="ident">p</span>, <span class="ident">dimension</span>);
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="ident">dimension</span>);
             <span class="ident">result</span>.<span class="ident">add_basis_element</span>(<span class="ident">basis_idx</span>, <span class="number">1</span>);
             <span class="ident">sq_table</span>.<span class="ident">push</span>(<span class="ident">result</span>);
         }
@@ -896,8 +896,8 @@
         <span class="kw">for</span> <span class="ident">sq</span> <span class="kw">in</span> <span class="number">1</span>..<span class="op">=</span><span class="ident">degree</span> <span class="op">/</span> <span class="ident">q</span> {
             <span class="comment">// println!(&quot; sq : {}, degree : {}&quot;, sq, degree);</span>
             <span class="kw">let</span> <span class="ident">rest_degree</span> <span class="op">=</span> <span class="ident">degree</span> <span class="op">-</span> <span class="ident">q</span> <span class="op">*</span> <span class="ident">sq</span>;
-            <span class="kw">let</span> <span class="ident">dim</span> <span class="op">=</span> <span class="ident">Algebra</span>::<span class="ident">dimension</span>(<span class="self">self</span>, <span class="ident">rest_degree</span>, <span class="ident">i32</span>::<span class="ident">max_value</span>());
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">sq_table</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">with_capacity</span>(<span class="ident">dim</span>);
+            <span class="kw">let</span> <span class="ident">dim</span> <span class="op">=</span> <span class="ident">Algebra::dimension</span>(<span class="self">self</span>, <span class="ident">rest_degree</span>, <span class="ident">i32::max_value</span>());
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">sq_table</span> <span class="op">=</span> <span class="ident">Vec::with_capacity</span>(<span class="ident">dim</span>);
             <span class="kw">for</span> <span class="ident">basis_idx</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">dim</span> {
                 <span class="kw">let</span> <span class="ident">mono</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">index_to_monomial</span>(<span class="ident">rest_degree</span>, <span class="ident">basis_idx</span>);
                 <span class="kw">let</span> <span class="ident">result</span>;
@@ -922,7 +922,7 @@
                 } <span class="kw">else</span> {
                     <span class="comment">// Mono is the identity element</span>
                     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result_vec</span> <span class="op">=</span>
-                        <span class="ident">FpVector</span>::<span class="ident">new</span>(<span class="ident">p</span>, <span class="ident">Algebra</span>::<span class="ident">dimension</span>(<span class="self">self</span>, <span class="ident">degree</span>, <span class="ident">i32</span>::<span class="ident">max_value</span>()));
+                        <span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="ident">Algebra::dimension</span>(<span class="self">self</span>, <span class="ident">degree</span>, <span class="ident">i32::max_value</span>()));
                     <span class="kw">if</span> <span class="ident">sq</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
                         <span class="ident">result_vec</span>.<span class="ident">set_entry</span>(<span class="number">0</span>, <span class="number">1</span>);
                     }
@@ -939,8 +939,8 @@
             <span class="ident">table</span>.<span class="ident">push</span>(<span class="ident">sq_table</span>);
         }
         <span class="kw">if</span> <span class="ident">degree</span> <span class="op">&gt;</span> <span class="number">0</span> {
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">sq_table</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">with_capacity</span>(<span class="number">1</span>);
-            <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">FpVector</span>::<span class="ident">new</span>(<span class="ident">p</span>, <span class="ident">Algebra</span>::<span class="ident">dimension</span>(<span class="self">self</span>, <span class="ident">degree</span>, <span class="ident">i32</span>::<span class="ident">max_value</span>()));
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">sq_table</span> <span class="op">=</span> <span class="ident">Vec::with_capacity</span>(<span class="number">1</span>);
+            <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="ident">Algebra::dimension</span>(<span class="self">self</span>, <span class="ident">degree</span>, <span class="ident">i32::max_value</span>()));
             <span class="ident">sq_table</span>.<span class="ident">push</span>(<span class="ident">result</span>);
             <span class="ident">table</span>.<span class="ident">push</span>(<span class="ident">sq_table</span>);
         }
@@ -967,14 +967,14 @@
         <span class="self">self</span>.<span class="ident">set_monomial_degree</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">rest_mono</span>, <span class="ident">rest_mono_new_deg</span>);
         <span class="kw">let</span> <span class="ident">result_degree</span> <span class="op">=</span> <span class="ident">mono</span>.<span class="ident">degree</span> <span class="op">+</span> <span class="ident">q</span> <span class="op">*</span> <span class="ident">sq</span>;
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span>
-            <span class="ident">FpVector</span>::<span class="ident">new</span>(<span class="ident">p</span>, <span class="ident">Algebra</span>::<span class="ident">dimension</span>(<span class="self">self</span>, <span class="ident">result_degree</span>, <span class="ident">i32</span>::<span class="ident">max_value</span>()));
+            <span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="ident">Algebra::dimension</span>(<span class="self">self</span>, <span class="ident">result_degree</span>, <span class="ident">i32::max_value</span>()));
         <span class="kw">for</span> <span class="ident">ext_sq</span> <span class="kw">in</span> <span class="number">0</span>..<span class="op">=</span><span class="ident">sq</span> {
             <span class="kw">let</span> <span class="ident">rest_sq</span> <span class="op">=</span> <span class="ident">sq</span> <span class="op">-</span> <span class="ident">ext_sq</span>;
             <span class="kw">let</span> <span class="ident">rest_deg</span> <span class="op">=</span> <span class="ident">rest_mono</span>.<span class="ident">degree</span> <span class="op">+</span> <span class="ident">q</span> <span class="op">*</span> <span class="ident">rest_sq</span>;
-            <span class="ident">reducer_a</span>.<span class="ident">set_scratch_vector_size</span>(<span class="ident">Algebra</span>::<span class="ident">dimension</span>(<span class="self">self</span>, <span class="ident">rest_deg</span>, <span class="ident">i32</span>::<span class="ident">max_value</span>()));
+            <span class="ident">reducer_a</span>.<span class="ident">set_scratch_vector_size</span>(<span class="ident">Algebra::dimension</span>(<span class="self">self</span>, <span class="ident">rest_deg</span>, <span class="ident">i32::max_value</span>()));
             <span class="self">self</span>.<span class="ident">sq_monomial_to_polynomial</span>(<span class="ident">reducer_a</span>.<span class="ident">as_slice_mut</span>(), <span class="number">1</span>, <span class="ident">rest_sq</span>, <span class="kw-2">&amp;</span><span class="ident">rest_mono</span>);
             <span class="kw">let</span> <span class="ident">term_deg</span> <span class="op">=</span> <span class="ident">q</span> <span class="op">*</span> <span class="ident">ext_sq</span> <span class="op">+</span> <span class="ident">gen_deg</span>;
-            <span class="ident">term</span>.<span class="ident">set_scratch_vector_size</span>(<span class="ident">Algebra</span>::<span class="ident">dimension</span>(<span class="self">self</span>, <span class="ident">term_deg</span>, <span class="ident">i32</span>::<span class="ident">max_value</span>()));
+            <span class="ident">term</span>.<span class="ident">set_scratch_vector_size</span>(<span class="ident">Algebra::dimension</span>(<span class="self">self</span>, <span class="ident">term_deg</span>, <span class="ident">i32::max_value</span>()));
             <span class="self">self</span>.<span class="ident">sq_exterior_generator_to_polynomial</span>(
                 <span class="ident">term</span>.<span class="ident">as_slice_mut</span>(),
                 <span class="number">1</span>,
@@ -982,17 +982,17 @@
                 <span class="ident">gen_deg</span>,
                 <span class="ident">gen_idx</span>,
             );
-            <span class="ident">reducer_b</span>.<span class="ident">set_scratch_vector_size</span>(<span class="ident">Algebra</span>::<span class="ident">dimension</span>(
+            <span class="ident">reducer_b</span>.<span class="ident">set_scratch_vector_size</span>(<span class="ident">Algebra::dimension</span>(
                 <span class="self">self</span>,
                 <span class="ident">rest_deg</span> <span class="op">+</span> <span class="ident">term_deg</span>,
-                <span class="ident">i32</span>::<span class="ident">max_value</span>(),
+                <span class="ident">i32::max_value</span>(),
             ));
             <span class="self">self</span>.<span class="ident">multiply_polynomials</span>(<span class="ident">reducer_b</span>, <span class="number">1</span>, <span class="ident">term_deg</span>, <span class="ident">term</span>, <span class="ident">rest_deg</span>, <span class="ident">reducer_a</span>);
-            <span class="ident">std</span>::<span class="ident">mem</span>::<span class="ident">swap</span>(<span class="ident">reducer_a</span>, <span class="ident">reducer_b</span>);
-            <span class="ident">reducer_a</span>.<span class="ident">set_scratch_vector_size</span>(<span class="ident">Algebra</span>::<span class="ident">dimension</span>(
+            <span class="ident">std::mem::swap</span>(<span class="ident">reducer_a</span>, <span class="ident">reducer_b</span>);
+            <span class="ident">reducer_a</span>.<span class="ident">set_scratch_vector_size</span>(<span class="ident">Algebra::dimension</span>(
                 <span class="self">self</span>,
                 <span class="ident">result_degree</span>,
-                <span class="ident">i32</span>::<span class="ident">max_value</span>(),
+                <span class="ident">i32::max_value</span>(),
             ));
             <span class="ident">result</span>.<span class="ident">add</span>(<span class="ident">reducer_a</span>, <span class="number">1</span>);
         }
@@ -1020,14 +1020,14 @@
         <span class="self">self</span>.<span class="ident">set_monomial_degree</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">rest_mono</span>, <span class="ident">rest_mono_new_deg</span>);
         <span class="kw">let</span> <span class="ident">result_degree</span> <span class="op">=</span> <span class="ident">mono</span>.<span class="ident">degree</span> <span class="op">+</span> <span class="ident">q</span> <span class="op">*</span> <span class="ident">sq</span>;
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span>
-            <span class="ident">FpVector</span>::<span class="ident">new</span>(<span class="ident">p</span>, <span class="ident">Algebra</span>::<span class="ident">dimension</span>(<span class="self">self</span>, <span class="ident">result_degree</span>, <span class="ident">i32</span>::<span class="ident">max_value</span>()));
+            <span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="ident">Algebra::dimension</span>(<span class="self">self</span>, <span class="ident">result_degree</span>, <span class="ident">i32::max_value</span>()));
         <span class="kw">for</span> <span class="ident">poly_sq</span> <span class="kw">in</span> <span class="number">0</span>..<span class="op">=</span><span class="ident">sq</span> {
             <span class="kw">let</span> <span class="ident">rest_sq</span> <span class="op">=</span> <span class="ident">sq</span> <span class="op">-</span> <span class="ident">poly_sq</span>;
             <span class="kw">let</span> <span class="ident">rest_deg</span> <span class="op">=</span> <span class="ident">rest_mono</span>.<span class="ident">degree</span> <span class="op">+</span> <span class="ident">q</span> <span class="op">*</span> <span class="ident">rest_sq</span>;
-            <span class="ident">reducer_a</span>.<span class="ident">set_scratch_vector_size</span>(<span class="ident">Algebra</span>::<span class="ident">dimension</span>(<span class="self">self</span>, <span class="ident">rest_deg</span>, <span class="ident">i32</span>::<span class="ident">max_value</span>()));
+            <span class="ident">reducer_a</span>.<span class="ident">set_scratch_vector_size</span>(<span class="ident">Algebra::dimension</span>(<span class="self">self</span>, <span class="ident">rest_deg</span>, <span class="ident">i32::max_value</span>()));
             <span class="self">self</span>.<span class="ident">sq_monomial_to_polynomial</span>(<span class="ident">reducer_a</span>.<span class="ident">as_slice_mut</span>(), <span class="number">1</span>, <span class="ident">rest_sq</span>, <span class="kw-2">&amp;</span><span class="ident">rest_mono</span>);
             <span class="kw">let</span> <span class="ident">term_deg</span> <span class="op">=</span> <span class="ident">q</span> <span class="op">*</span> <span class="ident">poly_sq</span> <span class="op">+</span> <span class="ident">gen_deg</span>;
-            <span class="ident">term</span>.<span class="ident">set_scratch_vector_size</span>(<span class="ident">Algebra</span>::<span class="ident">dimension</span>(<span class="self">self</span>, <span class="ident">term_deg</span>, <span class="ident">i32</span>::<span class="ident">max_value</span>()));
+            <span class="ident">term</span>.<span class="ident">set_scratch_vector_size</span>(<span class="ident">Algebra::dimension</span>(<span class="self">self</span>, <span class="ident">term_deg</span>, <span class="ident">i32::max_value</span>()));
             <span class="self">self</span>.<span class="ident">sq_polynomial_generator_to_polynomial</span>(
                 <span class="ident">term</span>.<span class="ident">as_slice_mut</span>(),
                 <span class="number">1</span>,
@@ -1035,17 +1035,17 @@
                 <span class="ident">gen_deg</span>,
                 <span class="ident">gen_idx</span>,
             );
-            <span class="ident">reducer_b</span>.<span class="ident">set_scratch_vector_size</span>(<span class="ident">Algebra</span>::<span class="ident">dimension</span>(
+            <span class="ident">reducer_b</span>.<span class="ident">set_scratch_vector_size</span>(<span class="ident">Algebra::dimension</span>(
                 <span class="self">self</span>,
                 <span class="ident">rest_deg</span> <span class="op">+</span> <span class="ident">term_deg</span>,
-                <span class="ident">i32</span>::<span class="ident">max_value</span>(),
+                <span class="ident">i32::max_value</span>(),
             ));
             <span class="self">self</span>.<span class="ident">multiply_polynomials</span>(<span class="ident">reducer_b</span>, <span class="number">1</span>, <span class="ident">rest_deg</span>, <span class="ident">reducer_a</span>, <span class="ident">term_deg</span>, <span class="ident">term</span>);
-            <span class="ident">std</span>::<span class="ident">mem</span>::<span class="ident">swap</span>(<span class="ident">reducer_a</span>, <span class="ident">reducer_b</span>);
-            <span class="ident">reducer_a</span>.<span class="ident">set_scratch_vector_size</span>(<span class="ident">Algebra</span>::<span class="ident">dimension</span>(
+            <span class="ident">std::mem::swap</span>(<span class="ident">reducer_a</span>, <span class="ident">reducer_b</span>);
+            <span class="ident">reducer_a</span>.<span class="ident">set_scratch_vector_size</span>(<span class="ident">Algebra::dimension</span>(
                 <span class="self">self</span>,
                 <span class="ident">result_degree</span>,
-                <span class="ident">i32</span>::<span class="ident">max_value</span>(),
+                <span class="ident">i32::max_value</span>(),
             ));
             <span class="ident">result</span>.<span class="ident">add</span>(<span class="ident">reducer_a</span>, <span class="number">1</span>);
         }
@@ -1055,23 +1055,23 @@
     <span class="kw">fn</span> <span class="ident">compute_bockstein_table</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) {
         <span class="kw">if</span> <span class="ident">degree</span> <span class="op">=</span><span class="op">=</span> <span class="number">1</span> {
             <span class="self">self</span>.<span class="ident">bockstein_table</span>()
-                .<span class="ident">push</span>(<span class="macro">vec</span><span class="macro">!</span>[<span class="ident">FpVector</span>::<span class="ident">new</span>(<span class="self">self</span>.<span class="ident">prime</span>(), <span class="number">1</span>)]);
+                .<span class="ident">push</span>(<span class="macro">vec!</span>[<span class="ident">FpVector::new</span>(<span class="self">self</span>.<span class="ident">prime</span>(), <span class="number">1</span>)]);
             <span class="kw">return</span>;
         }
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prime</span>();
         <span class="comment">// Build action table</span>
         <span class="comment">// degree -&gt; monomial idx -&gt; result vector</span>
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">term</span> <span class="op">=</span> <span class="ident">FpVector</span>::<span class="ident">new</span>(<span class="ident">p</span>, <span class="number">0</span>);
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">term</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="number">0</span>);
         <span class="kw">let</span> <span class="ident">rest_degree</span> <span class="op">=</span> <span class="ident">degree</span> <span class="op">-</span> <span class="number">1</span>;
-        <span class="kw">let</span> <span class="ident">dim</span> <span class="op">=</span> <span class="ident">Algebra</span>::<span class="ident">dimension</span>(<span class="self">self</span>, <span class="ident">rest_degree</span>, <span class="ident">i32</span>::<span class="ident">max_value</span>());
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">table</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">with_capacity</span>(<span class="ident">dim</span>);
+        <span class="kw">let</span> <span class="ident">dim</span> <span class="op">=</span> <span class="ident">Algebra::dimension</span>(<span class="self">self</span>, <span class="ident">rest_degree</span>, <span class="ident">i32::max_value</span>());
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">table</span> <span class="op">=</span> <span class="ident">Vec::with_capacity</span>(<span class="ident">dim</span>);
         <span class="comment">// println!(&quot;degree : {}&quot;, degree);</span>
         <span class="kw">for</span> <span class="ident">basis_idx</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">dim</span> {
             <span class="comment">// println!(&quot;   b({}) == ?&quot;, Module::basis_element_to_string(self, rest_degree, basis_idx));</span>
             <span class="kw">let</span> <span class="ident">mono</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">index_to_monomial</span>(<span class="ident">rest_degree</span>, <span class="ident">basis_idx</span>);
             <span class="comment">// println!(&quot;   mono : {}&quot;, mono);</span>
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">rest_mono</span> <span class="op">=</span> <span class="ident">mono</span>.<span class="ident">clone</span>();
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">FpVector</span>::<span class="ident">new</span>(<span class="ident">p</span>, <span class="ident">Algebra</span>::<span class="ident">dimension</span>(<span class="self">self</span>, <span class="ident">degree</span>, <span class="ident">i32</span>::<span class="ident">max_value</span>()));
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="ident">Algebra::dimension</span>(<span class="self">self</span>, <span class="ident">degree</span>, <span class="ident">i32::max_value</span>()));
             <span class="kw">let</span> <span class="ident">used_ext_generator</span>;
             <span class="kw">let</span> <span class="ident">gen_deg</span>;
             <span class="kw">let</span> <span class="ident">gen_int_idx</span>;
@@ -1098,12 +1098,12 @@
                 <span class="ident">coeff</span> <span class="op">=</span> <span class="number">1</span>;
                 <span class="ident">rest_mono</span>.<span class="ident">poly</span>.<span class="ident">set_entry</span>(<span class="ident">gen_int_idx</span>, <span class="ident">gen_exp</span> <span class="op">-</span> <span class="number">1</span>);
             } <span class="kw">else</span> {
-                <span class="macro">unreachable</span><span class="macro">!</span>();
+                <span class="macro">unreachable!</span>();
             }
             <span class="kw">let</span> <span class="ident">rest_mono_new_deg</span> <span class="op">=</span> <span class="ident">rest_mono</span>.<span class="ident">degree</span> <span class="op">-</span> <span class="ident">gen_deg</span>;
             <span class="self">self</span>.<span class="ident">set_monomial_degree</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">rest_mono</span>, <span class="ident">rest_mono_new_deg</span>);
             <span class="comment">// result += (b x) * rest</span>
-            <span class="ident">term</span>.<span class="ident">set_scratch_vector_size</span>(<span class="ident">Algebra</span>::<span class="ident">dimension</span>(<span class="self">self</span>, <span class="ident">gen_deg</span> <span class="op">+</span> <span class="number">1</span>, <span class="ident">i32</span>::<span class="ident">max_value</span>()));
+            <span class="ident">term</span>.<span class="ident">set_scratch_vector_size</span>(<span class="ident">Algebra::dimension</span>(<span class="self">self</span>, <span class="ident">gen_deg</span> <span class="op">+</span> <span class="number">1</span>, <span class="ident">i32::max_value</span>()));
             <span class="kw">if</span> <span class="ident">used_ext_generator</span> {
                 <span class="self">self</span>.<span class="ident">bockstein_exterior_generator_to_polynomial</span>(
                     <span class="ident">term</span>.<span class="ident">as_slice_mut</span>(),
@@ -1133,7 +1133,7 @@
             <span class="comment">// result += x * (b rest)</span>
             <span class="comment">// First get &quot;b rest&quot; into &quot;term&quot;</span>
             <span class="kw">let</span> <span class="ident">brest_degree</span> <span class="op">=</span> <span class="ident">rest_mono</span>.<span class="ident">degree</span> <span class="op">+</span> <span class="number">1</span>;
-            <span class="ident">term</span>.<span class="ident">set_scratch_vector_size</span>(<span class="ident">Algebra</span>::<span class="ident">dimension</span>(<span class="self">self</span>, <span class="ident">brest_degree</span>, <span class="ident">i32</span>::<span class="ident">max_value</span>()));
+            <span class="ident">term</span>.<span class="ident">set_scratch_vector_size</span>(<span class="ident">Algebra::dimension</span>(<span class="self">self</span>, <span class="ident">brest_degree</span>, <span class="ident">i32::max_value</span>()));
             <span class="self">self</span>.<span class="ident">bockstein_monomial_to_polynomial</span>(<span class="ident">term</span>.<span class="ident">as_slice_mut</span>(), <span class="number">1</span>, <span class="kw-2">&amp;</span><span class="ident">rest_mono</span>);
             <span class="comment">// Now get &quot;x&quot; into &quot;rest_mono&quot;</span>
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">x_mono</span> <span class="op">=</span> <span class="ident">rest_mono</span>;
@@ -1158,8 +1158,8 @@
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">Adem</span>: <span class="ident">AdemAlgebraT</span>, <span class="ident">A</span>: <span class="ident">PolynomialAlgebraModule</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">Adem</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span><span class="op">&gt;</span> <span class="ident">Module</span> <span class="kw">for</span> <span class="ident">A</span> {
     <span class="kw">type</span> <span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">Adem</span>;
-    <span class="kw">fn</span> <span class="ident">algebra</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Algebra</span><span class="op">&gt;</span> {
-        <span class="ident">PolynomialAlgebraModule</span>::<span class="ident">algebra</span>(<span class="self">self</span>)
+    <span class="kw">fn</span> <span class="ident">algebra</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="self">Self</span><span class="ident">::Algebra</span><span class="op">&gt;</span> {
+        <span class="ident">PolynomialAlgebraModule::algebra</span>(<span class="self">self</span>)
     }
 
     <span class="kw">fn</span> <span class="ident">min_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
@@ -1179,9 +1179,9 @@
     }
 
     <span class="kw">fn</span> <span class="ident">compute_basis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) {
-        <span class="kw">let</span> <span class="ident">prev_max</span> <span class="op">=</span> <span class="ident">Module</span>::<span class="ident">max_computed_degree</span>(<span class="self">self</span>);
+        <span class="kw">let</span> <span class="ident">prev_max</span> <span class="op">=</span> <span class="ident">Module::max_computed_degree</span>(<span class="self">self</span>);
         <span class="self">self</span>.<span class="ident">algebra</span>().<span class="ident">compute_basis</span>(<span class="ident">degree</span>);
-        <span class="ident">Algebra</span>::<span class="ident">compute_basis</span>(<span class="self">self</span>, <span class="ident">degree</span>);
+        <span class="ident">Algebra::compute_basis</span>(<span class="self">self</span>, <span class="ident">degree</span>);
         <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="ident">prev_max</span> <span class="op">+</span> <span class="number">1</span>..<span class="op">=</span><span class="ident">degree</span> {
             <span class="self">self</span>.<span class="ident">compute_action_table</span>(<span class="ident">i</span>);
             <span class="kw">if</span> <span class="self">self</span>.<span class="ident">algebra</span>().<span class="ident">adem_algebra</span>().<span class="ident">generic</span> {
@@ -1191,7 +1191,7 @@
     }
 
     <span class="kw">fn</span> <span class="ident">basis_element_to_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">index</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">String</span> {
-        <span class="ident">Algebra</span>::<span class="ident">basis_element_to_string</span>(<span class="self">self</span>, <span class="ident">degree</span>, <span class="ident">index</span>)
+        <span class="ident">Algebra::basis_element_to_string</span>(<span class="self">self</span>, <span class="ident">degree</span>, <span class="ident">index</span>)
     }
 
     <span class="kw">fn</span> <span class="ident">act_on_basis</span>(
@@ -1203,9 +1203,9 @@
         <span class="ident">input_degree</span>: <span class="ident">i32</span>,
         <span class="ident">input_index</span>: <span class="ident">usize</span>,
     ) {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">input_vec</span> <span class="op">=</span> <span class="ident">FpVector</span>::<span class="ident">new</span>(
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">input_vec</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(
             <span class="self">self</span>.<span class="ident">prime</span>(),
-            <span class="ident">Algebra</span>::<span class="ident">dimension</span>(<span class="self">self</span>, <span class="ident">input_degree</span>, <span class="ident">i32</span>::<span class="ident">max_value</span>()),
+            <span class="ident">Algebra::dimension</span>(<span class="self">self</span>, <span class="ident">input_degree</span>, <span class="ident">i32::max_value</span>()),
         );
         <span class="ident">input_vec</span>.<span class="ident">set_entry</span>(<span class="ident">input_index</span>, <span class="number">1</span>);
         <span class="self">self</span>.<span class="ident">act</span>(
@@ -1227,7 +1227,7 @@
         <span class="ident">input_degree</span>: <span class="ident">i32</span>,
         <span class="ident">input</span>: <span class="ident">Slice</span>,
     ) {
-        <span class="macro">debug_assert</span><span class="macro">!</span>(<span class="ident">result</span>.<span class="ident">as_slice</span>().<span class="ident">len</span>() <span class="op">=</span><span class="op">=</span> <span class="ident">Module</span>::<span class="ident">dimension</span>(<span class="self">self</span>, <span class="ident">op_degree</span> <span class="op">+</span> <span class="ident">input_degree</span>));
+        <span class="macro">debug_assert!</span>(<span class="ident">result</span>.<span class="ident">as_slice</span>().<span class="ident">len</span>() <span class="op">=</span><span class="op">=</span> <span class="ident">Module::dimension</span>(<span class="self">self</span>, <span class="ident">op_degree</span> <span class="op">+</span> <span class="ident">input_degree</span>));
         <span class="kw">let</span> <span class="ident">algebra_outer</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">algebra</span>();
         <span class="kw">let</span> <span class="ident">algebra</span> <span class="op">=</span> <span class="ident">algebra_outer</span>.<span class="ident">adem_algebra</span>();
         <span class="kw">let</span> <span class="ident">q</span> <span class="op">=</span> <span class="ident">algebra</span>.<span class="ident">q</span>();
@@ -1235,13 +1235,13 @@
         <span class="kw">let</span> <span class="ident">ps_len</span> <span class="op">=</span> <span class="ident">op</span>.<span class="ident">ps</span>.<span class="ident">len</span>();
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">cur_deg</span> <span class="op">=</span> <span class="ident">input_degree</span>;
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">source_vec</span> <span class="op">=</span> <span class="ident">input</span>.<span class="ident">to_owned</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">target_vec</span> <span class="op">=</span> <span class="ident">FpVector</span>::<span class="ident">new</span>(<span class="self">self</span>.<span class="ident">prime</span>(), <span class="number">0</span>);
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">target_vec</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="self">self</span>.<span class="ident">prime</span>(), <span class="number">0</span>);
         <span class="kw">if</span> (<span class="ident">op</span>.<span class="ident">bocksteins</span> <span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">ps_len</span>) <span class="op">&amp;</span> <span class="number">1</span> <span class="op">=</span><span class="op">=</span> <span class="number">1</span> {
             <span class="kw">let</span> <span class="ident">op_deg</span> <span class="op">=</span> <span class="number">1</span>;
-            <span class="ident">target_vec</span>.<span class="ident">set_scratch_vector_size</span>(<span class="ident">Algebra</span>::<span class="ident">dimension</span>(
+            <span class="ident">target_vec</span>.<span class="ident">set_scratch_vector_size</span>(<span class="ident">Algebra::dimension</span>(
                 <span class="self">self</span>,
                 <span class="ident">cur_deg</span> <span class="op">+</span> <span class="ident">op_deg</span>,
-                <span class="ident">i32</span>::<span class="ident">max_value</span>(),
+                <span class="ident">i32::max_value</span>(),
             ));
             <span class="self">self</span>.<span class="ident">bockstein_polynomial_to_polynomial</span>(
                 <span class="ident">target_vec</span>.<span class="ident">as_slice_mut</span>(),
@@ -1250,14 +1250,14 @@
                 <span class="ident">source_vec</span>.<span class="ident">as_slice</span>(),
             );
             <span class="ident">cur_deg</span> <span class="op">+</span><span class="op">=</span> <span class="ident">op_deg</span>;
-            <span class="ident">std</span>::<span class="ident">mem</span>::<span class="ident">swap</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">source_vec</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">target_vec</span>);
+            <span class="ident">std::mem::swap</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">source_vec</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">target_vec</span>);
         }
         <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> (<span class="number">0</span>..<span class="ident">ps_len</span>).<span class="ident">rev</span>() {
             <span class="kw">let</span> <span class="ident">op_deg</span> <span class="op">=</span> <span class="ident">op</span>.<span class="ident">ps</span>[<span class="ident">i</span>] <span class="kw">as</span> <span class="ident">i32</span> <span class="op">*</span> <span class="ident">q</span>;
-            <span class="ident">target_vec</span>.<span class="ident">set_scratch_vector_size</span>(<span class="ident">Algebra</span>::<span class="ident">dimension</span>(
+            <span class="ident">target_vec</span>.<span class="ident">set_scratch_vector_size</span>(<span class="ident">Algebra::dimension</span>(
                 <span class="self">self</span>,
                 <span class="ident">cur_deg</span> <span class="op">+</span> <span class="ident">op_deg</span>,
-                <span class="ident">i32</span>::<span class="ident">max_value</span>(),
+                <span class="ident">i32::max_value</span>(),
             ));
             <span class="self">self</span>.<span class="ident">sq_polynomial_to_polynomial</span>(
                 <span class="ident">target_vec</span>.<span class="ident">as_slice_mut</span>(),
@@ -1267,13 +1267,13 @@
                 <span class="ident">source_vec</span>.<span class="ident">as_slice</span>(),
             );
             <span class="ident">cur_deg</span> <span class="op">+</span><span class="op">=</span> <span class="ident">op_deg</span>;
-            <span class="ident">std</span>::<span class="ident">mem</span>::<span class="ident">swap</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">source_vec</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">target_vec</span>);
+            <span class="ident">std::mem::swap</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">source_vec</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">target_vec</span>);
             <span class="kw">if</span> (<span class="ident">op</span>.<span class="ident">bocksteins</span> <span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">i</span>) <span class="op">&amp;</span> <span class="number">1</span> <span class="op">=</span><span class="op">=</span> <span class="number">1</span> {
                 <span class="kw">let</span> <span class="ident">op_deg</span> <span class="op">=</span> <span class="number">1</span>;
-                <span class="ident">target_vec</span>.<span class="ident">set_scratch_vector_size</span>(<span class="ident">Algebra</span>::<span class="ident">dimension</span>(
+                <span class="ident">target_vec</span>.<span class="ident">set_scratch_vector_size</span>(<span class="ident">Algebra::dimension</span>(
                     <span class="self">self</span>,
                     <span class="ident">cur_deg</span> <span class="op">+</span> <span class="ident">op_deg</span>,
-                    <span class="ident">i32</span>::<span class="ident">max_value</span>(),
+                    <span class="ident">i32::max_value</span>(),
                 ));
                 <span class="self">self</span>.<span class="ident">bockstein_polynomial_to_polynomial</span>(
                     <span class="ident">target_vec</span>.<span class="ident">as_slice_mut</span>(),
@@ -1282,12 +1282,12 @@
                     <span class="ident">source_vec</span>.<span class="ident">as_slice</span>(),
                 );
                 <span class="ident">cur_deg</span> <span class="op">+</span><span class="op">=</span> <span class="ident">op_deg</span>;
-                <span class="ident">std</span>::<span class="ident">mem</span>::<span class="ident">swap</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">source_vec</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">target_vec</span>);
+                <span class="ident">std::mem::swap</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">source_vec</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">target_vec</span>);
             }
         }
         <span class="ident">result</span>.<span class="ident">add</span>(<span class="ident">source_vec</span>.<span class="ident">as_slice</span>(), <span class="ident">coeff</span>);
     }
 }
 </pre></div>
-</section><section id="search" class="content hidden"></section><section class="footer"></section><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="algebra" data-search-js="../../../search-index.js"></div>
+</section><section id="search" class="content hidden"></section><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="algebra" data-search-index-js="../../../search-index.js" data-search-js="../../../search.js"></div>
     <script src="../../../main.js"></script><script src="../../../source-script.js"></script><script src="../../../source-files.js"></script></body></html>

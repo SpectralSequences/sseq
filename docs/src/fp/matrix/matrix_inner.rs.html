@@ -24,8 +24,8 @@
     });
 </script>
 
-<style type="text/css">#crate-search{background-image:url("../../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu" role="button">&#9776;</div><a href='../../../fp/index.html'><div class='logo-container rust-logo'><img src='../../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu"><img src="../../../brush.svg" width="18" height="18" alt="Pick another theme!"></button><div id="theme-choices" role="menu"></div></div><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><button type="button" class="help-button">?</button>
-                <a id="settings-menu" href="../../../settings.html"><img src="../../../wheel.svg" width="18" height="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">   1</span>
+<style type="text/css">#crate-search{background-image:url("../../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu" role="button">&#9776;</div><a href='../../../fp/index.html'><div class='logo-container rust-logo'><img src='../../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu"><img src="../../../brush.svg" width="18" height="18" alt="Pick another theme!"></button><div id="theme-choices" role="menu"></div></div><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><button type="button" class="help-button">?</button>
+                <a id="settings-menu" href="../../../settings.html"><img src="../../../wheel.svg" width="18" height="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><div class="example-wrap"><pre class="line-numbers"><span id="1">   1</span>
 <span id="2">   2</span>
 <span id="3">   3</span>
 <span id="4">   4</span>
@@ -1219,14 +1219,14 @@
 <span id="1192">1192</span>
 <span id="1193">1193</span>
 <span id="1194">1194</span>
-</pre><div class="example-wrap"><pre class="rust ">
+</pre><pre class="rust">
 <span class="kw">use</span> <span class="kw">super</span>::{<span class="ident">QuasiInverse</span>, <span class="ident">Subspace</span>};
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">matrix</span>::<span class="ident">m4ri</span>::<span class="ident">M4riTable</span>;
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">prime</span>::{<span class="self">self</span>, <span class="ident">ValidPrime</span>};
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">vector</span>::{<span class="ident">FpVector</span>, <span class="ident">Slice</span>, <span class="ident">SliceMut</span>};
+<span class="kw">use</span> <span class="kw">crate</span><span class="ident">::matrix::m4ri::M4riTable</span>;
+<span class="kw">use</span> <span class="kw">crate</span><span class="ident">::prime</span>::{<span class="self">self</span>, <span class="ident">ValidPrime</span>};
+<span class="kw">use</span> <span class="kw">crate</span><span class="ident">::vector</span>::{<span class="ident">FpVector</span>, <span class="ident">Slice</span>, <span class="ident">SliceMut</span>};
 
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">fmt</span>;
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">ops</span>::{<span class="ident">Index</span>, <span class="ident">IndexMut</span>};
+<span class="kw">use</span> <span class="ident">std::fmt</span>;
+<span class="kw">use</span> <span class="ident">std::ops</span>::{<span class="ident">Index</span>, <span class="ident">IndexMut</span>};
 
 <span class="doccomment">/// A matrix! In particular, a matrix with values in F_p. The way we store matrices means it is</span>
 <span class="doccomment">/// easier to perform row operations than column operations, and the way we use matrices means we</span>
@@ -1258,15 +1258,15 @@
     <span class="doccomment">/// Produces a new matrix over F_p with the specified number of rows and columns, initialized</span>
     <span class="doccomment">/// to the 0 matrix.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>, <span class="ident">rows</span>: <span class="ident">usize</span>, <span class="ident">columns</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Matrix</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">vectors</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">FpVector</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">with_capacity</span>(<span class="ident">rows</span>);
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">vectors</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">FpVector</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Vec::with_capacity</span>(<span class="ident">rows</span>);
         <span class="kw">for</span> <span class="kw">_</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">rows</span> {
-            <span class="ident">vectors</span>.<span class="ident">push</span>(<span class="ident">FpVector</span>::<span class="ident">new</span>(<span class="ident">p</span>, <span class="ident">columns</span>));
+            <span class="ident">vectors</span>.<span class="ident">push</span>(<span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="ident">columns</span>));
         }
         <span class="ident">Matrix</span> {
             <span class="ident">p</span>,
             <span class="ident">columns</span>,
             <span class="ident">vectors</span>,
-            <span class="ident">pivots</span>: <span class="ident">Vec</span>::<span class="ident">new</span>(),
+            <span class="ident">pivots</span>: <span class="ident">Vec::new</span>(),
         }
     }
 
@@ -1277,15 +1277,15 @@
         <span class="ident">rows_capacity</span>: <span class="ident">usize</span>,
         <span class="ident">columns_capacity</span>: <span class="ident">usize</span>,
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Matrix</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">vectors</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">FpVector</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">with_capacity</span>(<span class="ident">rows_capacity</span>);
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">vectors</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">FpVector</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Vec::with_capacity</span>(<span class="ident">rows_capacity</span>);
         <span class="kw">for</span> <span class="kw">_</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">rows</span> {
-            <span class="ident">vectors</span>.<span class="ident">push</span>(<span class="ident">FpVector</span>::<span class="ident">new_with_capacity</span>(<span class="ident">p</span>, <span class="ident">columns</span>, <span class="ident">columns_capacity</span>));
+            <span class="ident">vectors</span>.<span class="ident">push</span>(<span class="ident">FpVector::new_with_capacity</span>(<span class="ident">p</span>, <span class="ident">columns</span>, <span class="ident">columns_capacity</span>));
         }
         <span class="ident">Matrix</span> {
             <span class="ident">p</span>,
             <span class="ident">columns</span>,
             <span class="ident">vectors</span>,
-            <span class="ident">pivots</span>: <span class="ident">Vec</span>::<span class="ident">new</span>(),
+            <span class="ident">pivots</span>: <span class="ident">Vec::new</span>(),
         }
     }
 }
@@ -1322,14 +1322,14 @@
     <span class="doccomment">/// Produces a matrix from a list of rows.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_rows</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>, <span class="ident">vectors</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">FpVector</span><span class="op">&gt;</span>, <span class="ident">columns</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="kw">for</span> <span class="ident">row</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="ident">vectors</span> {
-            <span class="macro">debug_assert_eq</span><span class="macro">!</span>(<span class="ident">row</span>.<span class="ident">len</span>(), <span class="ident">columns</span>);
+            <span class="macro">debug_assert_eq!</span>(<span class="ident">row</span>.<span class="ident">len</span>(), <span class="ident">columns</span>);
         }
 
         <span class="ident">Matrix</span> {
             <span class="ident">p</span>,
             <span class="ident">columns</span>,
             <span class="ident">vectors</span>,
-            <span class="ident">pivots</span>: <span class="ident">Vec</span>::<span class="ident">new</span>(),
+            <span class="ident">pivots</span>: <span class="ident">Vec::new</span>(),
         }
     }
 
@@ -1349,18 +1349,18 @@
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_vec</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>, <span class="ident">input</span>: <span class="kw-2">&amp;</span>[<span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Matrix</span> {
         <span class="kw">let</span> <span class="ident">rows</span> <span class="op">=</span> <span class="ident">input</span>.<span class="ident">len</span>();
         <span class="kw">if</span> <span class="ident">rows</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
-            <span class="kw">return</span> <span class="ident">Matrix</span>::<span class="ident">new</span>(<span class="ident">p</span>, <span class="number">0</span>, <span class="number">0</span>);
+            <span class="kw">return</span> <span class="ident">Matrix::new</span>(<span class="ident">p</span>, <span class="number">0</span>, <span class="number">0</span>);
         }
         <span class="kw">let</span> <span class="ident">columns</span> <span class="op">=</span> <span class="ident">input</span>[<span class="number">0</span>].<span class="ident">len</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">vectors</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">with_capacity</span>(<span class="ident">rows</span>);
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">vectors</span> <span class="op">=</span> <span class="ident">Vec::with_capacity</span>(<span class="ident">rows</span>);
         <span class="kw">for</span> <span class="ident">row</span> <span class="kw">in</span> <span class="ident">input</span> {
-            <span class="ident">vectors</span>.<span class="ident">push</span>(<span class="ident">FpVector</span>::<span class="ident">from_slice</span>(<span class="ident">p</span>, <span class="kw-2">&amp;</span><span class="ident">row</span>));
+            <span class="ident">vectors</span>.<span class="ident">push</span>(<span class="ident">FpVector::from_slice</span>(<span class="ident">p</span>, <span class="kw-2">&amp;</span><span class="ident">row</span>));
         }
-        <span class="ident">Matrix</span>::<span class="ident">from_rows</span>(<span class="ident">p</span>, <span class="ident">vectors</span>, <span class="ident">columns</span>)
+        <span class="ident">Matrix::from_rows</span>(<span class="ident">p</span>, <span class="ident">vectors</span>, <span class="ident">columns</span>)
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">to_vec</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">with_capacity</span>(<span class="self">self</span>.<span class="ident">columns</span>());
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">Vec::with_capacity</span>(<span class="self">self</span>.<span class="ident">columns</span>());
         <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="self">self</span>.<span class="ident">rows</span>() {
             <span class="ident">result</span>.<span class="ident">push</span>((<span class="kw-2">&amp;</span><span class="self">self</span>[<span class="ident">i</span>]).<span class="ident">into</span>());
         }
@@ -1385,8 +1385,8 @@
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">augmented_from_vec</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>, <span class="ident">input</span>: <span class="kw-2">&amp;</span>[<span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span>]) <span class="op">-</span><span class="op">&gt;</span> (<span class="ident">usize</span>, <span class="ident">Matrix</span>) {
         <span class="kw">let</span> <span class="ident">rows</span> <span class="op">=</span> <span class="ident">input</span>.<span class="ident">len</span>();
         <span class="kw">let</span> <span class="ident">cols</span> <span class="op">=</span> <span class="ident">input</span>[<span class="number">0</span>].<span class="ident">len</span>();
-        <span class="kw">let</span> <span class="ident">padded_cols</span> <span class="op">=</span> <span class="ident">FpVector</span>::<span class="ident">padded_len</span>(<span class="ident">p</span>, <span class="ident">cols</span>);
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">m</span> <span class="op">=</span> <span class="ident">Matrix</span>::<span class="ident">new</span>(<span class="ident">p</span>, <span class="ident">rows</span>, <span class="ident">padded_cols</span> <span class="op">+</span> <span class="ident">rows</span>);
+        <span class="kw">let</span> <span class="ident">padded_cols</span> <span class="op">=</span> <span class="ident">FpVector::padded_len</span>(<span class="ident">p</span>, <span class="ident">cols</span>);
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">m</span> <span class="op">=</span> <span class="ident">Matrix::new</span>(<span class="ident">p</span>, <span class="ident">rows</span>, <span class="ident">padded_cols</span> <span class="op">+</span> <span class="ident">rows</span>);
 
         <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">rows</span> {
             <span class="kw">for</span> <span class="ident">j</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">cols</span> {
@@ -1399,7 +1399,7 @@
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">is_zero</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
-        <span class="self">self</span>.<span class="ident">vectors</span>.<span class="ident">iter</span>().<span class="ident">all</span>(<span class="ident">FpVector</span>::<span class="ident">is_zero</span>)
+        <span class="self">self</span>.<span class="ident">vectors</span>.<span class="ident">iter</span>().<span class="ident">all</span>(<span class="ident">FpVector::is_zero</span>)
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">set_to_zero</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
@@ -1440,7 +1440,7 @@
     }
 }
 
-<span class="kw">impl</span> <span class="ident">std</span>::<span class="ident">ops</span>::<span class="ident">Deref</span> <span class="kw">for</span> <span class="ident">Matrix</span> {
+<span class="kw">impl</span> <span class="ident">std::ops::Deref</span> <span class="kw">for</span> <span class="ident">Matrix</span> {
     <span class="kw">type</span> <span class="ident">Target</span> <span class="op">=</span> [<span class="ident">FpVector</span>];
 
     <span class="kw">fn</span> <span class="ident">deref</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span>[<span class="ident">FpVector</span>] {
@@ -1448,70 +1448,70 @@
     }
 }
 
-<span class="kw">impl</span> <span class="ident">std</span>::<span class="ident">ops</span>::<span class="ident">DerefMut</span> <span class="kw">for</span> <span class="ident">Matrix</span> {
+<span class="kw">impl</span> <span class="ident">std::ops::DerefMut</span> <span class="kw">for</span> <span class="ident">Matrix</span> {
     <span class="kw">fn</span> <span class="ident">deref_mut</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">FpVector</span>] {
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">*</span><span class="self">self</span>.<span class="ident">vectors</span>
     }
 }
 
 <span class="kw">impl</span> <span class="ident">Matrix</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">iter</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">std</span>::<span class="ident">slice</span>::<span class="ident">Iter</span><span class="op">&lt;</span><span class="ident">FpVector</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">iter</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">std::slice::Iter</span><span class="op">&lt;</span><span class="ident">FpVector</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">vectors</span>.<span class="ident">iter</span>()
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">iter_mut</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">std</span>::<span class="ident">slice</span>::<span class="ident">IterMut</span><span class="op">&lt;</span><span class="ident">FpVector</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">iter_mut</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">std::slice::IterMut</span><span class="op">&lt;</span><span class="ident">FpVector</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">vectors</span>.<span class="ident">iter_mut</span>()
     }
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> <span class="ident">IntoIterator</span> <span class="kw">for</span> <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">Matrix</span> {
     <span class="kw">type</span> <span class="ident">Item</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">FpVector</span>;
-    <span class="kw">type</span> <span class="ident">IntoIter</span> <span class="op">=</span> <span class="ident">std</span>::<span class="ident">slice</span>::<span class="ident">Iter</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">FpVector</span><span class="op">&gt;</span>;
+    <span class="kw">type</span> <span class="ident">IntoIter</span> <span class="op">=</span> <span class="ident">std::slice::Iter</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">FpVector</span><span class="op">&gt;</span>;
 
-    <span class="kw">fn</span> <span class="ident">into_iter</span>(<span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span>::<span class="ident">IntoIter</span> {
+    <span class="kw">fn</span> <span class="ident">into_iter</span>(<span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span><span class="ident">::IntoIter</span> {
         <span class="self">self</span>.<span class="ident">iter</span>()
     }
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> <span class="ident">IntoIterator</span> <span class="kw">for</span> <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="kw-2">mut</span> <span class="ident">Matrix</span> {
     <span class="kw">type</span> <span class="ident">Item</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="kw-2">mut</span> <span class="ident">FpVector</span>;
-    <span class="kw">type</span> <span class="ident">IntoIter</span> <span class="op">=</span> <span class="ident">std</span>::<span class="ident">slice</span>::<span class="ident">IterMut</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">FpVector</span><span class="op">&gt;</span>;
+    <span class="kw">type</span> <span class="ident">IntoIter</span> <span class="op">=</span> <span class="ident">std::slice::IterMut</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">FpVector</span><span class="op">&gt;</span>;
 
-    <span class="kw">fn</span> <span class="ident">into_iter</span>(<span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span>::<span class="ident">IntoIter</span> {
+    <span class="kw">fn</span> <span class="ident">into_iter</span>(<span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span><span class="ident">::IntoIter</span> {
         <span class="self">self</span>.<span class="ident">iter_mut</span>()
     }
 }
 
-<span class="kw">impl</span> <span class="ident">fmt</span>::<span class="ident">Display</span> <span class="kw">for</span> <span class="ident">Matrix</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">fmt</span>::<span class="ident">Formatter</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">fmt</span>::<span class="prelude-ty">Result</span> {
+<span class="kw">impl</span> <span class="ident">fmt::Display</span> <span class="kw">for</span> <span class="ident">Matrix</span> {
+    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">fmt::Formatter</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">fmt::Result</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">it</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">iter</span>();
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">x</span>) <span class="op">=</span> <span class="ident">it</span>.<span class="ident">next</span>() {
-            <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;[\n    {}&quot;</span>, <span class="ident">x</span>)<span class="question-mark">?</span>;
+            <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;[\n    {}&quot;</span>, <span class="ident">x</span>)<span class="question-mark">?</span>;
         } <span class="kw">else</span> {
-            <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;[]&quot;</span>)<span class="question-mark">?</span>;
+            <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;[]&quot;</span>)<span class="question-mark">?</span>;
             <span class="kw">return</span> <span class="prelude-val">Ok</span>(());
         }
         <span class="kw">for</span> <span class="ident">x</span> <span class="kw">in</span> <span class="ident">it</span> {
-            <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;,\n    {}&quot;</span>, <span class="ident">x</span>)<span class="question-mark">?</span>;
+            <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;,\n    {}&quot;</span>, <span class="ident">x</span>)<span class="question-mark">?</span>;
         }
-        <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;\n]&quot;</span>)<span class="question-mark">?</span>;
+        <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;\n]&quot;</span>)<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(())
     }
 }
 
-<span class="kw">impl</span> <span class="ident">fmt</span>::<span class="ident">Debug</span> <span class="kw">for</span> <span class="ident">Matrix</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">fmt</span>::<span class="ident">Formatter</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">fmt</span>::<span class="prelude-ty">Result</span> {
+<span class="kw">impl</span> <span class="ident">fmt::Debug</span> <span class="kw">for</span> <span class="ident">Matrix</span> {
+    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">fmt::Formatter</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">fmt::Result</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">it</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">iter</span>();
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">x</span>) <span class="op">=</span> <span class="ident">it</span>.<span class="ident">next</span>() {
-            <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;[\n    {}&quot;</span>, <span class="ident">x</span>)<span class="question-mark">?</span>;
+            <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;[\n    {}&quot;</span>, <span class="ident">x</span>)<span class="question-mark">?</span>;
         } <span class="kw">else</span> {
-            <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;[]&quot;</span>)<span class="question-mark">?</span>;
+            <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;[]&quot;</span>)<span class="question-mark">?</span>;
             <span class="kw">return</span> <span class="prelude-val">Ok</span>(());
         }
         <span class="kw">for</span> <span class="ident">x</span> <span class="kw">in</span> <span class="ident">it</span> {
-            <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;,\n    {}&quot;</span>, <span class="ident">x</span>)<span class="question-mark">?</span>;
+            <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;,\n    {}&quot;</span>, <span class="ident">x</span>)<span class="question-mark">?</span>;
         }
-        <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;\n]&quot;</span>)<span class="question-mark">?</span>;
+        <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;\n]&quot;</span>)<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(())
     }
 }
@@ -1520,9 +1520,9 @@
 <span class="kw">where</span>
     <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">FpVector</span><span class="op">&gt;</span>: <span class="ident">Index</span><span class="op">&lt;</span><span class="ident">I</span><span class="op">&gt;</span>,
 {
-    <span class="kw">type</span> <span class="ident">Output</span> <span class="op">=</span> <span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">FpVector</span><span class="op">&gt;</span> <span class="kw">as</span> <span class="ident">Index</span><span class="op">&lt;</span><span class="ident">I</span><span class="op">&gt;</span><span class="op">&gt;</span>::<span class="ident">Output</span>;
+    <span class="kw">type</span> <span class="ident">Output</span> <span class="op">=</span> <span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">FpVector</span><span class="op">&gt;</span> <span class="kw">as</span> <span class="ident">Index</span><span class="op">&lt;</span><span class="ident">I</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="ident">::Output</span>;
     <span class="doccomment">/// Returns the ith row of the matrix</span>
-    <span class="kw">fn</span> <span class="ident">index</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">i</span>: <span class="ident">I</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="self">Self</span>::<span class="ident">Output</span> {
+    <span class="kw">fn</span> <span class="ident">index</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">i</span>: <span class="ident">I</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="self">Self</span><span class="ident">::Output</span> {
         <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">vectors</span>[<span class="ident">i</span>]
     }
 }
@@ -1532,7 +1532,7 @@
     <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">FpVector</span><span class="op">&gt;</span>: <span class="ident">IndexMut</span><span class="op">&lt;</span><span class="ident">I</span><span class="op">&gt;</span>,
 {
     <span class="doccomment">/// Returns the ith row of the matrix</span>
-    <span class="kw">fn</span> <span class="ident">index_mut</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">i</span>: <span class="ident">I</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span>::<span class="ident">Output</span> {
+    <span class="kw">fn</span> <span class="ident">index_mut</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">i</span>: <span class="ident">I</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span><span class="ident">::Output</span> {
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">vectors</span>[<span class="ident">i</span>]
     }
 }
@@ -1549,7 +1549,7 @@
         <span class="ident">pivot_column</span>: <span class="ident">usize</span>,
         <span class="ident">prime</span>: <span class="ident">ValidPrime</span>,
     ) {
-        <span class="macro">debug_assert</span><span class="macro">!</span>(<span class="ident">target</span> <span class="op">!</span><span class="op">=</span> <span class="ident">source</span>);
+        <span class="macro">debug_assert!</span>(<span class="ident">target</span> <span class="op">!</span><span class="op">=</span> <span class="ident">source</span>);
         <span class="kw">let</span> <span class="ident">coef</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">vectors</span>[<span class="ident">target</span>].<span class="ident">entry</span>(<span class="ident">pivot_column</span>);
         <span class="kw">if</span> <span class="ident">coef</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
             <span class="kw">return</span>;
@@ -1579,7 +1579,7 @@
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">p</span>;
         <span class="kw">let</span> <span class="ident">rows</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">rows</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">pivots</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">with_capacity</span>(<span class="ident">rows</span>);
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">pivots</span> <span class="op">=</span> <span class="ident">Vec::with_capacity</span>(<span class="ident">rows</span>);
 
         <span class="kw">if</span> <span class="ident">rows</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
             <span class="kw">return</span> <span class="ident">pivots</span>;
@@ -1609,7 +1609,7 @@
 
             <span class="comment">// // Divide pivot row by pivot entry</span>
             <span class="kw">let</span> <span class="ident">c</span> <span class="op">=</span> <span class="self">self</span>[<span class="ident">pivot</span>].<span class="ident">entry</span>(<span class="ident">pivot_column</span>);
-            <span class="kw">let</span> <span class="ident">c_inv</span> <span class="op">=</span> <span class="ident">prime</span>::<span class="ident">inverse</span>(<span class="ident">p</span>, <span class="ident">c</span>);
+            <span class="kw">let</span> <span class="ident">c_inv</span> <span class="op">=</span> <span class="ident">prime::inverse</span>(<span class="ident">p</span>, <span class="ident">c</span>);
             <span class="self">self</span>[<span class="ident">pivot</span>].<span class="ident">scale</span>(<span class="ident">c_inv</span>);
             <span class="comment">// println!(&quot;({}) &lt;== {} * ({}): \n{}&quot;, pivot, c_inv, pivot, self);</span>
 
@@ -1660,12 +1660,12 @@
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">p</span>;
         <span class="self">self</span>.<span class="ident">initialize_pivots</span>();
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">empty_rows</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">with_capacity</span>(<span class="self">self</span>.<span class="ident">rows</span>());
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">empty_rows</span> <span class="op">=</span> <span class="ident">Vec::with_capacity</span>(<span class="self">self</span>.<span class="ident">rows</span>());
 
         <span class="kw">if</span> <span class="kw-2">*</span><span class="self">self</span>.<span class="ident">p</span> <span class="op">=</span><span class="op">=</span> <span class="number">2</span> {
             <span class="comment">// the m4ri C library uses a similar formula but with a hard cap of 7 instead of 8</span>
-            <span class="kw">let</span> <span class="ident">k</span> <span class="op">=</span> <span class="ident">std</span>::<span class="ident">cmp</span>::<span class="ident">min</span>(<span class="number">8</span>, <span class="kw">crate</span>::<span class="ident">prime</span>::<span class="ident">log2</span>(<span class="number">1</span> <span class="op">+</span> <span class="self">self</span>.<span class="ident">rows</span>()) <span class="op">*</span> <span class="number">3</span> <span class="op">/</span> <span class="number">4</span>);
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">table</span> <span class="op">=</span> <span class="ident">M4riTable</span>::<span class="ident">new</span>(<span class="ident">k</span>, <span class="self">self</span>.<span class="ident">columns</span>());
+            <span class="kw">let</span> <span class="ident">k</span> <span class="op">=</span> <span class="ident">std::cmp::min</span>(<span class="number">8</span>, <span class="kw">crate</span><span class="ident">::prime::log2</span>(<span class="number">1</span> <span class="op">+</span> <span class="self">self</span>.<span class="ident">rows</span>()) <span class="op">*</span> <span class="number">3</span> <span class="op">/</span> <span class="number">4</span>);
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">table</span> <span class="op">=</span> <span class="ident">M4riTable::new</span>(<span class="ident">k</span>, <span class="self">self</span>.<span class="ident">columns</span>());
 
             <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="self">self</span>.<span class="ident">rows</span>() {
                 <span class="ident">table</span>.<span class="ident">reduce_naive</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">*</span><span class="self">self</span>, <span class="ident">i</span>);
@@ -1704,7 +1704,7 @@
             <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="self">self</span>.<span class="ident">rows</span>() {
                 <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>((<span class="ident">c</span>, <span class="ident">v</span>)) <span class="op">=</span> <span class="self">self</span>[<span class="ident">i</span>].<span class="ident">first_nonzero</span>() {
                     <span class="self">self</span>.<span class="ident">pivots</span>[<span class="ident">c</span>] <span class="op">=</span> <span class="ident">i</span> <span class="kw">as</span> <span class="ident">isize</span>;
-                    <span class="self">self</span>[<span class="ident">i</span>].<span class="ident">scale</span>(<span class="ident">prime</span>::<span class="ident">inverse</span>(<span class="ident">p</span>, <span class="ident">v</span>));
+                    <span class="self">self</span>[<span class="ident">i</span>].<span class="ident">scale</span>(<span class="ident">prime::inverse</span>(<span class="ident">p</span>, <span class="ident">v</span>));
                     <span class="kw">for</span> <span class="ident">j</span> <span class="kw">in</span> <span class="number">0</span>..<span class="self">self</span>.<span class="ident">rows</span>() {
                         <span class="kw">if</span> <span class="ident">i</span> <span class="op">=</span><span class="op">=</span> <span class="ident">j</span> {
                             <span class="kw">continue</span>;
@@ -1722,13 +1722,13 @@
         <span class="comment">// Now reorder the vectors. There are O(n) in-place permutation algorithms but the way we</span>
         <span class="comment">// get the permutation makes the naive strategy easier.</span>
         <span class="kw">let</span> <span class="ident">old_capacity</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">vectors</span>.<span class="ident">capacity</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">old_rows</span> <span class="op">=</span> <span class="ident">std</span>::<span class="ident">mem</span>::<span class="ident">replace</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">vectors</span>, <span class="ident">Vec</span>::<span class="ident">with_capacity</span>(<span class="ident">old_capacity</span>));
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">old_rows</span> <span class="op">=</span> <span class="ident">std::mem::replace</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">vectors</span>, <span class="ident">Vec::with_capacity</span>(<span class="ident">old_capacity</span>));
 
         <span class="kw">for</span> <span class="ident">row</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">pivots</span> {
             <span class="kw">if</span> <span class="kw-2">*</span><span class="ident">row</span> <span class="op">&gt;</span><span class="op">=</span> <span class="number">0</span> {
-                <span class="self">self</span>.<span class="ident">vectors</span>.<span class="ident">push</span>(<span class="ident">std</span>::<span class="ident">mem</span>::<span class="ident">replace</span>(
+                <span class="self">self</span>.<span class="ident">vectors</span>.<span class="ident">push</span>(<span class="ident">std::mem::replace</span>(
                     <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">old_rows</span>[<span class="kw-2">*</span><span class="ident">row</span> <span class="kw">as</span> <span class="ident">usize</span>],
-                    <span class="ident">FpVector</span>::<span class="ident">new</span>(<span class="ident">p</span>, <span class="number">0</span>),
+                    <span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="number">0</span>),
                 ));
                 <span class="kw-2">*</span><span class="ident">row</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">vectors</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">isize</span> <span class="op">-</span> <span class="number">1</span>;
             }
@@ -1737,7 +1737,7 @@
         <span class="kw">let</span> <span class="ident">num_rows</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">vectors</span>.<span class="ident">len</span>();
         <span class="kw">for</span> <span class="ident">row</span> <span class="kw">in</span> <span class="ident">empty_rows</span> {
             <span class="self">self</span>.<span class="ident">vectors</span>
-                .<span class="ident">push</span>(<span class="ident">std</span>::<span class="ident">mem</span>::<span class="ident">replace</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">old_rows</span>[<span class="ident">row</span>], <span class="ident">FpVector</span>::<span class="ident">new</span>(<span class="ident">p</span>, <span class="number">0</span>)))
+                .<span class="ident">push</span>(<span class="ident">std::mem::replace</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">old_rows</span>[<span class="ident">row</span>], <span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="number">0</span>)))
         }
         <span class="ident">num_rows</span>
     }
@@ -1789,13 +1789,13 @@
         <span class="kw">let</span> <span class="ident">columns</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">columns</span>();
         <span class="kw">let</span> <span class="ident">source_columns</span> <span class="op">=</span> <span class="ident">columns</span> <span class="op">-</span> <span class="ident">first_source_col</span>;
         <span class="kw">let</span> <span class="ident">first_kernel_row</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">find_first_row_in_block</span>(<span class="ident">first_source_col</span>);
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">preimage</span> <span class="op">=</span> <span class="ident">Matrix</span>::<span class="ident">new</span>(<span class="ident">p</span>, <span class="ident">first_kernel_row</span>, <span class="ident">source_columns</span>);
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">preimage</span> <span class="op">=</span> <span class="ident">Matrix::new</span>(<span class="ident">p</span>, <span class="ident">first_kernel_row</span>, <span class="ident">source_columns</span>);
         <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">first_kernel_row</span> {
             <span class="ident">preimage</span>[<span class="ident">i</span>]
                 .<span class="ident">as_slice_mut</span>()
                 .<span class="ident">assign</span>(<span class="self">self</span>[<span class="ident">i</span>].<span class="ident">slice</span>(<span class="ident">first_source_col</span>, <span class="ident">columns</span>));
         }
-        <span class="ident">QuasiInverse</span>::<span class="ident">new</span>(<span class="prelude-val">Some</span>(<span class="self">self</span>.<span class="ident">pivots</span>()[..<span class="ident">last_target_col</span>].<span class="ident">to_vec</span>()), <span class="ident">preimage</span>)
+        <span class="ident">QuasiInverse::new</span>(<span class="prelude-val">Some</span>(<span class="self">self</span>.<span class="ident">pivots</span>()[..<span class="ident">last_target_col</span>].<span class="ident">to_vec</span>()), <span class="ident">preimage</span>)
     }
 
     <span class="doccomment">/// Computes the quasi-inverse of a matrix given a rref of [A|0|I], where 0 is the zero padding</span>
@@ -1829,7 +1829,7 @@
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">compute_image</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">last_target_col</span>: <span class="ident">usize</span>, <span class="ident">first_source_col</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Subspace</span> {
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prime</span>();
         <span class="kw">let</span> <span class="ident">first_kernel_row</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">find_first_row_in_block</span>(<span class="ident">first_source_col</span>);
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">image_matrix</span> <span class="op">=</span> <span class="ident">Matrix</span>::<span class="ident">new</span>(<span class="ident">p</span>, <span class="ident">first_kernel_row</span>, <span class="ident">last_target_col</span>);
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">image_matrix</span> <span class="op">=</span> <span class="ident">Matrix::new</span>(<span class="ident">p</span>, <span class="ident">first_kernel_row</span>, <span class="ident">last_target_col</span>);
         <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">first_kernel_row</span> {
             <span class="ident">image_matrix</span>[<span class="ident">i</span>]
                 .<span class="ident">as_slice_mut</span>()
@@ -1886,7 +1886,7 @@
         <span class="kw">let</span> <span class="ident">first_kernel_row</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">find_first_row_in_block</span>(<span class="ident">first_source_column</span>);
         <span class="comment">// Every row after the first kernel row is also a kernel row, so now we know how big it is and can allocate space.</span>
         <span class="kw">let</span> <span class="ident">kernel_dimension</span> <span class="op">=</span> <span class="ident">rows</span> <span class="op">-</span> <span class="ident">first_kernel_row</span>;
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">kernel</span> <span class="op">=</span> <span class="ident">Subspace</span>::<span class="ident">new</span>(<span class="ident">p</span>, <span class="ident">kernel_dimension</span>, <span class="ident">source_dimension</span>);
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">kernel</span> <span class="op">=</span> <span class="ident">Subspace::new</span>(<span class="ident">p</span>, <span class="ident">kernel_dimension</span>, <span class="ident">source_dimension</span>);
         <span class="kw">if</span> <span class="ident">kernel_dimension</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
             <span class="kw">return</span> <span class="ident">kernel</span>;
         }
@@ -1939,7 +1939,7 @@
         <span class="ident">end_column</span>: <span class="ident">usize</span>,
         <span class="ident">extra_column_capacity</span>: <span class="ident">usize</span>,
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">added_pivots</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>();
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">added_pivots</span> <span class="op">=</span> <span class="ident">Vec::new</span>();
         <span class="kw">let</span> <span class="ident">columns</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">columns</span>();
 
         <span class="kw">for</span> (<span class="ident">i</span>, <span class="kw-2">&amp;</span><span class="ident">pivot</span>) <span class="kw">in</span> <span class="self">self</span>.<span class="ident">pivots</span>[<span class="ident">start_column</span>..<span class="ident">end_column</span>].<span class="ident">iter</span>().<span class="ident">enumerate</span>() {
@@ -1947,7 +1947,7 @@
                 <span class="kw">continue</span>;
             }
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">new_row</span> <span class="op">=</span>
-                <span class="ident">FpVector</span>::<span class="ident">new_with_capacity</span>(<span class="self">self</span>.<span class="ident">prime</span>(), <span class="ident">columns</span>, <span class="ident">columns</span> <span class="op">+</span> <span class="ident">extra_column_capacity</span>);
+                <span class="ident">FpVector::new_with_capacity</span>(<span class="self">self</span>.<span class="ident">prime</span>(), <span class="ident">columns</span>, <span class="ident">columns</span> <span class="op">+</span> <span class="ident">extra_column_capacity</span>);
             <span class="ident">new_row</span>.<span class="ident">set_entry</span>(<span class="ident">i</span>, <span class="number">1</span>);
             <span class="self">self</span>.<span class="ident">vectors</span>.<span class="ident">push</span>(<span class="ident">new_row</span>);
             <span class="ident">added_pivots</span>.<span class="ident">push</span>(<span class="ident">i</span>);
@@ -1972,14 +1972,14 @@
         <span class="ident">desired_image</span>: <span class="kw-2">&amp;</span><span class="ident">Subspace</span>,
         <span class="ident">extra_column_capacity</span>: <span class="ident">usize</span>,
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">added_pivots</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>();
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">added_pivots</span> <span class="op">=</span> <span class="ident">Vec::new</span>();
         <span class="kw">let</span> <span class="ident">desired_pivots</span> <span class="op">=</span> <span class="ident">desired_image</span>.<span class="ident">matrix</span>.<span class="ident">pivots</span>();
-        <span class="kw">let</span> <span class="ident">early_end_column</span> <span class="op">=</span> <span class="ident">std</span>::<span class="ident">cmp</span>::<span class="ident">min</span>(<span class="ident">end_column</span>, <span class="ident">desired_pivots</span>.<span class="ident">len</span>() <span class="op">+</span> <span class="ident">start_column</span>);
+        <span class="kw">let</span> <span class="ident">early_end_column</span> <span class="op">=</span> <span class="ident">std::cmp::min</span>(<span class="ident">end_column</span>, <span class="ident">desired_pivots</span>.<span class="ident">len</span>() <span class="op">+</span> <span class="ident">start_column</span>);
 
         <span class="kw">let</span> <span class="ident">columns</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">columns</span>();
 
         <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="ident">start_column</span>..<span class="ident">early_end_column</span> {
-            <span class="macro">debug_assert</span><span class="macro">!</span>(
+            <span class="macro">debug_assert!</span>(
                 <span class="self">self</span>.<span class="ident">pivots</span>()[<span class="ident">i</span>] <span class="op">&lt;</span> <span class="number">0</span> <span class="op">|</span><span class="op">|</span> <span class="ident">desired_pivots</span>[<span class="ident">i</span> <span class="op">-</span> <span class="ident">start_column</span>] <span class="op">&gt;</span><span class="op">=</span> <span class="number">0</span>,
                 <span class="string">&quot;current_pivots : {:?}, desired_pivots : {:?}&quot;</span>,
                 <span class="self">self</span>.<span class="ident">pivots</span>(),
@@ -1993,7 +1993,7 @@
             <span class="kw">let</span> <span class="ident">new_image</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">desired_image</span>[<span class="ident">kernel_vector_row</span>];
 
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">new_row</span> <span class="op">=</span>
-                <span class="ident">FpVector</span>::<span class="ident">new_with_capacity</span>(<span class="self">self</span>.<span class="ident">prime</span>(), <span class="ident">columns</span>, <span class="ident">columns</span> <span class="op">+</span> <span class="ident">extra_column_capacity</span>);
+                <span class="ident">FpVector::new_with_capacity</span>(<span class="self">self</span>.<span class="ident">prime</span>(), <span class="ident">columns</span>, <span class="ident">columns</span> <span class="op">+</span> <span class="ident">extra_column_capacity</span>);
             <span class="ident">new_row</span>
                 .<span class="ident">slice_mut</span>(<span class="ident">start_column</span>, <span class="ident">start_column</span> <span class="op">+</span> <span class="ident">desired_image</span>.<span class="ident">matrix</span>.<span class="ident">columns</span>)
                 .<span class="ident">assign</span>(<span class="ident">new_image</span>.<span class="ident">as_slice</span>());
@@ -2026,7 +2026,7 @@
     <span class="doccomment">/// assert_eq!(result, desired_result);</span>
     <span class="doccomment">/// `#`#`</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">apply</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut</span> <span class="ident">result</span>: <span class="ident">SliceMut</span>, <span class="ident">coeff</span>: <span class="ident">u32</span>, <span class="ident">input</span>: <span class="ident">Slice</span>) {
-        <span class="macro">debug_assert_eq</span><span class="macro">!</span>(<span class="ident">input</span>.<span class="ident">len</span>(), <span class="self">self</span>.<span class="ident">rows</span>());
+        <span class="macro">debug_assert_eq!</span>(<span class="ident">input</span>.<span class="ident">len</span>(), <span class="self">self</span>.<span class="ident">rows</span>());
         <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">input</span>.<span class="ident">len</span>() {
             <span class="ident">result</span>.<span class="ident">add</span>(
                 <span class="self">self</span>.<span class="ident">vectors</span>[<span class="ident">i</span>].<span class="ident">as_slice</span>(),
@@ -2044,14 +2044,14 @@
     }
 }
 
-<span class="kw">impl</span> <span class="ident">std</span>::<span class="ident">ops</span>::<span class="ident">Mul</span> <span class="kw">for</span> <span class="kw-2">&amp;</span><span class="ident">Matrix</span> {
+<span class="kw">impl</span> <span class="ident">std::ops::Mul</span> <span class="kw">for</span> <span class="kw-2">&amp;</span><span class="ident">Matrix</span> {
     <span class="kw">type</span> <span class="ident">Output</span> <span class="op">=</span> <span class="ident">Matrix</span>;
 
     <span class="kw">fn</span> <span class="ident">mul</span>(<span class="self">self</span>, <span class="ident">rhs</span>: <span class="self">Self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Matrix</span> {
-        <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">prime</span>(), <span class="ident">rhs</span>.<span class="ident">prime</span>());
-        <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">columns</span>(), <span class="ident">rhs</span>.<span class="ident">rows</span>());
+        <span class="macro">assert_eq!</span>(<span class="self">self</span>.<span class="ident">prime</span>(), <span class="ident">rhs</span>.<span class="ident">prime</span>());
+        <span class="macro">assert_eq!</span>(<span class="self">self</span>.<span class="ident">columns</span>(), <span class="ident">rhs</span>.<span class="ident">rows</span>());
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">Matrix</span>::<span class="ident">new</span>(<span class="self">self</span>.<span class="ident">prime</span>(), <span class="self">self</span>.<span class="ident">rows</span>(), <span class="ident">rhs</span>.<span class="ident">columns</span>());
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">Matrix::new</span>(<span class="self">self</span>.<span class="ident">prime</span>(), <span class="self">self</span>.<span class="ident">rows</span>(), <span class="ident">rhs</span>.<span class="ident">columns</span>());
         <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="self">self</span>.<span class="ident">rows</span>() {
             <span class="kw">for</span> <span class="ident">j</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">rhs</span>.<span class="ident">columns</span>() {
                 <span class="kw">for</span> <span class="ident">k</span> <span class="kw">in</span> <span class="number">0</span>..<span class="self">self</span>.<span class="ident">columns</span>() {
@@ -2063,9 +2063,9 @@
     }
 }
 
-<span class="kw">impl</span> <span class="ident">std</span>::<span class="ident">ops</span>::<span class="ident">MulAssign</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">Matrix</span> {
+<span class="kw">impl</span> <span class="ident">std::ops::MulAssign</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">Matrix</span> {
     <span class="kw">fn</span> <span class="ident">mul_assign</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">rhs</span>: <span class="ident">u32</span>) {
-        <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">clippy</span>::<span class="ident">suspicious_op_assign_impl</span>)]</span>
+        <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">clippy::suspicious_op_assign_impl</span>)]</span>
         <span class="kw">let</span> <span class="ident">rhs</span> <span class="op">=</span> <span class="ident">rhs</span> <span class="op">%</span> <span class="kw-2">*</span><span class="self">self</span>.<span class="ident">p</span>;
         <span class="kw">for</span> <span class="ident">row</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">iter_mut</span>() {
             <span class="ident">row</span>.<span class="ident">scale</span>(<span class="ident">rhs</span>);
@@ -2073,11 +2073,11 @@
     }
 }
 
-<span class="kw">impl</span> <span class="ident">std</span>::<span class="ident">ops</span>::<span class="ident">AddAssign</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">Matrix</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">Matrix</span> {
+<span class="kw">impl</span> <span class="ident">std::ops::AddAssign</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">Matrix</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">Matrix</span> {
     <span class="kw">fn</span> <span class="ident">add_assign</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">rhs</span>: <span class="kw-2">&amp;</span><span class="ident">Matrix</span>) {
-        <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">prime</span>(), <span class="ident">rhs</span>.<span class="ident">prime</span>());
-        <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">columns</span>(), <span class="ident">rhs</span>.<span class="ident">columns</span>());
-        <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">rows</span>(), <span class="ident">rhs</span>.<span class="ident">rows</span>());
+        <span class="macro">assert_eq!</span>(<span class="self">self</span>.<span class="ident">prime</span>(), <span class="ident">rhs</span>.<span class="ident">prime</span>());
+        <span class="macro">assert_eq!</span>(<span class="self">self</span>.<span class="ident">columns</span>(), <span class="ident">rhs</span>.<span class="ident">columns</span>());
+        <span class="macro">assert_eq!</span>(<span class="self">self</span>.<span class="ident">rows</span>(), <span class="ident">rhs</span>.<span class="ident">rows</span>());
 
         <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">row</span>) <span class="kw">in</span> <span class="self">self</span>.<span class="ident">iter_mut</span>().<span class="ident">enumerate</span>() {
             <span class="ident">row</span>.<span class="ident">add</span>(<span class="kw-2">&amp;</span><span class="ident">rhs</span>[<span class="ident">i</span>], <span class="number">1</span>);
@@ -2110,14 +2110,14 @@
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">start</span> <span class="op">=</span> [<span class="number">0</span>; <span class="ident">N</span>];
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">end</span> <span class="op">=</span> [<span class="number">0</span>; <span class="ident">N</span>];
         <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">1</span>..<span class="ident">N</span> {
-            <span class="ident">start</span>[<span class="ident">i</span>] <span class="op">=</span> <span class="ident">start</span>[<span class="ident">i</span> <span class="op">-</span> <span class="number">1</span>] <span class="op">+</span> <span class="ident">FpVector</span>::<span class="ident">padded_len</span>(<span class="ident">p</span>, <span class="ident">columns</span>[<span class="ident">i</span> <span class="op">-</span> <span class="number">1</span>]);
+            <span class="ident">start</span>[<span class="ident">i</span>] <span class="op">=</span> <span class="ident">start</span>[<span class="ident">i</span> <span class="op">-</span> <span class="number">1</span>] <span class="op">+</span> <span class="ident">FpVector::padded_len</span>(<span class="ident">p</span>, <span class="ident">columns</span>[<span class="ident">i</span> <span class="op">-</span> <span class="number">1</span>]);
         }
         <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">N</span> {
             <span class="ident">end</span>[<span class="ident">i</span>] <span class="op">=</span> <span class="ident">start</span>[<span class="ident">i</span>] <span class="op">+</span> <span class="ident">columns</span>[<span class="ident">i</span>];
         }
 
         <span class="self">Self</span> {
-            <span class="ident">inner</span>: <span class="ident">Matrix</span>::<span class="ident">new</span>(<span class="ident">p</span>, <span class="ident">rows</span>, <span class="ident">end</span>[<span class="ident">N</span> <span class="op">-</span> <span class="number">1</span>]),
+            <span class="ident">inner</span>: <span class="ident">Matrix::new</span>(<span class="ident">p</span>, <span class="ident">rows</span>, <span class="ident">end</span>[<span class="ident">N</span> <span class="op">-</span> <span class="number">1</span>]),
             <span class="ident">start</span>,
             <span class="ident">end</span>,
         }
@@ -2133,14 +2133,14 @@
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">start</span> <span class="op">=</span> [<span class="number">0</span>; <span class="ident">N</span>];
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">end</span> <span class="op">=</span> [<span class="number">0</span>; <span class="ident">N</span>];
         <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">1</span>..<span class="ident">N</span> {
-            <span class="ident">start</span>[<span class="ident">i</span>] <span class="op">=</span> <span class="ident">start</span>[<span class="ident">i</span> <span class="op">-</span> <span class="number">1</span>] <span class="op">+</span> <span class="ident">FpVector</span>::<span class="ident">padded_len</span>(<span class="ident">p</span>, <span class="ident">columns</span>[<span class="ident">i</span> <span class="op">-</span> <span class="number">1</span>]);
+            <span class="ident">start</span>[<span class="ident">i</span>] <span class="op">=</span> <span class="ident">start</span>[<span class="ident">i</span> <span class="op">-</span> <span class="number">1</span>] <span class="op">+</span> <span class="ident">FpVector::padded_len</span>(<span class="ident">p</span>, <span class="ident">columns</span>[<span class="ident">i</span> <span class="op">-</span> <span class="number">1</span>]);
         }
         <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">N</span> {
             <span class="ident">end</span>[<span class="ident">i</span>] <span class="op">=</span> <span class="ident">start</span>[<span class="ident">i</span>] <span class="op">+</span> <span class="ident">columns</span>[<span class="ident">i</span>];
         }
 
         <span class="self">Self</span> {
-            <span class="ident">inner</span>: <span class="ident">Matrix</span>::<span class="ident">new_with_capacity</span>(
+            <span class="ident">inner</span>: <span class="ident">Matrix::new_with_capacity</span>(
                 <span class="ident">p</span>,
                 <span class="ident">rows</span>,
                 <span class="ident">end</span>[<span class="ident">N</span> <span class="op">-</span> <span class="number">1</span>],
@@ -2181,7 +2181,7 @@
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">N</span>: <span class="ident">usize</span><span class="op">&gt;</span> <span class="ident">std</span>::<span class="ident">ops</span>::<span class="ident">Deref</span> <span class="kw">for</span> <span class="ident">AugmentedMatrix</span><span class="op">&lt;</span><span class="ident">N</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">N</span>: <span class="ident">usize</span><span class="op">&gt;</span> <span class="ident">std::ops::Deref</span> <span class="kw">for</span> <span class="ident">AugmentedMatrix</span><span class="op">&lt;</span><span class="ident">N</span><span class="op">&gt;</span> {
     <span class="kw">type</span> <span class="ident">Target</span> <span class="op">=</span> <span class="ident">Matrix</span>;
 
     <span class="kw">fn</span> <span class="ident">deref</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">Matrix</span> {
@@ -2189,7 +2189,7 @@
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">N</span>: <span class="ident">usize</span><span class="op">&gt;</span> <span class="ident">std</span>::<span class="ident">ops</span>::<span class="ident">DerefMut</span> <span class="kw">for</span> <span class="ident">AugmentedMatrix</span><span class="op">&lt;</span><span class="ident">N</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">N</span>: <span class="ident">usize</span><span class="op">&gt;</span> <span class="ident">std::ops::DerefMut</span> <span class="kw">for</span> <span class="ident">AugmentedMatrix</span><span class="op">&lt;</span><span class="ident">N</span><span class="op">&gt;</span> {
     <span class="kw">fn</span> <span class="ident">deref_mut</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Matrix</span> {
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">inner</span>
     }
@@ -2230,17 +2230,17 @@
         <span class="kw">let</span> <span class="ident">source_columns</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">end</span>[<span class="number">2</span>] <span class="op">-</span> <span class="self">self</span>.<span class="ident">start</span>[<span class="number">2</span>];
 
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">end</span>[<span class="number">0</span>] <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
-            <span class="kw">let</span> <span class="ident">cc_qi</span> <span class="op">=</span> <span class="ident">QuasiInverse</span>::<span class="ident">new</span>(<span class="prelude-val">None</span>, <span class="ident">Matrix</span>::<span class="ident">new</span>(<span class="ident">p</span>, <span class="number">0</span>, <span class="ident">source_columns</span>));
+            <span class="kw">let</span> <span class="ident">cc_qi</span> <span class="op">=</span> <span class="ident">QuasiInverse::new</span>(<span class="prelude-val">None</span>, <span class="ident">Matrix::new</span>(<span class="ident">p</span>, <span class="number">0</span>, <span class="ident">source_columns</span>));
             <span class="kw">let</span> <span class="ident">res_qi</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">compute_quasi_inverse</span>(<span class="self">self</span>.<span class="ident">end</span>[<span class="number">1</span>], <span class="self">self</span>.<span class="ident">start</span>[<span class="number">2</span>]);
             (<span class="ident">cc_qi</span>, <span class="ident">res_qi</span>)
         } <span class="kw">else</span> {
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">cc_preimage</span> <span class="op">=</span> <span class="ident">Matrix</span>::<span class="ident">new</span>(<span class="ident">p</span>, <span class="self">self</span>.<span class="ident">end</span>[<span class="number">0</span>], <span class="ident">source_columns</span>);
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">cc_preimage</span> <span class="op">=</span> <span class="ident">Matrix::new</span>(<span class="ident">p</span>, <span class="self">self</span>.<span class="ident">end</span>[<span class="number">0</span>], <span class="ident">source_columns</span>);
             <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="self">self</span>.<span class="ident">end</span>[<span class="number">0</span>] {
                 <span class="ident">cc_preimage</span>[<span class="ident">i</span>]
                     .<span class="ident">as_slice_mut</span>()
                     .<span class="ident">assign</span>(<span class="self">self</span>[<span class="ident">i</span>].<span class="ident">slice</span>(<span class="self">self</span>.<span class="ident">start</span>[<span class="number">2</span>], <span class="self">self</span>.<span class="ident">end</span>[<span class="number">2</span>]));
             }
-            <span class="kw">let</span> <span class="ident">cm_qi</span> <span class="op">=</span> <span class="ident">QuasiInverse</span>::<span class="ident">new</span>(<span class="prelude-val">None</span>, <span class="ident">cc_preimage</span>);
+            <span class="kw">let</span> <span class="ident">cm_qi</span> <span class="op">=</span> <span class="ident">QuasiInverse::new</span>(<span class="prelude-val">None</span>, <span class="ident">cc_preimage</span>);
 
             <span class="kw">let</span> <span class="ident">first_kernel_row</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">find_first_row_in_block</span>(<span class="self">self</span>.<span class="ident">start</span>[<span class="number">2</span>]);
             <span class="self">self</span>.<span class="ident">vectors</span>.<span class="ident">truncate</span>(<span class="ident">first_kernel_row</span>);
@@ -2302,7 +2302,7 @@
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">add_identity</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
-        <span class="macro">debug_assert_eq</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">rows</span>(), <span class="self">self</span>.<span class="ident">columns</span>());
+        <span class="macro">debug_assert_eq!</span>(<span class="self">self</span>.<span class="ident">rows</span>(), <span class="self">self</span>.<span class="ident">columns</span>());
         <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">row</span>) <span class="kw">in</span> <span class="self">self</span>.<span class="ident">vectors</span>.<span class="ident">iter_mut</span>().<span class="ident">enumerate</span>() {
             <span class="ident">row</span>.<span class="ident">add_basis_element</span>(<span class="self">self</span>.<span class="ident">col_start</span> <span class="op">+</span> <span class="ident">i</span>, <span class="number">1</span>);
         }
@@ -2310,11 +2310,11 @@
 }
 
 <span class="kw">use</span> <span class="ident">saveload</span>::{<span class="ident">Load</span>, <span class="ident">Save</span>};
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">io</span>;
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">io</span>::{<span class="ident">Read</span>, <span class="ident">Write</span>};
+<span class="kw">use</span> <span class="ident">std::io</span>;
+<span class="kw">use</span> <span class="ident">std::io</span>::{<span class="ident">Read</span>, <span class="ident">Write</span>};
 
 <span class="kw">impl</span> <span class="ident">Save</span> <span class="kw">for</span> <span class="ident">Matrix</span> {
-    <span class="kw">fn</span> <span class="ident">save</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">buffer</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">impl</span> <span class="ident">Write</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">io</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">save</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">buffer</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">impl</span> <span class="ident">Write</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">io::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">columns</span>.<span class="ident">save</span>(<span class="ident">buffer</span>)<span class="question-mark">?</span>;
         <span class="self">self</span>.<span class="ident">vectors</span>.<span class="ident">save</span>(<span class="ident">buffer</span>)<span class="question-mark">?</span>;
         <span class="self">self</span>.<span class="ident">pivots</span>.<span class="ident">save</span>(<span class="ident">buffer</span>)<span class="question-mark">?</span>;
@@ -2325,17 +2325,17 @@
 <span class="kw">impl</span> <span class="ident">Load</span> <span class="kw">for</span> <span class="ident">Matrix</span> {
     <span class="kw">type</span> <span class="ident">AuxData</span> <span class="op">=</span> <span class="ident">ValidPrime</span>;
 
-    <span class="kw">fn</span> <span class="ident">load</span>(<span class="ident">buffer</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">impl</span> <span class="ident">Read</span>, <span class="ident">p</span>: <span class="kw-2">&amp;</span><span class="ident">ValidPrime</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">io</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">columns</span> <span class="op">=</span> <span class="ident">usize</span>::<span class="ident">load</span>(<span class="ident">buffer</span>, <span class="kw-2">&amp;</span>())<span class="question-mark">?</span>;
-        <span class="kw">let</span> <span class="ident">vectors</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">FpVector</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Load</span>::<span class="ident">load</span>(<span class="ident">buffer</span>, <span class="ident">p</span>)<span class="question-mark">?</span>;
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">Matrix</span>::<span class="ident">from_rows</span>(<span class="kw-2">*</span><span class="ident">p</span>, <span class="ident">vectors</span>, <span class="ident">columns</span>);
-        <span class="ident">result</span>.<span class="ident">pivots</span> <span class="op">=</span> <span class="ident">Load</span>::<span class="ident">load</span>(<span class="ident">buffer</span>, <span class="kw-2">&amp;</span>())<span class="question-mark">?</span>;
+    <span class="kw">fn</span> <span class="ident">load</span>(<span class="ident">buffer</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">impl</span> <span class="ident">Read</span>, <span class="ident">p</span>: <span class="kw-2">&amp;</span><span class="ident">ValidPrime</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">io::Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">columns</span> <span class="op">=</span> <span class="ident">usize::load</span>(<span class="ident">buffer</span>, <span class="kw-2">&amp;</span>())<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">vectors</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">FpVector</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Load::load</span>(<span class="ident">buffer</span>, <span class="ident">p</span>)<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">Matrix::from_rows</span>(<span class="kw-2">*</span><span class="ident">p</span>, <span class="ident">vectors</span>, <span class="ident">columns</span>);
+        <span class="ident">result</span>.<span class="ident">pivots</span> <span class="op">=</span> <span class="ident">Load::load</span>(<span class="ident">buffer</span>, <span class="kw-2">&amp;</span>())<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(<span class="ident">result</span>)
     }
 }
 
 <span class="kw">impl</span> <span class="ident">Save</span> <span class="kw">for</span> <span class="ident">Subspace</span> {
-    <span class="kw">fn</span> <span class="ident">save</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">buffer</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">impl</span> <span class="ident">Write</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">io</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">save</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">buffer</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">impl</span> <span class="ident">Write</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">io::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">matrix</span>.<span class="ident">save</span>(<span class="ident">buffer</span>)<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(())
     }
@@ -2344,8 +2344,8 @@
 <span class="kw">impl</span> <span class="ident">Load</span> <span class="kw">for</span> <span class="ident">Subspace</span> {
     <span class="kw">type</span> <span class="ident">AuxData</span> <span class="op">=</span> <span class="ident">ValidPrime</span>;
 
-    <span class="kw">fn</span> <span class="ident">load</span>(<span class="ident">buffer</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">impl</span> <span class="ident">Read</span>, <span class="ident">p</span>: <span class="kw-2">&amp;</span><span class="ident">ValidPrime</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">io</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">matrix</span>: <span class="ident">Matrix</span> <span class="op">=</span> <span class="ident">Matrix</span>::<span class="ident">load</span>(<span class="ident">buffer</span>, <span class="ident">p</span>)<span class="question-mark">?</span>;
+    <span class="kw">fn</span> <span class="ident">load</span>(<span class="ident">buffer</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">impl</span> <span class="ident">Read</span>, <span class="ident">p</span>: <span class="kw-2">&amp;</span><span class="ident">ValidPrime</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">io::Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">matrix</span>: <span class="ident">Matrix</span> <span class="op">=</span> <span class="ident">Matrix::load</span>(<span class="ident">buffer</span>, <span class="ident">p</span>)<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(<span class="ident">Subspace</span> { <span class="ident">matrix</span> })
     }
 }
@@ -2363,15 +2363,15 @@
     }
 
     <span class="kw">fn</span> <span class="ident">test_augmented_matrix_inner</span>(<span class="ident">cols</span>: [<span class="ident">usize</span>; <span class="number">3</span>]) {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">aug</span> <span class="op">=</span> <span class="ident">AugmentedMatrix</span>::<span class="op">&lt;</span><span class="number">3</span><span class="op">&gt;</span>::<span class="ident">new</span>(<span class="ident">ValidPrime</span>::<span class="ident">new</span>(<span class="number">2</span>), <span class="number">3</span>, <span class="ident">cols</span>);
-        <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">aug</span>.<span class="ident">segment</span>(<span class="number">0</span>, <span class="number">0</span>).<span class="ident">columns</span>(), <span class="ident">cols</span>[<span class="number">0</span>]);
-        <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">aug</span>.<span class="ident">segment</span>(<span class="number">1</span>, <span class="number">1</span>).<span class="ident">columns</span>(), <span class="ident">cols</span>[<span class="number">1</span>]);
-        <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">aug</span>.<span class="ident">segment</span>(<span class="number">2</span>, <span class="number">2</span>).<span class="ident">columns</span>(), <span class="ident">cols</span>[<span class="number">2</span>]);
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">aug</span> <span class="op">=</span> <span class="ident">AugmentedMatrix</span>::<span class="op">&lt;</span><span class="number">3</span><span class="op">&gt;</span><span class="ident">::new</span>(<span class="ident">ValidPrime::new</span>(<span class="number">2</span>), <span class="number">3</span>, <span class="ident">cols</span>);
+        <span class="macro">assert_eq!</span>(<span class="ident">aug</span>.<span class="ident">segment</span>(<span class="number">0</span>, <span class="number">0</span>).<span class="ident">columns</span>(), <span class="ident">cols</span>[<span class="number">0</span>]);
+        <span class="macro">assert_eq!</span>(<span class="ident">aug</span>.<span class="ident">segment</span>(<span class="number">1</span>, <span class="number">1</span>).<span class="ident">columns</span>(), <span class="ident">cols</span>[<span class="number">1</span>]);
+        <span class="macro">assert_eq!</span>(<span class="ident">aug</span>.<span class="ident">segment</span>(<span class="number">2</span>, <span class="number">2</span>).<span class="ident">columns</span>(), <span class="ident">cols</span>[<span class="number">2</span>]);
     }
 
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">test_row_reduce_2</span>() {
-        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">ValidPrime</span>::<span class="ident">new</span>(<span class="number">2</span>);
+        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">ValidPrime::new</span>(<span class="number">2</span>);
         <span class="kw">let</span> <span class="ident">tests</span> <span class="op">=</span> [(
             [
                 [<span class="number">0</span>, <span class="number">1</span>, <span class="number">1</span>, <span class="number">0</span>, <span class="number">1</span>, <span class="number">1</span>, <span class="number">0</span>, <span class="number">1</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">1</span>, <span class="number">0</span>, <span class="number">1</span>, <span class="number">1</span>],
@@ -2399,21 +2399,21 @@
             <span class="kw">let</span> <span class="ident">goal_pivots</span> <span class="op">=</span> <span class="ident">test</span>.<span class="number">2</span>;
             <span class="kw">let</span> <span class="ident">rows</span> <span class="op">=</span> <span class="ident">input</span>.<span class="ident">len</span>();
             <span class="kw">let</span> <span class="ident">cols</span> <span class="op">=</span> <span class="ident">input</span>[<span class="number">0</span>].<span class="ident">len</span>();
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">rows</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">with_capacity</span>(<span class="ident">rows</span>);
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">rows</span> <span class="op">=</span> <span class="ident">Vec::with_capacity</span>(<span class="ident">rows</span>);
             <span class="kw">for</span> <span class="ident">x</span> <span class="kw">in</span> <span class="ident">input</span>.<span class="ident">iter</span>() {
-                <span class="ident">rows</span>.<span class="ident">push</span>(<span class="ident">FpVector</span>::<span class="ident">from_slice</span>(<span class="ident">p</span>, <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">x</span>));
+                <span class="ident">rows</span>.<span class="ident">push</span>(<span class="ident">FpVector::from_slice</span>(<span class="ident">p</span>, <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">x</span>));
             }
 
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">m</span> <span class="op">=</span> <span class="ident">Matrix</span>::<span class="ident">from_rows</span>(<span class="ident">p</span>, <span class="ident">rows</span>, <span class="ident">cols</span>);
-            <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">m</span>);
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">m</span> <span class="op">=</span> <span class="ident">Matrix::from_rows</span>(<span class="ident">p</span>, <span class="ident">rows</span>, <span class="ident">cols</span>);
+            <span class="macro">println!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">m</span>);
             <span class="ident">m</span>.<span class="ident">row_reduce</span>();
             <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">input</span>.<span class="ident">len</span>() {
-                <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">Vec</span>::<span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span>::<span class="ident">from</span>(<span class="kw-2">&amp;</span><span class="ident">m</span>[<span class="ident">i</span>]), <span class="ident">goal_output</span>[<span class="ident">i</span>]);
+                <span class="macro">assert_eq!</span>(<span class="ident">Vec</span>::<span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span><span class="ident">::from</span>(<span class="kw-2">&amp;</span><span class="ident">m</span>[<span class="ident">i</span>]), <span class="ident">goal_output</span>[<span class="ident">i</span>]);
             }
-            <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">m</span>.<span class="ident">pivots</span>(), <span class="kw-2">&amp;</span><span class="ident">goal_pivots</span>)
+            <span class="macro">assert_eq!</span>(<span class="ident">m</span>.<span class="ident">pivots</span>(), <span class="kw-2">&amp;</span><span class="ident">goal_pivots</span>)
         }
     }
 }
 </pre></div>
-</section><section id="search" class="content hidden"></section><section class="footer"></section><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="fp" data-search-js="../../../search-index.js"></div>
+</section><section id="search" class="content hidden"></section><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="fp" data-search-index-js="../../../search-index.js" data-search-js="../../../search.js"></div>
     <script src="../../../main.js"></script><script src="../../../source-script.js"></script><script src="../../../source-files.js"></script></body></html>

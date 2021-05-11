@@ -24,8 +24,8 @@
     });
 </script>
 
-<style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu" role="button">&#9776;</div><a href='../../save_bruner/index.html'><div class='logo-container rust-logo'><img src='../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu"><img src="../../brush.svg" width="18" height="18" alt="Pick another theme!"></button><div id="theme-choices" role="menu"></div></div><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><button type="button" class="help-button">?</button>
-                <a id="settings-menu" href="../../settings.html"><img src="../../wheel.svg" width="18" height="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1"> 1</span>
+<style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu" role="button">&#9776;</div><a href='../../save_bruner/index.html'><div class='logo-container rust-logo'><img src='../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu"><img src="../../brush.svg" width="18" height="18" alt="Pick another theme!"></button><div id="theme-choices" role="menu"></div></div><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><button type="button" class="help-button">?</button>
+                <a id="settings-menu" href="../../settings.html"><img src="../../wheel.svg" width="18" height="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><div class="example-wrap"><pre class="line-numbers"><span id="1"> 1</span>
 <span id="2"> 2</span>
 <span id="3"> 3</span>
 <span id="4"> 4</span>
@@ -102,29 +102,29 @@
 <span id="75">75</span>
 <span id="76">76</span>
 <span id="77">77</span>
-</pre><div class="example-wrap"><pre class="rust ">
+</pre><pre class="rust">
 <span class="doccomment">//! This saves a resolution to Bruner&#39;s format. This saves the resulting files to the current</span>
 <span class="doccomment">//! working directory. It is recommended that you run this in a dedicated subdirectory.</span>
 
-<span class="kw">use</span> <span class="ident">algebra</span>::<span class="ident">module</span>::<span class="ident">Module</span>;
+<span class="kw">use</span> <span class="ident">algebra::module::Module</span>;
 <span class="kw">use</span> <span class="ident">algebra</span>::{<span class="ident">Algebra</span>, <span class="ident">AlgebraType</span>, <span class="ident">MilnorAlgebraT</span>};
-<span class="kw">use</span> <span class="ident">ext</span>::{<span class="ident">chain_complex</span>::<span class="ident">ChainComplex</span>, <span class="ident">utils</span>::<span class="ident">query_module</span>};
-<span class="kw">use</span> <span class="ident">itertools</span>::<span class="ident">Itertools</span>;
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">fmt</span>::<span class="ident">Write</span> <span class="kw">as</span> <span class="kw">_</span>;
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">fs</span>::<span class="ident">File</span>;
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">io</span>::{<span class="ident">BufWriter</span>, <span class="ident">Write</span> <span class="kw">as</span> <span class="kw">_</span>};
+<span class="kw">use</span> <span class="ident">ext</span>::{<span class="ident">chain_complex::ChainComplex</span>, <span class="ident">utils::query_module</span>};
+<span class="kw">use</span> <span class="ident">itertools::Itertools</span>;
+<span class="kw">use</span> <span class="ident">std::fmt::Write</span> <span class="kw">as</span> <span class="kw">_</span>;
+<span class="kw">use</span> <span class="ident">std::fs::File</span>;
+<span class="kw">use</span> <span class="ident">std::io</span>::{<span class="ident">BufWriter</span>, <span class="ident">Write</span> <span class="kw">as</span> <span class="kw">_</span>};
 
-<span class="kw">fn</span> <span class="ident">main</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span> {
-    <span class="kw">let</span> <span class="ident">resolution</span> <span class="op">=</span> <span class="ident">query_module</span>(<span class="prelude-val">Some</span>(<span class="ident">AlgebraType</span>::<span class="ident">Milnor</span>))<span class="question-mark">?</span>.<span class="ident">resolution</span>;
+<span class="kw">fn</span> <span class="ident">main</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error::Result</span> {
+    <span class="kw">let</span> <span class="ident">resolution</span> <span class="op">=</span> <span class="ident">query_module</span>(<span class="prelude-val">Some</span>(<span class="ident">AlgebraType::Milnor</span>))<span class="question-mark">?</span>.<span class="ident">resolution</span>;
 
-    <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="kw-2">*</span><span class="ident">resolution</span>.<span class="ident">prime</span>(), <span class="number">2</span>);
+    <span class="macro">assert_eq!</span>(<span class="kw-2">*</span><span class="ident">resolution</span>.<span class="ident">prime</span>(), <span class="number">2</span>);
     <span class="kw">let</span> <span class="ident">algebra</span> <span class="op">=</span> <span class="ident">resolution</span>.<span class="ident">algebra</span>();
     <span class="kw">let</span> <span class="ident">algebra</span> <span class="op">=</span> <span class="ident">algebra</span>.<span class="ident">milnor_algebra</span>();
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">buffer</span> <span class="op">=</span> <span class="ident">String</span>::<span class="ident">new</span>();
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">buffer</span> <span class="op">=</span> <span class="ident">String::new</span>();
 
     <span class="kw">for</span> <span class="ident">s</span> <span class="kw">in</span> <span class="number">0</span>..<span class="op">=</span><span class="ident">resolution</span>.<span class="ident">max_homological_degree</span>() {
-        <span class="kw">let</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">File</span>::<span class="ident">create</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Diff.{}&quot;</span>, <span class="ident">s</span>))<span class="question-mark">?</span>;
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">BufWriter</span>::<span class="ident">new</span>(<span class="ident">f</span>);
+        <span class="kw">let</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">File::create</span>(<span class="macro">format!</span>(<span class="string">&quot;Diff.{}&quot;</span>, <span class="ident">s</span>))<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">BufWriter::new</span>(<span class="ident">f</span>);
         <span class="kw">let</span> <span class="ident">module</span> <span class="op">=</span> <span class="ident">resolution</span>.<span class="ident">module</span>(<span class="ident">s</span>);
         <span class="comment">// We don&#39;t use this when s = 0</span>
         <span class="kw">let</span> <span class="ident">dmodule</span> <span class="op">=</span> <span class="ident">resolution</span>.<span class="ident">module</span>(<span class="ident">s</span>.<span class="ident">saturating_sub</span>(<span class="number">1</span>));
@@ -134,17 +134,17 @@
             .<span class="ident">map</span>(<span class="op">|</span><span class="ident">t</span><span class="op">|</span> <span class="ident">module</span>.<span class="ident">number_of_gens_in_degree</span>(<span class="ident">t</span>))
             .<span class="ident">sum</span>();
 
-        <span class="macro">writeln</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;s={}  n={}\n&quot;</span>, <span class="ident">s</span>, <span class="ident">num_gens</span>)<span class="question-mark">?</span>;
+        <span class="macro">writeln!</span>(<span class="ident">f</span>, <span class="string">&quot;s={}  n={}\n&quot;</span>, <span class="ident">s</span>, <span class="ident">num_gens</span>)<span class="question-mark">?</span>;
 
         <span class="kw">let</span> <span class="ident">d</span> <span class="op">=</span> <span class="ident">resolution</span>.<span class="ident">differential</span>(<span class="ident">s</span>);
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">gen_count</span> <span class="op">=</span> <span class="number">0</span>;
         <span class="kw">for</span> <span class="ident">t</span> <span class="kw">in</span> <span class="ident">min_degree</span>..<span class="op">=</span><span class="ident">max_degree</span> {
             <span class="kw">for</span> <span class="ident">idx</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">module</span>.<span class="ident">number_of_gens_in_degree</span>(<span class="ident">t</span>) {
-                <span class="macro">writeln</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;{} : {}\n&quot;</span>, <span class="ident">gen_count</span>, <span class="ident">t</span>)<span class="question-mark">?</span>;
+                <span class="macro">writeln!</span>(<span class="ident">f</span>, <span class="string">&quot;{} : {}\n&quot;</span>, <span class="ident">gen_count</span>, <span class="ident">t</span>)<span class="question-mark">?</span>;
                 <span class="ident">gen_count</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
 
                 <span class="kw">if</span> <span class="ident">s</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
-                    <span class="macro">writeln</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;1\n0 0 1 i(0).\n\n\n&quot;</span>)<span class="question-mark">?</span>;
+                    <span class="macro">writeln!</span>(<span class="ident">f</span>, <span class="string">&quot;1\n0 0 1 i(0).\n\n\n&quot;</span>)<span class="question-mark">?</span>;
                     <span class="kw">continue</span>;
                 }
                 <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">row_count</span> <span class="op">=</span> <span class="number">0</span>;
@@ -163,17 +163,17 @@
                             <span class="kw">continue</span>;
                         }
                         <span class="ident">row_count</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
-                        <span class="macro">write</span><span class="macro">!</span>(<span class="ident">buffer</span>, <span class="string">&quot;{} {} {} i&quot;</span>, <span class="ident">inner_gen_count</span>, <span class="ident">op_deg</span>, <span class="ident">algebra_dim</span>)<span class="question-mark">?</span>;
+                        <span class="macro">write!</span>(<span class="ident">buffer</span>, <span class="string">&quot;{} {} {} i&quot;</span>, <span class="ident">inner_gen_count</span>, <span class="ident">op_deg</span>, <span class="ident">algebra_dim</span>)<span class="question-mark">?</span>;
                         <span class="kw">for</span> (<span class="ident">op_idx</span>, <span class="kw">_</span>) <span class="kw">in</span> <span class="ident">slice</span>.<span class="ident">iter_nonzero</span>() {
                             <span class="kw">let</span> <span class="ident">elt</span> <span class="op">=</span> <span class="ident">algebra</span>.<span class="ident">basis_element_from_index</span>(<span class="ident">op_deg</span>, <span class="ident">op_idx</span>);
-                            <span class="macro">write</span><span class="macro">!</span>(<span class="ident">buffer</span>, <span class="string">&quot;({:?})&quot;</span>, <span class="ident">elt</span>.<span class="ident">p_part</span>.<span class="ident">iter</span>().<span class="ident">format</span>(<span class="string">&quot;,&quot;</span>))<span class="question-mark">?</span>;
+                            <span class="macro">write!</span>(<span class="ident">buffer</span>, <span class="string">&quot;({:?})&quot;</span>, <span class="ident">elt</span>.<span class="ident">p_part</span>.<span class="ident">iter</span>().<span class="ident">format</span>(<span class="string">&quot;,&quot;</span>))<span class="question-mark">?</span>;
                         }
-                        <span class="macro">writeln</span><span class="macro">!</span>(<span class="ident">buffer</span>, <span class="string">&quot;.&quot;</span>)<span class="question-mark">?</span>;
+                        <span class="macro">writeln!</span>(<span class="ident">buffer</span>, <span class="string">&quot;.&quot;</span>)<span class="question-mark">?</span>;
                         <span class="ident">inner_gen_count</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
                     }
                 }
-                <span class="macro">writeln</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;{}&quot;</span>, <span class="ident">row_count</span>)<span class="question-mark">?</span>;
-                <span class="macro">writeln</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;{}\n&quot;</span>, <span class="ident">buffer</span>)<span class="question-mark">?</span>; <span class="comment">// buffer has one new line, writeln has one new line, add another one.</span>
+                <span class="macro">writeln!</span>(<span class="ident">f</span>, <span class="string">&quot;{}&quot;</span>, <span class="ident">row_count</span>)<span class="question-mark">?</span>;
+                <span class="macro">writeln!</span>(<span class="ident">f</span>, <span class="string">&quot;{}\n&quot;</span>, <span class="ident">buffer</span>)<span class="question-mark">?</span>; <span class="comment">// buffer has one new line, writeln has one new line, add another one.</span>
             }
         }
     }
@@ -181,5 +181,5 @@
     <span class="prelude-val">Ok</span>(())
 }
 </pre></div>
-</section><section id="search" class="content hidden"></section><section class="footer"></section><div id="rustdoc-vars" data-root-path="../../" data-current-crate="save_bruner" data-search-js="../../search-index.js"></div>
+</section><section id="search" class="content hidden"></section><div id="rustdoc-vars" data-root-path="../../" data-current-crate="save_bruner" data-search-index-js="../../search-index.js" data-search-js="../../search.js"></div>
     <script src="../../main.js"></script><script src="../../source-script.js"></script><script src="../../source-files.js"></script></body></html>

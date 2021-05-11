@@ -24,8 +24,8 @@
     });
 </script>
 
-<style type="text/css">#crate-search{background-image:url("../../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu" role="button">&#9776;</div><a href='../../../algebra/index.html'><div class='logo-container rust-logo'><img src='../../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu"><img src="../../../brush.svg" width="18" height="18" alt="Pick another theme!"></button><div id="theme-choices" role="menu"></div></div><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><button type="button" class="help-button">?</button>
-                <a id="settings-menu" href="../../../settings.html"><img src="../../../wheel.svg" width="18" height="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">  1</span>
+<style type="text/css">#crate-search{background-image:url("../../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu" role="button">&#9776;</div><a href='../../../algebra/index.html'><div class='logo-container rust-logo'><img src='../../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu"><img src="../../../brush.svg" width="18" height="18" alt="Pick another theme!"></button><div id="theme-choices" role="menu"></div></div><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><button type="button" class="help-button">?</button>
+                <a id="settings-menu" href="../../../settings.html"><img src="../../../wheel.svg" width="18" height="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><div class="example-wrap"><pre class="line-numbers"><span id="1">  1</span>
 <span id="2">  2</span>
 <span id="3">  3</span>
 <span id="4">  4</span>
@@ -325,57 +325,57 @@
 <span id="298">298</span>
 <span id="299">299</span>
 <span id="300">300</span>
-</pre><div class="example-wrap"><pre class="rust ">
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
+</pre><pre class="rust">
+<span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
 
-<span class="kw">use</span> <span class="ident">bivec</span>::<span class="ident">BiVec</span>;
+<span class="kw">use</span> <span class="ident">bivec::BiVec</span>;
 
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">algebra</span>::{<span class="ident">Algebra</span>, <span class="ident">Field</span>};
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">module</span>::<span class="ident">block_structure</span>::<span class="ident">BlockStructure</span>;
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">module</span>::<span class="ident">homomorphism</span>::<span class="ident">FreeModuleHomomorphism</span>;
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">module</span>::{<span class="ident">BoundedModule</span>, <span class="ident">FreeModule</span>, <span class="ident">Module</span>};
-<span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">vector</span>::{<span class="ident">Slice</span>, <span class="ident">SliceMut</span>};
-<span class="kw">use</span> <span class="ident">once</span>::<span class="ident">OnceBiVec</span>;
+<span class="kw">use</span> <span class="kw">crate</span><span class="ident">::algebra</span>::{<span class="ident">Algebra</span>, <span class="ident">Field</span>};
+<span class="kw">use</span> <span class="kw">crate</span><span class="ident">::module::block_structure::BlockStructure</span>;
+<span class="kw">use</span> <span class="kw">crate</span><span class="ident">::module::homomorphism::FreeModuleHomomorphism</span>;
+<span class="kw">use</span> <span class="kw">crate</span><span class="ident">::module</span>::{<span class="ident">BoundedModule</span>, <span class="ident">FreeModule</span>, <span class="ident">Module</span>};
+<span class="kw">use</span> <span class="ident">fp::vector</span>::{<span class="ident">Slice</span>, <span class="ident">SliceMut</span>};
+<span class="kw">use</span> <span class="ident">once::OnceBiVec</span>;
 
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">HomModule</span><span class="op">&lt;</span><span class="ident">M</span>: <span class="ident">BoundedModule</span><span class="op">&gt;</span> {
     <span class="ident">algebra</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Field</span><span class="op">&gt;</span>,
-    <span class="ident">source</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident">M</span>::<span class="ident">Algebra</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">source</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident">M::Algebra</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="ident">target</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span>,
     <span class="kw">pub</span> <span class="ident">block_structures</span>: <span class="ident">OnceBiVec</span><span class="op">&lt;</span><span class="ident">BlockStructure</span><span class="op">&gt;</span>,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">M</span>: <span class="ident">BoundedModule</span><span class="op">&gt;</span> <span class="ident">std</span>::<span class="ident">fmt</span>::<span class="ident">Display</span> <span class="kw">for</span> <span class="ident">HomModule</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">std</span>::<span class="ident">fmt</span>::<span class="ident">Formatter</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">std</span>::<span class="ident">fmt</span>::<span class="prelude-ty">Result</span> {
-        <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="string">&quot;Hom({}, {})&quot;</span>, <span class="self">self</span>.<span class="ident">source</span>, <span class="self">self</span>.<span class="ident">target</span>)
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">M</span>: <span class="ident">BoundedModule</span><span class="op">&gt;</span> <span class="ident">std::fmt::Display</span> <span class="kw">for</span> <span class="ident">HomModule</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">std::fmt::Formatter</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">std::fmt::Result</span> {
+        <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;Hom({}, {})&quot;</span>, <span class="self">self</span>.<span class="ident">source</span>, <span class="self">self</span>.<span class="ident">target</span>)
     }
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">M</span>: <span class="ident">BoundedModule</span><span class="op">&gt;</span> <span class="ident">HomModule</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">source</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident">M</span>::<span class="ident">Algebra</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="ident">target</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">source</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident">M::Algebra</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="ident">target</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">source</span>.<span class="ident">prime</span>();
-        <span class="kw">let</span> <span class="ident">algebra</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">Field</span>::<span class="ident">new</span>(<span class="ident">p</span>));
+        <span class="kw">let</span> <span class="ident">algebra</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">Field::new</span>(<span class="ident">p</span>));
         <span class="kw">let</span> <span class="ident">min_degree</span> <span class="op">=</span> <span class="ident">source</span>.<span class="ident">min_degree</span>() <span class="op">-</span> <span class="ident">target</span>.<span class="ident">max_degree</span>();
         <span class="self">Self</span> {
             <span class="ident">algebra</span>,
             <span class="ident">source</span>,
             <span class="ident">target</span>,
-            <span class="ident">block_structures</span>: <span class="ident">OnceBiVec</span>::<span class="ident">new</span>(<span class="ident">min_degree</span>), <span class="comment">// fn_degree -&gt; blocks</span>
+            <span class="ident">block_structures</span>: <span class="ident">OnceBiVec::new</span>(<span class="ident">min_degree</span>), <span class="comment">// fn_degree -&gt; blocks</span>
         }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">source</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident">M</span>::<span class="ident">Algebra</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-        <span class="ident">Arc</span>::<span class="ident">clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">source</span>)
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">source</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident">M::Algebra</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">source</span>)
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">target</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span> {
-        <span class="ident">Arc</span>::<span class="ident">clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">target</span>)
+        <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">target</span>)
     }
 
     <span class="comment">// Each element of HomModule represents a homomorphism from source to target of a given degree.</span>
     <span class="comment">// Turn an FpVector representing an element of the HomModule  into a FreeModuleHomomorphism</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">element_to_homomorphism</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">x</span>: <span class="ident">Slice</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span>
-            <span class="ident">FreeModuleHomomorphism</span>::<span class="ident">new</span>(<span class="ident">Arc</span>::<span class="ident">clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">source</span>), <span class="ident">Arc</span>::<span class="ident">clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">target</span>), <span class="ident">degree</span>);
+            <span class="ident">FreeModuleHomomorphism::new</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">source</span>), <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">target</span>), <span class="ident">degree</span>);
         <span class="kw">let</span> <span class="ident">min_nonzero_degree</span> <span class="op">=</span> <span class="ident">degree</span> <span class="op">+</span> <span class="self">self</span>.<span class="ident">target</span>.<span class="ident">min_degree</span>();
         <span class="kw">let</span> <span class="ident">max_nonzero_degree</span> <span class="op">=</span> <span class="ident">degree</span> <span class="op">+</span> <span class="self">self</span>.<span class="ident">target</span>.<span class="ident">max_degree</span>();
         <span class="ident">result</span>.<span class="ident">extend_by_zero</span>(<span class="ident">min_nonzero_degree</span> <span class="op">-</span> <span class="number">1</span>);
@@ -441,8 +441,8 @@
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">M</span>: <span class="ident">BoundedModule</span><span class="op">&gt;</span> <span class="ident">Module</span> <span class="kw">for</span> <span class="ident">HomModule</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span> {
     <span class="kw">type</span> <span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">Field</span>;
 
-    <span class="kw">fn</span> <span class="ident">algebra</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Algebra</span><span class="op">&gt;</span> {
-        <span class="ident">Arc</span>::<span class="ident">clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">algebra</span>)
+    <span class="kw">fn</span> <span class="ident">algebra</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="self">Self</span><span class="ident">::Algebra</span><span class="op">&gt;</span> {
+        <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">algebra</span>)
     }
 
     <span class="kw">fn</span> <span class="ident">min_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
@@ -450,32 +450,32 @@
     }
 
     <span class="kw">fn</span> <span class="ident">max_computed_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-        <span class="macro">unimplemented</span><span class="macro">!</span>()
+        <span class="macro">unimplemented!</span>()
     }
 
     <span class="kw">fn</span> <span class="ident">compute_basis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) {
         <span class="comment">// assertion about source:</span>
         <span class="comment">// self.source.compute_basis(degree + self.target.max_degree());</span>
         <span class="kw">for</span> <span class="ident">d</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">min_degree</span>()..<span class="op">=</span><span class="ident">degree</span> {
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">block_sizes</span> <span class="op">=</span> <span class="ident">BiVec</span>::<span class="ident">with_capacity</span>(
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">block_sizes</span> <span class="op">=</span> <span class="ident">BiVec::with_capacity</span>(
                 <span class="self">self</span>.<span class="ident">target</span>.<span class="ident">min_degree</span>() <span class="op">+</span> <span class="ident">d</span>,
                 <span class="self">self</span>.<span class="ident">target</span>.<span class="ident">max_degree</span>() <span class="op">+</span> <span class="ident">d</span> <span class="op">+</span> <span class="number">1</span>,
             );
             <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">target</span>.<span class="ident">min_degree</span>()..<span class="op">=</span><span class="self">self</span>.<span class="ident">target</span>.<span class="ident">max_degree</span>() {
                 <span class="kw">let</span> <span class="ident">target_dim</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">target</span>.<span class="ident">dimension</span>(<span class="ident">i</span>);
                 <span class="kw">if</span> <span class="ident">target_dim</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
-                    <span class="ident">block_sizes</span>.<span class="ident">push</span>(<span class="ident">Vec</span>::<span class="ident">new</span>());
+                    <span class="ident">block_sizes</span>.<span class="ident">push</span>(<span class="ident">Vec::new</span>());
                     <span class="kw">continue</span>;
                 }
                 <span class="kw">let</span> <span class="ident">num_gens</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">source</span>.<span class="ident">number_of_gens_in_degree</span>(<span class="ident">d</span> <span class="op">+</span> <span class="ident">i</span>);
-                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">block_sizes_entry</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">with_capacity</span>(<span class="ident">num_gens</span>);
+                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">block_sizes_entry</span> <span class="op">=</span> <span class="ident">Vec::with_capacity</span>(<span class="ident">num_gens</span>);
                 <span class="kw">for</span> <span class="kw">_</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">num_gens</span> {
                     <span class="ident">block_sizes_entry</span>.<span class="ident">push</span>(<span class="ident">target_dim</span>)
                 }
                 <span class="ident">block_sizes</span>.<span class="ident">push</span>(<span class="ident">block_sizes_entry</span>);
             }
             <span class="self">self</span>.<span class="ident">block_structures</span>
-                .<span class="ident">push</span>(<span class="ident">BlockStructure</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="ident">block_sizes</span>));
+                .<span class="ident">push</span>(<span class="ident">BlockStructure::new</span>(<span class="kw-2">&amp;</span><span class="ident">block_sizes</span>));
         }
     }
 
@@ -492,8 +492,8 @@
         <span class="ident">_mod_degree</span>: <span class="ident">i32</span>,
         <span class="ident">mod_index</span>: <span class="ident">usize</span>,
     ) {
-        <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">op_degree</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span>);
-        <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">op_index</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span>);
+        <span class="macro">assert!</span>(<span class="ident">op_degree</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span>);
+        <span class="macro">assert!</span>(<span class="ident">op_index</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span>);
         <span class="ident">result</span>.<span class="ident">add_basis_element</span>(<span class="ident">mod_index</span>, <span class="ident">coeff</span>);
     }
 
@@ -506,7 +506,7 @@
             .<span class="ident">operation_generator_to_index</span>(<span class="number">0</span>, <span class="number">0</span>, <span class="ident">gen_deg</span>, <span class="ident">gen_idx</span>);
         <span class="kw">let</span> <span class="ident">basis_deg</span> <span class="op">=</span> <span class="ident">gen_deg</span> <span class="op">-</span> <span class="ident">degree</span>;
         <span class="kw">let</span> <span class="ident">basis_idx</span> <span class="op">=</span> <span class="ident">gen_basis_elt</span>.<span class="ident">basis_index</span>;
-        <span class="kw">return</span> <span class="macro">format</span><span class="macro">!</span>(
+        <span class="kw">return</span> <span class="macro">format!</span>(
             <span class="string">&quot;{}*{}v&quot;</span>,
             <span class="self">self</span>.<span class="ident">target</span>.<span class="ident">basis_element_to_string</span>(<span class="ident">basis_deg</span>, <span class="ident">basis_idx</span>),
             <span class="self">self</span>.<span class="ident">source</span>.<span class="ident">basis_element_to_string</span>(<span class="ident">gen_deg</span>, <span class="ident">gen_mod_idx</span>)
@@ -517,49 +517,49 @@
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
 <span class="kw">mod</span> <span class="ident">tests</span> {
     <span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
-    <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">algebra</span>::{<span class="ident">AdemAlgebra</span>, <span class="ident">SteenrodAlgebra</span>};
-    <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">module</span>::<span class="ident">homomorphism</span>::<span class="ident">ModuleHomomorphism</span>;
-    <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">module</span>::{<span class="ident">FDModule</span>, <span class="ident">FreeModule</span>, <span class="ident">Module</span>};
+    <span class="kw">use</span> <span class="kw">crate</span><span class="ident">::algebra</span>::{<span class="ident">AdemAlgebra</span>, <span class="ident">SteenrodAlgebra</span>};
+    <span class="kw">use</span> <span class="kw">crate</span><span class="ident">::module::homomorphism::ModuleHomomorphism</span>;
+    <span class="kw">use</span> <span class="kw">crate</span><span class="ident">::module</span>::{<span class="ident">FDModule</span>, <span class="ident">FreeModule</span>, <span class="ident">Module</span>};
 
-    <span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">prime</span>::<span class="ident">ValidPrime</span>;
-    <span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">vector</span>::<span class="ident">FpVector</span>;
+    <span class="kw">use</span> <span class="ident">fp::prime::ValidPrime</span>;
+    <span class="kw">use</span> <span class="ident">fp::vector::FpVector</span>;
 
     <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">non_snake_case</span>)]</span>
-    <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">clippy</span>::<span class="ident">needless_range_loop</span>)]</span>
+    <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">clippy::needless_range_loop</span>)]</span>
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">test_hom_space</span>() {
-        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">ValidPrime</span>::<span class="ident">new</span>(<span class="number">2</span>);
-        <span class="kw">let</span> <span class="ident">A</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">SteenrodAlgebra</span>::<span class="ident">from</span>(<span class="ident">AdemAlgebra</span>::<span class="ident">new</span>(
+        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">ValidPrime::new</span>(<span class="number">2</span>);
+        <span class="kw">let</span> <span class="ident">A</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">SteenrodAlgebra::from</span>(<span class="ident">AdemAlgebra::new</span>(
             <span class="ident">p</span>,
             <span class="kw-2">*</span><span class="ident">p</span> <span class="op">!</span><span class="op">=</span> <span class="number">2</span>,
             <span class="bool-val">false</span>,
             <span class="bool-val">false</span>,
         )));
         <span class="ident">A</span>.<span class="ident">compute_basis</span>(<span class="number">20</span>);
-        <span class="kw">let</span> <span class="ident">F</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">FreeModule</span>::<span class="ident">new</span>(<span class="ident">Arc</span>::<span class="ident">clone</span>(<span class="kw-2">&amp;</span><span class="ident">A</span>), <span class="string">&quot;&quot;</span>.<span class="ident">to_string</span>(), <span class="number">0</span>));
+        <span class="kw">let</span> <span class="ident">F</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">FreeModule::new</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">A</span>), <span class="string">&quot;&quot;</span>.<span class="ident">to_string</span>(), <span class="number">0</span>));
         <span class="ident">F</span>.<span class="ident">add_generators</span>(<span class="number">0</span>, <span class="number">1</span>, <span class="prelude-val">None</span>);
         <span class="ident">F</span>.<span class="ident">add_generators</span>(<span class="number">1</span>, <span class="number">1</span>, <span class="prelude-val">None</span>);
         <span class="ident">F</span>.<span class="ident">add_generators</span>(<span class="number">2</span>, <span class="number">1</span>, <span class="prelude-val">None</span>);
         <span class="ident">F</span>.<span class="ident">extend_by_zero</span>(<span class="number">20</span>);
         <span class="kw">let</span> <span class="ident">joker_json_string</span> <span class="op">=</span> <span class="string">r#&quot;{&quot;type&quot; : &quot;finite dimensional module&quot;,&quot;name&quot;: &quot;Joker&quot;, &quot;file_name&quot;: &quot;Joker&quot;, &quot;p&quot;: 2, &quot;generic&quot;: false, &quot;gens&quot;: {&quot;x0&quot;: 0, &quot;x1&quot;: 1, &quot;x2&quot;: 2, &quot;x3&quot;: 3, &quot;x4&quot;: 4}, &quot;sq_actions&quot;: [{&quot;op&quot;: 2, &quot;input&quot;: &quot;x0&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x2&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: 2, &quot;input&quot;: &quot;x2&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x4&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: 1, &quot;input&quot;: &quot;x0&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x1&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: 2, &quot;input&quot;: &quot;x1&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x3&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: 1, &quot;input&quot;: &quot;x3&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x4&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: 3, &quot;input&quot;: &quot;x1&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x4&quot;, &quot;coeff&quot;: 1}]}], &quot;adem_actions&quot;: [{&quot;op&quot;: [1], &quot;input&quot;: &quot;x0&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x1&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [1], &quot;input&quot;: &quot;x3&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x4&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [2], &quot;input&quot;: &quot;x0&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x2&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [2], &quot;input&quot;: &quot;x1&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x3&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [2], &quot;input&quot;: &quot;x2&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x4&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [3], &quot;input&quot;: &quot;x1&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x4&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [2, 1], &quot;input&quot;: &quot;x0&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x3&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [3, 1], &quot;input&quot;: &quot;x0&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x4&quot;, &quot;coeff&quot;: 1}]}], &quot;milnor_actions&quot;: [{&quot;op&quot;: [1], &quot;input&quot;: &quot;x0&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x1&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [1], &quot;input&quot;: &quot;x3&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x4&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [2], &quot;input&quot;: &quot;x0&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x2&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [2], &quot;input&quot;: &quot;x1&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x3&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [2], &quot;input&quot;: &quot;x2&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x4&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [0, 1], &quot;input&quot;: &quot;x0&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x3&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [0, 1], &quot;input&quot;: &quot;x1&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x4&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [3], &quot;input&quot;: &quot;x1&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x4&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [1, 1], &quot;input&quot;: &quot;x0&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x4&quot;, &quot;coeff&quot;: 1}]}]}&quot;#</span>;
-        <span class="kw">let</span> <span class="ident">joker_json</span> <span class="op">=</span> <span class="ident">serde_json</span>::<span class="ident">from_str</span>(<span class="kw-2">&amp;</span><span class="ident">joker_json_string</span>).<span class="ident">unwrap</span>();
-        <span class="kw">let</span> <span class="ident">M</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">FDModule</span>::<span class="ident">from_json</span>(<span class="ident">Arc</span>::<span class="ident">clone</span>(<span class="kw-2">&amp;</span><span class="ident">A</span>), <span class="kw-2">&amp;</span><span class="ident">joker_json</span>).<span class="ident">unwrap</span>());
-        <span class="kw">let</span> <span class="ident">hom</span> <span class="op">=</span> <span class="ident">HomModule</span>::<span class="ident">new</span>(<span class="ident">Arc</span>::<span class="ident">clone</span>(<span class="kw-2">&amp;</span><span class="ident">F</span>), <span class="ident">Arc</span>::<span class="ident">clone</span>(<span class="kw-2">&amp;</span><span class="ident">M</span>));
+        <span class="kw">let</span> <span class="ident">joker_json</span> <span class="op">=</span> <span class="ident">serde_json::from_str</span>(<span class="kw-2">&amp;</span><span class="ident">joker_json_string</span>).<span class="ident">unwrap</span>();
+        <span class="kw">let</span> <span class="ident">M</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">FDModule::from_json</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">A</span>), <span class="kw-2">&amp;</span><span class="ident">joker_json</span>).<span class="ident">unwrap</span>());
+        <span class="kw">let</span> <span class="ident">hom</span> <span class="op">=</span> <span class="ident">HomModule::new</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">F</span>), <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">M</span>));
         <span class="ident">hom</span>.<span class="ident">compute_basis</span>(<span class="number">10</span>);
         <span class="kw">let</span> <span class="ident">dimensions</span> <span class="op">=</span> [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">3</span>, <span class="number">3</span>, <span class="number">2</span>, <span class="number">1</span>, <span class="number">0</span>];
         <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="op">-</span><span class="number">4</span>..<span class="op">=</span><span class="number">3</span> {
-            <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">hom</span>.<span class="ident">dimension</span>(<span class="ident">i</span>), <span class="ident">dimensions</span>[(<span class="ident">i</span> <span class="op">+</span> <span class="number">4</span>) <span class="kw">as</span> <span class="ident">usize</span>]);
+            <span class="macro">assert_eq!</span>(<span class="ident">hom</span>.<span class="ident">dimension</span>(<span class="ident">i</span>), <span class="ident">dimensions</span>[(<span class="ident">i</span> <span class="op">+</span> <span class="number">4</span>) <span class="kw">as</span> <span class="ident">usize</span>]);
         }
         <span class="kw">let</span> <span class="ident">f_degree</span> <span class="op">=</span> <span class="number">0</span>;
         <span class="kw">let</span> <span class="ident">x_degree</span> <span class="op">=</span> <span class="number">4</span>;
         <span class="kw">let</span> <span class="ident">out_degree</span> <span class="op">=</span> <span class="ident">x_degree</span> <span class="op">-</span> <span class="ident">f_degree</span>;
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">x</span> <span class="op">=</span> <span class="ident">FpVector</span>::<span class="ident">new</span>(<span class="ident">p</span>, <span class="ident">F</span>.<span class="ident">dimension</span>(<span class="ident">x_degree</span>));
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">FpVector</span>::<span class="ident">new</span>(<span class="ident">p</span>, <span class="ident">M</span>.<span class="ident">dimension</span>(<span class="ident">out_degree</span>));
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">expected_result</span> <span class="op">=</span> <span class="ident">FpVector</span>::<span class="ident">new</span>(<span class="ident">p</span>, <span class="ident">M</span>.<span class="ident">dimension</span>(<span class="ident">out_degree</span>));
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">x</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="ident">F</span>.<span class="ident">dimension</span>(<span class="ident">x_degree</span>));
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="ident">M</span>.<span class="ident">dimension</span>(<span class="ident">out_degree</span>));
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">expected_result</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="ident">M</span>.<span class="ident">dimension</span>(<span class="ident">out_degree</span>));
         <span class="kw">let</span> <span class="ident">outputs</span> <span class="op">=</span> [[<span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>], [<span class="number">1</span>, <span class="number">0</span>, <span class="number">0</span>], [<span class="number">0</span>, <span class="number">1</span>, <span class="number">0</span>], [<span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>], [<span class="number">0</span>, <span class="number">0</span>, <span class="number">1</span>]];
         <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">x</span>.<span class="ident">len</span>() {
             <span class="ident">x</span>.<span class="ident">set_entry</span>(<span class="ident">i</span>, <span class="number">1</span>);
-            <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;\n\nx : {}&quot;</span>, <span class="ident">F</span>.<span class="ident">element_to_string</span>(<span class="ident">x_degree</span>, <span class="ident">x</span>.<span class="ident">as_slice</span>()));
+            <span class="macro">println!</span>(<span class="string">&quot;\n\nx : {}&quot;</span>, <span class="ident">F</span>.<span class="ident">element_to_string</span>(<span class="ident">x_degree</span>, <span class="ident">x</span>.<span class="ident">as_slice</span>()));
             <span class="kw">for</span> <span class="ident">f_idx</span> <span class="kw">in</span> <span class="number">0</span>..<span class="number">3</span> {
                 <span class="ident">hom</span>.<span class="ident">evaluate_basis_map_on_element</span>(
                     <span class="ident">result</span>.<span class="ident">as_slice_mut</span>(),
@@ -569,13 +569,13 @@
                     <span class="ident">x_degree</span>,
                     <span class="ident">x</span>.<span class="ident">as_slice</span>(),
                 );
-                <span class="macro">println</span><span class="macro">!</span>(
+                <span class="macro">println!</span>(
                     <span class="string">&quot;f : {} ==&gt; f(x) : {}&quot;</span>,
                     <span class="ident">hom</span>.<span class="ident">basis_element_to_string</span>(<span class="ident">f_degree</span>, <span class="ident">f_idx</span>),
                     <span class="ident">M</span>.<span class="ident">element_to_string</span>(<span class="ident">out_degree</span>, <span class="ident">result</span>.<span class="ident">as_slice</span>())
                 );
                 <span class="ident">expected_result</span>.<span class="ident">set_entry</span>(<span class="number">0</span>, <span class="ident">outputs</span>[<span class="ident">i</span>][<span class="ident">f_idx</span>]);
-                <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">result</span>, <span class="ident">expected_result</span>);
+                <span class="macro">assert_eq!</span>(<span class="ident">result</span>, <span class="ident">expected_result</span>);
                 <span class="ident">result</span>.<span class="ident">set_to_zero</span>();
             }
             <span class="ident">x</span>.<span class="ident">set_to_zero</span>();
@@ -585,34 +585,34 @@
     <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">non_snake_case</span>)]</span>
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">test_hom_space_elt_to_map</span>() {
-        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">ValidPrime</span>::<span class="ident">new</span>(<span class="number">2</span>);
-        <span class="kw">let</span> <span class="ident">A</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">SteenrodAlgebra</span>::<span class="ident">from</span>(<span class="ident">AdemAlgebra</span>::<span class="ident">new</span>(
+        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">ValidPrime::new</span>(<span class="number">2</span>);
+        <span class="kw">let</span> <span class="ident">A</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">SteenrodAlgebra::from</span>(<span class="ident">AdemAlgebra::new</span>(
             <span class="ident">p</span>,
             <span class="kw-2">*</span><span class="ident">p</span> <span class="op">!</span><span class="op">=</span> <span class="number">2</span>,
             <span class="bool-val">false</span>,
             <span class="bool-val">false</span>,
         )));
         <span class="ident">A</span>.<span class="ident">compute_basis</span>(<span class="number">20</span>);
-        <span class="kw">let</span> <span class="ident">F</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">FreeModule</span>::<span class="ident">new</span>(<span class="ident">Arc</span>::<span class="ident">clone</span>(<span class="kw-2">&amp;</span><span class="ident">A</span>), <span class="string">&quot;&quot;</span>.<span class="ident">to_string</span>(), <span class="number">0</span>));
+        <span class="kw">let</span> <span class="ident">F</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">FreeModule::new</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">A</span>), <span class="string">&quot;&quot;</span>.<span class="ident">to_string</span>(), <span class="number">0</span>));
         <span class="ident">F</span>.<span class="ident">add_generators</span>(<span class="number">0</span>, <span class="number">1</span>, <span class="prelude-val">None</span>);
         <span class="ident">F</span>.<span class="ident">add_generators</span>(<span class="number">1</span>, <span class="number">1</span>, <span class="prelude-val">None</span>);
         <span class="ident">F</span>.<span class="ident">add_generators</span>(<span class="number">2</span>, <span class="number">1</span>, <span class="prelude-val">None</span>);
         <span class="ident">F</span>.<span class="ident">extend_by_zero</span>(<span class="number">20</span>);
         <span class="kw">let</span> <span class="ident">joker_json_string</span> <span class="op">=</span> <span class="string">r#&quot;{&quot;type&quot; : &quot;finite dimensional module&quot;,&quot;name&quot;: &quot;Joker&quot;, &quot;file_name&quot;: &quot;Joker&quot;, &quot;p&quot;: 2, &quot;generic&quot;: false, &quot;gens&quot;: {&quot;x0&quot;: 0, &quot;x1&quot;: 1, &quot;x2&quot;: 2, &quot;x3&quot;: 3, &quot;x4&quot;: 4}, &quot;sq_actions&quot;: [{&quot;op&quot;: 2, &quot;input&quot;: &quot;x0&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x2&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: 2, &quot;input&quot;: &quot;x2&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x4&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: 1, &quot;input&quot;: &quot;x0&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x1&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: 2, &quot;input&quot;: &quot;x1&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x3&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: 1, &quot;input&quot;: &quot;x3&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x4&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: 3, &quot;input&quot;: &quot;x1&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x4&quot;, &quot;coeff&quot;: 1}]}], &quot;adem_actions&quot;: [{&quot;op&quot;: [1], &quot;input&quot;: &quot;x0&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x1&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [1], &quot;input&quot;: &quot;x3&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x4&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [2], &quot;input&quot;: &quot;x0&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x2&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [2], &quot;input&quot;: &quot;x1&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x3&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [2], &quot;input&quot;: &quot;x2&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x4&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [3], &quot;input&quot;: &quot;x1&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x4&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [2, 1], &quot;input&quot;: &quot;x0&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x3&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [3, 1], &quot;input&quot;: &quot;x0&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x4&quot;, &quot;coeff&quot;: 1}]}], &quot;milnor_actions&quot;: [{&quot;op&quot;: [1], &quot;input&quot;: &quot;x0&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x1&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [1], &quot;input&quot;: &quot;x3&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x4&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [2], &quot;input&quot;: &quot;x0&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x2&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [2], &quot;input&quot;: &quot;x1&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x3&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [2], &quot;input&quot;: &quot;x2&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x4&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [0, 1], &quot;input&quot;: &quot;x0&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x3&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [0, 1], &quot;input&quot;: &quot;x1&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x4&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [3], &quot;input&quot;: &quot;x1&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x4&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [1, 1], &quot;input&quot;: &quot;x0&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x4&quot;, &quot;coeff&quot;: 1}]}]}&quot;#</span>;
-        <span class="kw">let</span> <span class="ident">joker_json</span> <span class="op">=</span> <span class="ident">serde_json</span>::<span class="ident">from_str</span>(<span class="kw-2">&amp;</span><span class="ident">joker_json_string</span>).<span class="ident">unwrap</span>();
-        <span class="kw">let</span> <span class="ident">M</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">FDModule</span>::<span class="ident">from_json</span>(<span class="ident">Arc</span>::<span class="ident">clone</span>(<span class="kw-2">&amp;</span><span class="ident">A</span>), <span class="kw-2">&amp;</span><span class="ident">joker_json</span>).<span class="ident">unwrap</span>());
-        <span class="kw">let</span> <span class="ident">hom</span> <span class="op">=</span> <span class="ident">HomModule</span>::<span class="ident">new</span>(<span class="ident">Arc</span>::<span class="ident">clone</span>(<span class="kw-2">&amp;</span><span class="ident">F</span>), <span class="ident">Arc</span>::<span class="ident">clone</span>(<span class="kw-2">&amp;</span><span class="ident">M</span>));
+        <span class="kw">let</span> <span class="ident">joker_json</span> <span class="op">=</span> <span class="ident">serde_json::from_str</span>(<span class="kw-2">&amp;</span><span class="ident">joker_json_string</span>).<span class="ident">unwrap</span>();
+        <span class="kw">let</span> <span class="ident">M</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">FDModule::from_json</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">A</span>), <span class="kw-2">&amp;</span><span class="ident">joker_json</span>).<span class="ident">unwrap</span>());
+        <span class="kw">let</span> <span class="ident">hom</span> <span class="op">=</span> <span class="ident">HomModule::new</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">F</span>), <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">M</span>));
         <span class="ident">hom</span>.<span class="ident">compute_basis</span>(<span class="number">10</span>);
 
         <span class="kw">let</span> <span class="ident">f_degree</span> <span class="op">=</span> <span class="number">0</span>;
         <span class="kw">let</span> <span class="ident">hom_dim</span> <span class="op">=</span> <span class="ident">hom</span>.<span class="ident">dimension</span>(<span class="ident">f_degree</span>);
-        <span class="kw">let</span> <span class="ident">f_vec</span> <span class="op">=</span> <span class="ident">FpVector</span>::<span class="ident">from_slice</span>(<span class="ident">p</span>, <span class="kw-2">&amp;</span>[<span class="number">1</span>, <span class="number">0</span>, <span class="number">1</span>]);
+        <span class="kw">let</span> <span class="ident">f_vec</span> <span class="op">=</span> <span class="ident">FpVector::from_slice</span>(<span class="ident">p</span>, <span class="kw-2">&amp;</span>[<span class="number">1</span>, <span class="number">0</span>, <span class="number">1</span>]);
         <span class="kw">let</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">hom</span>.<span class="ident">element_to_homomorphism</span>(<span class="ident">f_degree</span>, <span class="ident">f_vec</span>.<span class="ident">as_slice</span>());
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">FpVector</span>::<span class="ident">new</span>(<span class="ident">p</span>, <span class="number">1</span>);
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="number">1</span>);
         <span class="kw">for</span> <span class="ident">degree</span> <span class="kw">in</span> <span class="number">0</span>..<span class="op">=</span><span class="number">4</span> {
             <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">F</span>.<span class="ident">dimension</span>(<span class="ident">degree</span>) {
                 <span class="ident">f</span>.<span class="ident">apply_to_basis_element</span>(<span class="ident">result</span>.<span class="ident">as_slice_mut</span>(), <span class="number">1</span>, <span class="ident">degree</span>, <span class="ident">i</span>);
-                <span class="macro">println</span><span class="macro">!</span>(
+                <span class="macro">println!</span>(
                     <span class="string">&quot;f({}) = {}&quot;</span>,
                     <span class="ident">F</span>.<span class="ident">basis_element_to_string</span>(<span class="ident">degree</span>, <span class="ident">i</span>),
                     <span class="ident">M</span>.<span class="ident">element_to_string</span>(<span class="ident">degree</span> <span class="op">-</span> <span class="ident">f_degree</span>, <span class="ident">result</span>.<span class="ident">as_slice</span>())
@@ -622,10 +622,10 @@
         }
 
         <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">hom_dim</span> {
-            <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;i : {}, f_i : {}&quot;</span>, <span class="ident">i</span>, <span class="ident">hom</span>.<span class="ident">basis_element_to_string</span>(<span class="number">0</span>, <span class="ident">i</span>));
+            <span class="macro">println!</span>(<span class="string">&quot;i : {}, f_i : {}&quot;</span>, <span class="ident">i</span>, <span class="ident">hom</span>.<span class="ident">basis_element_to_string</span>(<span class="number">0</span>, <span class="ident">i</span>));
         }
     }
 }
 </pre></div>
-</section><section id="search" class="content hidden"></section><section class="footer"></section><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="algebra" data-search-js="../../../search-index.js"></div>
+</section><section id="search" class="content hidden"></section><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="algebra" data-search-index-js="../../../search-index.js" data-search-js="../../../search.js"></div>
     <script src="../../../main.js"></script><script src="../../../source-script.js"></script><script src="../../../source-files.js"></script></body></html>

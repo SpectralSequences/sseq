@@ -24,8 +24,8 @@
     });
 </script>
 
-<style type="text/css">#crate-search{background-image:url("../../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu" role="button">&#9776;</div><a href='../../../algebra/index.html'><div class='logo-container rust-logo'><img src='../../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu"><img src="../../../brush.svg" width="18" height="18" alt="Pick another theme!"></button><div id="theme-choices" role="menu"></div></div><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><button type="button" class="help-button">?</button>
-                <a id="settings-menu" href="../../../settings.html"><img src="../../../wheel.svg" width="18" height="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1"> 1</span>
+<style type="text/css">#crate-search{background-image:url("../../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu" role="button">&#9776;</div><a href='../../../algebra/index.html'><div class='logo-container rust-logo'><img src='../../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu"><img src="../../../brush.svg" width="18" height="18" alt="Pick another theme!"></button><div id="theme-choices" role="menu"></div></div><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><button type="button" class="help-button">?</button>
+                <a id="settings-menu" href="../../../settings.html"><img src="../../../wheel.svg" width="18" height="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><div class="example-wrap"><pre class="line-numbers"><span id="1"> 1</span>
 <span id="2"> 2</span>
 <span id="3"> 3</span>
 <span id="4"> 4</span>
@@ -70,7 +70,7 @@
 <span id="43">43</span>
 <span id="44">44</span>
 <span id="45">45</span>
-</pre><div class="example-wrap"><pre class="rust ">
+</pre><pre class="rust">
 <span class="kw">mod</span> <span class="ident">bounded_module</span>;
 <span class="kw">mod</span> <span class="ident">finite_dimensional_module</span>;
 <span class="kw">mod</span> <span class="ident">finite_module</span>;
@@ -95,27 +95,27 @@
 
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">homomorphism</span>;
 
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">bounded_module</span>::<span class="ident">BoundedModule</span>;
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">finite_dimensional_module</span>::<span class="ident">FiniteDimensionalModule</span> <span class="kw">as</span> <span class="ident">FDModule</span>;
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">finite_module</span>::<span class="ident">FiniteModule</span>;
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">finitely_presented_module</span>::<span class="ident">FinitelyPresentedModule</span> <span class="kw">as</span> <span class="ident">FPModule</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">bounded_module::BoundedModule</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">finite_dimensional_module::FiniteDimensionalModule</span> <span class="kw">as</span> <span class="ident">FDModule</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">finite_module::FiniteModule</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">finitely_presented_module::FinitelyPresentedModule</span> <span class="kw">as</span> <span class="ident">FPModule</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">free_module</span>::{<span class="ident">FreeModule</span>, <span class="ident">OperationGeneratorPair</span>};
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">module_trait</span>::{<span class="ident">Module</span>, <span class="ident">ModuleFailedRelationError</span>};
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">rpn</span>::<span class="ident">RealProjectiveSpace</span>;
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">zero_module</span>::<span class="ident">ZeroModule</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">rpn::RealProjectiveSpace</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">zero_module::ZeroModule</span>;
 
 <span class="kw">pub</span> <span class="kw">use</span> {
-    <span class="ident">bcp</span>::<span class="ident">BCp</span>, <span class="ident">dickson2</span>::<span class="ident">Dickson2</span>, <span class="ident">free_unstable_module</span>::<span class="ident">FreeUnstableModule</span>, <span class="ident">hom_module</span>::<span class="ident">HomModule</span>,
-    <span class="ident">kfpn</span>::<span class="ident">KFpn</span>, <span class="ident">polynomial_algebra_module</span>::<span class="ident">PolynomialAlgebraModule</span>,
-    <span class="ident">quotient_module</span>::<span class="ident">QuotientModule</span>, <span class="ident">sum_module</span>::<span class="ident">SumModule</span>, <span class="ident">tensor_module</span>::<span class="ident">TensorModule</span>,
-    <span class="ident">truncated_module</span>::<span class="ident">TruncatedModule</span>,
+    <span class="ident">bcp::BCp</span>, <span class="ident">dickson2::Dickson2</span>, <span class="ident">free_unstable_module::FreeUnstableModule</span>, <span class="ident">hom_module::HomModule</span>,
+    <span class="ident">kfpn::KFpn</span>, <span class="ident">polynomial_algebra_module::PolynomialAlgebraModule</span>,
+    <span class="ident">quotient_module::QuotientModule</span>, <span class="ident">sum_module::SumModule</span>, <span class="ident">tensor_module::TensorModule</span>,
+    <span class="ident">truncated_module::TruncatedModule</span>,
 };
 
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">algebra</span>::<span class="ident">SteenrodAlgebra</span>;
+<span class="kw">use</span> <span class="kw">crate</span><span class="ident">::algebra::SteenrodAlgebra</span>;
 
 <span class="comment">// Poor man&#39;s trait alias</span>
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">SteenrodModule</span>: <span class="ident">Module</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">SteenrodAlgebra</span><span class="op">&gt;</span> {}
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">M</span>: <span class="ident">Module</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">SteenrodAlgebra</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">SteenrodModule</span> <span class="kw">for</span> <span class="ident">M</span> {}
 </pre></div>
-</section><section id="search" class="content hidden"></section><section class="footer"></section><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="algebra" data-search-js="../../../search-index.js"></div>
+</section><section id="search" class="content hidden"></section><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="algebra" data-search-index-js="../../../search-index.js" data-search-js="../../../search.js"></div>
     <script src="../../../main.js"></script><script src="../../../source-script.js"></script><script src="../../../source-files.js"></script></body></html>

@@ -24,8 +24,8 @@
     });
 </script>
 
-<style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu" role="button">&#9776;</div><a href='../../hidden/index.html'><div class='logo-container rust-logo'><img src='../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu"><img src="../../brush.svg" width="18" height="18" alt="Pick another theme!"></button><div id="theme-choices" role="menu"></div></div><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><button type="button" class="help-button">?</button>
-                <a id="settings-menu" href="../../settings.html"><img src="../../wheel.svg" width="18" height="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">  1</span>
+<style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu" role="button">&#9776;</div><a href='../../hidden/index.html'><div class='logo-container rust-logo'><img src='../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu"><img src="../../brush.svg" width="18" height="18" alt="Pick another theme!"></button><div id="theme-choices" role="menu"></div></div><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><button type="button" class="help-button">?</button>
+                <a id="settings-menu" href="../../settings.html"><img src="../../wheel.svg" width="18" height="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><div class="example-wrap"><pre class="line-numbers"><span id="1">  1</span>
 <span id="2">  2</span>
 <span id="3">  3</span>
 <span id="4">  4</span>
@@ -283,7 +283,7 @@
 <span id="256">256</span>
 <span id="257">257</span>
 <span id="258">258</span>
-</pre><div class="example-wrap"><pre class="rust ">
+</pre><pre class="rust">
 <span class="doccomment">//! Compute hidden α-extensions using precomputed tables. This assumes prime 2.</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! # Usage guide</span>
@@ -306,19 +306,19 @@
 <span class="doccomment">//!  - **Projection map:** The output of [`lift_hom`](../lift_hom/index.html) on the projection map of the top cell $X/\alpha \to X$</span>
 <span class="doccomment">//!  - **d2 of X:** The output of [`secondary`](../secondary/index.html) on $X$.</span>
 
-<span class="attribute">#![<span class="ident">allow</span>(<span class="ident">clippy</span>::<span class="ident">redundant_closure</span>)]</span>
+<span class="attribute">#![<span class="ident">allow</span>(<span class="ident">clippy::redundant_closure</span>)]</span>
 
-<span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">matrix</span>::<span class="ident">AugmentedMatrix</span>;
-<span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">prime</span>::<span class="ident">ValidPrime</span>;
-<span class="kw">use</span> <span class="ident">fp</span>::<span class="ident">vector</span>::<span class="ident">FpVector</span>;
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">fs</span>::<span class="ident">File</span>;
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">io</span>::{<span class="ident">BufRead</span>, <span class="ident">BufReader</span>};
+<span class="kw">use</span> <span class="ident">fp::matrix::AugmentedMatrix</span>;
+<span class="kw">use</span> <span class="ident">fp::prime::ValidPrime</span>;
+<span class="kw">use</span> <span class="ident">fp::vector::FpVector</span>;
+<span class="kw">use</span> <span class="ident">std::fs::File</span>;
+<span class="kw">use</span> <span class="ident">std::io</span>::{<span class="ident">BufRead</span>, <span class="ident">BufReader</span>};
 
-<span class="kw">const</span> <span class="ident">TWO</span>: <span class="ident">ValidPrime</span> <span class="op">=</span> <span class="ident">ValidPrime</span>::<span class="ident">new</span>(<span class="number">2</span>);
+<span class="kw">const</span> <span class="ident">TWO</span>: <span class="ident">ValidPrime</span> <span class="op">=</span> <span class="ident">ValidPrime::new</span>(<span class="number">2</span>);
 
-<span class="kw">fn</span> <span class="ident">parse_vec</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">std</span>::<span class="ident">str</span>::<span class="ident">FromStr</span><span class="op">&gt;</span>(<span class="ident">s</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, <span class="ident">T</span>::<span class="prelude-val">Err</span><span class="op">&gt;</span> {
+<span class="kw">fn</span> <span class="ident">parse_vec</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">std::str::FromStr</span><span class="op">&gt;</span>(<span class="ident">s</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, <span class="ident">T::Err</span><span class="op">&gt;</span> {
     <span class="kw">if</span> <span class="ident">s</span>.<span class="ident">is_empty</span>() {
-        <span class="prelude-val">Ok</span>(<span class="macro">vec</span><span class="macro">!</span>[])
+        <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[])
     } <span class="kw">else</span> {
         <span class="ident">s</span>.<span class="ident">split</span>(<span class="string">&#39;,&#39;</span>)
             .<span class="ident">map</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">x</span>.<span class="ident">trim</span>().<span class="ident">parse</span>())
@@ -359,7 +359,7 @@
     <span class="ident">offset</span>: (<span class="ident">isize</span>, <span class="ident">isize</span>),
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">AugmentedMatrix</span><span class="op">&lt;</span><span class="number">2</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> {
     <span class="ident">map_two</span>(<span class="ident">source</span>, <span class="op">|</span><span class="ident">f</span>, <span class="ident">s</span>, <span class="kw-2">&amp;</span><span class="ident">dim</span><span class="op">|</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">matrix</span> <span class="op">=</span> <span class="ident">AugmentedMatrix</span>::<span class="op">&lt;</span><span class="number">2</span><span class="op">&gt;</span>::<span class="ident">new</span>(
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">matrix</span> <span class="op">=</span> <span class="ident">AugmentedMatrix</span>::<span class="op">&lt;</span><span class="number">2</span><span class="op">&gt;</span><span class="ident">::new</span>(
             <span class="ident">TWO</span>,
             <span class="ident">dim</span>,
             [
@@ -378,7 +378,7 @@
     <span class="ident">offset</span>: (<span class="ident">isize</span>, <span class="ident">isize</span>),
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">AugmentedMatrix</span><span class="op">&lt;</span><span class="number">1</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> {
     <span class="ident">map_two</span>(<span class="ident">source</span>, <span class="op">|</span><span class="ident">f</span>, <span class="ident">s</span>, <span class="kw-2">&amp;</span><span class="ident">dim</span><span class="op">|</span> {
-        <span class="ident">AugmentedMatrix</span>::<span class="op">&lt;</span><span class="number">1</span><span class="op">&gt;</span>::<span class="ident">new</span>(
+        <span class="ident">AugmentedMatrix</span>::<span class="op">&lt;</span><span class="number">1</span><span class="op">&gt;</span><span class="ident">::new</span>(
             <span class="ident">TWO</span>,
             <span class="ident">dim</span>,
             [<span class="ident">target</span>.<span class="ident">get_or</span>(<span class="ident">f</span> <span class="kw">as</span> <span class="ident">isize</span> <span class="op">+</span> <span class="ident">offset</span>.<span class="number">0</span>, <span class="ident">s</span> <span class="kw">as</span> <span class="ident">isize</span> <span class="op">+</span> <span class="ident">offset</span>.<span class="number">1</span>, <span class="number">0</span>)],
@@ -387,12 +387,12 @@
 }
 
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">parse_matrix</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">N</span>: <span class="ident">usize</span><span class="op">&gt;</span>(
-    <span class="ident">input</span>: <span class="kw">impl</span> <span class="ident">std</span>::<span class="ident">io</span>::<span class="ident">Read</span>,
+    <span class="ident">input</span>: <span class="kw">impl</span> <span class="ident">std::io::Read</span>,
     <span class="ident">matrices</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">AugmentedMatrix</span><span class="op">&lt;</span><span class="ident">N</span><span class="op">&gt;</span><span class="op">&gt;</span>],
     <span class="ident">segment</span>: <span class="ident">usize</span>,
     <span class="ident">prefix</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span> {
-    <span class="kw">for</span> <span class="ident">line</span> <span class="kw">in</span> <span class="ident">BufReader</span>::<span class="ident">new</span>(<span class="ident">input</span>).<span class="ident">lines</span>() {
+) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error::Result</span> {
+    <span class="kw">for</span> <span class="ident">line</span> <span class="kw">in</span> <span class="ident">BufReader::new</span>(<span class="ident">input</span>).<span class="ident">lines</span>() {
         <span class="kw">let</span> <span class="ident">line</span> <span class="op">=</span> <span class="ident">line</span><span class="question-mark">?</span>;
         <span class="kw">if</span> <span class="op">!</span><span class="ident">line</span>.<span class="ident">starts_with</span>(<span class="ident">prefix</span>) {
             <span class="kw">continue</span>;
@@ -429,30 +429,30 @@
     <span class="prelude-val">Ok</span>(())
 }
 
-<span class="kw">fn</span> <span class="ident">main</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error</span>::<span class="prelude-ty">Result</span> {
-    <span class="kw">let</span> <span class="ident">max_s</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="ident">query</span>::<span class="ident">raw</span>(<span class="string">&quot;Max s&quot;</span>, <span class="ident">str</span>::<span class="ident">parse</span>);
-    <span class="kw">let</span> <span class="ident">max_n</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="ident">query</span>::<span class="ident">raw</span>(<span class="string">&quot;Max n&quot;</span>, <span class="ident">str</span>::<span class="ident">parse</span>);
-    <span class="kw">let</span> <span class="ident">alpha_n</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="ident">query</span>::<span class="ident">raw</span>(<span class="string">&quot;Stem of α&quot;</span>, <span class="ident">str</span>::<span class="ident">parse</span>);
-    <span class="kw">let</span> <span class="ident">alpha_name</span>: <span class="ident">String</span> <span class="op">=</span> <span class="ident">query</span>::<span class="ident">raw</span>(<span class="string">&quot;Name of α&quot;</span>, <span class="ident">str</span>::<span class="ident">parse</span>);
+<span class="kw">fn</span> <span class="ident">main</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error::Result</span> {
+    <span class="kw">let</span> <span class="ident">max_s</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="ident">query::raw</span>(<span class="string">&quot;Max s&quot;</span>, <span class="ident">str::parse</span>);
+    <span class="kw">let</span> <span class="ident">max_n</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="ident">query::raw</span>(<span class="string">&quot;Max n&quot;</span>, <span class="ident">str::parse</span>);
+    <span class="kw">let</span> <span class="ident">alpha_n</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="ident">query::raw</span>(<span class="string">&quot;Stem of α&quot;</span>, <span class="ident">str::parse</span>);
+    <span class="kw">let</span> <span class="ident">alpha_name</span>: <span class="ident">String</span> <span class="op">=</span> <span class="ident">query::raw</span>(<span class="string">&quot;Name of α&quot;</span>, <span class="ident">str::parse</span>);
 
-    <span class="kw">let</span> <span class="ident">x_dim_file</span> <span class="op">=</span> <span class="ident">query</span>::<span class="ident">raw</span>(<span class="string">&quot;Dimension of Ext of X&quot;</span>, <span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="ident">File</span>::<span class="ident">open</span>(<span class="ident">s</span>));
-    <span class="kw">let</span> <span class="ident">xa_dim_file</span> <span class="op">=</span> <span class="ident">query</span>::<span class="ident">raw</span>(<span class="string">&quot;Dimension of Ext of X/α&quot;</span>, <span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="ident">File</span>::<span class="ident">open</span>(<span class="ident">s</span>));
-    <span class="kw">let</span> <span class="ident">product_file</span> <span class="op">=</span> <span class="ident">query</span>::<span class="ident">raw</span>(<span class="string">&quot;α products&quot;</span>, <span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="ident">File</span>::<span class="ident">open</span>(<span class="ident">s</span>));
-    <span class="kw">let</span> <span class="ident">inclusion_file</span> <span class="op">=</span> <span class="ident">query</span>::<span class="ident">raw</span>(<span class="string">&quot;Inclusion map&quot;</span>, <span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="ident">File</span>::<span class="ident">open</span>(<span class="ident">s</span>));
-    <span class="kw">let</span> <span class="ident">projection_file</span> <span class="op">=</span> <span class="ident">query</span>::<span class="ident">raw</span>(<span class="string">&quot;Projection map&quot;</span>, <span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="ident">File</span>::<span class="ident">open</span>(<span class="ident">s</span>));
-    <span class="kw">let</span> <span class="ident">x_d2_file</span> <span class="op">=</span> <span class="ident">query</span>::<span class="ident">raw</span>(<span class="string">&quot;d2 of X&quot;</span>, <span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="ident">File</span>::<span class="ident">open</span>(<span class="ident">s</span>));
-    <span class="kw">let</span> <span class="ident">xa_d2_file</span> <span class="op">=</span> <span class="ident">query</span>::<span class="ident">raw</span>(<span class="string">&quot;d2 of X/α&quot;</span>, <span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="ident">File</span>::<span class="ident">open</span>(<span class="ident">s</span>));
+    <span class="kw">let</span> <span class="ident">x_dim_file</span> <span class="op">=</span> <span class="ident">query::raw</span>(<span class="string">&quot;Dimension of Ext of X&quot;</span>, <span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="ident">File::open</span>(<span class="ident">s</span>));
+    <span class="kw">let</span> <span class="ident">xa_dim_file</span> <span class="op">=</span> <span class="ident">query::raw</span>(<span class="string">&quot;Dimension of Ext of X/α&quot;</span>, <span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="ident">File::open</span>(<span class="ident">s</span>));
+    <span class="kw">let</span> <span class="ident">product_file</span> <span class="op">=</span> <span class="ident">query::raw</span>(<span class="string">&quot;α products&quot;</span>, <span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="ident">File::open</span>(<span class="ident">s</span>));
+    <span class="kw">let</span> <span class="ident">inclusion_file</span> <span class="op">=</span> <span class="ident">query::raw</span>(<span class="string">&quot;Inclusion map&quot;</span>, <span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="ident">File::open</span>(<span class="ident">s</span>));
+    <span class="kw">let</span> <span class="ident">projection_file</span> <span class="op">=</span> <span class="ident">query::raw</span>(<span class="string">&quot;Projection map&quot;</span>, <span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="ident">File::open</span>(<span class="ident">s</span>));
+    <span class="kw">let</span> <span class="ident">x_d2_file</span> <span class="op">=</span> <span class="ident">query::raw</span>(<span class="string">&quot;d2 of X&quot;</span>, <span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="ident">File::open</span>(<span class="ident">s</span>));
+    <span class="kw">let</span> <span class="ident">xa_d2_file</span> <span class="op">=</span> <span class="ident">query::raw</span>(<span class="string">&quot;d2 of X/α&quot;</span>, <span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="ident">File::open</span>(<span class="ident">s</span>));
 
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">x_dim</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[<span class="macro">vec</span><span class="macro">!</span>[<span class="number">0</span>; <span class="number">1</span> <span class="op">+</span> <span class="ident">max_s</span>]; <span class="number">1</span> <span class="op">+</span> <span class="ident">max_n</span>];
-    <span class="kw">for</span> <span class="ident">line</span> <span class="kw">in</span> <span class="ident">BufReader</span>::<span class="ident">new</span>(<span class="ident">x_dim_file</span>).<span class="ident">lines</span>() {
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">x_dim</span> <span class="op">=</span> <span class="macro">vec!</span>[<span class="macro">vec!</span>[<span class="number">0</span>; <span class="number">1</span> <span class="op">+</span> <span class="ident">max_s</span>]; <span class="number">1</span> <span class="op">+</span> <span class="ident">max_n</span>];
+    <span class="kw">for</span> <span class="ident">line</span> <span class="kw">in</span> <span class="ident">BufReader::new</span>(<span class="ident">x_dim_file</span>).<span class="ident">lines</span>() {
         <span class="kw">let</span> <span class="ident">data</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">parse_vec</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">line</span><span class="question-mark">?</span>)<span class="question-mark">?</span>;
         <span class="kw">if</span> <span class="ident">data</span>[<span class="number">0</span>] <span class="op">&lt;</span><span class="op">=</span> <span class="ident">max_n</span> <span class="op">&amp;&amp;</span> <span class="ident">data</span>[<span class="number">1</span>] <span class="op">&lt;</span><span class="op">=</span> <span class="ident">max_s</span> {
             <span class="ident">x_dim</span>[<span class="ident">data</span>[<span class="number">0</span>]][<span class="ident">data</span>[<span class="number">1</span>]] <span class="op">=</span> <span class="ident">data</span>[<span class="number">2</span>];
         }
     }
 
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">xa_dim</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[<span class="macro">vec</span><span class="macro">!</span>[<span class="number">0</span>; <span class="number">1</span> <span class="op">+</span> <span class="ident">max_s</span>]; <span class="number">1</span> <span class="op">+</span> <span class="ident">max_n</span>];
-    <span class="kw">for</span> <span class="ident">line</span> <span class="kw">in</span> <span class="ident">BufReader</span>::<span class="ident">new</span>(<span class="ident">xa_dim_file</span>).<span class="ident">lines</span>() {
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">xa_dim</span> <span class="op">=</span> <span class="macro">vec!</span>[<span class="macro">vec!</span>[<span class="number">0</span>; <span class="number">1</span> <span class="op">+</span> <span class="ident">max_s</span>]; <span class="number">1</span> <span class="op">+</span> <span class="ident">max_n</span>];
+    <span class="kw">for</span> <span class="ident">line</span> <span class="kw">in</span> <span class="ident">BufReader::new</span>(<span class="ident">xa_dim_file</span>).<span class="ident">lines</span>() {
         <span class="kw">let</span> <span class="ident">data</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">parse_vec</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">line</span><span class="question-mark">?</span>)<span class="question-mark">?</span>;
         <span class="kw">if</span> <span class="ident">data</span>[<span class="number">0</span>] <span class="op">&lt;</span><span class="op">=</span> <span class="ident">max_n</span> <span class="op">&amp;&amp;</span> <span class="ident">data</span>[<span class="number">1</span>] <span class="op">&lt;</span><span class="op">=</span> <span class="ident">max_s</span> {
             <span class="ident">xa_dim</span>[<span class="ident">data</span>[<span class="number">0</span>]][<span class="ident">data</span>[<span class="number">1</span>]] <span class="op">=</span> <span class="ident">data</span>[<span class="number">2</span>];
@@ -460,7 +460,7 @@
     }
 
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">alpha_d2</span> <span class="op">=</span> <span class="ident">map_two</span>(<span class="kw-2">&amp;</span><span class="ident">x_dim</span>, <span class="op">|</span><span class="ident">f</span>, <span class="ident">s</span>, <span class="kw-2">&amp;</span><span class="ident">dim</span><span class="op">|</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">m</span> <span class="op">=</span> <span class="ident">AugmentedMatrix</span>::<span class="op">&lt;</span><span class="number">3</span><span class="op">&gt;</span>::<span class="ident">new</span>(
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">m</span> <span class="op">=</span> <span class="ident">AugmentedMatrix</span>::<span class="op">&lt;</span><span class="number">3</span><span class="op">&gt;</span><span class="ident">::new</span>(
             <span class="ident">TWO</span>,
             <span class="ident">dim</span>,
             [
@@ -511,9 +511,9 @@
             <span class="kw">let</span> <span class="ident">inc_qi</span> <span class="op">=</span> <span class="ident">inclusion</span>[<span class="ident">f</span> <span class="op">+</span> <span class="ident">alpha_n</span>][<span class="ident">s</span> <span class="op">+</span> <span class="number">2</span>].<span class="ident">compute_quasi_inverse</span>();
             <span class="kw">let</span> <span class="ident">d2</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">xa_d2</span>[<span class="ident">f</span> <span class="op">+</span> <span class="ident">alpha_n</span> <span class="op">+</span> <span class="number">1</span>][<span class="ident">s</span>];
 
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">lift</span> <span class="op">=</span> <span class="ident">FpVector</span>::<span class="ident">new</span>(<span class="ident">TWO</span>, <span class="ident">proj_qi</span>.<span class="ident">preimage</span>().<span class="ident">columns</span>());
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">d2_val</span> <span class="op">=</span> <span class="ident">FpVector</span>::<span class="ident">new</span>(<span class="ident">TWO</span>, <span class="ident">d2</span>.<span class="ident">columns</span>());
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ext_val</span> <span class="op">=</span> <span class="ident">FpVector</span>::<span class="ident">new</span>(<span class="ident">TWO</span>, <span class="ident">inc_qi</span>.<span class="ident">preimage</span>().<span class="ident">columns</span>());
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">lift</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="ident">TWO</span>, <span class="ident">proj_qi</span>.<span class="ident">preimage</span>().<span class="ident">columns</span>());
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">d2_val</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="ident">TWO</span>, <span class="ident">d2</span>.<span class="ident">columns</span>());
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ext_val</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="ident">TWO</span>, <span class="ident">inc_qi</span>.<span class="ident">preimage</span>().<span class="ident">columns</span>());
 
             <span class="kw">let</span> <span class="ident">d2_image</span> <span class="op">=</span> {
                 <span class="kw">let</span> <span class="ident">m</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">alpha_d2</span>[<span class="ident">f</span> <span class="op">+</span> <span class="ident">alpha_n</span> <span class="op">+</span> <span class="number">1</span>][<span class="ident">s</span>];
@@ -522,7 +522,7 @@
             };
 
             <span class="kw">for</span> <span class="ident">row</span> <span class="kw">in</span> <span class="ident">ker</span>.<span class="ident">iter</span>() {
-                <span class="ident">ext</span>::<span class="ident">utils</span>::<span class="ident">print_element</span>(<span class="ident">row</span>.<span class="ident">as_slice</span>(), <span class="ident">f</span> <span class="kw">as</span> <span class="ident">i32</span>, <span class="ident">s</span> <span class="kw">as</span> <span class="ident">u32</span>);
+                <span class="ident">ext::utils::print_element</span>(<span class="ident">row</span>.<span class="ident">as_slice</span>(), <span class="ident">f</span> <span class="kw">as</span> <span class="ident">i32</span>, <span class="ident">s</span> <span class="kw">as</span> <span class="ident">u32</span>);
 
                 <span class="ident">proj_qi</span>.<span class="ident">apply</span>(<span class="ident">lift</span>.<span class="ident">as_slice_mut</span>(), <span class="number">1</span>, <span class="ident">row</span>.<span class="ident">as_slice</span>());
                 <span class="ident">d2</span>.<span class="ident">apply</span>(<span class="ident">d2_val</span>.<span class="ident">as_slice_mut</span>(), <span class="number">1</span>, <span class="ident">lift</span>.<span class="ident">as_slice</span>());
@@ -532,7 +532,7 @@
                 <span class="comment">// this way the result will be zero if it vanishes on the E_3 page, thereby</span>
                 <span class="comment">// eliminating &quot;spurious&quot; hidden extensions.</span>
                 <span class="ident">d2_image</span>.<span class="ident">reduce</span>(<span class="ident">ext_val</span>.<span class="ident">as_slice_mut</span>());
-                <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot; -&gt; {}&quot;</span>, <span class="ident">ext_val</span>);
+                <span class="macro">println!</span>(<span class="string">&quot; -&gt; {}&quot;</span>, <span class="ident">ext_val</span>);
 
                 <span class="ident">lift</span>.<span class="ident">set_to_zero</span>();
                 <span class="ident">d2_val</span>.<span class="ident">set_to_zero</span>();
@@ -543,5 +543,5 @@
     <span class="prelude-val">Ok</span>(())
 }
 </pre></div>
-</section><section id="search" class="content hidden"></section><section class="footer"></section><div id="rustdoc-vars" data-root-path="../../" data-current-crate="hidden" data-search-js="../../search-index.js"></div>
+</section><section id="search" class="content hidden"></section><div id="rustdoc-vars" data-root-path="../../" data-current-crate="hidden" data-search-index-js="../../search-index.js" data-search-js="../../search.js"></div>
     <script src="../../main.js"></script><script src="../../source-script.js"></script><script src="../../source-files.js"></script></body></html>
