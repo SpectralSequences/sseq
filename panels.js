@@ -4,6 +4,46 @@ import { STATE_ADD_DIFFERENTIAL, STATE_QUERY_TABLE, STATE_QUERY_COCYCLE_STRING }
 import { rowToKaTeX, rowToLaTeX, matrixToKaTeX, vecToName } from "./utils.js";
 import { MIN_PAGE } from "./sseq.js";
 
+function setProperty(start, list, value) {
+    let t = start;
+    const last = list.pop();
+    for (let i of list)
+        t = t[i];
+    t[last] = value;
+}
+
+class InputRow extends HTMLElement {
+    static attributeMap = {
+        "label": ["label", "innerHTML"],
+        "type": ["input", "type"],
+        "value": ["input", "value"],
+        "title": ["input", "title"],
+    };
+
+    attributeChangedCallback(name, oldValue, newValue) {
+        const attr = InputRow.attributeMap(name);
+        this[attr[0]][attr[1]] = newValue;
+    }
+
+    static get observedAttributes() {
+        return ["label", "type", "value", "title"];
+    }
+
+    constructor() {
+        super();
+        this.className = "input-row";
+
+        this.label = document.createElement("label");
+        this.input = document.createElement("input");
+
+        this.appendChild(label);
+        this.appendChild(input);
+
+        this.input.addEventListener("change", e => this.dispatchEvent(e));
+    }
+}
+customElements.define('input-row', InputRow);
+
 export const ACTION_TO_DISPLAY = {
     AddDifferential: (details, sseq) => {
         let x = details.x;
@@ -160,7 +200,7 @@ export class Panel extends EventEmitter {
 
         for (let link of this.links) {
             let t = this.display;
-            for (let attr of link[0].split(".")) {
+            for (const attr of link[0].split(".")) {
                 t = t[attr];
                 if (t === undefined || t === null) {
                     return;
@@ -168,14 +208,6 @@ export class Panel extends EventEmitter {
             }
             link[1].value = t;
         }
-        /**
-         * Show event. This is emitted when show() is called. One may opt to
-         * listen and respond to the show event instead of overwriting show()
-         * when designing custom panels, c.f. DifferentialPanel.
-         *
-         * @event Panel#show
-         */
-        this.emit("show");
     }
 
     /**
@@ -306,28 +338,14 @@ export class Panel extends EventEmitter {
      * "number" would usually be sensible choices.
      */
     addLinkedInput(label, target, type) {
-        let o = document.createElement("div");
-        o.className = "input-row";
-        this.currentGroup.appendChild(o);
+        const input = document.createElement("input-row");
+        input.setAttribute("label", label);
+        input.setAttribute("type", type);
 
-        let l = document.createElement("label");
-        l.innerHTML = label;
-        o.appendChild(l);
+        this.links.push([target, input]);
 
-        let i = document.createElement("input");
-        i.setAttribute("type", type);
-        o.appendChild(i);
-
-        this.links.push([target, i]);
-
-        i.addEventListener("change", (e) => {
-            let l = target.split(".");
-            let prop = l.pop();
-            let t = Panel.unwrapProperty(this.display, l);
-
-            let new_val = e.target.value;
-            t[prop] = new_val;
-
+        input.addEventListener("change", e => {
+            setProperty(this.display, target.split("."), e.target.value);
             this.display.sseq.emit("update");
         });
     }
@@ -354,13 +372,6 @@ export class Panel extends EventEmitter {
             });
         }
         this.addObject(node);
-    }
-
-    static unwrapProperty(start, list) {
-        let t = start;
-        for (let i of list)
-            t = t[i];
-        return t;
     }
 }
 
@@ -529,7 +540,6 @@ class HistoryPanel extends Panel {
         let result = msgToDisplay(data, this.display.sseq);
         this.addHistoryItem(data, ...result);
     }
-
 }
 
 class OverviewPanel extends Panel {
@@ -612,77 +622,44 @@ export class StructlinePanel extends Panel {
             i.style.top = (summary.clientHeight - i.clientHeight) + "px";
 
             /// Styling
-            let style = this.display.structlineStyles.get(name);
+            const style = this.display.structlineStyles.get(name);
 
-            let styleDiv = document.createElement("div");
-            styleDiv.style.paddingLeft = "2.5%";
-            styleDiv.style.marginLeft = "2.5%";
-            styleDiv.style.borderLeft = "1.5px solid #DDD";
+            const styleDiv = document.createElement("div");
+            styleDiv.className = "structline-style";
             topElement.appendChild(styleDiv);
 
             // Color
-            let cd = document.createElement("div");
-            cd.className = "input-row";
-
-            let cl = document.createElement("label");
-            cl.innerHTML = "Color";
-            cl.style.width = "3rem";
-            cd.appendChild(cl);
-
-            let ci = document.createElement("input");
-            ci.setAttribute("type", "text");
-            ci.value = style.color;
-            cd.appendChild(ci);
-
-            ci.addEventListener("change", () => {
-                style.color = ci.value;
+            const color = document.createElement("input-row");
+            color.setAttribute("label", "Color");
+            color.setAttribute("value", style.color);
+            color.addEventListener("change", e => {
+                style.color = e.target.value;
                 this.display.update();
             });
 
-            styleDiv.appendChild(cd);
+            styleDiv.appendChild(color);
 
             // Bend
-            let bd = document.createElement("div");
-            bd.className = "input-row";
-
-            let bl = document.createElement("label");
-            bl.innerHTML = "Bend";
-            bl.style.width = "3rem";
-            bd.appendChild(bl);
-
-            let bi = document.createElement("input");
-            bi.setAttribute("type", "number");
-            bi.value = style.bend;
-            bd.appendChild(bi);
-
-            bi.addEventListener("change", () => {
-                style.bend = parseInt(bi.value);
+            const bend = document.createElement("input-row");
+            bend.setAttribute("label", "Bend");
+            bend.setAttribute("value", style.bend);
+            bend.addEventListener("change", e => {
+                style.bend = parseInt(e.target.value);
                 this.display.update();
             });
-
-            styleDiv.appendChild(bd);
+            styleDiv.appendChild(bend);
 
             // Dash
-            let dd = document.createElement("div");
-            dd.className = "input-row";
-
-            let dl = document.createElement("label");
-            dl.innerHTML = "Dash";
-            dl.style.width = "3rem";
-            dd.appendChild(dl);
-
-            let di = document.createElement("input");
-            di.setAttribute("type", "text");
-            di.value = "[" + style["line-dash"].join(", ") + "]";
-            di.title = "An array of numbers that specify distances to alternately draw a line and a gap. For example, a solid line is [], while [2, 2] gives you a dashed line where the line and the gap have equal length.";
-            dd.appendChild(di);
-
-            di.addEventListener("change", () => {
-                style["line-dash"] = eval(di.value);
+            const dash = document.createElement("input-row");
+            dash.setAttribute("label", "Dash");
+            dash.setAttribute("value", `[${style["line-dash"].join(", ")}]`);
+            dash.setAttribute("title", "An array of numbers that specify distances to alternately draw a line and a gap. For example, a solid line is [], while [2, 2] gives you a dashed line where the line and the gap have equal length.");
+            dash.addEventListener("change", e => {
+                style["line-dash"] = JSON.parse(e.target.value);
                 this.display.update();
             });
 
-            styleDiv.appendChild(dd);
+            styleDiv.appendChild(dash);
 
             checkbox.addEventListener("change", () => {
                 if (checkbox.checked) {

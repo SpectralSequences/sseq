@@ -397,7 +397,7 @@
             <span class="macro">eprintln</span><span class="macro">!</span>(<span class="string">&quot;This is the list of generators and degrees:&quot;</span>);
             <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">deg_i_gens</span>) <span class="kw">in</span> <span class="ident">gens</span>.<span class="ident">iter_enum</span>() {
                 <span class="kw">for</span> <span class="ident">gen</span> <span class="kw">in</span> <span class="ident">deg_i_gens</span>.<span class="ident">iter</span>() {
-                    <span class="macro">print</span><span class="macro">!</span>(<span class="string">&quot;({}, {}) &quot;</span>, <span class="ident">i</span>, <span class="ident">gen</span>);
+                    <span class="macro">eprint</span><span class="macro">!</span>(<span class="string">&quot;({}, {}) &quot;</span>, <span class="ident">i</span>, <span class="ident">gen</span>);
                 }
             }
             <span class="macro">eprintln</span><span class="macro">!</span>();
