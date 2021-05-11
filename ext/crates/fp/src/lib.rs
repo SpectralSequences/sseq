@@ -1,5 +1,4 @@
 #![feature(const_panic)]
-#![feature(vec_extend_from_within)]
 #![feature(stdsimd)]
 
 pub mod matrix;
