@@ -2,7 +2,7 @@
 
 import { MainDisplay, UnitDisplay } from "./display.js";
 import { ExtSseq } from "./sseq.js";
-import { renderLaTeX, download, stringToB64, b64ToString } from "./utils.js";
+import { renderLaTeX, download } from "./utils.js";
 
 window.commandCounter = 0;
 window.commandQueue = [];
@@ -82,9 +82,6 @@ if (params.module) {
             }
         },
     ]);
-} else if (params.data) {
-    const data = b64ToString(params.data);
-    loadHistory(data);
 } else {
     document.querySelector("#home").style.removeProperty("display");
 
@@ -146,11 +143,6 @@ function openWebSocket(initialData) {
         }
     }
 }
-
-function getHistoryLink() {
-    return `${url.origin}${url.pathname}?data=` + stringToB64(generateHistory());
-}
-window.getHistoryLink = getHistoryLink;
 
 function generateHistory() {
     const list = [window.constructCommand];

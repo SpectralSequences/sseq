@@ -678,7 +678,7 @@ export class StructlinePanel extends Panel {
             });
         }
 
-        if (!this.display.isUnit && this.display.constructor.name != "CalculationDisplay") {
+        if (!this.display.isUnit) {
             this.addButton("Add", () => window.unitDisplay.openModal(), { "tooltip": "Add product to display" });
         }
     }
@@ -725,7 +725,7 @@ class MainPanel extends Panel {
             let n = document.createElement("span");
             n.style.padding = "0 0.6em";
             n.innerHTML = katex.renderToString(vecToName(c, names));
-            if (this.display.constructor.name != "CalculationDisplay" && classes.length == sseq.classes.get(x, y)[0].length) {
+            if (classes.length == sseq.classes.get(x, y)[0].length) {
                 n.addEventListener("click", () => {
                     let name = prompt("New class name");
                     if (name !== null) {
@@ -743,7 +743,6 @@ class MainPanel extends Panel {
             this.addHeader("Decompositions");
             for (let d of decompositions) {
                 let single = d[0].reduce((a, b) => a + b, 0) == 1;
-                single = single && this.display.constructor.name != "CalculationDisplay";
 
                 let highlights = [[x - d[2], y - d[3]]];
                 if (this.display.isUnit) {
@@ -766,7 +765,7 @@ class MainPanel extends Panel {
             }
         }
 
-        if (this.display.isUnit && this.display.constructor.name != "CalculationDisplay") {
+        if (this.display.isUnit) {
             this.newGroup();
             this.addButton("Add Product", () => {
                 let [x, y] = this.display.selected;
@@ -849,12 +848,10 @@ class DifferentialPanel extends Panel {
                 this.addLine(katex.renderToString(`d_${page}(${rowToLaTeX(source)}) = ${rowToLaTeX(target)}`), callback);
             }
         }
-        if (this.display.constructor.name != "CalculationDisplay") {
-            if (this.display.isUnit) {
-                this.addLine("<span style='font-size: 80%'>Click differential to propagate</span>");
-            }
-            this.addButton("Add", () => this.display.state = STATE_ADD_DIFFERENTIAL);
+        if (this.display.isUnit) {
+            this.addLine("<span style='font-size: 80%'>Click differential to propagate</span>");
         }
+        this.addButton("Add", () => this.display.state = STATE_ADD_DIFFERENTIAL);
 
         this.newGroup();
         this.addHeader("Permanent Classes");
@@ -862,12 +859,9 @@ class DifferentialPanel extends Panel {
         if (permanentClasses.length > 0) {
             this.addLine(permanentClasses.map(rowToKaTeX).join("<br />"));
         }
-        if (this.display.constructor.name != "CalculationDisplay") {
-            this.addButton("Add", () => {
-                sseq.addPermanentClassInteractive(x, y);
-            });
-        }
-
+        this.addButton("Add", () => {
+            sseq.addPermanentClassInteractive(x, y);
+        });
     }
 }
 
