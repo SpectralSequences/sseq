@@ -21,6 +21,16 @@ class InputRow extends HTMLElement {
         return ["label", "type", "value", "title"];
     }
 
+    static new(label, value, type) {
+        const ret = document.createElement("input-row");
+        ret.setAttribute("label", label);
+        ret.setAttribute("value", value);
+        if (type !== undefined) {
+            ret.setAttribute("type", type);
+        }
+        return ret;
+    }
+
     constructor() {
         super();
 
@@ -501,9 +511,7 @@ class OverviewPanel extends Panel {
 
         this.addHeader("Vanishing line");
 
-        const slope = document.createElement("input-row");
-        slope.setAttribute("label", "Slope");
-        slope.setAttribute("value", this.display.sseq.vanishingSlope);
+        const slope = InputRow.new("Slope", this.display.sseq.vanishingSlope);
         this.addObject(slope);
 
         slope.addEventListener("change", e => {
@@ -511,9 +519,7 @@ class OverviewPanel extends Panel {
             this.display.sseq.emit("update");
         });
 
-        const intercept = document.createElement("input-row");
-        intercept.setAttribute("label", "Slope");
-        intercept.setAttribute("value", this.display.sseq.vanishingIntercept);
+        const intercept = InputRow.new("Intercept", this.display.sseq.vanishingIntercept);
         this.addObject(intercept);
 
         intercept.addEventListener("change", e => {
@@ -598,9 +604,7 @@ export class StructlinePanel extends Panel {
             topElement.appendChild(styleDiv);
 
             // Color
-            const color = document.createElement("input-row");
-            color.setAttribute("label", "Color");
-            color.setAttribute("value", style.color);
+            const color = InputRow.new("Color", style.color);
             color.addEventListener("change", e => {
                 style.color = e.target.value;
                 this.display.update();
@@ -609,9 +613,7 @@ export class StructlinePanel extends Panel {
             styleDiv.appendChild(color);
 
             // Bend
-            const bend = document.createElement("input-row");
-            bend.setAttribute("label", "Bend");
-            bend.setAttribute("value", style.bend);
+            const bend = InputRow.new("Bend", style.bend);
             bend.addEventListener("change", e => {
                 style.bend = parseInt(e.target.value);
                 this.display.update();
@@ -619,9 +621,7 @@ export class StructlinePanel extends Panel {
             styleDiv.appendChild(bend);
 
             // Dash
-            const dash = document.createElement("input-row");
-            dash.setAttribute("label", "Dash");
-            dash.setAttribute("value", `[${style["line-dash"].join(", ")}]`);
+            const dash = InputRow.new("Dash", `[${style["line-dash"].join(", ")}]`);
             dash.setAttribute("title", "An array of numbers that specify distances to alternately draw a line and a gap. For example, a solid line is [], while [2, 2] gives you a dashed line where the line and the gap have equal length.");
             dash.addEventListener("change", e => {
                 style["line-dash"] = JSON.parse(e.target.value);
