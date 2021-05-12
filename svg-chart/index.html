@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <script src="https://d3js.org/d3-color.v2.min.js"></script>
+        <script src="https://d3js.org/d3-dispatch.v2.min.js"></script>
+        <script src="https://d3js.org/d3-ease.v2.min.js"></script>
+        <script src="https://d3js.org/d3-interpolate.v2.min.js"></script>
+        <script src="https://d3js.org/d3-selection.v2.min.js"></script>
+        <script src="https://d3js.org/d3-timer.v2.min.js"></script>
+        <script src="https://d3js.org/d3-transition.v2.min.js"></script>
+        <script src="https://d3js.org/d3-drag.v2.min.js"></script>
+        <script src="https://d3js.org/d3-zoom.v2.min.js"></script>
+        <script type="module" src="./chart.js"></script>
+        <style>
+            body,
+            html {
+                margin: 0;
+                padding: 0;
+                width: 100%;
+                height: 100%;
+                overflow: clip;
+            }
+            paged-chart {
+                width: 100%;
+                height: 100%;
+                margin: 0;
+            }
+        </style>
+    </head>
+    <body>
+        <script type="module">
+            const chart = document.createElement('paged-chart');
+            chart.setAttribute('maxX', 50);
+            chart.setAttribute('maxY', 25);
+            chart.addStyle(`
+.structline {
+  stroke: black;
+  fill: none;
+  stroke-width: 0.02;
+}
+.d2 {
+  stroke: blue;
+  stroke-width: 0.02;
+}
+.d3 {
+  stroke: red;
+  stroke-width: 0.02;
+}
+.d4 {
+  stroke: green;
+  stroke-width: 0.02;
+}
+chart {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+`);
+            document.body.appendChild(chart);
+
+            for (const page of [2, 3, 4, 5]) {
+                const node = chart.newPage();
+                fetch(`./e${page}.svg`)
+                    .then(x => x.text())
+                    .then(x => (node.innerHTML = x));
+            }
+        </script>
+    </body>
+</html>
