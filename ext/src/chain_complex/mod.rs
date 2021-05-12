@@ -176,6 +176,9 @@ impl<'a, CC: ChainComplex> Iterator for StemIterator<'a, CC> {
     // (s, n, t)
     type Item = (u32, i32, i32);
     fn next(&mut self) -> Option<Self::Item> {
+        if self.max_s == 0 {
+            return None;
+        }
         let s = self.s;
         let n = self.n;
         let t = self.n + self.s as i32;
