@@ -37,8 +37,8 @@ export class ExtSseq extends EventEmitter {
         this.redoStack = [];
         this.name = name;
 
-        this._vanishingSlope = "1/2";
-        this._vanishingIntercept = 1;
+        this.vanishingSlope = "1/2";
+        this.vanishingIntercept = 1;
 
         this.classes = new BiVec(minDegree);
         this.classState = new BiVec(minDegree);
@@ -56,24 +56,6 @@ export class ExtSseq extends EventEmitter {
         this.maxMultX = 0;
         this.maxMultY = 0;
         this.maxDiffPage = 0;
-    }
-
-    get vanishingSlope() {
-        return this._vanishingSlope;
-    }
-
-    get vanishingIntercept() {
-        return this._vanishingIntercept;
-    }
-
-    set vanishingSlope(m) {
-        this._vanishingSlope = m;
-        this.emit("update");
-    }
-
-    set vanishingIntercept(c) {
-        this._vanishingIntercept = c;
-        this.emit("update");
     }
 
     get maxX() {
@@ -382,9 +364,9 @@ export class ExtSseq extends EventEmitter {
 
     get maxY() {
         // Because of the slope -1 ridge at the end of, the y-to-x ratio is smaller.
-        let realSlope = 1/(1/eval(this._vanishingSlope) + 1);
+        let realSlope = 1/(1/eval(this.vanishingSlope) + 1);
 
-        return Math.ceil((this.maxDegree - this.minDegree) * realSlope + 1 + eval(this._vanishingIntercept)); // We trust our inputs *so* much.
+        return Math.ceil((this.maxDegree - this.minDegree) * realSlope + 1 + eval(this.vanishingIntercept)); // We trust our inputs *so* much.
     }
 
     processResolving(data) {
