@@ -170,7 +170,7 @@ impl<CC: ChainComplex> Resolution<CC> {
         self.compute_through_bidegree(degree as u32, degree);
     }
 
-    fn step_after(&self, s: u32, t: i32) {
+    pub fn step_after(&self, s: u32, t: i32) {
         if t - (s as i32) < self.min_degree() {
             return;
         }
@@ -408,7 +408,7 @@ impl<CC: ChainComplex> Resolution<CC> {
                 let num_gens = self.module(s).number_of_gens_in_degree(t);
                 for k in 0..num_gens {
                     let f = &self.chain_maps_to_unit_resolution[s as usize][t][k];
-                    f.extend(target_s, target_t);
+                    f.extend_through_stem(target_s, target_t - target_s as i32);
                 }
             }
         }
@@ -458,7 +458,8 @@ impl<CC: ChainComplex> Resolution<CC> {
             if source_s == 0 && source_t == self.min_degree() {
                 f.map.extend_step(target_s, target_t, Some(&f.map_data));
             }
-            f.map.extend(target_s, target_t);
+            f.map
+                .extend_through_stem(target_s, target_t - target_s as i32);
 
             let source = self.module(source_s);
             let target = self.module(target_s);

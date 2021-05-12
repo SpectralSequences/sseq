@@ -43,6 +43,7 @@ pub struct ResolutionManager {
     bucket: TokenBucket,
     sender: Sender,
     is_unit: bool,
+    resolved: bool,
     resolution: Option<Resolution<CCC>>,
 }
 
@@ -59,6 +60,7 @@ impl ResolutionManager {
             sender,
             resolution: None,
             is_unit: false,
+            resolved: false,
         }
     }
 
@@ -144,7 +146,7 @@ impl ResolutionManager {
         self.resolution = Some(resolution);
     }
 
-    fn resolve(&self, action: Resolve, sseq: SseqChoice) -> error::Result<()> {
+    fn resolve(&mut self, action: Resolve, sseq: SseqChoice) -> error::Result<()> {
         let resolution = self.resolution.as_ref().unwrap();
         let resolution = match sseq {
             SseqChoice::Main => resolution,
@@ -164,6 +166,13 @@ impl ResolutionManager {
             }),
         };
         self.sender.send(msg)?;
+
+        if sseq == SseqChoice::Main && !self.resolved {
+            for (s, _, t) in resolution.inner.iter_stem() {
+                resolution.step_after(s, t);
+            }
+            self.resolved = true;
+        }
 
         #[cfg(not(feature = "concurrent"))]
         resolution.compute_through_degree(action.max_degree);
