@@ -352,7 +352,7 @@
     <span class="kw">fn</span> <span class="ident">graded_dimension_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">String</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">String::new</span>();
         <span class="kw">let</span> <span class="ident">min_degree</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">min_degree</span>();
-        <span class="kw">for</span> <span class="ident">s</span> <span class="kw">in</span> (<span class="number">0</span>..<span class="op">=</span><span class="self">self</span>.<span class="ident">max_homological_degree</span>()).<span class="ident">rev</span>() {
+        <span class="kw">for</span> <span class="ident">s</span> <span class="kw">in</span> (<span class="number">0</span>..<span class="self">self</span>.<span class="ident">next_homological_degree</span>()).<span class="ident">rev</span>() {
             <span class="kw">let</span> <span class="ident">module</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">module</span>(<span class="ident">s</span>);
 
             <span class="kw">for</span> <span class="ident">t</span> <span class="kw">in</span> <span class="ident">min_degree</span> <span class="op">+</span> <span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span>..<span class="op">=</span><span class="ident">module</span>.<span class="ident">max_computed_degree</span>() {
@@ -418,8 +418,8 @@
         <span class="self">self</span>.<span class="ident">compute_through_bidegree</span>(<span class="ident">s</span>, <span class="ident">t</span>);
     }
 
-    <span class="doccomment">/// The largest s such that `self.module(s)` is defined.</span>
-    <span class="kw">fn</span> <span class="ident">max_homological_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">u32</span>;
+    <span class="doccomment">/// The first s such that `self.module(s)` is not defined.</span>
+    <span class="kw">fn</span> <span class="ident">next_homological_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">u32</span>;
 
     <span class="kw">fn</span> <span class="ident">set_homology_basis</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
@@ -481,7 +481,7 @@
             <span class="ident">cc</span>: <span class="self">self</span>,
             <span class="ident">n</span>: <span class="self">self</span>.<span class="ident">min_degree</span>(),
             <span class="ident">s</span>: <span class="number">0</span>,
-            <span class="ident">max_s</span>: <span class="self">self</span>.<span class="ident">max_homological_degree</span>() <span class="op">+</span> <span class="number">1</span>,
+            <span class="ident">max_s</span>: <span class="self">self</span>.<span class="ident">next_homological_degree</span>(),
         }
     }
 }

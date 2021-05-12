@@ -54,6 +54,9 @@ export const ACTION_TO_DISPLAY = {
         let r = details.r;
         let sourceNames = sseq.classNames.get(x, y);
         let targetNames = sseq.classNames.get(x - 1, y + r);
+        if (!sourceNames || !targetNames) {
+            return ["", [[details.x, details.y], [details.x - 1, details.y + details.r]]];
+        }
 
         return [
             katex.renderToString(`d_{${r}}(${vecToName(details.source, sourceNames)}) = ${vecToName(details.target, targetNames)}`),

@@ -1756,7 +1756,7 @@
         <span class="kw">let</span> <span class="ident">source_t</span> <span class="op">=</span> <span class="ident">target_t</span> <span class="op">-</span> <span class="ident">op_deg</span>;
         <span class="kw">let</span> <span class="ident">source_s</span> <span class="op">=</span> <span class="ident">target_s</span>.<span class="ident">overflowing_sub</span>(<span class="number">1</span>).<span class="number">0</span>;
         <span class="kw">if</span> <span class="ident">target_s</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span>
-            <span class="op">|</span><span class="op">|</span> <span class="ident">target_s</span> <span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">max_homological_degree</span>()
+            <span class="op">|</span><span class="op">|</span> <span class="ident">target_s</span> <span class="op">&gt;</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">next_homological_degree</span>()
             <span class="op">|</span><span class="op">|</span> <span class="ident">source_t</span> <span class="op">-</span> (<span class="ident">source_s</span> <span class="kw">as</span> <span class="ident">i32</span>) <span class="op">&lt;</span> <span class="self">self</span>.<span class="ident">min_degree</span>()
         {
             <span class="kw">return</span> <span class="prelude-val">None</span>;
@@ -1884,8 +1884,8 @@
         <span class="self">self</span>.<span class="ident">compute_through_bidegree_concurrent_with_callback</span>(<span class="ident">max_s</span>, <span class="ident">max_t</span>, <span class="ident">bucket</span>, <span class="op">|</span><span class="kw">_</span>, <span class="kw">_</span><span class="op">|</span> ())
     }
 
-    <span class="kw">fn</span> <span class="ident">max_homological_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">u32</span> {
-        <span class="self">self</span>.<span class="ident">modules</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">u32</span> <span class="op">-</span> <span class="number">1</span>
+    <span class="kw">fn</span> <span class="ident">next_homological_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">u32</span> {
+        <span class="self">self</span>.<span class="ident">modules</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">u32</span>
     }
 }
 

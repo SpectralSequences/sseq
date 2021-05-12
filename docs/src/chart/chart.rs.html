@@ -87,7 +87,7 @@
 
     <span class="ident">g</span>.<span class="ident">init</span>(
         <span class="ident">resolution</span>.<span class="ident">module</span>(<span class="number">0</span>).<span class="ident">max_computed_degree</span>(),
-        <span class="ident">resolution</span>.<span class="ident">max_homological_degree</span>() <span class="kw">as</span> <span class="ident">i32</span>,
+        <span class="ident">resolution</span>.<span class="ident">next_homological_degree</span>() <span class="kw">as</span> <span class="ident">i32</span> <span class="op">-</span> <span class="number">1</span>,
     )<span class="question-mark">?</span>;
 
     <span class="kw">if</span> <span class="kw-2">*</span><span class="ident">resolution</span>.<span class="ident">prime</span>() <span class="op">=</span><span class="op">=</span> <span class="number">2</span> {
