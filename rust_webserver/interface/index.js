@@ -12,7 +12,7 @@ function processCommandQueue() {
     if (commandQueue.length == 0)
         return;
 
-    const commandText = "";
+    let commandText = "";
     const block = {
         recipients : ["Resolver", "Sseq"],
         action : { "BlockRefresh" : { block : true } }
@@ -40,6 +40,7 @@ function processCommandQueue() {
         } catch (e) {
             console.log("Unable to parse command " + commandText);
             console.log(e);
+            console.log(e.stack);
         }
     }
     block.action.BlockRefresh.block = false;
@@ -191,7 +192,7 @@ window.save = save;
 function loadHistory(hist) {
     const lines = hist.split("\n");
     // Do reverse loop because we are removing things from the array.
-    for (const i = lines.length - 1; i>= 0; i--) {
+    for (let i = lines.length - 1; i>= 0; i--) {
         if (lines[i].startsWith("//") || lines[i].trim() === "") {
             lines.splice(i, 1);
         }
