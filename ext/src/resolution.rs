@@ -757,7 +757,7 @@ impl<CC: ChainComplex> Resolution<CC> {
         let source_t = target_t - op_deg;
         let source_s = target_s.overflowing_sub(1).0;
         if target_s == 0
-            || target_s > self.max_homological_degree()
+            || target_s >= self.next_homological_degree()
             || source_t - (source_s as i32) < self.min_degree()
         {
             return None;
@@ -885,8 +885,8 @@ impl<CC: ChainComplex> ChainComplex for Resolution<CC> {
         self.compute_through_bidegree_concurrent_with_callback(max_s, max_t, bucket, |_, _| ())
     }
 
-    fn max_homological_degree(&self) -> u32 {
-        self.modules.len() as u32 - 1
+    fn next_homological_degree(&self) -> u32 {
+        self.modules.len() as u32
     }
 }
 

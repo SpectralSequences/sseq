@@ -214,7 +214,7 @@ pub fn print_resolution_color<C: FreeChainComplex, S: std::hash::BuildHasher>(
     use std::io::Write;
     let stderr = std::io::stderr();
     let mut stderr = stderr.lock();
-    for s in (0..=max_s).rev() {
+    for s in (0..max_s).rev() {
         for t in s as i32..=res.module(s).max_computed_degree() {
             if matches!(highlight.get(&(s, t)), None | Some(0)) {
                 write!(

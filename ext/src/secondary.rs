@@ -114,8 +114,8 @@ impl MilnorClass {
 /// A non-concurrent version for computing delta. In practice the concurrent version will be used,
 /// and this function should have clear logic rather than being optimal.
 pub fn compute_delta(res: &Resolution) -> Vec<FMH> {
-    let max_s = res.max_homological_degree();
-    if max_s < 2 {
+    let max_s = res.next_homological_degree();
+    if max_s < 3 {
         return vec![];
     }
     let deltas = ChainHomotopy::new(res, res, 3, 1, |s, t, i, result| {
@@ -141,8 +141,8 @@ pub fn compute_delta_concurrent(
     bucket: &TokenBucket,
     save_file_path: Option<String>,
 ) -> Vec<FMH> {
-    let max_s = res.max_homological_degree();
-    if max_s < 2 {
+    let max_s = res.next_homological_degree();
+    if max_s < 3 {
         return vec![];
     }
     let min_degree = res.min_degree();
@@ -153,7 +153,7 @@ pub fn compute_delta_concurrent(
         )
     };
 
-    let ddeltas: Vec<BiVec<Vec<Option<FpVector>>>> = Vec::with_capacity(max_s as usize - 2);
+    let ddeltas: Vec<BiVec<Vec<Option<FpVector>>>> = Vec::with_capacity(max_s as usize - 3);
     let ddeltas = Mutex::new(ddeltas);
 
     let start = Instant::now();
@@ -161,7 +161,7 @@ pub fn compute_delta_concurrent(
         // Pretty print progress of first step
         let mut processed: HashMap<(u32, i32), u32> = HashMap::default();
 
-        for s in 3..=max_s {
+        for s in 3..max_s {
             let m = res.module(s);
             for t in min_degree + 1..max_t(s) {
                 processed.insert((s, t), m.number_of_gens_in_degree(t) as u32);
@@ -202,7 +202,7 @@ pub fn compute_delta_concurrent(
         // bidegrees, so we use a thread pool for this. The ddeltas store the results as a vector:
         // source_s -> source_t -> gen_idx -> value. Since they are not populated in order of source_s
         // and source_t, we pre-populate with None and replace with Some.
-        for s in 3..=max_s {
+        for s in 3..max_s {
             let m = res.module(s);
             let max = max_t(s);
             let mut v = BiVec::with_capacity(min_degree + s as i32, max);
@@ -219,7 +219,7 @@ pub fn compute_delta_concurrent(
                 loop {
                     match read_saved_data(&mut f) {
                         Ok((s, t, idx, data)) => {
-                            if s <= max_s && t >= min_degree + s as i32 && t <= max_t(s) {
+                            if s < max_s && t >= min_degree + s as i32 && t <= max_t(s) {
                                 ddeltas.lock().unwrap()[s as usize - 3][t][idx] = Some(data);
                                 p_sender.send((s, t)).unwrap();
                             }
@@ -283,7 +283,7 @@ pub fn compute_delta_concurrent(
         }
 
         // Iterate in reverse order to do the slower ones first
-        for s in 3..=max_s {
+        for s in 3..max_s {
             for t in (min_degree + s as i32..max_t(s)).rev() {
                 for idx in 0..res.module(s).number_of_gens_in_degree(t) {
                     sender.send((s, t, idx)).unwrap();

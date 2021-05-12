@@ -30,7 +30,7 @@ pub trait FreeChainComplex:
     fn graded_dimension_string(&self) -> String {
         let mut result = String::new();
         let min_degree = self.min_degree();
-        for s in (0..=self.max_homological_degree()).rev() {
+        for s in (0..self.next_homological_degree()).rev() {
             let module = self.module(s);
 
             for t in min_degree + s as i32..=module.max_computed_degree() {
@@ -96,8 +96,8 @@ pub trait ChainComplex: Send + Sync {
         self.compute_through_bidegree(s, t);
     }
 
-    /// The largest s such that `self.module(s)` is defined.
-    fn max_homological_degree(&self) -> u32;
+    /// The first s such that `self.module(s)` is not defined.
+    fn next_homological_degree(&self) -> u32;
 
     fn set_homology_basis(
         &self,
@@ -159,7 +159,7 @@ pub trait ChainComplex: Send + Sync {
             cc: self,
             n: self.min_degree(),
             s: 0,
-            max_s: self.max_homological_degree() + 1,
+            max_s: self.next_homological_degree(),
         }
     }
 }

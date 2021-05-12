@@ -134,7 +134,7 @@ where
         std::i32::MAX
     }
 
-    fn max_homological_degree(&self) -> u32 {
+    fn next_homological_degree(&self) -> u32 {
         u32::MAX
     }
 }
@@ -222,7 +222,7 @@ where
         std::i32::MAX
     }
 
-    fn max_homological_degree(&self) -> u32 {
+    fn next_homological_degree(&self) -> u32 {
         u32::MAX
     }
 }

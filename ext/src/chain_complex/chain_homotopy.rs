@@ -89,9 +89,14 @@ impl<
     /// Lift maps so that the chain homotopy is defined on as many bidegrees as possible
     pub fn extend_all(&self) {
         let max_source_s = std::cmp::min(
-            self.source.max_homological_degree(),
-            self.target.max_homological_degree() + self.shift_s,
+            self.source.next_homological_degree(),
+            self.target.next_homological_degree() + self.shift_s,
         );
+        if max_source_s == 0 {
+            return;
+        }
+        let max_source_s = max_source_s - 1;
+
         let _lock = self.lock.lock();
 
         let p = self.source.prime();
@@ -197,9 +202,13 @@ impl<
     #[cfg(feature = "concurrent")]
     pub fn extend_all_concurrent(&self, bucket: &TokenBucket) {
         let max_source_s = std::cmp::min(
-            self.source.max_homological_degree(),
-            self.target.max_homological_degree() + self.shift_s,
+            self.source.next_homological_degree(),
+            self.target.next_homological_degree() + self.shift_s,
         );
+        if max_source_s == 0 {
+            return;
+        }
+        let max_source_s = max_source_s - 1;
         let _lock = self.lock.lock();
         let p = self.source.prime();
 
