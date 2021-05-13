@@ -141,9 +141,7 @@ impl ActionT for AddProductType {
         let s = self.y as u32;
         let t = self.x + self.y;
 
-        if resolution.add_product(s, t, self.class.clone(), &self.name) {
-            resolution.catch_up_products();
-        }
+        resolution.add_product(s, t, self.class.clone(), &self.name);
         None
     }
 }
