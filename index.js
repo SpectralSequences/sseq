@@ -2,7 +2,7 @@
 
 import { MainDisplay, UnitDisplay } from "./display.js";
 import { ExtSseq } from "./sseq.js";
-import { renderLaTeX, download, stringToB64, b64ToString } from "./utils.js";
+import { renderLaTeX, download } from "./utils.js";
 
 window.resolutionWorker = new Worker("./resolution_worker.js");
 window.sseqWorker = new Worker("./sseq_worker.js");
@@ -125,9 +125,6 @@ if (params.module) {
             },
         ]);
     })();
-} else if (params.data) {
-    const data = b64ToString(params.data);
-    loadHistory(data);
 } else {
     document.querySelector("#home").style.removeProperty("display");
 
@@ -166,11 +163,6 @@ function openWebSocket(initialData, maxDegree) {
         send(data);
     }
 }
-
-function getHistoryLink() {
-    return `${url.origin}${url.pathname}?data=` + stringToB64(generateHistory());
-}
-window.getHistoryLink = getHistoryLink;
 
 function generateHistory() {
     let list = [window.constructCommand];

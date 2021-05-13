@@ -21,7 +21,11 @@ export function matrixToKaTeX(m) {
 }
 
 export function rowToLaTeX(m) {
-    return "\\begin{bmatrix}" + m.join("&") + "\\end{bmatrix}";
+    if (m.length == 0) {
+        return "[]";
+    } else {
+        return "\\begin{bmatrix}" + m.join("&") + "\\end{bmatrix}";
+    }
 }
 
 export function renderLaTeX(html) {
