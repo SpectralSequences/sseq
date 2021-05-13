@@ -170,9 +170,8 @@ function generateHistory() {
             }
         );
     };
-    list = list.concat(mainSseq.history);
 
-    return list.map(JSON.stringify).join("\n")
+    return list.concat(mainSseq.history).map(JSON.stringify).join("\n")
 }
 
 function save() {
