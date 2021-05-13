@@ -4,14 +4,6 @@ import { STATE_ADD_DIFFERENTIAL } from "./display.js";
 import { rowToKaTeX, rowToLaTeX, matrixToKaTeX, vecToName } from "./utils.js";
 import { MIN_PAGE } from "./sseq.js";
 
-function setProperty(start, list, value) {
-    let t = start;
-    const last = list.pop();
-    for (let i of list)
-        t = t[i];
-    t[last] = value;
-}
-
 class InputRow extends HTMLElement {
     static attributeMap = {
         "label": ["label", "innerHTML"],
@@ -27,6 +19,16 @@ class InputRow extends HTMLElement {
 
     static get observedAttributes() {
         return ["label", "type", "value", "title"];
+    }
+
+    static new(label, value, type) {
+        const ret = document.createElement("input-row");
+        ret.setAttribute("label", label);
+        ret.setAttribute("value", value);
+        if (type !== undefined) {
+            ret.setAttribute("type", type);
+        }
+        return ret;
     }
 
     constructor() {
@@ -165,7 +167,6 @@ export class Panel extends EventEmitter {
         this.display = display;
         this.container = document.createElement("div");
         parentContainer.appendChild(this.container);
-        this.links = [];
 
         this.currentGroup = this.container;
     }
@@ -185,8 +186,6 @@ export class Panel extends EventEmitter {
     clear() {
         while (this.container.firstChild)
             this.container.removeChild(this.container.firstChild);
-
-        this.links = [];
     }
 
     /**
@@ -203,17 +202,6 @@ export class Panel extends EventEmitter {
      */
     show() {
         this.container.style.removeProperty("display");
-
-        for (let link of this.links) {
-            let t = this.display;
-            for (const attr of link[0].split(".")) {
-                t = t[attr];
-                if (t === undefined || t === null) {
-                    return;
-                }
-            }
-            link[1].value = t;
-        }
     }
 
     /**
@@ -322,38 +310,6 @@ export class Panel extends EventEmitter {
         let node = document.createElement("h5");
         node.innerHTML = header;
         this.addObject(node);
-    }
-
-    /**
-     * This adds a linked input. A linked input is an entry that looks like
-     *
-     *       +-----+
-     * Label |     |
-     *       +-----+
-     *
-     * The input field is linked to a certain property of display. When the
-     * panel is shown, the initial value of the input field is set to the value
-     * of the corresponding property, and when the input field is changed, the
-     * property is changed accordingly.
-     *
-     * @param {string} label - The label displayed next to the input field
-     * @param {string} target - The property the input field is linked to.
-     * This is specified by a string of the from "foo.bar.xyz", which says the
-     * field is linked to this.display.foo.bar.xyz.
-     * @param {string} type - The type of the input field. This is "text" or
-     * "number" would usually be sensible choices.
-     */
-    addLinkedInput(label, target, type) {
-        const input = document.createElement("input-row");
-        input.setAttribute("label", label);
-        input.setAttribute("type", type);
-
-        this.links.push([target, input]);
-
-        input.addEventListener("change", e => {
-            setProperty(this.display, target.split("."), e.target.value);
-            this.display.sseq.emit("update");
-        });
     }
 
     addLine(html, callback, highlights) {
@@ -554,9 +510,22 @@ class OverviewPanel extends Panel {
         this.newGroup();
 
         this.addHeader("Vanishing line");
-        this.addLinkedInput("Slope", "sseq.vanishingSlope", "text");
-        this.addLinkedInput("Intercept", "sseq.vanishingIntercept", "text");
 
+        const slope = InputRow.new("Slope", this.display.sseq.vanishingSlope);
+        this.addObject(slope);
+
+        slope.addEventListener("change", e => {
+            this.display.sseq.vanishingSlope = e.target.value;
+            this.display.sseq.emit("update");
+        });
+
+        const intercept = InputRow.new("Intercept", this.display.sseq.vanishingIntercept);
+        this.addObject(intercept);
+
+        intercept.addEventListener("change", e => {
+            this.display.sseq.vanishingIntercept = e.target.value;
+            this.display.sseq.emit("update");
+        });
         this.newGroup();
 
         this.addButton("Resolve further", () => this.display.sseq.resolveFurther());
@@ -635,9 +604,7 @@ export class StructlinePanel extends Panel {
             topElement.appendChild(styleDiv);
 
             // Color
-            const color = document.createElement("input-row");
-            color.setAttribute("label", "Color");
-            color.setAttribute("value", style.color);
+            const color = InputRow.new("Color", style.color);
             color.addEventListener("change", e => {
                 style.color = e.target.value;
                 this.display.update();
@@ -646,9 +613,7 @@ export class StructlinePanel extends Panel {
             styleDiv.appendChild(color);
 
             // Bend
-            const bend = document.createElement("input-row");
-            bend.setAttribute("label", "Bend");
-            bend.setAttribute("value", style.bend);
+            const bend = InputRow.new("Bend", style.bend);
             bend.addEventListener("change", e => {
                 style.bend = parseInt(e.target.value);
                 this.display.update();
@@ -656,9 +621,7 @@ export class StructlinePanel extends Panel {
             styleDiv.appendChild(bend);
 
             // Dash
-            const dash = document.createElement("input-row");
-            dash.setAttribute("label", "Dash");
-            dash.setAttribute("value", `[${style["line-dash"].join(", ")}]`);
+            const dash = InputRow.new("Dash", `[${style["line-dash"].join(", ")}]`);
             dash.setAttribute("title", "An array of numbers that specify distances to alternately draw a line and a gap. For example, a solid line is [], while [2, 2] gives you a dashed line where the line and the gap have equal length.");
             dash.addEventListener("change", e => {
                 style["line-dash"] = JSON.parse(e.target.value);
@@ -678,7 +641,7 @@ export class StructlinePanel extends Panel {
             });
         }
 
-        if (!this.display.isUnit && this.display.constructor.name != "CalculationDisplay") {
+        if (!this.display.isUnit) {
             this.addButton("Add", () => window.unitDisplay.openModal(), { "tooltip": "Add product to display" });
         }
     }
@@ -725,7 +688,7 @@ class MainPanel extends Panel {
             let n = document.createElement("span");
             n.style.padding = "0 0.6em";
             n.innerHTML = katex.renderToString(vecToName(c, names));
-            if (this.display.constructor.name != "CalculationDisplay" && classes.length == sseq.classes.get(x, y)[0].length) {
+            if (classes.length == sseq.classes.get(x, y)[0].length) {
                 n.addEventListener("click", () => {
                     let name = prompt("New class name");
                     if (name !== null) {
@@ -743,7 +706,6 @@ class MainPanel extends Panel {
             this.addHeader("Decompositions");
             for (let d of decompositions) {
                 let single = d[0].reduce((a, b) => a + b, 0) == 1;
-                single = single && this.display.constructor.name != "CalculationDisplay";
 
                 let highlights = [[x - d[2], y - d[3]]];
                 if (this.display.isUnit) {
@@ -766,7 +728,7 @@ class MainPanel extends Panel {
             }
         }
 
-        if (this.display.isUnit && this.display.constructor.name != "CalculationDisplay") {
+        if (this.display.isUnit) {
             this.newGroup();
             this.addButton("Add Product", () => {
                 let [x, y] = this.display.selected;
@@ -849,12 +811,10 @@ class DifferentialPanel extends Panel {
                 this.addLine(katex.renderToString(`d_${page}(${rowToLaTeX(source)}) = ${rowToLaTeX(target)}`), callback);
             }
         }
-        if (this.display.constructor.name != "CalculationDisplay") {
-            if (this.display.isUnit) {
-                this.addLine("<span style='font-size: 80%'>Click differential to propagate</span>");
-            }
-            this.addButton("Add", () => this.display.state = STATE_ADD_DIFFERENTIAL);
+        if (this.display.isUnit) {
+            this.addLine("<span style='font-size: 80%'>Click differential to propagate</span>");
         }
+        this.addButton("Add", () => this.display.state = STATE_ADD_DIFFERENTIAL);
 
         this.newGroup();
         this.addHeader("Permanent Classes");
@@ -862,12 +822,9 @@ class DifferentialPanel extends Panel {
         if (permanentClasses.length > 0) {
             this.addLine(permanentClasses.map(rowToKaTeX).join("<br />"));
         }
-        if (this.display.constructor.name != "CalculationDisplay") {
-            this.addButton("Add", () => {
-                sseq.addPermanentClassInteractive(x, y);
-            });
-        }
-
+        this.addButton("Add", () => {
+            sseq.addPermanentClassInteractive(x, y);
+        });
     }
 }
 
