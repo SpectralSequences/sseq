@@ -1,4 +1,5 @@
 use rustc_hash::FxHashSet as HashSet;
+use serde::Deserialize;
 use serde_json::Value;
 use std::sync::Arc;
 
@@ -51,12 +52,12 @@ pub struct Resolution<CC: ChainComplex> {
 
     filtration_one_products: Vec<(String, i32, usize)>,
 
-    // Products
+    /// Products
     unit_resolution: UnitResolution<CC>,
     product_names: HashSet<String>,
     product_list: Vec<Cocycle>,
-    // s -> t -> idx -> resolution homomorphism to unit resolution. We don't populate this
-    // until we actually have a unit resolution, of course.
+    /// s -> t -> idx -> resolution homomorphism to unit resolution. We don't populate this
+    /// until we actually have a unit resolution, of course.
     chain_maps_to_unit_resolution: OnceVec<OnceBiVec<Vec<ResolutionHomomorphism<CC>>>>,
     max_product_s: u32,
     max_product_t: i32,
@@ -66,16 +67,16 @@ pub struct Resolution<CC: ChainComplex> {
 }
 
 impl Resolution<ext::CCC> {
-    pub fn new_from_json(mut json: Value, algebra_name: &str) -> Self {
+    pub fn new_from_json(json: &Value, algebra_name: &str) -> Self {
         let inner = ext::utils::construct((json.clone(), algebra_name), None).unwrap();
         let mut result = Self::new_with_inner(inner);
-        let products_value = &mut json["products"];
+        let products_value = &json["products"];
         if !products_value.is_null() {
-            let products = products_value.as_array_mut().unwrap();
+            let products = products_value.as_array().unwrap();
             for prod in products {
                 let hom_deg = prod["hom_deg"].as_u64().unwrap() as u32;
                 let int_deg = prod["int_deg"].as_i64().unwrap() as i32;
-                let class: Vec<u32> = serde_json::from_value(prod["class"].take()).unwrap();
+                let class: Vec<u32> = Vec::<u32>::deserialize(&prod["class"]).unwrap();
                 let name = prod["name"].as_str().unwrap();
 
                 result.add_product(hom_deg, int_deg, class, &name.to_string());
