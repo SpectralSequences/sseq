@@ -33,6 +33,7 @@ wasm: $(WASM_FILE) $(wildcard interface/*) $(wildcard wasm/*) $(wildcard ../ext/
 	# Must be done in this order since both contain index.js and we want the wasm version
 	cp interface/* $(WASM_OUT)
 	cp wasm/* $(WASM_OUT)
+	cp vendor/* $(WASM_OUT)
 	cp -r ../ext/steenrod_modules $(WASM_OUT)
 
 serve-wasm:

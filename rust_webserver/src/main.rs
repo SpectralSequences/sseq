@@ -9,23 +9,18 @@ use rust_webserver::managers::*;
 use rust_webserver::Sender;
 
 /// List of files that our webserver will serve to the user
-const FILE_LIST: [(&str, &str, &[u8]); 16] = [
+const FILE_LIST: &[(&str, &str, &[u8])] = &[
     ("/", "index.html", b"text/html"),
     ("/index.html", "index.html", b"text/html"),
-    ("/constructor.html", "constructor.html", b"text/html"),
     ("/index.js", "index.js", b"text/javascript"),
-    ("/constructor.js", "constructor.js", b"text/javascript"),
-    ("/mousetrap.min.js", "mousetrap.min.js", b"text/javascript"),
-    ("/canvas2svg.js", "canvas2svg.js", b"text/javascript"),
     ("/display.js", "display.js", b"text/javascript"),
-    ("/pako.js", "pako.js", b"text/javascript"),
     ("/utils.js", "utils.js", b"text/javascript"),
-    ("/tooltip.js", "tooltip.js", b"text/javascript"),
     ("/panels.js", "panels.js", b"text/javascript"),
     ("/sseq.js", "sseq.js", b"text/javascript"),
+    ("/chart.js", "chart.js", b"text/javascript"),
     ("/index.css", "index.css", b"text/css"),
-    ("/common.css", "common.css", b"text/css"),
-    ("/bundle.js", "bundle.js", b"text/javascript"),
+    ("/d3-combined.js", "../vendor/d3-combined.js", b"text/javascript"),
+    ("/katex-0.13.11.js", "../vendor/katex-0.13.11.js", b"text/javascript"),
 ];
 
 fn ms_to_string(time: i128) -> String {
@@ -222,7 +217,7 @@ impl Server {
         dir.pop();
         dir.push("interface");
 
-        for (path, file, mime) in &FILE_LIST {
+        for (path, file, mime) in FILE_LIST {
             if request_path == *path {
                 dir.push(file);
                 let contents = fs::read(dir)?;

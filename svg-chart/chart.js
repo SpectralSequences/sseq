@@ -1,4 +1,4 @@
-const svgNS = 'http://www.w3.org/2000/svg';
+export const svgNS = 'http://www.w3.org/2000/svg';
 
 /**
  * A Web Component for a chart.
@@ -57,7 +57,11 @@ export class Chart extends HTMLElement {
         this.maxY = Chart.GRID_MARGIN;
 
         this.svg = document.createElementNS(svgNS, 'svg');
-        this.addStyle(':host { display: block; }');
+
+        const node = document.createElement('style');
+        node.textContent = ':host { display: block; }';
+        this.shadowRoot.appendChild(node);
+
         this.shadowRoot.appendChild(this.svg);
 
         this.svg.innerHTML = `
@@ -107,7 +111,7 @@ export class Chart extends HTMLElement {
         window.addEventListener('resize', this.onResize.bind(this));
 
         this.onResize();
-        this.select.call(this.zoom);
+        this.select.call(this.zoom).on('dblclick.zoom', null);
 
         this.shadowRoot.addEventListener('click', this._onClick.bind(this));
     }
@@ -118,9 +122,9 @@ export class Chart extends HTMLElement {
      * @return {HTMLStyleElement} The node containing the stylesheet
      */
     addStyle(style) {
-        const node = document.createElement('style');
+        const node = document.createElementNS(svgNS, 'style');
         node.textContent = style;
-        this.shadowRoot.appendChild(node);
+        this.contents.appendChild(node);
         return node;
     }
 
@@ -269,7 +273,7 @@ export class Chart extends HTMLElement {
 }
 customElements.define('svg-chart', Chart);
 
-class PagedChart extends Chart {
+export class PagedChart extends Chart {
     constructor() {
         super();
         this.page = 0;
@@ -286,24 +290,23 @@ class PagedChart extends Chart {
                 this.pages[this.page].style.display = 'none';
                 this.page = newpage;
                 this.pages[this.page].style.removeProperty('display');
+                this.dispatchEvent(new CustomEvent('newpage'));
             }
         });
     }
 
     newPage() {
         const page = document.createElementNS(svgNS, 'g');
+        this.appendPage(page);
+        return page;
+    }
+
+    appendPage(page) {
         this.contents.appendChild(page);
         if (this.pages.length > 0) {
             page.style.display = 'none';
         }
         this.pages.push(page);
-        return page;
-    }
-
-    showPage(page) {
-        this.pages[this.page].style.display = 'none';
-        this.page = this.pages.indexOf(page);
-        this.pages[this.page].style.removeProperty('display');
     }
 }
 customElements.define('paged-chart', PagedChart);
@@ -311,7 +314,7 @@ customElements.define('paged-chart', PagedChart);
 /**
  * A resizable side bar. This has a vertical border on the left that can be dragged to resize.
  */
-class Sidebar extends HTMLElement {
+export class Sidebar extends HTMLElement {
     constructor() {
         super();
 
@@ -319,11 +322,9 @@ class Sidebar extends HTMLElement {
         this.adjuster.style.height = '100%';
         this.adjuster.style.cursor = 'ew-resize';
         this.adjuster.style.width = '2px';
-        this.adjuster.style.backgroundColor = 'rgba(0,0,0,0.125)';
         this.adjuster.style.left = '0';
         this.adjuster.style.position = 'absolute';
-
-        this.inner = document.createElement('div');
+        this.adjuster.class = 'sidebar-adjuster';
 
         this._resize = this._resize.bind(this);
         this._stopResize = this._stopResize.bind(this);
@@ -338,10 +339,9 @@ class Sidebar extends HTMLElement {
     }
 
     connectedCallback() {
-        if (!this.inner.isConnected) {
+        if (!this.adjuster.isConnected) {
             this.style.position = 'relative';
             this.appendChild(this.adjuster);
-            this.appendChild(this.inner);
             this.dispatchEvent(new CustomEvent('resize'));
         }
     }
