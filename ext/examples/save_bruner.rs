@@ -17,7 +17,7 @@ fn main() -> error::Result {
     let algebra = algebra.milnor_algebra();
     let mut buffer = String::new();
 
-    for s in 0..=resolution.max_homological_degree() {
+    for s in 0..resolution.next_homological_degree() {
         let f = File::create(format!("Diff.{}", s))?;
         let mut f = BufWriter::new(f);
         let module = resolution.module(s);

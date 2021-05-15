@@ -829,11 +829,7 @@ export class MainDisplay extends SidebarDisplay {
         ]);
 
         this.sidebar.footer.addButton("Download SVG", () => this.downloadSVG());
-        this.sidebar.footer.addButton("Download Snapshots", () => this.sseq.downloadHistoryList());
-        this.sidebar.footer.addButtonRow([
-            ["Save", () => window.save()],
-            ["Link", () => alert("Link to calculation:\n\n" + window.getHistoryLink())],
-        ]);
+        this.sidebar.footer.addButton( "Save", () => window.save());
 
         Mousetrap.bind("J", () => this.sidebar.currentPanel.prevTab());
         Mousetrap.bind("K", () => this.sidebar.currentPanel.nextTab());

@@ -1,5 +1,5 @@
 WASM_TARGET = wasm32-unknown-unknown
-NAME = ext_webserver
+NAME = rust_webserver
 WASM_LIB = target/$(WASM_TARGET)/release/$(NAME).wasm
 WASM_OUT = dist/
 WASM_FILE = $(WASM_OUT)/$(NAME)_wasm_bg.wasm

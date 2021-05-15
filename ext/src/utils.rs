@@ -109,7 +109,10 @@ impl<T: TryInto<AlgebraType>> TryFrom<(Value, T)> for Config {
 ///       `algebra` are as above.
 ///  - `save_file`: The save file for the module. If it points to an invalid save file, an error is
 ///    returned.
-pub fn construct<T, E>(module_spec: T, save_file: Option<File>) -> error::Result<Resolution<CCC>>
+pub fn construct<T, E>(
+    module_spec: T,
+    mut save_file: Option<File>,
+) -> error::Result<Resolution<CCC>>
 where
     error::Error: From<E>,
     T: TryInto<Config, Error = E>,
@@ -157,6 +160,10 @@ where
         yoneda.pop();
 
         chain_complex = Arc::new(yoneda);
+    }
+
+    if let Some(f) = json["save_file"].as_str() {
+        save_file = Some(File::open(f)?);
     }
 
     Ok(match save_file {
@@ -214,7 +221,7 @@ pub fn print_resolution_color<C: FreeChainComplex, S: std::hash::BuildHasher>(
     use std::io::Write;
     let stderr = std::io::stderr();
     let mut stderr = stderr.lock();
-    for s in (0..=max_s).rev() {
+    for s in (0..max_s).rev() {
         for t in s as i32..=res.module(s).max_computed_degree() {
             if matches!(highlight.get(&(s, t)), None | Some(0)) {
                 write!(

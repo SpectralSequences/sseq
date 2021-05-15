@@ -172,7 +172,7 @@ fn main() -> error::Result {
     hom.extend_all_concurrent(&bucket);
 
     for (s, n, t) in hom.target.iter_stem() {
-        if s + shift_s > hom.source.max_homological_degree()
+        if s + shift_s >= hom.source.next_homological_degree()
             || t + shift_t > hom.source.module(s + shift_s).max_computed_degree()
         {
             continue;

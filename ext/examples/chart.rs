@@ -10,7 +10,7 @@ fn main() -> error::Result {
 
     g.init(
         resolution.module(0).max_computed_degree(),
-        resolution.max_homological_degree() as i32,
+        resolution.next_homological_degree() as i32 - 1,
     )?;
 
     if *resolution.prime() == 2 {

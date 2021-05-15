@@ -1,8 +1,53 @@
 'use strict';
 
-import { STATE_ADD_DIFFERENTIAL, STATE_QUERY_TABLE, STATE_QUERY_COCYCLE_STRING } from "./display.js";
+import { STATE_ADD_DIFFERENTIAL } from "./display.js";
 import { rowToKaTeX, rowToLaTeX, matrixToKaTeX, vecToName } from "./utils.js";
 import { MIN_PAGE } from "./sseq.js";
+
+class InputRow extends HTMLElement {
+    static attributeMap = {
+        "label": ["label", "innerHTML"],
+        "type": ["input", "type"],
+        "value": ["input", "value"],
+        "title": ["input", "title"],
+    };
+
+    attributeChangedCallback(name, _oldValue, newValue) {
+        const attr = InputRow.attributeMap[name];
+        this[attr[0]][attr[1]] = newValue;
+    }
+
+    static get observedAttributes() {
+        return ["label", "type", "value", "title"];
+    }
+
+    static new(label, value, type) {
+        const ret = document.createElement("input-row");
+        ret.setAttribute("label", label);
+        ret.setAttribute("value", value);
+        if (type !== undefined) {
+            ret.setAttribute("type", type);
+        }
+        return ret;
+    }
+
+    constructor() {
+        super();
+
+        this.label = document.createElement("label");
+        this.input = document.createElement("input");
+        this.input.addEventListener("change", e => this.dispatchEvent(new Event("change", e)));
+    }
+
+    connectedCallback() {
+        if (!this.label.isConnected) {
+            this.className = "input-row";
+            this.appendChild(this.label);
+            this.appendChild(this.input);
+        }
+    }
+}
+customElements.define('input-row', InputRow);
 
 export const ACTION_TO_DISPLAY = {
     AddDifferential: (details, sseq) => {
@@ -11,6 +56,9 @@ export const ACTION_TO_DISPLAY = {
         let r = details.r;
         let sourceNames = sseq.classNames.get(x, y);
         let targetNames = sseq.classNames.get(x - 1, y + r);
+        if (!sourceNames || !targetNames) {
+            return ["", [[details.x, details.y], [details.x - 1, details.y + details.r]]];
+        }
 
         return [
             katex.renderToString(`d_{${r}}(${vecToName(details.source, sourceNames)}) = ${vecToName(details.target, targetNames)}`),
@@ -70,7 +118,7 @@ export const ACTION_TO_DISPLAY = {
 
 export function msgToDisplay(msg, sseq) {
     if (!msg) {
-        return ["",[]];
+        return ["", []];
     }
     let action = msg.action;
     let actionName = Object.keys(action)[0];
@@ -113,13 +161,12 @@ export class Panel extends EventEmitter {
      * This is used by the helper functions to know where to track mutations,
      * update the display when properties change, etc.
      */
-    constructor (parentContainer, display) {
+    constructor(parentContainer, display) {
         super();
 
         this.display = display;
         this.container = document.createElement("div");
         parentContainer.appendChild(this.container);
-        this.links = [];
 
         this.currentGroup = this.container;
     }
@@ -139,8 +186,6 @@ export class Panel extends EventEmitter {
     clear() {
         while (this.container.firstChild)
             this.container.removeChild(this.container.firstChild);
-
-        this.links = [];
     }
 
     /**
@@ -157,25 +202,6 @@ export class Panel extends EventEmitter {
      */
     show() {
         this.container.style.removeProperty("display");
-
-        for (let link of this.links) {
-            let t = this.display;
-            for (let attr of link[0].split(".")) {
-                t = t[attr];
-                if (t === undefined || t === null) {
-                    return;
-                }
-            }
-            link[1].value = t;
-        }
-        /**
-         * Show event. This is emitted when show() is called. One may opt to
-         * listen and respond to the show event instead of overwriting show()
-         * when designing custom panels, c.f. DifferentialPanel.
-         *
-         * @event Panel#show
-         */
-        this.emit("show");
     }
 
     /**
@@ -259,7 +285,7 @@ export class Panel extends EventEmitter {
      *
      * Returns a list of button DOM objects.
      */
-    addButtonRow(buttons){
+    addButtonRow(buttons) {
         let group = this.currentGroup;
         let o = document.createElement("div");
         o.className = "button-row";
@@ -286,52 +312,6 @@ export class Panel extends EventEmitter {
         this.addObject(node);
     }
 
-    /**
-     * This adds a linked input. A linked input is an entry that looks like
-     *
-     *       +-----+
-     * Label |     |
-     *       +-----+
-     *
-     * The input field is linked to a certain property of display. When the
-     * panel is shown, the initial value of the input field is set to the value
-     * of the corresponding property, and when the input field is changed, the
-     * property is changed accordingly.
-     *
-     * @param {string} label - The label displayed next to the input field
-     * @param {string} target - The property the input field is linked to.
-     * This is specified by a string of the from "foo.bar.xyz", which says the
-     * field is linked to this.display.foo.bar.xyz.
-     * @param {string} type - The type of the input field. This is "text" or
-     * "number" would usually be sensible choices.
-     */
-    addLinkedInput(label, target, type) {
-        let o = document.createElement("div");
-        o.className = "input-row";
-        this.currentGroup.appendChild(o);
-
-        let l = document.createElement("label");
-        l.innerHTML = label;
-        o.appendChild(l);
-
-        let i = document.createElement("input");
-        i.setAttribute("type", type);
-        o.appendChild(i);
-
-        this.links.push([target, i]);
-
-        i.addEventListener("change", (e) => {
-            let l = target.split(".");
-            let prop = l.pop();
-            let t = Panel.unwrapProperty(this.display, l);
-
-            let new_val = e.target.value;
-            t[prop] = new_val;
-
-            this.display.sseq.emit("update");
-        });
-    }
-
     addLine(html, callback, highlights) {
         let node = document.createElement("div");
         node.style = "padding: 0.75rem 0";
@@ -355,13 +335,6 @@ export class Panel extends EventEmitter {
         }
         this.addObject(node);
     }
-
-    static unwrapProperty(start, list) {
-        let t = start;
-        for (let i of list)
-            t = t[i];
-        return t;
-    }
 }
 
 /**
@@ -372,7 +345,7 @@ export class Panel extends EventEmitter {
  * @property {Panel} currentTab - The current tab that is displayed.
  */
 export class TabbedPanel extends Panel {
-    constructor (parentContainer, display) {
+    constructor(parentContainer, display) {
         super(parentContainer, display);
 
         this.head = document.createElement("div");
@@ -461,7 +434,7 @@ class HistoryPanel extends Panel {
 
         this.newGroup();
         this.display.sseq.on("new-history", (data) => this.addMessage(data));
-        this.display.sseq.on("clear-history", () => {this.clear(); this.newGroup();});
+        this.display.sseq.on("clear-history", () => { this.clear(); this.newGroup(); });
     }
 
     show() {
@@ -529,7 +502,6 @@ class HistoryPanel extends Panel {
         let result = msgToDisplay(data, this.display.sseq);
         this.addHistoryItem(data, ...result);
     }
-
 }
 
 class OverviewPanel extends Panel {
@@ -538,9 +510,22 @@ class OverviewPanel extends Panel {
         this.newGroup();
 
         this.addHeader("Vanishing line");
-        this.addLinkedInput("Slope", "sseq.vanishingSlope", "text");
-        this.addLinkedInput("Intercept", "sseq.vanishingIntercept", "text");
 
+        const slope = InputRow.new("Slope", this.display.sseq.vanishingSlope);
+        this.addObject(slope);
+
+        slope.addEventListener("change", e => {
+            this.display.sseq.vanishingSlope = e.target.value;
+            this.display.sseq.emit("update");
+        });
+
+        const intercept = InputRow.new("Intercept", this.display.sseq.vanishingIntercept);
+        this.addObject(intercept);
+
+        intercept.addEventListener("change", e => {
+            this.display.sseq.vanishingIntercept = e.target.value;
+            this.display.sseq.emit("update");
+        });
         this.newGroup();
 
         this.addButton("Resolve further", () => this.display.sseq.resolveFurther());
@@ -594,7 +579,7 @@ export class StructlinePanel extends Panel {
 
             let i = document.createElement("label");
             i.className = "switch";
-           
+
             let checkbox = document.createElement("input");
             checkbox.setAttribute("type", "checkbox");
             checkbox.checked = this.display.visibleStructlines.has(name);
@@ -612,77 +597,38 @@ export class StructlinePanel extends Panel {
             i.style.top = (summary.clientHeight - i.clientHeight) + "px";
 
             /// Styling
-            let style = this.display.structlineStyles.get(name);
+            const style = this.display.structlineStyles.get(name);
 
-            let styleDiv = document.createElement("div");
-            styleDiv.style.paddingLeft = "2.5%";
-            styleDiv.style.marginLeft = "2.5%";
-            styleDiv.style.borderLeft = "1.5px solid #DDD";
+            const styleDiv = document.createElement("div");
+            styleDiv.className = "structline-style";
             topElement.appendChild(styleDiv);
 
             // Color
-            let cd = document.createElement("div");
-            cd.className = "input-row";
-
-            let cl = document.createElement("label");
-            cl.innerHTML = "Color";
-            cl.style.width = "3rem";
-            cd.appendChild(cl);
-
-            let ci = document.createElement("input");
-            ci.setAttribute("type", "text");
-            ci.value = style.color;
-            cd.appendChild(ci);
-
-            ci.addEventListener("change", () => {
-                style.color = ci.value;
+            const color = InputRow.new("Color", style.color);
+            color.addEventListener("change", e => {
+                style.color = e.target.value;
                 this.display.update();
             });
 
-            styleDiv.appendChild(cd);
+            styleDiv.appendChild(color);
 
             // Bend
-            let bd = document.createElement("div");
-            bd.className = "input-row";
-
-            let bl = document.createElement("label");
-            bl.innerHTML = "Bend";
-            bl.style.width = "3rem";
-            bd.appendChild(bl);
-
-            let bi = document.createElement("input");
-            bi.setAttribute("type", "number");
-            bi.value = style.bend;
-            bd.appendChild(bi);
-
-            bi.addEventListener("change", () => {
-                style.bend = parseInt(bi.value);
+            const bend = InputRow.new("Bend", style.bend);
+            bend.addEventListener("change", e => {
+                style.bend = parseInt(e.target.value);
                 this.display.update();
             });
-
-            styleDiv.appendChild(bd);
+            styleDiv.appendChild(bend);
 
             // Dash
-            let dd = document.createElement("div");
-            dd.className = "input-row";
-
-            let dl = document.createElement("label");
-            dl.innerHTML = "Dash";
-            dl.style.width = "3rem";
-            dd.appendChild(dl);
-
-            let di = document.createElement("input");
-            di.setAttribute("type", "text");
-            di.value = "[" + style["line-dash"].join(", ") + "]";
-            di.title = "An array of numbers that specify distances to alternately draw a line and a gap. For example, a solid line is [], while [2, 2] gives you a dashed line where the line and the gap have equal length.";
-            dd.appendChild(di);
-
-            di.addEventListener("change", () => {
-                style["line-dash"] = eval(di.value);
+            const dash = InputRow.new("Dash", `[${style["line-dash"].join(", ")}]`);
+            dash.setAttribute("title", "An array of numbers that specify distances to alternately draw a line and a gap. For example, a solid line is [], while [2, 2] gives you a dashed line where the line and the gap have equal length.");
+            dash.addEventListener("change", e => {
+                style["line-dash"] = JSON.parse(e.target.value);
                 this.display.update();
             });
 
-            styleDiv.appendChild(dd);
+            styleDiv.appendChild(dash);
 
             checkbox.addEventListener("change", () => {
                 if (checkbox.checked) {
@@ -695,7 +641,7 @@ export class StructlinePanel extends Panel {
             });
         }
 
-        if (!this.display.isUnit && this.display.constructor.name != "CalculationDisplay") {
+        if (!this.display.isUnit) {
             this.addButton("Add", () => window.unitDisplay.openModal(), { "tooltip": "Add product to display" });
         }
     }
@@ -742,7 +688,7 @@ class MainPanel extends Panel {
             let n = document.createElement("span");
             n.style.padding = "0 0.6em";
             n.innerHTML = katex.renderToString(vecToName(c, names));
-            if (this.display.constructor.name != "CalculationDisplay" && classes.length == sseq.classes.get(x, y)[0].length) {
+            if (classes.length == sseq.classes.get(x, y)[0].length) {
                 n.addEventListener("click", () => {
                     let name = prompt("New class name");
                     if (name !== null) {
@@ -760,7 +706,6 @@ class MainPanel extends Panel {
             this.addHeader("Decompositions");
             for (let d of decompositions) {
                 let single = d[0].reduce((a, b) => a + b, 0) == 1;
-                single = single && this.display.constructor.name != "CalculationDisplay";
 
                 let highlights = [[x - d[2], y - d[3]]];
                 if (this.display.isUnit) {
@@ -783,13 +728,13 @@ class MainPanel extends Panel {
             }
         }
 
-        if (this.display.isUnit && this.display.constructor.name != "CalculationDisplay") {
+        if (this.display.isUnit) {
             this.newGroup();
             this.addButton("Add Product", () => {
                 let [x, y] = this.display.selected;
                 let num = this.display.sseq.getClasses(x, y, MIN_PAGE).length;
                 this.display.sseq.addProductInteractive(x, y, num);
-            }, { shortcuts : ["m"] });
+            }, { shortcuts: ["m"] });
         }
     }
 }
@@ -819,7 +764,7 @@ class DifferentialPanel extends Panel {
             node.style.marginLeft = "5%";
             node.style.marginRight = "5%";
 
-            for (let r = MIN_PAGE; r <= maxR; r ++) {
+            for (let r = MIN_PAGE; r <= maxR; r++) {
                 let classes = sseq.getClasses(x - 1, y + r, r);
                 if (classes && classes.length > 0 &&
                     (!sseq.trueDifferentials.get(x, y) || !sseq.trueDifferentials.get(x, y)[r - MIN_PAGE] || sseq.getClasses(x, y, r).length != sseq.trueDifferentials.get(x, y)[r - MIN_PAGE].length)) {
@@ -866,12 +811,10 @@ class DifferentialPanel extends Panel {
                 this.addLine(katex.renderToString(`d_${page}(${rowToLaTeX(source)}) = ${rowToLaTeX(target)}`), callback);
             }
         }
-        if (this.display.constructor.name != "CalculationDisplay") {
-            if (this.display.isUnit) {
-                this.addLine("<span style='font-size: 80%'>Click differential to propagate</span>");
-            }
-            this.addButton("Add", () => this.display.state = STATE_ADD_DIFFERENTIAL);
+        if (this.display.isUnit) {
+            this.addLine("<span style='font-size: 80%'>Click differential to propagate</span>");
         }
+        this.addButton("Add", () => this.display.state = STATE_ADD_DIFFERENTIAL);
 
         this.newGroup();
         this.addHeader("Permanent Classes");
@@ -879,12 +822,9 @@ class DifferentialPanel extends Panel {
         if (permanentClasses.length > 0) {
             this.addLine(permanentClasses.map(rowToKaTeX).join("<br />"));
         }
-        if (this.display.constructor.name != "CalculationDisplay") {
-            this.addButton("Add", () => {
-                sseq.addPermanentClassInteractive(x, y);
-            });
-        }
-
+        this.addButton("Add", () => {
+            sseq.addPermanentClassInteractive(x, y);
+        });
     }
 }
 

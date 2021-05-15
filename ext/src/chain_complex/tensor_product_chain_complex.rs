@@ -209,8 +209,8 @@ where
         unimplemented!()
     }
 
-    fn max_homological_degree(&self) -> u32 {
-        self.modules.len() as u32 - 1
+    fn next_homological_degree(&self) -> u32 {
+        self.modules.len() as u32
     }
 }
 

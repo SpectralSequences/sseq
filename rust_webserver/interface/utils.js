@@ -21,7 +21,11 @@ export function matrixToKaTeX(m) {
 }
 
 export function rowToLaTeX(m) {
-    return "\\begin{bmatrix}" + m.join("&") + "\\end{bmatrix}";
+    if (m.length == 0) {
+        return "[]";
+    } else {
+        return "\\begin{bmatrix}" + m.join("&") + "\\end{bmatrix}";
+    }
 }
 
 export function renderLaTeX(html) {
@@ -93,14 +97,6 @@ export function download (filename, data, mime="text/plain") {
     element.rel = 'noopener';
     element.dispatchEvent(new MouseEvent('click'));
     setTimeout(() => URL.revokeObjectURL(element.href), 6E4);
-}
-
-export function inflate(x) {
-    return new TextDecoder("utf-8").decode(pako.inflate(x));
-}
-
-export function deflate(x) {
-    return pako.deflate(x, { level : 1});
 }
 
 const A_ = 0x41;
@@ -198,12 +194,4 @@ export function decodeB64(x) {
     }
 
     return result;
-}
-
-export function stringToB64(x) {
-    return encodeB64(pako.deflate(x));
-}
-
-export function b64ToString(x) {
-    return inflate(decodeB64(x));
 }

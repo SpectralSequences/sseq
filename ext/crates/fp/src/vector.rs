@@ -205,6 +205,7 @@ impl FpVector {
         pub fn entry(&self, index: usize) -> u32;
         pub fn set_entry(&mut self, index: usize, value: u32);
         pub fn assign(&mut self, other: &Self);
+        pub fn assign_partial(&mut self, other: &Self);
         pub fn add(&mut self, other: &Self, c: u32);
         pub fn add_offset(&mut self, other: &Self, c: u32, offset: usize);
         pub fn slice(&self, start: usize, end: usize) -> (dispatch Slice);
@@ -676,6 +677,19 @@ mod test {
 
             v.assign(&w);
             v.assert_vec_eq(&w);
+        }
+
+        fn test_assign_partial(p: ValidPrime, dim: usize) {
+            let v_arr = random_vector(p, dim);
+            let w_arr = random_vector(p, dim / 2);
+
+            let mut v = FpVector::from_slice(p, &v_arr);
+            let w = FpVector::from_slice(p, &w_arr);
+
+            v.assign_partial(&w);
+            assert!(v.slice(dim / 2, dim).is_zero());
+            assert_eq!(v.len(), dim);
+            v.slice(0, dim / 2).to_owned().assert_vec_eq(&w);
         }
 
         fn test_assign_slice_to_slice(p: ValidPrime, dim: usize, slice_start: usize, slice_end: usize) {

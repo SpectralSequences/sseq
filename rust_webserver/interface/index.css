@@ -59,3 +59,13 @@ div.tooltip {
 .history-item .katex {
     font-size: 1.1em;
 }
+
+.structline-style {
+    padding-left: 2.5%;
+    margin-left: 2.5%;
+    border-left: 1.5px solid #DDD;
+}
+
+.structline-style label {
+    width: 3rem;
+}

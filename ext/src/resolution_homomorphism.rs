@@ -116,9 +116,9 @@ where
     pub fn extend_all(&self) {
         self.extend_profile(
             std::cmp::min(
-                self.target.max_homological_degree() + self.shift_s,
-                self.source.max_homological_degree(),
-            ),
+                self.target.next_homological_degree() + self.shift_s,
+                self.source.next_homological_degree(),
+            ) - 1,
             |s| {
                 std::cmp::min(
                     self.target.module(s - self.shift_s).max_computed_degree() + self.shift_t,
@@ -132,9 +132,9 @@ where
     pub fn extend_all_concurrent(&self, bucket: &TokenBucket) {
         self.extend_profile_concurrent(
             std::cmp::min(
-                self.target.max_homological_degree() + self.shift_s,
-                self.source.max_homological_degree(),
-            ),
+                self.target.next_homological_degree() + self.shift_s,
+                self.source.next_homological_degree(),
+            ) - 1,
             |s| {
                 std::cmp::min(
                     self.target.module(s - self.shift_s).max_computed_degree() + self.shift_t,

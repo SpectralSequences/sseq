@@ -4,9 +4,9 @@ use textwrap::Wrapper;
 use time::OffsetDateTime;
 use ws::{listen, Handler, Request, Response, Result as WsResult, Sender as WsSender};
 
-use ext_webserver::actions::*;
-use ext_webserver::managers::*;
-use ext_webserver::Sender;
+use rust_webserver::actions::*;
+use rust_webserver::managers::*;
+use rust_webserver::Sender;
 
 /// List of files that our webserver will serve to the user
 const FILE_LIST: [(&str, &str, &[u8]); 16] = [

@@ -2,7 +2,7 @@
 
 import { MainDisplay, UnitDisplay } from "./display.js";
 import { ExtSseq } from "./sseq.js";
-import { renderLaTeX, download, stringToB64, b64ToString } from "./utils.js";
+import { renderLaTeX, download } from "./utils.js";
 
 window.commandCounter = 0;
 window.commandQueue = [];
@@ -13,7 +13,7 @@ function processCommandQueue() {
         return;
 
     let commandText = "";
-    let block = {
+    const block = {
         recipients : ["Resolver", "Sseq"],
         action : { "BlockRefresh" : { block : true } }
     };
@@ -31,7 +31,7 @@ function processCommandQueue() {
             continue;
 
         try {
-            let command = JSON.parse(commandText);
+            const command = JSON.parse(commandText);
             if (command.sseq == "Main") {
                 window.mainSseq.send(command);
             } else {
@@ -40,6 +40,7 @@ function processCommandQueue() {
         } catch (e) {
             console.log("Unable to parse command " + commandText);
             console.log(e);
+            console.log(e.stack);
         }
     }
     block.action.BlockRefresh.block = false;
@@ -50,15 +51,15 @@ function processCommandQueue() {
     }
 }
 
-let url = new URL(document.location);
-let params = {};
-for(let [k,v] of url.searchParams.entries()){
+const url = new URL(document.location);
+const params = {};
+for(const [k,v] of url.searchParams.entries()){
     params[k] = v;
 }
 
 if (params.module) {
-    let maxDegree = parseInt(params.degree ? params.degree : 50);
-    let algebra = params.algebra ? params.algebra : "adem";
+    const maxDegree = parseInt(params.degree ? params.degree : 50);
+    const algebra = params.algebra ? params.algebra : "adem";
 
     openWebSocket([
         {
@@ -81,14 +82,11 @@ if (params.module) {
             }
         },
     ]);
-} else if (params.data) {
-    const data = b64ToString(params.data);
-    loadHistory(data);
 } else {
     document.querySelector("#home").style.removeProperty("display");
 
     HTMLCollection.prototype.forEach = Array.prototype.forEach;
-    let sections = document.querySelector("#home").getElementsByTagName("section");
+    const sections = document.querySelector("#home").getElementsByTagName("section");
 
     sections.forEach(n => {
         n.children[1].children.forEach(a => {
@@ -109,22 +107,22 @@ function send(msg) {
 }
 window.send = send;
 
-function openWebSocket(initialData, maxDegree) {
+function openWebSocket(initialData) {
     // Keep this for the save button
     window.constructCommand = initialData[0];
 
     window.webSocket = new WebSocket(`ws://${window.location.host}/ws`);
 
-    webSocket.onopen = function(e) {
-        for (let data of initialData) {
+    webSocket.onopen = function() {
+        for (const data of initialData) {
             window.send(data);
         }
     };
 
     webSocket.onmessage = function(e) {
-        let data = JSON.parse(e.data);
+        const data = JSON.parse(e.data);
         try {
-            let command = Object.keys(data.action)[0];
+            const command = Object.keys(data.action)[0];
             if (messageHandler[command]) {
                 messageHandler[command](data.action[command], data);
             } else {
@@ -146,13 +144,8 @@ function openWebSocket(initialData, maxDegree) {
     }
 }
 
-function getHistoryLink() {
-    return `${url.origin}${url.pathname}?data=` + stringToB64(generateHistory());
-}
-window.getHistoryLink = getHistoryLink;
-
 function generateHistory() {
-    let list = [window.constructCommand];
+    const list = [window.constructCommand];
     list.push(
         {
             recipients: ["Resolver"],
@@ -177,26 +170,24 @@ function generateHistory() {
             }
         );
     };
-    list = list.concat(mainSseq.history);
 
-    return list.map(JSON.stringify).join("\n")
+    return list.concat(mainSseq.history).map(JSON.stringify).join("\n")
 }
 
 function save() {
-    let filename = prompt("Input filename");
+    const filename = prompt("Input filename");
     download(filename, generateHistory(), "text/plain");
 }
 window.save = save;
 
 function loadHistory(hist) {
-    let lines = hist.split("\n");
+    const lines = hist.split("\n");
     // Do reverse loop because we are removing things from the array.
     for (let i = lines.length - 1; i>= 0; i--) {
         if (lines[i].startsWith("//") || lines[i].trim() === "") {
             lines.splice(i, 1);
         }
     }
-    let firstBatch = [];
 
     // First command is construct and second command is resolve
     openWebSocket(lines.splice(0, 2).map(JSON.parse));
@@ -205,7 +196,7 @@ function loadHistory(hist) {
     commandQueue = lines;
 }
 
-let messageHandler = {};
+const messageHandler = {};
 messageHandler.Resolving = (data, msg) => {
     if (msg.sseq == "Unit") {
         window.unitSseq.processResolving(data);
@@ -242,7 +233,7 @@ messageHandler.Resolving = (data, msg) => {
     }
 }
 
-messageHandler.Complete = function (m) {
+messageHandler.Complete = function (_m) {
     commandCounter --;
     if (commandCounter == 0) {
         display.runningSign.style.display = "none";
@@ -266,10 +257,10 @@ messageHandler.QueryTableResult = function (m) {
 
 // Set up upload button
 document.getElementById("json-upload").addEventListener("change", function() {
-    let maxDegree = parseInt(prompt("Maximum degree", 30).trim());
+    const maxDegree = parseInt(prompt("Maximum degree", 30).trim());
 
-    let file = document.getElementById("json-upload").files[0];
-    let fileReader = new FileReader();
+    const file = document.getElementById("json-upload").files[0];
+    const fileReader = new FileReader();
     fileReader.onload = e => {
         openWebSocket([
             {
@@ -297,9 +288,9 @@ document.getElementById("json-upload").addEventListener("change", function() {
     document.querySelector("#home").style.display = "none";
 });
 document.getElementById("history-upload").addEventListener("change", function() {
-    let file = document.getElementById("history-upload").files[0];
+    const file = document.getElementById("history-upload").files[0];
 
-    let fileReader = new FileReader();
+    const fileReader = new FileReader();
     fileReader.onload = e => {
         loadHistory(e.target.result);
     };

@@ -24,7 +24,7 @@ pub fn get_gens(min_degree: i32) -> error::Result<BiVec<Vec<String>>> {
             eprintln!("This is the list of generators and degrees:");
             for (i, deg_i_gens) in gens.iter_enum() {
                 for gen in deg_i_gens.iter() {
-                    print!("({}, {}) ", i, gen);
+                    eprint!("({}, {}) ", i, gen);
                 }
             }
             eprintln!();
