@@ -101,54 +101,52 @@ if (params.module) {
     });
 }
 
+function onMessage(e) {
+    const data = JSON.parse(e.data);
+    try {
+        const command = Object.keys(data.action)[0];
+        if (messageHandler[command]) {
+            messageHandler[command](data.action[command], data);
+        } else {
+            switch (data.sseq) {
+                case 'Main':
+                    window.mainSseq['process' + command](data.action[command]);
+                    break;
+                case 'Unit':
+                    window.unitSseq['process' + command](data.action[command]);
+                    break;
+                default:
+            }
+        }
+    } catch (err) {
+        console.log('Unable to process message');
+        console.log(data);
+        console.log(`Error: ${err}`);
+        console.log(err.stack);
+    }
+}
+
 function openWebSocket(initialData) {
     // Keep this for the save button
     window.constructCommand = initialData[0];
 
-    window.webSocket = new WebSocket(`ws://${window.location.host}/ws`);
+    const webSocket = new WebSocket(`ws://${window.location.host}/ws`);
 
     window.send = msg => {
         window.commandCounter += msg.recipients.length;
         if (window.display !== undefined)
             window.display.runningSign.style.removeProperty('display');
 
-        window.webSocket.send(JSON.stringify(msg));
+        webSocket.send(JSON.stringify(msg));
     };
 
-    window.webSocket.onopen = () => {
+    webSocket.onopen = () => {
         for (const data of initialData) {
             window.send(data);
         }
     };
 
-    window.webSocket.onmessage = function (e) {
-        const data = JSON.parse(e.data);
-        try {
-            const command = Object.keys(data.action)[0];
-            if (messageHandler[command]) {
-                messageHandler[command](data.action[command], data);
-            } else {
-                switch (data.sseq) {
-                    case 'Main':
-                        window.mainSseq['process' + command](
-                            data.action[command],
-                        );
-                        break;
-                    case 'Unit':
-                        window.unitSseq['process' + command](
-                            data.action[command],
-                        );
-                        break;
-                    default:
-                }
-            }
-        } catch (err) {
-            console.log('Unable to process message');
-            console.log(data);
-            console.log(`Error: ${err}`);
-            console.log(err.stack);
-        }
-    };
+    webSocket.onmessage = onMessage;
 }
 
 function generateHistory() {

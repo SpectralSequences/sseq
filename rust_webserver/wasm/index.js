@@ -101,58 +101,43 @@ if (params.module) {
     });
 }
 
-async function openWebSocket(initialData) {
-    window.resolutionWorker = new Worker('./resolution_worker.js');
-    window.sseqWorker = new Worker('./sseq_worker.js');
-
-    window.resolutionWorker.addEventListener('message', ev =>
-        window.sseqWorker.postMessage(ev.data),
-    );
-
-    window.sseqWorker.addEventListener('message', ev => {
-        const data = JSON.parse(ev.data);
-        try {
-            const command = Object.keys(data.action)[0];
-            if (messageHandler[command]) {
-                messageHandler[command](data.action[command], data);
-            } else {
-                switch (data.sseq) {
-                    case 'Main':
-                        window.mainSseq['process' + command](
-                            data.action[command],
-                        );
-                        break;
-                    case 'Unit':
-                        window.unitSseq['process' + command](
-                            data.action[command],
-                        );
-                        break;
-                    default:
-                }
+function onMessage(e) {
+    const data = JSON.parse(e.data);
+    try {
+        const command = Object.keys(data.action)[0];
+        if (messageHandler[command]) {
+            messageHandler[command](data.action[command], data);
+        } else {
+            switch (data.sseq) {
+                case 'Main':
+                    window.mainSseq['process' + command](data.action[command]);
+                    break;
+                case 'Unit':
+                    window.unitSseq['process' + command](data.action[command]);
+                    break;
+                default:
             }
-        } catch (err) {
-            console.log('Unable to process message');
-            console.log(data);
-            console.log(`Error: ${err}`);
         }
-    });
+    } catch (err) {
+        console.log('Unable to process message');
+        console.log(data);
+        console.log(`Error: ${err}`);
+        console.log(err.stack);
+    }
+}
 
+async function openWebSocket(initialData) {
     // Keep this for the save button
     window.constructCommand = Object.assign({}, initialData[0]);
 
-    if (initialData[0].action['Construct']) {
-        const name = initialData[0].action['Construct'].module_name;
-        const algebra = initialData[0].action['Construct'].algebra_name;
+    const resolutionWorker = new Worker('./resolution_worker.js');
+    const sseqWorker = new Worker('./sseq_worker.js');
 
-        const response = await fetch(`steenrod_modules/${name}.json`);
-        const json = await response.json();
-        initialData[0].action = {
-            ConstructJson: {
-                algebra_name: algebra,
-                data: JSON.stringify(json),
-            },
-        };
-    }
+    resolutionWorker.addEventListener('message', ev =>
+        sseqWorker.postMessage(ev.data),
+    );
+
+    sseqWorker.addEventListener('message', onMessage);
 
     window.send = msg => {
         window.commandCounter += msg.recipients.length;
@@ -168,6 +153,20 @@ async function openWebSocket(initialData) {
             }
         }
     };
+
+    if (initialData[0].action['Construct']) {
+        const name = initialData[0].action['Construct'].module_name;
+        const algebra = initialData[0].action['Construct'].algebra_name;
+
+        const response = await fetch(`steenrod_modules/${name}.json`);
+        const json = await response.json();
+        initialData[0].action = {
+            ConstructJson: {
+                algebra_name: algebra,
+                data: JSON.stringify(json),
+            },
+        };
+    }
 
     for (const data of initialData) {
         send(data);
