@@ -59,15 +59,7 @@ export class BiVec {
         this.data[x - this.minDegree][y] = data;
     }
     get(x, y) {
-        if (
-            x < this.minDegree ||
-            y < 0 ||
-            this.data.length <= x - this.minDegree
-        ) {
-            return undefined;
-        } else {
-            return this.data[x - this.minDegree][y];
-        }
+        return this.data?.[x - this.minDegree]?.[y];
     }
 }
 
@@ -95,15 +87,7 @@ export class ExtSseq {
         this.chart = document.createElement('paged-chart');
         this.chart.addStyle(CHART_STYLE);
         this.chart.setAttribute('minx', minDegree);
-        this.chart.addEventListener('click', () => {
-            const oldSelected = this.selected;
-            this.selected = null;
-            this.chart.shadowRoot
-                .querySelectorAll(`.selected`)
-                .forEach(x => x.classList.remove('selected'));
-            this.onClick && this.onClick(oldSelected);
-            this.refreshPanel && this.refreshPanel();
-        });
+        this.chart.addEventListener('click', () => this.select(null));
 
         this.selected = null;
         this.refreshPanel = undefined;
@@ -152,7 +136,7 @@ export class ExtSseq {
             for (const msg of this.history) {
                 this.send(msg, false);
             }
-            this.refreshPanel && this.refreshPanel();
+            this.refreshPanel?.();
             this.block(false);
         }
     }
@@ -176,7 +160,7 @@ export class ExtSseq {
         for (const msg of this.history) {
             this.send(msg, false);
         }
-        this.refreshPanel && this.refreshPanel();
+        this.refreshPanel?.();
         this.block(false);
     }
 
@@ -522,7 +506,7 @@ export class ExtSseq {
         e.stopPropagation();
         const x = parseInt(e.target.parentNode.getAttribute('data-x'));
         const y = parseInt(e.target.parentNode.getAttribute('data-y'));
-        this.select(x, y);
+        this.select([x, y]);
     }
 
     processSetClass(data) {
@@ -541,9 +525,7 @@ export class ExtSseq {
         for (const [r, page] of this.chart.pages.entries()) {
             const num = this.getClasses(x, y, r + MIN_PAGE).length;
             const oldNum =
-                oldClasses === undefined
-                    ? 0
-                    : ExtSseq.getPage(oldClasses, r + MIN_PAGE).length;
+                ExtSseq.getPage(oldClasses, r + MIN_PAGE)?.length || 0;
 
             let classname = 'class';
             if (data.state === 'Done') {
@@ -591,7 +573,7 @@ export class ExtSseq {
             page.appendChild(grp);
         }
         if (this.hasSelected(x, y)) {
-            this.select(x, y);
+            this.select([x, y]);
         }
     }
 
@@ -603,17 +585,19 @@ export class ExtSseq {
         );
     }
 
-    select(x, y) {
+    select(select) {
         this.chart.shadowRoot
             .querySelectorAll(`.selected`)
             .forEach(x => x.classList.remove('selected'));
         const oldSelect = this.selected;
-        this.selected = [x, y];
-        this.chart.shadowRoot
-            .querySelectorAll(`.class-group-${x}-${y}`)
-            .forEach(x => x.classList.add('selected'));
-        this.onClick && this.onClick(oldSelect);
-        this.refreshPanel && this.refreshPanel();
+        this.selected = select;
+        if (select !== null) {
+            this.chart.shadowRoot
+                .querySelectorAll(`.class-group-${select[0]}-${select[1]}`)
+                .forEach(x => x.classList.add('selected'));
+        }
+        this.onClick?.(oldSelect);
+        this.refreshPanel?.();
     }
 
     static *drawMatrix(matrix, sourceX, targetX, sourceY, targetY, bend = 0) {
@@ -680,8 +664,8 @@ export class ExtSseq {
                 page.insertBefore(diff, page.firstChild);
             }
         }
-        if (this.refreshPanel && this.hasSelected(x, y)) {
-            this.refreshPanel();
+        if (this.hasSelected(x, y)) {
+            this.refreshPanel?.();
         }
     }
 
@@ -743,8 +727,8 @@ export class ExtSseq {
                 }
             }
         }
-        if (this.refreshPanel && this.hasSelected(x, y)) {
-            this.refreshPanel();
+        if (this.hasSelected(x, y)) {
+            this.refreshPanel?.();
         }
     }
 
@@ -795,9 +779,7 @@ export class ExtSseq {
     }
 
     getDifferentials(x, y, page) {
-        const result = this.differentials.get(x, y);
-        if (!result) return undefined;
-        return result[page - MIN_PAGE];
+        return this.differentials.get(x, y)?.[page - MIN_PAGE];
     }
 
     hasClasses(x, y, page) {
