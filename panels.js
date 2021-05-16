@@ -1,5 +1,3 @@
-'use strict';
-
 import { STATE_ADD_DIFFERENTIAL } from './display.js';
 import { rowToKaTeX, rowToLaTeX, matrixToKaTeX, vecToName } from './utils.js';
 import { MIN_PAGE } from './sseq.js';

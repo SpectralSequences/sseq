@@ -1,5 +1,3 @@
-'use strict';
-
 import { promptClass, vecToName } from './utils.js';
 import { svgNS } from './chart.js';
 

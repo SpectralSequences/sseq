@@ -1,5 +1,3 @@
-'use strict';
-
 export function vecToName(v, names) {
     const items = [];
     for (let i = 0; i < v.length; i++) {
