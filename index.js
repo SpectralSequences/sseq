@@ -145,9 +145,9 @@ async function openWebSocket(initialData) {
         const str = JSON.stringify(msg);
         for (const recipient of msg.recipients) {
             if (recipient == 'Sseq') {
-                window.sseqWorker.postMessage(str);
+                sseqWorker.postMessage(str);
             } else {
-                window.resolutionWorker.postMessage(str);
+                resolutionWorker.postMessage(str);
             }
         }
     };
