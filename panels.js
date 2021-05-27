@@ -1,5 +1,11 @@
 import { STATE_ADD_DIFFERENTIAL } from './display.js';
-import { rowToKaTeX, rowToLaTeX, matrixToKaTeX, vecToName } from './utils.js';
+import {
+    rowToKaTeX,
+    rowToLaTeX,
+    matrixToKaTeX,
+    vecToName,
+    KATEX_ARGS,
+} from './utils.js';
 import { MIN_PAGE } from './sseq.js';
 
 class InputRow extends HTMLElement {
@@ -71,6 +77,7 @@ export const ACTION_TO_DISPLAY = {
                     details.source,
                     sourceNames,
                 )}) = ${vecToName(details.target, targetNames)}`,
+                KATEX_ARGS,
             ),
             [
                 [details.x, details.y],
@@ -84,17 +91,25 @@ export const ACTION_TO_DISPLAY = {
 <ul class="text-left" style="padding-left: 20px; list-style-type: none">
   <li>
     <details>
-      <summary>source: ${katex.renderToString(details.source.name)}</summary>
+      <summary>source: ${katex.renderToString(
+          details.source.name,
+          KATEX_ARGS,
+      )}</summary>
       (${details.source.x}, ${details.source.y}): ${katex.renderToString(
             rowToLaTeX(details.source.class),
+            KATEX_ARGS,
         )}
     </details>
   </li>
   <li>
     <details>
-      <summary>target: ${katex.renderToString(details.target.name)}</summary>
+      <summary>target: ${katex.renderToString(
+          details.target.name,
+          KATEX_ARGS,
+      )}</summary>
       (${details.target.x}, ${details.target.y}): ${katex.renderToString(
             rowToLaTeX(details.target.class),
+            KATEX_ARGS,
         )}
     </details>
   </li>
@@ -103,7 +118,7 @@ export const ACTION_TO_DISPLAY = {
             details.source.name
         }) = ${details.target.name}`;
         return [
-            `Propagate ${katex.renderToString(diffString)}`,
+            `Propagate ${katex.renderToString(diffString, KATEX_ARGS)}`,
             [
                 [details.source.x, details.source.y],
                 [details.target.x, details.target.y],
@@ -116,12 +131,13 @@ export const ACTION_TO_DISPLAY = {
         return [
             `<span>${
                 details.permanent ? 'Permanent p' : 'P'
-            }roduct ${katex.renderToString(details.name)}</span>`,
+            }roduct ${katex.renderToString(details.name, KATEX_ARGS)}</span>`,
             [[details.x, details.y]],
             sseq.isUnit
                 ? undefined
                 : `(${details.x}, ${details.y}): ${katex.renderToString(
                       rowToLaTeX(details.class),
+                      KATEX_ARGS,
                   )}`,
         ];
     },
@@ -133,6 +149,7 @@ export const ACTION_TO_DISPLAY = {
                     details.class,
                     sseq.classNames.get(details.x, details.y),
                 ),
+                KATEX_ARGS,
             )}`,
             [[details.x, details.y]],
         ];
@@ -150,6 +167,7 @@ export const ACTION_TO_DISPLAY = {
             'Rename ' +
                 katex.renderToString(
                     `${originalName} \\rightsquigarrow ${details.name}`,
+                    KATEX_ARGS,
                 ),
             [[details.x, details.y]],
         ];
@@ -433,7 +451,7 @@ function* structlinePanel(sseq) {
         topElement.appendChild(summary);
 
         const l = document.createElement('label');
-        l.innerHTML = katex.renderToString(name);
+        l.innerHTML = katex.renderToString(name, KATEX_ARGS);
         summary.appendChild(l);
 
         const s = document.createElement('span');
@@ -551,7 +569,7 @@ function* mainPanel(sseq) {
     for (const c of classes) {
         const n = document.createElement('span');
         n.style.padding = '0 0.6em';
-        n.innerHTML = katex.renderToString(vecToName(c, names));
+        n.innerHTML = katex.renderToString(vecToName(c, names), KATEX_ARGS);
 
         if (classes.length == sseq.classes.get(x, y)[0].length) {
             n.addEventListener('click', () => {
@@ -579,12 +597,15 @@ function* mainPanel(sseq) {
                 const idx = d[0].indexOf(1);
                 // If we named the element after the decomposition, there is no point in displaying it...
                 if (
-                    katex.renderToString(names[idx]) !=
-                    katex.renderToString(d[1])
+                    katex.renderToString(names[idx], KATEX_ARGS) !=
+                    katex.renderToString(d[1], KATEX_ARGS)
                 ) {
                     yield createPanelLine(
                         sseq,
-                        katex.renderToString(names[idx] + ' = ' + d[1]),
+                        katex.renderToString(
+                            names[idx] + ' = ' + d[1],
+                            KATEX_ARGS,
+                        ),
                         () => {
                             if (confirm(`Rename ${names[idx]} as ${d[1]}?`)) {
                                 sseq.setClassName(x, y, idx, d[1]);
@@ -597,7 +618,10 @@ function* mainPanel(sseq) {
             } else {
                 yield createPanelLine(
                     sseq,
-                    katex.renderToString(vecToName(d[0], names) + ' = ' + d[1]),
+                    katex.renderToString(
+                        vecToName(d[0], names) + ' = ' + d[1],
+                        KATEX_ARGS,
+                    ),
                     undefined,
                     highlights,
                 );
@@ -688,6 +712,7 @@ function* differentialPanel(sseq) {
                 sseq,
                 katex.renderToString(
                     `d_${page}(${rowToLaTeX(source)}) = ${rowToLaTeX(target)}`,
+                    KATEX_ARGS,
                 ),
                 callback,
             );
@@ -742,7 +767,9 @@ function* productsPanel(sseq) {
 
         yield createPanelLine(
             sseq,
-            `${katex.renderToString(name)}: ${matrixToKaTeX(matrix)}`,
+            `${katex.renderToString(name, KATEX_ARGS)}: ${matrixToKaTeX(
+                matrix,
+            )}`,
             null,
             [
                 [x + mult.x, y + mult.y],

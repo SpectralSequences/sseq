@@ -183,7 +183,7 @@ export class MainDisplay {
                         this.sseq.selected,
                     );
                     this.state = null;
-                    this.sseq.select(...oldSelected);
+                    this.sseq.select(oldSelected);
                 }
                 break;
         }

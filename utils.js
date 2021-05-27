@@ -1,3 +1,7 @@
+export const KATEX_ARGS = {
+    throwOnError: false,
+};
+
 export function vecToName(v, names) {
     const items = [];
     for (let i = 0; i < v.length; i++) {
@@ -15,7 +19,7 @@ export function vecToName(v, names) {
 }
 
 export function rowToKaTeX(m) {
-    return katex.renderToString(rowToLaTeX(m));
+    return katex.renderToString(rowToLaTeX(m), KATEX_ARGS);
 }
 
 export function matrixToKaTeX(m) {
@@ -23,6 +27,7 @@ export function matrixToKaTeX(m) {
         '\\begin{bmatrix}' +
             m.map(x => x.join('&')).join('\\\\') +
             '\\end{bmatrix}',
+        KATEX_ARGS,
     );
 }
 
@@ -33,9 +38,7 @@ export function rowToLaTeX(m) {
 export function renderLaTeX(html) {
     const html_list = html.split(/(?:\\\[)|(?:\\\()|(?:\\\))|(?:\\\])|(?:\$)/);
     for (let i = 1; i < html_list.length; i += 2) {
-        html_list[i] = katex.renderToString(html_list[i], {
-            throwOnError: false,
-        });
+        html_list[i] = katex.renderToString(html_list[i], KATEX_ARGS);
     }
     return html_list.join('\n');
 }
