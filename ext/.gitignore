@@ -23,4 +23,5 @@ package-lock.json
 **/perf.data
 **/perf.data.old
 
-resolution_*
+resolution_data
+.tmp*

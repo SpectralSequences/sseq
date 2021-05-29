@@ -385,6 +385,7 @@ impl<CC: ChainComplex> Resolution<CC> {
         current_differential.set_quasi_inverse(t, Some(res_qi));
         current_differential.set_kernel(t, None);
         current_differential.set_image(t, None);
+        self.save_differential(s);
 
         *old_kernel = Some(new_kernel);
     }
@@ -658,6 +659,11 @@ impl<CC: ChainComplex> Resolution<CC> {
     pub fn prime(&self) -> ValidPrime {
         self.complex.prime()
     }
+
+    fn save_differential(&self, s: u32) {
+        self.differentials[s as usize].save_changes();
+    }
+
 
     #[cfg(feature = "concurrent")]
     pub fn compute_through_bidegree_concurrent_with_callback(
