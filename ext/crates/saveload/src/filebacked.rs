@@ -1,10 +1,11 @@
 use std::{
+    fs::File,
     io::{Read, Seek, SeekFrom, Write},
-    // ops::Deref,
-    sync::{Arc, RwLock, Weak},
+    sync::{Arc, Weak},
 };
 
-use tempfile::SpooledTempFile;
+use parking_lot::RwLock;
+use tempfile::tempfile_in;
 
 use crate::{Load, Save};
 
@@ -18,7 +19,7 @@ where
     T::AuxData: Clone,
 {
     ptr: RwLock<Weak<T>>,
-    tmp_file: RwLock<SpooledTempFile>,
+    tmp_file: RwLock<File>,
     aux_data: T::AuxData,
 }
 
@@ -28,14 +29,14 @@ where
     T::AuxData: Clone,
 {
     pub fn upgrade(&self) -> Arc<T> {
-        let read_ptr = self.ptr.read().unwrap();
+        let read_ptr = self.ptr.read();
         let maybe_data = read_ptr.upgrade();
         if let Some(arc_data) = maybe_data {
             arc_data
         } else {
             drop(read_ptr);
-            let mut write_ptr = self.ptr.write().unwrap();
-            let mut tmp_file = self.tmp_file.write().unwrap();
+            let mut write_ptr = self.ptr.write();
+            let mut tmp_file = self.tmp_file.write();
             let data = T::load(&mut *tmp_file, &self.aux_data).unwrap();
             tmp_file.seek(SeekFrom::Start(0)).unwrap();
             let arc_data = Arc::new(data);
@@ -52,8 +53,11 @@ where
 {
     pub fn new(data: T, aux_data: &T::AuxData) -> FileBacked<T> {
         // If `T` occupies less than 1MB, we can keep it in memory
-        let tmp_file = RwLock::new(SpooledTempFile::new(1024 * 1024));
-        Save::save(&data, &mut *tmp_file.write().unwrap()).unwrap();
+        let tmp_file = RwLock::new(tempfile_in("./").unwrap());
+        eprintln!("Creating a FileBacked with tmp_file {:?}", tmp_file);
+        let mut writer = std::io::BufWriter::new(tmp_file.write().try_clone().unwrap());
+        Save::save(&data, &mut writer).unwrap();
+        eprintln!("Created {:?}", tmp_file);
         FileBacked {
             ptr: RwLock::new(Weak::new()),
             tmp_file,
@@ -99,7 +103,7 @@ where
     fn load(buffer: &mut impl Read, data: &Self::AuxData) -> std::io::Result<Self> {
         match <T as Load>::load(buffer, data) {
             Ok(loaded) => Ok(FileBacked::new(loaded, data)),
-            Err(e) => e,
+            Err(e) => Err(e),
         }
     }
 }
