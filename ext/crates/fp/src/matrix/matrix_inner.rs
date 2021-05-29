@@ -160,6 +160,7 @@ impl Matrix {
     ///
     /// let (n, m) = Matrix::augmented_from_vec(p, &input);
     /// assert_eq!(n, FpVector::padded_len(p, input[0].len()));
+    /// ```
     pub fn augmented_from_vec(p: ValidPrime, input: &[Vec<u32>]) -> (usize, Matrix) {
         let rows = input.len();
         let cols = input[0].len();
@@ -417,7 +418,7 @@ impl Matrix {
     ///  should be at least as long as the number of columns (and the extra entries are ignored).
     ///
     /// # Example
-    /// `#`#`
+    /// ```
     /// # use fp::prime::ValidPrime;
     /// let p = ValidPrime::new(7);
     /// # use fp::matrix::Matrix;
@@ -433,7 +434,7 @@ impl Matrix {
     /// m.row_reduce();
     ///
     /// assert_eq!(m, Matrix::from_vec(p, &result));
-    /// `#`#`
+    /// ```
     pub fn row_reduce(&mut self) -> usize {
         let p = self.p;
         self.initialize_pivots();

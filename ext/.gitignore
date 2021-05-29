@@ -22,3 +22,5 @@ package-lock.json
 **/flamegraph.svg
 **/perf.data
 **/perf.data.old
+
+resolution_*

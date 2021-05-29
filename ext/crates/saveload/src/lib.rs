@@ -27,6 +27,7 @@ use std::io;
 use std::io::{Read, Write};
 
 mod default_impl;
+pub mod filebacked;
 
 pub trait Save {
     /// # Example
