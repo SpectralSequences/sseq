@@ -664,7 +664,6 @@ impl<CC: ChainComplex> Resolution<CC> {
         self.differentials[s as usize].save_changes();
     }
 
-
     #[cfg(feature = "concurrent")]
     pub fn compute_through_bidegree_concurrent_with_callback(
         &self,

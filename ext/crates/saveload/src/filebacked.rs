@@ -3,17 +3,10 @@ use std::{
     sync::{Arc, Weak},
 };
 
-use lazy_static::lazy_static;
 use parking_lot::RwLock;
-use tempfile::{NamedTempFile, TempDir};
+use tempfile::SpooledTempFile;
 
 use crate::{Load, Save};
-
-lazy_static! {
-    static ref TEMPDIR: TempDir = {
-        tempfile::Builder::new().prefix(".tmp.").tempdir_in("./").unwrap()
-    };
-}
 
 /// A smart pointer for very large structs. The idea is that a FileBacked<T> does not necessarily own
 /// a `T`, but has enough data to know where to load it from when needed. FileBacked<T> will not
@@ -21,7 +14,7 @@ lazy_static! {
 /// before handing over a pointer to it. As soon as the pointer is dropped, the memory can be deallocated.
 pub struct FileBacked<T: Load> {
     ptr: RwLock<Weak<T>>,
-    tmp_file: RwLock<NamedTempFile>,
+    tmp_file: RwLock<SpooledTempFile>,
     aux_data: T::AuxData,
 }
 
@@ -55,15 +48,13 @@ where
 {
     pub fn new(data: T, aux_data: &T::AuxData) -> FileBacked<T> {
         // If `T` occupies less than 1MB, we can keep it in memory
-        let tmp_file = RwLock::new(
-            tempfile::Builder::new()
-                .prefix(".filebacked.")
-                .tempfile_in(TEMPDIR.as_ref())
-                .unwrap(),
-        );
+        let tmp_file = RwLock::new(SpooledTempFile::new(1024 * 1024));
         eprintln!("Creating a FileBacked with tmp_file {:?}", tmp_file);
-        let mut writer = std::io::BufWriter::new(tmp_file.write().reopen().unwrap());
-        T::save(&data, &mut writer).unwrap();
+        // TODO: If `data` is large, the following line uses an unbuffered writer to write 1MB+
+        // to disk. This is extremely slow, but shouldn't take more than several seconds, and is
+        // only done once on initialization. This could be solved if one could check the memory
+        // footprint of `data` at runtime, but afaik there is no Rust function that does that.
+        T::save(&data, &mut *tmp_file.write()).unwrap();
         eprintln!("Created {:?}", tmp_file);
         FileBacked {
             ptr: RwLock::new(Weak::new()),
@@ -74,9 +65,18 @@ where
 
     pub fn save_changes(&self) {
         let data = self.upgrade();
-        let mut writer = self.tmp_file.write();
-        writer.seek(SeekFrom::Start(0)).unwrap();
-        T::save(&data, &mut std::io::BufWriter::new(writer.reopen().unwrap())).unwrap();
+        let mut tmp_file = self.tmp_file.write();
+        tmp_file.seek(SeekFrom::Start(0)).unwrap();
+        if tmp_file.is_rolled() {
+            T::save(
+                &data,
+                &mut std::io::BufWriter::new(tmp_file.try_clone().unwrap()),
+            )
+            .unwrap();
+            eprintln!("Saved {:?}", tmp_file);
+        } else {
+            T::save(&data, &mut *tmp_file).unwrap();
+        }
     }
 }
 
@@ -104,5 +104,3 @@ where
         }
     }
 }
-
-pub struct FileGuard {}

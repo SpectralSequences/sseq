@@ -7,6 +7,6 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-lazy_static = "1.4.0"
 parking_lot = "0.11.1"
-tempfile = "3.2.0"
+# Use my fork of tempfile because I need `try_clone`, which I implemented myself
+tempfile = { git = "https://github.com/JoeyBF/tempfile" }
