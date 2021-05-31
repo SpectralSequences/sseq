@@ -94,6 +94,7 @@ tabbed-panel > .tab-main {
 
 .button-row {
     display: flex;
+    gap: 4px;
 }
 
 .button-row > button {
@@ -105,7 +106,7 @@ tabbed-panel > .tab-main {
     font-family: inherit;
     background: none;
     padding: 6px 1rem;
-    margin: 2px;
+    margin: 2px 0;
     cursor: pointer;
     border-radius: 5px;
     border: 1px solid #ccc;
