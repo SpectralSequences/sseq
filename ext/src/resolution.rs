@@ -8,7 +8,6 @@ use fp::matrix::{AugmentedMatrix, Subspace};
 use fp::prime::ValidPrime;
 use fp::vector::FpVector;
 use once::{OnceBiVec, OnceVec};
-use saveload::filebacked::FileBacked;
 
 #[cfg(feature = "concurrent")]
 use crossbeam_channel::{unbounded, Receiver};
@@ -24,7 +23,7 @@ pub struct Resolution<CC: ChainComplex> {
     zero_module: Arc<FreeModule<<CC::Module as Module>::Algebra>>,
     chain_maps: OnceVec<Arc<FreeModuleHomomorphism<CC::Module>>>,
     differentials:
-        OnceVec<FileBacked<FreeModuleHomomorphism<FreeModule<<CC::Module as Module>::Algebra>>>>,
+        OnceVec<Arc<FreeModuleHomomorphism<FreeModule<<CC::Module as Module>::Algebra>>>>,
 
     ///  For each *internal* degree, store the kernel of the most recently calculated chain map as
     ///  returned by `generate_old_kernel_and_compute_new_kernel`, to be used if we run
@@ -78,33 +77,21 @@ impl<CC: ChainComplex> Resolution<CC> {
         }
 
         if self.differentials.is_empty() {
-            let new_differential = FreeModuleHomomorphism::new(
-                Arc::clone(&self.modules[0u32]),
-                Arc::clone(&self.zero_module),
-                0,
-            );
-            let aux_data = &(
-                new_differential.source(),
-                new_differential.target(),
-                new_differential.degree_shift(),
-            );
             self.differentials
-                .push(FileBacked::new(new_differential, aux_data));
+                .push(Arc::new(FreeModuleHomomorphism::new(
+                    Arc::clone(&self.modules[0u32]),
+                    Arc::clone(&self.zero_module),
+                    0,
+                )));
         }
 
         for i in self.differentials.len() as u32..=max_s {
-            let new_differential = FreeModuleHomomorphism::new(
-                Arc::clone(&self.modules[i]),
-                Arc::clone(&self.modules[i - 1]),
-                0,
-            );
-            let aux_data = &(
-                new_differential.source(),
-                new_differential.target(),
-                new_differential.degree_shift(),
-            );
             self.differentials
-                .push(FileBacked::new(new_differential, aux_data));
+                .push(Arc::new(FreeModuleHomomorphism::new(
+                    Arc::clone(&self.modules[i]),
+                    Arc::clone(&self.modules[i - 1]),
+                    0,
+                )));
         }
     }
 
@@ -385,7 +372,6 @@ impl<CC: ChainComplex> Resolution<CC> {
         current_differential.set_quasi_inverse(t, Some(res_qi));
         current_differential.set_kernel(t, None);
         current_differential.set_image(t, None);
-        self.save_differential(s);
 
         *old_kernel = Some(new_kernel);
     }
@@ -660,10 +646,6 @@ impl<CC: ChainComplex> Resolution<CC> {
         self.complex.prime()
     }
 
-    fn save_differential(&self, s: u32) {
-        self.differentials[s as usize].save_changes();
-    }
-
     #[cfg(feature = "concurrent")]
     pub fn compute_through_bidegree_concurrent_with_callback(
         &self,
@@ -891,7 +873,7 @@ impl<CC: ChainComplex> ChainComplex for Resolution<CC> {
     }
 
     fn differential(&self, s: u32) -> Arc<Self::Homomorphism> {
-        self.differentials[s as usize].upgrade()
+        Arc::clone(&self.differentials[s as usize])
     }
 
     fn compute_through_bidegree(&self, s: u32, t: i32) {
@@ -966,7 +948,7 @@ impl<CC: ChainComplex> Load for Resolution<CC> {
             &(result.module(0), result.zero_module(), 0),
         )?);
         for s in 1..max_s as u32 {
-            let d: FileBacked<FreeModuleHomomorphism<FreeModule<CC::Algebra>>> =
+            let d: Arc<FreeModuleHomomorphism<FreeModule<CC::Algebra>>> =
                 Load::load(buffer, &(result.module(s), result.module(s - 1), 0))?;
             result.differentials.push(d);
         }

@@ -1,6 +1,7 @@
 use super::Matrix;
 use crate::prime::ValidPrime;
 use crate::vector::{Slice, SliceMut};
+use saveload::filebacked::{FileBacked, FileBackedGuard};
 
 /// Given a matrix M, a quasi-inverse Q is a map from the co-domain to the domain such that xQM = x
 /// for all x in the image (recall our matrices act on the right).
@@ -10,19 +11,25 @@ use crate::vector::{Slice, SliceMut};
 ///  everything (with the standard basis).
 ///  * `preimage` - The actual quasi-inverse, where the basis of the image is that given by
 ///  `image`.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone)]
 pub struct QuasiInverse {
+    prime: ValidPrime,
     image: Option<Vec<isize>>,
-    preimage: Matrix,
+    preimage: FileBacked<Matrix>,
 }
 
 impl QuasiInverse {
     pub fn new(image: Option<Vec<isize>>, preimage: Matrix) -> Self {
-        Self { image, preimage }
+        let prime = preimage.prime();
+        Self {
+            prime,
+            image,
+            preimage: FileBacked::new(preimage, &prime),
+        }
     }
 
-    pub fn preimage(&self) -> &Matrix {
-        &self.preimage
+    pub fn preimage(&self) -> FileBackedGuard<Matrix> {
+        self.preimage.upgrade()
     }
 
     pub fn pivots(&self) -> Option<&[isize]> {
@@ -30,7 +37,7 @@ impl QuasiInverse {
     }
 
     pub fn prime(&self) -> ValidPrime {
-        self.preimage.prime()
+        self.prime
     }
 
     /// Apply the quasi-inverse to an input vector and add a constant multiple of the result
@@ -43,6 +50,7 @@ impl QuasiInverse {
     pub fn apply(&self, mut target: SliceMut, coeff: u32, input: Slice) {
         let p = self.prime();
         let mut row = 0;
+        let preimage = self.preimage();
         for (i, c) in input.iter().enumerate() {
             if let Some(pivots) = self.pivots() {
                 if i >= pivots.len() || pivots[i] < 0 {
@@ -50,7 +58,7 @@ impl QuasiInverse {
                 }
             }
             if c != 0 {
-                target.add(self.preimage[row].as_slice(), (coeff * c) % *p);
+                target.add(preimage[row].as_slice(), (coeff * c) % *p);
             }
             row += 1;
         }
@@ -74,8 +82,9 @@ impl Load for QuasiInverse {
 
     fn load(buffer: &mut impl Read, p: &ValidPrime) -> io::Result<Self> {
         Ok(Self {
+            prime: *p,
             image: Option::<Vec<isize>>::load(buffer, &Some(()))?,
-            preimage: Matrix::load(buffer, p)?,
+            preimage: FileBacked::load(buffer, p)?,
         })
     }
 }

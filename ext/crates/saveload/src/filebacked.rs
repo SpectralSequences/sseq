@@ -1,9 +1,10 @@
 use std::{
     io::{Read, Seek, SeekFrom, Write},
+    ops::{Deref, DerefMut},
     sync::{Arc, Weak},
 };
 
-use parking_lot::RwLock;
+use parking_lot::{Mutex, RwLock};
 use tempfile::SpooledTempFile;
 
 use crate::{Load, Save};
@@ -13,32 +14,10 @@ use crate::{Load, Save};
 /// hold `T` in memory, but instead wait for the data to be accessed, at which point it will load the data
 /// before handing over a pointer to it. As soon as the pointer is dropped, the memory can be deallocated.
 pub struct FileBacked<T: Load> {
+    lock: Mutex<()>,
     ptr: RwLock<Weak<T>>,
     tmp_file: RwLock<SpooledTempFile>,
     aux_data: T::AuxData,
-}
-
-impl<T> FileBacked<T>
-where
-    T: Load,
-    T::AuxData: Clone,
-{
-    pub fn upgrade(&self) -> Arc<T> {
-        let read_ptr = self.ptr.read();
-        let maybe_data = read_ptr.upgrade();
-        if let Some(arc_data) = maybe_data {
-            arc_data
-        } else {
-            drop(read_ptr);
-            let mut write_ptr = self.ptr.write();
-            let mut tmp_file = self.tmp_file.write();
-            tmp_file.seek(SeekFrom::Start(0)).unwrap();
-            let data = T::load(&mut *tmp_file, &self.aux_data).unwrap();
-            let arc_data = Arc::new(data);
-            *write_ptr = Arc::downgrade(&arc_data);
-            arc_data
-        }
-    }
 }
 
 impl<T> FileBacked<T>
@@ -49,14 +28,13 @@ where
     pub fn new(data: T, aux_data: &T::AuxData) -> FileBacked<T> {
         // If `T` occupies less than 1MB, we can keep it in memory
         let tmp_file = RwLock::new(SpooledTempFile::new(1024 * 1024));
-        eprintln!("Creating a FileBacked with tmp_file {:?}", tmp_file);
         // TODO: If `data` is large, the following line uses an unbuffered writer to write 1MB+
         // to disk. This is extremely slow, but shouldn't take more than several seconds, and is
         // only done once on initialization. This could be solved if one could check the memory
         // footprint of `data` at runtime, but afaik there is no Rust function that does that.
         T::save(&data, &mut *tmp_file.write()).unwrap();
-        eprintln!("Created {:?}", tmp_file);
         FileBacked {
+            lock: Mutex::new(()),
             ptr: RwLock::new(Weak::new()),
             tmp_file,
             aux_data: aux_data.clone(),
@@ -64,6 +42,7 @@ where
     }
 
     pub fn save_changes(&self) {
+        let _lock = self.lock.lock();
         let data = self.upgrade();
         let mut tmp_file = self.tmp_file.write();
         tmp_file.seek(SeekFrom::Start(0)).unwrap();
@@ -78,6 +57,46 @@ where
             T::save(&data, &mut *tmp_file).unwrap();
         }
     }
+
+    pub fn upgrade(&self) -> FileBackedGuard<T> {
+        let _lock = self.lock.lock();
+        let read_ptr = self.ptr.read();
+        let maybe_data = read_ptr.upgrade();
+        if let Some(arc_data) = maybe_data {
+            FileBackedGuard {
+                backing: &self,
+                data: arc_data,
+            }
+        } else {
+            drop(read_ptr);
+            let mut write_ptr = self.ptr.write();
+            let mut tmp_file = self.tmp_file.write();
+            tmp_file.seek(SeekFrom::Start(0)).unwrap();
+            let data = T::load(&mut *tmp_file, &self.aux_data).unwrap();
+            let arc_data = Arc::new(data);
+            *write_ptr = Arc::downgrade(&arc_data);
+            FileBackedGuard {
+                backing: &self,
+                data: arc_data,
+            }
+        }
+    }
+}
+
+impl<T> Clone for FileBacked<T>
+where
+    T: Save + Load,
+    T::AuxData: Clone,
+{
+    fn clone(&self) -> Self {
+        let _lock = self.lock.lock();
+        let mut tmp_file = self.tmp_file.write();
+        tmp_file.seek(SeekFrom::Start(0)).unwrap();
+        Self::new(
+            T::load(&mut *tmp_file, &self.aux_data).unwrap(),
+            &self.aux_data,
+        )
+    }
 }
 
 impl<T> Save for FileBacked<T>
@@ -86,7 +105,8 @@ where
     T::AuxData: Clone,
 {
     fn save(&self, buffer: &mut impl Write) -> std::io::Result<()> {
-        Save::save(&self.upgrade(), buffer)
+        let _lock = self.lock.lock();
+        Save::save(&*self.upgrade(), buffer)
     }
 }
 
@@ -101,6 +121,52 @@ where
         match <T as Load>::load(buffer, data) {
             Ok(loaded) => Ok(FileBacked::new(loaded, data)),
             Err(e) => Err(e),
+        }
+    }
+}
+
+pub struct FileBackedGuard<'a, T>
+where
+    T: Save + Load,
+    T::AuxData: Clone,
+{
+    backing: &'a FileBacked<T>,
+    data: Arc<T>,
+}
+
+impl<T> Deref for FileBackedGuard<'_, T>
+where
+    T: Save + Load,
+    T::AuxData: Clone,
+{
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        self.data.deref()
+    }
+}
+
+// impl<T> DerefMut for FileBackedGuard<T>
+// where
+//     T: Save + Load,
+//     T::AuxData: Clone,
+// {
+//     fn deref_mut(&mut self) -> &mut Self::Target {
+//         self.data.
+//     }
+// }
+
+impl<T> Drop for FileBackedGuard<'_, T>
+where
+    T: Save + Load,
+    T::AuxData: Clone,
+{
+    fn drop(&mut self) {
+        if Arc::strong_count(&self.data) == 1 {
+            // The reference count could go up before the next line is executed,
+            // but that would only lead to over-saving. This is potientially a small
+            // performance hit, but it is safe.
+            self.backing.save_changes();
         }
     }
 }
