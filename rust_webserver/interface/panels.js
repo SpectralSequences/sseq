@@ -384,12 +384,12 @@ function* historyPanel(sseq) {
             div = document.createElement('details');
 
             const summary = document.createElement('summary');
-            detail.appendChild(summary);
+            div.appendChild(summary);
 
             const inner = document.createElement('div');
             inner.style.textAlign = 'center';
             inner.innerHTML = content;
-            detail.appendChild(inner);
+            div.appendChild(inner);
 
             summary.appendChild(title);
             summary.appendChild(remove);
