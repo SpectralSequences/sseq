@@ -378,7 +378,9 @@ export class ExtSseq {
                 'Invalid class. Express in terms of basis on E_2 page',
                 classes[0].length,
             );
-            this.addPermanentClass(x, y, target);
+            if (target !== null) {
+                this.addPermanentClass(x, y, target);
+            }
         }
     }
 
