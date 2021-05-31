@@ -933,7 +933,7 @@
         <span class="ident">old_dim</span> <span class="op">!</span><span class="op">=</span> <span class="ident">new_dim</span>
     }
 
-    <span class="doccomment">/// Ensure self.differentials[x][y][r] is defined. Must call `extend_page_data` on the source</span>
+    <span class="doccomment">/// Ensure `self.differentials[x][y][r]` is defined. Must call `extend_page_data` on the source</span>
     <span class="doccomment">/// and target after this.</span>
     <span class="kw">fn</span> <span class="ident">extend_differential</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">r</span>: <span class="ident">i32</span>, <span class="ident">x</span>: <span class="ident">i32</span>, <span class="ident">y</span>: <span class="ident">i32</span>) {
         <span class="kw">let</span> <span class="ident">source_dim</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">classes</span>.<span class="ident">dimension</span>(<span class="ident">x</span>, <span class="ident">y</span>);
@@ -953,7 +953,7 @@
         }
     }
 
-    <span class="doccomment">/// Ensure self.page_data[x][y][r] is defined</span>
+    <span class="doccomment">/// Ensure `self.page_data[x][y][r]` is defined</span>
     <span class="kw">fn</span> <span class="ident">extend_page_data</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">r</span>: <span class="ident">i32</span>, <span class="ident">x</span>: <span class="ident">i32</span>, <span class="ident">y</span>: <span class="ident">i32</span>) {
         <span class="kw">let</span> <span class="ident">page_data</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">page_data</span>[<span class="ident">x</span>][<span class="ident">y</span>];
         <span class="kw">while</span> <span class="ident">page_data</span>.<span class="ident">len</span>() <span class="op">&lt;</span><span class="op">=</span> <span class="ident">r</span> {
