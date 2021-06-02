@@ -151,7 +151,7 @@ where
     fn eq(&self, other: &Self) -> bool {
         let self_data = self.upgrade(false);
         let other_data = other.upgrade(false);
-        *self_data == *other_data
+        self_data == other_data
     }
 }
 
@@ -284,10 +284,6 @@ where
     T::AuxData: Clone,
 {
     fn save(&self, buffer: &mut impl Write) -> std::io::Result<()> {
-        if self.write_mode {
-            self.backing.save_changes();
-        }
-        self.backing.save(buffer)?;
-        Ok(())
+        self.backing.save(buffer)
     }
 }
