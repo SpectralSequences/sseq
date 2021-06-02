@@ -169,6 +169,7 @@ where
 {
     fn save(&self, buffer: &mut impl Write) -> std::io::Result<()> {
         let mut tmp_file = self.tmp_file.write();
+        tmp_file.seek(SeekFrom::Start(0))?;
         io::copy(&mut *tmp_file, buffer)?;
         Ok(())
     }
