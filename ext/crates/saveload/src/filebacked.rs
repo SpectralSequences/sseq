@@ -1,4 +1,5 @@
 use std::{
+    fmt::{Debug, Result},
     io::{self, Read, Seek, SeekFrom, Write},
     ops::Deref,
     sync::{Arc, Weak},
@@ -12,7 +13,7 @@ use crate::{Load, Save};
 /// A wrapper for very large structs. The idea is that a `FileBacked<T>` represents a `T` without
 /// keeping it in memory. At creation time, `FileBacked<T>` will take ownership of a `T` and save it
 /// to a `SpooledTempFile`, and then drop `T`. By default the `SpooledTempFile` will keep structs
-/// less than 1MB large in memory, as an attempt to reduce disk io. When the resource is requested,
+/// using less than 1MB in memory, as an attempt to reduce disk io. When the resource is requested,
 /// the `upgrade` method will return a `FileBackedGuard<T>`, which can be used as a pointer to a
 /// `T`. If the resource was already loaded (i.e., a `FileBackedGuard<T>` already exists), no disk
 /// io is performed, so that all pointers always point to the same `T`.
@@ -22,14 +23,14 @@ use crate::{Load, Save};
 /// exists. Therefore `T::AuxData` needs to implement `Clone`. Another option would be to keep a
 /// reference to a `T::AuxData` whose lifetime is guaranteed to be as long as `FileBacked<T>`, but
 /// we found this solution tricky to implement, and requiring `Clone` is reasonable in practice.
-/// 
+///
 /// # Example
 /// ```
 /// # use saveload::filebacked::{FileBacked, FileBackedGuard};
 /// # use std::io::Error;
 ///
 /// let v : Vec<u32> = vec![6, 3, 4, 2];
-/// 
+///
 /// let filebacked_v : FileBacked<Vec<u32>> = FileBacked::new_with_capacity(v, &(), 0);
 /// // `v` is removed from memory
 ///
@@ -129,6 +130,36 @@ where
             &self.aux_data,
         )
     }
+}
+
+impl<T> std::fmt::Debug for FileBacked<T>
+where
+    T: Save + Load + Debug,
+    T::AuxData: Clone,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result {
+        let data = self.upgrade(false);
+        data.fmt(f)
+    }
+}
+
+impl<T> PartialEq for FileBacked<T>
+where
+    T: Save + Load + PartialEq,
+    T::AuxData: Clone,
+{
+    fn eq(&self, other: &Self) -> bool {
+        let self_data = self.upgrade(false);
+        let other_data = other.upgrade(false);
+        *self_data == *other_data
+    }
+}
+
+impl<T> Eq for FileBacked<T>
+where
+    T: Save + Load + Eq,
+    T::AuxData: Clone,
+{
 }
 
 impl<T> Save for FileBacked<T>

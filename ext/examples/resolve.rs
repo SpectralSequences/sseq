@@ -20,6 +20,8 @@ use saveload::Save;
 use std::fs::File;
 
 fn main() -> error::Result {
+    // Clippy false positive
+    #[allow(clippy::redundant_closure)]
     let res = query::with_default("Module", "S_2", |name| {
         construct(name, query::optional("Load from file", |s| File::open(s)))
     });

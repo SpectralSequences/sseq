@@ -11,7 +11,7 @@ use saveload::filebacked::{FileBacked, FileBackedGuard};
 ///  everything (with the standard basis).
 ///  * `preimage` - The actual quasi-inverse, where the basis of the image is that given by
 ///  `image`.
-#[derive(Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct QuasiInverse {
     prime: ValidPrime,
     image: Option<Vec<isize>>,
@@ -28,8 +28,10 @@ impl QuasiInverse {
         }
     }
 
-    pub fn preimage(&self, write_mode: bool) -> FileBackedGuard<Matrix> {
-        self.preimage.upgrade(write_mode)
+    pub fn preimage(&self) -> FileBackedGuard<Matrix> {
+        // We load `preimage` with `write_mode` set to `false` because a `Matrix` does not have
+        // interior mutability.
+        self.preimage.upgrade(false)
     }
 
     pub fn pivots(&self) -> Option<&[isize]> {
@@ -50,7 +52,7 @@ impl QuasiInverse {
     pub fn apply(&self, mut target: SliceMut, coeff: u32, input: Slice) {
         let p = self.prime();
         let mut row = 0;
-        let preimage = self.preimage(false);
+        let preimage = self.preimage();
         for (i, c) in input.iter().enumerate() {
             if let Some(pivots) = self.pivots() {
                 if i >= pivots.len() || pivots[i] < 0 {
