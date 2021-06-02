@@ -1,9 +1,4 @@
-use std::{
-    fmt::{Debug, Result},
-    io::{self, Read, Seek, SeekFrom, Write},
-    ops::Deref,
-    sync::{Arc, Weak},
-};
+use std::{fmt::{Debug, Result}, io::{self, Read, Seek, SeekFrom, Write}, ops::Deref, sync::{Arc, Weak}};
 
 use parking_lot::RwLock;
 use tempfile::SpooledTempFile;
@@ -248,5 +243,46 @@ where
         if self.write_mode {
             self.backing.save_changes();
         }
+    }
+}
+
+impl<T> std::fmt::Debug for FileBackedGuard<'_, T>
+where
+    T: Save + Load + Debug,
+    T::AuxData: Clone,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result {
+        self.data.fmt(f)
+    }
+}
+
+impl<T> PartialEq for FileBackedGuard<'_, T>
+where
+    T: Save + Load + PartialEq,
+    T::AuxData: Clone,
+{
+    fn eq(&self, other: &Self) -> bool {
+        *self.data == *other.data
+    }
+}
+
+impl<T> Eq for FileBackedGuard<'_, T>
+where
+    T: Save + Load + Eq,
+    T::AuxData: Clone,
+{
+}
+
+impl<T> Save for FileBackedGuard<'_, T>
+where
+    T: Save + Load,
+    T::AuxData: Clone,
+{
+    fn save(&self, buffer: &mut impl Write) -> std::io::Result<()> {
+        if self.write_mode {
+            self.backing.save_changes();
+        }
+        self.backing.save(buffer)?;
+        Ok(())
     }
 }

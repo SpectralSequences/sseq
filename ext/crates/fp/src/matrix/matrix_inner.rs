@@ -557,7 +557,7 @@ impl Matrix {
     ///
     /// let preimage = [vec![0, 1, 0],
     ///                 vec![0, 2, 2]];
-    /// assert_eq!(qi.preimage(), &Matrix::from_vec(p, &preimage));
+    /// assert_eq!(&*qi.preimage(), &Matrix::from_vec(p, &preimage));
     /// ```
     pub fn compute_quasi_inverse(
         &self,
