@@ -28,8 +28,8 @@ impl QuasiInverse {
         }
     }
 
-    pub fn preimage(&self) -> FileBackedGuard<Matrix> {
-        self.preimage.upgrade()
+    pub fn preimage(&self, write_mode: bool) -> FileBackedGuard<Matrix> {
+        self.preimage.upgrade(write_mode)
     }
 
     pub fn pivots(&self) -> Option<&[isize]> {
@@ -50,7 +50,7 @@ impl QuasiInverse {
     pub fn apply(&self, mut target: SliceMut, coeff: u32, input: Slice) {
         let p = self.prime();
         let mut row = 0;
-        let preimage = self.preimage();
+        let preimage = self.preimage(false);
         for (i, c) in input.iter().enumerate() {
             if let Some(pivots) = self.pivots() {
                 if i >= pivots.len() || pivots[i] < 0 {
