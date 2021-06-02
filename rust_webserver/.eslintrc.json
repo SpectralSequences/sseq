@@ -5,16 +5,11 @@
     },
     "extends": "eslint:recommended",
     "globals": {
-        "Atomics": "readonly",
-        "SharedArrayBuffer": "readonly",
-        "pako": "readonly",
-        "EventEmitter": "readonly",
-        "Mousetrap": "readonly",
         "d3": "readonly",
-        "C2S": "readonly"
+        "katex": "readonly"
     },
     "parserOptions": {
-        "ecmaVersion": 2018,
+        "ecmaVersion": 2021,
         "sourceType": "module"
     },
     "rules": {

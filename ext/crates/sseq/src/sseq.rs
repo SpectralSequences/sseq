@@ -159,7 +159,7 @@ impl<P: SseqProfile> Sseq<P> {
         old_dim != new_dim
     }
 
-    /// Ensure self.differentials[x][y][r] is defined. Must call `extend_page_data` on the source
+    /// Ensure `self.differentials[x][y][r]` is defined. Must call `extend_page_data` on the source
     /// and target after this.
     fn extend_differential(&mut self, r: i32, x: i32, y: i32) {
         let source_dim = self.classes.dimension(x, y);
@@ -179,7 +179,7 @@ impl<P: SseqProfile> Sseq<P> {
         }
     }
 
-    /// Ensure self.page_data[x][y][r] is defined
+    /// Ensure `self.page_data[x][y][r]` is defined
     fn extend_page_data(&mut self, r: i32, x: i32, y: i32) {
         let page_data = &mut self.page_data[x][y];
         while page_data.len() <= r {
