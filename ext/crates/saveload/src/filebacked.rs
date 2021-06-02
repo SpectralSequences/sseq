@@ -9,11 +9,40 @@ use tempfile::SpooledTempFile;
 
 use crate::{Load, Save};
 
-/// A smart pointer for very large structs. The idea is that a FileBacked<T> does not necessarily own
-/// a `T`, but has enough data to know where to load it from when needed. FileBacked<T> will not
-/// hold `T` in memory, but instead wait for the data to be accessed, at which point it will load the data
-/// before handing over a pointer to it. As soon as the pointer is dropped, the memory can be deallocated.
-pub struct FileBacked<T: Load> {
+/// A wrapper for very large structs. The idea is that a `FileBacked<T>` represents a `T` without
+/// keeping it in memory. At creation time, `FileBacked<T>` will take ownership of a `T` and save it
+/// to a `SpooledTempFile`, and then drop `T`. By default the `SpooledTempFile` will keep structs
+/// less than 1MB large in memory, as an attempt to reduce disk io. When the resource is requested,
+/// the `upgrade` method will return a `FileBackedGuard<T>`, which can be used as a pointer to a
+/// `T`. If the resource was already loaded (i.e., a `FileBackedGuard<T>` already exists), no disk
+/// io is performed, so that all pointers always point to the same `T`.
+///
+/// Since `T` needs to be loaded/unloaded from disk, it needs to implement `Save + Load`. We also
+/// want to own a copy of `T::AuxData`, so that `T` can be loaded as long as the `FileBacked<T>`
+/// exists. Therefore `T::AuxData` needs to implement `Clone`. Another option would be to keep a
+/// reference to a `T::AuxData` whose lifetime is guaranteed to be as long as `FileBacked<T>`, but
+/// we found this solution tricky to implement, and requiring `Clone` is reasonable in practice.
+/// 
+/// # Example
+/// ```
+/// # use saveload::filebacked::{FileBacked, FileBackedGuard};
+/// # use std::io::Error;
+///
+/// let v : Vec<u32> = vec![6, 3, 4, 2];
+/// 
+/// let filebacked_v : FileBacked<Vec<u32>> = FileBacked::new_with_capacity(v, &(), 0);
+/// // `v` is removed from memory
+///
+/// let w : FileBackedGuard<Vec<u32>> = filebacked_v.upgrade(false);
+///
+/// assert_eq!(vec![6, 3, 4, 2], *w);
+/// # Ok::<(), Error>(())
+/// ```
+pub struct FileBacked<T>
+where
+    T: Save + Load,
+    T::AuxData: Clone,
+{
     ptr: RwLock<Weak<T>>,
     tmp_file: RwLock<SpooledTempFile>,
     aux_data: T::AuxData,
@@ -25,12 +54,12 @@ where
     T::AuxData: Clone,
 {
     pub fn new(data: T, aux_data: &T::AuxData) -> FileBacked<T> {
-        // If `T` occupies less than 1MB, we can keep it in memory
-        let tmp_file = RwLock::new(SpooledTempFile::new(1024 * 1024));
-        // TODO: If `data` is large, the following line uses an unbuffered writer to write 1MB+
-        // to disk. This is extremely slow, but shouldn't take more than several seconds, and is
-        // only done once on initialization. This could be solved if one could check the memory
-        // footprint of `data` at runtime, but afaik there is no Rust function that does that.
+        // By default, keep everything less than 1MB large in memory.
+        FileBacked::new_with_capacity(data, aux_data, 1024 * 1024)
+    }
+
+    pub fn new_with_capacity(data: T, aux_data: &T::AuxData, capacity: usize) -> FileBacked<T> {
+        let tmp_file = RwLock::new(SpooledTempFile::new(capacity));
         T::save(&data, &mut *tmp_file.write()).unwrap();
         FileBacked {
             ptr: RwLock::new(Weak::new()),
@@ -39,6 +68,9 @@ where
         }
     }
 
+    /// Save the current state of `T` to disk. Note that if `T` is not currently loaded this method
+    /// will simply load `T` and immediately write it back. There is usually no need to call this
+    /// function, since `FileBackedGuard` handles this when dropped.
     pub fn save_changes(&self) {
         let data = self.upgrade(false);
         let mut tmp_file = self.tmp_file.write();
@@ -55,6 +87,9 @@ where
         }
     }
 
+    /// Request the resource `T`. This returns a `FileBackedGuard<T>` which can simply be used as a
+    /// pointer to `T`. The returned guard will save changes back to disk when dropped if and only
+    /// if `write_mode` is `true`.
     pub fn upgrade(&self, write_mode: bool) -> FileBackedGuard<T> {
         let read_ptr = self.ptr.read();
         let maybe_data = read_ptr.upgrade();
@@ -123,6 +158,33 @@ where
     }
 }
 
+/// An RAII-style guard wrapping a `T`. As long as the guard exists, the wrapped value is kept live
+/// in memory. It implements `Drop` so that any changes are saved to disk before deallocation, if
+/// the guard was created with `write_mode` set to `true`. Note that `FileBackedGuard<T>` implements
+/// `Deref` but not `DerefMut`, so `T` needs interior mutability for it to be modified.
+///
+/// # Example
+/// ```
+/// # use saveload::filebacked::{FileBacked, FileBackedGuard};
+/// # use std::io::Error;
+/// use std::sync::Mutex; // We wrap around a `Mutex` for interior mutability
+///
+/// let v : Vec<u32> = vec![6, 3, 4, 2];
+/// let filebacked_v = FileBacked::new(Mutex::new(v), &());
+///
+/// let guard_read = filebacked_v.upgrade(false);
+/// guard_read.lock().unwrap()[0] = 5;
+/// drop(guard_read);
+///
+/// assert_eq!(vec![6, 3, 4, 2], *filebacked_v.upgrade(false).lock().unwrap()); // `v` is unchanged
+///
+/// let guard_write = filebacked_v.upgrade(true);
+/// guard_write.lock().unwrap()[0] = 5;
+/// drop(guard_write);
+///
+/// assert_eq!(vec![5, 3, 4, 2], *filebacked_v.upgrade(false).lock().unwrap()); // `v` is modified
+/// # Ok::<(), Error>(())
+/// ```
 pub struct FileBackedGuard<'a, T>
 where
     T: Save + Load,
@@ -151,10 +213,7 @@ where
     T::AuxData: Clone,
 {
     fn drop(&mut self) {
-        if self.write_mode && Arc::strong_count(&self.data) == 1 {
-            // The reference count could go up before the next line is executed,
-            // but that would only lead to over-saving. This is potientially a small
-            // performance hit, but it is safe.
+        if self.write_mode {
             self.backing.save_changes();
         }
     }
