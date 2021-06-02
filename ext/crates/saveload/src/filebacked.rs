@@ -1,4 +1,9 @@
-use std::{fmt::{Debug, Result}, io::{self, Read, Seek, SeekFrom, Write}, ops::Deref, sync::{Arc, Weak}};
+use std::{
+    fmt::{Debug, Result},
+    io::{self, Read, Seek, SeekFrom, Write},
+    ops::Deref,
+    sync::{Arc, Weak},
+};
 
 use parking_lot::RwLock;
 use tempfile::SpooledTempFile;
