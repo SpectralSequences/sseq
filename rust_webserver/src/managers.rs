@@ -136,7 +136,7 @@ impl ResolutionManager {
                     "actions": [],
                     "save_file": json["unit_save_file"],
                 }),
-                &resolution.algebra().prefix(),
+                resolution.algebra().prefix(),
             );
             self.setup_callback(&mut unit_resolution, SseqChoice::Unit);
 

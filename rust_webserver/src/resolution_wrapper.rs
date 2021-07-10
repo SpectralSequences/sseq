@@ -254,7 +254,7 @@ impl<CC: ChainComplex> Resolution<CC> {
         match &self.unit_resolution {
             UnitResolution::None => panic!("No unit resolution set"),
             UnitResolution::Own => self,
-            UnitResolution::Some(r) => &r,
+            UnitResolution::Some(r) => r,
         }
     }
 

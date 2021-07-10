@@ -40,7 +40,7 @@ impl TokenBucket {
         loop {
             if *running_threads < self.max_threads.get() {
                 *running_threads += 1;
-                return Token { bucket: &self };
+                return Token { bucket: self };
             } else {
                 running_threads = self.condvar.wait(running_threads).unwrap();
             }

@@ -334,15 +334,11 @@ impl<P: SseqProfile> SseqWrapper<P> {
 
                 // Compute the ones where something changes.
                 for r in P::MIN_R + 1..max_page {
-                    let source_data = Self::get_page(r, &self.inner.page_data(x, y));
+                    let source_data = Self::get_page(r, self.inner.page_data(x, y));
                     let target_data =
-                        Self::get_page(r, &self.inner.page_data(x + mult.x, y + mult.y));
+                        Self::get_page(r, self.inner.page_data(x + mult.x, y + mult.y));
 
-                    matrices.push(Subquotient::reduce_matrix(
-                        &matrix,
-                        source_data,
-                        target_data,
-                    ));
+                    matrices.push(Subquotient::reduce_matrix(matrix, source_data, target_data));
 
                     // In the case where the source is empty, we still want one empty array to
                     // indicate that no structlines should be drawn from this page on.
@@ -746,7 +742,7 @@ impl<P: SseqProfile> SseqWrapper<P> {
                     }
 
                     let matrix = prod.matrices[source_x][source_y].as_ref().unwrap();
-                    let matrix = Subquotient::reduce_matrix(&matrix, source_data, data);
+                    let matrix = Subquotient::reduce_matrix(matrix, source_data, data);
                     g.structline_matrix((source_x, source_y), (x, y), matrix, None)?;
                 }
 
