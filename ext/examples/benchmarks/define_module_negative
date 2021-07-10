@@ -1,0 +1,2 @@
+define_module fd "" 2 1 "" -1 "" "" "" x10
+{"actions":["Sq2 x_10 = x10"],"generic":false,"gens":{"x10":1,"x_10":-1},"name":"","p":2,"type":"finite dimensional module"}

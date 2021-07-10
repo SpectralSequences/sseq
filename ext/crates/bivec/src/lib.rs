@@ -30,6 +30,29 @@ impl<T> std::default::Default for BiVec<T> {
     }
 }
 
+impl<T: Clone> BiVec<T> {
+    /// If `min_degree < self.min_degree`, set `self.min_degree` to `min_degree` and pad the
+    /// remaining spaces with `default`.
+    /// # Example
+    /// ```
+    /// # use bivec::BiVec;
+    /// let mut v = BiVec::from_vec(-2, vec![3, 4, 6, 2]);
+    /// v.extend_negative(-4, 0);
+    /// assert_eq!(v[1], 2);
+    /// assert_eq!(v[-4], 0);
+    /// assert_eq!(v.min_degree(), -4);
+    /// ```
+    pub fn extend_negative(&mut self, min_degree: i32, default: T) {
+        let shift = self.min_degree - min_degree;
+        if shift <= 0 {
+            return;
+        }
+        self.data
+            .splice(..0, std::iter::repeat(default).take(shift as usize));
+        self.min_degree = min_degree;
+    }
+}
+
 impl<T> BiVec<T> {
     pub fn new(min_degree: i32) -> Self {
         Self {

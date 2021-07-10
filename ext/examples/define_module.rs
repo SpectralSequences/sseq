@@ -12,12 +12,12 @@ use bivec::BiVec;
 use fp::prime::ValidPrime;
 use fp::vector::FpVector;
 
-pub fn get_gens(min_degree: i32) -> error::Result<BiVec<Vec<String>>> {
+pub fn get_gens() -> error::Result<BiVec<Vec<String>>> {
     // Query for generators
     eprintln!("Input generators. Press return to finish.");
     stderr().flush()?;
 
-    let mut gens: BiVec<Vec<_>> = BiVec::new(min_degree);
+    let mut gens: BiVec<Vec<_>> = BiVec::new(0);
     loop {
         let gen_deg: Option<i32> = query::optional("Generator degree", str::parse);
         if gen_deg.is_none() {
@@ -32,18 +32,20 @@ pub fn get_gens(min_degree: i32) -> error::Result<BiVec<Vec<String>>> {
                 break;
             } else {
                 if query::yes_no("Start over?") {
-                    gens = BiVec::new(min_degree);
+                    gens = BiVec::new(0);
                 }
                 continue;
             }
         }
+
         let gen_deg = gen_deg.unwrap();
-        while gens.len() <= gen_deg {
-            gens.push(Vec::new());
-        }
+
+        gens.extend_negative(gen_deg, Vec::new());
+        gens.extend_with(gen_deg, |_| Vec::new());
+
         let gen_name = query::with_default(
             "Generator name",
-            &format!("x{}{}", gen_deg, gens[gen_deg].len()),
+            &format!("x{}{}", gen_deg, gens[gen_deg].len()).replace('-', "_"),
             |x| {
                 match x.chars().next() {
                     Some(a) => {
@@ -136,11 +138,11 @@ pub fn interactive_module_define_fdmodule(
         p, generic, false, false,
     )));
 
-    let min_degree = 0i32;
-    let gens = get_gens(min_degree)?;
-    let max_degree = (gens.len() + 1) as i32 + min_degree;
+    let gens = get_gens()?;
+    let min_degree = gens.min_degree();
+    let max_degree = gens.len();
 
-    algebra.compute_basis(max_degree);
+    algebra.compute_basis(max_degree - min_degree);
 
     let mut graded_dim = BiVec::with_capacity(min_degree, max_degree);
     for i in gens.iter().map(Vec::len) {
@@ -158,7 +160,7 @@ pub fn interactive_module_define_fdmodule(
     eprintln!("Input actions. Write the value of the action in the form 'a x0 + b x1 + ...' where a, b are non-negative integers and x0, x1 are names of the generators. The coefficient can be omitted if it is 1");
 
     let len = gens.len();
-    for input_deg in (0..len as i32).rev() {
+    for input_deg in gens.range().rev() {
         for output_deg in (input_deg + 1)..len as i32 {
             let op_deg = output_deg - input_deg;
             let input_deg_idx = input_deg;
@@ -221,8 +223,8 @@ pub fn interactive_module_define_fpmodule(
 ) -> error::Result {
     output_json["type"] = Value::from("finitely presented module");
 
-    let min_degree = 0i32;
-    let gens = get_gens(min_degree)?;
+    let gens = get_gens()?;
+    let min_degree = gens.min_degree();
     let max_degree = 20;
 
     let steenrod_algebra = Arc::new(SteenrodAlgebra::AdemAlgebra(AdemAlgebra::new(
@@ -231,9 +233,9 @@ pub fn interactive_module_define_fpmodule(
     let adem_algebra = AdemAlgebra::new(p, generic, false, false);
     let milnor_algebra = MilnorAlgebra::new(p);
 
-    steenrod_algebra.compute_basis(max_degree);
-    adem_algebra.compute_basis(max_degree);
-    milnor_algebra.compute_basis(max_degree);
+    steenrod_algebra.compute_basis(max_degree - min_degree);
+    adem_algebra.compute_basis(max_degree - min_degree);
+    milnor_algebra.compute_basis(max_degree - min_degree);
 
     let mut graded_dim = BiVec::with_capacity(min_degree, max_degree);
     for i in gens.iter().map(Vec::len) {
