@@ -27,7 +27,7 @@ chart = { path = "crates/chart" }
 
 [dev-dependencies]
 expect-test = "1.1.0"
-rstest = "0.7.0"
+rstest = "0.10.0"
 
 [lib]
 crate-type = ["cdylib", "rlib"]

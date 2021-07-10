@@ -132,7 +132,7 @@ impl Matrix {
         let columns = input[0].len();
         let mut vectors = Vec::with_capacity(rows);
         for row in input {
-            vectors.push(FpVector::from_slice(p, &row));
+            vectors.push(FpVector::from_slice(p, row));
         }
         Matrix::from_rows(p, vectors, columns)
     }
@@ -458,7 +458,7 @@ impl Matrix {
                     table.add(c, i);
 
                     if table.len() == k {
-                        table.generate(&self);
+                        table.generate(self);
                         for j in 0..table.rows()[0] {
                             table.reduce(self[j].limbs_mut());
                         }
@@ -472,7 +472,7 @@ impl Matrix {
                 }
             }
             if !table.is_empty() {
-                table.generate(&self);
+                table.generate(self);
                 for j in 0..table.rows()[0] {
                     table.reduce(self[j].limbs_mut());
                 }
