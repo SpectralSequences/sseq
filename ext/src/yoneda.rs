@@ -452,7 +452,7 @@ where
 
             for col in pivot_columns.into_iter().rev() {
                 let source_row = matrix.pop().unwrap();
-                if chosen_cols.contains(&col) {
+                if chosen_cols.contains(col) {
                     continue;
                 }
 

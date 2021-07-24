@@ -264,7 +264,7 @@ fn read_bruner_resolution(data_dir: PathBuf, max_n: i32) -> Result<(u32, FiniteC
         let mut entries: Vec<FpVector> = Vec::new();
         let mut cur_degree: i32 = 0;
 
-        while let Some((t, gen)) = get_element(&algebra, &*cc.module(s - 1), &mut f)? {
+        while let Some((t, gen)) = get_element(algebra, &*cc.module(s - 1), &mut f)? {
             if t == cur_degree {
                 entries.push(gen);
             } else {

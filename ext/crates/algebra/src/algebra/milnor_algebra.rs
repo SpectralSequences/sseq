@@ -868,7 +868,7 @@ impl MilnorAlgebra {
                 res.copy(),
                 coef * c,
                 self.basis_element_from_index(r_deg, i),
-                &m2,
+                m2,
                 allocation,
             );
         }
@@ -1379,7 +1379,7 @@ mod tests {
             let dim = algebra.dimension(i, -1);
             for j in 0..dim {
                 let b = algebra.basis_element_from_index(i, j);
-                assert_eq!(algebra.basis_element_to_index(&b), j);
+                assert_eq!(algebra.basis_element_to_index(b), j);
                 let json = algebra.json_from_basis(i, j);
                 let new_b = algebra.json_to_basis(&json).unwrap();
                 assert_eq!(new_b, (i, j));

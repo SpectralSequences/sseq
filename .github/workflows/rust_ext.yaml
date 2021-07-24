@@ -12,7 +12,7 @@ jobs:
 
     strategy:
       matrix:
-        toolchain: ["nightly-2021-05-11", "nightly"]
+        toolchain: ["nightly-2021-07-24", "nightly"]
 
     steps:
       - uses: actions/checkout@v2
@@ -59,7 +59,7 @@ jobs:
 
     strategy:
       matrix:
-        toolchain: ["nightly-2021-05-11", "nightly"]
+        toolchain: ["nightly-2021-07-24", "nightly"]
 
     steps:
       - uses: actions/checkout@v2
@@ -95,7 +95,7 @@ jobs:
 
     strategy:
       matrix:
-        toolchain: ["nightly-2021-05-11", "nightly"]
+        toolchain: ["nightly-2021-07-24", "nightly"]
 
     steps:
       - uses: actions/checkout@v2
@@ -147,7 +147,7 @@ jobs:
 
     strategy:
       matrix:
-        toolchain: ["nightly-2021-05-11", "nightly"]
+        toolchain: ["nightly-2021-07-24", "nightly"]
 
     steps:
       - uses: actions/checkout@v2
@@ -199,7 +199,7 @@ jobs:
 
     strategy:
       matrix:
-        toolchain: ["nightly-2021-05-11", "nightly"]
+        toolchain: ["nightly-2021-07-24", "nightly"]
 
     steps:
       - uses: actions/checkout@v2
@@ -208,7 +208,7 @@ jobs:
         id: rustup
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly-2021-05-11
+          toolchain: nightly-2021-07-24
 
       - name: Cache files
         uses: actions/cache@v2
@@ -237,18 +237,18 @@ jobs:
       - name: Download webserver
         uses: actions/download-artifact@v2
         with:
-          name: webserver-nightly-2021-05-11
+          name: webserver-nightly-2021-07-24
 
       - name: Download calculator
         uses: actions/download-artifact@v2
         with:
-          name: calculator-nightly-2021-05-11
+          name: calculator-nightly-2021-07-24
           path: calculator
 
       - name: Download docs
         uses: actions/download-artifact@v2
         with:
-          name: docs-nightly-2021-05-11
+          name: docs-nightly-2021-07-24
           path: docs
 
       - name: Deploy

@@ -192,7 +192,7 @@ pub trait PolynomialAlgebra: std::fmt::Display + Sized + Send + Sync {
             for (right_idx, right_entry) in right.iter_nonzero() {
                 let mut target_mono = self.index_to_monomial(left_degree, left_idx).clone();
                 let source_mono = self.index_to_monomial(right_degree, right_idx);
-                let nonzero_result = self.multiply_monomials(&mut target_mono, &source_mono);
+                let nonzero_result = self.multiply_monomials(&mut target_mono, source_mono);
                 if let Some(c) = nonzero_result {
                     let idx = self.monomial_to_index(&target_mono);
                     target.add_basis_element(idx, (left_entry * right_entry * c * coeff) % p);
@@ -213,7 +213,7 @@ pub trait PolynomialAlgebra: std::fmt::Display + Sized + Send + Sync {
         target.extend_len(self.dimension(left_degree + right_mono.degree, i32::max_value()));
         for (left_idx, left_entry) in left.iter_nonzero() {
             let mut target_mono = self.index_to_monomial(left_degree, left_idx).clone(); // Could reduce cloning a bit but probably best not to worry.
-            let nonzero_result = self.multiply_monomials(&mut target_mono, &right_mono);
+            let nonzero_result = self.multiply_monomials(&mut target_mono, right_mono);
             if let Some(c) = nonzero_result {
                 let idx = self.monomial_to_index(&target_mono);
                 target.add_basis_element(idx, (left_entry * c * coeff) % p);
@@ -235,7 +235,7 @@ pub trait PolynomialAlgebra: std::fmt::Display + Sized + Send + Sync {
         for (right_idx, right_entry) in right.iter_nonzero() {
             let mut target_mono = left_mono.clone(); // Could reduce cloning a bit but probably best not to worry.
             let right_mono = self.index_to_monomial(right_degree, right_idx);
-            let nonzero_result = self.multiply_monomials(&mut target_mono, &right_mono);
+            let nonzero_result = self.multiply_monomials(&mut target_mono, right_mono);
             if let Some(c) = nonzero_result {
                 let idx = self.monomial_to_index(&target_mono);
                 target.add_basis_element(idx, (right_entry * c * coeff) % p);
@@ -333,7 +333,7 @@ impl<A: PolynomialAlgebra> Algebra for A {
         }
         let mut target = self.index_to_monomial(left_degree, left_idx).clone();
         let source = self.index_to_monomial(right_degree, right_idx);
-        if self.multiply_monomials(&mut target, &source).is_some() {
+        if self.multiply_monomials(&mut target, source).is_some() {
             let idx = self.monomial_to_index(&target);
             result.add_basis_element(idx, coeff);
         }

@@ -317,7 +317,7 @@ fn compute_c(res: &Resolution, gen_s: u32, gen_t: i32, gen_idx: usize, mut resul
 
     for t in 0..gen_t {
         for idx in 0..m.number_of_gens_in_degree(t) {
-            let mut a_list = MilnorClass::from_module_row(&dg, &m, gen_t, t, idx);
+            let mut a_list = MilnorClass::from_module_row(dg, &m, gen_t, t, idx);
 
             if !a_list.elements.is_empty() {
                 compute_a_dd(res, &mut a_list, gen_s - 1, t, idx, result.copy());
@@ -464,7 +464,7 @@ fn compute_a_dd(
                 allocation = algebra.multiply_with_allocation(
                     result.slice_mut(offset, offset + num_ops),
                     1,
-                    &a,
+                    a,
                     &elt,
                     allocation,
                 );
@@ -510,7 +510,7 @@ fn a_sigma_y(
                     1,
                     ay_degree,
                     scratch.as_slice(),
-                    &b,
+                    b,
                     allocation,
                 );
                 allocation = algebra.multiply_element_by_basis_with_allocation(
@@ -518,7 +518,7 @@ fn a_sigma_y(
                     1,
                     ay_degree + b.degree,
                     scratch2.as_slice(),
-                    &c,
+                    c,
                     allocation,
                 );
 
@@ -593,7 +593,7 @@ fn a_y_inner(algebra: &Algebra, a: &mut MilnorElt, k: usize, l: usize) -> FpVect
 
             // We can just read off the value of the product instead of passing through the
             // algorithm, but this is cached so problem for another day...
-            algebra.multiply(result.as_slice_mut(), 1, &t, &a);
+            algebra.multiply(result.as_slice_mut(), 1, &t, a);
 
             unsub!(a, j, l);
         }

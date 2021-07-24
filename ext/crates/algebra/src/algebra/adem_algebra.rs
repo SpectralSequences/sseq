@@ -709,7 +709,7 @@ impl AdemAlgebra {
         unsafe {
             shift_vec(&mut elt.ps, idx as isize);
         }
-        let result = self.basis_element_to_index(&elt);
+        let result = self.basis_element_to_index(elt);
         unsafe {
             shift_vec(&mut elt.ps, -(idx as isize));
         }
@@ -1159,7 +1159,7 @@ impl AdemAlgebra {
         {
             if idx < 0 || stop_early {
                 // Admissible so write monomial to result.
-                let idx = self.basis_element_to_index(&monomial);
+                let idx = self.basis_element_to_index(monomial);
                 // If excess is too large, quit. It's faster to check this by comparing idx to dimension
                 // than to use fromIndex because fromIndex dereferences a hash map.
                 if unstable && idx >= self.dimension(monomial.degree, excess) {
@@ -1227,7 +1227,7 @@ impl AdemAlgebra {
         {
             if idx < 0 || stop_early {
                 // Admissible so write monomial to result.
-                let idx = self.basis_element_to_index(&monomial);
+                let idx = self.basis_element_to_index(monomial);
                 if unstable && idx >= self.dimension(monomial.degree, excess) {
                     return;
                 }
@@ -1606,7 +1606,7 @@ mod tests {
             let dim = algebra.dimension(i, i32::max_value());
             for j in 0..dim {
                 let b = algebra.basis_element_from_index(i, j);
-                assert_eq!(algebra.basis_element_to_index(&b), j);
+                assert_eq!(algebra.basis_element_to_index(b), j);
                 let json = algebra.json_from_basis(i, j);
                 let new_b = algebra.json_to_basis(&json).unwrap();
                 assert_eq!(new_b, (i, j));

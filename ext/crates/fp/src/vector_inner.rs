@@ -475,7 +475,7 @@ impl<'a, const P: u32> SliceP<'a, P> {
         assert!(start <= end && end <= self.len());
 
         SliceP {
-            limbs: &self.limbs,
+            limbs: self.limbs,
             start: self.start + start,
             end: self.start + end,
         }

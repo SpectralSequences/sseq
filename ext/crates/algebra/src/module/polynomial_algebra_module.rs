@@ -245,7 +245,7 @@ pub trait PolynomialAlgebraModule: PolynomialAlgebra {
                 if let Some((gen_int_idx, _)) = mono.ext.iter_nonzero().next() {
                     result = self.compute_action_table_ext_case(
                         sq,
-                        &mono,
+                        mono,
                         gen_int_idx,
                         &mut reducer_a,
                         &mut reducer_b,
@@ -254,7 +254,7 @@ pub trait PolynomialAlgebraModule: PolynomialAlgebra {
                 } else if let Some((gen_int_idx, _)) = mono.poly.iter_nonzero().next() {
                     result = self.compute_action_table_poly_case(
                         sq,
-                        &mono,
+                        mono,
                         gen_int_idx,
                         &mut reducer_a,
                         &mut reducer_b,

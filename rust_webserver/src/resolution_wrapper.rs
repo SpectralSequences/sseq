@@ -142,7 +142,7 @@ impl<CC: ChainComplex> Resolution<CC> {
         // If products were defined through the module specification, the unit resolution might not
         // have been resolved yet
         if let UnitResolution::Some(r) = &self.unit_resolution {
-            r.compute_through_bidegree_concurrent(self.max_product_s, self.max_product_t, &bucket);
+            r.compute_through_bidegree_concurrent(self.max_product_s, self.max_product_t, bucket);
         }
         self.inner
             .compute_through_bidegree_concurrent_with_callback(s, t, bucket, |s, t| {

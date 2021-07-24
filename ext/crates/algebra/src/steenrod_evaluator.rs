@@ -363,7 +363,7 @@ fn evaluate_p_or_b_list(adem_algebra: &AdemAlgebra, list: &[BocksteinOrSq]) -> (
     tmp_vector_a.set_entry(idx, 1);
 
     for item in &list[1..] {
-        let cur_elt = bockstein_or_sq_to_adem_basis_elt(&item, q);
+        let cur_elt = bockstein_or_sq_to_adem_basis_elt(item, q);
         let idx = adem_algebra.basis_element_to_index(&cur_elt);
         let cur_dim = adem_algebra.dimension(total_degree + cur_elt.degree, -1);
         tmp_vector_b.set_scratch_vector_size(cur_dim);

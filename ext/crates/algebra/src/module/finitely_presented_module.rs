@@ -145,7 +145,7 @@ impl<A: JsonAlgebra> FinitelyPresentedModule<A> {
         let p = algebra.prime();
         let name = json["name"].as_str().unwrap_or("").to_string();
         let gens = &json["gens"];
-        let (num_gens_in_degree, gen_names, gen_to_deg_idx) = Self::module_gens_from_json(&gens);
+        let (num_gens_in_degree, gen_names, gen_to_deg_idx) = Self::module_gens_from_json(gens);
         let relations_value = &json[algebra.prefix().to_string() + "_relations"];
         let relations_values = relations_value.as_array().unwrap();
         let min_degree = num_gens_in_degree.min_degree();
@@ -206,7 +206,7 @@ impl<A: JsonAlgebra> FinitelyPresentedModule<A> {
                 for term in relation {
                     let coeff = &term.0;
                     let op_gen = &term.1;
-                    let basis_idx = result.generators.operation_generator_pair_to_idx(&op_gen);
+                    let basis_idx = result.generators.operation_generator_pair_to_idx(op_gen);
                     relations_matrix[j].set_entry(basis_idx, *coeff);
                 }
             }

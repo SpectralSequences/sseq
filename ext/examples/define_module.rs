@@ -98,7 +98,7 @@ pub fn get_expression_to_vector<F>(
             let term = term.trim();
             let parts: Vec<&str> = term.splitn(2, ' ').collect();
             if parts.len() == 1 {
-                match string_to_basis_element(&parts[0]) {
+                match string_to_basis_element(parts[0]) {
                     Some(i) => output_vec.add_basis_element(i, 1),
                     None => {
                         eprintln!("Invalid value. Try again");

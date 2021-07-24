@@ -168,21 +168,21 @@ impl FiniteModule {
 
     pub fn as_real_projective_space(&self) -> Option<&RealProjectiveSpace<SteenrodAlgebra>> {
         match self {
-            FiniteModule::RealProjectiveSpace(m) => Some(&m),
+            FiniteModule::RealProjectiveSpace(m) => Some(m),
             _ => None,
         }
     }
 
     pub fn as_fp_module(&self) -> Option<&FPModule<SteenrodAlgebra>> {
         match self {
-            FiniteModule::FPModule(m) => Some(&m),
+            FiniteModule::FPModule(m) => Some(m),
             _ => None,
         }
     }
 
     pub fn as_fd_module(&self) -> Option<&FDModule<SteenrodAlgebra>> {
         match self {
-            FiniteModule::FDModule(m) => Some(&m),
+            FiniteModule::FDModule(m) => Some(m),
             _ => None,
         }
     }
