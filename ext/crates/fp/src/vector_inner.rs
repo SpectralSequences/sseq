@@ -269,8 +269,33 @@ impl<const P: u32> FpVectorP<P> {
         }
     }
 
+    /// Add `other` to `self` on the assumption that the first `offset` entries of `other` are
+    /// empty.
+    pub fn add_offset_nosimd(&mut self, other: &FpVectorP<P>, c: u32, offset: usize) {
+        assert_eq!(self.len(), other.len());
+        let min_limb = offset / entries_per_limb(self.prime());
+        if P == 2 {
+            if c != 0 {
+                for i in 0..self.limbs.len() {
+                    self.limbs[i] ^= other.limbs[i];
+                }
+            }
+        } else {
+            for (left, right) in self.limbs.iter_mut().zip(&other.limbs).skip(min_limb) {
+                *left = limb::add::<P>(*left, *right, c);
+            }
+            for limb in &mut self.limbs[min_limb..] {
+                *limb = limb::reduce::<P>(*limb);
+            }
+        }
+    }
+
     pub fn add(&mut self, other: &FpVectorP<P>, c: u32) {
         self.add_offset(other, c, 0);
+    }
+
+    pub fn add_nosimd(&mut self, other: &FpVectorP<P>, c: u32) {
+        self.add_offset_nosimd(other, c, 0);
     }
 
     pub fn assign(&mut self, other: &Self) {
