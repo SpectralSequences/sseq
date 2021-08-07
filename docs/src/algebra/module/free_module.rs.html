@@ -740,6 +740,7 @@
 <span id="716">716</span>
 <span id="717">717</span>
 <span id="718">718</span>
+<span id="719">719</span>
 </pre><pre class="rust">
 <span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
 
@@ -1068,6 +1069,7 @@
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">extend_by_zero</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) {
+        <span class="self">self</span>.<span class="ident">algebra</span>.<span class="ident">compute_basis</span>(<span class="ident">degree</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">min_degree</span>);
         <span class="self">self</span>.<span class="ident">extend_table_entries</span>(<span class="ident">degree</span>);
         <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">num_gens</span>.<span class="ident">len</span>()..<span class="op">=</span><span class="ident">degree</span> {
             <span class="self">self</span>.<span class="ident">add_generators</span>(<span class="ident">i</span>, <span class="number">0</span>, <span class="prelude-val">None</span>)
