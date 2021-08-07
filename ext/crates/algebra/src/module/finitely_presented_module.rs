@@ -259,7 +259,6 @@ impl<A: Algebra> Module for FinitelyPresentedModule<A> {
     }
 
     fn compute_basis(&self, degree: i32) {
-        self.algebra().compute_basis(degree);
         self.generators.extend_by_zero(degree);
         self.relations.extend_by_zero(degree);
         self.map.compute_auxiliary_data_through_degree(degree);

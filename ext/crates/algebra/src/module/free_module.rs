@@ -325,6 +325,7 @@ impl<A: Algebra> FreeModule<A> {
     }
 
     pub fn extend_by_zero(&self, degree: i32) {
+        self.algebra.compute_basis(degree - self.min_degree);
         self.extend_table_entries(degree);
         for i in self.num_gens.len()..=degree {
             self.add_generators(i, 0, None)
