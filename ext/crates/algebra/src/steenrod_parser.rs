@@ -149,38 +149,45 @@ fn algebra_factor(i: &str) -> IResult<&str, AlgebraParseNode> {
 // the math by folding everything
 fn algebra_term(i: &str) -> IResult<&str, AlgebraParseNode> {
     let (i, init) = pair(opt(alt((char('+'), char('-')))), algebra_factor)(i)?;
-    let first_factor = match init {
-        (Some('+'), fact) | (None, fact) => fact,
-        (Some('-'), fact) => {
-            AlgebraParseNode::Product(Box::new(AlgebraParseNode::Scalar(-1)), Box::new(fact))
-        }
+    let first_factor = || match &init {
+        (Some('+'), fact) | (None, fact) => fact.clone(),
+        (Some('-'), fact) => AlgebraParseNode::Product(
+            Box::new(AlgebraParseNode::Scalar(-1)),
+            Box::new(fact.clone()),
+        ),
         _ => unreachable!(),
     };
-    fold_many0(
+    // This is necessary for lifetime reasons.
+    #[allow(clippy::let_and_return)]
+    let result = fold_many0(
         pair(alt((char('*'), char(' '))), algebra_factor),
         first_factor,
         |acc, (_op, val): (char, AlgebraParseNode)| {
             AlgebraParseNode::Product(Box::new(acc), Box::new(val))
         },
-    )(i)
+    )(i);
+    result
 }
 
 fn algebra_expr(i: &str) -> IResult<&str, AlgebraParseNode> {
     let (i, init) = algebra_term(i)?;
 
-    fold_many0(
+    // This is necessary for lifetime reasons.
+    #[allow(clippy::let_and_return)]
+    let result = fold_many0(
         pair(alt((char('+'), char('-'))), algebra_term),
-        init,
+        || init.clone(),
         |acc, (_op, val): (char, AlgebraParseNode)| {
             AlgebraParseNode::Sum(Box::new(acc), Box::new(val))
         },
-    )(i)
+    )(i);
+    result
 }
 
 fn module_generator(i: &str) -> IResult<&str, ModuleParseNode> {
     let (rest, (a, more_str)) = pair(alpha1, alphanumeric0)(i)?;
     if a.starts_with("Sq") || a.starts_with('P') || a.starts_with('Q') {
-        return Err(nom::Err::Error((
+        return Err(nom::Err::Error(nom::error::Error::new(
             "Module generators are not allowed to start with P, Q, or Sq",
             Char,
         )));
@@ -218,13 +225,16 @@ fn module_term(i: &str) -> IResult<&str, ModuleParseNode> {
 
 fn module_expr(i: &str) -> IResult<&str, ModuleParseNode> {
     let (i, init) = module_term(i)?;
-    fold_many0(
+    // This is necessary for lifetime reasons.
+    #[allow(clippy::let_and_return)]
+    let result = fold_many0(
         pair(alt((char('+'), char('-'))), module_term),
-        init,
+        || init.clone(),
         |acc, (_op, val): (char, ModuleParseNode)| {
             ModuleParseNode::Sum(Box::new(acc), Box::new(val))
         },
-    )(i)
+    )(i);
+    result
 }
 
 pub fn parse_algebra(i: &str) -> Result<AlgebraParseNode, ParseError> {
