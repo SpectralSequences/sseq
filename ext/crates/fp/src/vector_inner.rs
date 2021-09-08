@@ -1,122 +1,15 @@
 // This generates better llvm optimization
 #![allow(clippy::int_plus_one)]
 
-use crate::const_for;
+use crate::limb::{self, Limb};
+
+use crate::constants::BITS_PER_LIMB;
 use crate::prime::ValidPrime;
-use crate::prime::{NUM_PRIMES, PRIMES, PRIME_TO_INDEX_MAP};
 use std::cmp::Ordering;
 use std::convert::TryInto;
-use std::sync::Once;
+use std::ops::Range;
 
 use crate::simd;
-
-pub(crate) type Limb = u64;
-pub(crate) const BYTES_PER_LIMB: usize = std::mem::size_of::<Limb>();
-pub(crate) const BITS_PER_LIMB: usize = 8 * BYTES_PER_LIMB;
-
-pub const MAX_LEN: usize = 147500;
-
-const BIT_LENGTHS: [usize; NUM_PRIMES] = {
-    let mut result = [0; NUM_PRIMES];
-    result[0] = 1;
-    const_for! { i in 1 .. NUM_PRIMES {
-        let p = PRIMES[i];
-        result[i] = (32 - (p * (p - 1)).leading_zeros()) as usize;
-    }};
-    result
-};
-
-pub(crate) const fn bit_length(p: ValidPrime) -> usize {
-    BIT_LENGTHS[PRIME_TO_INDEX_MAP[p.value() as usize]]
-}
-
-const BITMASKS: [Limb; NUM_PRIMES] = {
-    let mut result = [0; NUM_PRIMES];
-    const_for! { i in 0 .. NUM_PRIMES {
-        result[i] = (1 << BIT_LENGTHS[i]) - 1;
-    }};
-    result
-};
-
-/// TODO: Would it be simpler to just compute this at "runtime"? It's going to be inlined anyway.
-pub(crate) const fn bitmask(p: ValidPrime) -> Limb {
-    BITMASKS[PRIME_TO_INDEX_MAP[p.value() as usize]]
-}
-
-const ENTRIES_PER_LIMB: [usize; NUM_PRIMES] = {
-    let mut result = [0; NUM_PRIMES];
-    const_for! { i in 0 .. NUM_PRIMES {
-        result[i] = BITS_PER_LIMB / BIT_LENGTHS[i];
-    }};
-    result
-};
-
-pub(crate) const fn entries_per_limb(p: ValidPrime) -> usize {
-    ENTRIES_PER_LIMB[PRIME_TO_INDEX_MAP[p.value() as usize]]
-}
-
-#[derive(Copy, Clone)]
-struct LimbBitIndexPair {
-    limb: usize,
-    bit_index: usize,
-}
-
-/// This table tells us which limb and which bitfield of that limb to look for a given index of
-/// the vector in.
-static mut LIMB_BIT_INDEX_TABLE: [Option<Vec<LimbBitIndexPair>>; NUM_PRIMES] =
-    [None, None, None, None, None, None, None, None];
-
-static mut LIMB_BIT_INDEX_ONCE_TABLE: [Once; NUM_PRIMES] = [
-    Once::new(),
-    Once::new(),
-    Once::new(),
-    Once::new(),
-    Once::new(),
-    Once::new(),
-    Once::new(),
-    Once::new(),
-];
-
-pub fn initialize_limb_bit_index_table(p: ValidPrime) {
-    if *p == 2 {
-        return;
-    }
-    unsafe {
-        LIMB_BIT_INDEX_ONCE_TABLE[PRIME_TO_INDEX_MAP[*p as usize]].call_once(|| {
-            let entries_per_limb = entries_per_limb(p);
-            let bit_length = bit_length(p);
-            let mut table: Vec<LimbBitIndexPair> = Vec::with_capacity(MAX_LEN);
-            for i in 0..MAX_LEN {
-                table.push(LimbBitIndexPair {
-                    limb: i / entries_per_limb,
-                    bit_index: (i % entries_per_limb) * bit_length,
-                })
-            }
-            LIMB_BIT_INDEX_TABLE[PRIME_TO_INDEX_MAP[*p as usize]] = Some(table);
-        });
-    }
-}
-
-fn limb_bit_index_pair(p: ValidPrime, idx: usize) -> LimbBitIndexPair {
-    match *p {
-        2 => LimbBitIndexPair {
-            limb: idx / BITS_PER_LIMB,
-            bit_index: idx % BITS_PER_LIMB,
-        },
-        _ => {
-            let prime_idx = PRIME_TO_INDEX_MAP[*p as usize];
-            debug_assert!(idx < MAX_LEN);
-            unsafe {
-                let table = &LIMB_BIT_INDEX_TABLE[prime_idx];
-                debug_assert!(table.is_some());
-                *table
-                    .as_ref()
-                    .unwrap_or_else(|| std::hint::unreachable_unchecked())
-                    .get_unchecked(idx)
-            }
-        }
-    }
-}
 
 /// An `FpVectorP` is a vector over $\mathbb{F}_p$ for a fixed prime, implemented using const
 /// generics. Due to limitations with const generics, we cannot constrain P to actually be a prime,
@@ -254,7 +147,7 @@ impl<const P: u32> FpVectorP<P> {
     /// empty.
     pub fn add_offset(&mut self, other: &FpVectorP<P>, c: u32, offset: usize) {
         assert_eq!(self.len(), other.len());
-        let min_limb = offset / entries_per_limb(self.prime());
+        let min_limb = offset / limb::entries_per_limb_const::<P>();
         if P == 2 {
             if c != 0 {
                 simd::add_simd(&mut self.limbs, &other.limbs, min_limb);
@@ -273,7 +166,7 @@ impl<const P: u32> FpVectorP<P> {
     /// empty.
     pub fn add_offset_nosimd(&mut self, other: &FpVectorP<P>, c: u32, offset: usize) {
         assert_eq!(self.len(), other.len());
-        let min_limb = offset / entries_per_limb(self.prime());
+        let min_limb = offset / limb::entries_per_limb_const::<P>();
         if P == 2 {
             if c != 0 {
                 for i in 0..self.limbs.len() {
@@ -350,7 +243,7 @@ impl<const P: u32> FpVectorP<P> {
         self.limbs.clear();
         self.limbs.extend(
             slice
-                .chunks(entries_per_limb(ValidPrime::new(P)))
+                .chunks(limb::entries_per_limb_const::<P>())
                 .map(|x| limb::pack::<_, P>(x.iter().copied())),
         );
     }
@@ -359,7 +252,7 @@ impl<const P: u32> FpVectorP<P> {
     /// the number of entries per limb
     pub(crate) fn trim_start(&mut self, n: usize) {
         assert!(n <= self.len);
-        let entries_per = entries_per_limb(ValidPrime::new(P));
+        let entries_per = limb::entries_per_limb_const::<P>();
         assert_eq!(n % entries_per, 0);
         let num_limbs = n / entries_per;
         self.limbs.drain(0..num_limbs);
@@ -435,9 +328,9 @@ impl<const P: u32> FpVectorP<P> {
 
     /// Find the index and value of the first non-zero entry of the vector. `None` if the vector is zero.
     pub fn first_nonzero(&self) -> Option<(usize, u32)> {
-        let entries_per_limb = entries_per_limb(self.prime());
-        let bit_length = bit_length(self.prime());
-        let bitmask = bitmask(self.prime());
+        let entries_per_limb = limb::entries_per_limb_const::<P>();
+        let bit_length = limb::bit_length::<P>();
+        let bitmask = limb::bitmask::<P>();
         for (i, &limb) in self.limbs.iter().enumerate() {
             if limb == 0 {
                 continue;
@@ -509,9 +402,9 @@ impl<'a, const P: u32> SliceP<'a, P> {
     /// Converts a slice to an owned FpVectorP. This is vastly more efficient if the start of the vector is aligned.
     pub fn to_owned(self) -> FpVectorP<P> {
         let mut new = FpVectorP::<P>::new_(self.len());
-        if self.start % entries_per_limb(self.prime()) == 0 {
-            let (min, max) = self.limb_range();
-            new.limbs[0..(max - min)].copy_from_slice(&self.limbs[min..max]);
+        if self.start % limb::entries_per_limb_const::<P>() == 0 {
+            let range = self.limb_range();
+            new.limbs[0..range.len()].copy_from_slice(&self.limbs[range]);
             if !new.limbs.is_empty() {
                 let len = new.limbs.len();
                 new.limbs[len - 1] &= self.limb_masks().1;
@@ -520,130 +413,6 @@ impl<'a, const P: u32> SliceP<'a, P> {
             new.as_slice_mut().assign(self);
         }
         new
-    }
-}
-
-pub(crate) mod limb {
-    use super::*;
-
-    pub const fn add<const P: u32>(limb_a: Limb, limb_b: Limb, coeff: u32) -> Limb {
-        if P == 2 {
-            limb_a ^ (coeff as Limb * limb_b)
-        } else {
-            limb_a + (coeff as Limb) * limb_b
-        }
-    }
-
-    /// Contbuted by Robert Burklund
-    pub fn reduce<const P: u32>(limb: Limb) -> Limb {
-        match P {
-            2 => limb,
-            3 => {
-                // Set top bit to 1 in every limb
-                const TOP_BIT: Limb = (!0 / 7) << (2 - BITS_PER_LIMB % 3);
-                let mut limb_2 = ((limb & TOP_BIT) >> 2) + (limb & (!TOP_BIT));
-                let mut limb_3s = limb_2 & (limb_2 >> 1);
-                limb_3s |= limb_3s << 1;
-                limb_2 ^= limb_3s;
-                limb_2
-            }
-            5 => {
-                // Set bottom bit to 1 in every limb
-                const BOTTOM_BIT: Limb = (!0 / 31) >> (BITS_PER_LIMB % 5);
-                const BOTTOM_TWO_BITS: Limb = BOTTOM_BIT | (BOTTOM_BIT << 1);
-                const BOTTOM_THREE_BITS: Limb = BOTTOM_BIT | (BOTTOM_TWO_BITS << 1);
-                let a = (limb >> 2) & BOTTOM_THREE_BITS;
-                let b = limb & BOTTOM_TWO_BITS;
-                let m = (BOTTOM_BIT << 3) - a + b;
-                let mut c = (m >> 3) & BOTTOM_BIT;
-                c |= c << 1;
-                let d = m & BOTTOM_THREE_BITS;
-                d + c - BOTTOM_TWO_BITS
-            }
-            _ => limb::pack::<_, P>(limb::unpack::<P>(limb).map(|x| x % P)),
-        }
-    }
-
-    pub fn is_reduced<const P: u32>(limb: Limb) -> bool {
-        limb == reduce::<P>(limb)
-    }
-
-    /// Given an interator of u32's, pack all of them into a single limb in order.
-    /// It is assumed that
-    ///  - The values of the iterator are less than P
-    ///  - The values of the iterator fit into a single limb
-    ///
-    /// If these assumptions are violated, the result will be nonsense.
-    pub fn pack<T: Iterator<Item = u32>, const P: u32>(entries: T) -> Limb {
-        let p = ValidPrime::new(P);
-        let bit_length = bit_length(p);
-        let mut result: Limb = 0;
-        let mut shift = 0;
-        for entry in entries {
-            result += (entry as Limb) << shift;
-            shift += bit_length;
-        }
-        result
-    }
-
-    /// Give an iterator over the entries of a limb.
-    pub fn unpack<const P: u32>(mut limb: Limb) -> impl Iterator<Item = u32> {
-        let p = ValidPrime::new(P);
-        let entries = entries_per_limb(ValidPrime::new(P));
-        let bit_length = bit_length(p);
-        let bit_mask = bitmask(p);
-
-        (0..entries).map(move |_| {
-            let result = (limb & bit_mask) as u32;
-            limb >>= bit_length;
-            result
-        })
-    }
-
-    pub fn number<const P: u32>(dim: usize) -> usize {
-        debug_assert!(dim < MAX_LEN);
-        if dim == 0 {
-            0
-        } else {
-            limb_bit_index_pair(ValidPrime::new(P), dim - 1).limb + 1
-        }
-    }
-
-    pub fn range<const P: u32>(start: usize, end: usize) -> (usize, usize) {
-        let p = ValidPrime::new(P);
-        let min = limb_bit_index_pair(p, start).limb;
-        let max = if end > 0 {
-            limb_bit_index_pair(p, end - 1).limb + 1
-        } else {
-            0
-        };
-        (min, max)
-    }
-
-    pub fn sign_rule(mut target: Limb, mut source: Limb) -> u32 {
-        let mut result = 0;
-        let mut n = 1;
-        // Empirically, the compiler unrolls this loop because BITS_PER_LIMB is a constant.
-        while 2 * n < BITS_PER_LIMB {
-            // This is 1 every 2n bits.
-            let mask: Limb = !0 / ((1 << (2 * n)) - 1);
-            result ^= (mask & (source >> n) & target).count_ones() % 2;
-            source = source ^ (source >> n);
-            target = target ^ (target >> n);
-            n *= 2;
-        }
-        result ^= (1 & (source >> (BITS_PER_LIMB / 2)) & target) as u32;
-        result
-    }
-
-    /// Returns: either Some(sum) if no carries happen in the limb or None if some carry does
-    /// happen.
-    pub fn truncate<const P: u32>(sum: Limb) -> Option<Limb> {
-        if is_reduced::<P>(sum) {
-            Some(sum)
-        } else {
-            None
-        }
     }
 }
 
@@ -668,9 +437,8 @@ impl<'a, const P: u32> SliceP<'a, P> {
             index,
             self.len()
         );
-        let p = self.prime();
-        let bit_mask = bitmask(p);
-        let limb_index = limb_bit_index_pair(p, index + self.start);
+        let bit_mask = limb::bitmask::<P>();
+        let limb_index = limb::limb_bit_index_pair::<P>(index + self.start);
         let mut result = self.limbs[limb_index.limb];
         result >>= limb_index.bit_index;
         result &= bit_mask;
@@ -687,25 +455,27 @@ impl<'a, const P: u32> SliceP<'a, P> {
     }
 
     pub fn is_zero(&self) -> bool {
-        let (min_limb, max_limb) = self.limb_range();
-        if min_limb == max_limb {
+        let range = self.limb_range();
+        // let (min_limb, max_limb) = (range.start, range.end);
+        if range.is_empty() {
             return true;
         }
         let (min_mask, max_mask) = self.limb_masks();
-        if self.limbs[min_limb] & min_mask != 0 {
+        if self.limbs[range.start] & min_mask != 0 {
             return false;
         }
 
-        if max_limb - 1 >= min_limb + 1 {
-            if self.limbs[min_limb + 1..max_limb - 1]
+        let interior_range = self.limb_range_interior();
+        if !interior_range.is_empty() {
+            if self.limbs[interior_range]
                 .iter()
                 .any(|&x| x != 0)
             {
                 return false;
             }
-            if self.limbs[max_limb - 1] & max_mask != 0 {
-                return false;
-            }
+        }
+        if self.limbs[range.end - 1] & max_mask != 0 {
+            return false;
         }
         true
     }
@@ -715,14 +485,19 @@ impl<'a, const P: u32> SliceP<'a, P> {
 impl<'a, const P: u32> SliceP<'a, P> {
     #[inline]
     fn offset(&self) -> usize {
-        let bit_length = bit_length(self.prime());
-        let entries_per_limb = entries_per_limb(self.prime());
+        let bit_length = limb::bit_length::<P>();
+        let entries_per_limb = limb::entries_per_limb_const::<P>();
         (self.start % entries_per_limb) * bit_length
     }
 
     #[inline]
-    fn limb_range(&self) -> (usize, usize) {
+    fn limb_range(&self) -> Range<usize> {
         limb::range::<P>(self.start, self.end)
+    }
+
+    fn limb_range_interior(&self) -> Range<usize> {
+        let range = self.limb_range();
+        (range.start + 1)..(range.end - 1)
     }
 
     #[inline(always)]
@@ -732,17 +507,15 @@ impl<'a, const P: u32> SliceP<'a, P> {
 
     #[inline(always)]
     fn max_limb_mask(&self) -> Limb {
-        let p = self.prime();
-        let num_entries = 1 + (self.end - 1) % entries_per_limb(p);
-        let bit_max = num_entries * bit_length(p);
+        let num_entries = 1 + (self.end - 1) % limb::entries_per_limb_const::<P>();
+        let bit_max = num_entries * limb::bit_length::<P>();
 
-        (!0) >> (64 - bit_max)
+        (!0) >> (BITS_PER_LIMB - bit_max)
     }
 
     #[inline(always)]
     fn limb_masks(&self) -> (Limb, Limb) {
-        let (min_limb, max_limb) = self.limb_range();
-        if min_limb + 1 == max_limb {
+        if self.limb_range().len() == 1 {
             (
                 self.min_limb_mask() & self.max_limb_mask(),
                 self.min_limb_mask() & self.max_limb_mask(),
@@ -761,7 +534,7 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
     pub fn add_basis_element(&mut self, index: usize, value: u32) {
         if P == 2 {
             // Checking for value % 2 == 0 appears to be less performant
-            let pair = limb_bit_index_pair(ValidPrime::new(2), index + self.start);
+            let pair = limb::limb_bit_index_pair::<2>(index + self.start);
             self.limbs[pair.limb] ^= (value as Limb % 2) << pair.bit_index;
         } else {
             let mut x = self.as_slice().entry(index);
@@ -773,9 +546,8 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
 
     pub fn set_entry(&mut self, index: usize, value: u32) {
         debug_assert!(index < self.as_slice().len());
-        let p = self.prime();
-        let bit_mask = bitmask(p);
-        let limb_index = limb_bit_index_pair(p, index + self.start);
+        let bit_mask = limb::bitmask::<P>();
+        let limb_index = limb::limb_bit_index_pair::<P>(index + self.start);
         let mut result = self.limbs[limb_index.limb];
         result &= !(bit_mask << limb_index.bit_index);
         result |= (value as Limb) << limb_index.bit_index;
@@ -784,9 +556,9 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
 
     fn reduce_limbs(&mut self) {
         if P != 2 {
-            let (min_limb, max_limb) = self.as_slice().limb_range();
+            let range = self.as_slice().limb_range();
 
-            for limb in &mut self.limbs[min_limb..max_limb] {
+            for limb in &mut self.limbs[range] {
                 *limb = limb::reduce::<P>(*limb);
             }
         }
@@ -794,43 +566,44 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
 
     pub fn scale(&mut self, c: u32) {
         let c = c as Limb;
-        let (min_limb, max_limb) = self.as_slice().limb_range();
-        if min_limb == max_limb {
+        let range = self.as_slice().limb_range();
+        if range.is_empty() {
             return;
         }
         let (min_mask, max_mask) = self.as_slice().limb_masks();
 
-        let limb = self.limbs[min_limb];
+        let limb = self.limbs[range.start];
         let masked_limb = limb & min_mask;
         let rest_limb = limb & !min_mask;
-        self.limbs[min_limb] = (masked_limb * c) | rest_limb;
+        self.limbs[range.start] = (masked_limb * c) | rest_limb;
 
-        if max_limb - 1 >= min_limb + 1 {
-            for limb in &mut self.limbs[min_limb + 1..max_limb - 1] {
-                *limb *= c;
-            }
-
-            let full_limb = self.limbs[max_limb - 1];
-            let masked_limb = full_limb & max_mask;
-            let rest_limb = full_limb & !max_mask;
-            self.limbs[max_limb - 1] = (masked_limb * c) | rest_limb;
+        let interior_range = self.as_slice().limb_range_interior();
+        for limb in &mut self.limbs[interior_range] {
+            *limb *= c;
         }
+
+        let full_limb = self.limbs[range.end - 1];
+        let masked_limb = full_limb & max_mask;
+        let rest_limb = full_limb & !max_mask;
+        self.limbs[range.end - 1] = (masked_limb * c) | rest_limb;
         self.reduce_limbs();
     }
 
     pub fn set_to_zero(&mut self) {
-        let (min_limb, max_limb) = self.as_slice().limb_range();
-        if min_limb == max_limb {
+        let range = self.as_slice().limb_range();
+        if range.is_empty() {
             return;
         }
         let (min_mask, max_mask) = self.as_slice().limb_masks();
-        self.limbs[min_limb] &= !min_mask;
-        if max_limb - 1 >= min_limb + 1 {
-            for limb in &mut self.limbs[min_limb + 1..max_limb - 1] {
+        self.limbs[range.start] &= !min_mask;
+
+        let interior_range = self.as_slice().limb_range_interior();
+        if !interior_range.is_empty() {
+            for limb in &mut self.limbs[interior_range] {
                 *limb = 0;
             }
-            self.limbs[max_limb - 1] &= !max_mask;
         }
+        self.limbs[range.end - 1] &= !max_mask;
     }
 
     pub fn add(&mut self, other: SliceP<'_, P>, c: u32) {
@@ -875,58 +648,64 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
             self.add(other, 1);
             return;
         }
-        let (min_target_limb, max_target_limb) = self.as_slice().limb_range();
-        let (min_source_limb, max_source_limb) = other.limb_range();
+        let target_range = self.as_slice().limb_range();
+        let source_range = other.limb_range();
 
-        if min_target_limb == max_target_limb {
+        if target_range.is_empty() {
             return;
         }
 
         let (min_mask, max_mask) = other.limb_masks();
 
-        let result = other.limbs[min_source_limb] & min_mask;
-        self.limbs[min_target_limb] &= !min_mask;
-        self.limbs[min_target_limb] |= result;
+        let result = other.limbs[source_range.start] & min_mask;
+        self.limbs[target_range.start] &= !min_mask;
+        self.limbs[target_range.start] |= result;
 
-        if max_source_limb - 1 >= min_source_limb + 1 {
-            self.limbs[min_target_limb + 1..max_target_limb - 1]
-                .clone_from_slice(&other.limbs[min_source_limb + 1..max_source_limb - 1]);
-
-            let result = other.limbs[max_source_limb - 1] & max_mask;
-            self.limbs[max_target_limb - 1] &= !max_mask;
-            self.limbs[max_target_limb - 1] |= result;
+        let target_interior_range = self.as_slice().limb_range_interior();
+        let source_interior_range = other.limb_range_interior();
+        if !target_interior_range.is_empty() && !source_interior_range.is_empty() {
+            self.limbs[target_interior_range]
+                .clone_from_slice(&other.limbs[source_interior_range]);
         }
+
+        let result = other.limbs[source_range.end - 1] & max_mask;
+        self.limbs[target_range.end - 1] &= !max_mask;
+        self.limbs[target_range.end - 1] |= result;
     }
 
     /// Adds `c` * `other` to `self`. `other` must have the same length, offset, and prime as self, and `c` must be between `0` and `p - 1`.
     pub fn add_shift_none(&mut self, other: SliceP<'_, P>, c: u32) {
-        let (min_target_limb, max_target_limb) = self.as_slice().limb_range();
-        let (min_source_limb, max_source_limb) = other.limb_range();
+        let target_range = self.as_slice().limb_range();
+        let source_range = other.limb_range();
 
         let (min_mask, max_mask) = other.limb_masks();
 
-        self.limbs[min_target_limb] = limb::add::<P>(
-            self.limbs[min_target_limb],
-            other.limbs[min_source_limb] & min_mask,
+        self.limbs[target_range.start] = limb::add::<P>(
+            self.limbs[target_range.start],
+            other.limbs[source_range.start] & min_mask,
             c,
         );
-        self.limbs[min_target_limb] = limb::reduce::<P>(self.limbs[min_target_limb]);
+        self.limbs[target_range.start] = limb::reduce::<P>(self.limbs[target_range.start]);
 
-        if max_source_limb - 1 >= min_source_limb + 1 {
-            for (left, right) in self.limbs[min_target_limb + 1..max_target_limb - 1]
+        let target_interior_range = self.as_slice().limb_range_interior();
+        let source_interior_range = other.limb_range_interior();
+        if !source_interior_range.is_empty() {
+            for (left, right) in self.limbs[target_interior_range]
                 .iter_mut()
-                .zip(&other.limbs[min_source_limb + 1..max_source_limb - 1])
+                .zip(&other.limbs[source_interior_range])
             {
                 *left = limb::add::<P>(*left, *right, c);
                 *left = limb::reduce::<P>(*left);
             }
-
-            self.limbs[max_target_limb - 1] = limb::add::<P>(
-                self.limbs[max_target_limb - 1],
-                other.limbs[max_source_limb - 1] & max_mask,
+        }
+        if source_range.len() > 1 {
+            // The first and last limbs are distinct, so we process the last.
+            self.limbs[target_range.end - 1] = limb::add::<P>(
+                self.limbs[target_range.end - 1],
+                other.limbs[source_range.end - 1] & max_mask,
                 c,
             );
-            self.limbs[max_target_limb - 1] = limb::reduce::<P>(self.limbs[max_target_limb - 1]);
+            self.limbs[target_range.end - 1] = limb::reduce::<P>(self.limbs[target_range.end - 1]);
         }
     }
 
@@ -1057,17 +836,18 @@ impl AddShiftLeftData {
             target.len(),
             source.len()
         );
-        let p = target.prime();
         let offset_shift = source.offset() - target.offset();
-        let bit_length = bit_length(p);
-        let entries_per_limb = entries_per_limb(p);
+        let bit_length = limb::bit_length::<P>();
+        let entries_per_limb = limb::entries_per_limb_const::<P>();
         let usable_bits_per_limb = bit_length * entries_per_limb;
         let tail_shift = usable_bits_per_limb - offset_shift;
         let zero_bits = BITS_PER_LIMB - usable_bits_per_limb;
-        let (min_target_limb, max_target_limb) = target.limb_range();
-        let (min_source_limb, max_source_limb) = source.limb_range();
-        let number_of_source_limbs = max_source_limb - min_source_limb;
-        let number_of_target_limbs = max_target_limb - min_target_limb;
+        let source_range = source.limb_range();
+        let target_range = target.limb_range();
+        let min_source_limb = source_range.start;
+        let min_target_limb = target_range.start;
+        let number_of_source_limbs = source_range.len();
+        let number_of_target_limbs = target_range.len();
         let (min_mask, max_mask) = source.limb_masks();
 
         Self {
@@ -1128,17 +908,18 @@ impl AddShiftRightData {
             target.len(),
             source.len()
         );
-        let p = target.prime();
         let offset_shift = target.offset() - source.offset();
-        let bit_length = bit_length(p);
-        let entries_per_limb = entries_per_limb(p);
+        let bit_length = limb::bit_length::<P>();
+        let entries_per_limb = limb::entries_per_limb_const::<P>();
         let usable_bits_per_limb = bit_length * entries_per_limb;
         let tail_shift = usable_bits_per_limb - offset_shift;
         let zero_bits = BITS_PER_LIMB - usable_bits_per_limb;
-        let (min_target_limb, max_target_limb) = target.limb_range();
-        let (min_source_limb, max_source_limb) = source.limb_range();
-        let number_of_source_limbs = max_source_limb - min_source_limb;
-        let number_of_target_limbs = max_target_limb - min_target_limb;
+        let source_range = source.limb_range();
+        let target_range = target.limb_range();
+        let min_source_limb = source_range.start;
+        let min_target_limb = target_range.start;
+        let number_of_source_limbs = source_range.len();
+        let number_of_target_limbs = target_range.len();
         let (min_mask, max_mask) = source.limb_masks();
         Self {
             offset_shift,
@@ -1189,7 +970,7 @@ impl<T: AsRef<[u32]>, const P: u32> From<&T> for FpVectorP<P> {
         v.limbs.extend(
             slice
                 .as_ref()
-                .chunks(entries_per_limb(ValidPrime::new(P)))
+                .chunks(limb::entries_per_limb_const::<P>())
                 .map(|x| limb::pack::<_, P>(x.iter().copied())),
         );
         v
@@ -1230,19 +1011,17 @@ impl<'a> FpVectorIterator<'a> {
                 counter,
             };
         }
-        let p = vec.prime();
+        let pair = limb::limb_bit_index_pair::<P>(vec.start);
 
-        let pair = limb_bit_index_pair(p, vec.start);
-
-        let bit_length = bit_length(p);
+        let bit_length = limb::bit_length::<P>();
         let cur_limb = limbs[pair.limb] >> pair.bit_index;
 
-        let entries_per_limb = entries_per_limb(p);
+        let entries_per_limb = limb::entries_per_limb_const::<P>();
         Self {
             limbs,
             bit_length,
             entries_per_limb_m_1: entries_per_limb - 1,
-            bit_mask: bitmask(p),
+            bit_mask: limb::bitmask::<P>(),
             limb_index: pair.limb,
             entries_left: entries_per_limb - (vec.start % entries_per_limb),
             cur_limb,
@@ -1321,7 +1100,7 @@ pub struct FpVectorNonZeroIteratorP<'a, const P: u32> {
 
 impl<'a, const P: u32> FpVectorNonZeroIteratorP<'a, P> {
     fn new(vec: SliceP<'a, P>) -> Self {
-        let entries_per_limb = entries_per_limb(ValidPrime::new(P));
+        let entries_per_limb = limb::entries_per_limb_const::<P>();
 
         let dim = vec.len();
         let limbs = vec.limbs;
@@ -1337,7 +1116,7 @@ impl<'a, const P: u32> FpVectorNonZeroIteratorP<'a, P> {
             };
         }
         let min_index = vec.start;
-        let pair = limb_bit_index_pair(vec.prime(), min_index);
+        let pair = limb::limb_bit_index_pair::<P>(min_index);
         let cur_limb = limbs[pair.limb] >> pair.bit_index;
         let cur_limb_entries_left = entries_per_limb - (min_index % entries_per_limb);
         Self {
@@ -1354,9 +1133,9 @@ impl<'a, const P: u32> FpVectorNonZeroIteratorP<'a, P> {
 impl<'a, const P: u32> Iterator for FpVectorNonZeroIteratorP<'a, P> {
     type Item = (usize, u32);
     fn next(&mut self) -> Option<Self::Item> {
-        let bit_length: usize = bit_length(ValidPrime::new(P));
-        let bitmask: Limb = bitmask(ValidPrime::new(P));
-        let entries_per_limb: usize = entries_per_limb(ValidPrime::new(P));
+        let bit_length: usize = limb::bit_length::<P>();
+        let bitmask: Limb = limb::bitmask::<P>();
+        let entries_per_limb: usize = limb::entries_per_limb_const::<P>();
         loop {
             let bits_left = (self.cur_limb_entries_left * bit_length) as u32;
             #[allow(clippy::unnecessary_cast)]

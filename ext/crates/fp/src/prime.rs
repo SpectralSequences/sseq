@@ -1,22 +1,12 @@
-pub const NUM_PRIMES: usize = 8;
-pub const MAX_PRIME: usize = 19;
-#[cfg(feature = "odd-primes")]
-const NOT_A_PRIME: usize = !1;
-pub const MAX_MULTINOMIAL_LEN: usize = 10;
 #[cfg(feature = "json")]
 use serde::{de::Error, Deserialize, Deserializer, Serialize, Serializer};
 use std::convert::TryFrom;
 
-#[macro_export]
-macro_rules! const_for {
-    ($i:ident in $a:literal .. $b:ident $contents:block) => {
-        let mut $i = $a;
-        while $i < $b {
-            $contents;
-            $i += 1;
-        }
-    };
-}
+use crate::constants::{
+    BINOMIAL4_TABLE, BINOMIAL4_TABLE_SIZE, BINOMIAL_TABLE, INVERSE_TABLE, PRIME_TO_INDEX_MAP,
+};
+#[allow(unused_imports)]
+use crate::constants::{MAX_PRIME, NOT_A_PRIME, NUM_PRIMES};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct ValidPrime {
@@ -502,6 +492,7 @@ impl Iterator for BinomialIterator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::constants::PRIMES;
 
     #[test]
     fn inverse_test() {
@@ -594,48 +585,3 @@ mod tests {
         assert_eq!(iter.next(), Some(0b110011));
     }
 }
-
-pub const PRIMES: [u32; NUM_PRIMES] = [2, 3, 5, 7, 11, 13, 17, 19];
-
-pub const PRIME_TO_INDEX_MAP: [usize; MAX_PRIME + 1] = [
-    !1, !1, 0, 1, !1, 2, !1, 3, !1, !1, !1, 4, !1, 5, !1, !1, !1, 6, !1, 7,
-];
-
-const INVERSE_TABLE: [[u32; MAX_PRIME]; NUM_PRIMES] = {
-    let mut result = [[0; MAX_PRIME]; NUM_PRIMES];
-    const_for! { i in 0 .. NUM_PRIMES {
-        let p = PRIMES[i];
-        const_for! { k in 1 .. p {
-            result[i as usize][k as usize] = power_mod(p, k, p - 2);
-        }}
-    }};
-    result
-};
-
-macro_rules! populate_binomial_table {
-    ($res:expr, $size:ident, $mod:expr) => {
-        const_for! { n in 0 .. $size {
-            $res[n][0] = 1;
-            const_for! { k in 0 .. n {
-                $res[n][k + 1] = ($res[n - 1][k] + $res[n - 1][k + 1]) % $mod;
-            }}
-        }}
-    };
-}
-const BINOMIAL4_TABLE_SIZE: usize = 50;
-
-const BINOMIAL4_TABLE: [[u32; BINOMIAL4_TABLE_SIZE]; BINOMIAL4_TABLE_SIZE] = {
-    let mut res = [[0; BINOMIAL4_TABLE_SIZE]; BINOMIAL4_TABLE_SIZE];
-    populate_binomial_table!(res, BINOMIAL4_TABLE_SIZE, 4);
-    res
-};
-
-static BINOMIAL_TABLE: [[[u32; MAX_PRIME]; MAX_PRIME]; NUM_PRIMES] = {
-    let mut result = [[[0; MAX_PRIME]; MAX_PRIME]; NUM_PRIMES];
-    const_for! { i in 0 .. NUM_PRIMES {
-        let p = PRIMES[i];
-        let pu = p as usize;
-        populate_binomial_table!(result[i], pu, p);
-    }}
-    result
-};

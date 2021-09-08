@@ -1,6 +1,11 @@
 #![feature(const_panic)]
 #![feature(stdsimd)]
 
+mod constants;
+mod limb;
+
+pub use constants::{MAX_MULTINOMIAL_LEN, NUM_PRIMES, PRIMES, PRIME_TO_INDEX_MAP};
+
 pub mod matrix;
 pub mod prime;
 #[cfg(feature = "odd-primes")]

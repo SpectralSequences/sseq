@@ -1,10 +1,12 @@
-pub(crate) type SimdLimb = u64;
+use crate::limb::Limb;
 
-pub(crate) unsafe fn load(limb: *const u64) -> SimdLimb {
+pub(crate) type SimdLimb = Limb;
+
+pub(crate) unsafe fn load(limb: *const Limb) -> SimdLimb {
     *limb
 }
 
-pub(crate) unsafe fn store(limb: *mut u64, val: SimdLimb) {
+pub(crate) unsafe fn store(limb: *mut Limb, val: SimdLimb) {
     *limb = val;
 }
 

@@ -8,9 +8,11 @@ cfg_if::cfg_if! {
     }
 }
 
-const LIMBS_PER_SIMD: usize = std::mem::size_of::<SimdLimb>() / crate::vector_inner::BYTES_PER_LIMB;
+use super::limb::Limb;
 
-pub(crate) fn add_simd(target: &mut [u64], source: &[u64], min_limb: usize) {
+const LIMBS_PER_SIMD: usize = std::mem::size_of::<SimdLimb>() / crate::constants::BYTES_PER_LIMB;
+
+pub(crate) fn add_simd(target: &mut [Limb], source: &[Limb], min_limb: usize) {
     let max_limb = target.len();
     let target = target.as_mut_ptr();
     let source = source.as_ptr();

@@ -470,7 +470,7 @@ impl GeneratedAlgebra for AdemAlgebra {
 impl AdemAlgebra {
     pub fn new(p: ValidPrime, generic: bool, unstable: bool, unstable_enabled: bool) -> Self {
         assert!(unstable_enabled || !unstable);
-        fp::vector::initialize_limb_bit_index_table(p);
+        // fp::vector::initialize_limb_bit_index_table(p);
         let even_basis_table = OnceVec::new();
         let basis_table = OnceVec::new();
         let basis_element_to_index_map = OnceVec::new();
