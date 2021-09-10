@@ -664,17 +664,12 @@ mod test {
             let mut v = FpVector::from_slice(p, &v_arr);
             let w = FpVector::from_slice(p, &w_arr);
 
-            eprintln!("v: {:?}, {}", v, v);
-            eprintln!("w: {:?}, {}", w, w);
             v.slice_mut(slice_start, slice_end)
             .add(w.slice(slice_start, slice_end), 1);
-            eprintln!("sum: {:?}, {}", v, v);
-            
+
             for i in slice_start..slice_end {
                 v_arr[i] = (v_arr[i] + w_arr[i]) % *p;
             }
-            let correct = FpVector::from_slice(p, &v_arr);
-            eprintln!("correct: {:?}, {}", correct, correct);
             v.assert_list_eq(&v_arr);
         }
 

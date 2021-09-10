@@ -3,18 +3,18 @@ use std::ops::Range;
 pub(crate) use crate::constants::Limb;
 
 use crate::{
-    constants::{
-        BITMASKS, BITS_PER_LIMB, BIT_LENGTHS, ENTRIES_PER_LIMB, MAX_LEN, PRIME_TO_INDEX_MAP,
-    },
+    constants::{BITMASKS, BITS_PER_LIMB, BIT_LENGTHS, ENTRIES_PER_LIMB, PRIME_TO_INDEX_MAP},
     prime::ValidPrime,
 };
 
+/// A struct containing the information required to access a specific entry in an array of `Limb`s.
 #[derive(Copy, Clone)]
 pub(crate) struct LimbBitIndexPair {
     pub(crate) limb: usize,
     pub(crate) bit_index: usize,
 }
 
+/// Return the number of bits an element of $\mathbb{F}_P$ occupies in a limb.
 pub(crate) const fn bit_length<const P: u32>() -> usize {
     BIT_LENGTHS[PRIME_TO_INDEX_MAP[P as usize]]
 }
@@ -95,6 +95,8 @@ pub(crate) const fn limb_bit_index_pair<const P: u32>(idx: usize) -> LimbBitInde
 //     }
 // }
 
+/// Return the `Limb` whose `i`th entry is `limb_a[i] + coeff * limb_b[i]` mod P. Both `limb_a` and
+/// `limb_b` are assumed to be reduced.
 pub(crate) const fn add<const P: u32>(limb_a: Limb, limb_b: Limb, coeff: u32) -> Limb {
     if P == 2 {
         limb_a ^ (coeff as Limb * limb_b)
@@ -103,7 +105,9 @@ pub(crate) const fn add<const P: u32>(limb_a: Limb, limb_b: Limb, coeff: u32) ->
     }
 }
 
-/// Contbuted by Robert Burklund
+/// Return the `Limb` whose entries are the entries of `limb` reduced modulo `P`.
+///
+/// Contributed by Robert Burklund.
 pub(crate) fn reduce<const P: u32>(limb: Limb) -> Limb {
     match P {
         2 => limb,
@@ -133,11 +137,13 @@ pub(crate) fn reduce<const P: u32>(limb: Limb) -> Limb {
     }
 }
 
+/// Check whether or not a limb is reduced, i.e. whether every entry is a value in the range `0..P`.
+/// This is currently **not** faster than calling [`reduce`] directly.
 pub(crate) fn is_reduced<const P: u32>(limb: Limb) -> bool {
     limb == reduce::<P>(limb)
 }
 
-/// Given an interator of u32's, pack all of them into a single limb in order.
+/// Given an interator of `u32`'s, pack all of them into a single limb in order.
 /// It is assumed that
 ///  - The values of the iterator are less than P
 ///  - The values of the iterator fit into a single limb
@@ -154,7 +160,7 @@ pub(crate) fn pack<T: Iterator<Item = u32>, const P: u32>(entries: T) -> Limb {
     result
 }
 
-/// Give an iterator over the entries of a limb.
+/// Give an iterator over the entries of `limb`.
 pub(crate) fn unpack<const P: u32>(mut limb: Limb) -> impl Iterator<Item = u32> {
     let entries = entries_per_limb_const::<P>();
     let bit_length = bit_length::<P>();
@@ -167,8 +173,9 @@ pub(crate) fn unpack<const P: u32>(mut limb: Limb) -> impl Iterator<Item = u32> 
     })
 }
 
+/// Return the number of limbs required to hold `dim` entries.
 pub(crate) fn number<const P: u32>(dim: usize) -> usize {
-    debug_assert!(dim < MAX_LEN);
+    // debug_assert!(dim < MAX_LEN);
     if dim == 0 {
         0
     } else {
@@ -176,6 +183,8 @@ pub(crate) fn number<const P: u32>(dim: usize) -> usize {
     }
 }
 
+/// Return the [`Range`] starting at the index of the limb containing the `start`th entry, and
+/// ending at the index of the limb containing the `end`th entry (including the latter).
 pub(crate) fn range<const P: u32>(start: usize, end: usize) -> Range<usize> {
     let min = limb_bit_index_pair::<P>(start).limb;
     let max = if end > 0 {
@@ -202,8 +211,7 @@ pub(crate) fn sign_rule(mut target: Limb, mut source: Limb) -> u32 {
     result
 }
 
-/// Returns: either Some(sum) if no carries happen in the limb or None if some carry does
-/// happen.
+/// Return either `Some(sum)` if no carries happen in the limb, or `None` if some carry does happen.
 pub(crate) fn truncate<const P: u32>(sum: Limb) -> Option<Limb> {
     if is_reduced::<P>(sum) {
         Some(sum)

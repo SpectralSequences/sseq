@@ -466,13 +466,8 @@ impl<'a, const P: u32> SliceP<'a, P> {
         }
 
         let interior_range = self.limb_range_interior();
-        if !interior_range.is_empty() {
-            if self.limbs[interior_range]
-                .iter()
-                .any(|&x| x != 0)
-            {
-                return false;
-            }
+        if !interior_range.is_empty() && self.limbs[interior_range].iter().any(|&x| x != 0) {
+            return false;
         }
         if self.limbs[range.end - 1] & max_mask != 0 {
             return false;
@@ -664,8 +659,7 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
         let target_interior_range = self.as_slice().limb_range_interior();
         let source_interior_range = other.limb_range_interior();
         if !target_interior_range.is_empty() && !source_interior_range.is_empty() {
-            self.limbs[target_interior_range]
-                .clone_from_slice(&other.limbs[source_interior_range]);
+            self.limbs[target_interior_range].clone_from_slice(&other.limbs[source_interior_range]);
         }
 
         let result = other.limbs[source_range.end - 1] & max_mask;

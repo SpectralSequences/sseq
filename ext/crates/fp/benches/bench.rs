@@ -9,10 +9,17 @@ use rand::Rng;
 // use crate::row_reduce::main as row_reduce;
 
 fn random_matrix(p: ValidPrime, dimension: usize) -> Matrix {
-    let mut rows = Vec::with_capacity(dimension);
-    for _ in 0..dimension {
-        rows.push(random_vector(p, dimension));
-    }
+    Matrix::from_rows(
+        p,
+        (0..dimension)
+            .map(|_| random_vector(p, dimension))
+            .collect(),
+        dimension,
+    )
+    // let mut rows = Vec::with_capacity(dimension);
+    // for _ in 0..dimension {
+    //     rows.push(random_vector(p, dimension));
+    // }
     // let mut rng = rand::thread_rng();
     // let mut vectors = Vec::with_capacity(rows);
     // for _ in 0..rows {
@@ -21,24 +28,26 @@ fn random_matrix(p: ValidPrime, dimension: usize) -> Matrix {
     //     }
     //     vectors.push(FpVector::from_slice(p, &vec));
     // }
-    Matrix::from_rows(p, rows, dimension)
+    // Matrix::from_rows(p, rows, dimension)
 }
 
 fn row_reductions(c: &mut Criterion) {
-    let mut group = c.benchmark_group("row_reduce");
-    let p = ValidPrime::new(2);
-    for dimension in [64, 128, 256, 512, 1024, 69, 420] {
-        group.bench_function(&format!("row_reduce_{}", dimension), move |b| {
-            b.iter_batched_ref(
-                || random_matrix(p, dimension),
-                |matrix| {
-                    matrix.row_reduce();
-                },
-                BatchSize::SmallInput,
-            )
-        });
+    for p in [2, 3, 5, 7].iter() {
+        let p = ValidPrime::new(*p);
+        let mut group = c.benchmark_group(&format!("row_reduce_{}", p));
+        for dimension in [10, 20, 69, 100, 420, 1000] {
+            group.bench_function(&format!("row_reduce_{}_{}", p, dimension), move |b| {
+                b.iter_batched_ref(
+                    || random_matrix(p, dimension),
+                    |matrix| {
+                        matrix.row_reduce();
+                    },
+                    BatchSize::SmallInput,
+                )
+            });
+        }
+        group.finish();
     }
-    group.finish();
 }
 
 fn random_vector(p: ValidPrime, dimension: usize) -> FpVector {
@@ -73,7 +82,7 @@ fn random_vector(p: ValidPrime, dimension: usize) -> FpVector {
 
 criterion_group! {
     name = row_reduction;
-    config = Criterion::default().measurement_time(Duration::from_millis(100_000));
+    config = Criterion::default().sample_size(1000).measurement_time(Duration::from_secs(1000));
     targets = row_reductions
 }
 // criterion_group!(add, vector_add);

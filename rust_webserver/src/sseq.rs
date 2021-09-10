@@ -83,7 +83,7 @@ impl<P: SseqProfile> SseqWrapper<P> {
         min_y: i32,
         sender: Option<Sender>,
     ) -> Self {
-        fp::vector::initialize_limb_bit_index_table(p);
+        // fp::vector::initialize_limb_bit_index_table(p);
         Self {
             p,
             name,
