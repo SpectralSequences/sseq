@@ -15,9 +15,9 @@ cfg-if = "1.0.0"
 build_const = "0.2.2"
 
 [dev-dependencies]
-rand = "0.7.0"
-rstest = "0.10.0"
-criterion = { version = "0.3.4", features = ["html_reports"] }
+rand = "0.8.4"
+rstest = "0.11.0"
+iai = "0.1.1"
 expect-test = "1.1.0"
 
 [build-dependencies]
