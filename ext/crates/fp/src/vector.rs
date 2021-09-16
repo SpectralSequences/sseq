@@ -7,8 +7,8 @@
 //!
 //! This module is only used when the `odd-primes` feature is enabled.
 
-use crate::prime::ValidPrime;
 use crate::limb::{entries_per_limb, Limb};
+use crate::prime::ValidPrime;
 use crate::vector_inner::{
     FpVectorIterator, FpVectorNonZeroIteratorP, FpVectorP, SliceMutP, SliceP,
 };

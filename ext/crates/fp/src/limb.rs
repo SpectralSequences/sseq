@@ -41,7 +41,7 @@ pub(crate) const fn limb_bit_index_pair<const P: u32>(idx: usize) -> LimbBitInde
         _ => LimbBitIndexPair {
             limb: idx / entries_per_limb_const::<P>(),
             bit_index: (idx % entries_per_limb_const::<P>() * bit_length::<P>()),
-        }
+        },
     }
 }
 
