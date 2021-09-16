@@ -17,6 +17,7 @@ build_const = "0.2.2"
 [dev-dependencies]
 rand = "0.8.4"
 rstest = "0.11.0"
+criterion = "0.3.5"
 iai = "0.1.1"
 expect-test = "1.1.0"
 
@@ -30,5 +31,9 @@ odd-primes = []
 json = ["serde_json", "serde"]
 
 [[bench]]
-name = "bench"
+name = "criterion"
+harness = false
+
+[[bench]]
+name = "iai"
 harness = false
