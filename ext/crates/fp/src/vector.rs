@@ -8,7 +8,6 @@
 //! This module is only used when the `odd-primes` feature is enabled.
 
 use crate::prime::ValidPrime;
-// pub use crate::vector_inner::initialize_limb_bit_index_table;
 use crate::limb::{entries_per_limb, Limb};
 use crate::vector_inner::{
     FpVectorIterator, FpVectorNonZeroIteratorP, FpVectorP, SliceMutP, SliceP,
@@ -512,7 +511,6 @@ mod test {
             #[trace]
             fn $name(#[values(2, 3, 5, 7)] p: u32) {
                 let $p = ValidPrime::new(p);
-                // initialize_limb_bit_index_table($p);
 
                 $body
             }
@@ -523,7 +521,6 @@ mod test {
             #[trace]
             fn $name(#[values(2, 3, 5, 7)] p: u32, #[values(10, 20, 70, 100, 1000)] $dim: usize) {
                 let $p = ValidPrime::new(p);
-                // initialize_limb_bit_index_table($p);
 
                 $body
             }
@@ -534,7 +531,6 @@ mod test {
             #[trace]
             fn $name(#[values(2, 3, 5, 7)] p: u32, #[values(10, 20, 70, 100, 1000)] $dim: usize) {
                 let $p = ValidPrime::new(p);
-                // initialize_limb_bit_index_table($p);
 
                 let $slice_start = match $dim {
                     10 => 5,
@@ -665,7 +661,7 @@ mod test {
             let w = FpVector::from_slice(p, &w_arr);
 
             v.slice_mut(slice_start, slice_end)
-            .add(w.slice(slice_start, slice_end), 1);
+                .add(w.slice(slice_start, slice_end), 1);
 
             for i in slice_start..slice_end {
                 v_arr[i] = (v_arr[i] + w_arr[i]) % *p;
@@ -868,7 +864,6 @@ mod test {
     #[trace]
     fn test_add_carry(#[values(2)] p: u32, #[values(10, 20, 70, 100, 1000)] dim: usize) {
         let p = ValidPrime::new(p);
-        // initialize_limb_bit_index_table(p);
         const E_MAX: usize = 4;
         let pto_the_e_max = (*p * *p * *p * *p) * *p;
         let mut v = Vec::with_capacity(E_MAX + 1);

@@ -55,7 +55,7 @@ fn main() -> Result<(), Error> {
         "/// For any integer `i` less than or equal to `MAX_PRIME`, `PRIME_TO_INDEX_MAP[i]` is",
     );
     writer.add_raw(
-        "/// the index of `i` in `PRIMES` if `i` is prime; otherwise, it is `NOT_A_PRIME`",
+        "/// the index of `i` in `PRIMES` if `i` is prime; otherwise, it is `NOT_A_PRIME`.",
     );
     writer.add_array("PRIME_TO_INDEX_MAP", "usize", &prime_to_index_map);
 

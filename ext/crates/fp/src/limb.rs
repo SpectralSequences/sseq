@@ -38,60 +38,12 @@ pub(crate) const fn limb_bit_index_pair<const P: u32>(idx: usize) -> LimbBitInde
             limb: idx / BITS_PER_LIMB,
             bit_index: idx % BITS_PER_LIMB,
         },
-        _ => {
-            LimbBitIndexPair {
-                limb: idx / entries_per_limb_const::<P>(),
-                bit_index: (idx % entries_per_limb_const::<P>() * bit_length::<P>()),
-            }
-            // let prime_idx = PRIME_TO_INDEX_MAP[*p as usize];
-            // debug_assert!(idx < MAX_LEN);
-            // unsafe {
-            //     let table = &LIMB_BIT_INDEX_TABLE[prime_idx];
-            //     debug_assert!(table.is_some());
-            //     *table
-            //         .as_ref()
-            //         .unwrap_or_else(|| std::hint::unreachable_unchecked())
-            //         .get_unchecked(idx)
-            // }
+        _ => LimbBitIndexPair {
+            limb: idx / entries_per_limb_const::<P>(),
+            bit_index: (idx % entries_per_limb_const::<P>() * bit_length::<P>()),
         }
     }
 }
-
-// /// This table tells us which limb and which bitfield of that limb to look for a given index of
-// /// the vector in.
-// static mut LIMB_BIT_INDEX_TABLE: [Option<Vec<LimbBitIndexPair>>; NUM_PRIMES] =
-//     [None, None, None, None, None, None, None, None];
-
-// static mut LIMB_BIT_INDEX_ONCE_TABLE: [Once; NUM_PRIMES] = [
-//     Once::new(),
-//     Once::new(),
-//     Once::new(),
-//     Once::new(),
-//     Once::new(),
-//     Once::new(),
-//     Once::new(),
-//     Once::new(),
-// ];
-
-// pub fn initialize_limb_bit_index_table(p: ValidPrime) {
-//     if *p == 2 {
-//         return;
-//     }
-//     unsafe {
-//         LIMB_BIT_INDEX_ONCE_TABLE[PRIME_TO_INDEX_MAP[*p as usize]].call_once(|| {
-//             let entries_per_limb = entries_per_limb(p);
-//             let bit_length = bit_length(p);
-//             let mut table: Vec<LimbBitIndexPair> = Vec::with_capacity(MAX_LEN);
-//             for i in 0..MAX_LEN {
-//                 table.push(LimbBitIndexPair {
-//                     limb: i / entries_per_limb,
-//                     bit_index: (i % entries_per_limb) * bit_length,
-//                 })
-//             }
-//             LIMB_BIT_INDEX_TABLE[PRIME_TO_INDEX_MAP[*p as usize]] = Some(table);
-//         });
-//     }
-// }
 
 /// Return the `Limb` whose `i`th entry is `limb_a[i] + coeff * limb_b[i]` mod P. Both `limb_a` and
 /// `limb_b` are assumed to be reduced.

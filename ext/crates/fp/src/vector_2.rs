@@ -2,7 +2,6 @@
 //! wrappers, it simply rexports `FooP<2>` as `Foo`.
 
 use crate::prime::ValidPrime;
-// pub use crate::vector_inner::initialize_limb_bit_index_table;
 use crate::limb::{entries_per_limb_const, Limb};
 use crate::vector_inner::{FpVectorNonZeroIteratorP, FpVectorP, SliceMutP, SliceP};
 use itertools::Itertools;

@@ -1,4 +1,3 @@
-// use fp::prime::*;
 use fp::vector::FpVector;
 use once::OnceVec;
 
@@ -322,7 +321,6 @@ mod tests {
     #[test]
     fn test_trunc_poly_partitions() {
         let p = ValidPrime::new(3);
-        // fp::vector::initialize_limb_bit_index_table(p);
         let tp = TruncatedPolynomialMonomialBasis::new(p);
         tp.add_gens_and_calculate_parts(1, 2);
         tp.add_gens_and_calculate_parts(2, 1);
@@ -344,7 +342,6 @@ mod tests {
     #[test]
     fn test_trunc_poly_partitions2() {
         let p = ValidPrime::new(2);
-        // fp::vector::initialize_limb_bit_index_table(p);
         let tp = TruncatedPolynomialMonomialBasis::new(p);
         tp.add_gens_and_calculate_parts(1, 0);
         tp.add_gens_and_calculate_parts(2, 0);
