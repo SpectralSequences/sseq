@@ -7,7 +7,6 @@ use crate::constants::BITS_PER_LIMB;
 use crate::prime::ValidPrime;
 use std::cmp::Ordering;
 use std::convert::TryInto;
-use std::ops::Range;
 
 use crate::simd;
 
@@ -403,8 +402,8 @@ impl<'a, const P: u32> SliceP<'a, P> {
     pub fn to_owned(self) -> FpVectorP<P> {
         let mut new = FpVectorP::<P>::new_(self.len());
         if self.start % limb::entries_per_limb_const::<P>() == 0 {
-            let range = self.limb_range();
-            new.limbs[0..range.len()].copy_from_slice(&self.limbs[range]);
+            let (min, max) = self.limb_range();
+            new.limbs[0..(max - min)].copy_from_slice(&self.limbs[min..max]);
             if !new.limbs.is_empty() {
                 let len = new.limbs.len();
                 new.limbs[len - 1] &= self.limb_masks().1;
@@ -455,22 +454,25 @@ impl<'a, const P: u32> SliceP<'a, P> {
     }
 
     pub fn is_zero(&self) -> bool {
-        let range = self.limb_range();
-        // let (min_limb, max_limb) = (range.start, range.end);
-        if range.is_empty() {
+        let (min_limb, max_limb) = self.limb_range();
+        if min_limb == max_limb {
             return true;
         }
         let (min_mask, max_mask) = self.limb_masks();
-        if self.limbs[range.start] & min_mask != 0 {
+        if self.limbs[min_limb] & min_mask != 0 {
             return false;
         }
 
-        let interior_range = self.limb_range_interior();
-        if !interior_range.is_empty() && self.limbs[interior_range].iter().any(|&x| x != 0) {
-            return false;
-        }
-        if self.limbs[range.end - 1] & max_mask != 0 {
-            return false;
+        if max_limb - 1 >= min_limb + 1 {
+            if self.limbs[min_limb + 1..max_limb - 1]
+                .iter()
+                .any(|&x| x != 0)
+            {
+                return false;
+            }
+            if self.limbs[max_limb - 1] & max_mask != 0 {
+                return false;
+            }
         }
         true
     }
@@ -486,13 +488,8 @@ impl<'a, const P: u32> SliceP<'a, P> {
     }
 
     #[inline]
-    fn limb_range(&self) -> Range<usize> {
+    fn limb_range(&self) -> (usize, usize) {
         limb::range::<P>(self.start, self.end)
-    }
-
-    fn limb_range_interior(&self) -> Range<usize> {
-        let range = self.limb_range();
-        (range.start + 1)..(range.end - 1)
     }
 
     #[inline(always)]
@@ -510,7 +507,8 @@ impl<'a, const P: u32> SliceP<'a, P> {
 
     #[inline(always)]
     fn limb_masks(&self) -> (Limb, Limb) {
-        if self.limb_range().len() == 1 {
+        let (min_limb, max_limb) = self.limb_range();
+        if min_limb + 1 == max_limb {
             (
                 self.min_limb_mask() & self.max_limb_mask(),
                 self.min_limb_mask() & self.max_limb_mask(),
@@ -551,9 +549,9 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
 
     fn reduce_limbs(&mut self) {
         if P != 2 {
-            let range = self.as_slice().limb_range();
+            let (min_limb, max_limb) = self.as_slice().limb_range();
 
-            for limb in &mut self.limbs[range] {
+            for limb in &mut self.limbs[min_limb..max_limb] {
                 *limb = limb::reduce::<P>(*limb);
             }
         }
@@ -561,44 +559,43 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
 
     pub fn scale(&mut self, c: u32) {
         let c = c as Limb;
-        let range = self.as_slice().limb_range();
-        if range.is_empty() {
+        let (min_limb, max_limb) = self.as_slice().limb_range();
+        if min_limb == max_limb {
             return;
         }
         let (min_mask, max_mask) = self.as_slice().limb_masks();
 
-        let limb = self.limbs[range.start];
+        let limb = self.limbs[min_limb];
         let masked_limb = limb & min_mask;
         let rest_limb = limb & !min_mask;
-        self.limbs[range.start] = (masked_limb * c) | rest_limb;
+        self.limbs[min_limb] = (masked_limb * c) | rest_limb;
 
-        let interior_range = self.as_slice().limb_range_interior();
-        for limb in &mut self.limbs[interior_range] {
-            *limb *= c;
+        if max_limb - 1 >= min_limb + 1 {
+            for limb in &mut self.limbs[min_limb + 1..max_limb - 1] {
+                *limb *= c;
+            }
+
+            let full_limb = self.limbs[max_limb - 1];
+            let masked_limb = full_limb & max_mask;
+            let rest_limb = full_limb & !max_mask;
+            self.limbs[max_limb - 1] = (masked_limb * c) | rest_limb;
         }
-
-        let full_limb = self.limbs[range.end - 1];
-        let masked_limb = full_limb & max_mask;
-        let rest_limb = full_limb & !max_mask;
-        self.limbs[range.end - 1] = (masked_limb * c) | rest_limb;
         self.reduce_limbs();
     }
 
     pub fn set_to_zero(&mut self) {
-        let range = self.as_slice().limb_range();
-        if range.is_empty() {
+        let (min_limb, max_limb) = self.as_slice().limb_range();
+        if min_limb == max_limb {
             return;
         }
         let (min_mask, max_mask) = self.as_slice().limb_masks();
-        self.limbs[range.start] &= !min_mask;
-
-        let interior_range = self.as_slice().limb_range_interior();
-        if !interior_range.is_empty() {
-            for limb in &mut self.limbs[interior_range] {
+        self.limbs[min_limb] &= !min_mask;
+        if max_limb - 1 >= min_limb + 1 {
+            for limb in &mut self.limbs[min_limb + 1..max_limb - 1] {
                 *limb = 0;
             }
+            self.limbs[max_limb - 1] &= !max_mask;
         }
-        self.limbs[range.end - 1] &= !max_mask;
     }
 
     pub fn add(&mut self, other: SliceP<'_, P>, c: u32) {
@@ -643,63 +640,58 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
             self.add(other, 1);
             return;
         }
-        let target_range = self.as_slice().limb_range();
-        let source_range = other.limb_range();
+        let (min_target_limb, max_target_limb) = self.as_slice().limb_range();
+        let (min_source_limb, max_source_limb) = other.limb_range();
 
-        if target_range.is_empty() {
+        if min_target_limb == max_target_limb {
             return;
         }
 
         let (min_mask, max_mask) = other.limb_masks();
 
-        let result = other.limbs[source_range.start] & min_mask;
-        self.limbs[target_range.start] &= !min_mask;
-        self.limbs[target_range.start] |= result;
+        let result = other.limbs[min_source_limb] & min_mask;
+        self.limbs[min_target_limb] &= !min_mask;
+        self.limbs[min_target_limb] |= result;
 
-        let target_interior_range = self.as_slice().limb_range_interior();
-        let source_interior_range = other.limb_range_interior();
-        if !target_interior_range.is_empty() && !source_interior_range.is_empty() {
-            self.limbs[target_interior_range].clone_from_slice(&other.limbs[source_interior_range]);
+        if max_source_limb - 1 >= min_source_limb + 1 {
+            self.limbs[min_target_limb + 1..max_target_limb - 1]
+                .clone_from_slice(&other.limbs[min_source_limb + 1..max_source_limb - 1]);
+
+            let result = other.limbs[max_source_limb - 1] & max_mask;
+            self.limbs[max_target_limb - 1] &= !max_mask;
+            self.limbs[max_target_limb - 1] |= result;
         }
-
-        let result = other.limbs[source_range.end - 1] & max_mask;
-        self.limbs[target_range.end - 1] &= !max_mask;
-        self.limbs[target_range.end - 1] |= result;
     }
 
     /// Adds `c` * `other` to `self`. `other` must have the same length, offset, and prime as self, and `c` must be between `0` and `p - 1`.
     pub fn add_shift_none(&mut self, other: SliceP<'_, P>, c: u32) {
-        let target_range = self.as_slice().limb_range();
-        let source_range = other.limb_range();
+        let (min_target_limb, max_target_limb) = self.as_slice().limb_range();
+        let (min_source_limb, max_source_limb) = other.limb_range();
 
         let (min_mask, max_mask) = other.limb_masks();
 
-        self.limbs[target_range.start] = limb::add::<P>(
-            self.limbs[target_range.start],
-            other.limbs[source_range.start] & min_mask,
+        self.limbs[min_target_limb] = limb::add::<P>(
+            self.limbs[min_target_limb],
+            other.limbs[min_source_limb] & min_mask,
             c,
         );
-        self.limbs[target_range.start] = limb::reduce::<P>(self.limbs[target_range.start]);
+        self.limbs[min_target_limb] = limb::reduce::<P>(self.limbs[min_target_limb]);
 
-        let target_interior_range = self.as_slice().limb_range_interior();
-        let source_interior_range = other.limb_range_interior();
-        if !source_interior_range.is_empty() {
-            for (left, right) in self.limbs[target_interior_range]
+        if max_source_limb - 1 >= min_source_limb + 1 {
+            for (left, right) in self.limbs[min_target_limb + 1..max_target_limb - 1]
                 .iter_mut()
-                .zip(&other.limbs[source_interior_range])
+                .zip(&other.limbs[min_source_limb + 1..max_source_limb - 1])
             {
                 *left = limb::add::<P>(*left, *right, c);
                 *left = limb::reduce::<P>(*left);
             }
-        }
-        if source_range.len() > 1 {
-            // The first and last limbs are distinct, so we process the last.
-            self.limbs[target_range.end - 1] = limb::add::<P>(
-                self.limbs[target_range.end - 1],
-                other.limbs[source_range.end - 1] & max_mask,
+
+            self.limbs[max_target_limb - 1] = limb::add::<P>(
+                self.limbs[max_target_limb - 1],
+                other.limbs[max_source_limb - 1] & max_mask,
                 c,
             );
-            self.limbs[target_range.end - 1] = limb::reduce::<P>(self.limbs[target_range.end - 1]);
+            self.limbs[max_target_limb - 1] = limb::reduce::<P>(self.limbs[max_target_limb - 1]);
         }
     }
 
@@ -836,12 +828,10 @@ impl AddShiftLeftData {
         let usable_bits_per_limb = bit_length * entries_per_limb;
         let tail_shift = usable_bits_per_limb - offset_shift;
         let zero_bits = BITS_PER_LIMB - usable_bits_per_limb;
-        let source_range = source.limb_range();
-        let target_range = target.limb_range();
-        let min_source_limb = source_range.start;
-        let min_target_limb = target_range.start;
-        let number_of_source_limbs = source_range.len();
-        let number_of_target_limbs = target_range.len();
+        let (min_target_limb, max_target_limb) = target.limb_range();
+        let (min_source_limb, max_source_limb) = source.limb_range();
+        let number_of_source_limbs = max_source_limb - min_source_limb;
+        let number_of_target_limbs = max_target_limb - min_target_limb;
         let (min_mask, max_mask) = source.limb_masks();
 
         Self {
@@ -908,12 +898,10 @@ impl AddShiftRightData {
         let usable_bits_per_limb = bit_length * entries_per_limb;
         let tail_shift = usable_bits_per_limb - offset_shift;
         let zero_bits = BITS_PER_LIMB - usable_bits_per_limb;
-        let source_range = source.limb_range();
-        let target_range = target.limb_range();
-        let min_source_limb = source_range.start;
-        let min_target_limb = target_range.start;
-        let number_of_source_limbs = source_range.len();
-        let number_of_target_limbs = target_range.len();
+        let (min_target_limb, max_target_limb) = target.limb_range();
+        let (min_source_limb, max_source_limb) = source.limb_range();
+        let number_of_source_limbs = max_source_limb - min_source_limb;
+        let number_of_target_limbs = max_target_limb - min_target_limb;
         let (min_mask, max_mask) = source.limb_masks();
         Self {
             offset_shift,

@@ -1,5 +1,3 @@
-use std::ops::Range;
-
 pub(crate) use crate::constants::Limb;
 
 use crate::{
@@ -183,16 +181,17 @@ pub(crate) fn number<const P: u32>(dim: usize) -> usize {
     }
 }
 
-/// Return the [`Range`] starting at the index of the limb containing the `start`th entry, and
-/// ending at the index of the limb containing the `end`th entry (including the latter).
-pub(crate) fn range<const P: u32>(start: usize, end: usize) -> Range<usize> {
+/// Return the pair of usizes `(min, max)` such that `min..max` is the range starting at the index
+/// of the limb containing the `start`th entry, and ending at the index of the limb containing the
+/// `end`th entry (including the latter).
+pub(crate) fn range<const P: u32>(start: usize, end: usize) -> (usize, usize) {
     let min = limb_bit_index_pair::<P>(start).limb;
     let max = if end > 0 {
         limb_bit_index_pair::<P>(end - 1).limb + 1
     } else {
         0
     };
-    min..max
+    (min, max)
 }
 
 pub(crate) fn sign_rule(mut target: Limb, mut source: Limb) -> u32 {
