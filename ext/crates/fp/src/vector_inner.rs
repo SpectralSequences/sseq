@@ -328,7 +328,7 @@ impl<const P: u32> FpVectorP<P> {
     /// Find the index and value of the first non-zero entry of the vector. `None` if the vector is zero.
     pub fn first_nonzero(&self) -> Option<(usize, u32)> {
         let entries_per_limb = limb::entries_per_limb_const::<P>();
-        let bit_length = limb::bit_length::<P>();
+        let bit_length = limb::bit_length_const::<P>();
         let bitmask = limb::bitmask::<P>();
         for (i, &limb) in self.limbs.iter().enumerate() {
             if limb == 0 {
@@ -482,7 +482,7 @@ impl<'a, const P: u32> SliceP<'a, P> {
 impl<'a, const P: u32> SliceP<'a, P> {
     #[inline]
     fn offset(&self) -> usize {
-        let bit_length = limb::bit_length::<P>();
+        let bit_length = limb::bit_length_const::<P>();
         let entries_per_limb = limb::entries_per_limb_const::<P>();
         (self.start % entries_per_limb) * bit_length
     }
@@ -500,7 +500,7 @@ impl<'a, const P: u32> SliceP<'a, P> {
     #[inline(always)]
     fn max_limb_mask(&self) -> Limb {
         let num_entries = 1 + (self.end - 1) % limb::entries_per_limb_const::<P>();
-        let bit_max = num_entries * limb::bit_length::<P>();
+        let bit_max = num_entries * limb::bit_length_const::<P>();
 
         (!0) >> (BITS_PER_LIMB - bit_max)
     }
@@ -823,7 +823,7 @@ impl AddShiftLeftData {
             source.len()
         );
         let offset_shift = source.offset() - target.offset();
-        let bit_length = limb::bit_length::<P>();
+        let bit_length = limb::bit_length_const::<P>();
         let entries_per_limb = limb::entries_per_limb_const::<P>();
         let usable_bits_per_limb = bit_length * entries_per_limb;
         let tail_shift = usable_bits_per_limb - offset_shift;
@@ -893,7 +893,7 @@ impl AddShiftRightData {
             source.len()
         );
         let offset_shift = target.offset() - source.offset();
-        let bit_length = limb::bit_length::<P>();
+        let bit_length = limb::bit_length_const::<P>();
         let entries_per_limb = limb::entries_per_limb_const::<P>();
         let usable_bits_per_limb = bit_length * entries_per_limb;
         let tail_shift = usable_bits_per_limb - offset_shift;
@@ -995,7 +995,7 @@ impl<'a> FpVectorIterator<'a> {
         }
         let pair = limb::limb_bit_index_pair::<P>(vec.start);
 
-        let bit_length = limb::bit_length::<P>();
+        let bit_length = limb::bit_length_const::<P>();
         let cur_limb = limbs[pair.limb] >> pair.bit_index;
 
         let entries_per_limb = limb::entries_per_limb_const::<P>();
@@ -1115,7 +1115,7 @@ impl<'a, const P: u32> FpVectorNonZeroIteratorP<'a, P> {
 impl<'a, const P: u32> Iterator for FpVectorNonZeroIteratorP<'a, P> {
     type Item = (usize, u32);
     fn next(&mut self) -> Option<Self::Item> {
-        let bit_length: usize = limb::bit_length::<P>();
+        let bit_length: usize = limb::bit_length_const::<P>();
         let bitmask: Limb = limb::bitmask::<P>();
         let entries_per_limb: usize = limb::entries_per_limb_const::<P>();
         loop {

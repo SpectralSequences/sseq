@@ -1,9 +1,6 @@
 pub(crate) use crate::constants::Limb;
 
-use crate::{
-    constants::{BITMASKS, BITS_PER_LIMB, BIT_LENGTHS, ENTRIES_PER_LIMB, PRIME_TO_INDEX_MAP},
-    prime::ValidPrime,
-};
+use crate::{constants::BITS_PER_LIMB, prime::ValidPrime};
 
 /// A struct containing the information required to access a specific entry in an array of `Limb`s.
 #[derive(Copy, Clone)]
@@ -13,23 +10,38 @@ pub(crate) struct LimbBitIndexPair {
 }
 
 /// Return the number of bits an element of $\mathbb{F}_P$ occupies in a limb.
-pub(crate) const fn bit_length<const P: u32>() -> usize {
-    BIT_LENGTHS[PRIME_TO_INDEX_MAP[P as usize]]
+pub(crate) const fn bit_length(p: ValidPrime) -> usize {
+    let p = p.value();
+    match p {
+        2 => 1,
+        _ => (32 - (p * (p - 1)).leading_zeros()) as usize,
+    }
 }
 
-/// TODO: Would it be simpler to just compute this at "runtime"? It's going to be inlined anyway.
+/// Return the number of bits an element of $\mathbb{F}_P$ occupies in a limb.
+pub(crate) const fn bit_length_const<const P: u32>() -> usize {
+    match P {
+        2 => 1,
+        _ => (32 - (P * (P - 1)).leading_zeros()) as usize,
+    }
+}
+
+/// If `l` is a limb of elements of $\\mathbb{F}_p$, then `l & bitmask::<P>()` is the value of the
+/// first entry of `l`.
 pub(crate) const fn bitmask<const P: u32>() -> Limb {
-    BITMASKS[PRIME_TO_INDEX_MAP[P as usize]]
+    (1 << bit_length_const::<P>()) - 1
 }
 
 // this function is never called if `odd-primes` is disabled
 #[allow(dead_code)]
+/// The number of elements of $\\mathbb{F}_p$ that fit in a single limb.
 pub(crate) const fn entries_per_limb(p: ValidPrime) -> usize {
-    ENTRIES_PER_LIMB[PRIME_TO_INDEX_MAP[p.value() as usize]]
+    BITS_PER_LIMB / bit_length(p)
 }
 
+/// The number of elements of $\\mathbb{F}_p$ that fit in a single limb.
 pub(crate) const fn entries_per_limb_const<const P: u32>() -> usize {
-    ENTRIES_PER_LIMB[PRIME_TO_INDEX_MAP[P as usize]]
+    BITS_PER_LIMB / bit_length_const::<P>()
 }
 
 pub(crate) const fn limb_bit_index_pair<const P: u32>(idx: usize) -> LimbBitIndexPair {
@@ -40,7 +52,7 @@ pub(crate) const fn limb_bit_index_pair<const P: u32>(idx: usize) -> LimbBitInde
         },
         _ => LimbBitIndexPair {
             limb: idx / entries_per_limb_const::<P>(),
-            bit_index: (idx % entries_per_limb_const::<P>() * bit_length::<P>()),
+            bit_index: (idx % entries_per_limb_const::<P>() * bit_length_const::<P>()),
         },
     }
 }
@@ -100,7 +112,7 @@ pub(crate) fn is_reduced<const P: u32>(limb: Limb) -> bool {
 ///
 /// If these assumptions are violated, the result will be nonsense.
 pub(crate) fn pack<T: Iterator<Item = u32>, const P: u32>(entries: T) -> Limb {
-    let bit_length = bit_length::<P>();
+    let bit_length = bit_length_const::<P>();
     let mut result: Limb = 0;
     let mut shift = 0;
     for entry in entries {
@@ -113,7 +125,7 @@ pub(crate) fn pack<T: Iterator<Item = u32>, const P: u32>(entries: T) -> Limb {
 /// Give an iterator over the entries of `limb`.
 pub(crate) fn unpack<const P: u32>(mut limb: Limb) -> impl Iterator<Item = u32> {
     let entries = entries_per_limb_const::<P>();
-    let bit_length = bit_length::<P>();
+    let bit_length = bit_length_const::<P>();
     let bit_mask = bitmask::<P>();
 
     (0..entries).map(move |_| {
@@ -124,7 +136,7 @@ pub(crate) fn unpack<const P: u32>(mut limb: Limb) -> impl Iterator<Item = u32> 
 }
 
 /// Return the number of limbs required to hold `dim` entries.
-pub(crate) fn number<const P: u32>(dim: usize) -> usize {
+pub(crate) const fn number<const P: u32>(dim: usize) -> usize {
     // debug_assert!(dim < MAX_LEN);
     if dim == 0 {
         0
@@ -136,7 +148,7 @@ pub(crate) fn number<const P: u32>(dim: usize) -> usize {
 /// Return the pair of usizes `(min, max)` such that `min..max` is the range starting at the index
 /// of the limb containing the `start`th entry, and ending at the index of the limb containing the
 /// `end`th entry (including the latter).
-pub(crate) fn range<const P: u32>(start: usize, end: usize) -> (usize, usize) {
+pub(crate) const fn range<const P: u32>(start: usize, end: usize) -> (usize, usize) {
     let min = limb_bit_index_pair::<P>(start).limb;
     let max = if end > 0 {
         limb_bit_index_pair::<P>(end - 1).limb + 1

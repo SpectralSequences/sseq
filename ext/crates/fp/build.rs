@@ -17,22 +17,6 @@ fn main() -> Result<(), Error> {
 
     let bytes_per_limb = std::mem::size_of::<Limb>();
     let bits_per_limb = 8 * bytes_per_limb;
-    // let max_len = 147500;
-
-    let mut bit_lengths = vec![0; num_primes];
-    bit_lengths[0] = 1;
-    for i in 1..num_primes {
-        let p = primes[i];
-        bit_lengths[i] = (32 - (p * (p - 1)).leading_zeros()) as usize;
-    }
-
-    let bitmasks = (0..num_primes)
-        .map(|i| (1 << bit_lengths[i]) - 1)
-        .collect::<Vec<Limb>>();
-
-    let entries_per_limb = (0..num_primes)
-        .map(|i| bits_per_limb / bit_lengths[i])
-        .collect::<Vec<usize>>();
 
     let mut writer = ConstWriter::for_build("constants")?.finish_dependencies();
 
@@ -67,17 +51,6 @@ fn main() -> Result<(), Error> {
     writer.add_value("BYTES_PER_LIMB", "usize", bytes_per_limb);
     writer.add_raw("/// The number of bits each `Limb` occupies.");
     writer.add_value("BITS_PER_LIMB", "usize", bits_per_limb);
-    // writer.add_value("MAX_LEN", "usize", max_len);
-
-    writer.add_raw("/// The number of bits an element of $\\mathbb{F}_p$ occupies in a limb.");
-    writer.add_array("BIT_LENGTHS", "usize", &bit_lengths);
-    writer.add_raw(
-        "/// If `l` is a limb of elements of $\\mathbb{F}_p$, then `l & BITMASKS[p]` is the value",
-    );
-    writer.add_raw("/// of the first entry of `l`.");
-    writer.add_array("BITMASKS", "Limb", &bitmasks);
-    writer.add_raw("/// The number of elements of $\\mathbb{F}_p$ that fit in a single limb.");
-    writer.add_array("ENTRIES_PER_LIMB", "usize", &entries_per_limb);
 
     Ok(())
 }
