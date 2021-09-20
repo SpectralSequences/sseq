@@ -42,32 +42,10 @@ fn random_vector(p: ValidPrime, dimension: usize) -> FpVector {
     FpVector::from_slice(p, &result)
 }
 
-// fn vector_add(c: &mut Criterion) {
-//     c.bench_function("add_no_simd", |b| {
-//         b.iter_batched_ref(
-//             || (random_vector(10000), random_vector(10000)),
-//             |(vec, other)| {
-//                 vec.add_nosimd(other, 1);
-//             },
-//             BatchSize::SmallInput,
-//         );
-//     });
-//     c.bench_function("add_simd", |b| {
-//         b.iter_batched_ref(
-//             || (random_vector(10000), random_vector(10000)),
-//             |(vec, other)| {
-//                 vec.add(other, 1);
-//             },
-//             BatchSize::SmallInput,
-//         );
-//     });
-// }
-
 criterion_group! {
     name = row_reduction;
     config = Criterion::default().sample_size(100).measurement_time(Duration::from_secs(100));
     targets = row_reductions
 }
-// criterion_group!(add, vector_add);
 
 criterion_main!(row_reduction);

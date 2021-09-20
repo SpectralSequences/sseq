@@ -137,7 +137,6 @@ pub(crate) fn unpack<const P: u32>(mut limb: Limb) -> impl Iterator<Item = u32> 
 
 /// Return the number of limbs required to hold `dim` entries.
 pub(crate) const fn number<const P: u32>(dim: usize) -> usize {
-    // debug_assert!(dim < MAX_LEN);
     if dim == 0 {
         0
     } else {

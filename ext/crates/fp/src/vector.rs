@@ -419,8 +419,7 @@ impl Load for FpVector {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::limb::sign_rule;
-    // use crate::vector_inner::limb;
+    use crate::limb;
     use rand::Rng;
     use rstest::rstest;
 
@@ -653,7 +652,6 @@ mod test {
         }
 
         fn test_add_slice_to_slice(p: ValidPrime, dim: usize, slice_start: usize, slice_end: usize) {
-            eprintln!("slice_start: {}, slice_end: {}", slice_start, slice_end);
             let mut v_arr = random_vector(p, dim);
             let w_arr = random_vector(p, dim);
 
@@ -937,10 +935,10 @@ mod test {
 
     #[test]
     fn test_sign_rule_limb() {
-        assert!(sign_rule(1, 0b10) == 1);
-        assert!(sign_rule(0b10, 1) == 0);
-        assert!(sign_rule(0x84012c02, 0x6b920241) == 1);
-        assert!(sign_rule(0x6b920241, 0x84012c02) == 0);
+        assert!(limb::sign_rule(1, 0b10) == 1);
+        assert!(limb::sign_rule(0b10, 1) == 0);
+        assert!(limb::sign_rule(0x84012c02, 0x6b920241) == 1);
+        assert!(limb::sign_rule(0x6b920241, 0x84012c02) == 0);
     }
 
     #[test]
