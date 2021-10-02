@@ -1,10 +1,10 @@
-use fp::prime::*;
 use fp::vector::FpVector;
 use once::OnceVec;
 
-use fp::const_for;
+use fp::prime::{minus_one_to_the_n, Binomial, ValidPrime};
+use fp::{const_for, MAX_MULTINOMIAL_LEN, NUM_PRIMES, PRIMES, PRIME_TO_INDEX_MAP};
 
-pub const MAX_XI_TAU: usize = fp::prime::MAX_MULTINOMIAL_LEN;
+pub const MAX_XI_TAU: usize = MAX_MULTINOMIAL_LEN;
 
 /// If p is the nth prime, then `XI_DEGREES[n][i - 1]` is the degree of $ξ_i$ at the prime p divided by
 /// q, where q = 2p - 2 if p != 2 and 1 if p = 2.
@@ -321,7 +321,6 @@ mod tests {
     #[test]
     fn test_trunc_poly_partitions() {
         let p = ValidPrime::new(3);
-        fp::vector::initialize_limb_bit_index_table(p);
         let tp = TruncatedPolynomialMonomialBasis::new(p);
         tp.add_gens_and_calculate_parts(1, 2);
         tp.add_gens_and_calculate_parts(2, 1);
@@ -343,7 +342,6 @@ mod tests {
     #[test]
     fn test_trunc_poly_partitions2() {
         let p = ValidPrime::new(2);
-        fp::vector::initialize_limb_bit_index_table(p);
         let tp = TruncatedPolynomialMonomialBasis::new(p);
         tp.add_gens_and_calculate_parts(1, 0);
         tp.add_gens_and_calculate_parts(2, 0);

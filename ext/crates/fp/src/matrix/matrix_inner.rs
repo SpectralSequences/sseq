@@ -9,10 +9,6 @@ use std::ops::{Index, IndexMut};
 /// A matrix! In particular, a matrix with values in F_p. The way we store matrices means it is
 /// easier to perform row operations than column operations, and the way we use matrices means we
 /// want our matrices to act on the right. Hence we think of vectors as row vectors.
-///
-/// In general, before one uses a matrix, they must run
-/// `fp_vector::initialize_limb_bit_index_table(p)`. This only has to be done once and will be
-/// omitted from all examples.
 #[derive(Clone)]
 pub struct Matrix {
     p: ValidPrime,
@@ -119,7 +115,6 @@ impl Matrix {
     /// # use fp::prime::ValidPrime;
     /// let p = ValidPrime::new(7);
     /// # use fp::matrix::Matrix;
-    /// # fp::vector::initialize_limb_bit_index_table(p);
     /// let input  = [vec![1, 3, 6],
     ///               vec![0, 3, 4]];
     ///
@@ -154,7 +149,6 @@ impl Matrix {
     /// let p = ValidPrime::new(7);
     /// # use fp::matrix::Matrix;
     /// # use fp::vector::FpVector;
-    /// # fp::vector::initialize_limb_bit_index_table(p);
     /// let input  = [vec![1, 3, 6],
     ///               vec![0, 3, 4]];
     ///
@@ -406,9 +400,6 @@ impl Matrix {
     /// that `column_to_pivot_row[i]` is the row of the pivot if the `i`th row contains a pivot,
     /// and `-1` otherwise.
     ///
-    /// One has to call `fp_vector::initialize_limb_bit_index_table(p)`. This step will be skipped in
-    /// future examples.
-    ///
     /// # Returns
     /// The number of non-empty rows in the matrix
     ///
@@ -417,11 +408,10 @@ impl Matrix {
     ///  should be at least as long as the number of columns (and the extra entries are ignored).
     ///
     /// # Example
-    /// `#`#`
+    /// ```
     /// # use fp::prime::ValidPrime;
     /// let p = ValidPrime::new(7);
     /// # use fp::matrix::Matrix;
-    /// # fp::vector::initialize_limb_bit_index_table(p);
     ///
     /// let input  = [vec![1, 3, 6],
     ///               vec![0, 3, 4]];
@@ -433,7 +423,7 @@ impl Matrix {
     /// m.row_reduce();
     ///
     /// assert_eq!(m, Matrix::from_vec(p, &result));
-    /// `#`#`
+    /// ```
     pub fn row_reduce(&mut self) -> usize {
         let p = self.p;
         self.initialize_pivots();
@@ -545,7 +535,6 @@ impl Matrix {
     /// let p = ValidPrime::new(3);
     /// # use fp::matrix::Matrix;
     /// # use fp::vector::FpVector;
-    /// # fp::vector::initialize_limb_bit_index_table(p);
     /// let input  = [vec![1, 2, 1, 1, 0],
     ///               vec![1, 0, 2, 1, 1],
     ///               vec![2, 2, 0, 2, 1]];
@@ -589,7 +578,6 @@ impl Matrix {
     /// let p = ValidPrime::new(3);
     /// # use fp::matrix::Matrix;
     /// # use fp::vector::FpVector;
-    /// # fp::vector::initialize_limb_bit_index_table(p);
     /// let input  = [vec![1, 2, 1, 1, 0],
     ///               vec![1, 0, 2, 1, 1],
     ///               vec![2, 2, 0, 2, 1]];
@@ -641,7 +629,6 @@ impl Matrix {
     /// let p = ValidPrime::new(3);
     /// # use fp::matrix::Matrix;
     /// # use fp::vector::FpVector;
-    /// # fp::vector::initialize_limb_bit_index_table(p);
     /// let input  = [vec![1, 2, 1, 1, 0],
     ///               vec![1, 0, 2, 1, 1],
     ///               vec![2, 2, 0, 2, 1]];
@@ -785,24 +772,21 @@ impl Matrix {
     /// Applies a matrix to a vector.
     ///
     /// # Example
-    /// #`#`#`
+    /// ```
     /// # use fp::prime::ValidPrime;
     /// let p = ValidPrime::new(7);
     /// # use fp::matrix::Matrix;
-    /// # use fp::vector::{FpVector, FpVectorT};
-    /// # fp::vector::initialize_limb_bit_index_table(p);
+    /// # use fp::vector::FpVector;
     /// let input  = [vec![1, 3, 6],
     ///               vec![0, 3, 4]];
     ///
     /// let m = Matrix::from_vec(p, &input);
-    /// let mut v = FpVector::new(p, 2);
-    /// v.pack(&vec![3, 1]);
+    /// let v = FpVector::from_slice(p, &vec![3, 1]);
     /// let mut result = FpVector::new(p, 3);
-    /// let mut desired_result = FpVector::new(p, 3);
-    /// desired_result.pack(&vec![3, 5, 1]);
-    /// m.apply(&mut result, 1, &v);
+    /// let desired_result = FpVector::from_slice(p, &vec![3, 5, 1]);
+    /// m.apply(result.as_slice_mut(), 1, v.as_slice());
     /// assert_eq!(result, desired_result);
-    /// `#`#`
+    /// ```
     pub fn apply(&self, mut result: SliceMut, coeff: u32, input: Slice) {
         debug_assert_eq!(input.len(), self.rows());
         for i in 0..input.len() {

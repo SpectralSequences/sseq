@@ -148,8 +148,6 @@ impl std::fmt::Display for MilnorAlgebra {
 
 impl MilnorAlgebra {
     pub fn new(p: ValidPrime) -> Self {
-        fp::vector::initialize_limb_bit_index_table(p);
-
         let profile = MilnorProfile {
             truncated: false,
             q_part: !0,

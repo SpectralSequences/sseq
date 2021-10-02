@@ -58,7 +58,7 @@ macro_rules! impl_num {
     }
 }
 
-impl_num!(i32, i64, isize, u32, u64, usize);
+impl_num!(i32, i64, i128, isize, u32, u64, u128, usize);
 
 impl<T: Save> Save for Vec<T> {
     fn save(&self, buffer: &mut impl Write) -> io::Result<()> {

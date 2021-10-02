@@ -1,11 +1,9 @@
 //! This module replaces `vector` when `odd-primes` is disabled. Instead of producing enum
 //! wrappers, it simply rexports `FooP<2>` as `Foo`.
 
+use crate::limb::{entries_per_limb_const, Limb};
 use crate::prime::ValidPrime;
-pub use crate::vector_inner::initialize_limb_bit_index_table;
-use crate::vector_inner::{
-    entries_per_limb, FpVectorNonZeroIteratorP, FpVectorP, Limb, SliceMutP, SliceP,
-};
+use crate::vector_inner::{FpVectorNonZeroIteratorP, FpVectorP, SliceMutP, SliceP};
 use itertools::Itertools;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -28,8 +26,8 @@ impl FpVector {
         Self::from(&slice)
     }
 
-    pub fn padded_len(p: ValidPrime, len: usize) -> usize {
-        let entries_per_limb = entries_per_limb(p);
+    pub fn padded_len(_p: ValidPrime, len: usize) -> usize {
+        let entries_per_limb = entries_per_limb_const::<2>();
         ((len + entries_per_limb - 1) / entries_per_limb) * entries_per_limb
     }
 }
@@ -109,7 +107,7 @@ impl Load for FpVector {
             return Ok(FpVector::new(p, 0));
         }
 
-        let entries_per_limb = entries_per_limb(p);
+        let entries_per_limb = entries_per_limb_const::<2>();
         let num_limbs = (len - 1) / entries_per_limb + 1;
         let mut v = FpVector::new(p, len);
 

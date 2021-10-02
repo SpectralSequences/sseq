@@ -6,11 +6,11 @@
 //! functions around the `FpVectorP` functions.
 //!
 //! This module is only used when the `odd-primes` feature is enabled.
+
+use crate::limb::{entries_per_limb, Limb};
 use crate::prime::ValidPrime;
-pub use crate::vector_inner::initialize_limb_bit_index_table;
 use crate::vector_inner::{
-    entries_per_limb, FpVectorIterator, FpVectorNonZeroIteratorP, FpVectorP, Limb, SliceMutP,
-    SliceP,
+    FpVectorIterator, FpVectorNonZeroIteratorP, FpVectorP, SliceMutP, SliceP,
 };
 use itertools::Itertools;
 #[cfg(feature = "json")]
@@ -207,7 +207,9 @@ impl FpVector {
         pub fn assign(&mut self, other: &Self);
         pub fn assign_partial(&mut self, other: &Self);
         pub fn add(&mut self, other: &Self, c: u32);
+        pub fn add_nosimd(&mut self, other: &Self, c: u32);
         pub fn add_offset(&mut self, other: &Self, c: u32, offset: usize);
+        pub fn add_offset_nosimd(&mut self, other: &Self, c: u32, offset: usize);
         pub fn slice(&self, start: usize, end: usize) -> (dispatch Slice);
         pub fn as_slice(&self) -> (dispatch Slice);
         pub fn slice_mut(&mut self, start: usize, end: usize) -> (dispatch SliceMut);
@@ -417,7 +419,7 @@ impl Load for FpVector {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::vector_inner::limb;
+    use crate::limb;
     use rand::Rng;
     use rstest::rstest;
 
@@ -508,7 +510,6 @@ mod test {
             #[trace]
             fn $name(#[values(2, 3, 5, 7)] p: u32) {
                 let $p = ValidPrime::new(p);
-                initialize_limb_bit_index_table($p);
 
                 $body
             }
@@ -519,7 +520,6 @@ mod test {
             #[trace]
             fn $name(#[values(2, 3, 5, 7)] p: u32, #[values(10, 20, 70, 100, 1000)] $dim: usize) {
                 let $p = ValidPrime::new(p);
-                initialize_limb_bit_index_table($p);
 
                 $body
             }
@@ -530,7 +530,6 @@ mod test {
             #[trace]
             fn $name(#[values(2, 3, 5, 7)] p: u32, #[values(10, 20, 70, 100, 1000)] $dim: usize) {
                 let $p = ValidPrime::new(p);
-                initialize_limb_bit_index_table($p);
 
                 let $slice_start = match $dim {
                     10 => 5,
@@ -863,7 +862,6 @@ mod test {
     #[trace]
     fn test_add_carry(#[values(2)] p: u32, #[values(10, 20, 70, 100, 1000)] dim: usize) {
         let p = ValidPrime::new(p);
-        initialize_limb_bit_index_table(p);
         const E_MAX: usize = 4;
         let pto_the_e_max = (*p * *p * *p * *p) * *p;
         let mut v = Vec::with_capacity(E_MAX + 1);

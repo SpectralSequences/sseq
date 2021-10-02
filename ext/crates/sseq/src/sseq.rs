@@ -370,7 +370,6 @@ mod tests {
     #[allow(clippy::cognitive_complexity)]
     fn test_sseq_differential() {
         let p = ValidPrime::new(3);
-        fp::vector::initialize_limb_bit_index_table(p);
         let mut sseq = Sseq::<Adams>::new(p, 0, 0);
         sseq.set_dimension(0, 0, 1);
         sseq.set_dimension(1, 0, 2);
@@ -664,7 +663,6 @@ mod tests {
     #[test]
     fn test_sseq_differential_2() {
         let p = ValidPrime::new(2);
-        fp::vector::initialize_limb_bit_index_table(p);
         let mut sseq = Sseq::<Adams>::new(p, 0, 0);
 
         sseq.set_dimension(0, 0, 0);

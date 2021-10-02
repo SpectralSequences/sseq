@@ -27,7 +27,8 @@ chart = { path = "crates/chart" }
 
 [dev-dependencies]
 expect-test = "1.1.0"
-rstest = "0.10.0"
+rstest = "0.11.0"
+iai = "0.1.1"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -50,6 +51,10 @@ members = [
     "crates/chart",
     "crates/sseq",
 ]
+
+[[bench]]
+name = "iai"
+harness = false
 
 [[bench]]
 name = "resolve"

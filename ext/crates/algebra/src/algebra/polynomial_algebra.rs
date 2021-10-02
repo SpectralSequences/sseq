@@ -39,18 +39,10 @@ impl PolynomialAlgebraMonomial {
     }
 }
 
+#[derive(Default)]
 pub struct PolynomialAlgebraTableEntry {
     pub index_to_monomial: Vec<PolynomialAlgebraMonomial>, // degree -> index -> AdemBasisElement
     pub monomial_to_index: HashMap<PolynomialAlgebraMonomial, usize>, // degree -> AdemBasisElement -> index
-}
-
-impl Default for PolynomialAlgebraTableEntry {
-    fn default() -> Self {
-        Self {
-            index_to_monomial: Vec::new(),
-            monomial_to_index: HashMap::default(),
-        }
-    }
 }
 
 impl PolynomialAlgebraTableEntry {

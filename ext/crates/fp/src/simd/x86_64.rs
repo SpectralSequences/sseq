@@ -1,6 +1,8 @@
 #[allow(unused_imports)]
 use std::arch::x86_64;
 
+use crate::limb::Limb;
+
 cfg_if::cfg_if! {
     if #[cfg(target_feature="avx512f")] {
         pub(crate) type SimdLimb = x86_64::__m512i;
@@ -11,11 +13,11 @@ cfg_if::cfg_if! {
     } else if #[cfg(target_feature="sse2")] {
         pub(crate) type SimdLimb = x86_64::__m128i;
     } else {
-        pub(crate) type SimdLimb = u64;
+        pub(crate) type SimdLimb = Limb;
     }
 }
 
-pub(crate) unsafe fn load(limb: *const u64) -> SimdLimb {
+pub(crate) unsafe fn load(limb: *const Limb) -> SimdLimb {
     cfg_if::cfg_if! {
         if #[cfg(target_feature="avx512f")] {
             x86_64::_mm512_loadu_si512(limb as *const i32)
@@ -31,7 +33,7 @@ pub(crate) unsafe fn load(limb: *const u64) -> SimdLimb {
     }
 }
 
-pub(crate) unsafe fn store(limb: *mut u64, val: SimdLimb) {
+pub(crate) unsafe fn store(limb: *mut Limb, val: SimdLimb) {
     cfg_if::cfg_if! {
         if #[cfg(target_feature="avx512f")] {
             x86_64::_mm512_storeu_si512(limb as *mut i32, val);

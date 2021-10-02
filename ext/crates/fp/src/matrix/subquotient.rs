@@ -152,7 +152,6 @@ mod test {
     #[test]
     fn test_add_gen() {
         let p = ValidPrime::new(3);
-        crate::vector::initialize_limb_bit_index_table(p);
 
         let mut sq = Subquotient::new(p, 5);
         sq.quotient(FpVector::from_slice(p, &[1, 1, 0, 0, 1]).as_slice());
