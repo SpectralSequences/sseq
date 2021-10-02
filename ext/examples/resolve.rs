@@ -14,7 +14,6 @@
 //! ·
 //! ```
 //!
-use algebra::Algebra;
 use ext::chain_complex::{ChainComplex, FreeChainComplex};
 use ext::utils::construct;
 use saveload::Save;
@@ -40,9 +39,6 @@ fn main() -> error::Result {
 
     println!("{}", res.graded_dimension_string());
 
-    for i in 0..20 {
-        println!("{}", res.algebra().dimension(i, 0));
-    }
     if let Some(file) = save_file {
         let mut file = std::io::BufWriter::new(file);
         res.save(&mut file)?;
