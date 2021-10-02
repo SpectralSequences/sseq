@@ -181,7 +181,7 @@ impl<A: JsonAlgebra> FinitelyPresentedModule<A> {
                 op_gen.operation_degree + op_gen.generator_degree
             })
             .max()
-            .unwrap();
+            .unwrap_or(min_degree - 1);
         let mut relations_by_degree = BiVec::with_capacity(min_degree, max_relation_degree + 1);
         for _ in min_degree..=max_relation_degree {
             relations_by_degree.push(Vec::new());
