@@ -1,1 +1,1 @@
-initSidebarItems({"enum":[["FpVector",""],["FpVectorNonZeroIterator",""],["Slice",""],["SliceMut",""]]});
+initSidebarItems({"enum":[["FpVector",""],["FpVectorNonZeroIterator",""],["Slice",""],["SliceMut",""]],"macro":[["dispatch_vector",""],["dispatch_vector_inner",""],["impl_try_into",""],["match_p",""]]});

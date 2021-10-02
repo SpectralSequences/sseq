@@ -1,1 +1,1 @@
-initSidebarItems({"enum":[["AlgebraType",""],["SteenrodAlgebra",""],["SteenrodAlgebraBorrow",""]],"struct":[["AlgebraSpec",""],["MilnorProfileOption",""]],"trait":[["SteenrodAlgebraT",""]]});
+initSidebarItems({"enum":[["AlgebraType",""],["SteenrodAlgebra",""],["SteenrodAlgebraBorrow",""]],"macro":[["dispatch_steenrod",""]],"struct":[["AlgebraSpec",""],["MilnorProfileOption",""]],"trait":[["SteenrodAlgebraT",""]]});
