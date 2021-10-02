@@ -272,9 +272,10 @@ impl<CC: ChainComplex> Resolution<CC> {
     }
 
     pub fn set_unit_resolution(&mut self, unit_res: Resolution<CC>) {
-        if !self.chain_maps_to_unit_resolution.is_empty() {
-            panic!("Cannot change unit resolution after you start computing products");
-        }
+        assert!(
+            self.chain_maps_to_unit_resolution.is_empty(),
+            "Cannot change unit resolution after you start computing products"
+        );
         self.unit_resolution = UnitResolution::Some(Box::new(unit_res));
     }
 

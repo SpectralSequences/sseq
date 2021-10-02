@@ -6,7 +6,7 @@ use serde_json::json;
 use std::sync::Arc;
 
 fn main() -> error::Result {
-    let left = query::with_default("Left module", "S_2", |name| parse_module_name(name));
+    let left = query::with_default("Left module", "S_2", parse_module_name);
     let p = left["p"].as_u64().unwrap();
 
     let right = query::with_default("Right module", "S_2", |name| {

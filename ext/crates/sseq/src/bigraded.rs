@@ -43,15 +43,14 @@ impl DenseBigradedModule {
 
     /// This can only be set when bidegrees to the left and bottom of (x, y) have been set.
     pub fn set_dimension(&self, x: i32, y: i32, dim: usize) {
-        if x > self.dimensions.len() {
-            panic!(
-                "Cannot set dimension at ({}, {}) before ({}, {}).",
-                x,
-                y,
-                x - 1,
-                y
-            );
-        }
+        assert!(
+            x <= self.dimensions.len(),
+            "Cannot set dimension at ({}, {}) before ({}, {}).",
+            x,
+            y,
+            x - 1,
+            y
+        );
         if x == self.dimensions.len() {
             self.dimensions
                 .push_checked(OnceBiVec::new(self.min_y()), x);

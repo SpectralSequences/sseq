@@ -270,12 +270,12 @@ impl<T> Index<usize> for OnceVec<T> {
     type Output = T;
     fn index(&self, index: usize) -> &T {
         let len = self.len();
-        if index >= len {
-            panic!(
-                "Index out of bounds: the len is {} but the index is {}",
-                len, index
-            );
-        }
+        assert!(
+            index < len,
+            "Index out of bounds: the len is {} but the index is {}",
+            len,
+            index
+        );
         let (page, index) = Self::inner_index(index);
         unsafe { self.get_inner().get_unchecked(page).get_unchecked(index) }
     }
@@ -284,12 +284,12 @@ impl<T> Index<usize> for OnceVec<T> {
 impl<T> IndexMut<usize> for OnceVec<T> {
     fn index_mut(&mut self, index: usize) -> &mut T {
         let len = self.len();
-        if index >= len {
-            panic!(
-                "Index out of bounds: the len is {} but the index is {}",
-                len, index
-            );
-        }
+        assert!(
+            index < len,
+            "Index out of bounds: the len is {} but the index is {}",
+            len,
+            index
+        );
         let (page, index) = Self::inner_index(index);
         unsafe {
             (*self.data.get())

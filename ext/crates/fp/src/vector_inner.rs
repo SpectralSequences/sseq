@@ -380,7 +380,7 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
     #[inline]
     pub fn copy(&mut self) -> SliceMutP<'_, P> {
         SliceMutP {
-            limbs: &mut self.limbs,
+            limbs: self.limbs,
             start: self.start,
             end: self.end,
         }
