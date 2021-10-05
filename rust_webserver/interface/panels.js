@@ -632,9 +632,9 @@ function* mainPanel(sseq) {
     if (sseq.isUnit) {
         yield createSpacer();
         yield createButton('Add Product', () => {
-            const [x, y] = this.display.selected;
-            const num = this.display.sseq.getClasses(x, y, MIN_PAGE).length;
-            this.display.sseq.addProductInteractive(x, y, num);
+            const [x, y] = sseq.selected;
+            const num = sseq.getClasses(x, y, MIN_PAGE).length;
+            sseq.addProductInteractive(x, y, num);
         });
     }
 }
