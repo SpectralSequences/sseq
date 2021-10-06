@@ -574,6 +574,19 @@ mod test {
             v.assert_list_eq(&v_arr);
         }
 
+        fn test_scale_slice(p: ValidPrime, dim: usize, slice_start: usize, slice_end: usize) {
+            let mut v_arr = random_vector(p, dim);
+            let mut rng = rand::thread_rng();
+            let c = rng.gen::<u32>() % *p;
+
+            let mut v = FpVector::from_slice(p, &v_arr);
+            v.slice_mut(slice_start, slice_end).scale(c);
+            for entry in &mut v_arr[slice_start .. slice_end] {
+                *entry = (*entry * c) % *p;
+            }
+            v.assert_list_eq(&v_arr);
+        }
+
         fn test_entry(p: ValidPrime, dim: usize) {
             let v_arr = random_vector(p, dim);
             let v = FpVector::from_slice(p, &v_arr);
