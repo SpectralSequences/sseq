@@ -492,7 +492,7 @@ impl<'a, const P: u32> SliceP<'a, P> {
     #[inline]
     fn limb_range_inner(&self) -> Range<usize> {
         let range = self.limb_range();
-        (range.start + 1)..(range.end - 1)
+        (range.start + 1)..(range.end.saturating_sub(1))
     }
 
     #[inline(always)]
@@ -570,16 +570,18 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
         let limb = self.limbs[limb_range.start];
         let masked_limb = limb & min_mask;
         let rest_limb = limb & !min_mask;
-        self.limbs[limb_range.end - 1] = (masked_limb * c) | rest_limb;
+        self.limbs[limb_range.start] = (masked_limb * c) | rest_limb;
 
         let inner_range = self.as_slice().limb_range_inner();
         for limb in &mut self.limbs[inner_range] {
             *limb *= c;
         }
-        let full_limb = self.limbs[limb_range.end - 1];
-        let masked_limb = full_limb & max_mask;
-        let rest_limb = full_limb & !max_mask;
-        self.limbs[limb_range.end - 1] = (masked_limb * c) | rest_limb;
+        if limb_range.len() > 1 {
+            let full_limb = self.limbs[limb_range.end - 1];
+            let masked_limb = full_limb & max_mask;
+            let rest_limb = full_limb & !max_mask;
+            self.limbs[limb_range.end - 1] = (masked_limb * c) | rest_limb;
+        }
         self.reduce_limbs();
     }
 
