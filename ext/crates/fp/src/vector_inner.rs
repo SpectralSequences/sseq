@@ -573,8 +573,10 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
         self.limbs[limb_range.start] = (masked_limb * c) | rest_limb;
 
         let inner_range = self.as_slice().limb_range_inner();
-        for limb in &mut self.limbs[inner_range] {
-            *limb *= c;
+        if !inner_range.is_empty() {
+            for limb in &mut self.limbs[inner_range] {
+                *limb *= c;
+            }
         }
         if limb_range.len() > 1 {
             let full_limb = self.limbs[limb_range.end - 1];
