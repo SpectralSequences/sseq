@@ -564,6 +564,13 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
     }
 
     pub fn scale(&mut self, c: u32) {
+        if P == 2 {
+            if c == 0 {
+                self.set_to_zero();
+            }
+            return;
+        }
+
         let c = c as Limb;
         let limb_range = self.as_slice().limb_range();
         if limb_range.is_empty() {
