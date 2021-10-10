@@ -489,6 +489,10 @@ impl<'a, const P: u32> SliceP<'a, P> {
         limb::range::<P>(self.start, self.end)
     }
 
+    /// This function underflows if `self.end == 0`, which happens if and only if we are taking a
+    /// slice of width 0 at the start of an `FpVector`. This should be a very rare edge case.
+    /// Dealing with the underflow properly would probably require using `saturating_sub` or
+    /// something of that nature, and that has a nontrivial (10%) performance hit.
     #[inline]
     fn limb_range_inner(&self) -> Range<usize> {
         let range = self.limb_range();
