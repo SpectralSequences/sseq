@@ -12,7 +12,7 @@ use bivec::BiVec;
 use fp::prime::ValidPrime;
 use fp::vector::FpVector;
 
-pub fn get_gens() -> error::Result<BiVec<Vec<String>>> {
+pub fn get_gens() -> anyhow::Result<BiVec<Vec<String>>> {
     // Query for generators
     eprintln!("Input generators. Press return to finish.");
     stderr().flush()?;
@@ -133,7 +133,7 @@ pub fn interactive_module_define_fdmodule(
     p: ValidPrime,
     generic: bool,
     name: String,
-) -> error::Result {
+) -> anyhow::Result<()> {
     let algebra = Arc::new(SteenrodAlgebra::AdemAlgebra(AdemAlgebra::new(
         p, generic, false, false,
     )));
@@ -220,7 +220,7 @@ pub fn interactive_module_define_fpmodule(
     p: ValidPrime,
     generic: bool,
     name: String,
-) -> error::Result {
+) -> anyhow::Result<()> {
     output_json["type"] = Value::from("finitely presented module");
 
     let gens = get_gens()?;
@@ -321,7 +321,7 @@ pub fn interactive_module_define_fpmodule(
     Ok(())
 }
 
-fn main() -> error::Result {
+fn main() -> anyhow::Result<()> {
     let module_type = query::with_default(
         "Input module type (default 'finite dimensional module'):\n (fd) - finite dimensional module \n (fp) - finitely presented module\n",
         "fd",

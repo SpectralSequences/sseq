@@ -11,13 +11,13 @@ resolver = "2"
 [dependencies]
 algebra = { path = "crates/algebra", default-features = false, features = ["json"] }
 bivec = { path = "crates/bivec"}
-error = { path = "crates/error"}
 fp = { path = "crates/fp", default-features = false }
 once = { path = "crates/once"}
 query = { path = "crates/query" }
 saveload = { path = "crates/saveload" }
 thread-token = { path = "crates/thread-token", optional = true }
 
+anyhow = "1.0.0"
 crossbeam-channel = { version = "0.5.0", optional = true }
 crossbeam-utils = { version = "0.8.0", optional = true }
 rustc-hash = "1.1.0"
@@ -47,7 +47,6 @@ members = [
     "crates/once",
     "crates/saveload",
     "crates/thread-token",
-    "crates/error",
     "crates/chart",
     "crates/sseq",
 ]

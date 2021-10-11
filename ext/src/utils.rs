@@ -4,6 +4,8 @@ use crate::CCC;
 use algebra::module::{FiniteModule, Module};
 use algebra::{AlgebraType, SteenrodAlgebra};
 use saveload::Load;
+
+use anyhow::{anyhow, Context};
 use serde_json::Value;
 
 use std::convert::{TryFrom, TryInto};
@@ -22,35 +24,43 @@ pub struct Config {
     pub algebra: AlgebraType,
 }
 
-pub fn parse_module_name(module_name: &str) -> error::Result<Value> {
+pub fn parse_module_name(module_name: &str) -> anyhow::Result<Value> {
     let mut args = module_name.split('[');
-    let mut module = load_module_json(args.next().unwrap())?;
+    let module_file = args.next().unwrap();
+    let mut module = load_module_json(module_file)
+        .with_context(|| format!("Failed to load module file {}", module_file))?;
     if let Some(shift) = args.next() {
         let shift: i64 = match shift.strip_suffix(']') {
-            None => error::from_string(format!("Invalid module name: {}", module_name))?,
-            Some(x) => x.parse()?,
+            None => return Err(anyhow!("Unterminated shift [")),
+            Some(x) => x
+                .parse()
+                .with_context(|| format!("Cannot parse shift value ({}) as an integer", x))?,
         };
-        let gens = module["gens"].as_object_mut().unwrap();
-        for entry in gens.into_iter() {
-            *entry.1 = (entry.1.as_i64().unwrap() + shift).into()
+        if let Some(gens) = module["gens"].as_object_mut() {
+            for entry in gens.into_iter() {
+                *entry.1 = (entry.1.as_i64().unwrap() + shift).into()
+            }
         }
     }
     Ok(module)
 }
 
 impl TryFrom<&str> for Config {
-    type Error = error::Error;
+    type Error = anyhow::Error;
 
     fn try_from(spec: &str) -> Result<Self, Self::Error> {
         let mut args = spec.split('@');
         let module_name = args.next().unwrap();
         let algebra = match args.next() {
-            Some(x) => x.parse()?,
+            Some(x) => x
+                .parse()
+                .with_context(|| format!("Invalid algebra type: {}", x))?,
             None => AlgebraType::Adem,
         };
 
         Ok(Config {
-            module: parse_module_name(module_name)?,
+            module: parse_module_name(module_name)
+                .with_context(|| format!("Failed to load module: {}", module_name))?,
             algebra,
         })
     }
@@ -58,10 +68,10 @@ impl TryFrom<&str> for Config {
 
 impl<T, E> TryFrom<(&str, T)> for Config
 where
-    error::Error: From<E>,
+    anyhow::Error: From<E>,
     T: TryInto<AlgebraType, Error = E>,
 {
-    type Error = error::Error;
+    type Error = anyhow::Error;
 
     fn try_from(mut spec: (&str, T)) -> Result<Self, Self::Error> {
         let algebra = spec.1.try_into()?;
@@ -69,10 +79,7 @@ where
             if spec.0.ends_with(&*algebra.to_string()) {
                 spec.0 = &spec.0[0..spec.0.len() - algebra.to_string().len() - 1];
             } else {
-                return error::from_string(format!(
-                    "Invalid algebra supplied. Must be {}",
-                    algebra
-                ))?;
+                return Err(anyhow!("Invalid algebra supplied. Must be {}", algebra));
             }
         }
         Ok(Config {
@@ -112,9 +119,9 @@ impl<T: TryInto<AlgebraType>> TryFrom<(Value, T)> for Config {
 pub fn construct<T, E>(
     module_spec: T,
     mut save_file: Option<File>,
-) -> error::Result<Resolution<CCC>>
+) -> anyhow::Result<Resolution<CCC>>
 where
-    error::Error: From<E>,
+    anyhow::Error: From<E>,
     T: TryInto<Config, Error = E>,
 {
     let Config {
@@ -175,7 +182,7 @@ where
     })
 }
 
-pub fn load_module_json(name: &str) -> error::Result<Value> {
+pub fn load_module_json(name: &str) -> anyhow::Result<Value> {
     let current_dir = std::env::current_dir().unwrap();
     let relative_dir = current_dir.join("steenrod_modules");
 
@@ -187,11 +194,12 @@ pub fn load_module_json(name: &str) -> error::Result<Value> {
         let mut path = path.clone();
         path.push(name);
         path.set_extension("json");
-        if let Ok(s) = std::fs::read_to_string(path) {
-            return Ok(serde_json::from_str(&s)?);
+        if let Ok(s) = std::fs::read_to_string(&path) {
+            return serde_json::from_str(&s)
+                .with_context(|| format!("Failed to load module json at {:?}", path));
         }
     }
-    error::from_string(format!("Module file '{}' not found on path", name))
+    Err(anyhow!("Module file '{}' not found", name))
 }
 
 const RED_ANSI_CODE: &str = "\x1b[31;1m";
@@ -251,7 +259,7 @@ pub struct QueryModuleResult {
     pub bucket: thread_token::TokenBucket,
 }
 
-pub fn query_module(algebra: Option<AlgebraType>) -> error::Result<QueryModuleResult> {
+pub fn query_module(algebra: Option<AlgebraType>) -> anyhow::Result<QueryModuleResult> {
     let module: Config = query::with_default("Module", "S_2", |s| match algebra {
         Some(algebra) => (s, algebra).try_into(),
         None => s.try_into(),
@@ -265,12 +273,14 @@ pub fn query_module(algebra: Option<AlgebraType>) -> error::Result<QueryModuleRe
     let bucket = query_bucket();
 
     let resolution: Resolution<CCC> = match save_file {
-        Some(save_file) => construct(module, Some(save_file))?,
+        Some(save_file) => {
+            construct(module, Some(save_file)).context("Failed to load module from save file")?
+        }
         None => {
             let max_s: u32 = query::with_default("Max s", "7", str::parse);
             let max_n: i32 = query::with_default("Max n", "30", str::parse);
 
-            let resolution = construct(module, None)?;
+            let resolution = construct(module, None).context("Failed to construct module")?;
             #[cfg(not(feature = "concurrent"))]
             resolution.compute_through_stem(max_s, max_n);
 

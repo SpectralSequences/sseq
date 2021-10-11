@@ -10,7 +10,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
 
-fn main() -> error::Result {
+fn main() -> anyhow::Result<()> {
     let resolution = Arc::new(query::with_default("Module", "S_2", |name| {
         construct(name, None)
     }));

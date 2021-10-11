@@ -141,7 +141,7 @@ impl<A: JsonAlgebra> FinitelyPresentedModule<A> {
         (graded_dimension, gen_names, gen_to_idx)
     }
 
-    pub fn from_json(algebra: Arc<A>, json: &Value) -> error::Result<Self> {
+    pub fn from_json(algebra: Arc<A>, json: &Value) -> anyhow::Result<Self> {
         let p = algebra.prime();
         let name = json["name"].as_str().unwrap_or("").to_string();
         let gens = &json["gens"];

@@ -44,15 +44,17 @@ use ext::chain_complex::ChainComplex;
 use ext::resolution_homomorphism::ResolutionHomomorphism;
 use ext::utils::{construct, Config};
 use fp::matrix::Matrix;
+
+use anyhow::anyhow;
 use std::convert::TryInto;
 use std::{fs::File, sync::Arc};
 
-fn main() -> error::Result {
+fn main() -> anyhow::Result<()> {
     let target: Config = query::with_default("Target module", "S_2", |name| {
         let target: Config = name.try_into()?;
         match target.module["type"].as_str() {
             Some("finite dimensional module") => Ok(target),
-            _ => Err(String::from("Target must be finite dimensional")),
+            _ => Err(anyhow!("Target must be finite dimensional")),
         }
     });
 

@@ -80,7 +80,9 @@ pub fn raw<S, E: Display>(
             return res;
         }
         Some((arg, Err(e))) => {
-            panic!("Invalid input {}\n{}.", arg, e);
+            eprintln!("{}: {}", prompt, arg);
+            eprintln!("{:#}", e);
+            std::process::exit(1);
         }
         None => (),
     }
@@ -98,7 +100,7 @@ pub fn raw<S, E: Display>(
                 return res;
             }
             Err(e) => {
-                eprintln!("Invalid input: {}. Try again", e);
+                eprintln!("{:#}\n\nTry again", e);
             }
         }
     }

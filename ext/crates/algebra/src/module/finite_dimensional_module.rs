@@ -8,7 +8,7 @@ use std::sync::Arc;
 use {
     crate::algebra::{GeneratedAlgebra, JsonAlgebra},
     crate::module::ModuleFailedRelationError,
-    error::GenericError,
+    anyhow::{anyhow, Context},
     nom::{
         branch::alt,
         bytes::complete::{is_not, take},
@@ -483,7 +483,7 @@ impl<A: JsonAlgebra + GeneratedAlgebra> FiniteDimensionalModule<A> {
         (graded_dimension, gen_names, gen_to_idx)
     }
 
-    pub fn from_json(algebra: Arc<A>, json: &Value) -> error::Result<Self> {
+    pub fn from_json(algebra: Arc<A>, json: &Value) -> anyhow::Result<Self> {
         let (graded_dimension, gen_names, gen_to_idx) = Self::module_gens_from_json(&json["gens"]);
         let name = json["name"].as_str().unwrap_or("").to_string();
 
@@ -496,7 +496,9 @@ impl<A: JsonAlgebra + GeneratedAlgebra> FiniteDimensionalModule<A> {
 
         if let Ok(actions) = Vec::<String>::deserialize(&json["actions"]) {
             for action in actions {
-                result.parse_action(&gen_to_idx, &action, false)?;
+                result
+                    .parse_action(&gen_to_idx, &action, false)
+                    .with_context(|| format!("Failed to parse action: {}", action))?;
             }
             for input_degree in (result.min_degree()..=result.max_degree()).rev() {
                 for output_degree in input_degree + 1..=result.max_degree() {
@@ -524,13 +526,13 @@ impl<A: JsonAlgebra + GeneratedAlgebra> FiniteDimensionalModule<A> {
                 let input = action.input;
                 let (input_degree, input_idx) = *gen_to_idx
                     .get(&input)
-                    .ok_or_else(|| GenericError::new(format!("Invalid generator: {}", input)))?;
+                    .ok_or_else(|| anyhow!("Invalid generator: {}", input))?;
                 let output_vec = result.action_mut(degree, idx, input_degree, input_idx);
                 for basis_elt in action.output {
                     let gen = basis_elt.gen;
-                    let (_, output_idx) = *gen_to_idx.get(&gen).ok_or_else(move || {
-                        GenericError::new(format!("Invalid generator: {}", gen))
-                    })?;
+                    let (_, output_idx) = *gen_to_idx
+                        .get(&gen)
+                        .ok_or_else(move || anyhow!("Invalid generator: {}", gen))?;
                     output_vec.add_basis_element(output_idx, basis_elt.coeff);
                 }
             }
@@ -556,7 +558,7 @@ impl<A: JsonAlgebra + GeneratedAlgebra> FiniteDimensionalModule<A> {
         gen_to_idx: &HashMap<String, (i32, usize)>,
         entry_: &str,
         overwrite: bool,
-    ) -> error::Result {
+    ) -> anyhow::Result<()> {
         let algebra = self.algebra();
         let mut lhs = tuple((
             |e| algebra.string_to_generator(e),
@@ -565,11 +567,11 @@ impl<A: JsonAlgebra + GeneratedAlgebra> FiniteDimensionalModule<A> {
         ));
 
         let (entry, ((op_deg, op_idx), gen, _)) =
-            lhs(entry_).map_err(|_err| GenericError::new(format!("Invalid action: {}", entry_)))?;
+            lhs(entry_).map_err(|_| anyhow!("Invalid action: {}", entry_))?;
 
         let (input_deg, input_idx) = *gen_to_idx
             .get(gen.trim())
-            .ok_or_else(|| GenericError::new(format!("Invalid generator: {}", gen.trim())))?;
+            .with_context(|| format!("Invalid generator: {}", gen.trim()))?;
 
         let row = self.action_mut(op_deg, op_idx, input_deg, input_idx);
 
@@ -586,14 +588,19 @@ impl<A: JsonAlgebra + GeneratedAlgebra> FiniteDimensionalModule<A> {
             <IResult<_, _>>::unwrap(separated_list0(take(1usize), is_not("+"))(entry));
 
         for value in values {
-            let (_, (coef, gen)) = Self::take_element(value)
-                .map_err(|_| GenericError::new(format!("Invalid action: {}", entry_)))?;
+            let (_, (coef, gen)) =
+                Self::take_element(value).map_err(|_| anyhow!("Invalid action: {}", entry_))?;
 
             let (deg, idx) = *gen_to_idx
                 .get(gen)
-                .ok_or_else(|| GenericError::new(format!("Invalid generator: {}", gen)))?;
+                .with_context(|| format!("Invalid generator: {}", gen.trim()))?;
             if deg != input_deg + op_deg {
-                return Err(GenericError::new(format!("Invalid action: {}", entry_)).into());
+                return Err(anyhow!(
+                    "Degree of {} is {} but degree of LHS is {}",
+                    gen,
+                    deg,
+                    input_deg + op_deg
+                ));
             }
 
             row.add_basis_element(idx, coef);
@@ -601,7 +608,12 @@ impl<A: JsonAlgebra + GeneratedAlgebra> FiniteDimensionalModule<A> {
         Ok(())
     }
 
-    pub fn parse_element(&self, entry: &str, degree: i32, mut result: SliceMut) -> error::Result {
+    pub fn parse_element(
+        &self,
+        entry: &str,
+        degree: i32,
+        mut result: SliceMut,
+    ) -> anyhow::Result<()> {
         if let IResult::<_, _>::Ok(("", _)) = delimited(space0, char('0'), space0)(entry) {
             return Ok(());
         }
@@ -610,10 +622,10 @@ impl<A: JsonAlgebra + GeneratedAlgebra> FiniteDimensionalModule<A> {
                 if let Some(idx) = self.gen_names[degree].iter().position(|x| x == gen) {
                     result.add_basis_element(idx, coef);
                 } else {
-                    return Err(GenericError::new(format!("Invalid generator: {}", elt)).into());
+                    return Err(anyhow!("Invalid generator: {}", elt));
                 }
             } else {
-                return Err(GenericError::new(format!("Invalid term: {}", elt)).into());
+                return Err(anyhow!("Invalid term: {}", elt));
             }
         }
         Ok(())

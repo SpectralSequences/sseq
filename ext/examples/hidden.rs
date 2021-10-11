@@ -105,7 +105,7 @@ pub fn parse_matrix<const N: usize>(
     matrices: &mut [Vec<AugmentedMatrix<N>>],
     segment: usize,
     prefix: &str,
-) -> error::Result {
+) -> anyhow::Result<()> {
     for line in BufReader::new(input).lines() {
         let line = line?;
         if !line.starts_with(prefix) {
@@ -143,7 +143,7 @@ pub fn parse_matrix<const N: usize>(
     Ok(())
 }
 
-fn main() -> error::Result {
+fn main() -> anyhow::Result<()> {
     let max_s: usize = query::raw("Max s", str::parse);
     let max_n: usize = query::raw("Max n", str::parse);
     let alpha_n: usize = query::raw("Stem of α", str::parse);

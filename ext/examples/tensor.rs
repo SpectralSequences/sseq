@@ -2,10 +2,12 @@ use algebra::module::{BoundedModule, FDModule, TensorModule};
 use algebra::AdemAlgebra;
 use ext::utils::parse_module_name;
 use fp::prime::ValidPrime;
+
+use anyhow::anyhow;
 use serde_json::json;
 use std::sync::Arc;
 
-fn main() -> error::Result {
+fn main() -> anyhow::Result<()> {
     let left = query::with_default("Left module", "S_2", parse_module_name);
     let p = left["p"].as_u64().unwrap();
 
@@ -14,7 +16,7 @@ fn main() -> error::Result {
         if module["p"].as_u64() == Some(p) {
             Ok(module)
         } else {
-            Err(String::from("Two modules must be over the same prime"))
+            Err(anyhow!("Two modules must be over the same prime"))
         }
     });
 

@@ -20,7 +20,7 @@ use std::{thread, thread::JoinHandle};
 #[cfg(feature = "concurrent")]
 use crossbeam_channel::{unbounded, Receiver};
 
-fn main() -> error::Result {
+fn main() -> anyhow::Result<()> {
     let resolution =
         Arc::new(construct("S_2", std::fs::File::open("resolution_adem.save").ok()).unwrap());
 

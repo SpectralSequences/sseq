@@ -24,7 +24,7 @@ use ext::chain_complex::ChainComplex;
 use ext::secondary::*;
 use ext::utils::query_module;
 
-fn main() -> error::Result {
+fn main() -> anyhow::Result<()> {
     let data = query_module(Some(algebra::AlgebraType::Milnor))?;
     let resolution = data.resolution;
 

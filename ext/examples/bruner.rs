@@ -92,7 +92,7 @@ use algebra::{
     module::FreeModule as FM, module::Module, Algebra, MilnorAlgebra, MilnorAlgebraT,
     SteenrodAlgebra,
 };
-use error::{Error, Result};
+use anyhow::{Error, Result};
 use ext::{
     chain_complex::{ChainComplex, FiniteChainComplex as FCC},
     resolution_homomorphism::ResolutionHomomorphism,
