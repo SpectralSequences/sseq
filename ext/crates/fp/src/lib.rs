@@ -1,4 +1,3 @@
-#![feature(const_panic)]
 #![feature(stdsimd)]
 
 mod constants;
