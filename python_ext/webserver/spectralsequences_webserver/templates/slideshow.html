@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Spectral Sequence Demo {{ channel_name }}</title>
+        <meta charset="utf-8"/>
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.10.2/dist/katex.css" integrity="sha384-+MsSfd29vjUzcyqYURxcmpWGtqoSHBy+QdEJNLEslXQftxojQv0k6BGDqUNp9GtA" crossorigin="anonymous">
+        
+        <style>
+            html, body {
+              height: 100%;
+              min-height: 100%;
+              overflow: hidden;
+            }
+            
+            #main {
+                    height: 98%;
+                    min-height: 98%;
+                    overflow: hidden;
+                    position: relative;
+            }
+            
+            #main-svg {
+                    width: 100%;
+                    height: 100%;
+            }
+            
+            #status {
+                    position: absolute;
+                    left: 20px;
+                    bottom: 20px;
+                    z-index: 1000;
+            }
+            div.tooltip {	
+                text-align: center;
+                padding: 5px;
+                font: 12px sans-serif;		
+                background: lightsteelblue;
+                border: 0px;
+                border-radius: 8px;
+                pointer-events: none;
+            }
+            .class {
+                pointer-events: fill;
+            }
+            
+            hr { height:2px; visibility:hidden; margin-bottom:-1px; }
+
+
+
+
+
+
+
+
+
+[style*="--aspect-ratio"] > :first-child {
+  width: 100%;
+}
+[style*="--aspect-ratio"] > img {  
+  height: auto;
+} 
+@supports (--custom:property) {
+  [style*="--aspect-ratio"] {
+    position: relative;
+  }
+  [style*="--aspect-ratio"]::before {
+    content: "";
+    display: block;
+    padding-bottom: calc(100% / (var(--aspect-ratio)));
+  }  
+  [style*="--aspect-ratio"] > :first-child {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+  }  
+}
+            </style>
+    </head>
+<body>
+    <script src="/static/webclient" type="text/javascript"></script>
+    <!-- This next script allows us to call Mousetrap.bind(dictionary-of-bindings) -->
+    <!--<script src="https://github.com/ccampbell/mousetrap/blob/master/plugins/bind-dictionary/mousetrap-bind-dictionary.min.js" type="text/javascript"></script>!-->
+    <div id="main" style="left:25pt; width:96%; height:90%"></div>
+    <div style="position:absolute; bottom:15pt; left: 25pt">
+        <span id="mode" style="font-weight: bold;"></span>
+        <span id="mode_info" style="margin-left: 10pt;"></span>
+    </div>
+<script>
+"use strict";
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+
+let ws = new WebSocket("ws://localhost:{{ port }}/ws/{{ directory }}/{{ channel_name }}");
+
+let main_div = document.querySelector("#main");
+function make_display(sseq){
+    let display = new BasicDisplay(main_div, sseq);
+    display.svg_unclipped = true;
+    if(false){ // IPAD Screen
+        display.svg_x_offset = -5.9;
+        display.svg_y_offset = 3.2;
+        display.svg_scale = 1.5;
+    } else if(true){ // Big monitor
+        display.svg_x_offset = -6.03;
+        display.svg_y_offset = 3.45;
+        // display.svg_x_scale = 2.6;
+        display.svg_scale = 1.52;
+        main_div.style.height = "1235";
+    }
+
+    return display;
+}
+let sseq_socket = new SpectralSequenceSocketListener(ws, make_display);
+function get_update_promise() {
+    return new Promise(resolve => sseq_socket.resolve_update_promise = resolve);
+}
+// Make sure resolve_update_promise is defined!
+get_update_promise();
+
+function send_introduction_message(){
+    console.log("send_introduction_message");
+    this.send("new_user", {});
+    this.send("slideshow.initialize_source_files", {});
+}
+sseq_socket.send_introduction_message = send_introduction_message.bind(sseq_socket);
+
+
+sseq_socket.file_idx = 0;
+sseq_socket.overlay_idx = -1;
+function next(){
+    console.log("next");
+    console.log("width:", main_div.clientWidth);
+    console.log("height:", main_div.clientHeight);
+    sseq_socket.overlay_idx += 1;
+    if(sseq_socket.overlay_idx < sseq_socket.image_promises[sseq_socket.file_idx].length){
+        console.log("next overlay");
+        sseq_socket.image_promises[sseq_socket.file_idx][sseq_socket.overlay_idx]
+        .then(async function(img){
+            sseq_socket.error("not-really-error", {"exception" : { "msg" : img.src }, "orig_msg" : { "kwargs" : {}, "cmd" : "none"}})
+            sseq_socket.display.svg = img;
+            await sleep(5);
+            sseq_socket.display.update();
+        });
+    } else {
+        sseq_socket.file_idx += 1;
+        sseq_socket.overlay_idx = -1;
+        // We send file_idx as extra consistency check.
+        get_update_promise().then(next);
+        sseq_socket.send("slideshow.next_file", {"file_idx" : sseq_socket.file_idx});
+    }
+}
+
+function previous(){
+    sseq_socket.overlay_idx -= 1;
+    if(sseq_socket.overlay_idx >= 0) {
+        console.log("previous overlay");
+        sseq_socket.image_promises[sseq_socket.file_idx][sseq_socket.overlay_idx]
+        .then(async function(img){
+            sseq_socket.error("not-really-error", {"exception" : { "msg" : img.src }, "orig_msg" : { "kwargs" : {}, "cmd" : "none"}})
+            sseq_socket.display.svg = img;
+            await sleep(5);
+            sseq_socket.display.update();
+        });        
+    } else {
+        sseq_socket.file_idx -= 1;
+        sseq_socket.overlay_idx = sseq_socket.image_promises[sseq_socket.file_idx].length;
+        console.log("Previous file:", sseq_socket.overlay_idx);
+        if(sseq_socket.overlay_idx === 0){
+            sseq_socket.error("unexpected condtion!", {"exception" : { "msg" : "why did we end up here?" }, "orig_msg" : { "kwargs" : {}, "cmd" : "none"}})
+        }
+        get_update_promise().then(previous);
+        sseq_socket.send("slideshow.previous_file", {"file_idx" : sseq_socket.file_idx});
+    }
+}
+
+let always_bindings = {
+    "t" : () => sseq_socket.send("console.take", {}),
+    // "s" : (e) => {
+    //     e.preventDefault();
+    //     sseq_socket.send("io.save", {});
+    // },
+    // "escape" : () => {
+    //     sseq_socket.send("interact.mode.cancel", {});
+    //     Mode.cancel();
+    // },
+    'left' : () => sseq_socket.display.previousPage(),
+    'right' : () => sseq_socket.display.nextPage(),
+    // "f" : () => {
+    //     sseq_socket.send("io.process_screenshot", {})
+    // }
+    "n" : next,
+    "b" : previous
+}
+
+function add_key_bindings(bindings){
+    for(let [k, v] of Object.entries(bindings)){
+        Mousetrap.bind(k, v);
+    }
+}
+
+add_key_bindings(always_bindings);
+
+sseq_socket.image_promises = [];
+sseq_socket.add_message_handlers_from_object({
+    "slideshow.load_overlays" : function(cmd, args, kwargs) {
+        console.log("load_overlays", kwargs);
+        // We were sent the list of overlay svgs. Now we need to ask the server for all of them.
+        let image_promises = [];
+        for(let file of kwargs["file_list"]){
+            let img = new Image;
+            let promise = new Promise(function loaded_svg(resolve, reject){
+                img.onload = () => {
+                    console.log(`loaded file`, file);
+                    console.log(`img.src :`, img.src);
+                    resolve(img);
+                };
+                img.onerror = function() {
+                    console.error(`Image ${file} failed to load.`);
+                    reject();
+                }
+            });
+            img.src = file;
+            image_promises.push(promise);
+        }
+        sseq_socket.image_promises.push(image_promises);
+    },
+    "slideshow.updated_chart" : function(cmd, args, kwargs) {
+        console.log("state:", kwargs["state"]);
+        // First resolve promise so that it starts updating the svg
+        sseq_socket.resolve_update_promise();
+        // Sleep 5 milliseconds to sync update of svg with update of chart data.
+        sleep(5).then(() => 
+            sseq_socket.message_dispatch["chart.state.reset"](cmd, args, kwargs)
+        );
+    }
+});
+
+function start(ss_sock){
+    ss_sock.start();
+}
+
+start(sseq_socket);
+</script>        
+</body>
+</html>

@@ -1,6 +1,11 @@
 name: Test chart build
 
 on: [push, pull_request]
+
+defaults:
+  run:
+    working-directory: ./js-chart
+
 jobs:
   build:
     runs-on: ubuntu-latest

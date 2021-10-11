@@ -1,0 +1,261 @@
+name: Test rust_ext
+
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      RUST_BACKTRACE: 1
+      RUSTFLAGS: "-D warnings -A stable-features"
+      RUSTUP_TOOLCHAIN: ${{ matrix.toolchain }}
+      CARGO_TARGET_DIR: /home/runner/.cargo/target
+
+    strategy:
+      matrix:
+        toolchain: ["nightly-2021-10-10", "nightly"]
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install rustup
+        id: rustup
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ matrix.toolchain }}
+
+      - name: Cache files
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo
+            /usr/share/rust/.cargo
+          key: test-${{ steps.rustup.outputs.rustc_hash }}-${{ hashFiles('**/Cargo.*') }}
+
+      - name: Run rust_webserver tests
+        run: make -C web_ext/rust_webserver test
+
+      - name: Run rust_webserver examples
+        run: make -C web_ext/rust_webserver run_examples
+
+      - name: Run ext tests
+        run: make -C ext test
+
+      - name: Run ext examples
+        run: make -C ext benchmarks
+
+      - name: Run ext examples (concurrent)
+        run: make -C ext benchmarks-concurrent
+
+      - name: Benchmark executable size
+        run: |
+          ls -l $HOME/.cargo/target/debug/examples | grep -v ' .*-\|\.d$'
+
+  lint:
+    runs-on: ubuntu-latest
+    env:
+      RUST_BACKTRACE: 1
+      RUSTFLAGS: "-D warnings -A stable-features"
+      RUSTUP_TOOLCHAIN: ${{ matrix.toolchain }}
+
+    strategy:
+      matrix:
+        toolchain: ["nightly-2021-10-10", "nightly"]
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install rustup
+        id: rustup
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          components: clippy, rustfmt
+
+      - name: Cache files
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo
+            /usr/share/rust/.cargo
+            **/target
+          key: lint-${{ steps.rustup.outputs.rustc_hash }}-${{ hashFiles('**/Cargo.*') }}
+
+      - name: Run lint
+        run: make -C ext lint
+
+      - name: Lint rust_webserver
+        run: make -C web_ext/rust_webserver lint
+
+  webserver:
+    runs-on: ubuntu-20.04
+    env:
+      RUST_BACKTRACE: 1
+      RUSTFLAGS: "-D warnings -A stable-features"
+      RUSTUP_TOOLCHAIN: ${{ matrix.toolchain }}
+
+    strategy:
+      matrix:
+        toolchain: ["nightly-2021-10-10", "nightly"]
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install rustup
+        uses: actions-rs/toolchain@v1
+        id: rustup
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          target: wasm32-unknown-unknown
+          components: clippy, rustfmt
+
+      - name: Cache files
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo
+            /usr/share/rust/.cargo
+            **/target
+          key: wasm-${{ steps.rustup.outputs.rustc_hash }}-${{ hashFiles('**/Cargo.*') }}
+
+      - name: Install wasm-opt
+        run: sudo apt-get install binaryen
+
+      - name: Setup build environment
+        run: make -C web_ext/rust_webserver setup-wasm
+
+      - name: Lint rust_webserver wasm
+        run: make -C web_ext/rust_webserver lint-wasm
+
+      - name: Build wasm
+        run: make -C web_ext/rust_webserver wasm
+
+      - name: Benchmark wasm size
+        run: ls -l web_ext/rust_webserver/dist/rust_webserver_wasm_bg.wasm
+
+      - name: Upload webserver
+        uses: actions/upload-artifact@v2
+        with:
+          name: webserver-${{ matrix.toolchain }}
+          path: web_ext/rust_webserver/dist/
+
+  calculator:
+    runs-on: ubuntu-20.04
+    env:
+      RUST_BACKTRACE: 1
+      RUSTFLAGS: "-D warnings -A stable-features"
+      RUSTUP_TOOLCHAIN: ${{ matrix.toolchain }}
+
+    strategy:
+      matrix:
+        toolchain: ["nightly-2021-10-10", "nightly"]
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install rustup
+        id: rustup
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          target: wasm32-unknown-unknown
+          components: clippy, rustfmt
+
+      - name: Cache files
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo
+            /usr/share/rust/.cargo
+            **/target
+          key: calculator-${{ steps.rustup.outputs.rustc_hash }}-${{ hashFiles('**/Cargo.*') }}
+
+      - name: Install wasm-opt
+        run: sudo apt-get install binaryen
+
+      - name: Setup build environment
+        run: make -C web_ext/steenrod_calculator setup-wasm
+
+      - name: Lint rust_webserver wasm
+        run: make -C web_ext/steenrod_calculator lint
+
+      - name: Build wasm
+        run: make -C web_ext/steenrod_calculator
+
+      - name: Benchmark wasm size
+        run: ls -l web_ext/steenrod_calculator/dist/steenrod_calculator_wasm_bg.wasm
+
+      - name: Upload calculator
+        uses: actions/upload-artifact@v2
+        with:
+          name: calculator-${{ matrix.toolchain }}
+          path: web_ext/steenrod_calculator/dist/
+
+  docs:
+    runs-on: ubuntu-20.04
+    env:
+      RUST_BACKTRACE: 1
+      RUSTFLAGS: "-D warnings -A stable-features"
+      RUSTUP_TOOLCHAIN: ${{ matrix.toolchain }}
+
+    strategy:
+      matrix:
+        toolchain: ["nightly-2021-10-10", "nightly"]
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install rustup
+        id: rustup
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly-2021-10-10
+
+      - name: Cache files
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo
+            /usr/share/rust/.cargo
+            **/target
+          key: docs-${{ steps.rustup.outputs.rustc_hash }}-${{ hashFiles('ext/Cargo.*') }}
+
+      - name: Generate docs
+        run: make -C ext docs
+
+      - name: Upload docs
+        uses: actions/upload-artifact@v2
+        with:
+          name: docs-${{ matrix.toolchain }}
+          path: ext/target/doc/
+
+  deploy:
+    needs: [test, lint, webserver, calculator, docs]
+    runs-on: ubuntu-20.04
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+
+    steps:
+      - name: Download webserver
+        uses: actions/download-artifact@v2
+        with:
+          name: webserver-nightly-2021-10-10
+
+      - name: Download calculator
+        uses: actions/download-artifact@v2
+        with:
+          name: calculator-nightly-2021-10-10
+          path: calculator
+
+      - name: Download docs
+        uses: actions/download-artifact@v2
+        with:
+          name: docs-nightly-2021-10-10
+          path: docs
+
+      - name: Deploy
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: .
+          user_name: "github-actions[bot]"
+          user_email: "github-actions[bot]@users.noreply.github.com"
+          full_commit_message: ${{ github.event.head_commit.message }}
