@@ -217,7 +217,7 @@
 }
 
 <span class="kw">impl</span> <span class="ident">std::fmt::Display</span> <span class="kw">for</span> <span class="ident">Subquotient</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">std::fmt::Formatter</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">std::fmt::Result</span> {
+    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">std::fmt::Formatter</span>) -&gt; <span class="ident">std::fmt::Result</span> {
         <span class="macro">writeln!</span>(<span class="ident">f</span>, <span class="string">&quot;Generators:\n{}&quot;</span>, <span class="self">self</span>.<span class="ident">gens</span>)<span class="question-mark">?</span>;
         <span class="macro">writeln!</span>(<span class="ident">f</span>, <span class="string">&quot;Zeros:\n{}&quot;</span>, <span class="self">self</span>.<span class="ident">quotient</span>)
     }
@@ -226,7 +226,7 @@
 <span class="kw">impl</span> <span class="ident">Subquotient</span> {
     <span class="doccomment">/// Create a new subquotient of an ambient space of dimension `dim`. This defaults to the zero</span>
     <span class="doccomment">/// subspace.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>, <span class="ident">dim</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>, <span class="ident">dim</span>: <span class="ident">usize</span>) -&gt; <span class="self">Self</span> {
         <span class="self">Self</span> {
             <span class="ident">gens</span>: <span class="ident">Subspace::new</span>(<span class="ident">p</span>, <span class="ident">dim</span> <span class="op">+</span> <span class="number">1</span>, <span class="ident">dim</span>),
             <span class="ident">quotient</span>: <span class="ident">Subspace::new</span>(<span class="ident">p</span>, <span class="ident">dim</span> <span class="op">+</span> <span class="number">1</span>, <span class="ident">dim</span>),
@@ -236,7 +236,7 @@
 
     <span class="doccomment">/// Create a new subquotient of an ambient space of dimension `dim`, where the subspace is the</span>
     <span class="doccomment">/// full subspace and quotient is trivial.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new_full</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>, <span class="ident">dim</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new_full</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>, <span class="ident">dim</span>: <span class="ident">usize</span>) -&gt; <span class="self">Self</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident"><span class="self">Self</span>::new</span>(<span class="ident">p</span>, <span class="ident">dim</span>);
         <span class="ident">result</span>.<span class="ident">gens</span>.<span class="ident">set_to_entire</span>();
         <span class="ident">result</span>.<span class="ident">dimension</span> <span class="op">=</span> <span class="ident">dim</span>;
@@ -246,7 +246,7 @@
     <span class="doccomment">/// Given a vector `elt`, project `elt` to the complement and express</span>
     <span class="doccomment">/// as a linear combination of the basis. The result is returned as a list of coefficients.</span>
     <span class="doccomment">/// If elt is nonzero afterwards, this means the vector was not in the subspace to begin with.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">reduce</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut</span> <span class="ident">elt</span>: <span class="ident">SliceMut</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">reduce</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut</span> <span class="ident">elt</span>: <span class="ident">SliceMut</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">quotient</span>.<span class="ident">reduce</span>(<span class="ident">elt</span>.<span class="ident">copy</span>());
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">Vec::with_capacity</span>(<span class="self">self</span>.<span class="ident">gens</span>.<span class="ident">columns</span>());
         <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="self">self</span>.<span class="ident">gens</span>.<span class="ident">columns</span>() {
@@ -271,11 +271,11 @@
         <span class="self">self</span>.<span class="ident">gens</span>.<span class="ident">set_to_entire</span>();
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">zeros</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">Subspace</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">zeros</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">Subspace</span> {
         <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">quotient</span>
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">gens</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw">impl</span> <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">FpVector</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">gens</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl</span> <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">FpVector</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">gens</span>.<span class="ident">iter</span>().<span class="ident">take</span>(<span class="self">self</span>.<span class="ident">dimension</span>)
     }
 
@@ -288,20 +288,20 @@
         <span class="self">self</span>.<span class="ident">dimension</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">gens</span>.<span class="ident">dimension</span>();
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">usize</span> {
         <span class="self">self</span>.<span class="ident">dimension</span>
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">ambient_dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">ambient_dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">usize</span> {
         <span class="self">self</span>.<span class="ident">gens</span>.<span class="ident">ambient_dimension</span>()
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">prime</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ValidPrime</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">prime</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">ValidPrime</span> {
         <span class="self">self</span>.<span class="ident">gens</span>.<span class="ident">prime</span>()
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">is_empty</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
-        <span class="self">self</span>.<span class="ident">dimension</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">is_empty</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">bool</span> {
+        <span class="self">self</span>.<span class="ident">dimension</span> <span class="op">==</span> <span class="number">0</span>
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">clear_gens</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
@@ -317,7 +317,7 @@
         <span class="self">self</span>.<span class="ident">dimension</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">gens</span>.<span class="ident">dimension</span>();
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">reduce_matrix</span>(<span class="ident">matrix</span>: <span class="kw-2">&amp;</span><span class="ident">Matrix</span>, <span class="ident">source</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>, <span class="ident">target</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">reduce_matrix</span>(<span class="ident">matrix</span>: <span class="kw-2">&amp;</span><span class="ident">Matrix</span>, <span class="ident">source</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>, <span class="ident">target</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">Vec::with_capacity</span>(<span class="ident">source</span>.<span class="ident">dimension</span>());
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">temp</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="ident">source</span>.<span class="ident">prime</span>(), <span class="ident">target</span>.<span class="ident">ambient_dimension</span>());
         <span class="kw">for</span> <span class="ident">v</span> <span class="kw">in</span> <span class="ident">source</span>.<span class="ident">gens</span>() {
@@ -336,7 +336,7 @@
     <span class="doccomment">/// # Arguments</span>
     <span class="doccomment">///  * `space` - If this is None, it is the whole space k^`ambient_dimension`</span>
     <span class="doccomment">///  * `subspace` - If this is None, it is empty</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">subquotient</span>(<span class="ident">space</span>: <span class="kw-2">&amp;</span><span class="ident">Subspace</span>, <span class="ident">subspace</span>: <span class="kw-2">&amp;</span><span class="ident">Subspace</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">subquotient</span>(<span class="ident">space</span>: <span class="kw-2">&amp;</span><span class="ident">Subspace</span>, <span class="ident">subspace</span>: <span class="kw-2">&amp;</span><span class="ident">Subspace</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span> {
         <span class="ident">space</span>
             .<span class="ident">pivots</span>()
             .<span class="ident">iter</span>()

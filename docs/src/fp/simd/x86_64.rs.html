@@ -107,7 +107,7 @@
     }
 }
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">unsafe</span> <span class="kw">fn</span> <span class="ident">load</span>(<span class="ident">limb</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">Limb</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">SimdLimb</span> {
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">unsafe</span> <span class="kw">fn</span> <span class="ident">load</span>(<span class="ident">limb</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">Limb</span>) -&gt; <span class="ident">SimdLimb</span> {
     <span class="macro">cfg_if::cfg_if!</span> {
         <span class="kw">if</span> <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">target_feature</span><span class="op">=</span><span class="string">&quot;avx512f&quot;</span>)]</span> {
             <span class="ident">x86_64::_mm512_loadu_si512</span>(<span class="ident">limb</span> <span class="kw">as</span> <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">i32</span>)
@@ -139,7 +139,7 @@
     }
 }
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">unsafe</span> <span class="kw">fn</span> <span class="ident">xor</span>(<span class="ident">left</span>: <span class="ident">SimdLimb</span>, <span class="ident">right</span>: <span class="ident">SimdLimb</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">SimdLimb</span> {
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">unsafe</span> <span class="kw">fn</span> <span class="ident">xor</span>(<span class="ident">left</span>: <span class="ident">SimdLimb</span>, <span class="ident">right</span>: <span class="ident">SimdLimb</span>) -&gt; <span class="ident">SimdLimb</span> {
     <span class="macro">cfg_if::cfg_if!</span> {
         <span class="kw">if</span> <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">target_feature</span><span class="op">=</span><span class="string">&quot;avx512f&quot;</span>)]</span> {
             <span class="ident">x86_64::_mm512_xor_si512</span>(<span class="ident">left</span>, <span class="ident">right</span>)

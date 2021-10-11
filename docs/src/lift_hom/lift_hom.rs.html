@@ -257,12 +257,12 @@
 <span class="kw">use</span> <span class="ident">std::convert::TryInto</span>;
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">fs::File</span>, <span class="ident">sync::Arc</span>};
 
-<span class="kw">fn</span> <span class="ident">main</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error::Result</span> {
+<span class="kw">fn</span> <span class="ident">main</span>() -&gt; <span class="ident">error::Result</span> {
     <span class="kw">let</span> <span class="ident">target</span>: <span class="ident">Config</span> <span class="op">=</span> <span class="ident">query::with_default</span>(<span class="string">&quot;Target module&quot;</span>, <span class="string">&quot;S_2&quot;</span>, <span class="op">|</span><span class="ident">name</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">target</span>: <span class="ident">Config</span> <span class="op">=</span> <span class="ident">name</span>.<span class="ident">try_into</span>()<span class="question-mark">?</span>;
         <span class="kw">match</span> <span class="ident">target</span>.<span class="ident">module</span>[<span class="string">&quot;type&quot;</span>].<span class="ident">as_str</span>() {
-            <span class="prelude-val">Some</span>(<span class="string">&quot;finite dimensional module&quot;</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="ident">target</span>),
-            <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">String::from</span>(<span class="string">&quot;Target must be finite dimensional&quot;</span>)),
+            <span class="prelude-val">Some</span>(<span class="string">&quot;finite dimensional module&quot;</span>) =&gt; <span class="prelude-val">Ok</span>(<span class="ident">target</span>),
+            <span class="kw">_</span> =&gt; <span class="prelude-val">Err</span>(<span class="ident">String::from</span>(<span class="string">&quot;Target must be finite dimensional&quot;</span>)),
         }
     });
 
@@ -278,10 +278,10 @@
     <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">clippy::redundant_closure</span>)]</span>
     <span class="kw">let</span> <span class="ident">target_save_file</span> <span class="op">=</span> <span class="ident">query::optional</span>(<span class="string">&quot;Target save file&quot;</span>, <span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="ident">File::open</span>(<span class="ident">s</span>));
 
-    <span class="kw">let</span> (<span class="ident">target</span>, <span class="ident">source</span>) <span class="op">=</span> <span class="kw">if</span> <span class="ident">target</span> <span class="op">=</span><span class="op">=</span> <span class="ident">source</span> {
+    <span class="kw">let</span> (<span class="ident">target</span>, <span class="ident">source</span>) <span class="op">=</span> <span class="kw">if</span> <span class="ident">target</span> <span class="op">==</span> <span class="ident">source</span> {
         <span class="kw">let</span> <span class="ident">target</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">target_save_file</span> {
-            <span class="prelude-val">Some</span>(<span class="ident">f</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">construct</span>(<span class="ident">target</span>, <span class="prelude-val">Some</span>(<span class="ident">f</span>))<span class="question-mark">?</span>,
-            <span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> {
+            <span class="prelude-val">Some</span>(<span class="ident">f</span>) =&gt; <span class="ident">construct</span>(<span class="ident">target</span>, <span class="prelude-val">Some</span>(<span class="ident">f</span>))<span class="question-mark">?</span>,
+            <span class="prelude-val">None</span> =&gt; {
                 <span class="kw">let</span> <span class="ident">s</span>: <span class="ident">u32</span> <span class="op">=</span> <span class="ident">query::with_default</span>(<span class="string">&quot;Max target s&quot;</span>, <span class="string">&quot;10&quot;</span>, <span class="ident">str::parse</span>);
                 <span class="kw">let</span> <span class="ident">n</span>: <span class="ident">i32</span> <span class="op">=</span> <span class="ident">query::with_default</span>(<span class="string">&quot;Max target n&quot;</span>, <span class="string">&quot;10&quot;</span>, <span class="ident">str::parse</span>);
                 <span class="kw">let</span> <span class="ident">target</span> <span class="op">=</span> <span class="ident">construct</span>(<span class="ident">target</span>, <span class="prelude-val">None</span>)<span class="question-mark">?</span>;
@@ -303,7 +303,7 @@
         (<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">target</span>), <span class="ident">target</span>)
     } <span class="kw">else</span> {
         <span class="kw">match</span> <span class="ident">target_save_file</span> {
-            <span class="prelude-val">Some</span>(<span class="ident">f</span>) <span class="op">=</span><span class="op">&gt;</span> (
+            <span class="prelude-val">Some</span>(<span class="ident">f</span>) =&gt; (
                 <span class="ident">Arc::new</span>(<span class="ident">construct</span>(<span class="ident">target</span>, <span class="prelude-val">Some</span>(<span class="ident">f</span>))<span class="question-mark">?</span>),
                 <span class="ident">Arc::new</span>(<span class="ident">construct</span>(
                     <span class="ident">source</span>,
@@ -311,7 +311,7 @@
                     <span class="prelude-val">Some</span>(<span class="ident">query::raw</span>(<span class="string">&quot;Source save file&quot;</span>, <span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="ident">File::open</span>(<span class="ident">s</span>))),
                 )<span class="question-mark">?</span>),
             ),
-            <span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> {
+            <span class="prelude-val">None</span> =&gt; {
                 <span class="kw">let</span> <span class="ident">s</span> <span class="op">=</span> <span class="ident">query::with_default</span>(<span class="string">&quot;Max target s&quot;</span>, <span class="string">&quot;10&quot;</span>, <span class="ident">str::parse</span>);
                 <span class="kw">let</span> <span class="ident">n</span>: <span class="ident">i32</span> <span class="op">=</span> <span class="ident">query::with_default</span>(<span class="string">&quot;Max target n&quot;</span>, <span class="string">&quot;10&quot;</span>, <span class="ident">str::parse</span>);
                 <span class="kw">let</span> (<span class="ident">target</span>, <span class="ident">source</span>) <span class="op">=</span> (<span class="ident">construct</span>(<span class="ident">target</span>, <span class="prelude-val">None</span>)<span class="question-mark">?</span>, <span class="ident">construct</span>(<span class="ident">source</span>, <span class="prelude-val">None</span>)<span class="question-mark">?</span>);
@@ -348,7 +348,7 @@
             <span class="ident">target_module</span>.<span class="ident">dimension</span>(<span class="ident">output_t</span>),
         );
 
-        <span class="kw">if</span> <span class="ident">matrix</span>.<span class="ident">rows</span>() <span class="op">=</span><span class="op">=</span> <span class="number">0</span> <span class="op">|</span><span class="op">|</span> <span class="ident">matrix</span>.<span class="ident">columns</span>() <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
+        <span class="kw">if</span> <span class="ident">matrix</span>.<span class="ident">rows</span>() <span class="op">==</span> <span class="number">0</span> <span class="op">|</span><span class="op">|</span> <span class="ident">matrix</span>.<span class="ident">columns</span>() <span class="op">==</span> <span class="number">0</span> {
             <span class="ident">hom</span>.<span class="ident">extend_step</span>(<span class="ident">shift_s</span>, <span class="ident">input_t</span>, <span class="prelude-val">None</span>);
         } <span class="kw">else</span> {
             <span class="kw">for</span> (<span class="ident">idx</span>, <span class="ident">row</span>) <span class="kw">in</span> <span class="ident">matrix</span>.<span class="ident">iter_mut</span>().<span class="ident">enumerate</span>() {

@@ -208,13 +208,13 @@
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">M</span>: <span class="ident">Module</span><span class="op">&gt;</span> <span class="ident">std::fmt::Display</span> <span class="kw">for</span> <span class="ident">QuotientModule</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">std::fmt::Formatter</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">std::fmt::Result</span> {
+    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">std::fmt::Formatter</span>) -&gt; <span class="ident">std::fmt::Result</span> {
         <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;Quotient of {}&quot;</span>, <span class="self">self</span>.<span class="ident">module</span>)
     }
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">M</span>: <span class="ident">Module</span><span class="op">&gt;</span> <span class="ident">QuotientModule</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">module</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">module</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span>) -&gt; <span class="self">Self</span> {
         <span class="kw">let</span> <span class="ident">min_deg</span> <span class="op">=</span> <span class="ident">module</span>.<span class="ident">min_degree</span>();
         <span class="ident">QuotientModule</span> {
             <span class="ident">module</span>,
@@ -290,11 +290,11 @@
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">M</span>: <span class="ident">Module</span><span class="op">&gt;</span> <span class="ident">Module</span> <span class="kw">for</span> <span class="ident">QuotientModule</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span> {
     <span class="kw">type</span> <span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">M::Algebra</span>;
-    <span class="kw">fn</span> <span class="ident">algebra</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Algebra</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">algebra</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Algebra</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">module</span>.<span class="ident">algebra</span>()
     }
 
-    <span class="kw">fn</span> <span class="ident">min_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+    <span class="kw">fn</span> <span class="ident">min_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">i32</span> {
         <span class="self">self</span>.<span class="ident">module</span>.<span class="ident">min_degree</span>()
     }
 
@@ -309,11 +309,11 @@
         }
     }
 
-    <span class="kw">fn</span> <span class="ident">max_computed_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+    <span class="kw">fn</span> <span class="ident">max_computed_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">i32</span> {
         <span class="self">self</span>.<span class="ident">subspaces</span>.<span class="ident">len</span>()
     }
 
-    <span class="kw">fn</span> <span class="ident">dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
+    <span class="kw">fn</span> <span class="ident">dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) -&gt; <span class="ident">usize</span> {
         <span class="self">self</span>.<span class="ident">module</span>.<span class="ident">dimension</span>(<span class="ident">degree</span>) <span class="op">-</span> <span class="self">self</span>.<span class="ident">subspaces</span>[<span class="ident">degree</span>].<span class="ident">dimension</span>()
     }
 
@@ -341,14 +341,14 @@
         <span class="self">self</span>.<span class="ident">old_basis_to_new</span>(<span class="ident">target_deg</span>, <span class="ident">result</span>, <span class="ident">result_</span>.<span class="ident">as_slice</span>());
     }
 
-    <span class="kw">fn</span> <span class="ident">basis_element_to_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">idx</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">String</span> {
+    <span class="kw">fn</span> <span class="ident">basis_element_to_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">idx</span>: <span class="ident">usize</span>) -&gt; <span class="ident">String</span> {
         <span class="self">self</span>.<span class="ident">module</span>
             .<span class="ident">basis_element_to_string</span>(<span class="ident">degree</span>, <span class="self">self</span>.<span class="ident">basis_list</span>[<span class="ident">degree</span>][<span class="ident">idx</span>])
     }
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">M</span>: <span class="ident">Module</span> <span class="op">+</span> <span class="ident">BoundedModule</span><span class="op">&gt;</span> <span class="ident">BoundedModule</span> <span class="kw">for</span> <span class="ident">QuotientModule</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">max_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+    <span class="kw">fn</span> <span class="ident">max_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">i32</span> {
         <span class="self">self</span>.<span class="ident">module</span>.<span class="ident">max_degree</span>()
     }
 }

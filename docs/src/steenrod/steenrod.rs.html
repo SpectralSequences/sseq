@@ -384,7 +384,7 @@
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
 <span class="kw">use</span> <span class="ident">crossbeam_channel</span>::{<span class="ident">unbounded</span>, <span class="ident">Receiver</span>};
 
-<span class="kw">fn</span> <span class="ident">main</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error::Result</span> {
+<span class="kw">fn</span> <span class="ident">main</span>() -&gt; <span class="ident">error::Result</span> {
     <span class="kw">let</span> <span class="ident">resolution</span> <span class="op">=</span>
         <span class="ident">Arc::new</span>(<span class="ident">construct</span>(<span class="string">&quot;S_2&quot;</span>, <span class="ident">std::fs::File::open</span>(<span class="string">&quot;resolution_adem.save&quot;</span>).<span class="ident">ok</span>()).<span class="ident">unwrap</span>());
 
@@ -428,7 +428,7 @@
         <span class="macro">print!</span>(<span class="string">&quot; {}&quot;</span>, <span class="ident">module</span>.<span class="ident">total_dimension</span>());
 
         <span class="kw">for</span> <span class="ident">t</span> <span class="kw">in</span> <span class="number">0</span>..<span class="op">=</span><span class="ident">t</span> {
-            <span class="ident">check</span>[<span class="ident">t</span> <span class="kw">as</span> <span class="ident">usize</span>] <span class="op">+</span><span class="op">=</span> (<span class="kw">if</span> <span class="ident">s</span> <span class="op">%</span> <span class="number">2</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> { <span class="number">1</span> } <span class="kw">else</span> { <span class="op">-</span><span class="number">1</span> }) <span class="op">*</span> <span class="ident">module</span>.<span class="ident">dimension</span>(<span class="ident">t</span>) <span class="kw">as</span> <span class="ident">i32</span>;
+            <span class="ident">check</span>[<span class="ident">t</span> <span class="kw">as</span> <span class="ident">usize</span>] <span class="op">+</span><span class="op">=</span> (<span class="kw">if</span> <span class="ident">s</span> <span class="op">%</span> <span class="number">2</span> <span class="op">==</span> <span class="number">0</span> { <span class="number">1</span> } <span class="kw">else</span> { <span class="op">-</span><span class="number">1</span> }) <span class="op">*</span> <span class="ident">module</span>.<span class="ident">dimension</span>(<span class="ident">t</span>) <span class="kw">as</span> <span class="ident">i32</span>;
         }
     }
     <span class="macro">println!</span>();
@@ -456,7 +456,7 @@
         <span class="kw">let</span> <span class="ident">num_gens</span> <span class="op">=</span> <span class="ident">resolution</span>.<span class="ident">number_of_gens_in_bidegree</span>(<span class="ident">s</span>, <span class="ident">t</span>);
         <span class="kw">for</span> <span class="ident">i_</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">num_gens</span> {
             <span class="macro">assert_eq!</span>(<span class="ident">final_map</span>.<span class="ident">output</span>(<span class="ident">t</span>, <span class="ident">i_</span>).<span class="ident">len</span>(), <span class="number">1</span>);
-            <span class="kw">if</span> <span class="ident">i_</span> <span class="op">=</span><span class="op">=</span> <span class="ident">idx</span> {
+            <span class="kw">if</span> <span class="ident">i_</span> <span class="op">==</span> <span class="ident">idx</span> {
                 <span class="macro">assert_eq!</span>(<span class="ident">final_map</span>.<span class="ident">output</span>(<span class="ident">t</span>, <span class="ident">i_</span>).<span class="ident">entry</span>(<span class="number">0</span>), <span class="number">1</span>);
             } <span class="kw">else</span> {
                 <span class="macro">assert_eq!</span>(<span class="ident">final_map</span>.<span class="ident">output</span>(<span class="ident">t</span>, <span class="ident">i_</span>).<span class="ident">entry</span>(<span class="number">0</span>), <span class="number">0</span>);
@@ -526,7 +526,7 @@
         <span class="kw">let</span> <span class="ident">top_s</span> <span class="op">=</span> <span class="number">2</span> <span class="op">*</span> <span class="ident">s</span> <span class="op">-</span> <span class="ident">i</span>;
 
         <span class="kw">for</span> <span class="ident">s</span> <span class="kw">in</span> <span class="number">0</span>..<span class="op">=</span><span class="number">2</span> <span class="op">*</span> <span class="ident">s</span> <span class="op">-</span> <span class="ident">i</span> {
-            <span class="kw">if</span> <span class="ident">i</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> <span class="op">&amp;&amp;</span> <span class="ident">s</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
+            <span class="kw">if</span> <span class="ident">i</span> <span class="op">==</span> <span class="number">0</span> <span class="op">&amp;&amp;</span> <span class="ident">s</span> <span class="op">==</span> <span class="number">0</span> {
                 <span class="kw">let</span> <span class="ident">map</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">delta</span>[<span class="number">0</span>][<span class="number">0</span>];
                 <span class="ident">map</span>.<span class="ident">add_generators_from_matrix_rows</span>(
                     <span class="number">0</span>,
@@ -548,13 +548,13 @@
 
             <span class="kw">let</span> <span class="ident">map</span> <span class="op">=</span> <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">delta</span>[<span class="ident">i</span> <span class="kw">as</span> <span class="ident">usize</span>][<span class="ident">s</span> <span class="kw">as</span> <span class="ident">usize</span>]);
             <span class="kw">let</span> <span class="ident">prev_map</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">s</span> {
-                <span class="number">0</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">None</span>,
-                <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Some</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">delta</span>[<span class="ident">i</span> <span class="kw">as</span> <span class="ident">usize</span>][<span class="ident">s</span> <span class="kw">as</span> <span class="ident">usize</span> <span class="op">-</span> <span class="number">1</span>])),
+                <span class="number">0</span> =&gt; <span class="prelude-val">None</span>,
+                <span class="kw">_</span> =&gt; <span class="prelude-val">Some</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">delta</span>[<span class="ident">i</span> <span class="kw">as</span> <span class="ident">usize</span>][<span class="ident">s</span> <span class="kw">as</span> <span class="ident">usize</span> <span class="op">-</span> <span class="number">1</span>])),
             };
 
             <span class="kw">let</span> <span class="ident">prev_delta</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">i</span> {
-                <span class="number">0</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">None</span>,
-                <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Some</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">delta</span>[<span class="ident">i</span> <span class="kw">as</span> <span class="ident">usize</span> <span class="op">-</span> <span class="number">1</span>][<span class="ident">s</span> <span class="kw">as</span> <span class="ident">usize</span>])),
+                <span class="number">0</span> =&gt; <span class="prelude-val">None</span>,
+                <span class="kw">_</span> =&gt; <span class="prelude-val">Some</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">delta</span>[<span class="ident">i</span> <span class="kw">as</span> <span class="ident">usize</span> <span class="op">-</span> <span class="number">1</span>][<span class="ident">s</span> <span class="kw">as</span> <span class="ident">usize</span>])),
             };
 
             <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
@@ -586,7 +586,7 @@
                     <span class="kw">let</span> <span class="ident">fx_dim</span> <span class="op">=</span> <span class="ident">target</span>.<span class="ident">dimension</span>(<span class="ident">t</span>);
                     <span class="kw">let</span> <span class="ident">fdx_dim</span> <span class="op">=</span> <span class="ident">dtarget_module</span>.<span class="ident">dimension</span>(<span class="ident">t</span>);
 
-                    <span class="kw">if</span> <span class="ident">fx_dim</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> <span class="op">|</span><span class="op">|</span> <span class="ident">fdx_dim</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> <span class="op">|</span><span class="op">|</span> <span class="ident">num_gens</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
+                    <span class="kw">if</span> <span class="ident">fx_dim</span> <span class="op">==</span> <span class="number">0</span> <span class="op">|</span><span class="op">|</span> <span class="ident">fdx_dim</span> <span class="op">==</span> <span class="number">0</span> <span class="op">|</span><span class="op">|</span> <span class="ident">num_gens</span> <span class="op">==</span> <span class="number">0</span> {
                         <span class="ident">map</span>.<span class="ident">extend_by_zero</span>(<span class="ident">t</span>);
 
                         <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>

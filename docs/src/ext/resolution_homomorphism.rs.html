@@ -452,7 +452,7 @@
         <span class="ident">target</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">CC2</span><span class="op">&gt;</span>,
         <span class="ident">shift_s</span>: <span class="ident">u32</span>,
         <span class="ident">shift_t</span>: <span class="ident">i32</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+    ) -&gt; <span class="self">Self</span> {
         <span class="self">Self</span> {
             <span class="ident">name</span>,
             <span class="ident">source</span>,
@@ -470,7 +470,7 @@
         <span class="ident">shift_s</span>: <span class="ident">u32</span>,
         <span class="ident">shift_t</span>: <span class="ident">i32</span>,
         <span class="ident">class</span>: <span class="kw-2">&amp;</span>[<span class="ident">u32</span>],
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+    ) -&gt; <span class="self">Self</span> {
         <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident"><span class="self">Self</span>::new</span>(<span class="ident">name</span>, <span class="ident">source</span>, <span class="ident">target</span>, <span class="ident">shift_s</span>, <span class="ident">shift_t</span>);
 
         <span class="kw">let</span> <span class="ident">num_gens</span> <span class="op">=</span> <span class="ident">result</span>
@@ -488,7 +488,7 @@
         <span class="ident">result</span>
     }
 
-    <span class="kw">fn</span> <span class="ident">get_map_ensure_length</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">input_s</span>: <span class="ident">u32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">CC2::Module</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">get_map_ensure_length</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">input_s</span>: <span class="ident">u32</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">CC2::Module</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">maps</span>.<span class="ident">extend</span>(<span class="ident">input_s</span> <span class="kw">as</span> <span class="ident">i32</span>, <span class="op">|</span><span class="ident">input_s</span><span class="op">|</span> {
             <span class="kw">let</span> <span class="ident">output_s</span> <span class="op">=</span> <span class="ident">input_s</span> <span class="kw">as</span> <span class="ident">u32</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">shift_s</span>;
             <span class="ident">FreeModuleHomomorphism::new</span>(
@@ -500,7 +500,7 @@
         <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">maps</span>[<span class="ident">input_s</span> <span class="kw">as</span> <span class="ident">i32</span>]
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_map</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">input_s</span>: <span class="ident">u32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">CC2::Module</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_map</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">input_s</span>: <span class="ident">u32</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">CC2::Module</span><span class="op">&gt;</span> {
         <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">maps</span>[<span class="ident">input_s</span> <span class="kw">as</span> <span class="ident">i32</span>]
     }
 
@@ -556,7 +556,7 @@
         );
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">extend_profile</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">max_s</span>: <span class="ident">u32</span>, <span class="kw-2">mut</span> <span class="ident">max_t</span>: <span class="kw">impl</span> <span class="ident">FnMut</span>(<span class="ident">u32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span>) {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">extend_profile</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">max_s</span>: <span class="ident">u32</span>, <span class="kw-2">mut</span> <span class="ident">max_t</span>: <span class="kw">impl</span> <span class="ident">FnMut</span>(<span class="ident">u32</span>) -&gt; <span class="ident">i32</span>) {
         <span class="self">self</span>.<span class="ident">get_map_ensure_length</span>(<span class="ident">max_s</span>);
         <span class="kw">for</span> <span class="ident">s</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">shift_s</span>..<span class="op">=</span><span class="ident">max_s</span> {
             <span class="kw">let</span> <span class="ident">f_cur</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">get_map_ensure_length</span>(<span class="ident">s</span>);
@@ -570,7 +570,7 @@
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">extend_profile_concurrent</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         <span class="ident">max_s</span>: <span class="ident">u32</span>,
-        <span class="ident">max_t</span>: <span class="kw">impl</span> <span class="ident">Fn</span>(<span class="ident">u32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Clone</span>,
+        <span class="ident">max_t</span>: <span class="kw">impl</span> <span class="ident">Fn</span>(<span class="ident">u32</span>) -&gt; <span class="ident">i32</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Clone</span>,
         <span class="ident">bucket</span>: <span class="kw-2">&amp;</span><span class="ident">TokenBucket</span>,
     ) {
         <span class="self">self</span>.<span class="ident">get_map_ensure_length</span>(<span class="ident">max_s</span>);
@@ -617,19 +617,19 @@
         <span class="kw">let</span> <span class="ident">fx_dimension</span> <span class="op">=</span> <span class="ident">f_cur</span>.<span class="ident">target</span>().<span class="ident">dimension</span>(<span class="ident">output_t</span>);
 
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">outputs</span> <span class="op">=</span> <span class="macro">vec!</span>[<span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="ident">fx_dimension</span>); <span class="ident">num_gens</span>];
-        <span class="kw">if</span> <span class="ident">num_gens</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> <span class="op">|</span><span class="op">|</span> <span class="ident">fx_dimension</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
+        <span class="kw">if</span> <span class="ident">num_gens</span> <span class="op">==</span> <span class="number">0</span> <span class="op">|</span><span class="op">|</span> <span class="ident">fx_dimension</span> <span class="op">==</span> <span class="number">0</span> {
             <span class="ident">f_cur</span>.<span class="ident">add_generators_from_rows</span>(<span class="ident">input_t</span>, <span class="ident">outputs</span>);
             <span class="kw">return</span>;
         }
-        <span class="kw">if</span> <span class="ident">output_s</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
+        <span class="kw">if</span> <span class="ident">output_s</span> <span class="op">==</span> <span class="number">0</span> {
             <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">extra_images_matrix</span>) <span class="op">=</span> <span class="ident">extra_images</span> {
                 <span class="kw">let</span> <span class="ident">target_chain_map</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">target</span>.<span class="ident">chain_map</span>(<span class="ident">output_s</span>);
                 <span class="kw">let</span> <span class="ident">target_cc_dimension</span> <span class="op">=</span> <span class="ident">target_chain_map</span>.<span class="ident">target</span>().<span class="ident">dimension</span>(<span class="ident">output_t</span>);
-                <span class="macro">assert!</span>(<span class="ident">target_cc_dimension</span> <span class="op">=</span><span class="op">=</span> <span class="ident">extra_images_matrix</span>.<span class="ident">columns</span>());
+                <span class="macro">assert!</span>(<span class="ident">target_cc_dimension</span> <span class="op">==</span> <span class="ident">extra_images_matrix</span>.<span class="ident">columns</span>());
 
                 <span class="ident">target_chain_map</span>.<span class="ident">compute_auxiliary_data_through_degree</span>(<span class="ident">output_t</span>);
                 <span class="macro">assert!</span>(
-                    <span class="ident">num_gens</span> <span class="op">=</span><span class="op">=</span> <span class="ident">extra_images_matrix</span>.<span class="ident">rows</span>(),
+                    <span class="ident">num_gens</span> <span class="op">==</span> <span class="ident">extra_images_matrix</span>.<span class="ident">rows</span>(),
                     <span class="string">&quot;num_gens : {} greater than rows : {} hom_deg : {}, int_deg : {}&quot;</span>,
                     <span class="ident">num_gens</span>,
                     <span class="ident">extra_images_matrix</span>.<span class="ident">rows</span>(),
@@ -663,7 +663,7 @@
                 <span class="kw">let</span> <span class="ident">target_chain_map</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">target</span>.<span class="ident">chain_map</span>(<span class="ident">output_s</span>);
                 <span class="kw">let</span> <span class="ident">target_cc_dimension</span> <span class="op">=</span> <span class="ident">target_chain_map</span>.<span class="ident">target</span>().<span class="ident">dimension</span>(<span class="ident">output_t</span>);
                 <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">extra_images_matrix</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">extra_images</span> {
-                    <span class="macro">assert!</span>(<span class="ident">target_cc_dimension</span> <span class="op">=</span><span class="op">=</span> <span class="ident">extra_images_matrix</span>.<span class="ident">columns</span>());
+                    <span class="macro">assert!</span>(<span class="ident">target_cc_dimension</span> <span class="op">==</span> <span class="ident">extra_images_matrix</span>.<span class="ident">columns</span>());
                 }
 
                 <span class="kw">let</span> <span class="ident">extra_image_matrix</span> <span class="op">=</span> <span class="ident">extra_images</span>.<span class="ident">as_ref</span>().<span class="ident">expect</span>(<span class="string">&quot;Missing extra image rows&quot;</span>);
@@ -704,7 +704,7 @@
         <span class="ident">source</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Resolution</span><span class="op">&lt;</span><span class="ident">CCC</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">target</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">ACC</span><span class="op">&gt;</span>,
         <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="ident">FiniteModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+    ) -&gt; <span class="self">Self</span> {
         <span class="macro">assert_eq!</span>(<span class="ident">source</span>.<span class="ident">target</span>().<span class="ident">max_s</span>(), <span class="number">1</span>);
         <span class="macro">assert_eq!</span>(<span class="ident">target</span>.<span class="ident">target</span>().<span class="ident">max_s</span>(), <span class="number">1</span>);
 
@@ -717,9 +717,9 @@
         <span class="kw">let</span> <span class="ident">degree_shift</span> <span class="op">=</span> <span class="ident">f</span>.<span class="ident">degree_shift</span>();
 
         <span class="kw">let</span> <span class="ident">max_degree</span> <span class="op">=</span> <span class="kw">match</span> <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">source_module</span> {
-            <span class="ident">FiniteModule::FDModule</span>(<span class="ident">m</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">m</span>.<span class="ident">max_degree</span>(),
-            <span class="ident">FiniteModule::FPModule</span>(<span class="ident">m</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">m</span>.<span class="ident">generators</span>().<span class="ident">get_max_generator_degree</span>(),
-            <span class="ident">FiniteModule::RealProjectiveSpace</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="macro">panic!</span>(<span class="string">&quot;Real Projective Space not supported&quot;</span>),
+            <span class="ident">FiniteModule::FDModule</span>(<span class="ident">m</span>) =&gt; <span class="ident">m</span>.<span class="ident">max_degree</span>(),
+            <span class="ident">FiniteModule::FPModule</span>(<span class="ident">m</span>) =&gt; <span class="ident">m</span>.<span class="ident">generators</span>().<span class="ident">get_max_generator_degree</span>(),
+            <span class="ident">FiniteModule::RealProjectiveSpace</span>(<span class="kw">_</span>) =&gt; <span class="macro">panic!</span>(<span class="string">&quot;Real Projective Space not supported&quot;</span>),
         };
 
         <span class="kw">let</span> <span class="ident">hom</span> <span class="op">=</span> <span class="ident"><span class="self">Self</span>::new</span>(<span class="ident">name</span>, <span class="ident">source</span>, <span class="ident">target</span>, <span class="number">0</span>, <span class="ident">degree_shift</span>);
@@ -747,7 +747,7 @@
                 <span class="ident">num_gens</span>,
                 <span class="ident">hom</span>.<span class="ident">target</span>.<span class="ident">module</span>(<span class="number">0</span>).<span class="ident">dimension</span>(<span class="ident">t</span> <span class="op">+</span> <span class="ident">degree_shift</span>),
             );
-            <span class="kw">if</span> <span class="ident">num_gens</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> <span class="op">|</span><span class="op">|</span> <span class="ident">fx</span>.<span class="ident">is_empty</span>() {
+            <span class="kw">if</span> <span class="ident">num_gens</span> <span class="op">==</span> <span class="number">0</span> <span class="op">|</span><span class="op">|</span> <span class="ident">fx</span>.<span class="ident">is_empty</span>() {
                 <span class="ident">g</span>.<span class="ident">add_generators_from_matrix_rows</span>(<span class="ident">t</span>, <span class="ident">outputs_matrix</span>.<span class="ident">as_slice_mut</span>());
                 <span class="kw">continue</span>;
             }

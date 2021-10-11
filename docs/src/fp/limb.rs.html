@@ -220,47 +220,47 @@
 }
 
 <span class="doccomment">/// Return the number of bits an element of $\mathbb{F}_P$ occupies in a limb.</span>
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">bit_length</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">bit_length</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>) -&gt; <span class="ident">usize</span> {
     <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">p</span>.<span class="ident">value</span>();
     <span class="kw">match</span> <span class="ident">p</span> {
-        <span class="number">2</span> <span class="op">=</span><span class="op">&gt;</span> <span class="number">1</span>,
-        <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> (<span class="number">32</span> <span class="op">-</span> (<span class="ident">p</span> <span class="op">*</span> (<span class="ident">p</span> <span class="op">-</span> <span class="number">1</span>)).<span class="ident">leading_zeros</span>()) <span class="kw">as</span> <span class="ident">usize</span>,
+        <span class="number">2</span> =&gt; <span class="number">1</span>,
+        <span class="kw">_</span> =&gt; (<span class="number">32</span> <span class="op">-</span> (<span class="ident">p</span> <span class="op">*</span> (<span class="ident">p</span> <span class="op">-</span> <span class="number">1</span>)).<span class="ident">leading_zeros</span>()) <span class="kw">as</span> <span class="ident">usize</span>,
     }
 }
 
 <span class="doccomment">/// Return the number of bits an element of $\mathbb{F}_P$ occupies in a limb.</span>
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">bit_length_const</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">P</span>: <span class="ident">u32</span><span class="op">&gt;</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">bit_length_const</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">P</span>: <span class="ident">u32</span><span class="op">&gt;</span>() -&gt; <span class="ident">usize</span> {
     <span class="kw">match</span> <span class="ident">P</span> {
-        <span class="number">2</span> <span class="op">=</span><span class="op">&gt;</span> <span class="number">1</span>,
-        <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> (<span class="number">32</span> <span class="op">-</span> (<span class="ident">P</span> <span class="op">*</span> (<span class="ident">P</span> <span class="op">-</span> <span class="number">1</span>)).<span class="ident">leading_zeros</span>()) <span class="kw">as</span> <span class="ident">usize</span>,
+        <span class="number">2</span> =&gt; <span class="number">1</span>,
+        <span class="kw">_</span> =&gt; (<span class="number">32</span> <span class="op">-</span> (<span class="ident">P</span> <span class="op">*</span> (<span class="ident">P</span> <span class="op">-</span> <span class="number">1</span>)).<span class="ident">leading_zeros</span>()) <span class="kw">as</span> <span class="ident">usize</span>,
     }
 }
 
 <span class="doccomment">/// If `l` is a limb of elements of $\\mathbb{F}_p$, then `l &amp; bitmask::&lt;P&gt;()` is the value of the</span>
 <span class="doccomment">/// first entry of `l`.</span>
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">bitmask</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">P</span>: <span class="ident">u32</span><span class="op">&gt;</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Limb</span> {
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">bitmask</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">P</span>: <span class="ident">u32</span><span class="op">&gt;</span>() -&gt; <span class="ident">Limb</span> {
     (<span class="number">1</span> <span class="op">&lt;</span><span class="op">&lt;</span> <span class="ident">bit_length_const</span>::<span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span>()) <span class="op">-</span> <span class="number">1</span>
 }
 
 <span class="comment">// this function is never called if `odd-primes` is disabled</span>
 <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">dead_code</span>)]</span>
 <span class="doccomment">/// The number of elements of $\\mathbb{F}_p$ that fit in a single limb.</span>
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">entries_per_limb</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">entries_per_limb</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>) -&gt; <span class="ident">usize</span> {
     <span class="ident">BITS_PER_LIMB</span> <span class="op">/</span> <span class="ident">bit_length</span>(<span class="ident">p</span>)
 }
 
 <span class="doccomment">/// The number of elements of $\\mathbb{F}_p$ that fit in a single limb.</span>
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">entries_per_limb_const</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">P</span>: <span class="ident">u32</span><span class="op">&gt;</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">entries_per_limb_const</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">P</span>: <span class="ident">u32</span><span class="op">&gt;</span>() -&gt; <span class="ident">usize</span> {
     <span class="ident">BITS_PER_LIMB</span> <span class="op">/</span> <span class="ident">bit_length_const</span>::<span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span>()
 }
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">limb_bit_index_pair</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">P</span>: <span class="ident">u32</span><span class="op">&gt;</span>(<span class="ident">idx</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">LimbBitIndexPair</span> {
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">limb_bit_index_pair</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">P</span>: <span class="ident">u32</span><span class="op">&gt;</span>(<span class="ident">idx</span>: <span class="ident">usize</span>) -&gt; <span class="ident">LimbBitIndexPair</span> {
     <span class="kw">match</span> <span class="ident">P</span> {
-        <span class="number">2</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">LimbBitIndexPair</span> {
+        <span class="number">2</span> =&gt; <span class="ident">LimbBitIndexPair</span> {
             <span class="ident">limb</span>: <span class="ident">idx</span> <span class="op">/</span> <span class="ident">BITS_PER_LIMB</span>,
             <span class="ident">bit_index</span>: <span class="ident">idx</span> <span class="op">%</span> <span class="ident">BITS_PER_LIMB</span>,
         },
-        <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">LimbBitIndexPair</span> {
+        <span class="kw">_</span> =&gt; <span class="ident">LimbBitIndexPair</span> {
             <span class="ident">limb</span>: <span class="ident">idx</span> <span class="op">/</span> <span class="ident">entries_per_limb_const</span>::<span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span>(),
             <span class="ident">bit_index</span>: (<span class="ident">idx</span> <span class="op">%</span> <span class="ident">entries_per_limb_const</span>::<span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span>() <span class="op">*</span> <span class="ident">bit_length_const</span>::<span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span>()),
         },
@@ -269,8 +269,8 @@
 
 <span class="doccomment">/// Return the `Limb` whose `i`th entry is `limb_a[i] + coeff * limb_b[i]` mod P. Both `limb_a` and</span>
 <span class="doccomment">/// `limb_b` are assumed to be reduced.</span>
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">add</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">P</span>: <span class="ident">u32</span><span class="op">&gt;</span>(<span class="ident">limb_a</span>: <span class="ident">Limb</span>, <span class="ident">limb_b</span>: <span class="ident">Limb</span>, <span class="ident">coeff</span>: <span class="ident">u32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Limb</span> {
-    <span class="kw">if</span> <span class="ident">P</span> <span class="op">=</span><span class="op">=</span> <span class="number">2</span> {
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">add</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">P</span>: <span class="ident">u32</span><span class="op">&gt;</span>(<span class="ident">limb_a</span>: <span class="ident">Limb</span>, <span class="ident">limb_b</span>: <span class="ident">Limb</span>, <span class="ident">coeff</span>: <span class="ident">u32</span>) -&gt; <span class="ident">Limb</span> {
+    <span class="kw">if</span> <span class="ident">P</span> <span class="op">==</span> <span class="number">2</span> {
         <span class="ident">limb_a</span> <span class="op">^</span> (<span class="ident">coeff</span> <span class="kw">as</span> <span class="ident">Limb</span> <span class="op">*</span> <span class="ident">limb_b</span>)
     } <span class="kw">else</span> {
         <span class="ident">limb_a</span> <span class="op">+</span> (<span class="ident">coeff</span> <span class="kw">as</span> <span class="ident">Limb</span>) <span class="op">*</span> <span class="ident">limb_b</span>
@@ -280,10 +280,10 @@
 <span class="doccomment">/// Return the `Limb` whose entries are the entries of `limb` reduced modulo `P`.</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// Contributed by Robert Burklund.</span>
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">reduce</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">P</span>: <span class="ident">u32</span><span class="op">&gt;</span>(<span class="ident">limb</span>: <span class="ident">Limb</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Limb</span> {
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">reduce</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">P</span>: <span class="ident">u32</span><span class="op">&gt;</span>(<span class="ident">limb</span>: <span class="ident">Limb</span>) -&gt; <span class="ident">Limb</span> {
     <span class="kw">match</span> <span class="ident">P</span> {
-        <span class="number">2</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">limb</span>,
-        <span class="number">3</span> <span class="op">=</span><span class="op">&gt;</span> {
+        <span class="number">2</span> =&gt; <span class="ident">limb</span>,
+        <span class="number">3</span> =&gt; {
             <span class="comment">// Set top bit to 1 in every limb</span>
             <span class="kw">const</span> <span class="ident">TOP_BIT</span>: <span class="ident">Limb</span> <span class="op">=</span> (<span class="op">!</span><span class="number">0</span> <span class="op">/</span> <span class="number">7</span>) <span class="op">&lt;</span><span class="op">&lt;</span> (<span class="number">2</span> <span class="op">-</span> <span class="ident">BITS_PER_LIMB</span> <span class="op">%</span> <span class="number">3</span>);
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">limb_2</span> <span class="op">=</span> ((<span class="ident">limb</span> <span class="op">&amp;</span> <span class="ident">TOP_BIT</span>) <span class="op">&gt;</span><span class="op">&gt;</span> <span class="number">2</span>) <span class="op">+</span> (<span class="ident">limb</span> <span class="op">&amp;</span> (<span class="op">!</span><span class="ident">TOP_BIT</span>));
@@ -292,7 +292,7 @@
             <span class="ident">limb_2</span> <span class="op">^</span><span class="op">=</span> <span class="ident">limb_3s</span>;
             <span class="ident">limb_2</span>
         }
-        <span class="number">5</span> <span class="op">=</span><span class="op">&gt;</span> {
+        <span class="number">5</span> =&gt; {
             <span class="comment">// Set bottom bit to 1 in every limb</span>
             <span class="kw">const</span> <span class="ident">BOTTOM_BIT</span>: <span class="ident">Limb</span> <span class="op">=</span> (<span class="op">!</span><span class="number">0</span> <span class="op">/</span> <span class="number">31</span>) <span class="op">&gt;</span><span class="op">&gt;</span> (<span class="ident">BITS_PER_LIMB</span> <span class="op">%</span> <span class="number">5</span>);
             <span class="kw">const</span> <span class="ident">BOTTOM_TWO_BITS</span>: <span class="ident">Limb</span> <span class="op">=</span> <span class="ident">BOTTOM_BIT</span> <span class="op">|</span> (<span class="ident">BOTTOM_BIT</span> <span class="op">&lt;</span><span class="op">&lt;</span> <span class="number">1</span>);
@@ -305,14 +305,14 @@
             <span class="kw">let</span> <span class="ident">d</span> <span class="op">=</span> <span class="ident">m</span> <span class="op">&amp;</span> <span class="ident">BOTTOM_THREE_BITS</span>;
             <span class="ident">d</span> <span class="op">+</span> <span class="ident">c</span> <span class="op">-</span> <span class="ident">BOTTOM_TWO_BITS</span>
         }
-        <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">pack</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="ident">P</span><span class="op">&gt;</span>(<span class="ident">unpack</span>::<span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span>(<span class="ident">limb</span>).<span class="ident">map</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">x</span> <span class="op">%</span> <span class="ident">P</span>)),
+        <span class="kw">_</span> =&gt; <span class="ident">pack</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="ident">P</span><span class="op">&gt;</span>(<span class="ident">unpack</span>::<span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span>(<span class="ident">limb</span>).<span class="ident">map</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">x</span> <span class="op">%</span> <span class="ident">P</span>)),
     }
 }
 
 <span class="doccomment">/// Check whether or not a limb is reduced, i.e. whether every entry is a value in the range `0..P`.</span>
 <span class="doccomment">/// This is currently **not** faster than calling [`reduce`] directly.</span>
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">is_reduced</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">P</span>: <span class="ident">u32</span><span class="op">&gt;</span>(<span class="ident">limb</span>: <span class="ident">Limb</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
-    <span class="ident">limb</span> <span class="op">=</span><span class="op">=</span> <span class="ident">reduce</span>::<span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span>(<span class="ident">limb</span>)
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">is_reduced</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">P</span>: <span class="ident">u32</span><span class="op">&gt;</span>(<span class="ident">limb</span>: <span class="ident">Limb</span>) -&gt; <span class="ident">bool</span> {
+    <span class="ident">limb</span> <span class="op">==</span> <span class="ident">reduce</span>::<span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span>(<span class="ident">limb</span>)
 }
 
 <span class="doccomment">/// Given an interator of `u32`&#39;s, pack all of them into a single limb in order.</span>
@@ -321,7 +321,7 @@
 <span class="doccomment">///  - The values of the iterator fit into a single limb</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// If these assumptions are violated, the result will be nonsense.</span>
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">pack</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">u32</span><span class="op">&gt;</span>, <span class="kw">const</span> <span class="ident">P</span>: <span class="ident">u32</span><span class="op">&gt;</span>(<span class="ident">entries</span>: <span class="ident">T</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Limb</span> {
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">pack</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">u32</span><span class="op">&gt;</span>, <span class="kw">const</span> <span class="ident">P</span>: <span class="ident">u32</span><span class="op">&gt;</span>(<span class="ident">entries</span>: <span class="ident">T</span>) -&gt; <span class="ident">Limb</span> {
     <span class="kw">let</span> <span class="ident">bit_length</span> <span class="op">=</span> <span class="ident">bit_length_const</span>::<span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span>();
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span>: <span class="ident">Limb</span> <span class="op">=</span> <span class="number">0</span>;
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">shift</span> <span class="op">=</span> <span class="number">0</span>;
@@ -333,7 +333,7 @@
 }
 
 <span class="doccomment">/// Give an iterator over the entries of `limb`.</span>
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">unpack</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">P</span>: <span class="ident">u32</span><span class="op">&gt;</span>(<span class="kw-2">mut</span> <span class="ident">limb</span>: <span class="ident">Limb</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw">impl</span> <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">u32</span><span class="op">&gt;</span> {
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">unpack</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">P</span>: <span class="ident">u32</span><span class="op">&gt;</span>(<span class="kw-2">mut</span> <span class="ident">limb</span>: <span class="ident">Limb</span>) -&gt; <span class="kw">impl</span> <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">u32</span><span class="op">&gt;</span> {
     <span class="kw">let</span> <span class="ident">entries</span> <span class="op">=</span> <span class="ident">entries_per_limb_const</span>::<span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span>();
     <span class="kw">let</span> <span class="ident">bit_length</span> <span class="op">=</span> <span class="ident">bit_length_const</span>::<span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span>();
     <span class="kw">let</span> <span class="ident">bit_mask</span> <span class="op">=</span> <span class="ident">bitmask</span>::<span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span>();
@@ -346,8 +346,8 @@
 }
 
 <span class="doccomment">/// Return the number of limbs required to hold `dim` entries.</span>
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">number</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">P</span>: <span class="ident">u32</span><span class="op">&gt;</span>(<span class="ident">dim</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
-    <span class="kw">if</span> <span class="ident">dim</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">number</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">P</span>: <span class="ident">u32</span><span class="op">&gt;</span>(<span class="ident">dim</span>: <span class="ident">usize</span>) -&gt; <span class="ident">usize</span> {
+    <span class="kw">if</span> <span class="ident">dim</span> <span class="op">==</span> <span class="number">0</span> {
         <span class="number">0</span>
     } <span class="kw">else</span> {
         <span class="ident">limb_bit_index_pair</span>::<span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span>(<span class="ident">dim</span> <span class="op">-</span> <span class="number">1</span>).<span class="ident">limb</span> <span class="op">+</span> <span class="number">1</span>
@@ -356,7 +356,7 @@
 
 <span class="doccomment">/// Return the `Range&lt;usize&gt;` starting at the index of the limb containing the `start`th entry, and</span>
 <span class="doccomment">/// ending at the index of the limb containing the `end`th entry (including the latter).</span>
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">range</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">P</span>: <span class="ident">u32</span><span class="op">&gt;</span>(<span class="ident">start</span>: <span class="ident">usize</span>, <span class="ident">end</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Range</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span> {
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">range</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">P</span>: <span class="ident">u32</span><span class="op">&gt;</span>(<span class="ident">start</span>: <span class="ident">usize</span>, <span class="ident">end</span>: <span class="ident">usize</span>) -&gt; <span class="ident">Range</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span> {
     <span class="kw">let</span> <span class="ident">min</span> <span class="op">=</span> <span class="ident">limb_bit_index_pair</span>::<span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span>(<span class="ident">start</span>).<span class="ident">limb</span>;
     <span class="kw">let</span> <span class="ident">max</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">end</span> <span class="op">&gt;</span> <span class="number">0</span> {
         <span class="ident">limb_bit_index_pair</span>::<span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span>(<span class="ident">end</span> <span class="op">-</span> <span class="number">1</span>).<span class="ident">limb</span> <span class="op">+</span> <span class="number">1</span>
@@ -366,7 +366,7 @@
     <span class="ident">min</span>..<span class="ident">max</span>
 }
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">sign_rule</span>(<span class="kw-2">mut</span> <span class="ident">target</span>: <span class="ident">Limb</span>, <span class="kw-2">mut</span> <span class="ident">source</span>: <span class="ident">Limb</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">u32</span> {
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">sign_rule</span>(<span class="kw-2">mut</span> <span class="ident">target</span>: <span class="ident">Limb</span>, <span class="kw-2">mut</span> <span class="ident">source</span>: <span class="ident">Limb</span>) -&gt; <span class="ident">u32</span> {
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="number">0</span>;
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">n</span> <span class="op">=</span> <span class="number">1</span>;
     <span class="comment">// Empirically, the compiler unrolls this loop because BITS_PER_LIMB is a constant.</span>
@@ -383,7 +383,7 @@
 }
 
 <span class="doccomment">/// Return either `Some(sum)` if no carries happen in the limb, or `None` if some carry does happen.</span>
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">truncate</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">P</span>: <span class="ident">u32</span><span class="op">&gt;</span>(<span class="ident">sum</span>: <span class="ident">Limb</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Limb</span><span class="op">&gt;</span> {
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">truncate</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">P</span>: <span class="ident">u32</span><span class="op">&gt;</span>(<span class="ident">sum</span>: <span class="ident">Limb</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Limb</span><span class="op">&gt;</span> {
     <span class="kw">if</span> <span class="ident">is_reduced</span>::<span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span>(<span class="ident">sum</span>) {
         <span class="prelude-val">Some</span>(<span class="ident">sum</span>)
     } <span class="kw">else</span> {

@@ -137,7 +137,7 @@
         <span class="ident">f</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span>,
         <span class="ident">s</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">QuotientModule</span><span class="op">&lt;</span><span class="ident">F::Source</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">t</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">QuotientModule</span><span class="op">&lt;</span><span class="ident">F::Target</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+    ) -&gt; <span class="self">Self</span> {
         <span class="ident">QuotientHomomorphism</span> { <span class="ident">f</span>, <span class="ident">s</span>, <span class="ident">t</span> }
     }
 }
@@ -146,13 +146,13 @@
     <span class="kw">type</span> <span class="ident">Source</span> <span class="op">=</span> <span class="ident">QuotientModule</span><span class="op">&lt;</span><span class="ident">F::Source</span><span class="op">&gt;</span>;
     <span class="kw">type</span> <span class="ident">Target</span> <span class="op">=</span> <span class="ident">QuotientModule</span><span class="op">&lt;</span><span class="ident">F::Target</span><span class="op">&gt;</span>;
 
-    <span class="kw">fn</span> <span class="ident">source</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Source</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">source</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Source</span><span class="op">&gt;</span> {
         <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">s</span>)
     }
-    <span class="kw">fn</span> <span class="ident">target</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Target</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">target</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Target</span><span class="op">&gt;</span> {
         <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">t</span>)
     }
-    <span class="kw">fn</span> <span class="ident">degree_shift</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+    <span class="kw">fn</span> <span class="ident">degree_shift</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">i32</span> {
         <span class="self">self</span>.<span class="ident">f</span>.<span class="ident">degree_shift</span>()
     }
 
@@ -185,7 +185,7 @@
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">F</span>: <span class="ident">ModuleHomomorphism</span><span class="op">&gt;</span> <span class="ident">QuotientHomomorphismSource</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">f</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span>, <span class="ident">s</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">QuotientModule</span><span class="op">&lt;</span><span class="ident">F::Source</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="ident">t</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">F::Target</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">f</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span>, <span class="ident">s</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">QuotientModule</span><span class="op">&lt;</span><span class="ident">F::Source</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="ident">t</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">F::Target</span><span class="op">&gt;</span>) -&gt; <span class="self">Self</span> {
         <span class="ident">QuotientHomomorphismSource</span> { <span class="ident">f</span>, <span class="ident">s</span>, <span class="ident">t</span> }
     }
 }
@@ -193,13 +193,13 @@
     <span class="kw">type</span> <span class="ident">Source</span> <span class="op">=</span> <span class="ident">QuotientModule</span><span class="op">&lt;</span><span class="ident">F::Source</span><span class="op">&gt;</span>;
     <span class="kw">type</span> <span class="ident">Target</span> <span class="op">=</span> <span class="ident">F::Target</span>;
 
-    <span class="kw">fn</span> <span class="ident">source</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Source</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">source</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Source</span><span class="op">&gt;</span> {
         <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">s</span>)
     }
-    <span class="kw">fn</span> <span class="ident">target</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Target</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">target</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Target</span><span class="op">&gt;</span> {
         <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">t</span>)
     }
-    <span class="kw">fn</span> <span class="ident">degree_shift</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+    <span class="kw">fn</span> <span class="ident">degree_shift</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">i32</span> {
         <span class="self">self</span>.<span class="ident">f</span>.<span class="ident">degree_shift</span>()
     }
 

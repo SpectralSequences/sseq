@@ -664,7 +664,7 @@
 
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">PolynomialAlgebraModule</span>: <span class="ident">PolynomialAlgebra</span> {
     <span class="kw">type</span> <span class="ident">Algebra</span>: <span class="ident">AdemAlgebraT</span>;
-    <span class="kw">fn</span> <span class="ident">algebra</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Algebra</span><span class="op">&gt;</span>;
+    <span class="kw">fn</span> <span class="ident">algebra</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Algebra</span><span class="op">&gt;</span>;
 
     <span class="kw">fn</span> <span class="ident">sq_polynomial_generator_to_monomial</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
@@ -693,14 +693,14 @@
         <span class="ident">input_idx</span>: <span class="ident">usize</span>,
     );
 
-    <span class="kw">fn</span> <span class="ident">action_table</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">FpVector</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>; <span class="comment">// degree -&gt; square -&gt; monomial idx -&gt; result vector</span>
-    <span class="kw">fn</span> <span class="ident">bockstein_table</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">FpVector</span><span class="op">&gt;</span><span class="op">&gt;</span>;
+    <span class="kw">fn</span> <span class="ident">action_table</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">FpVector</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>; <span class="comment">// degree -&gt; square -&gt; monomial idx -&gt; result vector</span>
+    <span class="kw">fn</span> <span class="ident">bockstein_table</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">FpVector</span><span class="op">&gt;</span><span class="op">&gt;</span>;
 
-    <span class="kw">fn</span> <span class="ident">bottom_truncation</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+    <span class="kw">fn</span> <span class="ident">bottom_truncation</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">i32</span> {
         <span class="number">1</span>
     }
 
-    <span class="kw">fn</span> <span class="ident">top_truncation</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+    <span class="kw">fn</span> <span class="ident">top_truncation</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">i32</span> {
         <span class="ident">i32::max_value</span>()
     }
 
@@ -919,7 +919,7 @@
                     <span class="comment">// Mono is the identity element</span>
                     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result_vec</span> <span class="op">=</span>
                         <span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="ident">Algebra::dimension</span>(<span class="self">self</span>, <span class="ident">degree</span>, <span class="ident">i32::max_value</span>()));
-                    <span class="kw">if</span> <span class="ident">sq</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
+                    <span class="kw">if</span> <span class="ident">sq</span> <span class="op">==</span> <span class="number">0</span> {
                         <span class="ident">result_vec</span>.<span class="ident">set_entry</span>(<span class="number">0</span>, <span class="number">1</span>);
                     }
                     <span class="ident">result</span> <span class="op">=</span> <span class="ident">result_vec</span>;
@@ -951,7 +951,7 @@
         <span class="ident">reducer_a</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="kw-2">mut</span> <span class="ident">FpVector</span>,
         <span class="ident">reducer_b</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="kw-2">mut</span> <span class="ident">FpVector</span>,
         <span class="ident">term</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">FpVector</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">FpVector</span> {
+    ) -&gt; <span class="ident">FpVector</span> {
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prime</span>();
         <span class="kw">let</span> <span class="ident">q</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">algebra</span>().<span class="ident">adem_algebra</span>().<span class="ident">q</span>();
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">rest_mono</span> <span class="op">=</span> <span class="ident">mono</span>.<span class="ident">clone</span>();
@@ -1003,7 +1003,7 @@
         <span class="ident">reducer_a</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="kw-2">mut</span> <span class="ident">FpVector</span>,
         <span class="ident">reducer_b</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="kw-2">mut</span> <span class="ident">FpVector</span>,
         <span class="ident">term</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="kw-2">mut</span> <span class="ident">FpVector</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">FpVector</span> {
+    ) -&gt; <span class="ident">FpVector</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">rest_mono</span> <span class="op">=</span> <span class="ident">mono</span>.<span class="ident">clone</span>();
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prime</span>();
         <span class="kw">let</span> <span class="ident">q</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">algebra</span>().<span class="ident">adem_algebra</span>().<span class="ident">q</span>();
@@ -1049,7 +1049,7 @@
     }
 
     <span class="kw">fn</span> <span class="ident">compute_bockstein_table</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) {
-        <span class="kw">if</span> <span class="ident">degree</span> <span class="op">=</span><span class="op">=</span> <span class="number">1</span> {
+        <span class="kw">if</span> <span class="ident">degree</span> <span class="op">==</span> <span class="number">1</span> {
             <span class="self">self</span>.<span class="ident">bockstein_table</span>()
                 .<span class="ident">push</span>(<span class="macro">vec!</span>[<span class="ident">FpVector::new</span>(<span class="self">self</span>.<span class="ident">prime</span>(), <span class="number">1</span>)]);
             <span class="kw">return</span>;
@@ -1154,19 +1154,19 @@
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">Adem</span>: <span class="ident">AdemAlgebraT</span>, <span class="ident">A</span>: <span class="ident">PolynomialAlgebraModule</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">Adem</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span><span class="op">&gt;</span> <span class="ident">Module</span> <span class="kw">for</span> <span class="ident">A</span> {
     <span class="kw">type</span> <span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">Adem</span>;
-    <span class="kw">fn</span> <span class="ident">algebra</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Algebra</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">algebra</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Algebra</span><span class="op">&gt;</span> {
         <span class="ident">PolynomialAlgebraModule::algebra</span>(<span class="self">self</span>)
     }
 
-    <span class="kw">fn</span> <span class="ident">min_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+    <span class="kw">fn</span> <span class="ident">min_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">i32</span> {
         <span class="number">0</span>
     }
 
-    <span class="kw">fn</span> <span class="ident">max_computed_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+    <span class="kw">fn</span> <span class="ident">max_computed_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">i32</span> {
         <span class="self">self</span>.<span class="ident">basis_table</span>().<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">i32</span> <span class="op">-</span> <span class="number">1</span>
     }
 
-    <span class="kw">fn</span> <span class="ident">dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
+    <span class="kw">fn</span> <span class="ident">dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) -&gt; <span class="ident">usize</span> {
         <span class="kw">if</span> <span class="ident">degree</span> <span class="op">&lt;</span> <span class="number">0</span> <span class="op">|</span><span class="op">|</span> <span class="ident">degree</span> <span class="op">&lt;</span> <span class="self">self</span>.<span class="ident">bottom_truncation</span>() <span class="op">|</span><span class="op">|</span> <span class="ident">degree</span> <span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">top_truncation</span>() {
             <span class="number">0</span>
         } <span class="kw">else</span> {
@@ -1186,7 +1186,7 @@
         }
     }
 
-    <span class="kw">fn</span> <span class="ident">basis_element_to_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">index</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">String</span> {
+    <span class="kw">fn</span> <span class="ident">basis_element_to_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">index</span>: <span class="ident">usize</span>) -&gt; <span class="ident">String</span> {
         <span class="ident">Algebra::basis_element_to_string</span>(<span class="self">self</span>, <span class="ident">degree</span>, <span class="ident">index</span>)
     }
 
@@ -1223,7 +1223,7 @@
         <span class="ident">input_degree</span>: <span class="ident">i32</span>,
         <span class="ident">input</span>: <span class="ident">Slice</span>,
     ) {
-        <span class="macro">debug_assert!</span>(<span class="ident">result</span>.<span class="ident">as_slice</span>().<span class="ident">len</span>() <span class="op">=</span><span class="op">=</span> <span class="ident">Module::dimension</span>(<span class="self">self</span>, <span class="ident">op_degree</span> <span class="op">+</span> <span class="ident">input_degree</span>));
+        <span class="macro">debug_assert!</span>(<span class="ident">result</span>.<span class="ident">as_slice</span>().<span class="ident">len</span>() <span class="op">==</span> <span class="ident">Module::dimension</span>(<span class="self">self</span>, <span class="ident">op_degree</span> <span class="op">+</span> <span class="ident">input_degree</span>));
         <span class="kw">let</span> <span class="ident">algebra_outer</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">algebra</span>();
         <span class="kw">let</span> <span class="ident">algebra</span> <span class="op">=</span> <span class="ident">algebra_outer</span>.<span class="ident">adem_algebra</span>();
         <span class="kw">let</span> <span class="ident">q</span> <span class="op">=</span> <span class="ident">algebra</span>.<span class="ident">q</span>();
@@ -1232,7 +1232,7 @@
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">cur_deg</span> <span class="op">=</span> <span class="ident">input_degree</span>;
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">source_vec</span> <span class="op">=</span> <span class="ident">input</span>.<span class="ident">to_owned</span>();
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">target_vec</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="self">self</span>.<span class="ident">prime</span>(), <span class="number">0</span>);
-        <span class="kw">if</span> (<span class="ident">op</span>.<span class="ident">bocksteins</span> <span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">ps_len</span>) <span class="op">&amp;</span> <span class="number">1</span> <span class="op">=</span><span class="op">=</span> <span class="number">1</span> {
+        <span class="kw">if</span> (<span class="ident">op</span>.<span class="ident">bocksteins</span> <span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">ps_len</span>) <span class="op">&amp;</span> <span class="number">1</span> <span class="op">==</span> <span class="number">1</span> {
             <span class="kw">let</span> <span class="ident">op_deg</span> <span class="op">=</span> <span class="number">1</span>;
             <span class="ident">target_vec</span>.<span class="ident">set_scratch_vector_size</span>(<span class="ident">Algebra::dimension</span>(
                 <span class="self">self</span>,
@@ -1264,7 +1264,7 @@
             );
             <span class="ident">cur_deg</span> <span class="op">+</span><span class="op">=</span> <span class="ident">op_deg</span>;
             <span class="ident">std::mem::swap</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">source_vec</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">target_vec</span>);
-            <span class="kw">if</span> (<span class="ident">op</span>.<span class="ident">bocksteins</span> <span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">i</span>) <span class="op">&amp;</span> <span class="number">1</span> <span class="op">=</span><span class="op">=</span> <span class="number">1</span> {
+            <span class="kw">if</span> (<span class="ident">op</span>.<span class="ident">bocksteins</span> <span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">i</span>) <span class="op">&amp;</span> <span class="number">1</span> <span class="op">==</span> <span class="number">1</span> {
                 <span class="kw">let</span> <span class="ident">op_deg</span> <span class="op">=</span> <span class="number">1</span>;
                 <span class="ident">target_vec</span>.<span class="ident">set_scratch_vector_size</span>(<span class="ident">Algebra::dimension</span>(
                     <span class="self">self</span>,

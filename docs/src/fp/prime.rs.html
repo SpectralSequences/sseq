@@ -626,7 +626,7 @@
 }
 
 <span class="kw">impl</span> <span class="ident">ValidPrime</span> {
-    <span class="kw">pub</span> <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">p</span>: <span class="ident">u32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+    <span class="kw">pub</span> <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">p</span>: <span class="ident">u32</span>) -&gt; <span class="self">Self</span> {
         <span class="macro">assert!</span>(<span class="ident">is_valid_prime</span>(<span class="ident">p</span>));
 
         <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;odd-primes&quot;</span>)]</span>
@@ -646,7 +646,7 @@
     <span class="doccomment">///</span>
     <span class="doccomment">/// Use this function in a const context where you would expect it to be evaluated at</span>
     <span class="doccomment">/// compile-time.</span>
-    <span class="kw">pub</span> <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">value</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">u32</span> {
+    <span class="kw">pub</span> <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">value</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">u32</span> {
         <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;odd-primes&quot;</span>)]</span>
         {
             <span class="self">self</span>.<span class="ident">p</span>
@@ -662,15 +662,15 @@
     <span class="kw">type</span> <span class="ident">Target</span> <span class="op">=</span> <span class="ident">u32</span>;
 
     <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;odd-primes&quot;</span>))]</span>
-    <span class="kw">fn</span> <span class="ident">deref</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident"><span class="self">Self</span>::Target</span> {
+    <span class="kw">fn</span> <span class="ident">deref</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident"><span class="self">Self</span>::Target</span> {
         <span class="kw-2">&amp;</span><span class="number">2</span>
     }
 
     <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;odd-primes&quot;</span>)]</span>
-    <span class="kw">fn</span> <span class="ident">deref</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident"><span class="self">Self</span>::Target</span> {
+    <span class="kw">fn</span> <span class="ident">deref</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident"><span class="self">Self</span>::Target</span> {
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">p</span>;
         <span class="kw">unsafe</span> {
-            <span class="kw">if</span> <span class="op">!</span><span class="ident">is_valid_prime</span>(<span class="ident">p</span>) <span class="op">|</span><span class="op">|</span> <span class="ident">p</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> <span class="op">|</span><span class="op">|</span> <span class="ident">PRIME_TO_INDEX_MAP</span>[<span class="ident">p</span> <span class="kw">as</span> <span class="ident">usize</span>] <span class="op">&gt;</span><span class="op">=</span> <span class="ident">NUM_PRIMES</span> {
+            <span class="kw">if</span> <span class="op">!</span><span class="ident">is_valid_prime</span>(<span class="ident">p</span>) <span class="op">|</span><span class="op">|</span> <span class="ident">p</span> <span class="op">==</span> <span class="number">0</span> <span class="op">|</span><span class="op">|</span> <span class="ident">PRIME_TO_INDEX_MAP</span>[<span class="ident">p</span> <span class="kw">as</span> <span class="ident">usize</span>] <span class="op">&gt;</span><span class="op">=</span> <span class="ident">NUM_PRIMES</span> {
                 <span class="ident">std::hint::unreachable_unchecked</span>()
             }
         }
@@ -682,7 +682,7 @@
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">InvalidPrimeError</span>(<span class="ident">u32</span>);
 
 <span class="kw">impl</span> <span class="ident">std::fmt::Display</span> <span class="kw">for</span> <span class="ident">InvalidPrimeError</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">std::fmt::Formatter</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">std::fmt::Result</span> {
+    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">std::fmt::Formatter</span>) -&gt; <span class="ident">std::fmt::Result</span> {
         <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;Invalid prime: {}&quot;</span>, <span class="self">self</span>.<span class="number">0</span>)
     }
 }
@@ -692,7 +692,7 @@
 <span class="kw">impl</span> <span class="ident">TryFrom</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">ValidPrime</span> {
     <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">InvalidPrimeError</span>;
 
-    <span class="kw">fn</span> <span class="ident">try_from</span>(<span class="ident">p</span>: <span class="ident">u32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">InvalidPrimeError</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">try_from</span>(<span class="ident">p</span>: <span class="ident">u32</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">InvalidPrimeError</span><span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="ident">is_valid_prime</span>(<span class="ident">p</span>) {
             <span class="prelude-val">Ok</span>(<span class="ident"><span class="self">Self</span>::new</span>(<span class="ident">p</span>))
         } <span class="kw">else</span> {
@@ -704,27 +704,27 @@
 <span class="kw">impl</span> <span class="ident">std::str::FromStr</span> <span class="kw">for</span> <span class="ident">ValidPrime</span> {
     <span class="kw">type</span> <span class="prelude-val">Err</span> <span class="op">=</span> <span class="ident">String</span>;
 
-    <span class="kw">fn</span> <span class="ident">from_str</span>(<span class="ident">s</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">String</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">from_str</span>(<span class="ident">s</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">String</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">p</span>: <span class="ident">u32</span> <span class="op">=</span> <span class="ident">s</span>.<span class="ident">parse</span>::<span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span>().<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="ident">s</span>.<span class="ident">to_string</span>())<span class="question-mark">?</span>;
         <span class="ident"><span class="self">Self</span>::try_from</span>(<span class="ident">p</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="ident">s</span>.<span class="ident">to_string</span>())
     }
 }
 
 <span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">ValidPrime</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">u32</span> {
-    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">u32</span> {
+    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>) -&gt; <span class="ident">u32</span> {
         <span class="kw-2">*</span><span class="ident">p</span>
     }
 }
 
 <span class="kw">impl</span> <span class="ident">std::fmt::Display</span> <span class="kw">for</span> <span class="ident">ValidPrime</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">std::fmt::Formatter</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">std::fmt::Result</span> {
+    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">std::fmt::Formatter</span>) -&gt; <span class="ident">std::fmt::Result</span> {
         (<span class="kw-2">*</span><span class="kw-2">*</span><span class="self">self</span>).<span class="ident">fmt</span>(<span class="ident">f</span>)
     }
 }
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;json&quot;</span>)]</span>
 <span class="kw">impl</span> <span class="ident">Serialize</span> <span class="kw">for</span> <span class="ident">ValidPrime</span> {
-    <span class="kw">fn</span> <span class="ident">serialize</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">serializer</span>: <span class="ident">S</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">S::Ok</span>, <span class="ident">S::Error</span><span class="op">&gt;</span>
+    <span class="kw">fn</span> <span class="ident">serialize</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">serializer</span>: <span class="ident">S</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">S::Ok</span>, <span class="ident">S::Error</span><span class="op">&gt;</span>
     <span class="kw">where</span>
         <span class="ident">S</span>: <span class="ident">Serializer</span>,
     {
@@ -734,7 +734,7 @@
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;json&quot;</span>)]</span>
 <span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;de</span><span class="op">&gt;</span> <span class="ident">Deserialize</span><span class="op">&lt;</span><span class="lifetime">&#39;de</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">ValidPrime</span> {
-    <span class="kw">fn</span> <span class="ident">deserialize</span><span class="op">&lt;</span><span class="ident">D</span><span class="op">&gt;</span>(<span class="ident">deserializer</span>: <span class="ident">D</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">D::Error</span><span class="op">&gt;</span>
+    <span class="kw">fn</span> <span class="ident">deserialize</span><span class="op">&lt;</span><span class="ident">D</span><span class="op">&gt;</span>(<span class="ident">deserializer</span>: <span class="ident">D</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">D::Error</span><span class="op">&gt;</span>
     <span class="kw">where</span>
         <span class="ident">D</span>: <span class="ident">Deserializer</span><span class="op">&lt;</span><span class="lifetime">&#39;de</span><span class="op">&gt;</span>,
     {
@@ -744,24 +744,24 @@
 }
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;odd-primes&quot;</span>)]</span>
-<span class="kw">pub</span> <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">is_valid_prime</span>(<span class="ident">p</span>: <span class="ident">u32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+<span class="kw">pub</span> <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">is_valid_prime</span>(<span class="ident">p</span>: <span class="ident">u32</span>) -&gt; <span class="ident">bool</span> {
     (<span class="ident">p</span> <span class="kw">as</span> <span class="ident">usize</span>) <span class="op">&lt;</span><span class="op">=</span> <span class="ident">MAX_PRIME</span> <span class="op">&amp;&amp;</span> <span class="ident">PRIME_TO_INDEX_MAP</span>[<span class="ident">p</span> <span class="kw">as</span> <span class="ident">usize</span>] <span class="op">!</span><span class="op">=</span> <span class="ident">NOT_A_PRIME</span>
 }
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;odd-primes&quot;</span>))]</span>
-<span class="kw">pub</span> <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">is_valid_prime</span>(<span class="ident">p</span>: <span class="ident">u32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
-    <span class="ident">p</span> <span class="op">=</span><span class="op">=</span> <span class="number">2</span>
+<span class="kw">pub</span> <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">is_valid_prime</span>(<span class="ident">p</span>: <span class="ident">u32</span>) -&gt; <span class="ident">bool</span> {
+    <span class="ident">p</span> <span class="op">==</span> <span class="number">2</span>
 }
 
 <span class="comment">// Uses a the lookup table we initialized.</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">inverse</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>, <span class="ident">k</span>: <span class="ident">u32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">u32</span> {
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">inverse</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>, <span class="ident">k</span>: <span class="ident">u32</span>) -&gt; <span class="ident">u32</span> {
     <span class="macro">assert!</span>(<span class="ident">k</span> <span class="op">&gt;</span> <span class="number">0</span> <span class="op">&amp;&amp;</span> <span class="ident">k</span> <span class="op">&lt;</span> <span class="kw-2">*</span><span class="ident">p</span>);
     <span class="comment">// LLVM doesn&#39;t understand the inequality is transitive</span>
     <span class="kw">unsafe</span> { <span class="kw-2">*</span><span class="ident">INVERSE_TABLE</span>[<span class="ident">PRIME_TO_INDEX_MAP</span>[<span class="kw-2">*</span><span class="ident">p</span> <span class="kw">as</span> <span class="ident">usize</span>]].<span class="ident">get_unchecked</span>(<span class="ident">k</span> <span class="kw">as</span> <span class="ident">usize</span>) }
 }
 
-<span class="kw">pub</span> <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">minus_one_to_the_n</span>(<span class="ident">p</span>: <span class="ident">u32</span>, <span class="ident">i</span>: <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">u32</span> {
-    <span class="kw">if</span> <span class="ident">i</span> <span class="op">%</span> <span class="number">2</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
+<span class="kw">pub</span> <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">minus_one_to_the_n</span>(<span class="ident">p</span>: <span class="ident">u32</span>, <span class="ident">i</span>: <span class="ident">i32</span>) -&gt; <span class="ident">u32</span> {
+    <span class="kw">if</span> <span class="ident">i</span> <span class="op">%</span> <span class="number">2</span> <span class="op">==</span> <span class="number">0</span> {
         <span class="number">1</span>
     } <span class="kw">else</span> {
         <span class="ident">p</span> <span class="op">-</span> <span class="number">1</span>
@@ -774,7 +774,7 @@
 <span class="doccomment">/// Calling this function safely requires that `k, n &lt; p`.  These invariants are often known</span>
 <span class="doccomment">/// apriori because k and n are obtained by reducing mod p, so it is better to expose an unsafe</span>
 <span class="doccomment">/// interface that avoids these checks.</span>
-<span class="kw">unsafe</span> <span class="kw">fn</span> <span class="ident">direct_binomial</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>, <span class="ident">n</span>: <span class="ident">usize</span>, <span class="ident">k</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">u32</span> {
+<span class="kw">unsafe</span> <span class="kw">fn</span> <span class="ident">direct_binomial</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>, <span class="ident">n</span>: <span class="ident">usize</span>, <span class="ident">k</span>: <span class="ident">usize</span>) -&gt; <span class="ident">u32</span> {
     <span class="kw-2">*</span><span class="ident">BINOMIAL_TABLE</span>
         .<span class="ident">get_unchecked</span>(<span class="ident">PRIME_TO_INDEX_MAP</span>[<span class="kw-2">*</span><span class="ident">p</span> <span class="kw">as</span> <span class="ident">usize</span>])
         .<span class="ident">get_unchecked</span>(<span class="ident">n</span>)
@@ -782,12 +782,12 @@
 }
 
 <span class="doccomment">/// Computes b^e.</span>
-<span class="kw">pub</span> <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">integer_power</span>(<span class="kw-2">mut</span> <span class="ident">b</span>: <span class="ident">u32</span>, <span class="kw-2">mut</span> <span class="ident">e</span>: <span class="ident">u32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">u32</span> {
+<span class="kw">pub</span> <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">integer_power</span>(<span class="kw-2">mut</span> <span class="ident">b</span>: <span class="ident">u32</span>, <span class="kw-2">mut</span> <span class="ident">e</span>: <span class="ident">u32</span>) -&gt; <span class="ident">u32</span> {
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span>: <span class="ident">u32</span> <span class="op">=</span> <span class="number">1</span>;
     <span class="kw">while</span> <span class="ident">e</span> <span class="op">&gt;</span> <span class="number">0</span> {
         <span class="comment">// b is b^{2^i}</span>
         <span class="comment">// if the current bit of e is odd, mutliply b^{2^i} into result.</span>
-        <span class="kw">if</span> <span class="ident">e</span> <span class="op">&amp;</span> <span class="number">1</span> <span class="op">=</span><span class="op">=</span> <span class="number">1</span> {
+        <span class="kw">if</span> <span class="ident">e</span> <span class="op">&amp;</span> <span class="number">1</span> <span class="op">==</span> <span class="number">1</span> {
             <span class="ident">result</span> <span class="kw-2">*</span><span class="op">=</span> <span class="ident">b</span>;
         }
         <span class="ident">b</span> <span class="kw-2">*</span><span class="op">=</span> <span class="ident">b</span>;
@@ -797,11 +797,11 @@
 }
 
 <span class="doccomment">/// Compute b^e mod p.</span>
-<span class="kw">pub</span> <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">power_mod</span>(<span class="ident">p</span>: <span class="ident">u32</span>, <span class="kw-2">mut</span> <span class="ident">b</span>: <span class="ident">u32</span>, <span class="kw-2">mut</span> <span class="ident">e</span>: <span class="ident">u32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">u32</span> {
+<span class="kw">pub</span> <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">power_mod</span>(<span class="ident">p</span>: <span class="ident">u32</span>, <span class="kw-2">mut</span> <span class="ident">b</span>: <span class="ident">u32</span>, <span class="kw-2">mut</span> <span class="ident">e</span>: <span class="ident">u32</span>) -&gt; <span class="ident">u32</span> {
     <span class="macro">assert!</span>(<span class="ident">p</span> <span class="op">&gt;</span> <span class="number">0</span>);
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span>: <span class="ident">u32</span> <span class="op">=</span> <span class="number">1</span>;
     <span class="kw">while</span> <span class="ident">e</span> <span class="op">&gt;</span> <span class="number">0</span> {
-        <span class="kw">if</span> (<span class="ident">e</span> <span class="op">&amp;</span> <span class="number">1</span>) <span class="op">=</span><span class="op">=</span> <span class="number">1</span> {
+        <span class="kw">if</span> (<span class="ident">e</span> <span class="op">&amp;</span> <span class="number">1</span>) <span class="op">==</span> <span class="number">1</span> {
             <span class="ident">result</span> <span class="op">=</span> (<span class="ident">result</span> <span class="op">*</span> <span class="ident">b</span>) <span class="op">%</span> <span class="ident">p</span>;
         }
         <span class="ident">b</span> <span class="op">=</span> (<span class="ident">b</span> <span class="op">*</span> <span class="ident">b</span>) <span class="op">%</span> <span class="ident">p</span>;
@@ -820,12 +820,12 @@
 <span class="doccomment">/// assert_eq!(1, log2(0b11));</span>
 <span class="doccomment">/// assert_eq!(3, log2(0b1011));</span>
 <span class="doccomment">/// ```</span>
-<span class="kw">pub</span> <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">log2</span>(<span class="ident">n</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
+<span class="kw">pub</span> <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">log2</span>(<span class="ident">n</span>: <span class="ident">usize</span>) -&gt; <span class="ident">usize</span> {
     <span class="ident">std::mem::size_of</span>::<span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span>() <span class="op">*</span> <span class="number">8</span> <span class="op">-</span> <span class="number">1</span> <span class="op">-</span> <span class="ident">n</span>.<span class="ident">leading_zeros</span>() <span class="kw">as</span> <span class="ident">usize</span>
 }
 
 <span class="comment">// Discrete log base p of n.</span>
-<span class="kw">pub</span> <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">logp</span>(<span class="ident">p</span>: <span class="ident">u32</span>, <span class="kw-2">mut</span> <span class="ident">n</span>: <span class="ident">u32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">u32</span> {
+<span class="kw">pub</span> <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">logp</span>(<span class="ident">p</span>: <span class="ident">u32</span>, <span class="kw-2">mut</span> <span class="ident">n</span>: <span class="ident">u32</span>) -&gt; <span class="ident">u32</span> {
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="number">0u32</span>;
     <span class="kw">while</span> <span class="ident">n</span> <span class="op">&gt;</span> <span class="number">0</span> {
         <span class="ident">n</span> <span class="op">/</span><span class="op">=</span> <span class="ident">p</span>;
@@ -838,10 +838,10 @@
 <span class="doccomment">/// is implemented using a macro, since the implementation for all types is syntactically the same.</span>
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">Binomial</span>: <span class="ident">Sized</span> {
     <span class="doccomment">/// mod 2 multinomial coefficient</span>
-    <span class="kw">fn</span> <span class="ident">multinomial2</span>(<span class="ident">k</span>: <span class="kw-2">&amp;</span>[<span class="self">Self</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span>;
+    <span class="kw">fn</span> <span class="ident">multinomial2</span>(<span class="ident">k</span>: <span class="kw-2">&amp;</span>[<span class="self">Self</span>]) -&gt; <span class="self">Self</span>;
 
     <span class="doccomment">/// mod 2 binomial coefficient n choose k</span>
-    <span class="kw">fn</span> <span class="ident">binomial2</span>(<span class="ident">n</span>: <span class="self">Self</span>, <span class="ident">k</span>: <span class="self">Self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span>;
+    <span class="kw">fn</span> <span class="ident">binomial2</span>(<span class="ident">n</span>: <span class="self">Self</span>, <span class="ident">k</span>: <span class="self">Self</span>) -&gt; <span class="self">Self</span>;
 
     <span class="doccomment">/// Binomial coefficients mod 4. We pre-compute the coefficients for small values of n. For large</span>
     <span class="doccomment">/// n, we recursively use the fact that if n = 2^k + l, l &lt; 2^k, then</span>
@@ -852,28 +852,28 @@
     <span class="doccomment">///</span>
     <span class="doccomment">///    (x + y)^{2^k} = x^{2^k} + 2 x^{2^{k - 1}} y^{2^{k - 1}} + y^{2^k}</span>
     <span class="doccomment">///</span>
-    <span class="kw">fn</span> <span class="ident">binomial4</span>(<span class="ident">n</span>: <span class="self">Self</span>, <span class="ident">k</span>: <span class="self">Self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span>;
+    <span class="kw">fn</span> <span class="ident">binomial4</span>(<span class="ident">n</span>: <span class="self">Self</span>, <span class="ident">k</span>: <span class="self">Self</span>) -&gt; <span class="self">Self</span>;
 
     <span class="doccomment">/// Compute binomial coefficients mod 4 using the recursion relation in the documentation of</span>
     <span class="doccomment">/// [Binomial::binomial4]. This calls into binomial4 instead of binomial4_rec. The main purpose</span>
     <span class="doccomment">/// of this is to separate out the logic for testing.</span>
-    <span class="kw">fn</span> <span class="ident">binomial4_rec</span>(<span class="ident">n</span>: <span class="self">Self</span>, <span class="ident">k</span>: <span class="self">Self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span>;
+    <span class="kw">fn</span> <span class="ident">binomial4_rec</span>(<span class="ident">n</span>: <span class="self">Self</span>, <span class="ident">k</span>: <span class="self">Self</span>) -&gt; <span class="self">Self</span>;
 
     <span class="doccomment">/// Computes the multinomial coefficient mod p using Lucas&#39; theorem. This modifies the</span>
     <span class="doccomment">/// underlying list. For p = 2 it is more efficient to use multinomial2</span>
-    <span class="kw">fn</span> <span class="ident">multinomial_odd</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>, <span class="ident">l</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="self">Self</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span>;
+    <span class="kw">fn</span> <span class="ident">multinomial_odd</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>, <span class="ident">l</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="self">Self</span>]) -&gt; <span class="self">Self</span>;
 
     <span class="doccomment">/// Compute odd binomial coefficients mod p, where p is odd. For p = 2 it is more efficient to</span>
     <span class="doccomment">/// use binomial2</span>
-    <span class="kw">fn</span> <span class="ident">binomial_odd</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>, <span class="ident">n</span>: <span class="self">Self</span>, <span class="ident">k</span>: <span class="self">Self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span>;
+    <span class="kw">fn</span> <span class="ident">binomial_odd</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>, <span class="ident">n</span>: <span class="self">Self</span>, <span class="ident">k</span>: <span class="self">Self</span>) -&gt; <span class="self">Self</span>;
 
     <span class="doccomment">/// Checks whether n choose k is zero mod p. Since we don&#39;t have to compute the value, this is</span>
     <span class="doccomment">/// faster than binomial_odd.</span>
-    <span class="kw">fn</span> <span class="ident">binomial_odd_is_zero</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>, <span class="ident">n</span>: <span class="self">Self</span>, <span class="ident">k</span>: <span class="self">Self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span>;
+    <span class="kw">fn</span> <span class="ident">binomial_odd_is_zero</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>, <span class="ident">n</span>: <span class="self">Self</span>, <span class="ident">k</span>: <span class="self">Self</span>) -&gt; <span class="ident">bool</span>;
 
     <span class="doccomment">/// Multinomial coefficient of the list l</span>
-    <span class="kw">fn</span> <span class="ident">multinomial</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>, <span class="ident">l</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="self">Self</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
-        <span class="kw">if</span> <span class="kw-2">*</span><span class="ident">p</span> <span class="op">=</span><span class="op">=</span> <span class="number">2</span> {
+    <span class="kw">fn</span> <span class="ident">multinomial</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>, <span class="ident">l</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="self">Self</span>]) -&gt; <span class="self">Self</span> {
+        <span class="kw">if</span> <span class="kw-2">*</span><span class="ident">p</span> <span class="op">==</span> <span class="number">2</span> {
             <span class="ident"><span class="self">Self</span>::multinomial2</span>(<span class="ident">l</span>)
         } <span class="kw">else</span> {
             <span class="ident"><span class="self">Self</span>::multinomial_odd</span>(<span class="ident">p</span>, <span class="ident">l</span>)
@@ -881,8 +881,8 @@
     }
 
     <span class="doccomment">/// Binomial coefficient n choose k.</span>
-    <span class="kw">fn</span> <span class="ident">binomial</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>, <span class="ident">n</span>: <span class="self">Self</span>, <span class="ident">k</span>: <span class="self">Self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
-        <span class="kw">if</span> <span class="kw-2">*</span><span class="ident">p</span> <span class="op">=</span><span class="op">=</span> <span class="number">2</span> {
+    <span class="kw">fn</span> <span class="ident">binomial</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>, <span class="ident">n</span>: <span class="self">Self</span>, <span class="ident">k</span>: <span class="self">Self</span>) -&gt; <span class="self">Self</span> {
+        <span class="kw">if</span> <span class="kw-2">*</span><span class="ident">p</span> <span class="op">==</span> <span class="number">2</span> {
             <span class="ident"><span class="self">Self</span>::binomial2</span>(<span class="ident">n</span>, <span class="ident">k</span>)
         } <span class="kw">else</span> {
             <span class="ident"><span class="self">Self</span>::binomial_odd</span>(<span class="ident">p</span>, <span class="ident">n</span>, <span class="ident">k</span>)
@@ -891,17 +891,17 @@
 }
 
 <span class="macro">macro_rules!</span> <span class="ident">impl_binomial</span> {
-    (<span class="macro-nonterminal">$</span><span class="macro-nonterminal">T</span>:<span class="ident">ty</span>) <span class="op">=</span><span class="op">&gt;</span> {
+    (<span class="macro-nonterminal">$</span><span class="macro-nonterminal">T</span>:<span class="ident">ty</span>) =&gt; {
         <span class="kw">impl</span> <span class="ident">Binomial</span> <span class="kw">for</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">T</span> {
             <span class="attribute">#[<span class="ident">inline</span>]</span>
-            <span class="kw">fn</span> <span class="ident">multinomial2</span>(<span class="ident">l</span>: <span class="kw-2">&amp;</span>[<span class="self">Self</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+            <span class="kw">fn</span> <span class="ident">multinomial2</span>(<span class="ident">l</span>: <span class="kw-2">&amp;</span>[<span class="self">Self</span>]) -&gt; <span class="self">Self</span> {
                 <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">bit_or</span>: <span class="self">Self</span> <span class="op">=</span> <span class="number">0</span>;
                 <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">sum</span>: <span class="self">Self</span> <span class="op">=</span> <span class="number">0</span>;
                 <span class="kw">for</span> <span class="kw-2">&amp;</span><span class="ident">e</span> <span class="kw">in</span> <span class="ident">l</span> {
                     <span class="ident">sum</span> <span class="op">+</span><span class="op">=</span> <span class="ident">e</span>;
                     <span class="ident">bit_or</span> <span class="op">|</span><span class="op">=</span> <span class="ident">e</span>;
                 }
-                <span class="kw">if</span> <span class="ident">bit_or</span> <span class="op">=</span><span class="op">=</span> <span class="ident">sum</span> {
+                <span class="kw">if</span> <span class="ident">bit_or</span> <span class="op">==</span> <span class="ident">sum</span> {
                     <span class="number">1</span>
                 } <span class="kw">else</span> {
                     <span class="number">0</span>
@@ -909,21 +909,21 @@
             }
 
             <span class="attribute">#[<span class="ident">inline</span>]</span>
-            <span class="kw">fn</span> <span class="ident">binomial2</span>(<span class="ident">n</span>: <span class="self">Self</span>, <span class="ident">k</span>: <span class="self">Self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+            <span class="kw">fn</span> <span class="ident">binomial2</span>(<span class="ident">n</span>: <span class="self">Self</span>, <span class="ident">k</span>: <span class="self">Self</span>) -&gt; <span class="self">Self</span> {
                 <span class="kw">if</span> <span class="ident">n</span> <span class="op">&lt;</span> <span class="ident">k</span> {
                     <span class="number">0</span>
-                } <span class="kw">else</span> <span class="kw">if</span> (<span class="ident">n</span> <span class="op">-</span> <span class="ident">k</span>) <span class="op">&amp;</span> <span class="ident">k</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
+                } <span class="kw">else</span> <span class="kw">if</span> (<span class="ident">n</span> <span class="op">-</span> <span class="ident">k</span>) <span class="op">&amp;</span> <span class="ident">k</span> <span class="op">==</span> <span class="number">0</span> {
                     <span class="number">1</span>
                 } <span class="kw">else</span> {
                     <span class="number">0</span>
                 }
             }
             <span class="attribute">#[<span class="ident">inline</span>]</span>
-            <span class="kw">fn</span> <span class="ident">multinomial_odd</span>(<span class="ident">p_</span>: <span class="ident">ValidPrime</span>, <span class="ident">l</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="self">Self</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+            <span class="kw">fn</span> <span class="ident">multinomial_odd</span>(<span class="ident">p_</span>: <span class="ident">ValidPrime</span>, <span class="ident">l</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="self">Self</span>]) -&gt; <span class="self">Self</span> {
                 <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="kw-2">*</span><span class="ident">p_</span> <span class="kw">as</span> <span class="self">Self</span>;
 
                 <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">n</span>: <span class="self">Self</span> <span class="op">=</span> <span class="ident">l</span>.<span class="ident">iter</span>().<span class="ident">sum</span>();
-                <span class="kw">if</span> <span class="ident">n</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
+                <span class="kw">if</span> <span class="ident">n</span> <span class="op">==</span> <span class="number">0</span> {
                     <span class="kw">return</span> <span class="number">1</span>;
                 }
                 <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">answer</span> <span class="op">=</span> <span class="number">1</span>;
@@ -960,7 +960,7 @@
             }
 
             <span class="attribute">#[<span class="ident">inline</span>]</span>
-            <span class="kw">fn</span> <span class="ident">binomial_odd</span>(<span class="ident">p_</span>: <span class="ident">ValidPrime</span>, <span class="kw-2">mut</span> <span class="ident">n</span>: <span class="self">Self</span>, <span class="kw-2">mut</span> <span class="ident">k</span>: <span class="self">Self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+            <span class="kw">fn</span> <span class="ident">binomial_odd</span>(<span class="ident">p_</span>: <span class="ident">ValidPrime</span>, <span class="kw-2">mut</span> <span class="ident">n</span>: <span class="self">Self</span>, <span class="kw-2">mut</span> <span class="ident">k</span>: <span class="self">Self</span>) -&gt; <span class="self">Self</span> {
                 <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="kw-2">*</span><span class="ident">p_</span> <span class="kw">as</span> <span class="self">Self</span>;
 
                 <span class="comment">// We have both signed and unsigned types</span>
@@ -983,7 +983,7 @@
             }
 
             <span class="attribute">#[<span class="ident">inline</span>]</span>
-            <span class="kw">fn</span> <span class="ident">binomial_odd_is_zero</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>, <span class="kw-2">mut</span> <span class="ident">n</span>: <span class="self">Self</span>, <span class="kw-2">mut</span> <span class="ident">k</span>: <span class="self">Self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+            <span class="kw">fn</span> <span class="ident">binomial_odd_is_zero</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>, <span class="kw-2">mut</span> <span class="ident">n</span>: <span class="self">Self</span>, <span class="kw-2">mut</span> <span class="ident">k</span>: <span class="self">Self</span>) -&gt; <span class="ident">bool</span> {
                 <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="kw-2">*</span><span class="ident">p</span> <span class="kw">as</span> <span class="self">Self</span>;
 
                 <span class="kw">while</span> <span class="ident">n</span> <span class="op">&gt;</span> <span class="number">0</span> {
@@ -995,14 +995,14 @@
                 }
                 <span class="bool-val">false</span>
             }
-            <span class="kw">fn</span> <span class="ident">binomial4</span>(<span class="ident">n</span>: <span class="self">Self</span>, <span class="ident">j</span>: <span class="self">Self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+            <span class="kw">fn</span> <span class="ident">binomial4</span>(<span class="ident">n</span>: <span class="self">Self</span>, <span class="ident">j</span>: <span class="self">Self</span>) -&gt; <span class="self">Self</span> {
                 <span class="kw">if</span> (<span class="ident">n</span> <span class="kw">as</span> <span class="ident">usize</span>) <span class="op">&lt;</span> <span class="ident">BINOMIAL4_TABLE_SIZE</span> {
                     <span class="kw">return</span> <span class="ident">BINOMIAL4_TABLE</span>[<span class="ident">n</span> <span class="kw">as</span> <span class="ident">usize</span>][<span class="ident">j</span> <span class="kw">as</span> <span class="ident">usize</span>] <span class="kw">as</span> <span class="self">Self</span>;
                 }
-                <span class="kw">if</span> (<span class="ident">n</span> <span class="op">-</span> <span class="ident">j</span>) <span class="op">&amp;</span> <span class="ident">j</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
+                <span class="kw">if</span> (<span class="ident">n</span> <span class="op">-</span> <span class="ident">j</span>) <span class="op">&amp;</span> <span class="ident">j</span> <span class="op">==</span> <span class="number">0</span> {
                     <span class="comment">// Answer is odd</span>
                     <span class="ident"><span class="self">Self</span>::binomial4_rec</span>(<span class="ident">n</span>, <span class="ident">j</span>)
-                } <span class="kw">else</span> <span class="kw">if</span> (<span class="ident">n</span> <span class="op">-</span> <span class="ident">j</span>).<span class="ident">count_ones</span>() <span class="op">+</span> <span class="ident">j</span>.<span class="ident">count_ones</span>() <span class="op">-</span> <span class="ident">n</span>.<span class="ident">count_ones</span>() <span class="op">=</span><span class="op">=</span> <span class="number">1</span> {
+                } <span class="kw">else</span> <span class="kw">if</span> (<span class="ident">n</span> <span class="op">-</span> <span class="ident">j</span>).<span class="ident">count_ones</span>() <span class="op">+</span> <span class="ident">j</span>.<span class="ident">count_ones</span>() <span class="op">-</span> <span class="ident">n</span>.<span class="ident">count_ones</span>() <span class="op">==</span> <span class="number">1</span> {
                     <span class="number">2</span>
                 } <span class="kw">else</span> {
                     <span class="number">0</span>
@@ -1010,7 +1010,7 @@
             }
 
             <span class="attribute">#[<span class="ident">inline</span>]</span>
-            <span class="kw">fn</span> <span class="ident">binomial4_rec</span>(<span class="ident">n</span>: <span class="self">Self</span>, <span class="ident">j</span>: <span class="self">Self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+            <span class="kw">fn</span> <span class="ident">binomial4_rec</span>(<span class="ident">n</span>: <span class="self">Self</span>, <span class="ident">j</span>: <span class="self">Self</span>) -&gt; <span class="self">Self</span> {
                 <span class="kw">let</span> <span class="ident">k</span> <span class="op">=</span> (<span class="ident">std::mem::size_of</span>::<span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span>() <span class="op">*</span> <span class="number">8</span>) <span class="kw">as</span> <span class="ident">u32</span> <span class="op">-</span> <span class="ident">n</span>.<span class="ident">leading_zeros</span>() <span class="op">-</span> <span class="number">1</span>;
                 <span class="kw">let</span> <span class="ident">l</span> <span class="op">=</span> <span class="ident">n</span> <span class="op">-</span> (<span class="number">1</span> <span class="op">&lt;</span><span class="op">&lt;</span> <span class="ident">k</span>);
                 <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ans</span> <span class="op">=</span> <span class="number">0</span>;
@@ -1040,20 +1040,20 @@
 }
 
 <span class="kw">impl</span> <span class="ident">BitflagIterator</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">flag</span>: <span class="ident">u64</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">flag</span>: <span class="ident">u64</span>) -&gt; <span class="self">Self</span> {
         <span class="self">Self</span> {
             <span class="ident">remaining</span>: <span class="ident">u8::max_value</span>(),
             <span class="ident">flag</span>,
         }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new_fixed_length</span>(<span class="ident">flag</span>: <span class="ident">u64</span>, <span class="ident">remaining</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new_fixed_length</span>(<span class="ident">flag</span>: <span class="ident">u64</span>, <span class="ident">remaining</span>: <span class="ident">usize</span>) -&gt; <span class="self">Self</span> {
         <span class="macro">assert!</span>(<span class="ident">remaining</span> <span class="op">&lt;</span><span class="op">=</span> <span class="number">64</span>);
         <span class="kw">let</span> <span class="ident">remaining</span> <span class="op">=</span> <span class="ident">remaining</span> <span class="kw">as</span> <span class="ident">u8</span>;
         <span class="self">Self</span> { <span class="ident">remaining</span>, <span class="ident">flag</span> }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">set_bit_iterator</span>(<span class="ident">flag</span>: <span class="ident">u64</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw">impl</span> <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">usize</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">set_bit_iterator</span>(<span class="ident">flag</span>: <span class="ident">u64</span>) -&gt; <span class="kw">impl</span> <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">usize</span><span class="op">&gt;</span> {
         <span class="ident"><span class="self">Self</span>::new</span>(<span class="ident">flag</span>)
             .<span class="ident">enumerate</span>()
             .<span class="ident">filter_map</span>(<span class="op">|</span>(<span class="ident">idx</span>, <span class="ident">v</span>)<span class="op">|</span> <span class="kw">if</span> <span class="ident">v</span> { <span class="prelude-val">Some</span>(<span class="ident">idx</span>) } <span class="kw">else</span> { <span class="prelude-val">None</span> })
@@ -1062,12 +1062,12 @@
 
 <span class="kw">impl</span> <span class="ident">Iterator</span> <span class="kw">for</span> <span class="ident">BitflagIterator</span> {
     <span class="kw">type</span> <span class="ident">Item</span> <span class="op">=</span> <span class="ident">bool</span>;
-    <span class="kw">fn</span> <span class="ident">next</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Item</span><span class="op">&gt;</span> {
-        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">remaining</span> <span class="op">&gt;</span> <span class="number">64</span> <span class="op">&amp;&amp;</span> <span class="self">self</span>.<span class="ident">flag</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> <span class="op">|</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">remaining</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
+    <span class="kw">fn</span> <span class="ident">next</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Item</span><span class="op">&gt;</span> {
+        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">remaining</span> <span class="op">&gt;</span> <span class="number">64</span> <span class="op">&amp;&amp;</span> <span class="self">self</span>.<span class="ident">flag</span> <span class="op">==</span> <span class="number">0</span> <span class="op">|</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">remaining</span> <span class="op">==</span> <span class="number">0</span> {
             <span class="prelude-val">None</span>
         } <span class="kw">else</span> {
             <span class="self">self</span>.<span class="ident">remaining</span> <span class="op">-</span><span class="op">=</span> <span class="number">1</span>;
-            <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">flag</span> <span class="op">&amp;</span> <span class="number">1</span> <span class="op">=</span><span class="op">=</span> <span class="number">1</span>;
+            <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">flag</span> <span class="op">&amp;</span> <span class="number">1</span> <span class="op">==</span> <span class="number">1</span>;
             <span class="self">self</span>.<span class="ident">flag</span> <span class="op">&gt;</span><span class="op">&gt;</span><span class="op">=</span> <span class="number">1</span>;
             <span class="prelude-val">Some</span>(<span class="ident">result</span>)
         }
@@ -1081,7 +1081,7 @@
 }
 
 <span class="kw">impl</span> <span class="ident">BinomialIterator</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">n</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">n</span>: <span class="ident">usize</span>) -&gt; <span class="self">Self</span> {
         <span class="self">Self</span> {
             <span class="ident">value</span>: (<span class="number">1</span> <span class="op">&lt;</span><span class="op">&lt;</span> <span class="ident">n</span>) <span class="op">-</span> <span class="number">1</span>,
         }
@@ -1090,7 +1090,7 @@
 
 <span class="kw">impl</span> <span class="ident">Iterator</span> <span class="kw">for</span> <span class="ident">BinomialIterator</span> {
     <span class="kw">type</span> <span class="ident">Item</span> <span class="op">=</span> <span class="ident">u32</span>;
-    <span class="kw">fn</span> <span class="ident">next</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Item</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">next</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Item</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">v</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">value</span>;
         <span class="kw">let</span> <span class="ident">c</span> <span class="op">=</span> <span class="ident">v</span> <span class="op">&amp;</span> <span class="ident">v</span>.<span class="ident">wrapping_neg</span>();
         <span class="kw">let</span> <span class="ident">r</span> <span class="op">=</span> <span class="ident">v</span> <span class="op">+</span> <span class="ident">c</span>;
@@ -1139,7 +1139,7 @@
         }
     }
 
-    <span class="kw">fn</span> <span class="ident">binomial_full</span>(<span class="ident">n</span>: <span class="ident">u32</span>, <span class="ident">j</span>: <span class="ident">u32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">u32</span> {
+    <span class="kw">fn</span> <span class="ident">binomial_full</span>(<span class="ident">n</span>: <span class="ident">u32</span>, <span class="ident">j</span>: <span class="ident">u32</span>) -&gt; <span class="ident">u32</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">res</span> <span class="op">=</span> <span class="number">1</span>;
         <span class="kw">for</span> <span class="ident">k</span> <span class="kw">in</span> <span class="ident">j</span> <span class="op">+</span> <span class="number">1</span>..<span class="op">=</span><span class="ident">n</span> {
             <span class="ident">res</span> <span class="kw-2">*</span><span class="op">=</span> <span class="ident">k</span>;

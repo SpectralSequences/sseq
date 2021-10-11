@@ -105,28 +105,28 @@
 }
 
 <span class="kw">impl</span> <span class="ident">Field</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>) -&gt; <span class="self">Self</span> {
         <span class="self">Self</span> { <span class="ident">prime</span>: <span class="ident">p</span> }
     }
 }
 
 <span class="kw">impl</span> <span class="ident">std::fmt::Display</span> <span class="kw">for</span> <span class="ident">Field</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">std::fmt::Formatter</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">std::fmt::Result</span> {
+    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">std::fmt::Formatter</span>) -&gt; <span class="ident">std::fmt::Result</span> {
         <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;F_{}&quot;</span>, <span class="self">self</span>.<span class="ident">prime</span>)
     }
 }
 
 <span class="kw">impl</span> <span class="ident">Algebra</span> <span class="kw">for</span> <span class="ident">Field</span> {
     <span class="doccomment">/// Returns the prime the algebra is over.</span>
-    <span class="kw">fn</span> <span class="ident">prime</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ValidPrime</span> {
+    <span class="kw">fn</span> <span class="ident">prime</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">ValidPrime</span> {
         <span class="self">self</span>.<span class="ident">prime</span>
     }
 
     <span class="kw">fn</span> <span class="ident">compute_basis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">_degree</span>: <span class="ident">i32</span>) {}
 
     <span class="doccomment">/// Gets the dimension of the algebra in degree `degree`.</span>
-    <span class="kw">fn</span> <span class="ident">dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">_excess</span>: <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
-        <span class="kw">if</span> <span class="ident">degree</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
+    <span class="kw">fn</span> <span class="ident">dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">_excess</span>: <span class="ident">i32</span>) -&gt; <span class="ident">usize</span> {
+        <span class="kw">if</span> <span class="ident">degree</span> <span class="op">==</span> <span class="number">0</span> {
             <span class="number">1</span>
         } <span class="kw">else</span> {
             <span class="number">0</span>
@@ -146,27 +146,27 @@
         <span class="ident">result</span>.<span class="ident">add_basis_element</span>(<span class="number">0</span>, <span class="ident">coeff</span>)
     }
 
-    <span class="kw">fn</span> <span class="ident">default_filtration_one_products</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">String</span>, <span class="ident">i32</span>, <span class="ident">usize</span>)<span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">default_filtration_one_products</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">String</span>, <span class="ident">i32</span>, <span class="ident">usize</span>)<span class="op">&gt;</span> {
         <span class="macro">vec!</span>[]
     }
 
     <span class="doccomment">/// Converts a basis element into a string for display.</span>
-    <span class="kw">fn</span> <span class="ident">basis_element_to_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">_idx</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">String</span> {
-        <span class="macro">assert!</span>(<span class="ident">degree</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span>);
+    <span class="kw">fn</span> <span class="ident">basis_element_to_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">_idx</span>: <span class="ident">usize</span>) -&gt; <span class="ident">String</span> {
+        <span class="macro">assert!</span>(<span class="ident">degree</span> <span class="op">==</span> <span class="number">0</span>);
         <span class="string">&quot;1&quot;</span>.<span class="ident">to_string</span>()
     }
 
-    <span class="kw">fn</span> <span class="ident">element_to_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">element</span>: <span class="ident">Slice</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">String</span> {
-        <span class="macro">assert!</span>(<span class="ident">degree</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span>);
+    <span class="kw">fn</span> <span class="ident">element_to_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">element</span>: <span class="ident">Slice</span>) -&gt; <span class="ident">String</span> {
+        <span class="macro">assert!</span>(<span class="ident">degree</span> <span class="op">==</span> <span class="number">0</span>);
         <span class="macro">format!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">element</span>.<span class="ident">entry</span>(<span class="number">0</span>))
     }
 }
 
 <span class="kw">impl</span> <span class="ident">Bialgebra</span> <span class="kw">for</span> <span class="ident">Field</span> {
-    <span class="kw">fn</span> <span class="ident">coproduct</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">_op_deg</span>: <span class="ident">i32</span>, <span class="ident">_op_idx</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">i32</span>, <span class="ident">usize</span>, <span class="ident">i32</span>, <span class="ident">usize</span>)<span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">coproduct</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">_op_deg</span>: <span class="ident">i32</span>, <span class="ident">_op_idx</span>: <span class="ident">usize</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">i32</span>, <span class="ident">usize</span>, <span class="ident">i32</span>, <span class="ident">usize</span>)<span class="op">&gt;</span> {
         <span class="macro">vec!</span>[(<span class="number">1</span>, <span class="number">0</span>, <span class="number">1</span>, <span class="number">0</span>)]
     }
-    <span class="kw">fn</span> <span class="ident">decompose</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">_op_deg</span>: <span class="ident">i32</span>, <span class="ident">_op_idx</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">i32</span>, <span class="ident">usize</span>)<span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">decompose</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">_op_deg</span>: <span class="ident">i32</span>, <span class="ident">_op_idx</span>: <span class="ident">usize</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">i32</span>, <span class="ident">usize</span>)<span class="op">&gt;</span> {
         <span class="macro">vec!</span>[(<span class="number">1</span>, <span class="number">0</span>)]
     }
 }

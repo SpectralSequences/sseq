@@ -83,7 +83,7 @@
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">S</span>: <span class="ident">Module</span>, <span class="ident">T</span>: <span class="ident">Module</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">S::Algebra</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">GenericZeroHomomorphism</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">T</span><span class="op">&gt;</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">source</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span>, <span class="ident">target</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, <span class="ident">degree_shift</span>: <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">source</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span>, <span class="ident">target</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, <span class="ident">degree_shift</span>: <span class="ident">i32</span>) -&gt; <span class="self">Self</span> {
         <span class="self">Self</span> {
             <span class="ident">source</span>,
             <span class="ident">target</span>,
@@ -98,15 +98,15 @@
     <span class="kw">type</span> <span class="ident">Source</span> <span class="op">=</span> <span class="ident">S</span>;
     <span class="kw">type</span> <span class="ident">Target</span> <span class="op">=</span> <span class="ident">T</span>;
 
-    <span class="kw">fn</span> <span class="ident">source</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Source</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">source</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Source</span><span class="op">&gt;</span> {
         <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">source</span>)
     }
 
-    <span class="kw">fn</span> <span class="ident">target</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Target</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">target</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Target</span><span class="op">&gt;</span> {
         <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">target</span>)
     }
 
-    <span class="kw">fn</span> <span class="ident">degree_shift</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+    <span class="kw">fn</span> <span class="ident">degree_shift</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">i32</span> {
         <span class="self">self</span>.<span class="ident">degree_shift</span>
     }
 
@@ -116,7 +116,7 @@
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">S</span>: <span class="ident">Module</span>, <span class="ident">T</span>: <span class="ident">Module</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">S::Algebra</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">ZeroHomomorphism</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">T</span><span class="op">&gt;</span>
     <span class="kw">for</span> <span class="ident">GenericZeroHomomorphism</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">T</span><span class="op">&gt;</span>
 {
-    <span class="kw">fn</span> <span class="ident">zero_homomorphism</span>(<span class="ident">source</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span>, <span class="ident">target</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, <span class="ident">degree_shift</span>: <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+    <span class="kw">fn</span> <span class="ident">zero_homomorphism</span>(<span class="ident">source</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span>, <span class="ident">target</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, <span class="ident">degree_shift</span>: <span class="ident">i32</span>) -&gt; <span class="self">Self</span> {
         <span class="ident"><span class="self">Self</span>::new</span>(<span class="ident">source</span>, <span class="ident">target</span>, <span class="ident">degree_shift</span>)
     }
 }

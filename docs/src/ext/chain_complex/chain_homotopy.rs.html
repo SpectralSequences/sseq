@@ -322,7 +322,7 @@
         <span class="ident">F</span>: <span class="ident">Fn</span>(<span class="ident">u32</span>, <span class="ident">i32</span>, <span class="ident">usize</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">FpVector</span>),
     <span class="op">&gt;</span> <span class="ident">ChainHomotopy</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">S</span>, <span class="ident">T</span>, <span class="ident">F</span><span class="op">&gt;</span>
 {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">source</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">S</span>, <span class="ident">target</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">T</span>, <span class="ident">shift_s</span>: <span class="ident">u32</span>, <span class="ident">shift_t</span>: <span class="ident">i32</span>, <span class="ident">map</span>: <span class="ident">F</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">source</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">S</span>, <span class="ident">target</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">T</span>, <span class="ident">shift_s</span>: <span class="ident">u32</span>, <span class="ident">shift_t</span>: <span class="ident">i32</span>, <span class="ident">map</span>: <span class="ident">F</span>) -&gt; <span class="self">Self</span> {
         <span class="self">Self</span> {
             <span class="ident">source</span>,
             <span class="ident">target</span>,
@@ -334,7 +334,7 @@
         }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">prime</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ValidPrime</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">prime</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">ValidPrime</span> {
         <span class="self">self</span>.<span class="ident">source</span>.<span class="ident">prime</span>()
     }
 
@@ -372,7 +372,7 @@
             <span class="self">self</span>.<span class="ident">source</span>.<span class="ident">next_homological_degree</span>(),
             <span class="self">self</span>.<span class="ident">target</span>.<span class="ident">next_homological_degree</span>() <span class="op">+</span> <span class="self">self</span>.<span class="ident">shift_s</span>,
         );
-        <span class="kw">if</span> <span class="ident">max_source_s</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
+        <span class="kw">if</span> <span class="ident">max_source_s</span> <span class="op">==</span> <span class="number">0</span> {
             <span class="kw">return</span>;
         }
         <span class="kw">let</span> <span class="ident">max_source_s</span> <span class="op">=</span> <span class="ident">max_source_s</span> <span class="op">-</span> <span class="number">1</span>;
@@ -462,13 +462,13 @@
         <span class="self">self</span>.<span class="ident">homotopies</span>[<span class="ident">target_s</span> <span class="kw">as</span> <span class="ident">usize</span>].<span class="ident">add_generators_from_rows</span>(<span class="ident">source_t</span>, <span class="ident">outputs</span>);
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">homotopy</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">source_s</span>: <span class="ident">u32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">T::Module</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">homotopy</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">source_s</span>: <span class="ident">u32</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">T::Module</span><span class="op">&gt;</span> {
         <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">homotopies</span>[(<span class="ident">source_s</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">shift_s</span>) <span class="kw">as</span> <span class="ident">usize</span>]
     }
 
     <span class="doccomment">/// Into the vec of homotopies. This Vec is indexed by the homological degree of the target of</span>
     <span class="doccomment">/// `f - g`.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">into_homotopies</span>(<span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">T::Module</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">into_homotopies</span>(<span class="self">self</span>) -&gt; <span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">T::Module</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">homotopies</span>
     }
 }
@@ -485,7 +485,7 @@
             <span class="self">self</span>.<span class="ident">source</span>.<span class="ident">next_homological_degree</span>(),
             <span class="self">self</span>.<span class="ident">target</span>.<span class="ident">next_homological_degree</span>() <span class="op">+</span> <span class="self">self</span>.<span class="ident">shift_s</span>,
         );
-        <span class="kw">if</span> <span class="ident">max_source_s</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
+        <span class="kw">if</span> <span class="ident">max_source_s</span> <span class="op">==</span> <span class="number">0</span> {
             <span class="kw">return</span>;
         }
         <span class="kw">let</span> <span class="ident">max_source_s</span> <span class="op">=</span> <span class="ident">max_source_s</span> <span class="op">-</span> <span class="number">1</span>;

@@ -169,7 +169,7 @@
 }
 
 <span class="kw">impl</span> <span class="ident">Differential</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>, <span class="ident">source_dim</span>: <span class="ident">usize</span>, <span class="ident">target_dim</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>, <span class="ident">source_dim</span>: <span class="ident">usize</span>, <span class="ident">target_dim</span>: <span class="ident">usize</span>) -&gt; <span class="self">Self</span> {
         <span class="comment">// Leave more rows to make room for inconsistent differentials</span>
         <span class="ident">Differential</span> {
             <span class="ident">matrix</span>: <span class="ident">Matrix::new</span>(<span class="ident">p</span>, <span class="ident">source_dim</span> <span class="op">+</span> <span class="ident">target_dim</span> <span class="op">+</span> <span class="number">1</span>, <span class="ident">source_dim</span> <span class="op">+</span> <span class="ident">target_dim</span>),
@@ -196,7 +196,7 @@
     <span class="doccomment">///  - `source`: The source of the differential</span>
     <span class="doccomment">///  - `target`: The target of the differential. If `None`, the differential is zero. This</span>
     <span class="doccomment">///     should be reduced by the known images of earlier differentials.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">add</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">source</span>: <span class="ident">Slice</span>, <span class="ident">target</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Slice</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">add</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">source</span>: <span class="ident">Slice</span>, <span class="ident">target</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Slice</span><span class="op">&gt;</span>) -&gt; <span class="ident">bool</span> {
         <span class="kw">let</span> <span class="ident">source_dim</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">source_dim</span>;
         <span class="kw">let</span> <span class="ident">target_dim</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">target_dim</span>;
         <span class="kw">let</span> <span class="ident">next_row</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">matrix</span>[<span class="self">self</span>.<span class="ident">first_empty_row</span>];
@@ -222,7 +222,7 @@
     }
 
     <span class="doccomment">/// An iterator of differentials in the form `(source, target)`</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_source_target_pairs</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">FpVector</span>, <span class="ident">FpVector</span>)<span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_source_target_pairs</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">FpVector</span>, <span class="ident">FpVector</span>)<span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">source_dim</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">source_dim</span>;
         <span class="kw">let</span> <span class="ident">target_dim</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">target_dim</span>;
         <span class="self">self</span>.<span class="ident">matrix</span>
@@ -276,13 +276,13 @@
         }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">prime</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ValidPrime</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">prime</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">ValidPrime</span> {
         <span class="self">self</span>.<span class="ident">matrix</span>.<span class="ident">prime</span>()
     }
 
     <span class="doccomment">/// Whether the current set of differentials is inconsistent. This should be called only after</span>
     <span class="doccomment">/// `reduce_target` is called.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">inconsistent</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">inconsistent</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">bool</span> {
         <span class="self">self</span>.<span class="ident">error</span>
     }
 }

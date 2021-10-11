@@ -348,7 +348,7 @@
     <span class="ident">Homomorphism</span> <span class="op">=</span> <span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">FreeModule</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="self">Self</span> <span class="kw">as</span> <span class="ident">ChainComplex</span><span class="op">&gt;</span><span class="ident">::Algebra</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 <span class="op">&gt;</span>
 {
-    <span class="kw">fn</span> <span class="ident">graded_dimension_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">String</span> {
+    <span class="kw">fn</span> <span class="ident">graded_dimension_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">String</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">String::new</span>();
         <span class="kw">let</span> <span class="ident">min_degree</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">min_degree</span>();
         <span class="kw">for</span> <span class="ident">s</span> <span class="kw">in</span> (<span class="number">0</span>..<span class="self">self</span>.<span class="ident">next_homological_degree</span>()).<span class="ident">rev</span>() {
@@ -383,23 +383,23 @@
     <span class="kw">type</span> <span class="ident">Module</span>: <span class="ident">Module</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident"><span class="self">Self</span>::Algebra</span><span class="op">&gt;</span>;
     <span class="kw">type</span> <span class="ident">Homomorphism</span>: <span class="ident">ModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">Source</span> <span class="op">=</span> <span class="ident"><span class="self">Self</span>::Module</span>, <span class="ident">Target</span> <span class="op">=</span> <span class="ident"><span class="self">Self</span>::Module</span><span class="op">&gt;</span>;
 
-    <span class="kw">fn</span> <span class="ident">prime</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ValidPrime</span> {
+    <span class="kw">fn</span> <span class="ident">prime</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">ValidPrime</span> {
         <span class="self">self</span>.<span class="ident">algebra</span>().<span class="ident">prime</span>()
     }
 
-    <span class="kw">fn</span> <span class="ident">algebra</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Algebra</span><span class="op">&gt;</span>;
-    <span class="kw">fn</span> <span class="ident">min_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span>;
-    <span class="kw">fn</span> <span class="ident">zero_module</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Module</span><span class="op">&gt;</span>;
-    <span class="kw">fn</span> <span class="ident">module</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">homological_degree</span>: <span class="ident">u32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Module</span><span class="op">&gt;</span>;
+    <span class="kw">fn</span> <span class="ident">algebra</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Algebra</span><span class="op">&gt;</span>;
+    <span class="kw">fn</span> <span class="ident">min_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">i32</span>;
+    <span class="kw">fn</span> <span class="ident">zero_module</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Module</span><span class="op">&gt;</span>;
+    <span class="kw">fn</span> <span class="ident">module</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">homological_degree</span>: <span class="ident">u32</span>) -&gt; <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Module</span><span class="op">&gt;</span>;
 
     <span class="doccomment">/// This returns the differential starting from the sth module.</span>
-    <span class="kw">fn</span> <span class="ident">differential</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">s</span>: <span class="ident">u32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Homomorphism</span><span class="op">&gt;</span>;
+    <span class="kw">fn</span> <span class="ident">differential</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">s</span>: <span class="ident">u32</span>) -&gt; <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Homomorphism</span><span class="op">&gt;</span>;
 
     <span class="doccomment">/// If the complex has been computed at bidegree (s, t). This means the module has been</span>
     <span class="doccomment">/// computed at (s, t), and so has the differential at (s, t). In the case of a free module,</span>
     <span class="doccomment">/// the target of the differential, namely the bidegree (s - 1, t), need not be computed, as</span>
     <span class="doccomment">/// long as all the generators hit by the differential have already been computed.</span>
-    <span class="kw">fn</span> <span class="ident">has_computed_bidegree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">s</span>: <span class="ident">u32</span>, <span class="ident">t</span>: <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span>;
+    <span class="kw">fn</span> <span class="ident">has_computed_bidegree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">s</span>: <span class="ident">u32</span>, <span class="ident">t</span>: <span class="ident">i32</span>) -&gt; <span class="ident">bool</span>;
 
     <span class="doccomment">/// Ensure all bidegrees less than or equal to (s, t) have been computed</span>
     <span class="kw">fn</span> <span class="ident">compute_through_bidegree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">s</span>: <span class="ident">u32</span>, <span class="ident">t</span>: <span class="ident">i32</span>);
@@ -418,7 +418,7 @@
     }
 
     <span class="doccomment">/// The first s such that `self.module(s)` is not defined.</span>
-    <span class="kw">fn</span> <span class="ident">next_homological_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">u32</span>;
+    <span class="kw">fn</span> <span class="ident">next_homological_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">u32</span>;
 
     <span class="kw">fn</span> <span class="ident">set_homology_basis</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
@@ -426,8 +426,8 @@
         <span class="ident">internal_degree</span>: <span class="ident">i32</span>,
         <span class="ident">homology_basis</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span>,
     );
-    <span class="kw">fn</span> <span class="ident">homology_basis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">homological_degree</span>: <span class="ident">u32</span>, <span class="ident">internal_degree</span>: <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span>;
-    <span class="kw">fn</span> <span class="ident">max_homology_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">homological_degree</span>: <span class="ident">u32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span>;
+    <span class="kw">fn</span> <span class="ident">homology_basis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">homological_degree</span>: <span class="ident">u32</span>, <span class="ident">internal_degree</span>: <span class="ident">i32</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span>;
+    <span class="kw">fn</span> <span class="ident">max_homology_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">homological_degree</span>: <span class="ident">u32</span>) -&gt; <span class="ident">i32</span>;
 
     <span class="kw">fn</span> <span class="ident">compute_homology_through_bidegree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">homological_degree</span>: <span class="ident">u32</span>, <span class="ident">internal_degree</span>: <span class="ident">i32</span>) {
         <span class="self">self</span>.<span class="ident">compute_through_bidegree</span>(<span class="ident">homological_degree</span> <span class="op">+</span> <span class="number">1</span>, <span class="ident">internal_degree</span>);
@@ -438,7 +438,7 @@
         }
     }
 
-    <span class="kw">fn</span> <span class="ident">homology_dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">homological_degree</span>: <span class="ident">u32</span>, <span class="ident">internal_degree</span>: <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
+    <span class="kw">fn</span> <span class="ident">homology_dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">homological_degree</span>: <span class="ident">u32</span>, <span class="ident">internal_degree</span>: <span class="ident">i32</span>) -&gt; <span class="ident">usize</span> {
         <span class="self">self</span>.<span class="ident">homology_basis</span>(<span class="ident">homological_degree</span>, <span class="ident">internal_degree</span>)
             .<span class="ident">len</span>()
     }
@@ -475,7 +475,7 @@
 
     <span class="doccomment">/// Iterate through all defind bidegrees in increasing order of stem. The return values are of</span>
     <span class="doccomment">/// the form `(s, n, t)`.</span>
-    <span class="kw">fn</span> <span class="ident">iter_stem</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">StemIterator</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span>, <span class="self">Self</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">iter_stem</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">StemIterator</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span>, <span class="self">Self</span><span class="op">&gt;</span> {
         <span class="ident">StemIterator</span> {
             <span class="ident">cc</span>: <span class="self">self</span>,
             <span class="ident">n</span>: <span class="self">self</span>.<span class="ident">min_degree</span>(),
@@ -496,21 +496,21 @@
 <span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">CC</span>: <span class="ident">ChainComplex</span><span class="op">&gt;</span> <span class="ident">Iterator</span> <span class="kw">for</span> <span class="ident">StemIterator</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">CC</span><span class="op">&gt;</span> {
     <span class="comment">// (s, n, t)</span>
     <span class="kw">type</span> <span class="ident">Item</span> <span class="op">=</span> (<span class="ident">u32</span>, <span class="ident">i32</span>, <span class="ident">i32</span>);
-    <span class="kw">fn</span> <span class="ident">next</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Item</span><span class="op">&gt;</span> {
-        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">max_s</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
+    <span class="kw">fn</span> <span class="ident">next</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Item</span><span class="op">&gt;</span> {
+        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">max_s</span> <span class="op">==</span> <span class="number">0</span> {
             <span class="kw">return</span> <span class="prelude-val">None</span>;
         }
         <span class="kw">let</span> <span class="ident">s</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">s</span>;
         <span class="kw">let</span> <span class="ident">n</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">n</span>;
         <span class="kw">let</span> <span class="ident">t</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">n</span> <span class="op">+</span> <span class="self">self</span>.<span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span>;
 
-        <span class="kw">if</span> <span class="ident">s</span> <span class="op">=</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">max_s</span> {
+        <span class="kw">if</span> <span class="ident">s</span> <span class="op">==</span> <span class="self">self</span>.<span class="ident">max_s</span> {
             <span class="self">self</span>.<span class="ident">n</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
             <span class="self">self</span>.<span class="ident">s</span> <span class="op">=</span> <span class="number">0</span>;
             <span class="kw">return</span> <span class="self">self</span>.<span class="ident">next</span>();
         }
         <span class="kw">if</span> <span class="ident">t</span> <span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">cc</span>.<span class="ident">module</span>(<span class="ident">s</span>).<span class="ident">max_computed_degree</span>() {
-            <span class="kw">if</span> <span class="ident">s</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
+            <span class="kw">if</span> <span class="ident">s</span> <span class="op">==</span> <span class="number">0</span> {
                 <span class="kw">return</span> <span class="prelude-val">None</span>;
             } <span class="kw">else</span> {
                 <span class="self">self</span>.<span class="ident">n</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
@@ -528,14 +528,14 @@
     <span class="kw">type</span> <span class="ident">Module</span>: <span class="ident">Module</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident"><span class="self">Self</span>::Algebra</span><span class="op">&gt;</span>;
     <span class="kw">type</span> <span class="ident">Homomorphism</span>: <span class="ident">ModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">Source</span> <span class="op">=</span> <span class="ident"><span class="self">Self</span>::Module</span>, <span class="ident">Target</span> <span class="op">=</span> <span class="ident"><span class="self">Self</span>::Module</span><span class="op">&gt;</span>;
 
-    <span class="kw">fn</span> <span class="ident">prime</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ValidPrime</span> {
+    <span class="kw">fn</span> <span class="ident">prime</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">ValidPrime</span> {
         <span class="self">self</span>.<span class="ident">algebra</span>().<span class="ident">prime</span>()
     }
-    <span class="kw">fn</span> <span class="ident">algebra</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Module</span> <span class="kw">as</span> <span class="ident">Module</span><span class="op">&gt;</span><span class="ident">::Algebra</span><span class="op">&gt;</span>;
-    <span class="kw">fn</span> <span class="ident">min_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span>;
-    <span class="kw">fn</span> <span class="ident">zero_module</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Module</span><span class="op">&gt;</span>;
-    <span class="kw">fn</span> <span class="ident">module</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">homological_degree</span>: <span class="ident">u32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Module</span><span class="op">&gt;</span>;
-    <span class="kw">fn</span> <span class="ident">differential</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">homological_degree</span>: <span class="ident">u32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Homomorphism</span><span class="op">&gt;</span>;
+    <span class="kw">fn</span> <span class="ident">algebra</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Arc</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Module</span> <span class="kw">as</span> <span class="ident">Module</span><span class="op">&gt;</span><span class="ident">::Algebra</span><span class="op">&gt;</span>;
+    <span class="kw">fn</span> <span class="ident">min_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">i32</span>;
+    <span class="kw">fn</span> <span class="ident">zero_module</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Module</span><span class="op">&gt;</span>;
+    <span class="kw">fn</span> <span class="ident">module</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">homological_degree</span>: <span class="ident">u32</span>) -&gt; <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Module</span><span class="op">&gt;</span>;
+    <span class="kw">fn</span> <span class="ident">differential</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">homological_degree</span>: <span class="ident">u32</span>) -&gt; <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Homomorphism</span><span class="op">&gt;</span>;
     <span class="kw">fn</span> <span class="ident">compute_through_bidegree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">homological_degree</span>: <span class="ident">u32</span>, <span class="ident">degree</span>: <span class="ident">i32</span>);
 
     <span class="kw">fn</span> <span class="ident">set_cohomology_basis</span>(
@@ -544,8 +544,8 @@
         <span class="ident">internal_degree</span>: <span class="ident">i32</span>,
         <span class="ident">homology_basis</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span>,
     );
-    <span class="kw">fn</span> <span class="ident">cohomology_basis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">homological_degree</span>: <span class="ident">u32</span>, <span class="ident">internal_degree</span>: <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span>;
-    <span class="kw">fn</span> <span class="ident">max_cohomology_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">homological_degree</span>: <span class="ident">u32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span>;
+    <span class="kw">fn</span> <span class="ident">cohomology_basis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">homological_degree</span>: <span class="ident">u32</span>, <span class="ident">internal_degree</span>: <span class="ident">i32</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span>;
+    <span class="kw">fn</span> <span class="ident">max_cohomology_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">homological_degree</span>: <span class="ident">u32</span>) -&gt; <span class="ident">i32</span>;
 
     <span class="kw">fn</span> <span class="ident">compute_cohomology_through_bidegree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">homological_degree</span>: <span class="ident">u32</span>, <span class="ident">internal_degree</span>: <span class="ident">i32</span>) {
         <span class="self">self</span>.<span class="ident">compute_through_bidegree</span>(<span class="ident">homological_degree</span> <span class="op">+</span> <span class="number">1</span>, <span class="ident">internal_degree</span>);
@@ -556,7 +556,7 @@
         }
     }
 
-    <span class="kw">fn</span> <span class="ident">cohomology_dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">homological_degree</span>: <span class="ident">u32</span>, <span class="ident">internal_degree</span>: <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
+    <span class="kw">fn</span> <span class="ident">cohomology_dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">homological_degree</span>: <span class="ident">u32</span>, <span class="ident">internal_degree</span>: <span class="ident">i32</span>) -&gt; <span class="ident">usize</span> {
         <span class="self">self</span>.<span class="ident">cohomology_basis</span>(<span class="ident">homological_degree</span>, <span class="ident">internal_degree</span>)
             .<span class="ident">len</span>()
     }
@@ -602,13 +602,13 @@
         <span class="ident">Target</span> <span class="op">=</span> <span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::TargetComplex</span> <span class="kw">as</span> <span class="ident">ChainComplex</span><span class="op">&gt;</span><span class="ident">::Module</span>,
     <span class="op">&gt;</span>;
 
-    <span class="kw">fn</span> <span class="ident">target</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::TargetComplex</span><span class="op">&gt;</span>;
-    <span class="kw">fn</span> <span class="ident">chain_map</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">s</span>: <span class="ident">u32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::ChainMap</span><span class="op">&gt;</span>;
+    <span class="kw">fn</span> <span class="ident">target</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::TargetComplex</span><span class="op">&gt;</span>;
+    <span class="kw">fn</span> <span class="ident">chain_map</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">s</span>: <span class="ident">u32</span>) -&gt; <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::ChainMap</span><span class="op">&gt;</span>;
 }
 
 <span class="doccomment">/// A bounded chain complex is a chain complex C for which C_s = 0 for all s &gt;= max_s</span>
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">BoundedChainComplex</span>: <span class="ident">ChainComplex</span> {
-    <span class="kw">fn</span> <span class="ident">max_s</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">u32</span>;
+    <span class="kw">fn</span> <span class="ident">max_s</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">u32</span>;
 }
 
 <span class="doccomment">/// `chain_maps` is required to be non-empty</span>

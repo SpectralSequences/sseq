@@ -317,7 +317,7 @@
 <span class="doccomment">/// specifying the action of the generators.</span>
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">Algebra</span>: <span class="ident">std::fmt::Display</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> {
     <span class="doccomment">/// Returns the prime the algebra is over.</span>
-    <span class="kw">fn</span> <span class="ident">prime</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ValidPrime</span>;
+    <span class="kw">fn</span> <span class="ident">prime</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">ValidPrime</span>;
 
     <span class="doccomment">/// Computes the list of basis elements up to and including degree `degree`. This should include any</span>
     <span class="doccomment">/// other preparation needed to evaluate all the other functions that involve a degree</span>
@@ -326,7 +326,7 @@
     <span class="kw">fn</span> <span class="ident">compute_basis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>);
 
     <span class="doccomment">/// Gets the dimension of the algebra in degree `degree`.</span>
-    <span class="kw">fn</span> <span class="ident">dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">excess</span>: <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span>;
+    <span class="kw">fn</span> <span class="ident">dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">excess</span>: <span class="ident">i32</span>) -&gt; <span class="ident">usize</span>;
 
     <span class="doccomment">/// Computes the product `r * s` of the two basis elements, and *adds* the result to `result`.</span>
     <span class="doccomment">///</span>
@@ -420,15 +420,15 @@
     <span class="doccomment">/// A filtration one element in Ext(k, k) is the same as an indecomposable element of the</span>
     <span class="doccomment">/// algebra.  This function returns a default list of such elements in the format `(name,</span>
     <span class="doccomment">/// degree, index)` for whom we want to compute products with in the resolutions.</span>
-    <span class="kw">fn</span> <span class="ident">default_filtration_one_products</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">String</span>, <span class="ident">i32</span>, <span class="ident">usize</span>)<span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">default_filtration_one_products</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">String</span>, <span class="ident">i32</span>, <span class="ident">usize</span>)<span class="op">&gt;</span> {
         <span class="ident">Vec::new</span>()
     }
 
     <span class="doccomment">/// Converts a basis element into a string for display.</span>
-    <span class="kw">fn</span> <span class="ident">basis_element_to_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">idx</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">String</span>;
+    <span class="kw">fn</span> <span class="ident">basis_element_to_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">idx</span>: <span class="ident">usize</span>) -&gt; <span class="ident">String</span>;
 
     <span class="doccomment">/// Converts an element into a string for display.</span>
-    <span class="kw">fn</span> <span class="ident">element_to_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">element</span>: <span class="ident">Slice</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">String</span> {
+    <span class="kw">fn</span> <span class="ident">element_to_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">element</span>: <span class="ident">Slice</span>) -&gt; <span class="ident">String</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">String::new</span>();
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">zero</span> <span class="op">=</span> <span class="bool-val">true</span>;
         <span class="kw">for</span> (<span class="ident">idx</span>, <span class="ident">value</span>) <span class="kw">in</span> <span class="ident">element</span>.<span class="ident">iter_nonzero</span>() {
@@ -453,14 +453,14 @@
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;json&quot;</span>)]</span>
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">JsonAlgebra</span>: <span class="ident">Algebra</span> {
-    <span class="kw">fn</span> <span class="ident">prefix</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">str</span>;
+    <span class="kw">fn</span> <span class="ident">prefix</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">str</span>;
 
     <span class="doccomment">/// Converts a JSON object into a basis element. The way basis elements are represented by JSON</span>
     <span class="doccomment">/// objects is to be specified by the algebra itself, and will be used by module</span>
     <span class="doccomment">/// specifications.</span>
-    <span class="kw">fn</span> <span class="ident">json_to_basis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">json</span>: <span class="kw-2">&amp;</span><span class="ident">serde_json::Value</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">error::Result</span><span class="op">&lt;</span>(<span class="ident">i32</span>, <span class="ident">usize</span>)<span class="op">&gt;</span>;
+    <span class="kw">fn</span> <span class="ident">json_to_basis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">json</span>: <span class="kw-2">&amp;</span><span class="ident">serde_json::Value</span>) -&gt; <span class="ident">error::Result</span><span class="op">&lt;</span>(<span class="ident">i32</span>, <span class="ident">usize</span>)<span class="op">&gt;</span>;
 
-    <span class="kw">fn</span> <span class="ident">json_from_basis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">idx</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">serde_json::Value</span>;
+    <span class="kw">fn</span> <span class="ident">json_from_basis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">idx</span>: <span class="ident">usize</span>) -&gt; <span class="ident">serde_json::Value</span>;
 }
 
 <span class="doccomment">/// An algebra with a specified list of generators and generating relations. This data can be used</span>
@@ -472,7 +472,7 @@
     <span class="doccomment">///</span>
     <span class="doccomment">/// This method need not be fast, because they will only be performed when constructing the module,</span>
     <span class="doccomment">/// and will often only involve low dimensional elements.</span>
-    <span class="kw">fn</span> <span class="ident">generators</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span>;
+    <span class="kw">fn</span> <span class="ident">generators</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span>;
 
     <span class="doccomment">/// This returns the name of a generator. Note that the index is the index of the generator</span>
     <span class="doccomment">/// in the list of all basis elements. It is undefined behaviour to call this function with a</span>
@@ -482,7 +482,7 @@
     <span class="doccomment">/// generators might have alternative, more concise names that are preferred.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// This function MUST be inverse to `string_to_generator`.</span>
-    <span class="kw">fn</span> <span class="ident">generator_to_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">idx</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">String</span> {
+    <span class="kw">fn</span> <span class="ident">generator_to_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">idx</span>: <span class="ident">usize</span>) -&gt; <span class="ident">String</span> {
         <span class="self">self</span>.<span class="ident">basis_element_to_string</span>(<span class="ident">degree</span>, <span class="ident">idx</span>)
     }
 
@@ -491,7 +491,7 @@
     <span class="doccomment">///</span>
     <span class="doccomment">/// This function MUST be inverse to `string_to_generator` (and not `basis_element_to_string`).</span>
     <span class="kw">fn</span> <span class="ident">string_to_generator</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="lifetime">&#39;b</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="self">self</span>, <span class="ident">input</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;b</span> <span class="ident">str</span>)
-        <span class="op">-</span><span class="op">&gt;</span> <span class="ident">nom::IResult</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="lifetime">&#39;b</span> <span class="ident">str</span>, (<span class="ident">i32</span>, <span class="ident">usize</span>)<span class="op">&gt;</span>;
+        -&gt; <span class="ident">nom::IResult</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="lifetime">&#39;b</span> <span class="ident">str</span>, (<span class="ident">i32</span>, <span class="ident">usize</span>)<span class="op">&gt;</span>;
 
     <span class="doccomment">/// Given a non-generator basis element of the algebra, decompose it in terms of algebra</span>
     <span class="doccomment">/// generators. Recall each basis element is given by a pair $(d, i))$, where $d$ is the degree of</span>
@@ -507,20 +507,20 @@
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         <span class="ident">degree</span>: <span class="ident">i32</span>,
         <span class="ident">idx</span>: <span class="ident">usize</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">u32</span>, (<span class="ident">i32</span>, <span class="ident">usize</span>), (<span class="ident">i32</span>, <span class="ident">usize</span>))<span class="op">&gt;</span>;
+    ) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">u32</span>, (<span class="ident">i32</span>, <span class="ident">usize</span>), (<span class="ident">i32</span>, <span class="ident">usize</span>))<span class="op">&gt;</span>;
 
     <span class="doccomment">/// Get any relations that the algebra wants checked to ensure the consistency of module.</span>
-    <span class="kw">fn</span> <span class="ident">generating_relations</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">u32</span>, (<span class="ident">i32</span>, <span class="ident">usize</span>), (<span class="ident">i32</span>, <span class="ident">usize</span>))<span class="op">&gt;</span><span class="op">&gt;</span>;
+    <span class="kw">fn</span> <span class="ident">generating_relations</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">u32</span>, (<span class="ident">i32</span>, <span class="ident">usize</span>), (<span class="ident">i32</span>, <span class="ident">usize</span>))<span class="op">&gt;</span><span class="op">&gt;</span>;
 }
 
 <span class="attribute">#[<span class="ident">macro_export</span>]</span>
 <span class="macro">macro_rules!</span> <span class="ident">dispatch_algebra</span> {
-    (<span class="macro-nonterminal">$</span><span class="kw">struct</span>:<span class="macro-nonterminal">ty</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">dispatch_macro</span>: <span class="ident">ident</span>) <span class="op">=</span><span class="op">&gt;</span> {
+    (<span class="macro-nonterminal">$</span><span class="kw">struct</span>:<span class="macro-nonterminal">ty</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">dispatch_macro</span>: <span class="ident">ident</span>) =&gt; {
         <span class="kw">impl</span> <span class="ident">Algebra</span> <span class="kw">for</span> <span class="macro-nonterminal">$</span><span class="kw">struct</span> {
             <span class="macro-nonterminal">$</span><span class="macro">dispatch_macro!</span> {
-                <span class="kw">fn</span> <span class="macro-nonterminal">prime</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ValidPrime</span>;
+                <span class="kw">fn</span> <span class="macro-nonterminal">prime</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">ValidPrime</span>;
                 <span class="kw">fn</span> <span class="ident">compute_basis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>);
-                <span class="kw">fn</span> <span class="ident">dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">excess</span>: <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span>;
+                <span class="kw">fn</span> <span class="ident">dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">excess</span>: <span class="ident">i32</span>) -&gt; <span class="ident">usize</span>;
                 <span class="kw">fn</span> <span class="ident">multiply_basis_elements</span>(
                     <span class="kw-2">&amp;</span><span class="self">self</span>,
                     <span class="ident">result</span>: <span class="ident">SliceMut</span>,
@@ -565,11 +565,11 @@
                     <span class="ident">excess</span>: <span class="ident">i32</span>,
                 );
 
-                <span class="kw">fn</span> <span class="ident">default_filtration_one_products</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">String</span>, <span class="ident">i32</span>, <span class="ident">usize</span>)<span class="op">&gt;</span>;
+                <span class="kw">fn</span> <span class="ident">default_filtration_one_products</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">String</span>, <span class="ident">i32</span>, <span class="ident">usize</span>)<span class="op">&gt;</span>;
 
-                <span class="kw">fn</span> <span class="ident">basis_element_to_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">idx</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">String</span>;
+                <span class="kw">fn</span> <span class="ident">basis_element_to_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">idx</span>: <span class="ident">usize</span>) -&gt; <span class="ident">String</span>;
 
-                <span class="kw">fn</span> <span class="ident">element_to_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">element</span>: <span class="ident">Slice</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">String</span>;
+                <span class="kw">fn</span> <span class="ident">element_to_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">element</span>: <span class="ident">Slice</span>) -&gt; <span class="ident">String</span>;
             }
         }
     };

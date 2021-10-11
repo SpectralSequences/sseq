@@ -105,25 +105,25 @@
 }
 
 <span class="kw">impl</span> <span class="ident">DenseBigradedModule</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">min_x</span>: <span class="ident">i32</span>, <span class="ident">min_y</span>: <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">min_x</span>: <span class="ident">i32</span>, <span class="ident">min_y</span>: <span class="ident">i32</span>) -&gt; <span class="self">Self</span> {
         <span class="kw">let</span> <span class="ident">dimensions</span> <span class="op">=</span> <span class="ident">OnceBiVec::new</span>(<span class="ident">min_x</span>);
         <span class="ident">dimensions</span>.<span class="ident">push</span>(<span class="ident">OnceBiVec::new</span>(<span class="ident">min_y</span>));
         <span class="self">Self</span> { <span class="ident">dimensions</span>, <span class="ident">min_y</span> }
     }
 
-    <span class="kw">pub</span> <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">min_x</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+    <span class="kw">pub</span> <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">min_x</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">i32</span> {
         <span class="self">self</span>.<span class="ident">dimensions</span>.<span class="ident">min_degree</span>()
     }
 
-    <span class="kw">pub</span> <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">min_y</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+    <span class="kw">pub</span> <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">min_y</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">i32</span> {
         <span class="self">self</span>.<span class="ident">min_y</span>
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">max_x</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">max_x</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">i32</span> {
         <span class="self">self</span>.<span class="ident">dimensions</span>.<span class="ident">max_degree</span>()
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">max_y</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">max_y</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">i32</span> {
         <span class="self">self</span>.<span class="ident">dimensions</span>
             .<span class="ident">iter</span>()
             .<span class="ident">map</span>(<span class="ident">OnceBiVec::max_degree</span>)
@@ -131,11 +131,11 @@
             .<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">min_y</span>())
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">range</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">x</span>: <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">std::ops::Range</span><span class="op">&lt;</span><span class="ident">i32</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">range</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">x</span>: <span class="ident">i32</span>) -&gt; <span class="ident">std::ops::Range</span><span class="op">&lt;</span><span class="ident">i32</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">dimensions</span>[<span class="ident">x</span>].<span class="ident">range</span>()
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">defined</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">x</span>: <span class="ident">i32</span>, <span class="ident">y</span>: <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">defined</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">x</span>: <span class="ident">i32</span>, <span class="ident">y</span>: <span class="ident">i32</span>) -&gt; <span class="ident">bool</span> {
         <span class="self">self</span>.<span class="ident">dimensions</span>.<span class="ident">get</span>(<span class="ident">x</span>).<span class="ident">is_some</span>() <span class="op">&amp;&amp;</span> <span class="self">self</span>.<span class="ident">dimensions</span>[<span class="ident">x</span>].<span class="ident">get</span>(<span class="ident">y</span>).<span class="ident">is_some</span>()
     }
 
@@ -149,14 +149,14 @@
             <span class="ident">x</span> <span class="op">-</span> <span class="number">1</span>,
             <span class="ident">y</span>
         );
-        <span class="kw">if</span> <span class="ident">x</span> <span class="op">=</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">dimensions</span>.<span class="ident">len</span>() {
+        <span class="kw">if</span> <span class="ident">x</span> <span class="op">==</span> <span class="self">self</span>.<span class="ident">dimensions</span>.<span class="ident">len</span>() {
             <span class="self">self</span>.<span class="ident">dimensions</span>
                 .<span class="ident">push_checked</span>(<span class="ident">OnceBiVec::new</span>(<span class="self">self</span>.<span class="ident">min_y</span>()), <span class="ident">x</span>);
         }
         <span class="kw">match</span> <span class="ident">y</span>.<span class="ident">cmp</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">dimensions</span>[<span class="ident">x</span>].<span class="ident">len</span>()) {
-            <span class="ident">Less</span> <span class="op">=</span><span class="op">&gt;</span> <span class="macro">panic!</span>(<span class="string">&quot;Already set dimension at ({}, {})&quot;</span>, <span class="ident">x</span>, <span class="ident">y</span>),
-            <span class="ident">Equal</span> <span class="op">=</span><span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">dimensions</span>[<span class="ident">x</span>].<span class="ident">push_checked</span>(<span class="ident">dim</span>, <span class="ident">y</span>),
-            <span class="ident">Greater</span> <span class="op">=</span><span class="op">&gt;</span> <span class="macro">panic!</span>(
+            <span class="ident">Less</span> =&gt; <span class="macro">panic!</span>(<span class="string">&quot;Already set dimension at ({}, {})&quot;</span>, <span class="ident">x</span>, <span class="ident">y</span>),
+            <span class="ident">Equal</span> =&gt; <span class="self">self</span>.<span class="ident">dimensions</span>[<span class="ident">x</span>].<span class="ident">push_checked</span>(<span class="ident">dim</span>, <span class="ident">y</span>),
+            <span class="ident">Greater</span> =&gt; <span class="macro">panic!</span>(
                 <span class="string">&quot;Cannot set dimension at ({}, {}) before ({}, {})&quot;</span>,
                 <span class="ident">x</span>,
                 <span class="ident">y</span>,
@@ -166,7 +166,7 @@
         }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">x</span>: <span class="ident">i32</span>, <span class="ident">y</span>: <span class="ident">i32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">x</span>: <span class="ident">i32</span>, <span class="ident">y</span>: <span class="ident">i32</span>) -&gt; <span class="ident">usize</span> {
         <span class="self">self</span>.<span class="ident">dimensions</span>[<span class="ident">x</span>][<span class="ident">y</span>]
     }
 }
