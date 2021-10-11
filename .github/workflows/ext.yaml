@@ -235,9 +235,8 @@ jobs:
 
   deploy:
     needs: [test, lint, webserver, calculator, docs]
-    if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository }}
     runs-on: ubuntu-20.04
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' && github.event.push.head.repo.full_name == github.repository }}
 
     steps:
       - name: Download webserver
