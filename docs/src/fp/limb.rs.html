@@ -205,7 +205,10 @@
 <span id="181">181</span>
 <span id="182">182</span>
 <span id="183">183</span>
-</pre><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::constants::Limb</span>;
+<span id="184">184</span>
+</pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::ops::Range</span>;
+
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::constants::Limb</span>;
 
 <span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">constants::BITS_PER_LIMB</span>, <span class="ident">prime::ValidPrime</span>};
 
@@ -351,17 +354,16 @@
     }
 }
 
-<span class="doccomment">/// Return the pair of usizes `(min, max)` such that `min..max` is the range starting at the index</span>
-<span class="doccomment">/// of the limb containing the `start`th entry, and ending at the index of the limb containing the</span>
-<span class="doccomment">/// `end`th entry (including the latter).</span>
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">range</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">P</span>: <span class="ident">u32</span><span class="op">&gt;</span>(<span class="ident">start</span>: <span class="ident">usize</span>, <span class="ident">end</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> (<span class="ident">usize</span>, <span class="ident">usize</span>) {
+<span class="doccomment">/// Return the `Range&lt;usize&gt;` starting at the index of the limb containing the `start`th entry, and</span>
+<span class="doccomment">/// ending at the index of the limb containing the `end`th entry (including the latter).</span>
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">range</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">P</span>: <span class="ident">u32</span><span class="op">&gt;</span>(<span class="ident">start</span>: <span class="ident">usize</span>, <span class="ident">end</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Range</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span> {
     <span class="kw">let</span> <span class="ident">min</span> <span class="op">=</span> <span class="ident">limb_bit_index_pair</span>::<span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span>(<span class="ident">start</span>).<span class="ident">limb</span>;
     <span class="kw">let</span> <span class="ident">max</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">end</span> <span class="op">&gt;</span> <span class="number">0</span> {
         <span class="ident">limb_bit_index_pair</span>::<span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span>(<span class="ident">end</span> <span class="op">-</span> <span class="number">1</span>).<span class="ident">limb</span> <span class="op">+</span> <span class="number">1</span>
     } <span class="kw">else</span> {
         <span class="number">0</span>
     };
-    (<span class="ident">min</span>, <span class="ident">max</span>)
+    <span class="ident">min</span>..<span class="ident">max</span>
 }
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">sign_rule</span>(<span class="kw-2">mut</span> <span class="ident">target</span>: <span class="ident">Limb</span>, <span class="kw-2">mut</span> <span class="ident">source</span>: <span class="ident">Limb</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">u32</span> {
