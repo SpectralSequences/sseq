@@ -1,1 +1,1 @@
-../../svg-chart/chart.js
+../../../svg-chart/chart.js
