@@ -29,7 +29,7 @@ $(WASM_FILE): $(WASM_LIB)
 
 .PHONY: wasm serve-wasm clean-wasm clean dummy run_examples test
 
-wasm: $(WASM_FILE) $(wildcard interface/*) $(wildcard wasm/*) $(wildcard ../ext/steenrod_modules/*)
+wasm: $(WASM_FILE) $(wildcard interface/*) $(wildcard wasm/*) $(wildcard ../../ext/steenrod_modules/*)
 	# Must be done in this order since both contain index.js and we want the wasm version
 	cp interface/* $(WASM_OUT)
 	cp wasm/* $(WASM_OUT)
