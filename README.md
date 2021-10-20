@@ -12,7 +12,7 @@ Steenrod algebra.
 2. `web_ext`
 Web interfaces to `ext`. There are two subprojects at the moment:
 
- - `rust_webserver`: A GUI to work with the Adams spectral sequence. Given a
+ - `sseq_gui`: A GUI to work with the Adams spectral sequence. Given a
    Steenrod module, this computes its Ext and displays the associated Adams
    spectral sequence. The user can then interactively input differentials and
    the program can propagate differentials via the Leibniz rule.

@@ -1,5 +1,5 @@
 [package]
-name = "rust_webserver"
+name = "sseq_gui"
 version = "0.1.0"
 authors = ["Hood Chatham <hood@mit.edu>", "Dexter Chua <dalcde@yahoo.com.hk>"]
 edition = "2018"

@@ -1,5 +1,5 @@
 WASM_TARGET = wasm32-unknown-unknown
-NAME = rust_webserver
+NAME = sseq_gui
 WASM_LIB = target/$(WASM_TARGET)/release/$(NAME).wasm
 WASM_OUT = dist/
 WASM_FILE = $(WASM_OUT)/$(NAME)_wasm_bg.wasm

@@ -32,11 +32,11 @@ jobs:
             /usr/share/rust/.cargo
           key: test-${{ steps.rustup.outputs.rustc_hash }}-${{ hashFiles('**/Cargo.*') }}
 
-      - name: Run rust_webserver tests
-        run: make -C web_ext/rust_webserver test
+      - name: Run sseq_gui tests
+        run: make -C web_ext/sseq_gui test
 
-      - name: Run rust_webserver examples
-        run: make -C web_ext/rust_webserver run_examples
+      - name: Run sseq_gui examples
+        run: make -C web_ext/sseq_gui run_examples
 
       - name: Run ext tests
         run: make -C ext test
@@ -85,8 +85,8 @@ jobs:
       - name: Run lint
         run: make -C ext lint
 
-      - name: Lint rust_webserver
-        run: make -C web_ext/rust_webserver lint
+      - name: Lint sseq_gui
+        run: make -C web_ext/sseq_gui lint
 
   webserver:
     if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository }}
@@ -124,22 +124,22 @@ jobs:
         run: sudo apt-get install binaryen
 
       - name: Setup build environment
-        run: make -C web_ext/rust_webserver setup-wasm
+        run: make -C web_ext/sseq_gui setup-wasm
 
-      - name: Lint rust_webserver wasm
-        run: make -C web_ext/rust_webserver lint-wasm
+      - name: Lint sseq_gui wasm
+        run: make -C web_ext/sseq_gui lint-wasm
 
       - name: Build wasm
-        run: make -C web_ext/rust_webserver wasm
+        run: make -C web_ext/sseq_gui wasm
 
       - name: Benchmark wasm size
-        run: ls -l web_ext/rust_webserver/dist/rust_webserver_wasm_bg.wasm
+        run: ls -l web_ext/sseq_gui/dist/sseq_gui_wasm_bg.wasm
 
       - name: Upload webserver
         uses: actions/upload-artifact@v2
         with:
           name: webserver-${{ matrix.toolchain }}
-          path: web_ext/rust_webserver/dist/
+          path: web_ext/sseq_gui/dist/
 
   calculator:
     if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository }}
@@ -179,7 +179,7 @@ jobs:
       - name: Setup build environment
         run: make -C web_ext/steenrod_calculator setup-wasm
 
-      - name: Lint rust_webserver wasm
+      - name: Lint sseq_gui wasm
         run: make -C web_ext/steenrod_calculator lint
 
       - name: Build wasm

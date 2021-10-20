@@ -1,9 +1,9 @@
 use chart::{Backend as _, TikzBackend as Backend};
 use ext::{chain_complex::ChainComplex, utils::construct};
 use fp::{prime::ValidPrime, vector::FpVector};
-use rust_webserver::actions::SseqChoice;
-use rust_webserver::sseq::SseqWrapper;
 use sseq::Adams;
+use sseq_gui::actions::SseqChoice;
+use sseq_gui::sseq::SseqWrapper;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;

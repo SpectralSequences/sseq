@@ -1,5 +1,5 @@
 # Rust-based Ext webserver
-[![Build Status](https://travis-ci.com/SpectralSequences/rust_webserver.svg?branch=master)](https://travis-ci.com/SpectralSequences/rust_webserver)
+[![Build Status](https://travis-ci.com/SpectralSequences/sseq_gui.svg?branch=master)](https://travis-ci.com/SpectralSequences/sseq_gui)
 
 ## Spectral Sequence Editor
 The first part is a spectral sequence editor. It takes as an input a Steenrod
