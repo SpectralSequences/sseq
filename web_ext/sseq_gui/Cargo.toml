@@ -1,0 +1,48 @@
+[package]
+name = "sseq_gui"
+version = "0.1.0"
+authors = ["Hood Chatham <hood@mit.edu>", "Dexter Chua <dalcde@yahoo.com.hk>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+algebra = { path = "../../ext/crates/algebra", default-features = false }
+bivec = { path = "../../ext/crates/bivec", features = ["json"] }
+chart = { path = "../../ext/crates/chart" }
+error = { path = "../../ext/crates/error" }
+ext = { path = "../../ext", default-features = false }
+fp = { path = "../../ext/crates/fp", features = ["json"], default-features = false }
+once = { path = "../../ext/crates/once" }
+sseq = { path = "../../ext/crates/sseq" }
+thread-token = { path = "../../ext/crates/thread-token", optional = true }
+
+enum_dispatch = "0.3"
+rustc-hash = "1.1.0"
+serde_json = "1.0.0"
+serde = { version = "1.0.0", features = ["derive"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+time = { git = "https://github.com/time-rs/time", rev = "b57628aa" }
+ws = "=0.9.1"
+textwrap = { version = "0.11.0", features = ["term_size"] }
+crossbeam-channel = "0.5.0"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+# Match wasm-bindgen version with wasm-bindgen-cli
+wasm-bindgen = "=0.2.73"
+js-sys = "0.3.0"
+
+[dev-dependencies]
+saveload = { path = "../../ext/crates/saveload" }
+algebra = { path = "../../ext/crates/algebra" }
+query = { path = "../../ext/crates/query" }
+
+[features]
+default = ["odd-primes"]
+cache-multiplication = ["ext/cache-multiplication"]
+odd-primes = ["fp/odd-primes", "ext/odd-primes", "algebra/odd-primes"]
+concurrent = ["thread-token", "ext/concurrent"]
+
+[lib]
+crate-type = ["cdylib", "rlib"]

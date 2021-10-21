@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Transition Demo</title>
+    <style>
+        #fire {
+            position: absolute; 
+            left : 40px;
+            top : 40px;
+        }
+
+        #highlighter {
+            position: absolute; 
+            background-color: orange; 
+            border-radius: 50%; 
+            --transition-time : 0.3s;
+            transition : none;
+        }
+
+        #highlighter[transition] {
+            transition-timing-function: cubic-bezier(0,.27,1,5);
+            transition-property: all;
+            transition-duration : var(--transition-time);
+        }
+    </style>
+</head>
+
+<body>
+    <button id=fire onclick="fire()">Click me!</button>
+    <span id=highlighter style="width: 0; height: 0;"></span>
+
+    <script>
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        async function fire(){
+            let highlighter = document.querySelector("#highlighter")
+            highlighter.removeAttribute("transition");
+            await sleep(10);
+            highlighter.style.width = 0;
+            highlighter.style.height = 0;
+            let x = Math.random()* (window.innerWidth - 140) + 70;
+            let y = Math.random() * (window.innerHeight - 140) + 70;
+            highlighter.style.left = `${x}px`;
+            highlighter.style.top = `${y}px`;
+            // highlighter.style.opacity = 1;
+            await sleep(40);
+            highlighter.setAttribute("transition", "");
+            highlighter.style.left = `${x - 15/2}px`;
+            highlighter.style.top = `${y - 15/2}px`;
+            highlighter.style.width = "15px";
+            highlighter.style.height = "15px";
+            // highlighter.style.opacity = 0;
+        }
+
+    </script>
+</body>

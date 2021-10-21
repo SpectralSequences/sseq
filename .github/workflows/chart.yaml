@@ -1,8 +1,13 @@
 name: Test chart build
 
 on: [push, pull_request]
+
+defaults:
+  run:
+    working-directory: ./chart
 jobs:
   build:
+    if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository }}
     runs-on: ubuntu-latest
 
     steps:
@@ -38,6 +43,7 @@ jobs:
       run: git diff --exit-code
 
   clean:
+    if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository }}
     runs-on: ubuntu-latest
 
     steps:
