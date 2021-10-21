@@ -55,7 +55,6 @@ impl std::str::FromStr for AlgebraType {
     type Err = error::GenericError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        use std::convert::TryInto;
         s.try_into()
     }
 }

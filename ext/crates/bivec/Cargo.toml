@@ -2,7 +2,7 @@
 name = "bivec"
 version = "0.1.0"
 authors = ["Hood Chatham <hood@mit.edu>", "Dexter Chua <dexter@math.harvard.edu>"]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 serde = { version = "1.0.0", optional = true }

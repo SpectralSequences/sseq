@@ -2,7 +2,7 @@
 name = "steenrod_calculator"
 version = "0.1.0"
 authors = ["Dexter Chua <dexter@math.harvard.edu>"]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 algebra = { path = "../../ext/crates/algebra", default-features = false, features = ["odd-primes"] }
