@@ -1,5 +1,12 @@
-use core::cmp::Ordering;
+//! The Steenrod algebra using the Adem basis.
+
+use std::cmp::Ordering;
+use std::fmt;
+use std::sync::Mutex;
+
 use itertools::Itertools;
+use rustc_hash::FxHashMap as HashMap;
+
 use nom::{
     branch::alt,
     bytes::complete::tag,
@@ -8,22 +15,27 @@ use nom::{
     sequence::{delimited, pair},
     IResult,
 };
-use rustc_hash::FxHashMap as HashMap;
-use std::sync::Mutex;
-
-use crate::algebra::combinatorics::{self, MAX_XI_TAU};
-use crate::algebra::{Algebra, Bialgebra, GeneratedAlgebra};
 
 use fp::prime::{BinomialIterator, BitflagIterator, ValidPrime};
 use fp::vector::{FpVector, SliceMut};
 use once::OnceVec;
 
+use crate::algebra::combinatorics::{self, MAX_XI_TAU};
+use crate::algebra::{Algebra, Bialgebra, GeneratedAlgebra};
+
 #[cfg(feature = "json")]
 use {crate::algebra::JsonAlgebra, serde::Deserialize, serde_json::value::Value};
 
-// This is here so that the Python bindings can use modules defined for AdemAlgebraT with their own algebra enum.
-// In order for things to work AdemAlgebraT cannot implement Algebra.
-// Otherwise, the algebra enum for our bindings will see an implementation clash.
+#[cfg(doc)]
+use crate::algebra::SteenrodAlgebra;
+
+/// An algebra that can be viewed as an Adem algebra.
+///
+/// This is here so that the Python bindings can use modules defined for AdemAlgebraT
+/// with their version of [`SteenrodAlgebra`].
+///
+/// In order for things to work `AdemAlgebraT` cannot implement [`Algebra`].
+/// Otherwise, the algebra enum for our bindings will see an implementation clash.
 pub trait AdemAlgebraT: Send + Sync + Algebra {
     fn adem_algebra(&self) -> &AdemAlgebra;
 }
@@ -34,24 +46,43 @@ impl AdemAlgebraT for AdemAlgebra {
     }
 }
 
-/// The format of the AdemBasisElement is as follows. To encode
-/// $$\beta^{\varepsilon_0} P^{i_0} \beta^{\varepsilon_1} P^{i_1} \cdots \beta^{\varepsilon_n}
-/// P^{i_n} \beta^{\varepsilon_{n+1}},$$
+/// An Adem basis element for the Steenrod algebra.
+///
+/// To encode an element
+/// $$
+///     \beta^{\varepsilon_0} P^{i_0}\
+///     \beta^{\varepsilon_1} P^{i_1}
+///     \cdots
+///     \beta^{\varepsilon_n} P^{i_n}
+///     \beta^{\varepsilon_{n+1}},
+/// $$
 /// we set
 /// $$ \begin{aligned}
-/// \mathtt{ps} &= [i_0, i_1, \ldots, i_n]\\\\
+/// \mathtt{ps}         &= [i_0, i_1, \ldots, i_n] \\\\
 /// \mathtt{bocksteins} &= 000\cdots0\varepsilon_{n+1} \varepsilon_n \cdots \varepsilon_0
 /// \end{aligned} $$
 // #[derive(RustcDecodable, RustcEncodable)]
 #[derive(Debug, Clone)]
 pub struct AdemBasisElement {
+    /// The degree of the element.
     pub degree: i32,
+    /// The excess (i.e., distance from this element being minimally admissible)
+    /// of this basis element.
+    ///
+    /// See https://doc.sagemath.org/html/en/reference/algebras/sage/algebras/steenrod/steenrod_algebra.html#sage.algebras.steenrod.steenrod_algebra.SteenrodAlgebra_generic.Element.excess.
+    ///
+    /// This field is only used in `unstable_enabled` mode.
     pub excess: i32,
+    /// A bitset of which $\beta$ Bocksteins are in the element's decomposition.
     pub bocksteins: u32,
+    /// A list of which Steenrod powers are in the element's decompositions.
     pub ps: Vec<u32>,
+    /// Whether to denote the generators as powers $P^i$ or squares $Sq^i$ when using string formatting;
+    /// `true` denotes the former.
     pub p_or_sq: bool,
 }
 
+/// A Steenrod power $P^i$, or a Bockstein $\beta^\varepsilon$.
 #[derive(Debug)]
 pub enum PorBockstein {
     P(u32),
@@ -59,6 +90,10 @@ pub enum PorBockstein {
 }
 
 impl AdemBasisElement {
+    /// Returns an iterator over the element's decomposition.
+    ///
+    /// This returns alternating Bocksteins and Ps, but skipping any
+    /// `\beta^0` factors.
     fn iter_filtered(&self) -> impl Iterator<Item = PorBockstein> + '_ {
         BitflagIterator::new(self.bocksteins as u64)
             .map(PorBockstein::Bockstein)
@@ -74,13 +109,13 @@ impl AdemBasisElement {
     }
 }
 
-impl std::cmp::PartialEq for AdemBasisElement {
+impl PartialEq for AdemBasisElement {
     fn eq(&self, other: &Self) -> bool {
         self.ps == other.ps && self.bocksteins == other.bocksteins
     }
 }
 
-impl std::cmp::Eq for AdemBasisElement {}
+impl Eq for AdemBasisElement {}
 
 impl std::hash::Hash for AdemBasisElement {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
@@ -89,8 +124,8 @@ impl std::hash::Hash for AdemBasisElement {
     }
 }
 
-impl std::fmt::Display for AdemBasisElement {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl fmt::Display for AdemBasisElement {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let p_or_sq = if self.p_or_sq { "P" } else { "Sq" };
         let result = self
             .iter_filtered()
@@ -115,6 +150,19 @@ fn adem_basis_element_length_sort_order(a: &AdemBasisElement, b: &AdemBasisEleme
     a.ps.len().cmp(&b.ps.len())
 }
 
+/// Shifts a `Vec`'s elements back by `offset`.
+///
+/// # Safety
+///
+/// This function leaves `v` in an invalid state, since `ptr` does not point to
+/// the beginning of an allocation after this function completes. Operations
+/// which may trigger resizing *must* be avoided, since the allocator will
+/// otherwise get extremely confused.
+///
+/// The sum of `offset`s to calls to this function for a particular `v` must
+/// always be positive (i.e., to avoid pointing before the allocation), less
+/// than the `v`'s capacity (to avoid pointing after), and zero when `v` is
+/// destroyed or resized (for the reasons described above)
 unsafe fn shift_vec<T>(v: &mut Vec<T>, offset: isize) {
     let ptr = v.as_ptr();
     let len = v.len();
@@ -130,22 +178,27 @@ unsafe fn shift_vec<T>(v: &mut Vec<T>, offset: isize) {
     std::mem::forget(w);
 }
 
+/// An [`Algebra`] implementing the Steenrod algebra, using the Adem basis.
 pub struct AdemAlgebra {
     p: ValidPrime,
     pub generic: bool,
     pub unstable: bool,
     pub unstable_enabled: bool,
     lock: Mutex<()>,
+
     even_basis_table: OnceVec<Vec<AdemBasisElement>>,
-    basis_table: OnceVec<Vec<AdemBasisElement>>, // degree -> index -> AdemBasisElement
-    basis_element_to_index_map: OnceVec<HashMap<AdemBasisElement, usize>>, // degree -> AdemBasisElement -> index
-    multiplication_table: OnceVec<Vec<Vec<FpVector>>>, // degree -> first square -> admissible sequence idx -> result vector
+    /// degree -> index -> AdemBasisElement
+    basis_table: OnceVec<Vec<AdemBasisElement>>,
+    /// degree -> AdemBasisElement -> index
+    basis_element_to_index_map: OnceVec<HashMap<AdemBasisElement, usize>>,
+    /// degree -> first square -> admissible sequence idx -> result
+    multiplication_table: OnceVec<Vec<Vec<FpVector>>>,
     excess_table: OnceVec<Vec<usize>>,
     sort_order: Option<fn(&AdemBasisElement, &AdemBasisElement) -> Ordering>,
 }
 
-impl std::fmt::Display for AdemAlgebra {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl fmt::Display for AdemAlgebra {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "AdemAlgebra(p={})", self.prime())
     }
 }
@@ -468,6 +521,8 @@ impl GeneratedAlgebra for AdemAlgebra {
 // static void AdemAlgebra__initializeFields(AdemAlgebraInternal *algebra, uint p, bool generic, bool unstable);
 // uint AdemAlgebra__generateName(AdemAlgebra *algebra); // defined in adem_io
 impl AdemAlgebra {
+    /// Constructs a new [`AdemAlgebra`].
+    // TODO: what do these argument names mean?
     pub fn new(p: ValidPrime, generic: bool, unstable: bool, unstable_enabled: bool) -> Self {
         assert!(unstable_enabled || !unstable);
         let even_basis_table = OnceVec::new();

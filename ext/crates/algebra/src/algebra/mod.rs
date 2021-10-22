@@ -1,21 +1,29 @@
-pub mod combinatorics;
+//! Traits describing algebras, and implementations thereof for different
+//! representations of the Steenrod algebra.
 
 pub mod adem_algebra;
-mod algebra_trait;
-mod bialgebra_trait;
-pub mod field;
-pub mod milnor_algebra;
-mod polynomial_algebra;
-mod steenrod_algebra;
-
 pub use adem_algebra::{AdemAlgebra, AdemAlgebraT};
+
+mod algebra_trait;
 #[cfg(feature = "json")]
 pub use algebra_trait::JsonAlgebra;
 pub use algebra_trait::{Algebra, GeneratedAlgebra};
+
+mod bialgebra_trait;
 pub use bialgebra_trait::Bialgebra;
+
+pub mod combinatorics;
+
+pub mod field;
 pub use field::Field;
+
+pub mod milnor_algebra;
 pub use milnor_algebra::{MilnorAlgebra, MilnorAlgebraT};
+
+mod polynomial_algebra;
 pub use polynomial_algebra::{
     PolynomialAlgebra, PolynomialAlgebraMonomial, PolynomialAlgebraTableEntry,
 };
+
+mod steenrod_algebra;
 pub use steenrod_algebra::{AlgebraType, SteenrodAlgebra, SteenrodAlgebraBorrow, SteenrodAlgebraT};
