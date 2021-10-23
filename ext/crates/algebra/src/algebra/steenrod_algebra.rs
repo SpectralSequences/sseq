@@ -7,6 +7,8 @@ use crate::dispatch_algebra;
 use fp::prime::ValidPrime;
 use fp::vector::{Slice, SliceMut};
 
+use anyhow::anyhow;
+
 #[cfg(feature = "json")]
 use {serde::Deserialize, serde_json::Value};
 
@@ -37,22 +39,19 @@ impl std::fmt::Display for AlgebraType {
 }
 
 impl std::convert::TryFrom<&str> for AlgebraType {
-    type Error = error::GenericError;
+    type Error = anyhow::Error;
 
     fn try_from(s: &str) -> Result<Self, Self::Error> {
         match s {
             "adem" => Ok(Self::Adem),
             "milnor" => Ok(Self::Milnor),
-            _ => Err(error::GenericError::new(format!(
-                "Invalid algebra name: {}",
-                s
-            ))),
+            _ => Err(anyhow!("Invalid algebra name: {}", s)),
         }
     }
 }
 
 impl std::str::FromStr for AlgebraType {
-    type Err = error::GenericError;
+    type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         s.try_into()
@@ -165,7 +164,7 @@ impl SteenrodAlgebra {
     pub fn from_json(
         json: &Value,
         mut algebra_type: AlgebraType,
-    ) -> error::Result<SteenrodAlgebra> {
+    ) -> anyhow::Result<SteenrodAlgebra> {
         let spec: AlgebraSpec = AlgebraSpec::deserialize(json)?;
 
         if let Some(list) = spec.algebra {
@@ -242,7 +241,7 @@ dispatch_algebra!(SteenrodAlgebra, dispatch_steenrod);
 impl JsonAlgebra for SteenrodAlgebra {
     dispatch_steenrod! {
         fn prefix(&self) -> &str;
-        fn json_to_basis(&self, json: &serde_json::Value) -> error::Result<(i32, usize)>;
+        fn json_to_basis(&self, json: &serde_json::Value) -> anyhow::Result<(i32, usize)>;
         fn json_from_basis(&self, degree: i32, idx: usize) -> serde_json::Value;
     }
 }

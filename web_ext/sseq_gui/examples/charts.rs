@@ -11,7 +11,7 @@ use std::time::Instant;
 
 const TWO: ValidPrime = ValidPrime::new(2);
 
-fn main() -> error::Result<()> {
+fn main() -> anyhow::Result<()> {
     let module_file_name: String = query::with_default("Module", "S_2", str::parse);
 
     let max_s: u32 = query::with_default("Max s", "7", str::parse);

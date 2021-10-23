@@ -24,7 +24,7 @@ use ext::utils::construct;
 use saveload::Save;
 use std::fs::File;
 
-fn main() -> error::Result {
+fn main() -> anyhow::Result<()> {
     let res = query::with_default("Module", "S_2", |name| {
         construct(
             name,

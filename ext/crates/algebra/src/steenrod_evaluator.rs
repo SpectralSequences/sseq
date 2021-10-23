@@ -12,7 +12,7 @@ pub fn evaluate_algebra_adem(
     adem_algebra: &AdemAlgebra,
     milnor_algebra: &MilnorAlgebra,
     input: &str,
-) -> error::Result<(i32, FpVector)> {
+) -> anyhow::Result<(i32, FpVector)> {
     evaluate_algebra_tree(adem_algebra, milnor_algebra, parse_algebra(input)?)
 }
 
@@ -21,7 +21,7 @@ pub fn evaluate_algebra_milnor(
     adem_algebra: &AdemAlgebra,
     milnor_algebra: &MilnorAlgebra,
     input: &str,
-) -> error::Result<(i32, FpVector)> {
+) -> anyhow::Result<(i32, FpVector)> {
     let adem_result = evaluate_algebra_adem(adem_algebra, milnor_algebra, input);
     if let Ok((degree, adem_vector)) = adem_result {
         let mut milnor_vector = FpVector::new(adem_vector.prime(), adem_vector.len());
@@ -43,7 +43,7 @@ fn evaluate_algebra_tree(
     adem_algebra: &AdemAlgebra,
     milnor_algebra: &MilnorAlgebra,
     tree: AlgebraParseNode,
-) -> error::Result<(i32, FpVector)> {
+) -> anyhow::Result<(i32, FpVector)> {
     evaluate_algebra_tree_helper(adem_algebra, milnor_algebra, None, tree)
 }
 
@@ -52,7 +52,7 @@ fn evaluate_algebra_tree_helper(
     milnor_algebra: &MilnorAlgebra,
     mut output_degree: Option<i32>,
     tree: AlgebraParseNode,
-) -> error::Result<(i32, FpVector)> {
+) -> anyhow::Result<(i32, FpVector)> {
     let p = adem_algebra.prime();
     match tree {
         AlgebraParseNode::Sum(left, right) => {
@@ -115,7 +115,7 @@ fn evaluate_basis_element(
     milnor_algebra: &MilnorAlgebra,
     output_degree: Option<i32>,
     basis_elt: AlgebraBasisElt,
-) -> error::Result<(i32, FpVector)> {
+) -> anyhow::Result<(i32, FpVector)> {
     let p = adem_algebra.prime();
     let q = if adem_algebra.generic {
         2 * (*p) - 2
@@ -186,7 +186,7 @@ pub fn evaluate_module<M: Module>(
     module: &M,
     basis_elt_lookup: &HashMap<String, (i32, usize)>,
     input: &str,
-) -> error::Result<(i32, FpVector)> {
+) -> anyhow::Result<(i32, FpVector)> {
     evaluate_module_tree(
         adem_algebra,
         milnor_algebra,
@@ -202,7 +202,7 @@ fn evaluate_module_tree<M: Module>(
     module: &M,
     basis_elt_lookup: &HashMap<String, (i32, usize)>,
     tree: ModuleParseNode,
-) -> error::Result<(i32, FpVector)> {
+) -> anyhow::Result<(i32, FpVector)> {
     evaluate_module_tree_helper(
         adem_algebra,
         milnor_algebra,
@@ -220,7 +220,7 @@ fn evaluate_module_tree_helper<M: Module>(
     basis_elt_lookup: &HashMap<String, (i32, usize)>,
     mut output_degree: Option<i32>,
     tree: ModuleParseNode,
-) -> error::Result<(i32, FpVector)> {
+) -> anyhow::Result<(i32, FpVector)> {
     let p = adem_algebra.prime();
     match tree {
         ModuleParseNode::Sum(left, right) => {
@@ -290,7 +290,7 @@ fn evaluate_module_basis_element<M: Module>(
     basis_elt_lookup: &HashMap<String, (i32, usize)>,
     output_degree: Option<i32>,
     basis_elt: String,
-) -> error::Result<(i32, FpVector)> {
+) -> anyhow::Result<(i32, FpVector)> {
     let p = adem_algebra.prime();
     let entry = basis_elt_lookup.get(&basis_elt);
     let degree;

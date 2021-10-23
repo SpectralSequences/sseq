@@ -5,7 +5,7 @@ use fp::vector::{FpVector, Slice, SliceMut};
 use std::sync::Arc;
 
 #[cfg(feature = "json")]
-use serde_json::Value;
+use {anyhow::anyhow, serde_json::Value};
 
 #[derive(PartialEq, Eq)]
 pub enum FiniteModule {
@@ -103,7 +103,7 @@ impl FiniteModule {
     pub fn from_json(
         algebra: Arc<SteenrodAlgebra>,
         json: &serde_json::Value,
-    ) -> error::Result<Self> {
+    ) -> anyhow::Result<Self> {
         match json["type"].as_str() {
             Some("real projective space") => Ok(FiniteModule::from(
                 RealProjectiveSpace::from_json(algebra, json)?,
@@ -114,10 +114,8 @@ impl FiniteModule {
             Some("finitely presented module") => {
                 Ok(FiniteModule::from(FPModule::from_json(algebra, json)?))
             }
-            x => Err(UnknownModuleTypeError {
-                module_type: x.map(str::to_string),
-            }
-            .into()),
+            Some(x) => Err(anyhow!("Unknown module type: {}", x)),
+            None => Err(anyhow!("Missing module type")),
         }
     }
 
@@ -197,19 +195,3 @@ impl crate::module::BoundedModule for FiniteModule {
         }
     }
 }
-
-#[derive(Debug)]
-pub struct UnknownModuleTypeError {
-    pub module_type: Option<String>,
-}
-
-impl std::fmt::Display for UnknownModuleTypeError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match &self.module_type {
-            Some(s) => write!(f, "Unknown module type: {}", s),
-            None => write!(f, "Missing module type"),
-        }
-    }
-}
-
-impl std::error::Error for UnknownModuleTypeError {}

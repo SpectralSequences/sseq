@@ -382,7 +382,7 @@ impl JsonAlgebra for MilnorAlgebra {
         "milnor"
     }
 
-    fn json_to_basis(&self, json: &Value) -> error::Result<(i32, usize)> {
+    fn json_to_basis(&self, json: &Value) -> anyhow::Result<(i32, usize)> {
         let xi_degrees = combinatorics::xi_degrees(self.prime());
         let tau_degrees = combinatorics::tau_degrees(self.prime());
 

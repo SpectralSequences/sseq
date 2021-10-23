@@ -275,7 +275,7 @@ impl JsonAlgebra for AdemAlgebra {
         "adem"
     }
 
-    fn json_to_basis(&self, json: &Value) -> error::Result<(i32, usize)> {
+    fn json_to_basis(&self, json: &Value) -> anyhow::Result<(i32, usize)> {
         let op: Vec<u32> = <_>::deserialize(json)?;
         let p = *self.prime();
 

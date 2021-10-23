@@ -65,7 +65,7 @@ impl ResolutionManager {
     }
 
     /// Reads a message and performs the actions as instructed.
-    pub fn process_message(&mut self, msg: Message) -> error::Result<()> {
+    pub fn process_message(&mut self, msg: Message) -> anyhow::Result<()> {
         // If the message is BlockRefresh, SseqManager is responsible for marking
         // it as complete.
         let isblock = matches!(msg.action, Action::BlockRefresh(_));
@@ -104,7 +104,7 @@ impl ResolutionManager {
     }
 
     /// Resolves a module defined by a json object. The result is stored in `self.bundle`.
-    fn construct_json(&mut self, action: ConstructJson) -> error::Result<()> {
+    fn construct_json(&mut self, action: ConstructJson) -> anyhow::Result<()> {
         let json_data = serde_json::from_str(&action.data)?;
         let resolution = Resolution::new_from_json(&json_data, &action.algebra_name);
         self.process_bundle(resolution, json_data);
@@ -113,7 +113,7 @@ impl ResolutionManager {
     }
 
     /// Resolves a module specified by `json`. The result is stored in `self.bundle`.
-    fn construct(&mut self, action: Construct) -> error::Result<()> {
+    fn construct(&mut self, action: Construct) -> anyhow::Result<()> {
         let json = load_module_json(&action.module_name)?;
         let resolution = Resolution::new_from_json(&json, &action.algebra_name);
         self.process_bundle(resolution, json);
@@ -147,7 +147,7 @@ impl ResolutionManager {
         self.resolution = Some(resolution);
     }
 
-    fn resolve(&mut self, action: Resolve, sseq: SseqChoice) -> error::Result<()> {
+    fn resolve(&mut self, action: Resolve, sseq: SseqChoice) -> anyhow::Result<()> {
         let resolution = self.resolution.as_mut().unwrap();
         let resolution = match sseq {
             SseqChoice::Main => resolution,
@@ -300,7 +300,7 @@ impl SseqManager {
         )
     }
 
-    pub fn process_message(&mut self, msg: Message) -> error::Result<bool> {
+    pub fn process_message(&mut self, msg: Message) -> anyhow::Result<bool> {
         let user = Self::is_user(&msg.action);
         let target_sseq = msg.sseq;
 
@@ -334,7 +334,7 @@ impl SseqManager {
         }
     }
 
-    fn resolving(&mut self, msg: Message) -> error::Result<()> {
+    fn resolving(&mut self, msg: Message) -> anyhow::Result<()> {
         if let Action::Resolving(m) = &msg.action {
             if self.sseq.is_none() {
                 let sender = self.sender.clone();
@@ -353,7 +353,7 @@ impl SseqManager {
         self.relay(msg)
     }
 
-    fn relay(&self, msg: Message) -> error::Result<()> {
+    fn relay(&self, msg: Message) -> anyhow::Result<()> {
         self.sender.send(msg)?;
         Ok(())
     }

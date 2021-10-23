@@ -8,6 +8,7 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+anyhow = "1.0.0"
 serde_json = { version = "1.0.0", optional = true }
 serde = { version = "1.0.0", features = ["derive"], optional = true }
 itertools = { version = "0.10.0", default-features = true, features = ["use_alloc"] }
@@ -16,7 +17,6 @@ rustc-hash = "1.1.0"
 
 
 bivec = { path = "../bivec"}
-error = { path = "../error" }
 fp = { path = "../fp", default-features = false }
 once = { path = "../once" }
 saveload = { path = "../saveload" }

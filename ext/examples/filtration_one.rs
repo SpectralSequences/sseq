@@ -6,7 +6,7 @@
 use ext::chain_complex::ChainComplex;
 use ext::utils::query_module;
 
-fn main() -> error::Result {
+fn main() -> anyhow::Result<()> {
     let resolution = query_module(None)?.resolution;
     assert_eq!(*resolution.prime(), 2);
 

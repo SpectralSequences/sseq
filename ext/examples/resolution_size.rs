@@ -2,7 +2,7 @@ use algebra::module::Module;
 use ext::chain_complex::ChainComplex;
 use ext::utils::query_module;
 
-fn main() -> error::Result {
+fn main() -> anyhow::Result<()> {
     let res = query_module(None)?.resolution;
 
     for s in (0..res.next_homological_degree()).rev() {
