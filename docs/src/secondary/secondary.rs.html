@@ -115,7 +115,7 @@
 <span class="kw">use</span> <span class="ident">ext::secondary</span>::<span class="kw-2">*</span>;
 <span class="kw">use</span> <span class="ident">ext::utils::query_module</span>;
 
-<span class="kw">fn</span> <span class="ident">main</span>() -&gt; <span class="ident">error::Result</span> {
+<span class="kw">fn</span> <span class="ident">main</span>() -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
     <span class="kw">let</span> <span class="ident">data</span> <span class="op">=</span> <span class="ident">query_module</span>(<span class="prelude-val">Some</span>(<span class="ident">algebra::AlgebraType::Milnor</span>))<span class="question-mark">?</span>;
     <span class="kw">let</span> <span class="ident">resolution</span> <span class="op">=</span> <span class="ident">data</span>.<span class="ident">resolution</span>;
 

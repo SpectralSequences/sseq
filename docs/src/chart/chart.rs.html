@@ -76,7 +76,7 @@
 <span class="kw">use</span> <span class="ident">ext::chain_complex::ChainComplex</span>;
 <span class="kw">use</span> <span class="ident">ext::utils::query_module</span>;
 
-<span class="kw">fn</span> <span class="ident">main</span>() -&gt; <span class="ident">error::Result</span> {
+<span class="kw">fn</span> <span class="ident">main</span>() -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
     <span class="kw">let</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">std::io::stdout</span>();
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">g</span> <span class="op">=</span> <span class="ident">SvgBackend::new</span>(<span class="ident">f</span>);
     <span class="kw">let</span> <span class="ident">resolution</span> <span class="op">=</span> <span class="ident">query_module</span>(<span class="prelude-val">None</span>)<span class="question-mark">?</span>.<span class="ident">resolution</span>;

@@ -384,7 +384,7 @@
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
 <span class="kw">use</span> <span class="ident">crossbeam_channel</span>::{<span class="ident">unbounded</span>, <span class="ident">Receiver</span>};
 
-<span class="kw">fn</span> <span class="ident">main</span>() -&gt; <span class="ident">error::Result</span> {
+<span class="kw">fn</span> <span class="ident">main</span>() -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
     <span class="kw">let</span> <span class="ident">resolution</span> <span class="op">=</span>
         <span class="ident">Arc::new</span>(<span class="ident">construct</span>(<span class="string">&quot;S_2&quot;</span>, <span class="ident">std::fs::File::open</span>(<span class="string">&quot;resolution_adem.save&quot;</span>).<span class="ident">ok</span>()).<span class="ident">unwrap</span>());
 

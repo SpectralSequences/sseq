@@ -1,7 +1,6 @@
 window.ALL_CRATES = ['algebra',
 'bivec',
 'chart',
-'error',
 'fp',
 'once',
 'query',

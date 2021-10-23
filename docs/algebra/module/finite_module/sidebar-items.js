@@ -1,1 +1,1 @@
-initSidebarItems({"enum":[["FiniteModule",""]],"macro":[["dispatch",""]],"struct":[["UnknownModuleTypeError",""]]});
+initSidebarItems({"enum":[["FiniteModule",""]],"macro":[["dispatch",""]]});

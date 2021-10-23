@@ -127,6 +127,8 @@
 <span id="103">103</span>
 <span id="104">104</span>
 <span id="105">105</span>
+<span id="106">106</span>
+<span id="107">107</span>
 </pre><pre class="rust"><code><span class="doccomment">//! This library gives various functions that are used to query a user. Each function performs the</span>
 <span class="doccomment">//! following:</span>
 <span class="doccomment">//!</span>
@@ -209,7 +211,9 @@
             <span class="kw">return</span> <span class="ident">res</span>;
         }
         <span class="prelude-val">Some</span>((<span class="ident">arg</span>, <span class="prelude-val">Err</span>(<span class="ident">e</span>))) =&gt; {
-            <span class="macro">panic!</span>(<span class="string">&quot;Invalid input {}\n{}.&quot;</span>, <span class="ident">arg</span>, <span class="ident">e</span>);
+            <span class="macro">eprintln!</span>(<span class="string">&quot;{}: {}&quot;</span>, <span class="ident">prompt</span>, <span class="ident">arg</span>);
+            <span class="macro">eprintln!</span>(<span class="string">&quot;{:#}&quot;</span>, <span class="ident">e</span>);
+            <span class="ident">std::process::exit</span>(<span class="number">1</span>);
         }
         <span class="prelude-val">None</span> =&gt; (),
     }
@@ -227,7 +231,7 @@
                 <span class="kw">return</span> <span class="ident">res</span>;
             }
             <span class="prelude-val">Err</span>(<span class="ident">e</span>) =&gt; {
-                <span class="macro">eprintln!</span>(<span class="string">&quot;Invalid input: {}. Try again&quot;</span>, <span class="ident">e</span>);
+                <span class="macro">eprintln!</span>(<span class="string">&quot;{:#}\n\nTry again&quot;</span>, <span class="ident">e</span>);
             }
         }
     }

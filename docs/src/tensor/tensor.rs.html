@@ -58,14 +58,18 @@
 <span id="34">34</span>
 <span id="35">35</span>
 <span id="36">36</span>
+<span id="37">37</span>
+<span id="38">38</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">algebra::module</span>::{<span class="ident">BoundedModule</span>, <span class="ident">FDModule</span>, <span class="ident">TensorModule</span>};
 <span class="kw">use</span> <span class="ident">algebra::AdemAlgebra</span>;
 <span class="kw">use</span> <span class="ident">ext::utils::parse_module_name</span>;
 <span class="kw">use</span> <span class="ident">fp::prime::ValidPrime</span>;
+
+<span class="kw">use</span> <span class="ident">anyhow::anyhow</span>;
 <span class="kw">use</span> <span class="ident">serde_json::json</span>;
 <span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
 
-<span class="kw">fn</span> <span class="ident">main</span>() -&gt; <span class="ident">error::Result</span> {
+<span class="kw">fn</span> <span class="ident">main</span>() -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
     <span class="kw">let</span> <span class="ident">left</span> <span class="op">=</span> <span class="ident">query::with_default</span>(<span class="string">&quot;Left module&quot;</span>, <span class="string">&quot;S_2&quot;</span>, <span class="ident">parse_module_name</span>);
     <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">left</span>[<span class="string">&quot;p&quot;</span>].<span class="ident">as_u64</span>().<span class="ident">unwrap</span>();
 
@@ -74,7 +78,7 @@
         <span class="kw">if</span> <span class="ident">module</span>[<span class="string">&quot;p&quot;</span>].<span class="ident">as_u64</span>() <span class="op">==</span> <span class="prelude-val">Some</span>(<span class="ident">p</span>) {
             <span class="prelude-val">Ok</span>(<span class="ident">module</span>)
         } <span class="kw">else</span> {
-            <span class="prelude-val">Err</span>(<span class="ident">String::from</span>(<span class="string">&quot;Two modules must be over the same prime&quot;</span>))
+            <span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(<span class="string">&quot;Two modules must be over the same prime&quot;</span>))
         }
     });
 

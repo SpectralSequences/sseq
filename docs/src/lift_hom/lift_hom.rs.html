@@ -208,6 +208,8 @@
 <span id="184">184</span>
 <span id="185">185</span>
 <span id="186">186</span>
+<span id="187">187</span>
+<span id="188">188</span>
 </pre><pre class="rust"><code><span class="doccomment">//! Given an element in $\Ext(M, N)$, this computes the induced map $\Ext(N, k) \to \Ext(M, k)$</span>
 <span class="doccomment">//! given by composition.</span>
 <span class="doccomment">//!</span>
@@ -254,15 +256,17 @@
 <span class="kw">use</span> <span class="ident">ext::resolution_homomorphism::ResolutionHomomorphism</span>;
 <span class="kw">use</span> <span class="ident">ext::utils</span>::{<span class="ident">construct</span>, <span class="ident">Config</span>};
 <span class="kw">use</span> <span class="ident">fp::matrix::Matrix</span>;
+
+<span class="kw">use</span> <span class="ident">anyhow::anyhow</span>;
 <span class="kw">use</span> <span class="ident">std::convert::TryInto</span>;
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">fs::File</span>, <span class="ident">sync::Arc</span>};
 
-<span class="kw">fn</span> <span class="ident">main</span>() -&gt; <span class="ident">error::Result</span> {
+<span class="kw">fn</span> <span class="ident">main</span>() -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
     <span class="kw">let</span> <span class="ident">target</span>: <span class="ident">Config</span> <span class="op">=</span> <span class="ident">query::with_default</span>(<span class="string">&quot;Target module&quot;</span>, <span class="string">&quot;S_2&quot;</span>, <span class="op">|</span><span class="ident">name</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">target</span>: <span class="ident">Config</span> <span class="op">=</span> <span class="ident">name</span>.<span class="ident">try_into</span>()<span class="question-mark">?</span>;
         <span class="kw">match</span> <span class="ident">target</span>.<span class="ident">module</span>[<span class="string">&quot;type&quot;</span>].<span class="ident">as_str</span>() {
             <span class="prelude-val">Some</span>(<span class="string">&quot;finite dimensional module&quot;</span>) =&gt; <span class="prelude-val">Ok</span>(<span class="ident">target</span>),
-            <span class="kw">_</span> =&gt; <span class="prelude-val">Err</span>(<span class="ident">String::from</span>(<span class="string">&quot;Target must be finite dimensional&quot;</span>)),
+            <span class="kw">_</span> =&gt; <span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(<span class="string">&quot;Target must be finite dimensional&quot;</span>)),
         }
     });
 

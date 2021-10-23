@@ -450,7 +450,7 @@
     <span class="ident">module::FreeModule</span> <span class="kw">as</span> <span class="ident">FM</span>, <span class="ident">module::Module</span>, <span class="ident">Algebra</span>, <span class="ident">MilnorAlgebra</span>, <span class="ident">MilnorAlgebraT</span>,
     <span class="ident">SteenrodAlgebra</span>,
 };
-<span class="kw">use</span> <span class="ident">error</span>::{<span class="ident">Error</span>, <span class="prelude-ty">Result</span>};
+<span class="kw">use</span> <span class="ident">anyhow</span>::{<span class="ident">Error</span>, <span class="prelude-ty">Result</span>};
 <span class="kw">use</span> <span class="ident">ext</span>::{
     <span class="ident">chain_complex</span>::{<span class="ident">ChainComplex</span>, <span class="ident">FiniteChainComplex</span> <span class="kw">as</span> <span class="ident">FCC</span>},
     <span class="ident">resolution_homomorphism::ResolutionHomomorphism</span>,

@@ -383,7 +383,7 @@
 <span class="kw">use</span> <span class="ident">fp::prime::ValidPrime</span>;
 <span class="kw">use</span> <span class="ident">fp::vector::FpVector</span>;
 
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_gens</span>() -&gt; <span class="ident">error::Result</span><span class="op">&lt;</span><span class="ident">BiVec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_gens</span>() -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span><span class="ident">BiVec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> {
     <span class="comment">// Query for generators</span>
     <span class="macro">eprintln!</span>(<span class="string">&quot;Input generators. Press return to finish.&quot;</span>);
     <span class="ident">stderr</span>().<span class="ident">flush</span>()<span class="question-mark">?</span>;
@@ -504,7 +504,7 @@
     <span class="ident">p</span>: <span class="ident">ValidPrime</span>,
     <span class="ident">generic</span>: <span class="ident">bool</span>,
     <span class="ident">name</span>: <span class="ident">String</span>,
-) -&gt; <span class="ident">error::Result</span> {
+) -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
     <span class="kw">let</span> <span class="ident">algebra</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">SteenrodAlgebra::AdemAlgebra</span>(<span class="ident">AdemAlgebra::new</span>(
         <span class="ident">p</span>, <span class="ident">generic</span>, <span class="bool-val">false</span>, <span class="bool-val">false</span>,
     )));
@@ -591,7 +591,7 @@
     <span class="ident">p</span>: <span class="ident">ValidPrime</span>,
     <span class="ident">generic</span>: <span class="ident">bool</span>,
     <span class="ident">name</span>: <span class="ident">String</span>,
-) -&gt; <span class="ident">error::Result</span> {
+) -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
     <span class="ident">output_json</span>[<span class="string">&quot;type&quot;</span>] <span class="op">=</span> <span class="ident">Value::from</span>(<span class="string">&quot;finitely presented module&quot;</span>);
 
     <span class="kw">let</span> <span class="ident">gens</span> <span class="op">=</span> <span class="ident">get_gens</span>()<span class="question-mark">?</span>;
@@ -692,7 +692,7 @@
     <span class="prelude-val">Ok</span>(())
 }
 
-<span class="kw">fn</span> <span class="ident">main</span>() -&gt; <span class="ident">error::Result</span> {
+<span class="kw">fn</span> <span class="ident">main</span>() -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
     <span class="kw">let</span> <span class="ident">module_type</span> <span class="op">=</span> <span class="ident">query::with_default</span>(
         <span class="string">&quot;Input module type (default &#39;finite dimensional module&#39;):\n (fd) - finite dimensional module \n (fp) - finitely presented module\n&quot;</span>,
         <span class="string">&quot;fd&quot;</span>,
