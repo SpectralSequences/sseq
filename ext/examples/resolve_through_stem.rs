@@ -28,7 +28,7 @@ fn main() -> error::Result {
     let res = query::with_default("Module", "S_2", |name| {
         construct(
             name,
-            query::optional("Load from save?", |filename| std::fs::File::open(filename)),
+            query::optional("Load from save?", |filename| File::open(filename)),
         )
     });
 
