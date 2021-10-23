@@ -75,6 +75,11 @@
 <span id="51">51</span>
 <span id="52">52</span>
 <span id="53">53</span>
+<span id="54">54</span>
+<span id="55">55</span>
+<span id="56">56</span>
+<span id="57">57</span>
+<span id="58">58</span>
 </pre><pre class="rust"><code><span class="doccomment">//! Resolves a module up to a $(s, n)$ and prints an ASCII depiction of the Ext groups:</span>
 <span class="doccomment">//! ```text</span>
 <span class="doccomment">//! ·</span>
@@ -102,7 +107,12 @@
 <span class="kw">use</span> <span class="ident">std::fs::File</span>;
 
 <span class="kw">fn</span> <span class="ident">main</span>() -&gt; <span class="ident">error::Result</span> {
-    <span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">query::with_default</span>(<span class="string">&quot;Module&quot;</span>, <span class="string">&quot;S_2&quot;</span>, <span class="op">|</span><span class="ident">name</span><span class="op">|</span> <span class="ident">construct</span>(<span class="ident">name</span>, <span class="prelude-val">None</span>));
+    <span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">query::with_default</span>(<span class="string">&quot;Module&quot;</span>, <span class="string">&quot;S_2&quot;</span>, <span class="op">|</span><span class="ident">name</span><span class="op">|</span> {
+        <span class="ident">construct</span>(
+            <span class="ident">name</span>,
+            <span class="ident">query::optional</span>(<span class="string">&quot;Load from save?&quot;</span>, <span class="op">|</span><span class="ident">filename</span><span class="op">|</span> <span class="ident">File::open</span>(<span class="ident">filename</span>)),
+        )
+    });
 
     <span class="kw">let</span> <span class="ident">max_s</span> <span class="op">=</span> <span class="ident">query::with_default</span>(<span class="string">&quot;Max s&quot;</span>, <span class="string">&quot;15&quot;</span>, <span class="ident">str::parse</span>);
     <span class="kw">let</span> <span class="ident">max_n</span> <span class="op">=</span> <span class="ident">query::with_default</span>(<span class="string">&quot;Max n&quot;</span>, <span class="string">&quot;30&quot;</span>, <span class="ident">str::parse</span>);
