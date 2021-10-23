@@ -20,7 +20,12 @@ use saveload::Save;
 use std::fs::File;
 
 fn main() -> error::Result {
-    let res = query::with_default("Module", "S_2", |name| construct(name, None));
+    let res = query::with_default("Module", "S_2", |name| {
+        construct(
+            name,
+            query::optional("Load from save?", |filename| std::fs::File::open(filename)),
+        )
+    });
 
     let max_s = query::with_default("Max s", "15", str::parse);
     let max_t = query::with_default("Max t", "30", str::parse);
