@@ -1,6 +1,194 @@
 use fp::prime::ValidPrime;
 use fp::vector::{Slice, SliceMut};
 
+use std::marker::PhantomData;
+use std::fmt;
+use std::cmp;
+use std::any;
+
+/// A basis element in an [`Algebra`] $A$.
+pub struct BasisElem<A> {
+    degree: i32,
+    index: usize,
+    _alg: PhantomData<*const A>,
+}
+
+impl<A> BasisElem<A> {
+    /// Creates a new basis element for $A$ with the given data.
+    pub fn new(degree: i32, index: usize) -> Self {
+        Self {degree, index, _alg: PhantomData}
+    }
+
+    /// Returns the degree of $A$ this is a basis element of.
+    pub fn degree(&self) -> i32 {
+        self.degree
+    }
+
+    /// Returns the index of this basis element within the ordered basis of
+    /// $A_i$.
+    pub fn index(&self) -> usize {
+        self.index
+    }
+}
+
+// Manual impls, since we want to avoid a bound involving `A`...
+impl<A> Clone for BasisElem<A> {
+    fn clone(&self) -> Self {
+        Self::new(self.degree, self.index)
+    }
+}
+
+impl<A> Copy for BasisElem<A> {}
+
+impl<A> PartialEq for BasisElem<A> {
+    fn eq(&self, that: &Self) -> bool {
+        cmp::Ord::cmp(self, that).is_eq()
+    }
+}
+
+impl<A> Eq for BasisElem<A> {}
+
+impl<A> PartialOrd for BasisElem<A> {
+    fn partial_cmp(&self, that: &Self) -> Option<cmp::Ordering> {
+        Some(self.cmp(that))
+    }
+}
+
+impl<A> Ord for BasisElem<A> {
+    fn cmp(&self, that: &Self) -> cmp::Ordering {
+        (self.degree, self.index).cmp(&(that.degree, that.index))
+    }
+}
+
+impl<A> fmt::Debug for BasisElem<A> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "BasisElem<{}>({}, {})", any::type_name::<A>(), self.degree, self.index)
+    }
+}
+
+/// A general element of fixed degree in an [`Algebra`] $A$.
+/// 
+/// The coefficients of the element are given by the `fp` vector type `V`, where
+/// the `i`th element of the vector is the coefficient for the `i`th basis
+/// element.
+pub struct VectorElem<A, V> {
+    degree: i32,
+    coeffs: V,
+    _alg: PhantomData<*const A>,
+}
+
+impl<A, V> VectorElem<A, V> {
+    /// Creates a new basis element for `A` with the given data.
+    pub fn new(degree: i32, coeffs: V) -> Self {
+        Self {degree, coeffs, _alg: PhantomData}
+    }
+
+    /// Returns the degree of $A$ this element sit in.
+    pub fn degree(&self) -> i32 {
+        self.degree
+    }
+
+    /// Returns the coefficients that give this element in terms of the
+    /// distinguished basis of $A_i$.
+    pub fn coeffs(&self) -> &V {
+        &self.coeffs
+    }
+
+    /// Returns the mutable coefficients that give this element in terms of the
+    /// distinguished basis of $A_i$.
+    pub fn coeffs_mut(&mut self) -> &mut V {
+        &mut self.coeffs
+    }
+}
+
+// Manual impls, since we want to avoid a bound involving `A`...
+impl<A, V: Clone> Clone for VectorElem<A, V> {
+    fn clone(&self) -> Self {
+        Self::new(self.degree, self.coeffs.clone())
+    }
+}
+
+impl<A, V: Copy> Copy for VectorElem<A, V> {}
+
+impl<A, V: PartialEq<W>, W> PartialEq<VectorElem<A, W>> for VectorElem<A, V> {
+    fn eq(&self, that: &VectorElem<A, W>) -> bool {
+        self.degree == that.degree && self.coeffs == that.coeffs
+    }
+}
+
+impl<A, V: Eq> Eq for VectorElem<A, V> {}
+
+impl<A, V: PartialOrd> cmp::PartialOrd for VectorElem<A, V> {
+    fn partial_cmp(&self, that: &Self) -> Option<cmp::Ordering> {
+        (self.degree, &self.coeffs).partial_cmp(&(that.degree, &that.coeffs))
+    }
+}
+
+impl<A, V: Ord> Ord for VectorElem<A, V> {
+    fn cmp(&self, that: &Self) -> cmp::Ordering {
+        (self.degree, &self.coeffs).cmp(&(that.degree, &that.coeffs))
+    }
+}
+
+impl<A, V: fmt::Debug> fmt::Debug for VectorElem<A, V> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "VectorElem<{}>({}, {:?})", any::type_name::<A>(), self.degree, self.coeffs)
+    }
+}
+
+/// A general element of fixed degree in an [`Algebra`] $A$.
+/// 
+/// This enum combines `BasisElem` and `VectorElem` into one.
+pub enum Elem<A, V> {
+    Basis(BasisElem<A>),
+    Vector(VectorElem<A, V>),
+}
+
+// Manual impls, since we want to avoid a bound involving `A`...
+impl<A, V: Clone> Clone for Elem<A, V> {
+    fn clone(&self) -> Self {
+        match self {
+            Self::Basis(b) => Self::Basis(*b),
+            Self::Vector(v) => Self::Vector(v.clone()),
+        }
+    }
+}
+
+impl<A, V: Copy> Copy for Elem<A, V> {}
+
+impl<A, V: PartialEq<W>, W> PartialEq<Elem<A, W>> for Elem<A, V> {
+    fn eq(&self, that: &Elem<A, W>) -> bool {
+        match (self, that) {
+            (Self::Basis(b1), Elem::Basis(b2)) => b1 == b2,
+            (Self::Vector(v1), Elem::Vector(v2)) => v1 == v2,
+            _ => false,
+        }
+    }
+}
+
+impl<A, V: Eq> Eq for Elem<A, V> {}
+
+impl<A, V: fmt::Debug> fmt::Debug for Elem<A, V> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Basis(b) => b.fmt(f),
+            Self::Vector(v) => v.fmt(f),
+        }
+    }
+}
+
+impl<A, V> From<BasisElem<A>> for Elem<A, V> {
+    fn from(b: BasisElem<A>) -> Self {
+        Self::Basis(b)
+    }
+}
+
+impl<A, V> From<VectorElem<A, V>> for Elem<A, V> {
+    fn from(v: VectorElem<A, V>) -> Self {
+        Self::Vector(v)
+    }
+}
+
 /// A graded algebra over F_p, finite dimensional in each degree, equipped with a choice of ordered
 /// basis in each dimension. Basis elements of the algebra are referred to by their degree and
 /// index, and general elements are referred to by the degree and an `FpVector` listing the
