@@ -1,4 +1,4 @@
-use crate::algebra::{Algebra, Bialgebra};
+use crate::algebra::{Algebra, Bialgebra, BasisElem, Elem};
 use fp::prime::ValidPrime;
 use fp::vector::{Slice, SliceMut};
 
@@ -39,36 +39,34 @@ impl Algebra for Field {
         &self,
         mut result: SliceMut,
         coeff: u32,
-        _r_degree: i32,
-        _r_idx: usize,
-        _s_degree: i32,
-        _s_idx: usize,
-        _excess: i32,
+        _r: BasisElem<Self>,
+        _s: BasisElem<Self>,
     ) {
         result.add_basis_element(0, coeff)
     }
 
-    fn default_filtration_one_products(&self) -> Vec<(String, i32, usize)> {
+    fn default_filtration_one_products(&self) -> Vec<(String, BasisElem<Self>)> {
         vec![]
     }
 
     /// Converts a basis element into a string for display.
-    fn basis_element_to_string(&self, degree: i32, _idx: usize) -> String {
-        assert!(degree == 0);
+    fn basis_element_to_string(&self, b: BasisElem<Self>) -> String {
+        assert!(b.degree() == 0);
         "1".to_string()
     }
 
-    fn element_to_string(&self, degree: i32, element: Slice) -> String {
-        assert!(degree == 0);
-        format!("{}", element.entry(0))
+    fn element_to_string(&self, x: impl Into<Elem<Self, Slice>>) -> String {
+        let x = x.into()
+        assert!(x.degree() == 0);
+        format!("{}", x.coeffs().entry(0))
     }
 }
 
 impl Bialgebra for Field {
-    fn coproduct(&self, _op_deg: i32, _op_idx: usize) -> Vec<(i32, usize, i32, usize)> {
-        vec![(1, 0, 1, 0)]
+    fn coproduct(&self, _x: BasisElem<Self>) -> Vec<(BasisElem<Self>, BasisElem<Self>)> {
+        vec![(BasisElem::new(1, 0), BasisElem::new(1, 0))]
     }
-    fn decompose(&self, _op_deg: i32, _op_idx: usize) -> Vec<(i32, usize)> {
-        vec![(1, 0)]
+    fn decompose(&self, _x: BasisElem<Self>) -> Vec<BasisElem<Self>> {
+        vec![(BasisElem::new(1, 0))]
     }
 }

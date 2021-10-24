@@ -1,4 +1,5 @@
 use crate::algebra::Algebra;
+use crate::algebra::BasisElem;
 
 pub trait Bialgebra: Algebra {
     /// This function decomposes an element of the algebra as a product of elements, each of whose
@@ -9,9 +10,9 @@ pub trait Bialgebra: Algebra {
     /// This structure is motivated by the fact that in the admissible basis for the Adem algebra,
     /// an element naturally decomposes into a product of Steenrod squares, each of which has an
     /// easy coproduct formula.
-    fn decompose(&self, op_deg: i32, op_idx: usize) -> Vec<(i32, usize)>;
+    fn decompose(&self, BasisElem<Self>) -> Vec<BasisElem<Self>>;
 
     /// Expresses Delta(x) as sum_j (A_{ij} (x) B_{ij}). Here x must be one of the elements
     /// returned by `decompose`.
-    fn coproduct(&self, op_deg: i32, op_idx: usize) -> Vec<(i32, usize, i32, usize)>;
+    fn coproduct(&self, BasisElem<Self>) -> Vec<(BasisElem<Self>, BasisElem<Self>)>;
 }
