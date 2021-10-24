@@ -1,6 +1,7 @@
 #[cfg(feature = "json")]
 use crate::algebra::JsonAlgebra;
 use crate::algebra::{
+    BasisElem, VectorElem, Elem,
     AdemAlgebra, AdemAlgebraT, Algebra, Bialgebra, GeneratedAlgebra, MilnorAlgebra, MilnorAlgebraT,
 };
 use crate::dispatch_algebra;
@@ -241,8 +242,8 @@ dispatch_algebra!(SteenrodAlgebra, dispatch_steenrod);
 impl JsonAlgebra for SteenrodAlgebra {
     dispatch_steenrod! {
         fn prefix(&self) -> &str;
-        fn json_to_basis(&self, json: &serde_json::Value) -> anyhow::Result<(i32, usize)>;
-        fn json_from_basis(&self, degree: i32, idx: usize) -> serde_json::Value;
+        fn json_to_basis(&self, json: &serde_json::Value) -> anyhow::Result<BasisElem<Self>>;
+        fn json_from_basis(&self, b: BasisElem<Self>) -> serde_json::Value;
     }
 }
 
@@ -251,15 +252,15 @@ impl JsonAlgebra for SteenrodAlgebra {
 impl GeneratedAlgebra for SteenrodAlgebra {
     dispatch_steenrod! {
         fn generators(&self, degree: i32) -> Vec<usize>;
-        fn generator_to_string(&self, degree: i32, idx: usize) -> String;
-        fn string_to_generator<'a, 'b>(&'a self, input: &'b str) -> nom::IResult<&'b str, (i32, usize)>;
+        fn generator_to_string(&self, b: BasisElem<Self>) -> String;
+        fn string_to_generator<'a, 'b>(&'a self, input: &'b str) -> nom::IResult<&'b str, BasisElem<Self>>;
 
         fn decompose_basis_element(
             &self,
             degree: i32,
             idx: usize,
-        ) -> Vec<(u32, (i32, usize), (i32, usize))>;
+        ) -> Vec<(u32, BasisElem<Self>, BasisElem<Self>)>;
 
-        fn generating_relations(&self, degree: i32) -> Vec<Vec<(u32, (i32, usize), (i32, usize))>>;
+        fn generating_relations(&self, degree: i32) -> Vec<Vec<(u32, BasisElem<Self>, BasisElem<Self>)>>;
     }
 }

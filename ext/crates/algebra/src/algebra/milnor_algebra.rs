@@ -3,7 +3,7 @@ use rustc_hash::FxHashMap as HashMap;
 use std::sync::Mutex;
 
 use crate::algebra::combinatorics;
-use crate::algebra::{Algebra, Bialgebra, GeneratedAlgebra};
+use crate::algebra::{Algebra, BasisElem, Elem, VectorElem,Bialgebra, GeneratedAlgebra};
 use fp::prime::{integer_power, Binomial, BitflagIterator, ValidPrime};
 use fp::vector::{FpVector, Slice, SliceMut};
 use once::OnceVec;
@@ -190,17 +190,17 @@ impl MilnorAlgebra {
         }
     }
 
-    pub fn basis_element_from_index(&self, degree: i32, idx: usize) -> &MilnorBasisElement {
-        &self.basis_table[degree as usize][idx]
+    pub fn basis_element_from_index(&self, b: BasisElem<Self>) -> &MilnorBasisElement {
+        &self.basis_table[b.degree() as usize][b.index()]
     }
 
-    pub fn try_basis_element_to_index(&self, elt: &MilnorBasisElement) -> Option<usize> {
+    pub fn try_basis_element_to_index(&self, elt: &MilnorBasisElement) -> Option<BasisElem<Self>> {
         self.basis_element_to_index_map[elt.degree as usize]
             .get(elt)
-            .copied()
+            .map(|&i| BasisElem::new(elt.degree, i))
     }
 
-    pub fn basis_element_to_index(&self, elt: &MilnorBasisElement) -> usize {
+    pub fn basis_element_to_index(&self, elt: &MilnorBasisElement) -> BasisElem<Self> {
         self.try_basis_element_to_index(elt)
             .unwrap_or_else(|| panic!("Didn't find element: {:?}", elt))
     }
@@ -211,7 +211,7 @@ impl Algebra for MilnorAlgebra {
         self.p
     }
 
-    fn default_filtration_one_products(&self) -> Vec<(String, i32, usize)> {
+    fn default_filtration_one_products(&self) -> Vec<(String, BasisElem<Self>)> {
         let mut products = Vec::with_capacity(4);
         let max_degree;
         if self.generic() {
@@ -262,7 +262,7 @@ impl Algebra for MilnorAlgebra {
 
         products
             .into_iter()
-            .map(|(name, b)| (name, b.degree, self.basis_element_to_index(&b)))
+            .map(|(name, b)| (name, self.basis_element_to_index(&b)))
             .collect()
     }
 
@@ -339,17 +339,15 @@ impl Algebra for MilnorAlgebra {
         &self,
         result: SliceMut,
         coef: u32,
-        r_degree: i32,
-        r_idx: usize,
-        s_degree: i32,
-        s_idx: usize,
+        r: BasisElem<Self>,
+        s: BasisElem<Self>,
         _excess: i32,
     ) {
         self.multiply(
             result,
             coef,
-            &self.basis_table[r_degree as usize][r_idx],
-            &self.basis_table[s_degree as usize][s_idx],
+            &self.basis_table[r.degree() as usize][r.index()],
+            &self.basis_table[s.degree() as usize][s.index()],
         );
     }
 
@@ -358,21 +356,20 @@ impl Algebra for MilnorAlgebra {
         &self,
         result: SliceMut,
         coef: u32,
-        r_degree: i32,
-        r_idx: usize,
-        s_degree: i32,
-        s_idx: usize,
+        r: BasisElem<Self>,
+        s: BasisElem<Self>,
         _excess: i32,
     ) {
         result.shift_add(
-            &self.multiplication_table[r_degree as usize][s_degree as usize][r_idx][s_idx]
+            &self.multiplication_table[r.degree() as usize][s.degree() as usize][r.index()][s.index()]
                 .as_slice(),
             coef,
         );
     }
 
-    fn basis_element_to_string(&self, degree: i32, idx: usize) -> String {
-        format!("{}", self.basis_table[degree as usize][idx])
+    fn basis_element_to_string(&self, 
+        x: BasisElem<Self>,) -> String {
+        format!("{}", self.basis_table[x.degree() as usize][x.index()])
     }
 }
 
@@ -382,7 +379,7 @@ impl JsonAlgebra for MilnorAlgebra {
         "milnor"
     }
 
-    fn json_to_basis(&self, json: &Value) -> anyhow::Result<(i32, usize)> {
+    fn json_to_basis(&self, json: &Value) -> anyhow::Result<BasisElem<Self>> {
         let xi_degrees = combinatorics::xi_degrees(self.prime());
         let tau_degrees = combinatorics::tau_degrees(self.prime());
 
@@ -414,11 +411,11 @@ impl JsonAlgebra for MilnorAlgebra {
             p_part,
             degree,
         };
-        Ok((degree, self.basis_element_to_index(&m)))
+        Ok(self.basis_element_to_index(&m))
     }
 
-    fn json_from_basis(&self, degree: i32, index: usize) -> Value {
-        let b = self.basis_element_from_index(degree, index);
+    fn json_from_basis(&self, b: BasisElem<Self>) -> Value {
+        let b = self.basis_element_from_index(b);
         if self.generic() {
             let mut q_part = b.q_part;
             let mut q_list = Vec::with_capacity(q_part.count_ones() as usize);
@@ -436,7 +433,7 @@ impl JsonAlgebra for MilnorAlgebra {
 
 impl GeneratedAlgebra for MilnorAlgebra {
     // Same implementation as AdemAlgebra
-    fn string_to_generator<'a, 'b>(&'a self, input: &'b str) -> IResult<&'b str, (i32, usize)> {
+    fn string_to_generator<'a, 'b>(&'a self, input: &'b str) -> IResult<&'b str, BasisElem<Self>> {
         let first = map(
             alt((
                 delimited(char('P'), digit1, space1),
@@ -448,24 +445,24 @@ impl GeneratedAlgebra for MilnorAlgebra {
             },
         );
 
-        let second = map(pair(char('b'), space1), |_| (1, 0));
+        let second = map(pair(char('b'), space1), |_| BasisElem::new(1, 0));
 
         alt((first, second))(input)
     }
 
-    fn generator_to_string(&self, degree: i32, _idx: usize) -> String {
+    fn generator_to_string(&self,  b: BasisElem<Self>) -> String {
         if self.generic() {
-            if degree == 1 {
+            if b.degree() == 1 {
                 "b".to_string()
             } else {
-                format!("P{}", degree as u32 / (2 * (*self.prime()) - 2))
+                format!("P{}", b.degree() as u32 / (2 * (*self.prime()) - 2))
             }
         } else {
-            format!("Sq{}", degree)
+            format!("Sq{}", b.degree())
         }
     }
 
-    fn generators(&self, degree: i32) -> Vec<usize> {
+    fn generators(&self, degree: i32) -> Vec<BasisElem<Self>> {
         if degree == 0 {
             return vec![];
         }
@@ -498,14 +495,13 @@ impl GeneratedAlgebra for MilnorAlgebra {
             q_part: 0,
             p_part: vec![(degree as u32 / q) as PPartEntry],
         });
-        return vec![idx];
+        return vec![BasisElem::new(degree, idx)];
     }
 
     fn decompose_basis_element(
         &self,
-        degree: i32,
-        idx: usize,
-    ) -> Vec<(u32, (i32, usize), (i32, usize))> {
+        b: BasisElem<Self>,
+    ) -> Vec<(u32, BasisElem<Self>, BasisElem<Self>)> {
         let basis = &self.basis_table[degree as usize][idx];
         // If qpart = 0, return self
         if basis.q_part == 0 {
@@ -515,10 +511,10 @@ impl GeneratedAlgebra for MilnorAlgebra {
         }
     }
 
-    fn generating_relations(&self, degree: i32) -> Vec<Vec<(u32, (i32, usize), (i32, usize))>> {
+    fn generating_relations(&self, degree: i32) -> Vec<Vec<(u32,  BasisElem<Self>,  BasisElem<Self>)>> {
         if self.generic() && degree == 2 {
             // beta^2 = 0 is an edge case
-            return vec![vec![(1, (1, 0), (1, 0))]];
+            return vec![vec![(1, BasisElem::new(1, 0), BasisElem::new(1, 0))]];
         }
         let p = self.prime();
         let inadmissible_pairs = combinatorics::inadmissible_pairs(p, self.generic(), degree);
@@ -527,12 +523,10 @@ impl GeneratedAlgebra for MilnorAlgebra {
             let mut relation = Vec::new();
             // Adem relation. Sometimes these don't exist because of profiles. Then just ignore it.
             (|| {
-                let (first_degree, first_index) = self.try_beps_pn(0, x as PPartEntry)?;
-                let (second_degree, second_index) = self.try_beps_pn(b, y as PPartEntry)?;
                 relation.push((
                     *p - 1,
-                    (first_degree, first_index),
-                    (second_degree, second_index),
+                    self.try_beps_pn(0, x as PPartEntry)?,
+                    self.try_beps_pn(b, y as PPartEntry)?,
                 ));
                 for e1 in 0..=b {
                     let e2 = b - e1;
@@ -549,7 +543,7 @@ impl GeneratedAlgebra for MilnorAlgebra {
                             relation.push((
                                 c,
                                 self.try_beps_pn(e1, (x + y) as PPartEntry)?,
-                                (e2 as i32, 0),
+                                BasisElem::new(e2 as i32, 0),
                             ));
                             continue;
                         }
@@ -721,7 +715,7 @@ impl MilnorAlgebra {
 
 // Multiplication logic
 impl MilnorAlgebra {
-    fn try_beps_pn(&self, e: u32, x: PPartEntry) -> Option<(i32, usize)> {
+    fn try_beps_pn(&self, e: u32, x: PPartEntry) -> Option<BasisElem<Self>> {
         let q = self.q() as u32;
         let degree = (q * x as u32 + e) as i32;
         self.try_basis_element_to_index(&MilnorBasisElement {
@@ -729,10 +723,9 @@ impl MilnorAlgebra {
             q_part: e,
             p_part: vec![x as PPartEntry],
         })
-        .map(|index| (degree, index))
     }
 
-    fn beps_pn(&self, e: u32, x: PPartEntry) -> (i32, usize) {
+    fn beps_pn(&self, e: u32, x: PPartEntry) -> BasisElem<Self> {
         self.try_beps_pn(e, x).unwrap()
     }
 
@@ -856,16 +849,15 @@ impl MilnorAlgebra {
         &self,
         mut res: SliceMut,
         coef: u32,
-        r_deg: i32,
-        r: Slice,
+        r: VectorElem<Self, Slice>,
         m2: &MilnorBasisElement,
         mut allocation: PPartAllocation,
     ) -> PPartAllocation {
-        for (i, c) in r.iter_nonzero() {
+        for (i, c) in r.coeffs().iter_nonzero() {
             allocation = self.multiply_with_allocation(
                 res.copy(),
                 coef * c,
-                self.basis_element_from_index(r_deg, i),
+                self.basis_element_from_index(BasisElem::new(r.degree(), i)),
                 m2,
                 allocation,
             );
