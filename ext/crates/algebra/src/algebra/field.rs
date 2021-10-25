@@ -1,12 +1,20 @@
+//! Finite fields over a prime.
+
 use crate::algebra::{Algebra, Bialgebra};
 use fp::prime::ValidPrime;
 use fp::vector::{Slice, SliceMut};
 
+/// $\mathbb{F}_p$, viewed as an [`Algebra`] over itself.
+///
+/// As an [`Algebra`], a field is one-dimensional, with basis element `1`.
+/// It is also trivially a coalgebra via the trivial diagonal comultiplication,
+/// and thus a [`Bialgebra`].
 pub struct Field {
     prime: ValidPrime,
 }
 
 impl Field {
+    /// Returns a new `Field` over the given prime `p`.
     pub fn new(p: ValidPrime) -> Self {
         Self { prime: p }
     }
@@ -19,14 +27,12 @@ impl std::fmt::Display for Field {
 }
 
 impl Algebra for Field {
-    /// Returns the prime the algebra is over.
     fn prime(&self) -> ValidPrime {
         self.prime
     }
 
     fn compute_basis(&self, _degree: i32) {}
 
-    /// Gets the dimension of the algebra in degree `degree`.
     fn dimension(&self, degree: i32, _excess: i32) -> usize {
         if degree == 0 {
             1
@@ -52,7 +58,6 @@ impl Algebra for Field {
         vec![]
     }
 
-    /// Converts a basis element into a string for display.
     fn basis_element_to_string(&self, degree: i32, _idx: usize) -> String {
         assert!(degree == 0);
         "1".to_string()
