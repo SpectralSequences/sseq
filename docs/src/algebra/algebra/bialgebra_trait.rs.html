@@ -39,22 +39,42 @@
 <span id="15">15</span>
 <span id="16">16</span>
 <span id="17">17</span>
+<span id="18">18</span>
+<span id="19">19</span>
+<span id="20">20</span>
+<span id="21">21</span>
+<span id="22">22</span>
+<span id="23">23</span>
+<span id="24">24</span>
+<span id="25">25</span>
+<span id="26">26</span>
+<span id="27">27</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::algebra::Algebra</span>;
 
+<span class="doccomment">/// An [`Algebra`] equipped with a coproduct operation that makes it into a</span>
+<span class="doccomment">/// bialgebra.</span>
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">Bialgebra</span>: <span class="ident">Algebra</span> {
-    <span class="doccomment">/// This function decomposes an element of the algebra as a product of elements, each of whose</span>
-    <span class="doccomment">/// coproduct is easy to calculate. The product is laid out such that the first element of the</span>
-    <span class="doccomment">/// vector is applied to the module element first. This is to be used in conjunction with</span>
-    <span class="doccomment">/// `coproduct`.</span>
+    <span class="doccomment">/// Computes a coproduct $\Delta(x)$, expressed as</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// This structure is motivated by the fact that in the admissible basis for the Adem algebra,</span>
+    <span class="doccomment">/// $$ Delta(x)_i = \sum_j A_{ij} \otimes B_{ij}. $$</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// The return value is a list of these pairs of basis elements.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// `x` must have been returned by [`Bialgebra::decompose()`].</span>
+    <span class="kw">fn</span> <span class="ident">coproduct</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">op_deg</span>: <span class="ident">i32</span>, <span class="ident">op_idx</span>: <span class="ident">usize</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">i32</span>, <span class="ident">usize</span>, <span class="ident">i32</span>, <span class="ident">usize</span>)<span class="op">&gt;</span>;
+
+    <span class="doccomment">/// Decomposes an element of the algebra into a product of elements, each of</span>
+    <span class="doccomment">/// which we can compute a coproduct on efficiently.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// The product is laid out such that the first element of the vector is</span>
+    <span class="doccomment">/// applied to a module element first when acting on it.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// This function is to be used with [`Bialgebra::coproduct()`].</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// This API is motivated by the fact that, in the admissible basis for the Adem algebra,</span>
     <span class="doccomment">/// an element naturally decomposes into a product of Steenrod squares, each of which has an</span>
     <span class="doccomment">/// easy coproduct formula.</span>
     <span class="kw">fn</span> <span class="ident">decompose</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">op_deg</span>: <span class="ident">i32</span>, <span class="ident">op_idx</span>: <span class="ident">usize</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">i32</span>, <span class="ident">usize</span>)<span class="op">&gt;</span>;
-
-    <span class="doccomment">/// Expresses Delta(x) as sum_j (A_{ij} (x) B_{ij}). Here x must be one of the elements</span>
-    <span class="doccomment">/// returned by `decompose`.</span>
-    <span class="kw">fn</span> <span class="ident">coproduct</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">op_deg</span>: <span class="ident">i32</span>, <span class="ident">op_idx</span>: <span class="ident">usize</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">i32</span>, <span class="ident">usize</span>, <span class="ident">i32</span>, <span class="ident">usize</span>)<span class="op">&gt;</span>;
 }
 </code></pre></div>
 </section><section id="search" class="content hidden"></section><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="algebra" data-search-index-js="../../../search-index.js" data-search-js="../../../search.js"></div>

@@ -1740,8 +1740,70 @@
 <span id="1716">1716</span>
 <span id="1717">1717</span>
 <span id="1718">1718</span>
-</pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">core::cmp::Ordering</span>;
+<span id="1719">1719</span>
+<span id="1720">1720</span>
+<span id="1721">1721</span>
+<span id="1722">1722</span>
+<span id="1723">1723</span>
+<span id="1724">1724</span>
+<span id="1725">1725</span>
+<span id="1726">1726</span>
+<span id="1727">1727</span>
+<span id="1728">1728</span>
+<span id="1729">1729</span>
+<span id="1730">1730</span>
+<span id="1731">1731</span>
+<span id="1732">1732</span>
+<span id="1733">1733</span>
+<span id="1734">1734</span>
+<span id="1735">1735</span>
+<span id="1736">1736</span>
+<span id="1737">1737</span>
+<span id="1738">1738</span>
+<span id="1739">1739</span>
+<span id="1740">1740</span>
+<span id="1741">1741</span>
+<span id="1742">1742</span>
+<span id="1743">1743</span>
+<span id="1744">1744</span>
+<span id="1745">1745</span>
+<span id="1746">1746</span>
+<span id="1747">1747</span>
+<span id="1748">1748</span>
+<span id="1749">1749</span>
+<span id="1750">1750</span>
+<span id="1751">1751</span>
+<span id="1752">1752</span>
+<span id="1753">1753</span>
+<span id="1754">1754</span>
+<span id="1755">1755</span>
+<span id="1756">1756</span>
+<span id="1757">1757</span>
+<span id="1758">1758</span>
+<span id="1759">1759</span>
+<span id="1760">1760</span>
+<span id="1761">1761</span>
+<span id="1762">1762</span>
+<span id="1763">1763</span>
+<span id="1764">1764</span>
+<span id="1765">1765</span>
+<span id="1766">1766</span>
+<span id="1767">1767</span>
+<span id="1768">1768</span>
+<span id="1769">1769</span>
+<span id="1770">1770</span>
+<span id="1771">1771</span>
+<span id="1772">1772</span>
+<span id="1773">1773</span>
+</pre><pre class="rust"><code><span class="doccomment">//! The Steenrod algebra using the Adem basis.</span>
+
+<span class="kw">use</span> <span class="ident">std::cmp::Ordering</span>;
+<span class="kw">use</span> <span class="ident">std::fmt</span>;
+<span class="kw">use</span> <span class="ident">std::sync::Mutex</span>;
+
 <span class="kw">use</span> <span class="ident">itertools::Itertools</span>;
+<span class="kw">use</span> <span class="ident">rustc_hash::FxHashMap</span> <span class="kw">as</span> <span class="ident">HashMap</span>;
+
 <span class="kw">use</span> <span class="ident">nom</span>::{
     <span class="ident">branch::alt</span>,
     <span class="ident">bytes::complete::tag</span>,
@@ -1750,22 +1812,27 @@
     <span class="ident">sequence</span>::{<span class="ident">delimited</span>, <span class="ident">pair</span>},
     <span class="ident">IResult</span>,
 };
-<span class="kw">use</span> <span class="ident">rustc_hash::FxHashMap</span> <span class="kw">as</span> <span class="ident">HashMap</span>;
-<span class="kw">use</span> <span class="ident">std::sync::Mutex</span>;
-
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::algebra::combinatorics</span>::{<span class="self">self</span>, <span class="ident">MAX_XI_TAU</span>};
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::algebra</span>::{<span class="ident">Algebra</span>, <span class="ident">Bialgebra</span>, <span class="ident">GeneratedAlgebra</span>};
 
 <span class="kw">use</span> <span class="ident">fp::prime</span>::{<span class="ident">BinomialIterator</span>, <span class="ident">BitflagIterator</span>, <span class="ident">ValidPrime</span>};
 <span class="kw">use</span> <span class="ident">fp::vector</span>::{<span class="ident">FpVector</span>, <span class="ident">SliceMut</span>};
 <span class="kw">use</span> <span class="ident">once::OnceVec</span>;
 
+<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::algebra::combinatorics</span>::{<span class="self">self</span>, <span class="ident">MAX_XI_TAU</span>};
+<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::algebra</span>::{<span class="ident">Algebra</span>, <span class="ident">Bialgebra</span>, <span class="ident">GeneratedAlgebra</span>};
+
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;json&quot;</span>)]</span>
 <span class="kw">use</span> {<span class="ident"><span class="kw">crate</span>::algebra::JsonAlgebra</span>, <span class="ident">serde::Deserialize</span>, <span class="ident">serde_json::value::Value</span>};
 
-<span class="comment">// This is here so that the Python bindings can use modules defined for AdemAlgebraT with their own algebra enum.</span>
-<span class="comment">// In order for things to work AdemAlgebraT cannot implement Algebra.</span>
-<span class="comment">// Otherwise, the algebra enum for our bindings will see an implementation clash.</span>
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">doc</span>)]</span>
+<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::algebra::SteenrodAlgebra</span>;
+
+<span class="doccomment">/// An algebra that can be viewed as an Adem algebra.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// This is here so that the Python bindings can use modules defined for AdemAlgebraT</span>
+<span class="doccomment">/// with their version of [`SteenrodAlgebra`].</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// In order for things to work `AdemAlgebraT` cannot implement [`Algebra`].</span>
+<span class="doccomment">/// Otherwise, the algebra enum for our bindings will see an implementation clash.</span>
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">AdemAlgebraT</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="ident">Algebra</span> {
     <span class="kw">fn</span> <span class="ident">adem_algebra</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">AdemAlgebra</span>;
 }
@@ -1776,24 +1843,43 @@
     }
 }
 
-<span class="doccomment">/// The format of the AdemBasisElement is as follows. To encode</span>
-<span class="doccomment">/// $$\beta^{\varepsilon_0} P^{i_0} \beta^{\varepsilon_1} P^{i_1} \cdots \beta^{\varepsilon_n}</span>
-<span class="doccomment">/// P^{i_n} \beta^{\varepsilon_{n+1}},$$</span>
+<span class="doccomment">/// An Adem basis element for the Steenrod algebra.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// To encode an element</span>
+<span class="doccomment">/// $$</span>
+<span class="doccomment">///     \beta^{\varepsilon_0} P^{i_0}\</span>
+<span class="doccomment">///     \beta^{\varepsilon_1} P^{i_1}</span>
+<span class="doccomment">///     \cdots</span>
+<span class="doccomment">///     \beta^{\varepsilon_n} P^{i_n}</span>
+<span class="doccomment">///     \beta^{\varepsilon_{n+1}},</span>
+<span class="doccomment">/// $$</span>
 <span class="doccomment">/// we set</span>
 <span class="doccomment">/// $$ \begin{aligned}</span>
-<span class="doccomment">/// \mathtt{ps} &amp;= [i_0, i_1, \ldots, i_n]\\\\</span>
+<span class="doccomment">/// \mathtt{ps}         &amp;= [i_0, i_1, \ldots, i_n] \\\\</span>
 <span class="doccomment">/// \mathtt{bocksteins} &amp;= 000\cdots0\varepsilon_{n+1} \varepsilon_n \cdots \varepsilon_0</span>
 <span class="doccomment">/// \end{aligned} $$</span>
 <span class="comment">// #[derive(RustcDecodable, RustcEncodable)]</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">AdemBasisElement</span> {
+    <span class="doccomment">/// The degree of the element.</span>
     <span class="kw">pub</span> <span class="ident">degree</span>: <span class="ident">i32</span>,
+    <span class="doccomment">/// The excess (i.e., distance from this element being minimally admissible)</span>
+    <span class="doccomment">/// of this basis element.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// See https://doc.sagemath.org/html/en/reference/algebras/sage/algebras/steenrod/steenrod_algebra.html#sage.algebras.steenrod.steenrod_algebra.SteenrodAlgebra_generic.Element.excess.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// This field is only used in `unstable_enabled` mode.</span>
     <span class="kw">pub</span> <span class="ident">excess</span>: <span class="ident">i32</span>,
+    <span class="doccomment">/// A bitset of which $\beta$ Bocksteins are in the element&#39;s decomposition.</span>
     <span class="kw">pub</span> <span class="ident">bocksteins</span>: <span class="ident">u32</span>,
+    <span class="doccomment">/// A list of which Steenrod powers are in the element&#39;s decompositions.</span>
     <span class="kw">pub</span> <span class="ident">ps</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span>,
+    <span class="doccomment">/// Whether to denote the generators as powers $P^i$ or squares $Sq^i$ when using string formatting;</span>
+    <span class="doccomment">/// `true` denotes the former.</span>
     <span class="kw">pub</span> <span class="ident">p_or_sq</span>: <span class="ident">bool</span>,
 }
 
+<span class="doccomment">/// A Steenrod power $P^i$, or a Bockstein $\beta^\varepsilon$.</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">PorBockstein</span> {
     <span class="ident">P</span>(<span class="ident">u32</span>),
@@ -1801,6 +1887,10 @@
 }
 
 <span class="kw">impl</span> <span class="ident">AdemBasisElement</span> {
+    <span class="doccomment">/// Returns an iterator over the element&#39;s decomposition.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// This returns alternating Bocksteins and Ps, but skipping any</span>
+    <span class="doccomment">/// `\beta^0` factors.</span>
     <span class="kw">fn</span> <span class="ident">iter_filtered</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl</span> <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">PorBockstein</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;_</span> {
         <span class="ident">BitflagIterator::new</span>(<span class="self">self</span>.<span class="ident">bocksteins</span> <span class="kw">as</span> <span class="ident">u64</span>)
             .<span class="ident">map</span>(<span class="ident">PorBockstein::Bockstein</span>)
@@ -1816,13 +1906,13 @@
     }
 }
 
-<span class="kw">impl</span> <span class="ident">std::cmp::PartialEq</span> <span class="kw">for</span> <span class="ident">AdemBasisElement</span> {
+<span class="kw">impl</span> <span class="ident">PartialEq</span> <span class="kw">for</span> <span class="ident">AdemBasisElement</span> {
     <span class="kw">fn</span> <span class="ident">eq</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; <span class="ident">bool</span> {
         <span class="self">self</span>.<span class="ident">ps</span> <span class="op">==</span> <span class="ident">other</span>.<span class="ident">ps</span> <span class="op">&amp;&amp;</span> <span class="self">self</span>.<span class="ident">bocksteins</span> <span class="op">==</span> <span class="ident">other</span>.<span class="ident">bocksteins</span>
     }
 }
 
-<span class="kw">impl</span> <span class="ident">std::cmp::Eq</span> <span class="kw">for</span> <span class="ident">AdemBasisElement</span> {}
+<span class="kw">impl</span> <span class="ident">Eq</span> <span class="kw">for</span> <span class="ident">AdemBasisElement</span> {}
 
 <span class="kw">impl</span> <span class="ident">std::hash::Hash</span> <span class="kw">for</span> <span class="ident">AdemBasisElement</span> {
     <span class="kw">fn</span> <span class="ident">hash</span><span class="op">&lt;</span><span class="ident">H</span>: <span class="ident">std::hash::Hasher</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">state</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">H</span>) {
@@ -1831,8 +1921,8 @@
     }
 }
 
-<span class="kw">impl</span> <span class="ident">std::fmt::Display</span> <span class="kw">for</span> <span class="ident">AdemBasisElement</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">std::fmt::Formatter</span>) -&gt; <span class="ident">std::fmt::Result</span> {
+<span class="kw">impl</span> <span class="ident">fmt::Display</span> <span class="kw">for</span> <span class="ident">AdemBasisElement</span> {
+    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">fmt::Formatter</span>) -&gt; <span class="ident">fmt::Result</span> {
         <span class="kw">let</span> <span class="ident">p_or_sq</span> <span class="op">=</span> <span class="kw">if</span> <span class="self">self</span>.<span class="ident">p_or_sq</span> { <span class="string">&quot;P&quot;</span> } <span class="kw">else</span> { <span class="string">&quot;Sq&quot;</span> };
         <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="self">self</span>
             .<span class="ident">iter_filtered</span>()
@@ -1857,6 +1947,19 @@
     <span class="ident">a</span>.<span class="ident">ps</span>.<span class="ident">len</span>().<span class="ident">cmp</span>(<span class="kw-2">&amp;</span><span class="ident">b</span>.<span class="ident">ps</span>.<span class="ident">len</span>())
 }
 
+<span class="doccomment">/// Shifts a `Vec`&#39;s elements back by `offset`.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// # Safety</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// This function leaves `v` in an invalid state, since `ptr` does not point to</span>
+<span class="doccomment">/// the beginning of an allocation after this function completes. Operations</span>
+<span class="doccomment">/// which may trigger resizing *must* be avoided, since the allocator will</span>
+<span class="doccomment">/// otherwise get extremely confused.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// The sum of `offset`s to calls to this function for a particular `v` must</span>
+<span class="doccomment">/// always be positive (i.e., to avoid pointing before the allocation), less</span>
+<span class="doccomment">/// than the `v`&#39;s capacity (to avoid pointing after), and zero when `v` is</span>
+<span class="doccomment">/// destroyed or resized (for the reasons described above)</span>
 <span class="kw">unsafe</span> <span class="kw">fn</span> <span class="ident">shift_vec</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>(<span class="ident">v</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, <span class="ident">offset</span>: <span class="ident">isize</span>) {
     <span class="kw">let</span> <span class="ident">ptr</span> <span class="op">=</span> <span class="ident">v</span>.<span class="ident">as_ptr</span>();
     <span class="kw">let</span> <span class="ident">len</span> <span class="op">=</span> <span class="ident">v</span>.<span class="ident">len</span>();
@@ -1872,22 +1975,27 @@
     <span class="ident">std::mem::forget</span>(<span class="ident">w</span>);
 }
 
+<span class="doccomment">/// An [`Algebra`] implementing the Steenrod algebra, using the Adem basis.</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">AdemAlgebra</span> {
     <span class="ident">p</span>: <span class="ident">ValidPrime</span>,
     <span class="kw">pub</span> <span class="ident">generic</span>: <span class="ident">bool</span>,
     <span class="kw">pub</span> <span class="ident">unstable</span>: <span class="ident">bool</span>,
     <span class="kw">pub</span> <span class="ident">unstable_enabled</span>: <span class="ident">bool</span>,
     <span class="ident">lock</span>: <span class="ident">Mutex</span><span class="op">&lt;</span>()<span class="op">&gt;</span>,
+
     <span class="ident">even_basis_table</span>: <span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">AdemBasisElement</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    <span class="ident">basis_table</span>: <span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">AdemBasisElement</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="comment">// degree -&gt; index -&gt; AdemBasisElement</span>
-    <span class="ident">basis_element_to_index_map</span>: <span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">AdemBasisElement</span>, <span class="ident">usize</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="comment">// degree -&gt; AdemBasisElement -&gt; index</span>
-    <span class="ident">multiplication_table</span>: <span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">FpVector</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="comment">// degree -&gt; first square -&gt; admissible sequence idx -&gt; result vector</span>
+    <span class="doccomment">/// degree -&gt; index -&gt; AdemBasisElement</span>
+    <span class="ident">basis_table</span>: <span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">AdemBasisElement</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="doccomment">/// degree -&gt; AdemBasisElement -&gt; index</span>
+    <span class="ident">basis_element_to_index_map</span>: <span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">AdemBasisElement</span>, <span class="ident">usize</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="doccomment">/// degree -&gt; first square -&gt; admissible sequence idx -&gt; result</span>
+    <span class="ident">multiplication_table</span>: <span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">FpVector</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="ident">excess_table</span>: <span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="ident">sort_order</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw">fn</span>(<span class="kw-2">&amp;</span><span class="ident">AdemBasisElement</span>, <span class="kw-2">&amp;</span><span class="ident">AdemBasisElement</span>) -&gt; <span class="ident">Ordering</span><span class="op">&gt;</span>,
 }
 
-<span class="kw">impl</span> <span class="ident">std::fmt::Display</span> <span class="kw">for</span> <span class="ident">AdemAlgebra</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">std::fmt::Formatter</span>) -&gt; <span class="ident">std::fmt::Result</span> {
+<span class="kw">impl</span> <span class="ident">fmt::Display</span> <span class="kw">for</span> <span class="ident">AdemAlgebra</span> {
+    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">fmt::Formatter</span>) -&gt; <span class="ident">fmt::Result</span> {
         <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;AdemAlgebra(p={})&quot;</span>, <span class="self">self</span>.<span class="ident">prime</span>())
     }
 }
@@ -2210,6 +2318,8 @@
 <span class="comment">// static void AdemAlgebra__initializeFields(AdemAlgebraInternal *algebra, uint p, bool generic, bool unstable);</span>
 <span class="comment">// uint AdemAlgebra__generateName(AdemAlgebra *algebra); // defined in adem_io</span>
 <span class="kw">impl</span> <span class="ident">AdemAlgebra</span> {
+    <span class="doccomment">/// Constructs a new [`AdemAlgebra`].</span>
+    <span class="comment">// TODO: what do these argument names mean?</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>, <span class="ident">generic</span>: <span class="ident">bool</span>, <span class="ident">unstable</span>: <span class="ident">bool</span>, <span class="ident">unstable_enabled</span>: <span class="ident">bool</span>) -&gt; <span class="self">Self</span> {
         <span class="macro">assert!</span>(<span class="ident">unstable_enabled</span> <span class="op">|</span><span class="op">|</span> <span class="op">!</span><span class="ident">unstable</span>);
         <span class="kw">let</span> <span class="ident">even_basis_table</span> <span class="op">=</span> <span class="ident">OnceVec::new</span>();

@@ -96,15 +96,28 @@
 <span id="72">72</span>
 <span id="73">73</span>
 <span id="74">74</span>
-</pre><pre class="rust"><code><span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::algebra</span>::{<span class="ident">Algebra</span>, <span class="ident">Bialgebra</span>};
+<span id="75">75</span>
+<span id="76">76</span>
+<span id="77">77</span>
+<span id="78">78</span>
+<span id="79">79</span>
+</pre><pre class="rust"><code><span class="doccomment">//! Finite fields over a prime.</span>
+
+<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::algebra</span>::{<span class="ident">Algebra</span>, <span class="ident">Bialgebra</span>};
 <span class="kw">use</span> <span class="ident">fp::prime::ValidPrime</span>;
 <span class="kw">use</span> <span class="ident">fp::vector</span>::{<span class="ident">Slice</span>, <span class="ident">SliceMut</span>};
 
+<span class="doccomment">/// $\mathbb{F}_p$, viewed as an [`Algebra`] over itself.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// As an [`Algebra`], a field is one-dimensional, with basis element `1`.</span>
+<span class="doccomment">/// It is also trivially a coalgebra via the trivial diagonal comultiplication,</span>
+<span class="doccomment">/// and thus a [`Bialgebra`].</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Field</span> {
     <span class="ident">prime</span>: <span class="ident">ValidPrime</span>,
 }
 
 <span class="kw">impl</span> <span class="ident">Field</span> {
+    <span class="doccomment">/// Returns a new `Field` over the given prime `p`.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>) -&gt; <span class="self">Self</span> {
         <span class="self">Self</span> { <span class="ident">prime</span>: <span class="ident">p</span> }
     }
@@ -117,14 +130,12 @@
 }
 
 <span class="kw">impl</span> <span class="ident">Algebra</span> <span class="kw">for</span> <span class="ident">Field</span> {
-    <span class="doccomment">/// Returns the prime the algebra is over.</span>
     <span class="kw">fn</span> <span class="ident">prime</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">ValidPrime</span> {
         <span class="self">self</span>.<span class="ident">prime</span>
     }
 
     <span class="kw">fn</span> <span class="ident">compute_basis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">_degree</span>: <span class="ident">i32</span>) {}
 
-    <span class="doccomment">/// Gets the dimension of the algebra in degree `degree`.</span>
     <span class="kw">fn</span> <span class="ident">dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">_excess</span>: <span class="ident">i32</span>) -&gt; <span class="ident">usize</span> {
         <span class="kw">if</span> <span class="ident">degree</span> <span class="op">==</span> <span class="number">0</span> {
             <span class="number">1</span>
@@ -150,7 +161,6 @@
         <span class="macro">vec!</span>[]
     }
 
-    <span class="doccomment">/// Converts a basis element into a string for display.</span>
     <span class="kw">fn</span> <span class="ident">basis_element_to_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">_idx</span>: <span class="ident">usize</span>) -&gt; <span class="ident">String</span> {
         <span class="macro">assert!</span>(<span class="ident">degree</span> <span class="op">==</span> <span class="number">0</span>);
         <span class="string">&quot;1&quot;</span>.<span class="ident">to_string</span>()

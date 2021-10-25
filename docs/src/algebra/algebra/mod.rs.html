@@ -43,26 +43,42 @@
 <span id="19">19</span>
 <span id="20">20</span>
 <span id="21">21</span>
-</pre><pre class="rust"><code><span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">combinatorics</span>;
+<span id="22">22</span>
+<span id="23">23</span>
+<span id="24">24</span>
+<span id="25">25</span>
+<span id="26">26</span>
+<span id="27">27</span>
+<span id="28">28</span>
+<span id="29">29</span>
+</pre><pre class="rust"><code><span class="doccomment">//! Traits describing algebras, and implementations thereof for different</span>
+<span class="doccomment">//! representations of the Steenrod algebra.</span>
 
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">adem_algebra</span>;
-<span class="kw">mod</span> <span class="ident">algebra_trait</span>;
-<span class="kw">mod</span> <span class="ident">bialgebra_trait</span>;
-<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">field</span>;
-<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">milnor_algebra</span>;
-<span class="kw">mod</span> <span class="ident">polynomial_algebra</span>;
-<span class="kw">mod</span> <span class="ident">steenrod_algebra</span>;
-
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">adem_algebra</span>::{<span class="ident">AdemAlgebra</span>, <span class="ident">AdemAlgebraT</span>};
+
+<span class="kw">mod</span> <span class="ident">algebra_trait</span>;
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;json&quot;</span>)]</span>
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">algebra_trait::JsonAlgebra</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">algebra_trait</span>::{<span class="ident">Algebra</span>, <span class="ident">GeneratedAlgebra</span>};
+
+<span class="kw">mod</span> <span class="ident">bialgebra_trait</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">bialgebra_trait::Bialgebra</span>;
+
+<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">combinatorics</span>;
+
+<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">field</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">field::Field</span>;
+
+<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">milnor_algebra</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">milnor_algebra</span>::{<span class="ident">MilnorAlgebra</span>, <span class="ident">MilnorAlgebraT</span>};
+
+<span class="kw">mod</span> <span class="ident">polynomial_algebra</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">polynomial_algebra</span>::{
     <span class="ident">PolynomialAlgebra</span>, <span class="ident">PolynomialAlgebraMonomial</span>, <span class="ident">PolynomialAlgebraTableEntry</span>,
 };
+
+<span class="kw">mod</span> <span class="ident">steenrod_algebra</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">steenrod_algebra</span>::{<span class="ident">AlgebraType</span>, <span class="ident">SteenrodAlgebra</span>, <span class="ident">SteenrodAlgebraBorrow</span>, <span class="ident">SteenrodAlgebraT</span>};
 </code></pre></div>
 </section><section id="search" class="content hidden"></section><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="algebra" data-search-index-js="../../../search-index.js" data-search-js="../../../search.js"></div>

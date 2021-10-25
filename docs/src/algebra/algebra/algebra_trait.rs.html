@@ -298,39 +298,80 @@
 <span id="274">274</span>
 <span id="275">275</span>
 <span id="276">276</span>
+<span id="277">277</span>
+<span id="278">278</span>
+<span id="279">279</span>
+<span id="280">280</span>
+<span id="281">281</span>
+<span id="282">282</span>
+<span id="283">283</span>
+<span id="284">284</span>
+<span id="285">285</span>
+<span id="286">286</span>
+<span id="287">287</span>
+<span id="288">288</span>
+<span id="289">289</span>
+<span id="290">290</span>
+<span id="291">291</span>
+<span id="292">292</span>
+<span id="293">293</span>
+<span id="294">294</span>
+<span id="295">295</span>
+<span id="296">296</span>
+<span id="297">297</span>
+<span id="298">298</span>
+<span id="299">299</span>
+<span id="300">300</span>
+<span id="301">301</span>
+<span id="302">302</span>
+<span id="303">303</span>
+<span id="304">304</span>
+<span id="305">305</span>
+<span id="306">306</span>
+<span id="307">307</span>
+<span id="308">308</span>
+<span id="309">309</span>
+<span id="310">310</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">fp::prime::ValidPrime</span>;
 <span class="kw">use</span> <span class="ident">fp::vector</span>::{<span class="ident">Slice</span>, <span class="ident">SliceMut</span>};
 
-<span class="doccomment">/// A graded algebra over F_p, finite dimensional in each degree, equipped with a choice of ordered</span>
-<span class="doccomment">/// basis in each dimension. Basis elements of the algebra are referred to by their degree and</span>
-<span class="doccomment">/// index, and general elements are referred to by the degree and an `FpVector` listing the</span>
-<span class="doccomment">/// coefficients of the element in terms of the basis.</span>
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">doc</span>)]</span>
+<span class="kw">use</span> <span class="ident">fp::vector::FpVector</span>;
+
+<span class="doccomment">/// A graded algebra over $\mathbb{F}_p$.</span>
 <span class="doccomment">///</span>
-<span class="doccomment">/// Since the graded algebra is often infinite dimensional, we cannot construct a complete</span>
-<span class="doccomment">/// description of the algebra. Instead, we use the function `compute_basis(degree)`. When called,</span>
-<span class="doccomment">/// the algebra should compute relevant data to be able to perform calculations up to degree</span>
-<span class="doccomment">/// `degree`. It is the responsibility of users to ensure `compute_degree(degree)` is called before</span>
-<span class="doccomment">/// calling other functions with the `degree` parameter.</span>
+<span class="doccomment">/// Each degree is finite dimensional, and equipped with a distinguished ordered basis. Basis</span>
+<span class="doccomment">/// elements are referred to by their signed degree and unsigned index, while a general</span>
+<span class="doccomment">/// element of a given degree is denoted by an [`FpVector`] given in terms of that degree&#39;s</span>
+<span class="doccomment">/// basis.</span>
 <span class="doccomment">///</span>
-<span class="doccomment">/// The algebra should also come with a specified choice of algebra generators, which are</span>
-<span class="doccomment">/// necessarily basis elements. It gives us a simpler way of describing finite modules by only</span>
-<span class="doccomment">/// specifying the action of the generators.</span>
+<span class="doccomment">/// These algebras are frequently infinite-dimensional, so we must construct the representation</span>
+<span class="doccomment">/// lazily. The function [`Algebra::compute_basis()`] will request that book-keeping information</span>
+<span class="doccomment">/// be updated to perform computations up to the given degree; users must make sure to call</span>
+<span class="doccomment">/// this function before performing other operations at that degree.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// Algebras may have a distinguished set of generators; see [`GeneratedAlgebra`].</span>
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">Algebra</span>: <span class="ident">std::fmt::Display</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> {
     <span class="doccomment">/// Returns the prime the algebra is over.</span>
     <span class="kw">fn</span> <span class="ident">prime</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">ValidPrime</span>;
 
-    <span class="doccomment">/// Computes the list of basis elements up to and including degree `degree`. This should include any</span>
-    <span class="doccomment">/// other preparation needed to evaluate all the other functions that involve a degree</span>
-    <span class="doccomment">/// parameter. One should be able to call compute_basis multiple times, and there should be</span>
-    <span class="doccomment">/// little overhead when calling `compute_basis(degree)` multiple times with the same `degree`.</span>
+    <span class="doccomment">/// Computes basis elements up to and including `degree`.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// This function must be called by users before other functions that will involve operations</span>
+    <span class="doccomment">/// at `degree`, so it should be used to update internal data structure in perparation</span>
+    <span class="doccomment">/// for such operations.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// This function must be idempotent and cheap to call again with the</span>
+    <span class="doccomment">/// same argument.</span>
     <span class="kw">fn</span> <span class="ident">compute_basis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>);
 
-    <span class="doccomment">/// Gets the dimension of the algebra in degree `degree`.</span>
+    <span class="doccomment">/// Returns the dimension of the algebra in degree `degree`.</span>
     <span class="kw">fn</span> <span class="ident">dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">excess</span>: <span class="ident">i32</span>) -&gt; <span class="ident">usize</span>;
 
-    <span class="doccomment">/// Computes the product `r * s` of the two basis elements, and *adds* the result to `result`.</span>
+    <span class="doccomment">/// Computes the product `r * s` of two basis elements, and adds the</span>
+    <span class="doccomment">/// result to `result`.</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// result is not required to be aligned.</span>
+    <span class="doccomment">/// `result` is not required to be aligned.</span>
     <span class="kw">fn</span> <span class="ident">multiply_basis_elements</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         <span class="ident">result</span>: <span class="ident">SliceMut</span>,
@@ -342,7 +383,10 @@
         <span class="ident">excess</span>: <span class="ident">i32</span>,
     );
 
-    <span class="doccomment">/// result and s are not required to be aligned.</span>
+    <span class="doccomment">/// Computes the product `r * s` of a basis element `r` and a general element `s`, and adds the</span>
+    <span class="doccomment">/// result to `result`.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// Neither `result` nor `s` must be aligned.</span>
     <span class="kw">fn</span> <span class="ident">multiply_basis_element_by_element</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         <span class="kw-2">mut</span> <span class="ident">result</span>: <span class="ident">SliceMut</span>,
@@ -367,7 +411,10 @@
         }
     }
 
-    <span class="doccomment">/// result and r are not required to be aligned.</span>
+    <span class="doccomment">/// Computes the product `r * s` of a general element `r` and a basis element `s`, and adds the</span>
+    <span class="doccomment">/// result to `result`.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// Neither `result` nor `r` must be aligned.</span>
     <span class="kw">fn</span> <span class="ident">multiply_element_by_basis_element</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         <span class="kw-2">mut</span> <span class="ident">result</span>: <span class="ident">SliceMut</span>,
@@ -392,7 +439,10 @@
         }
     }
 
-    <span class="doccomment">/// result, r and s are not required to be aligned.</span>
+    <span class="doccomment">/// Computes the product `r * s` of two general elements, and adds the</span>
+    <span class="doccomment">/// result to `result`.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// Neither `result`, `s`, nor `r` must be aligned.</span>
     <span class="kw">fn</span> <span class="ident">multiply_element_by_element</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         <span class="kw-2">mut</span> <span class="ident">result</span>: <span class="ident">SliceMut</span>,
@@ -417,9 +467,13 @@
         }
     }
 
-    <span class="doccomment">/// A filtration one element in Ext(k, k) is the same as an indecomposable element of the</span>
-    <span class="doccomment">/// algebra.  This function returns a default list of such elements in the format `(name,</span>
-    <span class="doccomment">/// degree, index)` for whom we want to compute products with in the resolutions.</span>
+    <span class="doccomment">/// Returns a list of filtration-one elements in $Ext(k, k)$.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// These are the same as indecomposable elements of the algebra.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// This function returns a default list of such elements in the format</span>
+    <span class="doccomment">/// `(name, degree, index)` for which we want to compute products with in</span>
+    <span class="doccomment">/// the resolutions.</span>
     <span class="kw">fn</span> <span class="ident">default_filtration_one_products</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">String</span>, <span class="ident">i32</span>, <span class="ident">usize</span>)<span class="op">&gt;</span> {
         <span class="ident">Vec::new</span>()
     }
@@ -427,7 +481,7 @@
     <span class="doccomment">/// Converts a basis element into a string for display.</span>
     <span class="kw">fn</span> <span class="ident">basis_element_to_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">idx</span>: <span class="ident">usize</span>) -&gt; <span class="ident">String</span>;
 
-    <span class="doccomment">/// Converts an element into a string for display.</span>
+    <span class="doccomment">/// Converts a general element into a string for display.</span>
     <span class="kw">fn</span> <span class="ident">element_to_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">element</span>: <span class="ident">Slice</span>) -&gt; <span class="ident">String</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">String::new</span>();
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">zero</span> <span class="op">=</span> <span class="bool-val">true</span>;
@@ -453,53 +507,62 @@
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;json&quot;</span>)]</span>
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">JsonAlgebra</span>: <span class="ident">Algebra</span> {
+    <span class="doccomment">/// A name for the algebra to use in serialization operations.</span>
     <span class="kw">fn</span> <span class="ident">prefix</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">str</span>;
 
-    <span class="doccomment">/// Converts a JSON object into a basis element. The way basis elements are represented by JSON</span>
-    <span class="doccomment">/// objects is to be specified by the algebra itself, and will be used by module</span>
-    <span class="doccomment">/// specifications.</span>
+    <span class="doccomment">/// Parses a basis element from JSON.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// The representation is defined by the algebra itself, and is used by by</span>
+    <span class="doccomment">/// module specifications to specify basis elements.</span>
     <span class="kw">fn</span> <span class="ident">json_to_basis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">json</span>: <span class="kw-2">&amp;</span><span class="ident">serde_json::Value</span>) -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span>(<span class="ident">i32</span>, <span class="ident">usize</span>)<span class="op">&gt;</span>;
 
+    <span class="doccomment">/// Converts a basis element into JSON.</span>
     <span class="kw">fn</span> <span class="ident">json_from_basis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">idx</span>: <span class="ident">usize</span>) -&gt; <span class="ident">serde_json::Value</span>;
 }
 
-<span class="doccomment">/// An algebra with a specified list of generators and generating relations. This data can be used</span>
-<span class="doccomment">/// to specify modules by specifying the actions of the generators.</span>
+<span class="doccomment">/// An [`Algebra`] equipped with a distinguished presentation.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// These data can be used to specify finite modules as the actions of the distinguished generators.</span>
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">GeneratedAlgebra</span>: <span class="ident">Algebra</span> {
-    <span class="doccomment">/// Given a degree `degree`, the function returns a list of algebra generators in that degree.</span>
-    <span class="doccomment">/// This return value is the list of indices of the basis elements that are generators. The</span>
-    <span class="doccomment">/// list need not be in any particular order.</span>
+    <span class="doccomment">/// Return generators in `degree`.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// Generators are specified as basis element indices in that degree. The order of the</span>
+    <span class="doccomment">/// list is not important.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// This method need not be fast, because they will only be performed when constructing the module,</span>
     <span class="doccomment">/// and will often only involve low dimensional elements.</span>
     <span class="kw">fn</span> <span class="ident">generators</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span>;
 
-    <span class="doccomment">/// This returns the name of a generator. Note that the index is the index of the generator</span>
-    <span class="doccomment">/// in the list of all basis elements. It is undefined behaviour to call this function with a</span>
-    <span class="doccomment">/// (degree, index) pair that is not a generator.</span>
+    <span class="doccomment">/// Returns the name of a generator.</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// The default implementation calls `self.basis_element_to_string`, but occassionally the</span>
-    <span class="doccomment">/// generators might have alternative, more concise names that are preferred.</span>
+    <span class="doccomment">/// Note: `idx` is the index within `degree`&#39;s basis, *not* the list returned by</span>
+    <span class="doccomment">/// [`GeneratedAlgebra::generators()`].</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// This function MUST be inverse to `string_to_generator`.</span>
+    <span class="doccomment">/// By default, this function will forward to [`Algebra::basis_element_to_string()`], but</span>
+    <span class="doccomment">/// may be overridden if more concise names are available.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// This function MUST be inverse to [`GeneratedAlgebra::string_to_generator()`].</span>
     <span class="kw">fn</span> <span class="ident">generator_to_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">idx</span>: <span class="ident">usize</span>) -&gt; <span class="ident">String</span> {
         <span class="self">self</span>.<span class="ident">basis_element_to_string</span>(<span class="ident">degree</span>, <span class="ident">idx</span>)
     }
 
-    <span class="doccomment">/// This parses a string and returns the generator described by the string. The signature of</span>
-    <span class="doccomment">/// this function is the same `nom` combinators.</span>
+    <span class="doccomment">/// Parse `input` into a generator.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// This function is a `nom` combinator.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// This function MUST be inverse to `string_to_generator` (and not `basis_element_to_string`).</span>
-    <span class="kw">fn</span> <span class="ident">string_to_generator</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="lifetime">&#39;b</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="self">self</span>, <span class="ident">input</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;b</span> <span class="ident">str</span>)
-        -&gt; <span class="ident">nom::IResult</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="lifetime">&#39;b</span> <span class="ident">str</span>, (<span class="ident">i32</span>, <span class="ident">usize</span>)<span class="op">&gt;</span>;
+    <span class="kw">fn</span> <span class="ident">string_to_generator</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">input</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">str</span>) -&gt; <span class="ident">nom::IResult</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">str</span>, (<span class="ident">i32</span>, <span class="ident">usize</span>)<span class="op">&gt;</span>;
 
-    <span class="doccomment">/// Given a non-generator basis element of the algebra, decompose it in terms of algebra</span>
-    <span class="doccomment">/// generators. Recall each basis element is given by a pair $(d, i))$, where $d$ is the degree of</span>
-    <span class="doccomment">/// the generator, and $i$ is the index of the basis element. Given a basis element $A$, the</span>
-    <span class="doccomment">/// function returns a list of triples $(c_i, A_i, B_i)$ where each $A_i$ and $B_i$ are basis</span>
-    <span class="doccomment">/// elements of strictly smaller degree than the original, and</span>
+    <span class="doccomment">/// Decomposes an element into generators.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// Given a basis element $A$, this function returns a list of triples</span>
+    <span class="doccomment">/// $(c_i, A_i, B_i)$, where $A_i$ and $B_i$ are basis elements of strictly</span>
+    <span class="doccomment">/// smaller degree than $A$, such that</span>
+    <span class="doccomment">///</span>
     <span class="doccomment">/// $$ A = \sum_i c_i A_i B_i.$$</span>
-    <span class="doccomment">/// This allows us to recursively compute the action of the algebra.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// Combined with actions for generators, this allows us to recursively compute the action</span>
+    <span class="doccomment">/// of an element on a module.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// This method need not be fast, because they will only be performed when constructing the module,</span>
     <span class="doccomment">/// and will often only involve low dimensional elements.</span>
@@ -509,7 +572,12 @@
         <span class="ident">idx</span>: <span class="ident">usize</span>,
     ) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">u32</span>, (<span class="ident">i32</span>, <span class="ident">usize</span>), (<span class="ident">i32</span>, <span class="ident">usize</span>))<span class="op">&gt;</span>;
 
-    <span class="doccomment">/// Get any relations that the algebra wants checked to ensure the consistency of module.</span>
+    <span class="doccomment">/// Returns relations that the algebra wants checked to ensure the consistency of module.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// Relations are encoded as general multi-degree elements which are killed in the quotient:</span>
+    <span class="doccomment">/// $$ \sum_i c_i \alpha_i \beta_i = 0. $$</span>
+    <span class="doccomment">/// where $c_i$ are coefficients and $\alpha_i$ and $\beta_i$ are basis elements of</span>
+    <span class="doccomment">/// arbitrary degree.</span>
     <span class="kw">fn</span> <span class="ident">generating_relations</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">u32</span>, (<span class="ident">i32</span>, <span class="ident">usize</span>), (<span class="ident">i32</span>, <span class="ident">usize</span>))<span class="op">&gt;</span><span class="op">&gt;</span>;
 }
 

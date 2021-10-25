@@ -1,1 +1,1 @@
-initSidebarItems({"mod":[["adem_algebra",""],["algebra_trait",""],["bialgebra_trait",""],["combinatorics",""],["field",""],["milnor_algebra",""],["polynomial_algebra",""],["steenrod_algebra",""]]});
+initSidebarItems({"mod":[["adem_algebra","The Steenrod algebra using the Adem basis."],["algebra_trait",""],["bialgebra_trait",""],["combinatorics",""],["field","Finite fields over a prime."],["milnor_algebra",""],["polynomial_algebra",""],["steenrod_algebra",""]]});
