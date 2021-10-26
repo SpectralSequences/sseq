@@ -102,6 +102,9 @@ where
         let mut matrices = BiVec::with_capacity(min_degree, max_degree + 1);
 
         for i in min_degree..=max_degree {
+            // Here we use `Module::dimension(&*m, i)` instead of `m.dimension(i)` because there are
+            // multiple `dimension` methods in scope and rust-analyzer gets confused if we're not
+            // explicit enough.
             let matrix = Matrix::new(
                 p,
                 Module::dimension(&*source, i),
@@ -146,6 +149,9 @@ where
 
         for target_deg in min_degree..=max_degree {
             let source_deg = target_deg + degree_shift;
+            // Here we use `Module::dimension(&*m, i)` instead of `m.dimension(i)` because there are
+            // multiple `dimension` methods in scope and rust-analyzer gets confused if we're not
+            // explicit enough.
             let source_dim = Module::dimension(&*source, source_deg);
             let target_dim = Module::dimension(&*target, target_deg);
 

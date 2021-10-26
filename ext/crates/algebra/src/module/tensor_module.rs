@@ -72,6 +72,9 @@ where
             for left_deg in self.left.min_degree()..=(mod_degree - self.right.min_degree()) {
                 let right_deg = mod_degree - left_deg;
 
+                // Here we use `Module::dimension(&*m, i)` instead of `m.dimension(i)` because there are
+                // multiple `dimension` methods in scope and rust-analyzer gets confused if we're not
+                // explicit enough.
                 let left_source_dim = Module::dimension(&*self.left, left_deg);
                 let right_source_dim = Module::dimension(&*self.right, right_deg);
 
@@ -200,6 +203,9 @@ where
             let mut block_sizes =
                 BiVec::with_capacity(self.left.min_degree(), i - self.right.min_degree() + 1);
             for j in self.left.min_degree()..=i - self.right.min_degree() {
+                // Here we use `Module::dimension(&*m, i)` instead of `m.dimension(i)` because there are
+                // multiple `dimension` methods in scope and rust-analyzer gets confused if we're not
+                // explicit enough.
                 let mut block_sizes_entry = Vec::with_capacity(Module::dimension(&*self.left, j));
                 for _ in 0..Module::dimension(&*self.left, j) {
                     block_sizes_entry.push(Module::dimension(&*self.right, i - j))
@@ -310,6 +316,9 @@ where
         let right_degree = degree - left_degree;
         let inner_index = idx - self.offset(degree, left_degree);
 
+        // Here we use `Module::dimension(&*m, i)` instead of `m.dimension(i)` because there are
+        // multiple `dimension` methods in scope and rust-analyzer gets confused if we're not
+        // explicit enough.
         let right_dim = Module::dimension(&*self.right, right_degree);
 
         let left_index = inner_index / right_dim;
