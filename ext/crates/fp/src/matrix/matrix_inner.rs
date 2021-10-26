@@ -993,7 +993,7 @@ impl AugmentedMatrix<3> {
 
         if self.end[0] == 0 {
             let cc_qi = QuasiInverse::new(None, Matrix::new(p, 0, source_columns));
-            let res_qi = self.compute_quasi_inverse(self.end[1], self.start[2]);
+            let res_qi = Matrix::compute_quasi_inverse(&self, self.end[1], self.start[2]);
             (cc_qi, res_qi)
         } else {
             let mut cc_preimage = Matrix::new(p, self.end[0], source_columns);

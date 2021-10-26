@@ -72,11 +72,11 @@ where
             for left_deg in self.left.min_degree()..=(mod_degree - self.right.min_degree()) {
                 let right_deg = mod_degree - left_deg;
 
-                let left_source_dim = self.left.dimension(left_deg);
-                let right_source_dim = self.right.dimension(right_deg);
+                let left_source_dim = Module::dimension(&*self.left, left_deg);
+                let right_source_dim = Module::dimension(&*self.right, right_deg);
 
-                let left_target_dim = self.left.dimension(left_deg + op_deg_l);
-                let right_target_dim = self.right.dimension(right_deg + op_deg_r);
+                let left_target_dim = Module::dimension(&*self.left, left_deg + op_deg_l);
+                let right_target_dim = Module::dimension(&*self.right, right_deg + op_deg_r);
 
                 if left_target_dim == 0
                     || right_target_dim == 0
@@ -200,9 +200,9 @@ where
             let mut block_sizes =
                 BiVec::with_capacity(self.left.min_degree(), i - self.right.min_degree() + 1);
             for j in self.left.min_degree()..=i - self.right.min_degree() {
-                let mut block_sizes_entry = Vec::with_capacity(self.left.dimension(j));
-                for _ in 0..self.left.dimension(j) {
-                    block_sizes_entry.push(self.right.dimension(i - j))
+                let mut block_sizes_entry = Vec::with_capacity(Module::dimension(&*self.left, j));
+                for _ in 0..Module::dimension(&*self.left, j) {
+                    block_sizes_entry.push(Module::dimension(&*self.right, i - j))
                 }
                 block_sizes.push(block_sizes_entry);
             }
@@ -310,7 +310,7 @@ where
         let right_degree = degree - left_degree;
         let inner_index = idx - self.offset(degree, left_degree);
 
-        let right_dim = self.right.dimension(right_degree);
+        let right_dim = Module::dimension(&*self.right, right_degree);
 
         let left_index = inner_index / right_dim;
         let right_index = inner_index % right_dim;
