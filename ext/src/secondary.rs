@@ -216,15 +216,10 @@ pub fn compute_delta_concurrent(
             if Path::new(&*p).exists() {
                 let f = std::fs::File::open(&*p).unwrap();
                 let mut f = BufReader::new(f);
-                loop {
-                    match read_saved_data(&mut f) {
-                        Ok((s, t, idx, data)) => {
-                            if s < max_s && t >= min_degree + s as i32 && t <= max_t(s) {
-                                ddeltas.lock().unwrap()[s as usize - 3][t][idx] = Some(data);
-                                p_sender.send((s, t)).unwrap();
-                            }
-                        }
-                        Err(_) => break,
+                while let Ok((s, t, idx, data)) = read_saved_data(&mut f) {
+                    if s < max_s && t >= min_degree + s as i32 && t <= max_t(s) {
+                        ddeltas.lock().unwrap()[s as usize - 3][t][idx] = Some(data);
+                        p_sender.send((s, t)).unwrap();
                     }
                 }
             }
@@ -301,7 +296,7 @@ pub fn compute_delta_concurrent(
     let deltas = ChainHomotopy::new(res, res, 3, 1, |s, t, i, result| {
         // If we are restoring old computations that used resolving up to a stem, then the ddeltas
         // may be shorter than the true ones.
-        result.assign_partial(&ddeltas[s as usize - 3][t][i].as_ref().unwrap())
+        result.assign_partial(ddeltas[s as usize - 3][t][i].as_ref().unwrap())
     });
     deltas.extend_all_concurrent(bucket);
     eprintln!("Computed δd terms in {:.2?}", start.elapsed());
