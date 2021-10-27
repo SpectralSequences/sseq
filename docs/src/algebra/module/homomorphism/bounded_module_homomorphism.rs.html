@@ -256,6 +256,16 @@
 <span id="232">232</span>
 <span id="233">233</span>
 <span id="234">234</span>
+<span id="235">235</span>
+<span id="236">236</span>
+<span id="237">237</span>
+<span id="238">238</span>
+<span id="239">239</span>
+<span id="240">240</span>
+<span id="241">241</span>
+<span id="242">242</span>
+<span id="243">243</span>
+<span id="244">244</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
 
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::algebra::Algebra</span>;
@@ -360,7 +370,14 @@
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">matrices</span> <span class="op">=</span> <span class="ident">BiVec::with_capacity</span>(<span class="ident">min_degree</span>, <span class="ident">max_degree</span> <span class="op">+</span> <span class="number">1</span>);
 
         <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="ident">min_degree</span>..<span class="op">=</span><span class="ident">max_degree</span> {
-            <span class="kw">let</span> <span class="ident">matrix</span> <span class="op">=</span> <span class="ident">Matrix::new</span>(<span class="ident">p</span>, <span class="ident">source</span>.<span class="ident">dimension</span>(<span class="ident">i</span>), <span class="ident">target</span>.<span class="ident">dimension</span>(<span class="ident">i</span> <span class="op">+</span> <span class="ident">degree_shift</span>));
+            <span class="comment">// Here we use `Module::dimension(&amp;*m, i)` instead of `m.dimension(i)` because there are</span>
+            <span class="comment">// multiple `dimension` methods in scope and rust-analyzer gets confused if we&#39;re not</span>
+            <span class="comment">// explicit enough.</span>
+            <span class="kw">let</span> <span class="ident">matrix</span> <span class="op">=</span> <span class="ident">Matrix::new</span>(
+                <span class="ident">p</span>,
+                <span class="ident">Module::dimension</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">source</span>, <span class="ident">i</span>),
+                <span class="ident">Module::dimension</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">target</span>, <span class="ident">i</span> <span class="op">+</span> <span class="ident">degree_shift</span>),
+            );
             <span class="ident">matrices</span>.<span class="ident">push</span>(<span class="ident">matrix</span>);
         }
         <span class="ident"><span class="self">Self</span>::from_matrices</span>(<span class="ident">source</span>, <span class="ident">target</span>, <span class="ident">degree_shift</span>, <span class="ident">matrices</span>)
@@ -400,8 +417,11 @@
 
         <span class="kw">for</span> <span class="ident">target_deg</span> <span class="kw">in</span> <span class="ident">min_degree</span>..<span class="op">=</span><span class="ident">max_degree</span> {
             <span class="kw">let</span> <span class="ident">source_deg</span> <span class="op">=</span> <span class="ident">target_deg</span> <span class="op">+</span> <span class="ident">degree_shift</span>;
-            <span class="kw">let</span> <span class="ident">source_dim</span> <span class="op">=</span> <span class="ident">source</span>.<span class="ident">dimension</span>(<span class="ident">source_deg</span>);
-            <span class="kw">let</span> <span class="ident">target_dim</span> <span class="op">=</span> <span class="ident">target</span>.<span class="ident">dimension</span>(<span class="ident">target_deg</span>);
+            <span class="comment">// Here we use `Module::dimension(&amp;*m, i)` instead of `m.dimension(i)` because there are</span>
+            <span class="comment">// multiple `dimension` methods in scope and rust-analyzer gets confused if we&#39;re not</span>
+            <span class="comment">// explicit enough.</span>
+            <span class="kw">let</span> <span class="ident">source_dim</span> <span class="op">=</span> <span class="ident">Module::dimension</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">source</span>, <span class="ident">source_deg</span>);
+            <span class="kw">let</span> <span class="ident">target_dim</span> <span class="op">=</span> <span class="ident">Module::dimension</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">target</span>, <span class="ident">target_deg</span>);
 
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">matrix</span> <span class="op">=</span> <span class="ident">Matrix::new</span>(<span class="ident">p</span>, <span class="ident">source_dim</span>, <span class="ident">target_dim</span>);
             <span class="ident">f</span>.<span class="ident">get_matrix</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">matrix</span>.<span class="ident">as_slice_mut</span>(), <span class="ident">source_deg</span>);

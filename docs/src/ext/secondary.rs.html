@@ -808,11 +808,6 @@
 <span id="784">784</span>
 <span id="785">785</span>
 <span id="786">786</span>
-<span id="787">787</span>
-<span id="788">788</span>
-<span id="789">789</span>
-<span id="790">790</span>
-<span id="791">791</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::chain_complex</span>::{<span class="ident">BoundedChainComplex</span>, <span class="ident">ChainComplex</span>, <span class="ident">ChainHomotopy</span>};
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::resolution::Resolution</span> <span class="kw">as</span> <span class="ident">Resolution_</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::utils::HashMapTuple</span>;
@@ -1031,15 +1026,10 @@
             <span class="kw">if</span> <span class="ident">Path::new</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">p</span>).<span class="ident">exists</span>() {
                 <span class="kw">let</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">std::fs::File::open</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">p</span>).<span class="ident">unwrap</span>();
                 <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">BufReader::new</span>(<span class="ident">f</span>);
-                <span class="kw">loop</span> {
-                    <span class="kw">match</span> <span class="ident">read_saved_data</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">f</span>) {
-                        <span class="prelude-val">Ok</span>((<span class="ident">s</span>, <span class="ident">t</span>, <span class="ident">idx</span>, <span class="ident">data</span>)) =&gt; {
-                            <span class="kw">if</span> <span class="ident">s</span> <span class="op">&lt;</span> <span class="ident">max_s</span> <span class="op">&amp;&amp;</span> <span class="ident">t</span> <span class="op">&gt;</span><span class="op">=</span> <span class="ident">min_degree</span> <span class="op">+</span> <span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span> <span class="op">&amp;&amp;</span> <span class="ident">t</span> <span class="op">&lt;</span><span class="op">=</span> <span class="ident">max_t</span>(<span class="ident">s</span>) {
-                                <span class="ident">ddeltas</span>.<span class="ident">lock</span>().<span class="ident">unwrap</span>()[<span class="ident">s</span> <span class="kw">as</span> <span class="ident">usize</span> <span class="op">-</span> <span class="number">3</span>][<span class="ident">t</span>][<span class="ident">idx</span>] <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">data</span>);
-                                <span class="ident">p_sender</span>.<span class="ident">send</span>((<span class="ident">s</span>, <span class="ident">t</span>)).<span class="ident">unwrap</span>();
-                            }
-                        }
-                        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="kw">break</span>,
+                <span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Ok</span>((<span class="ident">s</span>, <span class="ident">t</span>, <span class="ident">idx</span>, <span class="ident">data</span>)) <span class="op">=</span> <span class="ident">read_saved_data</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">f</span>) {
+                    <span class="kw">if</span> <span class="ident">s</span> <span class="op">&lt;</span> <span class="ident">max_s</span> <span class="op">&amp;&amp;</span> <span class="ident">t</span> <span class="op">&gt;</span><span class="op">=</span> <span class="ident">min_degree</span> <span class="op">+</span> <span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span> <span class="op">&amp;&amp;</span> <span class="ident">t</span> <span class="op">&lt;</span><span class="op">=</span> <span class="ident">max_t</span>(<span class="ident">s</span>) {
+                        <span class="ident">ddeltas</span>.<span class="ident">lock</span>().<span class="ident">unwrap</span>()[<span class="ident">s</span> <span class="kw">as</span> <span class="ident">usize</span> <span class="op">-</span> <span class="number">3</span>][<span class="ident">t</span>][<span class="ident">idx</span>] <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">data</span>);
+                        <span class="ident">p_sender</span>.<span class="ident">send</span>((<span class="ident">s</span>, <span class="ident">t</span>)).<span class="ident">unwrap</span>();
                     }
                 }
             }
@@ -1116,7 +1106,7 @@
     <span class="kw">let</span> <span class="ident">deltas</span> <span class="op">=</span> <span class="ident">ChainHomotopy::new</span>(<span class="ident">res</span>, <span class="ident">res</span>, <span class="number">3</span>, <span class="number">1</span>, <span class="op">|</span><span class="ident">s</span>, <span class="ident">t</span>, <span class="ident">i</span>, <span class="ident">result</span><span class="op">|</span> {
         <span class="comment">// If we are restoring old computations that used resolving up to a stem, then the ddeltas</span>
         <span class="comment">// may be shorter than the true ones.</span>
-        <span class="ident">result</span>.<span class="ident">assign_partial</span>(<span class="kw-2">&amp;</span><span class="ident">ddeltas</span>[<span class="ident">s</span> <span class="kw">as</span> <span class="ident">usize</span> <span class="op">-</span> <span class="number">3</span>][<span class="ident">t</span>][<span class="ident">i</span>].<span class="ident">as_ref</span>().<span class="ident">unwrap</span>())
+        <span class="ident">result</span>.<span class="ident">assign_partial</span>(<span class="ident">ddeltas</span>[<span class="ident">s</span> <span class="kw">as</span> <span class="ident">usize</span> <span class="op">-</span> <span class="number">3</span>][<span class="ident">t</span>][<span class="ident">i</span>].<span class="ident">as_ref</span>().<span class="ident">unwrap</span>())
     });
     <span class="ident">deltas</span>.<span class="ident">extend_all_concurrent</span>(<span class="ident">bucket</span>);
     <span class="macro">eprintln!</span>(<span class="string">&quot;Computed δd terms in {:.2?}&quot;</span>, <span class="ident">start</span>.<span class="ident">elapsed</span>());

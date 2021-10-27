@@ -372,6 +372,15 @@
 <span id="348">348</span>
 <span id="349">349</span>
 <span id="350">350</span>
+<span id="351">351</span>
+<span id="352">352</span>
+<span id="353">353</span>
+<span id="354">354</span>
+<span id="355">355</span>
+<span id="356">356</span>
+<span id="357">357</span>
+<span id="358">358</span>
+<span id="359">359</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">bivec::BiVec</span>;
 <span class="kw">use</span> <span class="ident">once::OnceBiVec</span>;
 
@@ -446,11 +455,14 @@
             <span class="kw">for</span> <span class="ident">left_deg</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">left</span>.<span class="ident">min_degree</span>()..<span class="op">=</span>(<span class="ident">mod_degree</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">right</span>.<span class="ident">min_degree</span>()) {
                 <span class="kw">let</span> <span class="ident">right_deg</span> <span class="op">=</span> <span class="ident">mod_degree</span> <span class="op">-</span> <span class="ident">left_deg</span>;
 
-                <span class="kw">let</span> <span class="ident">left_source_dim</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">left</span>.<span class="ident">dimension</span>(<span class="ident">left_deg</span>);
-                <span class="kw">let</span> <span class="ident">right_source_dim</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">right</span>.<span class="ident">dimension</span>(<span class="ident">right_deg</span>);
+                <span class="comment">// Here we use `Module::dimension(&amp;*m, i)` instead of `m.dimension(i)` because there are</span>
+                <span class="comment">// multiple `dimension` methods in scope and rust-analyzer gets confused if we&#39;re not</span>
+                <span class="comment">// explicit enough.</span>
+                <span class="kw">let</span> <span class="ident">left_source_dim</span> <span class="op">=</span> <span class="ident">Module::dimension</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">left</span>, <span class="ident">left_deg</span>);
+                <span class="kw">let</span> <span class="ident">right_source_dim</span> <span class="op">=</span> <span class="ident">Module::dimension</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">right</span>, <span class="ident">right_deg</span>);
 
-                <span class="kw">let</span> <span class="ident">left_target_dim</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">left</span>.<span class="ident">dimension</span>(<span class="ident">left_deg</span> <span class="op">+</span> <span class="ident">op_deg_l</span>);
-                <span class="kw">let</span> <span class="ident">right_target_dim</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">right</span>.<span class="ident">dimension</span>(<span class="ident">right_deg</span> <span class="op">+</span> <span class="ident">op_deg_r</span>);
+                <span class="kw">let</span> <span class="ident">left_target_dim</span> <span class="op">=</span> <span class="ident">Module::dimension</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">left</span>, <span class="ident">left_deg</span> <span class="op">+</span> <span class="ident">op_deg_l</span>);
+                <span class="kw">let</span> <span class="ident">right_target_dim</span> <span class="op">=</span> <span class="ident">Module::dimension</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">right</span>, <span class="ident">right_deg</span> <span class="op">+</span> <span class="ident">op_deg_r</span>);
 
                 <span class="kw">if</span> <span class="ident">left_target_dim</span> <span class="op">==</span> <span class="number">0</span>
                     <span class="op">|</span><span class="op">|</span> <span class="ident">right_target_dim</span> <span class="op">==</span> <span class="number">0</span>
@@ -574,9 +586,12 @@
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">block_sizes</span> <span class="op">=</span>
                 <span class="ident">BiVec::with_capacity</span>(<span class="self">self</span>.<span class="ident">left</span>.<span class="ident">min_degree</span>(), <span class="ident">i</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">right</span>.<span class="ident">min_degree</span>() <span class="op">+</span> <span class="number">1</span>);
             <span class="kw">for</span> <span class="ident">j</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">left</span>.<span class="ident">min_degree</span>()..<span class="op">=</span><span class="ident">i</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">right</span>.<span class="ident">min_degree</span>() {
-                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">block_sizes_entry</span> <span class="op">=</span> <span class="ident">Vec::with_capacity</span>(<span class="self">self</span>.<span class="ident">left</span>.<span class="ident">dimension</span>(<span class="ident">j</span>));
-                <span class="kw">for</span> <span class="kw">_</span> <span class="kw">in</span> <span class="number">0</span>..<span class="self">self</span>.<span class="ident">left</span>.<span class="ident">dimension</span>(<span class="ident">j</span>) {
-                    <span class="ident">block_sizes_entry</span>.<span class="ident">push</span>(<span class="self">self</span>.<span class="ident">right</span>.<span class="ident">dimension</span>(<span class="ident">i</span> <span class="op">-</span> <span class="ident">j</span>))
+                <span class="comment">// Here we use `Module::dimension(&amp;*m, i)` instead of `m.dimension(i)` because there are</span>
+                <span class="comment">// multiple `dimension` methods in scope and rust-analyzer gets confused if we&#39;re not</span>
+                <span class="comment">// explicit enough.</span>
+                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">block_sizes_entry</span> <span class="op">=</span> <span class="ident">Vec::with_capacity</span>(<span class="ident">Module::dimension</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">left</span>, <span class="ident">j</span>));
+                <span class="kw">for</span> <span class="kw">_</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">Module::dimension</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">left</span>, <span class="ident">j</span>) {
+                    <span class="ident">block_sizes_entry</span>.<span class="ident">push</span>(<span class="ident">Module::dimension</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">right</span>, <span class="ident">i</span> <span class="op">-</span> <span class="ident">j</span>))
                 }
                 <span class="ident">block_sizes</span>.<span class="ident">push</span>(<span class="ident">block_sizes_entry</span>);
             }
@@ -684,7 +699,10 @@
         <span class="kw">let</span> <span class="ident">right_degree</span> <span class="op">=</span> <span class="ident">degree</span> <span class="op">-</span> <span class="ident">left_degree</span>;
         <span class="kw">let</span> <span class="ident">inner_index</span> <span class="op">=</span> <span class="ident">idx</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">offset</span>(<span class="ident">degree</span>, <span class="ident">left_degree</span>);
 
-        <span class="kw">let</span> <span class="ident">right_dim</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">right</span>.<span class="ident">dimension</span>(<span class="ident">right_degree</span>);
+        <span class="comment">// Here we use `Module::dimension(&amp;*m, i)` instead of `m.dimension(i)` because there are</span>
+        <span class="comment">// multiple `dimension` methods in scope and rust-analyzer gets confused if we&#39;re not</span>
+        <span class="comment">// explicit enough.</span>
+        <span class="kw">let</span> <span class="ident">right_dim</span> <span class="op">=</span> <span class="ident">Module::dimension</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">right</span>, <span class="ident">right_degree</span>);
 
         <span class="kw">let</span> <span class="ident">left_index</span> <span class="op">=</span> <span class="ident">inner_index</span> <span class="op">/</span> <span class="ident">right_dim</span>;
         <span class="kw">let</span> <span class="ident">right_index</span> <span class="op">=</span> <span class="ident">inner_index</span> <span class="op">%</span> <span class="ident">right_dim</span>;
