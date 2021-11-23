@@ -22,7 +22,7 @@
     });
 </script>
 
-<style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu" role="button">&#9776;</div><a href='../../sseq/index.html'><div class='logo-container rust-logo'><img src='../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu" title="themes"><img width="18" height="18" alt="Pick another theme!" src="../../brush.svg"></button><div id="theme-choices" role="menu"></div></div><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><button type="button" id="help-button" title="help">?</button><a id="settings-menu" href="../../settings.html" title="settings"><img width="18" height="18" alt="Change settings" src="../../wheel.svg"></a></div></form></nav><section id="main" class="content"><div class="example-wrap"><pre class="line-numbers"><span id="1">  1</span>
+<style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu" role="button">&#9776;</div><a href='../../sseq/index.html'><div class='logo-container rust-logo'><img src='../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu" title="themes"><img width="18" height="18" alt="Pick another theme!" src="../../brush.svg"></button><div id="theme-choices" role="menu"></div></div><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><button type="button" id="help-button" title="help">?</button><a id="settings-menu" href="../../settings.html" title="settings"><img width="18" height="18" alt="Change settings" src="../../wheel.svg"></a></div></form></nav><section id="main" class="content"><div class="example-wrap"><pre class="line-numbers"><span id="1">  1</span>
 <span id="2">  2</span>
 <span id="3">  3</span>
 <span id="4">  4</span>
@@ -827,7 +827,7 @@
     <span class="comment">// Docs: If your struct does not in fact own the data of type T, it is better to use a</span>
     <span class="comment">// reference type, like PhantomData&lt;&amp;&#39;a T&gt; (ideally) or PhantomData&lt;*const T&gt; (if no lifetime</span>
     <span class="comment">// applies), so as not to indicate ownership.</span>
-    <span class="ident">profile</span>: <span class="ident">PhantomData</span><span class="op">&lt;</span><span class="kw-2">*</span><span class="kw">const</span> <span class="ident">P</span><span class="op">&gt;</span>,
+    <span class="ident">profile</span>: <span class="ident">PhantomData</span><span class="op">&lt;</span><span class="kw-2">*const</span> <span class="ident">P</span><span class="op">&gt;</span>,
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">P</span>: <span class="ident">SseqProfile</span><span class="op">&gt;</span> <span class="ident">Sseq</span><span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span> {
@@ -871,7 +871,7 @@
         <span class="self">self</span>.<span class="ident">classes</span>.<span class="ident">defined</span>(<span class="ident">x</span>, <span class="ident">y</span>)
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">set_dimension</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">x</span>: <span class="ident">i32</span>, <span class="ident">y</span>: <span class="ident">i32</span>, <span class="ident">dim</span>: <span class="ident">usize</span>) {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">set_dimension</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">x</span>: <span class="ident">i32</span>, <span class="ident">y</span>: <span class="ident">i32</span>, <span class="ident">dim</span>: <span class="ident">usize</span>) {
         <span class="comment">// This already ensures it is valid to set x, y</span>
         <span class="self">self</span>.<span class="ident">classes</span>.<span class="ident">set_dimension</span>(<span class="ident">x</span>, <span class="ident">y</span>, <span class="ident">dim</span>);
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">differentials</span>.<span class="ident">len</span>() <span class="op">==</span> <span class="ident">x</span> {
@@ -889,7 +889,7 @@
         <span class="self">self</span>.<span class="ident">invalid</span>[<span class="ident">x</span>].<span class="ident">push</span>(<span class="bool-val">false</span>);
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">clear</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">clear</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) {
         <span class="self">self</span>.<span class="ident">permanent_classes</span>
             .<span class="ident">iter_mut</span>()
             .<span class="ident">flatten</span>()
@@ -914,7 +914,7 @@
     <span class="doccomment">/// # Returns</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// Whether a new permanent class was added</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">add_permanent_class</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">x</span>: <span class="ident">i32</span>, <span class="ident">y</span>: <span class="ident">i32</span>, <span class="ident">class</span>: <span class="ident">Slice</span>) -&gt; <span class="ident">bool</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">add_permanent_class</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">x</span>: <span class="ident">i32</span>, <span class="ident">y</span>: <span class="ident">i32</span>, <span class="ident">class</span>: <span class="ident">Slice</span>) -&gt; <span class="ident">bool</span> {
         <span class="kw">let</span> <span class="ident">old_dim</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">permanent_classes</span>[<span class="ident">x</span>][<span class="ident">y</span>].<span class="ident">dimension</span>();
         <span class="kw">let</span> <span class="ident">new_dim</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">permanent_classes</span>[<span class="ident">x</span>][<span class="ident">y</span>].<span class="ident">add_vector</span>(<span class="ident">class</span>);
         <span class="kw">if</span> <span class="ident">old_dim</span> <span class="op">!</span><span class="op">=</span> <span class="ident">new_dim</span> {
@@ -929,7 +929,7 @@
 
     <span class="doccomment">/// Ensure `self.differentials[x][y][r]` is defined. Must call `extend_page_data` on the source</span>
     <span class="doccomment">/// and target after this.</span>
-    <span class="kw">fn</span> <span class="ident">extend_differential</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">r</span>: <span class="ident">i32</span>, <span class="ident">x</span>: <span class="ident">i32</span>, <span class="ident">y</span>: <span class="ident">i32</span>) {
+    <span class="kw">fn</span> <span class="ident">extend_differential</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">r</span>: <span class="ident">i32</span>, <span class="ident">x</span>: <span class="ident">i32</span>, <span class="ident">y</span>: <span class="ident">i32</span>) {
         <span class="kw">let</span> <span class="ident">source_dim</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">classes</span>.<span class="ident">dimension</span>(<span class="ident">x</span>, <span class="ident">y</span>);
         <span class="kw">while</span> <span class="self">self</span>.<span class="ident">differentials</span>[<span class="ident">x</span>][<span class="ident">y</span>].<span class="ident">len</span>() <span class="op">&lt;</span><span class="op">=</span> <span class="ident">r</span> {
             <span class="kw">let</span> <span class="ident">r</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">differentials</span>[<span class="ident">x</span>][<span class="ident">y</span>].<span class="ident">len</span>();
@@ -948,8 +948,8 @@
     }
 
     <span class="doccomment">/// Ensure `self.page_data[x][y][r]` is defined</span>
-    <span class="kw">fn</span> <span class="ident">extend_page_data</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">r</span>: <span class="ident">i32</span>, <span class="ident">x</span>: <span class="ident">i32</span>, <span class="ident">y</span>: <span class="ident">i32</span>) {
-        <span class="kw">let</span> <span class="ident">page_data</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">page_data</span>[<span class="ident">x</span>][<span class="ident">y</span>];
+    <span class="kw">fn</span> <span class="ident">extend_page_data</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">r</span>: <span class="ident">i32</span>, <span class="ident">x</span>: <span class="ident">i32</span>, <span class="ident">y</span>: <span class="ident">i32</span>) {
+        <span class="kw">let</span> <span class="ident">page_data</span> <span class="op">=</span> <span class="kw-2">&amp;mut</span> <span class="self">self</span>.<span class="ident">page_data</span>[<span class="ident">x</span>][<span class="ident">y</span>];
         <span class="kw">while</span> <span class="ident">page_data</span>.<span class="ident">len</span>() <span class="op">&lt;</span><span class="op">=</span> <span class="ident">r</span> {
             <span class="ident">page_data</span>.<span class="ident">push</span>(<span class="ident">page_data</span>.<span class="ident">last</span>().<span class="ident">unwrap</span>().<span class="ident">clone</span>())
         }
@@ -962,7 +962,7 @@
     <span class="doccomment">///</span>
     <span class="doccomment">/// Whether the differential is new</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">add_differential</span>(
-        <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
+        <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
         <span class="ident">r</span>: <span class="ident">i32</span>,
         <span class="ident">x</span>: <span class="ident">i32</span>,
         <span class="ident">y</span>: <span class="ident">i32</span>,
@@ -1003,7 +1003,7 @@
         <span class="self">self</span>.<span class="ident">invalid</span>[<span class="ident">x</span>][<span class="ident">y</span>]
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">update</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">update</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) {
         <span class="kw">for</span> <span class="ident">x</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">invalid</span>.<span class="ident">range</span>() {
             <span class="kw">for</span> <span class="ident">y</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">invalid</span>[<span class="ident">x</span>].<span class="ident">range</span>() {
                 <span class="kw">if</span> <span class="self">self</span>.<span class="ident">invalid</span>[<span class="ident">x</span>][<span class="ident">y</span>] {
@@ -1015,7 +1015,7 @@
 
     <span class="doccomment">/// This returns the vec of differentials to draw on each page. This does *not* update the</span>
     <span class="doccomment">/// invalid flag.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">update_bidegree</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">x</span>: <span class="ident">i32</span>, <span class="ident">y</span>: <span class="ident">i32</span>) -&gt; <span class="ident">BiVec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">update_bidegree</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">x</span>: <span class="ident">i32</span>, <span class="ident">y</span>: <span class="ident">i32</span>) -&gt; <span class="ident">BiVec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">invalid</span>[<span class="ident">x</span>][<span class="ident">y</span>] <span class="op">=</span> <span class="bool-val">false</span>;
         <span class="kw">for</span> (<span class="ident">r</span>, <span class="ident">d</span>) <span class="kw">in</span> <span class="self">self</span>.<span class="ident">differentials</span>[<span class="ident">x</span>][<span class="ident">y</span>].<span class="ident">iter_mut_enum</span>() {
             <span class="kw">let</span> (<span class="ident">tx</span>, <span class="ident">ty</span>) <span class="op">=</span> <span class="ident">P::profile</span>(<span class="ident">r</span>, <span class="ident">x</span>, <span class="ident">y</span>);

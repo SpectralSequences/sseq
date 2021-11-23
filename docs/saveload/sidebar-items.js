@@ -1,1 +1,1 @@
-initSidebarItems({"mod":[["default_impl",""]],"trait":[["Load",""],["Save",""]]});
+initSidebarItems({"mod":[["default_impl",""],["io","Traits, helpers, and type definitions for core I/O functionality."]],"trait":[["Load",""],["Read","The `Read` trait allows for reading bytes from a source."],["Save",""],["Write","A trait for objects which are byte-oriented sinks."]]});
