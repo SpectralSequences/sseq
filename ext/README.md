@@ -1,6 +1,6 @@
 # ext-rs
 
-![rust_ext](https://github.com/spectralsequences/sseq/actions/workflows/rust_ext.yaml/badge.svg)
+![ext](https://github.com/spectralsequences/sseq/actions/workflows/ext.yaml/badge.svg)
 
 `ext-rs` is a collection of libraries for doing homological algebra over Fp.
 The main and original purpose is to compute Ext of a Steenrod module, but the

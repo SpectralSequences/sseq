@@ -1,4 +1,4 @@
-name: Test rust_ext
+name: Test ext
 
 on: [push, pull_request]
 jobs:
