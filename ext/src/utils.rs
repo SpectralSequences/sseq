@@ -304,7 +304,7 @@ pub fn query_num_threads() -> core::num::NonZeroUsize {
     match env::var("EXT_THREADS") {
         Ok(n) => match n.parse::<core::num::NonZeroUsize>() {
             Ok(n) => return n,
-            Err(_) => eprintln!("Invalid value of EXT_THREADS variable: {}", n),
+            Err(_) => eprintln!("Invalid value of EXT_THREADS variable: {n}"),
         },
         Err(env::VarError::NotUnicode(_)) => eprintln!("Invalid value of EXT_THREADS variable"),
         Err(env::VarError::NotPresent) => (),
