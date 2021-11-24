@@ -162,7 +162,6 @@
 //! | [algebra] | This defines algebras, modules and module homomorphisms |
 //! | [bivec] | This is a small crate that provides [`BiVec`](`bivec::BiVec`) - a variant of [`Vec`] indexed by an `i32` whose starting index may be non-zero. |
 //! | [chart] | This provides some APIs for generating charts |
-//! | [error] | Our bespoke error library |
 //! | [fp] | This implements linear algebra over $\mathbb{F}_p$, as well as general helper functions about primes. |
 //! | [once] | This provides `OnceVec` and `OnceBiVec`, a push-only vector with non-blocking reads. This models some partially computed infinite data structure, and we think of pushing as simply finding out more of this infinite data structure instead of genuinely mutating it. |
 //! | [query] | This contains some helper functions for a command line interface. |

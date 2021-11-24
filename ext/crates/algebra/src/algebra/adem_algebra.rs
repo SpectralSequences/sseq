@@ -69,7 +69,7 @@ pub struct AdemBasisElement {
     /// The excess (i.e., distance from this element being minimally admissible)
     /// of this basis element.
     ///
-    /// See https://doc.sagemath.org/html/en/reference/algebras/sage/algebras/steenrod/steenrod_algebra.html#sage.algebras.steenrod.steenrod_algebra.SteenrodAlgebra_generic.Element.excess.
+    /// See <https://doc.sagemath.org/html/en/reference/algebras/sage/algebras/steenrod/steenrod_algebra.html#sage.algebras.steenrod.steenrod_algebra.SteenrodAlgebra_generic.Element.excess>.
     ///
     /// This field is only used in `unstable_enabled` mode.
     pub excess: i32,
