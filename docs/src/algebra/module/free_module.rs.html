@@ -741,6 +741,12 @@
 <span id="717">717</span>
 <span id="718">718</span>
 <span id="719">719</span>
+<span id="720">720</span>
+<span id="721">721</span>
+<span id="722">722</span>
+<span id="723">723</span>
+<span id="724">724</span>
+<span id="725">725</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
 
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::algebra::Algebra</span>;
@@ -904,7 +910,13 @@
         <span class="kw">let</span> <span class="ident">input_table</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">generator_to_index</span>[<span class="ident">input_degree</span>];
         <span class="kw">let</span> <span class="ident">output_table</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">generator_to_index</span>[<span class="ident">input_degree</span> <span class="op">+</span> <span class="ident">op_degree</span>];
         <span class="kw">for</span> (<span class="ident">i</span>, <span class="kw-2">&amp;</span><span class="ident">idx</span>) <span class="kw">in</span> <span class="ident">input_table</span>.<span class="ident">iter</span>().<span class="ident">enumerate</span>() {
-            <span class="kw">let</span> <span class="ident">end_idx</span> <span class="op">=</span> <span class="ident">input_table</span>.<span class="ident">get</span>(<span class="ident">i</span> <span class="op">+</span> <span class="number">1</span>).<span class="ident">copied</span>().<span class="ident">unwrap_or</span>(<span class="ident">input_dim</span>);
+            <span class="kw">if</span> <span class="ident">idx</span> <span class="op">&gt;</span><span class="op">=</span> <span class="ident">input</span>.<span class="ident">len</span>() {
+                <span class="kw">break</span>;
+            }
+            <span class="kw">let</span> <span class="ident">end_idx</span> <span class="op">=</span> <span class="ident">std::cmp::min</span>(
+                <span class="ident">input</span>.<span class="ident">len</span>(),
+                <span class="ident">input_table</span>.<span class="ident">get</span>(<span class="ident">i</span> <span class="op">+</span> <span class="number">1</span>).<span class="ident">copied</span>().<span class="ident">unwrap_or</span>(<span class="ident">input_dim</span>),
+            );
             <span class="kw">if</span> <span class="ident">end_idx</span> <span class="op">==</span> <span class="ident">idx</span> {
                 <span class="comment">// The algebra is empty in this degree</span>
                 <span class="kw">continue</span>;
