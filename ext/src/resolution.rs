@@ -7,7 +7,9 @@ use algebra::Algebra;
 use fp::matrix::{AugmentedMatrix, Subspace};
 use fp::prime::ValidPrime;
 use fp::vector::FpVector;
-use once::{OnceBiVec, OnceVec};
+use once::OnceVec;
+
+use dashmap::DashMap;
 
 #[cfg(feature = "concurrent")]
 use crossbeam_channel::{unbounded, Receiver};
@@ -28,7 +30,7 @@ pub struct Resolution<CC: ChainComplex> {
     ///  For each *internal* degree, store the kernel of the most recently calculated chain map as
     ///  returned by `generate_old_kernel_and_compute_new_kernel`, to be used if we run
     ///  compute_through_degree again.
-    kernels: OnceBiVec<Mutex<Option<Subspace>>>,
+    kernels: DashMap<(u32, i32), Subspace>,
 }
 
 impl<CC: ChainComplex> Resolution<CC> {
@@ -45,18 +47,14 @@ impl<CC: ChainComplex> Resolution<CC> {
             chain_maps: OnceVec::new(),
             modules: OnceVec::new(),
             differentials: OnceVec::new(),
-            kernels: OnceBiVec::new(min_degree),
+            kernels: DashMap::new(),
         }
-    }
-
-    pub fn extended_degree(&self) -> (u32, i32) {
-        (self.modules.len() as u32, self.kernels.len())
     }
 
     /// This function prepares the Resolution object to perform computations up to the
     /// specified s degree. It does *not* perform any computations by itself. It simply lengthens
     /// the `OnceVec`s `modules`, `chain_maps`, etc. to the right length.
-    fn extend_through_degree(&self, max_s: u32, max_t: i32) {
+    fn extend_through_degree(&self, max_s: u32) {
         let min_degree = self.min_degree();
 
         for i in self.modules.len() as u32..=max_s {
@@ -70,10 +68,6 @@ impl<CC: ChainComplex> Resolution<CC> {
                 Arc::clone(&self.complex.module(i)),
                 0,
             )));
-        }
-
-        for _ in self.kernels.len() as i32..=max_t {
-            self.kernels.push(Mutex::new(None));
         }
 
         if self.differentials.is_empty() {
@@ -93,6 +87,52 @@ impl<CC: ChainComplex> Resolution<CC> {
                     0,
                 )));
         }
+    }
+
+    /// Gets the kernel of the differential starting at $(s, t)$. If this was previously computed,
+    /// we simply retrieve the value (and remove it from the cache). Otherwise, we compute the
+    /// kernel. This requires the differential to be computed at $(s, t - 1)$, but not $(s, t)$
+    /// itself. Indeed, the new generators added to $(s, t)$ are by construction not in the kernel.
+    fn get_kernel(&self, s: u32, t: i32) -> Subspace {
+        if let Some((_, v)) = self.kernels.remove(&(s, t)) {
+            return v;
+        }
+
+        if s == 0 {
+            self.zero_module.extend_by_zero(t);
+        }
+
+        let p = self.prime();
+
+        let complex = self.complex();
+        complex.compute_through_bidegree(s, t);
+
+        let current_differential = self.differential(s);
+        let current_chain_map = self.chain_map(s);
+
+        let source = self.module(s);
+        let target_cc = complex.module(s);
+        let target_res = current_differential.target(); // This is self.module(s - 1) unless s = 0.
+
+        source.extend_table_entries(t);
+        target_res.extend_table_entries(t);
+
+        let source_dimension = source.dimension(t);
+        let target_cc_dimension = target_cc.dimension(t);
+        let target_res_dimension = target_res.dimension(t);
+
+        let mut matrix = AugmentedMatrix::<3>::new(
+            p,
+            source_dimension,
+            [target_cc_dimension, target_res_dimension, source_dimension],
+        );
+
+        current_chain_map.get_matrix(&mut matrix.segment(0, 0), t);
+        current_differential.get_matrix(&mut matrix.segment(1, 1), t);
+        matrix.segment(2, 2).add_identity();
+        matrix.row_reduce();
+
+        matrix.compute_kernel()
     }
 
     /// Call our resolution $X$, and the chain complex to resolve $C$. This is a legitimate
@@ -160,12 +200,15 @@ impl<CC: ChainComplex> Resolution<CC> {
     /// # Arguments
     ///  * `s` - The s degree to calculate
     ///  * `t` - The t degree to calculate
+    ///
+    /// To run `step_resolution(s, t)`, we must have already had run `step_resolution(s, t - 1)`
+    /// and `step_resolution(s - 1, t - 1)`. It is more efficient if we have in fact run
+    /// `step_resolution(s - 1, t)`, so try your best to arrange calls to be run in this order.
     fn step_resolution(&self, s: u32, t: i32) {
         if s == 0 {
             self.zero_module.extend_by_zero(t);
         }
 
-        let mut old_kernel = self.kernels[t].lock().unwrap();
         let p = self.prime();
 
         //                           current_chain_map
@@ -189,7 +232,7 @@ impl<CC: ChainComplex> Resolution<CC> {
             }
             std::cmp::Ordering::Less => {
                 // Haven't computed far enough yet
-                panic!("We're not ready to compute bidegree ({}, {}) yet.", s, t);
+                panic!("We're not ready to compute bidegree ({s}, {t}) yet.");
             }
             std::cmp::Ordering::Equal => (),
         };
@@ -207,6 +250,7 @@ impl<CC: ChainComplex> Resolution<CC> {
         // This latter matrix may be used to find a preimage of an element under the differential.
         let source_dimension = source.dimension(t);
         let target_cc_dimension = target_cc.dimension(t);
+        target_res.extend_table_entries(t);
         let target_res_dimension = target_res.dimension(t);
 
         let rows = source_dimension + target_cc_dimension + target_res_dimension;
@@ -224,9 +268,11 @@ impl<CC: ChainComplex> Resolution<CC> {
         current_differential.get_matrix(&mut matrix.segment(1, 1), t);
         matrix.segment(2, 2).add_identity();
 
-        // This slices the underling matrix. Be sure to revert this.
         matrix.row_reduce();
-        let new_kernel = matrix.compute_kernel();
+
+        if !self.has_computed_bidegree(s + 1, t) {
+            self.kernels.insert((s, t), matrix.compute_kernel());
+        }
 
         // Now add generators to surject onto C_{s, t}.
         // (For now we are just adding the eventual images of the new generators into matrix, we will update
@@ -273,7 +319,7 @@ impl<CC: ChainComplex> Resolution<CC> {
             res_new_gens = matrix.inner.extend_image(
                 matrix.start[1],
                 matrix.end[1],
-                old_kernel.as_ref().unwrap(),
+                &self.get_kernel(s - 1, t),
                 rows,
             );
         }
@@ -372,259 +418,7 @@ impl<CC: ChainComplex> Resolution<CC> {
         current_differential.set_quasi_inverse(t, Some(res_qi));
         current_differential.set_kernel(t, None);
         current_differential.set_image(t, None);
-
-        *old_kernel = Some(new_kernel);
     }
-
-    fn step_resolution_phony(&self, s: u32, t: i32) {
-        if s == 0 {
-            self.zero_module.extend_by_zero(t);
-        }
-
-        let mut old_kernel = self.kernels[t].lock().unwrap();
-        let p = self.prime();
-
-        let complex = self.complex();
-        complex.compute_through_bidegree(s, t);
-
-        let current_differential = self.differential(s);
-        let current_chain_map = self.chain_map(s);
-
-        match current_differential.next_degree().cmp(&t) {
-            std::cmp::Ordering::Greater => {
-                // Already computed this degree.
-                return;
-            }
-            std::cmp::Ordering::Less => {
-                // Haven't computed far enough yet
-                panic!("We're not ready to compute bidegree ({}, {}) yet.", s, t);
-            }
-            std::cmp::Ordering::Equal => (),
-        };
-
-        let source = self.module(s);
-        let target_cc = complex.module(s);
-        let target_res = current_differential.target(); // This is self.module(s - 1) unless s = 0.
-
-        source.extend_table_entries(t);
-        target_res.extend_table_entries(t);
-
-        let source_dimension = source.dimension(t);
-        let target_cc_dimension = target_cc.dimension(t);
-        let target_res_dimension = target_res.dimension(t);
-
-        let mut matrix = AugmentedMatrix::<3>::new(
-            p,
-            source_dimension,
-            [target_cc_dimension, target_res_dimension, source_dimension],
-        );
-
-        current_chain_map.get_matrix(&mut matrix.segment(0, 0), t);
-        current_differential.get_matrix(&mut matrix.segment(1, 1), t);
-        matrix.segment(2, 2).add_identity();
-        matrix.row_reduce();
-
-        *old_kernel = Some(matrix.compute_kernel());
-    }
-
-    // pub fn step_resolution_by_stem(&self, s : u32, t : i32) {
-    //     // println!("\n\n\n\n");
-    //     // println!("s: {}, t: {} || x: {}, y: {}", s, t, t-s as i32, s);
-    //     // println!("s: {}, t: {} || x: {}, y: {}", s, t, t-s as i32, s);
-    //     if s == 0 {
-    //         self.zero_module.extend_by_zero(t);
-    //     }
-
-    //     let p = self.prime();
-
-    //     //                           current_chain_map
-    //     //                X_{s, t} --------------------> C_{s, t}
-    //     //                   |                               |
-    //     //                   | current_differential          |
-    //     //                   v                               v
-    //     // old_kernel <= X_{s-1, t} -------------------> C_{s-1, t}
-
-    //     let complex = self.complex();
-    //     complex.compute_through_bidegree(s, t + 1);
-
-    //     let current_differential = self.differential(s);
-    //     let current_chain_map = self.chain_map(s);
-    //     let complex_cur_differential = complex.differential(s);
-
-    //     match current_differential.next_degree().cmp(&t) {
-    //         std::cmp::Ordering::Greater => {
-    //             // Already computed this degree.
-    //             return;
-    //         }
-    //         std::cmp::Ordering::Less => {
-    //             // Haven't computed far enough yet
-    //             panic!("We need to compute bidegree ({}, {}) before we are ready to compute bidegree ({}, {}).", s, t-1, s, t);
-    //         }
-    //         std::cmp::Ordering::Equal => ()
-    //     };
-
-    //     if s > 0 && self.differential(s-1).next_degree() < t - 1 {
-    //         panic!("We need to compute bidegree ({}, {}) before we are ready to compute bidegree ({}, {}).", s-1, t-1, s, t);
-    //     }
-
-    //     let source = self.module(s);
-    //     let target_cc = complex.module(s);
-    //     let target_res = current_differential.target(); // This is self.module(s - 1) unless s = 0.
-    //     source.extend_table_entries(t+1);
-    //     target_res.extend_table_entries(t+1);
-
-    //     let chain_map_lock = current_chain_map.lock();
-    //     let differential_lock = current_differential.lock();
-
-    //     // The Homomorphism matrix has size source_dimension x target_dimension, but we are going to augment it with an
-    //     // identity matrix so that gives a matrix with dimensions source_dimension x (target_dimension + source_dimension).
-    //     // Later we're going to write into this same matrix an isomorphism source/image + new vectors --> kernel
-    //     // This has size target_dimension x (2*target_dimension).
-    //     // This latter matrix may be used to find a preimage of an element under the differential.
-    //     let target_cc_dimension = target_cc.dimension(t);
-    //     let target_res_dimension = target_res.dimension(t);
-    //     let source_dimension = source.dimension(t);
-    //     let rows = target_cc_dimension + target_res_dimension + source_dimension;
-
-    //     // Calculate how many pivots are missing / gens to add
-    //     let kernel = self.kernels[s][t].lock().take();
-    //     let maybe_image = self.images[s][t].lock().take();
-    //     let mut image : Image;
-    //     // let old_rows;
-    //     if let Some(x) = maybe_image {
-    //         image = x;
-    //         // old_rows = image.matrix.segment(2,2).columns();
-    //         image.resize_target_res_dimension(target_res_dimension);
-    //     } else {
-    //         image = Image {
-    //             matrix : AugmentedMatrix3::new(p, rows, &[target_cc_dimension, target_res_dimension, rows]),
-    //             pivots : vec![-1; target_cc_dimension + target_res_dimension + rows ]
-    //         };
-    //         // old_rows = rows;
-    //         image.matrix.segment(2, 2).set_identity(rows, 0, 0);
-    //     }
-
-    //     let matrix = &mut image.matrix;
-    //     let pivots = &mut image.pivots;
-
-    //     // Now add generators to surject onto C_{s, t}.
-    //     // (For now we are just adding the eventual images of the new generators into matrix, we will update
-    //     // X_{s,t} and f later).
-    //     // We record which pivots exactly we added so that we can walk over the added generators in a moment and
-    //     // work out what dX should to to each of them.
-    //     let first_new_row = source_dimension;
-    //     let new_generators = matrix.inner.extend_to_surjection(first_new_row, 0, target_cc_dimension, &pivots);
-    //     let cc_new_gens = new_generators.len();
-    //     let mut res_new_gens = 0;
-
-    //     let mut middle_rows = Vec::with_capacity(cc_new_gens);
-    //     if s > 0 {
-    //         if cc_new_gens > 0 {
-    //             // Now we need to make sure that we have a chain homomorphism. Each generator x we just added to
-    //             // X_{s,t} has a nontrivial image f(x) \in C_{s,t}. We need to set d(x) so that f(dX(x)) = dC(f(x)).
-    //             // So we set dX(x) = f^{-1}(dC(f(x)))
-    //             let prev_chain_map = self.chain_map(s - 1);
-    //             let quasi_inverse = prev_chain_map.quasi_inverse(t);
-
-    //             let dfx_dim = complex_cur_differential.target().dimension(t);
-    //             let mut dfx = FpVector::new(self.prime(), dfx_dim);
-
-    //             for (i, column) in new_generators.into_iter().enumerate() {
-    //                 complex_cur_differential.apply_to_basis_element(&mut dfx, 1, t, column);
-    //                 quasi_inverse.apply(&mut *matrix.row_segment(first_new_row + i, 1, 1), 1, &dfx);
-    //                 dfx.set_to_zero();
-
-    //                 // Keep the rows we produced because we have to row reduce to re-compute
-    //                 // the kernel later, but these rows are the images of the generators, so we
-    //                 // still need them.
-    //                 middle_rows.push(matrix[first_new_row + i].clone());
-    //             }
-    //             // Row reduce again since our activity may have changed the image of dX.
-    //             matrix.row_reduce(pivots);
-    //         }
-    //         // println!("matrix.seg(1) : {}", *matrix.segment(1,1));
-    //         // Now we add new generators to hit any cycles in old_kernel that we don't want in our homology.
-    //         res_new_gens = matrix.inner.extend_image(
-    //             first_new_row + cc_new_gens,
-    //             matrix.start[1], matrix.end[1],
-    //             pivots, kernel.as_ref()
-    //         ).len();
-
-    //         if cc_new_gens > 0 {
-    //             // Now restore the middle rows.
-    //             for (i, row) in middle_rows.into_iter().enumerate() {
-    //                 matrix[first_new_row + i] = row;
-    //             }
-    //         }
-    //     }
-
-    //     // println!("cc_new_gens : {}, res_new_gens: {}", cc_new_gens, res_new_gens);
-    //     let num_new_gens = cc_new_gens + res_new_gens;
-    //     source.add_generators(t, num_new_gens, None);
-
-    //     let rows = matrix.rows();
-    //     matrix.set_row_slice(first_new_row, rows);
-    //     current_chain_map.add_generators_from_matrix_rows(&chain_map_lock, t, &*matrix.segment(0, 0));
-    //     current_differential.add_generators_from_matrix_rows(&differential_lock, t, &*matrix.segment(1, 1));
-    //     matrix.clear_row_slice();
-
-    //     // Record the quasi-inverses for future use.
-    //     // The part of the matrix that contains interesting information is occupied_rows x (target_dimension + source_dimension + kernel_size).
-    //     let image_rows = first_new_row + num_new_gens;
-    //     for i in first_new_row .. image_rows {
-    //         matrix.inner[i].set_entry(matrix.start[2] + i, 1);
-    //     }
-
-    //     // From now on we only use the underlying matrix. We manipulate slice directly but don't
-    //     // drop matrix so that we can use matrix.start
-    //     matrix.inner.set_slice(0, image_rows, 0, matrix.start[2] + source_dimension + num_new_gens);
-    //     let mut new_pivots = vec![-1;matrix.columns()];
-    //     matrix.row_reduce(&mut new_pivots);
-
-    //     // Should this be a method on AugmentedMatrix3?
-    //     let (cm_qi, res_qi) = matrix.compute_quasi_inverses(&new_pivots);
-
-    //     current_chain_map.set_quasi_inverse(&chain_map_lock, t, cm_qi);
-    //     current_chain_map.set_kernel(&chain_map_lock, t, Subspace::new(p, 0, 0)); // Fill it up with something dummy so that compute_kernels_and... is happy
-    //     current_differential.set_quasi_inverse(&differential_lock, t, res_qi);
-    //     current_differential.set_kernel(&differential_lock, t, Subspace::new(p, 0, 0));
-
-    //     let target_cc_dimension = target_cc.dimension(t+1);
-    //     let target_res_dimension = target_res.dimension(t+1);
-    //     let source_dimension = source.dimension(t+1);
-    //     target_res.extend_table_entries(t+1);
-    //     source.extend_table_entries(t+1);
-
-    //     // Now we are going to investigate the homomorphism in degree t + 1.
-
-    //     // Now need to calculate new_kernel and new_image.
-
-    //     let rows = source_dimension + target_cc_dimension + target_res_dimension;
-    //     let mut matrix = AugmentedMatrix3::new(p, rows, &[target_cc_dimension, target_res_dimension, rows]);
-    //     let mut pivots = vec![-1;matrix.columns()];
-    //     // Get the map (d, f) : X_{s, t} -> X_{s-1, t} (+) C_{s, t} into matrix
-
-    //     matrix.set_row_slice(0, source_dimension);
-    //     current_chain_map.get_matrix(&mut *matrix.segment(0,0), t + 1);
-    //     current_differential.get_matrix(&mut *matrix.segment(1,1), t + 1);
-    //     matrix.segment(2,2).set_identity(rows, 0, 0);
-
-    //     matrix.row_reduce(&mut pivots);
-    //     let new_kernel = matrix.inner.compute_kernel(&pivots, matrix.start[2]);
-
-    //     let mut kernel_lock = self.kernels[s + 1][t+1].lock();
-    //     *kernel_lock = Some(new_kernel);
-    //     if s > 0 {
-    //         let mut image_lock = self.images[s][t + 1].lock();
-    //         *image_lock = Some(Image {
-    //             matrix : matrix,
-    //             pivots : pivots
-    //         });
-    //         drop(image_lock);
-    //     }
-    //     drop(kernel_lock);
-
-    // }
 
     pub fn cocycle_string(&self, hom_deg: u32, int_deg: i32, idx: usize) -> String {
         let d = self.differential(hom_deg);
@@ -658,7 +452,7 @@ impl<CC: ChainComplex> Resolution<CC> {
         let _lock = self.lock.lock();
 
         self.complex().compute_through_bidegree(max_s, max_t);
-        self.extend_through_degree(max_s, max_t);
+        self.extend_through_degree(max_s);
         self.algebra().compute_basis(max_t - min_degree);
 
         crossbeam_utils::thread::scope(|s| {
@@ -706,7 +500,7 @@ impl<CC: ChainComplex> Resolution<CC> {
         let _lock = self.lock.lock();
 
         self.complex().compute_through_bidegree(max_s, max_t);
-        self.extend_through_degree(max_s, max_t);
+        self.extend_through_degree(max_s);
         self.algebra().compute_basis(max_t - min_degree);
 
         for t in min_degree..=max_t {
@@ -727,20 +521,16 @@ impl<CC: ChainComplex> Resolution<CC> {
         let _lock = self.lock.lock();
         let max_t = max_s as i32 + max_n;
         self.complex().compute_through_bidegree(max_s, max_t);
-        self.extend_through_degree(max_s, max_t);
+        self.extend_through_degree(max_s);
         self.algebra().compute_basis(max_t - min_degree);
 
         for t in min_degree..=max_t {
-            let start_s = std::cmp::max(0, t - max_n - 1) as u32;
+            let start_s = std::cmp::max(0, t - max_n) as u32;
             for s in start_s..=max_s {
                 if self.has_computed_bidegree(s, t) {
                     continue;
                 }
-                if s as i32 + max_n + 1 == t {
-                    self.step_resolution_phony(s, t);
-                } else {
-                    self.step_resolution(s, t);
-                }
+                self.step_resolution(s, t);
             }
         }
     }
@@ -796,7 +586,7 @@ impl<CC: ChainComplex> Resolution<CC> {
         let max_t = max_s as i32 + max_n;
 
         self.complex().compute_through_bidegree(max_s, max_t);
-        self.extend_through_degree(max_s, max_t);
+        self.extend_through_degree(max_s);
         self.algebra().compute_basis(max_t - min_degree);
 
         crossbeam_utils::thread::scope(|s| {
@@ -812,7 +602,10 @@ impl<CC: ChainComplex> Resolution<CC> {
                             token = bucket.recv_or_release(token, &last_receiver);
                             if !self.has_computed_bidegree(s, t) {
                                 if s as i32 + max_n + 1 == t {
-                                    self.step_resolution_phony(s, t);
+                                    // We compute the kernel now and save it. If we don't call
+                                    // this, then the step_resolution stage will compute it, but we
+                                    // may be unnecessarily idling in that case.
+                                    self.kernels.insert((s, t), self.get_kernel(s, t));
                                     // The next t cannot be computed yet
                                     continue;
                                 } else {
@@ -935,7 +728,7 @@ impl<CC: ChainComplex> Load for Resolution<CC> {
         let min_degree = result.min_degree();
 
         result.modules = Load::load(buffer, &(Arc::clone(&algebra), min_degree))?;
-        result.kernels = Load::load(buffer, &(min_degree, Some(p)))?;
+        result.kernels = Load::load(buffer, &(((), ()), p))?;
 
         let max_s = result.modules.len();
         assert!(max_s > 0, "cannot load uninitialized resolution");
@@ -967,5 +760,42 @@ impl<CC: ChainComplex> Load for Resolution<CC> {
             .extend_by_zero(result.module(0).max_computed_degree());
 
         Ok(result)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::{chain_complex::FreeChainComplex, utils::construct};
+    use expect_test::expect;
+
+    #[test]
+    fn test_restart_stem() {
+        let res = construct("S_2", None).unwrap();
+        #[cfg(not(feature = "concurrent"))]
+        {
+            res.compute_through_stem(8, 14);
+            res.compute_through_bidegree(5, 19);
+        }
+
+        #[cfg(feature = "concurrent")]
+        {
+            let bucket = thread_token::TokenBucket::new(core::num::NonZeroUsize::new(2).unwrap());
+            res.compute_through_stem_concurrent(8, 14, &bucket);
+            res.compute_through_bidegree_concurrent(5, 19, &bucket);
+        }
+
+        expect![[r#"
+            ·                             
+            ·                     ·       
+            ·                   · ·     · 
+            ·                 ·   ·     · 
+            ·             ·   ·         · · 
+            ·     ·       · · ·         · ·   
+            ·   · ·     · · ·           · · ·   
+            · ·   ·       ·               ·       
+            ·                                       
+        "#]]
+        .assert_eq(&res.graded_dimension_string());
     }
 }

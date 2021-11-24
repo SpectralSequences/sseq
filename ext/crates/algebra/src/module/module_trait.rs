@@ -54,7 +54,7 @@ pub trait Module: std::fmt::Display + Send + Sync {
     }
 
     /// The length of `input` is at most the dimension of the module in the degree, but may be
-    /// shorter.
+    /// shorter. If it is shorter, the remaining terms are interpreted to be zero.
     fn act(
         &self,
         mut result: SliceMut,

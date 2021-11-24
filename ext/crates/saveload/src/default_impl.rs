@@ -139,3 +139,43 @@ impl<T: Load> Load for Option<T> {
         }
     }
 }
+
+impl<A: Save, B: Save> Save for (A, B) {
+    fn save(&self, buffer: &mut impl Write) -> io::Result<()> {
+        self.0.save(buffer)?;
+        self.1.save(buffer)
+    }
+}
+
+impl<A: Load, B: Load> Load for (A, B) {
+    type AuxData = (A::AuxData, B::AuxData);
+
+    fn load(buffer: &mut impl Read, data: &Self::AuxData) -> io::Result<Self> {
+        Ok((A::load(buffer, &data.0)?, B::load(buffer, &data.1)?))
+    }
+}
+impl<K: Save + Eq + std::hash::Hash, V: Save> Save for dashmap::DashMap<K, V> {
+    fn save(&self, buffer: &mut impl Write) -> io::Result<()> {
+        self.len().save(buffer)?;
+        for r in self.iter() {
+            r.key().save(buffer)?;
+            r.value().save(buffer)?;
+        }
+        Ok(())
+    }
+}
+
+impl<K: Load + Eq + std::hash::Hash, V: Load> Load for dashmap::DashMap<K, V> {
+    type AuxData = (K::AuxData, V::AuxData);
+
+    fn load(buffer: &mut impl Read, data: &Self::AuxData) -> io::Result<Self> {
+        let len: usize = usize::load(buffer, &())?;
+        let dm = dashmap::DashMap::with_capacity(len);
+        for _ in 0..len {
+            let k = K::load(buffer, &data.0)?;
+            let v = V::load(buffer, &data.1)?;
+            dm.insert(k, v);
+        }
+        Ok(dm)
+    }
+}

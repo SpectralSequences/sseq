@@ -24,6 +24,7 @@ rustc-hash = "1.1.0"
 serde_json = "1.0.0"
 itertools = { version = "0.10.0", default-features = false, features = ["use_alloc"] }
 chart = { path = "crates/chart" }
+dashmap = "4.0.0"
 
 [dev-dependencies]
 expect-test = "1.1.0"

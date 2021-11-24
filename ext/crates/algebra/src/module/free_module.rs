@@ -161,7 +161,13 @@ impl<A: Algebra> Module for FreeModule<A> {
         let input_table = &self.generator_to_index[input_degree];
         let output_table = &self.generator_to_index[input_degree + op_degree];
         for (i, &idx) in input_table.iter().enumerate() {
-            let end_idx = input_table.get(i + 1).copied().unwrap_or(input_dim);
+            if idx >= input.len() {
+                break;
+            }
+            let end_idx = std::cmp::min(
+                input.len(),
+                input_table.get(i + 1).copied().unwrap_or(input_dim),
+            );
             if end_idx == idx {
                 // The algebra is empty in this degree
                 continue;
