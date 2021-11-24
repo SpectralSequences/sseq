@@ -1,9 +1,0 @@
-[package]
-name = "saveload"
-version = "0.1.0"
-authors = ["Dexter Chua <dalcde@yahoo.com.hk>"]
-edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-[dependencies]
-dashmap = "4.0.0"

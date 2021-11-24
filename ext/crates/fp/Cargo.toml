@@ -9,7 +9,6 @@ edition = "2021"
 [dependencies]
 serde_json = { version = "1.0.0", optional = true }
 serde = { version = "1.0.0", optional = true }
-saveload = { path = "../saveload" }
 itertools = { version = "0.10.0", default-features = false }
 cfg-if = "1.0.0"
 build_const = "0.2.2"

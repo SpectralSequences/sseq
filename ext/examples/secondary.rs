@@ -19,17 +19,17 @@
 //! # Output
 //! We omit differentials if the target bidegree is zero
 
-use ext::chain_complex::ChainComplex;
+use algebra::module::Module;
+use itertools::Itertools;
+use std::sync::Arc;
 
+use ext::chain_complex::ChainComplex;
 use ext::secondary::*;
 use ext::utils::query_module;
 
 fn main() -> anyhow::Result<()> {
     let data = query_module(Some(algebra::AlgebraType::Milnor))?;
-    let resolution = data.resolution;
-
-    #[cfg(feature = "concurrent")]
-    let del_save_file: Option<String> = query::optional("C save file", str::parse);
+    let resolution = Arc::new(data.resolution);
 
     if !can_compute(&resolution) {
         eprintln!(
@@ -39,29 +39,49 @@ fn main() -> anyhow::Result<()> {
         return Ok(());
     }
 
-    #[cfg(not(feature = "concurrent"))]
-    let deltas = compute_delta(&resolution);
-
-    #[cfg(feature = "concurrent")]
-    let deltas = compute_delta_concurrent(&resolution, &data.bucket, del_save_file);
+    let mut lift = SecondaryLift::new(Arc::clone(&resolution));
+    lift.initialize_homotopies();
+    lift.compute_composites();
+    lift.compute_homotopies();
 
     // Iterate through target of the d2
-    for (s, n, t) in resolution.iter_stem() {
+    for (s, n, t) in lift.chain_complex.iter_stem() {
         if s < 3 {
             continue;
         }
-        if resolution.module(s).number_of_gens_in_degree(t) == 0 {
-            continue;
-        }
-        let delta = &deltas[s as usize - 3];
-        if t >= delta.next_degree() {
-            continue;
-        }
-        let d = delta.hom_k(t - 1);
 
-        for (i, entry) in d.into_iter().enumerate() {
-            println!("d_2 x_({}, {}, {}) = {:?}", n + 1, s - 2, i, entry);
+        let source = resolution.module(s);
+        let target = resolution.module(s - 2);
+        if t - 1 > target.max_computed_degree() {
+            continue;
+        }
+        let source_num_gens = source.number_of_gens_in_degree(t);
+        let target_num_gens = target.number_of_gens_in_degree(t - 1);
+        if source_num_gens == 0 || target_num_gens == 0 {
+            continue;
+        }
+        let homotopy = lift.homotopy(s);
+        let mut entries = vec![vec![0; target_num_gens]; source_num_gens];
+
+        let offset = target.generator_offset(t - 1, t - 1, 0);
+
+        for (n, row) in entries.iter_mut().enumerate() {
+            let dx = &homotopy.output(t, n).homotopy;
+
+            for (k, entry) in row.iter_mut().enumerate() {
+                *entry = dx.entry(offset + k);
+            }
+        }
+
+        for k in 0..target_num_gens {
+            println!(
+                "d_2 x_({}, {}, {k}) = [{}]",
+                n + 1,
+                s - 2,
+                (0..source_num_gens).map(|n| entries[n][k]).format(", ")
+            )
         }
     }
+
     Ok(())
 }

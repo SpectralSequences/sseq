@@ -15,7 +15,6 @@ enum_dispatch = "0.2.0"
 paste = "0.1"
 python_utils = { path = "../python_utils" }
 
-saveload = { path = "../../../ext/crates/saveload" }
 fp = { path = "../../../ext/crates/fp" }
 
 [dev-dependencies]

@@ -860,6 +860,27 @@ impl MilnorAlgebra {
         allocation
     }
 
+    pub fn multiply_basis_by_element_with_allocation(
+        &self,
+        mut res: SliceMut,
+        coef: u32,
+        m1: &MilnorBasisElement,
+        s_deg: i32,
+        s: Slice,
+        mut allocation: PPartAllocation,
+    ) -> PPartAllocation {
+        for (i, c) in s.iter_nonzero() {
+            allocation = self.multiply_with_allocation(
+                res.copy(),
+                coef * c,
+                m1,
+                self.basis_element_from_index(s_deg, i),
+                allocation,
+            );
+        }
+        allocation
+    }
+
     pub fn multiply_element_by_basis_with_allocation(
         &self,
         mut res: SliceMut,
@@ -875,6 +896,29 @@ impl MilnorAlgebra {
                 coef * c,
                 self.basis_element_from_index(r_deg, i),
                 m2,
+                allocation,
+            );
+        }
+        allocation
+    }
+
+    pub fn multiply_elements_with_allocation(
+        &self,
+        mut res: SliceMut,
+        coef: u32,
+        r_deg: i32,
+        r: Slice,
+        s_deg: i32,
+        s: Slice,
+        mut allocation: PPartAllocation,
+    ) -> PPartAllocation {
+        for (i, c) in r.iter_nonzero() {
+            allocation = self.multiply_basis_by_element_with_allocation(
+                res.copy(),
+                coef * c,
+                self.basis_element_from_index(r_deg, i),
+                s_deg,
+                s,
                 allocation,
             );
         }
@@ -1176,6 +1220,10 @@ impl<'a, const MOD4: bool> Iterator for PPartMultiplier<'a, MOD4> {
                 }
                 for (i, &entry) in self.r.iter().enumerate() {
                     self.ans.p_part[i] += entry;
+                }
+                // If new_p ends with 0, drop them
+                while let Some(0) = self.ans.p_part.last() {
+                    self.ans.p_part.pop();
                 }
                 return Some(coef as u32);
             } else if self.update() {

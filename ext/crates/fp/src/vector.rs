@@ -92,6 +92,18 @@ macro_rules! dispatch_vector_inner {
             }
         }
     };
+
+    ($vis:vis fn $method:ident(self $(, $arg:ident: $ty:ty )* ) -> (dispatch $ret:tt $lifetime:tt)) => {
+        $vis fn $method(self, $($arg: $ty),* ) -> $ret<$lifetime> {
+            match self {
+                Self::_2(x) => $ret::_2(x.$method($($arg),*)),
+                Self::_3(x) => $ret::_3(x.$method($($arg),*)),
+                Self::_5(x) => $ret::_5(x.$method($($arg),*)),
+                Self::_7(x) => $ret::_7(x.$method($($arg),*)),
+            }
+        }
+    };
+
     ($vis:vis fn $method:ident(&mut self $(, $arg:ident: $ty:ty )* ) $(-> $ret:ty)?) => {
         #[allow(unused_parens)]
         $vis fn $method(&mut self, $($arg: $ty),* ) $(-> $ret)* {
@@ -281,9 +293,9 @@ impl<'a> Slice<'a> {
         pub fn is_empty(&self) -> bool;
         pub fn entry(&self, index: usize) -> u32;
         pub fn iter(self) -> (FpVectorIterator<'a>);
-        pub fn iter_nonzero(&self) -> (dispatch FpVectorNonZeroIterator);
+        pub fn iter_nonzero(self) -> (dispatch FpVectorNonZeroIterator 'a);
         pub fn is_zero(&self) -> bool;
-        pub fn slice(&self, start: usize, end: usize) -> (dispatch Slice);
+        pub fn slice(self, start: usize, end: usize) -> (dispatch Slice 'a);
         pub fn to_owned(self) -> (dispatch FpVector);
     }
 }
@@ -409,51 +421,6 @@ impl<'de> Deserialize<'de> for FpVector {
     {
         panic!("Deserializing FpVector not supported");
         // This is needed for ext-websocket/actions to be happy
-    }
-}
-
-use saveload::{Load, Save};
-use std::io;
-
-impl Save for FpVector {
-    fn save(&self, buffer: &mut impl Write) -> io::Result<()> {
-        self.len().save(buffer)?;
-        if self.is_empty() {
-            return Ok(());
-        }
-        let entries_per_limb = entries_per_limb(self.prime());
-        let num_limbs = (self.len() - 1) / entries_per_limb + 1;
-        // self.limbs is allowed to have more limbs than necessary, but we only save the necessary
-        // ones.
-        for limb in &self.limbs()[0..num_limbs] {
-            limb.save(buffer)?;
-        }
-        Ok(())
-    }
-}
-
-impl Load for FpVector {
-    type AuxData = ValidPrime;
-
-    fn load(buffer: &mut impl Read, p: &ValidPrime) -> io::Result<Self> {
-        let p = *p;
-
-        let len = usize::load(buffer, &())?;
-
-        if len == 0 {
-            return Ok(FpVector::new(p, 0));
-        }
-
-        let entries_per_limb = entries_per_limb(p);
-        let num_limbs = (len - 1) / entries_per_limb + 1;
-        let mut v = FpVector::new(p, len);
-
-        // v.limbs may have more limbs than num_limbs, and the rest should be zeroed.
-        for limb in &mut v.limbs_mut()[0..num_limbs] {
-            *limb = Limb::load(buffer, &())?;
-        }
-
-        Ok(v)
     }
 }
 

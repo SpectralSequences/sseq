@@ -14,7 +14,6 @@ bivec = { path = "crates/bivec"}
 fp = { path = "crates/fp", default-features = false }
 once = { path = "crates/once"}
 query = { path = "crates/query" }
-saveload = { path = "crates/saveload" }
 thread-token = { path = "crates/thread-token", optional = true }
 adler = "1"
 
@@ -52,7 +51,6 @@ members = [
     "crates/bivec",
     "crates/fp",
     "crates/once",
-    "crates/saveload",
     "crates/thread-token",
     "crates/chart",
     "crates/sseq",

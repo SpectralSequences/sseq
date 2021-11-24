@@ -287,6 +287,10 @@ impl<A: Algebra> FreeModule<A> {
         }
     }
 
+    pub fn generator_to_internal_index(&self, degree: i32, index: usize) -> usize {
+        self.gen_deg_idx_to_internal_idx[degree] + index
+    }
+
     /// Given a generator `(gen_deg, gen_idx)`, find the first index in degree `degree` with
     /// elements from the generator.
     pub fn internal_generator_offset(&self, degree: i32, internal_gen_idx: usize) -> usize {
@@ -394,6 +398,34 @@ impl<A: Algebra> FreeModule<A> {
             ));
         }
         result
+    }
+
+    /// Given a vector that represents an element in degree `degree`, slice it to the part that
+    /// represents the terms that correspond to the specified generator.
+    pub fn slice_vector<'a>(
+        &self,
+        degree: i32,
+        gen_degree: i32,
+        gen_index: usize,
+        v: Slice<'a>,
+    ) -> Slice<'a> {
+        let start = self.generator_offset(degree, gen_degree, gen_index);
+        let len = self.algebra().dimension(degree - gen_degree, 0);
+        v.slice(start, start + len)
+    }
+
+    /// Given a vector that represents an element in degree `degree`, slice it to the part that
+    /// represents the terms that correspond to the specified generator.
+    pub fn slice_vector_mut<'a>(
+        &self,
+        degree: i32,
+        gen_degree: i32,
+        gen_index: usize,
+        v: &'a mut SliceMut,
+    ) -> SliceMut<'a> {
+        let start = self.generator_offset(degree, gen_degree, gen_index);
+        let len = self.algebra().dimension(degree - gen_degree, 0);
+        v.slice_mut(start, start + len)
     }
 }
 

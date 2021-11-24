@@ -16,7 +16,6 @@ nom = "5.0.0"
 parking_lot = "0.10"
 
 algebra = { path = "../../../ext/crates/algebra" }
-saveload = { path = "../../../ext/crates/saveload" }
 bivec = { path = "../../../ext/crates/bivec" }
 error = { path = "../../../ext/crates/error" }
 fp = { path = "../../../ext/crates/fp" }

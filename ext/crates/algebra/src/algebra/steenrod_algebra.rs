@@ -263,3 +263,46 @@ impl GeneratedAlgebra for SteenrodAlgebra {
         fn generating_relations(&self, degree: i32) -> Vec<Vec<(u32, (i32, usize), (i32, usize))>>;
     }
 }
+
+impl crate::pair_algebra::PairAlgebra for AdemAlgebra {
+    type Element = crate::pair_algebra::MilnorPairElement;
+
+    fn new_pair_element(&self, _degree: i32) -> Self::Element {
+        unimplemented!()
+    }
+
+    fn sigma_multiply_basis(
+        &self,
+        _result: &mut Self::Element,
+        _coeff: u32,
+        _r_degree: i32,
+        _r_idx: usize,
+        _s_degree: i32,
+        _s_idx: usize,
+    ) {
+        unimplemented!()
+    }
+
+    fn a_multiply(
+        &self,
+        _result: SliceMut,
+        _coeff: u32,
+        _r_degree: i32,
+        _r: Slice,
+        _s_degree: i32,
+        _s: &Self::Element,
+    ) {
+        unimplemented!()
+    }
+}
+
+impl crate::pair_algebra::PairAlgebra for SteenrodAlgebra {
+    type Element = crate::pair_algebra::MilnorPairElement;
+
+    dispatch_steenrod! {
+        fn new_pair_element(&self, degree: i32) -> Self::Element;
+        fn sigma_multiply_basis(&self, result: &mut Self::Element, coeff: u32, r_degree: i32, r_idx: usize, s_degree: i32, s_idx: usize);
+        fn sigma_multiply(&self, result: &mut Self::Element, coeff: u32, r_degree: i32, r: Slice, s_degree: i32, s: Slice);
+        fn a_multiply(&self, result: SliceMut, coeff: u32, r_degree: i32, r: Slice, s_degree: i32, s: &Self::Element);
+    }
+}

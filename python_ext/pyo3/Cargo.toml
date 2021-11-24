@@ -8,7 +8,6 @@ repository = "https://github.com/SpectralSequences/ext/"
 license = "(MIT OR Apache-2.0)"
 
 [dependencies]
-saveload = { path = "../../ext/crates/saveload", version = "0.1.0"  }
 bivec = { path = "../../ext/crates/bivec", version = "0.1.0"  }
 fp = { path = "../../ext/crates/fp", version = "0.1.0"  }
 ext = { path = "../../ext", version = "0.1.0"  }

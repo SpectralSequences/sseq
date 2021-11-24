@@ -2,8 +2,9 @@
 //! secondary command, but with hardcoded values. I also use this for performance benchmarking.
 
 use ext::chain_complex::ChainComplex;
-use ext::secondary::compute_delta;
+use ext::secondary::*;
 use ext::utils::construct;
+use std::sync::Arc;
 use std::time::Instant;
 
 fn main() {
@@ -21,14 +22,19 @@ fn main() {
     resolution.compute_through_bidegree(6, 70);
 
     let start = Instant::now();
-    // deltas is a vector of FreeModuleHomomorphisms R_{s, t} -> R_{s - 2, t - 1} that is dual to
-    // the d_2 map. The vector is indexed by s with the first entry being s = 3.
-    let deltas = compute_delta(&resolution);
+    let mut lift = SecondaryLift::new(Arc::new(resolution));
+    lift.initialize_homotopies();
+    lift.compute_composites();
+    lift.compute_homotopies();
+
     println!("Time elapsed: {:.2?}", start.elapsed());
 
-    // We can now get the matrix of the d_2 starting at (65, 4).
-    let output = deltas[6 - 3].hom_k(69);
+    // We can now get the d_2 starting at (65, 4).
+    let output = lift.homotopy(6).output(69, 0);
 
     // dim R_{65, 4} = 1 and the generator is the last basis element.
-    println!("d_2 x_{{65, 4}} = {}", output[0][0]);
+    println!(
+        "d_2 x_{{65, 4}} = {}",
+        output.homotopy.entry(output.homotopy.len() - 1)
+    );
 }

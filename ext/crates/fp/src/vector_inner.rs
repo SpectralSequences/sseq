@@ -394,7 +394,7 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
 }
 
 impl<'a, const P: u32> SliceP<'a, P> {
-    pub fn slice(&self, start: usize, end: usize) -> SliceP<'_, P> {
+    pub fn slice(self, start: usize, end: usize) -> SliceP<'a, P> {
         assert!(start <= end && end <= self.len());
 
         SliceP {

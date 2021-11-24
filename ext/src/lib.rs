@@ -163,7 +163,6 @@
 //! | [fp] | This implements linear algebra over $\mathbb{F}_p$, as well as general helper functions about primes. |
 //! | [once] | This provides `OnceVec` and `OnceBiVec`, a push-only vector with non-blocking reads. This models some partially computed infinite data structure, and we think of pushing as simply finding out more of this infinite data structure instead of genuinely mutating it. |
 //! | [query] | This contains some helper functions for a command line interface. |
-//! | [saveload] | This provides an interface for saving and loading resolutions and other data. |
 //! | [thread_token] | This provides some concurrency primitives |
 
 #![feature(hash_raw_entry)]
