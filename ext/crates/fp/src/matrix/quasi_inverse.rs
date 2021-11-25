@@ -108,25 +108,3 @@ impl QuasiInverse {
         }
     }
 }
-
-use saveload::{Load, Save};
-use std::io;
-
-impl Save for QuasiInverse {
-    fn save(&self, buffer: &mut impl Write) -> io::Result<()> {
-        self.image.save(buffer)?;
-        self.preimage.save(buffer)?;
-        Ok(())
-    }
-}
-
-impl Load for QuasiInverse {
-    type AuxData = ValidPrime;
-
-    fn load(buffer: &mut impl Read, p: &ValidPrime) -> io::Result<Self> {
-        Ok(Self {
-            image: Option::<Vec<isize>>::load(buffer, &Some(()))?,
-            preimage: Matrix::load(buffer, p)?,
-        })
-    }
-}

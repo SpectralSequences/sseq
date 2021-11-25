@@ -3,7 +3,6 @@ use std::sync::Arc;
 use crate::algebra::{AdemAlgebra, AdemAlgebraT};
 use crate::module::Module;
 use crate::module::OperationGeneratorPair;
-use bivec::BiVec;
 use fp::vector::SliceMut;
 use once::{OnceBiVec, OnceVec};
 
@@ -321,34 +320,6 @@ impl<A: JsonAlgebra + AdemAlgebraT> FreeUnstableModule<A> {
             }));
         }
         Value::from(result)
-    }
-}
-
-use saveload::{Load, Save};
-use std::io;
-use std::io::{Read, Write};
-
-impl<A: AdemAlgebraT> Save for FreeUnstableModule<A> {
-    fn save(&self, buffer: &mut impl Write) -> io::Result<()> {
-        self.num_gens.save(buffer)
-    }
-}
-
-impl<A: AdemAlgebraT> Load for FreeUnstableModule<A> {
-    type AuxData = (Arc<A>, i32);
-
-    fn load(buffer: &mut impl Read, data: &Self::AuxData) -> io::Result<Self> {
-        let algebra = Arc::clone(&data.0);
-        let min_degree = data.1;
-
-        let result = FreeUnstableModule::new(algebra, "".to_string(), min_degree);
-
-        let num_gens: BiVec<usize> = Load::load(buffer, &(min_degree, ()))?;
-        for (degree, num) in num_gens.iter_enum() {
-            result.add_generators(degree, *num, None);
-        }
-        result.extend_table_entries(num_gens.max_degree());
-        Ok(result)
     }
 }
 

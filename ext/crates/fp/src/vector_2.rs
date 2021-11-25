@@ -8,6 +8,9 @@ use itertools::Itertools;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
+use std::io::{Read, Write};
+use std::mem::size_of;
+
 pub type FpVector = FpVectorP<2>;
 pub type Slice<'a> = SliceP<'a, 2>;
 pub type SliceMut<'a> = SliceMutP<'a, 2>;
@@ -26,9 +29,37 @@ impl FpVector {
         Self::from(&slice)
     }
 
-    pub fn padded_len(_p: ValidPrime, len: usize) -> usize {
+    pub fn num_limbs(_p: ValidPrime, len: usize) -> usize {
         let entries_per_limb = entries_per_limb_const::<2>();
-        ((len + entries_per_limb - 1) / entries_per_limb) * entries_per_limb
+        (len + entries_per_limb - 1) / entries_per_limb
+    }
+
+    pub fn padded_len(p: ValidPrime, len: usize) -> usize {
+        Self::num_limbs(p, len) * entries_per_limb_const::<2>()
+    }
+
+    pub fn from_bytes(p: ValidPrime, len: usize, data: &mut impl Read) -> std::io::Result<Self> {
+        let num_limbs = Self::num_limbs(p, len);
+        let mut limbs = Vec::with_capacity(num_limbs);
+
+        for _ in 0..num_limbs {
+            let mut bytes: [u8; size_of::<Limb>()] = [0; size_of::<Limb>()];
+            data.read_exact(&mut bytes)?;
+            limbs.push(Limb::from_le_bytes(bytes));
+        }
+        Ok(Self::from_raw_parts(len, limbs))
+    }
+
+    pub fn to_bytes(&self, buffer: &mut impl Write) -> std::io::Result<()> {
+        let num_limbs = Self::num_limbs(self.prime(), self.len());
+        // self.limbs is allowed to have more limbs than necessary, but we only save the
+        // necessary ones.
+
+        for limb in &self.limbs()[0..num_limbs] {
+            let bytes = limb.to_le_bytes();
+            buffer.write_all(&bytes)?;
+        }
+        Ok(())
     }
 }
 
@@ -83,7 +114,6 @@ impl<'de> Deserialize<'de> for FpVector {
 
 use saveload::{Load, Save};
 use std::io;
-use std::io::{Read, Write};
 
 impl Save for FpVector {
     fn save(&self, buffer: &mut impl Write) -> io::Result<()> {

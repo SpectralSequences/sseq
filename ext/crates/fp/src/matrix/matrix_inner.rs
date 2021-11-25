@@ -1097,46 +1097,6 @@ impl<'a> MatrixSliceMut<'a> {
     }
 }
 
-use saveload::{Load, Save};
-use std::io;
-
-impl Save for Matrix {
-    fn save(&self, buffer: &mut impl Write) -> io::Result<()> {
-        self.columns.save(buffer)?;
-        self.vectors.save(buffer)?;
-        self.pivots.save(buffer)?;
-        Ok(())
-    }
-}
-
-impl Load for Matrix {
-    type AuxData = ValidPrime;
-
-    fn load(buffer: &mut impl Read, p: &ValidPrime) -> io::Result<Self> {
-        let columns = usize::load(buffer, &())?;
-        let vectors: Vec<FpVector> = Load::load(buffer, p)?;
-        let mut result = Matrix::from_rows(*p, vectors, columns);
-        result.pivots = Load::load(buffer, &())?;
-        Ok(result)
-    }
-}
-
-impl Save for Subspace {
-    fn save(&self, buffer: &mut impl Write) -> io::Result<()> {
-        self.matrix.save(buffer)?;
-        Ok(())
-    }
-}
-
-impl Load for Subspace {
-    type AuxData = ValidPrime;
-
-    fn load(buffer: &mut impl Read, p: &ValidPrime) -> io::Result<Self> {
-        let matrix: Matrix = Matrix::load(buffer, p)?;
-        Ok(Subspace { matrix })
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
