@@ -42,23 +42,23 @@
 use algebra::module::{BoundedModule, Module};
 use ext::chain_complex::ChainComplex;
 use ext::resolution_homomorphism::ResolutionHomomorphism;
-use ext::utils::{construct, Config};
+use ext::utils;
 use fp::matrix::Matrix;
 
-use anyhow::anyhow;
-use std::convert::TryInto;
-use std::{fs::File, sync::Arc};
+use std::sync::Arc;
 
 fn main() -> anyhow::Result<()> {
-    let target: Config = query::with_default("Target module", "S_2", |name| {
-        let target: Config = name.try_into()?;
-        match target.module["type"].as_str() {
-            Some("finite dimensional module") => Ok(target),
-            _ => Err(anyhow!("Target must be finite dimensional")),
-        }
-    });
+    let target = Arc::new(utils::query_module_only("Target module", None)?);
 
-    let source: Config = query::with_default("Source module", "Cnu", |name| name.try_into());
+    let source_equal_target = query::yes_no("Source equal to target?");
+    let source = if source_equal_target {
+        Arc::clone(&target)
+    } else {
+        Arc::new(utils::query_module_only("Source module", None)?)
+    };
+
+    assert_eq!(source.prime(), target.prime());
+    let p = source.prime();
 
     let shift_s: u32 = query::with_default("s of Ext class", "0", str::parse);
     let shift_n: i32 = query::with_default("n of Ext class", "0", str::parse);
@@ -67,66 +67,28 @@ fn main() -> anyhow::Result<()> {
     #[cfg(feature = "concurrent")]
     let bucket = ext::utils::query_bucket();
 
-    #[allow(clippy::redundant_closure)]
-    let target_save_file = query::optional("Target save file", |s| File::open(s));
+    let s: u32 = query::with_default("Max target s", "10", str::parse);
+    let n: i32 = query::with_default("Max target n", "10", str::parse);
 
-    let (target, source) = if target == source {
-        let target = match target_save_file {
-            Some(f) => construct(target, Some(f))?,
-            None => {
-                let s: u32 = query::with_default("Max target s", "10", str::parse);
-                let n: i32 = query::with_default("Max target n", "10", str::parse);
-                let target = construct(target, None)?;
+    if source_equal_target {
+        #[cfg(feature = "concurrent")]
+        target.compute_through_stem_concurrent(s + shift_s, n + std::cmp::max(0, shift_n), &bucket);
 
-                #[cfg(feature = "concurrent")]
-                target.compute_through_stem_concurrent(
-                    s + shift_s,
-                    n + std::cmp::max(0, shift_n),
-                    &bucket,
-                );
-
-                #[cfg(not(feature = "concurrent"))]
-                target.compute_through_stem(s + shift_s, n + std::cmp::max(0, shift_n));
-
-                target
-            }
-        };
-        let target = Arc::new(target);
-        (Arc::clone(&target), target)
+        #[cfg(not(feature = "concurrent"))]
+        target.compute_through_stem(s + shift_s, n + std::cmp::max(0, shift_n));
     } else {
-        match target_save_file {
-            Some(f) => (
-                Arc::new(construct(target, Some(f))?),
-                Arc::new(construct(
-                    source,
-                    #[allow(clippy::redundant_closure)]
-                    Some(query::raw("Source save file", |s| File::open(s))),
-                )?),
-            ),
-            None => {
-                let s = query::with_default("Max target s", "10", str::parse);
-                let n: i32 = query::with_default("Max target n", "10", str::parse);
-                let (target, source) = (construct(target, None)?, construct(source, None)?);
-
-                #[cfg(feature = "concurrent")]
-                {
-                    source.compute_through_stem_concurrent(s + shift_s, n + shift_n, &bucket);
-                    target.compute_through_stem_concurrent(s, n, &bucket);
-                }
-
-                #[cfg(not(feature = "concurrent"))]
-                {
-                    source.compute_through_stem(s + shift_s, n + shift_n);
-                    target.compute_through_stem(s, n);
-                }
-
-                (Arc::new(target), Arc::new(source))
-            }
+        #[cfg(feature = "concurrent")]
+        {
+            source.compute_through_stem_concurrent(s + shift_s, n + shift_n, &bucket);
+            target.compute_through_stem_concurrent(s, n, &bucket);
         }
-    };
 
-    assert_eq!(source.prime(), target.prime());
-    let p = source.prime();
+        #[cfg(not(feature = "concurrent"))]
+        {
+            source.compute_through_stem(s + shift_s, n + shift_n);
+            target.compute_through_stem(s, n);
+        }
+    }
 
     let target_module = target.complex().module(0);
     let hom = ResolutionHomomorphism::new(String::new(), source, target, shift_s, shift_t);

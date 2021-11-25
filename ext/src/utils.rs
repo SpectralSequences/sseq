@@ -3,13 +3,14 @@ use crate::resolution::Resolution;
 use crate::CCC;
 use algebra::module::{FiniteModule, Module};
 use algebra::{AlgebraType, SteenrodAlgebra};
-use saveload::Load;
+use fp::prime::ValidPrime;
 
 use anyhow::{anyhow, Context};
+use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use serde_json::Value;
 
 use std::convert::{TryFrom, TryInto};
-use std::fs::File;
+use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -116,10 +117,7 @@ impl<T: TryInto<AlgebraType>> TryFrom<(Value, T)> for Config {
 ///       `algebra` are as above.
 ///  - `save_file`: The save file for the module. If it points to an invalid save file, an error is
 ///    returned.
-pub fn construct<T, E>(
-    module_spec: T,
-    mut save_file: Option<File>,
-) -> anyhow::Result<Resolution<CCC>>
+pub fn construct<T, E>(module_spec: T, save_dir: Option<PathBuf>) -> anyhow::Result<Resolution<CCC>>
 where
     anyhow::Error: From<E>,
     T: TryInto<Config, Error = E>,
@@ -169,17 +167,7 @@ where
         chain_complex = Arc::new(yoneda);
     }
 
-    if let Some(f) = json["save_file"].as_str() {
-        save_file = Some(File::open(f)?);
-    }
-
-    Ok(match save_file {
-        Some(f) => {
-            let mut f = std::io::BufReader::new(f);
-            Resolution::load(&mut f, &chain_complex)?
-        }
-        None => Resolution::new(Arc::clone(&chain_complex)),
-    })
+    Resolution::new_with_save(chain_complex, save_dir)
 }
 
 pub fn load_module_json(name: &str) -> anyhow::Result<Value> {
@@ -226,7 +214,6 @@ pub fn print_resolution_color<C: FreeChainComplex, S: std::hash::BuildHasher>(
     max_s: u32,
     highlight: &std::collections::HashMap<(u32, i32), u32, S>,
 ) {
-    use std::io::Write;
     let stderr = std::io::stderr();
     let mut stderr = stderr.lock();
     for s in (0..max_s).rev() {
@@ -259,37 +246,37 @@ pub struct QueryModuleResult {
     pub bucket: thread_token::TokenBucket,
 }
 
-pub fn query_module(algebra: Option<AlgebraType>) -> anyhow::Result<QueryModuleResult> {
-    let module: Config = query::with_default("Module", "S_2", |s| match algebra {
+pub fn query_module_only(
+    prompt: &str,
+    algebra: Option<AlgebraType>,
+) -> anyhow::Result<Resolution<CCC>> {
+    let module: Config = query::with_default(prompt, "S_2", |s| match algebra {
         Some(algebra) => (s, algebra).try_into(),
         None => s.try_into(),
     });
 
-    // Clippy false positive
-    #[allow(clippy::redundant_closure)]
-    let save_file = query::optional("Resolution save file", |x| File::open(x));
+    let save_dir = query::optional(&format!("{prompt} save directory"), |x| {
+        core::result::Result::<PathBuf, std::convert::Infallible>::Ok(PathBuf::from(x))
+    });
+
+    construct(module, save_dir).context("Failed to load module from save file")
+}
+
+pub fn query_module(algebra: Option<AlgebraType>) -> anyhow::Result<QueryModuleResult> {
+    let resolution = query_module_only("Module", algebra)?;
 
     #[cfg(feature = "concurrent")]
     let bucket = query_bucket();
 
-    let resolution: Resolution<CCC> = match save_file {
-        Some(save_file) => {
-            construct(module, Some(save_file)).context("Failed to load module from save file")?
-        }
-        None => {
-            let max_s: u32 = query::with_default("Max s", "7", str::parse);
-            let max_n: i32 = query::with_default("Max n", "30", str::parse);
+    let max_s: u32 = query::with_default("Max s", "7", str::parse);
+    let max_n: i32 = query::with_default("Max n", "30", str::parse);
 
-            let resolution = construct(module, None).context("Failed to construct module")?;
-            #[cfg(not(feature = "concurrent"))]
-            resolution.compute_through_stem(max_s, max_n);
+    #[cfg(not(feature = "concurrent"))]
+    resolution.compute_through_stem(max_s, max_n);
 
-            #[cfg(feature = "concurrent")]
-            resolution.compute_through_stem_concurrent(max_s, max_n, &bucket);
+    #[cfg(feature = "concurrent")]
+    resolution.compute_through_stem_concurrent(max_s, max_n, &bucket);
 
-            resolution
-        }
-    };
     Ok(QueryModuleResult {
         resolution,
         #[cfg(feature = "concurrent")]
@@ -354,6 +341,63 @@ pub fn print_element(v: fp::vector::Slice, n: i32, s: u32) {
         print!("x_({}, {}, {})", n, s, i);
         first = false;
     }
+}
+
+pub fn write_header(
+    magic: u32,
+    p: ValidPrime,
+    s: u32,
+    t: i32,
+    buffer: &mut impl Write,
+) -> std::io::Result<()> {
+    buffer.write_u32::<LittleEndian>(magic)?;
+    buffer.write_u32::<LittleEndian>(*p)?;
+    buffer.write_u32::<LittleEndian>(s)?;
+    buffer.write_i32::<LittleEndian>(t)
+}
+
+pub fn validate_header(
+    magic: u32,
+    p: ValidPrime,
+    s: u32,
+    t: i32,
+    buffer: &mut impl Read,
+) -> std::io::Result<()> {
+    use std::io::{Error, ErrorKind};
+
+    let data_magic = buffer.read_u32::<LittleEndian>()?;
+    if data_magic != magic {
+        return Err(Error::new(
+            ErrorKind::InvalidData,
+            format!("Invalid magic {data_magic:#04x}; expected {magic:#04x}"),
+        ));
+    }
+
+    let data_p = buffer.read_u32::<LittleEndian>()?;
+    if data_p != *p {
+        return Err(Error::new(
+            ErrorKind::InvalidData,
+            format!("Invalid prime {data_p}; expected {p}"),
+        ));
+    }
+
+    let data_s = buffer.read_u32::<LittleEndian>()?;
+    if data_s != s {
+        return Err(Error::new(
+            ErrorKind::InvalidData,
+            format!("Invalid s {data_s}; expected {s}"),
+        ));
+    }
+
+    let data_t = buffer.read_i32::<LittleEndian>()?;
+    if data_t != t {
+        return Err(Error::new(
+            ErrorKind::InvalidData,
+            format!("Invalid s {data_t}; expected {t}"),
+        ));
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]

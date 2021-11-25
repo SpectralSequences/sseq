@@ -51,6 +51,11 @@ impl<const P: u32> FpVectorP<P> {
         }
     }
 
+    pub fn from_raw_parts(len: usize, limbs: Vec<Limb>) -> Self {
+        debug_assert_eq!(limbs.len(), limb::number::<P>(len));
+        Self { len, limbs }
+    }
+
     pub fn new_with_capacity_(len: usize, capacity: usize) -> Self {
         let mut limbs = Vec::with_capacity(limb::number::<P>(capacity));
         limbs.resize(limb::number::<P>(len), 0);

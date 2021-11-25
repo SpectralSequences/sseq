@@ -6,7 +6,7 @@ use sseq_gui::actions::SseqChoice;
 use sseq_gui::sseq::SseqWrapper;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 const TWO: ValidPrime = ValidPrime::new(2);
@@ -19,7 +19,9 @@ fn main() -> anyhow::Result<()> {
 
     // Clippy false positive
     #[allow(clippy::redundant_closure)]
-    let save_file: Option<File> = query::optional("Resolution save file", |s| File::open(s));
+    let save_file: Option<PathBuf> = query::optional("Resolution save file", |s| {
+        std::result::Result::<PathBuf, std::convert::Infallible>::Ok(PathBuf::from(s))
+    });
 
     #[cfg(feature = "concurrent")]
     let bucket = ext::utils::query_bucket();

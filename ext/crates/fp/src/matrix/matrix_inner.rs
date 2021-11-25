@@ -4,6 +4,7 @@ use crate::prime::{self, ValidPrime};
 use crate::vector::{FpVector, Slice, SliceMut};
 
 use std::fmt;
+use std::io::{Read, Write};
 use std::ops::{Index, IndexMut};
 
 /// A matrix! In particular, a matrix with values in F_p. The way we store matrices means it is
@@ -42,6 +43,31 @@ impl Matrix {
             vectors,
             pivots: Vec::new(),
         }
+    }
+
+    pub fn from_bytes(
+        p: ValidPrime,
+        rows: usize,
+        columns: usize,
+        data: &mut impl Read,
+    ) -> std::io::Result<Matrix> {
+        let mut vectors: Vec<FpVector> = Vec::with_capacity(rows);
+        for _ in 0..rows {
+            vectors.push(FpVector::from_bytes(p, columns, data)?);
+        }
+        Ok(Matrix {
+            p,
+            columns,
+            vectors,
+            pivots: Vec::new(),
+        })
+    }
+
+    pub fn to_bytes(&self, data: &mut impl Write) -> std::io::Result<()> {
+        for v in &self.vectors {
+            v.to_bytes(data)?;
+        }
+        Ok(())
     }
 
     pub fn new_with_capacity(
@@ -1073,7 +1099,6 @@ impl<'a> MatrixSliceMut<'a> {
 
 use saveload::{Load, Save};
 use std::io;
-use std::io::{Read, Write};
 
 impl Save for Matrix {
     fn save(&self, buffer: &mut impl Write) -> io::Result<()> {

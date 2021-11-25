@@ -1,21 +1,35 @@
 use std::sync::{Arc, Mutex};
 
 use crate::chain_complex::{AugmentedChainComplex, ChainComplex};
+use crate::utils;
 use algebra::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
 use algebra::module::{FreeModule, Module};
 use algebra::Algebra;
-use fp::matrix::{AugmentedMatrix, Subspace};
+use fp::matrix::{AugmentedMatrix, QuasiInverse, Subspace};
 use fp::prime::ValidPrime;
 use fp::vector::FpVector;
 use once::OnceVec;
 
+use std::fs::File;
+use std::path::PathBuf;
+
+use anyhow::Context;
 use dashmap::DashMap;
+
+use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
 #[cfg(feature = "concurrent")]
 use crossbeam_channel::{unbounded, Receiver};
 
 #[cfg(feature = "concurrent")]
 use thread_token::TokenBucket;
+
+const KERNEL_MAGIC: u32 = 0x0000D1FF;
+const DIFFERENTIAL_MAGIC: u32 = 0xD1FF0000;
+const RES_QI_MAGIC: u32 = 0x0100D1FF;
+const AUGMENTATION_QI_MAGIC: u32 = 0x0100A000;
+
+use std::io::{BufReader, BufWriter};
 
 /// A resolution of a chain complex.
 pub struct Resolution<CC: ChainComplex> {
@@ -31,24 +45,67 @@ pub struct Resolution<CC: ChainComplex> {
     ///  returned by `generate_old_kernel_and_compute_new_kernel`, to be used if we run
     ///  compute_through_degree again.
     kernels: DashMap<(u32, i32), Subspace>,
+    save_dir: Option<PathBuf>,
 }
 
 impl<CC: ChainComplex> Resolution<CC> {
     pub fn new(complex: Arc<CC>) -> Self {
+        // It doesn't error if the save file is None
+        Self::new_with_save(complex, None).unwrap()
+    }
+
+    pub fn new_with_save(complex: Arc<CC>, mut save_dir: Option<PathBuf>) -> anyhow::Result<Self> {
         let algebra = complex.algebra();
         let min_degree = complex.min_degree();
         let zero_module = Arc::new(FreeModule::new(algebra, "F_{-1}".to_string(), min_degree));
 
-        Self {
+        if let Some(p) = save_dir.as_mut() {
+            use std::io::{Error, ErrorKind};
+
+            if !p.exists() {
+                std::fs::create_dir_all(&p)
+                    .context("Failed to create save directory for resolution")?;
+            } else if !p.is_dir() {
+                return Err(Error::new(
+                    ErrorKind::InvalidInput,
+                    format!("{p:?} is not a directory"),
+                )
+                .into());
+            }
+            for subdir in ["differentials", "kernels", "res_qis", "augmentation_qis"] {
+                p.push(subdir);
+                if !p.exists() {
+                    std::fs::create_dir_all(&p)
+                        .with_context(|| format!("Failed to create directory {p:?}"))?;
+                } else if !p.is_dir() {
+                    return Err(Error::new(
+                        ErrorKind::InvalidInput,
+                        format!("{p:?} is not a directory"),
+                    )
+                    .into());
+                }
+                p.pop();
+            }
+        }
+
+        Ok(Self {
             complex,
             zero_module,
+            save_dir,
             lock: Mutex::new(()),
 
             chain_maps: OnceVec::new(),
             modules: OnceVec::new(),
             differentials: OnceVec::new(),
             kernels: DashMap::new(),
-        }
+        })
+    }
+
+    /// This panics if there is no save dir
+    fn get_save_path(&self, kind: &str, s: u32, t: i32) -> PathBuf {
+        let mut p = self.save_dir.clone().unwrap();
+        p.push(format!("{kind}s/{s}_{t}_{kind}"));
+        p
     }
 
     /// This function prepares the Resolution object to perform computations up to the
@@ -104,6 +161,19 @@ impl<CC: ChainComplex> Resolution<CC> {
 
         let p = self.prime();
 
+        if self.save_dir.is_some() {
+            let kernel_path = self.get_save_path("kernel", s, t);
+            if kernel_path.exists() {
+                let f = File::open(kernel_path).unwrap();
+                let mut f = BufReader::new(f);
+                utils::validate_header(KERNEL_MAGIC, p, s, t, &mut f).unwrap();
+
+                return Subspace::from_bytes(p, &mut f)
+                    .with_context(|| format!("Failed to read kernel at ({s}, {t})"))
+                    .unwrap();
+            }
+        }
+
         let complex = self.complex();
         complex.compute_through_bidegree(s, t);
 
@@ -132,7 +202,21 @@ impl<CC: ChainComplex> Resolution<CC> {
         matrix.segment(2, 2).add_identity();
         matrix.row_reduce();
 
-        matrix.compute_kernel()
+        let kernel = matrix.compute_kernel();
+
+        if self.save_dir.is_some() {
+            let kernel_path = self.get_save_path("kernel", s, t);
+
+            let f = File::create(kernel_path).unwrap();
+            let mut f = BufWriter::new(f);
+            utils::write_header(KERNEL_MAGIC, p, s, t, &mut f).unwrap();
+
+            kernel
+                .to_bytes(&mut f)
+                .with_context(|| format!("Failed to write kernel at ({s}, {t})"))
+                .unwrap();
+        }
+        kernel
     }
 
     /// Call our resolution $X$, and the chain complex to resolve $C$. This is a legitimate
@@ -253,6 +337,96 @@ impl<CC: ChainComplex> Resolution<CC> {
         target_res.extend_table_entries(t);
         let target_res_dimension = target_res.dimension(t);
 
+        if self.save_dir.is_some() {
+            let differential_path = self.get_save_path("differential", s, t);
+
+            if differential_path.exists() {
+                let mut f = BufReader::new(File::open(differential_path).unwrap());
+                utils::validate_header(DIFFERENTIAL_MAGIC, p, s, t, &mut f).unwrap();
+
+                let num_new_gens = f.read_u64::<LittleEndian>().unwrap() as usize;
+                // It can be smaller than target_res_dimension if we resolved through stem
+                let saved_target_res_dimension = f.read_u64::<LittleEndian>().unwrap() as usize;
+                assert!(
+                    target_res_dimension >= saved_target_res_dimension,
+                    "Malformed data: mismatched resolution target dimension"
+                );
+                assert_eq!(
+                    target_cc_dimension,
+                    f.read_u64::<LittleEndian>().unwrap() as usize,
+                    "Malformed data: mismatched augmentation target dimension"
+                );
+
+                source.add_generators(t, num_new_gens, None);
+
+                let mut d_targets = Vec::with_capacity(num_new_gens);
+                let mut a_targets = Vec::with_capacity(num_new_gens);
+
+                for _ in 0..num_new_gens {
+                    d_targets
+                        .push(FpVector::from_bytes(p, saved_target_res_dimension, &mut f).unwrap());
+                }
+                for _ in 0..num_new_gens {
+                    a_targets.push(FpVector::from_bytes(p, target_cc_dimension, &mut f).unwrap());
+                }
+                drop(f);
+                current_differential.add_generators_from_rows(t, d_targets);
+                current_chain_map.add_generators_from_rows(t, a_targets);
+
+                // res qi
+                let res_qi_path = self.get_save_path("res_qi", s, t);
+                if res_qi_path.exists() {
+                    let mut f = BufReader::new(File::open(res_qi_path).unwrap());
+                    utils::validate_header(RES_QI_MAGIC, p, s, t, &mut f).unwrap();
+                    let res_qi = QuasiInverse::from_bytes(p, &mut f).unwrap();
+                    drop(f);
+
+                    assert!(
+                        target_res_dimension >= res_qi.target_dimension(),
+                        "Malformed data: mismatched resolution target dimension in qi at ({s}, {t})"
+                    );
+                    assert_eq!(
+                        res_qi.source_dimension(),
+                        source_dimension + num_new_gens,
+                        "Malformed data: mismatched source dimension in resolution qi at ({s}, {t})"
+                    );
+
+                    current_differential.set_quasi_inverse(t, Some(res_qi));
+                } else {
+                    current_differential.set_quasi_inverse(t, None);
+                }
+                current_differential.set_kernel(t, None);
+                current_differential.set_image(t, None);
+
+                // augmentation qi
+                let augmentation_qi_path = self.get_save_path("augmentation_qi", s, t);
+                if augmentation_qi_path.exists() {
+                    let mut f = BufReader::new(File::open(augmentation_qi_path).unwrap());
+                    utils::validate_header(AUGMENTATION_QI_MAGIC, p, s, t, &mut f).unwrap();
+                    let cm_qi = QuasiInverse::from_bytes(p, &mut f).unwrap();
+                    drop(f);
+
+                    assert_eq!(
+                        cm_qi.target_dimension(),
+                        target_cc_dimension,
+                        "Malformed data: mismatched augmentation target dimension in qi at ({s}, {t})"
+                    );
+                    assert_eq!(
+                        cm_qi.source_dimension(),
+                        source_dimension + num_new_gens,
+                        "Malformed data: mismatched source dimension in augmentation qi at ({s}, {t})"
+                    );
+
+                    current_chain_map.set_quasi_inverse(t, Some(cm_qi));
+                } else {
+                    current_chain_map.set_quasi_inverse(t, None);
+                }
+                current_chain_map.set_kernel(t, None);
+                current_chain_map.set_image(t, None);
+                return;
+            }
+        }
+
         let rows = source_dimension + target_cc_dimension + target_res_dimension;
 
         let mut matrix = AugmentedMatrix::<3>::new_with_capacity(
@@ -271,7 +445,23 @@ impl<CC: ChainComplex> Resolution<CC> {
         matrix.row_reduce();
 
         if !self.has_computed_bidegree(s + 1, t) {
-            self.kernels.insert((s, t), matrix.compute_kernel());
+            let kernel = matrix.compute_kernel();
+            if let Some(path) = self.save_dir.as_ref() {
+                let mut kernel_path = path.clone();
+                kernel_path.push("kernels");
+                kernel_path.push(format!("{s}_{t}_kernel"));
+
+                let f = File::create(kernel_path).unwrap();
+                let mut f = BufWriter::new(f);
+                utils::write_header(KERNEL_MAGIC, p, s, t, &mut f).unwrap();
+
+                kernel
+                    .to_bytes(&mut f)
+                    .with_context(|| format!("Failed to write kernel at ({s}, {t})"))
+                    .unwrap();
+            }
+
+            self.kernels.insert((s, t), kernel);
         }
 
         // Now add generators to surject onto C_{s, t}.
@@ -411,6 +601,49 @@ impl<CC: ChainComplex> Resolution<CC> {
         }
 
         let (cm_qi, res_qi) = matrix.compute_quasi_inverses();
+
+        if self.save_dir.is_some() {
+            // Write differentials
+            let f = File::create(self.get_save_path("differential", s, t)).unwrap();
+            let mut f = BufWriter::new(f);
+            utils::write_header(DIFFERENTIAL_MAGIC, p, s, t, &mut f).unwrap();
+
+            f.write_u64::<LittleEndian>(num_new_gens as u64).unwrap();
+            f.write_u64::<LittleEndian>(target_res_dimension as u64)
+                .unwrap();
+            f.write_u64::<LittleEndian>(target_cc_dimension as u64)
+                .unwrap();
+
+            for n in 0..num_new_gens {
+                current_differential.output(t, n).to_bytes(&mut f).unwrap();
+            }
+            for n in 0..num_new_gens {
+                current_chain_map.output(t, n).to_bytes(&mut f).unwrap();
+            }
+            drop(f);
+
+            // Write resolution qi
+            let f = File::create(self.get_save_path("res_qi", s, t)).unwrap();
+            let mut f = BufWriter::new(f);
+            utils::write_header(RES_QI_MAGIC, p, s, t, &mut f).unwrap();
+            res_qi.to_bytes(&mut f).unwrap();
+            drop(f);
+
+            // Write augmentation qi
+            let f = File::create(self.get_save_path("augmentation_qi", s, t)).unwrap();
+            let mut f = BufWriter::new(f);
+            utils::write_header(AUGMENTATION_QI_MAGIC, p, s, t, &mut f).unwrap();
+            cm_qi.to_bytes(&mut f).unwrap();
+            drop(f);
+
+            // Delete kernel
+            if s > 0 {
+                let ker_path = self.get_save_path("kernel", s - 1, t);
+                if ker_path.exists() {
+                    std::fs::remove_file(ker_path).unwrap();
+                }
+            }
+        }
 
         current_chain_map.set_quasi_inverse(t, Some(cm_qi));
         current_chain_map.set_kernel(t, None);
