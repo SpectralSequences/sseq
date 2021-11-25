@@ -4,6 +4,7 @@ all:
 	cargo build
 
 test:
+	cargo test
 	cargo test --features concurrent --lib --tests --workspace
 	cargo test --features concurrent --doc --workspace
 
