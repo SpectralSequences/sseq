@@ -7,7 +7,7 @@ use ext::chain_complex::{
 };
 use ext::resolution_homomorphism::ResolutionHomomorphism;
 use ext::utils;
-use fp::vector::FpVector;
+use fp::vector::{prelude::*, FpVector};
 use itertools::Itertools;
 
 fn main() -> anyhow::Result<()> {

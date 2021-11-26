@@ -3,7 +3,7 @@ use itertools::Itertools;
 use std::sync::Arc;
 
 use fp::prime::ValidPrime;
-use fp::vector::{Slice, SliceMut};
+use fp::vector::{prelude::*, Slice, SliceMut};
 
 use crate::algebra::Algebra;
 

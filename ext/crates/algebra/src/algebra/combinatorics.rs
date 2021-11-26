@@ -1,4 +1,4 @@
-use fp::vector::FpVector;
+use fp::vector::{prelude::*, FpVector};
 use once::OnceVec;
 
 use fp::prime::{minus_one_to_the_n, Binomial, ValidPrime};

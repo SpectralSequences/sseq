@@ -9,7 +9,7 @@
 use crate::combinatorics;
 use crate::Algebra;
 use fp::prime::TWO;
-use fp::vector::{FpVector, Slice, SliceMut};
+use fp::vector::{prelude::*, FpVector, Slice, SliceMut};
 use rustc_hash::FxHasher;
 
 type HashMap<K, V> = hashbrown::HashMap<K, V, std::hash::BuildHasherDefault<FxHasher>>;

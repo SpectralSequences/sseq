@@ -4,7 +4,7 @@ use bivec::BiVec;
 use fp::{
     matrix::{Matrix, Subquotient, Subspace},
     prime::ValidPrime,
-    vector::{FpVector, Slice},
+    vector::{prelude::*, FpVector, Slice},
 };
 use std::{marker::PhantomData, sync::Arc};
 

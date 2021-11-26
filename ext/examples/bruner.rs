@@ -26,7 +26,11 @@ use ext::{
     chain_complex::{ChainComplex, FiniteChainComplex as FCC},
     resolution_homomorphism::ResolutionHomomorphism,
 };
-use fp::{matrix::Matrix, prime::TWO, vector::FpVector};
+use fp::{
+    matrix::Matrix,
+    prime::TWO,
+    vector::{prelude::*, FpVector},
+};
 use std::{
     fs::File,
     io::{BufRead, BufReader},

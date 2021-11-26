@@ -6,7 +6,7 @@ use itertools::Itertools;
 use rustc_hash::FxHashMap as HashMap;
 
 use fp::prime::{BinomialIterator, BitflagIterator, ValidPrime};
-use fp::vector::{FpVector, SliceMut};
+use fp::vector::{prelude::*, FpVector, SliceMut};
 use once::OnceVec;
 
 use crate::algebra::combinatorics::{self, MAX_XI_TAU};

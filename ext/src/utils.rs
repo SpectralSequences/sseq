@@ -9,6 +9,7 @@ use algebra::module::{steenrod_module, FDModule, Module, SteenrodModule};
 use algebra::{AlgebraType, MilnorAlgebra, SteenrodAlgebra};
 
 use anyhow::{anyhow, Context};
+use fp::vector::prelude::*;
 use serde_json::Value;
 
 use std::convert::{TryFrom, TryInto};

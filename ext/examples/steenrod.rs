@@ -6,7 +6,7 @@ use ext::chain_complex::{
 use ext::utils;
 use ext::yoneda::yoneda_representative_element;
 use fp::matrix::Matrix;
-use fp::vector::FpVector;
+use fp::vector::{prelude::*, FpVector};
 use itertools::Itertools;
 use tensor_product_chain_complex::TensorChainComplex;
 
@@ -284,7 +284,7 @@ mod sum_module {
 
     use algebra::module::block_structure::{BlockStructure, GeneratorBasisEltPair};
     use algebra::module::{Module, ZeroModule};
-    use fp::vector::SliceMut;
+    use fp::vector::{prelude::*, SliceMut};
 
     use std::sync::Arc;
 
@@ -475,7 +475,7 @@ mod tensor_product_chain_complex {
     use algebra::{Algebra, Bialgebra};
     use ext::chain_complex::ChainComplex;
     use fp::matrix::AugmentedMatrix;
-    use fp::vector::{FpVector, Slice, SliceMut};
+    use fp::vector::{prelude::*, FpVector, Slice, SliceMut};
     use std::sync::Arc;
 
     use once::{OnceBiVec, OnceVec};

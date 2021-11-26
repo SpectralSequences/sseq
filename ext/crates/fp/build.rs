@@ -22,15 +22,15 @@ fn main() -> Result<(), Error> {
 
     writer.add_raw("/// The number of primes that are supported.");
     writer.add_value("NUM_PRIMES", "usize", num_primes);
-    writer.add_raw("/// The `MAX_PRIME`th prime number. Constructing a `ValidPrime` using any number larger than");
+    writer.add_raw("/// The `NUM_PRIMES`th prime number. Constructing a `ValidPrime` using any number larger than");
     writer.add_raw("/// this value will cause a panic.");
     writer.add_value("MAX_PRIME", "usize", max_prime);
-    // `NOT_A_PRIME` is never used if odd-primes is disabled.
-    writer.add_raw("#[allow(dead_code)]");
     writer.add_raw(
         "/// A sentinel value. `PRIME_TO_INDEX_MAP[i] == NOT_A_PRIME` if and only if `i` is not",
     );
     writer.add_raw("/// a prime number.");
+    // `NOT_A_PRIME` is never used if odd-primes is disabled.
+    writer.add_raw("#[allow(dead_code)]");
     writer.add_value("NOT_A_PRIME", "usize", not_a_prime);
     writer.add_value("MAX_MULTINOMIAL_LEN", "usize", max_multinomial_len);
     writer.add_raw("/// An array containing the first `NUM_PRIMES` prime numbers.");

@@ -10,7 +10,7 @@ use algebra::module::homomorphism::{ModuleHomomorphism, MuFreeModuleHomomorphism
 use algebra::module::{Module, MuFreeModule};
 use algebra::{Algebra, MuAlgebra};
 use fp::matrix::{AugmentedMatrix, QuasiInverse, Subspace};
-use fp::vector::{FpVector, Slice, SliceMut};
+use fp::vector::{prelude::*, FpVector, Slice, SliceMut};
 use once::OnceVec;
 
 use std::path::{Path, PathBuf};

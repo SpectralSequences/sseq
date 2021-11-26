@@ -1,7 +1,6 @@
 use std::ops::Range;
 
 pub(crate) use crate::constants::Limb;
-
 use crate::{constants::BITS_PER_LIMB, prime::ValidPrime};
 
 /// A struct containing the information required to access a specific entry in an array of `Limb`s.
@@ -9,6 +8,148 @@ use crate::{constants::BITS_PER_LIMB, prime::ValidPrime};
 pub(crate) struct LimbBitIndexPair {
     pub(crate) limb: usize,
     pub(crate) bit_index: usize,
+}
+
+/// A struct that defines a range of entries in a slice of limbs. We number limbs starting from some
+/// other limb that might not be in the range. This is because we must be able to index a struct
+/// using indices for another ambient struct. For example, accessing a `Slice` using coordinates
+/// from an ambient `FpVector`.
+#[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
+pub struct LimbLength<const P: u32> {
+    /// The index of the first entry relative to some other base limb.
+    pub(crate) start: usize,
+
+    /// The index of the last entry relative to some other base limb.
+    pub(crate) end: usize,
+
+    /// The total number of limbs in the range.
+    ///
+    /// We store this value instead of computing it on the fly because benchmarks tend to show that
+    /// the tradeoff is beneficial in high dimensions (>1000). We might want to only enable this
+    /// when odd-primes is enabled, since computing this number is easier when `p == 2`, so the
+    /// tradeoff is potentially worse.
+    limbs: usize,
+}
+
+impl<const P: u32> LimbLength<P> {
+    pub const fn from_limbs(limbs: usize) -> Self {
+        let logical = entries_per_limb_const::<P>() * limbs;
+        Self {
+            start: 0,
+            end: logical,
+            limbs,
+        }
+    }
+
+    pub const fn from_logical(logical: usize) -> Self {
+        let limbs = number::<P>(logical);
+        Self {
+            start: 0,
+            end: logical,
+            limbs,
+        }
+    }
+
+    /// Returns a `LimbLength` describing a vector starting at entry `start` and ending at entry
+    /// `end`. Most methods assume that `self.start < entries_per_limb_const::<P>()`, so it advised
+    /// to call `apply_shift` before using the return value.
+    pub fn from_start_end(start: usize, end: usize) -> Self {
+        let limb_range = range::<P>(start, end);
+        Self {
+            start,
+            end,
+            limbs: limb_range.end - limb_range.start,
+        }
+    }
+
+    #[inline]
+    pub const fn limbs(&self) -> usize {
+        self.limbs
+    }
+
+    #[inline]
+    pub const fn logical(&self) -> usize {
+        self.end - self.start
+    }
+
+    pub const fn contains(&self, other: &Self) -> bool {
+        self.start <= other.start && self.end >= other.end
+    }
+
+    /// Shift the entire `LimbLength` backwards so that the start of the range belongs to the first
+    /// limb, and return the number of limbs shifted.
+    pub fn apply_shift(&mut self) -> usize {
+        let entries_per = entries_per_limb_const::<P>();
+        let offset = self.start / entries_per;
+        self.start -= offset * entries_per;
+        self.end -= offset * entries_per;
+        offset
+    }
+
+    pub fn restrict_to(&self, other: Self) -> Self {
+        debug_assert!(self.start + other.end <= self.end);
+        Self::from_start_end(other.start + self.start, other.end + self.start)
+    }
+
+    pub fn trim_start(&self, offset: usize) -> Self {
+        debug_assert_eq!(self.start, 0);
+        assert_eq!(offset % entries_per_limb_const::<P>(), 0);
+        let limb_shift = offset / entries_per_limb_const::<P>();
+        Self {
+            start: self.start,
+            end: self.end - offset,
+            limbs: self.limbs - limb_shift,
+        }
+    }
+
+    #[inline]
+    pub fn bit_offset(&self) -> usize {
+        self.start * bit_length_const::<P>()
+    }
+
+    #[inline]
+    pub fn limb_range(&self) -> Range<usize> {
+        range::<P>(self.start, self.end)
+    }
+
+    /// This function underflows if `self.start + self.logical() == 0`, which happens if and only if
+    /// we are taking a slice of width 0 at the start of an `FpVector`. This should be a very rare
+    /// edge case. Dealing with the underflow properly would probably require using `saturating_sub`
+    /// or something of that nature, and that has a nontrivial (10%) performance hit.
+    #[inline]
+    pub fn limb_range_inner(&self) -> Range<usize> {
+        let range = self.limb_range();
+        (range.start + 1)..(usize::max(range.start + 1, range.end - 1))
+    }
+
+    #[inline(always)]
+    pub fn min_limb_mask(&self) -> Limb {
+        !0 << self.bit_offset()
+    }
+
+    #[inline(always)]
+    pub fn max_limb_mask(&self) -> Limb {
+        let num_entries = 1 + (self.end - 1) % entries_per_limb_const::<P>();
+        let bit_max = num_entries * bit_length_const::<P>();
+
+        (!0) >> (BITS_PER_LIMB - bit_max)
+    }
+
+    #[inline(always)]
+    pub fn limb_masks(&self) -> (Limb, Limb) {
+        if self.limb_range().len() == 1 {
+            (
+                self.min_limb_mask() & self.max_limb_mask(),
+                self.min_limb_mask() & self.max_limb_mask(),
+            )
+        } else {
+            (self.min_limb_mask(), self.max_limb_mask())
+        }
+    }
+
+    pub const fn is_on_limb_boundary(start: usize, end: usize) -> bool {
+        start % entries_per_limb_const::<P>() == 0 && end % entries_per_limb_const::<P>() == 0
+    }
 }
 
 /// Return the number of bits an element of $\mathbb{F}_P$ occupies in a limb.
@@ -44,6 +185,29 @@ pub(crate) const fn entries_per_limb(p: ValidPrime) -> usize {
 /// The number of elements of $\\mathbb{F}_p$ that fit in a single limb.
 pub(crate) const fn entries_per_limb_const<const P: u32>() -> usize {
     BITS_PER_LIMB / bit_length_const::<P>()
+}
+
+/// This is identical to [`limb::number`], except that it's not const. Hopefully almost every method
+/// in the limb crate can be const once the matrix rewrite is in place.
+pub(crate) fn num_limbs(p: ValidPrime, len: usize) -> usize {
+    let entries_per_limb = entries_per_limb(p);
+    (len + entries_per_limb - 1) / entries_per_limb
+}
+
+pub(crate) fn padded_len(p: ValidPrime, len: usize) -> usize {
+    num_limbs(p, len) * entries_per_limb(p)
+}
+
+/// The number of bits that the entries occupy in total. This number is close to [`BITS_PER_LIMB`],
+/// but often slightly lower unless `P == 2`.
+pub(crate) const fn used_bits<const P: u32>() -> usize {
+    entries_per_limb_const::<P>() * bit_length_const::<P>()
+}
+
+/// A mask on the region that contains entries. Limbs are usually assumed to satisfy the condition
+/// `limb & !used_mask() == 0`.
+pub(crate) const fn used_mask<const P: u32>() -> Limb {
+    !0 >> (BITS_PER_LIMB - used_bits::<P>())
 }
 
 pub(crate) const fn limb_bit_index_pair<const P: u32>(idx: usize) -> LimbBitIndexPair {
@@ -97,7 +261,7 @@ pub(crate) fn reduce<const P: u32>(limb: Limb) -> Limb {
 
 /// Check whether or not a limb is reduced, i.e. whether every entry is a value in the range `0..P`.
 /// This is currently **not** faster than calling [`reduce`] directly.
-pub(crate) fn is_reduced<const P: u32>(limb: Limb) -> bool {
+pub(crate) fn _is_reduced<const P: u32>(limb: Limb) -> bool {
     limb == reduce::<P>(limb)
 }
 
@@ -169,8 +333,8 @@ pub(crate) fn sign_rule(mut target: Limb, mut source: Limb) -> u32 {
 }
 
 /// Return either `Some(sum)` if no carries happen in the limb, or `None` if some carry does happen.
-pub(crate) fn truncate<const P: u32>(sum: Limb) -> Option<Limb> {
-    if is_reduced::<P>(sum) {
+pub(crate) fn _truncate<const P: u32>(sum: Limb) -> Option<Limb> {
+    if _is_reduced::<P>(sum) {
         Some(sum)
     } else {
         None

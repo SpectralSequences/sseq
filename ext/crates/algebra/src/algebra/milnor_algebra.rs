@@ -5,7 +5,7 @@ use std::cell::Cell;
 use crate::algebra::combinatorics;
 use crate::algebra::{Algebra, Bialgebra, GeneratedAlgebra, UnstableAlgebra};
 use fp::prime::{factor_pk, integer_power, Binomial, BitflagIterator, ValidPrime};
-use fp::vector::{FpVector, Slice, SliceMut};
+use fp::vector::{prelude::*, FpVector, Slice, SliceMut};
 use once::OnceVec;
 
 #[cfg(feature = "json")]

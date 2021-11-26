@@ -5,7 +5,7 @@ use crate::algebra::{Algebra, Bialgebra};
 use crate::module::block_structure::BlockStructure;
 use crate::module::{Module, ZeroModule};
 use fp::prime::minus_one_to_the_n;
-use fp::vector::{FpVector, Slice, SliceMut};
+use fp::vector::{prelude::*, FpVector, Slice, SliceMut};
 
 use std::sync::Arc;
 

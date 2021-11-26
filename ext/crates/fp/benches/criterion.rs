@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
 use fp::{matrix::Matrix, prime::ValidPrime};
 use rand::Rng;
@@ -17,7 +15,7 @@ fn row_reductions(c: &mut Criterion) {
     for p in [2, 3, 5, 7].iter() {
         let p = ValidPrime::new(*p);
         let mut group = c.benchmark_group(&format!("row_reduce_{}", p));
-        for dimension in [10, 20, 69, 100, 420, 1000] {
+        for dimension in [10, 20, 69, 100, 420, 1000, 1500] {
             group.bench_function(&format!("row_reduce_{}_{}", p, dimension), move |b| {
                 b.iter_batched_ref(
                     || random_matrix(p, dimension),
@@ -41,7 +39,7 @@ fn random_vector(p: ValidPrime, dimension: usize) -> Vec<u32> {
 
 criterion_group! {
     name = row_reduction;
-    config = Criterion::default().sample_size(100).measurement_time(Duration::from_secs(100));
+    config = Criterion::default().sample_size(100).measurement_time(std::time::Duration::from_secs(100));
     targets = row_reductions
 }
 

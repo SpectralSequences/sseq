@@ -10,7 +10,7 @@ use algebra::steenrod_evaluator::SteenrodEvaluator;
 use algebra::{AdemAlgebra, Algebra, GeneratedAlgebra};
 use bivec::BiVec;
 use fp::prime::ValidPrime;
-use fp::vector::FpVector;
+use fp::vector::{prelude::*, FpVector};
 
 use anyhow::anyhow;
 

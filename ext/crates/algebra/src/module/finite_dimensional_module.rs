@@ -1,7 +1,7 @@
 use crate::algebra::Algebra;
 use crate::module::{Module, ZeroModule};
 use bivec::BiVec;
-use fp::vector::{FpVector, SliceMut};
+use fp::vector::{prelude::*, FpVector, SliceMut};
 
 use std::fmt::Write as _;
 use std::sync::Arc;
@@ -178,7 +178,7 @@ impl<A: Algebra> Module for FiniteDimensionalModule<A> {
             return;
         }
         let output = self.action(op_degree, op_index, mod_degree, mod_index);
-        result.add(output.as_slice(), coeff);
+        result.add(output, coeff);
     }
 
     fn max_degree(&self) -> Option<i32> {

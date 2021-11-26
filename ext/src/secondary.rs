@@ -10,7 +10,7 @@ use algebra::Algebra;
 use bivec::BiVec;
 use fp::matrix::Matrix;
 use fp::prime::ValidPrime;
-use fp::vector::{FpVector, Slice, SliceMut};
+use fp::vector::{prelude::*, FpVector, Slice, SliceMut};
 use once::OnceBiVec;
 
 use std::io::{Read, Write};
@@ -1087,7 +1087,7 @@ where
 
                 let extra = *v / *p;
                 out.slice_mut(source_num_gens, source_num_gens + tau_num_gens)
-                    .add(mp[i].as_slice(), (extra * filtration_one_sign) % *p);
+                    .add(&mp[i], (extra * filtration_one_sign) % *p);
             }
             if let Some(page_data) = page_data {
                 page_data.reduce_by_quotient(
