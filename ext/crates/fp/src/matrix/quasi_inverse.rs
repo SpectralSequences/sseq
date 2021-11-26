@@ -50,8 +50,17 @@ impl QuasiInverse {
                 }
             }
             Some(v) => {
-                for &i in v {
-                    buffer.write_i64::<LittleEndian>(i as i64)?;
+                cfg_if::cfg_if! {
+                    if #[cfg(all(target_endian = "little", target_pointer_width="64"))] {
+                        unsafe {
+                            let buf: &[u8] = std::slice::from_raw_parts(v.as_ptr() as *const u8, v.len() * 8);
+                            buffer.write_all(buf).unwrap();
+                        }
+                    } else {
+                        for &i in v {
+                            buffer.write_i64::<LittleEndian>(i as i64)?;
+                        }
+                    }
                 }
             }
         }
@@ -62,9 +71,21 @@ impl QuasiInverse {
         let source_dim = data.read_u64::<LittleEndian>()? as usize;
         let target_dim = data.read_u64::<LittleEndian>()? as usize;
         let image_dim = data.read_u64::<LittleEndian>()? as usize;
-        let mut image = Vec::with_capacity(target_dim);
-        for _ in 0..target_dim {
-            image.push(data.read_i64::<LittleEndian>()? as isize);
+        let mut image: Vec<isize>;
+
+        cfg_if::cfg_if! {
+            if #[cfg(all(target_endian = "little", target_pointer_width="64"))] {
+                image = vec![0; target_dim];
+                unsafe {
+                    let buf: &mut [u8] = std::slice::from_raw_parts_mut(image.as_mut_ptr() as *mut u8, target_dim * 8);
+                    data.read_exact(buf).unwrap();
+                }
+            } else {
+                image = Vec::with_capacity(target_dim);
+                for _ in 0..target_dim {
+                    image.push(data.read_i64::<LittleEndian>()? as isize);
+                }
+            }
         }
         let preimage = Matrix::from_bytes(p, image_dim, source_dim, data)?;
         Ok(Self {

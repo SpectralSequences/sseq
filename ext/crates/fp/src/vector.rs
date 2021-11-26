@@ -203,13 +203,26 @@ impl FpVector {
 
     pub fn from_bytes(p: ValidPrime, len: usize, data: &mut impl Read) -> std::io::Result<Self> {
         let num_limbs = Self::num_limbs(p, len);
-        let mut limbs = Vec::with_capacity(num_limbs);
 
-        for _ in 0..num_limbs {
-            let mut bytes: [u8; size_of::<Limb>()] = [0; size_of::<Limb>()];
-            data.read_exact(&mut bytes)?;
-            limbs.push(Limb::from_le_bytes(bytes));
-        }
+        let mut limbs: Vec<Limb>;
+        cfg_if::cfg_if! {
+            if #[cfg(target_endian = "little")] {
+                limbs = vec![0; num_limbs];
+                let num_bytes = num_limbs * size_of::<Limb>();
+                unsafe {
+                    let buf: &mut [u8] = std::slice::from_raw_parts_mut(limbs.as_mut_ptr() as *mut u8, num_bytes);
+                    data.read_exact(buf).unwrap();
+                }
+            } else {
+                limbs = Vec::with_capacity(num_limbs);
+
+                for _ in 0..num_limbs {
+                    let mut bytes: [u8; size_of::<Limb>()] = [0; size_of::<Limb>()];
+                    data.read_exact(&mut bytes)?;
+                    limbs.push(Limb::from_le_bytes(bytes));
+                }
+            }
+        };
         Ok(match_p!(p, FpVectorP::from_raw_parts(len, limbs)))
     }
 
