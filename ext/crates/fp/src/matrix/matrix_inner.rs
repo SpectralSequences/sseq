@@ -97,6 +97,7 @@ impl Matrix {
                     buffer.write_all(buf).unwrap();
                 }
             } else {
+                use byteorder::{LittleEndian, WriteBytesExt};
                 for &i in v {
                     buffer.write_i64::<LittleEndian>(i as i64)?;
                 }
@@ -115,8 +116,9 @@ impl Matrix {
                 }
                 Ok(image)
             } else {
-                let image = Vec::with_capacity(dim);
-                for _ in 0..target_dim {
+                use byteorder::{LittleEndian, ReadBytesExt};
+                let mut image = Vec::with_capacity(dim);
+                for _ in 0..dim {
                     image.push(data.read_i64::<LittleEndian>()? as isize);
                 }
                 Ok(image)
