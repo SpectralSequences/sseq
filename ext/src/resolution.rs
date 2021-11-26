@@ -142,6 +142,8 @@ impl<CC: ChainComplex> Resolution<CC> {
         p
     }
 
+    // When compiling to wasm we don't mutate path
+    #[allow(unused_mut)]
     fn search_file(mut path: PathBuf) -> Option<Box<dyn Read>> {
         // We should try in decreasing order of access speed.
         match File::open(&path) {
