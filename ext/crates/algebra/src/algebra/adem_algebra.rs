@@ -204,6 +204,10 @@ impl fmt::Display for AdemAlgebra {
 }
 
 impl Algebra for AdemAlgebra {
+    fn magic(&self) -> u16 {
+        0
+    }
+
     fn prime(&self) -> ValidPrime {
         self.p
     }

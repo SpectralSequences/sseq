@@ -179,7 +179,7 @@ impl<CC: ChainComplex> Resolution<CC> {
     /// This panics if there is no save dir
     fn open_save_file(&self, kind: SaveData, s: u32, t: i32) -> Option<Box<dyn Read>> {
         let mut f = Self::search_file(self.get_save_path(kind, s, t))?;
-        utils::validate_header(kind.magic(), self.prime(), s, t, &mut f).unwrap();
+        utils::validate_header(kind.magic(), &*self.algebra(), self.prime(), s, t, &mut f).unwrap();
         Some(f)
     }
 
@@ -193,7 +193,7 @@ impl<CC: ChainComplex> Resolution<CC> {
             .with_context(|| format!("Failed to create save file {p:?}"))
             .unwrap();
         let mut f = BufWriter::new(f);
-        utils::write_header(kind.magic(), self.prime(), s, t, &mut f).unwrap();
+        utils::write_header(kind.magic(), &*self.algebra(), self.prime(), s, t, &mut f).unwrap();
         f
     }
 

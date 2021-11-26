@@ -56,12 +56,22 @@ to being written.
 
 ### File headers
 In addition to a name, each kind of data has a 4-byte magic number to ensure we
-do not mix them up. Each data file starts with a 16-byte header of the form
+do not mix them up. Further, since it is easy to forget to specify which
+algebra to use, we have a 2-byte magic number for each algebra. These are
+defined as follows:
+```
+adem algebra: 0x0000
+milnor algebra without profile: 0x8000
+milnor algebra with profile: 0x8001
+```
 
+
+Each data file starts with a 16-byte header of the form
 ```
 struct {
     magic: u32,
-    prime: u32,
+    algebra_magic: u16,
+    prime: u16,
     s: u32,
     t: i32
 }

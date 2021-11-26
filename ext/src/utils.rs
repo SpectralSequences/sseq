@@ -2,7 +2,7 @@ use crate::chain_complex::{ChainComplex, FiniteChainComplex, FreeChainComplex};
 use crate::resolution::Resolution;
 use crate::CCC;
 use algebra::module::{FiniteModule, Module};
-use algebra::{AlgebraType, SteenrodAlgebra};
+use algebra::{Algebra, AlgebraType, SteenrodAlgebra};
 use fp::prime::ValidPrime;
 
 use anyhow::{anyhow, Context};
@@ -343,21 +343,24 @@ pub fn print_element(v: fp::vector::Slice, n: i32, s: u32) {
     }
 }
 
-pub fn write_header(
+pub fn write_header<A: Algebra>(
     magic: u32,
+    algebra: &A,
     p: ValidPrime,
     s: u32,
     t: i32,
     buffer: &mut impl Write,
 ) -> std::io::Result<()> {
     buffer.write_u32::<LittleEndian>(magic)?;
-    buffer.write_u32::<LittleEndian>(*p)?;
+    buffer.write_u16::<LittleEndian>(algebra.magic())?;
+    buffer.write_u16::<LittleEndian>(*p as u16)?;
     buffer.write_u32::<LittleEndian>(s)?;
     buffer.write_i32::<LittleEndian>(t)
 }
 
-pub fn validate_header(
+pub fn validate_header<A: Algebra>(
     magic: u32,
+    algebra: &A,
     p: ValidPrime,
     s: u32,
     t: i32,
@@ -369,11 +372,22 @@ pub fn validate_header(
     if data_magic != magic {
         return Err(Error::new(
             ErrorKind::InvalidData,
-            format!("Invalid magic {data_magic:#04x}; expected {magic:#04x}"),
+            format!("Invalid magic {data_magic:#010x}; expected {magic:#010x}"),
         ));
     }
 
-    let data_p = buffer.read_u32::<LittleEndian>()?;
+    let algebra_magic = buffer.read_u16::<LittleEndian>()?;
+    if algebra_magic != algebra.magic() {
+        return Err(Error::new(
+            ErrorKind::InvalidData,
+            format!(
+                "Invalid algebra magic {algebra_magic:#06x}; expected {:#06x}",
+                algebra.magic()
+            ),
+        ));
+    }
+
+    let data_p = buffer.read_u16::<LittleEndian>()? as u32;
     if data_p != *p {
         return Err(Error::new(
             ErrorKind::InvalidData,
