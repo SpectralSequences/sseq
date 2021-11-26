@@ -59,7 +59,12 @@ In addition to a name, each kind of data has a 4-byte magic number to ensure we
 do not mix them up. Each data file starts with a 16-byte header of the form
 
 ```
-[MAGIC: u32][prime: u32][s: u32][t: i32]
+struct {
+    magic: u32,
+    prime: u32,
+    s: u32,
+    t: i32
+}
 ```
 
 Apart from the prime, all the other data is also present in the file name, and
@@ -84,17 +89,13 @@ Let `x_1, ..., x_n` be the generators and `d, ε` be the differential and
 augmentation map. The format of the save file is then as follows:
 
 ```
-[number of generators: u64]
-[length of d(x_i): u64]
-[length of ε(x_i): u64]
-[d(x_1)]
-[d(x_2)]
-...
-[d(x_n)]
-[ε(x_1)]
-[ε(x_2)]
-...
-[ε(x_n)]
+struct {
+    num_gens: u64,
+    len_of_d(x_i): u64,
+    len_of_ε(x_i): u64,
+    d(x_i): [[u64; num_limbs(len_of_d(x_i))]; num_gens]
+    ε(x_i): [[u64; num_limbs(len_of_d(x_i))]; num_gens]
+}
 ```
 
 The length is the vector space dimension of the target, while the vectors
@@ -132,12 +133,12 @@ then the pivot is
 
 The format of a subspace is as follows:
 ```
-[dimension of subspace: u64][ambient_dimension: u64]
-[first basis element of subspace]
-[second basis element of subspace]
-...
-[last basis element of subspace]
-[pivots: [i64; ambient_dimension]]
+struct {
+    subspace_dimension: u64,
+    total_space_dimension: u64,
+    basis_vectors: [[u64; num_limbs(total_space_dimension)]; subspace_dimension]
+    pivots: [i64; total_space_dimension]
+}
 ```
 As usual, the basis elements of a subspace are chosen to be in row reduced
 echelon form.
@@ -148,12 +149,13 @@ The associated magics are `0x0100D1FF` and `0x0100A000` respectively.
 
 The format of a quasi-inverse is as follows:
 ```
-[source dimension: u64][target dimension: u64][image dimension: u64]
-[pivots of the image: [i64; target_dimension]]
-[lift of first basis element of the image]
-[lift of second basis element of the image]
-...
-[lift of last basis element of the image]
+struct {
+    source_dimension: u64,
+    target_dimension: u64,
+    image_dimension: u64,
+    pivots_of_image: [i64; target_dimension],
+    lift_of_basis_elements: [[u64; num_limbs(source_dimension)]; image_dimension]
+}
 ```
 
 Note that it is not necessary to know what the image is, as long as the user of
