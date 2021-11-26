@@ -246,3 +246,48 @@ impl<A: Algebra> FreeModuleHomomorphism<FreeModule<A>> {
         result
     }
 }
+
+use saveload::{Load, Save};
+use std::io;
+use std::io::{Read, Write};
+
+impl<M: Module> Save for FreeModuleHomomorphism<M> {
+    fn save(&self, buffer: &mut impl Write) -> io::Result<()> {
+        self.outputs.save(buffer)?;
+        self.images.save(buffer)?;
+        self.kernels.save(buffer)?;
+        self.quasi_inverses.save(buffer)?;
+
+        Ok(())
+    }
+}
+
+impl<M: Module> Load for FreeModuleHomomorphism<M> {
+    type AuxData = (Arc<FreeModule<M::Algebra>>, Arc<M>, i32);
+
+    fn load(buffer: &mut impl Read, data: &Self::AuxData) -> io::Result<Self> {
+        let source: Arc<FreeModule<M::Algebra>> = Arc::clone(&data.0);
+        let target: Arc<M> = Arc::clone(&data.1);
+        let degree_shift = data.2;
+        let min_degree = std::cmp::max(source.min_degree(), target.min_degree() + degree_shift);
+        let p = source.prime();
+
+        let outputs: OnceBiVec<Vec<FpVector>> = Load::load(buffer, &(min_degree, p))?;
+
+        let images = OnceBiVec::<Option<Subspace>>::load(buffer, &(min_degree, Some(p)))?;
+        let kernels = OnceBiVec::<Option<Subspace>>::load(buffer, &(min_degree, Some(p)))?;
+        let quasi_inverses =
+            OnceBiVec::<Option<QuasiInverse>>::load(buffer, &(min_degree, Some(p)))?;
+
+        Ok(Self {
+            source,
+            target,
+            outputs,
+            images,
+            kernels,
+            quasi_inverses,
+            min_degree,
+            degree_shift,
+        })
+    }
+}

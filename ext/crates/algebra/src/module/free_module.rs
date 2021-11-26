@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use crate::algebra::Algebra;
 use crate::module::Module;
+use bivec::BiVec;
 use fp::vector::{Slice, SliceMut};
 use once::{OnceBiVec, OnceVec};
 
@@ -413,6 +414,39 @@ impl<A: JsonAlgebra> FreeModule<A> {
         Value::from(result)
     }
 }
+
+use saveload::{Load, Save};
+use std::io;
+use std::io::{Read, Write};
+
+impl<A: Algebra> Save for FreeModule<A> {
+    fn save(&self, buffer: &mut impl Write) -> io::Result<()> {
+        self.num_gens.save(buffer)
+    }
+}
+
+impl<A: Algebra> Load for FreeModule<A> {
+    type AuxData = (Arc<A>, i32);
+
+    fn load(buffer: &mut impl Read, data: &Self::AuxData) -> io::Result<Self> {
+        let algebra = Arc::clone(&data.0);
+        let min_degree = data.1;
+
+        let result = FreeModule::new(algebra, "".to_string(), min_degree);
+
+        let num_gens: BiVec<usize> = Load::load(buffer, &(min_degree, ()))?;
+        result.algebra().compute_basis(num_gens.len() - min_degree);
+
+        for (degree, num) in num_gens.iter_enum() {
+            result.add_generators(degree, *num, None);
+        }
+        // We extend to one degree beyond the number of generators added, which is needed for
+        // resolving to stem. It is always safe to extend more than we "need".
+        result.extend_table_entries(num_gens.len());
+        Ok(result)
+    }
+}
+
 /*
 #[cfg(not(feature = "cache-multiplication"))]
 impl<A: Algebra> FreeModule<A> {

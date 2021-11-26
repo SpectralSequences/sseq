@@ -254,3 +254,23 @@ impl<T> IndexMut<i32> for BiVec<T> {
         &mut (self.data[(i - self.min_degree) as usize])
     }
 }
+use saveload::{Load, Save};
+use std::io;
+use std::io::{Read, Write};
+
+impl<T: Save> Save for BiVec<T> {
+    fn save(&self, buffer: &mut impl Write) -> io::Result<()> {
+        self.data.save(buffer)
+    }
+}
+
+impl<T: Load> Load for BiVec<T> {
+    type AuxData = (i32, T::AuxData);
+
+    fn load(buffer: &mut impl Read, data: &Self::AuxData) -> io::Result<Self> {
+        let min_degree = data.0;
+        let data = Load::load(buffer, &data.1)?;
+
+        Ok(Self { data, min_degree })
+    }
+}

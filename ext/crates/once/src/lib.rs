@@ -315,6 +315,33 @@ impl<T> IndexMut<u32> for OnceVec<T> {
 unsafe impl<T: Send> Send for OnceVec<T> {}
 unsafe impl<T: Sync> Sync for OnceVec<T> {}
 
+use saveload::{Load, Save};
+use std::io;
+use std::io::{Read, Write};
+
+impl<T: Save> Save for OnceVec<T> {
+    fn save(&self, buffer: &mut impl Write) -> io::Result<()> {
+        self.len().save(buffer)?;
+        for x in self.iter() {
+            x.save(buffer)?;
+        }
+        Ok(())
+    }
+}
+
+impl<T: Load> Load for OnceVec<T> {
+    type AuxData = T::AuxData;
+
+    fn load(buffer: &mut impl Read, data: &Self::AuxData) -> io::Result<Self> {
+        let len = usize::load(buffer, &())?;
+        let result: OnceVec<T> = OnceVec::new();
+        for _ in 0..len {
+            result.push(T::load(buffer, data)?);
+        }
+        Ok(result)
+    }
+}
+
 #[derive(Clone, PartialEq, Eq)]
 pub struct OnceBiVec<T> {
     pub data: OnceVec<T>,
@@ -466,6 +493,22 @@ impl<T> IndexMut<i32> for OnceBiVec<T> {
     }
 }
 
+impl<T: Save> Save for OnceBiVec<T> {
+    fn save(&self, buffer: &mut impl Write) -> io::Result<()> {
+        self.data.save(buffer)
+    }
+}
+
+impl<T: Load> Load for OnceBiVec<T> {
+    type AuxData = (i32, T::AuxData);
+
+    fn load(buffer: &mut impl Read, data: &Self::AuxData) -> io::Result<Self> {
+        let min_degree = data.0;
+        let data = Load::load(buffer, &data.1)?;
+        Ok(Self { data, min_degree })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -487,5 +530,37 @@ mod tests {
             println!("i : {}", i);
             assert_eq!(v[i], i);
         }
+    }
+
+    #[test]
+    fn test_saveload() {
+        use std::io::{Cursor, Seek, SeekFrom};
+
+        let v: OnceVec<u32> = OnceVec::new();
+        v.push(6);
+        v.push(3);
+        v.push(4);
+        v.push(2);
+
+        let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+        v.save(&mut cursor).unwrap();
+
+        cursor.seek(SeekFrom::Start(0)).unwrap();
+        let v_saved_then_loaded: OnceVec<u32> = Load::load(&mut cursor, &()).unwrap();
+        assert_eq!(v, v_saved_then_loaded);
+        assert_eq!(0, cursor.bytes().count());
+
+        // let mut w = BiVec::new(-3);
+        // w.push(2);
+        // w.push(6);
+        // w.push(2);
+        // w.push(7);
+
+        // let mut cursor2 : Cursor<Vec<u8>> = Cursor::new(Vec::new());
+        // w.save(&mut cursor2).unwrap();
+        // cursor2.seek(SeekFrom::Start(0)).unwrap();
+        // let w_saved_then_loaded : BiVec<u32> = Load::load(&mut cursor, &(-3, ())).unwrap();
+
+        // assert_eq!(w, w_saved_then_loaded);
     }
 }

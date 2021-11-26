@@ -165,52 +165,24 @@ impl QuasiInverse {
     }
 }
 
-#[cfg(test)]
-mod test {
-    use super::*;
+use saveload::{Load, Save};
+use std::io;
 
-    #[test]
-    fn test_stream_qi() {
-        let p = ValidPrime::new(2);
-        let qi = QuasiInverse {
-            image: Some(vec![0, -1, 1, -1, 2, 3]),
-            preimage: Matrix::from_vec(
-                p,
-                &[
-                    vec![1, 0, 1, 1],
-                    vec![1, 1, 0, 0],
-                    vec![0, 1, 0, 1],
-                    vec![1, 1, 1, 0],
-                ],
-            ),
-        };
-        let v0 = FpVector::from_slice(p, &[1, 1, 0, 0, 1, 0]);
-        let v1 = FpVector::from_slice(p, &[0, 0, 1, 0, 1, 1]);
+impl Save for QuasiInverse {
+    fn save(&self, buffer: &mut impl Write) -> io::Result<()> {
+        self.image.save(buffer)?;
+        self.preimage.save(buffer)?;
+        Ok(())
+    }
+}
 
-        let mut out0 = FpVector::new(p, 4);
-        let mut out1 = FpVector::new(p, 4);
+impl Load for QuasiInverse {
+    type AuxData = ValidPrime;
 
-        let mut cursor = std::io::Cursor::new(Vec::<u8>::new());
-        qi.to_bytes(&mut cursor).unwrap();
-        cursor.set_position(0);
-
-        QuasiInverse::stream_quasi_inverse(
-            p,
-            &mut cursor,
-            &mut [out0.as_slice_mut(), out1.as_slice_mut()],
-            &[v0.as_slice(), v1.as_slice()],
-        )
-        .unwrap();
-
-        let mut bench0 = FpVector::new(p, 4);
-        let mut bench1 = FpVector::new(p, 4);
-
-        qi.apply(bench0.as_slice_mut(), 1, v0.as_slice());
-        qi.apply(bench1.as_slice_mut(), 1, v1.as_slice());
-
-        assert_eq!(out0, bench0, "{out0} != {bench0}");
-        assert_eq!(out1, bench1, "{out1} != {bench1}");
-
-        assert_eq!(cursor.position() as usize, cursor.get_ref().len());
+    fn load(buffer: &mut impl Read, p: &ValidPrime) -> io::Result<Self> {
+        Ok(Self {
+            image: Option::<Vec<isize>>::load(buffer, &Some(()))?,
+            preimage: Matrix::load(buffer, p)?,
+        })
     }
 }
