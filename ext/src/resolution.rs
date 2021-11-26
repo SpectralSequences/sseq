@@ -707,10 +707,15 @@ impl<CC: ChainComplex> Resolution<CC> {
             }
         }
 
-        current_chain_map.set_quasi_inverse(t, cm_qi);
+        if self.load_quasi_inverse {
+            current_chain_map.set_quasi_inverse(t, cm_qi);
+            current_differential.set_quasi_inverse(t, res_qi);
+        } else {
+            current_chain_map.set_quasi_inverse(t, None);
+            current_differential.set_quasi_inverse(t, None);
+        }
         current_chain_map.set_kernel(t, None);
         current_chain_map.set_image(t, None);
-        current_differential.set_quasi_inverse(t, res_qi);
         current_differential.set_kernel(t, None);
         current_differential.set_image(t, None);
     }
@@ -1003,7 +1008,7 @@ impl<CC: ChainComplex> ChainComplex for Resolution<CC> {
             }
             true
         } else if self.save_dir.is_some() {
-            if let Some(mut f) = self.open_save_file(SaveData::Kernel, s, t) {
+            if let Some(mut f) = self.open_save_file(SaveData::ResQi, s, t) {
                 QuasiInverse::stream_quasi_inverse(self.prime(), &mut f, results, inputs).unwrap();
                 true
             } else {
@@ -1062,5 +1067,23 @@ mod test {
             ·                                       
         "#]]
         .assert_eq(&res.graded_dimension_string());
+    }
+
+    #[test]
+    fn test_apply_quasi_inverse() {
+        let tempdir = tempfile::TempDir::new().unwrap();
+
+        let mut res = construct("S_2", Some(tempdir.path().into())).unwrap();
+        res.load_quasi_inverse = false;
+
+        res.compute_through_bidegree(8, 8);
+
+        assert!(res.differential(8).quasi_inverse(8).is_none());
+
+        let v = FpVector::new(res.prime(), res.module(7).dimension(8));
+        let mut w = FpVector::new(res.prime(), res.module(8).dimension(8));
+
+        assert!(res.apply_quasi_inverse(&mut [w.as_slice_mut()], 8, 8, &[v.as_slice()]));
+        assert!(w.is_zero());
     }
 }
