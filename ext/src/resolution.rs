@@ -141,22 +141,37 @@ impl<CC: ChainComplex> Resolution<CC> {
         p.push(format!("{name}s/{s}_{t}_{name}"));
         p
     }
-    /// This panics if there is no save dir
-    fn open_save_file(&self, kind: SaveData, s: u32, t: i32) -> Option<impl Read> {
-        let p = self.get_save_path(kind, s, t);
 
-        let f = match File::open(&p) {
-            Ok(g) => g,
+    fn search_file(mut path: PathBuf) -> Option<Box<dyn Read>>{
+        // We should try in decreasing order of access speed.
+        match File::open(&path) {
+            Ok(f) => return Some(Box::new(BufReader::new(f))),
             Err(e) => {
-                if e.kind() == std::io::ErrorKind::NotFound {
-                    return None;
-                } else {
-                    panic!("Error when opening {p:?}");
+                if e.kind() != std::io::ErrorKind::NotFound {
+                    panic!("Error when opening {path:?}");
                 }
             }
-        };
+        }
 
-        let mut f = BufReader::new(f);
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            path.set_extension("zst");
+            match File::open(&path) {
+                Ok(f) => return Some(Box::new(zstd::stream::Decoder::new(f).unwrap())),
+                Err(e) => {
+                    if e.kind() != std::io::ErrorKind::NotFound {
+                        panic!("Error when opening {path:?}");
+                    }
+                }
+            }
+        }
+
+        None
+    }
+
+    /// This panics if there is no save dir
+    fn open_save_file(&self, kind: SaveData, s: u32, t: i32) -> Option<Box<dyn Read>> {
+        let mut f = Self::search_file(self.get_save_path(kind, s, t))?;
         utils::validate_header(kind.magic(), self.prime(), s, t, &mut f).unwrap();
         Some(f)
     }

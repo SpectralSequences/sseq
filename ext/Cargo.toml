@@ -27,6 +27,9 @@ chart = { path = "crates/chart" }
 dashmap = "4.0.0"
 byteorder = "1.4.3"
 
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+zstd = "0.9.0"
+
 [dev-dependencies]
 expect-test = "1.1.0"
 rstest = "0.11.0"
