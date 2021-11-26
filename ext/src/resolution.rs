@@ -17,6 +17,12 @@ use crossbeam_channel::{unbounded, Receiver};
 #[cfg(feature = "concurrent")]
 use thread_token::TokenBucket;
 
+/// This is the maximum number of new generators we expect in each bidegree. This affects how much
+/// space we allocate when we are extending our resolutions. Having more than this many new
+/// generators will result in a slowdown but not an error. It is relatively cheap to increment this
+/// number if needs be, but up to the 140th stem we only see at most 8 new generators.
+const MAX_NEW_GENS: usize = 10;
+
 /// A resolution of a chain complex.
 pub struct Resolution<CC: ChainComplex> {
     lock: Mutex<()>,
@@ -253,14 +259,12 @@ impl<CC: ChainComplex> Resolution<CC> {
         target_res.extend_table_entries(t);
         let target_res_dimension = target_res.dimension(t);
 
-        let rows = source_dimension + target_cc_dimension + target_res_dimension;
-
         let mut matrix = AugmentedMatrix::<3>::new_with_capacity(
             p,
             source_dimension,
             &[target_cc_dimension, target_res_dimension, source_dimension],
-            rows,
-            rows,
+            source_dimension + MAX_NEW_GENS,
+            MAX_NEW_GENS,
         );
         // Get the map (d, f) : X_{s, t} -> X_{s-1, t} (+) C_{s, t} into matrix
 
@@ -279,7 +283,7 @@ impl<CC: ChainComplex> Resolution<CC> {
         // X_{s,t} and f later).
         // We record which pivots exactly we added so that we can walk over the added genrators in a moment and
         // work out what dX should to to each of them.
-        let cc_new_gens = matrix.extend_to_surjection(0, target_cc_dimension, rows);
+        let cc_new_gens = matrix.extend_to_surjection(0, target_cc_dimension, MAX_NEW_GENS);
 
         let mut res_new_gens = Vec::new();
 
@@ -320,7 +324,7 @@ impl<CC: ChainComplex> Resolution<CC> {
                 matrix.start[1],
                 matrix.end[1],
                 &self.get_kernel(s - 1, t),
-                rows,
+                MAX_NEW_GENS,
             );
         }
         let num_new_gens = cc_new_gens.len() + res_new_gens.len();
