@@ -11,8 +11,8 @@ use fp::vector::FpVector;
 use once::OnceVec;
 
 use std::fs::File;
-use std::path::PathBuf;
 use std::io::{BufReader, BufWriter, Read, Write};
+use std::path::PathBuf;
 
 use anyhow::Context;
 use dashmap::DashMap;
