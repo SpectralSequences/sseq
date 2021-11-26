@@ -44,21 +44,8 @@ impl Subspace {
         let ambient_dimension = data.read_u64::<LittleEndian>()? as usize;
 
         let mut matrix = Matrix::from_bytes(p, rows, ambient_dimension, data)?;
-        matrix.initialize_pivots();
 
-        cfg_if::cfg_if! {
-            if #[cfg(all(target_endian = "little", target_pointer_width="64"))] {
-                let len = matrix.pivots().len() * 8;
-                unsafe {
-                    let buf: &mut [u8] = std::slice::from_raw_parts_mut(matrix.pivots_mut().as_mut_ptr() as *mut u8, len);
-                    data.read_exact(buf).unwrap();
-                }
-            } else {
-                for pivot in matrix.pivots_mut() {
-                    *pivot = data.read_i64::<LittleEndian>()? as isize;
-                }
-            }
-        }
+        matrix.pivots = Matrix::read_pivot(matrix.columns(), data)?;
 
         Ok(Self { matrix })
     }
@@ -68,21 +55,7 @@ impl Subspace {
         buffer.write_u64::<LittleEndian>(self.ambient_dimension() as u64)?;
 
         self.matrix.to_bytes(buffer)?;
-
-        cfg_if::cfg_if! {
-            if #[cfg(all(target_endian = "little", target_pointer_width="64"))] {
-                let len = self.matrix.pivots().len() * 8;
-                unsafe {
-                    let buf: &[u8] = std::slice::from_raw_parts(self.pivots().as_ptr() as *const u8, len);
-                    buffer.write_all(buf).unwrap();
-                }
-            } else {
-                for &pivot in self.matrix.pivots() {
-                    buffer.write_i64::<LittleEndian>(pivot as i64)?;
-                }
-            }
-        }
-        Ok(())
+        Matrix::write_pivot(self.matrix.pivots(), buffer)
     }
 
     pub fn empty_space(p: ValidPrime, dim: usize) -> Self {

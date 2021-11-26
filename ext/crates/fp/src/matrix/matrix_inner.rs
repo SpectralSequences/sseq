@@ -18,7 +18,7 @@ pub struct Matrix {
     /// The pivot columns of the matrix. `pivots[n]` is `k` if column `n` is the `k`th pivot
     /// column, and a negative number otherwise. Said negative number is often -1 but this is not
     /// guaranteed.
-    pivots: Vec<isize>,
+    pub(crate) pivots: Vec<isize>,
 }
 
 impl PartialEq for Matrix {
@@ -36,6 +36,25 @@ impl Matrix {
         let mut vectors: Vec<FpVector> = Vec::with_capacity(rows);
         for _ in 0..rows {
             vectors.push(FpVector::new(p, columns));
+        }
+        Matrix {
+            p,
+            columns,
+            vectors,
+            pivots: Vec::new(),
+        }
+    }
+
+    pub fn new_with_capacity(
+        p: ValidPrime,
+        rows: usize,
+        columns: usize,
+        rows_capacity: usize,
+        columns_capacity: usize,
+    ) -> Matrix {
+        let mut vectors: Vec<FpVector> = Vec::with_capacity(rows_capacity);
+        for _ in 0..rows {
+            vectors.push(FpVector::new_with_capacity(p, columns, columns_capacity));
         }
         Matrix {
             p,
@@ -70,22 +89,38 @@ impl Matrix {
         Ok(())
     }
 
-    pub fn new_with_capacity(
-        p: ValidPrime,
-        rows: usize,
-        columns: usize,
-        rows_capacity: usize,
-        columns_capacity: usize,
-    ) -> Matrix {
-        let mut vectors: Vec<FpVector> = Vec::with_capacity(rows_capacity);
-        for _ in 0..rows {
-            vectors.push(FpVector::new_with_capacity(p, columns, columns_capacity));
+    pub(crate) fn write_pivot(v: &[isize], buffer: &mut impl Write) -> std::io::Result<()> {
+        cfg_if::cfg_if! {
+            if #[cfg(all(target_endian = "little", target_pointer_width="64"))] {
+                unsafe {
+                    let buf: &[u8] = std::slice::from_raw_parts(v.as_ptr() as *const u8, v.len() * 8);
+                    buffer.write_all(buf).unwrap();
+                }
+            } else {
+                for &i in v {
+                    buffer.write_i64::<LittleEndian>(i as i64)?;
+                }
+            }
         }
-        Matrix {
-            p,
-            columns,
-            vectors,
-            pivots: Vec::new(),
+        Ok(())
+    }
+
+    pub(crate) fn read_pivot(dim: usize, data: &mut impl Read) -> std::io::Result<Vec<isize>> {
+        cfg_if::cfg_if! {
+            if #[cfg(all(target_endian = "little", target_pointer_width="64"))] {
+                let mut image = vec![0; dim];
+                unsafe {
+                    let buf: &mut [u8] = std::slice::from_raw_parts_mut(image.as_mut_ptr() as *mut u8, dim * 8);
+                    data.read_exact(buf).unwrap();
+                }
+                Ok(image)
+            } else {
+                let image = Vec::with_capacity(dim);
+                for _ in 0..target_dim {
+                    image.push(data.read_i64::<LittleEndian>()? as isize);
+                }
+                Ok(image)
+            }
         }
     }
 }

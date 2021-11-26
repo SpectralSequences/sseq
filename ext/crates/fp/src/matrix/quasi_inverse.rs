@@ -1,6 +1,6 @@
 use super::Matrix;
 use crate::prime::ValidPrime;
-use crate::vector::{Slice, SliceMut};
+use crate::vector::{FpVector, Slice, SliceMut};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::io::{Read, Write};
 
@@ -50,18 +50,7 @@ impl QuasiInverse {
                 }
             }
             Some(v) => {
-                cfg_if::cfg_if! {
-                    if #[cfg(all(target_endian = "little", target_pointer_width="64"))] {
-                        unsafe {
-                            let buf: &[u8] = std::slice::from_raw_parts(v.as_ptr() as *const u8, v.len() * 8);
-                            buffer.write_all(buf).unwrap();
-                        }
-                    } else {
-                        for &i in v {
-                            buffer.write_i64::<LittleEndian>(i as i64)?;
-                        }
-                    }
-                }
+                Matrix::write_pivot(v, buffer)?;
             }
         }
         self.preimage.to_bytes(buffer)
@@ -71,27 +60,73 @@ impl QuasiInverse {
         let source_dim = data.read_u64::<LittleEndian>()? as usize;
         let target_dim = data.read_u64::<LittleEndian>()? as usize;
         let image_dim = data.read_u64::<LittleEndian>()? as usize;
-        let mut image: Vec<isize>;
 
-        cfg_if::cfg_if! {
-            if #[cfg(all(target_endian = "little", target_pointer_width="64"))] {
-                image = vec![0; target_dim];
-                unsafe {
-                    let buf: &mut [u8] = std::slice::from_raw_parts_mut(image.as_mut_ptr() as *mut u8, target_dim * 8);
-                    data.read_exact(buf).unwrap();
-                }
-            } else {
-                image = Vec::with_capacity(target_dim);
-                for _ in 0..target_dim {
-                    image.push(data.read_i64::<LittleEndian>()? as isize);
-                }
-            }
-        }
+        let image = Matrix::read_pivot(target_dim, data)?;
         let preimage = Matrix::from_bytes(p, image_dim, source_dim, data)?;
         Ok(Self {
             image: Some(image),
             preimage,
         })
+    }
+
+    /// Given a data file containing a quasi-inverse, apply it to all the vectors in `input`
+    /// and write the results to the corresponding vectors in `results`. This reads in the
+    /// quasi-inverse row by row to minimize memory usage.
+    pub fn stream_quasi_inverse(
+        p: ValidPrime,
+        data: &mut impl Read,
+        results: &mut [SliceMut],
+        inputs: &[Slice],
+    ) -> std::io::Result<()> {
+        use crate::limb::Limb;
+
+        let source_dim = data.read_u64::<LittleEndian>()? as usize;
+        let target_dim = data.read_u64::<LittleEndian>()? as usize;
+        let _image_dim = data.read_u64::<LittleEndian>()? as usize;
+
+        let image = Matrix::read_pivot(target_dim, data)?;
+        let mut v = FpVector::new(p, source_dim);
+
+        assert_eq!(results.len(), inputs.len());
+        for result in &*results {
+            assert_eq!(result.as_slice().len(), source_dim);
+        }
+        for input in inputs {
+            // The quasi-inverse might be computed with a smaller target dimension when computing
+            // through stem.
+            assert!(input.len() >= target_dim);
+        }
+
+        let num_limbs = FpVector::num_limbs(p, source_dim);
+
+        for (i, r) in image.into_iter().enumerate() {
+            if r < 0 {
+                continue;
+            }
+
+            let limbs = v.limbs_mut();
+            // Read in data
+            cfg_if::cfg_if! {
+                if #[cfg(target_endian = "little")] {
+                    let num_bytes = num_limbs * std::mem::size_of::<Limb>();
+                    unsafe {
+                        let buf: &mut [u8] = std::slice::from_raw_parts_mut(limbs.as_mut_ptr() as *mut u8, num_bytes);
+                        data.read_exact(buf).unwrap();
+                    }
+                } else {
+                    for limb in limbs.iter_mut() {
+                        let mut bytes: [u8; size_of::<Limb>()] = [0; size_of::<Limb>()];
+                        data.read_exact(&mut bytes)?;
+                        *limb = Limb::from_le_bytes(bytes);
+                    }
+                }
+            };
+            println!("{v}");
+            for (input, result) in inputs.iter().zip(&mut *results) {
+                result.add(v.as_slice(), input.entry(i));
+            }
+        }
+        Ok(())
     }
 
     pub fn preimage(&self) -> &Matrix {
@@ -127,5 +162,55 @@ impl QuasiInverse {
             }
             row += 1;
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_stream_qi() {
+        let p = ValidPrime::new(2);
+        let qi = QuasiInverse {
+            image: Some(vec![0, -1, 1, -1, 2, 3]),
+            preimage: Matrix::from_vec(
+                p,
+                &[
+                    vec![1, 0, 1, 1],
+                    vec![1, 1, 0, 0],
+                    vec![0, 1, 0, 1],
+                    vec![1, 1, 1, 0],
+                ],
+            ),
+        };
+        let v0 = FpVector::from_slice(p, &[1, 1, 0, 0, 1, 0]);
+        let v1 = FpVector::from_slice(p, &[0, 0, 1, 0, 1, 1]);
+
+        let mut out0 = FpVector::new(p, 4);
+        let mut out1 = FpVector::new(p, 4);
+
+        let mut cursor = std::io::Cursor::new(Vec::<u8>::new());
+        qi.to_bytes(&mut cursor).unwrap();
+        cursor.set_position(0);
+
+        QuasiInverse::stream_quasi_inverse(
+            p,
+            &mut cursor,
+            &mut [out0.as_slice_mut(), out1.as_slice_mut()],
+            &[v0.as_slice(), v1.as_slice()],
+        )
+        .unwrap();
+
+        let mut bench0 = FpVector::new(p, 4);
+        let mut bench1 = FpVector::new(p, 4);
+
+        qi.apply(bench0.as_slice_mut(), 1, v0.as_slice());
+        qi.apply(bench1.as_slice_mut(), 1, v1.as_slice());
+
+        assert_eq!(out0, bench0, "{out0} != {bench0}");
+        assert_eq!(out1, bench1, "{out1} != {bench1}");
+
+        assert_eq!(cursor.position() as usize, cursor.get_ref().len());
     }
 }
