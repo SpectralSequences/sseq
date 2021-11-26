@@ -24,7 +24,7 @@ use ext::utils::construct;
 use std::path::PathBuf;
 
 fn main() -> anyhow::Result<()> {
-    let res = query::with_default("Module", "S_2", |name| {
+    let mut res = query::with_default("Module", "S_2", |name| {
         construct(
             name,
             query::optional("Save directory", |filename| {
@@ -34,6 +34,7 @@ fn main() -> anyhow::Result<()> {
             }),
         )
     });
+    res.load_quasi_inverse = false;
 
     let max_s = query::with_default("Max s", "15", str::parse);
     let max_n = query::with_default("Max n", "30", str::parse);
