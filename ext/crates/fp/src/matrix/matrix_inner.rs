@@ -89,6 +89,7 @@ impl Matrix {
         Ok(())
     }
 
+    /// Read a vector of `isize`
     pub(crate) fn write_pivot(v: &[isize], buffer: &mut impl Write) -> std::io::Result<()> {
         cfg_if::cfg_if! {
             if #[cfg(all(target_endian = "little", target_pointer_width="64"))] {
@@ -106,6 +107,7 @@ impl Matrix {
         Ok(())
     }
 
+    /// Read a vector of `isize` of length `dim`.
     pub(crate) fn read_pivot(dim: usize, data: &mut impl Read) -> std::io::Result<Vec<isize>> {
         cfg_if::cfg_if! {
             if #[cfg(all(target_endian = "little", target_pointer_width="64"))] {
