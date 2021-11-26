@@ -187,7 +187,7 @@ impl<CC: ChainComplex> Resolution<CC> {
         Some(f)
     }
 
-    fn create_save_file(&self, kind: SaveData, s: u32, t: i32) -> impl Write {
+    pub fn create_save_file(&self, kind: SaveData, s: u32, t: i32) -> impl Write {
         let p = self.get_save_path(kind, s, t);
 
         let f = std::fs::OpenOptions::new()
