@@ -8,7 +8,7 @@ use algebra::module::{FreeModule, Module};
 use algebra::Algebra;
 use fp::matrix::Subquotient;
 use fp::prime::ValidPrime;
-use fp::vector::FpVector;
+use fp::vector::{FpVector, Slice, SliceMut};
 use std::sync::Arc;
 
 // pub use hom_complex::HomComplex;
@@ -160,6 +160,31 @@ pub trait ChainComplex: Send + Sync {
             n: self.min_degree(),
             s: 0,
             max_s: self.next_homological_degree(),
+        }
+    }
+
+    /// Apply the quasi-inverse of the (s, t)th differential to the list of inputs and results.
+    /// This defaults to applying `self.differentials(s).quasi_inverse(t)`, but in some cases
+    /// the quasi-inverse might be stored separately on disk.
+    ///
+    /// This returns whether the application was successful
+    #[must_use]
+    fn apply_quasi_inverse(
+        &self,
+        results: &mut [SliceMut],
+        s: u32,
+        t: i32,
+        inputs: &[Slice],
+    ) -> bool {
+        assert_eq!(results.len(), inputs.len());
+
+        if let Some(qi) = self.differential(s).quasi_inverse(t) {
+            for (input, result) in inputs.iter().zip(results) {
+                qi.apply(result.copy(), 1, *input);
+            }
+            true
+        } else {
+            false
         }
     }
 }

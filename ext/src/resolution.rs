@@ -7,7 +7,7 @@ use algebra::module::{FreeModule, Module};
 use algebra::Algebra;
 use fp::matrix::{AugmentedMatrix, QuasiInverse, Subspace};
 use fp::prime::ValidPrime;
-use fp::vector::FpVector;
+use fp::vector::{FpVector, Slice, SliceMut};
 use once::OnceVec;
 
 use std::fs::File;
@@ -986,6 +986,32 @@ impl<CC: ChainComplex> ChainComplex for Resolution<CC> {
 
     fn next_homological_degree(&self) -> u32 {
         self.modules.len() as u32
+    }
+
+    fn apply_quasi_inverse(
+        &self,
+        results: &mut [SliceMut],
+        s: u32,
+        t: i32,
+        inputs: &[Slice],
+    ) -> bool {
+        assert_eq!(results.len(), inputs.len());
+
+        if let Some(qi) = self.differential(s).quasi_inverse(t) {
+            for (input, result) in inputs.iter().zip(results) {
+                qi.apply(result.copy(), 1, *input);
+            }
+            true
+        } else if self.save_dir.is_some() {
+            if let Some(mut f) = self.open_save_file(SaveData::Kernel, s, t) {
+                QuasiInverse::stream_quasi_inverse(self.prime(), &mut f, results, inputs).unwrap();
+                true
+            } else {
+                false
+            }
+        } else {
+            false
+        }
     }
 }
 
