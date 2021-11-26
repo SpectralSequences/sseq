@@ -142,7 +142,7 @@ impl<CC: ChainComplex> Resolution<CC> {
         p
     }
 
-    fn search_file(mut path: PathBuf) -> Option<Box<dyn Read>>{
+    fn search_file(mut path: PathBuf) -> Option<Box<dyn Read>> {
         // We should try in decreasing order of access speed.
         match File::open(&path) {
             Ok(f) => return Some(Box::new(BufReader::new(f))),
