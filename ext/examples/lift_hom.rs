@@ -54,7 +54,9 @@ fn main() -> anyhow::Result<()> {
     let source = if source_equal_target {
         Arc::clone(&target)
     } else {
-        Arc::new(utils::query_module_only("Source module", None)?)
+        let mut s = utils::query_module_only("Source module", None)?;
+        s.load_quasi_inverse = false;
+        Arc::new(s)
     };
 
     assert_eq!(source.prime(), target.prime());
