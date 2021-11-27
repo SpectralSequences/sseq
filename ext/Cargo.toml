@@ -16,6 +16,7 @@ once = { path = "crates/once"}
 query = { path = "crates/query" }
 saveload = { path = "crates/saveload" }
 thread-token = { path = "crates/thread-token", optional = true }
+adler = "1"
 
 anyhow = "1.0.0"
 crossbeam-channel = { version = "0.5.0", optional = true }

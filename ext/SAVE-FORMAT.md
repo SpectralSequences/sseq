@@ -1,7 +1,9 @@
 # Save file format
 
 This file documents how we save data pertaining to a resolution. We let `/`
-denote the base directory containing the data of a single resolution
+denote the base directory containing the data of a single resolution.
+
+All integers are stored in little-endian.
 
 ## Design philosophy
 We have the following goals:
@@ -81,6 +83,10 @@ Apart from the prime, all the other data is also present in the file name, and
 the header serves as a sanity check that we did not mess up our files. Note
 that it is important that the length of the header is a multiple of 64 bits, so
 that the remaining data is 64 bit-aligned.
+
+### File footer
+At the end of the file, an adler32 checksum of the contents (including the
+header) is appended as a u32.
 
 ## Data types
 

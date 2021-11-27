@@ -152,7 +152,7 @@ impl<CC: ChainComplex> Resolution<CC> {
     fn search_file(mut path: PathBuf) -> Option<Box<dyn Read>> {
         // We should try in decreasing order of access speed.
         match File::open(&path) {
-            Ok(f) => return Some(Box::new(BufReader::new(f))),
+            Ok(f) => return Some(Box::new(utils::ChecksumReader::new(BufReader::new(f)))),
             Err(e) => {
                 if e.kind() != std::io::ErrorKind::NotFound {
                     panic!("Error when opening {path:?}");
@@ -164,7 +164,11 @@ impl<CC: ChainComplex> Resolution<CC> {
         {
             path.set_extension("zst");
             match File::open(&path) {
-                Ok(f) => return Some(Box::new(zstd::stream::Decoder::new(f).unwrap())),
+                Ok(f) => {
+                    return Some(Box::new(utils::ChecksumReader::new(
+                        zstd::stream::Decoder::new(f).unwrap(),
+                    )))
+                }
                 Err(e) => {
                     if e.kind() != std::io::ErrorKind::NotFound {
                         panic!("Error when opening {path:?}");
@@ -192,7 +196,7 @@ impl<CC: ChainComplex> Resolution<CC> {
             .open(&p)
             .with_context(|| format!("Failed to create save file {p:?}"))
             .unwrap();
-        let mut f = BufWriter::new(f);
+        let mut f = utils::ChecksumWriter::new(BufWriter::new(f));
         utils::write_header(kind.magic(), &*self.algebra(), self.prime(), s, t, &mut f).unwrap();
         f
     }

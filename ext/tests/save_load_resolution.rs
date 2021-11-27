@@ -175,3 +175,32 @@ fn test_save_load_resume() {
     );
     unlock_tempdir(tempdir.path());
 }
+
+#[test]
+#[should_panic]
+fn test_checksum() {
+    use std::fs::OpenOptions;
+    use std::io::{Seek, SeekFrom, Write};
+
+    let tempdir = tempfile::TempDir::new().unwrap();
+
+    construct("S_2", Some(tempdir.path().into()))
+        .unwrap()
+        .compute_through_bidegree(2, 2);
+
+    let mut path = tempdir.path().to_owned();
+    path.push("differentials/2_2_differential");
+
+    let mut file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(path)
+        .unwrap();
+
+    file.seek(SeekFrom::Start(41)).unwrap();
+    file.write_all(&[1]).unwrap();
+
+    construct("S_2", Some(tempdir.path().into()))
+        .unwrap()
+        .compute_through_bidegree(2, 2);
+}
