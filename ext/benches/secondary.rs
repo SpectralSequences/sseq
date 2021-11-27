@@ -9,7 +9,12 @@ use std::time::Instant;
 fn main() {
     // Attempt to load a resolution of S_2 from resolution_milnor.save, and generates one from
     // scratch if it isn't available.
-    let save_file = std::fs::File::open("resolution_milnor.save").ok();
+    let save_file = std::path::PathBuf::from("S_2_milnor");
+    let save_file = if save_file.exists() {
+        Some(save_file)
+    } else {
+        None
+    };
     let resolution = construct("S_2@milnor", save_file).unwrap();
 
     // Compute the minimal resolution R_{s, t}

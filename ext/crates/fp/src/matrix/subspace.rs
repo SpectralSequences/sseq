@@ -2,6 +2,9 @@ use super::Matrix;
 use crate::prime::ValidPrime;
 use crate::vector::{FpVector, Slice, SliceMut};
 
+use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+use std::io::{Read, Write};
+
 /// A subspace of a vector space.
 /// # Fields
 ///  * `matrix` - A matrix in reduced row echelon, whose number of columns is the dimension of the
@@ -34,6 +37,25 @@ impl Subspace {
         let mut matrix = Matrix::new(p, rows, columns);
         matrix.initialize_pivots();
         Self { matrix }
+    }
+
+    pub fn from_bytes(p: ValidPrime, data: &mut impl Read) -> std::io::Result<Self> {
+        let rows = data.read_u64::<LittleEndian>()? as usize;
+        let ambient_dimension = data.read_u64::<LittleEndian>()? as usize;
+
+        let mut matrix = Matrix::from_bytes(p, rows, ambient_dimension, data)?;
+
+        matrix.pivots = Matrix::read_pivot(matrix.columns(), data)?;
+
+        Ok(Self { matrix })
+    }
+
+    pub fn to_bytes(&self, buffer: &mut impl Write) -> std::io::Result<()> {
+        buffer.write_u64::<LittleEndian>(self.rows() as u64)?;
+        buffer.write_u64::<LittleEndian>(self.ambient_dimension() as u64)?;
+
+        self.matrix.to_bytes(buffer)?;
+        Matrix::write_pivot(self.matrix.pivots(), buffer)
     }
 
     pub fn empty_space(p: ValidPrime, dim: usize) -> Self {

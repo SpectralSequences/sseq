@@ -4,6 +4,7 @@ use crate::prime::{self, ValidPrime};
 use crate::vector::{FpVector, Slice, SliceMut};
 
 use std::fmt;
+use std::io::{Read, Write};
 use std::ops::{Index, IndexMut};
 
 /// A matrix! In particular, a matrix with values in F_p. The way we store matrices means it is
@@ -17,7 +18,7 @@ pub struct Matrix {
     /// The pivot columns of the matrix. `pivots[n]` is `k` if column `n` is the `k`th pivot
     /// column, and a negative number otherwise. Said negative number is often -1 but this is not
     /// guaranteed.
-    pivots: Vec<isize>,
+    pub(crate) pivots: Vec<isize>,
 }
 
 impl PartialEq for Matrix {
@@ -60,6 +61,70 @@ impl Matrix {
             columns,
             vectors,
             pivots: Vec::new(),
+        }
+    }
+
+    pub fn from_bytes(
+        p: ValidPrime,
+        rows: usize,
+        columns: usize,
+        data: &mut impl Read,
+    ) -> std::io::Result<Matrix> {
+        let mut vectors: Vec<FpVector> = Vec::with_capacity(rows);
+        for _ in 0..rows {
+            vectors.push(FpVector::from_bytes(p, columns, data)?);
+        }
+        Ok(Matrix {
+            p,
+            columns,
+            vectors,
+            pivots: Vec::new(),
+        })
+    }
+
+    pub fn to_bytes(&self, data: &mut impl Write) -> std::io::Result<()> {
+        for v in &self.vectors {
+            v.to_bytes(data)?;
+        }
+        Ok(())
+    }
+
+    /// Read a vector of `isize`
+    pub(crate) fn write_pivot(v: &[isize], buffer: &mut impl Write) -> std::io::Result<()> {
+        cfg_if::cfg_if! {
+            if #[cfg(all(target_endian = "little", target_pointer_width="64"))] {
+                unsafe {
+                    let buf: &[u8] = std::slice::from_raw_parts(v.as_ptr() as *const u8, v.len() * 8);
+                    buffer.write_all(buf).unwrap();
+                }
+            } else {
+                use byteorder::{LittleEndian, WriteBytesExt};
+                for &i in v {
+                    buffer.write_i64::<LittleEndian>(i as i64)?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Read a vector of `isize` of length `dim`.
+    pub(crate) fn read_pivot(dim: usize, data: &mut impl Read) -> std::io::Result<Vec<isize>> {
+        cfg_if::cfg_if! {
+            if #[cfg(all(target_endian = "little", target_pointer_width="64"))] {
+                let mut image = vec![0; dim];
+                unsafe {
+                    let buf: &mut [u8] = std::slice::from_raw_parts_mut(image.as_mut_ptr() as *mut u8, dim * 8);
+                    data.read_exact(buf).unwrap();
+                }
+                Ok(image)
+            } else {
+                use byteorder::{LittleEndian, ReadBytesExt};
+                let mut image = Vec::with_capacity(dim);
+                for _ in 0..dim {
+                    image.push(data.read_i64::<LittleEndian>()? as isize);
+                }
+                Ok(image)
+            }
         }
     }
 }
@@ -1068,47 +1133,6 @@ impl<'a> MatrixSliceMut<'a> {
         for (i, row) in self.vectors.iter_mut().enumerate() {
             row.add_basis_element(self.col_start + i, 1);
         }
-    }
-}
-
-use saveload::{Load, Save};
-use std::io;
-use std::io::{Read, Write};
-
-impl Save for Matrix {
-    fn save(&self, buffer: &mut impl Write) -> io::Result<()> {
-        self.columns.save(buffer)?;
-        self.vectors.save(buffer)?;
-        self.pivots.save(buffer)?;
-        Ok(())
-    }
-}
-
-impl Load for Matrix {
-    type AuxData = ValidPrime;
-
-    fn load(buffer: &mut impl Read, p: &ValidPrime) -> io::Result<Self> {
-        let columns = usize::load(buffer, &())?;
-        let vectors: Vec<FpVector> = Load::load(buffer, p)?;
-        let mut result = Matrix::from_rows(*p, vectors, columns);
-        result.pivots = Load::load(buffer, &())?;
-        Ok(result)
-    }
-}
-
-impl Save for Subspace {
-    fn save(&self, buffer: &mut impl Write) -> io::Result<()> {
-        self.matrix.save(buffer)?;
-        Ok(())
-    }
-}
-
-impl Load for Subspace {
-    type AuxData = ValidPrime;
-
-    fn load(buffer: &mut impl Read, p: &ValidPrime) -> io::Result<Self> {
-        let matrix: Matrix = Matrix::load(buffer, p)?;
-        Ok(Subspace { matrix })
     }
 }
 

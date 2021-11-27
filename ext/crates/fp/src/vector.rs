@@ -16,6 +16,8 @@ use itertools::Itertools;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::convert::TryInto;
+use std::io::{Read, Write};
+use std::mem::size_of;
 
 macro_rules! dispatch_vector_inner {
     // other is a type, but marking it as a :ty instead of :tt means we cannot use it to access its
@@ -191,9 +193,49 @@ impl FpVector {
         match_p!(p, FpVectorP::from(&slice))
     }
 
-    pub fn padded_len(p: ValidPrime, len: usize) -> usize {
+    pub fn num_limbs(p: ValidPrime, len: usize) -> usize {
         let entries_per_limb = entries_per_limb(p);
-        ((len + entries_per_limb - 1) / entries_per_limb) * entries_per_limb
+        (len + entries_per_limb - 1) / entries_per_limb
+    }
+    pub fn padded_len(p: ValidPrime, len: usize) -> usize {
+        Self::num_limbs(p, len) * entries_per_limb(p)
+    }
+
+    pub fn from_bytes(p: ValidPrime, len: usize, data: &mut impl Read) -> std::io::Result<Self> {
+        let num_limbs = Self::num_limbs(p, len);
+
+        let mut limbs: Vec<Limb>;
+        cfg_if::cfg_if! {
+            if #[cfg(target_endian = "little")] {
+                limbs = vec![0; num_limbs];
+                let num_bytes = num_limbs * size_of::<Limb>();
+                unsafe {
+                    let buf: &mut [u8] = std::slice::from_raw_parts_mut(limbs.as_mut_ptr() as *mut u8, num_bytes);
+                    data.read_exact(buf).unwrap();
+                }
+            } else {
+                limbs = Vec::with_capacity(num_limbs);
+
+                for _ in 0..num_limbs {
+                    let mut bytes: [u8; size_of::<Limb>()] = [0; size_of::<Limb>()];
+                    data.read_exact(&mut bytes)?;
+                    limbs.push(Limb::from_le_bytes(bytes));
+                }
+            }
+        };
+        Ok(match_p!(p, FpVectorP::from_raw_parts(len, limbs)))
+    }
+
+    pub fn to_bytes(&self, buffer: &mut impl Write) -> std::io::Result<()> {
+        let num_limbs = Self::num_limbs(self.prime(), self.len());
+        // self.limbs is allowed to have more limbs than necessary, but we only save the
+        // necessary ones.
+
+        for limb in &self.limbs()[0..num_limbs] {
+            let bytes = limb.to_le_bytes();
+            buffer.write_all(&bytes)?;
+        }
+        Ok(())
     }
 
     dispatch_vector! {
@@ -372,7 +414,6 @@ impl<'de> Deserialize<'de> for FpVector {
 
 use saveload::{Load, Save};
 use std::io;
-use std::io::{Read, Write};
 
 impl Save for FpVector {
     fn save(&self, buffer: &mut impl Write) -> io::Result<()> {
@@ -547,6 +588,20 @@ mod test {
     }
 
     test_dim! {
+        fn test_serialize(p: ValidPrime, dim: usize) {
+            use std::io::{Seek, Cursor, SeekFrom};
+
+            let v_arr = random_vector(p, dim);
+            let v = FpVector::from_slice(p, &v_arr);
+
+            let mut cursor = Cursor::new(Vec::<u8>::new());
+            v.to_bytes(&mut cursor).unwrap();
+            cursor.seek(SeekFrom::Start(0)).unwrap();
+
+            let w = FpVector::from_bytes(p, dim, &mut cursor).unwrap();
+            v.assert_vec_eq(&w);
+        }
+
         fn test_add(p: ValidPrime, dim: usize) {
             let mut v_arr = random_vector(p, dim);
             let w_arr = random_vector(p, dim);
@@ -558,7 +613,6 @@ mod test {
                 v_arr[i] = (v_arr[i] + w_arr[i]) % *p;
             }
             v.assert_list_eq(&v_arr);
-
         }
 
         fn test_scale(p: ValidPrime, dim: usize) {

@@ -19,7 +19,6 @@ rustc-hash = "1.1.0"
 bivec = { path = "../bivec"}
 fp = { path = "../fp", default-features = false }
 once = { path = "../once" }
-saveload = { path = "../saveload" }
 
 [dev-dependencies]
 rstest = "0.10.0"

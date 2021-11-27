@@ -18,6 +18,16 @@ use fp::vector::FpVector;
 ///
 /// Algebras may have a distinguished set of generators; see [`GeneratedAlgebra`].
 pub trait Algebra: std::fmt::Display + Send + Sync {
+    /// A magic constant used to identify the algebra in save files. When working with the
+    /// Milnor algebra, it is easy to forget to specify the algebra and load Milnor save files
+    /// with the Adem basis. If we somehow manage to resume computation, this can have
+    /// disasterous consequences. So we store the magic in the save files.
+    ///
+    /// This defaults to 0 for other kinds of algebra that don't care about this problem.
+    fn magic(&self) -> u16 {
+        0
+    }
+
     /// Returns the prime the algebra is over.
     fn prime(&self) -> ValidPrime;
 
@@ -252,6 +262,7 @@ macro_rules! dispatch_algebra {
     ($struct:ty, $dispatch_macro: ident) => {
         impl Algebra for $struct {
             $dispatch_macro! {
+                fn magic(&self) -> u16;
                 fn prime(&self) -> ValidPrime;
                 fn compute_basis(&self, degree: i32);
                 fn dimension(&self, degree: i32, excess: i32) -> usize;
