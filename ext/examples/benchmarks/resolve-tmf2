@@ -1,18 +1,6 @@
-· 
-·   
-·     
-·       
-·         
-·           
-·             
-·               
-·               · 
-·               ·   
-·               ·     
-·               ·       
-·               ·       · 
-·               ·       ·   
-·               ·       ·     
+resolve -- tmf2 "" 15 30 ""
+Module does not support algebra adem
+Using milnor instead
 ·               ·       ·       
 ·               ·       ·       · 
 ·               ·       ·       ·   
@@ -29,3 +17,4 @@
 ·   · ·     ·                                             
 · ·   ·                                                     
 ·                                                             
+

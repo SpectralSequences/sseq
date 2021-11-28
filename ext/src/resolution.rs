@@ -80,7 +80,21 @@ pub struct Resolution<CC: ChainComplex> {
     ///  compute_through_degree again.
     kernels: DashMap<(u32, i32), Subspace>,
     save_dir: Option<PathBuf>,
+
+    /// Whether we should save newly computed data to the disk. This has no effect if there is no
+    /// save file. Defaults to `self.save_dir.is_some()`.
     pub should_save: bool,
+
+    /// Whether we should keep the quasi-inverses of the differentials.
+    ///
+    /// If set to false,
+    ///  - If there is no save file, then the quasi-inverse will not be computed.
+    ///  - If there is a save file, then the quasi-inverse will be computed, written to disk, and
+    ///    dropped from memory. We will not load quasi-inverses from save files.
+    ///
+    /// Note that this only applies to quasi-inverses of differentials. The quasi-inverses to the
+    /// augmentation map are useful when the target chain complex is not concentrated in one
+    /// degree, and they tend to be quite small anyway.
     pub load_quasi_inverse: bool,
 }
 
@@ -470,29 +484,29 @@ impl<CC: ChainComplex> Resolution<CC> {
                     } else {
                         current_differential.set_quasi_inverse(t, None);
                     }
+                } else {
+                    current_differential.set_quasi_inverse(t, None);
+                }
 
-                    if let Some(mut f) = self.open_save_file(SaveData::AugmentationQi, s, t) {
-                        let cm_qi = QuasiInverse::from_bytes(p, &mut f).unwrap();
+                if let Some(mut f) = self.open_save_file(SaveData::AugmentationQi, s, t) {
+                    let cm_qi = QuasiInverse::from_bytes(p, &mut f).unwrap();
 
-                        assert_eq!(
+                    assert_eq!(
                         cm_qi.target_dimension(),
                         target_cc_dimension,
                         "Malformed data: mismatched augmentation target dimension in qi at ({s}, {t})"
-                    );
-                        assert_eq!(
+                        );
+                    assert_eq!(
                         cm_qi.source_dimension(),
                         source_dimension + num_new_gens,
                         "Malformed data: mismatched source dimension in augmentation qi at ({s}, {t})"
-                    );
+                        );
 
-                        current_chain_map.set_quasi_inverse(t, Some(cm_qi));
-                    } else {
-                        current_chain_map.set_quasi_inverse(t, None);
-                    }
+                    current_chain_map.set_quasi_inverse(t, Some(cm_qi));
                 } else {
-                    current_differential.set_quasi_inverse(t, None);
                     current_chain_map.set_quasi_inverse(t, None);
                 }
+
                 current_differential.set_kernel(t, None);
                 current_differential.set_image(t, None);
 
@@ -666,13 +680,7 @@ impl<CC: ChainComplex> Resolution<CC> {
                 }
             }
         }
-        let (cm_qi, res_qi) =
-            if (self.should_save && self.save_dir.is_some()) || self.load_quasi_inverse {
-                let (c, r) = matrix.compute_quasi_inverses();
-                (Some(c), Some(r))
-            } else {
-                (None, None)
-            };
+        let (cm_qi, res_qi) = matrix.compute_quasi_inverses();
 
         if self.should_save && self.save_dir.is_some() {
             // Write differentials
@@ -694,12 +702,12 @@ impl<CC: ChainComplex> Resolution<CC> {
 
             // Write resolution qi
             let mut f = self.create_save_file(SaveData::ResQi, s, t);
-            res_qi.as_ref().unwrap().to_bytes(&mut f).unwrap();
+            res_qi.to_bytes(&mut f).unwrap();
             drop(f);
 
             // Write augmentation qi
             let mut f = self.create_save_file(SaveData::AugmentationQi, s, t);
-            cm_qi.as_ref().unwrap().to_bytes(&mut f).unwrap();
+            cm_qi.to_bytes(&mut f).unwrap();
             drop(f);
 
             // Delete kernel
@@ -712,14 +720,17 @@ impl<CC: ChainComplex> Resolution<CC> {
         }
 
         if self.load_quasi_inverse {
-            current_chain_map.set_quasi_inverse(t, cm_qi);
-            current_differential.set_quasi_inverse(t, res_qi);
+            current_differential.set_quasi_inverse(t, Some(res_qi));
         } else {
-            current_chain_map.set_quasi_inverse(t, None);
             current_differential.set_quasi_inverse(t, None);
         }
+
+        // This tends to be small and is always needed if the target is not concentrated in a
+        // single homological degree
+        current_chain_map.set_quasi_inverse(t, Some(cm_qi));
         current_chain_map.set_kernel(t, None);
         current_chain_map.set_image(t, None);
+
         current_differential.set_kernel(t, None);
         current_differential.set_image(t, None);
     }
