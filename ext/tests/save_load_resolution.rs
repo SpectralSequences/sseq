@@ -103,7 +103,7 @@ fn test_save_load() {
 #[should_panic]
 fn wrong_algebra() {
     let tempdir = tempfile::TempDir::new().unwrap();
-    let resolution1 = construct("S_2", Some(tempdir.path().into())).unwrap();
+    let resolution1 = construct("S_2@adem", Some(tempdir.path().into())).unwrap();
     resolution1.compute_through_bidegree(2, 2);
 
     let resolution2 = construct("S_2@milnor", Some(tempdir.path().into())).unwrap();
