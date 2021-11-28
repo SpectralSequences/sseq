@@ -1,6 +1,7 @@
 {
     "type" : "finitely presented module",
     "name" : "A/(Sq^1, Sq^2, Sq^4)",
+    "algebra" : ["adem"],
     "p" : 2,
     "gens" : {"x0" : 0},
     "adem_relations" : [
