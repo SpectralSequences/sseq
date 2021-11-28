@@ -56,7 +56,7 @@ impl TryFrom<&str> for Config {
             Some(x) => x
                 .parse()
                 .with_context(|| format!("Invalid algebra type: {}", x))?,
-            None => AlgebraType::Adem,
+            None => AlgebraType::Milnor,
         };
 
         Ok(Config {
