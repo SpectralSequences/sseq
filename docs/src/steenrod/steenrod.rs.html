@@ -362,13 +362,15 @@
 <span id="338">338</span>
 <span id="339">339</span>
 <span id="340">340</span>
+<span id="341">341</span>
+<span id="342">342</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">algebra::module::homomorphism</span>::{
     <span class="ident">FiniteModuleHomomorphism</span>, <span class="ident">FreeModuleHomomorphism</span>, <span class="ident">IdentityHomomorphism</span>, <span class="ident">ModuleHomomorphism</span>,
 };
 <span class="kw">use</span> <span class="ident">algebra::module</span>::{<span class="ident">BoundedModule</span>, <span class="ident">Module</span>};
 <span class="kw">use</span> <span class="ident">ext::chain_complex</span>::{<span class="ident">ChainComplex</span>, <span class="ident">TensorChainComplex</span>};
 <span class="kw">use</span> <span class="ident">ext::resolution_homomorphism::ResolutionHomomorphism</span>;
-<span class="kw">use</span> <span class="ident">ext::utils::construct</span>;
+<span class="kw">use</span> <span class="ident">ext::utils</span>;
 <span class="kw">use</span> <span class="ident">ext::yoneda::yoneda_representative_element</span>;
 <span class="kw">use</span> <span class="ident">fp::matrix::Matrix</span>;
 <span class="kw">use</span> <span class="ident">fp::prime::ValidPrime</span>;
@@ -385,8 +387,10 @@
 <span class="kw">use</span> <span class="ident">crossbeam_channel</span>::{<span class="ident">unbounded</span>, <span class="ident">Receiver</span>};
 
 <span class="kw">fn</span> <span class="ident">main</span>() -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-    <span class="kw">let</span> <span class="ident">resolution</span> <span class="op">=</span>
-        <span class="ident">Arc::new</span>(<span class="ident">construct</span>(<span class="string">&quot;S_2&quot;</span>, <span class="ident">std::fs::File::open</span>(<span class="string">&quot;resolution_adem.save&quot;</span>).<span class="ident">ok</span>()).<span class="ident">unwrap</span>());
+    <span class="kw">let</span> <span class="ident">resolution</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">utils::query_module_only</span>(
+        <span class="string">&quot;Module&quot;</span>,
+        <span class="prelude-val">Some</span>(<span class="ident">algebra::AlgebraType::Adem</span>),
+    )<span class="question-mark">?</span>);
 
     <span class="kw">let</span> <span class="ident">complex</span> <span class="op">=</span> <span class="ident">resolution</span>.<span class="ident">complex</span>();
     <span class="kw">let</span> <span class="ident">module</span> <span class="op">=</span> <span class="ident">complex</span>.<span class="ident">module</span>(<span class="number">0</span>);

@@ -513,81 +513,6 @@
 <span id="489">489</span>
 <span id="490">490</span>
 <span id="491">491</span>
-<span id="492">492</span>
-<span id="493">493</span>
-<span id="494">494</span>
-<span id="495">495</span>
-<span id="496">496</span>
-<span id="497">497</span>
-<span id="498">498</span>
-<span id="499">499</span>
-<span id="500">500</span>
-<span id="501">501</span>
-<span id="502">502</span>
-<span id="503">503</span>
-<span id="504">504</span>
-<span id="505">505</span>
-<span id="506">506</span>
-<span id="507">507</span>
-<span id="508">508</span>
-<span id="509">509</span>
-<span id="510">510</span>
-<span id="511">511</span>
-<span id="512">512</span>
-<span id="513">513</span>
-<span id="514">514</span>
-<span id="515">515</span>
-<span id="516">516</span>
-<span id="517">517</span>
-<span id="518">518</span>
-<span id="519">519</span>
-<span id="520">520</span>
-<span id="521">521</span>
-<span id="522">522</span>
-<span id="523">523</span>
-<span id="524">524</span>
-<span id="525">525</span>
-<span id="526">526</span>
-<span id="527">527</span>
-<span id="528">528</span>
-<span id="529">529</span>
-<span id="530">530</span>
-<span id="531">531</span>
-<span id="532">532</span>
-<span id="533">533</span>
-<span id="534">534</span>
-<span id="535">535</span>
-<span id="536">536</span>
-<span id="537">537</span>
-<span id="538">538</span>
-<span id="539">539</span>
-<span id="540">540</span>
-<span id="541">541</span>
-<span id="542">542</span>
-<span id="543">543</span>
-<span id="544">544</span>
-<span id="545">545</span>
-<span id="546">546</span>
-<span id="547">547</span>
-<span id="548">548</span>
-<span id="549">549</span>
-<span id="550">550</span>
-<span id="551">551</span>
-<span id="552">552</span>
-<span id="553">553</span>
-<span id="554">554</span>
-<span id="555">555</span>
-<span id="556">556</span>
-<span id="557">557</span>
-<span id="558">558</span>
-<span id="559">559</span>
-<span id="560">560</span>
-<span id="561">561</span>
-<span id="562">562</span>
-<span id="563">563</span>
-<span id="564">564</span>
-<span id="565">565</span>
-<span id="566">566</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">core::cell::UnsafeCell</span>;
 <span class="kw">use</span> <span class="ident">core::ops</span>::{<span class="ident">Index</span>, <span class="ident">IndexMut</span>};
 <span class="kw">use</span> <span class="ident">std::cmp</span>::{<span class="ident">Eq</span>, <span class="ident">PartialEq</span>};
@@ -905,33 +830,6 @@
 <span class="kw">unsafe</span> <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Send</span><span class="op">&gt;</span> <span class="ident">Send</span> <span class="kw">for</span> <span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {}
 <span class="kw">unsafe</span> <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span> <span class="ident">Sync</span> <span class="kw">for</span> <span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {}
 
-<span class="kw">use</span> <span class="ident">saveload</span>::{<span class="ident">Load</span>, <span class="ident">Save</span>};
-<span class="kw">use</span> <span class="ident">std::io</span>;
-<span class="kw">use</span> <span class="ident">std::io</span>::{<span class="ident">Read</span>, <span class="ident">Write</span>};
-
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Save</span><span class="op">&gt;</span> <span class="ident">Save</span> <span class="kw">for</span> <span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">save</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">buffer</span>: <span class="kw-2">&amp;mut</span> <span class="kw">impl</span> <span class="ident">Write</span>) -&gt; <span class="ident">io::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">len</span>().<span class="ident">save</span>(<span class="ident">buffer</span>)<span class="question-mark">?</span>;
-        <span class="kw">for</span> <span class="ident">x</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">iter</span>() {
-            <span class="ident">x</span>.<span class="ident">save</span>(<span class="ident">buffer</span>)<span class="question-mark">?</span>;
-        }
-        <span class="prelude-val">Ok</span>(())
-    }
-}
-
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Load</span><span class="op">&gt;</span> <span class="ident">Load</span> <span class="kw">for</span> <span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
-    <span class="kw">type</span> <span class="ident">AuxData</span> <span class="op">=</span> <span class="ident">T::AuxData</span>;
-
-    <span class="kw">fn</span> <span class="ident">load</span>(<span class="ident">buffer</span>: <span class="kw-2">&amp;mut</span> <span class="kw">impl</span> <span class="ident">Read</span>, <span class="ident">data</span>: <span class="kw-2">&amp;</span><span class="ident"><span class="self">Self</span>::AuxData</span>) -&gt; <span class="ident">io::Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">len</span> <span class="op">=</span> <span class="ident">usize::load</span>(<span class="ident">buffer</span>, <span class="kw-2">&amp;</span>())<span class="question-mark">?</span>;
-        <span class="kw">let</span> <span class="ident">result</span>: <span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">OnceVec::new</span>();
-        <span class="kw">for</span> <span class="kw">_</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">len</span> {
-            <span class="ident">result</span>.<span class="ident">push</span>(<span class="ident">T::load</span>(<span class="ident">buffer</span>, <span class="ident">data</span>)<span class="question-mark">?</span>);
-        }
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>)
-    }
-}
-
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">OnceBiVec</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
     <span class="kw">pub</span> <span class="ident">data</span>: <span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>,
@@ -1083,22 +981,6 @@
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Save</span><span class="op">&gt;</span> <span class="ident">Save</span> <span class="kw">for</span> <span class="ident">OnceBiVec</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">save</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">buffer</span>: <span class="kw-2">&amp;mut</span> <span class="kw">impl</span> <span class="ident">Write</span>) -&gt; <span class="ident">io::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">data</span>.<span class="ident">save</span>(<span class="ident">buffer</span>)
-    }
-}
-
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Load</span><span class="op">&gt;</span> <span class="ident">Load</span> <span class="kw">for</span> <span class="ident">OnceBiVec</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
-    <span class="kw">type</span> <span class="ident">AuxData</span> <span class="op">=</span> (<span class="ident">i32</span>, <span class="ident">T::AuxData</span>);
-
-    <span class="kw">fn</span> <span class="ident">load</span>(<span class="ident">buffer</span>: <span class="kw-2">&amp;mut</span> <span class="kw">impl</span> <span class="ident">Read</span>, <span class="ident">data</span>: <span class="kw-2">&amp;</span><span class="ident"><span class="self">Self</span>::AuxData</span>) -&gt; <span class="ident">io::Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">min_degree</span> <span class="op">=</span> <span class="ident">data</span>.<span class="number">0</span>;
-        <span class="kw">let</span> <span class="ident">data</span> <span class="op">=</span> <span class="ident">Load::load</span>(<span class="ident">buffer</span>, <span class="kw-2">&amp;</span><span class="ident">data</span>.<span class="number">1</span>)<span class="question-mark">?</span>;
-        <span class="prelude-val">Ok</span>(<span class="self">Self</span> { <span class="ident">data</span>, <span class="ident">min_degree</span> })
-    }
-}
-
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
 <span class="kw">mod</span> <span class="ident">tests</span> {
     <span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
@@ -1120,38 +1002,6 @@
             <span class="macro">println!</span>(<span class="string">&quot;i : {}&quot;</span>, <span class="ident">i</span>);
             <span class="macro">assert_eq!</span>(<span class="ident">v</span>[<span class="ident">i</span>], <span class="ident">i</span>);
         }
-    }
-
-    <span class="attribute">#[<span class="ident">test</span>]</span>
-    <span class="kw">fn</span> <span class="ident">test_saveload</span>() {
-        <span class="kw">use</span> <span class="ident">std::io</span>::{<span class="ident">Cursor</span>, <span class="ident">Seek</span>, <span class="ident">SeekFrom</span>};
-
-        <span class="kw">let</span> <span class="ident">v</span>: <span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">OnceVec::new</span>();
-        <span class="ident">v</span>.<span class="ident">push</span>(<span class="number">6</span>);
-        <span class="ident">v</span>.<span class="ident">push</span>(<span class="number">3</span>);
-        <span class="ident">v</span>.<span class="ident">push</span>(<span class="number">4</span>);
-        <span class="ident">v</span>.<span class="ident">push</span>(<span class="number">2</span>);
-
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">cursor</span>: <span class="ident">Cursor</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Cursor::new</span>(<span class="ident">Vec::new</span>());
-        <span class="ident">v</span>.<span class="ident">save</span>(<span class="kw-2">&amp;mut</span> <span class="ident">cursor</span>).<span class="ident">unwrap</span>();
-
-        <span class="ident">cursor</span>.<span class="ident">seek</span>(<span class="ident">SeekFrom::Start</span>(<span class="number">0</span>)).<span class="ident">unwrap</span>();
-        <span class="kw">let</span> <span class="ident">v_saved_then_loaded</span>: <span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Load::load</span>(<span class="kw-2">&amp;mut</span> <span class="ident">cursor</span>, <span class="kw-2">&amp;</span>()).<span class="ident">unwrap</span>();
-        <span class="macro">assert_eq!</span>(<span class="ident">v</span>, <span class="ident">v_saved_then_loaded</span>);
-        <span class="macro">assert_eq!</span>(<span class="number">0</span>, <span class="ident">cursor</span>.<span class="ident">bytes</span>().<span class="ident">count</span>());
-
-        <span class="comment">// let mut w = BiVec::new(-3);</span>
-        <span class="comment">// w.push(2);</span>
-        <span class="comment">// w.push(6);</span>
-        <span class="comment">// w.push(2);</span>
-        <span class="comment">// w.push(7);</span>
-
-        <span class="comment">// let mut cursor2 : Cursor&lt;Vec&lt;u8&gt;&gt; = Cursor::new(Vec::new());</span>
-        <span class="comment">// w.save(&amp;mut cursor2).unwrap();</span>
-        <span class="comment">// cursor2.seek(SeekFrom::Start(0)).unwrap();</span>
-        <span class="comment">// let w_saved_then_loaded : BiVec&lt;u32&gt; = Load::load(&amp;mut cursor, &amp;(-3, ())).unwrap();</span>
-
-        <span class="comment">// assert_eq!(w, w_saved_then_loaded);</span>
     }
 }
 </code></pre></div>

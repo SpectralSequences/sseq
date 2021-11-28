@@ -332,6 +332,17 @@
 <span id="308">308</span>
 <span id="309">309</span>
 <span id="310">310</span>
+<span id="311">311</span>
+<span id="312">312</span>
+<span id="313">313</span>
+<span id="314">314</span>
+<span id="315">315</span>
+<span id="316">316</span>
+<span id="317">317</span>
+<span id="318">318</span>
+<span id="319">319</span>
+<span id="320">320</span>
+<span id="321">321</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">fp::prime::ValidPrime</span>;
 <span class="kw">use</span> <span class="ident">fp::vector</span>::{<span class="ident">Slice</span>, <span class="ident">SliceMut</span>};
 
@@ -352,6 +363,16 @@
 <span class="doccomment">///</span>
 <span class="doccomment">/// Algebras may have a distinguished set of generators; see [`GeneratedAlgebra`].</span>
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">Algebra</span>: <span class="ident">std::fmt::Display</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> {
+    <span class="doccomment">/// A magic constant used to identify the algebra in save files. When working with the</span>
+    <span class="doccomment">/// Milnor algebra, it is easy to forget to specify the algebra and load Milnor save files</span>
+    <span class="doccomment">/// with the Adem basis. If we somehow manage to resume computation, this can have</span>
+    <span class="doccomment">/// disasterous consequences. So we store the magic in the save files.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// This defaults to 0 for other kinds of algebra that don&#39;t care about this problem.</span>
+    <span class="kw">fn</span> <span class="ident">magic</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">u16</span> {
+        <span class="number">0</span>
+    }
+
     <span class="doccomment">/// Returns the prime the algebra is over.</span>
     <span class="kw">fn</span> <span class="ident">prime</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">ValidPrime</span>;
 
@@ -586,7 +607,8 @@
     (<span class="macro-nonterminal">$</span><span class="kw">struct</span>:<span class="macro-nonterminal">ty</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">dispatch_macro</span>: <span class="ident">ident</span>) =&gt; {
         <span class="kw">impl</span> <span class="ident">Algebra</span> <span class="kw">for</span> <span class="macro-nonterminal">$</span><span class="kw">struct</span> {
             <span class="macro-nonterminal">$</span><span class="macro">dispatch_macro!</span> {
-                <span class="kw">fn</span> <span class="macro-nonterminal">prime</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">ValidPrime</span>;
+                <span class="kw">fn</span> <span class="macro-nonterminal">magic</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">u16</span>;
+                <span class="kw">fn</span> <span class="ident">prime</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">ValidPrime</span>;
                 <span class="kw">fn</span> <span class="ident">compute_basis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>);
                 <span class="kw">fn</span> <span class="ident">dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">excess</span>: <span class="ident">i32</span>) -&gt; <span class="ident">usize</span>;
                 <span class="kw">fn</span> <span class="ident">multiply_basis_elements</span>(

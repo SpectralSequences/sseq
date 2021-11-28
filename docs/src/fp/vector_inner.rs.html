@@ -1195,6 +1195,11 @@
 <span id="1171">1171</span>
 <span id="1172">1172</span>
 <span id="1173">1173</span>
+<span id="1174">1174</span>
+<span id="1175">1175</span>
+<span id="1176">1176</span>
+<span id="1177">1177</span>
+<span id="1178">1178</span>
 </pre><pre class="rust"><code><span class="comment">// This generates better llvm optimization</span>
 <span class="attribute">#![<span class="ident">allow</span>(<span class="ident">clippy::int_plus_one</span>)]</span>
 
@@ -1246,6 +1251,11 @@
             <span class="ident">len</span>,
             <span class="ident">limbs</span>: <span class="macro">vec!</span>[<span class="number">0</span>; <span class="ident">number_of_limbs</span>],
         }
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_raw_parts</span>(<span class="ident">len</span>: <span class="ident">usize</span>, <span class="ident">limbs</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Limb</span><span class="op">&gt;</span>) -&gt; <span class="self">Self</span> {
+        <span class="macro">debug_assert_eq!</span>(<span class="ident">limbs</span>.<span class="ident">len</span>(), <span class="ident">limb::number</span>::<span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span>(<span class="ident">len</span>));
+        <span class="self">Self</span> { <span class="ident">len</span>, <span class="ident">limbs</span> }
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new_with_capacity_</span>(<span class="ident">len</span>: <span class="ident">usize</span>, <span class="ident">capacity</span>: <span class="ident">usize</span>) -&gt; <span class="self">Self</span> {

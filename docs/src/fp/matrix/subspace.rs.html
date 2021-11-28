@@ -218,9 +218,34 @@
 <span id="194">194</span>
 <span id="195">195</span>
 <span id="196">196</span>
+<span id="197">197</span>
+<span id="198">198</span>
+<span id="199">199</span>
+<span id="200">200</span>
+<span id="201">201</span>
+<span id="202">202</span>
+<span id="203">203</span>
+<span id="204">204</span>
+<span id="205">205</span>
+<span id="206">206</span>
+<span id="207">207</span>
+<span id="208">208</span>
+<span id="209">209</span>
+<span id="210">210</span>
+<span id="211">211</span>
+<span id="212">212</span>
+<span id="213">213</span>
+<span id="214">214</span>
+<span id="215">215</span>
+<span id="216">216</span>
+<span id="217">217</span>
+<span id="218">218</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident"><span class="kw">super</span>::Matrix</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::prime::ValidPrime</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::vector</span>::{<span class="ident">FpVector</span>, <span class="ident">Slice</span>, <span class="ident">SliceMut</span>};
+
+<span class="kw">use</span> <span class="ident">byteorder</span>::{<span class="ident">LittleEndian</span>, <span class="ident">ReadBytesExt</span>, <span class="ident">WriteBytesExt</span>};
+<span class="kw">use</span> <span class="ident">std::io</span>::{<span class="ident">Read</span>, <span class="ident">Write</span>};
 
 <span class="doccomment">/// A subspace of a vector space.</span>
 <span class="doccomment">/// # Fields</span>
@@ -254,6 +279,25 @@
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">matrix</span> <span class="op">=</span> <span class="ident">Matrix::new</span>(<span class="ident">p</span>, <span class="ident">rows</span>, <span class="ident">columns</span>);
         <span class="ident">matrix</span>.<span class="ident">initialize_pivots</span>();
         <span class="self">Self</span> { <span class="ident">matrix</span> }
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_bytes</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>, <span class="ident">data</span>: <span class="kw-2">&amp;mut</span> <span class="kw">impl</span> <span class="ident">Read</span>) -&gt; <span class="ident">std::io::Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">rows</span> <span class="op">=</span> <span class="ident">data</span>.<span class="ident">read_u64</span>::<span class="op">&lt;</span><span class="ident">LittleEndian</span><span class="op">&gt;</span>()<span class="question-mark">?</span> <span class="kw">as</span> <span class="ident">usize</span>;
+        <span class="kw">let</span> <span class="ident">ambient_dimension</span> <span class="op">=</span> <span class="ident">data</span>.<span class="ident">read_u64</span>::<span class="op">&lt;</span><span class="ident">LittleEndian</span><span class="op">&gt;</span>()<span class="question-mark">?</span> <span class="kw">as</span> <span class="ident">usize</span>;
+
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">matrix</span> <span class="op">=</span> <span class="ident">Matrix::from_bytes</span>(<span class="ident">p</span>, <span class="ident">rows</span>, <span class="ident">ambient_dimension</span>, <span class="ident">data</span>)<span class="question-mark">?</span>;
+
+        <span class="ident">matrix</span>.<span class="ident">pivots</span> <span class="op">=</span> <span class="ident">Matrix::read_pivot</span>(<span class="ident">matrix</span>.<span class="ident">columns</span>(), <span class="ident">data</span>)<span class="question-mark">?</span>;
+
+        <span class="prelude-val">Ok</span>(<span class="self">Self</span> { <span class="ident">matrix</span> })
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">to_bytes</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">buffer</span>: <span class="kw-2">&amp;mut</span> <span class="kw">impl</span> <span class="ident">Write</span>) -&gt; <span class="ident">std::io::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+        <span class="ident">buffer</span>.<span class="ident">write_u64</span>::<span class="op">&lt;</span><span class="ident">LittleEndian</span><span class="op">&gt;</span>(<span class="self">self</span>.<span class="ident">rows</span>() <span class="kw">as</span> <span class="ident">u64</span>)<span class="question-mark">?</span>;
+        <span class="ident">buffer</span>.<span class="ident">write_u64</span>::<span class="op">&lt;</span><span class="ident">LittleEndian</span><span class="op">&gt;</span>(<span class="self">self</span>.<span class="ident">ambient_dimension</span>() <span class="kw">as</span> <span class="ident">u64</span>)<span class="question-mark">?</span>;
+
+        <span class="self">self</span>.<span class="ident">matrix</span>.<span class="ident">to_bytes</span>(<span class="ident">buffer</span>)<span class="question-mark">?</span>;
+        <span class="ident">Matrix::write_pivot</span>(<span class="self">self</span>.<span class="ident">matrix</span>.<span class="ident">pivots</span>(), <span class="ident">buffer</span>)
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">empty_space</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>, <span class="ident">dim</span>: <span class="ident">usize</span>) -&gt; <span class="self">Self</span> {
