@@ -1115,6 +1115,17 @@
 <span id="1091">1091</span>
 <span id="1092">1092</span>
 <span id="1093">1093</span>
+<span id="1094">1094</span>
+<span id="1095">1095</span>
+<span id="1096">1096</span>
+<span id="1097">1097</span>
+<span id="1098">1098</span>
+<span id="1099">1099</span>
+<span id="1100">1100</span>
+<span id="1101">1101</span>
+<span id="1102">1102</span>
+<span id="1103">1103</span>
+<span id="1104">1104</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::sync</span>::{<span class="ident">Arc</span>, <span class="ident">Mutex</span>};
 
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::chain_complex</span>::{<span class="ident">AugmentedChainComplex</span>, <span class="ident">ChainComplex</span>};
@@ -1197,7 +1208,21 @@
     <span class="doccomment">///  compute_through_degree again.</span>
     <span class="ident">kernels</span>: <span class="ident">DashMap</span><span class="op">&lt;</span>(<span class="ident">u32</span>, <span class="ident">i32</span>), <span class="ident">Subspace</span><span class="op">&gt;</span>,
     <span class="ident">save_dir</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">PathBuf</span><span class="op">&gt;</span>,
+
+    <span class="doccomment">/// Whether we should save newly computed data to the disk. This has no effect if there is no</span>
+    <span class="doccomment">/// save file. Defaults to `self.save_dir.is_some()`.</span>
     <span class="kw">pub</span> <span class="ident">should_save</span>: <span class="ident">bool</span>,
+
+    <span class="doccomment">/// Whether we should keep the quasi-inverses of the differentials.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// If set to false,</span>
+    <span class="doccomment">///  - If there is no save file, then the quasi-inverse will not be computed.</span>
+    <span class="doccomment">///  - If there is a save file, then the quasi-inverse will be computed, written to disk, and</span>
+    <span class="doccomment">///    dropped from memory. We will not load quasi-inverses from save files.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// Note that this only applies to quasi-inverses of differentials. The quasi-inverses to the</span>
+    <span class="doccomment">/// augmentation map are useful when the target chain complex is not concentrated in one</span>
+    <span class="doccomment">/// degree, and they tend to be quite small anyway.</span>
     <span class="kw">pub</span> <span class="ident">load_quasi_inverse</span>: <span class="ident">bool</span>,
 }
 
@@ -1587,29 +1612,29 @@
                     } <span class="kw">else</span> {
                         <span class="ident">current_differential</span>.<span class="ident">set_quasi_inverse</span>(<span class="ident">t</span>, <span class="prelude-val">None</span>);
                     }
+                } <span class="kw">else</span> {
+                    <span class="ident">current_differential</span>.<span class="ident">set_quasi_inverse</span>(<span class="ident">t</span>, <span class="prelude-val">None</span>);
+                }
 
-                    <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">mut</span> <span class="ident">f</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">open_save_file</span>(<span class="ident">SaveData::AugmentationQi</span>, <span class="ident">s</span>, <span class="ident">t</span>) {
-                        <span class="kw">let</span> <span class="ident">cm_qi</span> <span class="op">=</span> <span class="ident">QuasiInverse::from_bytes</span>(<span class="ident">p</span>, <span class="kw-2">&amp;mut</span> <span class="ident">f</span>).<span class="ident">unwrap</span>();
+                <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">mut</span> <span class="ident">f</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">open_save_file</span>(<span class="ident">SaveData::AugmentationQi</span>, <span class="ident">s</span>, <span class="ident">t</span>) {
+                    <span class="kw">let</span> <span class="ident">cm_qi</span> <span class="op">=</span> <span class="ident">QuasiInverse::from_bytes</span>(<span class="ident">p</span>, <span class="kw-2">&amp;mut</span> <span class="ident">f</span>).<span class="ident">unwrap</span>();
 
-                        <span class="macro">assert_eq!</span>(
+                    <span class="macro">assert_eq!</span>(
                         <span class="ident">cm_qi</span>.<span class="ident">target_dimension</span>(),
                         <span class="ident">target_cc_dimension</span>,
                         <span class="string">&quot;Malformed data: mismatched augmentation target dimension in qi at ({s}, {t})&quot;</span>
-                    );
-                        <span class="macro">assert_eq!</span>(
+                        );
+                    <span class="macro">assert_eq!</span>(
                         <span class="ident">cm_qi</span>.<span class="ident">source_dimension</span>(),
                         <span class="ident">source_dimension</span> <span class="op">+</span> <span class="ident">num_new_gens</span>,
                         <span class="string">&quot;Malformed data: mismatched source dimension in augmentation qi at ({s}, {t})&quot;</span>
-                    );
+                        );
 
-                        <span class="ident">current_chain_map</span>.<span class="ident">set_quasi_inverse</span>(<span class="ident">t</span>, <span class="prelude-val">Some</span>(<span class="ident">cm_qi</span>));
-                    } <span class="kw">else</span> {
-                        <span class="ident">current_chain_map</span>.<span class="ident">set_quasi_inverse</span>(<span class="ident">t</span>, <span class="prelude-val">None</span>);
-                    }
+                    <span class="ident">current_chain_map</span>.<span class="ident">set_quasi_inverse</span>(<span class="ident">t</span>, <span class="prelude-val">Some</span>(<span class="ident">cm_qi</span>));
                 } <span class="kw">else</span> {
-                    <span class="ident">current_differential</span>.<span class="ident">set_quasi_inverse</span>(<span class="ident">t</span>, <span class="prelude-val">None</span>);
                     <span class="ident">current_chain_map</span>.<span class="ident">set_quasi_inverse</span>(<span class="ident">t</span>, <span class="prelude-val">None</span>);
                 }
+
                 <span class="ident">current_differential</span>.<span class="ident">set_kernel</span>(<span class="ident">t</span>, <span class="prelude-val">None</span>);
                 <span class="ident">current_differential</span>.<span class="ident">set_image</span>(<span class="ident">t</span>, <span class="prelude-val">None</span>);
 
@@ -1783,13 +1808,7 @@
                 }
             }
         }
-        <span class="kw">let</span> (<span class="ident">cm_qi</span>, <span class="ident">res_qi</span>) <span class="op">=</span>
-            <span class="kw">if</span> (<span class="self">self</span>.<span class="ident">should_save</span> <span class="op">&amp;&amp;</span> <span class="self">self</span>.<span class="ident">save_dir</span>.<span class="ident">is_some</span>()) <span class="op">|</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">load_quasi_inverse</span> {
-                <span class="kw">let</span> (<span class="ident">c</span>, <span class="ident">r</span>) <span class="op">=</span> <span class="ident">matrix</span>.<span class="ident">compute_quasi_inverses</span>();
-                (<span class="prelude-val">Some</span>(<span class="ident">c</span>), <span class="prelude-val">Some</span>(<span class="ident">r</span>))
-            } <span class="kw">else</span> {
-                (<span class="prelude-val">None</span>, <span class="prelude-val">None</span>)
-            };
+        <span class="kw">let</span> (<span class="ident">cm_qi</span>, <span class="ident">res_qi</span>) <span class="op">=</span> <span class="ident">matrix</span>.<span class="ident">compute_quasi_inverses</span>();
 
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">should_save</span> <span class="op">&amp;&amp;</span> <span class="self">self</span>.<span class="ident">save_dir</span>.<span class="ident">is_some</span>() {
             <span class="comment">// Write differentials</span>
@@ -1811,12 +1830,12 @@
 
             <span class="comment">// Write resolution qi</span>
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">create_save_file</span>(<span class="ident">SaveData::ResQi</span>, <span class="ident">s</span>, <span class="ident">t</span>);
-            <span class="ident">res_qi</span>.<span class="ident">as_ref</span>().<span class="ident">unwrap</span>().<span class="ident">to_bytes</span>(<span class="kw-2">&amp;mut</span> <span class="ident">f</span>).<span class="ident">unwrap</span>();
+            <span class="ident">res_qi</span>.<span class="ident">to_bytes</span>(<span class="kw-2">&amp;mut</span> <span class="ident">f</span>).<span class="ident">unwrap</span>();
             <span class="ident">drop</span>(<span class="ident">f</span>);
 
             <span class="comment">// Write augmentation qi</span>
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">create_save_file</span>(<span class="ident">SaveData::AugmentationQi</span>, <span class="ident">s</span>, <span class="ident">t</span>);
-            <span class="ident">cm_qi</span>.<span class="ident">as_ref</span>().<span class="ident">unwrap</span>().<span class="ident">to_bytes</span>(<span class="kw-2">&amp;mut</span> <span class="ident">f</span>).<span class="ident">unwrap</span>();
+            <span class="ident">cm_qi</span>.<span class="ident">to_bytes</span>(<span class="kw-2">&amp;mut</span> <span class="ident">f</span>).<span class="ident">unwrap</span>();
             <span class="ident">drop</span>(<span class="ident">f</span>);
 
             <span class="comment">// Delete kernel</span>
@@ -1829,14 +1848,17 @@
         }
 
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">load_quasi_inverse</span> {
-            <span class="ident">current_chain_map</span>.<span class="ident">set_quasi_inverse</span>(<span class="ident">t</span>, <span class="ident">cm_qi</span>);
-            <span class="ident">current_differential</span>.<span class="ident">set_quasi_inverse</span>(<span class="ident">t</span>, <span class="ident">res_qi</span>);
+            <span class="ident">current_differential</span>.<span class="ident">set_quasi_inverse</span>(<span class="ident">t</span>, <span class="prelude-val">Some</span>(<span class="ident">res_qi</span>));
         } <span class="kw">else</span> {
-            <span class="ident">current_chain_map</span>.<span class="ident">set_quasi_inverse</span>(<span class="ident">t</span>, <span class="prelude-val">None</span>);
             <span class="ident">current_differential</span>.<span class="ident">set_quasi_inverse</span>(<span class="ident">t</span>, <span class="prelude-val">None</span>);
         }
+
+        <span class="comment">// This tends to be small and is always needed if the target is not concentrated in a</span>
+        <span class="comment">// single homological degree</span>
+        <span class="ident">current_chain_map</span>.<span class="ident">set_quasi_inverse</span>(<span class="ident">t</span>, <span class="prelude-val">Some</span>(<span class="ident">cm_qi</span>));
         <span class="ident">current_chain_map</span>.<span class="ident">set_kernel</span>(<span class="ident">t</span>, <span class="prelude-val">None</span>);
         <span class="ident">current_chain_map</span>.<span class="ident">set_image</span>(<span class="ident">t</span>, <span class="prelude-val">None</span>);
+
         <span class="ident">current_differential</span>.<span class="ident">set_kernel</span>(<span class="ident">t</span>, <span class="prelude-val">None</span>);
         <span class="ident">current_differential</span>.<span class="ident">set_image</span>(<span class="ident">t</span>, <span class="prelude-val">None</span>);
     }
