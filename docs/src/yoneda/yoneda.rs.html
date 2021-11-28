@@ -144,7 +144,7 @@
 <span class="kw">use</span> <span class="ident">std::time::Instant</span>;
 
 <span class="kw">fn</span> <span class="ident">main</span>() -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-    <span class="kw">let</span> <span class="ident">resolution</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">query::with_default</span>(<span class="string">&quot;Module&quot;</span>, <span class="string">&quot;S_2&quot;</span>, <span class="op">|</span><span class="ident">name</span><span class="op">|</span> {
+    <span class="kw">let</span> <span class="ident">resolution</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">query::with_default</span>(<span class="string">&quot;Module&quot;</span>, <span class="string">&quot;S_2@adem&quot;</span>, <span class="op">|</span><span class="ident">name</span><span class="op">|</span> {
         <span class="ident">construct</span>(<span class="ident">name</span>, <span class="prelude-val">None</span>)
     }));
 
