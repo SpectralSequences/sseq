@@ -206,8 +206,6 @@
 <span id="182">182</span>
 <span id="183">183</span>
 <span id="184">184</span>
-<span id="185">185</span>
-<span id="186">186</span>
 </pre><pre class="rust"><code><span class="doccomment">//! `ext-rs` is a collection of libraries for doing homological algebra over $\F_p$. The</span>
 <span class="doccomment">//! main and original purpose is to compute Ext of a Steenrod module, but the library is written to</span>
 <span class="doccomment">//! be sufficiently generic to deal with more general applications.</span>
@@ -298,11 +296,9 @@
 <span class="doccomment">//! we supply `Ceta[1]`.</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! When resolving a module, we have to pick a basis of the Steenrod algebra, which</span>
-<span class="doccomment">//! is either the Adem basis or the Milnor basis. The default choice is the Adem</span>
-<span class="doccomment">//! basis, which tends to be faster, but certain applications require the Milnor</span>
-<span class="doccomment">//! basis. In this case we can specify the basis by appending `@basis_name`. For</span>
-<span class="doccomment">//! example, if we want to resolve `Ceta[1]` with the Milnor basis, we can specify</span>
-<span class="doccomment">//! it as `Ceta[1]@milnor`.</span>
+<span class="doccomment">//! is either the Adem basis or the Milnor basis. The default choice is the Milnor</span>
+<span class="doccomment">//! basis. We can specify the basis by appending `@basis_name`. For example, if we</span>
+<span class="doccomment">//! want to resolve `Ceta[1]` with the Adem basis, we can specify it as `Ceta[1]@adem`.</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! ### Resolution specification</span>
 <span class="doccomment">//! Most examples act on a (partial) resolution of a module. Usually, these are</span>
