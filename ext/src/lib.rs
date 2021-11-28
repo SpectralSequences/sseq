@@ -88,11 +88,9 @@
 //! we supply `Ceta[1]`.
 //!
 //! When resolving a module, we have to pick a basis of the Steenrod algebra, which
-//! is either the Adem basis or the Milnor basis. The default choice is the Adem
-//! basis, which tends to be faster, but certain applications require the Milnor
-//! basis. In this case we can specify the basis by appending `@basis_name`. For
-//! example, if we want to resolve `Ceta[1]` with the Milnor basis, we can specify
-//! it as `Ceta[1]@milnor`.
+//! is either the Adem basis or the Milnor basis. The default choice is the Milnor
+//! basis. We can specify the basis by appending `@basis_name`. For example, if we
+//! want to resolve `Ceta[1]` with the Adem basis, we can specify it as `Ceta[1]@adem`.
 //!
 //! ### Resolution specification
 //! Most examples act on a (partial) resolution of a module. Usually, these are
