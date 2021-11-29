@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["MilnorPairElement",""]],"trait":[["PairAlgebra","A lift of an algebra to a split pair algebra. See module introduction for more."]]});

@@ -1,4 +1,0 @@
-(function() {var implementors = {};
-implementors["fp"] = [{"text":"impl <a class=\"trait\" href=\"saveload/trait.Save.html\" title=\"trait saveload::Save\">Save</a> for <a class=\"enum\" href=\"fp/vector/enum.FpVector.html\" title=\"enum fp::vector::FpVector\">FpVector</a>","synthetic":false,"types":["fp::vector::FpVector"]},{"text":"impl <a class=\"trait\" href=\"saveload/trait.Save.html\" title=\"trait saveload::Save\">Save</a> for <a class=\"type\" href=\"fp/vector_2/type.FpVector.html\" title=\"type fp::vector_2::FpVector\">FpVector</a>","synthetic":false,"types":["fp::vector_2::FpVector"]}];
-implementors["saveload"] = [];
-if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

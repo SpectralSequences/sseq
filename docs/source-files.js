@@ -1,5 +1,5 @@
 var N = null;var sourcesIndex = {};
-sourcesIndex["algebra"] = {"name":"","dirs":[{"name":"algebra","files":["adem_algebra.rs","algebra_trait.rs","bialgebra_trait.rs","combinatorics.rs","field.rs","milnor_algebra.rs","mod.rs","polynomial_algebra.rs","steenrod_algebra.rs"]},{"name":"module","dirs":[{"name":"homomorphism","files":["bounded_module_homomorphism.rs","composition_homomorphism.rs","finite_module_homomorphism.rs","fp_module_homomorphism.rs","free_module_homomorphism.rs","generic_zero_homomorphism.rs","hom_pullback.rs","mod.rs","quotient_homomorphism.rs","truncated_homomorphism.rs"]}],"files":["bcp.rs","block_structure.rs","bounded_module.rs","dickson2.rs","finite_dimensional_module.rs","finite_module.rs","finitely_presented_module.rs","free_module.rs","free_unstable_module.rs","hom_module.rs","kfpn.rs","mod.rs","module_trait.rs","polynomial_algebra_module.rs","quotient_module.rs","rpn.rs","sum_module.rs","tensor_module.rs","truncated_module.rs","zero_module.rs"]}],"files":["change_of_basis.rs","lib.rs","steenrod_evaluator.rs","steenrod_parser.rs"]};
+sourcesIndex["algebra"] = {"name":"","dirs":[{"name":"algebra","files":["adem_algebra.rs","algebra_trait.rs","bialgebra_trait.rs","combinatorics.rs","field.rs","milnor_algebra.rs","mod.rs","pair_algebra.rs","polynomial_algebra.rs","steenrod_algebra.rs"]},{"name":"module","dirs":[{"name":"homomorphism","files":["bounded_module_homomorphism.rs","composition_homomorphism.rs","finite_module_homomorphism.rs","fp_module_homomorphism.rs","free_module_homomorphism.rs","generic_zero_homomorphism.rs","hom_pullback.rs","mod.rs","quotient_homomorphism.rs","truncated_homomorphism.rs"]}],"files":["bcp.rs","block_structure.rs","bounded_module.rs","dickson2.rs","finite_dimensional_module.rs","finite_module.rs","finitely_presented_module.rs","free_module.rs","free_unstable_module.rs","hom_module.rs","kfpn.rs","mod.rs","module_trait.rs","polynomial_algebra_module.rs","quotient_module.rs","rpn.rs","sum_module.rs","tensor_module.rs","truncated_module.rs","zero_module.rs"]}],"files":["change_of_basis.rs","lib.rs","steenrod_evaluator.rs","steenrod_parser.rs"]};
 sourcesIndex["algebra_dim"] = {"name":"","files":["algebra_dim.rs"]};
 sourcesIndex["bivec"] = {"name":"","files":["lib.rs"]};
 sourcesIndex["bruner"] = {"name":"","files":["bruner.rs"]};
@@ -19,7 +19,6 @@ sourcesIndex["resolution_size"] = {"name":"","files":["resolution_size.rs"]};
 sourcesIndex["resolve"] = {"name":"","files":["resolve.rs"]};
 sourcesIndex["resolve_through_stem"] = {"name":"","files":["resolve_through_stem.rs"]};
 sourcesIndex["save_bruner"] = {"name":"","files":["save_bruner.rs"]};
-sourcesIndex["saveload"] = {"name":"","files":["default_impl.rs","lib.rs"]};
 sourcesIndex["secondary"] = {"name":"","files":["secondary.rs"]};
 sourcesIndex["sseq"] = {"name":"","files":["bigraded.rs","differential.rs","lib.rs","sseq.rs"]};
 sourcesIndex["steenrod"] = {"name":"","files":["steenrod.rs"]};
