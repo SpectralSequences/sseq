@@ -245,8 +245,7 @@ impl<P: SseqProfile> Sseq<P> {
         }
     }
 
-    /// This returns the vec of differentials to draw on each page. This does *not* update the
-    /// invalid flag.
+    /// This returns the vec of differentials to draw on each page.
     pub fn update_bidegree(&mut self, x: i32, y: i32) -> BiVec<Vec<Vec<u32>>> {
         self.invalid[x][y] = false;
         for (r, d) in self.differentials[x][y].iter_mut_enum() {
