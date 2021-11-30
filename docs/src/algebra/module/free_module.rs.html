@@ -745,6 +745,20 @@
 <span id="721">721</span>
 <span id="722">722</span>
 <span id="723">723</span>
+<span id="724">724</span>
+<span id="725">725</span>
+<span id="726">726</span>
+<span id="727">727</span>
+<span id="728">728</span>
+<span id="729">729</span>
+<span id="730">730</span>
+<span id="731">731</span>
+<span id="732">732</span>
+<span id="733">733</span>
+<span id="734">734</span>
+<span id="735">735</span>
+<span id="736">736</span>
+<span id="737">737</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
 
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::algebra::Algebra</span>;
@@ -1173,6 +1187,20 @@
         <span class="kw">let</span> <span class="ident">start</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">generator_offset</span>(<span class="ident">degree</span>, <span class="ident">gen_degree</span>, <span class="ident">gen_index</span>);
         <span class="kw">let</span> <span class="ident">len</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">algebra</span>().<span class="ident">dimension</span>(<span class="ident">degree</span> <span class="op">-</span> <span class="ident">gen_degree</span>, <span class="number">0</span>);
         <span class="ident">v</span>.<span class="ident">slice_mut</span>(<span class="ident">start</span>, <span class="ident">start</span> <span class="op">+</span> <span class="ident">len</span>)
+    }
+
+    <span class="doccomment">/// Given an element in a degree, iterate through the slices corresponding to each generator.</span>
+    <span class="doccomment">/// Each item of the iterator is `(gen_degree, gen_index, op_degree, slice)`. This skips the slices</span>
+    <span class="doccomment">/// corresponding to generators in degree `degree`.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">iter_slices</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>(
+        <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="self">self</span>,
+        <span class="ident">degree</span>: <span class="ident">i32</span>,
+        <span class="ident">slice</span>: <span class="ident">Slice</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>,
+    ) -&gt; <span class="kw">impl</span> <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> (<span class="ident">i32</span>, <span class="ident">usize</span>, <span class="ident">i32</span>, <span class="ident">Slice</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>)<span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;a</span> {
+        (<span class="self">self</span>.<span class="ident">min_degree</span>..<span class="op">=</span><span class="ident">degree</span>)
+            .<span class="ident">map</span>(<span class="op">|</span><span class="ident">t</span><span class="op">|</span> (<span class="number">0</span>..<span class="self">self</span>.<span class="ident">num_gens</span>.<span class="ident">get</span>(<span class="ident">t</span>).<span class="ident">copied</span>().<span class="ident">unwrap_or</span>(<span class="number">0</span>)).<span class="ident">map</span>(<span class="kw">move</span> <span class="op">|</span><span class="ident">n</span><span class="op">|</span> (<span class="ident">t</span>, <span class="ident">n</span>)))
+            .<span class="ident">flatten</span>()
+            .<span class="ident">map</span>(<span class="kw">move</span> <span class="op">|</span>(<span class="ident">t</span>, <span class="ident">n</span>)<span class="op">|</span> (<span class="ident">t</span>, <span class="ident">n</span>, <span class="ident">degree</span> <span class="op">-</span> <span class="ident">t</span>, <span class="self">self</span>.<span class="ident">slice_vector</span>(<span class="ident">degree</span>, <span class="ident">t</span>, <span class="ident">n</span>, <span class="ident">slice</span>)))
     }
 }
 

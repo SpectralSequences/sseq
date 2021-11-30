@@ -403,8 +403,12 @@
 <span id="379">379</span>
 <span id="380">380</span>
 <span id="381">381</span>
+<span id="382">382</span>
+<span id="383">383</span>
+<span id="384">384</span>
+<span id="385">385</span>
 </pre><pre class="rust"><code><span class="doccomment">//! This implements the notion of a split pair algebra in the sense of</span>
-<span class="doccomment">//! [https://arxiv.org/abs/2105.07628], whose notation we will use throughout. The Steenrod algebra</span>
+<span class="doccomment">//! &lt;https://arxiv.org/abs/2105.07628&gt;, whose notation we will use throughout. The Steenrod algebra</span>
 <span class="doccomment">//! admits a lift to a split pair algebra, which can be used to compute d2 differentials</span>
 <span class="doccomment">//! algorithmically.</span>
 <span class="doccomment">//!</span>
@@ -615,6 +619,10 @@
     ) {
         <span class="macro">assert!</span>(<span class="ident">s</span>.<span class="ident">ones</span>.<span class="ident">is_zero</span>());
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">allocation</span> <span class="op">=</span> <span class="ident">PPartAllocation::with_capacity</span>(<span class="number">8</span>);
+
+        <span class="kw">if</span> <span class="ident">r_degree</span> <span class="op">==</span> <span class="number">0</span> {
+            <span class="kw">return</span>;
+        }
 
         <span class="comment">// The twos terms</span>
         <span class="kw">for</span> (<span class="ident">r_idx</span>, <span class="ident">c</span>) <span class="kw">in</span> <span class="ident">r</span>.<span class="ident">iter_nonzero</span>() {

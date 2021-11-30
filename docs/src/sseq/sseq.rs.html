@@ -765,7 +765,6 @@
 <span id="741">741</span>
 <span id="742">742</span>
 <span id="743">743</span>
-<span id="744">744</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::bigraded::DenseBigradedModule</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::differential::Differential</span>;
 <span class="kw">use</span> <span class="ident">bivec::BiVec</span>;
@@ -1013,8 +1012,7 @@
         }
     }
 
-    <span class="doccomment">/// This returns the vec of differentials to draw on each page. This does *not* update the</span>
-    <span class="doccomment">/// invalid flag.</span>
+    <span class="doccomment">/// This returns the vec of differentials to draw on each page.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">update_bidegree</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">x</span>: <span class="ident">i32</span>, <span class="ident">y</span>: <span class="ident">i32</span>) -&gt; <span class="ident">BiVec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">invalid</span>[<span class="ident">x</span>][<span class="ident">y</span>] <span class="op">=</span> <span class="bool-val">false</span>;
         <span class="kw">for</span> (<span class="ident">r</span>, <span class="ident">d</span>) <span class="kw">in</span> <span class="self">self</span>.<span class="ident">differentials</span>[<span class="ident">x</span>][<span class="ident">y</span>].<span class="ident">iter_mut_enum</span>() {
