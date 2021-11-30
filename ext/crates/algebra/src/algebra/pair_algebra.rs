@@ -1,5 +1,5 @@
 //! This implements the notion of a split pair algebra in the sense of
-//! [https://arxiv.org/abs/2105.07628], whose notation we will use throughout. The Steenrod algebra
+//! <https://arxiv.org/abs/2105.07628>, whose notation we will use throughout. The Steenrod algebra
 //! admits a lift to a split pair algebra, which can be used to compute d2 differentials
 //! algorithmically.
 //!
@@ -210,6 +210,10 @@ impl PairAlgebra for MilnorAlgebra {
     ) {
         assert!(s.ones.is_zero());
         let mut allocation = PPartAllocation::with_capacity(8);
+
+        if r_degree == 0 {
+            return;
+        }
 
         // The twos terms
         for (r_idx, c) in r.iter_nonzero() {

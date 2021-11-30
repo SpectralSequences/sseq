@@ -20,7 +20,6 @@
 //! We omit differentials if the target bidegree is zero
 
 use algebra::module::Module;
-use itertools::Itertools;
 use std::sync::Arc;
 
 use ext::chain_complex::ChainComplex;
@@ -50,36 +49,17 @@ fn main() -> anyhow::Result<()> {
             continue;
         }
 
-        let source = resolution.module(s);
-        let target = resolution.module(s - 2);
-        if t - 1 > target.max_computed_degree() {
+        if t - 1 > resolution.module(s - 2).max_computed_degree() {
             continue;
         }
-        let source_num_gens = source.number_of_gens_in_degree(t);
-        let target_num_gens = target.number_of_gens_in_degree(t - 1);
-        if source_num_gens == 0 || target_num_gens == 0 {
+        if resolution.module(s).number_of_gens_in_degree(t) == 0 {
             continue;
         }
         let homotopy = lift.homotopy(s);
-        let mut entries = vec![vec![0; target_num_gens]; source_num_gens];
+        let m = homotopy.hom_k(t - 1);
 
-        let offset = target.generator_offset(t - 1, t - 1, 0);
-
-        for (n, row) in entries.iter_mut().enumerate() {
-            let dx = &homotopy.output(t, n).homotopy;
-
-            for (k, entry) in row.iter_mut().enumerate() {
-                *entry = dx.entry(offset + k);
-            }
-        }
-
-        for k in 0..target_num_gens {
-            println!(
-                "d_2 x_({}, {}, {k}) = [{}]",
-                n + 1,
-                s - 2,
-                (0..source_num_gens).map(|n| entries[n][k]).format(", ")
-            )
+        for (i, entry) in m.into_iter().enumerate() {
+            println!("d_2 x_({}, {}, {}) = {:?}", n + 1, s - 2, i, entry);
         }
     }
 

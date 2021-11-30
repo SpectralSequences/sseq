@@ -1,4 +1,7 @@
-use crate::chain_complex::{BoundedChainComplex, ChainComplex, FreeChainComplex};
+use crate::chain_complex::{
+    AugmentedChainComplex, BoundedChainComplex, ChainComplex, FreeChainComplex,
+};
+use crate::resolution_homomorphism::ResolutionHomomorphism;
 use algebra::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
 use algebra::module::{BoundedModule, FreeModule, Module};
 use algebra::pair_algebra::PairAlgebra;
@@ -51,6 +54,7 @@ impl<A: PairAlgebra> SingleSecondaryHomotopy<A> {
 
     pub fn add_composite(
         &mut self,
+        coeff: u32,
         gen_degree: i32,
         gen_idx: usize,
         d1: &FreeModuleHomomorphism<FreeModule<A>>,
@@ -63,22 +67,32 @@ impl<A: PairAlgebra> SingleSecondaryHomotopy<A> {
         let dx = d1.output(gen_degree, gen_idx);
         let algebra = self.algebra();
 
-        for t1 in middle.min_degree()..gen_degree {
-            for n1 in 0..middle.number_of_gens_in_degree(t1) {
-                let dy = d0.output(t1, n1);
+        for (gen_deg1, gen_idx1, op_deg1, slice1) in
+            middle.iter_slices(gen_degree - d1.degree_shift(), dx.as_slice())
+        {
+            if slice1.is_zero() {
+                continue;
+            }
+            if gen_deg1 < d0.degree_shift() {
+                continue;
+            }
+            let dy = d0.output(gen_deg1, gen_idx1);
 
-                for t2 in self.target.min_degree()..t1 {
-                    for n2 in 0..self.target.number_of_gens_in_degree(t2) {
-                        algebra.sigma_multiply(
-                            &mut self.composite[t2][n2],
-                            1,
-                            gen_degree - t1,
-                            middle.slice_vector(gen_degree, t1, n1, dx.as_slice()),
-                            t1 - t2,
-                            self.target.slice_vector(t1, t2, n2, dy.as_slice()),
-                        )
-                    }
+            for (gen_deg2, gen_idx2, op_deg2, slice2) in self
+                .target
+                .iter_slices(gen_deg1 - d0.degree_shift(), dy.as_slice())
+            {
+                if slice2.is_zero() {
+                    continue;
                 }
+                algebra.sigma_multiply(
+                    &mut self.composite[gen_deg2][gen_idx2],
+                    coeff,
+                    op_deg1,
+                    slice1,
+                    op_deg2,
+                    slice2,
+                )
             }
         }
     }
@@ -86,14 +100,16 @@ impl<A: PairAlgebra> SingleSecondaryHomotopy<A> {
     pub fn act(&self, mut result: SliceMut, coeff: u32, op_degree: i32, op: Slice) {
         let algebra = self.algebra();
 
-        self.target.act_by_element(
-            result.copy(),
-            coeff,
-            op_degree,
-            op,
-            self.degree - 1,
-            self.homotopy.as_slice(),
-        );
+        if self.degree > self.target.min_degree() {
+            self.target.act_by_element(
+                result.copy(),
+                coeff,
+                op_degree,
+                op,
+                self.degree - 1,
+                self.homotopy.as_slice(),
+            );
+        }
         for (gen_deg, row) in self.composite.iter_enum() {
             let module_op_deg = self.degree - gen_deg;
             for (gen_idx, c) in row.iter().enumerate() {
@@ -118,16 +134,23 @@ impl<A: PairAlgebra> SingleSecondaryHomotopy<A> {
 pub struct SecondaryHomotopy<A: PairAlgebra> {
     pub source: Arc<FreeModule<A>>,
     pub target: Arc<FreeModule<A>>,
+    /// output_t = input_t - shift_t
+    pub shift_t: i32,
+
     /// gen_deg -> gen_idx -> homotopy
-    homotopies: OnceBiVec<Vec<SingleSecondaryHomotopy<A>>>,
+    pub(crate) homotopies: OnceBiVec<Vec<SingleSecondaryHomotopy<A>>>,
 }
 
 impl<A: PairAlgebra> SecondaryHomotopy<A> {
-    pub fn new(source: Arc<FreeModule<A>>, target: Arc<FreeModule<A>>) -> Self {
+    pub fn new(source: Arc<FreeModule<A>>, target: Arc<FreeModule<A>>, shift_t: i32) -> Self {
         Self {
-            homotopies: OnceBiVec::new(source.min_degree()),
+            homotopies: OnceBiVec::new(std::cmp::max(
+                source.min_degree(),
+                target.min_degree() + shift_t,
+            )),
             source,
             target,
+            shift_t,
         }
     }
 
@@ -144,7 +167,7 @@ impl<A: PairAlgebra> SecondaryHomotopy<A> {
             let num_gens = self.source.number_of_gens_in_degree(t);
             let mut v = Vec::with_capacity(num_gens);
             v.resize_with(num_gens, || {
-                SingleSecondaryHomotopy::new(Arc::clone(&self.target), t)
+                SingleSecondaryHomotopy::new(Arc::clone(&self.target), t - self.shift_t)
             });
             v
         })
@@ -152,6 +175,7 @@ impl<A: PairAlgebra> SecondaryHomotopy<A> {
 
     pub fn add_composite(
         &mut self,
+        coeff: u32,
         gen_degree: i32,
         d1: &FreeModuleHomomorphism<FreeModule<A>>,
         d0: &FreeModuleHomomorphism<FreeModule<A>>,
@@ -160,23 +184,24 @@ impl<A: PairAlgebra> SecondaryHomotopy<A> {
         assert!(Arc::ptr_eq(&d0.target(), &self.target));
 
         for gen_idx in 0..self.source.number_of_gens_in_degree(gen_degree) {
-            self.homotopies[gen_degree][gen_idx].add_composite(gen_degree, gen_idx, d1, d0);
+            self.homotopies[gen_degree][gen_idx].add_composite(coeff, gen_degree, gen_idx, d1, d0);
         }
     }
 
     /// Compute the image of an element in the source under the homotopy, writing the result in
     /// `result`. It is assumed that the coefficients of generators are zero in `op`
     pub fn act(&self, mut result: SliceMut, coeff: u32, elt_degree: i32, elt: Slice) {
-        for gen_deg in self.source.min_degree()..elt_degree {
-            for gen_idx in 0..self.source.number_of_gens_in_degree(gen_deg) {
-                let slice = self.source.slice_vector(elt_degree, gen_deg, gen_idx, elt);
-                self.homotopies[gen_deg][gen_idx].act(
-                    result.copy(),
-                    coeff,
-                    elt_degree - gen_deg,
-                    slice,
-                );
+        for (gen_deg, gen_idx, op_deg, slice) in self.source.iter_slices(elt_degree, elt) {
+            if gen_deg < self.homotopies.min_degree() {
+                continue;
             }
+            // This is actually necessary. We don't have the homotopies on the
+            // generators at the edge of the resolution, but we don't need them since they never
+            // get hit.
+            if slice.is_zero() {
+                continue;
+            }
+            self.homotopies[gen_deg][gen_idx].act(result.copy(), coeff, op_deg, slice);
         }
     }
 
@@ -187,12 +212,33 @@ impl<A: PairAlgebra> SecondaryHomotopy<A> {
     pub fn output_mut(&mut self, gen_deg: i32, gen_idx: usize) -> &mut SingleSecondaryHomotopy<A> {
         &mut self.homotopies[gen_deg][gen_idx]
     }
+
+    /// Apply Hom(-, k) to the A part of the homotopy. Degree is the degree of the source after
+    /// dualizing (i.e. if the original map is M -> N, then this is the degree in N).
+    pub fn hom_k(&self, t: i32) -> Vec<Vec<u32>> {
+        let source_dim = self.source.number_of_gens_in_degree(t + self.shift_t + 1);
+        let target_dim = self.target.number_of_gens_in_degree(t);
+        if target_dim == 0 {
+            return vec![];
+        }
+        let mut result = vec![vec![0; source_dim]; target_dim];
+
+        let offset = self.target.generator_offset(t, t, 0);
+        for i in 0..source_dim {
+            let output = self.output(t + self.shift_t + 1, i);
+            #[allow(clippy::needless_range_loop)]
+            for j in 0..target_dim {
+                result[j][i] = output.homotopy.entry(offset + j);
+            }
+        }
+        result
+    }
 }
 
 pub struct SecondaryLift<A: PairAlgebra, CC: FreeChainComplex<Algebra = A>> {
     pub chain_complex: Arc<CC>,
     /// s -> t -> idx -> homotopy
-    homotopies: OnceBiVec<SecondaryHomotopy<A>>,
+    pub(crate) homotopies: OnceBiVec<SecondaryHomotopy<A>>,
 }
 
 impl<A: PairAlgebra, CC: FreeChainComplex<Algebra = A>> SecondaryLift<A, CC> {
@@ -224,6 +270,7 @@ impl<A: PairAlgebra, CC: FreeChainComplex<Algebra = A>> SecondaryLift<A, CC> {
             let h = SecondaryHomotopy::new(
                 self.chain_complex.module(s),
                 self.chain_complex.module(s - 2),
+                0,
             );
             h.initialize(max_t(s));
             h
@@ -235,7 +282,7 @@ impl<A: PairAlgebra, CC: FreeChainComplex<Algebra = A>> SecondaryLift<A, CC> {
             let d1 = &*self.chain_complex.differential(s as u32);
             let d0 = &*self.chain_complex.differential(s as u32 - 1);
             for t in self.homotopies[s].min_degree()..=self.homotopies[s].max_degree() {
-                self.homotopies[s].add_composite(t, d1, d0);
+                self.homotopies[s].add_composite(1, t, d1, d0);
             }
         }
     }
@@ -268,6 +315,156 @@ impl<A: PairAlgebra, CC: FreeChainComplex<Algebra = A>> SecondaryLift<A, CC> {
                                 .homotopy
                                 .as_slice_mut(),
                             t - 1,
+                            scratch.as_slice(),
+                        );
+                }
+            }
+        }
+    }
+
+    pub fn homotopy(&self, s: u32) -> &SecondaryHomotopy<A> {
+        &self.homotopies[s as i32]
+    }
+}
+
+pub struct SecondaryResolutionHomomorphism<
+    A: PairAlgebra,
+    CC1: FreeChainComplex<Algebra = A>,
+    CC2: FreeChainComplex<Algebra = A> + AugmentedChainComplex,
+> {
+    source: Arc<SecondaryLift<A, CC1>>,
+    target: Arc<SecondaryLift<A, CC2>>,
+    underlying: Arc<ResolutionHomomorphism<CC1, CC2>>,
+    /// input s -> homotopy
+    homotopies: OnceBiVec<SecondaryHomotopy<A>>,
+}
+
+impl<
+        A: PairAlgebra,
+        CC1: FreeChainComplex<Algebra = A>,
+        CC2: FreeChainComplex<Algebra = A> + AugmentedChainComplex,
+    > SecondaryResolutionHomomorphism<A, CC1, CC2>
+{
+    pub fn new(
+        source: Arc<SecondaryLift<A, CC1>>,
+        target: Arc<SecondaryLift<A, CC2>>,
+        underlying: Arc<ResolutionHomomorphism<CC1, CC2>>,
+    ) -> Self {
+        Self {
+            source,
+            target,
+            homotopies: OnceBiVec::new(underlying.shift_s as i32 + 1),
+            underlying,
+        }
+    }
+
+    pub fn shift_s(&self) -> u32 {
+        self.underlying.shift_s
+    }
+
+    pub fn shift_t(&self) -> i32 {
+        self.underlying.shift_t
+    }
+
+    pub fn initialize_homotopies(&self) {
+        let shift_s = self.shift_s();
+        let shift_t = self.shift_t();
+
+        let max_s = self.underlying.next_homological_degree();
+
+        let max_t = |s| {
+            std::cmp::min(
+                self.underlying.get_map(s).next_degree() - 1,
+                std::cmp::min(
+                    self.source.homotopies[s as i32].homotopies.max_degree(),
+                    if s == shift_s + 1 {
+                        i32::MAX
+                    } else {
+                        self.target.homotopies[(s - shift_s) as i32]
+                            .homotopies
+                            .max_degree()
+                            + shift_t
+                    },
+                ),
+            )
+        };
+
+        self.homotopies.extend(max_s as i32 - 1, |s| {
+            let s = s as u32;
+            let h = SecondaryHomotopy::new(
+                self.source.chain_complex.module(s),
+                self.target.chain_complex.module(s - shift_s - 1),
+                self.shift_t(),
+            );
+            h.initialize(max_t(s));
+            h
+        });
+    }
+
+    pub fn compute_composites(&mut self) {
+        let range = self.homotopies.range();
+        let shift_s = self.shift_s();
+        for s in range.start..range.end - 1 {
+            let d_source = &*self.source.chain_complex.differential(s as u32);
+            let d_target = &*self.target.chain_complex.differential(s as u32 - shift_s);
+
+            let c1 = &*self.underlying.get_map(s as u32);
+            let c0 = &*self.underlying.get_map(s as u32 - 1);
+
+            for t in self.homotopies[s].min_degree()..=self.homotopies[s].max_degree() {
+                self.homotopies[s].add_composite(1, t, d_source, c0);
+                self.homotopies[s].add_composite(3, t, c1, d_target);
+            }
+        }
+    }
+
+    pub fn compute_homotopies(&mut self) {
+        let range = self.homotopies.range();
+        let mut scratch = FpVector::new(self.source.chain_complex.prime(), 0);
+
+        let shift_t = self.shift_t();
+        let shift_s = self.shift_s();
+
+        for s in range.start as u32 + 1..range.end as u32 {
+            let source = self.source.chain_complex.module(s);
+            let target = self.target.chain_complex.module(s - shift_s - 2);
+
+            for t in
+                self.homotopies[s as i32].min_degree() + 1..=self.homotopies[s as i32].max_degree()
+            {
+                let num_gens = source.number_of_gens_in_degree(t);
+                for idx in 0..num_gens {
+                    scratch.set_scratch_vector_size(target.dimension(t - 1 - shift_t));
+                    let d = self.source.chain_complex.differential(s);
+                    self.homotopies[s as i32 - 1].act(
+                        scratch.as_slice_mut(),
+                        1,
+                        t,
+                        d.output(t, idx).as_slice(),
+                    );
+                    self.target.homotopy(s - shift_s).act(
+                        scratch.as_slice_mut(),
+                        1,
+                        t - shift_t,
+                        self.underlying.get_map(s).output(t, idx).as_slice(),
+                    );
+
+                    self.underlying.get_map(s - 2).apply(
+                        scratch.as_slice_mut(),
+                        1,
+                        t - 1,
+                        self.source.homotopy(s).output(t, idx).homotopy.as_slice(),
+                    );
+
+                    self.target
+                        .chain_complex
+                        .differential(s - shift_s - 1)
+                        .apply_quasi_inverse(
+                            self.homotopies[s as i32]
+                                .output_mut(t, idx)
+                                .homotopy
+                                .as_slice_mut(),
+                            t - shift_t - 1,
                             scratch.as_slice(),
                         );
                 }

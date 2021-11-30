@@ -59,6 +59,11 @@ impl Subquotient {
         result
     }
 
+    /// Project the vector onto the complement of the quotient part of the subquotient.
+    pub fn reduce_by_quotient(&self, elt: SliceMut) {
+        self.quotient.reduce(elt)
+    }
+
     /// Set the subquotient to be the full ambient space quotiented by zero
     pub fn set_to_full(&mut self) {
         self.quotient.set_to_zero();
@@ -71,6 +76,17 @@ impl Subquotient {
 
     pub fn gens(&self) -> impl Iterator<Item = &FpVector> {
         self.gens.iter().take(self.dimension)
+    }
+
+    /// The dimension of the subspace part of the subquotient.
+    pub fn subspace_dimension(&self) -> usize {
+        self.dimension + self.quotient.dimension()
+    }
+
+    /// The generators of the subspace part of the subquotient.
+    pub fn subspace_gens(&self) -> impl Iterator<Item = &FpVector> {
+        self.gens()
+            .chain(self.quotient.iter().take(self.quotient.dimension()))
     }
 
     pub fn quotient(&mut self, elt: Slice) {

@@ -427,6 +427,20 @@ impl<A: Algebra> FreeModule<A> {
         let len = self.algebra().dimension(degree - gen_degree, 0);
         v.slice_mut(start, start + len)
     }
+
+    /// Given an element in a degree, iterate through the slices corresponding to each generator.
+    /// Each item of the iterator is `(gen_degree, gen_index, op_degree, slice)`. This skips the slices
+    /// corresponding to generators in degree `degree`.
+    pub fn iter_slices<'a>(
+        &'a self,
+        degree: i32,
+        slice: Slice<'a>,
+    ) -> impl Iterator<Item = (i32, usize, i32, Slice<'a>)> + 'a {
+        (self.min_degree..=degree)
+            .map(|t| (0..self.num_gens.get(t).copied().unwrap_or(0)).map(move |n| (t, n)))
+            .flatten()
+            .map(move |(t, n)| (t, n, degree - t, self.slice_vector(degree, t, n, slice)))
+    }
 }
 
 #[cfg(feature = "json")]

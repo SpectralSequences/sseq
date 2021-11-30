@@ -52,6 +52,10 @@ where
         }
     }
 
+    pub fn next_homological_degree(&self) -> i32 {
+        self.maps.len()
+    }
+
     pub fn from_class(
         name: String,
         source: Arc<CC1>,
