@@ -327,6 +327,7 @@ impl<A: PairAlgebra, CC: FreeChainComplex<Algebra = A>> SecondaryLift<A, CC> {
     }
 }
 
+#[doc(hidden)]
 pub struct SecondaryResolutionHomomorphism<
     A: PairAlgebra,
     CC1: FreeChainComplex<Algebra = A>,
