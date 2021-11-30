@@ -18,8 +18,8 @@ use {
 
 pub struct ResolutionHomomorphism<CC1, CC2>
 where
-    CC1: FreeChainComplex<Algebra = <CC2::Module as Module>::Algebra>,
-    CC2: AugmentedChainComplex,
+    CC1: FreeChainComplex,
+    CC2: AugmentedChainComplex<Algebra = CC1::Algebra>,
 {
     #[allow(dead_code)]
     name: String,
@@ -32,8 +32,8 @@ where
 
 impl<CC1, CC2> ResolutionHomomorphism<CC1, CC2>
 where
-    CC1: FreeChainComplex<Algebra = <CC2::Module as Module>::Algebra>,
-    CC2: AugmentedChainComplex,
+    CC1: FreeChainComplex,
+    CC2: AugmentedChainComplex<Algebra = CC1::Algebra>,
 {
     pub fn new(
         name: String,
