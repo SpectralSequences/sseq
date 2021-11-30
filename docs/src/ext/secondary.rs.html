@@ -610,6 +610,8 @@
 <span id="586">586</span>
 <span id="587">587</span>
 <span id="588">588</span>
+<span id="589">589</span>
+<span id="590">590</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::chain_complex</span>::{
     <span class="ident">AugmentedChainComplex</span>, <span class="ident">BoundedChainComplex</span>, <span class="ident">ChainComplex</span>, <span class="ident">FreeChainComplex</span>,
 };
@@ -939,6 +941,8 @@
     }
 }
 
+<span class="comment">// Rustdoc ICE&#39;s when trying to document this struct. See</span>
+<span class="comment">// https://github.com/rust-lang/rust/issues/91380</span>
 <span class="attribute">#[<span class="ident">doc</span>(<span class="ident">hidden</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">SecondaryResolutionHomomorphism</span><span class="op">&lt;</span>
     <span class="ident">A</span>: <span class="ident">PairAlgebra</span>,
