@@ -327,6 +327,8 @@ impl<A: PairAlgebra, CC: FreeChainComplex<Algebra = A>> SecondaryLift<A, CC> {
     }
 }
 
+// Rustdoc ICE's when trying to document this struct. See
+// https://github.com/rust-lang/rust/issues/91380
 #[doc(hidden)]
 pub struct SecondaryResolutionHomomorphism<
     A: PairAlgebra,
