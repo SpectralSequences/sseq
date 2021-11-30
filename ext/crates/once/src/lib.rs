@@ -458,12 +458,12 @@ impl<T> Index<i32> for OnceBiVec<T> {
     fn index(&self, i: i32) -> &T {
         assert!(
             i >= self.min_degree(),
-            "Index out of boundes: the minimum degree is {} but the index is {i}",
+            "Index out of bounds: the minimum degree is {} but the index is {i}",
             self.min_degree()
         );
         assert!(
             i < self.len(),
-            "Index out of boundes: the length is {} but the index is {i}",
+            "Index out of bounds: the length is {} but the index is {i}",
             self.len()
         );
         &(self.data[(i - self.min_degree) as usize])
@@ -474,12 +474,12 @@ impl<T> IndexMut<i32> for OnceBiVec<T> {
     fn index_mut(&mut self, i: i32) -> &mut T {
         assert!(
             i >= self.min_degree(),
-            "Index out of boundes: the minimum degree is {} but the index is {i}",
+            "Index out of bounds: the minimum degree is {} but the index is {i}",
             self.min_degree()
         );
         assert!(
             i < self.len(),
-            "Index out of boundes: the length is {} but the index is {i}",
+            "Index out of bounds: the length is {} but the index is {i}",
             self.len()
         );
         &mut (self.data[(i - self.min_degree) as usize])
