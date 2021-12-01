@@ -177,6 +177,26 @@ fn test_save_load_resume() {
 }
 
 #[test]
+fn test_load_smaller() {
+    let tempdir = tempfile::TempDir::new().unwrap();
+
+    #[cfg(feature = "concurrent")]
+    let bucket = thread_token::TokenBucket::new(2.try_into().unwrap());
+    let resolve = |resolution: &Resolution<CCC>, s, n| {
+        #[cfg(feature = "concurrent")]
+        resolution.compute_through_stem_concurrent(s, n, &bucket);
+        #[cfg(not(feature = "concurrent"))]
+        resolution.compute_through_stem(s, n);
+    };
+
+    let resolution1 = construct("S_2", Some(tempdir.path().into())).unwrap();
+    resolve(&resolution1, 8, 14);
+
+    let resolution2 = construct("S_2", Some(tempdir.path().into())).unwrap();
+    resolve(&resolution2, 5, 8);
+}
+
+#[test]
 #[should_panic]
 fn test_checksum() {
     use std::fs::OpenOptions;

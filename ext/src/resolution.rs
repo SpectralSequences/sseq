@@ -437,12 +437,11 @@ impl<CC: ChainComplex> Resolution<CC> {
         if self.save_dir.is_some() {
             if let Some(mut f) = self.open_save_file(SaveData::Differential, s, t) {
                 let num_new_gens = f.read_u64::<LittleEndian>().unwrap() as usize;
-                // It can be smaller than target_res_dimension if we resolved through stem
+                // This need not be equal to `target_res_dimension`. If we saved a big resolution
+                // and now only want to load up to a small stem, then `target_res_dimension` will
+                // be smaller. If we have previously saved a small resolution up to a stem and now
+                // want to resolve further, it will be bigger.
                 let saved_target_res_dimension = f.read_u64::<LittleEndian>().unwrap() as usize;
-                assert!(
-                    target_res_dimension >= saved_target_res_dimension,
-                    "Malformed data: mismatched resolution target dimension"
-                );
                 assert_eq!(
                     target_cc_dimension,
                     f.read_u64::<LittleEndian>().unwrap() as usize,
@@ -470,10 +469,6 @@ impl<CC: ChainComplex> Resolution<CC> {
                     if let Some(mut f) = self.open_save_file(SaveData::ResQi, s, t) {
                         let res_qi = QuasiInverse::from_bytes(p, &mut f).unwrap();
 
-                        assert!(
-                            target_res_dimension >= res_qi.target_dimension(),
-                            "Malformed data: mismatched resolution target dimension in qi at ({s}, {t})"
-                            );
                         assert_eq!(
                             res_qi.source_dimension(),
                             source_dimension + num_new_gens,

@@ -53,8 +53,12 @@ pub trait Module: std::fmt::Display + Send + Sync {
         unimplemented!()
     }
 
-    /// The length of `input` is at most the dimension of the module in the degree, but may be
-    /// shorter. If it is shorter, the remaining terms are interpreted to be zero.
+    /// The length of `input` need not be equal to the dimension of the module in said degree.
+    /// Missing entries are interpreted to be 0, while extra entries must be zero.
+    ///
+    /// This flexibility is useful when resolving to a stem. The point is that we have elements in
+    /// degree `t` that are guaranteed to not contain generators of degree `t`, and we don't know
+    /// what generators will be added in degree `t` yet.
     fn act(
         &self,
         mut result: SliceMut,
