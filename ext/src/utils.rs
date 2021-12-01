@@ -260,12 +260,34 @@ pub fn query_module_only(
     construct(module, save_dir).context("Failed to load module from save file")
 }
 
+pub enum LoadQuasiInverseOption {
+    /// Always load quasi inverses
+    Yes,
+    /// Load quasi inverses if there is no save file (so that `apply_quasi_inverse` always works)
+    IfNoSave,
+    /// Never load quasi inverses
+    No,
+}
+
+impl From<bool> for LoadQuasiInverseOption {
+    fn from(x: bool) -> LoadQuasiInverseOption {
+        match x {
+            true => LoadQuasiInverseOption::Yes,
+            false => LoadQuasiInverseOption::No,
+        }
+    }
+}
+
 pub fn query_module(
     algebra: Option<AlgebraType>,
-    load_quasi_inverse: bool,
+    load_quasi_inverse: impl Into<LoadQuasiInverseOption>,
 ) -> anyhow::Result<QueryModuleResult> {
     let mut resolution = query_module_only("Module", algebra)?;
-    resolution.load_quasi_inverse = load_quasi_inverse;
+    resolution.load_quasi_inverse = match load_quasi_inverse.into() {
+        LoadQuasiInverseOption::Yes => true,
+        LoadQuasiInverseOption::No => false,
+        LoadQuasiInverseOption::IfNoSave => resolution.save_dir().is_none(),
+    };
 
     #[cfg(feature = "concurrent")]
     let bucket = query_bucket();
