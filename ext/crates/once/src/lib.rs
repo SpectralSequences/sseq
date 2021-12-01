@@ -5,6 +5,7 @@ use std::fmt;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Mutex, MutexGuard};
 
+#[cfg(feature = "concurrent")]
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
 const USIZE_LEN: u32 = 0usize.count_zeros();
@@ -259,6 +260,7 @@ impl<T> OnceVec<T> {
     }
 }
 
+#[cfg(feature = "concurrent")]
 impl<T: Send + Sync> OnceVec<T> {
     /// A parallel version of `extend`, where the function `f` is run for different indices
     /// simultaneously using [`rayon`].
@@ -497,6 +499,7 @@ impl<T> OnceBiVec<T> {
     }
 }
 
+#[cfg(feature = "concurrent")]
 impl<T: Send + Sync> OnceBiVec<T> {
     /// A parallel version of `extend`, where the function `f` is run for different indices
     /// simultaneously using [`rayon`].

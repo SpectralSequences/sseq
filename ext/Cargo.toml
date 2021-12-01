@@ -43,7 +43,7 @@ crate-type = ["cdylib", "rlib"]
 [features]
 default = ["odd-primes"]
 cache-multiplication = []
-concurrent = ["thread-token", "crossbeam-channel", "crossbeam-utils"]
+concurrent = ["thread-token", "crossbeam-channel", "crossbeam-utils", "once/concurrent"]
 odd-primes = ["fp/odd-primes", "algebra/odd-primes"]
 
 [workspace]
