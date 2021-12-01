@@ -217,7 +217,7 @@
 }
 
 <span class="kw">fn</span> <span class="ident">main</span>() -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-    <span class="kw">let</span> <span class="ident">resolution</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">ext::utils::query_module</span>(<span class="prelude-val">None</span>)<span class="question-mark">?</span>.<span class="ident">resolution</span>);
+    <span class="kw">let</span> <span class="ident">resolution</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">ext::utils::query_module</span>(<span class="prelude-val">None</span>, <span class="bool-val">true</span>)<span class="question-mark">?</span>.<span class="ident">resolution</span>);
     <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">resolution</span>.<span class="ident">prime</span>();
 
     <span class="kw">let</span> (<span class="ident">is_unit</span>, <span class="ident">unit</span>) <span class="op">=</span> <span class="kw">if</span> <span class="ident">resolution</span>.<span class="ident">complex</span>().<span class="ident">module</span>(<span class="number">0</span>).<span class="ident">is_unit</span>() {

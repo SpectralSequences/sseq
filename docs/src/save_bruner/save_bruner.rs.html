@@ -111,7 +111,7 @@
 <span class="kw">use</span> <span class="ident">std::io</span>::{<span class="ident">BufWriter</span>, <span class="ident">Write</span> <span class="kw">as</span> <span class="kw">_</span>};
 
 <span class="kw">fn</span> <span class="ident">main</span>() -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-    <span class="kw">let</span> <span class="ident">resolution</span> <span class="op">=</span> <span class="ident">query_module</span>(<span class="prelude-val">Some</span>(<span class="ident">AlgebraType::Milnor</span>))<span class="question-mark">?</span>.<span class="ident">resolution</span>;
+    <span class="kw">let</span> <span class="ident">resolution</span> <span class="op">=</span> <span class="ident">query_module</span>(<span class="prelude-val">Some</span>(<span class="ident">AlgebraType::Milnor</span>), <span class="bool-val">false</span>)<span class="question-mark">?</span>.<span class="ident">resolution</span>;
 
     <span class="macro">assert_eq!</span>(<span class="kw-2">*</span><span class="ident">resolution</span>.<span class="ident">prime</span>(), <span class="number">2</span>);
     <span class="kw">let</span> <span class="ident">algebra</span> <span class="op">=</span> <span class="ident">resolution</span>.<span class="ident">algebra</span>();

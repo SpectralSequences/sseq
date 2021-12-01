@@ -79,7 +79,7 @@
 <span class="kw">fn</span> <span class="ident">main</span>() -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
     <span class="kw">let</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">std::io::stdout</span>();
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">g</span> <span class="op">=</span> <span class="ident">SvgBackend::new</span>(<span class="ident">f</span>);
-    <span class="kw">let</span> <span class="ident">resolution</span> <span class="op">=</span> <span class="ident">query_module</span>(<span class="prelude-val">None</span>)<span class="question-mark">?</span>.<span class="ident">resolution</span>;
+    <span class="kw">let</span> <span class="ident">resolution</span> <span class="op">=</span> <span class="ident">query_module</span>(<span class="prelude-val">None</span>, <span class="bool-val">false</span>)<span class="question-mark">?</span>.<span class="ident">resolution</span>;
 
     <span class="ident">g</span>.<span class="ident">init</span>(
         <span class="ident">resolution</span>.<span class="ident">module</span>(<span class="number">0</span>).<span class="ident">max_computed_degree</span>(),
