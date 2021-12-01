@@ -20,6 +20,10 @@ pub trait PairAlgebra: Algebra {
     /// a ring over Fp, so we let the algebra specify how it wants to represent the elements.
     type Element;
 
+    /// Assert that `elt` is in the image of the differential. Drop the data recording the
+    /// complement of the image of the differential.
+    fn finalize_element(_elt: &mut Self::Element) {}
+
     /// Create a new zero element in the given degree.
     fn new_pair_element(&self, degree: i32) -> Self::Element;
 
@@ -132,6 +136,13 @@ impl PairAlgebra for MilnorAlgebra {
             #[cfg(debug_assertions)]
             degree,
         }
+    }
+
+    /// Assert that `elt` is in the image of the differential. Drop the data recording the
+    /// complement of the image of the differential.
+    fn finalize_element(elt: &mut Self::Element) {
+        assert!(elt.ones.is_zero());
+        elt.ones = FpVector::new(elt.twos.prime(), 0);
     }
 
     fn sigma_multiply_basis(

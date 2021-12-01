@@ -30,11 +30,7 @@ fn main() {
     println!("Time elapsed: {:.2?}", start.elapsed());
 
     // We can now get the d_2 starting at (65, 4).
-    let output = lift.homotopy(6).output(69, 0);
+    let output = lift.homotopy(6).homotopies.hom_k(69);
 
-    // dim R_{65, 4} = 1 and the generator is the last basis element.
-    println!(
-        "d_2 x_{{65, 4}} = {}",
-        output.homotopy.entry(output.homotopy.len() - 1)
-    );
+    println!("d_2 x_(65, 4) = {:?}", output[0]);
 }

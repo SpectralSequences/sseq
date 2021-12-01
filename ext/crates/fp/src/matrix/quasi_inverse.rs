@@ -72,12 +72,16 @@ impl QuasiInverse {
     /// Given a data file containing a quasi-inverse, apply it to all the vectors in `input`
     /// and write the results to the corresponding vectors in `results`. This reads in the
     /// quasi-inverse row by row to minimize memory usage.
-    pub fn stream_quasi_inverse(
+    pub fn stream_quasi_inverse<T, S>(
         p: ValidPrime,
         data: &mut impl Read,
-        results: &mut [SliceMut],
-        inputs: &[Slice],
-    ) -> std::io::Result<()> {
+        results: &mut [T],
+        inputs: &[S],
+    ) -> std::io::Result<()>
+    where
+        for<'a> &'a mut T: Into<SliceMut<'a>>,
+        for<'a> &'a S: Into<Slice<'a>>,
+    {
         use crate::limb::Limb;
 
         let source_dim = data.read_u64::<LittleEndian>()? as usize;
@@ -88,13 +92,13 @@ impl QuasiInverse {
         let mut v = FpVector::new(p, source_dim);
 
         assert_eq!(results.len(), inputs.len());
-        for result in &*results {
-            assert_eq!(result.as_slice().len(), source_dim);
+        for result in &mut *results {
+            assert_eq!(result.into().as_slice().len(), source_dim);
         }
         for input in inputs {
             // The quasi-inverse might be computed with a smaller target dimension when computing
             // through stem.
-            assert!(input.len() >= target_dim);
+            assert!(input.into().len() >= target_dim);
         }
 
         let num_limbs = FpVector::num_limbs(p, source_dim);
@@ -123,7 +127,7 @@ impl QuasiInverse {
             };
             println!("{v}");
             for (input, result) in inputs.iter().zip(&mut *results) {
-                result.add(v.as_slice(), input.entry(i));
+                result.into().add(v.as_slice(), input.into().entry(i));
             }
         }
         Ok(())

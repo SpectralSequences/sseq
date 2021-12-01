@@ -1008,18 +1008,16 @@ impl<CC: ChainComplex> ChainComplex for Resolution<CC> {
         self.modules.len() as u32
     }
 
-    fn apply_quasi_inverse(
-        &self,
-        results: &mut [SliceMut],
-        s: u32,
-        t: i32,
-        inputs: &[Slice],
-    ) -> bool {
+    fn apply_quasi_inverse<T, S>(&self, results: &mut [T], s: u32, t: i32, inputs: &[S]) -> bool
+    where
+        for<'a> &'a mut T: Into<SliceMut<'a>>,
+        for<'a> &'a S: Into<Slice<'a>>,
+    {
         assert_eq!(results.len(), inputs.len());
 
         if let Some(qi) = self.differential(s).quasi_inverse(t) {
             for (input, result) in inputs.iter().zip(results) {
-                qi.apply(result.copy(), 1, *input);
+                qi.apply(result.into(), 1, input.into());
             }
             true
         } else if self.save_dir.is_some() {

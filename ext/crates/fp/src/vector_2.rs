@@ -111,3 +111,21 @@ impl<'de> Deserialize<'de> for FpVector {
         // This is needed for ext-websocket/actions to be happy
     }
 }
+
+impl<'a, 'b> From<&'a mut SliceMut<'b>> for SliceMut<'a> {
+    fn from(slice: &'a mut SliceMut<'b>) -> SliceMut<'a> {
+        slice.copy()
+    }
+}
+
+impl<'a, 'b> From<&'a Slice<'b>> for Slice<'a> {
+    fn from(slice: &'a Slice<'b>) -> Slice<'a> {
+        *slice
+    }
+}
+
+impl<'a, 'b> From<&'a SliceMut<'b>> for Slice<'a> {
+    fn from(slice: &'a SliceMut<'b>) -> Slice<'a> {
+        slice.as_slice()
+    }
+}

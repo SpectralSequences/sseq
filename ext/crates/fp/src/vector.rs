@@ -424,6 +424,36 @@ impl<'de> Deserialize<'de> for FpVector {
     }
 }
 
+impl<'a, 'b> From<&'a mut SliceMut<'b>> for SliceMut<'a> {
+    fn from(slice: &'a mut SliceMut<'b>) -> SliceMut<'a> {
+        slice.copy()
+    }
+}
+
+impl<'a, 'b> From<&'a Slice<'b>> for Slice<'a> {
+    fn from(slice: &'a Slice<'b>) -> Slice<'a> {
+        *slice
+    }
+}
+
+impl<'a, 'b> From<&'a SliceMut<'b>> for Slice<'a> {
+    fn from(slice: &'a SliceMut<'b>) -> Slice<'a> {
+        slice.as_slice()
+    }
+}
+
+impl<'a> From<&'a FpVector> for Slice<'a> {
+    fn from(v: &'a FpVector) -> Slice<'a> {
+        v.as_slice()
+    }
+}
+
+impl<'a> From<&'a mut FpVector> for SliceMut<'a> {
+    fn from(v: &'a mut FpVector) -> SliceMut<'a> {
+        v.as_slice_mut()
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;

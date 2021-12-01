@@ -56,7 +56,7 @@ fn main() -> anyhow::Result<()> {
             continue;
         }
         let homotopy = lift.homotopy(s);
-        let m = homotopy.hom_k(t - 1);
+        let m = homotopy.homotopies.hom_k(t - 1);
 
         for (i, entry) in m.into_iter().enumerate() {
             println!("d_2 x_({}, {}, {}) = {:?}", n + 1, s - 2, i, entry);

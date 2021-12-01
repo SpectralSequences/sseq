@@ -5,6 +5,7 @@ use crate::resolution_homomorphism::ResolutionHomomorphism;
 use algebra::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
 use algebra::module::{BoundedModule, FreeModule, Module};
 use algebra::pair_algebra::PairAlgebra;
+use algebra::Algebra;
 use bivec::BiVec;
 use fp::vector::{FpVector, Slice, SliceMut};
 use once::OnceBiVec;
@@ -12,19 +13,21 @@ use std::sync::Arc;
 
 use crate::resolution::Resolution as Resolution_;
 use crate::CCC;
+
+use dashmap::DashMap;
+
 type Resolution = Resolution_<CCC>;
 
 /// A homotopy of a map A -> M of pair modules. We assume this map does not hit generators.
-pub struct SingleSecondaryHomotopy<A: PairAlgebra> {
+pub struct SecondaryComposite<A: PairAlgebra> {
     target: Arc<FreeModule<A>>,
     degree: i32,
-    /// The component of the map on the R_B portion
+    /// The component of the map on the R_B portion.
+    /// gen_deg -> gen_idx -> coefficient
     composite: BiVec<Vec<A::Element>>,
-    /// The component of the map on the A portion
-    pub homotopy: FpVector,
 }
 
-impl<A: PairAlgebra> SingleSecondaryHomotopy<A> {
+impl<A: PairAlgebra> SecondaryComposite<A> {
     pub fn algebra(&self) -> Arc<A> {
         self.target.algebra()
     }
@@ -42,13 +45,18 @@ impl<A: PairAlgebra> SingleSecondaryHomotopy<A> {
             composite.push(c);
         }
 
-        let homotopy = FpVector::new(target.prime(), target.dimension(degree - 1));
-
         Self {
             target,
             degree,
             composite,
-            homotopy,
+        }
+    }
+
+    pub fn finalize(&mut self) {
+        for r in self.composite.iter_mut() {
+            for r in r.iter_mut() {
+                A::finalize_element(r);
+            }
         }
     }
 
@@ -99,24 +107,13 @@ impl<A: PairAlgebra> SingleSecondaryHomotopy<A> {
 
     pub fn act(&self, mut result: SliceMut, coeff: u32, op_degree: i32, op: Slice) {
         let algebra = self.algebra();
-
-        if self.degree > self.target.min_degree() {
-            self.target.act_by_element(
-                result.copy(),
-                coeff,
-                op_degree,
-                op,
-                self.degree - 1,
-                self.homotopy.as_slice(),
-            );
-        }
         for (gen_deg, row) in self.composite.iter_enum() {
             let module_op_deg = self.degree - gen_deg;
             for (gen_idx, c) in row.iter().enumerate() {
                 let offset =
                     self.target
                         .generator_offset(self.degree + op_degree - 1, gen_deg, gen_idx);
-                let len = algebra.dimension(module_op_deg + op_degree - 1, 0);
+                let len = Algebra::dimension(&*algebra, module_op_deg + op_degree - 1, 0);
 
                 algebra.a_multiply(
                     result.slice_mut(offset, offset + len),
@@ -137,62 +134,70 @@ pub struct SecondaryHomotopy<A: PairAlgebra> {
     /// output_t = input_t - shift_t
     pub shift_t: i32,
 
+    /// gen_deg -> gen_idx -> composite
+    pub(crate) composites: OnceBiVec<Vec<SecondaryComposite<A>>>,
+
     /// gen_deg -> gen_idx -> homotopy
-    pub(crate) homotopies: OnceBiVec<Vec<SingleSecondaryHomotopy<A>>>,
+    pub homotopies: FreeModuleHomomorphism<FreeModule<A>>,
 }
 
 impl<A: PairAlgebra> SecondaryHomotopy<A> {
     pub fn new(source: Arc<FreeModule<A>>, target: Arc<FreeModule<A>>, shift_t: i32) -> Self {
         Self {
-            homotopies: OnceBiVec::new(std::cmp::max(
+            composites: OnceBiVec::new(std::cmp::max(
                 source.min_degree(),
                 target.min_degree() + shift_t,
             )),
+            homotopies: FreeModuleHomomorphism::new(
+                Arc::clone(&source),
+                Arc::clone(&target),
+                shift_t + 1,
+            ),
             source,
             target,
             shift_t,
         }
     }
 
-    pub fn min_degree(&self) -> i32 {
-        self.homotopies.min_degree()
-    }
-
-    pub fn max_degree(&self) -> i32 {
-        self.homotopies.max_degree()
-    }
-
-    pub fn initialize(&self, degree: i32) {
-        self.homotopies.extend(degree, |t| {
-            let num_gens = self.source.number_of_gens_in_degree(t);
-            let mut v = Vec::with_capacity(num_gens);
-            v.resize_with(num_gens, || {
-                SingleSecondaryHomotopy::new(Arc::clone(&self.target), t - self.shift_t)
-            });
-            v
-        })
-    }
-
+    /// Add composites up to and including the specified degree
     pub fn add_composite(
-        &mut self,
-        coeff: u32,
-        gen_degree: i32,
-        d1: &FreeModuleHomomorphism<FreeModule<A>>,
-        d0: &FreeModuleHomomorphism<FreeModule<A>>,
+        &self,
+        degree: i32,
+        maps: &[(
+            u32,
+            &FreeModuleHomomorphism<FreeModule<A>>,
+            &FreeModuleHomomorphism<FreeModule<A>>,
+        )],
     ) {
-        assert!(Arc::ptr_eq(&d1.target(), &d0.source()));
-        assert!(Arc::ptr_eq(&d0.target(), &self.target));
-
-        for gen_idx in 0..self.source.number_of_gens_in_degree(gen_degree) {
-            self.homotopies[gen_degree][gen_idx].add_composite(coeff, gen_degree, gen_idx, d1, d0);
+        for (_, d1, d0) in maps {
+            assert!(Arc::ptr_eq(&d1.target(), &d0.source()));
+            assert!(Arc::ptr_eq(&d0.target(), &self.target));
+            assert_eq!(d1.degree_shift() + d0.degree_shift(), self.shift_t);
         }
+
+        self.composites.extend(degree, |t| {
+            (0..self.source.number_of_gens_in_degree(t))
+                .map(|i| {
+                    let mut composite =
+                        SecondaryComposite::new(Arc::clone(&self.target), t - self.shift_t);
+                    for (coef, d1, d0) in maps {
+                        composite.add_composite(*coef, t, i, d1, d0);
+                    }
+                    composite.finalize();
+                    composite
+                })
+                .collect()
+        });
     }
 
     /// Compute the image of an element in the source under the homotopy, writing the result in
-    /// `result`. It is assumed that the coefficients of generators are zero in `op`
-    pub fn act(&self, mut result: SliceMut, coeff: u32, elt_degree: i32, elt: Slice) {
+    /// `result`. It is assumed that the coefficients of generators are zero in `op`.
+    ///
+    /// # Arguments
+    ///  - full: Whether to include the action of the homotopy part as well
+    pub fn act(&self, mut result: SliceMut, coeff: u32, elt_degree: i32, elt: Slice, full: bool) {
         for (gen_deg, gen_idx, op_deg, slice) in self.source.iter_slices(elt_degree, elt) {
-            if gen_deg < self.homotopies.min_degree() {
+            if gen_deg < self.composites.min_degree() {
                 continue;
             }
             // This is actually necessary. We don't have the homotopies on the
@@ -201,37 +206,16 @@ impl<A: PairAlgebra> SecondaryHomotopy<A> {
             if slice.is_zero() {
                 continue;
             }
-            self.homotopies[gen_deg][gen_idx].act(result.copy(), coeff, op_deg, slice);
+            self.composites[gen_deg][gen_idx].act(result.copy(), coeff, op_deg, slice);
+        }
+
+        if full {
+            self.homotopies.apply(result, coeff, elt_degree, elt);
         }
     }
 
-    pub fn output(&self, gen_deg: i32, gen_idx: usize) -> &SingleSecondaryHomotopy<A> {
-        &self.homotopies[gen_deg][gen_idx]
-    }
-
-    pub fn output_mut(&mut self, gen_deg: i32, gen_idx: usize) -> &mut SingleSecondaryHomotopy<A> {
-        &mut self.homotopies[gen_deg][gen_idx]
-    }
-
-    /// Apply Hom(-, k) to the A part of the homotopy. Degree is the degree of the source after
-    /// dualizing (i.e. if the original map is M -> N, then this is the degree in N).
-    pub fn hom_k(&self, t: i32) -> Vec<Vec<u32>> {
-        let source_dim = self.source.number_of_gens_in_degree(t + self.shift_t + 1);
-        let target_dim = self.target.number_of_gens_in_degree(t);
-        if target_dim == 0 {
-            return vec![];
-        }
-        let mut result = vec![vec![0; source_dim]; target_dim];
-
-        let offset = self.target.generator_offset(t, t, 0);
-        for i in 0..source_dim {
-            let output = self.output(t + self.shift_t + 1, i);
-            #[allow(clippy::needless_range_loop)]
-            for j in 0..target_dim {
-                result[j][i] = output.homotopy.entry(offset + j);
-            }
-        }
-        result
+    pub fn composite(&self, gen_deg: i32, gen_idx: usize) -> &SecondaryComposite<A> {
+        &self.composites[gen_deg][gen_idx]
     }
 }
 
@@ -239,6 +223,7 @@ pub struct SecondaryLift<A: PairAlgebra, CC: FreeChainComplex<Algebra = A>> {
     pub chain_complex: Arc<CC>,
     /// s -> t -> idx -> homotopy
     pub(crate) homotopies: OnceBiVec<SecondaryHomotopy<A>>,
+    intermediates: DashMap<(u32, i32, usize), FpVector>,
 }
 
 impl<A: PairAlgebra, CC: FreeChainComplex<Algebra = A>> SecondaryLift<A, CC> {
@@ -246,18 +231,28 @@ impl<A: PairAlgebra, CC: FreeChainComplex<Algebra = A>> SecondaryLift<A, CC> {
         Self {
             chain_complex: cc,
             homotopies: OnceBiVec::new(2),
+            intermediates: DashMap::new(),
         }
     }
+
     pub fn algebra(&self) -> Arc<A> {
         self.chain_complex.algebra()
     }
 
     pub fn initialize_homotopies(&self) {
-        let max_s = self.chain_complex.next_homological_degree();
+        self.homotopies.extend(
+            self.chain_complex.next_homological_degree() as i32 - 1,
+            |s| {
+                SecondaryHomotopy::new(
+                    self.chain_complex.module(s as u32),
+                    self.chain_complex.module(s as u32 - 2),
+                    0,
+                )
+            },
+        );
+    }
 
-        if max_s < 3 {
-            return;
-        }
+    pub fn compute_composites(&self) {
         let max_t = |s| {
             std::cmp::min(
                 self.chain_complex.module(s).max_computed_degree(),
@@ -265,59 +260,86 @@ impl<A: PairAlgebra, CC: FreeChainComplex<Algebra = A>> SecondaryLift<A, CC> {
             )
         };
 
-        self.homotopies.extend(max_s as i32 - 1, |s| {
-            let s = s as u32;
-            let h = SecondaryHomotopy::new(
-                self.chain_complex.module(s),
-                self.chain_complex.module(s - 2),
-                0,
-            );
-            h.initialize(max_t(s));
-            h
-        });
-    }
-
-    pub fn compute_composites(&mut self) {
         for s in self.homotopies.range() {
             let d1 = &*self.chain_complex.differential(s as u32);
             let d0 = &*self.chain_complex.differential(s as u32 - 1);
-            for t in self.homotopies[s].min_degree()..=self.homotopies[s].max_degree() {
-                self.homotopies[s].add_composite(1, t, d1, d0);
+            self.homotopies[s].add_composite(max_t(s as u32), &[(1, d1, d0)]);
+        }
+    }
+
+    pub fn get_intermediate(&self, s: u32, t: i32, idx: usize) -> FpVector {
+        if let Some((_, v)) = self.intermediates.remove(&(s, t, idx)) {
+            return v;
+        }
+        let p = self.chain_complex.prime();
+        let target = self.chain_complex.module(s as u32 - 3);
+
+        let mut result = FpVector::new(p, target.dimension(t - 1));
+        let d = self.chain_complex.differential(s as u32);
+        self.homotopies[s as i32 - 1].act(
+            result.as_slice_mut(),
+            1,
+            t,
+            d.output(t, idx).as_slice(),
+            false,
+        );
+
+        result
+    }
+
+    pub fn compute_intermediates(&self) {
+        for (s, homotopy) in self.homotopies.iter_enum().skip(1) {
+            let s = s as u32;
+            for t in homotopy.composites.range() {
+                for i in 0..homotopy.source.number_of_gens_in_degree(t) {
+                    self.intermediates
+                        .insert((s, t, i), self.get_intermediate(s, t, i));
+                }
             }
         }
     }
 
     pub fn compute_homotopies(&mut self) {
-        let mut scratch = FpVector::new(self.chain_complex.prime(), 0);
-        let min_degree = self.chain_complex.min_degree();
+        let p = self.chain_complex.prime();
 
-        for s in 3..self.homotopies.len() as i32 {
-            let source = self.chain_complex.module(s as u32);
-            let target = self.chain_complex.module(s as u32 - 3);
+        // When s = 2, the homotopies are just zero
+        {
+            let h2 = &self.homotopies[2];
+            h2.homotopies.extend_by_zero(h2.composites.max_degree());
+        }
 
-            for t in min_degree..=self.homotopies[s].max_degree() {
+        for (s, homotopy) in self.homotopies.iter_enum().skip(1) {
+            let s = s as u32;
+            let d = self.chain_complex.differential(s);
+
+            let source = self.chain_complex.module(s);
+
+            for t in homotopy.homotopies.next_degree()..homotopy.composites.len() {
                 let num_gens = source.number_of_gens_in_degree(t);
-                for idx in 0..num_gens {
-                    scratch.set_scratch_vector_size(target.dimension(t - 1));
-                    let d = self.chain_complex.differential(s as u32);
-                    self.homotopies[s - 1].act(
-                        scratch.as_slice_mut(),
-                        1,
-                        t,
-                        d.output(t, idx).as_slice(),
-                    );
+                let intermediates: Vec<FpVector> = (0..num_gens)
+                    .map(|i| {
+                        let mut v = self.get_intermediate(s, t, i);
+                        if s > 3 {
+                            self.homotopies[s as i32 - 1].homotopies.apply(
+                                v.as_slice_mut(),
+                                1,
+                                t,
+                                d.output(t, i).as_slice(),
+                            );
+                        }
+                        v
+                    })
+                    .collect();
+                let target_dim = self.chain_complex.module(s as u32 - 2).dimension(t - 1);
+                let mut results = vec![FpVector::new(p, target_dim); num_gens];
 
-                    self.chain_complex
-                        .differential(s as u32 - 2)
-                        .apply_quasi_inverse(
-                            self.homotopies[s]
-                                .output_mut(t, idx)
-                                .homotopy
-                                .as_slice_mut(),
-                            t - 1,
-                            scratch.as_slice(),
-                        );
-                }
+                assert!(self.chain_complex.apply_quasi_inverse(
+                    &mut results,
+                    s as u32 - 2,
+                    t - 1,
+                    &intermediates,
+                ));
+                homotopy.homotopies.add_generators_from_rows(t, results);
             }
         }
     }
@@ -340,6 +362,7 @@ pub struct SecondaryResolutionHomomorphism<
     underlying: Arc<ResolutionHomomorphism<CC1, CC2>>,
     /// input s -> homotopy
     homotopies: OnceBiVec<SecondaryHomotopy<A>>,
+    intermediates: DashMap<(u32, i32, usize), FpVector>,
 }
 
 impl<
@@ -353,11 +376,15 @@ impl<
         target: Arc<SecondaryLift<A, CC2>>,
         underlying: Arc<ResolutionHomomorphism<CC1, CC2>>,
     ) -> Self {
+        assert!(Arc::ptr_eq(&underlying.source, &source.chain_complex));
+        assert!(Arc::ptr_eq(&underlying.target, &target.chain_complex));
+
         Self {
             source,
             target,
             homotopies: OnceBiVec::new(underlying.shift_s as i32 + 1),
             underlying,
+            intermediates: DashMap::new(),
         }
     }
 
@@ -374,39 +401,42 @@ impl<
         let shift_t = self.shift_t();
 
         let max_s = self.underlying.next_homological_degree();
-
-        let max_t = |s| {
-            std::cmp::min(
-                self.underlying.get_map(s).next_degree() - 1,
-                std::cmp::min(
-                    self.source.homotopies[s as i32].homotopies.max_degree(),
-                    if s == shift_s + 1 {
-                        i32::MAX
-                    } else {
-                        self.target.homotopies[(s - shift_s) as i32]
-                            .homotopies
-                            .max_degree()
-                            + shift_t
-                    },
-                ),
-            )
-        };
-
         self.homotopies.extend(max_s as i32 - 1, |s| {
             let s = s as u32;
-            let h = SecondaryHomotopy::new(
+            SecondaryHomotopy::new(
                 self.source.chain_complex.module(s),
                 self.target.chain_complex.module(s - shift_s - 1),
-                self.shift_t(),
-            );
-            h.initialize(max_t(s));
-            h
+                shift_t,
+            )
         });
     }
 
-    pub fn compute_composites(&mut self) {
-        let range = self.homotopies.range();
+    fn max_t(&self, s: u32) -> i32 {
         let shift_s = self.shift_s();
+        let shift_t = self.shift_t();
+        std::cmp::min(
+            self.underlying.get_map(s).next_degree() - 1,
+            std::cmp::min(
+                self.source.homotopies[s as i32].homotopies.next_degree() - 1,
+                if s == shift_s + 1 {
+                    i32::MAX
+                } else {
+                    self.target.homotopies[(s - shift_s) as i32]
+                        .composites
+                        .max_degree()
+                        + shift_t
+                },
+            ),
+        )
+    }
+
+    pub fn compute_composites(&mut self) {
+        let shift_s = self.shift_s();
+        let p = *self.underlying.source.prime();
+        // This is -1 mod p^2
+        let neg_1 = p * p - 1;
+
+        let range = self.homotopies.range();
         for s in range.start..range.end - 1 {
             let d_source = &*self.source.chain_complex.differential(s as u32);
             let d_target = &*self.target.chain_complex.differential(s as u32 - shift_s);
@@ -414,63 +444,110 @@ impl<
             let c1 = &*self.underlying.get_map(s as u32);
             let c0 = &*self.underlying.get_map(s as u32 - 1);
 
-            for t in self.homotopies[s].min_degree()..=self.homotopies[s].max_degree() {
-                self.homotopies[s].add_composite(1, t, d_source, c0);
-                self.homotopies[s].add_composite(3, t, c1, d_target);
+            self.homotopies[s].add_composite(
+                self.max_t(s as u32),
+                &[(1, d_source, c0), (neg_1, c1, d_target)],
+            );
+        }
+    }
+
+    pub fn get_intermediate(&self, s: u32, t: i32, idx: usize) -> FpVector {
+        if let Some((_, v)) = self.intermediates.remove(&(s, t, idx)) {
+            return v;
+        }
+        let shift_s = self.shift_s();
+        let shift_t = self.shift_t();
+
+        let p = self.target.chain_complex.prime();
+        let target = self.target.chain_complex.module(s as u32 - shift_s - 2);
+
+        let mut result = FpVector::new(p, Module::dimension(&*target, t - 1 - shift_t));
+        let d = self.source.chain_complex.differential(s);
+
+        self.homotopies[s as i32 - 1].act(
+            result.as_slice_mut(),
+            1,
+            t,
+            d.output(t, idx).as_slice(),
+            false,
+        );
+        self.target.homotopy(s - shift_s).act(
+            result.as_slice_mut(),
+            1,
+            t - shift_t,
+            self.underlying.get_map(s).output(t, idx).as_slice(),
+            true,
+        );
+
+        self.underlying.get_map(s - 2).apply(
+            result.as_slice_mut(),
+            1,
+            t - 1,
+            self.source.homotopy(s).homotopies.output(t, idx).as_slice(),
+        );
+
+        result
+    }
+
+    pub fn compute_intermediates(&self) {
+        for (s, homotopy) in self.homotopies.iter_enum().skip(1) {
+            let s = s as u32;
+            for t in homotopy.composites.range().skip(1) {
+                for i in 0..homotopy.source.number_of_gens_in_degree(t) {
+                    self.intermediates
+                        .insert((s, t, i), self.get_intermediate(s, t, i));
+                }
             }
         }
     }
 
     pub fn compute_homotopies(&mut self) {
-        let range = self.homotopies.range();
-        let mut scratch = FpVector::new(self.source.chain_complex.prime(), 0);
-
-        let shift_t = self.shift_t();
+        let p = self.source.chain_complex.prime();
         let shift_s = self.shift_s();
+        let shift_t = self.shift_t();
 
-        for s in range.start as u32 + 1..range.end as u32 {
+        // When s = shift_s + 1, the homotopies are just zero
+        {
+            let h = &self.homotopies[shift_s as i32 + 1];
+            h.homotopies.extend_by_zero(h.composites.max_degree());
+        }
+
+        for (s, homotopy) in self.homotopies.iter_enum().skip(1) {
+            let s = s as u32;
+            let d = self.source.chain_complex.differential(s);
+
             let source = self.source.chain_complex.module(s);
-            let target = self.target.chain_complex.module(s - shift_s - 2);
 
-            for t in
-                self.homotopies[s as i32].min_degree() + 1..=self.homotopies[s as i32].max_degree()
-            {
+            for t in homotopy.homotopies.next_degree()..=self.max_t(s) {
                 let num_gens = source.number_of_gens_in_degree(t);
-                for idx in 0..num_gens {
-                    scratch.set_scratch_vector_size(target.dimension(t - 1 - shift_t));
-                    let d = self.source.chain_complex.differential(s);
-                    self.homotopies[s as i32 - 1].act(
-                        scratch.as_slice_mut(),
-                        1,
-                        t,
-                        d.output(t, idx).as_slice(),
-                    );
-                    self.target.homotopy(s - shift_s).act(
-                        scratch.as_slice_mut(),
-                        1,
-                        t - shift_t,
-                        self.underlying.get_map(s).output(t, idx).as_slice(),
-                    );
+                let intermediates: Vec<FpVector> = (0..num_gens)
+                    .map(|i| {
+                        let mut v = self.get_intermediate(s, t, i);
+                        if s > shift_s + 2 {
+                            self.homotopies[s as i32 - 1].homotopies.apply(
+                                v.as_slice_mut(),
+                                1,
+                                t,
+                                d.output(t, i).as_slice(),
+                            );
+                        }
+                        v
+                    })
+                    .collect();
+                let target_dim = self
+                    .target
+                    .chain_complex
+                    .module(s as u32 - shift_s - 1)
+                    .dimension(t - shift_t - 1);
+                let mut results = vec![FpVector::new(p, target_dim); num_gens];
 
-                    self.underlying.get_map(s - 2).apply(
-                        scratch.as_slice_mut(),
-                        1,
-                        t - 1,
-                        self.source.homotopy(s).output(t, idx).homotopy.as_slice(),
-                    );
-
-                    self.target
-                        .chain_complex
-                        .differential(s - shift_s - 1)
-                        .apply_quasi_inverse(
-                            self.homotopies[s as i32]
-                                .output_mut(t, idx)
-                                .homotopy
-                                .as_slice_mut(),
-                            t - shift_t - 1,
-                            scratch.as_slice(),
-                        );
-                }
+                assert!(self.target.chain_complex.apply_quasi_inverse(
+                    &mut results,
+                    s as u32 - shift_s - 1,
+                    t - shift_t - 1,
+                    &intermediates,
+                ));
+                homotopy.homotopies.add_generators_from_rows(t, results);
             }
         }
     }
@@ -514,7 +591,6 @@ mod test {
     use super::*;
     use crate::utils::construct;
     use expect_test::expect;
-    use itertools::Itertools;
     use std::fmt::Write;
 
     #[test]
@@ -533,56 +609,41 @@ mod test {
         lift.compute_homotopies();
 
         // Iterate through the bidegree of the source of the differential.
-        for s in 0..(max_s - 1) {
+        for (s, n, t) in lift.chain_complex.iter_stem() {
+            if !lift.chain_complex.has_computed_bidegree(s + 2, t + 1) {
+                continue;
+            }
             let homotopy = lift.homotopy(s + 2);
 
-            for t in s as i32..max_t {
-                let source_num_gens = homotopy.source.number_of_gens_in_degree(t + 1);
-                let target_num_gens = homotopy.target.number_of_gens_in_degree(t);
-                if source_num_gens == 0 || target_num_gens == 0 {
-                    continue;
-                }
-                let mut entries = vec![vec![0; target_num_gens]; source_num_gens];
+            let source_num_gens = homotopy.source.number_of_gens_in_degree(t + 1);
+            let target_num_gens = homotopy.target.number_of_gens_in_degree(t);
+            if source_num_gens == 0 || target_num_gens == 0 {
+                continue;
+            }
+            let entries = homotopy.homotopies.hom_k(t);
 
-                let offset = homotopy.target.generator_offset(t, t, 0);
-
-                for (n, row) in entries.iter_mut().enumerate() {
-                    let dx = &homotopy.output(t + 1, n).homotopy;
-
-                    for (k, entry) in row.iter_mut().enumerate() {
-                        *entry = dx.entry(offset + k);
-                    }
-                }
-
-                let x = t - s as i32;
-                for k in 0..target_num_gens {
-                    writeln!(
-                        &mut result,
-                        "d_2 x_({x}, {s}, {k}) = [{}]",
-                        (0..source_num_gens).map(|n| entries[n][k]).format(", ")
-                    )
-                    .unwrap();
-                }
+            for (k, row) in entries.iter().enumerate() {
+                writeln!(&mut result, "d_2 x_({n}, {s}, {k}) = {row:?}",).unwrap();
             }
         }
 
         expect![[r#"
             d_2 x_(1, 1, 0) = [0]
-            d_2 x_(15, 1, 0) = [1]
             d_2 x_(8, 2, 0) = [0]
+            d_2 x_(15, 1, 0) = [1]
             d_2 x_(15, 2, 0) = [0]
-            d_2 x_(16, 2, 0) = [0]
-            d_2 x_(18, 2, 0) = [0]
             d_2 x_(15, 3, 0) = [0]
-            d_2 x_(18, 3, 0) = [0]
-            d_2 x_(19, 3, 0) = [0]
-            d_2 x_(21, 3, 0) = [0]
             d_2 x_(15, 4, 0) = [0]
+            d_2 x_(16, 2, 0) = [0]
             d_2 x_(17, 4, 0) = [1]
+            d_2 x_(17, 5, 0) = [0]
+            d_2 x_(18, 2, 0) = [0]
+            d_2 x_(18, 3, 0) = [0]
             d_2 x_(18, 4, 0) = [0]
             d_2 x_(18, 4, 1) = [1]
-            d_2 x_(17, 5, 0) = [0]
             d_2 x_(18, 5, 0) = [1]
+            d_2 x_(19, 3, 0) = [0]
+            d_2 x_(21, 3, 0) = [0]
             d_2 x_(24, 5, 0) = [0]
         "#]]
         .assert_eq(&result);

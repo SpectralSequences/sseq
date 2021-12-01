@@ -100,7 +100,7 @@ fn main() -> anyhow::Result<()> {
             sseq.set_dimension(n, s as i32, num_gens);
 
             if t > 0 && resolution.has_computed_bidegree(s + 2, t + 1) {
-                let m = lift.homotopy(s + 2).hom_k(t);
+                let m = lift.homotopy(s + 2).homotopies.hom_k(t);
                 if m.is_empty() || m[0].is_empty() {
                     continue;
                 }
@@ -158,7 +158,7 @@ fn main() -> anyhow::Result<()> {
         }
 
         let m0 = Matrix::from_vec(p, &hom.get_map(s + shift_s).hom_k(t));
-        let m1 = Matrix::from_vec(p, &res_lift.homotopy(s + shift_s + 1).hom_k(t));
+        let m1 = Matrix::from_vec(p, &res_lift.homotopy(s + shift_s + 1).homotopies.hom_k(t));
 
         assert_eq!(m0.rows(), m1.rows());
         if m0.columns() == 0 && m1.columns() == 0 {

@@ -267,6 +267,10 @@ impl GeneratedAlgebra for SteenrodAlgebra {
 impl crate::pair_algebra::PairAlgebra for AdemAlgebra {
     type Element = crate::pair_algebra::MilnorPairElement;
 
+    fn finalize_element(_elt: &mut Self::Element) {
+        unimplemented!()
+    }
+
     fn new_pair_element(&self, _degree: i32) -> Self::Element {
         unimplemented!()
     }
@@ -298,6 +302,10 @@ impl crate::pair_algebra::PairAlgebra for AdemAlgebra {
 
 impl crate::pair_algebra::PairAlgebra for SteenrodAlgebra {
     type Element = crate::pair_algebra::MilnorPairElement;
+
+    fn finalize_element(elt: &mut Self::Element) {
+        MilnorAlgebra::finalize_element(elt);
+    }
 
     dispatch_steenrod! {
         fn new_pair_element(&self, degree: i32) -> Self::Element;
