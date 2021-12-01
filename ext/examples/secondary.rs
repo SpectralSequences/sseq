@@ -38,6 +38,8 @@ fn main() -> anyhow::Result<()> {
         return Ok(());
     }
 
+    let start = std::time::Instant::now();
+
     let lift = SecondaryLift::new(Arc::clone(&resolution));
     lift.initialize_homotopies();
     lift.compute_composites();
@@ -48,6 +50,8 @@ fn main() -> anyhow::Result<()> {
 
     #[cfg(not(feature = "concurrent"))]
     lift.compute_homotopies();
+
+    eprintln!("Time spent: {:?}", start.elapsed());
 
     // Iterate through target of the d2
     for (s, n, t) in lift.chain_complex.iter_stem() {
