@@ -814,30 +814,197 @@
 <span id="790">790</span>
 <span id="791">791</span>
 <span id="792">792</span>
-</pre><pre class="rust"><code><span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::chain_complex</span>::{
-    <span class="ident">AugmentedChainComplex</span>, <span class="ident">BoundedChainComplex</span>, <span class="ident">ChainComplex</span>, <span class="ident">FreeChainComplex</span>,
-};
+<span id="793">793</span>
+<span id="794">794</span>
+<span id="795">795</span>
+<span id="796">796</span>
+<span id="797">797</span>
+<span id="798">798</span>
+<span id="799">799</span>
+<span id="800">800</span>
+<span id="801">801</span>
+<span id="802">802</span>
+<span id="803">803</span>
+<span id="804">804</span>
+<span id="805">805</span>
+<span id="806">806</span>
+<span id="807">807</span>
+<span id="808">808</span>
+<span id="809">809</span>
+<span id="810">810</span>
+<span id="811">811</span>
+<span id="812">812</span>
+<span id="813">813</span>
+<span id="814">814</span>
+<span id="815">815</span>
+<span id="816">816</span>
+<span id="817">817</span>
+<span id="818">818</span>
+<span id="819">819</span>
+<span id="820">820</span>
+<span id="821">821</span>
+<span id="822">822</span>
+<span id="823">823</span>
+<span id="824">824</span>
+<span id="825">825</span>
+<span id="826">826</span>
+<span id="827">827</span>
+<span id="828">828</span>
+<span id="829">829</span>
+<span id="830">830</span>
+<span id="831">831</span>
+<span id="832">832</span>
+<span id="833">833</span>
+<span id="834">834</span>
+<span id="835">835</span>
+<span id="836">836</span>
+<span id="837">837</span>
+<span id="838">838</span>
+<span id="839">839</span>
+<span id="840">840</span>
+<span id="841">841</span>
+<span id="842">842</span>
+<span id="843">843</span>
+<span id="844">844</span>
+<span id="845">845</span>
+<span id="846">846</span>
+<span id="847">847</span>
+<span id="848">848</span>
+<span id="849">849</span>
+<span id="850">850</span>
+<span id="851">851</span>
+<span id="852">852</span>
+<span id="853">853</span>
+<span id="854">854</span>
+<span id="855">855</span>
+<span id="856">856</span>
+<span id="857">857</span>
+<span id="858">858</span>
+<span id="859">859</span>
+<span id="860">860</span>
+<span id="861">861</span>
+<span id="862">862</span>
+<span id="863">863</span>
+<span id="864">864</span>
+<span id="865">865</span>
+<span id="866">866</span>
+<span id="867">867</span>
+<span id="868">868</span>
+<span id="869">869</span>
+<span id="870">870</span>
+<span id="871">871</span>
+<span id="872">872</span>
+<span id="873">873</span>
+<span id="874">874</span>
+<span id="875">875</span>
+<span id="876">876</span>
+<span id="877">877</span>
+<span id="878">878</span>
+<span id="879">879</span>
+<span id="880">880</span>
+<span id="881">881</span>
+<span id="882">882</span>
+<span id="883">883</span>
+<span id="884">884</span>
+<span id="885">885</span>
+<span id="886">886</span>
+<span id="887">887</span>
+<span id="888">888</span>
+<span id="889">889</span>
+<span id="890">890</span>
+<span id="891">891</span>
+<span id="892">892</span>
+<span id="893">893</span>
+<span id="894">894</span>
+<span id="895">895</span>
+<span id="896">896</span>
+<span id="897">897</span>
+<span id="898">898</span>
+<span id="899">899</span>
+<span id="900">900</span>
+<span id="901">901</span>
+<span id="902">902</span>
+<span id="903">903</span>
+<span id="904">904</span>
+<span id="905">905</span>
+<span id="906">906</span>
+<span id="907">907</span>
+<span id="908">908</span>
+<span id="909">909</span>
+<span id="910">910</span>
+<span id="911">911</span>
+<span id="912">912</span>
+<span id="913">913</span>
+<span id="914">914</span>
+<span id="915">915</span>
+<span id="916">916</span>
+<span id="917">917</span>
+<span id="918">918</span>
+<span id="919">919</span>
+<span id="920">920</span>
+<span id="921">921</span>
+<span id="922">922</span>
+<span id="923">923</span>
+<span id="924">924</span>
+<span id="925">925</span>
+<span id="926">926</span>
+<span id="927">927</span>
+<span id="928">928</span>
+<span id="929">929</span>
+<span id="930">930</span>
+<span id="931">931</span>
+<span id="932">932</span>
+<span id="933">933</span>
+<span id="934">934</span>
+<span id="935">935</span>
+<span id="936">936</span>
+<span id="937">937</span>
+<span id="938">938</span>
+<span id="939">939</span>
+<span id="940">940</span>
+<span id="941">941</span>
+<span id="942">942</span>
+<span id="943">943</span>
+<span id="944">944</span>
+<span id="945">945</span>
+<span id="946">946</span>
+<span id="947">947</span>
+<span id="948">948</span>
+<span id="949">949</span>
+<span id="950">950</span>
+<span id="951">951</span>
+<span id="952">952</span>
+<span id="953">953</span>
+<span id="954">954</span>
+<span id="955">955</span>
+<span id="956">956</span>
+</pre><pre class="rust"><code><span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::chain_complex</span>::{<span class="ident">BoundedChainComplex</span>, <span class="ident">ChainComplex</span>};
+<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::resolution::Resolution</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::resolution_homomorphism::ResolutionHomomorphism</span>;
+<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::save</span>::{<span class="ident">SaveFile</span>, <span class="ident">SaveKind</span>};
+
 <span class="kw">use</span> <span class="ident">algebra::module::homomorphism</span>::{<span class="ident">FreeModuleHomomorphism</span>, <span class="ident">ModuleHomomorphism</span>};
 <span class="kw">use</span> <span class="ident">algebra::module</span>::{<span class="ident">BoundedModule</span>, <span class="ident">FreeModule</span>, <span class="ident">Module</span>};
 <span class="kw">use</span> <span class="ident">algebra::pair_algebra::PairAlgebra</span>;
 <span class="kw">use</span> <span class="ident">algebra::Algebra</span>;
+<span class="kw">use</span> <span class="ident">anyhow::Context</span>;
 <span class="kw">use</span> <span class="ident">bivec::BiVec</span>;
 <span class="kw">use</span> <span class="ident">fp::vector</span>::{<span class="ident">FpVector</span>, <span class="ident">Slice</span>, <span class="ident">SliceMut</span>};
 <span class="kw">use</span> <span class="ident">once::OnceBiVec</span>;
+
+<span class="kw">use</span> <span class="ident">std::io</span>::{<span class="ident">Read</span>, <span class="ident">Write</span>};
+<span class="kw">use</span> <span class="ident">std::path::Path</span>;
 <span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
 
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::resolution::Resolution</span> <span class="kw">as</span> <span class="ident">Resolution_</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::CCC</span>;
 
+<span class="kw">use</span> <span class="ident">byteorder</span>::{<span class="ident">LittleEndian</span>, <span class="ident">ReadBytesExt</span>, <span class="ident">WriteBytesExt</span>};
 <span class="kw">use</span> <span class="ident">dashmap::DashMap</span>;
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
 <span class="kw">use</span> {
     <span class="ident">rayon::iter</span>::{<span class="ident">IndexedParallelIterator</span>, <span class="ident">IntoParallelIterator</span>, <span class="ident">ParallelIterator</span>},
     <span class="ident">thread_token::TokenBucket</span>,
 };
-
-<span class="kw">type</span> <span class="ident">Resolution</span> <span class="op">=</span> <span class="ident">Resolution_</span><span class="op">&lt;</span><span class="ident">CCC</span><span class="op">&gt;</span>;
 
 <span class="doccomment">/// A homotopy of a map A -&gt; M of pair modules. We assume this map does not hit generators.</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">SecondaryComposite</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">PairAlgebra</span><span class="op">&gt;</span> {
@@ -871,6 +1038,42 @@
             <span class="ident">degree</span>,
             <span class="ident">composite</span>,
         }
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">to_bytes</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">buffer</span>: <span class="kw-2">&amp;mut</span> <span class="kw">impl</span> <span class="ident">Write</span>) -&gt; <span class="ident">std::io::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">algebra</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">target</span>.<span class="ident">algebra</span>();
+        <span class="kw">for</span> <span class="ident">composites</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">composite</span>.<span class="ident">iter</span>() {
+            <span class="ident">buffer</span>.<span class="ident">write_u64</span>::<span class="op">&lt;</span><span class="ident">LittleEndian</span><span class="op">&gt;</span>(<span class="ident">composites</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">u64</span>)<span class="question-mark">?</span>;
+            <span class="kw">for</span> <span class="ident">composite</span> <span class="kw">in</span> <span class="ident">composites</span> {
+                <span class="ident">algebra</span>.<span class="ident">element_to_bytes</span>(<span class="ident">composite</span>, <span class="ident">buffer</span>)<span class="question-mark">?</span>;
+            }
+        }
+        <span class="prelude-val">Ok</span>(())
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_bytes</span>(
+        <span class="ident">target</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">degree</span>: <span class="ident">i32</span>,
+        <span class="ident">buffer</span>: <span class="kw-2">&amp;mut</span> <span class="kw">impl</span> <span class="ident">Read</span>,
+    ) -&gt; <span class="ident">std::io::Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">min_degree</span> <span class="op">=</span> <span class="ident">target</span>.<span class="ident">min_degree</span>();
+        <span class="kw">let</span> <span class="ident">algebra</span> <span class="op">=</span> <span class="ident">target</span>.<span class="ident">algebra</span>();
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">composite</span> <span class="op">=</span> <span class="ident">BiVec::with_capacity</span>(<span class="ident">min_degree</span>, <span class="ident">degree</span>);
+
+        <span class="kw">for</span> <span class="ident">t</span> <span class="kw">in</span> <span class="ident">min_degree</span>..<span class="ident">degree</span> {
+            <span class="kw">let</span> <span class="ident">num_gens</span> <span class="op">=</span> <span class="ident">buffer</span>.<span class="ident">read_u64</span>::<span class="op">&lt;</span><span class="ident">LittleEndian</span><span class="op">&gt;</span>()<span class="question-mark">?</span> <span class="kw">as</span> <span class="ident">usize</span>;
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">c</span> <span class="op">=</span> <span class="ident">Vec::with_capacity</span>(<span class="ident">num_gens</span>);
+            <span class="kw">for</span> <span class="kw">_</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">num_gens</span> {
+                <span class="ident">c</span>.<span class="ident">push</span>(<span class="ident">algebra</span>.<span class="ident">element_from_bytes</span>(<span class="ident">degree</span> <span class="op">-</span> <span class="ident">t</span>, <span class="ident">buffer</span>)<span class="question-mark">?</span>);
+            }
+            <span class="ident">composite</span>.<span class="ident">push</span>(<span class="ident">c</span>);
+        }
+
+        <span class="prelude-val">Ok</span>(<span class="self">Self</span> {
+            <span class="ident">target</span>,
+            <span class="ident">degree</span>,
+            <span class="ident">composite</span>,
+        })
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">finalize</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) {
@@ -931,6 +1134,13 @@
         <span class="kw">for</span> (<span class="ident">gen_deg</span>, <span class="ident">row</span>) <span class="kw">in</span> <span class="self">self</span>.<span class="ident">composite</span>.<span class="ident">iter_enum</span>() {
             <span class="kw">let</span> <span class="ident">module_op_deg</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">degree</span> <span class="op">-</span> <span class="ident">gen_deg</span>;
             <span class="kw">for</span> (<span class="ident">gen_idx</span>, <span class="ident">c</span>) <span class="kw">in</span> <span class="ident">row</span>.<span class="ident">iter</span>().<span class="ident">enumerate</span>() {
+                <span class="kw">if</span> <span class="ident">gen_deg</span> <span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">target</span>.<span class="ident">max_computed_degree</span>() {
+                    <span class="comment">// If we are resolving up to a stem then the target might be missing some</span>
+                    <span class="comment">// degrees. This is fine but we want to assert that c is zero.</span>
+                    <span class="macro">assert!</span>(<span class="ident">A::element_is_zero</span>(<span class="ident">c</span>));
+                    <span class="kw">continue</span>;
+                }
+
                 <span class="kw">let</span> <span class="ident">offset</span> <span class="op">=</span>
                     <span class="self">self</span>.<span class="ident">target</span>
                         .<span class="ident">generator_offset</span>(<span class="self">self</span>.<span class="ident">degree</span> <span class="op">+</span> <span class="ident">op_degree</span> <span class="op">-</span> <span class="number">1</span>, <span class="ident">gen_deg</span>, <span class="ident">gen_idx</span>);
@@ -983,12 +1193,14 @@
     <span class="doccomment">/// Add composites up to and including the specified degree</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">add_composite</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
+        <span class="ident">s</span>: <span class="ident">u32</span>,
         <span class="ident">degree</span>: <span class="ident">i32</span>,
         <span class="ident">maps</span>: <span class="kw-2">&amp;</span>[(
             <span class="ident">u32</span>,
             <span class="kw-2">&amp;</span><span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span>,
             <span class="kw-2">&amp;</span><span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         )],
+        <span class="ident">dir</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">Path</span><span class="op">&gt;</span>,
     ) {
         <span class="kw">for</span> (<span class="kw">_</span>, <span class="ident">d1</span>, <span class="ident">d0</span>) <span class="kw">in</span> <span class="ident">maps</span> {
             <span class="macro">assert!</span>(<span class="ident">Arc::ptr_eq</span>(<span class="kw-2">&amp;</span><span class="ident">d1</span>.<span class="ident">target</span>(), <span class="kw-2">&amp;</span><span class="ident">d0</span>.<span class="ident">source</span>()));
@@ -996,18 +1208,43 @@
             <span class="macro">assert_eq!</span>(<span class="ident">d1</span>.<span class="ident">degree_shift</span>() <span class="op">+</span> <span class="ident">d0</span>.<span class="ident">degree_shift</span>(), <span class="self">self</span>.<span class="ident">shift_t</span>);
         }
 
+        <span class="kw">let</span> <span class="ident">f</span> <span class="op">=</span> <span class="op">|</span><span class="ident">t</span>, <span class="ident">idx</span><span class="op">|</span> {
+            <span class="kw">let</span> <span class="ident">save_file</span> <span class="op">=</span> <span class="ident">SaveFile</span> {
+                <span class="ident">algebra</span>: <span class="self">self</span>.<span class="ident">target</span>.<span class="ident">algebra</span>(),
+                <span class="ident">kind</span>: <span class="ident">SaveKind::SecondaryComposite</span>,
+                <span class="ident">s</span>,
+                <span class="ident">t</span>,
+                <span class="ident">idx</span>: <span class="prelude-val">Some</span>(<span class="ident">idx</span>),
+            };
+            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dir</span>) <span class="op">=</span> <span class="ident">dir</span> {
+                <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">mut</span> <span class="ident">f</span>) <span class="op">=</span> <span class="ident">save_file</span>.<span class="ident">open_file</span>(<span class="ident">dir</span>.<span class="ident">to_owned</span>()) {
+                    <span class="kw">return</span> <span class="ident">SecondaryComposite::from_bytes</span>(
+                        <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">target</span>),
+                        <span class="ident">t</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">shift_t</span>,
+                        <span class="kw-2">&amp;mut</span> <span class="ident">f</span>,
+                    )
+                    .<span class="ident">unwrap</span>();
+                }
+            }
+
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">composite</span> <span class="op">=</span> <span class="ident">SecondaryComposite::new</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">target</span>), <span class="ident">t</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">shift_t</span>);
+            <span class="kw">for</span> (<span class="ident">coef</span>, <span class="ident">d1</span>, <span class="ident">d0</span>) <span class="kw">in</span> <span class="ident">maps</span> {
+                <span class="ident">composite</span>.<span class="ident">add_composite</span>(<span class="kw-2">*</span><span class="ident">coef</span>, <span class="ident">t</span>, <span class="ident">idx</span>, <span class="ident">d1</span>, <span class="ident">d0</span>);
+            }
+            <span class="ident">composite</span>.<span class="ident">finalize</span>();
+
+            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dir</span>) <span class="op">=</span> <span class="ident">dir</span> {
+                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">save_file</span>.<span class="ident">create_file</span>(<span class="ident">dir</span>.<span class="ident">to_owned</span>());
+                <span class="ident">composite</span>.<span class="ident">to_bytes</span>(<span class="kw-2">&amp;mut</span> <span class="ident">f</span>).<span class="ident">unwrap</span>();
+            }
+
+            <span class="ident">composite</span>
+        };
+
         <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>))]</span>
         <span class="self">self</span>.<span class="ident">composites</span>.<span class="ident">extend</span>(<span class="ident">degree</span>, <span class="op">|</span><span class="ident">t</span><span class="op">|</span> {
             (<span class="number">0</span>..<span class="self">self</span>.<span class="ident">source</span>.<span class="ident">number_of_gens_in_degree</span>(<span class="ident">t</span>))
-                .<span class="ident">map</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> {
-                    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">composite</span> <span class="op">=</span>
-                        <span class="ident">SecondaryComposite::new</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">target</span>), <span class="ident">t</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">shift_t</span>);
-                    <span class="kw">for</span> (<span class="ident">coef</span>, <span class="ident">d1</span>, <span class="ident">d0</span>) <span class="kw">in</span> <span class="ident">maps</span> {
-                        <span class="ident">composite</span>.<span class="ident">add_composite</span>(<span class="kw-2">*</span><span class="ident">coef</span>, <span class="ident">t</span>, <span class="ident">i</span>, <span class="ident">d1</span>, <span class="ident">d0</span>);
-                    }
-                    <span class="ident">composite</span>.<span class="ident">finalize</span>();
-                    <span class="ident">composite</span>
-                })
+                .<span class="ident">map</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> <span class="ident">f</span>(<span class="ident">t</span>, <span class="ident">i</span>))
                 .<span class="ident">collect</span>()
         });
 
@@ -1015,15 +1252,7 @@
         <span class="self">self</span>.<span class="ident">composites</span>.<span class="ident">par_extend</span>(<span class="ident">degree</span>, <span class="op">|</span><span class="ident">t</span><span class="op">|</span> {
             (<span class="number">0</span>..<span class="self">self</span>.<span class="ident">source</span>.<span class="ident">number_of_gens_in_degree</span>(<span class="ident">t</span>))
                 .<span class="ident">into_par_iter</span>()
-                .<span class="ident">map</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> {
-                    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">composite</span> <span class="op">=</span>
-                        <span class="ident">SecondaryComposite::new</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">target</span>), <span class="ident">t</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">shift_t</span>);
-                    <span class="kw">for</span> (<span class="ident">coef</span>, <span class="ident">d1</span>, <span class="ident">d0</span>) <span class="kw">in</span> <span class="ident">maps</span> {
-                        <span class="ident">composite</span>.<span class="ident">add_composite</span>(<span class="kw-2">*</span><span class="ident">coef</span>, <span class="ident">t</span>, <span class="ident">i</span>, <span class="ident">d1</span>, <span class="ident">d0</span>);
-                    }
-                    <span class="ident">composite</span>.<span class="ident">finalize</span>();
-                    <span class="ident">composite</span>
-                })
+                .<span class="ident">map</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> <span class="ident">f</span>(<span class="ident">t</span>, <span class="ident">i</span>))
                 .<span class="ident">collect</span>()
         });
     }
@@ -1057,15 +1286,31 @@
     }
 }
 
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">SecondaryLift</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">PairAlgebra</span>, <span class="ident">CC</span>: <span class="ident">FreeChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-    <span class="kw">pub</span> <span class="ident">chain_complex</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">CC</span><span class="op">&gt;</span>,
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">SecondaryLift</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">PairAlgebra</span>, <span class="ident">CC</span>: <span class="ident">ChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="ident">chain_complex</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Resolution</span><span class="op">&lt;</span><span class="ident">CC</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="doccomment">/// s -&gt; t -&gt; idx -&gt; homotopy</span>
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">homotopies</span>: <span class="ident">OnceBiVec</span><span class="op">&lt;</span><span class="ident">SecondaryHomotopy</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="ident">intermediates</span>: <span class="ident">DashMap</span><span class="op">&lt;</span>(<span class="ident">u32</span>, <span class="ident">i32</span>, <span class="ident">usize</span>), <span class="ident">FpVector</span><span class="op">&gt;</span>,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">PairAlgebra</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span>, <span class="ident">CC</span>: <span class="ident">FreeChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">SecondaryLift</span><span class="op">&lt;</span><span class="ident">A</span>, <span class="ident">CC</span><span class="op">&gt;</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">cc</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">CC</span><span class="op">&gt;</span>) -&gt; <span class="self">Self</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">PairAlgebra</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span>, <span class="ident">CC</span>: <span class="ident">ChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">SecondaryLift</span><span class="op">&lt;</span><span class="ident">A</span>, <span class="ident">CC</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">cc</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Resolution</span><span class="op">&lt;</span><span class="ident">CC</span><span class="op">&gt;</span><span class="op">&gt;</span>) -&gt; <span class="self">Self</span> {
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">p</span>) <span class="op">=</span> <span class="ident">cc</span>.<span class="ident">save_dir</span>() {
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">p</span>.<span class="ident">to_owned</span>();
+
+            <span class="kw">for</span> <span class="ident">subdir</span> <span class="kw">in</span> <span class="ident">SaveKind::secondary_data</span>() {
+                <span class="ident">p</span>.<span class="ident">push</span>(<span class="macro">format!</span>(<span class="string">&quot;{}s&quot;</span>, <span class="ident">subdir</span>.<span class="ident">name</span>()));
+                <span class="kw">if</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">exists</span>() {
+                    <span class="ident">std::fs::create_dir_all</span>(<span class="kw-2">&amp;</span><span class="ident">p</span>)
+                        .<span class="ident">with_context</span>(<span class="op">|</span><span class="op">|</span> <span class="macro">format!</span>(<span class="string">&quot;Failed to create directory {p:?}&quot;</span>))
+                        .<span class="ident">unwrap</span>();
+                } <span class="kw">else</span> <span class="kw">if</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">is_dir</span>() {
+                    <span class="macro">panic!</span>(<span class="string">&quot;{p:?} is not a directory&quot;</span>);
+                }
+                <span class="ident">p</span>.<span class="ident">pop</span>();
+            }
+        }
+
         <span class="self">Self</span> {
             <span class="ident">chain_complex</span>: <span class="ident">cc</span>,
             <span class="ident">homotopies</span>: <span class="ident">OnceBiVec::new</span>(<span class="number">2</span>),
@@ -1098,18 +1343,23 @@
             )
         };
 
+        <span class="kw">let</span> <span class="ident">f</span> <span class="op">=</span> <span class="op">|</span><span class="ident">s</span><span class="op">|</span> {
+            <span class="kw">let</span> <span class="ident">s</span> <span class="op">=</span> <span class="ident">s</span> <span class="kw">as</span> <span class="ident">u32</span>;
+            <span class="kw">let</span> <span class="ident">d1</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">chain_complex</span>.<span class="ident">differential</span>(<span class="ident">s</span>);
+            <span class="kw">let</span> <span class="ident">d0</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">chain_complex</span>.<span class="ident">differential</span>(<span class="ident">s</span> <span class="op">-</span> <span class="number">1</span>);
+            <span class="self">self</span>.<span class="ident">homotopies</span>[<span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span>].<span class="ident">add_composite</span>(
+                <span class="ident">s</span>,
+                <span class="ident">max_t</span>(<span class="ident">s</span>),
+                <span class="kw-2">&amp;</span>[(<span class="number">1</span>, <span class="ident">d1</span>, <span class="ident">d0</span>)],
+                <span class="self">self</span>.<span class="ident">chain_complex</span>.<span class="ident">save_dir</span>(),
+            );
+        };
+
         <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>))]</span>
-        <span class="kw">for</span> <span class="ident">s</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">homotopies</span>.<span class="ident">range</span>() {
-            <span class="kw">let</span> <span class="ident">d1</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">chain_complex</span>.<span class="ident">differential</span>(<span class="ident">s</span> <span class="kw">as</span> <span class="ident">u32</span>);
-            <span class="kw">let</span> <span class="ident">d0</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">chain_complex</span>.<span class="ident">differential</span>(<span class="ident">s</span> <span class="kw">as</span> <span class="ident">u32</span> <span class="op">-</span> <span class="number">1</span>);
-            <span class="self">self</span>.<span class="ident">homotopies</span>[<span class="ident">s</span>].<span class="ident">add_composite</span>(<span class="ident">max_t</span>(<span class="ident">s</span> <span class="kw">as</span> <span class="ident">u32</span>), <span class="kw-2">&amp;</span>[(<span class="number">1</span>, <span class="ident">d1</span>, <span class="ident">d0</span>)]);
-        }
+        <span class="self">self</span>.<span class="ident">homotopies</span>.<span class="ident">range</span>().<span class="ident">for_each</span>(<span class="ident">f</span>);
+
         <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
-        <span class="self">self</span>.<span class="ident">homotopies</span>.<span class="ident">range</span>().<span class="ident">into_par_iter</span>().<span class="ident">for_each</span>(<span class="op">|</span><span class="ident">s</span><span class="op">|</span> {
-            <span class="kw">let</span> <span class="ident">d1</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">chain_complex</span>.<span class="ident">differential</span>(<span class="ident">s</span> <span class="kw">as</span> <span class="ident">u32</span>);
-            <span class="kw">let</span> <span class="ident">d0</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">chain_complex</span>.<span class="ident">differential</span>(<span class="ident">s</span> <span class="kw">as</span> <span class="ident">u32</span> <span class="op">-</span> <span class="number">1</span>);
-            <span class="self">self</span>.<span class="ident">homotopies</span>[<span class="ident">s</span>].<span class="ident">add_composite</span>(<span class="ident">max_t</span>(<span class="ident">s</span> <span class="kw">as</span> <span class="ident">u32</span>), <span class="kw-2">&amp;</span>[(<span class="number">1</span>, <span class="ident">d1</span>, <span class="ident">d0</span>)]);
-        });
+        <span class="self">self</span>.<span class="ident">homotopies</span>.<span class="ident">range</span>().<span class="ident">into_par_iter</span>().<span class="ident">for_each</span>(<span class="ident">f</span>);
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_intermediate</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">s</span>: <span class="ident">u32</span>, <span class="ident">t</span>: <span class="ident">i32</span>, <span class="ident">idx</span>: <span class="ident">usize</span>) -&gt; <span class="ident">FpVector</span> {
@@ -1118,6 +1368,22 @@
         }
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">chain_complex</span>.<span class="ident">prime</span>();
         <span class="kw">let</span> <span class="ident">target</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">chain_complex</span>.<span class="ident">module</span>(<span class="ident">s</span> <span class="kw">as</span> <span class="ident">u32</span> <span class="op">-</span> <span class="number">3</span>);
+
+        <span class="kw">let</span> <span class="ident">save_file</span> <span class="op">=</span> <span class="ident">SaveFile</span> {
+            <span class="ident">algebra</span>: <span class="self">self</span>.<span class="ident">chain_complex</span>.<span class="ident">algebra</span>(),
+            <span class="ident">kind</span>: <span class="ident">SaveKind::SecondaryIntermediate</span>,
+            <span class="ident">s</span>,
+            <span class="ident">t</span>,
+            <span class="ident">idx</span>: <span class="prelude-val">Some</span>(<span class="ident">idx</span>),
+        };
+
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dir</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">chain_complex</span>.<span class="ident">save_dir</span>() {
+            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">mut</span> <span class="ident">f</span>) <span class="op">=</span> <span class="ident">save_file</span>.<span class="ident">open_file</span>(<span class="ident">dir</span>.<span class="ident">to_owned</span>()) {
+                <span class="comment">// The target dimension can depend on whether we resolved to stem</span>
+                <span class="kw">let</span> <span class="ident">dim</span> <span class="op">=</span> <span class="ident">f</span>.<span class="ident">read_u64</span>::<span class="op">&lt;</span><span class="ident">LittleEndian</span><span class="op">&gt;</span>().<span class="ident">unwrap</span>() <span class="kw">as</span> <span class="ident">usize</span>;
+                <span class="kw">return</span> <span class="ident">FpVector::from_bytes</span>(<span class="ident">p</span>, <span class="ident">dim</span>, <span class="kw-2">&amp;mut</span> <span class="ident">f</span>).<span class="ident">unwrap</span>();
+            }
+        }
 
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="ident">target</span>.<span class="ident">dimension</span>(<span class="ident">t</span> <span class="op">-</span> <span class="number">1</span>));
         <span class="kw">let</span> <span class="ident">d</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">chain_complex</span>.<span class="ident">differential</span>(<span class="ident">s</span> <span class="kw">as</span> <span class="ident">u32</span>);
@@ -1129,17 +1395,40 @@
             <span class="bool-val">false</span>,
         );
 
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dir</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">chain_complex</span>.<span class="ident">save_dir</span>() {
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">save_file</span>.<span class="ident">create_file</span>(<span class="ident">dir</span>.<span class="ident">to_owned</span>());
+            <span class="ident">f</span>.<span class="ident">write_u64</span>::<span class="op">&lt;</span><span class="ident">LittleEndian</span><span class="op">&gt;</span>(<span class="ident">result</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">u64</span>).<span class="ident">unwrap</span>();
+            <span class="ident">result</span>.<span class="ident">to_bytes</span>(<span class="kw-2">&amp;mut</span> <span class="ident">f</span>).<span class="ident">unwrap</span>();
+        }
+
         <span class="ident">result</span>
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">compute_intermediates</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+        <span class="kw">let</span> <span class="ident">f</span> <span class="op">=</span> <span class="op">|</span><span class="ident">s</span>, <span class="ident">t</span>, <span class="ident">i</span><span class="op">|</span> {
+            <span class="comment">// If we already have homotopies, we don&#39;t need to compute intermediate</span>
+            <span class="kw">if</span> <span class="self">self</span>.<span class="ident">homotopies</span>[<span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span>].<span class="ident">homotopies</span>.<span class="ident">next_degree</span>() <span class="op">&gt;</span><span class="op">=</span> <span class="ident">t</span> {
+                <span class="kw">return</span>;
+            }
+            <span class="comment">// Check if we have a saved homotopy</span>
+            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dir</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">chain_complex</span>.<span class="ident">save_dir</span>() {
+                <span class="kw">let</span> <span class="ident">save_file</span> <span class="op">=</span> <span class="self">self</span>
+                    .<span class="ident">chain_complex</span>
+                    .<span class="ident">save_file</span>(<span class="ident">SaveKind::SecondaryHomotopy</span>, <span class="ident">s</span>, <span class="ident">t</span>);
+                <span class="kw">if</span> <span class="ident">save_file</span>.<span class="ident">exists</span>(<span class="ident">dir</span>.<span class="ident">to_owned</span>()) {
+                    <span class="kw">return</span>;
+                }
+            }
+            <span class="self">self</span>.<span class="ident">intermediates</span>
+                .<span class="ident">insert</span>((<span class="ident">s</span>, <span class="ident">t</span>, <span class="ident">i</span>), <span class="self">self</span>.<span class="ident">get_intermediate</span>(<span class="ident">s</span>, <span class="ident">t</span>, <span class="ident">i</span>));
+        };
+
         <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>))]</span>
         <span class="kw">for</span> (<span class="ident">s</span>, <span class="ident">homotopy</span>) <span class="kw">in</span> <span class="self">self</span>.<span class="ident">homotopies</span>.<span class="ident">iter_enum</span>().<span class="ident">skip</span>(<span class="number">1</span>) {
             <span class="kw">let</span> <span class="ident">s</span> <span class="op">=</span> <span class="ident">s</span> <span class="kw">as</span> <span class="ident">u32</span>;
             <span class="kw">for</span> <span class="ident">t</span> <span class="kw">in</span> <span class="ident">homotopy</span>.<span class="ident">composites</span>.<span class="ident">range</span>() {
                 <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">homotopy</span>.<span class="ident">source</span>.<span class="ident">number_of_gens_in_degree</span>(<span class="ident">t</span>) {
-                    <span class="self">self</span>.<span class="ident">intermediates</span>
-                        .<span class="ident">insert</span>((<span class="ident">s</span>, <span class="ident">t</span>, <span class="ident">i</span>), <span class="self">self</span>.<span class="ident">get_intermediate</span>(<span class="ident">s</span>, <span class="ident">t</span>, <span class="ident">i</span>));
+                    <span class="ident">f</span>(<span class="ident">s</span>, <span class="ident">t</span>, <span class="ident">i</span>)
                 }
             }
         }
@@ -1154,10 +1443,7 @@
                 <span class="ident">homotopy</span>.<span class="ident">composites</span>.<span class="ident">range</span>().<span class="ident">into_par_iter</span>().<span class="ident">for_each</span>(<span class="op">|</span><span class="ident">t</span><span class="op">|</span> {
                     (<span class="number">0</span>..<span class="ident">homotopy</span>.<span class="ident">source</span>.<span class="ident">number_of_gens_in_degree</span>(<span class="ident">t</span>))
                         .<span class="ident">into_par_iter</span>()
-                        .<span class="ident">for_each</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> {
-                            <span class="self">self</span>.<span class="ident">intermediates</span>
-                                .<span class="ident">insert</span>((<span class="ident">s</span>, <span class="ident">t</span>, <span class="ident">i</span>), <span class="self">self</span>.<span class="ident">get_intermediate</span>(<span class="ident">s</span>, <span class="ident">t</span>, <span class="ident">i</span>));
-                        })
+                        .<span class="ident">for_each</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> <span class="ident">f</span>(<span class="ident">s</span>, <span class="ident">t</span>, <span class="ident">i</span>))
                 })
             })
     }
@@ -1173,6 +1459,23 @@
         <span class="kw">let</span> <span class="ident">source</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">chain_complex</span>.<span class="ident">module</span>(<span class="ident">s</span>);
         <span class="kw">let</span> <span class="ident">d</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">chain_complex</span>.<span class="ident">differential</span>(<span class="ident">s</span>);
         <span class="kw">let</span> <span class="ident">num_gens</span> <span class="op">=</span> <span class="ident">source</span>.<span class="ident">number_of_gens_in_degree</span>(<span class="ident">t</span>);
+        <span class="kw">let</span> <span class="ident">target_dim</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">chain_complex</span>.<span class="ident">module</span>(<span class="ident">s</span> <span class="kw">as</span> <span class="ident">u32</span> <span class="op">-</span> <span class="number">2</span>).<span class="ident">dimension</span>(<span class="ident">t</span> <span class="op">-</span> <span class="number">1</span>);
+
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dir</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">chain_complex</span>.<span class="ident">save_dir</span>() {
+            <span class="kw">let</span> <span class="ident">save_file</span> <span class="op">=</span> <span class="self">self</span>
+                .<span class="ident">chain_complex</span>
+                .<span class="ident">save_file</span>(<span class="ident">SaveKind::SecondaryHomotopy</span>, <span class="ident">s</span>, <span class="ident">t</span>);
+            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">mut</span> <span class="ident">f</span>) <span class="op">=</span> <span class="ident">save_file</span>.<span class="ident">open_file</span>(<span class="ident">dir</span>.<span class="ident">to_owned</span>()) {
+                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">results</span> <span class="op">=</span> <span class="ident">Vec::with_capacity</span>(<span class="ident">num_gens</span>);
+                <span class="kw">for</span> <span class="kw">_</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">num_gens</span> {
+                    <span class="ident">results</span>.<span class="ident">push</span>(<span class="ident">FpVector::from_bytes</span>(<span class="ident">p</span>, <span class="ident">target_dim</span>, <span class="kw-2">&amp;mut</span> <span class="ident">f</span>).<span class="ident">unwrap</span>());
+                }
+                <span class="self">self</span>.<span class="ident">homotopies</span>[<span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span>]
+                    .<span class="ident">homotopies</span>
+                    .<span class="ident">add_generators_from_rows</span>(<span class="ident">t</span>, <span class="ident">results</span>);
+                <span class="kw">return</span>;
+            }
+        }
 
         <span class="kw">let</span> <span class="ident">intermediates</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">FpVector</span><span class="op">&gt;</span> <span class="op">=</span> (<span class="number">0</span>..<span class="ident">num_gens</span>)
             .<span class="ident">map</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> {
@@ -1188,7 +1491,6 @@
                 <span class="ident">v</span>
             })
             .<span class="ident">collect</span>();
-        <span class="kw">let</span> <span class="ident">target_dim</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">chain_complex</span>.<span class="ident">module</span>(<span class="ident">s</span> <span class="kw">as</span> <span class="ident">u32</span> <span class="op">-</span> <span class="number">2</span>).<span class="ident">dimension</span>(<span class="ident">t</span> <span class="op">-</span> <span class="number">1</span>);
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">results</span> <span class="op">=</span> <span class="macro">vec!</span>[<span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="ident">target_dim</span>); <span class="ident">num_gens</span>];
 
         <span class="macro">assert!</span>(<span class="self">self</span>.<span class="ident">chain_complex</span>.<span class="ident">apply_quasi_inverse</span>(
@@ -1197,6 +1499,32 @@
             <span class="ident">t</span> <span class="op">-</span> <span class="number">1</span>,
             <span class="kw-2">&amp;</span><span class="ident">intermediates</span>,
         ));
+
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dir</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">chain_complex</span>.<span class="ident">save_dir</span>() {
+            <span class="kw">let</span> <span class="ident">save_file</span> <span class="op">=</span> <span class="self">self</span>
+                .<span class="ident">chain_complex</span>
+                .<span class="ident">save_file</span>(<span class="ident">SaveKind::SecondaryHomotopy</span>, <span class="ident">s</span>, <span class="ident">t</span>);
+
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">save_file</span>.<span class="ident">create_file</span>(<span class="ident">dir</span>.<span class="ident">to_owned</span>());
+            <span class="kw">for</span> <span class="ident">row</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="ident">results</span> {
+                <span class="ident">row</span>.<span class="ident">to_bytes</span>(<span class="kw-2">&amp;mut</span> <span class="ident">f</span>).<span class="ident">unwrap</span>();
+            }
+            <span class="ident">drop</span>(<span class="ident">f</span>);
+
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">save_file</span> <span class="op">=</span> <span class="ident">SaveFile</span> {
+                <span class="ident">algebra</span>: <span class="self">self</span>.<span class="ident">chain_complex</span>.<span class="ident">algebra</span>(),
+                <span class="ident">kind</span>: <span class="ident">SaveKind::SecondaryIntermediate</span>,
+                <span class="ident">s</span>,
+                <span class="ident">t</span>,
+                <span class="ident">idx</span>: <span class="prelude-val">None</span>,
+            };
+
+            <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">num_gens</span> {
+                <span class="ident">save_file</span>.<span class="ident">idx</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">i</span>);
+                <span class="ident">save_file</span>.<span class="ident">delete_file</span>(<span class="ident">dir</span>.<span class="ident">to_owned</span>()).<span class="ident">unwrap</span>();
+            }
+        }
+
         <span class="self">self</span>.<span class="ident">homotopies</span>[<span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span>]
             .<span class="ident">homotopies</span>
             .<span class="ident">add_generators_from_rows</span>(<span class="ident">t</span>, <span class="ident">results</span>);
@@ -1242,17 +1570,14 @@
     }
 }
 
-<span class="comment">// Rustdoc ICE&#39;s when trying to document this struct. See</span>
-<span class="comment">// https://github.com/rust-lang/rust/issues/91380</span>
-<span class="attribute">#[<span class="ident">doc</span>(<span class="ident">hidden</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">SecondaryResolutionHomomorphism</span><span class="op">&lt;</span>
     <span class="ident">A</span>: <span class="ident">PairAlgebra</span>,
-    <span class="ident">CC1</span>: <span class="ident">FreeChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">A</span><span class="op">&gt;</span>,
-    <span class="ident">CC2</span>: <span class="ident">FreeChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">A</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">AugmentedChainComplex</span>,
+    <span class="ident">CC1</span>: <span class="ident">ChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">A</span><span class="op">&gt;</span>,
+    <span class="ident">CC2</span>: <span class="ident">ChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">A</span><span class="op">&gt;</span>,
 <span class="op">&gt;</span> {
     <span class="ident">source</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">SecondaryLift</span><span class="op">&lt;</span><span class="ident">A</span>, <span class="ident">CC1</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="ident">target</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">SecondaryLift</span><span class="op">&lt;</span><span class="ident">A</span>, <span class="ident">CC2</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    <span class="ident">underlying</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">ResolutionHomomorphism</span><span class="op">&lt;</span><span class="ident">CC1</span>, <span class="ident">CC2</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">underlying</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">ResolutionHomomorphism</span><span class="op">&lt;</span><span class="ident">Resolution</span><span class="op">&lt;</span><span class="ident">CC1</span><span class="op">&gt;</span>, <span class="ident">Resolution</span><span class="op">&lt;</span><span class="ident">CC2</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="doccomment">/// input s -&gt; homotopy</span>
     <span class="ident">homotopies</span>: <span class="ident">OnceBiVec</span><span class="op">&lt;</span><span class="ident">SecondaryHomotopy</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="ident">intermediates</span>: <span class="ident">DashMap</span><span class="op">&lt;</span>(<span class="ident">u32</span>, <span class="ident">i32</span>, <span class="ident">usize</span>), <span class="ident">FpVector</span><span class="op">&gt;</span>,
@@ -1260,14 +1585,14 @@
 
 <span class="kw">impl</span><span class="op">&lt;</span>
         <span class="ident">A</span>: <span class="ident">PairAlgebra</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span>,
-        <span class="ident">CC1</span>: <span class="ident">FreeChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">A</span><span class="op">&gt;</span>,
-        <span class="ident">CC2</span>: <span class="ident">FreeChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">A</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">AugmentedChainComplex</span>,
+        <span class="ident">CC1</span>: <span class="ident">ChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">A</span><span class="op">&gt;</span>,
+        <span class="ident">CC2</span>: <span class="ident">ChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">A</span><span class="op">&gt;</span>,
     <span class="op">&gt;</span> <span class="ident">SecondaryResolutionHomomorphism</span><span class="op">&lt;</span><span class="ident">A</span>, <span class="ident">CC1</span>, <span class="ident">CC2</span><span class="op">&gt;</span>
 {
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(
         <span class="ident">source</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">SecondaryLift</span><span class="op">&lt;</span><span class="ident">A</span>, <span class="ident">CC1</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">target</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">SecondaryLift</span><span class="op">&lt;</span><span class="ident">A</span>, <span class="ident">CC2</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-        <span class="ident">underlying</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">ResolutionHomomorphism</span><span class="op">&lt;</span><span class="ident">CC1</span>, <span class="ident">CC2</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">underlying</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">ResolutionHomomorphism</span><span class="op">&lt;</span><span class="ident">Resolution</span><span class="op">&lt;</span><span class="ident">CC1</span><span class="op">&gt;</span>, <span class="ident">Resolution</span><span class="op">&lt;</span><span class="ident">CC2</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     ) -&gt; <span class="self">Self</span> {
         <span class="macro">assert!</span>(<span class="ident">Arc::ptr_eq</span>(<span class="kw-2">&amp;</span><span class="ident">underlying</span>.<span class="ident">source</span>, <span class="kw-2">&amp;</span><span class="ident">source</span>.<span class="ident">chain_complex</span>));
         <span class="macro">assert!</span>(<span class="ident">Arc::ptr_eq</span>(<span class="kw-2">&amp;</span><span class="ident">underlying</span>.<span class="ident">target</span>, <span class="kw-2">&amp;</span><span class="ident">target</span>.<span class="ident">chain_complex</span>));
@@ -1334,15 +1659,18 @@
         <span class="ident">range</span>.<span class="ident">end</span> <span class="op">-</span><span class="op">=</span> <span class="number">1</span>;
 
         <span class="kw">let</span> <span class="ident">f</span> <span class="op">=</span> <span class="op">|</span><span class="ident">s</span><span class="op">|</span> {
-            <span class="kw">let</span> <span class="ident">d_source</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">source</span>.<span class="ident">chain_complex</span>.<span class="ident">differential</span>(<span class="ident">s</span> <span class="kw">as</span> <span class="ident">u32</span>);
-            <span class="kw">let</span> <span class="ident">d_target</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">target</span>.<span class="ident">chain_complex</span>.<span class="ident">differential</span>(<span class="ident">s</span> <span class="kw">as</span> <span class="ident">u32</span> <span class="op">-</span> <span class="ident">shift_s</span>);
+            <span class="kw">let</span> <span class="ident">s</span> <span class="op">=</span> <span class="ident">s</span> <span class="kw">as</span> <span class="ident">u32</span>;
+            <span class="kw">let</span> <span class="ident">d_source</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">source</span>.<span class="ident">chain_complex</span>.<span class="ident">differential</span>(<span class="ident">s</span>);
+            <span class="kw">let</span> <span class="ident">d_target</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">target</span>.<span class="ident">chain_complex</span>.<span class="ident">differential</span>(<span class="ident">s</span> <span class="op">-</span> <span class="ident">shift_s</span>);
 
-            <span class="kw">let</span> <span class="ident">c1</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">underlying</span>.<span class="ident">get_map</span>(<span class="ident">s</span> <span class="kw">as</span> <span class="ident">u32</span>);
-            <span class="kw">let</span> <span class="ident">c0</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">underlying</span>.<span class="ident">get_map</span>(<span class="ident">s</span> <span class="kw">as</span> <span class="ident">u32</span> <span class="op">-</span> <span class="number">1</span>);
+            <span class="kw">let</span> <span class="ident">c1</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">underlying</span>.<span class="ident">get_map</span>(<span class="ident">s</span>);
+            <span class="kw">let</span> <span class="ident">c0</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">underlying</span>.<span class="ident">get_map</span>(<span class="ident">s</span> <span class="op">-</span> <span class="number">1</span>);
 
-            <span class="self">self</span>.<span class="ident">homotopies</span>[<span class="ident">s</span>].<span class="ident">add_composite</span>(
-                <span class="self">self</span>.<span class="ident">max_t</span>(<span class="ident">s</span> <span class="kw">as</span> <span class="ident">u32</span>) <span class="op">-</span> <span class="number">1</span>,
+            <span class="self">self</span>.<span class="ident">homotopies</span>[<span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span>].<span class="ident">add_composite</span>(
+                <span class="ident">s</span>,
+                <span class="self">self</span>.<span class="ident">max_t</span>(<span class="ident">s</span>) <span class="op">-</span> <span class="number">1</span>,
                 <span class="kw-2">&amp;</span>[(<span class="number">1</span>, <span class="ident">d_source</span>, <span class="ident">c0</span>), (<span class="ident">neg_1</span>, <span class="ident">c1</span>, <span class="ident">d_target</span>)],
+                <span class="prelude-val">None</span>,
             );
         };
 
@@ -1518,7 +1846,7 @@
 <span class="doccomment">///  1. The chain complex is concentrated in degree zero;</span>
 <span class="doccomment">///  2. The module is finite dimensional; and</span>
 <span class="doccomment">///  3. $\mathrm{Hom}(\mathrm{Ext}^{2, t}_A(H^*X, k), H^{t - 1} X) = 0$ for all $t$ or $\mathrm{Hom}(\mathrm{Ext}^{3, t}_A(H^*X, k), H^{t - 1} X) = 0$ for all $t$.</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">can_compute</span>(<span class="ident">res</span>: <span class="kw-2">&amp;</span><span class="ident">Resolution</span>) -&gt; <span class="ident">bool</span> {
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">can_compute</span>(<span class="ident">res</span>: <span class="kw-2">&amp;</span><span class="ident">Resolution</span><span class="op">&lt;</span><span class="ident">CCC</span><span class="op">&gt;</span>) -&gt; <span class="ident">bool</span> {
     <span class="kw">let</span> <span class="ident">complex</span> <span class="op">=</span> <span class="ident">res</span>.<span class="ident">complex</span>();
     <span class="kw">if</span> <span class="kw-2">*</span><span class="ident">complex</span>.<span class="ident">prime</span>() <span class="op">!</span><span class="op">=</span> <span class="number">2</span> {
         <span class="macro">eprintln!</span>(<span class="string">&quot;Prime is not 2&quot;</span>);

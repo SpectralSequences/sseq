@@ -418,6 +418,78 @@
 <span id="394">394</span>
 <span id="395">395</span>
 <span id="396">396</span>
+<span id="397">397</span>
+<span id="398">398</span>
+<span id="399">399</span>
+<span id="400">400</span>
+<span id="401">401</span>
+<span id="402">402</span>
+<span id="403">403</span>
+<span id="404">404</span>
+<span id="405">405</span>
+<span id="406">406</span>
+<span id="407">407</span>
+<span id="408">408</span>
+<span id="409">409</span>
+<span id="410">410</span>
+<span id="411">411</span>
+<span id="412">412</span>
+<span id="413">413</span>
+<span id="414">414</span>
+<span id="415">415</span>
+<span id="416">416</span>
+<span id="417">417</span>
+<span id="418">418</span>
+<span id="419">419</span>
+<span id="420">420</span>
+<span id="421">421</span>
+<span id="422">422</span>
+<span id="423">423</span>
+<span id="424">424</span>
+<span id="425">425</span>
+<span id="426">426</span>
+<span id="427">427</span>
+<span id="428">428</span>
+<span id="429">429</span>
+<span id="430">430</span>
+<span id="431">431</span>
+<span id="432">432</span>
+<span id="433">433</span>
+<span id="434">434</span>
+<span id="435">435</span>
+<span id="436">436</span>
+<span id="437">437</span>
+<span id="438">438</span>
+<span id="439">439</span>
+<span id="440">440</span>
+<span id="441">441</span>
+<span id="442">442</span>
+<span id="443">443</span>
+<span id="444">444</span>
+<span id="445">445</span>
+<span id="446">446</span>
+<span id="447">447</span>
+<span id="448">448</span>
+<span id="449">449</span>
+<span id="450">450</span>
+<span id="451">451</span>
+<span id="452">452</span>
+<span id="453">453</span>
+<span id="454">454</span>
+<span id="455">455</span>
+<span id="456">456</span>
+<span id="457">457</span>
+<span id="458">458</span>
+<span id="459">459</span>
+<span id="460">460</span>
+<span id="461">461</span>
+<span id="462">462</span>
+<span id="463">463</span>
+<span id="464">464</span>
+<span id="465">465</span>
+<span id="466">466</span>
+<span id="467">467</span>
+<span id="468">468</span>
 </pre><pre class="rust"><code><span class="doccomment">//! This implements the notion of a split pair algebra in the sense of</span>
 <span class="doccomment">//! &lt;https://arxiv.org/abs/2105.07628&gt;, whose notation we will use throughout. The Steenrod algebra</span>
 <span class="doccomment">//! admits a lift to a split pair algebra, which can be used to compute d2 differentials</span>
@@ -432,6 +504,8 @@
 <span class="kw">use</span> <span class="ident">fp::vector</span>::{<span class="ident">FpVector</span>, <span class="ident">Slice</span>, <span class="ident">SliceMut</span>};
 <span class="kw">use</span> <span class="ident">rustc_hash::FxHashMap</span> <span class="kw">as</span> <span class="ident">HashMap</span>;
 
+<span class="kw">use</span> <span class="ident">std::io</span>::{<span class="ident">Read</span>, <span class="ident">Write</span>};
+
 <span class="kw">const</span> <span class="ident">TWO</span>: <span class="ident">ValidPrime</span> <span class="op">=</span> <span class="ident">ValidPrime::new</span>(<span class="number">2</span>);
 
 <span class="doccomment">/// A lift of an algebra to a split pair algebra. See module introduction for more.</span>
@@ -439,6 +513,8 @@
     <span class="doccomment">/// An element in the cohomological degree zero part of the pair algebra. This tends to not be</span>
     <span class="doccomment">/// a ring over Fp, so we let the algebra specify how it wants to represent the elements.</span>
     <span class="kw">type</span> <span class="ident">Element</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span>;
+
+    <span class="kw">fn</span> <span class="ident">element_is_zero</span>(<span class="ident">elt</span>: <span class="kw-2">&amp;</span><span class="ident"><span class="self">Self</span>::Element</span>) -&gt; <span class="ident">bool</span>;
 
     <span class="doccomment">/// Assert that `elt` is in the image of the differential. Drop the data recording the</span>
     <span class="doccomment">/// complement of the image of the differential.</span>
@@ -489,6 +565,14 @@
         <span class="ident">s_degree</span>: <span class="ident">i32</span>,
         <span class="ident">s</span>: <span class="kw-2">&amp;</span><span class="ident"><span class="self">Self</span>::Element</span>,
     );
+
+    <span class="kw">fn</span> <span class="ident">element_to_bytes</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">elt</span>: <span class="kw-2">&amp;</span><span class="ident"><span class="self">Self</span>::Element</span>, <span class="ident">buffer</span>: <span class="kw-2">&amp;mut</span> <span class="kw">impl</span> <span class="ident">Write</span>)
+        -&gt; <span class="ident">std::io::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span>;
+    <span class="kw">fn</span> <span class="ident">element_from_bytes</span>(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        <span class="ident">degree</span>: <span class="ident">i32</span>,
+        <span class="ident">buffer</span>: <span class="kw-2">&amp;mut</span> <span class="kw">impl</span> <span class="ident">Read</span>,
+    ) -&gt; <span class="ident">std::io::Result</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Element</span><span class="op">&gt;</span>;
 }
 
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::milnor_algebra</span>::{<span class="ident">MilnorBasisElement</span> <span class="kw">as</span> <span class="ident">MilnorElt</span>, <span class="ident">PPartAllocation</span>, <span class="ident">PPartMultiplier</span>};
@@ -556,6 +640,12 @@
             <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">debug_assertions</span>)]</span>
             <span class="ident">degree</span>,
         }
+    }
+
+    <span class="kw">fn</span> <span class="ident">element_is_zero</span>(<span class="ident">elt</span>: <span class="kw-2">&amp;</span><span class="ident"><span class="self">Self</span>::Element</span>) -&gt; <span class="ident">bool</span> {
+        <span class="ident">elt</span>.<span class="ident">ones</span>.<span class="ident">is_zero</span>()
+            <span class="op">&amp;&amp;</span> <span class="ident">elt</span>.<span class="ident">twos</span>.<span class="ident">is_zero</span>()
+            <span class="op">&amp;&amp;</span> <span class="ident">elt</span>.<span class="ident">ys</span>.<span class="ident">iter</span>().<span class="ident">all</span>(<span class="op">|</span><span class="ident">v</span><span class="op">|</span> <span class="ident">v</span>.<span class="ident">iter</span>().<span class="ident">all</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">x</span>.<span class="ident">is_zero</span>()))
     }
 
     <span class="doccomment">/// Assert that `elt` is in the image of the differential. Drop the data recording the</span>
@@ -685,6 +775,60 @@
                 }
             }
         }
+    }
+
+    <span class="kw">fn</span> <span class="ident">element_to_bytes</span>(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        <span class="ident">elt</span>: <span class="kw-2">&amp;</span><span class="ident"><span class="self">Self</span>::Element</span>,
+        <span class="ident">buffer</span>: <span class="kw-2">&amp;mut</span> <span class="kw">impl</span> <span class="ident">Write</span>,
+    ) -&gt; <span class="ident">std::io::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+        <span class="ident">elt</span>.<span class="ident">twos</span>.<span class="ident">to_bytes</span>(<span class="ident">buffer</span>)<span class="question-mark">?</span>;
+        <span class="kw">for</span> <span class="ident">row</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="ident">elt</span>.<span class="ident">ys</span> {
+            <span class="kw">for</span> <span class="ident">v</span> <span class="kw">in</span> <span class="ident">row</span> {
+                <span class="ident">v</span>.<span class="ident">to_bytes</span>(<span class="ident">buffer</span>)<span class="question-mark">?</span>;
+            }
+        }
+        <span class="prelude-val">Ok</span>(())
+    }
+
+    <span class="kw">fn</span> <span class="ident">element_from_bytes</span>(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        <span class="ident">degree</span>: <span class="ident">i32</span>,
+        <span class="ident">buffer</span>: <span class="kw-2">&amp;mut</span> <span class="kw">impl</span> <span class="ident">Read</span>,
+    ) -&gt; <span class="ident">std::io::Result</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Element</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prime</span>();
+        <span class="macro">assert_eq!</span>(<span class="ident">p</span>, <span class="ident">TWO</span>);
+
+        <span class="kw">let</span> <span class="ident">max_k</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">degree</span> <span class="op">==</span> <span class="number">0</span> {
+            <span class="number">0</span>
+        } <span class="kw">else</span> {
+            <span class="ident">fp::prime::log2</span>(<span class="ident">degree</span> <span class="kw">as</span> <span class="ident">usize</span>) <span class="op">+</span> <span class="number">1</span>
+        };
+
+        <span class="kw">let</span> <span class="ident">twos</span> <span class="op">=</span> <span class="ident">FpVector::from_bytes</span>(<span class="ident">p</span>, <span class="self">self</span>.<span class="ident">dimension</span>(<span class="ident">degree</span>, <span class="number">0</span>), <span class="ident">buffer</span>)<span class="question-mark">?</span>;
+
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ys</span> <span class="op">=</span> <span class="ident">Vec::with_capacity</span>(<span class="ident">max_k</span>);
+        <span class="kw">for</span> <span class="ident">k</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">max_k</span> {
+            <span class="kw">let</span> <span class="ident">rem_degree</span> <span class="op">=</span> <span class="ident">degree</span> <span class="kw">as</span> <span class="ident">usize</span> <span class="op">+</span> <span class="number">1</span> <span class="op">-</span> (<span class="number">1</span> <span class="op">&lt;</span><span class="op">&lt;</span> <span class="ident">k</span>);
+            <span class="kw">let</span> <span class="ident">max_l</span> <span class="op">=</span> <span class="ident">fp::prime::log2</span>(<span class="ident">rem_degree</span>) <span class="op">+</span> <span class="number">1</span>;
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">row</span> <span class="op">=</span> <span class="ident">Vec::with_capacity</span>(<span class="ident">max_l</span>);
+            <span class="kw">for</span> <span class="ident">l</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">max_l</span> {
+                <span class="ident">row</span>.<span class="ident">push</span>(<span class="ident">FpVector::from_bytes</span>(
+                    <span class="ident">p</span>,
+                    <span class="self">self</span>.<span class="ident">dimension</span>((<span class="ident">rem_degree</span> <span class="op">-</span> (<span class="number">1</span> <span class="op">&lt;</span><span class="op">&lt;</span> <span class="ident">l</span>)) <span class="kw">as</span> <span class="ident">i32</span>, <span class="number">0</span>),
+                    <span class="ident">buffer</span>,
+                )<span class="question-mark">?</span>);
+            }
+            <span class="ident">ys</span>.<span class="ident">push</span>(<span class="ident">row</span>);
+        }
+
+        <span class="prelude-val">Ok</span>(<span class="ident">MilnorPairElement</span> {
+            <span class="ident">ones</span>: <span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="number">0</span>),
+            <span class="ident">twos</span>,
+            <span class="ident">ys</span>,
+            <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">debug_assertions</span>)]</span>
+            <span class="ident">degree</span>,
+        })
     }
 }
 

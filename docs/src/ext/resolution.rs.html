@@ -1065,64 +1065,10 @@
 <span id="1041">1041</span>
 <span id="1042">1042</span>
 <span id="1043">1043</span>
-<span id="1044">1044</span>
-<span id="1045">1045</span>
-<span id="1046">1046</span>
-<span id="1047">1047</span>
-<span id="1048">1048</span>
-<span id="1049">1049</span>
-<span id="1050">1050</span>
-<span id="1051">1051</span>
-<span id="1052">1052</span>
-<span id="1053">1053</span>
-<span id="1054">1054</span>
-<span id="1055">1055</span>
-<span id="1056">1056</span>
-<span id="1057">1057</span>
-<span id="1058">1058</span>
-<span id="1059">1059</span>
-<span id="1060">1060</span>
-<span id="1061">1061</span>
-<span id="1062">1062</span>
-<span id="1063">1063</span>
-<span id="1064">1064</span>
-<span id="1065">1065</span>
-<span id="1066">1066</span>
-<span id="1067">1067</span>
-<span id="1068">1068</span>
-<span id="1069">1069</span>
-<span id="1070">1070</span>
-<span id="1071">1071</span>
-<span id="1072">1072</span>
-<span id="1073">1073</span>
-<span id="1074">1074</span>
-<span id="1075">1075</span>
-<span id="1076">1076</span>
-<span id="1077">1077</span>
-<span id="1078">1078</span>
-<span id="1079">1079</span>
-<span id="1080">1080</span>
-<span id="1081">1081</span>
-<span id="1082">1082</span>
-<span id="1083">1083</span>
-<span id="1084">1084</span>
-<span id="1085">1085</span>
-<span id="1086">1086</span>
-<span id="1087">1087</span>
-<span id="1088">1088</span>
-<span id="1089">1089</span>
-<span id="1090">1090</span>
-<span id="1091">1091</span>
-<span id="1092">1092</span>
-<span id="1093">1093</span>
-<span id="1094">1094</span>
-<span id="1095">1095</span>
-<span id="1096">1096</span>
-<span id="1097">1097</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::sync</span>::{<span class="ident">Arc</span>, <span class="ident">Mutex</span>};
 
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::chain_complex</span>::{<span class="ident">AugmentedChainComplex</span>, <span class="ident">ChainComplex</span>};
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::utils</span>;
+<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::save</span>::{<span class="ident">SaveFile</span>, <span class="ident">SaveKind</span>};
 <span class="kw">use</span> <span class="ident">algebra::module::homomorphism</span>::{<span class="ident">FreeModuleHomomorphism</span>, <span class="ident">ModuleHomomorphism</span>};
 <span class="kw">use</span> <span class="ident">algebra::module</span>::{<span class="ident">FreeModule</span>, <span class="ident">Module</span>};
 <span class="kw">use</span> <span class="ident">algebra::Algebra</span>;
@@ -1131,14 +1077,11 @@
 <span class="kw">use</span> <span class="ident">fp::vector</span>::{<span class="ident">FpVector</span>, <span class="ident">Slice</span>, <span class="ident">SliceMut</span>};
 <span class="kw">use</span> <span class="ident">once::OnceVec</span>;
 
-<span class="kw">use</span> <span class="ident">std::fs::File</span>;
-<span class="kw">use</span> <span class="ident">std::io</span>::{<span class="ident">BufReader</span>, <span class="ident">BufWriter</span>, <span class="ident">Read</span>, <span class="ident">Write</span>};
-<span class="kw">use</span> <span class="ident">std::path::PathBuf</span>;
+<span class="kw">use</span> <span class="ident">std::path</span>::{<span class="ident">Path</span>, <span class="ident">PathBuf</span>};
 
 <span class="kw">use</span> <span class="ident">anyhow::Context</span>;
-<span class="kw">use</span> <span class="ident">dashmap::DashMap</span>;
-
 <span class="kw">use</span> <span class="ident">byteorder</span>::{<span class="ident">LittleEndian</span>, <span class="ident">ReadBytesExt</span>, <span class="ident">WriteBytesExt</span>};
+<span class="kw">use</span> <span class="ident">dashmap::DashMap</span>;
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
 <span class="kw">use</span> <span class="ident">crossbeam_channel</span>::{<span class="ident">unbounded</span>, <span class="ident">Receiver</span>};
@@ -1151,40 +1094,6 @@
 <span class="doccomment">/// generators will result in a slowdown but not an error. It is relatively cheap to increment this</span>
 <span class="doccomment">/// number if needs be, but up to the 140th stem we only see at most 8 new generators.</span>
 <span class="kw">const</span> <span class="ident">MAX_NEW_GENS</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="number">10</span>;
-
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Copy</span>, <span class="ident">Clone</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>)]</span>
-<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">SaveData</span> {
-    <span class="ident">Kernel</span>,
-    <span class="ident">Differential</span>,
-    <span class="ident">ResQi</span>,
-    <span class="ident">AugmentationQi</span>,
-}
-
-<span class="kw">impl</span> <span class="ident">SaveData</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">magic</span>(<span class="self">self</span>) -&gt; <span class="ident">u32</span> {
-        <span class="kw">match</span> <span class="self">self</span> {
-            <span class="ident"><span class="self">Self</span>::Kernel</span> =&gt; <span class="number">0x0000D1FF</span>,
-            <span class="ident"><span class="self">Self</span>::Differential</span> =&gt; <span class="number">0xD1FF0000</span>,
-            <span class="ident"><span class="self">Self</span>::ResQi</span> =&gt; <span class="number">0x0100D1FF</span>,
-            <span class="ident"><span class="self">Self</span>::AugmentationQi</span> =&gt; <span class="number">0x0100A000</span>,
-        }
-    }
-
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">name</span>(<span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span> {
-        <span class="kw">match</span> <span class="self">self</span> {
-            <span class="ident"><span class="self">Self</span>::Kernel</span> =&gt; <span class="string">&quot;kernel&quot;</span>,
-            <span class="ident"><span class="self">Self</span>::Differential</span> =&gt; <span class="string">&quot;differential&quot;</span>,
-            <span class="ident"><span class="self">Self</span>::ResQi</span> =&gt; <span class="string">&quot;res_qi&quot;</span>,
-            <span class="ident"><span class="self">Self</span>::AugmentationQi</span> =&gt; <span class="string">&quot;augmentation_qi&quot;</span>,
-        }
-    }
-
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">resolution_data</span>() -&gt; <span class="kw">impl</span> <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">SaveData</span><span class="op">&gt;</span> {
-        <span class="kw">use</span> <span class="ident">SaveData</span>::<span class="kw-2">*</span>;
-        <span class="kw">static</span> <span class="ident">KINDS</span>: [<span class="ident">SaveData</span>; <span class="number">4</span>] <span class="op">=</span> [<span class="ident">Kernel</span>, <span class="ident">Differential</span>, <span class="ident">ResQi</span>, <span class="ident">AugmentationQi</span>];
-        <span class="ident">KINDS</span>.<span class="ident">iter</span>().<span class="ident">copied</span>()
-    }
-}
 
 <span class="doccomment">/// A resolution of a chain complex.</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Resolution</span><span class="op">&lt;</span><span class="ident">CC</span>: <span class="ident">ChainComplex</span><span class="op">&gt;</span> {
@@ -1243,7 +1152,7 @@
                 )
                 .<span class="ident">into</span>());
             }
-            <span class="kw">for</span> <span class="ident">subdir</span> <span class="kw">in</span> <span class="ident">SaveData::resolution_data</span>() {
+            <span class="kw">for</span> <span class="ident">subdir</span> <span class="kw">in</span> <span class="ident">SaveKind::resolution_data</span>() {
                 <span class="ident">p</span>.<span class="ident">push</span>(<span class="macro">format!</span>(<span class="string">&quot;{}s&quot;</span>, <span class="ident">subdir</span>.<span class="ident">name</span>()));
                 <span class="kw">if</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">exists</span>() {
                     <span class="ident">std::fs::create_dir_all</span>(<span class="kw-2">&amp;</span><span class="ident">p</span>)
@@ -1274,66 +1183,8 @@
         })
     }
 
-    <span class="doccomment">/// This panics if there is no save dir</span>
-    <span class="kw">fn</span> <span class="ident">get_save_path</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">kind</span>: <span class="ident">SaveData</span>, <span class="ident">s</span>: <span class="ident">u32</span>, <span class="ident">t</span>: <span class="ident">i32</span>) -&gt; <span class="ident">PathBuf</span> {
-        <span class="kw">let</span> <span class="ident">name</span> <span class="op">=</span> <span class="ident">kind</span>.<span class="ident">name</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">save_dir</span>.<span class="ident">clone</span>().<span class="ident">unwrap</span>();
-        <span class="ident">p</span>.<span class="ident">push</span>(<span class="macro">format!</span>(<span class="string">&quot;{name}s/{s}_{t}_{name}&quot;</span>));
-        <span class="ident">p</span>
-    }
-
-    <span class="comment">// When compiling to wasm we don&#39;t mutate path</span>
-    <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">unused_mut</span>)]</span>
-    <span class="kw">fn</span> <span class="ident">search_file</span>(<span class="kw-2">mut</span> <span class="ident">path</span>: <span class="ident">PathBuf</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Read</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-        <span class="comment">// We should try in decreasing order of access speed.</span>
-        <span class="kw">match</span> <span class="ident">File::open</span>(<span class="kw-2">&amp;</span><span class="ident">path</span>) {
-            <span class="prelude-val">Ok</span>(<span class="ident">f</span>) =&gt; <span class="kw">return</span> <span class="prelude-val">Some</span>(<span class="ident">Box::new</span>(<span class="ident">utils::ChecksumReader::new</span>(<span class="ident">BufReader::new</span>(<span class="ident">f</span>)))),
-            <span class="prelude-val">Err</span>(<span class="ident">e</span>) =&gt; {
-                <span class="kw">if</span> <span class="ident">e</span>.<span class="ident">kind</span>() <span class="op">!</span><span class="op">=</span> <span class="ident">std::io::ErrorKind::NotFound</span> {
-                    <span class="macro">panic!</span>(<span class="string">&quot;Error when opening {path:?}&quot;</span>);
-                }
-            }
-        }
-
-        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">target_arch</span> <span class="op">=</span> <span class="string">&quot;wasm32&quot;</span>))]</span>
-        {
-            <span class="ident">path</span>.<span class="ident">set_extension</span>(<span class="string">&quot;zst&quot;</span>);
-            <span class="kw">match</span> <span class="ident">File::open</span>(<span class="kw-2">&amp;</span><span class="ident">path</span>) {
-                <span class="prelude-val">Ok</span>(<span class="ident">f</span>) =&gt; {
-                    <span class="kw">return</span> <span class="prelude-val">Some</span>(<span class="ident">Box::new</span>(<span class="ident">utils::ChecksumReader::new</span>(
-                        <span class="ident">zstd::stream::Decoder::new</span>(<span class="ident">f</span>).<span class="ident">unwrap</span>(),
-                    )))
-                }
-                <span class="prelude-val">Err</span>(<span class="ident">e</span>) =&gt; {
-                    <span class="kw">if</span> <span class="ident">e</span>.<span class="ident">kind</span>() <span class="op">!</span><span class="op">=</span> <span class="ident">std::io::ErrorKind::NotFound</span> {
-                        <span class="macro">panic!</span>(<span class="string">&quot;Error when opening {path:?}&quot;</span>);
-                    }
-                }
-            }
-        }
-
-        <span class="prelude-val">None</span>
-    }
-
-    <span class="doccomment">/// This panics if there is no save dir</span>
-    <span class="kw">fn</span> <span class="ident">open_save_file</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">kind</span>: <span class="ident">SaveData</span>, <span class="ident">s</span>: <span class="ident">u32</span>, <span class="ident">t</span>: <span class="ident">i32</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Read</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident"><span class="self">Self</span>::search_file</span>(<span class="self">self</span>.<span class="ident">get_save_path</span>(<span class="ident">kind</span>, <span class="ident">s</span>, <span class="ident">t</span>))<span class="question-mark">?</span>;
-        <span class="ident">utils::validate_header</span>(<span class="ident">kind</span>.<span class="ident">magic</span>(), <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">algebra</span>(), <span class="self">self</span>.<span class="ident">prime</span>(), <span class="ident">s</span>, <span class="ident">t</span>, <span class="kw-2">&amp;mut</span> <span class="ident">f</span>).<span class="ident">unwrap</span>();
-        <span class="prelude-val">Some</span>(<span class="ident">f</span>)
-    }
-
-    <span class="kw">fn</span> <span class="ident">create_save_file</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">kind</span>: <span class="ident">SaveData</span>, <span class="ident">s</span>: <span class="ident">u32</span>, <span class="ident">t</span>: <span class="ident">i32</span>) -&gt; <span class="kw">impl</span> <span class="ident">Write</span> {
-        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">get_save_path</span>(<span class="ident">kind</span>, <span class="ident">s</span>, <span class="ident">t</span>);
-
-        <span class="kw">let</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">std::fs::OpenOptions::new</span>()
-            .<span class="ident">write</span>(<span class="bool-val">true</span>)
-            .<span class="ident">create_new</span>(<span class="bool-val">true</span>)
-            .<span class="ident">open</span>(<span class="kw-2">&amp;</span><span class="ident">p</span>)
-            .<span class="ident">with_context</span>(<span class="op">|</span><span class="op">|</span> <span class="macro">format!</span>(<span class="string">&quot;Failed to create save file {p:?}&quot;</span>))
-            .<span class="ident">unwrap</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">utils::ChecksumWriter::new</span>(<span class="ident">BufWriter::new</span>(<span class="ident">f</span>));
-        <span class="ident">utils::write_header</span>(<span class="ident">kind</span>.<span class="ident">magic</span>(), <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">algebra</span>(), <span class="self">self</span>.<span class="ident">prime</span>(), <span class="ident">s</span>, <span class="ident">t</span>, <span class="kw-2">&amp;mut</span> <span class="ident">f</span>).<span class="ident">unwrap</span>();
-        <span class="ident">f</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">save_dir</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">Path</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">save_dir</span>.<span class="ident">as_deref</span>()
     }
 
     <span class="doccomment">/// This function prepares the Resolution object to perform computations up to the</span>
@@ -1374,6 +1225,17 @@
         }
     }
 
+    <span class="doccomment">/// Get the save file of a bidegree</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">save_file</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">kind</span>: <span class="ident">SaveKind</span>, <span class="ident">s</span>: <span class="ident">u32</span>, <span class="ident">t</span>: <span class="ident">i32</span>) -&gt; <span class="ident">SaveFile</span><span class="op">&lt;</span><span class="ident">CC::Algebra</span><span class="op">&gt;</span> {
+        <span class="ident">SaveFile</span> {
+            <span class="ident">algebra</span>: <span class="self">self</span>.<span class="ident">algebra</span>(),
+            <span class="ident">kind</span>,
+            <span class="ident">s</span>,
+            <span class="ident">t</span>,
+            <span class="ident">idx</span>: <span class="prelude-val">None</span>,
+        }
+    }
+
     <span class="doccomment">/// Gets the kernel of the differential starting at $(s, t)$. If this was previously computed,</span>
     <span class="doccomment">/// we simply retrieve the value (and remove it from the cache). Otherwise, we compute the</span>
     <span class="doccomment">/// kernel. This requires the differential to be computed at $(s, t - 1)$, but not $(s, t)$</span>
@@ -1389,8 +1251,11 @@
 
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prime</span>();
 
-        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">save_dir</span>.<span class="ident">is_some</span>() {
-            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">mut</span> <span class="ident">f</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">open_save_file</span>(<span class="ident">SaveData::Kernel</span>, <span class="ident">s</span>, <span class="ident">t</span>) {
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dir</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">save_dir</span>.<span class="ident">as_ref</span>() {
+            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">mut</span> <span class="ident">f</span>) <span class="op">=</span> <span class="self">self</span>
+                .<span class="ident">save_file</span>(<span class="ident">SaveKind::Kernel</span>, <span class="ident">s</span>, <span class="ident">t</span>)
+                .<span class="ident">open_file</span>(<span class="ident">dir</span>.<span class="ident">clone</span>())
+            {
                 <span class="kw">return</span> <span class="ident">Subspace::from_bytes</span>(<span class="ident">p</span>, <span class="kw-2">&amp;mut</span> <span class="ident">f</span>)
                     .<span class="ident">with_context</span>(<span class="op">|</span><span class="op">|</span> <span class="macro">format!</span>(<span class="string">&quot;Failed to read kernel at ({s}, {t})&quot;</span>))
                     .<span class="ident">unwrap</span>();
@@ -1427,12 +1292,16 @@
 
         <span class="kw">let</span> <span class="ident">kernel</span> <span class="op">=</span> <span class="ident">matrix</span>.<span class="ident">compute_kernel</span>();
 
-        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">should_save</span> <span class="op">&amp;&amp;</span> <span class="self">self</span>.<span class="ident">save_dir</span>.<span class="ident">is_some</span>() {
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">create_save_file</span>(<span class="ident">SaveData::Kernel</span>, <span class="ident">s</span>, <span class="ident">t</span>);
-            <span class="ident">kernel</span>
-                .<span class="ident">to_bytes</span>(<span class="kw-2">&amp;mut</span> <span class="ident">f</span>)
-                .<span class="ident">with_context</span>(<span class="op">|</span><span class="op">|</span> <span class="macro">format!</span>(<span class="string">&quot;Failed to write kernel at ({s}, {t})&quot;</span>))
-                .<span class="ident">unwrap</span>();
+        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">should_save</span> {
+            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dir</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">save_dir</span>.<span class="ident">as_ref</span>() {
+                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="self">self</span>
+                    .<span class="ident">save_file</span>(<span class="ident">SaveKind::Kernel</span>, <span class="ident">s</span>, <span class="ident">t</span>)
+                    .<span class="ident">create_file</span>(<span class="ident">dir</span>.<span class="ident">clone</span>());
+                <span class="ident">kernel</span>
+                    .<span class="ident">to_bytes</span>(<span class="kw-2">&amp;mut</span> <span class="ident">f</span>)
+                    .<span class="ident">with_context</span>(<span class="op">|</span><span class="op">|</span> <span class="macro">format!</span>(<span class="string">&quot;Failed to write kernel at ({s}, {t})&quot;</span>))
+                    .<span class="ident">unwrap</span>();
+            }
         }
         <span class="ident">kernel</span>
     }
@@ -1555,8 +1424,11 @@
         <span class="ident">target_res</span>.<span class="ident">extend_table_entries</span>(<span class="ident">t</span>);
         <span class="kw">let</span> <span class="ident">target_res_dimension</span> <span class="op">=</span> <span class="ident">target_res</span>.<span class="ident">dimension</span>(<span class="ident">t</span>);
 
-        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">save_dir</span>.<span class="ident">is_some</span>() {
-            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">mut</span> <span class="ident">f</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">open_save_file</span>(<span class="ident">SaveData::Differential</span>, <span class="ident">s</span>, <span class="ident">t</span>) {
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dir</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">save_dir</span>.<span class="ident">as_ref</span>() {
+            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">mut</span> <span class="ident">f</span>) <span class="op">=</span> <span class="self">self</span>
+                .<span class="ident">save_file</span>(<span class="ident">SaveKind::Differential</span>, <span class="ident">s</span>, <span class="ident">t</span>)
+                .<span class="ident">open_file</span>(<span class="ident">dir</span>.<span class="ident">clone</span>())
+            {
                 <span class="kw">let</span> <span class="ident">num_new_gens</span> <span class="op">=</span> <span class="ident">f</span>.<span class="ident">read_u64</span>::<span class="op">&lt;</span><span class="ident">LittleEndian</span><span class="op">&gt;</span>().<span class="ident">unwrap</span>() <span class="kw">as</span> <span class="ident">usize</span>;
                 <span class="comment">// This need not be equal to `target_res_dimension`. If we saved a big resolution</span>
                 <span class="comment">// and now only want to load up to a small stem, then `target_res_dimension` will</span>
@@ -1587,7 +1459,9 @@
 
                 <span class="comment">// res qi</span>
                 <span class="kw">if</span> <span class="self">self</span>.<span class="ident">load_quasi_inverse</span> {
-                    <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">mut</span> <span class="ident">f</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">open_save_file</span>(<span class="ident">SaveData::ResQi</span>, <span class="ident">s</span>, <span class="ident">t</span>) {
+                    <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">mut</span> <span class="ident">f</span>) <span class="op">=</span>
+                        <span class="self">self</span>.<span class="ident">save_file</span>(<span class="ident">SaveKind::ResQi</span>, <span class="ident">s</span>, <span class="ident">t</span>).<span class="ident">open_file</span>(<span class="ident">dir</span>.<span class="ident">clone</span>())
+                    {
                         <span class="kw">let</span> <span class="ident">res_qi</span> <span class="op">=</span> <span class="ident">QuasiInverse::from_bytes</span>(<span class="ident">p</span>, <span class="kw-2">&amp;mut</span> <span class="ident">f</span>).<span class="ident">unwrap</span>();
 
                         <span class="macro">assert_eq!</span>(
@@ -1604,7 +1478,10 @@
                     <span class="ident">current_differential</span>.<span class="ident">set_quasi_inverse</span>(<span class="ident">t</span>, <span class="prelude-val">None</span>);
                 }
 
-                <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">mut</span> <span class="ident">f</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">open_save_file</span>(<span class="ident">SaveData::AugmentationQi</span>, <span class="ident">s</span>, <span class="ident">t</span>) {
+                <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">mut</span> <span class="ident">f</span>) <span class="op">=</span> <span class="self">self</span>
+                    .<span class="ident">save_file</span>(<span class="ident">SaveKind::AugmentationQi</span>, <span class="ident">s</span>, <span class="ident">t</span>)
+                    .<span class="ident">open_file</span>(<span class="ident">dir</span>.<span class="ident">clone</span>())
+                {
                     <span class="kw">let</span> <span class="ident">cm_qi</span> <span class="op">=</span> <span class="ident">QuasiInverse::from_bytes</span>(<span class="ident">p</span>, <span class="kw-2">&amp;mut</span> <span class="ident">f</span>).<span class="ident">unwrap</span>();
 
                     <span class="macro">assert_eq!</span>(
@@ -1649,13 +1526,17 @@
 
         <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">has_computed_bidegree</span>(<span class="ident">s</span> <span class="op">+</span> <span class="number">1</span>, <span class="ident">t</span>) {
             <span class="kw">let</span> <span class="ident">kernel</span> <span class="op">=</span> <span class="ident">matrix</span>.<span class="ident">compute_kernel</span>();
-            <span class="kw">if</span> <span class="self">self</span>.<span class="ident">should_save</span> <span class="op">&amp;&amp;</span> <span class="self">self</span>.<span class="ident">save_dir</span>.<span class="ident">is_some</span>() {
-                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">create_save_file</span>(<span class="ident">SaveData::Kernel</span>, <span class="ident">s</span>, <span class="ident">t</span>);
+            <span class="kw">if</span> <span class="self">self</span>.<span class="ident">should_save</span> {
+                <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dir</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">save_dir</span>.<span class="ident">as_ref</span>() {
+                    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="self">self</span>
+                        .<span class="ident">save_file</span>(<span class="ident">SaveKind::Kernel</span>, <span class="ident">s</span>, <span class="ident">t</span>)
+                        .<span class="ident">create_file</span>(<span class="ident">dir</span>.<span class="ident">clone</span>());
 
-                <span class="ident">kernel</span>
-                    .<span class="ident">to_bytes</span>(<span class="kw-2">&amp;mut</span> <span class="ident">f</span>)
-                    .<span class="ident">with_context</span>(<span class="op">|</span><span class="op">|</span> <span class="macro">format!</span>(<span class="string">&quot;Failed to write kernel at ({s}, {t})&quot;</span>))
-                    .<span class="ident">unwrap</span>();
+                    <span class="ident">kernel</span>
+                        .<span class="ident">to_bytes</span>(<span class="kw-2">&amp;mut</span> <span class="ident">f</span>)
+                        .<span class="ident">with_context</span>(<span class="op">|</span><span class="op">|</span> <span class="macro">format!</span>(<span class="string">&quot;Failed to write kernel at ({s}, {t})&quot;</span>))
+                        .<span class="ident">unwrap</span>();
+                }
             }
 
             <span class="self">self</span>.<span class="ident">kernels</span>.<span class="ident">insert</span>((<span class="ident">s</span>, <span class="ident">t</span>), <span class="ident">kernel</span>);
@@ -1798,39 +1679,50 @@
         }
         <span class="kw">let</span> (<span class="ident">cm_qi</span>, <span class="ident">res_qi</span>) <span class="op">=</span> <span class="ident">matrix</span>.<span class="ident">compute_quasi_inverses</span>();
 
-        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">should_save</span> <span class="op">&amp;&amp;</span> <span class="self">self</span>.<span class="ident">save_dir</span>.<span class="ident">is_some</span>() {
-            <span class="comment">// Write differentials</span>
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">create_save_file</span>(<span class="ident">SaveData::Differential</span>, <span class="ident">s</span>, <span class="ident">t</span>);
+        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">should_save</span> {
+            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dir</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">save_dir</span>.<span class="ident">as_ref</span>() {
+                <span class="comment">// Write differentials</span>
+                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="self">self</span>
+                    .<span class="ident">save_file</span>(<span class="ident">SaveKind::Differential</span>, <span class="ident">s</span>, <span class="ident">t</span>)
+                    .<span class="ident">create_file</span>(<span class="ident">dir</span>.<span class="ident">clone</span>());
 
-            <span class="ident">f</span>.<span class="ident">write_u64</span>::<span class="op">&lt;</span><span class="ident">LittleEndian</span><span class="op">&gt;</span>(<span class="ident">num_new_gens</span> <span class="kw">as</span> <span class="ident">u64</span>).<span class="ident">unwrap</span>();
-            <span class="ident">f</span>.<span class="ident">write_u64</span>::<span class="op">&lt;</span><span class="ident">LittleEndian</span><span class="op">&gt;</span>(<span class="ident">target_res_dimension</span> <span class="kw">as</span> <span class="ident">u64</span>)
-                .<span class="ident">unwrap</span>();
-            <span class="ident">f</span>.<span class="ident">write_u64</span>::<span class="op">&lt;</span><span class="ident">LittleEndian</span><span class="op">&gt;</span>(<span class="ident">target_cc_dimension</span> <span class="kw">as</span> <span class="ident">u64</span>)
-                .<span class="ident">unwrap</span>();
+                <span class="ident">f</span>.<span class="ident">write_u64</span>::<span class="op">&lt;</span><span class="ident">LittleEndian</span><span class="op">&gt;</span>(<span class="ident">num_new_gens</span> <span class="kw">as</span> <span class="ident">u64</span>).<span class="ident">unwrap</span>();
+                <span class="ident">f</span>.<span class="ident">write_u64</span>::<span class="op">&lt;</span><span class="ident">LittleEndian</span><span class="op">&gt;</span>(<span class="ident">target_res_dimension</span> <span class="kw">as</span> <span class="ident">u64</span>)
+                    .<span class="ident">unwrap</span>();
+                <span class="ident">f</span>.<span class="ident">write_u64</span>::<span class="op">&lt;</span><span class="ident">LittleEndian</span><span class="op">&gt;</span>(<span class="ident">target_cc_dimension</span> <span class="kw">as</span> <span class="ident">u64</span>)
+                    .<span class="ident">unwrap</span>();
 
-            <span class="kw">for</span> <span class="ident">n</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">num_new_gens</span> {
-                <span class="ident">current_differential</span>.<span class="ident">output</span>(<span class="ident">t</span>, <span class="ident">n</span>).<span class="ident">to_bytes</span>(<span class="kw-2">&amp;mut</span> <span class="ident">f</span>).<span class="ident">unwrap</span>();
-            }
-            <span class="kw">for</span> <span class="ident">n</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">num_new_gens</span> {
-                <span class="ident">current_chain_map</span>.<span class="ident">output</span>(<span class="ident">t</span>, <span class="ident">n</span>).<span class="ident">to_bytes</span>(<span class="kw-2">&amp;mut</span> <span class="ident">f</span>).<span class="ident">unwrap</span>();
-            }
-            <span class="ident">drop</span>(<span class="ident">f</span>);
+                <span class="kw">for</span> <span class="ident">n</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">num_new_gens</span> {
+                    <span class="ident">current_differential</span>.<span class="ident">output</span>(<span class="ident">t</span>, <span class="ident">n</span>).<span class="ident">to_bytes</span>(<span class="kw-2">&amp;mut</span> <span class="ident">f</span>).<span class="ident">unwrap</span>();
+                }
+                <span class="kw">for</span> <span class="ident">n</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">num_new_gens</span> {
+                    <span class="ident">current_chain_map</span>.<span class="ident">output</span>(<span class="ident">t</span>, <span class="ident">n</span>).<span class="ident">to_bytes</span>(<span class="kw-2">&amp;mut</span> <span class="ident">f</span>).<span class="ident">unwrap</span>();
+                }
+                <span class="ident">drop</span>(<span class="ident">f</span>);
 
-            <span class="comment">// Write resolution qi</span>
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">create_save_file</span>(<span class="ident">SaveData::ResQi</span>, <span class="ident">s</span>, <span class="ident">t</span>);
-            <span class="ident">res_qi</span>.<span class="ident">to_bytes</span>(<span class="kw-2">&amp;mut</span> <span class="ident">f</span>).<span class="ident">unwrap</span>();
-            <span class="ident">drop</span>(<span class="ident">f</span>);
+                <span class="comment">// Write resolution qi</span>
+                <span class="ident">res_qi</span>
+                    .<span class="ident">to_bytes</span>(
+                        <span class="kw-2">&amp;mut</span> <span class="self">self</span>
+                            .<span class="ident">save_file</span>(<span class="ident">SaveKind::ResQi</span>, <span class="ident">s</span>, <span class="ident">t</span>)
+                            .<span class="ident">create_file</span>(<span class="ident">dir</span>.<span class="ident">clone</span>()),
+                    )
+                    .<span class="ident">unwrap</span>();
 
-            <span class="comment">// Write augmentation qi</span>
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">create_save_file</span>(<span class="ident">SaveData::AugmentationQi</span>, <span class="ident">s</span>, <span class="ident">t</span>);
-            <span class="ident">cm_qi</span>.<span class="ident">to_bytes</span>(<span class="kw-2">&amp;mut</span> <span class="ident">f</span>).<span class="ident">unwrap</span>();
-            <span class="ident">drop</span>(<span class="ident">f</span>);
+                <span class="comment">// Write augmentation qi</span>
+                <span class="ident">cm_qi</span>
+                    .<span class="ident">to_bytes</span>(
+                        <span class="kw-2">&amp;mut</span> <span class="self">self</span>
+                            .<span class="ident">save_file</span>(<span class="ident">SaveKind::AugmentationQi</span>, <span class="ident">s</span>, <span class="ident">t</span>)
+                            .<span class="ident">create_file</span>(<span class="ident">dir</span>.<span class="ident">clone</span>()),
+                    )
+                    .<span class="ident">unwrap</span>();
 
-            <span class="comment">// Delete kernel</span>
-            <span class="kw">if</span> <span class="self">self</span>.<span class="ident">should_save</span> <span class="op">&amp;&amp;</span> <span class="ident">s</span> <span class="op">&gt;</span> <span class="number">0</span> {
-                <span class="kw">let</span> <span class="ident">ker_path</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">get_save_path</span>(<span class="ident">SaveData::Kernel</span>, <span class="ident">s</span> <span class="op">-</span> <span class="number">1</span>, <span class="ident">t</span>);
-                <span class="kw">if</span> <span class="ident">ker_path</span>.<span class="ident">exists</span>() {
-                    <span class="ident">std::fs::remove_file</span>(<span class="ident">ker_path</span>).<span class="ident">unwrap</span>();
+                <span class="comment">// Delete kernel</span>
+                <span class="kw">if</span> <span class="ident">s</span> <span class="op">&gt;</span> <span class="number">0</span> {
+                    <span class="self">self</span>.<span class="ident">save_file</span>(<span class="ident">SaveKind::Kernel</span>, <span class="ident">s</span> <span class="op">-</span> <span class="number">1</span>, <span class="ident">t</span>)
+                        .<span class="ident">delete_file</span>(<span class="ident">dir</span>.<span class="ident">clone</span>())
+                        .<span class="ident">unwrap</span>();
                 }
             }
         }
@@ -2043,8 +1935,8 @@
                                     <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">has_computed_bidegree</span>(<span class="ident">s</span> <span class="op">+</span> <span class="number">1</span>, <span class="ident">t</span>)
                                         <span class="op">&amp;&amp;</span> (<span class="self">self</span>.<span class="ident">save_dir</span>.<span class="ident">is_none</span>()
                                             <span class="op">|</span><span class="op">|</span> <span class="op">!</span><span class="self">self</span>
-                                                .<span class="ident">get_save_path</span>(<span class="ident">SaveData::Differential</span>, <span class="ident">s</span> <span class="op">+</span> <span class="number">1</span>, <span class="ident">t</span>)
-                                                .<span class="ident">exists</span>())
+                                                .<span class="ident">save_file</span>(<span class="ident">SaveKind::Differential</span>, <span class="ident">s</span> <span class="op">+</span> <span class="number">1</span>, <span class="ident">t</span>)
+                                                .<span class="ident">exists</span>(<span class="self">self</span>.<span class="ident">save_dir</span>.<span class="ident">clone</span>().<span class="ident">unwrap</span>()))
                                     {
                                         <span class="self">self</span>.<span class="ident">kernels</span>.<span class="ident">insert</span>((<span class="ident">s</span>, <span class="ident">t</span>), <span class="self">self</span>.<span class="ident">get_kernel</span>(<span class="ident">s</span>, <span class="ident">t</span>));
                                     }
@@ -2136,8 +2028,8 @@
                 <span class="ident">qi</span>.<span class="ident">apply</span>(<span class="ident">result</span>.<span class="ident">into</span>(), <span class="number">1</span>, <span class="ident">input</span>.<span class="ident">into</span>());
             }
             <span class="bool-val">true</span>
-        } <span class="kw">else</span> <span class="kw">if</span> <span class="self">self</span>.<span class="ident">save_dir</span>.<span class="ident">is_some</span>() {
-            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">mut</span> <span class="ident">f</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">open_save_file</span>(<span class="ident">SaveData::ResQi</span>, <span class="ident">s</span>, <span class="ident">t</span>) {
+        } <span class="kw">else</span> <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dir</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">save_dir</span>.<span class="ident">as_ref</span>() {
+            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">mut</span> <span class="ident">f</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">save_file</span>(<span class="ident">SaveKind::ResQi</span>, <span class="ident">s</span>, <span class="ident">t</span>).<span class="ident">open_file</span>(<span class="ident">dir</span>.<span class="ident">clone</span>()) {
                 <span class="ident">QuasiInverse::stream_quasi_inverse</span>(<span class="self">self</span>.<span class="ident">prime</span>(), <span class="kw-2">&amp;mut</span> <span class="ident">f</span>, <span class="ident">results</span>, <span class="ident">inputs</span>).<span class="ident">unwrap</span>();
                 <span class="bool-val">true</span>
             } <span class="kw">else</span> {

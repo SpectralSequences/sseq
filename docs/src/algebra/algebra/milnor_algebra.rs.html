@@ -1753,6 +1753,7 @@
 <span id="1729">1729</span>
 <span id="1730">1730</span>
 <span id="1731">1731</span>
+<span id="1732">1732</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">itertools::Itertools</span>;
 <span class="kw">use</span> <span class="ident">rustc_hash::FxHashMap</span> <span class="kw">as</span> <span class="ident">HashMap</span>;
 <span class="kw">use</span> <span class="ident">std::sync::Mutex</span>;
@@ -1962,12 +1963,13 @@
 }
 
 <span class="kw">impl</span> <span class="ident">Algebra</span> <span class="kw">for</span> <span class="ident">MilnorAlgebra</span> {
-    <span class="kw">fn</span> <span class="ident">magic</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">u16</span> {
-        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">profile</span>.<span class="ident">is_trivial</span>() {
-            <span class="number">0x8000</span>
-        } <span class="kw">else</span> {
-            <span class="number">0x8001</span>
-        }
+    <span class="kw">fn</span> <span class="ident">magic</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">u32</span> {
+        ((<span class="kw-2">*</span><span class="self">self</span>.<span class="ident">p</span> <span class="kw">as</span> <span class="ident">u32</span>) <span class="op">&lt;</span><span class="op">&lt;</span> <span class="number">16</span>)
+            <span class="op">+</span> <span class="kw">if</span> <span class="self">self</span>.<span class="ident">profile</span>.<span class="ident">is_trivial</span>() {
+                <span class="number">0x8000</span>
+            } <span class="kw">else</span> {
+                <span class="number">0x8001</span>
+            }
     }
 
     <span class="kw">fn</span> <span class="ident">prime</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">ValidPrime</span> {

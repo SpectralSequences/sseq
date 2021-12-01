@@ -369,7 +369,7 @@
     <span class="doccomment">/// disasterous consequences. So we store the magic in the save files.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// This defaults to 0 for other kinds of algebra that don&#39;t care about this problem.</span>
-    <span class="kw">fn</span> <span class="ident">magic</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">u16</span> {
+    <span class="kw">fn</span> <span class="ident">magic</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">u32</span> {
         <span class="number">0</span>
     }
 
@@ -607,7 +607,7 @@
     (<span class="macro-nonterminal">$</span><span class="kw">struct</span>:<span class="macro-nonterminal">ty</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">dispatch_macro</span>: <span class="ident">ident</span>) =&gt; {
         <span class="kw">impl</span> <span class="ident">Algebra</span> <span class="kw">for</span> <span class="macro-nonterminal">$</span><span class="kw">struct</span> {
             <span class="macro-nonterminal">$</span><span class="macro">dispatch_macro!</span> {
-                <span class="kw">fn</span> <span class="macro-nonterminal">magic</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">u16</span>;
+                <span class="kw">fn</span> <span class="macro-nonterminal">magic</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">u32</span>;
                 <span class="kw">fn</span> <span class="ident">prime</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">ValidPrime</span>;
                 <span class="kw">fn</span> <span class="ident">compute_basis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>);
                 <span class="kw">fn</span> <span class="ident">dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">excess</span>: <span class="ident">i32</span>) -&gt; <span class="ident">usize</span>;

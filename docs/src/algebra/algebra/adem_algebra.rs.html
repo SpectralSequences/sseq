@@ -2005,8 +2005,8 @@
 }
 
 <span class="kw">impl</span> <span class="ident">Algebra</span> <span class="kw">for</span> <span class="ident">AdemAlgebra</span> {
-    <span class="kw">fn</span> <span class="ident">magic</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">u16</span> {
-        <span class="number">0</span>
+    <span class="kw">fn</span> <span class="ident">magic</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">u32</span> {
+        (<span class="kw-2">*</span><span class="self">self</span>.<span class="ident">prime</span>() <span class="kw">as</span> <span class="ident">u32</span>) <span class="op">&lt;</span><span class="op">&lt;</span> <span class="number">16</span>
     }
 
     <span class="kw">fn</span> <span class="ident">prime</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">ValidPrime</span> {
