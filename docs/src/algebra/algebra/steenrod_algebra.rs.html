@@ -330,6 +330,14 @@
 <span id="306">306</span>
 <span id="307">307</span>
 <span id="308">308</span>
+<span id="309">309</span>
+<span id="310">310</span>
+<span id="311">311</span>
+<span id="312">312</span>
+<span id="313">313</span>
+<span id="314">314</span>
+<span id="315">315</span>
+<span id="316">316</span>
 </pre><pre class="rust"><code><span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;json&quot;</span>)]</span>
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::algebra::JsonAlgebra</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::algebra</span>::{
@@ -599,6 +607,10 @@
 <span class="kw">impl</span> <span class="ident"><span class="kw">crate</span>::pair_algebra::PairAlgebra</span> <span class="kw">for</span> <span class="ident">AdemAlgebra</span> {
     <span class="kw">type</span> <span class="ident">Element</span> <span class="op">=</span> <span class="ident"><span class="kw">crate</span>::pair_algebra::MilnorPairElement</span>;
 
+    <span class="kw">fn</span> <span class="ident">finalize_element</span>(<span class="ident">_elt</span>: <span class="kw-2">&amp;mut</span> <span class="ident"><span class="self">Self</span>::Element</span>) {
+        <span class="macro">unimplemented!</span>()
+    }
+
     <span class="kw">fn</span> <span class="ident">new_pair_element</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">_degree</span>: <span class="ident">i32</span>) -&gt; <span class="ident"><span class="self">Self</span>::Element</span> {
         <span class="macro">unimplemented!</span>()
     }
@@ -630,6 +642,10 @@
 
 <span class="kw">impl</span> <span class="ident"><span class="kw">crate</span>::pair_algebra::PairAlgebra</span> <span class="kw">for</span> <span class="ident">SteenrodAlgebra</span> {
     <span class="kw">type</span> <span class="ident">Element</span> <span class="op">=</span> <span class="ident"><span class="kw">crate</span>::pair_algebra::MilnorPairElement</span>;
+
+    <span class="kw">fn</span> <span class="ident">finalize_element</span>(<span class="ident">elt</span>: <span class="kw-2">&amp;mut</span> <span class="ident"><span class="self">Self</span>::Element</span>) {
+        <span class="ident">MilnorAlgebra::finalize_element</span>(<span class="ident">elt</span>);
+    }
 
     <span class="macro">dispatch_steenrod!</span> {
         <span class="kw">fn</span> <span class="ident">new_pair_element</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) -&gt; <span class="ident"><span class="self">Self</span>::Element</span>;

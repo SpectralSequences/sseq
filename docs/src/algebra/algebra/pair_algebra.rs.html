@@ -407,6 +407,17 @@
 <span id="383">383</span>
 <span id="384">384</span>
 <span id="385">385</span>
+<span id="386">386</span>
+<span id="387">387</span>
+<span id="388">388</span>
+<span id="389">389</span>
+<span id="390">390</span>
+<span id="391">391</span>
+<span id="392">392</span>
+<span id="393">393</span>
+<span id="394">394</span>
+<span id="395">395</span>
+<span id="396">396</span>
 </pre><pre class="rust"><code><span class="doccomment">//! This implements the notion of a split pair algebra in the sense of</span>
 <span class="doccomment">//! &lt;https://arxiv.org/abs/2105.07628&gt;, whose notation we will use throughout. The Steenrod algebra</span>
 <span class="doccomment">//! admits a lift to a split pair algebra, which can be used to compute d2 differentials</span>
@@ -428,6 +439,10 @@
     <span class="doccomment">/// An element in the cohomological degree zero part of the pair algebra. This tends to not be</span>
     <span class="doccomment">/// a ring over Fp, so we let the algebra specify how it wants to represent the elements.</span>
     <span class="kw">type</span> <span class="ident">Element</span>;
+
+    <span class="doccomment">/// Assert that `elt` is in the image of the differential. Drop the data recording the</span>
+    <span class="doccomment">/// complement of the image of the differential.</span>
+    <span class="kw">fn</span> <span class="ident">finalize_element</span>(<span class="ident">_elt</span>: <span class="kw-2">&amp;mut</span> <span class="ident"><span class="self">Self</span>::Element</span>) {}
 
     <span class="doccomment">/// Create a new zero element in the given degree.</span>
     <span class="kw">fn</span> <span class="ident">new_pair_element</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) -&gt; <span class="ident"><span class="self">Self</span>::Element</span>;
@@ -541,6 +556,13 @@
             <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">debug_assertions</span>)]</span>
             <span class="ident">degree</span>,
         }
+    }
+
+    <span class="doccomment">/// Assert that `elt` is in the image of the differential. Drop the data recording the</span>
+    <span class="doccomment">/// complement of the image of the differential.</span>
+    <span class="kw">fn</span> <span class="ident">finalize_element</span>(<span class="ident">elt</span>: <span class="kw-2">&amp;mut</span> <span class="ident"><span class="self">Self</span>::Element</span>) {
+        <span class="macro">assert!</span>(<span class="ident">elt</span>.<span class="ident">ones</span>.<span class="ident">is_zero</span>());
+        <span class="ident">elt</span>.<span class="ident">ones</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="ident">elt</span>.<span class="ident">twos</span>.<span class="ident">prime</span>(), <span class="number">0</span>);
     }
 
     <span class="kw">fn</span> <span class="ident">sigma_multiply_basis</span>(
