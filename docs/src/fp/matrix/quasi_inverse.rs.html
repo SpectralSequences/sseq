@@ -236,12 +236,6 @@
 <span id="212">212</span>
 <span id="213">213</span>
 <span id="214">214</span>
-<span id="215">215</span>
-<span id="216">216</span>
-<span id="217">217</span>
-<span id="218">218</span>
-<span id="219">219</span>
-<span id="220">220</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident"><span class="kw">super</span>::Matrix</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::prime::ValidPrime</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::vector</span>::{<span class="ident">FpVector</span>, <span class="ident">Slice</span>, <span class="ident">SliceMut</span>};
@@ -339,11 +333,6 @@
         <span class="kw">for</span> <span class="ident">result</span> <span class="kw">in</span> <span class="kw-2">&amp;mut</span> <span class="kw-2">*</span><span class="ident">results</span> {
             <span class="macro">assert_eq!</span>(<span class="ident">result</span>.<span class="ident">into</span>().<span class="ident">as_slice</span>().<span class="ident">len</span>(), <span class="ident">source_dim</span>);
         }
-        <span class="kw">for</span> <span class="ident">input</span> <span class="kw">in</span> <span class="ident">inputs</span> {
-            <span class="comment">// The quasi-inverse might be computed with a smaller target dimension when computing</span>
-            <span class="comment">// through stem.</span>
-            <span class="macro">assert!</span>(<span class="ident">input</span>.<span class="ident">into</span>().<span class="ident">len</span>() <span class="op">&gt;</span><span class="op">=</span> <span class="ident">target_dim</span>);
-        }
 
         <span class="kw">let</span> <span class="ident">num_limbs</span> <span class="op">=</span> <span class="ident">FpVector::num_limbs</span>(<span class="ident">p</span>, <span class="ident">source_dim</span>);
 
@@ -369,7 +358,6 @@
                     }
                 }
             };
-            <span class="macro">println!</span>(<span class="string">&quot;{v}&quot;</span>);
             <span class="kw">for</span> (<span class="ident">input</span>, <span class="ident">result</span>) <span class="kw">in</span> <span class="ident">inputs</span>.<span class="ident">iter</span>().<span class="ident">zip</span>(<span class="kw-2">&amp;mut</span> <span class="kw-2">*</span><span class="ident">results</span>) {
                 <span class="ident">result</span>.<span class="ident">into</span>().<span class="ident">add</span>(<span class="ident">v</span>.<span class="ident">as_slice</span>(), <span class="ident">input</span>.<span class="ident">into</span>().<span class="ident">entry</span>(<span class="ident">i</span>));
             }
