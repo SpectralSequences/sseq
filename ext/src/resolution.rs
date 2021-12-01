@@ -10,7 +10,7 @@ use fp::prime::ValidPrime;
 use fp::vector::{FpVector, Slice, SliceMut};
 use once::OnceVec;
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use anyhow::Context;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
@@ -116,8 +116,8 @@ impl<CC: ChainComplex> Resolution<CC> {
         })
     }
 
-    pub fn save_dir(&self) -> &Option<PathBuf> {
-        &self.save_dir
+    pub fn save_dir(&self) -> Option<&Path> {
+        self.save_dir.as_deref()
     }
 
     /// This function prepares the Resolution object to perform computations up to the

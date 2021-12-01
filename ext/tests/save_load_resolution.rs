@@ -2,10 +2,12 @@ use algebra::module::homomorphism::ModuleHomomorphism;
 use ext::chain_complex::{ChainComplex, FreeChainComplex};
 use ext::resolution::Resolution;
 use ext::save::SaveKind;
+use ext::secondary::SecondaryLift;
 use ext::utils::construct;
 use ext::CCC;
 
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 fn set_readonly(p: &Path, readonly: bool) {
     let mut perm = p.metadata().unwrap().permissions();
@@ -195,6 +197,60 @@ fn test_load_smaller() {
 
     let resolution2 = construct("S_2", Some(tempdir.path().into())).unwrap();
     resolve(&resolution2, 5, 8);
+}
+
+#[test]
+fn test_load_secondary() {
+    let tempdir = tempfile::TempDir::new().unwrap();
+
+    let resolution1 = construct("S_2", Some(tempdir.path().into())).unwrap();
+    resolution1.compute_through_stem(4, 10);
+
+    let lift1 = SecondaryLift::new(Arc::new(resolution1));
+    lift1.initialize_homotopies();
+    lift1.compute_composites();
+    lift1.compute_intermediates();
+
+    let mut dir = tempdir.path().to_owned();
+    let mut is_empty = |d| {
+        dir.push(d);
+        let result = dir.read_dir().unwrap().next().is_none();
+        dir.pop();
+        result
+    };
+
+    // Check that intermediates is non-empty
+    assert!(!is_empty("secondary_intermediates"));
+
+    lift1.compute_homotopies();
+
+    assert!(is_empty("secondary_intermediates"));
+    assert!(!is_empty("secondary_homotopys"));
+    assert!(!is_empty("secondary_composites"));
+
+    // Load the resolution and extend further
+    let resolution2 = construct("S_2", Some(tempdir.path().into())).unwrap();
+    resolution2.compute_through_stem(8, 15);
+
+    let lift2 = SecondaryLift::new(Arc::new(resolution2));
+    lift2.initialize_homotopies();
+    lift2.compute_composites();
+    lift2.compute_homotopies();
+
+    // Check that all intermediates are consumed
+    assert!(is_empty("secondary_intermediates"));
+
+    // Check that we have correct result
+    assert_eq!(lift2.homotopy(3).homotopies.hom_k(16), vec![vec![1]]);
+
+    // Now try to load a smaller resolution
+    let resolution3 = construct("S_2", Some(tempdir.path().into())).unwrap();
+    resolution3.compute_through_stem(5, 12);
+
+    let lift3 = SecondaryLift::new(Arc::new(resolution3));
+    lift3.initialize_homotopies();
+    lift3.compute_composites();
+    lift3.compute_homotopies();
 }
 
 #[test]

@@ -171,6 +171,9 @@ impl<A: Algebra> Module for FreeModule<A> {
                 // The algebra is empty in this degree
                 continue;
             }
+            if input.slice(idx, end_idx).is_empty() {
+                continue;
+            }
             let opgen = self.index_to_op_gen(input_degree, idx);
             algebra.multiply_basis_element_by_element(
                 result.slice_mut(

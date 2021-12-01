@@ -12,6 +12,8 @@ use fp::prime::ValidPrime;
 use fp::vector::{FpVector, Slice, SliceMut};
 use rustc_hash::FxHashMap as HashMap;
 
+use std::io::{Read, Write};
+
 const TWO: ValidPrime = ValidPrime::new(2);
 
 /// A lift of an algebra to a split pair algebra. See module introduction for more.
@@ -19,6 +21,8 @@ pub trait PairAlgebra: Algebra {
     /// An element in the cohomological degree zero part of the pair algebra. This tends to not be
     /// a ring over Fp, so we let the algebra specify how it wants to represent the elements.
     type Element: Send + Sync;
+
+    fn element_is_zero(elt: &Self::Element) -> bool;
 
     /// Assert that `elt` is in the image of the differential. Drop the data recording the
     /// complement of the image of the differential.
@@ -69,6 +73,14 @@ pub trait PairAlgebra: Algebra {
         s_degree: i32,
         s: &Self::Element,
     );
+
+    fn element_to_bytes(&self, elt: &Self::Element, buffer: &mut impl Write)
+        -> std::io::Result<()>;
+    fn element_from_bytes(
+        &self,
+        degree: i32,
+        buffer: &mut impl Read,
+    ) -> std::io::Result<Self::Element>;
 }
 
 use crate::milnor_algebra::{MilnorBasisElement as MilnorElt, PPartAllocation, PPartMultiplier};
@@ -136,6 +148,12 @@ impl PairAlgebra for MilnorAlgebra {
             #[cfg(debug_assertions)]
             degree,
         }
+    }
+
+    fn element_is_zero(elt: &Self::Element) -> bool {
+        elt.ones.is_zero()
+            && elt.twos.is_zero()
+            && elt.ys.iter().all(|v| v.iter().all(|x| x.is_zero()))
     }
 
     /// Assert that `elt` is in the image of the differential. Drop the data recording the
@@ -265,6 +283,60 @@ impl PairAlgebra for MilnorAlgebra {
                 }
             }
         }
+    }
+
+    fn element_to_bytes(
+        &self,
+        elt: &Self::Element,
+        buffer: &mut impl Write,
+    ) -> std::io::Result<()> {
+        elt.twos.to_bytes(buffer)?;
+        for row in &elt.ys {
+            for v in row {
+                v.to_bytes(buffer)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn element_from_bytes(
+        &self,
+        degree: i32,
+        buffer: &mut impl Read,
+    ) -> std::io::Result<Self::Element> {
+        let p = self.prime();
+        assert_eq!(p, TWO);
+
+        let max_k = if degree == 0 {
+            0
+        } else {
+            fp::prime::log2(degree as usize) + 1
+        };
+
+        let twos = FpVector::from_bytes(p, self.dimension(degree, 0), buffer)?;
+
+        let mut ys = Vec::with_capacity(max_k);
+        for k in 0..max_k {
+            let rem_degree = degree as usize + 1 - (1 << k);
+            let max_l = fp::prime::log2(rem_degree) + 1;
+            let mut row = Vec::with_capacity(max_l);
+            for l in 0..max_l {
+                row.push(FpVector::from_bytes(
+                    p,
+                    self.dimension((rem_degree - (1 << l)) as i32, 0),
+                    buffer,
+                )?);
+            }
+            ys.push(row);
+        }
+
+        Ok(MilnorPairElement {
+            ones: FpVector::new(p, 0),
+            twos,
+            ys,
+            #[cfg(debug_assertions)]
+            degree,
+        })
     }
 }
 

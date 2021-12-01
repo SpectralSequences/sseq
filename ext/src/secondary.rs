@@ -1,27 +1,30 @@
-use crate::chain_complex::{
-    AugmentedChainComplex, BoundedChainComplex, ChainComplex, FreeChainComplex,
-};
+use crate::chain_complex::{BoundedChainComplex, ChainComplex};
+use crate::resolution::Resolution;
 use crate::resolution_homomorphism::ResolutionHomomorphism;
+use crate::save::{SaveFile, SaveKind};
+
 use algebra::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
 use algebra::module::{BoundedModule, FreeModule, Module};
 use algebra::pair_algebra::PairAlgebra;
 use algebra::Algebra;
+use anyhow::Context;
 use bivec::BiVec;
 use fp::vector::{FpVector, Slice, SliceMut};
 use once::OnceBiVec;
+
+use std::io::{Read, Write};
+use std::path::Path;
 use std::sync::Arc;
 
-use crate::resolution::Resolution as Resolution_;
 use crate::CCC;
 
+use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use dashmap::DashMap;
 #[cfg(feature = "concurrent")]
 use {
     rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator},
     thread_token::TokenBucket,
 };
-
-type Resolution = Resolution_<CCC>;
 
 /// A homotopy of a map A -> M of pair modules. We assume this map does not hit generators.
 pub struct SecondaryComposite<A: PairAlgebra> {
@@ -55,6 +58,42 @@ impl<A: PairAlgebra> SecondaryComposite<A> {
             degree,
             composite,
         }
+    }
+
+    pub fn to_bytes(&self, buffer: &mut impl Write) -> std::io::Result<()> {
+        let algebra = self.target.algebra();
+        for composites in self.composite.iter() {
+            buffer.write_u64::<LittleEndian>(composites.len() as u64)?;
+            for composite in composites {
+                algebra.element_to_bytes(composite, buffer)?;
+            }
+        }
+        Ok(())
+    }
+
+    pub fn from_bytes(
+        target: Arc<FreeModule<A>>,
+        degree: i32,
+        buffer: &mut impl Read,
+    ) -> std::io::Result<Self> {
+        let min_degree = target.min_degree();
+        let algebra = target.algebra();
+        let mut composite = BiVec::with_capacity(min_degree, degree);
+
+        for t in min_degree..degree {
+            let num_gens = buffer.read_u64::<LittleEndian>()? as usize;
+            let mut c = Vec::with_capacity(num_gens);
+            for _ in 0..num_gens {
+                c.push(algebra.element_from_bytes(degree - t, buffer)?);
+            }
+            composite.push(c);
+        }
+
+        Ok(Self {
+            target,
+            degree,
+            composite,
+        })
     }
 
     pub fn finalize(&mut self) {
@@ -115,6 +154,13 @@ impl<A: PairAlgebra> SecondaryComposite<A> {
         for (gen_deg, row) in self.composite.iter_enum() {
             let module_op_deg = self.degree - gen_deg;
             for (gen_idx, c) in row.iter().enumerate() {
+                if gen_deg > self.target.max_computed_degree() {
+                    // If we are resolving up to a stem then the target might be missing some
+                    // degrees. This is fine but we want to assert that c is zero.
+                    assert!(A::element_is_zero(c));
+                    continue;
+                }
+
                 let offset =
                     self.target
                         .generator_offset(self.degree + op_degree - 1, gen_deg, gen_idx);
@@ -167,12 +213,14 @@ impl<A: PairAlgebra + Send + Sync> SecondaryHomotopy<A> {
     /// Add composites up to and including the specified degree
     pub fn add_composite(
         &self,
+        s: u32,
         degree: i32,
         maps: &[(
             u32,
             &FreeModuleHomomorphism<FreeModule<A>>,
             &FreeModuleHomomorphism<FreeModule<A>>,
         )],
+        dir: Option<&Path>,
     ) {
         for (_, d1, d0) in maps {
             assert!(Arc::ptr_eq(&d1.target(), &d0.source()));
@@ -180,18 +228,43 @@ impl<A: PairAlgebra + Send + Sync> SecondaryHomotopy<A> {
             assert_eq!(d1.degree_shift() + d0.degree_shift(), self.shift_t);
         }
 
+        let f = |t, idx| {
+            let save_file = SaveFile {
+                algebra: self.target.algebra(),
+                kind: SaveKind::SecondaryComposite,
+                s,
+                t,
+                idx: Some(idx),
+            };
+            if let Some(dir) = dir {
+                if let Some(mut f) = save_file.open_file(dir.to_owned()) {
+                    return SecondaryComposite::from_bytes(
+                        Arc::clone(&self.target),
+                        t - self.shift_t,
+                        &mut f,
+                    )
+                    .unwrap();
+                }
+            }
+
+            let mut composite = SecondaryComposite::new(Arc::clone(&self.target), t - self.shift_t);
+            for (coef, d1, d0) in maps {
+                composite.add_composite(*coef, t, idx, d1, d0);
+            }
+            composite.finalize();
+
+            if let Some(dir) = dir {
+                let mut f = save_file.create_file(dir.to_owned());
+                composite.to_bytes(&mut f).unwrap();
+            }
+
+            composite
+        };
+
         #[cfg(not(feature = "concurrent"))]
         self.composites.extend(degree, |t| {
             (0..self.source.number_of_gens_in_degree(t))
-                .map(|i| {
-                    let mut composite =
-                        SecondaryComposite::new(Arc::clone(&self.target), t - self.shift_t);
-                    for (coef, d1, d0) in maps {
-                        composite.add_composite(*coef, t, i, d1, d0);
-                    }
-                    composite.finalize();
-                    composite
-                })
+                .map(|i| f(t, i))
                 .collect()
         });
 
@@ -199,15 +272,7 @@ impl<A: PairAlgebra + Send + Sync> SecondaryHomotopy<A> {
         self.composites.par_extend(degree, |t| {
             (0..self.source.number_of_gens_in_degree(t))
                 .into_par_iter()
-                .map(|i| {
-                    let mut composite =
-                        SecondaryComposite::new(Arc::clone(&self.target), t - self.shift_t);
-                    for (coef, d1, d0) in maps {
-                        composite.add_composite(*coef, t, i, d1, d0);
-                    }
-                    composite.finalize();
-                    composite
-                })
+                .map(|i| f(t, i))
                 .collect()
         });
     }
@@ -241,15 +306,31 @@ impl<A: PairAlgebra + Send + Sync> SecondaryHomotopy<A> {
     }
 }
 
-pub struct SecondaryLift<A: PairAlgebra, CC: FreeChainComplex<Algebra = A>> {
-    pub chain_complex: Arc<CC>,
+pub struct SecondaryLift<A: PairAlgebra, CC: ChainComplex<Algebra = A>> {
+    pub chain_complex: Arc<Resolution<CC>>,
     /// s -> t -> idx -> homotopy
     pub(crate) homotopies: OnceBiVec<SecondaryHomotopy<A>>,
     intermediates: DashMap<(u32, i32, usize), FpVector>,
 }
 
-impl<A: PairAlgebra + Send + Sync, CC: FreeChainComplex<Algebra = A>> SecondaryLift<A, CC> {
-    pub fn new(cc: Arc<CC>) -> Self {
+impl<A: PairAlgebra + Send + Sync, CC: ChainComplex<Algebra = A>> SecondaryLift<A, CC> {
+    pub fn new(cc: Arc<Resolution<CC>>) -> Self {
+        if let Some(p) = cc.save_dir() {
+            let mut p = p.to_owned();
+
+            for subdir in SaveKind::secondary_data() {
+                p.push(format!("{}s", subdir.name()));
+                if !p.exists() {
+                    std::fs::create_dir_all(&p)
+                        .with_context(|| format!("Failed to create directory {p:?}"))
+                        .unwrap();
+                } else if !p.is_dir() {
+                    panic!("{p:?} is not a directory");
+                }
+                p.pop();
+            }
+        }
+
         Self {
             chain_complex: cc,
             homotopies: OnceBiVec::new(2),
@@ -282,18 +363,23 @@ impl<A: PairAlgebra + Send + Sync, CC: FreeChainComplex<Algebra = A>> SecondaryL
             )
         };
 
+        let f = |s| {
+            let s = s as u32;
+            let d1 = &*self.chain_complex.differential(s);
+            let d0 = &*self.chain_complex.differential(s - 1);
+            self.homotopies[s as i32].add_composite(
+                s,
+                max_t(s),
+                &[(1, d1, d0)],
+                self.chain_complex.save_dir(),
+            );
+        };
+
         #[cfg(not(feature = "concurrent"))]
-        for s in self.homotopies.range() {
-            let d1 = &*self.chain_complex.differential(s as u32);
-            let d0 = &*self.chain_complex.differential(s as u32 - 1);
-            self.homotopies[s].add_composite(max_t(s as u32), &[(1, d1, d0)]);
-        }
+        self.homotopies.range().for_each(f);
+
         #[cfg(feature = "concurrent")]
-        self.homotopies.range().into_par_iter().for_each(|s| {
-            let d1 = &*self.chain_complex.differential(s as u32);
-            let d0 = &*self.chain_complex.differential(s as u32 - 1);
-            self.homotopies[s].add_composite(max_t(s as u32), &[(1, d1, d0)]);
-        });
+        self.homotopies.range().into_par_iter().for_each(f);
     }
 
     pub fn get_intermediate(&self, s: u32, t: i32, idx: usize) -> FpVector {
@@ -302,6 +388,22 @@ impl<A: PairAlgebra + Send + Sync, CC: FreeChainComplex<Algebra = A>> SecondaryL
         }
         let p = self.chain_complex.prime();
         let target = self.chain_complex.module(s as u32 - 3);
+
+        let save_file = SaveFile {
+            algebra: self.chain_complex.algebra(),
+            kind: SaveKind::SecondaryIntermediate,
+            s,
+            t,
+            idx: Some(idx),
+        };
+
+        if let Some(dir) = self.chain_complex.save_dir() {
+            if let Some(mut f) = save_file.open_file(dir.to_owned()) {
+                // The target dimension can depend on whether we resolved to stem
+                let dim = f.read_u64::<LittleEndian>().unwrap() as usize;
+                return FpVector::from_bytes(p, dim, &mut f).unwrap();
+            }
+        }
 
         let mut result = FpVector::new(p, target.dimension(t - 1));
         let d = self.chain_complex.differential(s as u32);
@@ -313,17 +415,40 @@ impl<A: PairAlgebra + Send + Sync, CC: FreeChainComplex<Algebra = A>> SecondaryL
             false,
         );
 
+        if let Some(dir) = self.chain_complex.save_dir() {
+            let mut f = save_file.create_file(dir.to_owned());
+            f.write_u64::<LittleEndian>(result.len() as u64).unwrap();
+            result.to_bytes(&mut f).unwrap();
+        }
+
         result
     }
 
     pub fn compute_intermediates(&self) {
+        let f = |s, t, i| {
+            // If we already have homotopies, we don't need to compute intermediate
+            if self.homotopies[s as i32].homotopies.next_degree() >= t {
+                return;
+            }
+            // Check if we have a saved homotopy
+            if let Some(dir) = self.chain_complex.save_dir() {
+                let save_file = self
+                    .chain_complex
+                    .save_file(SaveKind::SecondaryHomotopy, s, t);
+                if save_file.exists(dir.to_owned()) {
+                    return;
+                }
+            }
+            self.intermediates
+                .insert((s, t, i), self.get_intermediate(s, t, i));
+        };
+
         #[cfg(not(feature = "concurrent"))]
         for (s, homotopy) in self.homotopies.iter_enum().skip(1) {
             let s = s as u32;
             for t in homotopy.composites.range() {
                 for i in 0..homotopy.source.number_of_gens_in_degree(t) {
-                    self.intermediates
-                        .insert((s, t, i), self.get_intermediate(s, t, i));
+                    f(s, t, i)
                 }
             }
         }
@@ -338,10 +463,7 @@ impl<A: PairAlgebra + Send + Sync, CC: FreeChainComplex<Algebra = A>> SecondaryL
                 homotopy.composites.range().into_par_iter().for_each(|t| {
                     (0..homotopy.source.number_of_gens_in_degree(t))
                         .into_par_iter()
-                        .for_each(|i| {
-                            self.intermediates
-                                .insert((s, t, i), self.get_intermediate(s, t, i));
-                        })
+                        .for_each(|i| f(s, t, i))
                 })
             })
     }
@@ -357,6 +479,23 @@ impl<A: PairAlgebra + Send + Sync, CC: FreeChainComplex<Algebra = A>> SecondaryL
         let source = self.chain_complex.module(s);
         let d = self.chain_complex.differential(s);
         let num_gens = source.number_of_gens_in_degree(t);
+        let target_dim = self.chain_complex.module(s as u32 - 2).dimension(t - 1);
+
+        if let Some(dir) = self.chain_complex.save_dir() {
+            let save_file = self
+                .chain_complex
+                .save_file(SaveKind::SecondaryHomotopy, s, t);
+            if let Some(mut f) = save_file.open_file(dir.to_owned()) {
+                let mut results = Vec::with_capacity(num_gens);
+                for _ in 0..num_gens {
+                    results.push(FpVector::from_bytes(p, target_dim, &mut f).unwrap());
+                }
+                self.homotopies[s as i32]
+                    .homotopies
+                    .add_generators_from_rows(t, results);
+                return;
+            }
+        }
 
         let intermediates: Vec<FpVector> = (0..num_gens)
             .map(|i| {
@@ -372,7 +511,6 @@ impl<A: PairAlgebra + Send + Sync, CC: FreeChainComplex<Algebra = A>> SecondaryL
                 v
             })
             .collect();
-        let target_dim = self.chain_complex.module(s as u32 - 2).dimension(t - 1);
         let mut results = vec![FpVector::new(p, target_dim); num_gens];
 
         assert!(self.chain_complex.apply_quasi_inverse(
@@ -381,6 +519,32 @@ impl<A: PairAlgebra + Send + Sync, CC: FreeChainComplex<Algebra = A>> SecondaryL
             t - 1,
             &intermediates,
         ));
+
+        if let Some(dir) = self.chain_complex.save_dir() {
+            let save_file = self
+                .chain_complex
+                .save_file(SaveKind::SecondaryHomotopy, s, t);
+
+            let mut f = save_file.create_file(dir.to_owned());
+            for row in &results {
+                row.to_bytes(&mut f).unwrap();
+            }
+            drop(f);
+
+            let mut save_file = SaveFile {
+                algebra: self.chain_complex.algebra(),
+                kind: SaveKind::SecondaryIntermediate,
+                s,
+                t,
+                idx: None,
+            };
+
+            for i in 0..num_gens {
+                save_file.idx = Some(i);
+                save_file.delete_file(dir.to_owned()).unwrap();
+            }
+        }
+
         self.homotopies[s as i32]
             .homotopies
             .add_generators_from_rows(t, results);
@@ -426,17 +590,14 @@ impl<A: PairAlgebra + Send + Sync, CC: FreeChainComplex<Algebra = A>> SecondaryL
     }
 }
 
-// Rustdoc ICE's when trying to document this struct. See
-// https://github.com/rust-lang/rust/issues/91380
-#[doc(hidden)]
 pub struct SecondaryResolutionHomomorphism<
     A: PairAlgebra,
-    CC1: FreeChainComplex<Algebra = A>,
-    CC2: FreeChainComplex<Algebra = A> + AugmentedChainComplex,
+    CC1: ChainComplex<Algebra = A>,
+    CC2: ChainComplex<Algebra = A>,
 > {
     source: Arc<SecondaryLift<A, CC1>>,
     target: Arc<SecondaryLift<A, CC2>>,
-    underlying: Arc<ResolutionHomomorphism<CC1, CC2>>,
+    underlying: Arc<ResolutionHomomorphism<Resolution<CC1>, Resolution<CC2>>>,
     /// input s -> homotopy
     homotopies: OnceBiVec<SecondaryHomotopy<A>>,
     intermediates: DashMap<(u32, i32, usize), FpVector>,
@@ -444,14 +605,14 @@ pub struct SecondaryResolutionHomomorphism<
 
 impl<
         A: PairAlgebra + Send + Sync,
-        CC1: FreeChainComplex<Algebra = A>,
-        CC2: FreeChainComplex<Algebra = A> + AugmentedChainComplex,
+        CC1: ChainComplex<Algebra = A>,
+        CC2: ChainComplex<Algebra = A>,
     > SecondaryResolutionHomomorphism<A, CC1, CC2>
 {
     pub fn new(
         source: Arc<SecondaryLift<A, CC1>>,
         target: Arc<SecondaryLift<A, CC2>>,
-        underlying: Arc<ResolutionHomomorphism<CC1, CC2>>,
+        underlying: Arc<ResolutionHomomorphism<Resolution<CC1>, Resolution<CC2>>>,
     ) -> Self {
         assert!(Arc::ptr_eq(&underlying.source, &source.chain_complex));
         assert!(Arc::ptr_eq(&underlying.target, &target.chain_complex));
@@ -518,15 +679,18 @@ impl<
         range.end -= 1;
 
         let f = |s| {
-            let d_source = &*self.source.chain_complex.differential(s as u32);
-            let d_target = &*self.target.chain_complex.differential(s as u32 - shift_s);
+            let s = s as u32;
+            let d_source = &*self.source.chain_complex.differential(s);
+            let d_target = &*self.target.chain_complex.differential(s - shift_s);
 
-            let c1 = &*self.underlying.get_map(s as u32);
-            let c0 = &*self.underlying.get_map(s as u32 - 1);
+            let c1 = &*self.underlying.get_map(s);
+            let c0 = &*self.underlying.get_map(s - 1);
 
-            self.homotopies[s].add_composite(
-                self.max_t(s as u32) - 1,
+            self.homotopies[s as i32].add_composite(
+                s,
+                self.max_t(s) - 1,
                 &[(1, d_source, c0), (neg_1, c1, d_target)],
+                None,
             );
         };
 
@@ -702,7 +866,7 @@ impl<
 ///  1. The chain complex is concentrated in degree zero;
 ///  2. The module is finite dimensional; and
 ///  3. $\mathrm{Hom}(\mathrm{Ext}^{2, t}_A(H^*X, k), H^{t - 1} X) = 0$ for all $t$ or $\mathrm{Hom}(\mathrm{Ext}^{3, t}_A(H^*X, k), H^{t - 1} X) = 0$ for all $t$.
-pub fn can_compute(res: &Resolution) -> bool {
+pub fn can_compute(res: &Resolution<CCC>) -> bool {
     let complex = res.complex();
     if *complex.prime() != 2 {
         eprintln!("Prime is not 2");

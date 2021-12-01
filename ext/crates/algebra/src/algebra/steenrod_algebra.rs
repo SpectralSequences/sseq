@@ -9,6 +9,8 @@ use fp::vector::{Slice, SliceMut};
 
 use anyhow::anyhow;
 
+use std::io::{Read, Write};
+
 #[cfg(feature = "json")]
 use {serde::Deserialize, serde_json::Value};
 
@@ -267,6 +269,10 @@ impl GeneratedAlgebra for SteenrodAlgebra {
 impl crate::pair_algebra::PairAlgebra for AdemAlgebra {
     type Element = crate::pair_algebra::MilnorPairElement;
 
+    fn element_is_zero(_elt: &Self::Element) -> bool {
+        unimplemented!()
+    }
+
     fn finalize_element(_elt: &mut Self::Element) {
         unimplemented!()
     }
@@ -298,11 +304,30 @@ impl crate::pair_algebra::PairAlgebra for AdemAlgebra {
     ) {
         unimplemented!()
     }
+
+    fn element_to_bytes(
+        &self,
+        _elt: &Self::Element,
+        _buffer: &mut impl Write,
+    ) -> std::io::Result<()> {
+        unimplemented!()
+    }
+
+    fn element_from_bytes(
+        &self,
+        _degree: i32,
+        _buffer: &mut impl Read,
+    ) -> std::io::Result<Self::Element> {
+        unimplemented!()
+    }
 }
 
 impl crate::pair_algebra::PairAlgebra for SteenrodAlgebra {
     type Element = crate::pair_algebra::MilnorPairElement;
 
+    fn element_is_zero(elt: &Self::Element) -> bool {
+        MilnorAlgebra::element_is_zero(elt)
+    }
     fn finalize_element(elt: &mut Self::Element) {
         MilnorAlgebra::finalize_element(elt);
     }
@@ -312,5 +337,7 @@ impl crate::pair_algebra::PairAlgebra for SteenrodAlgebra {
         fn sigma_multiply_basis(&self, result: &mut Self::Element, coeff: u32, r_degree: i32, r_idx: usize, s_degree: i32, s_idx: usize);
         fn sigma_multiply(&self, result: &mut Self::Element, coeff: u32, r_degree: i32, r: Slice, s_degree: i32, s: Slice);
         fn a_multiply(&self, result: SliceMut, coeff: u32, r_degree: i32, r: Slice, s_degree: i32, s: &Self::Element);
+        fn element_to_bytes(&self, elt: &Self::Element, buffer: &mut impl Write) -> std::io::Result<()>;
+        fn element_from_bytes(&self, degree: i32, buffer: &mut impl Read) -> std::io::Result<Self::Element>;
     }
 }

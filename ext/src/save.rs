@@ -62,6 +62,13 @@ impl SaveKind {
         static KINDS: [SaveKind; 4] = [Kernel, Differential, ResQi, AugmentationQi];
         KINDS.iter().copied()
     }
+
+    pub fn secondary_data() -> impl Iterator<Item = SaveKind> {
+        use SaveKind::*;
+        static KINDS: [SaveKind; 3] =
+            [SecondaryComposite, SecondaryIntermediate, SecondaryHomotopy];
+        KINDS.iter().copied()
+    }
 }
 
 pub struct ChecksumWriter<T: Write> {
