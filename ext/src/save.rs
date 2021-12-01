@@ -278,7 +278,19 @@ impl<A: Algebra> SaveFile<A> {
     }
 
     pub fn exists(&self, dir: PathBuf) -> bool {
-        self.get_save_path(dir).exists()
+        #[allow(unused_mut)]
+        let mut path = self.get_save_path(dir);
+        if path.exists() {
+            return true;
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            path.set_extension("zst");
+            if path.exists() {
+                return true;
+            }
+        }
+        false
     }
 
     pub fn delete_file(&self, dir: PathBuf) -> std::io::Result<()> {
