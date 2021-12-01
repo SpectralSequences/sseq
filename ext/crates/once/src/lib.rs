@@ -5,6 +5,8 @@ use std::fmt;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Mutex, MutexGuard};
 
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
+
 const USIZE_LEN: u32 = 0usize.count_zeros();
 
 /// The maximum length of a OnceVec is 2^{MAX_OUTER_LENGTH} - 1. The performance cost of increasing
@@ -257,6 +259,48 @@ impl<T> OnceVec<T> {
     }
 }
 
+impl<T: Send + Sync> OnceVec<T> {
+    /// A parallel version of `extend`, where the function `f` is run for different indices
+    /// simultaneously using [`rayon`].
+    ///
+    /// # Example
+    /// ```
+    /// # use once::OnceVec;
+    /// let v: OnceVec<usize> = OnceVec::new();
+    /// v.par_extend(5, |i| i + 5);
+    /// assert_eq!(v.len(), 6);
+    /// for (i, &n) in v.iter().enumerate() {
+    ///     assert_eq!(n, i + 5);
+    /// }
+    /// ```
+    pub fn par_extend(&self, new_max: usize, f: impl Fn(usize) -> T + Send + Sync) {
+        unsafe {
+            let _lock = self.lock();
+            let old_len = self.len.load(Ordering::Acquire);
+            if new_max < old_len {
+                return;
+            }
+            let inner = &mut *self.data.get();
+
+            // Unfortunately there is no way to avoid collecting ATM. See
+            // https://github.com/rayon-rs/rayon/issues/210
+            let results: Vec<(usize, T)> = (old_len..=new_max)
+                .into_par_iter()
+                .map(|i| (i, f(i)))
+                .collect();
+            for (i, v) in results {
+                let (page, index) = Self::inner_index(i);
+                if index == 0 {
+                    inner[page].reserve_exact(i + 1);
+                }
+                inner[page].push(v);
+                // Do it inside the loop because f may use self
+                self.len.store(i + 1, Ordering::Release)
+            }
+        }
+    }
+}
+
 impl<T> IntoIterator for OnceVec<T> {
     type Item = T;
     type IntoIter = std::iter::Flatten<std::array::IntoIter<Vec<T>, MAX_OUTER_LENGTH>>;
@@ -450,6 +494,31 @@ impl<T> OnceBiVec<T> {
             .iter()
             .enumerate()
             .map(move |(i, t)| (i as i32 + min_degree, t))
+    }
+}
+
+impl<T: Send + Sync> OnceBiVec<T> {
+    /// A parallel version of `extend`, where the function `f` is run for different indices
+    /// simultaneously using [`rayon`].
+    ///
+    /// # Example
+    /// ```
+    /// # use once::OnceBiVec;
+    /// let v: OnceBiVec<i32> = OnceBiVec::new(-4);
+    /// v.par_extend(5, |i| i + 5);
+    /// assert_eq!(v.len(), 6);
+    /// for (i, &n) in v.iter_enum() {
+    ///     assert_eq!(n, i + 5);
+    /// }
+    /// ```
+    pub fn par_extend(&self, new_max: i32, f: impl (Fn(i32) -> T) + Send + Sync) {
+        if new_max < self.min_degree {
+            return;
+        }
+        self.data
+            .par_extend((new_max - self.min_degree) as usize, |i| {
+                f(i as i32 + self.min_degree)
+            });
     }
 }
 
