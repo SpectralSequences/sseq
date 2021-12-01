@@ -1,6 +1,7 @@
 use algebra::module::homomorphism::ModuleHomomorphism;
 use ext::chain_complex::{ChainComplex, FreeChainComplex};
-use ext::resolution::{Resolution, SaveData};
+use ext::resolution::Resolution;
+use ext::save::SaveKind;
 use ext::utils::construct;
 use ext::CCC;
 
@@ -14,7 +15,7 @@ fn set_readonly(p: &Path, readonly: bool) {
 
 fn lock_tempdir(dir: &Path) {
     let mut dir: PathBuf = dir.into();
-    for kind in SaveData::resolution_data() {
+    for kind in SaveKind::resolution_data() {
         dir.push(format!("{}s", kind.name()));
         set_readonly(&dir, true);
         dir.pop();
@@ -27,7 +28,7 @@ fn unlock_tempdir(dir: &Path) {
     set_readonly(dir, false);
 
     let mut dir: PathBuf = dir.into();
-    for kind in SaveData::resolution_data() {
+    for kind in SaveKind::resolution_data() {
         dir.push(format!("{}s", kind.name()));
         set_readonly(&dir, false);
         dir.pop();

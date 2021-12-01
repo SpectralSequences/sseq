@@ -43,6 +43,9 @@ the differential itself and the quasi-inverses. Each kind of data has a name,
 and the data for the bidegree `(s, t)` is contained in
 `/{name}s/{s}_{t}_{name}`.
 
+(In some cases, we want to store the data by bidegree *and* generator. Then the
+file name is `/{name}s/{s}_{t}_{idx}_{name}`.)
+
 We support reading compressed files. At the moment, we only support zstd, and
 the compressed file should be saved in `/{name}s/{s}_{t}_{name}.zst`. When
 seeking saved data, we always try the uncompressed version first, as it tends
@@ -59,25 +62,31 @@ to being written.
 ### File headers
 In addition to a name, each kind of data has a 4-byte magic number to ensure we
 do not mix them up. Further, since it is easy to forget to specify which
-algebra to use, we have a 2-byte magic number for each algebra. These are
-defined as follows:
+algebra to use, we have a 4-byte magic number for each algebra. The two least
+significant bytes are given as follows:
 ```
 adem algebra: 0x0000
 milnor algebra without profile: 0x8000
 milnor algebra with profile: 0x8001
 ```
-
+The two most significant bytes are given by the prime the algebra is over.
 
 Each data file starts with a 16-byte header of the form
 ```
 struct {
     magic: u32,
-    algebra_magic: u16,
-    prime: u16,
+    algebra_magic: u32,
     s: u32,
-    t: i32
+    last: union {
+        t: i32,
+        (t, idx): (i16, u16)
+    }
 }
 ```
+Here if the data is for a bidegree, then the last field is the topological
+degree. Otherwise, it contains both the topological degree and the index of the
+generator. Note that since we use little endian ordering, the last field is
+`t + (idx << 16)`.
 
 Apart from the prime, all the other data is also present in the file name, and
 the header serves as a sanity check that we did not mess up our files. Note

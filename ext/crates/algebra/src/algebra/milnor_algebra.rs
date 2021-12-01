@@ -207,12 +207,13 @@ impl MilnorAlgebra {
 }
 
 impl Algebra for MilnorAlgebra {
-    fn magic(&self) -> u16 {
-        if self.profile.is_trivial() {
-            0x8000
-        } else {
-            0x8001
-        }
+    fn magic(&self) -> u32 {
+        ((*self.p as u32) << 16)
+            + if self.profile.is_trivial() {
+                0x8000
+            } else {
+                0x8001
+            }
     }
 
     fn prime(&self) -> ValidPrime {

@@ -2,15 +2,13 @@ use crate::chain_complex::{ChainComplex, FiniteChainComplex, FreeChainComplex};
 use crate::resolution::Resolution;
 use crate::CCC;
 use algebra::module::{FiniteModule, Module};
-use algebra::{Algebra, AlgebraType, SteenrodAlgebra};
-use fp::prime::ValidPrime;
+use algebra::{AlgebraType, SteenrodAlgebra};
 
 use anyhow::{anyhow, Context};
-use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use serde_json::Value;
 
 use std::convert::{TryFrom, TryInto};
-use std::io::{Read, Write};
+use std::io::Write;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -340,168 +338,6 @@ pub fn print_element(v: fp::vector::Slice, n: i32, s: u32) {
         }
         print!("x_({}, {}, {})", n, s, i);
         first = false;
-    }
-}
-
-pub fn write_header<A: Algebra>(
-    magic: u32,
-    algebra: &A,
-    p: ValidPrime,
-    s: u32,
-    t: i32,
-    buffer: &mut impl Write,
-) -> std::io::Result<()> {
-    buffer.write_u32::<LittleEndian>(magic)?;
-    buffer.write_u16::<LittleEndian>(algebra.magic())?;
-    buffer.write_u16::<LittleEndian>(*p as u16)?;
-    buffer.write_u32::<LittleEndian>(s)?;
-    buffer.write_i32::<LittleEndian>(t)
-}
-
-pub fn validate_header<A: Algebra>(
-    magic: u32,
-    algebra: &A,
-    p: ValidPrime,
-    s: u32,
-    t: i32,
-    buffer: &mut impl Read,
-) -> std::io::Result<()> {
-    use std::io::{Error, ErrorKind};
-
-    let data_magic = buffer.read_u32::<LittleEndian>()?;
-    if data_magic != magic {
-        return Err(Error::new(
-            ErrorKind::InvalidData,
-            format!("Invalid magic {data_magic:#010x}; expected {magic:#010x}"),
-        ));
-    }
-
-    let algebra_magic = buffer.read_u16::<LittleEndian>()?;
-    if algebra_magic != algebra.magic() {
-        return Err(Error::new(
-            ErrorKind::InvalidData,
-            format!(
-                "Invalid algebra magic {algebra_magic:#06x}; expected {:#06x}",
-                algebra.magic()
-            ),
-        ));
-    }
-
-    let data_p = buffer.read_u16::<LittleEndian>()? as u32;
-    if data_p != *p {
-        return Err(Error::new(
-            ErrorKind::InvalidData,
-            format!("Invalid prime {data_p}; expected {p}"),
-        ));
-    }
-
-    let data_s = buffer.read_u32::<LittleEndian>()?;
-    if data_s != s {
-        return Err(Error::new(
-            ErrorKind::InvalidData,
-            format!("Invalid s {data_s}; expected {s}"),
-        ));
-    }
-
-    let data_t = buffer.read_i32::<LittleEndian>()?;
-    if data_t != t {
-        return Err(Error::new(
-            ErrorKind::InvalidData,
-            format!("Invalid s {data_t}; expected {t}"),
-        ));
-    }
-
-    Ok(())
-}
-
-pub struct ChecksumWriter<T: Write> {
-    writer: T,
-    adler: adler::Adler32,
-}
-
-impl<T: Write> ChecksumWriter<T> {
-    pub fn new(writer: T) -> Self {
-        Self {
-            writer,
-            adler: adler::Adler32::new(),
-        }
-    }
-}
-
-/// We only implement the functions required and the ones we actually use.
-impl<T: Write> Write for ChecksumWriter<T> {
-    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        let bytes_written = self.writer.write(buf)?;
-        self.adler.write_slice(&buf[0..bytes_written]);
-        Ok(bytes_written)
-    }
-
-    fn flush(&mut self) -> std::io::Result<()> {
-        self.writer.flush()
-    }
-
-    fn write_all(&mut self, buf: &[u8]) -> std::io::Result<()> {
-        self.writer.write_all(buf)?;
-        self.adler.write_slice(buf);
-        Ok(())
-    }
-}
-
-impl<T: Write> std::ops::Drop for ChecksumWriter<T> {
-    fn drop(&mut self) {
-        if !std::thread::panicking() {
-            // We may not have finished writing, so the data is wrong. It should not be given a
-            // valid checksum
-            self.writer
-                .write_u32::<LittleEndian>(self.adler.checksum())
-                .unwrap();
-        }
-    }
-}
-
-pub struct ChecksumReader<T: Read> {
-    reader: T,
-    adler: adler::Adler32,
-}
-
-impl<T: Read> ChecksumReader<T> {
-    pub fn new(reader: T) -> Self {
-        Self {
-            reader,
-            adler: adler::Adler32::new(),
-        }
-    }
-}
-
-/// We only implement the functions required and the ones we actually use.
-impl<T: Read> Read for ChecksumReader<T> {
-    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        let bytes_read = self.reader.read(buf)?;
-        self.adler.write_slice(&buf[0..bytes_read]);
-        Ok(bytes_read)
-    }
-
-    fn read_exact(&mut self, buf: &mut [u8]) -> std::io::Result<()> {
-        self.reader.read_exact(buf)?;
-        self.adler.write_slice(buf);
-        Ok(())
-    }
-}
-
-impl<T: Read> std::ops::Drop for ChecksumReader<T> {
-    fn drop(&mut self) {
-        if !std::thread::panicking() {
-            // If we are panicking, we may not have read everything, and panic in panic
-            // is bad.
-            assert_eq!(
-                self.adler.checksum(),
-                self.reader.read_u32::<LittleEndian>().unwrap(),
-                "Invalid file checksum"
-            );
-            let mut buf = [0];
-            // Check EOF
-            assert_eq!(self.reader.read(&mut buf).unwrap(), 0, "EOF not reached");
-        }
     }
 }
 

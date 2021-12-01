@@ -24,7 +24,7 @@ pub trait Algebra: std::fmt::Display + Send + Sync {
     /// disasterous consequences. So we store the magic in the save files.
     ///
     /// This defaults to 0 for other kinds of algebra that don't care about this problem.
-    fn magic(&self) -> u16 {
+    fn magic(&self) -> u32 {
         0
     }
 
@@ -262,7 +262,7 @@ macro_rules! dispatch_algebra {
     ($struct:ty, $dispatch_macro: ident) => {
         impl Algebra for $struct {
             $dispatch_macro! {
-                fn magic(&self) -> u16;
+                fn magic(&self) -> u32;
                 fn prime(&self) -> ValidPrime;
                 fn compute_basis(&self, degree: i32);
                 fn dimension(&self, degree: i32, excess: i32) -> usize;
