@@ -95,11 +95,6 @@ impl QuasiInverse {
         for result in &mut *results {
             assert_eq!(result.into().as_slice().len(), source_dim);
         }
-        for input in inputs {
-            // The quasi-inverse might be computed with a smaller target dimension when computing
-            // through stem.
-            assert!(input.into().len() >= target_dim);
-        }
 
         let num_limbs = FpVector::num_limbs(p, source_dim);
 
