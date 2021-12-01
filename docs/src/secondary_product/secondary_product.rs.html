@@ -204,6 +204,8 @@
 <span id="180">180</span>
 <span id="181">181</span>
 <span id="182">182</span>
+<span id="183">183</span>
+<span id="184">184</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
 
 <span class="kw">use</span> <span class="ident">fp::matrix::Matrix</span>;
@@ -279,6 +281,7 @@
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">lift</span> <span class="op">=</span> <span class="ident">SecondaryLift::new</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">resolution</span>));
     <span class="ident">lift</span>.<span class="ident">initialize_homotopies</span>();
     <span class="ident">lift</span>.<span class="ident">compute_composites</span>();
+    <span class="ident">lift</span>.<span class="ident">compute_intermediates</span>();
     <span class="ident">lift</span>.<span class="ident">compute_homotopies</span>();
 
     <span class="kw">let</span> <span class="ident">lift</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">lift</span>);
@@ -292,6 +295,7 @@
 
     <span class="ident">res_lift</span>.<span class="ident">initialize_homotopies</span>();
     <span class="ident">res_lift</span>.<span class="ident">compute_composites</span>();
+    <span class="ident">res_lift</span>.<span class="ident">compute_intermediates</span>();
     <span class="ident">res_lift</span>.<span class="ident">compute_homotopies</span>();
 
     <span class="comment">// Compute E3 page</span>

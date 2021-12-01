@@ -438,7 +438,7 @@
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">PairAlgebra</span>: <span class="ident">Algebra</span> {
     <span class="doccomment">/// An element in the cohomological degree zero part of the pair algebra. This tends to not be</span>
     <span class="doccomment">/// a ring over Fp, so we let the algebra specify how it wants to represent the elements.</span>
-    <span class="kw">type</span> <span class="ident">Element</span>;
+    <span class="kw">type</span> <span class="ident">Element</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span>;
 
     <span class="doccomment">/// Assert that `elt` is in the image of the differential. Drop the data recording the</span>
     <span class="doccomment">/// complement of the image of the differential.</span>

@@ -89,6 +89,7 @@
 <span id="65">65</span>
 <span id="66">66</span>
 <span id="67">67</span>
+<span id="68">68</span>
 </pre><pre class="rust"><code><span class="doccomment">//! This computes $d_2$ differentials in the Adams spectral sequence. This only works for fairly</span>
 <span class="doccomment">//! specific modules, but tends to cover most cases of interest.</span>
 <span class="doccomment">//!</span>
@@ -132,6 +133,7 @@
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">lift</span> <span class="op">=</span> <span class="ident">SecondaryLift::new</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">resolution</span>));
     <span class="ident">lift</span>.<span class="ident">initialize_homotopies</span>();
     <span class="ident">lift</span>.<span class="ident">compute_composites</span>();
+    <span class="ident">lift</span>.<span class="ident">compute_intermediates</span>();
     <span class="ident">lift</span>.<span class="ident">compute_homotopies</span>();
 
     <span class="comment">// Iterate through target of the d2</span>
