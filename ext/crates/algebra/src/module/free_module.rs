@@ -411,26 +411,15 @@ impl<A: Algebra> FreeModule<A> {
     ) -> Slice<'a> {
         let start = self.generator_offset(degree, gen_degree, gen_index);
         let len = self.algebra().dimension(degree - gen_degree, 0);
-        v.slice(start, start + len)
-    }
-
-    /// Given a vector that represents an element in degree `degree`, slice it to the part that
-    /// represents the terms that correspond to the specified generator.
-    pub fn slice_vector_mut<'a>(
-        &self,
-        degree: i32,
-        gen_degree: i32,
-        gen_index: usize,
-        v: &'a mut SliceMut,
-    ) -> SliceMut<'a> {
-        let start = self.generator_offset(degree, gen_degree, gen_index);
-        let len = self.algebra().dimension(degree - gen_degree, 0);
-        v.slice_mut(start, start + len)
+        v.slice(
+            std::cmp::min(v.len(), start),
+            std::cmp::min(v.len(), start + len),
+        )
     }
 
     /// Given an element in a degree, iterate through the slices corresponding to each generator.
-    /// Each item of the iterator is `(gen_degree, gen_index, op_degree, slice)`. This skips the slices
-    /// corresponding to generators in degree `degree`.
+    /// Each item of the iterator is `(gen_degree, gen_index, op_degree, slice)`. This skips slices
+    /// that are zero length.
     pub fn iter_slices<'a>(
         &'a self,
         degree: i32,
@@ -440,6 +429,7 @@ impl<A: Algebra> FreeModule<A> {
             .map(|t| (0..self.num_gens.get(t).copied().unwrap_or(0)).map(move |n| (t, n)))
             .flatten()
             .map(move |(t, n)| (t, n, degree - t, self.slice_vector(degree, t, n, slice)))
+            .filter(|(_, _, _, v)| !v.is_empty())
     }
 }
 
