@@ -22,7 +22,7 @@ fn main() {
     resolution.compute_through_bidegree(6, 70);
 
     let start = Instant::now();
-    let mut lift = SecondaryLift::new(Arc::new(resolution));
+    let lift = SecondaryLift::new(Arc::new(resolution));
     lift.initialize_homotopies();
     lift.compute_composites();
     lift.compute_homotopies();

@@ -38,10 +38,15 @@ fn main() -> anyhow::Result<()> {
         return Ok(());
     }
 
-    let mut lift = SecondaryLift::new(Arc::clone(&resolution));
+    let lift = SecondaryLift::new(Arc::clone(&resolution));
     lift.initialize_homotopies();
     lift.compute_composites();
     lift.compute_intermediates();
+
+    #[cfg(feature = "concurrent")]
+    lift.compute_homotopies_concurrent(&data.bucket);
+
+    #[cfg(not(feature = "concurrent"))]
     lift.compute_homotopies();
 
     // Iterate through target of the d2

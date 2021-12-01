@@ -70,16 +70,21 @@ fn main() -> anyhow::Result<()> {
     #[cfg(feature = "concurrent")]
     hom.extend_all_concurrent(&data.bucket);
 
-    let mut lift = SecondaryLift::new(Arc::clone(&resolution));
+    let lift = SecondaryLift::new(Arc::clone(&resolution));
     lift.initialize_homotopies();
     lift.compute_composites();
     lift.compute_intermediates();
+
+    #[cfg(feature = "concurrent")]
+    lift.compute_homotopies_concurrent(&data.bucket);
+
+    #[cfg(not(feature = "concurrent"))]
     lift.compute_homotopies();
 
     let lift = Arc::new(lift);
     let hom = Arc::new(hom);
 
-    let mut res_lift = SecondaryResolutionHomomorphism::new(
+    let res_lift = SecondaryResolutionHomomorphism::new(
         Arc::clone(&lift),
         Arc::clone(&lift),
         Arc::clone(&hom),
@@ -88,6 +93,11 @@ fn main() -> anyhow::Result<()> {
     res_lift.initialize_homotopies();
     res_lift.compute_composites();
     res_lift.compute_intermediates();
+
+    #[cfg(feature = "concurrent")]
+    res_lift.compute_homotopies_concurrent(&data.bucket);
+
+    #[cfg(not(feature = "concurrent"))]
     res_lift.compute_homotopies();
 
     // Compute E3 page
