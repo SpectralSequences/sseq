@@ -533,12 +533,83 @@
 <span id="509">509</span>
 <span id="510">510</span>
 <span id="511">511</span>
+<span id="512">512</span>
+<span id="513">513</span>
+<span id="514">514</span>
+<span id="515">515</span>
+<span id="516">516</span>
+<span id="517">517</span>
+<span id="518">518</span>
+<span id="519">519</span>
+<span id="520">520</span>
+<span id="521">521</span>
+<span id="522">522</span>
+<span id="523">523</span>
+<span id="524">524</span>
+<span id="525">525</span>
+<span id="526">526</span>
+<span id="527">527</span>
+<span id="528">528</span>
+<span id="529">529</span>
+<span id="530">530</span>
+<span id="531">531</span>
+<span id="532">532</span>
+<span id="533">533</span>
+<span id="534">534</span>
+<span id="535">535</span>
+<span id="536">536</span>
+<span id="537">537</span>
+<span id="538">538</span>
+<span id="539">539</span>
+<span id="540">540</span>
+<span id="541">541</span>
+<span id="542">542</span>
+<span id="543">543</span>
+<span id="544">544</span>
+<span id="545">545</span>
+<span id="546">546</span>
+<span id="547">547</span>
+<span id="548">548</span>
+<span id="549">549</span>
+<span id="550">550</span>
+<span id="551">551</span>
+<span id="552">552</span>
+<span id="553">553</span>
+<span id="554">554</span>
+<span id="555">555</span>
+<span id="556">556</span>
+<span id="557">557</span>
+<span id="558">558</span>
+<span id="559">559</span>
+<span id="560">560</span>
+<span id="561">561</span>
+<span id="562">562</span>
+<span id="563">563</span>
+<span id="564">564</span>
+<span id="565">565</span>
+<span id="566">566</span>
+<span id="567">567</span>
+<span id="568">568</span>
+<span id="569">569</span>
+<span id="570">570</span>
+<span id="571">571</span>
+<span id="572">572</span>
+<span id="573">573</span>
+<span id="574">574</span>
+<span id="575">575</span>
+<span id="576">576</span>
+<span id="577">577</span>
+<span id="578">578</span>
+<span id="579">579</span>
+<span id="580">580</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">core::cell::UnsafeCell</span>;
 <span class="kw">use</span> <span class="ident">core::ops</span>::{<span class="ident">Index</span>, <span class="ident">IndexMut</span>};
 <span class="kw">use</span> <span class="ident">std::cmp</span>::{<span class="ident">Eq</span>, <span class="ident">PartialEq</span>};
 <span class="kw">use</span> <span class="ident">std::fmt</span>;
 <span class="kw">use</span> <span class="ident">std::sync::atomic</span>::{<span class="ident">AtomicUsize</span>, <span class="ident">Ordering</span>};
 <span class="kw">use</span> <span class="ident">std::sync</span>::{<span class="ident">Mutex</span>, <span class="ident">MutexGuard</span>};
+
+<span class="kw">use</span> <span class="ident">rayon::iter</span>::{<span class="ident">IntoParallelIterator</span>, <span class="ident">ParallelIterator</span>};
 
 <span class="kw">const</span> <span class="ident">USIZE_LEN</span>: <span class="ident">u32</span> <span class="op">=</span> <span class="number">0usize</span>.<span class="ident">count_zeros</span>();
 
@@ -792,6 +863,48 @@
     }
 }
 
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span><span class="op">&gt;</span> <span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
+    <span class="doccomment">/// A parallel version of `extend`, where the function `f` is run for different indices</span>
+    <span class="doccomment">/// simultaneously using [`rayon`].</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// # Example</span>
+    <span class="doccomment">/// ```</span>
+    <span class="doccomment">/// # use once::OnceVec;</span>
+    <span class="doccomment">/// let v: OnceVec&lt;usize&gt; = OnceVec::new();</span>
+    <span class="doccomment">/// v.par_extend(5, |i| i + 5);</span>
+    <span class="doccomment">/// assert_eq!(v.len(), 6);</span>
+    <span class="doccomment">/// for (i, &amp;n) in v.iter().enumerate() {</span>
+    <span class="doccomment">///     assert_eq!(n, i + 5);</span>
+    <span class="doccomment">/// }</span>
+    <span class="doccomment">/// ```</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">par_extend</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">new_max</span>: <span class="ident">usize</span>, <span class="ident">f</span>: <span class="kw">impl</span> <span class="ident">Fn</span>(<span class="ident">usize</span>) -&gt; <span class="ident">T</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span>) {
+        <span class="kw">unsafe</span> {
+            <span class="kw">let</span> <span class="ident">_lock</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">lock</span>();
+            <span class="kw">let</span> <span class="ident">old_len</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">len</span>.<span class="ident">load</span>(<span class="ident">Ordering::Acquire</span>);
+            <span class="kw">if</span> <span class="ident">new_max</span> <span class="op">&lt;</span> <span class="ident">old_len</span> {
+                <span class="kw">return</span>;
+            }
+            <span class="kw">let</span> <span class="ident">inner</span> <span class="op">=</span> <span class="kw-2">&amp;mut</span> <span class="kw-2">*</span><span class="self">self</span>.<span class="ident">data</span>.<span class="ident">get</span>();
+
+            <span class="comment">// Unfortunately there is no way to avoid collecting ATM. See</span>
+            <span class="comment">// https://github.com/rayon-rs/rayon/issues/210</span>
+            <span class="kw">let</span> <span class="ident">results</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">usize</span>, <span class="ident">T</span>)<span class="op">&gt;</span> <span class="op">=</span> (<span class="ident">old_len</span>..<span class="op">=</span><span class="ident">new_max</span>)
+                .<span class="ident">into_par_iter</span>()
+                .<span class="ident">map</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> (<span class="ident">i</span>, <span class="ident">f</span>(<span class="ident">i</span>)))
+                .<span class="ident">collect</span>();
+            <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">v</span>) <span class="kw">in</span> <span class="ident">results</span> {
+                <span class="kw">let</span> (<span class="ident">page</span>, <span class="ident">index</span>) <span class="op">=</span> <span class="ident"><span class="self">Self</span>::inner_index</span>(<span class="ident">i</span>);
+                <span class="kw">if</span> <span class="ident">index</span> <span class="op">==</span> <span class="number">0</span> {
+                    <span class="ident">inner</span>[<span class="ident">page</span>].<span class="ident">reserve_exact</span>(<span class="ident">i</span> <span class="op">+</span> <span class="number">1</span>);
+                }
+                <span class="ident">inner</span>[<span class="ident">page</span>].<span class="ident">push</span>(<span class="ident">v</span>);
+                <span class="comment">// Do it inside the loop because f may use self</span>
+                <span class="self">self</span>.<span class="ident">len</span>.<span class="ident">store</span>(<span class="ident">i</span> <span class="op">+</span> <span class="number">1</span>, <span class="ident">Ordering::Release</span>)
+            }
+        }
+    }
+}
+
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="ident">IntoIterator</span> <span class="kw">for</span> <span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
     <span class="kw">type</span> <span class="ident">Item</span> <span class="op">=</span> <span class="ident">T</span>;
     <span class="kw">type</span> <span class="ident">IntoIter</span> <span class="op">=</span> <span class="ident">std::iter::Flatten</span><span class="op">&lt;</span><span class="ident">std::array::IntoIter</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, <span class="ident">MAX_OUTER_LENGTH</span><span class="op">&gt;</span><span class="op">&gt;</span>;
@@ -985,6 +1098,31 @@
             .<span class="ident">iter</span>()
             .<span class="ident">enumerate</span>()
             .<span class="ident">map</span>(<span class="kw">move</span> <span class="op">|</span>(<span class="ident">i</span>, <span class="ident">t</span>)<span class="op">|</span> (<span class="ident">i</span> <span class="kw">as</span> <span class="ident">i32</span> <span class="op">+</span> <span class="ident">min_degree</span>, <span class="ident">t</span>))
+    }
+}
+
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span><span class="op">&gt;</span> <span class="ident">OnceBiVec</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
+    <span class="doccomment">/// A parallel version of `extend`, where the function `f` is run for different indices</span>
+    <span class="doccomment">/// simultaneously using [`rayon`].</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// # Example</span>
+    <span class="doccomment">/// ```</span>
+    <span class="doccomment">/// # use once::OnceBiVec;</span>
+    <span class="doccomment">/// let v: OnceBiVec&lt;i32&gt; = OnceBiVec::new(-4);</span>
+    <span class="doccomment">/// v.par_extend(5, |i| i + 5);</span>
+    <span class="doccomment">/// assert_eq!(v.len(), 6);</span>
+    <span class="doccomment">/// for (i, &amp;n) in v.iter_enum() {</span>
+    <span class="doccomment">///     assert_eq!(n, i + 5);</span>
+    <span class="doccomment">/// }</span>
+    <span class="doccomment">/// ```</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">par_extend</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">new_max</span>: <span class="ident">i32</span>, <span class="ident">f</span>: <span class="kw">impl</span> (<span class="ident">Fn</span>(<span class="ident">i32</span>) -&gt; <span class="ident">T</span>) <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span>) {
+        <span class="kw">if</span> <span class="ident">new_max</span> <span class="op">&lt;</span> <span class="self">self</span>.<span class="ident">min_degree</span> {
+            <span class="kw">return</span>;
+        }
+        <span class="self">self</span>.<span class="ident">data</span>
+            .<span class="ident">par_extend</span>((<span class="ident">new_max</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">min_degree</span>) <span class="kw">as</span> <span class="ident">usize</span>, <span class="op">|</span><span class="ident">i</span><span class="op">|</span> {
+                <span class="ident">f</span>(<span class="ident">i</span> <span class="kw">as</span> <span class="ident">i32</span> <span class="op">+</span> <span class="self">self</span>.<span class="ident">min_degree</span>)
+            });
     }
 }
 
