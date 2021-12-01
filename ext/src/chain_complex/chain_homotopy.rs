@@ -7,10 +7,7 @@ use once::OnceVec;
 use std::sync::Mutex;
 
 #[cfg(feature = "concurrent")]
-use {
-    crossbeam_channel::{unbounded, Receiver},
-    thread_token::TokenBucket,
-};
+use thread_token::TokenBucket;
 
 /// A chain homotopy from $f to g$, or equivalently a null-homotopy of $h = f - g$. A chain map is
 /// a priori a collection of free module homomorphisms. However, instead of providing
@@ -130,6 +127,12 @@ impl<
         let target_s = source_s - self.shift_s;
         let target_t = source_t - self.shift_t;
 
+        match self.homotopies[target_s].next_degree().cmp(&source_t) {
+            std::cmp::Ordering::Less => panic!("Not yet ready to compute {source_t}"),
+            std::cmp::Ordering::Equal => (),
+            std::cmp::Ordering::Greater => return,
+        };
+
         let num_gens = self
             .source
             .module(source_s)
@@ -208,12 +211,11 @@ impl<
         if max_source_s == 0 {
             return;
         }
-        let max_source_s = max_source_s - 1;
         let _lock = self.lock.lock();
         let p = self.source.prime();
 
         self.homotopies
-            .extend((max_source_s - self.shift_s) as usize, |s| {
+            .extend((max_source_s - self.shift_s - 1) as usize, |s| {
                 let s = s as u32;
                 let h = FreeModuleHomomorphism::new(
                     self.source.module(s + self.shift_s),
@@ -224,33 +226,26 @@ impl<
                 h
             });
 
-        crossbeam_utils::thread::scope(|scope| {
-            let mut last_receiver: Option<Receiver<()>> = None;
+        let min_source_t = std::cmp::min(
+            self.source.min_degree(),
+            self.target.min_degree() + self.shift_t,
+        );
+        let max_source_t = |s| {
+            std::cmp::min(
+                self.source.module(s).max_computed_degree(),
+                self.target
+                    .module(s - self.shift_s + 1)
+                    .max_computed_degree()
+                    + self.shift_t,
+            ) + 1
+        };
 
-            for source_s in self.shift_s..=max_source_s {
-                let (sender, receiver) = unbounded();
-
-                let target_s = source_s - self.shift_s;
-                let max_source_t = std::cmp::min(
-                    self.source.module(source_s).max_computed_degree(),
-                    self.target.module(target_s + 1).max_computed_degree() + self.shift_t,
-                );
-
-                scope.spawn(move |_| {
-                    let mut scratch = FpVector::new(p, 0);
-                    let mut token = bucket.take_token();
-                    for source_t in self.homotopies[target_s as usize].next_degree()..=max_source_t
-                    {
-                        token = bucket.recv_or_release(token, &last_receiver);
-
-                        self.extend_step(source_s, source_t, &mut scratch);
-                        // The last receiver will be dropped so the send will fail
-                        sender.send(()).ok();
-                    }
-                });
-                last_receiver = Some(receiver);
-            }
-        })
-        .unwrap();
+        bucket.iter_s_t(
+            self.shift_s..max_source_s,
+            min_source_t,
+            max_source_t,
+            FpVector::new(p, 0),
+            |s, t, scratch| self.extend_step(s, t, scratch),
+        );
     }
 }
