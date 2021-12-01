@@ -1119,11 +1119,6 @@
 <span id="1095">1095</span>
 <span id="1096">1096</span>
 <span id="1097">1097</span>
-<span id="1098">1098</span>
-<span id="1099">1099</span>
-<span id="1100">1100</span>
-<span id="1101">1101</span>
-<span id="1102">1102</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::sync</span>::{<span class="ident">Arc</span>, <span class="ident">Mutex</span>};
 
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::chain_complex</span>::{<span class="ident">AugmentedChainComplex</span>, <span class="ident">ChainComplex</span>};
@@ -1563,12 +1558,11 @@
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">save_dir</span>.<span class="ident">is_some</span>() {
             <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">mut</span> <span class="ident">f</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">open_save_file</span>(<span class="ident">SaveData::Differential</span>, <span class="ident">s</span>, <span class="ident">t</span>) {
                 <span class="kw">let</span> <span class="ident">num_new_gens</span> <span class="op">=</span> <span class="ident">f</span>.<span class="ident">read_u64</span>::<span class="op">&lt;</span><span class="ident">LittleEndian</span><span class="op">&gt;</span>().<span class="ident">unwrap</span>() <span class="kw">as</span> <span class="ident">usize</span>;
-                <span class="comment">// It can be smaller than target_res_dimension if we resolved through stem</span>
+                <span class="comment">// This need not be equal to `target_res_dimension`. If we saved a big resolution</span>
+                <span class="comment">// and now only want to load up to a small stem, then `target_res_dimension` will</span>
+                <span class="comment">// be smaller. If we have previously saved a small resolution up to a stem and now</span>
+                <span class="comment">// want to resolve further, it will be bigger.</span>
                 <span class="kw">let</span> <span class="ident">saved_target_res_dimension</span> <span class="op">=</span> <span class="ident">f</span>.<span class="ident">read_u64</span>::<span class="op">&lt;</span><span class="ident">LittleEndian</span><span class="op">&gt;</span>().<span class="ident">unwrap</span>() <span class="kw">as</span> <span class="ident">usize</span>;
-                <span class="macro">assert!</span>(
-                    <span class="ident">target_res_dimension</span> <span class="op">&gt;</span><span class="op">=</span> <span class="ident">saved_target_res_dimension</span>,
-                    <span class="string">&quot;Malformed data: mismatched resolution target dimension&quot;</span>
-                );
                 <span class="macro">assert_eq!</span>(
                     <span class="ident">target_cc_dimension</span>,
                     <span class="ident">f</span>.<span class="ident">read_u64</span>::<span class="op">&lt;</span><span class="ident">LittleEndian</span><span class="op">&gt;</span>().<span class="ident">unwrap</span>() <span class="kw">as</span> <span class="ident">usize</span>,
@@ -1596,10 +1590,6 @@
                     <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">mut</span> <span class="ident">f</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">open_save_file</span>(<span class="ident">SaveData::ResQi</span>, <span class="ident">s</span>, <span class="ident">t</span>) {
                         <span class="kw">let</span> <span class="ident">res_qi</span> <span class="op">=</span> <span class="ident">QuasiInverse::from_bytes</span>(<span class="ident">p</span>, <span class="kw-2">&amp;mut</span> <span class="ident">f</span>).<span class="ident">unwrap</span>();
 
-                        <span class="macro">assert!</span>(
-                            <span class="ident">target_res_dimension</span> <span class="op">&gt;</span><span class="op">=</span> <span class="ident">res_qi</span>.<span class="ident">target_dimension</span>(),
-                            <span class="string">&quot;Malformed data: mismatched resolution target dimension in qi at ({s}, {t})&quot;</span>
-                            );
                         <span class="macro">assert_eq!</span>(
                             <span class="ident">res_qi</span>.<span class="ident">source_dimension</span>(),
                             <span class="ident">source_dimension</span> <span class="op">+</span> <span class="ident">num_new_gens</span>,
