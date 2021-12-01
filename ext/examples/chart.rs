@@ -6,7 +6,7 @@ use ext::utils::query_module;
 fn main() -> anyhow::Result<()> {
     let f = std::io::stdout();
     let mut g = SvgBackend::new(f);
-    let resolution = query_module(None)?.resolution;
+    let resolution = query_module(None, false)?.resolution;
 
     g.init(
         resolution.module(0).max_computed_degree(),

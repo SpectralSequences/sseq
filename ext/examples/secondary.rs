@@ -27,7 +27,7 @@ use ext::secondary::*;
 use ext::utils::query_module;
 
 fn main() -> anyhow::Result<()> {
-    let data = query_module(Some(algebra::AlgebraType::Milnor))?;
+    let data = query_module(Some(algebra::AlgebraType::Milnor), false)?;
     let resolution = Arc::new(data.resolution);
 
     if !can_compute(&resolution) {

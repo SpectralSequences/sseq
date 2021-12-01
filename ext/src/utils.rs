@@ -260,8 +260,12 @@ pub fn query_module_only(
     construct(module, save_dir).context("Failed to load module from save file")
 }
 
-pub fn query_module(algebra: Option<AlgebraType>) -> anyhow::Result<QueryModuleResult> {
-    let resolution = query_module_only("Module", algebra)?;
+pub fn query_module(
+    algebra: Option<AlgebraType>,
+    load_quasi_inverse: bool,
+) -> anyhow::Result<QueryModuleResult> {
+    let mut resolution = query_module_only("Module", algebra)?;
+    resolution.load_quasi_inverse = load_quasi_inverse;
 
     #[cfg(feature = "concurrent")]
     let bucket = query_bucket();

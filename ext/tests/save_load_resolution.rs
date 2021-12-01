@@ -203,7 +203,8 @@ fn test_load_smaller() {
 fn test_load_secondary() {
     let tempdir = tempfile::TempDir::new().unwrap();
 
-    let resolution1 = construct("S_2", Some(tempdir.path().into())).unwrap();
+    let mut resolution1 = construct("S_2", Some(tempdir.path().into())).unwrap();
+    resolution1.load_quasi_inverse = false;
     resolution1.compute_through_stem(4, 10);
 
     let lift1 = SecondaryLift::new(Arc::new(resolution1));
@@ -229,7 +230,8 @@ fn test_load_secondary() {
     assert!(!is_empty("secondary_composites"));
 
     // Load the resolution and extend further
-    let resolution2 = construct("S_2", Some(tempdir.path().into())).unwrap();
+    let mut resolution2 = construct("S_2", Some(tempdir.path().into())).unwrap();
+    resolution2.load_quasi_inverse = false;
     resolution2.compute_through_stem(8, 15);
 
     let lift2 = SecondaryLift::new(Arc::new(resolution2));
@@ -244,7 +246,8 @@ fn test_load_secondary() {
     assert_eq!(lift2.homotopy(3).homotopies.hom_k(16), vec![vec![1]]);
 
     // Now try to load a smaller resolution
-    let resolution3 = construct("S_2", Some(tempdir.path().into())).unwrap();
+    let mut resolution3 = construct("S_2", Some(tempdir.path().into())).unwrap();
+    resolution3.load_quasi_inverse = false;
     resolution3.compute_through_stem(5, 12);
 
     let lift3 = SecondaryLift::new(Arc::new(resolution3));

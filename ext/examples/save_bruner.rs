@@ -10,7 +10,7 @@ use std::fs::File;
 use std::io::{BufWriter, Write as _};
 
 fn main() -> anyhow::Result<()> {
-    let resolution = query_module(Some(AlgebraType::Milnor))?.resolution;
+    let resolution = query_module(Some(AlgebraType::Milnor), false)?.resolution;
 
     assert_eq!(*resolution.prime(), 2);
     let algebra = resolution.algebra();
