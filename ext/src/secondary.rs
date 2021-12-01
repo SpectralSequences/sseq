@@ -15,6 +15,8 @@ use crate::resolution::Resolution as Resolution_;
 use crate::CCC;
 
 use dashmap::DashMap;
+#[cfg(feature = "concurrent")]
+use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 
 type Resolution = Resolution_<CCC>;
 
@@ -141,7 +143,7 @@ pub struct SecondaryHomotopy<A: PairAlgebra> {
     pub homotopies: FreeModuleHomomorphism<FreeModule<A>>,
 }
 
-impl<A: PairAlgebra> SecondaryHomotopy<A> {
+impl<A: PairAlgebra + Send + Sync> SecondaryHomotopy<A> {
     pub fn new(source: Arc<FreeModule<A>>, target: Arc<FreeModule<A>>, shift_t: i32) -> Self {
         Self {
             composites: OnceBiVec::new(std::cmp::max(
@@ -175,8 +177,25 @@ impl<A: PairAlgebra> SecondaryHomotopy<A> {
             assert_eq!(d1.degree_shift() + d0.degree_shift(), self.shift_t);
         }
 
+        #[cfg(not(feature = "concurrent"))]
         self.composites.extend(degree, |t| {
             (0..self.source.number_of_gens_in_degree(t))
+                .map(|i| {
+                    let mut composite =
+                        SecondaryComposite::new(Arc::clone(&self.target), t - self.shift_t);
+                    for (coef, d1, d0) in maps {
+                        composite.add_composite(*coef, t, i, d1, d0);
+                    }
+                    composite.finalize();
+                    composite
+                })
+                .collect()
+        });
+
+        #[cfg(feature = "concurrent")]
+        self.composites.par_extend(degree, |t| {
+            (0..self.source.number_of_gens_in_degree(t))
+                .into_par_iter()
                 .map(|i| {
                     let mut composite =
                         SecondaryComposite::new(Arc::clone(&self.target), t - self.shift_t);
@@ -226,7 +245,7 @@ pub struct SecondaryLift<A: PairAlgebra, CC: FreeChainComplex<Algebra = A>> {
     intermediates: DashMap<(u32, i32, usize), FpVector>,
 }
 
-impl<A: PairAlgebra, CC: FreeChainComplex<Algebra = A>> SecondaryLift<A, CC> {
+impl<A: PairAlgebra + Send + Sync, CC: FreeChainComplex<Algebra = A>> SecondaryLift<A, CC> {
     pub fn new(cc: Arc<CC>) -> Self {
         Self {
             chain_complex: cc,
@@ -260,11 +279,18 @@ impl<A: PairAlgebra, CC: FreeChainComplex<Algebra = A>> SecondaryLift<A, CC> {
             )
         };
 
+        #[cfg(not(feature = "concurrent"))]
         for s in self.homotopies.range() {
             let d1 = &*self.chain_complex.differential(s as u32);
             let d0 = &*self.chain_complex.differential(s as u32 - 1);
             self.homotopies[s].add_composite(max_t(s as u32), &[(1, d1, d0)]);
         }
+        #[cfg(feature = "concurrent")]
+        self.homotopies.range().into_par_iter().for_each(|s| {
+            let d1 = &*self.chain_complex.differential(s as u32);
+            let d0 = &*self.chain_complex.differential(s as u32 - 1);
+            self.homotopies[s].add_composite(max_t(s as u32), &[(1, d1, d0)]);
+        });
     }
 
     pub fn get_intermediate(&self, s: u32, t: i32, idx: usize) -> FpVector {
@@ -288,6 +314,7 @@ impl<A: PairAlgebra, CC: FreeChainComplex<Algebra = A>> SecondaryLift<A, CC> {
     }
 
     pub fn compute_intermediates(&self) {
+        #[cfg(not(feature = "concurrent"))]
         for (s, homotopy) in self.homotopies.iter_enum().skip(1) {
             let s = s as u32;
             for t in homotopy.composites.range() {
@@ -297,6 +324,23 @@ impl<A: PairAlgebra, CC: FreeChainComplex<Algebra = A>> SecondaryLift<A, CC> {
                 }
             }
         }
+
+        #[cfg(feature = "concurrent")]
+        self.homotopies
+            .par_iter_enum()
+            .skip(1)
+            .for_each(|(s, homotopy)| {
+                let s = s as u32;
+
+                homotopy.composites.range().into_par_iter().for_each(|t| {
+                    (0..homotopy.source.number_of_gens_in_degree(t))
+                        .into_par_iter()
+                        .for_each(|i| {
+                            self.intermediates
+                                .insert((s, t, i), self.get_intermediate(s, t, i));
+                        })
+                })
+            })
     }
 
     pub fn compute_homotopies(&mut self) {
@@ -366,7 +410,7 @@ pub struct SecondaryResolutionHomomorphism<
 }
 
 impl<
-        A: PairAlgebra,
+        A: PairAlgebra + Send + Sync,
         CC1: FreeChainComplex<Algebra = A>,
         CC2: FreeChainComplex<Algebra = A> + AugmentedChainComplex,
     > SecondaryResolutionHomomorphism<A, CC1, CC2>
@@ -436,8 +480,10 @@ impl<
         // This is -1 mod p^2
         let neg_1 = p * p - 1;
 
-        let range = self.homotopies.range();
-        for s in range.start..range.end - 1 {
+        let mut range = self.homotopies.range();
+        range.end -= 1;
+
+        let f = |s| {
             let d_source = &*self.source.chain_complex.differential(s as u32);
             let d_target = &*self.target.chain_complex.differential(s as u32 - shift_s);
 
@@ -448,7 +494,13 @@ impl<
                 self.max_t(s as u32),
                 &[(1, d_source, c0), (neg_1, c1, d_target)],
             );
-        }
+        };
+
+        #[cfg(feature = "concurrent")]
+        range.into_par_iter().for_each(f);
+
+        #[cfg(not(feature = "concurrent"))]
+        range.into_iter().for_each(f)
     }
 
     pub fn get_intermediate(&self, s: u32, t: i32, idx: usize) -> FpVector {
@@ -490,6 +542,28 @@ impl<
     }
 
     pub fn compute_intermediates(&self) {
+        #[cfg(feature = "concurrent")]
+        self.homotopies
+            .par_iter_enum()
+            .skip(1)
+            .for_each(|(s, homotopy)| {
+                let s = s as u32;
+                homotopy
+                    .composites
+                    .range()
+                    .into_par_iter()
+                    .skip(1)
+                    .for_each(|t| {
+                        (0..homotopy.source.number_of_gens_in_degree(t))
+                            .into_par_iter()
+                            .for_each(|i| {
+                                self.intermediates
+                                    .insert((s, t, i), self.get_intermediate(s, t, i));
+                            })
+                    })
+            });
+
+        #[cfg(not(feature = "concurrent"))]
         for (s, homotopy) in self.homotopies.iter_enum().skip(1) {
             let s = s as u32;
             for t in homotopy.composites.range().skip(1) {

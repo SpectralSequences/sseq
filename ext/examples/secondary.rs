@@ -41,6 +41,7 @@ fn main() -> anyhow::Result<()> {
     let mut lift = SecondaryLift::new(Arc::clone(&resolution));
     lift.initialize_homotopies();
     lift.compute_composites();
+    lift.compute_intermediates();
     lift.compute_homotopies();
 
     // Iterate through target of the d2

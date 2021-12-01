@@ -73,6 +73,7 @@ fn main() -> anyhow::Result<()> {
     let mut lift = SecondaryLift::new(Arc::clone(&resolution));
     lift.initialize_homotopies();
     lift.compute_composites();
+    lift.compute_intermediates();
     lift.compute_homotopies();
 
     let lift = Arc::new(lift);
@@ -86,6 +87,7 @@ fn main() -> anyhow::Result<()> {
 
     res_lift.initialize_homotopies();
     res_lift.compute_composites();
+    res_lift.compute_intermediates();
     res_lift.compute_homotopies();
 
     // Compute E3 page

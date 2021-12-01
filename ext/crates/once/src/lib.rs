@@ -6,7 +6,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Mutex, MutexGuard};
 
 #[cfg(feature = "concurrent")]
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 
 const USIZE_LEN: u32 = 0usize.count_zeros();
 
@@ -522,6 +522,12 @@ impl<T: Send + Sync> OnceBiVec<T> {
             .par_extend((new_max - self.min_degree) as usize, |i| {
                 f(i as i32 + self.min_degree)
             });
+    }
+
+    pub fn par_iter_enum(
+        &self,
+    ) -> impl ParallelIterator<Item = (i32, &T)> + IndexedParallelIterator {
+        self.range().into_par_iter().map(|i| (i, &self[i]))
     }
 }
 

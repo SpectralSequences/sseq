@@ -18,7 +18,7 @@ const TWO: ValidPrime = ValidPrime::new(2);
 pub trait PairAlgebra: Algebra {
     /// An element in the cohomological degree zero part of the pair algebra. This tends to not be
     /// a ring over Fp, so we let the algebra specify how it wants to represent the elements.
-    type Element;
+    type Element: Send + Sync;
 
     /// Assert that `elt` is in the image of the differential. Drop the data recording the
     /// complement of the image of the differential.
