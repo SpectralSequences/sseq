@@ -125,7 +125,7 @@ fn main() -> anyhow::Result<()> {
 
                 for (i, row) in m.into_iter().enumerate() {
                     source_vec.set_to_zero();
-                    source_vec.set_entry(i, 0);
+                    source_vec.set_entry(i, 1);
                     target_vec.copy_from_slice(&row);
 
                     sseq.add_differential(
