@@ -107,6 +107,8 @@ fn main() -> anyhow::Result<()> {
         Arc::clone(&hom),
     );
 
+    let start = std::time::Instant::now();
+
     res_lift.initialize_homotopies();
     res_lift.compute_composites();
     res_lift.compute_intermediates();
@@ -116,6 +118,8 @@ fn main() -> anyhow::Result<()> {
 
     #[cfg(not(feature = "concurrent"))]
     res_lift.compute_homotopies();
+
+    eprintln!("Time spent: {:?}", start.elapsed());
 
     // Compute E3 page
     let sseq = {
