@@ -365,6 +365,11 @@
 <span id="341">341</span>
 <span id="342">342</span>
 <span id="343">343</span>
+<span id="344">344</span>
+<span id="345">345</span>
+<span id="346">346</span>
+<span id="347">347</span>
+<span id="348">348</span>
 </pre><pre class="rust"><code><span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;json&quot;</span>)]</span>
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::algebra::JsonAlgebra</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::algebra</span>::{
@@ -644,6 +649,10 @@
         <span class="macro">unimplemented!</span>()
     }
 
+    <span class="kw">fn</span> <span class="ident">p_tilde</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">usize</span> {
+        <span class="number">0</span>
+    }
+
     <span class="kw">fn</span> <span class="ident">new_pair_element</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">_degree</span>: <span class="ident">i32</span>) -&gt; <span class="ident"><span class="self">Self</span>::Element</span> {
         <span class="macro">unimplemented!</span>()
     }
@@ -700,6 +709,7 @@
     }
 
     <span class="macro">dispatch_steenrod!</span> {
+        <span class="kw">fn</span> <span class="ident">p_tilde</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">usize</span>;
         <span class="kw">fn</span> <span class="ident">new_pair_element</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) -&gt; <span class="ident"><span class="self">Self</span>::Element</span>;
         <span class="kw">fn</span> <span class="ident">sigma_multiply_basis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">result</span>: <span class="kw-2">&amp;mut</span> <span class="ident"><span class="self">Self</span>::Element</span>, <span class="ident">coeff</span>: <span class="ident">u32</span>, <span class="ident">r_degree</span>: <span class="ident">i32</span>, <span class="ident">r_idx</span>: <span class="ident">usize</span>, <span class="ident">s_degree</span>: <span class="ident">i32</span>, <span class="ident">s_idx</span>: <span class="ident">usize</span>);
         <span class="kw">fn</span> <span class="ident">sigma_multiply</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">result</span>: <span class="kw-2">&amp;mut</span> <span class="ident"><span class="self">Self</span>::Element</span>, <span class="ident">coeff</span>: <span class="ident">u32</span>, <span class="ident">r_degree</span>: <span class="ident">i32</span>, <span class="ident">r</span>: <span class="ident">Slice</span>, <span class="ident">s_degree</span>: <span class="ident">i32</span>, <span class="ident">s</span>: <span class="ident">Slice</span>);
