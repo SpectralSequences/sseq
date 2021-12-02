@@ -254,11 +254,11 @@ fn main() -> anyhow::Result<()> {
                             let dx = d_res.output(t, j);
                             m.apply(result.as_slice_mut(), 1, t, dx.as_slice());
                         }
-                        d_target.apply_quasi_inverse(
+                        assert!(d_target.apply_quasi_inverse(
                             output_matrix[j].as_slice_mut(),
                             t,
                             result.as_slice(),
-                        );
+                        ));
 
                         result.set_to_zero();
                     }

@@ -175,11 +175,11 @@ impl<
                 );
             }
 
-            self.target.differential(target_s + 1).apply_quasi_inverse(
+            assert!(self.target.differential(target_s + 1).apply_quasi_inverse(
                 row.as_slice_mut(),
                 target_t,
                 scratch.as_slice(),
-            );
+            ));
             scratch.set_to_zero();
         }
         self.homotopies[target_s as usize].add_generators_from_rows(source_t, outputs);

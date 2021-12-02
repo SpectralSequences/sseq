@@ -317,7 +317,7 @@ where
             .extend(degree, |i| self.calculate_quasi_inverse(i));
     }
 
-    fn apply_quasi_inverse(&self, mut result: SliceMut, degree: i32, input: Slice) {
+    fn apply_quasi_inverse(&self, mut result: SliceMut, degree: i32, input: Slice) -> bool {
         let qis = &self.quasi_inverses[degree];
         assert_eq!(input.len(), qis.len());
 
@@ -330,6 +330,7 @@ where
                 }
             }
         }
+        true
     }
 }
 

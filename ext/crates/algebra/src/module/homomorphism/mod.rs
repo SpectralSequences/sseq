@@ -128,9 +128,16 @@ pub trait ModuleHomomorphism: Send + Sync {
         }
     }
 
-    fn apply_quasi_inverse(&self, result: SliceMut, degree: i32, input: Slice) {
-        let qi = self.quasi_inverse(degree).unwrap();
-        qi.apply(result, 1, input);
+    /// Attempt to apply quasy inverse to the input. Returns whether the operation was
+    /// successful. This is required to either always succeed or always fail for each degree.
+    #[must_use]
+    fn apply_quasi_inverse(&self, result: SliceMut, degree: i32, input: Slice) -> bool {
+        if let Some(qi) = self.quasi_inverse(degree) {
+            qi.apply(result, 1, input);
+            true
+        } else {
+            false
+        }
     }
 }
 

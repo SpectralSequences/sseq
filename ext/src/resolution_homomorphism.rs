@@ -230,11 +230,11 @@ where
                     input_t
                 );
                 for k in 0..num_gens {
-                    target_chain_map.apply_quasi_inverse(
+                    assert!(target_chain_map.apply_quasi_inverse(
                         outputs[k].as_slice_mut(),
                         output_t,
                         extra_images_matrix[k].as_slice(),
-                    );
+                    ));
                 }
             }
             f_cur.add_generators_from_rows(input_t, outputs);
@@ -264,11 +264,11 @@ where
 
                 let extra_image_matrix = extra_images.as_ref().expect("Missing extra image rows");
                 target_chain_map.compute_auxiliary_data_through_degree(output_t);
-                target_chain_map.apply_quasi_inverse(
+                assert!(target_chain_map.apply_quasi_inverse(
                     output_row.as_slice_mut(),
                     output_t,
                     extra_image_matrix[extra_image_row].as_slice(),
-                );
+                ));
                 extra_image_row += 1;
             } else {
                 d_target.compute_auxiliary_data_through_degree(output_t);
@@ -360,11 +360,11 @@ where
                     t,
                     source_chain_map.output(t, j).as_slice(),
                 );
-                target_chain_map.apply_quasi_inverse(
+                assert!(target_chain_map.apply_quasi_inverse(
                     outputs_matrix[j].as_slice_mut(),
                     t + degree_shift,
                     fx.as_slice(),
-                );
+                ));
                 fx.set_to_zero();
             }
             g.add_generators_from_matrix_rows(t, outputs_matrix.as_slice_mut());

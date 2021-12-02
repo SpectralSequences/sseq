@@ -175,10 +175,16 @@ pub trait ChainComplex: Send + Sync {
         for<'a> &'a S: Into<Slice<'a>>,
     {
         assert_eq!(results.len(), inputs.len());
+        if results.is_empty() {
+            return true;
+        }
 
-        if let Some(qi) = self.differential(s).quasi_inverse(t) {
-            for (input, result) in inputs.iter().zip(results) {
-                qi.apply(result.into(), 1, input.into());
+        let mut iter = inputs.iter().zip(results);
+        let (input, result) = iter.next().unwrap();
+        let d = self.differential(s);
+        if d.apply_quasi_inverse(result.into(), t, input.into()) {
+            for (input, result) in iter {
+                assert!(d.apply_quasi_inverse(result.into(), t, input.into()));
             }
             true
         } else {
