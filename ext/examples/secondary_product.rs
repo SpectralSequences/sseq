@@ -3,6 +3,8 @@ use std::sync::Arc;
 use fp::matrix::Matrix;
 use fp::vector::FpVector;
 
+use algebra::pair_algebra::PairAlgebra;
+
 use ext::chain_complex::ChainComplex;
 use ext::resolution_homomorphism::ResolutionHomomorphism;
 use ext::secondary::*;
@@ -173,6 +175,8 @@ fn main() -> anyhow::Result<()> {
     let mut scratch0 = FpVector::new(p, 0);
     let mut scratch1 = FpVector::new(p, 0);
 
+    let h_0 = resolution.algebra().p_tilde();
+
     // Iterate through the multiplicand
     for (s, n, t) in resolution.iter_stem() {
         // The potential target has to be hit, and we need to have computed (the data need for) the
@@ -198,12 +202,30 @@ fn main() -> anyhow::Result<()> {
             continue;
         }
 
+        // The product in Ext differs from the product in the Adams E_2 page by (-1)^{t' s}. At the
+        // prime 2, we use the fact that -1 = 1 + 2 mod 4, so we add \tilde{2} times the E_2
+        // product to the homotopy part.
+        let sign = if (shift_s as i32 * t) % 2 == 1 {
+            Some(Matrix::from_vec(
+                p,
+                &resolution
+                    .filtration_one_product(1, h_0, s + shift_s + 1, t + shift_t + 1)
+                    .unwrap(),
+            ))
+        } else {
+            None
+        };
+
         for gen in page_data.subspace_gens() {
             scratch0.set_scratch_vector_size(m0.columns());
             scratch1.set_scratch_vector_size(m1.columns());
 
             m0.apply(scratch0.as_slice_mut(), 1, gen.as_slice());
             m1.apply(scratch1.as_slice_mut(), 1, gen.as_slice());
+
+            if let Some(m) = sign.as_ref() {
+                m.apply(scratch1.as_slice_mut(), 1, scratch0.as_slice());
+            }
             get_page_data(n + shift_n, s + shift_s + 1).reduce_by_quotient(scratch1.as_slice_mut());
 
             print!("{name} ");

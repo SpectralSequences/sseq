@@ -74,6 +74,11 @@ pub trait PairAlgebra: Algebra {
         s: &Self::Element,
     );
 
+    /// The element p is classified by a filtration on element in Ext of the underlying algebra,
+    /// which is represented by an indecomposable in degree 1. This returns the index of said
+    /// indecomposable.
+    fn p_tilde(&self) -> usize;
+
     fn element_to_bytes(&self, elt: &Self::Element, buffer: &mut impl Write)
         -> std::io::Result<()>;
     fn element_from_bytes(
@@ -154,6 +159,10 @@ impl PairAlgebra for MilnorAlgebra {
         elt.ones.is_zero()
             && elt.twos.is_zero()
             && elt.ys.iter().all(|v| v.iter().all(|x| x.is_zero()))
+    }
+
+    fn p_tilde(&self) -> usize {
+        0
     }
 
     /// Assert that `elt` is in the image of the differential. Drop the data recording the

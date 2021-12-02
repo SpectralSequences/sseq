@@ -277,6 +277,10 @@ impl crate::pair_algebra::PairAlgebra for AdemAlgebra {
         unimplemented!()
     }
 
+    fn p_tilde(&self) -> usize {
+        0
+    }
+
     fn new_pair_element(&self, _degree: i32) -> Self::Element {
         unimplemented!()
     }
@@ -333,6 +337,7 @@ impl crate::pair_algebra::PairAlgebra for SteenrodAlgebra {
     }
 
     dispatch_steenrod! {
+        fn p_tilde(&self) -> usize;
         fn new_pair_element(&self, degree: i32) -> Self::Element;
         fn sigma_multiply_basis(&self, result: &mut Self::Element, coeff: u32, r_degree: i32, r_idx: usize, s_degree: i32, s_idx: usize);
         fn sigma_multiply(&self, result: &mut Self::Element, coeff: u32, r_degree: i32, r: Slice, s_degree: i32, s: Slice);
