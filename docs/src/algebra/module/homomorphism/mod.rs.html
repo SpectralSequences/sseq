@@ -167,6 +167,13 @@
 <span id="143">143</span>
 <span id="144">144</span>
 <span id="145">145</span>
+<span id="146">146</span>
+<span id="147">147</span>
+<span id="148">148</span>
+<span id="149">149</span>
+<span id="150">150</span>
+<span id="151">151</span>
+<span id="152">152</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
 
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::module::Module</span>;
@@ -297,9 +304,16 @@
         }
     }
 
-    <span class="kw">fn</span> <span class="ident">apply_quasi_inverse</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">result</span>: <span class="ident">SliceMut</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">input</span>: <span class="ident">Slice</span>) {
-        <span class="kw">let</span> <span class="ident">qi</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">quasi_inverse</span>(<span class="ident">degree</span>).<span class="ident">unwrap</span>();
-        <span class="ident">qi</span>.<span class="ident">apply</span>(<span class="ident">result</span>, <span class="number">1</span>, <span class="ident">input</span>);
+    <span class="doccomment">/// Attempt to apply quasy inverse to the input. Returns whether the operation was</span>
+    <span class="doccomment">/// successful. This is required to either always succeed or always fail for each degree.</span>
+    <span class="attribute">#[<span class="ident">must_use</span>]</span>
+    <span class="kw">fn</span> <span class="ident">apply_quasi_inverse</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">result</span>: <span class="ident">SliceMut</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">input</span>: <span class="ident">Slice</span>) -&gt; <span class="ident">bool</span> {
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">qi</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">quasi_inverse</span>(<span class="ident">degree</span>) {
+            <span class="ident">qi</span>.<span class="ident">apply</span>(<span class="ident">result</span>, <span class="number">1</span>, <span class="ident">input</span>);
+            <span class="bool-val">true</span>
+        } <span class="kw">else</span> {
+            <span class="bool-val">false</span>
+        }
     }
 }
 
