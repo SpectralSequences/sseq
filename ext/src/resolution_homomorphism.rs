@@ -248,7 +248,10 @@ where
         assert!(Arc::ptr_eq(&d_target.source(), &f_cur.target()));
         assert!(Arc::ptr_eq(&d_target.target(), &f_prev.target()));
         let fdx_dimension = f_prev.target().dimension(output_t);
-        let mut fdx_vector = FpVector::new(p, fdx_dimension);
+
+        let mut fdx_vectors = Vec::with_capacity(outputs.len());
+        let mut qi_outputs = Vec::with_capacity(outputs.len());
+
         let mut extra_image_row = 0;
         for (k, output_row) in outputs.iter_mut().enumerate() {
             let dx_vector = d_source.output(input_t, k);
@@ -269,14 +272,20 @@ where
                 extra_image_row += 1;
             } else {
                 d_target.compute_auxiliary_data_through_degree(output_t);
+
+                let mut fdx_vector = FpVector::new(p, fdx_dimension);
                 f_prev.apply(fdx_vector.as_slice_mut(), 1, input_t, dx_vector.as_slice());
-                d_target.apply_quasi_inverse(
-                    output_row.as_slice_mut(),
-                    output_t,
-                    fdx_vector.as_slice(),
-                );
-                fdx_vector.set_to_zero();
+                fdx_vectors.push(fdx_vector);
+                qi_outputs.push(output_row.as_slice_mut());
             }
+        }
+        if !fdx_vectors.is_empty() {
+            assert!(self.target.apply_quasi_inverse(
+                &mut qi_outputs,
+                output_s,
+                output_t,
+                &fdx_vectors
+            ));
         }
         f_cur.add_generators_from_rows(input_t, outputs);
     }
