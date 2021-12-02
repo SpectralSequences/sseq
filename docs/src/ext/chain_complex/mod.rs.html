@@ -348,6 +348,27 @@
 <span id="324">324</span>
 <span id="325">325</span>
 <span id="326">326</span>
+<span id="327">327</span>
+<span id="328">328</span>
+<span id="329">329</span>
+<span id="330">330</span>
+<span id="331">331</span>
+<span id="332">332</span>
+<span id="333">333</span>
+<span id="334">334</span>
+<span id="335">335</span>
+<span id="336">336</span>
+<span id="337">337</span>
+<span id="338">338</span>
+<span id="339">339</span>
+<span id="340">340</span>
+<span id="341">341</span>
+<span id="342">342</span>
+<span id="343">343</span>
+<span id="344">344</span>
+<span id="345">345</span>
+<span id="346">346</span>
+<span id="347">347</span>
 </pre><pre class="rust"><code><span class="kw">mod</span> <span class="ident">chain_homotopy</span>;
 <span class="kw">mod</span> <span class="ident">finite_chain_complex</span>;
 <span class="kw">mod</span> <span class="ident">tensor_product_chain_complex</span>;
@@ -539,6 +560,27 @@
             <span class="bool-val">true</span>
         } <span class="kw">else</span> {
             <span class="bool-val">false</span>
+        }
+    }
+
+    <span class="doccomment">/// A directory used to save information about the chain complex.</span>
+    <span class="kw">fn</span> <span class="ident">save_dir</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">std::path::Path</span><span class="op">&gt;</span> {
+        <span class="prelude-val">None</span>
+    }
+
+    <span class="doccomment">/// Get the save file of a bidegree</span>
+    <span class="kw">fn</span> <span class="ident">save_file</span>(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        <span class="ident">kind</span>: <span class="ident"><span class="kw">crate</span>::save::SaveKind</span>,
+        <span class="ident">s</span>: <span class="ident">u32</span>,
+        <span class="ident">t</span>: <span class="ident">i32</span>,
+    ) -&gt; <span class="ident"><span class="kw">crate</span>::save::SaveFile</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Algebra</span><span class="op">&gt;</span> {
+        <span class="ident"><span class="kw">crate</span>::save::SaveFile</span> {
+            <span class="ident">algebra</span>: <span class="self">self</span>.<span class="ident">algebra</span>(),
+            <span class="ident">kind</span>,
+            <span class="ident">s</span>,
+            <span class="ident">t</span>,
+            <span class="ident">idx</span>: <span class="prelude-val">None</span>,
         }
     }
 }
