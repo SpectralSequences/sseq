@@ -77,6 +77,10 @@ where
         }
     }
 
+    pub fn algebra(&self) -> Arc<CC1::Algebra> {
+        self.source.algebra()
+    }
+
     pub fn next_homological_degree(&self) -> i32 {
         self.maps.len()
     }

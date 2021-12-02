@@ -622,6 +622,22 @@ impl<
         assert!(Arc::ptr_eq(&underlying.source, &source.chain_complex));
         assert!(Arc::ptr_eq(&underlying.target, &target.chain_complex));
 
+        if let Some(p) = underlying.save_dir() {
+            let mut p = p.to_owned();
+
+            for subdir in SaveKind::secondary_data() {
+                p.push(format!("{}s", subdir.name()));
+                if !p.exists() {
+                    std::fs::create_dir_all(&p)
+                        .with_context(|| format!("Failed to create directory {p:?}"))
+                        .unwrap();
+                } else if !p.is_dir() {
+                    panic!("{p:?} is not a directory");
+                }
+                p.pop();
+            }
+        }
+
         Self {
             source,
             target,
@@ -695,7 +711,7 @@ impl<
                 s,
                 self.max_t(s) - 1,
                 &[(1, d_source, c0), (neg_1, c1, d_target)],
-                None,
+                self.underlying.save_dir(),
             );
         };
 
@@ -715,6 +731,22 @@ impl<
 
         let p = self.target.chain_complex.prime();
         let target = self.target.chain_complex.module(s as u32 - shift_s - 2);
+
+        let save_file = SaveFile {
+            algebra: self.underlying.algebra(),
+            kind: SaveKind::SecondaryIntermediate,
+            s,
+            t,
+            idx: Some(idx),
+        };
+
+        if let Some(dir) = self.underlying.save_dir() {
+            if let Some(mut f) = save_file.open_file(dir.to_owned()) {
+                // The target dimension can depend on whether we resolved to stem
+                let dim = f.read_u64::<LittleEndian>().unwrap() as usize;
+                return FpVector::from_bytes(p, dim, &mut f).unwrap();
+            }
+        }
 
         let mut result = FpVector::new(p, Module::dimension(&*target, t - 1 - shift_t));
         let d = self.source.chain_complex.differential(s);
@@ -741,10 +773,35 @@ impl<
             self.source.homotopy(s).homotopies.output(t, idx).as_slice(),
         );
 
+        if let Some(dir) = self.underlying.save_dir() {
+            let mut f = save_file.create_file(dir.to_owned());
+            f.write_u64::<LittleEndian>(result.len() as u64).unwrap();
+            result.to_bytes(&mut f).unwrap();
+        }
+
         result
     }
 
     pub fn compute_intermediates(&self) {
+        let f = |s, t, i| {
+            // If we already have homotopies, we don't need to compute intermediate
+            if self.homotopies[s as i32].homotopies.next_degree() >= t {
+                return;
+            }
+            // Check if we have a saved homotopy
+            if let Some(dir) = self.underlying.save_dir() {
+                let save_file = self
+                    .underlying
+                    .source
+                    .save_file(SaveKind::SecondaryHomotopy, s, t);
+                if save_file.exists(dir.to_owned()) {
+                    return;
+                }
+            }
+            self.intermediates
+                .insert((s, t, i), self.get_intermediate(s, t, i));
+        };
+
         #[cfg(feature = "concurrent")]
         self.homotopies
             .par_iter_enum()
@@ -759,10 +816,7 @@ impl<
                     .for_each(|t| {
                         (0..homotopy.source.number_of_gens_in_degree(t))
                             .into_par_iter()
-                            .for_each(|i| {
-                                self.intermediates
-                                    .insert((s, t, i), self.get_intermediate(s, t, i));
-                            })
+                            .for_each(|i| f(s, t, i))
                     })
             });
 
@@ -771,8 +825,7 @@ impl<
             let s = s as u32;
             for t in homotopy.composites.range().skip(1) {
                 for i in 0..homotopy.source.number_of_gens_in_degree(t) {
-                    self.intermediates
-                        .insert((s, t, i), self.get_intermediate(s, t, i));
+                    f(s, t, i);
                 }
             }
         }
@@ -790,8 +843,30 @@ impl<
         let shift_t = self.shift_t();
         let d = self.source.chain_complex.differential(s);
         let source = self.source.chain_complex.module(s);
-
         let num_gens = source.number_of_gens_in_degree(t);
+        let target_dim = self
+            .target
+            .chain_complex
+            .module(s as u32 - shift_s - 1)
+            .dimension(t - shift_t - 1);
+
+        if let Some(dir) = self.underlying.save_dir() {
+            let save_file = self
+                .underlying
+                .source
+                .save_file(SaveKind::SecondaryHomotopy, s, t);
+            if let Some(mut f) = save_file.open_file(dir.to_owned()) {
+                let mut results = Vec::with_capacity(num_gens);
+                for _ in 0..num_gens {
+                    results.push(FpVector::from_bytes(p, target_dim, &mut f).unwrap());
+                }
+                self.homotopies[s as i32]
+                    .homotopies
+                    .add_generators_from_rows(t, results);
+                return;
+            }
+        }
+
         let intermediates: Vec<FpVector> = (0..num_gens)
             .map(|i| {
                 let mut v = self.get_intermediate(s, t, i);
@@ -806,11 +881,6 @@ impl<
                 v
             })
             .collect();
-        let target_dim = self
-            .target
-            .chain_complex
-            .module(s as u32 - shift_s - 1)
-            .dimension(t - shift_t - 1);
         let mut results = vec![FpVector::new(p, target_dim); num_gens];
 
         assert!(self.target.chain_complex.apply_quasi_inverse(
@@ -819,6 +889,33 @@ impl<
             t - shift_t - 1,
             &intermediates,
         ));
+
+        if let Some(dir) = self.underlying.save_dir() {
+            let save_file = self
+                .underlying
+                .source
+                .save_file(SaveKind::SecondaryHomotopy, s, t);
+
+            let mut f = save_file.create_file(dir.to_owned());
+            for row in &results {
+                row.to_bytes(&mut f).unwrap();
+            }
+            drop(f);
+
+            let mut save_file = SaveFile {
+                algebra: self.underlying.algebra(),
+                kind: SaveKind::SecondaryIntermediate,
+                s,
+                t,
+                idx: None,
+            };
+
+            for i in 0..num_gens {
+                save_file.idx = Some(i);
+                save_file.delete_file(dir.to_owned()).unwrap();
+            }
+        }
+
         homotopy.homotopies.add_generators_from_rows(t, results);
     }
 
