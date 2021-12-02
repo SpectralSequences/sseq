@@ -84,6 +84,20 @@ fn main() -> anyhow::Result<()> {
     #[cfg(not(feature = "concurrent"))]
     lift.compute_homotopies();
 
+    // Check that class survives to E3.
+    {
+        let m = lift.homotopy(shift_s + 2).homotopies.hom_k(shift_t);
+        assert_eq!(m.len(), v.len());
+        let mut sum = vec![0; m[0].len()];
+        for (x, d2) in v.iter().zip(&m) {
+            sum.iter_mut().zip(d2).for_each(|(a, b)| *a += x * b);
+        }
+        assert!(
+            sum.iter().all(|x| x & *p == 2),
+            "Class supports a non-zero d2"
+        );
+    }
+
     let lift = Arc::new(lift);
     let hom = Arc::new(hom);
 
