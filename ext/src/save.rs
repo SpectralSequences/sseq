@@ -30,6 +30,9 @@ pub enum SaveKind {
 
     /// A secondary homotopy
     SecondaryHomotopy,
+
+    /// A chain map
+    ChainMap,
 }
 
 impl SaveKind {
@@ -42,6 +45,7 @@ impl SaveKind {
             Self::SecondaryComposite => 0x00020000,
             Self::SecondaryIntermediate => 0x00020001,
             Self::SecondaryHomotopy => 0x00020002,
+            Self::ChainMap => 0x10100000,
         }
     }
 
@@ -54,6 +58,7 @@ impl SaveKind {
             Self::SecondaryComposite => "secondary_composite",
             Self::SecondaryIntermediate => "secondary_intermediate",
             Self::SecondaryHomotopy => "secondary_homotopy",
+            Self::ChainMap => "chain_map",
         }
     }
 

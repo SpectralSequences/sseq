@@ -48,7 +48,11 @@ use fp::matrix::Matrix;
 use std::sync::Arc;
 
 fn main() -> anyhow::Result<()> {
-    let target = Arc::new(utils::query_module_only("Target module", None)?);
+    let target = {
+        let mut target = utils::query_module_only("Target module", None)?;
+        target.load_quasi_inverse = target.save_dir().is_none();
+        Arc::new(target)
+    };
 
     let source_equal_target = query::yes_no("Source equal to target?");
     let source = if source_equal_target {
@@ -61,6 +65,8 @@ fn main() -> anyhow::Result<()> {
 
     assert_eq!(source.prime(), target.prime());
     let p = source.prime();
+
+    let name: String = query::raw("Name of product", str::parse);
 
     let shift_s: u32 = query::with_default("s of Ext class", "0", str::parse);
     let shift_n: i32 = query::with_default("n of Ext class", "0", str::parse);
@@ -93,7 +99,7 @@ fn main() -> anyhow::Result<()> {
     }
 
     let target_module = target.complex().module(0);
-    let hom = ResolutionHomomorphism::new(String::new(), source, target, shift_s, shift_t);
+    let hom = ResolutionHomomorphism::new(name.clone(), source, target, shift_s, shift_t);
 
     eprintln!("\nInput Ext class to lift:");
     for output_t in 0..=target_module.max_degree() {
@@ -108,21 +114,20 @@ fn main() -> anyhow::Result<()> {
             hom.extend_step(shift_s, input_t, None);
         } else {
             for (idx, row) in matrix.iter_mut().enumerate() {
-                let v: Vec<u32> =
-                    query::raw(&format!("f(x_({}, {}, {}))", shift_s, input_t, idx), |s| {
-                        let v = s[1..s.len() - 1]
-                            .split(',')
-                            .map(|x| x.parse::<u32>().map_err(|e| e.to_string()))
-                            .collect::<Result<Vec<_>, String>>()?;
-                        if v.len() != row.len() {
-                            return Err(format!(
-                                "Target has dimension {} but {} coordinates supplied",
-                                row.len(),
-                                v.len()
-                            ));
-                        }
-                        Ok(v)
-                    });
+                let v: Vec<u32> = query::raw(&format!("f(x_({shift_s}, {input_t}, {idx}))"), |s| {
+                    let v = s[1..s.len() - 1]
+                        .split(',')
+                        .map(|x| x.parse::<u32>().map_err(|e| e.to_string()))
+                        .collect::<Result<Vec<_>, String>>()?;
+                    if v.len() != row.len() {
+                        return Err(format!(
+                            "Target has dimension {} but {} coordinates supplied",
+                            row.len(),
+                            v.len()
+                        ));
+                    }
+                    Ok(v)
+                });
                 for (i, &x) in v.iter().enumerate() {
                     row.set_entry(i, x);
                 }
@@ -145,7 +150,7 @@ fn main() -> anyhow::Result<()> {
         }
         let matrix = hom.get_map(s + shift_s).hom_k(t);
         for (i, r) in matrix.iter().enumerate() {
-            println!("F(x_({}, {}, {})) = {:?}", n, s, i, r);
+            println!("{name} x_({n}, {s}, {i}) = {r:?}");
         }
     }
     Ok(())

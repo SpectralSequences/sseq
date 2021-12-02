@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use crate::chain_complex::{AugmentedChainComplex, ChainComplex};
-use crate::save::{SaveFile, SaveKind};
+use crate::save::SaveKind;
 use algebra::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
 use algebra::module::{FreeModule, Module};
 use algebra::Algebra;
@@ -116,10 +116,6 @@ impl<CC: ChainComplex> Resolution<CC> {
         })
     }
 
-    pub fn save_dir(&self) -> Option<&Path> {
-        self.save_dir.as_deref()
-    }
-
     /// This function prepares the Resolution object to perform computations up to the
     /// specified s degree. It does *not* perform any computations by itself. It simply lengthens
     /// the `OnceVec`s `modules`, `chain_maps`, etc. to the right length.
@@ -155,17 +151,6 @@ impl<CC: ChainComplex> Resolution<CC> {
                     Arc::clone(&self.modules[i - 1]),
                     0,
                 )));
-        }
-    }
-
-    /// Get the save file of a bidegree
-    pub fn save_file(&self, kind: SaveKind, s: u32, t: i32) -> SaveFile<CC::Algebra> {
-        SaveFile {
-            algebra: self.algebra(),
-            kind,
-            s,
-            t,
-            idx: None,
         }
     }
 
@@ -971,6 +956,10 @@ impl<CC: ChainComplex> ChainComplex for Resolution<CC> {
         } else {
             false
         }
+    }
+
+    fn save_dir(&self) -> Option<&Path> {
+        self.save_dir.as_deref()
     }
 }
 

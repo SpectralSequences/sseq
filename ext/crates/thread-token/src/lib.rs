@@ -125,7 +125,7 @@ impl TokenBucket {
     /// completed before running `(s, t)`.
     ///
     /// The variable `&mut init` is passed as the last argument to `f`, which should be used as
-    /// some scratch data, e.g. a scratch [`FpVector`]. It will be cloned for each thread and
+    /// some scratch data, e.g. a scratch `FpVector`. It will be cloned for each thread and
     /// reused within the same thread.
     ///
     /// This spawns one thread for each s, and the thread is named after s.

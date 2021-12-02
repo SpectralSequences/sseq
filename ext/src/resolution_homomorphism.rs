@@ -1,7 +1,9 @@
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use crate::chain_complex::{AugmentedChainComplex, FreeChainComplex};
 use crate::resolution::Resolution;
+use crate::save::SaveKind;
 use crate::CCC;
 use algebra::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
 use algebra::module::Module;
@@ -9,6 +11,9 @@ use algebra::SteenrodAlgebra;
 use fp::matrix::Matrix;
 use fp::vector::{FpVector, SliceMut};
 use once::OnceBiVec;
+
+use anyhow::Context;
+use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
 #[cfg(feature = "concurrent")]
 use {
@@ -28,6 +33,7 @@ where
     maps: OnceBiVec<FreeModuleHomomorphism<CC2::Module>>,
     pub shift_s: u32,
     pub shift_t: i32,
+    pub save_dir: Option<PathBuf>,
 }
 
 impl<CC1, CC2> ResolutionHomomorphism<CC1, CC2>
@@ -42,6 +48,24 @@ where
         shift_s: u32,
         shift_t: i32,
     ) -> Self {
+        let save_dir = if source.save_dir().is_some() && !name.is_empty() {
+            let mut path = source.save_dir().unwrap().to_owned();
+            path.push(format!("products/{name}/{}s", SaveKind::ChainMap.name()));
+
+            if !path.exists() {
+                std::fs::create_dir_all(&path)
+                    .context("Failed to create save directory for resolution")
+                    .unwrap();
+            } else if !path.is_dir() {
+                panic!("{path:?} is not a directory");
+            }
+            path.pop();
+
+            Some(path)
+        } else {
+            None
+        };
+
         Self {
             name,
             source,
@@ -49,6 +73,7 @@ where
             maps: OnceBiVec::new(shift_s as i32),
             shift_s,
             shift_t,
+            save_dir,
         }
     }
 
@@ -209,11 +234,29 @@ where
         let num_gens = f_cur.source().number_of_gens_in_degree(input_t);
         let fx_dimension = f_cur.target().dimension(output_t);
 
-        let mut outputs = vec![FpVector::new(p, fx_dimension); num_gens];
         if num_gens == 0 || fx_dimension == 0 {
-            f_cur.add_generators_from_rows(input_t, outputs);
+            f_cur.add_generators_from_rows(input_t, vec![FpVector::new(p, fx_dimension); num_gens]);
             return;
         }
+
+        if let Some(dir) = self.save_dir.as_ref() {
+            let mut outputs = Vec::with_capacity(num_gens);
+
+            if let Some(mut f) = self
+                .source
+                .save_file(SaveKind::ChainMap, input_s, input_t)
+                .open_file(dir.to_owned())
+            {
+                let fx_dimension = f.read_u64::<LittleEndian>().unwrap() as usize;
+                for _ in 0..num_gens {
+                    outputs.push(FpVector::from_bytes(p, fx_dimension, &mut f).unwrap());
+                }
+                f_cur.add_generators_from_rows(input_t, outputs);
+                return;
+            }
+        }
+
+        let mut outputs = vec![FpVector::new(p, fx_dimension); num_gens];
         if output_s == 0 {
             if let Some(extra_images_matrix) = extra_images {
                 let target_chain_map = self.target.chain_map(output_s);
@@ -249,8 +292,8 @@ where
         assert!(Arc::ptr_eq(&d_target.target(), &f_prev.target()));
         let fdx_dimension = f_prev.target().dimension(output_t);
 
-        let mut fdx_vectors = Vec::with_capacity(outputs.len());
-        let mut qi_outputs = Vec::with_capacity(outputs.len());
+        let mut fdx_vectors = Vec::with_capacity(num_gens);
+        let mut qi_outputs = Vec::with_capacity(num_gens);
 
         let mut extra_image_row = 0;
         for (k, output_row) in outputs.iter_mut().enumerate() {
@@ -287,7 +330,22 @@ where
                 &fdx_vectors
             ));
         }
+
+        if let Some(dir) = self.save_dir.as_ref() {
+            let mut f = self
+                .source
+                .save_file(SaveKind::ChainMap, input_s, input_t)
+                .create_file(dir.to_owned());
+            f.write_u64::<LittleEndian>(fx_dimension as u64).unwrap();
+            for row in &outputs {
+                row.to_bytes(&mut f).unwrap();
+            }
+        }
         f_cur.add_generators_from_rows(input_t, outputs);
+    }
+
+    pub fn save_dir(&self) -> Option<&std::path::Path> {
+        self.save_dir.as_deref()
     }
 }
 

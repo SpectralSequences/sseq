@@ -1,4 +1,6 @@
-use crate::chain_complex::{BoundedChainComplex, ChainComplex};
+use crate::chain_complex::{
+    AugmentedChainComplex, BoundedChainComplex, ChainComplex, FreeChainComplex,
+};
 use crate::resolution::Resolution;
 use crate::resolution_homomorphism::ResolutionHomomorphism;
 use crate::save::{SaveFile, SaveKind};
@@ -306,15 +308,15 @@ impl<A: PairAlgebra + Send + Sync> SecondaryHomotopy<A> {
     }
 }
 
-pub struct SecondaryLift<A: PairAlgebra, CC: ChainComplex<Algebra = A>> {
-    pub chain_complex: Arc<Resolution<CC>>,
+pub struct SecondaryLift<A: PairAlgebra, CC: FreeChainComplex<Algebra = A>> {
+    pub chain_complex: Arc<CC>,
     /// s -> t -> idx -> homotopy
     pub(crate) homotopies: OnceBiVec<SecondaryHomotopy<A>>,
     intermediates: DashMap<(u32, i32, usize), FpVector>,
 }
 
-impl<A: PairAlgebra + Send + Sync, CC: ChainComplex<Algebra = A>> SecondaryLift<A, CC> {
-    pub fn new(cc: Arc<Resolution<CC>>) -> Self {
+impl<A: PairAlgebra + Send + Sync, CC: FreeChainComplex<Algebra = A>> SecondaryLift<A, CC> {
+    pub fn new(cc: Arc<CC>) -> Self {
         if let Some(p) = cc.save_dir() {
             let mut p = p.to_owned();
 
@@ -590,14 +592,17 @@ impl<A: PairAlgebra + Send + Sync, CC: ChainComplex<Algebra = A>> SecondaryLift<
     }
 }
 
+// Rustdoc ICE's when trying to document this struct. See
+// https://github.com/rust-lang/rust/issues/91380
+#[doc(hidden)]
 pub struct SecondaryResolutionHomomorphism<
     A: PairAlgebra,
-    CC1: ChainComplex<Algebra = A>,
-    CC2: ChainComplex<Algebra = A>,
+    CC1: FreeChainComplex<Algebra = A>,
+    CC2: FreeChainComplex<Algebra = A> + AugmentedChainComplex,
 > {
     source: Arc<SecondaryLift<A, CC1>>,
     target: Arc<SecondaryLift<A, CC2>>,
-    underlying: Arc<ResolutionHomomorphism<Resolution<CC1>, Resolution<CC2>>>,
+    underlying: Arc<ResolutionHomomorphism<CC1, CC2>>,
     /// input s -> homotopy
     homotopies: OnceBiVec<SecondaryHomotopy<A>>,
     intermediates: DashMap<(u32, i32, usize), FpVector>,
@@ -605,14 +610,14 @@ pub struct SecondaryResolutionHomomorphism<
 
 impl<
         A: PairAlgebra + Send + Sync,
-        CC1: ChainComplex<Algebra = A>,
-        CC2: ChainComplex<Algebra = A>,
+        CC1: FreeChainComplex<Algebra = A>,
+        CC2: FreeChainComplex<Algebra = A> + AugmentedChainComplex,
     > SecondaryResolutionHomomorphism<A, CC1, CC2>
 {
     pub fn new(
         source: Arc<SecondaryLift<A, CC1>>,
         target: Arc<SecondaryLift<A, CC2>>,
-        underlying: Arc<ResolutionHomomorphism<Resolution<CC1>, Resolution<CC2>>>,
+        underlying: Arc<ResolutionHomomorphism<CC1, CC2>>,
     ) -> Self {
         assert!(Arc::ptr_eq(&underlying.source, &source.chain_complex));
         assert!(Arc::ptr_eq(&underlying.target, &target.chain_complex));

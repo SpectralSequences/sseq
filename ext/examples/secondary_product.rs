@@ -32,7 +32,7 @@ fn main() -> anyhow::Result<()> {
     let shift_t = shift_n + shift_s as i32;
 
     let hom = ResolutionHomomorphism::new(
-        String::new(),
+        name.clone(),
         Arc::clone(&resolution),
         Arc::clone(&resolution),
         shift_s,

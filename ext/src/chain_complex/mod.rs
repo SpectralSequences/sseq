@@ -191,6 +191,27 @@ pub trait ChainComplex: Send + Sync {
             false
         }
     }
+
+    /// A directory used to save information about the chain complex.
+    fn save_dir(&self) -> Option<&std::path::Path> {
+        None
+    }
+
+    /// Get the save file of a bidegree
+    fn save_file(
+        &self,
+        kind: crate::save::SaveKind,
+        s: u32,
+        t: i32,
+    ) -> crate::save::SaveFile<Self::Algebra> {
+        crate::save::SaveFile {
+            algebra: self.algebra(),
+            kind,
+            s,
+            t,
+            idx: None,
+        }
+    }
 }
 
 /// An iterator returned by [`ChainComplex::iter_stem`]
