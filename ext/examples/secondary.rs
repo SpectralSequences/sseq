@@ -31,6 +31,12 @@ fn main() -> anyhow::Result<()> {
         Some(algebra::AlgebraType::Milnor),
         ext::utils::LoadQuasiInverseOption::IfNoSave,
     )?;
+
+    #[cfg(feature = "concurrent")]
+    rayon::ThreadPoolBuilder::new()
+        .num_threads(data.bucket.max_threads.into())
+        .build_global()?;
+
     let resolution = Arc::new(data.resolution);
 
     if !can_compute(&resolution) {
