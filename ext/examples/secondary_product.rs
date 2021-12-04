@@ -178,7 +178,8 @@ fn main() -> anyhow::Result<()> {
     };
 
     // Compute products
-    let mut scratch0 = FpVector::new(p, 0);
+    // scratch0 is an element over Z/p^2, so not an FpVector
+    let mut scratch0 = Vec::new();
     let mut scratch1 = FpVector::new(p, 0);
 
     let h_0 = resolution.algebra().p_tilde();
@@ -200,11 +201,22 @@ fn main() -> anyhow::Result<()> {
             continue;
         }
 
-        let m0 = Matrix::from_vec(p, &hom.get_map(s + shift_s).hom_k(t));
+        // m0 is a Vec<Vec<u32>> because it is actually over Z/p^2.
+        let m0 = hom.get_map(s + shift_s).hom_k(t);
         let m1 = Matrix::from_vec(p, &res_lift.homotopy(s + shift_s + 1).homotopies.hom_k(t));
+        // The multiplication by p map
+        let mp = Matrix::from_vec(
+            p,
+            &resolution
+                .filtration_one_product(1, h_0, s + shift_s + 1, t + shift_t + 1)
+                .unwrap(),
+        );
 
-        assert_eq!(m0.rows(), m1.rows());
-        if m0.columns() == 0 && m1.columns() == 0 {
+        assert_eq!(m0.len(), m1.len());
+        if m0.is_empty() {
+            continue;
+        }
+        if m0[0].is_empty() && m1[0].is_empty() {
             continue;
         }
 
@@ -212,31 +224,43 @@ fn main() -> anyhow::Result<()> {
         // prime 2, we use the fact that -1 = 1 + 2 mod 4, so we add \tilde{2} times the E_2
         // product to the homotopy part.
         let sign = if (shift_s as i32 * t) % 2 == 1 {
-            Some(Matrix::from_vec(
-                p,
-                &resolution
-                    .filtration_one_product(1, h_0, s + shift_s + 1, t + shift_t + 1)
-                    .unwrap(),
-            ))
+            *p * *p - 1
         } else {
-            None
+            1
         };
 
+        let filtration_one_sign = if (t as i32 % 2) == 1 { *p - 1 } else { 1 };
+
         for gen in page_data.subspace_gens() {
-            scratch0.set_scratch_vector_size(m0.columns());
+            scratch0.clear();
+            scratch0.resize(m0[0].len(), 0);
+
             scratch1.set_scratch_vector_size(m1.columns());
 
-            m0.apply(scratch0.as_slice_mut(), 1, gen.as_slice());
-            m1.apply(scratch1.as_slice_mut(), 1, gen.as_slice());
-
-            if let Some(m) = sign.as_ref() {
-                m.apply(scratch1.as_slice_mut(), 1, scratch0.as_slice());
+            for (i, v) in gen.iter_nonzero() {
+                scratch0
+                    .iter_mut()
+                    .zip(&m0[i])
+                    .for_each(|(a, b)| *a += v * b * sign);
+                scratch1.add(&m1[i], (v * sign) % *p);
             }
+            for (i, v) in scratch0.iter_mut().enumerate() {
+                let extra = *v / *p;
+                *v %= *p;
+
+                if extra == 0 {
+                    continue;
+                }
+                scratch1.add(&mp[i], (extra * filtration_one_sign) % *p);
+            }
+
+            scratch0.iter_mut().for_each(|a| *a %= *p);
+
             get_page_data(n + shift_n, s + shift_s + 1).reduce_by_quotient(scratch1.as_slice_mut());
 
             print!("{name} ");
             ext::utils::print_element(gen.as_slice(), n, s);
-            println!(" = {scratch0} + τ {scratch1}");
+            println!(" = {scratch0:?} + τ {scratch1}");
         }
     }
     Ok(())
