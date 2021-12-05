@@ -13,7 +13,7 @@ chart = { path = "../../ext/crates/chart" }
 ext = { path = "../../ext", default-features = false }
 fp = { path = "../../ext/crates/fp", features = ["json"], default-features = false }
 once = { path = "../../ext/crates/once" }
-sseq = { path = "../../ext/crates/sseq" }
+sseq = { path = "../../ext/crates/sseq", default-features = false }
 thread-token = { path = "../../ext/crates/thread-token", optional = true }
 
 anyhow = "1.0.0"
@@ -34,13 +34,12 @@ wasm-bindgen = "=0.2.73"
 js-sys = "0.3.0"
 
 [dev-dependencies]
-algebra = { path = "../../ext/crates/algebra" }
 query = { path = "../../ext/crates/query" }
 
 [features]
 default = ["odd-primes"]
 cache-multiplication = ["ext/cache-multiplication"]
-odd-primes = ["fp/odd-primes", "ext/odd-primes", "algebra/odd-primes"]
+odd-primes = ["ext/odd-primes"]
 concurrent = ["thread-token", "ext/concurrent"]
 
 [lib]

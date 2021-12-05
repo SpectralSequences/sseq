@@ -16,3 +16,8 @@ pub use vector_2 as vector;
 pub mod vector_inner;
 
 pub(crate) mod simd;
+
+#[cfg(feature = "odd-primes")]
+pub const ODD_PRIMES: bool = true;
+#[cfg(not(feature = "odd-primes"))]
+pub const ODD_PRIMES: bool = false;
