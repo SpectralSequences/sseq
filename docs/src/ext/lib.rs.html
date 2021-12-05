@@ -206,6 +206,10 @@
 <span id="182">182</span>
 <span id="183">183</span>
 <span id="184">184</span>
+<span id="185">185</span>
+<span id="186">186</span>
+<span id="187">187</span>
+<span id="188">188</span>
 </pre><pre class="rust"><code><span class="doccomment">//! `ext-rs` is a collection of libraries for doing homological algebra over $\F_p$. The</span>
 <span class="doccomment">//! main and original purpose is to compute Ext of a Steenrod module, but the library is written to</span>
 <span class="doccomment">//! be sufficiently generic to deal with more general applications.</span>
@@ -390,6 +394,10 @@
 
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">secondary</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">utils</span>;
+
+<span class="comment">// Ensure dependencies don&#39;t accidentally activate odd primes</span>
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;odd-primes&quot;</span>))]</span>
+<span class="kw">const</span> <span class="kw">_</span>: () <span class="op">=</span> <span class="macro">assert!</span>(<span class="op">!</span><span class="ident">fp::ODD_PRIMES</span>);
 </code></pre></div>
 </section><section id="search" class="content hidden"></section><div id="rustdoc-vars" data-root-path="../../" data-current-crate="ext" data-search-index-js="../../search-index.js" data-search-js="../../search.js"></div>
     <script src="../../main.js"></script><script src="../../source-script.js"></script><script src="../../source-files.js"></script>
