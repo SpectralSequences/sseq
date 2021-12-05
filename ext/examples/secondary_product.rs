@@ -59,7 +59,7 @@ fn main() -> anyhow::Result<()> {
     let v: Vec<u32> = query::raw("Input ext class", |s| {
         let v = s[1..s.len() - 1]
             .split(',')
-            .map(|x| x.parse::<u32>().map_err(|e| e.to_string()))
+            .map(|x| x.trim().parse::<u32>().map_err(|e| e.to_string()))
             .collect::<Result<Vec<_>, String>>()?;
         if v.len() != matrix.rows() {
             return Err(format!(
