@@ -185,4 +185,4 @@ pub mod utils;
 
 // Ensure dependencies don't accidentally activate odd primes
 #[cfg(not(feature = "odd-primes"))]
-assert!(!fp::ODD_PRIMES);
+const _: () = assert!(!fp::ODD_PRIMES);
