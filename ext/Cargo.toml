@@ -36,7 +36,7 @@ expect-test = "1.1.0"
 rstest = "0.11.0"
 iai = "0.1.1"
 tempfile = "3.0.0"
-sseq = { path = "crates/sseq" }
+sseq = { path = "crates/sseq", default-features = false }
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -45,7 +45,7 @@ crate-type = ["cdylib", "rlib"]
 default = ["odd-primes"]
 cache-multiplication = []
 concurrent = ["thread-token", "crossbeam-channel", "crossbeam-utils", "rayon", "once/concurrent"]
-odd-primes = ["fp/odd-primes", "algebra/odd-primes"]
+odd-primes = ["fp/odd-primes", "algebra/odd-primes", "sseq/odd-primes"]
 
 [workspace]
 members = [

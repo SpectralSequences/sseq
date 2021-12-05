@@ -182,3 +182,7 @@ pub type CCC = FiniteChainComplex<FiniteModule, FiniteModuleHomomorphism<FiniteM
 
 pub mod secondary;
 pub mod utils;
+
+// Ensure dependencies don't accidentally activate odd primes
+#[cfg(not(feature = "odd-primes"))]
+assert!(!fp::ODD_PRIMES);

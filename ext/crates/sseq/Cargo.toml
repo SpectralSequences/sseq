@@ -7,9 +7,13 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-fp = { path = "../fp/" }
+fp = { path = "../fp/", default-features = false }
 bivec = { path = "../bivec/" }
 once = { path = "../once/" }
 
 [dev-dependencies]
 expect-test = "1.1.0"
+
+[features]
+default = ["odd-primes"]
+odd-primes = ["fp/odd-primes"]
