@@ -284,6 +284,18 @@ where
                     ));
                 }
             }
+
+            if let Some(dir) = self.save_dir.as_ref() {
+                let mut f = self
+                    .source
+                    .save_file(SaveKind::ChainMap, input_s, input_t)
+                    .create_file(dir.to_owned());
+                f.write_u64::<LittleEndian>(fx_dimension as u64).unwrap();
+                for row in &outputs {
+                    row.to_bytes(&mut f).unwrap();
+                }
+            }
+
             f_cur.add_generators_from_rows(input_t, outputs);
             return;
         }
