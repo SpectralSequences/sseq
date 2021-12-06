@@ -484,6 +484,18 @@
 <span id="460">460</span>
 <span id="461">461</span>
 <span id="462">462</span>
+<span id="463">463</span>
+<span id="464">464</span>
+<span id="465">465</span>
+<span id="466">466</span>
+<span id="467">467</span>
+<span id="468">468</span>
+<span id="469">469</span>
+<span id="470">470</span>
+<span id="471">471</span>
+<span id="472">472</span>
+<span id="473">473</span>
+<span id="474">474</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::path::PathBuf</span>;
 <span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
 
@@ -770,6 +782,18 @@
                     ));
                 }
             }
+
+            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dir</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">save_dir</span>.<span class="ident">as_ref</span>() {
+                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="self">self</span>
+                    .<span class="ident">source</span>
+                    .<span class="ident">save_file</span>(<span class="ident">SaveKind::ChainMap</span>, <span class="ident">input_s</span>, <span class="ident">input_t</span>)
+                    .<span class="ident">create_file</span>(<span class="ident">dir</span>.<span class="ident">to_owned</span>());
+                <span class="ident">f</span>.<span class="ident">write_u64</span>::<span class="op">&lt;</span><span class="ident">LittleEndian</span><span class="op">&gt;</span>(<span class="ident">fx_dimension</span> <span class="kw">as</span> <span class="ident">u64</span>).<span class="ident">unwrap</span>();
+                <span class="kw">for</span> <span class="ident">row</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="ident">outputs</span> {
+                    <span class="ident">row</span>.<span class="ident">to_bytes</span>(<span class="kw-2">&amp;mut</span> <span class="ident">f</span>).<span class="ident">unwrap</span>();
+                }
+            }
+
             <span class="ident">f_cur</span>.<span class="ident">add_generators_from_rows</span>(<span class="ident">input_t</span>, <span class="ident">outputs</span>);
             <span class="kw">return</span>;
         }
