@@ -1,3 +1,5 @@
+//! Computes products in $\Mod_{C\tau^2}$.
+
 use std::sync::Arc;
 
 use fp::matrix::Matrix;
