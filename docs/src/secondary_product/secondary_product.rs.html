@@ -14,6 +14,7 @@
             ],
             macros: {
                 "\\Ext": "\\operatorname{Ext}",
+                "\\Mod": "\\operatorname{Mod}",
                 "\\Hom": "\\operatorname{Hom}",
                 "\\Sq": "\\operatorname{Sq}",
                 "\\F": "\\mathbb{F}",
@@ -289,7 +290,11 @@
 <span id="265">265</span>
 <span id="266">266</span>
 <span id="267">267</span>
-</pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
+<span id="268">268</span>
+<span id="269">269</span>
+</pre><pre class="rust"><code><span class="doccomment">//! Computes products in $\Mod_{C\tau^2}$.</span>
+
+<span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
 
 <span class="kw">use</span> <span class="ident">fp::matrix::Matrix</span>;
 <span class="kw">use</span> <span class="ident">fp::vector::FpVector</span>;
