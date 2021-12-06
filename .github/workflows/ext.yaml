@@ -15,6 +15,7 @@ jobs:
       matrix:
         toolchain: ["nightly-2021-11-22", "nightly"]
 
+    continue-on-error: ${{ matrix.toolchain == 'nightly' }}
     steps:
       - uses: actions/checkout@v2
 
@@ -63,6 +64,7 @@ jobs:
       matrix:
         toolchain: ["nightly-2021-11-22", "nightly"]
 
+    continue-on-error: ${{ matrix.toolchain == 'nightly' }}
     steps:
       - uses: actions/checkout@v2
 
@@ -100,6 +102,7 @@ jobs:
       matrix:
         toolchain: ["nightly-2021-11-22", "nightly"]
 
+    continue-on-error: ${{ matrix.toolchain == 'nightly' }}
     steps:
       - uses: actions/checkout@v2
 
@@ -153,6 +156,7 @@ jobs:
       matrix:
         toolchain: ["nightly-2021-11-22", "nightly"]
 
+    continue-on-error: ${{ matrix.toolchain == 'nightly' }}
     steps:
       - uses: actions/checkout@v2
 
@@ -206,6 +210,7 @@ jobs:
       matrix:
         toolchain: ["nightly-2021-11-22", "nightly"]
 
+    continue-on-error: ${{ matrix.toolchain == 'nightly' }}
     steps:
       - uses: actions/checkout@v2
 
