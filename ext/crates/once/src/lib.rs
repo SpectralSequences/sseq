@@ -308,7 +308,7 @@ impl<T> IntoIterator for OnceVec<T> {
     type IntoIter = std::iter::Flatten<std::array::IntoIter<Vec<T>, MAX_OUTER_LENGTH>>;
 
     fn into_iter(self) -> Self::IntoIter {
-        std::array::IntoIter::new(*self.data.into_inner()).flatten()
+        self.data.into_inner().into_iter().flatten()
     }
 }
 
