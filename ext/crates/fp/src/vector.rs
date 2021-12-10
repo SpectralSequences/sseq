@@ -216,36 +216,45 @@ impl FpVector {
     pub fn from_bytes(p: ValidPrime, len: usize, data: &mut impl Read) -> std::io::Result<Self> {
         let num_limbs = Self::num_limbs(p, len);
 
-        let mut limbs: Vec<Limb>;
-        cfg_if::cfg_if! {
-            if #[cfg(target_endian = "little")] {
-                limbs = vec![0; num_limbs];
-                let num_bytes = num_limbs * size_of::<Limb>();
-                unsafe {
-                    let buf: &mut [u8] = std::slice::from_raw_parts_mut(limbs.as_mut_ptr() as *mut u8, num_bytes);
-                    data.read_exact(buf).unwrap();
-                }
-            } else {
-                limbs = Vec::with_capacity(num_limbs);
-
-                for _ in 0..num_limbs {
-                    let mut bytes: [u8; size_of::<Limb>()] = [0; size_of::<Limb>()];
-                    data.read_exact(&mut bytes)?;
-                    limbs.push(Limb::from_le_bytes(bytes));
-                }
+        let limbs: Vec<Limb> = if cfg!(target_endian = "little") {
+            let mut limbs = vec![0; num_limbs];
+            let num_bytes = num_limbs * size_of::<Limb>();
+            unsafe {
+                let buf: &mut [u8] =
+                    std::slice::from_raw_parts_mut(limbs.as_mut_ptr() as *mut u8, num_bytes);
+                data.read_exact(buf).unwrap();
             }
+            limbs
+        } else {
+            let mut limbs = Vec::with_capacity(num_limbs);
+
+            for _ in 0..num_limbs {
+                let mut bytes: [u8; size_of::<Limb>()] = [0; size_of::<Limb>()];
+                data.read_exact(&mut bytes)?;
+                limbs.push(Limb::from_le_bytes(bytes));
+            }
+            limbs
         };
         Ok(match_p!(p, FpVectorP::from_raw_parts(len, limbs)))
     }
 
     pub fn to_bytes(&self, buffer: &mut impl Write) -> std::io::Result<()> {
-        let num_limbs = Self::num_limbs(self.prime(), self.len());
         // self.limbs is allowed to have more limbs than necessary, but we only save the
         // necessary ones.
+        let num_limbs = Self::num_limbs(self.prime(), self.len());
 
-        for limb in &self.limbs()[0..num_limbs] {
-            let bytes = limb.to_le_bytes();
-            buffer.write_all(&bytes)?;
+        if cfg!(target_endian = "little") {
+            let num_bytes = num_limbs * size_of::<Limb>();
+            unsafe {
+                let buf: &[u8] =
+                    std::slice::from_raw_parts_mut(self.limbs().as_ptr() as *mut u8, num_bytes);
+                buffer.write_all(buf)?;
+            }
+        } else {
+            for limb in &self.limbs()[0..num_limbs] {
+                let bytes = limb.to_le_bytes();
+                buffer.write_all(&bytes)?;
+            }
         }
         Ok(())
     }
