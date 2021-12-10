@@ -730,6 +730,7 @@ impl<
         let shift_t = self.shift_t();
 
         let p = self.target.chain_complex.prime();
+        let neg_1 = *p - 1;
         let target = self.target.chain_complex.module(s as u32 - shift_s - 2);
 
         let save_file = SaveFile {
@@ -753,26 +754,24 @@ impl<
 
         self.homotopies[s as i32 - 1].act(
             result.as_slice_mut(),
-            1,
+            neg_1,
             t,
             d.output(t, idx).as_slice(),
             false,
         );
         self.target.homotopy(s - shift_s).act(
             result.as_slice_mut(),
-            1,
+            neg_1,
             t - shift_t,
             self.underlying.get_map(s).output(t, idx).as_slice(),
             true,
         );
-
         self.underlying.get_map(s - 2).apply(
             result.as_slice_mut(),
             1,
             t - 1,
             self.source.homotopy(s).homotopies.output(t, idx).as_slice(),
         );
-
         if let Some(dir) = self.underlying.save_dir() {
             let mut f = save_file.create_file(dir.to_owned());
             f.write_u64::<LittleEndian>(result.len() as u64).unwrap();
