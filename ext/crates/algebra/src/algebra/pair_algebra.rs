@@ -10,7 +10,9 @@ use crate::combinatorics;
 use crate::Algebra;
 use fp::prime::ValidPrime;
 use fp::vector::{FpVector, Slice, SliceMut};
-use rustc_hash::FxHashMap as HashMap;
+use rustc_hash::FxHasher;
+
+type HashMap<K, V> = hashbrown::HashMap<K, V, std::hash::BuildHasherDefault<FxHasher>>;
 
 use std::io::{Read, Write};
 

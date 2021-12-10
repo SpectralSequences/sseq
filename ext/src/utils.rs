@@ -329,28 +329,6 @@ pub fn query_bucket() -> thread_token::TokenBucket {
     thread_token::TokenBucket::new(query_num_threads())
 }
 
-use std::collections::HashMap;
-use std::hash::{BuildHasher, Hash, Hasher};
-
-pub trait HashMapTuple<A, B, C> {
-    fn get_tuple(&self, a: &A, b: &B) -> Option<&C>;
-}
-
-impl<A: Eq + Hash, B: Eq + Hash, C, S: BuildHasher> HashMapTuple<A, B, C>
-    for HashMap<(A, B), C, S>
-{
-    fn get_tuple(&self, a: &A, b: &B) -> Option<&C> {
-        let mut hasher = self.hasher().build_hasher();
-        a.hash(&mut hasher);
-        b.hash(&mut hasher);
-        let raw_entry = self.raw_entry();
-
-        raw_entry
-            .from_hash(hasher.finish(), |v| &v.0 == a && &v.1 == b)
-            .map(|(_, y)| y)
-    }
-}
-
 /// Prints an element in the bidegree `(n, s)` to stdout. For example, `[0, 2, 1]` will be printed
 /// as `2 x_(n, s, 1) + x_(f, s, 2)`.
 pub fn print_element(v: fp::vector::Slice, n: i32, s: u32) {
@@ -364,20 +342,5 @@ pub fn print_element(v: fp::vector::Slice, n: i32, s: u32) {
         }
         print!("x_({}, {}, {})", n, s, i);
         first = false;
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    #[test]
-    fn test_hashmap_tuple() {
-        let mut x: HashMap<(u32, u32), bool> = HashMap::new();
-        x.insert((5, 3), true);
-
-        assert_eq!(x.get_tuple(&5, &3), Some(&true));
-        assert_eq!(x.get_tuple(&3, &5), None);
-        assert_eq!(x.get_tuple(&7, &12), None);
     }
 }

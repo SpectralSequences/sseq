@@ -1,4 +1,3 @@
-#![feature(hash_raw_entry)]
 //! Types and traits for working with various algebras and modules, with
 //! a focus on the Steenrod algebra and its modules.
 

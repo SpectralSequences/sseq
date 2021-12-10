@@ -165,7 +165,6 @@
 //! | [query] | This contains some helper functions for a command line interface. |
 //! | [thread_token] | This provides some concurrency primitives |
 
-#![feature(hash_raw_entry)]
 #![allow(clippy::upper_case_acronyms)]
 
 pub mod chain_complex;
