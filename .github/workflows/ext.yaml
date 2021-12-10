@@ -7,13 +7,13 @@ jobs:
     runs-on: ubuntu-latest
     env:
       RUST_BACKTRACE: 1
-      RUSTFLAGS: "-D warnings -A stable-features"
+      RUSTFLAGS: "-D warnings"
       RUSTUP_TOOLCHAIN: ${{ matrix.toolchain }}
       CARGO_TARGET_DIR: /home/runner/.cargo/target
 
     strategy:
       matrix:
-        toolchain: ["nightly-2021-11-22", "nightly"]
+        toolchain: ["nightly", "beta"]
 
     continue-on-error: ${{ matrix.toolchain == 'nightly' }}
     steps:
@@ -57,12 +57,12 @@ jobs:
     runs-on: ubuntu-latest
     env:
       RUST_BACKTRACE: 1
-      RUSTFLAGS: "-D warnings -A stable-features"
+      RUSTFLAGS: "-D warnings"
       RUSTUP_TOOLCHAIN: ${{ matrix.toolchain }}
 
     strategy:
       matrix:
-        toolchain: ["nightly-2021-11-22", "nightly"]
+        toolchain: ["nightly", "beta"]
 
     continue-on-error: ${{ matrix.toolchain == 'nightly' }}
     steps:
@@ -95,12 +95,12 @@ jobs:
     runs-on: ubuntu-20.04
     env:
       RUST_BACKTRACE: 1
-      RUSTFLAGS: "-D warnings -A stable-features"
+      RUSTFLAGS: "-D warnings"
       RUSTUP_TOOLCHAIN: ${{ matrix.toolchain }}
 
     strategy:
       matrix:
-        toolchain: ["nightly-2021-11-22", "nightly"]
+        toolchain: ["nightly", "beta"]
 
     continue-on-error: ${{ matrix.toolchain == 'nightly' }}
     steps:
@@ -149,12 +149,12 @@ jobs:
     runs-on: ubuntu-20.04
     env:
       RUST_BACKTRACE: 1
-      RUSTFLAGS: "-D warnings -A stable-features"
+      RUSTFLAGS: "-D warnings"
       RUSTUP_TOOLCHAIN: ${{ matrix.toolchain }}
 
     strategy:
       matrix:
-        toolchain: ["nightly-2021-11-22", "nightly"]
+        toolchain: ["nightly", "beta"]
 
     continue-on-error: ${{ matrix.toolchain == 'nightly' }}
     steps:
@@ -203,12 +203,12 @@ jobs:
     runs-on: ubuntu-20.04
     env:
       RUST_BACKTRACE: 1
-      RUSTFLAGS: "-D warnings -A stable-features"
+      RUSTFLAGS: "-D warnings"
       RUSTUP_TOOLCHAIN: ${{ matrix.toolchain }}
 
     strategy:
       matrix:
-        toolchain: ["nightly-2021-11-22", "nightly"]
+        toolchain: ["nightly", "beta"]
 
     continue-on-error: ${{ matrix.toolchain == 'nightly' }}
     steps:
