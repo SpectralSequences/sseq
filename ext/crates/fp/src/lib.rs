@@ -1,5 +1,3 @@
-#![feature(stdsimd)]
-
 mod constants;
 mod limb;
 
