@@ -710,7 +710,7 @@ impl<
             self.homotopies[s as i32].add_composite(
                 s,
                 self.max_t(s) - 1,
-                &[(1, d_source, c0), (neg_1, c1, d_target)],
+                &[(neg_1, d_source, c0), (1, c1, d_target)],
                 self.underlying.save_dir(),
             );
         };
