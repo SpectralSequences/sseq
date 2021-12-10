@@ -250,13 +250,12 @@ impl<'a> PartitionIterator<'a> {
         if cur_idx == 0 {
             return false;
         }
-        let dec_step;
-        if self.remaining < 0 {
+        let dec_step = if self.remaining < 0 {
             let part_delta = self.parts[cur_idx] - self.parts[0];
-            dec_step = (-self.remaining + part_delta - 1) / part_delta;
+            (-self.remaining + part_delta - 1) / part_delta
         } else {
-            dec_step = 1;
-        }
+            1
+        };
 
         self.partition[cur_idx] -= dec_step as u32;
         self.remaining += dec_step * self.parts[cur_idx];

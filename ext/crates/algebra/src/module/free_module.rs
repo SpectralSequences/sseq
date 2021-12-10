@@ -429,8 +429,7 @@ impl<A: Algebra> FreeModule<A> {
         slice: Slice<'a>,
     ) -> impl Iterator<Item = (i32, usize, i32, Slice<'a>)> + 'a {
         (self.min_degree..=degree)
-            .map(|t| (0..self.num_gens.get(t).copied().unwrap_or(0)).map(move |n| (t, n)))
-            .flatten()
+            .flat_map(|t| (0..self.num_gens.get(t).copied().unwrap_or(0)).map(move |n| (t, n)))
             .map(move |(t, n)| (t, n, degree - t, self.slice_vector(degree, t, n, slice)))
             .filter(|(_, _, _, v)| !v.is_empty())
     }

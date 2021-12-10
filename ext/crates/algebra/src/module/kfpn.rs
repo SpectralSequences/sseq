@@ -205,9 +205,8 @@ impl<A: AdemAlgebraT> PolynomialAlgebra for KFpn<A> {
                     frob_deg /= p;
                     frob_p_power *= p as u32;
                 }
-                let new_idx;
-                if frob_num == 0 {
-                    new_idx = idx;
+                let new_idx = if frob_num == 0 {
+                    idx
                 } else {
                     let new_basis_elt = AdemBasisElement {
                         degree: frob_deg * two_or_one - self.n,
@@ -216,8 +215,8 @@ impl<A: AdemAlgebraT> PolynomialAlgebra for KFpn<A> {
                         ps: b.ps[frob_num..].to_vec(),
                         p_or_sq: true, // doesn't matter for hash
                     };
-                    new_idx = self.adem_algebra().basis_element_to_index(&new_basis_elt);
-                }
+                    self.adem_algebra().basis_element_to_index(&new_basis_elt)
+                };
                 table.push((frob_deg * two_or_one, new_idx, frob_p_power));
             }
             self.inverse_frobenius_table.push(table);

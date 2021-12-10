@@ -214,8 +214,7 @@ impl Algebra for AdemAlgebra {
 
     fn default_filtration_one_products(&self) -> Vec<(String, i32, usize)> {
         let mut products = Vec::with_capacity(4);
-        let max_degree;
-        if self.generic {
+        let max_degree = if self.generic {
             products.push((
                 "a_0".to_string(),
                 AdemBasisElement {
@@ -236,7 +235,7 @@ impl Algebra for AdemAlgebra {
                     p_or_sq: *self.prime() != 2,
                 },
             ));
-            max_degree = (2 * (*self.prime()) - 2) as i32;
+            (2 * (*self.prime()) - 2) as i32
         } else {
             for i in 0..4 {
                 let degree = 1 << i; // degree is 2^hi
@@ -252,8 +251,8 @@ impl Algebra for AdemAlgebra {
                     },
                 ));
             }
-            max_degree = 1 << 3;
-        }
+            1 << 3
+        };
 
         self.compute_basis(max_degree);
         products
@@ -370,18 +369,16 @@ impl JsonAlgebra for AdemAlgebra {
 
     fn json_from_basis(&self, degree: i32, index: usize) -> Value {
         let b = self.basis_element_from_index(degree, index);
-        let out_sqs;
-        if self.generic {
-            out_sqs = b
-                .iter_full()
+        let out_sqs = if self.generic {
+            b.iter_full()
                 .map(|e| match e {
                     PorBockstein::P(v) => v,
                     PorBockstein::Bockstein(x) => x as u32,
                 })
-                .collect::<Vec<_>>();
+                .collect::<Vec<_>>()
         } else {
-            out_sqs = b.ps.clone();
-        }
+            b.ps.clone()
+        };
         serde_json::to_value(out_sqs).unwrap()
     }
 }
