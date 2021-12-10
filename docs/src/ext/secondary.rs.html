@@ -1080,7 +1080,6 @@
 <span id="1055">1055</span>
 <span id="1056">1056</span>
 <span id="1057">1057</span>
-<span id="1058">1058</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::chain_complex</span>::{
     <span class="ident">AugmentedChainComplex</span>, <span class="ident">BoundedChainComplex</span>, <span class="ident">ChainComplex</span>, <span class="ident">FreeChainComplex</span>,
 };
@@ -1813,6 +1812,7 @@
         <span class="kw">let</span> <span class="ident">shift_t</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">shift_t</span>();
 
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">target</span>.<span class="ident">chain_complex</span>.<span class="ident">prime</span>();
+        <span class="kw">let</span> <span class="ident">neg_1</span> <span class="op">=</span> <span class="kw-2">*</span><span class="ident">p</span> <span class="op">-</span> <span class="number">1</span>;
         <span class="kw">let</span> <span class="ident">target</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">target</span>.<span class="ident">chain_complex</span>.<span class="ident">module</span>(<span class="ident">s</span> <span class="kw">as</span> <span class="ident">u32</span> <span class="op">-</span> <span class="ident">shift_s</span> <span class="op">-</span> <span class="number">2</span>);
 
         <span class="kw">let</span> <span class="ident">save_file</span> <span class="op">=</span> <span class="ident">SaveFile</span> {
@@ -1836,26 +1836,24 @@
 
         <span class="self">self</span>.<span class="ident">homotopies</span>[<span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span> <span class="op">-</span> <span class="number">1</span>].<span class="ident">act</span>(
             <span class="ident">result</span>.<span class="ident">as_slice_mut</span>(),
-            <span class="number">1</span>,
+            <span class="ident">neg_1</span>,
             <span class="ident">t</span>,
             <span class="ident">d</span>.<span class="ident">output</span>(<span class="ident">t</span>, <span class="ident">idx</span>).<span class="ident">as_slice</span>(),
             <span class="bool-val">false</span>,
         );
         <span class="self">self</span>.<span class="ident">target</span>.<span class="ident">homotopy</span>(<span class="ident">s</span> <span class="op">-</span> <span class="ident">shift_s</span>).<span class="ident">act</span>(
             <span class="ident">result</span>.<span class="ident">as_slice_mut</span>(),
-            <span class="number">1</span>,
+            <span class="ident">neg_1</span>,
             <span class="ident">t</span> <span class="op">-</span> <span class="ident">shift_t</span>,
             <span class="self">self</span>.<span class="ident">underlying</span>.<span class="ident">get_map</span>(<span class="ident">s</span>).<span class="ident">output</span>(<span class="ident">t</span>, <span class="ident">idx</span>).<span class="ident">as_slice</span>(),
             <span class="bool-val">true</span>,
         );
-
         <span class="self">self</span>.<span class="ident">underlying</span>.<span class="ident">get_map</span>(<span class="ident">s</span> <span class="op">-</span> <span class="number">2</span>).<span class="ident">apply</span>(
             <span class="ident">result</span>.<span class="ident">as_slice_mut</span>(),
             <span class="number">1</span>,
             <span class="ident">t</span> <span class="op">-</span> <span class="number">1</span>,
             <span class="self">self</span>.<span class="ident">source</span>.<span class="ident">homotopy</span>(<span class="ident">s</span>).<span class="ident">homotopies</span>.<span class="ident">output</span>(<span class="ident">t</span>, <span class="ident">idx</span>).<span class="ident">as_slice</span>(),
         );
-
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dir</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">underlying</span>.<span class="ident">save_dir</span>() {
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">save_file</span>.<span class="ident">create_file</span>(<span class="ident">dir</span>.<span class="ident">to_owned</span>());
             <span class="ident">f</span>.<span class="ident">write_u64</span>::<span class="op">&lt;</span><span class="ident">LittleEndian</span><span class="op">&gt;</span>(<span class="ident">result</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">u64</span>).<span class="ident">unwrap</span>();
