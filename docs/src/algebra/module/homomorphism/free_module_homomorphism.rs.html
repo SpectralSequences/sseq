@@ -268,9 +268,6 @@
 <span id="243">243</span>
 <span id="244">244</span>
 <span id="245">245</span>
-<span id="246">246</span>
-<span id="247">247</span>
-<span id="248">248</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
 
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::algebra::Algebra</span>;
@@ -344,18 +341,15 @@
     }
 
     <span class="kw">fn</span> <span class="ident">quasi_inverse</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">QuasiInverse</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">quasi_inverses</span>
-            .<span class="ident">get</span>(<span class="ident">degree</span>)
-            .<span class="ident">map</span>(<span class="ident">Option::as_ref</span>)
-            .<span class="ident">flatten</span>()
+        <span class="self">self</span>.<span class="ident">quasi_inverses</span>.<span class="ident">get</span>(<span class="ident">degree</span>).<span class="ident">and_then</span>(<span class="ident">Option::as_ref</span>)
     }
 
     <span class="kw">fn</span> <span class="ident">kernel</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">Subspace</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">kernels</span>.<span class="ident">get</span>(<span class="ident">degree</span>).<span class="ident">map</span>(<span class="ident">Option::as_ref</span>).<span class="ident">flatten</span>()
+        <span class="self">self</span>.<span class="ident">kernels</span>.<span class="ident">get</span>(<span class="ident">degree</span>).<span class="ident">and_then</span>(<span class="ident">Option::as_ref</span>)
     }
 
     <span class="kw">fn</span> <span class="ident">image</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">Subspace</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">images</span>.<span class="ident">get</span>(<span class="ident">degree</span>).<span class="ident">map</span>(<span class="ident">Option::as_ref</span>).<span class="ident">flatten</span>()
+        <span class="self">self</span>.<span class="ident">images</span>.<span class="ident">get</span>(<span class="ident">degree</span>).<span class="ident">and_then</span>(<span class="ident">Option::as_ref</span>)
     }
 
     <span class="kw">fn</span> <span class="ident">compute_auxiliary_data_through_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) {

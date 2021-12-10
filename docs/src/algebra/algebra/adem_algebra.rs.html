@@ -1797,9 +1797,6 @@
 <span id="1772">1772</span>
 <span id="1773">1773</span>
 <span id="1774">1774</span>
-<span id="1775">1775</span>
-<span id="1776">1776</span>
-<span id="1777">1777</span>
 </pre><pre class="rust"><code><span class="doccomment">//! The Steenrod algebra using the Adem basis.</span>
 
 <span class="kw">use</span> <span class="ident">std::cmp::Ordering</span>;
@@ -2016,8 +2013,7 @@
 
     <span class="kw">fn</span> <span class="ident">default_filtration_one_products</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">String</span>, <span class="ident">i32</span>, <span class="ident">usize</span>)<span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">products</span> <span class="op">=</span> <span class="ident">Vec::with_capacity</span>(<span class="number">4</span>);
-        <span class="kw">let</span> <span class="ident">max_degree</span>;
-        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">generic</span> {
+        <span class="kw">let</span> <span class="ident">max_degree</span> <span class="op">=</span> <span class="kw">if</span> <span class="self">self</span>.<span class="ident">generic</span> {
             <span class="ident">products</span>.<span class="ident">push</span>((
                 <span class="string">&quot;a_0&quot;</span>.<span class="ident">to_string</span>(),
                 <span class="ident">AdemBasisElement</span> {
@@ -2038,7 +2034,7 @@
                     <span class="ident">p_or_sq</span>: <span class="kw-2">*</span><span class="self">self</span>.<span class="ident">prime</span>() <span class="op">!</span><span class="op">=</span> <span class="number">2</span>,
                 },
             ));
-            <span class="ident">max_degree</span> <span class="op">=</span> (<span class="number">2</span> <span class="op">*</span> (<span class="kw-2">*</span><span class="self">self</span>.<span class="ident">prime</span>()) <span class="op">-</span> <span class="number">2</span>) <span class="kw">as</span> <span class="ident">i32</span>;
+            (<span class="number">2</span> <span class="op">*</span> (<span class="kw-2">*</span><span class="self">self</span>.<span class="ident">prime</span>()) <span class="op">-</span> <span class="number">2</span>) <span class="kw">as</span> <span class="ident">i32</span>
         } <span class="kw">else</span> {
             <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="number">4</span> {
                 <span class="kw">let</span> <span class="ident">degree</span> <span class="op">=</span> <span class="number">1</span> <span class="op">&lt;</span><span class="op">&lt;</span> <span class="ident">i</span>; <span class="comment">// degree is 2^hi</span>
@@ -2054,8 +2050,8 @@
                     },
                 ));
             }
-            <span class="ident">max_degree</span> <span class="op">=</span> <span class="number">1</span> <span class="op">&lt;</span><span class="op">&lt;</span> <span class="number">3</span>;
-        }
+            <span class="number">1</span> <span class="op">&lt;</span><span class="op">&lt;</span> <span class="number">3</span>
+        };
 
         <span class="self">self</span>.<span class="ident">compute_basis</span>(<span class="ident">max_degree</span>);
         <span class="ident">products</span>
@@ -2172,18 +2168,16 @@
 
     <span class="kw">fn</span> <span class="ident">json_from_basis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">index</span>: <span class="ident">usize</span>) -&gt; <span class="ident">Value</span> {
         <span class="kw">let</span> <span class="ident">b</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">basis_element_from_index</span>(<span class="ident">degree</span>, <span class="ident">index</span>);
-        <span class="kw">let</span> <span class="ident">out_sqs</span>;
-        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">generic</span> {
-            <span class="ident">out_sqs</span> <span class="op">=</span> <span class="ident">b</span>
-                .<span class="ident">iter_full</span>()
+        <span class="kw">let</span> <span class="ident">out_sqs</span> <span class="op">=</span> <span class="kw">if</span> <span class="self">self</span>.<span class="ident">generic</span> {
+            <span class="ident">b</span>.<span class="ident">iter_full</span>()
                 .<span class="ident">map</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">e</span> {
                     <span class="ident">PorBockstein::P</span>(<span class="ident">v</span>) =&gt; <span class="ident">v</span>,
                     <span class="ident">PorBockstein::Bockstein</span>(<span class="ident">x</span>) =&gt; <span class="ident">x</span> <span class="kw">as</span> <span class="ident">u32</span>,
                 })
-                .<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span>();
+                .<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span>()
         } <span class="kw">else</span> {
-            <span class="ident">out_sqs</span> <span class="op">=</span> <span class="ident">b</span>.<span class="ident">ps</span>.<span class="ident">clone</span>();
-        }
+            <span class="ident">b</span>.<span class="ident">ps</span>.<span class="ident">clone</span>()
+        };
         <span class="ident">serde_json::to_value</span>(<span class="ident">out_sqs</span>).<span class="ident">unwrap</span>()
     }
 }
