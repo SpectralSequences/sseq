@@ -71,15 +71,15 @@ impl<M: Module> ModuleHomomorphism for FreeModuleHomomorphism<M> {
     }
 
     fn quasi_inverse(&self, degree: i32) -> Option<&QuasiInverse> {
-        self.quasi_inverses.get(degree).flat_map(Option::as_ref)
+        self.quasi_inverses.get(degree).and_then(Option::as_ref)
     }
 
     fn kernel(&self, degree: i32) -> Option<&Subspace> {
-        self.kernels.get(degree).flat_map(Option::as_ref)
+        self.kernels.get(degree).and_then(Option::as_ref)
     }
 
     fn image(&self, degree: i32) -> Option<&Subspace> {
-        self.images.get(degree).flat_map(Option::as_ref)
+        self.images.get(degree).and_then(Option::as_ref)
     }
 
     fn compute_auxiliary_data_through_degree(&self, degree: i32) {
