@@ -52,6 +52,36 @@ jobs:
         run: |
           ls -l $HOME/.cargo/target/debug/examples | grep -v ' .*-\|\.d$'
 
+  miri:
+    if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository }}
+    runs-on: ubuntu-latest
+    env:
+      RUST_BACKTRACE: 1
+      RUSTFLAGS: "-D warnings -A stable-features"
+      RUSTUP_TOOLCHAIN: nightly
+      CARGO_TARGET_DIR: /home/runner/.cargo/target
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install rustup
+        id: rustup
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          components: miri
+
+      - name: Cache files
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo
+            /usr/share/rust/.cargo
+          key: miri-${{ steps.rustup.outputs.rustc_hash }}-${{ hashFiles('**/Cargo.*') }}
+
+      - name: Run miri
+        run: make -C ext miri
+
   lint:
     if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository }}
     runs-on: ubuntu-latest

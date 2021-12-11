@@ -40,3 +40,7 @@ benchmarks-concurrent: $(patsubst examples/benchmarks/%, examples/benchmarks/%-c
 examples/benchmarks/%-concurrent: FILE = examples/benchmarks/$*
 examples/benchmarks/%-concurrent: dummy
 	(head -n 1 $(FILE) && bash -c "echo '' | EXT_THREADS=2 cargo run --features concurrent --example $$(head -n 1 $(FILE))") | diff --color $(FILE) -
+
+miri:
+	cargo miri test -p once
+	MIRIFLAGS="-Zmiri-ignore-leaks -Zmiri-disable-isolation" cargo miri test -p once --features concurrent
