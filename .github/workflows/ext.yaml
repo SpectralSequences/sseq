@@ -218,7 +218,7 @@ jobs:
         id: rustup
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly-2021-11-22
+          toolchain: ${{ matrix.toolchain }}
 
       - name: Cache files
         uses: actions/cache@v2
@@ -247,18 +247,18 @@ jobs:
       - name: Download webserver
         uses: actions/download-artifact@v2
         with:
-          name: webserver-nightly-2021-11-22
+          name: webserver-beta
 
       - name: Download calculator
         uses: actions/download-artifact@v2
         with:
-          name: calculator-nightly-2021-11-22
+          name: calculator-beta
           path: calculator
 
       - name: Download docs
         uses: actions/download-artifact@v2
         with:
-          name: docs-nightly-2021-11-22
+          name: docs-beta
           path: docs
 
       - name: Deploy
