@@ -1,3 +1,0 @@
-(function() {var implementors = {};
-implementors["bivec"] = [{"text":"impl&lt;T:&nbsp;<a class=\"trait\" href=\"bivec/fmt/trait.Debug.html\" title=\"trait bivec::fmt::Debug\">Debug</a>&gt; <a class=\"trait\" href=\"bivec/fmt/trait.Debug.html\" title=\"trait bivec::fmt::Debug\">Debug</a> for <a class=\"struct\" href=\"bivec/struct.BiVec.html\" title=\"struct bivec::BiVec\">BiVec</a>&lt;T&gt;","synthetic":false,"types":["bivec::BiVec"]}];
-if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

@@ -1,3 +1,0 @@
-(function() {var implementors = {};
-implementors["bivec"] = [{"text":"impl&lt;T&gt; <a class=\"trait\" href=\"bivec/trait.IndexMut.html\" title=\"trait bivec::IndexMut\">IndexMut</a>&lt;<a class=\"primitive\" href=\"https://doc.rust-lang.org/nightly/std/primitive.i32.html\">i32</a>&gt; for <a class=\"struct\" href=\"bivec/struct.BiVec.html\" title=\"struct bivec::BiVec\">BiVec</a>&lt;T&gt;","synthetic":false,"types":["bivec::BiVec"]}];
-if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

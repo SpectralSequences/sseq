@@ -1,1 +1,1 @@
-initSidebarItems({"enum":[["FiniteModule",""]],"mod":[["chain_complex",""],["resolution",""],["resolution_homomorphism",""],["save",""],["secondary",""],["utils",""],["yoneda",""]],"struct":[["FiniteModuleHomomorphism",""]],"type":[["CCC",""]]});
+initSidebarItems({"mod":[["chain_complex",""],["resolution",""],["resolution_homomorphism",""],["save",""],["secondary",""],["utils",""],["yoneda",""]],"type":[["CCC",""]]});
