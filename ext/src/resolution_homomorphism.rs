@@ -150,7 +150,7 @@ where
     }
 
     #[cfg(not(feature = "concurrent"))]
-    pub fn extend_profile(&self, max_s: u32, max_t: impl Fn(u32) -> i32 + Send + Sync + Clone) {
+    pub fn extend_profile(&self, max_s: u32, max_t: impl Fn(u32) -> i32 + Sync) {
         self.get_map_ensure_length(max_s);
         for s in self.shift_s..=max_s {
             let f_cur = self.get_map_ensure_length(s);
@@ -161,61 +161,17 @@ where
     }
 
     #[cfg(feature = "concurrent")]
-    pub fn extend_profile(&self, max_s: u32, max_t: impl Fn(u32) -> i32 + Send + Sync + Clone) {
+    pub fn extend_profile(&self, max_s: u32, max_t: impl Fn(u32) -> i32 + Sync) {
         self.get_map_ensure_length(max_s);
 
-        let min_degree = self.get_map_ensure_length(self.shift_s).min_degree();
+        crate::utils::iter_s_t(
+            &|s, t| self.extend_step(s, t, None),
+            self.shift_s,
+            self.get_map_ensure_length(self.shift_s).min_degree(),
+            max_s,
+            &max_t,
+        );
 
-        let f = |s, t| self.extend_step(s, t, None);
-
-        rayon::scope(|scope| {
-            fn run<'a>(
-                f: &mut (impl Fn(u32, i32) -> Range<i32> + Send + Sync + Clone + 'a),
-                scope: &rayon::Scope<'a>,
-                max_s: u32,
-                max_t: &mut (impl Fn(u32) -> i32 + Send + Sync + Clone + 'a),
-                s: u32,
-                t: i32,
-            ) {
-                let mut ret = f(s, t);
-                if s < max_s {
-                    ret.start += 1;
-                    // The first +1 is because we can lift one t higher in the next
-                    // s. The second +1 is inclusive/exclusive shift.
-                    ret.end = std::cmp::min(ret.end + 1, max_t(s + 1) + 1);
-
-                    if !ret.is_empty() {
-                        let f = f.clone();
-                        let max_t = max_t.clone();
-                        scope.spawn(move |scope| {
-                            ret.into_par_iter()
-                                .for_each_with((f, max_t), |(f, max_t), t| {
-                                    run(f, scope, max_s, max_t, s + 1, t)
-                                });
-                        });
-                    }
-                }
-            }
-
-            {
-                let f = f.clone();
-                let max_t = max_t.clone();
-                scope.spawn(move |scope| {
-                    (min_degree..=max_t(self.shift_s))
-                        .into_par_iter()
-                        .for_each_with((f, max_t), |(f, max_t), t| {
-                            run(f, &scope, max_s, max_t, self.shift_s, t)
-                        })
-                });
-            }
-            scope.spawn(move |scope| {
-                (self.shift_s + 1..=max_s)
-                    .into_par_iter()
-                    .for_each_with((f, max_t), |(f, max_t), s| {
-                        run(f, &scope, max_s, max_t, s, min_degree)
-                    })
-            });
-        });
         for s in self.shift_s..=max_s {
             assert_eq!(
                 Vec::<i32>::new(),

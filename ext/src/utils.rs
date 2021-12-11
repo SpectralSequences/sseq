@@ -344,3 +344,66 @@ pub fn print_element(v: fp::vector::Slice, n: i32, s: u32) {
         first = false;
     }
 }
+
+/// Given a function f(s, t), compute it for every `s` in `[min_s, max_s]` and every `t` in
+/// `[min_t, max_t(s)]`.  Further, we only compute `f(s, t)` when `f(s - 1, t')` has been computed
+/// for all `t' < t`.
+///
+/// The function `f` should return a range starting from t and ending at the largest `T` such that
+/// `f(s, t')` has already been computed for every `t' < T`.
+///
+/// While `iter_s_t` could have had kept track of that data, it is usually the case that `f` would
+/// compute something and write it to a `OnceBiVec`, and
+/// [`OnceBiVec::push_ooo`](once::OnceBiVec::push_ooo) would return this range for us.
+///
+/// This uses [`rayon`] under the hood, and `f` should feel free to use further rayon parallelism.
+#[cfg(feature = "concurrent")]
+pub fn iter_s_t(
+    f: &(impl Fn(u32, i32) -> std::ops::Range<i32> + Sync),
+    min_s: u32,
+    min_t: i32,
+    max_s: u32,
+    max_t: &(impl Fn(u32) -> i32 + Sync),
+) {
+    use rayon::prelude::*;
+
+    rayon::scope(|scope| {
+        // Rust does not support recursive closures, so we have to pass everything along as
+        // arguments.
+        fn run<'a>(
+            scope: &rayon::Scope<'a>,
+            f: &'a (impl Fn(u32, i32) -> std::ops::Range<i32> + Sync + 'a),
+            max_s: u32,
+            max_t: &'a (impl Fn(u32) -> i32 + Sync + 'a),
+            s: u32,
+            t: i32,
+        ) {
+            let mut ret = f(s, t);
+            if s < max_s {
+                ret.start += 1;
+                // The first +1 is because we can lift one t higher in the next
+                // s. The second +1 is inclusive/exclusive shift.
+                ret.end = std::cmp::min(ret.end + 1, max_t(s + 1) + 1);
+
+                if !ret.is_empty() {
+                    // We spawn a new scope to avoid recursion, which may blow the stack
+                    scope.spawn(move |scope| {
+                        ret.into_par_iter()
+                            .for_each(|t| run(scope, f, max_s, max_t, s + 1, t));
+                    });
+                }
+            }
+        }
+
+        scope.spawn(move |scope| {
+            (min_t..=max_t(min_s))
+                .into_par_iter()
+                .for_each(|t| run(&scope, f, max_s, max_t, min_s, t))
+        });
+        scope.spawn(move |scope| {
+            (min_s + 1..=max_s)
+                .into_par_iter()
+                .for_each(|s| run(&scope, f, max_s, max_t, s, min_t))
+        });
+    });
+}
