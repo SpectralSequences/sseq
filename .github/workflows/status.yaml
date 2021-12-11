@@ -21,7 +21,7 @@ jobs:
           --header 'content-type: application/json' \
           --data '{
             "state": "${{ github.event.workflow_run.conclusion }}",
-            "context": "${{ github.event.workflow_run.workflow }}",
+            "context": "${{ github.event.workflow_run.name }}",
             "target_url": "${{ github.event.workflow_run.html_url }}"
             }' \
           --fail
