@@ -6,9 +6,6 @@ use fp::vector::FpVector;
 use once::OnceVec;
 use std::sync::Mutex;
 
-#[cfg(feature = "concurrent")]
-use thread_token::TokenBucket;
-
 /// A chain homotopy from $f to g$, or equivalently a null-homotopy of $h = f - g$. A chain map is
 /// a priori a collection of free module homomorphisms. However, instead of providing
 /// FreeModuleHomomorphism objects, the user is expected to give a function that computes the value
@@ -16,8 +13,8 @@ use thread_token::TokenBucket;
 pub struct ChainHomotopy<
     'a,
     S: FreeChainComplex,
-    T: ChainComplex,
-    F: Fn(u32, i32, usize, &mut FpVector),
+    T: ChainComplex + Sync,
+    F: Fn(u32, i32, usize, &mut FpVector) + Sync,
 > {
     source: &'a S,
     target: &'a T,
@@ -35,8 +32,8 @@ pub struct ChainHomotopy<
 impl<
         'a,
         S: FreeChainComplex,
-        T: ChainComplex<Algebra = S::Algebra>,
-        F: Fn(u32, i32, usize, &mut FpVector),
+        T: ChainComplex<Algebra = S::Algebra> + Sync,
+        F: Fn(u32, i32, usize, &mut FpVector) + Sync,
     > ChainHomotopy<'a, S, T, F>
 {
     pub fn new(source: &'a S, target: &'a T, shift_s: u32, shift_t: i32, map: F) -> Self {
@@ -97,7 +94,6 @@ impl<
         let _lock = self.lock.lock();
 
         let p = self.source.prime();
-        let mut scratch = FpVector::new(p, 0);
 
         self.homotopies
             .extend((max_source_s - self.shift_s) as usize, |s| {
@@ -109,29 +105,58 @@ impl<
                 )
             });
 
-        for source_s in self.shift_s..=max_source_s {
-            let target_s = source_s - self.shift_s;
-            let max_source_t = std::cmp::min(
-                self.source.module(source_s).max_computed_degree(),
-                self.target.module(target_s + 1).max_computed_degree() + self.shift_t,
+        let max_source_t = |s| {
+            std::cmp::min(
+                self.source.module(s).max_computed_degree(),
+                self.target
+                    .module(s - self.shift_s + 1)
+                    .max_computed_degree()
+                    + self.shift_t,
+            )
+        };
+
+        #[cfg(not(feature = "concurrent"))]
+        {
+            let mut scratch = FpVector::new(p, 0);
+            for source_s in self.shift_s..=max_source_s {
+                for source_t in self.homotopies[(source_s - self.shift_s) as usize].next_degree()
+                    ..=max_source_t(source_s)
+                {
+                    self.extend_step(source_s, source_t, &mut scratch);
+                }
+            }
+        }
+
+        #[cfg(feature = "concurrent")]
+        {
+            let min_source_t = std::cmp::min(
+                self.source.min_degree(),
+                self.target.min_degree() + self.shift_t,
             );
 
-            for source_t in self.homotopies[target_s as usize].next_degree()..=max_source_t {
-                self.extend_step(source_s, source_t, &mut scratch);
-            }
+            crate::utils::iter_s_t(
+                &|s, t| self.extend_step(s, t, &mut FpVector::new(p, 0)),
+                self.shift_s,
+                min_source_t,
+                max_source_s,
+                &max_source_t,
+            );
         }
     }
 
-    fn extend_step(&self, source_s: u32, source_t: i32, scratch: &mut FpVector) {
+    fn extend_step(
+        &self,
+        source_s: u32,
+        source_t: i32,
+        scratch: &mut FpVector,
+    ) -> std::ops::Range<i32> {
         let p = self.prime();
         let target_s = source_s - self.shift_s;
         let target_t = source_t - self.shift_t;
 
-        match self.homotopies[target_s].next_degree().cmp(&source_t) {
-            std::cmp::Ordering::Less => panic!("Not yet ready to compute {source_t}"),
-            std::cmp::Ordering::Equal => (),
-            std::cmp::Ordering::Greater => return,
-        };
+        if self.homotopies[target_s].next_degree() > source_t {
+            return source_t..source_t + 1;
+        }
 
         let num_gens = self
             .source
@@ -182,7 +207,7 @@ impl<
             ));
             scratch.set_to_zero();
         }
-        self.homotopies[target_s as usize].add_generators_from_rows(source_t, outputs);
+        self.homotopies[target_s as usize].add_generators_from_rows_ooo(source_t, outputs)
     }
 
     pub fn homotopy(&self, source_s: u32) -> &FreeModuleHomomorphism<T::Module> {
@@ -193,59 +218,5 @@ impl<
     /// `f - g`.
     pub fn into_homotopies(self) -> OnceVec<FreeModuleHomomorphism<T::Module>> {
         self.homotopies
-    }
-}
-impl<
-        'a,
-        S: FreeChainComplex,
-        T: ChainComplex<Algebra = S::Algebra> + Sync,
-        F: Fn(u32, i32, usize, &mut FpVector) + Sync,
-    > ChainHomotopy<'a, S, T, F>
-{
-    #[cfg(feature = "concurrent")]
-    pub fn extend_all_concurrent(&self, bucket: &TokenBucket) {
-        let max_source_s = std::cmp::min(
-            self.source.next_homological_degree(),
-            self.target.next_homological_degree() + self.shift_s,
-        );
-        if max_source_s == 0 {
-            return;
-        }
-        let _lock = self.lock.lock();
-        let p = self.source.prime();
-
-        self.homotopies
-            .extend((max_source_s - self.shift_s - 1) as usize, |s| {
-                let s = s as u32;
-                let h = FreeModuleHomomorphism::new(
-                    self.source.module(s + self.shift_s),
-                    self.target.module(s + 1),
-                    self.shift_t,
-                );
-                h.extend_by_zero(self.source.min_degree() + (s + self.shift_s) as i32);
-                h
-            });
-
-        let min_source_t = std::cmp::min(
-            self.source.min_degree(),
-            self.target.min_degree() + self.shift_t,
-        );
-        let max_source_t = |s| {
-            std::cmp::min(
-                self.source.module(s).max_computed_degree(),
-                self.target
-                    .module(s - self.shift_s + 1)
-                    .max_computed_degree()
-                    + self.shift_t,
-            ) + 1
-        };
-
-        bucket.iter_s_t(
-            self.shift_s..max_source_s,
-            min_source_t,
-            max_source_t,
-            FpVector::new(p, 0),
-            |s, t, scratch| self.extend_step(s, t, scratch),
-        );
     }
 }

@@ -83,11 +83,6 @@ fn main() -> anyhow::Result<()> {
     lift.initialize_homotopies();
     lift.compute_composites();
     lift.compute_intermediates();
-
-    #[cfg(feature = "concurrent")]
-    lift.compute_homotopies_concurrent(&data.bucket);
-
-    #[cfg(not(feature = "concurrent"))]
     lift.compute_homotopies();
 
     // Check that class survives to E3.
@@ -118,11 +113,6 @@ fn main() -> anyhow::Result<()> {
     res_lift.initialize_homotopies();
     res_lift.compute_composites();
     res_lift.compute_intermediates();
-
-    #[cfg(feature = "concurrent")]
-    res_lift.compute_homotopies_concurrent(&data.bucket);
-
-    #[cfg(not(feature = "concurrent"))]
     res_lift.compute_homotopies();
 
     eprintln!("Time spent: {:?}", start.elapsed());

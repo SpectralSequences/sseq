@@ -53,11 +53,6 @@ fn main() -> anyhow::Result<()> {
     lift.initialize_homotopies();
     lift.compute_composites();
     lift.compute_intermediates();
-
-    #[cfg(feature = "concurrent")]
-    lift.compute_homotopies_concurrent(&data.bucket);
-
-    #[cfg(not(feature = "concurrent"))]
     lift.compute_homotopies();
 
     eprintln!("Time spent: {:?}", start.elapsed());

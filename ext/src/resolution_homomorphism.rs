@@ -127,11 +127,11 @@ where
     /// Extend the resolution homomorphism such that it is defined on degrees
     /// (`max_s`, `max_t`).
     pub fn extend(&self, max_s: u32, max_t: i32) {
-        self.extend_profile(max_s, |_s| max_t)
+        self.extend_profile(max_s + 1, |_s| max_t + 1)
     }
 
     pub fn extend_through_stem(&self, max_s: u32, max_n: i32) {
-        self.extend_profile(max_s, |s| max_n + s as i32)
+        self.extend_profile(max_s + 1, |s| max_n + s as i32 + 1)
     }
 
     pub fn extend_all(&self) {
@@ -139,30 +139,32 @@ where
             std::cmp::min(
                 self.target.next_homological_degree() + self.shift_s,
                 self.source.next_homological_degree(),
-            ) - 1,
+            ),
             |s| {
                 std::cmp::min(
                     self.target.module(s - self.shift_s).max_computed_degree() + self.shift_t,
                     self.source.module(s).max_computed_degree(),
-                )
+                ) + 1
             },
         );
     }
 
+    /// `max_s` and `max_t` are exclusive
     #[cfg(not(feature = "concurrent"))]
     pub fn extend_profile(&self, max_s: u32, max_t: impl Fn(u32) -> i32 + Sync) {
-        self.get_map_ensure_length(max_s);
-        for s in self.shift_s..=max_s {
+        self.get_map_ensure_length(max_s - 1);
+        for s in self.shift_s..max_s {
             let f_cur = self.get_map_ensure_length(s);
-            for t in f_cur.next_degree()..=max_t(s) {
+            for t in f_cur.next_degree()..max_t(s) {
                 self.extend_step(s, t, None);
             }
         }
     }
 
+    /// `max_s` and `max_t` are exclusive
     #[cfg(feature = "concurrent")]
     pub fn extend_profile(&self, max_s: u32, max_t: impl Fn(u32) -> i32 + Sync) {
-        self.get_map_ensure_length(max_s);
+        self.get_map_ensure_length(max_s - 1);
 
         crate::utils::iter_s_t(
             &|s, t| self.extend_step(s, t, None),
@@ -172,7 +174,7 @@ where
             &max_t,
         );
 
-        for s in self.shift_s..=max_s {
+        for s in self.shift_s..max_s {
             assert_eq!(
                 Vec::<i32>::new(),
                 self.maps[s as i32].ooo_outputs(),

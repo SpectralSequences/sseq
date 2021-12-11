@@ -1,6 +1,6 @@
 #![allow(clippy::mutex_atomic)]
 use core::num::NonZeroUsize;
-use crossbeam_channel::{unbounded, Receiver, TryRecvError};
+use crossbeam_channel::{Receiver, TryRecvError};
 use std::sync::{Condvar, Mutex};
 
 /// A `TokenBucket` is a bucket containing a fixed number of "tokens". Threads can take request to
@@ -118,54 +118,6 @@ impl TokenBucket {
         let mut running_threads = self.running_threads.lock().unwrap();
         *running_threads -= 1;
         self.condvar.notify_one();
-    }
-
-    /// Apply the function `f` to all `(s, t)` pairs where `s_range.contains(s)` and `min_t <= t <
-    /// max_t(s)`, with the condition that we wait for `(s - 1, t - 1)` and `(s, t - 1)` to be
-    /// completed before running `(s, t)`.
-    ///
-    /// The variable `&mut init` is passed as the last argument to `f`, which should be used as
-    /// some scratch data, e.g. a scratch `FpVector`. It will be cloned for each thread and
-    /// reused within the same thread.
-    ///
-    /// This spawns one thread for each s, and the thread is named after s.
-    pub fn iter_s_t<T: Clone + Send>(
-        &self,
-        s_range: std::ops::Range<u32>,
-        min_t: i32,
-        max_t: impl Fn(u32) -> i32,
-        init: T,
-        f: impl Fn(u32, i32, &mut T) + Send + Sync + Clone,
-    ) {
-        crossbeam_utils::thread::scope(|scope| {
-            let mut last_receiver: Option<Receiver<()>> = None;
-
-            for s in s_range {
-                let (sender, receiver) = unbounded();
-                sender.send(()).unwrap();
-
-                let mut init = init.clone();
-                let f = f.clone();
-                let max_t = max_t(s);
-
-                scope
-                    .builder()
-                    .name(format!("s = {s}"))
-                    .spawn(move |_| {
-                        let mut token = self.take_token();
-                        for t in min_t..max_t {
-                            token = self.recv_or_release(token, &last_receiver);
-
-                            f(s, t, &mut init);
-                            // The last receiver will be dropped so the send will fail
-                            sender.send(()).ok();
-                        }
-                    })
-                    .unwrap();
-                last_receiver = Some(receiver);
-            }
-        })
-        .unwrap();
     }
 }
 

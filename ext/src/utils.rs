@@ -357,6 +357,10 @@ pub fn print_element(v: fp::vector::Slice, n: i32, s: u32) {
 /// [`OnceBiVec::push_ooo`](once::OnceBiVec::push_ooo) would return this range for us.
 ///
 /// This uses [`rayon`] under the hood, and `f` should feel free to use further rayon parallelism.
+///
+/// # Arguments:
+///  - `max_s`: This is exclusive
+///  - `max_t`: This is exclusive
 #[cfg(feature = "concurrent")]
 pub fn iter_s_t(
     f: &(impl Fn(u32, i32) -> std::ops::Range<i32> + Sync),
@@ -379,11 +383,9 @@ pub fn iter_s_t(
             t: i32,
         ) {
             let mut ret = f(s, t);
-            if s < max_s {
+            if s + 1 < max_s {
                 ret.start += 1;
-                // The first +1 is because we can lift one t higher in the next
-                // s. The second +1 is inclusive/exclusive shift.
-                ret.end = std::cmp::min(ret.end + 1, max_t(s + 1) + 1);
+                ret.end = std::cmp::min(ret.end + 1, max_t(s + 1));
 
                 if !ret.is_empty() {
                     // We spawn a new scope to avoid recursion, which may blow the stack
@@ -396,12 +398,12 @@ pub fn iter_s_t(
         }
 
         scope.spawn(move |scope| {
-            (min_t..=max_t(min_s))
+            (min_t..max_t(min_s))
                 .into_par_iter()
                 .for_each(|t| run(&scope, f, max_s, max_t, min_s, t))
         });
         scope.spawn(move |scope| {
-            (min_s + 1..=max_s)
+            (min_s + 1..max_s)
                 .into_par_iter()
                 .for_each(|s| run(&scope, f, max_s, max_t, s, min_t))
         });
