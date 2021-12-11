@@ -197,6 +197,21 @@ impl<M: Module> FreeModuleHomomorphism<M> {
         self.outputs.push_checked(rows, degree);
     }
 
+    /// Add the image of a bidegree out of order. See
+    /// [`OnceVec::push_ooo`](once::OnceVec::push_ooo) for details on return value.
+    pub fn add_generators_from_rows_ooo(
+        &self,
+        degree: i32,
+        rows: Vec<FpVector>,
+    ) -> std::ops::Range<i32> {
+        self.outputs.push_ooo(rows, degree)
+    }
+
+    /// List of outputs that have been added out of order
+    pub fn ooo_outputs(&self) -> Vec<i32> {
+        self.outputs.ooo_elements()
+    }
+
     pub fn apply_to_generator(&self, result: &mut FpVector, coeff: u32, degree: i32, idx: usize) {
         let output_on_gen = self.output(degree, idx);
         result.add(output_on_gen, coeff);

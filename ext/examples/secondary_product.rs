@@ -77,11 +77,7 @@ fn main() -> anyhow::Result<()> {
     }
     hom.extend_step(shift_s, shift_t, Some(&matrix));
 
-    #[cfg(not(feature = "concurrent"))]
     hom.extend_all();
-
-    #[cfg(feature = "concurrent")]
-    hom.extend_all_concurrent(&data.bucket);
 
     let lift = SecondaryLift::new(Arc::clone(&resolution));
     lift.initialize_homotopies();

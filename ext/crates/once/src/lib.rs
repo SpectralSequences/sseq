@@ -284,6 +284,11 @@ impl<T> OnceVec<T> {
         }
     }
 
+    /// Returns a list of out-of-order elements remaining.
+    pub fn ooo_elements(&self) -> Vec<usize> {
+        self.ooo.lock().unwrap().0.iter().copied().collect()
+    }
+
     /// All data up to length self.len() are guaranteed to be fully written *after* reading
     /// self.len().
     pub fn len(&self) -> usize {
@@ -434,15 +439,15 @@ impl<T> OnceVec<T> {
     /// ```
     /// # use once::OnceVec;
     /// let v = OnceVec::<u32>::new();
-    /// v.push_ooo(1, 0);
+    /// assert_eq!(v.push_ooo(1, 0), 0..1);
     /// assert_eq!(v.len(), 1);
     ///
     /// v.push_checked(2, 1);
     ///
-    /// v.push_ooo(3, 3);
+    /// assert_eq!(v.push_ooo(3, 3), 2..2);
     /// assert_eq!(v.len(), 2);
     ///
-    /// v.push_ooo(5, 2);
+    /// assert_eq!(v.push_ooo(5, 2), 2..4);
     /// assert_eq!(v.len(), 4);
     ///
     /// v.push(4);
@@ -728,6 +733,15 @@ impl<T> OnceBiVec<T> {
         (result.start as i32 + self.min_degree)..(result.end as i32 + self.min_degree)
     }
 
+    pub fn ooo_elements(&self) -> Vec<i32> {
+        self.data
+            .ooo_elements()
+            .into_iter()
+            .map(|x| x as i32 + self.min_degree)
+            .collect()
+    }
+
+    /// Returns whether the `OnceBiVec` has remaining out-of-order elements
     pub fn get(&self, index: i32) -> Option<&T> {
         self.data.get((index - self.min_degree) as usize)
     }
@@ -878,5 +892,14 @@ mod tests {
             println!("i : {}", i);
             assert_eq!(v[i], i);
         }
+    }
+
+    #[test]
+    fn test_drop_ooo() {
+        let v: OnceVec<u32> = OnceVec::new();
+        v.push(4);
+        v.push(3);
+        v.push_ooo(6, 7);
+        drop(v);
     }
 }

@@ -314,12 +314,6 @@ fn main() {
 
     // We have to explicitly tell it what to do at (0, 0)
     hom.extend_step(0, 0, Some(&Matrix::from_vec(TWO, &[vec![1]])));
-
-    // We can then lift it by requiring it to be a chain map.
-    #[cfg(feature = "concurrent")]
-    hom.extend_through_stem_concurrent(max_s, max_n, &bucket);
-
-    #[cfg(not(feature = "concurrent"))]
     hom.extend_through_stem(max_s, max_n);
 
     // Now print the results

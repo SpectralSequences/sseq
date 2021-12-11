@@ -1,3 +1,4 @@
+use std::ops::Range;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -16,10 +17,7 @@ use anyhow::Context;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
 #[cfg(feature = "concurrent")]
-use {
-    crossbeam_channel::{unbounded, Receiver},
-    thread_token::TokenBucket,
-};
+use rayon::prelude::*;
 
 pub struct ResolutionHomomorphism<CC1, CC2>
 where
@@ -132,18 +130,8 @@ where
         self.extend_profile(max_s, |_s| max_t)
     }
 
-    #[cfg(feature = "concurrent")]
-    pub fn extend_concurrent(&self, max_s: u32, max_t: i32, bucket: &TokenBucket) {
-        self.extend_profile_concurrent(max_s, |_s| max_t as i32, bucket)
-    }
-
     pub fn extend_through_stem(&self, max_s: u32, max_n: i32) {
         self.extend_profile(max_s, |s| max_n + s as i32)
-    }
-
-    #[cfg(feature = "concurrent")]
-    pub fn extend_through_stem_concurrent(&self, max_s: u32, max_n: i32, bucket: &TokenBucket) {
-        self.extend_profile_concurrent(max_s, |s| max_n + s as i32, bucket)
     }
 
     pub fn extend_all(&self) {
@@ -161,24 +149,8 @@ where
         );
     }
 
-    #[cfg(feature = "concurrent")]
-    pub fn extend_all_concurrent(&self, bucket: &TokenBucket) {
-        self.extend_profile_concurrent(
-            std::cmp::min(
-                self.target.next_homological_degree() + self.shift_s,
-                self.source.next_homological_degree(),
-            ) - 1,
-            |s| {
-                std::cmp::min(
-                    self.target.module(s - self.shift_s).max_computed_degree() + self.shift_t,
-                    self.source.module(s).max_computed_degree(),
-                )
-            },
-            bucket,
-        );
-    }
-
-    pub fn extend_profile(&self, max_s: u32, mut max_t: impl FnMut(u32) -> i32) {
+    #[cfg(not(feature = "concurrent"))]
+    pub fn extend_profile(&self, max_s: u32, max_t: impl Fn(u32) -> i32 + Send + Sync + Clone) {
         self.get_map_ensure_length(max_s);
         for s in self.shift_s..=max_s {
             let f_cur = self.get_map_ensure_length(s);
@@ -189,38 +161,76 @@ where
     }
 
     #[cfg(feature = "concurrent")]
-    pub fn extend_profile_concurrent(
-        &self,
-        max_s: u32,
-        max_t: impl Fn(u32) -> i32 + Send + Clone,
-        bucket: &TokenBucket,
-    ) {
+    pub fn extend_profile(&self, max_s: u32, max_t: impl Fn(u32) -> i32 + Send + Sync + Clone) {
         self.get_map_ensure_length(max_s);
-        crossbeam_utils::thread::scope(|scope| {
-            let mut last_receiver: Option<Receiver<()>> = None;
-            for s in self.shift_s..=max_s {
-                let (sender, receiver) = unbounded();
-                let max_t = max_t.clone();
-                scope
-                    .builder()
-                    .name(format!("s = {}", s))
-                    .spawn(move |_| {
-                        let mut token = bucket.take_token();
-                        sender.send(()).ok();
-                        for t in self.source.min_degree()..=max_t(s) {
-                            token = bucket.recv_or_release(token, &last_receiver);
-                            self.extend_step(s, t, None);
-                            sender.send(()).ok();
-                        }
-                    })
-                    .unwrap();
-                last_receiver = Some(receiver);
+
+        let min_degree = self.get_map_ensure_length(self.shift_s).min_degree();
+
+        let f = |s, t| self.extend_step(s, t, None);
+
+        rayon::scope(|scope| {
+            fn run<'a>(
+                f: &mut (impl Fn(u32, i32) -> Range<i32> + Send + Sync + Clone + 'a),
+                scope: &rayon::Scope<'a>,
+                max_s: u32,
+                max_t: &mut (impl Fn(u32) -> i32 + Send + Sync + Clone + 'a),
+                s: u32,
+                t: i32,
+            ) {
+                let mut ret = f(s, t);
+                if s < max_s {
+                    ret.start += 1;
+                    // The first +1 is because we can lift one t higher in the next
+                    // s. The second +1 is inclusive/exclusive shift.
+                    ret.end = std::cmp::min(ret.end + 1, max_t(s + 1) + 1);
+
+                    if !ret.is_empty() {
+                        let f = f.clone();
+                        let max_t = max_t.clone();
+                        scope.spawn(move |scope| {
+                            ret.into_par_iter()
+                                .for_each_with((f, max_t), |(f, max_t), t| {
+                                    run(f, scope, max_s, max_t, s + 1, t)
+                                });
+                        });
+                    }
+                }
             }
-        })
-        .unwrap();
+
+            {
+                let f = f.clone();
+                let max_t = max_t.clone();
+                scope.spawn(move |scope| {
+                    (min_degree..=max_t(self.shift_s))
+                        .into_par_iter()
+                        .for_each_with((f, max_t), |(f, max_t), t| {
+                            run(f, &scope, max_s, max_t, self.shift_s, t)
+                        })
+                });
+            }
+            scope.spawn(move |scope| {
+                (self.shift_s + 1..=max_s)
+                    .into_par_iter()
+                    .for_each_with((f, max_t), |(f, max_t), s| {
+                        run(f, &scope, max_s, max_t, s, min_degree)
+                    })
+            });
+        });
+        for s in self.shift_s..=max_s {
+            assert_eq!(
+                Vec::<i32>::new(),
+                self.maps[s as i32].ooo_outputs(),
+                "Map {s} has out of order elements"
+            );
+        }
     }
 
-    pub fn extend_step(&self, input_s: u32, input_t: i32, extra_images: Option<&Matrix>) {
+    pub fn extend_step(
+        &self,
+        input_s: u32,
+        input_t: i32,
+        extra_images: Option<&Matrix>,
+    ) -> Range<i32> {
         let output_s = input_s - self.shift_s;
         let output_t = input_t - self.shift_t;
         assert!(self.target.has_computed_bidegree(output_s, output_t));
@@ -230,7 +240,8 @@ where
         let f_cur = self.get_map_ensure_length(input_s);
         if input_t < f_cur.next_degree() {
             assert!(extra_images.is_none());
-            return;
+            // We need to signal to compute the dependents of this
+            return input_t..input_t + 1;
         }
 
         let p = self.source.prime();
@@ -239,8 +250,10 @@ where
         let fx_dimension = f_cur.target().dimension(output_t);
 
         if num_gens == 0 || fx_dimension == 0 {
-            f_cur.add_generators_from_rows(input_t, vec![FpVector::new(p, fx_dimension); num_gens]);
-            return;
+            return f_cur.add_generators_from_rows_ooo(
+                input_t,
+                vec![FpVector::new(p, fx_dimension); num_gens],
+            );
         }
 
         if let Some(dir) = self.save_dir.as_ref() {
@@ -255,8 +268,7 @@ where
                 for _ in 0..num_gens {
                     outputs.push(FpVector::from_bytes(p, fx_dimension, &mut f).unwrap());
                 }
-                f_cur.add_generators_from_rows(input_t, outputs);
-                return;
+                return f_cur.add_generators_from_rows_ooo(input_t, outputs);
             }
         }
 
@@ -296,8 +308,7 @@ where
                 }
             }
 
-            f_cur.add_generators_from_rows(input_t, outputs);
-            return;
+            return f_cur.add_generators_from_rows_ooo(input_t, outputs);
         }
         let d_source = self.source.differential(input_s);
         let d_target = self.target.differential(output_s);
@@ -308,13 +319,10 @@ where
         assert!(Arc::ptr_eq(&d_target.target(), &f_prev.target()));
         let fdx_dimension = f_prev.target().dimension(output_t);
 
-        let mut fdx_vectors = Vec::with_capacity(num_gens);
-        let mut qi_outputs = Vec::with_capacity(num_gens);
-
+        // First take care of generators that hit the target chain complex.
         let mut extra_image_row = 0;
         for (k, output_row) in outputs.iter_mut().enumerate() {
-            let dx_vector = d_source.output(input_t, k);
-            if dx_vector.is_zero() {
+            if d_source.output(input_t, k).is_zero() {
                 let target_chain_map = self.target.chain_map(output_s);
                 let target_cc_dimension = target_chain_map.target().dimension(output_t);
                 if let Some(extra_images_matrix) = &extra_images {
@@ -329,15 +337,47 @@ where
                     extra_image_matrix[extra_image_row].as_slice(),
                 ));
                 extra_image_row += 1;
-            } else {
-                d_target.compute_auxiliary_data_through_degree(output_t);
-
-                let mut fdx_vector = FpVector::new(p, fdx_dimension);
-                f_prev.apply(fdx_vector.as_slice_mut(), 1, input_t, dx_vector.as_slice());
-                fdx_vectors.push(fdx_vector);
-                qi_outputs.push(output_row.as_slice_mut());
             }
         }
+
+        // Now do the rest
+        d_target.compute_auxiliary_data_through_degree(output_t);
+
+        let compute_fdx_vector = |k| {
+            let dx_vector = d_source.output(input_t, k);
+            if dx_vector.is_zero() {
+                None
+            } else {
+                let mut fdx_vector = FpVector::new(p, fdx_dimension);
+                f_prev.apply(fdx_vector.as_slice_mut(), 1, input_t, dx_vector.as_slice());
+                Some(fdx_vector)
+            }
+        };
+
+        #[cfg(not(feature = "concurrent"))]
+        let fdx_vectors: Vec<FpVector> = (0..num_gens)
+            .into_iter()
+            .filter_map(compute_fdx_vector)
+            .collect();
+
+        #[cfg(feature = "concurrent")]
+        let fdx_vectors: Vec<FpVector> = (0..num_gens)
+            .into_par_iter()
+            .filter_map(compute_fdx_vector)
+            .collect();
+
+        let mut qi_outputs: Vec<_> = outputs
+            .iter_mut()
+            .enumerate()
+            .filter_map(|(k, v)| {
+                if d_source.output(input_t, k).is_zero() {
+                    None
+                } else {
+                    Some(v.as_slice_mut())
+                }
+            })
+            .collect();
+
         if !fdx_vectors.is_empty() {
             assert!(self.target.apply_quasi_inverse(
                 &mut qi_outputs,
@@ -357,7 +397,7 @@ where
                 row.to_bytes(&mut f).unwrap();
             }
         }
-        f_cur.add_generators_from_rows(input_t, outputs);
+        f_cur.add_generators_from_rows_ooo(input_t, outputs)
     }
 
     pub fn save_dir(&self) -> Option<&std::path::Path> {

@@ -75,6 +75,11 @@ fn main() -> anyhow::Result<()> {
     #[cfg(feature = "concurrent")]
     let bucket = ext::utils::query_bucket();
 
+    #[cfg(feature = "concurrent")]
+    rayon::ThreadPoolBuilder::new()
+        .num_threads(bucket.max_threads.into())
+        .build_global()?;
+
     let s: u32 = query::with_default("Max target s", "10", str::parse);
     let n: i32 = query::with_default("Max target n", "10", str::parse);
 
@@ -136,11 +141,7 @@ fn main() -> anyhow::Result<()> {
         }
     }
 
-    #[cfg(not(feature = "concurrent"))]
     hom.extend_all();
-
-    #[cfg(feature = "concurrent")]
-    hom.extend_all_concurrent(&bucket);
 
     for (s, n, t) in hom.target.iter_stem() {
         if s + shift_s >= hom.source.next_homological_degree()
