@@ -246,35 +246,6 @@
 <span id="220">220</span>
 <span id="221">221</span>
 <span id="222">222</span>
-<span id="223">223</span>
-<span id="224">224</span>
-<span id="225">225</span>
-<span id="226">226</span>
-<span id="227">227</span>
-<span id="228">228</span>
-<span id="229">229</span>
-<span id="230">230</span>
-<span id="231">231</span>
-<span id="232">232</span>
-<span id="233">233</span>
-<span id="234">234</span>
-<span id="235">235</span>
-<span id="236">236</span>
-<span id="237">237</span>
-<span id="238">238</span>
-<span id="239">239</span>
-<span id="240">240</span>
-<span id="241">241</span>
-<span id="242">242</span>
-<span id="243">243</span>
-<span id="244">244</span>
-<span id="245">245</span>
-<span id="246">246</span>
-<span id="247">247</span>
-<span id="248">248</span>
-<span id="249">249</span>
-<span id="250">250</span>
-<span id="251">251</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::chain_complex</span>::{<span class="ident">ChainComplex</span>, <span class="ident">FreeChainComplex</span>};
 <span class="kw">use</span> <span class="ident">algebra::module::homomorphism</span>::{<span class="ident">FreeModuleHomomorphism</span>, <span class="ident">ModuleHomomorphism</span>};
 <span class="kw">use</span> <span class="ident">algebra::module::Module</span>;
@@ -283,9 +254,6 @@
 <span class="kw">use</span> <span class="ident">once::OnceVec</span>;
 <span class="kw">use</span> <span class="ident">std::sync::Mutex</span>;
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
-<span class="kw">use</span> <span class="ident">thread_token::TokenBucket</span>;
-
 <span class="doccomment">/// A chain homotopy from $f to g$, or equivalently a null-homotopy of $h = f - g$. A chain map is</span>
 <span class="doccomment">/// a priori a collection of free module homomorphisms. However, instead of providing</span>
 <span class="doccomment">/// FreeModuleHomomorphism objects, the user is expected to give a function that computes the value</span>
@@ -293,8 +261,8 @@
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ChainHomotopy</span><span class="op">&lt;</span>
     <span class="lifetime">&#39;a</span>,
     <span class="ident">S</span>: <span class="ident">FreeChainComplex</span>,
-    <span class="ident">T</span>: <span class="ident">ChainComplex</span>,
-    <span class="ident">F</span>: <span class="ident">Fn</span>(<span class="ident">u32</span>, <span class="ident">i32</span>, <span class="ident">usize</span>, <span class="kw-2">&amp;mut</span> <span class="ident">FpVector</span>),
+    <span class="ident">T</span>: <span class="ident">ChainComplex</span> <span class="op">+</span> <span class="ident">Sync</span>,
+    <span class="ident">F</span>: <span class="ident">Fn</span>(<span class="ident">u32</span>, <span class="ident">i32</span>, <span class="ident">usize</span>, <span class="kw-2">&amp;mut</span> <span class="ident">FpVector</span>) <span class="op">+</span> <span class="ident">Sync</span>,
 <span class="op">&gt;</span> {
     <span class="ident">source</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">S</span>,
     <span class="ident">target</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">T</span>,
@@ -312,8 +280,8 @@
 <span class="kw">impl</span><span class="op">&lt;</span>
         <span class="lifetime">&#39;a</span>,
         <span class="ident">S</span>: <span class="ident">FreeChainComplex</span>,
-        <span class="ident">T</span>: <span class="ident">ChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">S::Algebra</span><span class="op">&gt;</span>,
-        <span class="ident">F</span>: <span class="ident">Fn</span>(<span class="ident">u32</span>, <span class="ident">i32</span>, <span class="ident">usize</span>, <span class="kw-2">&amp;mut</span> <span class="ident">FpVector</span>),
+        <span class="ident">T</span>: <span class="ident">ChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">S::Algebra</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Sync</span>,
+        <span class="ident">F</span>: <span class="ident">Fn</span>(<span class="ident">u32</span>, <span class="ident">i32</span>, <span class="ident">usize</span>, <span class="kw-2">&amp;mut</span> <span class="ident">FpVector</span>) <span class="op">+</span> <span class="ident">Sync</span>,
     <span class="op">&gt;</span> <span class="ident">ChainHomotopy</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">S</span>, <span class="ident">T</span>, <span class="ident">F</span><span class="op">&gt;</span>
 {
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">source</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">S</span>, <span class="ident">target</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">T</span>, <span class="ident">shift_s</span>: <span class="ident">u32</span>, <span class="ident">shift_t</span>: <span class="ident">i32</span>, <span class="ident">map</span>: <span class="ident">F</span>) -&gt; <span class="self">Self</span> {
@@ -374,7 +342,6 @@
         <span class="kw">let</span> <span class="ident">_lock</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">lock</span>.<span class="ident">lock</span>();
 
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">source</span>.<span class="ident">prime</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">scratch</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="number">0</span>);
 
         <span class="self">self</span>.<span class="ident">homotopies</span>
             .<span class="ident">extend</span>((<span class="ident">max_source_s</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">shift_s</span>) <span class="kw">as</span> <span class="ident">usize</span>, <span class="op">|</span><span class="ident">s</span><span class="op">|</span> {
@@ -386,29 +353,58 @@
                 )
             });
 
-        <span class="kw">for</span> <span class="ident">source_s</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">shift_s</span>..<span class="op">=</span><span class="ident">max_source_s</span> {
-            <span class="kw">let</span> <span class="ident">target_s</span> <span class="op">=</span> <span class="ident">source_s</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">shift_s</span>;
-            <span class="kw">let</span> <span class="ident">max_source_t</span> <span class="op">=</span> <span class="ident">std::cmp::min</span>(
-                <span class="self">self</span>.<span class="ident">source</span>.<span class="ident">module</span>(<span class="ident">source_s</span>).<span class="ident">max_computed_degree</span>(),
-                <span class="self">self</span>.<span class="ident">target</span>.<span class="ident">module</span>(<span class="ident">target_s</span> <span class="op">+</span> <span class="number">1</span>).<span class="ident">max_computed_degree</span>() <span class="op">+</span> <span class="self">self</span>.<span class="ident">shift_t</span>,
+        <span class="kw">let</span> <span class="ident">max_source_t</span> <span class="op">=</span> <span class="op">|</span><span class="ident">s</span><span class="op">|</span> {
+            <span class="ident">std::cmp::min</span>(
+                <span class="self">self</span>.<span class="ident">source</span>.<span class="ident">module</span>(<span class="ident">s</span>).<span class="ident">max_computed_degree</span>(),
+                <span class="self">self</span>.<span class="ident">target</span>
+                    .<span class="ident">module</span>(<span class="ident">s</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">shift_s</span> <span class="op">+</span> <span class="number">1</span>)
+                    .<span class="ident">max_computed_degree</span>()
+                    <span class="op">+</span> <span class="self">self</span>.<span class="ident">shift_t</span>,
+            )
+        };
+
+        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>))]</span>
+        {
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">scratch</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="number">0</span>);
+            <span class="kw">for</span> <span class="ident">source_s</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">shift_s</span>..<span class="op">=</span><span class="ident">max_source_s</span> {
+                <span class="kw">for</span> <span class="ident">source_t</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">homotopies</span>[(<span class="ident">source_s</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">shift_s</span>) <span class="kw">as</span> <span class="ident">usize</span>].<span class="ident">next_degree</span>()
+                    ..<span class="op">=</span><span class="ident">max_source_t</span>(<span class="ident">source_s</span>)
+                {
+                    <span class="self">self</span>.<span class="ident">extend_step</span>(<span class="ident">source_s</span>, <span class="ident">source_t</span>, <span class="kw-2">&amp;mut</span> <span class="ident">scratch</span>);
+                }
+            }
+        }
+
+        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
+        {
+            <span class="kw">let</span> <span class="ident">min_source_t</span> <span class="op">=</span> <span class="ident">std::cmp::min</span>(
+                <span class="self">self</span>.<span class="ident">source</span>.<span class="ident">min_degree</span>(),
+                <span class="self">self</span>.<span class="ident">target</span>.<span class="ident">min_degree</span>() <span class="op">+</span> <span class="self">self</span>.<span class="ident">shift_t</span>,
             );
 
-            <span class="kw">for</span> <span class="ident">source_t</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">homotopies</span>[<span class="ident">target_s</span> <span class="kw">as</span> <span class="ident">usize</span>].<span class="ident">next_degree</span>()..<span class="op">=</span><span class="ident">max_source_t</span> {
-                <span class="self">self</span>.<span class="ident">extend_step</span>(<span class="ident">source_s</span>, <span class="ident">source_t</span>, <span class="kw-2">&amp;mut</span> <span class="ident">scratch</span>);
-            }
+            <span class="ident"><span class="kw">crate</span>::utils::iter_s_t</span>(
+                <span class="kw-2">&amp;</span><span class="op">|</span><span class="ident">s</span>, <span class="ident">t</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">extend_step</span>(<span class="ident">s</span>, <span class="ident">t</span>, <span class="kw-2">&amp;mut</span> <span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="number">0</span>)),
+                <span class="self">self</span>.<span class="ident">shift_s</span>,
+                <span class="ident">min_source_t</span>,
+                <span class="ident">max_source_s</span>,
+                <span class="kw-2">&amp;</span><span class="ident">max_source_t</span>,
+            );
         }
     }
 
-    <span class="kw">fn</span> <span class="ident">extend_step</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">source_s</span>: <span class="ident">u32</span>, <span class="ident">source_t</span>: <span class="ident">i32</span>, <span class="ident">scratch</span>: <span class="kw-2">&amp;mut</span> <span class="ident">FpVector</span>) {
+    <span class="kw">fn</span> <span class="ident">extend_step</span>(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        <span class="ident">source_s</span>: <span class="ident">u32</span>,
+        <span class="ident">source_t</span>: <span class="ident">i32</span>,
+        <span class="ident">scratch</span>: <span class="kw-2">&amp;mut</span> <span class="ident">FpVector</span>,
+    ) -&gt; <span class="ident">std::ops::Range</span><span class="op">&lt;</span><span class="ident">i32</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prime</span>();
         <span class="kw">let</span> <span class="ident">target_s</span> <span class="op">=</span> <span class="ident">source_s</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">shift_s</span>;
         <span class="kw">let</span> <span class="ident">target_t</span> <span class="op">=</span> <span class="ident">source_t</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">shift_t</span>;
 
-        <span class="kw">match</span> <span class="self">self</span>.<span class="ident">homotopies</span>[<span class="ident">target_s</span>].<span class="ident">next_degree</span>().<span class="ident">cmp</span>(<span class="kw-2">&amp;</span><span class="ident">source_t</span>) {
-            <span class="ident">std::cmp::Ordering::Less</span> =&gt; <span class="macro">panic!</span>(<span class="string">&quot;Not yet ready to compute {source_t}&quot;</span>),
-            <span class="ident">std::cmp::Ordering::Equal</span> =&gt; (),
-            <span class="ident">std::cmp::Ordering::Greater</span> =&gt; <span class="kw">return</span>,
-        };
+        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">homotopies</span>[<span class="ident">target_s</span>].<span class="ident">next_degree</span>() <span class="op">&gt;</span> <span class="ident">source_t</span> {
+            <span class="kw">return</span> <span class="ident">source_t</span>..<span class="ident">source_t</span> <span class="op">+</span> <span class="number">1</span>;
+        }
 
         <span class="kw">let</span> <span class="ident">num_gens</span> <span class="op">=</span> <span class="self">self</span>
             .<span class="ident">source</span>
@@ -459,7 +455,7 @@
             ));
             <span class="ident">scratch</span>.<span class="ident">set_to_zero</span>();
         }
-        <span class="self">self</span>.<span class="ident">homotopies</span>[<span class="ident">target_s</span> <span class="kw">as</span> <span class="ident">usize</span>].<span class="ident">add_generators_from_rows</span>(<span class="ident">source_t</span>, <span class="ident">outputs</span>);
+        <span class="self">self</span>.<span class="ident">homotopies</span>[<span class="ident">target_s</span> <span class="kw">as</span> <span class="ident">usize</span>].<span class="ident">add_generators_from_rows_ooo</span>(<span class="ident">source_t</span>, <span class="ident">outputs</span>)
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">homotopy</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">source_s</span>: <span class="ident">u32</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">T::Module</span><span class="op">&gt;</span> {
@@ -470,60 +466,6 @@
     <span class="doccomment">/// `f - g`.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">into_homotopies</span>(<span class="self">self</span>) -&gt; <span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">T::Module</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">homotopies</span>
-    }
-}
-<span class="kw">impl</span><span class="op">&lt;</span>
-        <span class="lifetime">&#39;a</span>,
-        <span class="ident">S</span>: <span class="ident">FreeChainComplex</span>,
-        <span class="ident">T</span>: <span class="ident">ChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">S::Algebra</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Sync</span>,
-        <span class="ident">F</span>: <span class="ident">Fn</span>(<span class="ident">u32</span>, <span class="ident">i32</span>, <span class="ident">usize</span>, <span class="kw-2">&amp;mut</span> <span class="ident">FpVector</span>) <span class="op">+</span> <span class="ident">Sync</span>,
-    <span class="op">&gt;</span> <span class="ident">ChainHomotopy</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">S</span>, <span class="ident">T</span>, <span class="ident">F</span><span class="op">&gt;</span>
-{
-    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">extend_all_concurrent</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">bucket</span>: <span class="kw-2">&amp;</span><span class="ident">TokenBucket</span>) {
-        <span class="kw">let</span> <span class="ident">max_source_s</span> <span class="op">=</span> <span class="ident">std::cmp::min</span>(
-            <span class="self">self</span>.<span class="ident">source</span>.<span class="ident">next_homological_degree</span>(),
-            <span class="self">self</span>.<span class="ident">target</span>.<span class="ident">next_homological_degree</span>() <span class="op">+</span> <span class="self">self</span>.<span class="ident">shift_s</span>,
-        );
-        <span class="kw">if</span> <span class="ident">max_source_s</span> <span class="op">==</span> <span class="number">0</span> {
-            <span class="kw">return</span>;
-        }
-        <span class="kw">let</span> <span class="ident">_lock</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">lock</span>.<span class="ident">lock</span>();
-        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">source</span>.<span class="ident">prime</span>();
-
-        <span class="self">self</span>.<span class="ident">homotopies</span>
-            .<span class="ident">extend</span>((<span class="ident">max_source_s</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">shift_s</span> <span class="op">-</span> <span class="number">1</span>) <span class="kw">as</span> <span class="ident">usize</span>, <span class="op">|</span><span class="ident">s</span><span class="op">|</span> {
-                <span class="kw">let</span> <span class="ident">s</span> <span class="op">=</span> <span class="ident">s</span> <span class="kw">as</span> <span class="ident">u32</span>;
-                <span class="kw">let</span> <span class="ident">h</span> <span class="op">=</span> <span class="ident">FreeModuleHomomorphism::new</span>(
-                    <span class="self">self</span>.<span class="ident">source</span>.<span class="ident">module</span>(<span class="ident">s</span> <span class="op">+</span> <span class="self">self</span>.<span class="ident">shift_s</span>),
-                    <span class="self">self</span>.<span class="ident">target</span>.<span class="ident">module</span>(<span class="ident">s</span> <span class="op">+</span> <span class="number">1</span>),
-                    <span class="self">self</span>.<span class="ident">shift_t</span>,
-                );
-                <span class="ident">h</span>.<span class="ident">extend_by_zero</span>(<span class="self">self</span>.<span class="ident">source</span>.<span class="ident">min_degree</span>() <span class="op">+</span> (<span class="ident">s</span> <span class="op">+</span> <span class="self">self</span>.<span class="ident">shift_s</span>) <span class="kw">as</span> <span class="ident">i32</span>);
-                <span class="ident">h</span>
-            });
-
-        <span class="kw">let</span> <span class="ident">min_source_t</span> <span class="op">=</span> <span class="ident">std::cmp::min</span>(
-            <span class="self">self</span>.<span class="ident">source</span>.<span class="ident">min_degree</span>(),
-            <span class="self">self</span>.<span class="ident">target</span>.<span class="ident">min_degree</span>() <span class="op">+</span> <span class="self">self</span>.<span class="ident">shift_t</span>,
-        );
-        <span class="kw">let</span> <span class="ident">max_source_t</span> <span class="op">=</span> <span class="op">|</span><span class="ident">s</span><span class="op">|</span> {
-            <span class="ident">std::cmp::min</span>(
-                <span class="self">self</span>.<span class="ident">source</span>.<span class="ident">module</span>(<span class="ident">s</span>).<span class="ident">max_computed_degree</span>(),
-                <span class="self">self</span>.<span class="ident">target</span>
-                    .<span class="ident">module</span>(<span class="ident">s</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">shift_s</span> <span class="op">+</span> <span class="number">1</span>)
-                    .<span class="ident">max_computed_degree</span>()
-                    <span class="op">+</span> <span class="self">self</span>.<span class="ident">shift_t</span>,
-            ) <span class="op">+</span> <span class="number">1</span>
-        };
-
-        <span class="ident">bucket</span>.<span class="ident">iter_s_t</span>(
-            <span class="self">self</span>.<span class="ident">shift_s</span>..<span class="ident">max_source_s</span>,
-            <span class="ident">min_source_t</span>,
-            <span class="ident">max_source_t</span>,
-            <span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="number">0</span>),
-            <span class="op">|</span><span class="ident">s</span>, <span class="ident">t</span>, <span class="ident">scratch</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">extend_step</span>(<span class="ident">s</span>, <span class="ident">t</span>, <span class="ident">scratch</span>),
-        );
     }
 }
 </code></pre></div>

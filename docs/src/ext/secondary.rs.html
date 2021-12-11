@@ -1076,11 +1076,6 @@
 <span id="1050">1050</span>
 <span id="1051">1051</span>
 <span id="1052">1052</span>
-<span id="1053">1053</span>
-<span id="1054">1054</span>
-<span id="1055">1055</span>
-<span id="1056">1056</span>
-<span id="1057">1057</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::chain_complex</span>::{
     <span class="ident">AugmentedChainComplex</span>, <span class="ident">BoundedChainComplex</span>, <span class="ident">ChainComplex</span>, <span class="ident">FreeChainComplex</span>,
 };
@@ -1106,10 +1101,7 @@
 <span class="kw">use</span> <span class="ident">byteorder</span>::{<span class="ident">LittleEndian</span>, <span class="ident">ReadBytesExt</span>, <span class="ident">WriteBytesExt</span>};
 <span class="kw">use</span> <span class="ident">dashmap::DashMap</span>;
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
-<span class="kw">use</span> {
-    <span class="ident">rayon::iter</span>::{<span class="ident">IndexedParallelIterator</span>, <span class="ident">IntoParallelIterator</span>, <span class="ident">ParallelIterator</span>},
-    <span class="ident">thread_token::TokenBucket</span>,
-};
+<span class="kw">use</span> <span class="ident">rayon::prelude</span>::<span class="kw-2">*</span>;
 
 <span class="doccomment">/// A homotopy of a map A -&gt; M of pair modules. We assume this map does not hit generators.</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">SecondaryComposite</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">PairAlgebra</span><span class="op">&gt;</span> {
@@ -1553,12 +1545,11 @@
             })
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">compute_homotopy_step</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">s</span>: <span class="ident">u32</span>, <span class="ident">t</span>: <span class="ident">i32</span>) {
-        <span class="kw">match</span> <span class="self">self</span>.<span class="ident">homotopies</span>[<span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span>].<span class="ident">homotopies</span>.<span class="ident">next_degree</span>().<span class="ident">cmp</span>(<span class="kw-2">&amp;</span><span class="ident">t</span>) {
-            <span class="ident">std::cmp::Ordering::Less</span> =&gt; <span class="macro">panic!</span>(<span class="string">&quot;Not yet ready to compute {t}&quot;</span>),
-            <span class="ident">std::cmp::Ordering::Equal</span> =&gt; (),
-            <span class="ident">std::cmp::Ordering::Greater</span> =&gt; <span class="kw">return</span>,
-        };
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">compute_homotopy_step</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">s</span>: <span class="ident">u32</span>, <span class="ident">t</span>: <span class="ident">i32</span>) -&gt; <span class="ident">std::ops::Range</span><span class="op">&lt;</span><span class="ident">i32</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">homotopy</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">homotopies</span>[<span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span>];
+        <span class="kw">if</span> <span class="ident">homotopy</span>.<span class="ident">homotopies</span>.<span class="ident">next_degree</span>() <span class="op">&gt;</span> <span class="ident">t</span> {
+            <span class="kw">return</span> <span class="ident">t</span>..<span class="ident">t</span> <span class="op">+</span> <span class="number">1</span>;
+        }
 
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">chain_complex</span>.<span class="ident">prime</span>();
         <span class="kw">let</span> <span class="ident">source</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">chain_complex</span>.<span class="ident">module</span>(<span class="ident">s</span>);
@@ -1575,27 +1566,33 @@
                 <span class="kw">for</span> <span class="kw">_</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">num_gens</span> {
                     <span class="ident">results</span>.<span class="ident">push</span>(<span class="ident">FpVector::from_bytes</span>(<span class="ident">p</span>, <span class="ident">target_dim</span>, <span class="kw-2">&amp;mut</span> <span class="ident">f</span>).<span class="ident">unwrap</span>());
                 }
-                <span class="self">self</span>.<span class="ident">homotopies</span>[<span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span>]
-                    .<span class="ident">homotopies</span>
-                    .<span class="ident">add_generators_from_rows</span>(<span class="ident">t</span>, <span class="ident">results</span>);
-                <span class="kw">return</span>;
+                <span class="kw">return</span> <span class="ident">homotopy</span>.<span class="ident">homotopies</span>.<span class="ident">add_generators_from_rows_ooo</span>(<span class="ident">t</span>, <span class="ident">results</span>);
             }
         }
 
+        <span class="kw">let</span> <span class="ident">get_intermediate</span> <span class="op">=</span> <span class="op">|</span><span class="ident">i</span><span class="op">|</span> {
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">v</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">get_intermediate</span>(<span class="ident">s</span>, <span class="ident">t</span>, <span class="ident">i</span>);
+            <span class="kw">if</span> <span class="ident">s</span> <span class="op">&gt;</span> <span class="number">3</span> {
+                <span class="self">self</span>.<span class="ident">homotopies</span>[<span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span> <span class="op">-</span> <span class="number">1</span>].<span class="ident">homotopies</span>.<span class="ident">apply</span>(
+                    <span class="ident">v</span>.<span class="ident">as_slice_mut</span>(),
+                    <span class="number">1</span>,
+                    <span class="ident">t</span>,
+                    <span class="ident">d</span>.<span class="ident">output</span>(<span class="ident">t</span>, <span class="ident">i</span>).<span class="ident">as_slice</span>(),
+                );
+            }
+            <span class="ident">v</span>
+        };
+
+        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
         <span class="kw">let</span> <span class="ident">intermediates</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">FpVector</span><span class="op">&gt;</span> <span class="op">=</span> (<span class="number">0</span>..<span class="ident">num_gens</span>)
-            .<span class="ident">map</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> {
-                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">v</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">get_intermediate</span>(<span class="ident">s</span>, <span class="ident">t</span>, <span class="ident">i</span>);
-                <span class="kw">if</span> <span class="ident">s</span> <span class="op">&gt;</span> <span class="number">3</span> {
-                    <span class="self">self</span>.<span class="ident">homotopies</span>[<span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span> <span class="op">-</span> <span class="number">1</span>].<span class="ident">homotopies</span>.<span class="ident">apply</span>(
-                        <span class="ident">v</span>.<span class="ident">as_slice_mut</span>(),
-                        <span class="number">1</span>,
-                        <span class="ident">t</span>,
-                        <span class="ident">d</span>.<span class="ident">output</span>(<span class="ident">t</span>, <span class="ident">i</span>).<span class="ident">as_slice</span>(),
-                    );
-                }
-                <span class="ident">v</span>
-            })
+            .<span class="ident">into_par_iter</span>()
+            .<span class="ident">map</span>(<span class="ident">get_intermediate</span>)
             .<span class="ident">collect</span>();
+
+        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>))]</span>
+        <span class="kw">let</span> <span class="ident">intermediates</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">FpVector</span><span class="op">&gt;</span> <span class="op">=</span>
+            (<span class="number">0</span>..<span class="ident">num_gens</span>).<span class="ident">into_iter</span>().<span class="ident">map</span>(<span class="ident">get_intermediate</span>).<span class="ident">collect</span>();
+
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">results</span> <span class="op">=</span> <span class="macro">vec!</span>[<span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="ident">target_dim</span>); <span class="ident">num_gens</span>];
 
         <span class="macro">assert!</span>(<span class="self">self</span>.<span class="ident">chain_complex</span>.<span class="ident">apply_quasi_inverse</span>(
@@ -1632,7 +1629,7 @@
 
         <span class="self">self</span>.<span class="ident">homotopies</span>[<span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span>]
             .<span class="ident">homotopies</span>
-            .<span class="ident">add_generators_from_rows</span>(<span class="ident">t</span>, <span class="ident">results</span>);
+            .<span class="ident">add_generators_from_rows_ooo</span>(<span class="ident">t</span>, <span class="ident">results</span>)
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">compute_homotopies</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) {
@@ -1642,32 +1639,27 @@
             <span class="ident">h2</span>.<span class="ident">homotopies</span>.<span class="ident">extend_by_zero</span>(<span class="ident">h2</span>.<span class="ident">composites</span>.<span class="ident">max_degree</span>());
         }
 
+        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>))]</span>
         <span class="kw">for</span> (<span class="ident">s</span>, <span class="ident">homotopy</span>) <span class="kw">in</span> <span class="self">self</span>.<span class="ident">homotopies</span>.<span class="ident">iter_enum</span>().<span class="ident">skip</span>(<span class="number">1</span>) {
             <span class="kw">for</span> <span class="ident">t</span> <span class="kw">in</span> <span class="ident">homotopy</span>.<span class="ident">homotopies</span>.<span class="ident">next_degree</span>()..<span class="ident">homotopy</span>.<span class="ident">composites</span>.<span class="ident">len</span>() {
                 <span class="self">self</span>.<span class="ident">compute_homotopy_step</span>(<span class="ident">s</span> <span class="kw">as</span> <span class="ident">u32</span>, <span class="ident">t</span>);
             }
         }
-    }
 
-    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">compute_homotopies_concurrent</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">bucket</span>: <span class="kw-2">&amp;</span><span class="ident">TokenBucket</span>) {
-        <span class="comment">// When s = 2, the homotopies are just zero</span>
+        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
         {
-            <span class="kw">let</span> <span class="ident">h2</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">homotopies</span>[<span class="number">2</span>];
-            <span class="ident">h2</span>.<span class="ident">homotopies</span>.<span class="ident">extend_by_zero</span>(<span class="ident">h2</span>.<span class="ident">composites</span>.<span class="ident">max_degree</span>());
+            <span class="kw">let</span> <span class="ident">min_t</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">homotopies</span>[<span class="number">2</span>].<span class="ident">homotopies</span>.<span class="ident">min_degree</span>();
+            <span class="kw">let</span> <span class="ident">max_t</span> <span class="op">=</span> <span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">homotopies</span>[<span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span>].<span class="ident">composites</span>.<span class="ident">len</span>();
+
+            <span class="kw">let</span> <span class="ident">s_range</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">homotopies</span>.<span class="ident">range</span>();
+            <span class="ident"><span class="kw">crate</span>::utils::iter_s_t</span>(
+                <span class="kw-2">&amp;</span><span class="op">|</span><span class="ident">s</span>, <span class="ident">t</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">compute_homotopy_step</span>(<span class="ident">s</span>, <span class="ident">t</span>),
+                <span class="ident">s_range</span>.<span class="ident">start</span> <span class="kw">as</span> <span class="ident">u32</span> <span class="op">+</span> <span class="number">1</span>,
+                <span class="ident">min_t</span>,
+                <span class="ident">s_range</span>.<span class="ident">end</span> <span class="kw">as</span> <span class="ident">u32</span>,
+                <span class="kw-2">&amp;</span><span class="ident">max_t</span>,
+            )
         }
-
-        <span class="kw">let</span> <span class="ident">min_t</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">homotopies</span>[<span class="number">2</span>].<span class="ident">homotopies</span>.<span class="ident">min_degree</span>();
-        <span class="kw">let</span> <span class="ident">max_t</span> <span class="op">=</span> <span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">homotopies</span>[<span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span>].<span class="ident">composites</span>.<span class="ident">len</span>();
-
-        <span class="kw">let</span> <span class="ident">s_range</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">homotopies</span>.<span class="ident">range</span>();
-        <span class="ident">bucket</span>.<span class="ident">iter_s_t</span>(
-            <span class="ident">s_range</span>.<span class="ident">start</span> <span class="kw">as</span> <span class="ident">u32</span> <span class="op">+</span> <span class="number">1</span>..<span class="ident">s_range</span>.<span class="ident">end</span> <span class="kw">as</span> <span class="ident">u32</span>,
-            <span class="ident">min_t</span>,
-            <span class="ident">max_t</span>,
-            (),
-            <span class="op">|</span><span class="ident">s</span>, <span class="ident">t</span>, <span class="kw">_</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">compute_homotopy_step</span>(<span class="ident">s</span>, <span class="ident">t</span>),
-        )
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">homotopy</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">s</span>: <span class="ident">u32</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">SecondaryHomotopy</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
@@ -1913,13 +1905,11 @@
         }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">compute_homotopy_step</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">s</span>: <span class="ident">u32</span>, <span class="ident">t</span>: <span class="ident">i32</span>) {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">compute_homotopy_step</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">s</span>: <span class="ident">u32</span>, <span class="ident">t</span>: <span class="ident">i32</span>) -&gt; <span class="ident">std::ops::Range</span><span class="op">&lt;</span><span class="ident">i32</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">homotopy</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">homotopies</span>[<span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span>];
-        <span class="kw">match</span> <span class="ident">homotopy</span>.<span class="ident">homotopies</span>.<span class="ident">next_degree</span>().<span class="ident">cmp</span>(<span class="kw-2">&amp;</span><span class="ident">t</span>) {
-            <span class="ident">std::cmp::Ordering::Less</span> =&gt; <span class="macro">panic!</span>(<span class="string">&quot;Not yet ready to compute {t}&quot;</span>),
-            <span class="ident">std::cmp::Ordering::Equal</span> =&gt; (),
-            <span class="ident">std::cmp::Ordering::Greater</span> =&gt; <span class="kw">return</span>,
-        };
+        <span class="kw">if</span> <span class="ident">homotopy</span>.<span class="ident">homotopies</span>.<span class="ident">next_degree</span>() <span class="op">&gt;</span> <span class="ident">t</span> {
+            <span class="kw">return</span> <span class="ident">t</span>..<span class="ident">t</span> <span class="op">+</span> <span class="number">1</span>;
+        }
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">source</span>.<span class="ident">chain_complex</span>.<span class="ident">prime</span>();
         <span class="kw">let</span> <span class="ident">shift_s</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">shift_s</span>();
         <span class="kw">let</span> <span class="ident">shift_t</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">shift_t</span>();
@@ -1942,27 +1932,35 @@
                 <span class="kw">for</span> <span class="kw">_</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">num_gens</span> {
                     <span class="ident">results</span>.<span class="ident">push</span>(<span class="ident">FpVector::from_bytes</span>(<span class="ident">p</span>, <span class="ident">target_dim</span>, <span class="kw-2">&amp;mut</span> <span class="ident">f</span>).<span class="ident">unwrap</span>());
                 }
-                <span class="self">self</span>.<span class="ident">homotopies</span>[<span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span>]
+                <span class="kw">return</span> <span class="self">self</span>.<span class="ident">homotopies</span>[<span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span>]
                     .<span class="ident">homotopies</span>
-                    .<span class="ident">add_generators_from_rows</span>(<span class="ident">t</span>, <span class="ident">results</span>);
-                <span class="kw">return</span>;
+                    .<span class="ident">add_generators_from_rows_ooo</span>(<span class="ident">t</span>, <span class="ident">results</span>);
             }
         }
 
+        <span class="kw">let</span> <span class="ident">get_intermediate</span> <span class="op">=</span> <span class="op">|</span><span class="ident">i</span><span class="op">|</span> {
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">v</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">get_intermediate</span>(<span class="ident">s</span>, <span class="ident">t</span>, <span class="ident">i</span>);
+            <span class="kw">if</span> <span class="ident">s</span> <span class="op">&gt;</span> <span class="ident">shift_s</span> <span class="op">+</span> <span class="number">2</span> {
+                <span class="self">self</span>.<span class="ident">homotopies</span>[<span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span> <span class="op">-</span> <span class="number">1</span>].<span class="ident">homotopies</span>.<span class="ident">apply</span>(
+                    <span class="ident">v</span>.<span class="ident">as_slice_mut</span>(),
+                    <span class="number">1</span>,
+                    <span class="ident">t</span>,
+                    <span class="ident">d</span>.<span class="ident">output</span>(<span class="ident">t</span>, <span class="ident">i</span>).<span class="ident">as_slice</span>(),
+                );
+            }
+            <span class="ident">v</span>
+        };
+
+        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
         <span class="kw">let</span> <span class="ident">intermediates</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">FpVector</span><span class="op">&gt;</span> <span class="op">=</span> (<span class="number">0</span>..<span class="ident">num_gens</span>)
-            .<span class="ident">map</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> {
-                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">v</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">get_intermediate</span>(<span class="ident">s</span>, <span class="ident">t</span>, <span class="ident">i</span>);
-                <span class="kw">if</span> <span class="ident">s</span> <span class="op">&gt;</span> <span class="ident">shift_s</span> <span class="op">+</span> <span class="number">2</span> {
-                    <span class="self">self</span>.<span class="ident">homotopies</span>[<span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span> <span class="op">-</span> <span class="number">1</span>].<span class="ident">homotopies</span>.<span class="ident">apply</span>(
-                        <span class="ident">v</span>.<span class="ident">as_slice_mut</span>(),
-                        <span class="number">1</span>,
-                        <span class="ident">t</span>,
-                        <span class="ident">d</span>.<span class="ident">output</span>(<span class="ident">t</span>, <span class="ident">i</span>).<span class="ident">as_slice</span>(),
-                    );
-                }
-                <span class="ident">v</span>
-            })
+            .<span class="ident">into_par_iter</span>()
+            .<span class="ident">map</span>(<span class="ident">get_intermediate</span>)
             .<span class="ident">collect</span>();
+
+        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>))]</span>
+        <span class="kw">let</span> <span class="ident">intermediates</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">FpVector</span><span class="op">&gt;</span> <span class="op">=</span>
+            (<span class="number">0</span>..<span class="ident">num_gens</span>).<span class="ident">into_iter</span>().<span class="ident">map</span>(<span class="ident">get_intermediate</span>).<span class="ident">collect</span>();
+
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">results</span> <span class="op">=</span> <span class="macro">vec!</span>[<span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="ident">target_dim</span>); <span class="ident">num_gens</span>];
 
         <span class="macro">assert!</span>(<span class="self">self</span>.<span class="ident">target</span>.<span class="ident">chain_complex</span>.<span class="ident">apply_quasi_inverse</span>(
@@ -1998,7 +1996,7 @@
             }
         }
 
-        <span class="ident">homotopy</span>.<span class="ident">homotopies</span>.<span class="ident">add_generators_from_rows</span>(<span class="ident">t</span>, <span class="ident">results</span>);
+        <span class="ident">homotopy</span>.<span class="ident">homotopies</span>.<span class="ident">add_generators_from_rows_ooo</span>(<span class="ident">t</span>, <span class="ident">results</span>)
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">compute_homotopies</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) {
@@ -2010,6 +2008,7 @@
             <span class="ident">h</span>.<span class="ident">homotopies</span>.<span class="ident">extend_by_zero</span>(<span class="ident">h</span>.<span class="ident">composites</span>.<span class="ident">max_degree</span>());
         }
 
+        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>))]</span>
         <span class="kw">for</span> (<span class="ident">s</span>, <span class="ident">homotopy</span>) <span class="kw">in</span> <span class="self">self</span>.<span class="ident">homotopies</span>.<span class="ident">iter_enum</span>().<span class="ident">skip</span>(<span class="number">1</span>) {
             <span class="kw">let</span> <span class="ident">s</span> <span class="op">=</span> <span class="ident">s</span> <span class="kw">as</span> <span class="ident">u32</span>;
 
@@ -2017,28 +2016,19 @@
                 <span class="self">self</span>.<span class="ident">compute_homotopy_step</span>(<span class="ident">s</span>, <span class="ident">t</span>);
             }
         }
-    }
 
-    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">compute_homotopies_concurrent</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">bucket</span>: <span class="kw-2">&amp;</span><span class="ident">TokenBucket</span>) {
-        <span class="kw">let</span> <span class="ident">shift_s</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">shift_s</span>();
-
-        <span class="comment">// When s = shift_s + 1, the homotopies are just zero</span>
+        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
         {
-            <span class="kw">let</span> <span class="ident">h</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">homotopies</span>[<span class="ident">shift_s</span> <span class="kw">as</span> <span class="ident">i32</span> <span class="op">+</span> <span class="number">1</span>];
-            <span class="ident">h</span>.<span class="ident">homotopies</span>.<span class="ident">extend_by_zero</span>(<span class="ident">h</span>.<span class="ident">composites</span>.<span class="ident">max_degree</span>());
+            <span class="kw">let</span> <span class="ident">min_t</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">homotopies</span>[<span class="ident">shift_s</span> <span class="kw">as</span> <span class="ident">i32</span> <span class="op">+</span> <span class="number">1</span>].<span class="ident">homotopies</span>.<span class="ident">min_degree</span>();
+            <span class="kw">let</span> <span class="ident">s_range</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">homotopies</span>.<span class="ident">range</span>();
+            <span class="ident"><span class="kw">crate</span>::utils::iter_s_t</span>(
+                <span class="kw-2">&amp;</span><span class="op">|</span><span class="ident">s</span>, <span class="ident">t</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">compute_homotopy_step</span>(<span class="ident">s</span>, <span class="ident">t</span>),
+                <span class="ident">s_range</span>.<span class="ident">start</span> <span class="kw">as</span> <span class="ident">u32</span> <span class="op">+</span> <span class="number">1</span>,
+                <span class="ident">min_t</span>,
+                <span class="ident">s_range</span>.<span class="ident">end</span> <span class="kw">as</span> <span class="ident">u32</span>,
+                <span class="kw-2">&amp;</span><span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">max_t</span>(<span class="ident">s</span>),
+            );
         }
-
-        <span class="kw">let</span> <span class="ident">min_t</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">homotopies</span>[<span class="ident">shift_s</span> <span class="kw">as</span> <span class="ident">i32</span> <span class="op">+</span> <span class="number">1</span>].<span class="ident">homotopies</span>.<span class="ident">min_degree</span>();
-
-        <span class="kw">let</span> <span class="ident">s_range</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">homotopies</span>.<span class="ident">range</span>();
-        <span class="ident">bucket</span>.<span class="ident">iter_s_t</span>(
-            <span class="ident">s_range</span>.<span class="ident">start</span> <span class="kw">as</span> <span class="ident">u32</span> <span class="op">+</span> <span class="number">1</span>..<span class="ident">s_range</span>.<span class="ident">end</span> <span class="kw">as</span> <span class="ident">u32</span>,
-            <span class="ident">min_t</span>,
-            <span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">max_t</span>(<span class="ident">s</span>),
-            (),
-            <span class="op">|</span><span class="ident">s</span>, <span class="ident">t</span>, <span class="kw">_</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">compute_homotopy_step</span>(<span class="ident">s</span>, <span class="ident">t</span>),
-        )
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">homotopy</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">s</span>: <span class="ident">u32</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">SecondaryHomotopy</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
