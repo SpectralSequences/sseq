@@ -397,15 +397,17 @@ pub fn iter_s_t(
             }
         }
 
-        scope.spawn(move |scope| {
-            (min_t..max_t(min_s))
-                .into_par_iter()
-                .for_each(|t| run(&scope, f, max_s, max_t, min_s, t))
-        });
-        scope.spawn(move |scope| {
-            (min_s + 1..max_s)
-                .into_par_iter()
-                .for_each(|s| run(&scope, f, max_s, max_t, s, min_t))
-        });
+        rayon::join(
+            || {
+                (min_t..max_t(min_s))
+                    .into_par_iter()
+                    .for_each(|t| run(&scope, f, max_s, max_t, min_s, t))
+            },
+            || {
+                (min_s + 1..max_s)
+                    .into_par_iter()
+                    .for_each(|s| run(&scope, f, max_s, max_t, s, min_t))
+            },
+        );
     });
 }
