@@ -435,6 +435,8 @@
 <span id="409">409</span>
 <span id="410">410</span>
 <span id="411">411</span>
+<span id="412">412</span>
+<span id="413">413</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::chain_complex</span>::{<span class="ident">ChainComplex</span>, <span class="ident">FiniteChainComplex</span>, <span class="ident">FreeChainComplex</span>};
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::resolution::Resolution</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::CCC</span>;
@@ -834,16 +836,18 @@
             }
         }
 
-        <span class="ident">scope</span>.<span class="ident">spawn</span>(<span class="kw">move</span> <span class="op">|</span><span class="ident">scope</span><span class="op">|</span> {
-            (<span class="ident">min_t</span>..<span class="ident">max_t</span>(<span class="ident">min_s</span>))
-                .<span class="ident">into_par_iter</span>()
-                .<span class="ident">for_each</span>(<span class="op">|</span><span class="ident">t</span><span class="op">|</span> <span class="ident">run</span>(<span class="kw-2">&amp;</span><span class="ident">scope</span>, <span class="ident">f</span>, <span class="ident">max_s</span>, <span class="ident">max_t</span>, <span class="ident">min_s</span>, <span class="ident">t</span>))
-        });
-        <span class="ident">scope</span>.<span class="ident">spawn</span>(<span class="kw">move</span> <span class="op">|</span><span class="ident">scope</span><span class="op">|</span> {
-            (<span class="ident">min_s</span> <span class="op">+</span> <span class="number">1</span>..<span class="ident">max_s</span>)
-                .<span class="ident">into_par_iter</span>()
-                .<span class="ident">for_each</span>(<span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="ident">run</span>(<span class="kw-2">&amp;</span><span class="ident">scope</span>, <span class="ident">f</span>, <span class="ident">max_s</span>, <span class="ident">max_t</span>, <span class="ident">s</span>, <span class="ident">min_t</span>))
-        });
+        <span class="ident">rayon::join</span>(
+            <span class="op">|</span><span class="op">|</span> {
+                (<span class="ident">min_t</span>..<span class="ident">max_t</span>(<span class="ident">min_s</span>))
+                    .<span class="ident">into_par_iter</span>()
+                    .<span class="ident">for_each</span>(<span class="op">|</span><span class="ident">t</span><span class="op">|</span> <span class="ident">run</span>(<span class="kw-2">&amp;</span><span class="ident">scope</span>, <span class="ident">f</span>, <span class="ident">max_s</span>, <span class="ident">max_t</span>, <span class="ident">min_s</span>, <span class="ident">t</span>))
+            },
+            <span class="op">|</span><span class="op">|</span> {
+                (<span class="ident">min_s</span> <span class="op">+</span> <span class="number">1</span>..<span class="ident">max_s</span>)
+                    .<span class="ident">into_par_iter</span>()
+                    .<span class="ident">for_each</span>(<span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="ident">run</span>(<span class="kw-2">&amp;</span><span class="ident">scope</span>, <span class="ident">f</span>, <span class="ident">max_s</span>, <span class="ident">max_t</span>, <span class="ident">s</span>, <span class="ident">min_t</span>))
+            },
+        );
     });
 }
 </code></pre></div>
