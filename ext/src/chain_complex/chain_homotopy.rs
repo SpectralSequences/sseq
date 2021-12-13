@@ -4,6 +4,7 @@ use algebra::module::Module;
 use fp::prime::ValidPrime;
 use fp::vector::FpVector;
 use once::OnceVec;
+use std::sync::Arc;
 use std::sync::Mutex;
 
 /// A chain homotopy from $f to g$, or equivalently a null-homotopy of $h = f - g$. A chain map is
@@ -11,13 +12,12 @@ use std::sync::Mutex;
 /// FreeModuleHomomorphism objects, the user is expected to give a function that computes the value
 /// of $h$ on each generator.
 pub struct ChainHomotopy<
-    'a,
     S: FreeChainComplex,
-    T: ChainComplex + Sync,
+    T: ChainComplex<Algebra = S::Algebra> + Sync,
     F: Fn(u32, i32, usize, &mut FpVector) + Sync,
 > {
-    source: &'a S,
-    target: &'a T,
+    source: Arc<S>,
+    target: Arc<T>,
     /// The $s$ shift of the original chain map $f - g$.
     shift_s: u32,
     /// The $t$ shift of the original chain map $f - g$.
@@ -30,13 +30,12 @@ pub struct ChainHomotopy<
 }
 
 impl<
-        'a,
         S: FreeChainComplex,
         T: ChainComplex<Algebra = S::Algebra> + Sync,
         F: Fn(u32, i32, usize, &mut FpVector) + Sync,
-    > ChainHomotopy<'a, S, T, F>
+    > ChainHomotopy<S, T, F>
 {
-    pub fn new(source: &'a S, target: &'a T, shift_s: u32, shift_t: i32, map: F) -> Self {
+    pub fn new(source: Arc<S>, target: Arc<T>, shift_s: u32, shift_t: i32, map: F) -> Self {
         Self {
             source,
             target,
