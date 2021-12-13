@@ -3,7 +3,6 @@
 //! This is optimized to compute <a, b, -> for fixed a, b and all -, where a and b have small
 //! degree.
 
-use algebra::module::homomorphism::ModuleHomomorphism;
 use algebra::module::{FDModule, Module};
 use ext::chain_complex::{ChainComplex, ChainHomotopy, FiniteChainComplex};
 use ext::resolution::Resolution;
@@ -74,14 +73,14 @@ fn main() -> anyhow::Result<()> {
         return Ok(());
     }
 
-    let b_hom = ResolutionHomomorphism::from_class(
+    let b_hom = Arc::new(ResolutionHomomorphism::from_class(
         "b".into(),
         Arc::clone(&unit),
         Arc::clone(&unit),
         b_s,
         b_t,
         &b_class,
-    );
+    ));
 
     b_hom.extend_through_stem(shift_s, shift_n);
 
@@ -108,13 +107,13 @@ fn main() -> anyhow::Result<()> {
 
         let mut matrix = Matrix::new(p, num_gens, 1);
         for idx in 0..num_gens {
-            let hom = ResolutionHomomorphism::new(
+            let hom = Arc::new(ResolutionHomomorphism::new(
                 "c".into(),
                 Arc::clone(&resolution),
                 Arc::clone(&unit),
                 s,
                 t,
-            );
+            ));
 
             matrix[idx].set_entry(0, 1);
             hom.extend_step(s, t, Some(&matrix));
@@ -122,22 +121,7 @@ fn main() -> anyhow::Result<()> {
 
             hom.extend_through_stem(tot_s, tot_n);
 
-            let homotopy = ChainHomotopy::new(
-                Arc::clone(&resolution),
-                Arc::clone(&unit),
-                s + b_s,
-                t + b_t,
-                |row, source_s, source_t, idx| {
-                    let mid_s = source_s - s;
-
-                    b_hom.get_map(mid_s).apply(
-                        row,
-                        1,
-                        source_t - t,
-                        hom.get_map(source_s).output(source_t, idx).as_slice(),
-                    );
-                },
-            );
+            let homotopy = ChainHomotopy::new(Arc::clone(&hom), Arc::clone(&b_hom));
 
             homotopy.extend(tot_s, tot_t);
 

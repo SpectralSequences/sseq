@@ -2,7 +2,7 @@ use std::ops::Range;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use crate::chain_complex::{AugmentedChainComplex, FreeChainComplex};
+use crate::chain_complex::{AugmentedChainComplex, ChainComplex, FreeChainComplex};
 use crate::resolution::Resolution;
 use crate::save::SaveKind;
 use crate::CCC;
@@ -22,7 +22,7 @@ use rayon::prelude::*;
 pub struct ResolutionHomomorphism<CC1, CC2>
 where
     CC1: FreeChainComplex,
-    CC2: AugmentedChainComplex<Algebra = CC1::Algebra>,
+    CC2: ChainComplex<Algebra = CC1::Algebra>,
 {
     #[allow(dead_code)]
     name: String,
@@ -37,7 +37,7 @@ where
 impl<CC1, CC2> ResolutionHomomorphism<CC1, CC2>
 where
     CC1: FreeChainComplex,
-    CC2: AugmentedChainComplex<Algebra = CC1::Algebra>,
+    CC2: ChainComplex<Algebra = CC1::Algebra>,
 {
     pub fn new(
         name: String,
@@ -83,6 +83,32 @@ where
         self.maps.len()
     }
 
+    fn get_map_ensure_length(&self, input_s: u32) -> &FreeModuleHomomorphism<CC2::Module> {
+        self.maps.extend(input_s as i32, |input_s| {
+            let output_s = input_s as u32 - self.shift_s;
+            Arc::new(FreeModuleHomomorphism::new(
+                self.source.module(input_s as u32),
+                self.target.module(output_s),
+                self.shift_t,
+            ))
+        });
+        &self.maps[input_s as i32]
+    }
+
+    pub fn get_map(&self, input_s: u32) -> Arc<FreeModuleHomomorphism<CC2::Module>> {
+        Arc::clone(&self.maps[input_s as i32])
+    }
+
+    pub fn save_dir(&self) -> Option<&std::path::Path> {
+        self.save_dir.as_deref()
+    }
+}
+
+impl<CC1, CC2> ResolutionHomomorphism<CC1, CC2>
+where
+    CC1: FreeChainComplex,
+    CC2: AugmentedChainComplex<Algebra = CC1::Algebra>,
+{
     pub fn from_class(
         name: String,
         source: Arc<CC1>,
@@ -106,22 +132,6 @@ where
 
         result.extend_step(shift_s, shift_t, Some(&matrix));
         result
-    }
-
-    fn get_map_ensure_length(&self, input_s: u32) -> &FreeModuleHomomorphism<CC2::Module> {
-        self.maps.extend(input_s as i32, |input_s| {
-            let output_s = input_s as u32 - self.shift_s;
-            Arc::new(FreeModuleHomomorphism::new(
-                self.source.module(input_s as u32),
-                self.target.module(output_s),
-                self.shift_t,
-            ))
-        });
-        &self.maps[input_s as i32]
-    }
-
-    pub fn get_map(&self, input_s: u32) -> Arc<FreeModuleHomomorphism<CC2::Module>> {
-        Arc::clone(&self.maps[input_s as i32])
     }
 
     /// Extend the resolution homomorphism such that it is defined on degrees
@@ -357,13 +367,9 @@ where
         }
         f_cur.add_generators_from_rows_ooo(input_t, outputs)
     }
-
-    pub fn save_dir(&self) -> Option<&std::path::Path> {
-        self.save_dir.as_deref()
-    }
 }
 
-use crate::chain_complex::{BoundedChainComplex, ChainComplex};
+use crate::chain_complex::BoundedChainComplex;
 use algebra::module::homomorphism::FiniteModuleHomomorphism;
 use algebra::module::{BoundedModule, FiniteModule};
 
@@ -448,7 +454,7 @@ where
 impl<CC1, CC2> ResolutionHomomorphism<CC1, CC2>
 where
     CC1: FreeChainComplex,
-    CC2: AugmentedChainComplex + FreeChainComplex<Algebra = CC1::Algebra>,
+    CC2: FreeChainComplex<Algebra = CC1::Algebra>,
 {
     pub fn act(&self, mut result: SliceMut, coef: u32, s: u32, t: i32, idx: usize) {
         let source_s = s + self.shift_s;
