@@ -80,10 +80,7 @@ fn main() -> anyhow::Result<()> {
     hom.extend_all();
 
     let lift = SecondaryResolution::new(Arc::clone(&resolution));
-    lift.initialize_homotopies();
-    lift.compute_composites();
-    lift.compute_intermediates();
-    lift.compute_homotopies();
+    lift.extend_all();
 
     // Check that class survives to E3.
     {
@@ -110,10 +107,7 @@ fn main() -> anyhow::Result<()> {
 
     let start = std::time::Instant::now();
 
-    res_lift.initialize_homotopies();
-    res_lift.compute_composites();
-    res_lift.compute_intermediates();
-    res_lift.compute_homotopies();
+    res_lift.extend_all();
 
     eprintln!("Time spent: {:?}", start.elapsed());
 

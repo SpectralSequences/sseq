@@ -11,6 +11,7 @@ use algebra::pair_algebra::PairAlgebra;
 use algebra::Algebra;
 use anyhow::Context;
 use bivec::BiVec;
+use fp::prime::ValidPrime;
 use fp::vector::{FpVector, Slice, SliceMut};
 use once::OnceBiVec;
 
@@ -24,6 +25,12 @@ use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use dashmap::DashMap;
 #[cfg(feature = "concurrent")]
 use rayon::prelude::*;
+
+pub type CompositeData<A> = Vec<(
+    u32,
+    Arc<FreeModuleHomomorphism<FreeModule<A>>>,
+    Arc<FreeModuleHomomorphism<FreeModule<A>>>,
+)>;
 
 /// A homotopy of a map A -> M of pair modules. We assume this map does not hit generators.
 pub struct SecondaryComposite<A: PairAlgebra> {
@@ -210,18 +217,8 @@ impl<A: PairAlgebra + Send + Sync> SecondaryHomotopy<A> {
     }
 
     /// Add composites up to and including the specified degree
-    pub fn add_composite(
-        &self,
-        s: u32,
-        degree: i32,
-        maps: &[(
-            u32,
-            &FreeModuleHomomorphism<FreeModule<A>>,
-            &FreeModuleHomomorphism<FreeModule<A>>,
-        )],
-        dir: Option<&Path>,
-    ) {
-        for (_, d1, d0) in maps {
+    pub fn add_composite(&self, s: u32, degree: i32, maps: CompositeData<A>, dir: Option<&Path>) {
+        for (_, d1, d0) in &maps {
             assert!(Arc::ptr_eq(&d1.target(), &d0.source()));
             assert!(Arc::ptr_eq(&d0.target(), &self.target));
             assert_eq!(d1.degree_shift() + d0.degree_shift(), self.shift_t);
@@ -247,8 +244,8 @@ impl<A: PairAlgebra + Send + Sync> SecondaryHomotopy<A> {
             }
 
             let mut composite = SecondaryComposite::new(Arc::clone(&self.target), t - self.shift_t);
-            for (coef, d1, d0) in maps {
-                composite.add_composite(*coef, t, idx, d1, d0);
+            for (coef, d1, d0) in &maps {
+                composite.add_composite(*coef, t, idx, &*d1, &*d0);
             }
             composite.finalize();
 
@@ -305,6 +302,385 @@ impl<A: PairAlgebra + Send + Sync> SecondaryHomotopy<A> {
     }
 }
 
+/// When lifting a thing to its secondary version, often what we have to do is to specify an
+/// explicit homotopy to witnesses that some equation holds. For example, to lift a chain complex,
+/// we need a homotopy witnessing the fact that $d^2 \simeq 0$. This homotopy in turn is required
+/// to satisfy certain recursive relations.
+///
+/// To specify this lifting problem, one needs to supply two pieces of data. First is the equation
+/// that we are trying to witness, which is usually of the form
+///
+/// $$ \sum_i c_i f_i g_i = 0, $$
+///
+/// where $f_i$ and $g_i$ are free module homomorphisms and $c_i$ are constants. This is specified
+/// by [`SecondaryLift::composite`].
+///
+/// The next is a compatibility equation, which restricts the τ part of the null-homotopy, and is
+/// usually of the form
+///
+/// $$ dh = hd + \mathrm{stuff} $$
+///
+/// The τ part of $hd + \mathrm{stuff}$ is known as the intermediate data, and is what
+/// [`SecondaryLift::compute_intermediate`] returns.
+pub trait SecondaryLift: Sync {
+    type Algebra: PairAlgebra;
+    type Source: FreeChainComplex<Algebra = Self::Algebra>;
+    type Target: FreeChainComplex<Algebra = Self::Algebra>;
+
+    fn algebra(&self) -> Arc<Self::Algebra>;
+    fn prime(&self) -> ValidPrime {
+        self.algebra().prime()
+    }
+
+    fn source(&self) -> Arc<Self::Source>;
+    fn target(&self) -> Arc<Self::Target>;
+    fn shift_t(&self) -> i32;
+    fn shift_s(&self) -> u32;
+
+    /// Exclusive max s
+    fn max_s(&self) -> u32;
+
+    /// Exclusive max t
+    fn max_t(&self, s: u32) -> i32;
+
+    fn homotopies(&self) -> &OnceBiVec<SecondaryHomotopy<Self::Algebra>>;
+    fn intermediates(&self) -> &DashMap<(u32, i32, usize), FpVector>;
+
+    fn save_dir(&self) -> Option<&Path>;
+
+    fn compute_intermediate(&self, s: u32, t: i32, idx: usize) -> FpVector;
+    fn composite(&self, s: u32) -> CompositeData<Self::Algebra>;
+
+    fn initialize_homotopies(&self) {
+        let shift_s = self.shift_s();
+        let shift_t = self.shift_t();
+
+        let max_s = self.max_s();
+        self.homotopies().extend(max_s as i32 - 1, |s| {
+            let s = s as u32;
+            SecondaryHomotopy::new(
+                self.source().module(s),
+                self.target().module(s - shift_s - 1),
+                shift_t,
+            )
+        });
+    }
+
+    fn compute_composites(&self) {
+        let f = |s| {
+            let s = s as u32;
+            self.homotopies()[s as i32].add_composite(
+                s,
+                self.max_t(s) - 1,
+                self.composite(s),
+                self.save_dir(),
+            );
+        };
+
+        #[cfg(not(feature = "concurrent"))]
+        self.homotopies().range().for_each(f);
+
+        #[cfg(feature = "concurrent")]
+        self.homotopies().range().into_par_iter().for_each(f);
+    }
+
+    fn get_intermediate(&self, s: u32, t: i32, idx: usize) -> FpVector {
+        if let Some((_, v)) = self.intermediates().remove(&(s, t, idx)) {
+            return v;
+        }
+
+        let save_file = SaveFile {
+            algebra: self.algebra(),
+            kind: SaveKind::SecondaryIntermediate,
+            s,
+            t,
+            idx: Some(idx),
+        };
+
+        if let Some(dir) = self.save_dir() {
+            if let Some(mut f) = save_file.open_file(dir.to_owned()) {
+                // The target dimension can depend on whether we resolved to stem
+                let dim = f.read_u64::<LittleEndian>().unwrap() as usize;
+                return FpVector::from_bytes(self.prime(), dim, &mut f).unwrap();
+            }
+        }
+
+        let result = self.compute_intermediate(s, t, idx);
+
+        if let Some(dir) = self.save_dir() {
+            let mut f = save_file.create_file(dir.to_owned());
+            f.write_u64::<LittleEndian>(result.len() as u64).unwrap();
+            result.to_bytes(&mut f).unwrap();
+        }
+
+        result
+    }
+
+    fn compute_intermediates(&self) {
+        let f = |s, t, i| {
+            // If we already have homotopies, we don't need to compute intermediate
+            if self.homotopies()[s as i32].homotopies.next_degree() >= t {
+                return;
+            }
+            // Check if we have a saved homotopy
+            if let Some(dir) = self.save_dir() {
+                let save_file = SaveFile {
+                    algebra: self.algebra(),
+                    kind: SaveKind::SecondaryHomotopy,
+                    s,
+                    t,
+                    idx: None,
+                };
+
+                if save_file.exists(dir.to_owned()) {
+                    return;
+                }
+            }
+            self.intermediates()
+                .insert((s, t, i), self.get_intermediate(s, t, i));
+        };
+
+        #[cfg(not(feature = "concurrent"))]
+        for (s, homotopy) in self.homotopies().iter_enum().skip(1) {
+            let s = s as u32;
+            for t in homotopy.composites.range() {
+                for i in 0..homotopy.source.number_of_gens_in_degree(t) {
+                    f(s, t, i)
+                }
+            }
+        }
+
+        #[cfg(feature = "concurrent")]
+        self.homotopies()
+            .par_iter_enum()
+            .skip(1)
+            .for_each(|(s, homotopy)| {
+                let s = s as u32;
+
+                homotopy.composites.range().into_par_iter().for_each(|t| {
+                    (0..homotopy.source.number_of_gens_in_degree(t))
+                        .into_par_iter()
+                        .for_each(|i| f(s, t, i))
+                })
+            })
+    }
+
+    fn compute_homotopy_step(&self, s: u32, t: i32) -> std::ops::Range<i32> {
+        let homotopy = &self.homotopies()[s as i32];
+        if homotopy.homotopies.next_degree() > t {
+            return t..t + 1;
+        }
+        let p = self.prime();
+        let shift_s = self.shift_s();
+        let shift_t = self.shift_t();
+
+        let d = self.source().differential(s);
+        let source = self.source().module(s);
+        let num_gens = source.number_of_gens_in_degree(t);
+        let target_dim = self
+            .target()
+            .module(s as u32 - shift_s - 1)
+            .dimension(t - shift_t - 1);
+
+        if let Some(dir) = self.save_dir() {
+            let save_file = SaveFile {
+                algebra: self.algebra(),
+                kind: SaveKind::SecondaryHomotopy,
+                s,
+                t,
+                idx: None,
+            };
+
+            if let Some(mut f) = save_file.open_file(dir.to_owned()) {
+                let mut results = Vec::with_capacity(num_gens);
+                for _ in 0..num_gens {
+                    results.push(FpVector::from_bytes(p, target_dim, &mut f).unwrap());
+                }
+                return self.homotopies()[s as i32]
+                    .homotopies
+                    .add_generators_from_rows_ooo(t, results);
+            }
+        }
+
+        let get_intermediate = |i| {
+            let mut v = self.get_intermediate(s, t, i);
+            if s > shift_s + 2 {
+                self.homotopies()[s as i32 - 1].homotopies.apply(
+                    v.as_slice_mut(),
+                    1,
+                    t,
+                    d.output(t, i).as_slice(),
+                );
+            }
+            v
+        };
+
+        #[cfg(feature = "concurrent")]
+        let intermediates: Vec<FpVector> = (0..num_gens)
+            .into_par_iter()
+            .map(get_intermediate)
+            .collect();
+
+        #[cfg(not(feature = "concurrent"))]
+        let intermediates: Vec<FpVector> =
+            (0..num_gens).into_iter().map(get_intermediate).collect();
+
+        let mut results = vec![FpVector::new(p, target_dim); num_gens];
+
+        assert!(self.target().apply_quasi_inverse(
+            &mut results,
+            s as u32 - shift_s - 1,
+            t - shift_t - 1,
+            &intermediates,
+        ));
+
+        if let Some(dir) = self.save_dir() {
+            let save_file = SaveFile {
+                algebra: self.algebra(),
+                kind: SaveKind::SecondaryHomotopy,
+                s,
+                t,
+                idx: None,
+            };
+
+            let mut f = save_file.create_file(dir.to_owned());
+            for row in &results {
+                row.to_bytes(&mut f).unwrap();
+            }
+            drop(f);
+
+            let mut save_file = SaveFile {
+                algebra: self.algebra(),
+                kind: SaveKind::SecondaryIntermediate,
+                s,
+                t,
+                idx: None,
+            };
+
+            for i in 0..num_gens {
+                save_file.idx = Some(i);
+                save_file.delete_file(dir.to_owned()).unwrap();
+            }
+        }
+
+        homotopy.homotopies.add_generators_from_rows_ooo(t, results)
+    }
+
+    fn compute_homotopies(&self) {
+        let shift_s = self.shift_s();
+
+        // When s = shift_s + 1, the homotopies are just zero
+        {
+            let h = &self.homotopies()[shift_s as i32 + 1];
+            h.homotopies.extend_by_zero(h.composites.max_degree());
+        }
+
+        #[cfg(not(feature = "concurrent"))]
+        for (s, homotopy) in self.homotopies().iter_enum().skip(1) {
+            let s = s as u32;
+
+            for t in homotopy.homotopies.next_degree()..self.max_t(s) {
+                self.compute_homotopy_step(s, t);
+            }
+        }
+
+        #[cfg(feature = "concurrent")]
+        {
+            let min_t = self.homotopies()[shift_s as i32 + 1]
+                .homotopies
+                .min_degree();
+            let s_range = self.homotopies().range();
+            crate::utils::iter_s_t(
+                &|s, t| self.compute_homotopy_step(s, t),
+                s_range.start as u32 + 1,
+                min_t,
+                s_range.end as u32,
+                &|s| self.max_t(s),
+            );
+        }
+    }
+
+    fn extend_all(&self) {
+        self.initialize_homotopies();
+        self.compute_composites();
+        #[cfg(feature = "concurrent")]
+        self.compute_intermediates();
+        self.compute_homotopies();
+    }
+}
+
+impl<A: PairAlgebra + Send + Sync, CC: FreeChainComplex<Algebra = A>> SecondaryLift
+    for SecondaryResolution<A, CC>
+{
+    type Algebra = A;
+    type Source = CC;
+    type Target = CC;
+
+    fn algebra(&self) -> Arc<Self::Algebra> {
+        self.chain_complex.algebra()
+    }
+
+    fn source(&self) -> Arc<Self::Source> {
+        Arc::clone(&self.chain_complex)
+    }
+
+    fn target(&self) -> Arc<Self::Target> {
+        Arc::clone(&self.chain_complex)
+    }
+
+    fn shift_s(&self) -> u32 {
+        1
+    }
+
+    fn shift_t(&self) -> i32 {
+        0
+    }
+
+    fn max_s(&self) -> u32 {
+        self.chain_complex.next_homological_degree() as u32
+    }
+
+    fn max_t(&self, s: u32) -> i32 {
+        std::cmp::min(
+            self.chain_complex.module(s).max_computed_degree(),
+            self.chain_complex.module(s - 2).max_computed_degree() + 1,
+        ) + 1
+    }
+
+    fn homotopies(&self) -> &OnceBiVec<SecondaryHomotopy<Self::Algebra>> {
+        &self.homotopies
+    }
+
+    fn intermediates(&self) -> &DashMap<(u32, i32, usize), FpVector> {
+        &self.intermediates
+    }
+
+    fn save_dir(&self) -> Option<&Path> {
+        self.chain_complex.save_dir()
+    }
+
+    fn composite(&self, s: u32) -> CompositeData<Self::Algebra> {
+        let d1 = self.chain_complex.differential(s);
+        let d0 = self.chain_complex.differential(s - 1);
+        vec![(1, d1, d0)]
+    }
+
+    fn compute_intermediate(&self, s: u32, t: i32, idx: usize) -> FpVector {
+        let p = self.chain_complex.prime();
+        let target = self.chain_complex.module(s as u32 - 3);
+        let mut result = FpVector::new(p, target.dimension(t - 1));
+        let d = self.chain_complex.differential(s as u32);
+        self.homotopies[s as i32 - 1].act(
+            result.as_slice_mut(),
+            1,
+            t,
+            d.output(t, idx).as_slice(),
+            false,
+        );
+        result
+    }
+}
+
 pub struct SecondaryResolution<A: PairAlgebra, CC: FreeChainComplex<Algebra = A>> {
     pub chain_complex: Arc<CC>,
     /// s -> t -> idx -> homotopy
@@ -337,253 +713,6 @@ impl<A: PairAlgebra + Send + Sync, CC: FreeChainComplex<Algebra = A>> SecondaryR
         }
     }
 
-    pub fn algebra(&self) -> Arc<A> {
-        self.chain_complex.algebra()
-    }
-
-    pub fn initialize_homotopies(&self) {
-        self.homotopies.extend(
-            self.chain_complex.next_homological_degree() as i32 - 1,
-            |s| {
-                SecondaryHomotopy::new(
-                    self.chain_complex.module(s as u32),
-                    self.chain_complex.module(s as u32 - 2),
-                    0,
-                )
-            },
-        );
-    }
-
-    pub fn compute_composites(&self) {
-        let max_t = |s| {
-            std::cmp::min(
-                self.chain_complex.module(s).max_computed_degree(),
-                self.chain_complex.module(s - 2).max_computed_degree() + 1,
-            )
-        };
-
-        let f = |s| {
-            let s = s as u32;
-            let d1 = &*self.chain_complex.differential(s);
-            let d0 = &*self.chain_complex.differential(s - 1);
-            self.homotopies[s as i32].add_composite(
-                s,
-                max_t(s),
-                &[(1, d1, d0)],
-                self.chain_complex.save_dir(),
-            );
-        };
-
-        #[cfg(not(feature = "concurrent"))]
-        self.homotopies.range().for_each(f);
-
-        #[cfg(feature = "concurrent")]
-        self.homotopies.range().into_par_iter().for_each(f);
-    }
-
-    pub fn get_intermediate(&self, s: u32, t: i32, idx: usize) -> FpVector {
-        if let Some((_, v)) = self.intermediates.remove(&(s, t, idx)) {
-            return v;
-        }
-        let p = self.chain_complex.prime();
-        let target = self.chain_complex.module(s as u32 - 3);
-
-        let save_file = SaveFile {
-            algebra: self.chain_complex.algebra(),
-            kind: SaveKind::SecondaryIntermediate,
-            s,
-            t,
-            idx: Some(idx),
-        };
-
-        if let Some(dir) = self.chain_complex.save_dir() {
-            if let Some(mut f) = save_file.open_file(dir.to_owned()) {
-                // The target dimension can depend on whether we resolved to stem
-                let dim = f.read_u64::<LittleEndian>().unwrap() as usize;
-                return FpVector::from_bytes(p, dim, &mut f).unwrap();
-            }
-        }
-
-        let mut result = FpVector::new(p, target.dimension(t - 1));
-        let d = self.chain_complex.differential(s as u32);
-        self.homotopies[s as i32 - 1].act(
-            result.as_slice_mut(),
-            1,
-            t,
-            d.output(t, idx).as_slice(),
-            false,
-        );
-
-        if let Some(dir) = self.chain_complex.save_dir() {
-            let mut f = save_file.create_file(dir.to_owned());
-            f.write_u64::<LittleEndian>(result.len() as u64).unwrap();
-            result.to_bytes(&mut f).unwrap();
-        }
-
-        result
-    }
-
-    pub fn compute_intermediates(&self) {
-        let f = |s, t, i| {
-            // If we already have homotopies, we don't need to compute intermediate
-            if self.homotopies[s as i32].homotopies.next_degree() >= t {
-                return;
-            }
-            // Check if we have a saved homotopy
-            if let Some(dir) = self.chain_complex.save_dir() {
-                let save_file = self
-                    .chain_complex
-                    .save_file(SaveKind::SecondaryHomotopy, s, t);
-                if save_file.exists(dir.to_owned()) {
-                    return;
-                }
-            }
-            self.intermediates
-                .insert((s, t, i), self.get_intermediate(s, t, i));
-        };
-
-        #[cfg(not(feature = "concurrent"))]
-        for (s, homotopy) in self.homotopies.iter_enum().skip(1) {
-            let s = s as u32;
-            for t in homotopy.composites.range() {
-                for i in 0..homotopy.source.number_of_gens_in_degree(t) {
-                    f(s, t, i)
-                }
-            }
-        }
-
-        #[cfg(feature = "concurrent")]
-        self.homotopies
-            .par_iter_enum()
-            .skip(1)
-            .for_each(|(s, homotopy)| {
-                let s = s as u32;
-
-                homotopy.composites.range().into_par_iter().for_each(|t| {
-                    (0..homotopy.source.number_of_gens_in_degree(t))
-                        .into_par_iter()
-                        .for_each(|i| f(s, t, i))
-                })
-            })
-    }
-
-    pub fn compute_homotopy_step(&self, s: u32, t: i32) -> std::ops::Range<i32> {
-        let homotopy = &self.homotopies[s as i32];
-        if homotopy.homotopies.next_degree() > t {
-            return t..t + 1;
-        }
-
-        let p = self.chain_complex.prime();
-        let source = self.chain_complex.module(s);
-        let d = self.chain_complex.differential(s);
-        let num_gens = source.number_of_gens_in_degree(t);
-        let target_dim = self.chain_complex.module(s as u32 - 2).dimension(t - 1);
-
-        if let Some(dir) = self.chain_complex.save_dir() {
-            let save_file = self
-                .chain_complex
-                .save_file(SaveKind::SecondaryHomotopy, s, t);
-            if let Some(mut f) = save_file.open_file(dir.to_owned()) {
-                let mut results = Vec::with_capacity(num_gens);
-                for _ in 0..num_gens {
-                    results.push(FpVector::from_bytes(p, target_dim, &mut f).unwrap());
-                }
-                return homotopy.homotopies.add_generators_from_rows_ooo(t, results);
-            }
-        }
-
-        let get_intermediate = |i| {
-            let mut v = self.get_intermediate(s, t, i);
-            if s > 3 {
-                self.homotopies[s as i32 - 1].homotopies.apply(
-                    v.as_slice_mut(),
-                    1,
-                    t,
-                    d.output(t, i).as_slice(),
-                );
-            }
-            v
-        };
-
-        #[cfg(feature = "concurrent")]
-        let intermediates: Vec<FpVector> = (0..num_gens)
-            .into_par_iter()
-            .map(get_intermediate)
-            .collect();
-
-        #[cfg(not(feature = "concurrent"))]
-        let intermediates: Vec<FpVector> =
-            (0..num_gens).into_iter().map(get_intermediate).collect();
-
-        let mut results = vec![FpVector::new(p, target_dim); num_gens];
-
-        assert!(self.chain_complex.apply_quasi_inverse(
-            &mut results,
-            s as u32 - 2,
-            t - 1,
-            &intermediates,
-        ));
-
-        if let Some(dir) = self.chain_complex.save_dir() {
-            let save_file = self
-                .chain_complex
-                .save_file(SaveKind::SecondaryHomotopy, s, t);
-
-            let mut f = save_file.create_file(dir.to_owned());
-            for row in &results {
-                row.to_bytes(&mut f).unwrap();
-            }
-            drop(f);
-
-            let mut save_file = SaveFile {
-                algebra: self.chain_complex.algebra(),
-                kind: SaveKind::SecondaryIntermediate,
-                s,
-                t,
-                idx: None,
-            };
-
-            for i in 0..num_gens {
-                save_file.idx = Some(i);
-                save_file.delete_file(dir.to_owned()).unwrap();
-            }
-        }
-
-        self.homotopies[s as i32]
-            .homotopies
-            .add_generators_from_rows_ooo(t, results)
-    }
-
-    pub fn compute_homotopies(&self) {
-        // When s = 2, the homotopies are just zero
-        {
-            let h2 = &self.homotopies[2];
-            h2.homotopies.extend_by_zero(h2.composites.max_degree());
-        }
-
-        #[cfg(not(feature = "concurrent"))]
-        for (s, homotopy) in self.homotopies.iter_enum().skip(1) {
-            for t in homotopy.homotopies.next_degree()..homotopy.composites.len() {
-                self.compute_homotopy_step(s as u32, t);
-            }
-        }
-
-        #[cfg(feature = "concurrent")]
-        {
-            let min_t = self.homotopies[2].homotopies.min_degree();
-            let max_t = |s| self.homotopies[s as i32].composites.len();
-
-            let s_range = self.homotopies.range();
-            crate::utils::iter_s_t(
-                &|s, t| self.compute_homotopy_step(s, t),
-                s_range.start as u32 + 1,
-                min_t,
-                s_range.end as u32,
-                &max_t,
-            )
-        }
-    }
-
     pub fn homotopy(&self, s: u32) -> &SecondaryHomotopy<A> {
         &self.homotopies[s as i32]
     }
@@ -603,6 +732,123 @@ pub struct SecondaryResolutionHomomorphism<
     /// input s -> homotopy
     homotopies: OnceBiVec<SecondaryHomotopy<A>>,
     intermediates: DashMap<(u32, i32, usize), FpVector>,
+}
+
+impl<
+        A: PairAlgebra + Send + Sync,
+        CC1: FreeChainComplex<Algebra = A>,
+        CC2: FreeChainComplex<Algebra = A> + AugmentedChainComplex,
+    > SecondaryLift for SecondaryResolutionHomomorphism<A, CC1, CC2>
+{
+    type Algebra = A;
+    type Source = CC1;
+    type Target = CC2;
+
+    fn algebra(&self) -> Arc<Self::Algebra> {
+        self.source.algebra()
+    }
+
+    fn source(&self) -> Arc<Self::Source> {
+        Arc::clone(&self.source.chain_complex)
+    }
+
+    fn target(&self) -> Arc<Self::Target> {
+        Arc::clone(&self.target.chain_complex)
+    }
+
+    fn shift_s(&self) -> u32 {
+        self.underlying.shift_s
+    }
+
+    fn shift_t(&self) -> i32 {
+        self.underlying.shift_t
+    }
+
+    fn max_s(&self) -> u32 {
+        self.underlying.next_homological_degree() as u32
+    }
+
+    fn max_t(&self, s: u32) -> i32 {
+        let shift_s = self.shift_s();
+        let shift_t = self.shift_t();
+        std::cmp::min(
+            self.underlying.get_map(s).next_degree(),
+            std::cmp::min(
+                self.source.homotopies[s as i32].homotopies.next_degree(),
+                if s == shift_s + 1 {
+                    i32::MAX
+                } else {
+                    self.target.homotopies[(s - shift_s) as i32]
+                        .composites
+                        .max_degree()
+                        + shift_t
+                        + 1
+                },
+            ),
+        )
+    }
+
+    fn homotopies(&self) -> &OnceBiVec<SecondaryHomotopy<Self::Algebra>> {
+        &self.homotopies
+    }
+
+    fn intermediates(&self) -> &DashMap<(u32, i32, usize), FpVector> {
+        &self.intermediates
+    }
+
+    fn save_dir(&self) -> Option<&Path> {
+        self.underlying.save_dir()
+    }
+
+    fn composite(&self, s: u32) -> CompositeData<Self::Algebra> {
+        let shift_s = self.shift_s();
+        let p = *self.underlying.source.prime();
+        // This is -1 mod p^2
+        let neg_1 = p * p - 1;
+
+        let d_source = self.source.chain_complex.differential(s);
+        let d_target = self.target.chain_complex.differential(s - shift_s);
+
+        let c1 = self.underlying.get_map(s);
+        let c0 = self.underlying.get_map(s - 1);
+
+        vec![(neg_1, d_source, c0), (1, c1, d_target)]
+    }
+
+    fn compute_intermediate(&self, s: u32, t: i32, idx: usize) -> FpVector {
+        let shift_s = self.shift_s();
+        let shift_t = self.shift_t();
+
+        let p = self.target.chain_complex.prime();
+        let neg_1 = *p - 1;
+        let target = self.target.chain_complex.module(s as u32 - shift_s - 2);
+
+        let mut result = FpVector::new(p, Module::dimension(&*target, t - 1 - shift_t));
+        let d = self.source.chain_complex.differential(s);
+
+        self.homotopies[s as i32 - 1].act(
+            result.as_slice_mut(),
+            neg_1,
+            t,
+            d.output(t, idx).as_slice(),
+            false,
+        );
+        self.target.homotopy(s - shift_s).act(
+            result.as_slice_mut(),
+            neg_1,
+            t - shift_t,
+            self.underlying.get_map(s).output(t, idx).as_slice(),
+            true,
+        );
+        self.underlying.get_map(s - 2).apply(
+            result.as_slice_mut(),
+            1,
+            t - 1,
+            self.source.homotopy(s).homotopies.output(t, idx).as_slice(),
+        );
+
+        result
+    }
 }
 
 impl<
@@ -644,315 +890,6 @@ impl<
         }
     }
 
-    pub fn shift_s(&self) -> u32 {
-        self.underlying.shift_s
-    }
-
-    pub fn shift_t(&self) -> i32 {
-        self.underlying.shift_t
-    }
-
-    pub fn initialize_homotopies(&self) {
-        let shift_s = self.shift_s();
-        let shift_t = self.shift_t();
-
-        let max_s = self.underlying.next_homological_degree();
-        self.homotopies.extend(max_s as i32 - 1, |s| {
-            let s = s as u32;
-            SecondaryHomotopy::new(
-                self.source.chain_complex.module(s),
-                self.target.chain_complex.module(s - shift_s - 1),
-                shift_t,
-            )
-        });
-    }
-
-    fn max_t(&self, s: u32) -> i32 {
-        let shift_s = self.shift_s();
-        let shift_t = self.shift_t();
-        std::cmp::min(
-            self.underlying.get_map(s).next_degree(),
-            std::cmp::min(
-                self.source.homotopies[s as i32].homotopies.next_degree(),
-                if s == shift_s + 1 {
-                    i32::MAX
-                } else {
-                    self.target.homotopies[(s - shift_s) as i32]
-                        .composites
-                        .max_degree()
-                        + shift_t
-                        + 1
-                },
-            ),
-        )
-    }
-
-    pub fn compute_composites(&self) {
-        let shift_s = self.shift_s();
-        let p = *self.underlying.source.prime();
-        // This is -1 mod p^2
-        let neg_1 = p * p - 1;
-
-        let mut range = self.homotopies.range();
-        range.end -= 1;
-
-        let f = |s| {
-            let s = s as u32;
-            let d_source = &*self.source.chain_complex.differential(s);
-            let d_target = &*self.target.chain_complex.differential(s - shift_s);
-
-            let c1 = &*self.underlying.get_map(s);
-            let c0 = &*self.underlying.get_map(s - 1);
-
-            self.homotopies[s as i32].add_composite(
-                s,
-                self.max_t(s) - 1,
-                &[(neg_1, d_source, c0), (1, c1, d_target)],
-                self.underlying.save_dir(),
-            );
-        };
-
-        #[cfg(feature = "concurrent")]
-        range.into_par_iter().for_each(f);
-
-        #[cfg(not(feature = "concurrent"))]
-        range.into_iter().for_each(f)
-    }
-
-    pub fn get_intermediate(&self, s: u32, t: i32, idx: usize) -> FpVector {
-        if let Some((_, v)) = self.intermediates.remove(&(s, t, idx)) {
-            return v;
-        }
-        let shift_s = self.shift_s();
-        let shift_t = self.shift_t();
-
-        let p = self.target.chain_complex.prime();
-        let neg_1 = *p - 1;
-        let target = self.target.chain_complex.module(s as u32 - shift_s - 2);
-
-        let save_file = SaveFile {
-            algebra: self.underlying.algebra(),
-            kind: SaveKind::SecondaryIntermediate,
-            s,
-            t,
-            idx: Some(idx),
-        };
-
-        if let Some(dir) = self.underlying.save_dir() {
-            if let Some(mut f) = save_file.open_file(dir.to_owned()) {
-                // The target dimension can depend on whether we resolved to stem
-                let dim = f.read_u64::<LittleEndian>().unwrap() as usize;
-                return FpVector::from_bytes(p, dim, &mut f).unwrap();
-            }
-        }
-
-        let mut result = FpVector::new(p, Module::dimension(&*target, t - 1 - shift_t));
-        let d = self.source.chain_complex.differential(s);
-
-        self.homotopies[s as i32 - 1].act(
-            result.as_slice_mut(),
-            neg_1,
-            t,
-            d.output(t, idx).as_slice(),
-            false,
-        );
-        self.target.homotopy(s - shift_s).act(
-            result.as_slice_mut(),
-            neg_1,
-            t - shift_t,
-            self.underlying.get_map(s).output(t, idx).as_slice(),
-            true,
-        );
-        self.underlying.get_map(s - 2).apply(
-            result.as_slice_mut(),
-            1,
-            t - 1,
-            self.source.homotopy(s).homotopies.output(t, idx).as_slice(),
-        );
-        if let Some(dir) = self.underlying.save_dir() {
-            let mut f = save_file.create_file(dir.to_owned());
-            f.write_u64::<LittleEndian>(result.len() as u64).unwrap();
-            result.to_bytes(&mut f).unwrap();
-        }
-
-        result
-    }
-
-    pub fn compute_intermediates(&self) {
-        let f = |s, t, i| {
-            // If we already have homotopies, we don't need to compute intermediate
-            if self.homotopies[s as i32].homotopies.next_degree() >= t {
-                return;
-            }
-            // Check if we have a saved homotopy
-            if let Some(dir) = self.underlying.save_dir() {
-                let save_file = self
-                    .underlying
-                    .source
-                    .save_file(SaveKind::SecondaryHomotopy, s, t);
-                if save_file.exists(dir.to_owned()) {
-                    return;
-                }
-            }
-            self.intermediates
-                .insert((s, t, i), self.get_intermediate(s, t, i));
-        };
-
-        #[cfg(feature = "concurrent")]
-        self.homotopies
-            .par_iter_enum()
-            .skip(1)
-            .for_each(|(s, homotopy)| {
-                let s = s as u32;
-                homotopy
-                    .composites
-                    .range()
-                    .into_par_iter()
-                    .skip(1)
-                    .for_each(|t| {
-                        (0..homotopy.source.number_of_gens_in_degree(t))
-                            .into_par_iter()
-                            .for_each(|i| f(s, t, i))
-                    })
-            });
-
-        #[cfg(not(feature = "concurrent"))]
-        for (s, homotopy) in self.homotopies.iter_enum().skip(1) {
-            let s = s as u32;
-            for t in homotopy.composites.range().skip(1) {
-                for i in 0..homotopy.source.number_of_gens_in_degree(t) {
-                    f(s, t, i);
-                }
-            }
-        }
-    }
-
-    pub fn compute_homotopy_step(&self, s: u32, t: i32) -> std::ops::Range<i32> {
-        let homotopy = &self.homotopies[s as i32];
-        if homotopy.homotopies.next_degree() > t {
-            return t..t + 1;
-        }
-        let p = self.source.chain_complex.prime();
-        let shift_s = self.shift_s();
-        let shift_t = self.shift_t();
-        let d = self.source.chain_complex.differential(s);
-        let source = self.source.chain_complex.module(s);
-        let num_gens = source.number_of_gens_in_degree(t);
-        let target_dim = self
-            .target
-            .chain_complex
-            .module(s as u32 - shift_s - 1)
-            .dimension(t - shift_t - 1);
-
-        if let Some(dir) = self.underlying.save_dir() {
-            let save_file = self
-                .underlying
-                .source
-                .save_file(SaveKind::SecondaryHomotopy, s, t);
-            if let Some(mut f) = save_file.open_file(dir.to_owned()) {
-                let mut results = Vec::with_capacity(num_gens);
-                for _ in 0..num_gens {
-                    results.push(FpVector::from_bytes(p, target_dim, &mut f).unwrap());
-                }
-                return self.homotopies[s as i32]
-                    .homotopies
-                    .add_generators_from_rows_ooo(t, results);
-            }
-        }
-
-        let get_intermediate = |i| {
-            let mut v = self.get_intermediate(s, t, i);
-            if s > shift_s + 2 {
-                self.homotopies[s as i32 - 1].homotopies.apply(
-                    v.as_slice_mut(),
-                    1,
-                    t,
-                    d.output(t, i).as_slice(),
-                );
-            }
-            v
-        };
-
-        #[cfg(feature = "concurrent")]
-        let intermediates: Vec<FpVector> = (0..num_gens)
-            .into_par_iter()
-            .map(get_intermediate)
-            .collect();
-
-        #[cfg(not(feature = "concurrent"))]
-        let intermediates: Vec<FpVector> =
-            (0..num_gens).into_iter().map(get_intermediate).collect();
-
-        let mut results = vec![FpVector::new(p, target_dim); num_gens];
-
-        assert!(self.target.chain_complex.apply_quasi_inverse(
-            &mut results,
-            s as u32 - shift_s - 1,
-            t - shift_t - 1,
-            &intermediates,
-        ));
-
-        if let Some(dir) = self.underlying.save_dir() {
-            let save_file = self
-                .underlying
-                .source
-                .save_file(SaveKind::SecondaryHomotopy, s, t);
-
-            let mut f = save_file.create_file(dir.to_owned());
-            for row in &results {
-                row.to_bytes(&mut f).unwrap();
-            }
-            drop(f);
-
-            let mut save_file = SaveFile {
-                algebra: self.underlying.algebra(),
-                kind: SaveKind::SecondaryIntermediate,
-                s,
-                t,
-                idx: None,
-            };
-
-            for i in 0..num_gens {
-                save_file.idx = Some(i);
-                save_file.delete_file(dir.to_owned()).unwrap();
-            }
-        }
-
-        homotopy.homotopies.add_generators_from_rows_ooo(t, results)
-    }
-
-    pub fn compute_homotopies(&self) {
-        let shift_s = self.shift_s();
-
-        // When s = shift_s + 1, the homotopies are just zero
-        {
-            let h = &self.homotopies[shift_s as i32 + 1];
-            h.homotopies.extend_by_zero(h.composites.max_degree());
-        }
-
-        #[cfg(not(feature = "concurrent"))]
-        for (s, homotopy) in self.homotopies.iter_enum().skip(1) {
-            let s = s as u32;
-
-            for t in homotopy.homotopies.next_degree()..self.max_t(s) {
-                self.compute_homotopy_step(s, t);
-            }
-        }
-
-        #[cfg(feature = "concurrent")]
-        {
-            let min_t = self.homotopies[shift_s as i32 + 1].homotopies.min_degree();
-            let s_range = self.homotopies.range();
-            crate::utils::iter_s_t(
-                &|s, t| self.compute_homotopy_step(s, t),
-                s_range.start as u32 + 1,
-                min_t,
-                s_range.end as u32,
-                &|s| self.max_t(s),
-            );
-        }
-    }
-
     pub fn homotopy(&self, s: u32) -> &SecondaryHomotopy<A> {
         &self.homotopies[s as i32]
     }
@@ -985,68 +922,4 @@ pub fn can_compute(res: &Resolution<CCC>) -> bool {
         .all(|t| module.dimension(t) == 0 || res.number_of_gens_in_bidegree(2, t + 1) == 0)
         || (0..max_degree)
             .all(|t| module.dimension(t) == 0 || res.number_of_gens_in_bidegree(3, t + 1) == 0)
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-    use crate::utils::construct;
-    use expect_test::expect;
-    use std::fmt::Write;
-
-    #[test]
-    fn test_compute_differentials() {
-        let mut result = String::new();
-        let resolution = construct("S_2@milnor", None).unwrap();
-
-        let max_s = 7;
-        let max_t = 30;
-
-        resolution.compute_through_bidegree(max_s, max_t);
-
-        let lift = SecondaryResolution::new(Arc::new(resolution));
-        lift.initialize_homotopies();
-        lift.compute_composites();
-        lift.compute_homotopies();
-
-        // Iterate through the bidegree of the source of the differential.
-        for (s, n, t) in lift.chain_complex.iter_stem() {
-            if !lift.chain_complex.has_computed_bidegree(s + 2, t + 1) {
-                continue;
-            }
-            let homotopy = lift.homotopy(s + 2);
-
-            let source_num_gens = homotopy.source.number_of_gens_in_degree(t + 1);
-            let target_num_gens = homotopy.target.number_of_gens_in_degree(t);
-            if source_num_gens == 0 || target_num_gens == 0 {
-                continue;
-            }
-            let entries = homotopy.homotopies.hom_k(t);
-
-            for (k, row) in entries.iter().enumerate() {
-                writeln!(&mut result, "d_2 x_({n}, {s}, {k}) = {row:?}",).unwrap();
-            }
-        }
-
-        expect![[r#"
-            d_2 x_(1, 1, 0) = [0]
-            d_2 x_(8, 2, 0) = [0]
-            d_2 x_(15, 1, 0) = [1]
-            d_2 x_(15, 2, 0) = [0]
-            d_2 x_(15, 3, 0) = [0]
-            d_2 x_(15, 4, 0) = [0]
-            d_2 x_(16, 2, 0) = [0]
-            d_2 x_(17, 4, 0) = [1]
-            d_2 x_(17, 5, 0) = [0]
-            d_2 x_(18, 2, 0) = [0]
-            d_2 x_(18, 3, 0) = [0]
-            d_2 x_(18, 4, 0) = [0]
-            d_2 x_(18, 4, 1) = [1]
-            d_2 x_(18, 5, 0) = [1]
-            d_2 x_(19, 3, 0) = [0]
-            d_2 x_(21, 3, 0) = [0]
-            d_2 x_(24, 5, 0) = [0]
-        "#]]
-        .assert_eq(&result);
-    }
 }

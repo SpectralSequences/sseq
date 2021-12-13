@@ -128,7 +128,7 @@ fn main() -> anyhow::Result<()> {
                     let mid_s = source_s - s;
 
                     hom.get_map(source_s)
-                        .compose(b_hom.get_map(mid_s))
+                        .compose(&*b_hom.get_map(mid_s))
                         .apply_to_basis_element(row.as_slice_mut(), 1, source_t, idx)
                 },
             );

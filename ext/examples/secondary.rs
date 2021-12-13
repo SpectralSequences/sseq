@@ -50,10 +50,7 @@ fn main() -> anyhow::Result<()> {
     let start = std::time::Instant::now();
 
     let lift = SecondaryResolution::new(Arc::clone(&resolution));
-    lift.initialize_homotopies();
-    lift.compute_composites();
-    lift.compute_intermediates();
-    lift.compute_homotopies();
+    lift.extend_all();
 
     eprintln!("Time spent: {:?}", start.elapsed());
 

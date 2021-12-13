@@ -28,7 +28,7 @@ where
     name: String,
     pub source: Arc<CC1>,
     pub target: Arc<CC2>,
-    maps: OnceBiVec<FreeModuleHomomorphism<CC2::Module>>,
+    maps: OnceBiVec<Arc<FreeModuleHomomorphism<CC2::Module>>>,
     pub shift_s: u32,
     pub shift_t: i32,
     pub save_dir: Option<PathBuf>,
@@ -111,17 +111,17 @@ where
     fn get_map_ensure_length(&self, input_s: u32) -> &FreeModuleHomomorphism<CC2::Module> {
         self.maps.extend(input_s as i32, |input_s| {
             let output_s = input_s as u32 - self.shift_s;
-            FreeModuleHomomorphism::new(
+            Arc::new(FreeModuleHomomorphism::new(
                 self.source.module(input_s as u32),
                 self.target.module(output_s),
                 self.shift_t,
-            )
+            ))
         });
         &self.maps[input_s as i32]
     }
 
-    pub fn get_map(&self, input_s: u32) -> &FreeModuleHomomorphism<CC2::Module> {
-        &self.maps[input_s as i32]
+    pub fn get_map(&self, input_s: u32) -> Arc<FreeModuleHomomorphism<CC2::Module>> {
+        Arc::clone(&self.maps[input_s as i32])
     }
 
     /// Extend the resolution homomorphism such that it is defined on degrees

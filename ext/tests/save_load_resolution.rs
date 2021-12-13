@@ -2,7 +2,7 @@ use algebra::module::homomorphism::ModuleHomomorphism;
 use ext::chain_complex::{ChainComplex, FreeChainComplex};
 use ext::resolution::Resolution;
 use ext::save::SaveKind;
-use ext::secondary::SecondaryResolution;
+use ext::secondary::{SecondaryLift, SecondaryResolution};
 use ext::utils::construct;
 use ext::CCC;
 
