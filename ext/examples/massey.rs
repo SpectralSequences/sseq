@@ -1,4 +1,7 @@
 //! Computes the triple Massey product up to a sign
+//!
+//! This is optimized to compute <a, b, -> for fixed a, b and all -, where a and b have small
+//! degree.
 
 use algebra::module::homomorphism::ModuleHomomorphism;
 use algebra::module::{FDModule, Module};
@@ -127,9 +130,12 @@ fn main() -> anyhow::Result<()> {
                 |row, source_s, source_t, idx| {
                     let mid_s = source_s - s;
 
-                    hom.get_map(source_s)
-                        .compose(&*b_hom.get_map(mid_s))
-                        .apply_to_basis_element(row, 1, source_t, idx)
+                    b_hom.get_map(mid_s).apply(
+                        row,
+                        1,
+                        source_t - t,
+                        hom.get_map(source_s).output(source_t, idx).as_slice(),
+                    );
                 },
             );
 

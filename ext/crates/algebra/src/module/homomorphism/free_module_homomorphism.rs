@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::algebra::Algebra;
 use crate::module::free_module::OperationGeneratorPair;
-use crate::module::homomorphism::{CompositionHomomorphism, ModuleHomomorphism};
+use crate::module::homomorphism::ModuleHomomorphism;
 use crate::module::{FreeModule, Module};
 use fp::matrix::{MatrixSliceMut, QuasiInverse, Subspace};
 use fp::vector::{FpVector, Slice, SliceMut};
@@ -227,13 +227,6 @@ impl<M: Module> FreeModuleHomomorphism<M> {
 
     pub fn set_quasi_inverse(&self, degree: i32, quasi_inverse: Option<QuasiInverse>) {
         self.quasi_inverses.push_checked(quasi_inverse, degree);
-    }
-
-    pub fn compose<'a, T: ModuleHomomorphism<Source = M>>(
-        &'a self,
-        other: &'a T,
-    ) -> CompositionHomomorphism<'_, M, T> {
-        CompositionHomomorphism::new(self, other)
     }
 }
 
