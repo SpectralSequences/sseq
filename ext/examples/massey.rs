@@ -124,12 +124,12 @@ fn main() -> anyhow::Result<()> {
                 Arc::clone(&unit),
                 s + b_s,
                 t + b_t,
-                |source_s, source_t, idx, row| {
+                |row, source_s, source_t, idx| {
                     let mid_s = source_s - s;
 
                     hom.get_map(source_s)
                         .compose(&*b_hom.get_map(mid_s))
-                        .apply_to_basis_element(row.as_slice_mut(), 1, source_t, idx)
+                        .apply_to_basis_element(row, 1, source_t, idx)
                 },
             );
 
