@@ -182,7 +182,7 @@ fn open_file(mut path: PathBuf) -> Option<Box<dyn Read>> {
         }
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(feature = "use-zstd")]
     {
         path.set_extension("zst");
         match File::open(&path) {
