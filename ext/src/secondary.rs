@@ -305,14 +305,14 @@ impl<A: PairAlgebra + Send + Sync> SecondaryHomotopy<A> {
     }
 }
 
-pub struct SecondaryLift<A: PairAlgebra, CC: FreeChainComplex<Algebra = A>> {
+pub struct SecondaryResolution<A: PairAlgebra, CC: FreeChainComplex<Algebra = A>> {
     pub chain_complex: Arc<CC>,
     /// s -> t -> idx -> homotopy
     pub(crate) homotopies: OnceBiVec<SecondaryHomotopy<A>>,
     intermediates: DashMap<(u32, i32, usize), FpVector>,
 }
 
-impl<A: PairAlgebra + Send + Sync, CC: FreeChainComplex<Algebra = A>> SecondaryLift<A, CC> {
+impl<A: PairAlgebra + Send + Sync, CC: FreeChainComplex<Algebra = A>> SecondaryResolution<A, CC> {
     pub fn new(cc: Arc<CC>) -> Self {
         if let Some(p) = cc.save_dir() {
             let mut p = p.to_owned();
@@ -597,8 +597,8 @@ pub struct SecondaryResolutionHomomorphism<
     CC1: FreeChainComplex<Algebra = A>,
     CC2: FreeChainComplex<Algebra = A> + AugmentedChainComplex,
 > {
-    source: Arc<SecondaryLift<A, CC1>>,
-    target: Arc<SecondaryLift<A, CC2>>,
+    source: Arc<SecondaryResolution<A, CC1>>,
+    target: Arc<SecondaryResolution<A, CC2>>,
     underlying: Arc<ResolutionHomomorphism<CC1, CC2>>,
     /// input s -> homotopy
     homotopies: OnceBiVec<SecondaryHomotopy<A>>,
@@ -612,8 +612,8 @@ impl<
     > SecondaryResolutionHomomorphism<A, CC1, CC2>
 {
     pub fn new(
-        source: Arc<SecondaryLift<A, CC1>>,
-        target: Arc<SecondaryLift<A, CC2>>,
+        source: Arc<SecondaryResolution<A, CC1>>,
+        target: Arc<SecondaryResolution<A, CC2>>,
         underlying: Arc<ResolutionHomomorphism<CC1, CC2>>,
     ) -> Self {
         assert!(Arc::ptr_eq(&underlying.source, &source.chain_complex));
@@ -1004,7 +1004,7 @@ mod test {
 
         resolution.compute_through_bidegree(max_s, max_t);
 
-        let lift = SecondaryLift::new(Arc::new(resolution));
+        let lift = SecondaryResolution::new(Arc::new(resolution));
         lift.initialize_homotopies();
         lift.compute_composites();
         lift.compute_homotopies();

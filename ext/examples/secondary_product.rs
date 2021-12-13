@@ -79,7 +79,7 @@ fn main() -> anyhow::Result<()> {
 
     hom.extend_all();
 
-    let lift = SecondaryLift::new(Arc::clone(&resolution));
+    let lift = SecondaryResolution::new(Arc::clone(&resolution));
     lift.initialize_homotopies();
     lift.compute_composites();
     lift.compute_intermediates();

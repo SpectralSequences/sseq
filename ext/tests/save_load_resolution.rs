@@ -2,7 +2,7 @@ use algebra::module::homomorphism::ModuleHomomorphism;
 use ext::chain_complex::{ChainComplex, FreeChainComplex};
 use ext::resolution::Resolution;
 use ext::save::SaveKind;
-use ext::secondary::SecondaryLift;
+use ext::secondary::SecondaryResolution;
 use ext::utils::construct;
 use ext::CCC;
 
@@ -207,7 +207,7 @@ fn test_load_secondary() {
     resolution1.load_quasi_inverse = false;
     resolution1.compute_through_stem(4, 10);
 
-    let lift1 = SecondaryLift::new(Arc::new(resolution1));
+    let lift1 = SecondaryResolution::new(Arc::new(resolution1));
     lift1.initialize_homotopies();
     lift1.compute_composites();
     lift1.compute_intermediates();
@@ -234,7 +234,7 @@ fn test_load_secondary() {
     resolution2.load_quasi_inverse = false;
     resolution2.compute_through_stem(8, 15);
 
-    let lift2 = SecondaryLift::new(Arc::new(resolution2));
+    let lift2 = SecondaryResolution::new(Arc::new(resolution2));
     lift2.initialize_homotopies();
     lift2.compute_composites();
     lift2.compute_homotopies();
@@ -250,7 +250,7 @@ fn test_load_secondary() {
     resolution3.load_quasi_inverse = false;
     resolution3.compute_through_stem(5, 12);
 
-    let lift3 = SecondaryLift::new(Arc::new(resolution3));
+    let lift3 = SecondaryResolution::new(Arc::new(resolution3));
     lift3.initialize_homotopies();
     lift3.compute_composites();
     lift3.compute_homotopies();
