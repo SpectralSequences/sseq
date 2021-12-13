@@ -331,7 +331,7 @@
                     <span class="kw">let</span> <span class="ident">mid_s</span> <span class="op">=</span> <span class="ident">source_s</span> <span class="op">-</span> <span class="ident">s</span>;
 
                     <span class="ident">hom</span>.<span class="ident">get_map</span>(<span class="ident">source_s</span>)
-                        .<span class="ident">compose</span>(<span class="ident">b_hom</span>.<span class="ident">get_map</span>(<span class="ident">mid_s</span>))
+                        .<span class="ident">compose</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">b_hom</span>.<span class="ident">get_map</span>(<span class="ident">mid_s</span>))
                         .<span class="ident">apply_to_basis_element</span>(<span class="ident">row</span>.<span class="ident">as_slice_mut</span>(), <span class="number">1</span>, <span class="ident">source_t</span>, <span class="ident">idx</span>)
                 },
             );
