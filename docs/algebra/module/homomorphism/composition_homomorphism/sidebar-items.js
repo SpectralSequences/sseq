@@ -1,1 +1,0 @@
-initSidebarItems({"struct":[["CompositionHomomorphism","A composition of two module homomorphisms. This has a more efficient implementation if the first map is a free module homomorphism. Without specialization, we stick to implementing this case."]]});
