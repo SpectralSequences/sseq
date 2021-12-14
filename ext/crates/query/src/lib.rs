@@ -105,3 +105,20 @@ pub fn raw<S, E: Display>(
         }
     }
 }
+
+pub fn vector(prompt: &str, len: usize) -> Vec<u32> {
+    raw(prompt, |s| {
+        let v = s[1..s.len() - 1]
+            .split(',')
+            .map(|x| x.trim().parse::<u32>().map_err(|e| e.to_string()))
+            .collect::<Result<Vec<_>, String>>()?;
+        if v.len() != len {
+            return Err(format!(
+                "Target has dimension {} but {} coordinates supplied",
+                len,
+                v.len()
+            ));
+        }
+        Ok(v)
+    })
+}

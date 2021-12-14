@@ -33,6 +33,9 @@ pub enum SaveKind {
 
     /// A chain map
     ChainMap,
+
+    /// A chain homotopy
+    ChainHomotopy,
 }
 
 impl SaveKind {
@@ -46,6 +49,7 @@ impl SaveKind {
             Self::SecondaryIntermediate => 0x00020001,
             Self::SecondaryHomotopy => 0x00020002,
             Self::ChainMap => 0x10100000,
+            Self::ChainHomotopy => 0x11110000,
         }
     }
 
@@ -59,6 +63,7 @@ impl SaveKind {
             Self::SecondaryIntermediate => "secondary_intermediate",
             Self::SecondaryHomotopy => "secondary_homotopy",
             Self::ChainMap => "chain_map",
+            Self::ChainHomotopy => "chain_homotopy",
         }
     }
 
@@ -73,6 +78,19 @@ impl SaveKind {
         static KINDS: [SaveKind; 3] =
             [SecondaryComposite, SecondaryIntermediate, SecondaryHomotopy];
         KINDS.iter().copied()
+    }
+
+    pub fn create_dir(self, p: &std::path::Path) -> anyhow::Result<()> {
+        let mut p = p.to_owned();
+
+        p.push(format!("{}s", self.name()));
+        if !p.exists() {
+            std::fs::create_dir_all(&p)
+                .with_context(|| format!("Failed to create directory {p:?}"))?;
+        } else if !p.is_dir() {
+            return Err(anyhow::anyhow!("{p:?} is not a directory"));
+        }
+        Ok(())
     }
 }
 

@@ -55,21 +55,6 @@ fn main() -> anyhow::Result<()> {
     let shift_n: i32 = query::with_default("n of Ext class", "0", str::parse);
     let shift_t = shift_n + shift_s as i32;
 
-    if !is_unit {
-        #[cfg(feature = "concurrent")]
-        unit.compute_through_stem_concurrent(
-            resolution.next_homological_degree() - 1 - shift_s,
-            resolution.module(0).max_computed_degree() - shift_n,
-            &data.bucket,
-        );
-
-        #[cfg(not(feature = "concurrent"))]
-        unit.compute_through_stem(
-            resolution.next_homological_degree() - 1 - shift_s,
-            resolution.module(0).max_computed_degree() - shift_n,
-        );
-    }
-
     let hom = ResolutionHomomorphism::new(
         name.clone(),
         Arc::clone(&resolution),
@@ -87,23 +72,26 @@ fn main() -> anyhow::Result<()> {
     if matrix.rows() == 0 || matrix.columns() == 0 {
         panic!("No classes in this bidegree");
     }
-    let v: Vec<u32> = query::raw("Input ext class", |s| {
-        let v = s[1..s.len() - 1]
-            .split(',')
-            .map(|x| x.trim().parse::<u32>().map_err(|e| e.to_string()))
-            .collect::<Result<Vec<_>, String>>()?;
-        if v.len() != matrix.rows() {
-            return Err(format!(
-                "Target has dimension {} but {} coordinates supplied",
-                matrix.rows(),
-                v.len()
-            ));
-        }
-        Ok(v)
-    });
+    let v: Vec<u32> = query::vector("Input ext class", matrix.rows());
     for (i, &x) in v.iter().enumerate() {
         matrix[i].set_entry(0, x);
     }
+
+    if !is_unit {
+        #[cfg(feature = "concurrent")]
+        unit.compute_through_stem_concurrent(
+            resolution.next_homological_degree() - 1 - shift_s,
+            resolution.module(0).max_computed_degree() - shift_n,
+            &data.bucket,
+        );
+
+        #[cfg(not(feature = "concurrent"))]
+        unit.compute_through_stem(
+            resolution.next_homological_degree() - 1 - shift_s,
+            resolution.module(0).max_computed_degree() - shift_n,
+        );
+    }
+
     hom.extend_step(shift_s, shift_t, Some(&matrix));
     hom.extend_all();
 

@@ -119,20 +119,8 @@ fn main() -> anyhow::Result<()> {
             hom.extend_step(shift_s, input_t, None);
         } else {
             for (idx, row) in matrix.iter_mut().enumerate() {
-                let v: Vec<u32> = query::raw(&format!("f(x_({shift_s}, {input_t}, {idx}))"), |s| {
-                    let v = s[1..s.len() - 1]
-                        .split(',')
-                        .map(|x| x.parse::<u32>().map_err(|e| e.to_string()))
-                        .collect::<Result<Vec<_>, String>>()?;
-                    if v.len() != row.len() {
-                        return Err(format!(
-                            "Target has dimension {} but {} coordinates supplied",
-                            row.len(),
-                            v.len()
-                        ));
-                    }
-                    Ok(v)
-                });
+                let v: Vec<u32> =
+                    query::vector(&format!("f(x_({shift_s}, {input_t}, {idx}))"), row.len());
                 for (i, &x) in v.iter().enumerate() {
                     row.set_entry(i, x);
                 }

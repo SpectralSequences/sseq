@@ -1,10 +1,13 @@
 use crate::chain_complex::{ChainComplex, FreeChainComplex};
 use crate::resolution_homomorphism::ResolutionHomomorphism;
+use crate::save::SaveKind;
 use algebra::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
 use algebra::module::Module;
 use fp::prime::ValidPrime;
 use fp::vector::FpVector;
 use once::OnceVec;
+
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::Mutex;
 
@@ -26,7 +29,8 @@ pub struct ChainHomotopy<
     right: Arc<ResolutionHomomorphism<T, U>>,
     lock: Mutex<()>,
     /// Homotopies, indexed by the filtration of the target of f - g.
-    homotopies: OnceVec<FreeModuleHomomorphism<U::Module>>,
+    homotopies: OnceVec<Arc<FreeModuleHomomorphism<U::Module>>>,
+    save_dir: Option<PathBuf>,
 }
 
 impl<
@@ -39,12 +43,27 @@ impl<
         left: Arc<ResolutionHomomorphism<S, T>>,
         right: Arc<ResolutionHomomorphism<T, U>>,
     ) -> Self {
+        let save_dir = if left.source.save_dir().is_some()
+            && !left.name().is_empty()
+            && !right.name().is_empty()
+        {
+            let mut path = left.source.save_dir().unwrap().to_owned();
+            path.push(format!("products/{},{}/", left.name(), right.name(),));
+
+            SaveKind::ChainHomotopy.create_dir(&path).unwrap();
+
+            Some(path)
+        } else {
+            None
+        };
+
         assert!(Arc::ptr_eq(&left.target, &right.source));
         Self {
             left,
             right,
             lock: Mutex::new(()),
             homotopies: OnceVec::new(),
+            save_dir,
         }
     }
 
@@ -58,6 +77,14 @@ impl<
 
     pub fn shift_t(&self) -> i32 {
         self.left.shift_t + self.right.shift_t
+    }
+
+    pub fn left(&self) -> Arc<ResolutionHomomorphism<S, T>> {
+        Arc::clone(&self.left)
+    }
+
+    pub fn right(&self) -> Arc<ResolutionHomomorphism<T, U>> {
+        Arc::clone(&self.right)
     }
 
     /// Lift maps so that the chain *homotopy* is defined on `(max_source_s, max_source_t)`.
@@ -103,11 +130,11 @@ impl<
         self.homotopies
             .extend((max_source_s - shift_s - 1) as usize, |s| {
                 let s = s as u32;
-                FreeModuleHomomorphism::new(
+                Arc::new(FreeModuleHomomorphism::new(
                     self.left.source.module(s + shift_s),
                     self.right.target.module(s + 1),
                     shift_t,
-                )
+                ))
             });
 
         #[cfg(not(feature = "concurrent"))]
@@ -156,6 +183,28 @@ impl<
             .number_of_gens_in_degree(source_t);
 
         let target_dim = self.right.target.module(target_s + 1).dimension(target_t);
+
+        if target_dim == 0 || num_gens == 0 {
+            let outputs = vec![FpVector::new(p, target_dim); num_gens];
+            return self.homotopies[target_s as usize]
+                .add_generators_from_rows_ooo(source_t, outputs);
+        }
+
+        if let Some(dir) = self.save_dir.as_ref() {
+            if let Some(mut f) = self
+                .left
+                .source
+                .save_file(SaveKind::ChainHomotopy, source_s, source_t)
+                .open_file(dir.to_owned())
+            {
+                let mut outputs = Vec::with_capacity(num_gens);
+                for _ in 0..num_gens {
+                    outputs.push(FpVector::from_bytes(p, target_dim, &mut f).unwrap());
+                }
+                return self.homotopies[target_s].add_generators_from_rows_ooo(source_t, outputs);
+            }
+        }
+
         let mut outputs = vec![FpVector::new(p, target_dim); num_gens];
 
         let f = |i| {
@@ -221,10 +270,25 @@ impl<
             target_t,
             &scratches,
         ));
+
+        if let Some(dir) = self.save_dir.as_ref() {
+            let mut f = self
+                .left
+                .source
+                .save_file(SaveKind::ChainHomotopy, source_s, source_t)
+                .create_file(dir.to_owned());
+            for row in &outputs {
+                row.to_bytes(&mut f).unwrap();
+            }
+        }
         self.homotopies[target_s as usize].add_generators_from_rows_ooo(source_t, outputs)
     }
 
-    pub fn homotopy(&self, source_s: u32) -> &FreeModuleHomomorphism<U::Module> {
-        &self.homotopies[(source_s - self.shift_s()) as usize]
+    pub fn homotopy(&self, source_s: u32) -> Arc<FreeModuleHomomorphism<U::Module>> {
+        Arc::clone(&self.homotopies[(source_s - self.shift_s()) as usize])
+    }
+
+    pub fn save_dir(&self) -> Option<&Path> {
+        self.save_dir.as_deref()
     }
 }

@@ -13,7 +13,6 @@ use fp::matrix::Matrix;
 use fp::vector::{FpVector, SliceMut};
 use once::OnceBiVec;
 
-use anyhow::Context;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
 #[cfg(feature = "concurrent")]
@@ -47,17 +46,8 @@ where
     ) -> Self {
         let save_dir = if source.save_dir().is_some() && !name.is_empty() {
             let mut path = source.save_dir().unwrap().to_owned();
-            path.push(format!("products/{name}/{}s", SaveKind::ChainMap.name()));
-
-            if !path.exists() {
-                std::fs::create_dir_all(&path)
-                    .context("Failed to create save directory for resolution homomorphism")
-                    .unwrap();
-            } else if !path.is_dir() {
-                panic!("{path:?} is not a directory");
-            }
-            path.pop();
-
+            path.push(format!("products/{name}"));
+            SaveKind::ChainMap.create_dir(&path).unwrap();
             Some(path)
         } else {
             None

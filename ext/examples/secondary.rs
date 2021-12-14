@@ -55,7 +55,7 @@ fn main() -> anyhow::Result<()> {
     eprintln!("Time spent: {:?}", start.elapsed());
 
     // Iterate through target of the d2
-    for (s, n, t) in lift.chain_complex.iter_stem() {
+    for (s, n, t) in lift.underlying().iter_stem() {
         if s < 3 {
             continue;
         }

@@ -73,31 +73,8 @@ impl<CC: ChainComplex> Resolution<CC> {
         let zero_module = Arc::new(FreeModule::new(algebra, "F_{-1}".to_string(), min_degree));
 
         if let Some(p) = save_dir.as_mut() {
-            use std::io::{Error, ErrorKind};
-
-            if !p.exists() {
-                std::fs::create_dir_all(&p)
-                    .context("Failed to create save directory for resolution")?;
-            } else if !p.is_dir() {
-                return Err(Error::new(
-                    ErrorKind::InvalidInput,
-                    format!("{p:?} is not a directory"),
-                )
-                .into());
-            }
             for subdir in SaveKind::resolution_data() {
-                p.push(format!("{}s", subdir.name()));
-                if !p.exists() {
-                    std::fs::create_dir_all(&p)
-                        .with_context(|| format!("Failed to create directory {p:?}"))?;
-                } else if !p.is_dir() {
-                    return Err(Error::new(
-                        ErrorKind::InvalidInput,
-                        format!("{p:?} is not a directory"),
-                    )
-                    .into());
-                }
-                p.pop();
+                subdir.create_dir(p)?;
             }
         }
 

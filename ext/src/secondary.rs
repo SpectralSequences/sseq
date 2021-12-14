@@ -7,7 +7,6 @@ use algebra::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
 use algebra::module::{BoundedModule, FreeModule, Module};
 use algebra::pair_algebra::PairAlgebra;
 use algebra::Algebra;
-use anyhow::Context;
 use bivec::BiVec;
 use fp::prime::ValidPrime;
 use fp::vector::{FpVector, Slice, SliceMut};
@@ -324,7 +323,9 @@ pub trait SecondaryLift: Sync {
     type Algebra: PairAlgebra;
     type Source: FreeChainComplex<Algebra = Self::Algebra>;
     type Target: FreeChainComplex<Algebra = Self::Algebra>;
+    type Underlying;
 
+    fn underlying(&self) -> Arc<Self::Underlying>;
     fn algebra(&self) -> Arc<Self::Algebra>;
     fn prime(&self) -> ValidPrime {
         self.algebra().prime()
@@ -613,17 +614,22 @@ impl<A: PairAlgebra + Send + Sync, CC: FreeChainComplex<Algebra = A>> SecondaryL
     type Algebra = A;
     type Source = CC;
     type Target = CC;
+    type Underlying = CC;
+
+    fn underlying(&self) -> Arc<CC> {
+        Arc::clone(&self.underlying)
+    }
 
     fn algebra(&self) -> Arc<Self::Algebra> {
-        self.chain_complex.algebra()
+        self.underlying.algebra()
     }
 
     fn source(&self) -> Arc<Self::Source> {
-        Arc::clone(&self.chain_complex)
+        Arc::clone(&self.underlying)
     }
 
     fn target(&self) -> Arc<Self::Target> {
-        Arc::clone(&self.chain_complex)
+        Arc::clone(&self.underlying)
     }
 
     fn shift_s(&self) -> u32 {
@@ -635,13 +641,13 @@ impl<A: PairAlgebra + Send + Sync, CC: FreeChainComplex<Algebra = A>> SecondaryL
     }
 
     fn max_s(&self) -> u32 {
-        self.chain_complex.next_homological_degree() as u32
+        self.underlying.next_homological_degree() as u32
     }
 
     fn max_t(&self, s: u32) -> i32 {
         std::cmp::min(
-            self.chain_complex.module(s).max_computed_degree(),
-            self.chain_complex.module(s - 2).max_computed_degree() + 1,
+            self.underlying.module(s).max_computed_degree(),
+            self.underlying.module(s - 2).max_computed_degree() + 1,
         ) + 1
     }
 
@@ -654,20 +660,20 @@ impl<A: PairAlgebra + Send + Sync, CC: FreeChainComplex<Algebra = A>> SecondaryL
     }
 
     fn save_dir(&self) -> Option<&Path> {
-        self.chain_complex.save_dir()
+        self.underlying.save_dir()
     }
 
     fn composite(&self, s: u32) -> CompositeData<Self::Algebra> {
-        let d1 = self.chain_complex.differential(s);
-        let d0 = self.chain_complex.differential(s - 1);
+        let d1 = self.underlying.differential(s);
+        let d0 = self.underlying.differential(s - 1);
         vec![(1, d1, d0)]
     }
 
     fn compute_intermediate(&self, s: u32, t: i32, idx: usize) -> FpVector {
         let p = self.prime();
-        let target = self.chain_complex.module(s - 3);
+        let target = self.underlying.module(s - 3);
         let mut result = FpVector::new(p, target.dimension(t - 1));
-        let d = self.chain_complex.differential(s);
+        let d = self.underlying.differential(s);
         self.homotopies[s as i32 - 1].act(
             result.as_slice_mut(),
             1,
@@ -680,7 +686,7 @@ impl<A: PairAlgebra + Send + Sync, CC: FreeChainComplex<Algebra = A>> SecondaryL
 }
 
 pub struct SecondaryResolution<A: PairAlgebra, CC: FreeChainComplex<Algebra = A>> {
-    pub chain_complex: Arc<CC>,
+    underlying: Arc<CC>,
     /// s -> t -> idx -> homotopy
     pub(crate) homotopies: OnceBiVec<SecondaryHomotopy<A>>,
     intermediates: DashMap<(u32, i32, usize), FpVector>,
@@ -689,23 +695,13 @@ pub struct SecondaryResolution<A: PairAlgebra, CC: FreeChainComplex<Algebra = A>
 impl<A: PairAlgebra + Send + Sync, CC: FreeChainComplex<Algebra = A>> SecondaryResolution<A, CC> {
     pub fn new(cc: Arc<CC>) -> Self {
         if let Some(p) = cc.save_dir() {
-            let mut p = p.to_owned();
-
             for subdir in SaveKind::secondary_data() {
-                p.push(format!("{}s", subdir.name()));
-                if !p.exists() {
-                    std::fs::create_dir_all(&p)
-                        .with_context(|| format!("Failed to create directory {p:?}"))
-                        .unwrap();
-                } else if !p.is_dir() {
-                    panic!("{p:?} is not a directory");
-                }
-                p.pop();
+                subdir.create_dir(p).unwrap();
             }
         }
 
         Self {
-            chain_complex: cc,
+            underlying: cc,
             homotopies: OnceBiVec::new(2),
             intermediates: DashMap::new(),
         }
@@ -723,11 +719,11 @@ impl<A: PairAlgebra + Send + Sync, CC: FreeChainComplex<Algebra = A>> SecondaryR
         let mut source_vec = FpVector::new(p, 0);
         let mut target_vec = FpVector::new(p, 0);
 
-        for (s, n, t) in self.chain_complex.iter_stem() {
-            let num_gens = self.chain_complex.module(s).number_of_gens_in_degree(t);
+        for (s, n, t) in self.underlying.iter_stem() {
+            let num_gens = self.underlying.module(s).number_of_gens_in_degree(t);
             sseq.set_dimension(n, s as i32, num_gens);
 
-            if t > 0 && self.chain_complex.has_computed_bidegree(s + 2, t + 1) {
+            if t > 0 && self.underlying.has_computed_bidegree(s + 2, t + 1) {
                 let m = self.homotopy(s + 2).homotopies.hom_k(t);
                 if m.is_empty() || m[0].is_empty() {
                     continue;
@@ -752,7 +748,7 @@ impl<A: PairAlgebra + Send + Sync, CC: FreeChainComplex<Algebra = A>> SecondaryR
             }
         }
 
-        for (s, n, _) in self.chain_complex.iter_stem() {
+        for (s, n, _) in self.underlying.iter_stem() {
             if sseq.invalid(n, s as i32) {
                 sseq.update_bidegree(n, s as i32);
             }
@@ -786,17 +782,22 @@ impl<
     type Algebra = A;
     type Source = CC1;
     type Target = CC2;
+    type Underlying = ResolutionHomomorphism<CC1, CC2>;
+
+    fn underlying(&self) -> Arc<Self::Underlying> {
+        Arc::clone(&self.underlying)
+    }
 
     fn algebra(&self) -> Arc<Self::Algebra> {
         self.source.algebra()
     }
 
     fn source(&self) -> Arc<Self::Source> {
-        Arc::clone(&self.source.chain_complex)
+        Arc::clone(&self.source.underlying)
     }
 
     fn target(&self) -> Arc<Self::Target> {
-        Arc::clone(&self.target.chain_complex)
+        Arc::clone(&self.target.underlying)
     }
 
     fn shift_s(&self) -> u32 {
@@ -849,8 +850,8 @@ impl<
         // This is -1 mod p^2
         let neg_1 = p * p - 1;
 
-        let d_source = self.source.chain_complex.differential(s);
-        let d_target = self.target.chain_complex.differential(s - shift_s);
+        let d_source = self.source.underlying.differential(s);
+        let d_target = self.target.underlying.differential(s - shift_s);
 
         let c1 = self.underlying.get_map(s);
         let c0 = self.underlying.get_map(s - 1);
@@ -905,22 +906,12 @@ impl<
         target: Arc<SecondaryResolution<A, CC2>>,
         underlying: Arc<ResolutionHomomorphism<CC1, CC2>>,
     ) -> Self {
-        assert!(Arc::ptr_eq(&underlying.source, &source.chain_complex));
-        assert!(Arc::ptr_eq(&underlying.target, &target.chain_complex));
+        assert!(Arc::ptr_eq(&underlying.source, &source.underlying));
+        assert!(Arc::ptr_eq(&underlying.target, &target.underlying));
 
         if let Some(p) = underlying.save_dir() {
-            let mut p = p.to_owned();
-
             for subdir in SaveKind::secondary_data() {
-                p.push(format!("{}s", subdir.name()));
-                if !p.exists() {
-                    std::fs::create_dir_all(&p)
-                        .with_context(|| format!("Failed to create directory {p:?}"))
-                        .unwrap();
-                } else if !p.is_dir() {
-                    panic!("{p:?} is not a directory");
-                }
-                p.pop();
+                subdir.create_dir(p).unwrap();
             }
         }
 
