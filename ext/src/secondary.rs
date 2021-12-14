@@ -8,6 +8,7 @@ use algebra::module::{BoundedModule, FreeModule, Module};
 use algebra::pair_algebra::PairAlgebra;
 use algebra::Algebra;
 use bivec::BiVec;
+use fp::matrix::Matrix;
 use fp::prime::ValidPrime;
 use fp::vector::{FpVector, Slice, SliceMut};
 use once::OnceBiVec;
@@ -924,6 +925,84 @@ impl<
 
     pub fn homotopy(&self, s: u32) -> &SecondaryHomotopy<A> {
         &self.homotopies[s as i32]
+    }
+
+    /// Compute the induced map on Mod_{C\tau^2} homotopy groups. This only computes it on
+    /// standard lifts on elements in Ext. `outputs` is an iterator of `SliceMut`s whose lengths
+    /// are equal to the total dimension of `(s + shift_s, t + shift_t)` and `(s + shift_s + 1, t +
+    /// shift_t + 1)`. The first chunk records the Ext part of the result, and the second chunk
+    /// records the τ part of the result.
+    ///
+    /// This reduces the τ part of the result by the image of d₂.
+    pub fn hom_k<'a>(
+        &self,
+        sseq: &sseq::Sseq,
+        s: u32,
+        t: i32,
+        inputs: impl Iterator<Item = Slice<'a>>,
+        outputs: impl Iterator<Item = SliceMut<'a>>,
+    ) {
+        let source_s = s + self.underlying.shift_s;
+        let source_t = t + self.underlying.shift_t;
+
+        let p = self.prime();
+        let h_0 = self.algebra().p_tilde();
+
+        let source_num_gens = self
+            .source
+            .underlying
+            .number_of_gens_in_bidegree(source_s, source_t);
+        let tau_num_gens = self
+            .source
+            .underlying
+            .number_of_gens_in_bidegree(source_s + 1, source_t + 1);
+
+        let m0 = self.underlying.get_map(source_s).hom_k(t);
+        let m1 = Matrix::from_vec(p, &self.homotopy(source_s + 1).homotopies.hom_k(t));
+        // The multiplication by p map
+        let mp = Matrix::from_vec(
+            p,
+            &self
+                .source
+                .underlying()
+                .filtration_one_product(1, h_0, source_s + 1, source_t + 1)
+                .unwrap(),
+        );
+
+        let sign = if (self.underlying.shift_s as i32 * t) % 2 == 1 {
+            *p * *p - 1
+        } else {
+            1
+        };
+        let filtration_one_sign = if (t as i32 % 2) == 1 { *p - 1 } else { 1 };
+
+        let page_data = {
+            let d = sseq.page_data(source_t - source_s as i32, source_s as i32 + 1);
+            &d[std::cmp::min(3, d.len() - 1)]
+        };
+
+        let mut scratch0: Vec<u32> = Vec::new();
+        for (input, mut out) in inputs.zip(outputs) {
+            scratch0.clear();
+            scratch0.resize(source_num_gens, 0);
+            for (i, v) in input.iter_nonzero() {
+                scratch0
+                    .iter_mut()
+                    .zip(&m0[i])
+                    .for_each(|(a, b)| *a += v * b * sign);
+                out.slice_mut(source_num_gens, source_num_gens + tau_num_gens)
+                    .add(m1[i].as_slice(), (v * sign) % *p);
+            }
+            for (i, v) in scratch0.iter().enumerate() {
+                out.add_basis_element(i, *v % *p);
+
+                let extra = *v / *p;
+                out.slice_mut(source_num_gens, source_num_gens + tau_num_gens)
+                    .add(mp[i].as_slice(), (extra * filtration_one_sign) % *p);
+            }
+            page_data
+                .reduce_by_quotient(out.slice_mut(source_num_gens, source_num_gens + tau_num_gens));
+        }
     }
 }
 

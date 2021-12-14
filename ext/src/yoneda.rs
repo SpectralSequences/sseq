@@ -737,7 +737,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::chain_complex::FiniteChainComplex;
+    use crate::chain_complex::{FiniteChainComplex, FreeChainComplex};
     use crate::resolution::Resolution;
     use crate::resolution_homomorphism::ResolutionHomomorphism;
     use crate::CCC;

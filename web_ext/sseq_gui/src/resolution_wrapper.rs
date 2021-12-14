@@ -6,7 +6,7 @@ use std::sync::Arc;
 use algebra::module::homomorphism::FreeModuleHomomorphism;
 use algebra::module::{FreeModule, Module};
 use algebra::Algebra;
-use ext::chain_complex::ChainComplex;
+use ext::chain_complex::{ChainComplex, FreeChainComplex};
 use ext::resolution::Resolution as ResolutionInner;
 use fp::matrix::Matrix;
 use fp::prime::ValidPrime;

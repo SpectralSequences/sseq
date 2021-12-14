@@ -540,6 +540,7 @@ impl AugmentedChainComplex
 mod tests {
     use super::*;
 
+    use crate::chain_complex::FreeChainComplex;
     use crate::resolution_homomorphism::ResolutionHomomorphism;
     use crate::utils::construct;
     use crate::yoneda::yoneda_representative_element;

@@ -2,7 +2,7 @@ use algebra::module::homomorphism::{
     FiniteModuleHomomorphism, FreeModuleHomomorphism, IdentityHomomorphism, ModuleHomomorphism,
 };
 use algebra::module::{BoundedModule, Module};
-use ext::chain_complex::{ChainComplex, TensorChainComplex};
+use ext::chain_complex::{ChainComplex, FreeChainComplex, TensorChainComplex};
 use ext::resolution_homomorphism::ResolutionHomomorphism;
 use ext::utils;
 use ext::yoneda::yoneda_representative_element;

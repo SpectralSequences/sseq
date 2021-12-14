@@ -40,7 +40,7 @@
 //! Steenrod modules.
 
 use algebra::module::{BoundedModule, Module};
-use ext::chain_complex::ChainComplex;
+use ext::chain_complex::{ChainComplex, FreeChainComplex};
 use ext::resolution_homomorphism::ResolutionHomomorphism;
 use ext::utils;
 use fp::matrix::Matrix;

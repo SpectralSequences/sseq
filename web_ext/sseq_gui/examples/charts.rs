@@ -1,5 +1,8 @@
 use chart::{Backend as _, TikzBackend as Backend};
-use ext::{chain_complex::ChainComplex, utils::construct};
+use ext::{
+    chain_complex::{ChainComplex, FreeChainComplex},
+    utils::construct,
+};
 use fp::{prime::ValidPrime, vector::FpVector};
 use sseq::Adams;
 use sseq_gui::actions::SseqChoice;

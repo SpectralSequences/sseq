@@ -7,9 +7,7 @@ use algebra::module::Module;
 use fp::matrix::Matrix;
 use fp::vector::FpVector;
 
-use algebra::pair_algebra::PairAlgebra;
-
-use ext::chain_complex::ChainComplex;
+use ext::chain_complex::{ChainComplex, FreeChainComplex};
 use ext::resolution_homomorphism::ResolutionHomomorphism;
 use ext::secondary::*;
 use ext::utils::query_module;
@@ -147,13 +145,6 @@ fn main() -> anyhow::Result<()> {
         &d[std::cmp::min(3, d.len() - 1)]
     }
 
-    // Compute products
-    // scratch0 is an element over Z/p^2, so not an FpVector
-    let mut scratch0 = Vec::new();
-    let mut scratch1 = FpVector::new(p, 0);
-
-    let h_0 = resolution.algebra().p_tilde();
-
     // Iterate through the multiplicand
     for (s, n, t) in unit.iter_stem() {
         // The potential target has to be hit, and we need to have computed (the data need for) the
@@ -171,67 +162,31 @@ fn main() -> anyhow::Result<()> {
             continue;
         }
 
-        // m0 is a Vec<Vec<u32>> because it is actually over Z/p^2.
-        let m0 = hom.get_map(s + shift_s).hom_k(t);
-        let m1 = Matrix::from_vec(p, &hom_lift.homotopy(s + shift_s + 1).homotopies.hom_k(t));
-        // The multiplication by p map
-        let mp = Matrix::from_vec(
-            p,
-            &resolution
-                .filtration_one_product(1, h_0, s + shift_s + 1, t + shift_t + 1)
-                .unwrap(),
+        let target_num_gens = resolution.number_of_gens_in_bidegree(s + shift_s, t + shift_t);
+        let tau_num_gens = resolution.number_of_gens_in_bidegree(s + shift_s + 1, t + shift_t + 1);
+
+        if target_num_gens == 0 && tau_num_gens == 0 {
+            continue;
+        }
+
+        let mut outputs =
+            vec![FpVector::new(p, target_num_gens + tau_num_gens); page_data.subspace_dimension()];
+
+        hom_lift.hom_k(
+            &res_sseq,
+            s,
+            t,
+            page_data.subspace_gens().map(|x| x.as_slice()),
+            outputs.iter_mut().map(|x| x.as_slice_mut()),
         );
-
-        assert_eq!(m0.len(), m1.len());
-        if m0.is_empty() {
-            continue;
-        }
-        if m0[0].is_empty() && m1[0].is_empty() {
-            continue;
-        }
-
-        // The product in Ext differs from the product in the Adams E_2 page by (-1)^{t' s}. At the
-        // prime 2, we use the fact that -1 = 1 + 2 mod 4, so we add \tilde{2} times the E_2
-        // product to the homotopy part.
-        let sign = if (shift_s as i32 * t) % 2 == 1 {
-            *p * *p - 1
-        } else {
-            1
-        };
-
-        let filtration_one_sign = if (t as i32 % 2) == 1 { *p - 1 } else { 1 };
-
-        for gen in page_data.subspace_gens() {
-            scratch0.clear();
-            scratch0.resize(m0[0].len(), 0);
-
-            scratch1.set_scratch_vector_size(m1.columns());
-
-            for (i, v) in gen.iter_nonzero() {
-                scratch0
-                    .iter_mut()
-                    .zip(&m0[i])
-                    .for_each(|(a, b)| *a += v * b * sign);
-                scratch1.add(&m1[i], (v * sign) % *p);
-            }
-            for (i, v) in scratch0.iter_mut().enumerate() {
-                let extra = *v / *p;
-                *v %= *p;
-
-                if extra == 0 {
-                    continue;
-                }
-                scratch1.add(&mp[i], (extra * filtration_one_sign) % *p);
-            }
-
-            scratch0.iter_mut().for_each(|a| *a %= *p);
-
-            get_page_data(&*res_sseq, n + shift_n, s + shift_s + 1)
-                .reduce_by_quotient(scratch1.as_slice_mut());
-
+        for (gen, output) in page_data.subspace_gens().zip(outputs) {
             print!("{name} ");
             ext::utils::print_element(gen.as_slice(), n, s);
-            println!(" = {scratch0:?} + τ {scratch1}");
+            println!(
+                " = {} + τ {}",
+                output.slice(0, target_num_gens),
+                output.slice(target_num_gens, target_num_gens + tau_num_gens)
+            );
         }
     }
     Ok(())

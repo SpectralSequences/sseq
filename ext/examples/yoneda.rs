@@ -1,6 +1,6 @@
 use algebra::module::homomorphism::{FiniteModuleHomomorphism, IdentityHomomorphism};
 use algebra::module::{BoundedModule, Module};
-use ext::chain_complex::ChainComplex;
+use ext::chain_complex::{ChainComplex, FreeChainComplex};
 use ext::resolution_homomorphism::ResolutionHomomorphism;
 use ext::utils::construct;
 use ext::yoneda::yoneda_representative_element;

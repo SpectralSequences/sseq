@@ -3,7 +3,7 @@
 //!
 //! We omit outputs where the target bidegree is zero (or not yet computed)
 
-use ext::chain_complex::ChainComplex;
+use ext::chain_complex::{ChainComplex, FreeChainComplex};
 use ext::utils::query_module;
 
 fn main() -> anyhow::Result<()> {
