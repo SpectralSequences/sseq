@@ -371,7 +371,7 @@ impl<T> OnceVec<T> {
 
     /// Takes a lock on the `OnceVec`. The `OnceVec` cannot be updated while the lock is held.
     /// This is useful when used in conjuction with [`OnceVec::extend`];
-    pub(crate) fn lock(&self) -> MutexGuard<OooTracker> {
+    pub fn lock(&self) -> MutexGuard<OooTracker> {
         self.ooo.lock().unwrap()
     }
 
