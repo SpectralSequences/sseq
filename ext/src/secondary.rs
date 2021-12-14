@@ -359,7 +359,7 @@ pub trait SecondaryLift: Sync {
             let s = s as u32;
             SecondaryHomotopy::new(
                 self.source().module(s),
-                self.target().module(s - shift_s - 1),
+                self.target().module(s - shift_s),
                 shift_t,
             )
         });
@@ -478,7 +478,7 @@ pub trait SecondaryLift: Sync {
         let num_gens = source.number_of_gens_in_degree(t);
         let target_dim = self
             .target()
-            .module(s as u32 - shift_s - 1)
+            .module(s as u32 - shift_s)
             .dimension(t - shift_t - 1);
 
         if let Some(dir) = self.save_dir() {
@@ -503,7 +503,7 @@ pub trait SecondaryLift: Sync {
 
         let get_intermediate = |i| {
             let mut v = self.get_intermediate(s, t, i);
-            if s > shift_s + 2 {
+            if s > shift_s + 1 {
                 self.homotopies()[s as i32 - 1].homotopies.apply(
                     v.as_slice_mut(),
                     1,
@@ -528,7 +528,7 @@ pub trait SecondaryLift: Sync {
 
         assert!(self.target().apply_quasi_inverse(
             &mut results,
-            s as u32 - shift_s - 1,
+            s as u32 - shift_s,
             t - shift_t - 1,
             &intermediates,
         ));
@@ -568,9 +568,9 @@ pub trait SecondaryLift: Sync {
     fn compute_homotopies(&self) {
         let shift_s = self.shift_s();
 
-        // When s = shift_s + 1, the homotopies are just zero
+        // When s = shift_s, the homotopies are just zero
         {
-            let h = &self.homotopies()[shift_s as i32 + 1];
+            let h = &self.homotopies()[shift_s as i32];
             h.homotopies.extend_by_zero(h.composites.max_degree());
         }
 
@@ -585,9 +585,7 @@ pub trait SecondaryLift: Sync {
 
         #[cfg(feature = "concurrent")]
         {
-            let min_t = self.homotopies()[shift_s as i32 + 1]
-                .homotopies
-                .min_degree();
+            let min_t = self.homotopies()[shift_s as i32].homotopies.min_degree();
             let s_range = self.homotopies().range();
             crate::utils::iter_s_t(
                 &|s, t| self.compute_homotopy_step(s, t),
@@ -633,7 +631,7 @@ impl<A: PairAlgebra + Send + Sync, CC: FreeChainComplex<Algebra = A>> SecondaryL
     }
 
     fn shift_s(&self) -> u32 {
-        1
+        2
     }
 
     fn shift_t(&self) -> i32 {
@@ -801,7 +799,7 @@ impl<
     }
 
     fn shift_s(&self) -> u32 {
-        self.underlying.shift_s
+        self.underlying.shift_s + 1
     }
 
     fn shift_t(&self) -> i32 {
@@ -819,10 +817,10 @@ impl<
             self.underlying.get_map(s).next_degree(),
             std::cmp::min(
                 self.source.homotopies[s as i32].homotopies.next_degree(),
-                if s == shift_s + 1 {
+                if s == shift_s {
                     i32::MAX
                 } else {
-                    self.target.homotopies[(s - shift_s) as i32]
+                    self.target.homotopies[(s + 1 - shift_s) as i32]
                         .composites
                         .max_degree()
                         + shift_t
@@ -851,7 +849,7 @@ impl<
         let neg_1 = p * p - 1;
 
         let d_source = self.source.underlying.differential(s);
-        let d_target = self.target.underlying.differential(s - shift_s);
+        let d_target = self.target.underlying.differential(s + 1 - shift_s);
 
         let c1 = self.underlying.get_map(s);
         let c0 = self.underlying.get_map(s - 1);
@@ -865,7 +863,7 @@ impl<
 
         let p = self.prime();
         let neg_1 = *p - 1;
-        let target = self.target().module(s - shift_s - 2);
+        let target = self.target().module(s - shift_s - 1);
 
         let mut result = FpVector::new(p, Module::dimension(&*target, t - 1 - shift_t));
         let d = self.source().differential(s);
@@ -877,7 +875,7 @@ impl<
             d.output(t, idx).as_slice(),
             false,
         );
-        self.target.homotopy(s - shift_s).act(
+        self.target.homotopy(s + 1 - shift_s).act(
             result.as_slice_mut(),
             neg_1,
             t - shift_t,
