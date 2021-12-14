@@ -496,11 +496,17 @@
 <span id="470">470</span>
 <span id="471">471</span>
 <span id="472">472</span>
+<span id="473">473</span>
+<span id="474">474</span>
+<span id="475">475</span>
+<span id="476">476</span>
+<span id="477">477</span>
+<span id="478">478</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::ops::Range</span>;
 <span class="kw">use</span> <span class="ident">std::path::PathBuf</span>;
 <span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
 
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::chain_complex</span>::{<span class="ident">AugmentedChainComplex</span>, <span class="ident">FreeChainComplex</span>};
+<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::chain_complex</span>::{<span class="ident">AugmentedChainComplex</span>, <span class="ident">ChainComplex</span>, <span class="ident">FreeChainComplex</span>};
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::resolution::Resolution</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::save::SaveKind</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::CCC</span>;
@@ -520,7 +526,7 @@
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ResolutionHomomorphism</span><span class="op">&lt;</span><span class="ident">CC1</span>, <span class="ident">CC2</span><span class="op">&gt;</span>
 <span class="kw">where</span>
     <span class="ident">CC1</span>: <span class="ident">FreeChainComplex</span>,
-    <span class="ident">CC2</span>: <span class="ident">AugmentedChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">CC1::Algebra</span><span class="op">&gt;</span>,
+    <span class="ident">CC2</span>: <span class="ident">ChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">CC1::Algebra</span><span class="op">&gt;</span>,
 {
     <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">dead_code</span>)]</span>
     <span class="ident">name</span>: <span class="ident">String</span>,
@@ -535,7 +541,7 @@
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">CC1</span>, <span class="ident">CC2</span><span class="op">&gt;</span> <span class="ident">ResolutionHomomorphism</span><span class="op">&lt;</span><span class="ident">CC1</span>, <span class="ident">CC2</span><span class="op">&gt;</span>
 <span class="kw">where</span>
     <span class="ident">CC1</span>: <span class="ident">FreeChainComplex</span>,
-    <span class="ident">CC2</span>: <span class="ident">AugmentedChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">CC1::Algebra</span><span class="op">&gt;</span>,
+    <span class="ident">CC2</span>: <span class="ident">ChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">CC1::Algebra</span><span class="op">&gt;</span>,
 {
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(
         <span class="ident">name</span>: <span class="ident">String</span>,
@@ -581,6 +587,32 @@
         <span class="self">self</span>.<span class="ident">maps</span>.<span class="ident">len</span>()
     }
 
+    <span class="kw">fn</span> <span class="ident">get_map_ensure_length</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">input_s</span>: <span class="ident">u32</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">CC2::Module</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">maps</span>.<span class="ident">extend</span>(<span class="ident">input_s</span> <span class="kw">as</span> <span class="ident">i32</span>, <span class="op">|</span><span class="ident">input_s</span><span class="op">|</span> {
+            <span class="kw">let</span> <span class="ident">output_s</span> <span class="op">=</span> <span class="ident">input_s</span> <span class="kw">as</span> <span class="ident">u32</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">shift_s</span>;
+            <span class="ident">Arc::new</span>(<span class="ident">FreeModuleHomomorphism::new</span>(
+                <span class="self">self</span>.<span class="ident">source</span>.<span class="ident">module</span>(<span class="ident">input_s</span> <span class="kw">as</span> <span class="ident">u32</span>),
+                <span class="self">self</span>.<span class="ident">target</span>.<span class="ident">module</span>(<span class="ident">output_s</span>),
+                <span class="self">self</span>.<span class="ident">shift_t</span>,
+            ))
+        });
+        <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">maps</span>[<span class="ident">input_s</span> <span class="kw">as</span> <span class="ident">i32</span>]
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_map</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">input_s</span>: <span class="ident">u32</span>) -&gt; <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">CC2::Module</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">maps</span>[<span class="ident">input_s</span> <span class="kw">as</span> <span class="ident">i32</span>])
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">save_dir</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">std::path::Path</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">save_dir</span>.<span class="ident">as_deref</span>()
+    }
+}
+
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">CC1</span>, <span class="ident">CC2</span><span class="op">&gt;</span> <span class="ident">ResolutionHomomorphism</span><span class="op">&lt;</span><span class="ident">CC1</span>, <span class="ident">CC2</span><span class="op">&gt;</span>
+<span class="kw">where</span>
+    <span class="ident">CC1</span>: <span class="ident">FreeChainComplex</span>,
+    <span class="ident">CC2</span>: <span class="ident">AugmentedChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">CC1::Algebra</span><span class="op">&gt;</span>,
+{
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_class</span>(
         <span class="ident">name</span>: <span class="ident">String</span>,
         <span class="ident">source</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">CC1</span><span class="op">&gt;</span>,
@@ -604,22 +636,6 @@
 
         <span class="ident">result</span>.<span class="ident">extend_step</span>(<span class="ident">shift_s</span>, <span class="ident">shift_t</span>, <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="ident">matrix</span>));
         <span class="ident">result</span>
-    }
-
-    <span class="kw">fn</span> <span class="ident">get_map_ensure_length</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">input_s</span>: <span class="ident">u32</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">CC2::Module</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">maps</span>.<span class="ident">extend</span>(<span class="ident">input_s</span> <span class="kw">as</span> <span class="ident">i32</span>, <span class="op">|</span><span class="ident">input_s</span><span class="op">|</span> {
-            <span class="kw">let</span> <span class="ident">output_s</span> <span class="op">=</span> <span class="ident">input_s</span> <span class="kw">as</span> <span class="ident">u32</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">shift_s</span>;
-            <span class="ident">Arc::new</span>(<span class="ident">FreeModuleHomomorphism::new</span>(
-                <span class="self">self</span>.<span class="ident">source</span>.<span class="ident">module</span>(<span class="ident">input_s</span> <span class="kw">as</span> <span class="ident">u32</span>),
-                <span class="self">self</span>.<span class="ident">target</span>.<span class="ident">module</span>(<span class="ident">output_s</span>),
-                <span class="self">self</span>.<span class="ident">shift_t</span>,
-            ))
-        });
-        <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">maps</span>[<span class="ident">input_s</span> <span class="kw">as</span> <span class="ident">i32</span>]
-    }
-
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_map</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">input_s</span>: <span class="ident">u32</span>) -&gt; <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">CC2::Module</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-        <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">maps</span>[<span class="ident">input_s</span> <span class="kw">as</span> <span class="ident">i32</span>])
     }
 
     <span class="doccomment">/// Extend the resolution homomorphism such that it is defined on degrees</span>
@@ -855,13 +871,9 @@
         }
         <span class="ident">f_cur</span>.<span class="ident">add_generators_from_rows_ooo</span>(<span class="ident">input_t</span>, <span class="ident">outputs</span>)
     }
-
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">save_dir</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">std::path::Path</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">save_dir</span>.<span class="ident">as_deref</span>()
-    }
 }
 
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::chain_complex</span>::{<span class="ident">BoundedChainComplex</span>, <span class="ident">ChainComplex</span>};
+<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::chain_complex::BoundedChainComplex</span>;
 <span class="kw">use</span> <span class="ident">algebra::module::homomorphism::FiniteModuleHomomorphism</span>;
 <span class="kw">use</span> <span class="ident">algebra::module</span>::{<span class="ident">BoundedModule</span>, <span class="ident">FiniteModule</span>};
 
@@ -946,7 +958,7 @@
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">CC1</span>, <span class="ident">CC2</span><span class="op">&gt;</span> <span class="ident">ResolutionHomomorphism</span><span class="op">&lt;</span><span class="ident">CC1</span>, <span class="ident">CC2</span><span class="op">&gt;</span>
 <span class="kw">where</span>
     <span class="ident">CC1</span>: <span class="ident">FreeChainComplex</span>,
-    <span class="ident">CC2</span>: <span class="ident">AugmentedChainComplex</span> <span class="op">+</span> <span class="ident">FreeChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">CC1::Algebra</span><span class="op">&gt;</span>,
+    <span class="ident">CC2</span>: <span class="ident">FreeChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">CC1::Algebra</span><span class="op">&gt;</span>,
 {
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">act</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut</span> <span class="ident">result</span>: <span class="ident">SliceMut</span>, <span class="ident">coef</span>: <span class="ident">u32</span>, <span class="ident">s</span>: <span class="ident">u32</span>, <span class="ident">t</span>: <span class="ident">i32</span>, <span class="ident">idx</span>: <span class="ident">usize</span>) {
         <span class="kw">let</span> <span class="ident">source_s</span> <span class="op">=</span> <span class="ident">s</span> <span class="op">+</span> <span class="self">self</span>.<span class="ident">shift_s</span>;

@@ -1302,7 +1302,7 @@
 
     <span class="doccomment">/// Takes a lock on the `OnceVec`. The `OnceVec` cannot be updated while the lock is held.</span>
     <span class="doccomment">/// This is useful when used in conjuction with [`OnceVec::extend`];</span>
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">lock</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">MutexGuard</span><span class="op">&lt;</span><span class="ident">OooTracker</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">lock</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">MutexGuard</span><span class="op">&lt;</span><span class="ident">OooTracker</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">ooo</span>.<span class="ident">lock</span>().<span class="ident">unwrap</span>()
     }
 
