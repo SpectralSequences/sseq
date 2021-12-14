@@ -159,7 +159,7 @@
     <span class="macro">eprintln!</span>(<span class="string">&quot;Time spent: {:?}&quot;</span>, <span class="ident">start</span>.<span class="ident">elapsed</span>());
 
     <span class="comment">// Iterate through target of the d2</span>
-    <span class="kw">for</span> (<span class="ident">s</span>, <span class="ident">n</span>, <span class="ident">t</span>) <span class="kw">in</span> <span class="ident">lift</span>.<span class="ident">chain_complex</span>.<span class="ident">iter_stem</span>() {
+    <span class="kw">for</span> (<span class="ident">s</span>, <span class="ident">n</span>, <span class="ident">t</span>) <span class="kw">in</span> <span class="ident">lift</span>.<span class="ident">underlying</span>().<span class="ident">iter_stem</span>() {
         <span class="kw">if</span> <span class="ident">s</span> <span class="op">&lt;</span> <span class="number">3</span> {
             <span class="kw">continue</span>;
         }
