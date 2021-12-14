@@ -1,6 +1,4 @@
-use crate::chain_complex::{
-    AugmentedChainComplex, BoundedChainComplex, ChainComplex, FreeChainComplex,
-};
+use crate::chain_complex::{BoundedChainComplex, ChainComplex, FreeChainComplex};
 use crate::resolution::Resolution;
 use crate::resolution_homomorphism::ResolutionHomomorphism;
 use crate::save::{SaveFile, SaveKind};
@@ -666,10 +664,10 @@ impl<A: PairAlgebra + Send + Sync, CC: FreeChainComplex<Algebra = A>> SecondaryL
     }
 
     fn compute_intermediate(&self, s: u32, t: i32, idx: usize) -> FpVector {
-        let p = self.chain_complex.prime();
-        let target = self.chain_complex.module(s as u32 - 3);
+        let p = self.prime();
+        let target = self.chain_complex.module(s - 3);
         let mut result = FpVector::new(p, target.dimension(t - 1));
-        let d = self.chain_complex.differential(s as u32);
+        let d = self.chain_complex.differential(s);
         self.homotopies[s as i32 - 1].act(
             result.as_slice_mut(),
             1,
@@ -716,6 +714,51 @@ impl<A: PairAlgebra + Send + Sync, CC: FreeChainComplex<Algebra = A>> SecondaryR
     pub fn homotopy(&self, s: u32) -> &SecondaryHomotopy<A> {
         &self.homotopies[s as i32]
     }
+
+    pub fn e3_page(&self) -> sseq::Sseq<sseq::Adams> {
+        let p = self.prime();
+
+        let mut sseq = sseq::Sseq::<sseq::Adams>::new(p, 0, 0);
+
+        let mut source_vec = FpVector::new(p, 0);
+        let mut target_vec = FpVector::new(p, 0);
+
+        for (s, n, t) in self.chain_complex.iter_stem() {
+            let num_gens = self.chain_complex.module(s).number_of_gens_in_degree(t);
+            sseq.set_dimension(n, s as i32, num_gens);
+
+            if t > 0 && self.chain_complex.has_computed_bidegree(s + 2, t + 1) {
+                let m = self.homotopy(s + 2).homotopies.hom_k(t);
+                if m.is_empty() || m[0].is_empty() {
+                    continue;
+                }
+
+                source_vec.set_scratch_vector_size(m.len());
+                target_vec.set_scratch_vector_size(m[0].len());
+
+                for (i, row) in m.into_iter().enumerate() {
+                    source_vec.set_to_zero();
+                    source_vec.set_entry(i, 1);
+                    target_vec.copy_from_slice(&row);
+
+                    sseq.add_differential(
+                        2,
+                        n,
+                        s as i32,
+                        source_vec.as_slice(),
+                        target_vec.as_slice(),
+                    );
+                }
+            }
+        }
+
+        for (s, n, _) in self.chain_complex.iter_stem() {
+            if sseq.invalid(n, s as i32) {
+                sseq.update_bidegree(n, s as i32);
+            }
+        }
+        sseq
+    }
 }
 
 // Rustdoc ICE's when trying to document this struct. See
@@ -724,7 +767,7 @@ impl<A: PairAlgebra + Send + Sync, CC: FreeChainComplex<Algebra = A>> SecondaryR
 pub struct SecondaryResolutionHomomorphism<
     A: PairAlgebra,
     CC1: FreeChainComplex<Algebra = A>,
-    CC2: FreeChainComplex<Algebra = A> + AugmentedChainComplex,
+    CC2: FreeChainComplex<Algebra = A>,
 > {
     source: Arc<SecondaryResolution<A, CC1>>,
     target: Arc<SecondaryResolution<A, CC2>>,
@@ -737,7 +780,7 @@ pub struct SecondaryResolutionHomomorphism<
 impl<
         A: PairAlgebra + Send + Sync,
         CC1: FreeChainComplex<Algebra = A>,
-        CC2: FreeChainComplex<Algebra = A> + AugmentedChainComplex,
+        CC2: FreeChainComplex<Algebra = A>,
     > SecondaryLift for SecondaryResolutionHomomorphism<A, CC1, CC2>
 {
     type Algebra = A;
@@ -802,7 +845,7 @@ impl<
 
     fn composite(&self, s: u32) -> CompositeData<Self::Algebra> {
         let shift_s = self.shift_s();
-        let p = *self.underlying.source.prime();
+        let p = *self.prime();
         // This is -1 mod p^2
         let neg_1 = p * p - 1;
 
@@ -819,12 +862,12 @@ impl<
         let shift_s = self.shift_s();
         let shift_t = self.shift_t();
 
-        let p = self.target.chain_complex.prime();
+        let p = self.prime();
         let neg_1 = *p - 1;
-        let target = self.target.chain_complex.module(s as u32 - shift_s - 2);
+        let target = self.target().module(s - shift_s - 2);
 
         let mut result = FpVector::new(p, Module::dimension(&*target, t - 1 - shift_t));
-        let d = self.source.chain_complex.differential(s);
+        let d = self.source().differential(s);
 
         self.homotopies[s as i32 - 1].act(
             result.as_slice_mut(),
@@ -854,7 +897,7 @@ impl<
 impl<
         A: PairAlgebra + Send + Sync,
         CC1: FreeChainComplex<Algebra = A>,
-        CC2: FreeChainComplex<Algebra = A> + AugmentedChainComplex,
+        CC2: FreeChainComplex<Algebra = A>,
     > SecondaryResolutionHomomorphism<A, CC1, CC2>
 {
     pub fn new(

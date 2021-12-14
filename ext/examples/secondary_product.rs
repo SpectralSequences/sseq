@@ -1,7 +1,9 @@
 //! Computes products in $\Mod_{C\tau^2}$.
 
+use std::path::PathBuf;
 use std::sync::Arc;
 
+use algebra::module::Module;
 use fp::matrix::Matrix;
 use fp::vector::FpVector;
 
@@ -25,6 +27,18 @@ fn main() -> anyhow::Result<()> {
 
     let resolution = Arc::new(data.resolution);
 
+    let is_unit =
+        resolution.complex().modules.len() == 1 && resolution.complex().module(0).is_unit();
+
+    let unit = if is_unit {
+        Arc::clone(&resolution)
+    } else {
+        let save_dir = query::optional("Unit save directory", |x| {
+            core::result::Result::<PathBuf, std::convert::Infallible>::Ok(PathBuf::from(x))
+        });
+        Arc::new(ext::utils::construct("S_2@milnor", save_dir)?)
+    };
+
     if !can_compute(&resolution) {
         eprintln!(
             "Cannot compute d2 for the module {}",
@@ -41,10 +55,25 @@ fn main() -> anyhow::Result<()> {
     let shift_n: i32 = query::with_default("n of Ext class", "0", str::parse);
     let shift_t = shift_n + shift_s as i32;
 
+    if !is_unit {
+        #[cfg(feature = "concurrent")]
+        unit.compute_through_stem_concurrent(
+            resolution.next_homological_degree() - 1 - shift_s,
+            resolution.module(0).max_computed_degree() - shift_n,
+            &data.bucket,
+        );
+
+        #[cfg(not(feature = "concurrent"))]
+        unit.compute_through_stem(
+            resolution.next_homological_degree() - 1 - shift_s,
+            resolution.module(0).max_computed_degree() - shift_n,
+        );
+    }
+
     let hom = ResolutionHomomorphism::new(
         name.clone(),
         Arc::clone(&resolution),
-        Arc::clone(&resolution),
+        Arc::clone(&unit),
         shift_s,
         shift_t,
     );
@@ -76,15 +105,14 @@ fn main() -> anyhow::Result<()> {
         matrix[i].set_entry(0, x);
     }
     hom.extend_step(shift_s, shift_t, Some(&matrix));
-
     hom.extend_all();
 
-    let lift = SecondaryResolution::new(Arc::clone(&resolution));
-    lift.extend_all();
+    let res_lift = SecondaryResolution::new(Arc::clone(&resolution));
+    res_lift.extend_all();
 
     // Check that class survives to E3.
     {
-        let m = lift.homotopy(shift_s + 2).homotopies.hom_k(shift_t);
+        let m = res_lift.homotopy(shift_s + 2).homotopies.hom_k(shift_t);
         assert_eq!(m.len(), v.len());
         let mut sum = vec![0; m[0].len()];
         for (x, d2) in v.iter().zip(&m) {
@@ -95,69 +123,41 @@ fn main() -> anyhow::Result<()> {
             "Class supports a non-zero d2"
         );
     }
+    let res_lift = Arc::new(res_lift);
 
-    let lift = Arc::new(lift);
+    let unit_lift = if is_unit {
+        Arc::clone(&res_lift)
+    } else {
+        let lift = SecondaryResolution::new(Arc::clone(&unit));
+        lift.extend_all();
+        Arc::new(lift)
+    };
+
     let hom = Arc::new(hom);
-
-    let res_lift = SecondaryResolutionHomomorphism::new(
-        Arc::clone(&lift),
-        Arc::clone(&lift),
+    let hom_lift = SecondaryResolutionHomomorphism::new(
+        Arc::clone(&res_lift),
+        Arc::clone(&unit_lift),
         Arc::clone(&hom),
     );
 
     let start = std::time::Instant::now();
 
-    res_lift.extend_all();
+    hom_lift.extend_all();
 
     eprintln!("Time spent: {:?}", start.elapsed());
 
     // Compute E3 page
-    let sseq = {
-        let mut sseq = sseq::Sseq::<sseq::Adams>::new(p, 0, 0);
-
-        let mut source_vec = FpVector::new(p, 0);
-        let mut target_vec = FpVector::new(p, 0);
-
-        for (s, n, t) in resolution.iter_stem() {
-            let num_gens = resolution.module(s).number_of_gens_in_degree(t);
-            sseq.set_dimension(n, s as i32, num_gens);
-
-            if t > 0 && resolution.has_computed_bidegree(s + 2, t + 1) {
-                let m = lift.homotopy(s + 2).homotopies.hom_k(t);
-                if m.is_empty() || m[0].is_empty() {
-                    continue;
-                }
-
-                source_vec.set_scratch_vector_size(m.len());
-                target_vec.set_scratch_vector_size(m[0].len());
-
-                for (i, row) in m.into_iter().enumerate() {
-                    source_vec.set_to_zero();
-                    source_vec.set_entry(i, 1);
-                    target_vec.copy_from_slice(&row);
-
-                    sseq.add_differential(
-                        2,
-                        n,
-                        s as i32,
-                        source_vec.as_slice(),
-                        target_vec.as_slice(),
-                    );
-                }
-            }
-        }
-        for (s, n, _) in resolution.iter_stem() {
-            if sseq.invalid(n, s as i32) {
-                sseq.update_bidegree(n, s as i32);
-            }
-        }
-        sseq
+    let res_sseq = Arc::new(res_lift.e3_page());
+    let unit_sseq = if is_unit {
+        Arc::clone(&res_sseq)
+    } else {
+        Arc::new(unit_lift.e3_page())
     };
 
-    let get_page_data = |n, s| {
+    fn get_page_data(sseq: &sseq::Sseq<sseq::Adams>, n: i32, s: u32) -> &fp::matrix::Subquotient {
         let d = sseq.page_data(n, s as i32);
         &d[std::cmp::min(3, d.len() - 1)]
-    };
+    }
 
     // Compute products
     // scratch0 is an element over Z/p^2, so not an FpVector
@@ -167,7 +167,7 @@ fn main() -> anyhow::Result<()> {
     let h_0 = resolution.algebra().p_tilde();
 
     // Iterate through the multiplicand
-    for (s, n, t) in resolution.iter_stem() {
+    for (s, n, t) in unit.iter_stem() {
         // The potential target has to be hit, and we need to have computed (the data need for) the
         // d2 that hits the potential target.
         if !resolution.has_computed_bidegree(s + shift_s + 1, t + shift_t + 1) {
@@ -177,7 +177,7 @@ fn main() -> anyhow::Result<()> {
             continue;
         }
 
-        let page_data = get_page_data(n, s);
+        let page_data = get_page_data(&*unit_sseq, n, s);
 
         if page_data.subspace_dimension() == 0 {
             continue;
@@ -185,7 +185,7 @@ fn main() -> anyhow::Result<()> {
 
         // m0 is a Vec<Vec<u32>> because it is actually over Z/p^2.
         let m0 = hom.get_map(s + shift_s).hom_k(t);
-        let m1 = Matrix::from_vec(p, &res_lift.homotopy(s + shift_s + 1).homotopies.hom_k(t));
+        let m1 = Matrix::from_vec(p, &hom_lift.homotopy(s + shift_s + 1).homotopies.hom_k(t));
         // The multiplication by p map
         let mp = Matrix::from_vec(
             p,
@@ -238,7 +238,8 @@ fn main() -> anyhow::Result<()> {
 
             scratch0.iter_mut().for_each(|a| *a %= *p);
 
-            get_page_data(n + shift_n, s + shift_s + 1).reduce_by_quotient(scratch1.as_slice_mut());
+            get_page_data(&*res_sseq, n + shift_n, s + shift_s + 1)
+                .reduce_by_quotient(scratch1.as_slice_mut());
 
             print!("{name} ");
             ext::utils::print_element(gen.as_slice(), n, s);

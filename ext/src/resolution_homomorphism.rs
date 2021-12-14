@@ -24,14 +24,13 @@ where
     CC1: FreeChainComplex,
     CC2: ChainComplex<Algebra = CC1::Algebra>,
 {
-    #[allow(dead_code)]
     name: String,
     pub source: Arc<CC1>,
     pub target: Arc<CC2>,
     maps: OnceBiVec<Arc<FreeModuleHomomorphism<CC2::Module>>>,
     pub shift_s: u32,
     pub shift_t: i32,
-    pub save_dir: Option<PathBuf>,
+    save_dir: Option<PathBuf>,
 }
 
 impl<CC1, CC2> ResolutionHomomorphism<CC1, CC2>
@@ -52,7 +51,7 @@ where
 
             if !path.exists() {
                 std::fs::create_dir_all(&path)
-                    .context("Failed to create save directory for resolution")
+                    .context("Failed to create save directory for resolution homomorphism")
                     .unwrap();
             } else if !path.is_dir() {
                 panic!("{path:?} is not a directory");
@@ -73,6 +72,10 @@ where
             shift_t,
             save_dir,
         }
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
     }
 
     pub fn algebra(&self) -> Arc<CC1::Algebra> {
