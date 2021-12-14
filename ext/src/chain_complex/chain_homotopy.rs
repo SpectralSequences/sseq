@@ -48,7 +48,7 @@ impl<
             && !right.name().is_empty()
         {
             let mut path = left.source.save_dir().unwrap().to_owned();
-            path.push(format!("products/{},{}/", left.name(), right.name(),));
+            path.push(format!("massey/{},{}/", left.name(), right.name(),));
 
             SaveKind::ChainHomotopy.create_dir(&path).unwrap();
 
