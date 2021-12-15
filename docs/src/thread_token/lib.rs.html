@@ -165,6 +165,11 @@
 <span id="139">139</span>
 <span id="140">140</span>
 <span id="141">141</span>
+<span id="142">142</span>
+<span id="143">143</span>
+<span id="144">144</span>
+<span id="145">145</span>
+<span id="146">146</span>
 </pre><pre class="rust"><code><span class="attribute">#![<span class="ident">allow</span>(<span class="ident">clippy::mutex_atomic</span>)]</span>
 <span class="kw">use</span> <span class="ident">core::num::NonZeroUsize</span>;
 <span class="kw">use</span> <span class="ident">crossbeam_channel</span>::{<span class="ident">Receiver</span>, <span class="ident">TryRecvError</span>};
@@ -186,7 +191,12 @@
 <span class="kw">impl</span> <span class="ident">Default</span> <span class="kw">for</span> <span class="ident">TokenBucket</span> {
     <span class="doccomment">/// The default value of TokenBucket has two threads.</span>
     <span class="kw">fn</span> <span class="ident">default</span>() -&gt; <span class="self">Self</span> {
-        <span class="ident"><span class="self">Self</span>::new</span>(<span class="ident">NonZeroUsize::new</span>(<span class="number">2</span>).<span class="ident">unwrap</span>())
+        <span class="comment">// We use however many threads rayon would have used</span>
+        <span class="kw">let</span> <span class="ident">num_threads</span> <span class="op">=</span> <span class="ident">rayon::ThreadPoolBuilder::new</span>()
+            .<span class="ident">build</span>()
+            .<span class="ident">unwrap</span>()
+            .<span class="ident">current_num_threads</span>();
+        <span class="ident"><span class="self">Self</span>::new</span>(<span class="ident">NonZeroUsize::new</span>(<span class="ident">num_threads</span>).<span class="ident">unwrap</span>())
     }
 }
 

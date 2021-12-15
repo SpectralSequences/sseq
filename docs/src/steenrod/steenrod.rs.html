@@ -362,10 +362,6 @@
 <span id="336">336</span>
 <span id="337">337</span>
 <span id="338">338</span>
-<span id="339">339</span>
-<span id="340">340</span>
-<span id="341">341</span>
-<span id="342">342</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">algebra::module::homomorphism</span>::{
     <span class="ident">FiniteModuleHomomorphism</span>, <span class="ident">FreeModuleHomomorphism</span>, <span class="ident">IdentityHomomorphism</span>, <span class="ident">ModuleHomomorphism</span>,
 };
@@ -399,7 +395,7 @@
 
     <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">ValidPrime::new</span>(<span class="number">2</span>);
     <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
-    <span class="kw">let</span> <span class="ident">bucket</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">ext::utils::query_bucket</span>());
+    <span class="kw">let</span> <span class="ident">bucket</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">thread_token::TokenBucket::default</span>());
 
     <span class="kw">let</span> <span class="ident">x</span>: <span class="ident">i32</span> <span class="op">=</span> <span class="ident">query::with_default</span>(<span class="string">&quot;t - s&quot;</span>, <span class="string">&quot;8&quot;</span>, <span class="ident">str::parse</span>);
     <span class="kw">let</span> <span class="ident">s</span>: <span class="ident">u32</span> <span class="op">=</span> <span class="ident">query::with_default</span>(<span class="string">&quot;s&quot;</span>, <span class="string">&quot;3&quot;</span>, <span class="ident">str::parse</span>);
@@ -409,10 +405,6 @@
     <span class="macro">eprint!</span>(<span class="string">&quot;Resolving ext: &quot;</span>);
     <span class="kw">let</span> <span class="ident">start</span> <span class="op">=</span> <span class="ident">Instant::now</span>();
 
-    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
-    <span class="ident">resolution</span>.<span class="ident">compute_through_bidegree_concurrent</span>(<span class="number">2</span> <span class="op">*</span> <span class="ident">s</span>, <span class="number">2</span> <span class="op">*</span> <span class="ident">t</span>, <span class="kw-2">&amp;</span><span class="ident">bucket</span>);
-
-    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>))]</span>
     <span class="ident">resolution</span>.<span class="ident">compute_through_bidegree</span>(<span class="number">2</span> <span class="op">*</span> <span class="ident">s</span>, <span class="number">2</span> <span class="op">*</span> <span class="ident">t</span>);
 
     <span class="macro">eprintln!</span>(<span class="string">&quot;{:?}&quot;</span>, <span class="ident">start</span>.<span class="ident">elapsed</span>());

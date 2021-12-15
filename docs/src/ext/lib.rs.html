@@ -202,15 +202,6 @@
 <span id="176">176</span>
 <span id="177">177</span>
 <span id="178">178</span>
-<span id="179">179</span>
-<span id="180">180</span>
-<span id="181">181</span>
-<span id="182">182</span>
-<span id="183">183</span>
-<span id="184">184</span>
-<span id="185">185</span>
-<span id="186">186</span>
-<span id="187">187</span>
 </pre><pre class="rust"><code><span class="doccomment">//! `ext-rs` is a collection of libraries for doing homological algebra over $\F_p$. The</span>
 <span class="doccomment">//! main and original purpose is to compute Ext of a Steenrod module, but the library is written to</span>
 <span class="doccomment">//! be sufficiently generic to deal with more general applications.</span>
@@ -234,7 +225,8 @@
 <span class="doccomment">//!    time, but results in a much faster binary. This also disables some expensive</span>
 <span class="doccomment">//!    run-time sanity checks.</span>
 <span class="doccomment">//!  - `--no-default-features` disables support for odd primes.</span>
-<span class="doccomment">//!  - `--features concurrent` compiles the program with multi-threading support.</span>
+<span class="doccomment">//!  - `--features concurrent` compiles the program with multi-threading support. It defaults to</span>
+<span class="doccomment">//!    using all CPU cores, and can be configured via `RAYON_NUM_THREADS`.</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! These are supplied right after `cargo run`, in any order. In general, one</span>
 <span class="doccomment">//! should set all of these flags for any non-trivial calculation at the prime 2.</span>
@@ -247,7 +239,6 @@
 <span class="doccomment">//!  $ cargo run --features concurrent --example filtration_one</span>
 <span class="doccomment">//! Module (default: S_2): C2</span>
 <span class="doccomment">//! Resolution save file (optional):</span>
-<span class="doccomment">//! Number of threads (default: 2):</span>
 <span class="doccomment">//! Max s (default: 7): 20</span>
 <span class="doccomment">//! Max f (default: 30): 40</span>
 <span class="doccomment">//! ```</span>
@@ -273,15 +264,6 @@
 <span class="doccomment">//! ```</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! ## Conventions</span>
-<span class="doccomment">//! ### Number of threads</span>
-<span class="doccomment">//! The &quot;number of threads&quot; argument is a special case. One can supply it by</span>
-<span class="doccomment">//! setting the `EXT_THREADS` environment variable. If a valid value is set, then</span>
-<span class="doccomment">//! the user is not prompted for input.</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! The rationale for this behaviour is that this option is only present with</span>
-<span class="doccomment">//! `concurrent` is enabled. By allowing users to set this via an environment</span>
-<span class="doccomment">//! variable, the same arguments can be supplied to concurrent and non-concurrent</span>
-<span class="doccomment">//! versions.</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! ### Module specification</span>
 <span class="doccomment">//! Each Steenrod module is defined in a `json` file, and a collection of such</span>

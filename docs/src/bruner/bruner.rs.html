@@ -345,13 +345,6 @@
 <span id="319">319</span>
 <span id="320">320</span>
 <span id="321">321</span>
-<span id="322">322</span>
-<span id="323">323</span>
-<span id="324">324</span>
-<span id="325">325</span>
-<span id="326">326</span>
-<span id="327">327</span>
-<span id="328">328</span>
 </pre><pre class="rust"><code><span class="doccomment">//! This script converts between our basis and Bruner&#39;s basis. At the moment, most inputs are</span>
 <span class="doccomment">//! hardcoded, and this only works for the sphere.</span>
 <span class="doccomment">//!</span>
@@ -646,19 +639,12 @@
     <span class="kw">let</span> <span class="ident">data_dir</span> <span class="op">=</span> <span class="ident">Path::new</span>(<span class="macro">file!</span>()).<span class="ident">parent</span>().<span class="ident">unwrap</span>().<span class="ident">join</span>(<span class="string">&quot;bruner_data&quot;</span>);
     <span class="kw">let</span> <span class="ident">max_n</span>: <span class="ident">i32</span> <span class="op">=</span> <span class="ident">query::with_default</span>(<span class="string">&quot;Max n&quot;</span>, <span class="string">&quot;20&quot;</span>, <span class="ident">str::parse</span>);
 
-    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
-    <span class="kw">let</span> <span class="ident">bucket</span> <span class="op">=</span> <span class="ident">ext::utils::query_bucket</span>();
-
     <span class="comment">// Read in Bruner&#39;s resolution</span>
     <span class="kw">let</span> (<span class="ident">max_s</span>, <span class="ident">cc</span>) <span class="op">=</span> <span class="ident">read_bruner_resolution</span>(<span class="ident">data_dir</span>, <span class="ident">max_n</span>).<span class="ident">unwrap</span>();
     <span class="kw">let</span> <span class="ident">cc</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">cc</span>);
 
     <span class="kw">let</span> <span class="ident">resolution</span> <span class="op">=</span> <span class="ident">construct</span>(<span class="string">&quot;S_2@milnor&quot;</span>, <span class="prelude-val">None</span>).<span class="ident">unwrap</span>();
 
-    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
-    <span class="ident">resolution</span>.<span class="ident">compute_through_stem_concurrent</span>(<span class="ident">max_s</span>, <span class="ident">max_n</span>, <span class="kw-2">&amp;</span><span class="ident">bucket</span>);
-
-    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>))]</span>
     <span class="ident">resolution</span>.<span class="ident">compute_through_stem</span>(<span class="ident">max_s</span>, <span class="ident">max_n</span>);
 
     <span class="kw">let</span> <span class="ident">resolution</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">resolution</span>);

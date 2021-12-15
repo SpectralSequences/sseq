@@ -65,13 +65,6 @@
 <span id="39">39</span>
 <span id="40">40</span>
 <span id="41">41</span>
-<span id="42">42</span>
-<span id="43">43</span>
-<span id="44">44</span>
-<span id="45">45</span>
-<span id="46">46</span>
-<span id="47">47</span>
-<span id="48">48</span>
 </pre><pre class="rust"><code><span class="doccomment">//! Resolves a module up to a fixed $(s, t)$ and prints an ASCII depiction of the Ext groups:</span>
 <span class="doccomment">//! ```text</span>
 <span class="doccomment">//! ·                                     ·</span>
@@ -108,14 +101,7 @@
     <span class="kw">let</span> <span class="ident">max_s</span> <span class="op">=</span> <span class="ident">query::with_default</span>(<span class="string">&quot;Max s&quot;</span>, <span class="string">&quot;15&quot;</span>, <span class="ident">str::parse</span>);
     <span class="kw">let</span> <span class="ident">max_t</span> <span class="op">=</span> <span class="ident">query::with_default</span>(<span class="string">&quot;Max t&quot;</span>, <span class="string">&quot;30&quot;</span>, <span class="ident">str::parse</span>);
 
-    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>))]</span>
     <span class="ident">res</span>.<span class="ident">compute_through_bidegree</span>(<span class="ident">max_s</span>, <span class="ident">max_t</span>);
-
-    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
-    {
-        <span class="kw">let</span> <span class="ident">bucket</span> <span class="op">=</span> <span class="ident">ext::utils::query_bucket</span>();
-        <span class="ident">res</span>.<span class="ident">compute_through_bidegree_concurrent</span>(<span class="ident">max_s</span>, <span class="ident">max_t</span>, <span class="kw-2">&amp;</span><span class="ident">bucket</span>);
-    }
 
     <span class="macro">println!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">res</span>.<span class="ident">graded_dimension_string</span>());
     <span class="prelude-val">Ok</span>(())

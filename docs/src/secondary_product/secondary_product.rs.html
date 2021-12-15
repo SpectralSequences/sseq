@@ -202,21 +202,6 @@
 <span id="176">176</span>
 <span id="177">177</span>
 <span id="178">178</span>
-<span id="179">179</span>
-<span id="180">180</span>
-<span id="181">181</span>
-<span id="182">182</span>
-<span id="183">183</span>
-<span id="184">184</span>
-<span id="185">185</span>
-<span id="186">186</span>
-<span id="187">187</span>
-<span id="188">188</span>
-<span id="189">189</span>
-<span id="190">190</span>
-<span id="191">191</span>
-<span id="192">192</span>
-<span id="193">193</span>
 </pre><pre class="rust"><code><span class="doccomment">//! Computes products in $\Mod_{C\tau^2}$.</span>
 
 <span class="kw">use</span> <span class="ident">std::path::PathBuf</span>;
@@ -232,17 +217,10 @@
 <span class="kw">use</span> <span class="ident">ext::utils::query_module</span>;
 
 <span class="kw">fn</span> <span class="ident">main</span>() -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-    <span class="kw">let</span> <span class="ident">data</span> <span class="op">=</span> <span class="ident">query_module</span>(
+    <span class="kw">let</span> <span class="ident">resolution</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">query_module</span>(
         <span class="prelude-val">Some</span>(<span class="ident">algebra::AlgebraType::Milnor</span>),
         <span class="ident">ext::utils::LoadQuasiInverseOption::IfNoSave</span>,
-    )<span class="question-mark">?</span>;
-
-    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
-    <span class="ident">rayon::ThreadPoolBuilder::new</span>()
-        .<span class="ident">num_threads</span>(<span class="ident">data</span>.<span class="ident">bucket</span>.<span class="ident">max_threads</span>.<span class="ident">into</span>())
-        .<span class="ident">build_global</span>()<span class="question-mark">?</span>;
-
-    <span class="kw">let</span> <span class="ident">resolution</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">data</span>.<span class="ident">resolution</span>);
+    )<span class="question-mark">?</span>);
 
     <span class="kw">let</span> <span class="ident">is_unit</span> <span class="op">=</span>
         <span class="ident">resolution</span>.<span class="ident">complex</span>().<span class="ident">modules</span>.<span class="ident">len</span>() <span class="op">==</span> <span class="number">1</span> <span class="op">&amp;&amp;</span> <span class="ident">resolution</span>.<span class="ident">complex</span>().<span class="ident">module</span>(<span class="number">0</span>).<span class="ident">is_unit</span>();
@@ -295,14 +273,6 @@
     }
 
     <span class="kw">if</span> <span class="op">!</span><span class="ident">is_unit</span> {
-        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
-        <span class="ident">unit</span>.<span class="ident">compute_through_stem_concurrent</span>(
-            <span class="ident">resolution</span>.<span class="ident">next_homological_degree</span>() <span class="op">-</span> <span class="number">1</span> <span class="op">-</span> <span class="ident">shift_s</span>,
-            <span class="ident">resolution</span>.<span class="ident">module</span>(<span class="number">0</span>).<span class="ident">max_computed_degree</span>() <span class="op">-</span> <span class="ident">shift_n</span>,
-            <span class="kw-2">&amp;</span><span class="ident">data</span>.<span class="ident">bucket</span>,
-        );
-
-        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>))]</span>
         <span class="ident">unit</span>.<span class="ident">compute_through_stem</span>(
             <span class="ident">resolution</span>.<span class="ident">next_homological_degree</span>() <span class="op">-</span> <span class="number">1</span> <span class="op">-</span> <span class="ident">shift_s</span>,
             <span class="ident">resolution</span>.<span class="ident">module</span>(<span class="number">0</span>).<span class="ident">max_computed_degree</span>() <span class="op">-</span> <span class="ident">shift_n</span>,

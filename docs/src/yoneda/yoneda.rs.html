@@ -126,13 +126,6 @@
 <span id="100">100</span>
 <span id="101">101</span>
 <span id="102">102</span>
-<span id="103">103</span>
-<span id="104">104</span>
-<span id="105">105</span>
-<span id="106">106</span>
-<span id="107">107</span>
-<span id="108">108</span>
-<span id="109">109</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">algebra::module::homomorphism</span>::{<span class="ident">FiniteModuleHomomorphism</span>, <span class="ident">IdentityHomomorphism</span>};
 <span class="kw">use</span> <span class="ident">algebra::module</span>::{<span class="ident">BoundedModule</span>, <span class="ident">Module</span>};
 <span class="kw">use</span> <span class="ident">ext::chain_complex</span>::{<span class="ident">ChainComplex</span>, <span class="ident">FreeChainComplex</span>};
@@ -153,9 +146,6 @@
     <span class="kw">let</span> <span class="ident">module</span> <span class="op">=</span> <span class="ident">resolution</span>.<span class="ident">complex</span>().<span class="ident">module</span>(<span class="number">0</span>);
     <span class="kw">let</span> <span class="ident">min_degree</span> <span class="op">=</span> <span class="ident">resolution</span>.<span class="ident">min_degree</span>();
 
-    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
-    <span class="kw">let</span> <span class="ident">bucket</span> <span class="op">=</span> <span class="ident">ext::utils::query_bucket</span>();
-
     <span class="kw">let</span> <span class="ident">x</span>: <span class="ident">i32</span> <span class="op">=</span> <span class="ident">query::with_default</span>(<span class="string">&quot;t - s&quot;</span>, <span class="string">&quot;20&quot;</span>, <span class="ident">str::parse</span>);
     <span class="kw">let</span> <span class="ident">s</span>: <span class="ident">u32</span> <span class="op">=</span> <span class="ident">query::with_default</span>(<span class="string">&quot;s&quot;</span>, <span class="string">&quot;4&quot;</span>, <span class="ident">str::parse</span>);
     <span class="kw">let</span> <span class="ident">i</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="ident">query::with_default</span>(<span class="string">&quot;idx&quot;</span>, <span class="string">&quot;0&quot;</span>, <span class="ident">str::parse</span>);
@@ -163,11 +153,7 @@
     <span class="kw">let</span> <span class="ident">start</span> <span class="op">=</span> <span class="ident">Instant::now</span>();
     <span class="kw">let</span> <span class="ident">t</span> <span class="op">=</span> <span class="ident">x</span> <span class="op">+</span> <span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span>;
 
-    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>))]</span>
     <span class="ident">resolution</span>.<span class="ident">compute_through_bidegree</span>(<span class="ident">s</span> <span class="op">+</span> <span class="number">1</span>, <span class="ident">t</span> <span class="op">+</span> <span class="number">1</span>);
-
-    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
-    <span class="ident">resolution</span>.<span class="ident">compute_through_bidegree_concurrent</span>(<span class="ident">s</span> <span class="op">+</span> <span class="number">1</span>, <span class="ident">t</span> <span class="op">+</span> <span class="number">1</span>, <span class="kw-2">&amp;</span><span class="ident">bucket</span>);
 
     <span class="macro">eprintln!</span>(<span class="string">&quot;Resolving time: {:?}&quot;</span>, <span class="ident">start</span>.<span class="ident">elapsed</span>());
 
