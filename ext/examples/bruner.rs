@@ -292,19 +292,12 @@ fn main() {
     let data_dir = Path::new(file!()).parent().unwrap().join("bruner_data");
     let max_n: i32 = query::with_default("Max n", "20", str::parse);
 
-    #[cfg(feature = "concurrent")]
-    let bucket = ext::utils::query_bucket();
-
     // Read in Bruner's resolution
     let (max_s, cc) = read_bruner_resolution(data_dir, max_n).unwrap();
     let cc = Arc::new(cc);
 
     let resolution = construct("S_2@milnor", None).unwrap();
 
-    #[cfg(feature = "concurrent")]
-    resolution.compute_through_stem_concurrent(max_s, max_n, &bucket);
-
-    #[cfg(not(feature = "concurrent"))]
     resolution.compute_through_stem(max_s, max_n);
 
     let resolution = Arc::new(resolution);

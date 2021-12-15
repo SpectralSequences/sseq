@@ -13,8 +13,7 @@ fn test_iterate(
     let json = load_module_json(module_name).unwrap();
 
     let first = construct((json.clone(), algebra), None).unwrap();
-    #[allow(clippy::redundant_clone)]
-    let second = construct((json.clone(), algebra), None).unwrap();
+    let second = construct((json, algebra), None).unwrap();
 
     first.compute_through_bidegree(20, 20);
 
@@ -31,24 +30,4 @@ fn test_iterate(
         first.graded_dimension_string(),
         second.graded_dimension_string()
     );
-
-    #[cfg(feature = "concurrent")]
-    {
-        let bucket = thread_token::TokenBucket::default();
-        let third = construct((json, algebra), None).unwrap();
-
-        third.compute_through_bidegree_concurrent(0, 0, &bucket);
-        third.compute_through_bidegree_concurrent(5, 5, &bucket);
-        third.compute_through_bidegree_concurrent(10, 7, &bucket);
-        third.compute_through_bidegree_concurrent(7, 10, &bucket);
-        third.compute_through_bidegree_concurrent(18, 18, &bucket);
-        third.compute_through_bidegree_concurrent(14, 14, &bucket);
-        third.compute_through_bidegree_concurrent(15, 15, &bucket);
-        third.compute_through_bidegree_concurrent(20, 20, &bucket);
-
-        assert_eq!(
-            first.graded_dimension_string(),
-            third.graded_dimension_string()
-        );
-    }
 }

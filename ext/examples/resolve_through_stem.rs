@@ -39,14 +39,7 @@ fn main() -> anyhow::Result<()> {
     let max_s = query::with_default("Max s", "15", str::parse);
     let max_n = query::with_default("Max n", "30", str::parse);
 
-    #[cfg(not(feature = "concurrent"))]
     res.compute_through_stem(max_s, max_n);
-
-    #[cfg(feature = "concurrent")]
-    {
-        let bucket = ext::utils::query_bucket();
-        res.compute_through_stem_concurrent(max_s, max_n, &bucket);
-    }
 
     println!("{}", res.graded_dimension_string());
 

@@ -14,7 +14,6 @@ ext = { path = "../../ext", default-features = false }
 fp = { path = "../../ext/crates/fp", features = ["json"], default-features = false }
 once = { path = "../../ext/crates/once" }
 sseq = { path = "../../ext/crates/sseq", default-features = false }
-thread-token = { path = "../../ext/crates/thread-token", optional = true }
 
 anyhow = "1.0.0"
 enum_dispatch = "0.3"
@@ -40,7 +39,7 @@ query = { path = "../../ext/crates/query" }
 default = ["odd-primes"]
 cache-multiplication = ["ext/cache-multiplication"]
 odd-primes = ["ext/odd-primes"]
-concurrent = ["thread-token", "ext/concurrent"]
+concurrent = ["ext/concurrent"]
 
 [lib]
 crate-type = ["cdylib", "rlib"]

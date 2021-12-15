@@ -21,7 +21,8 @@
 //!    time, but results in a much faster binary. This also disables some expensive
 //!    run-time sanity checks.
 //!  - `--no-default-features` disables support for odd primes.
-//!  - `--features concurrent` compiles the program with multi-threading support.
+//!  - `--features concurrent` compiles the program with multi-threading support. It defaults to
+//!    using all CPU cores, and can be configured via `RAYON_NUM_THREADS`.
 //!
 //! These are supplied right after `cargo run`, in any order. In general, one
 //! should set all of these flags for any non-trivial calculation at the prime 2.
@@ -34,7 +35,6 @@
 //!  $ cargo run --features concurrent --example filtration_one
 //! Module (default: S_2): C2
 //! Resolution save file (optional):
-//! Number of threads (default: 2):
 //! Max s (default: 7): 20
 //! Max f (default: 30): 40
 //! ```
@@ -60,15 +60,6 @@
 //! ```
 //!
 //! ## Conventions
-//! ### Number of threads
-//! The "number of threads" argument is a special case. One can supply it by
-//! setting the `EXT_THREADS` environment variable. If a valid value is set, then
-//! the user is not prompted for input.
-//!
-//! The rationale for this behaviour is that this option is only present with
-//! `concurrent` is enabled. By allowing users to set this via an environment
-//! variable, the same arguments can be supplied to concurrent and non-concurrent
-//! versions.
 //!
 //! ### Module specification
 //! Each Steenrod module is defined in a `json` file, and a collection of such

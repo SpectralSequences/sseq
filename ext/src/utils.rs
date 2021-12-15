@@ -238,12 +238,6 @@ pub fn print_resolution_color<C: FreeChainComplex, S: std::hash::BuildHasher>(
     }
 }
 
-pub struct QueryModuleResult {
-    pub resolution: Resolution<CCC>,
-    #[cfg(feature = "concurrent")]
-    pub bucket: thread_token::TokenBucket,
-}
-
 pub fn query_module_only(
     prompt: &str,
     algebra: Option<AlgebraType>,
@@ -281,7 +275,7 @@ impl From<bool> for LoadQuasiInverseOption {
 pub fn query_module(
     algebra: Option<AlgebraType>,
     load_quasi_inverse: impl Into<LoadQuasiInverseOption>,
-) -> anyhow::Result<QueryModuleResult> {
+) -> anyhow::Result<Resolution<CCC>> {
     let mut resolution = query_module_only("Module", algebra)?;
     resolution.load_quasi_inverse = match load_quasi_inverse.into() {
         LoadQuasiInverseOption::Yes => true,
@@ -289,44 +283,12 @@ pub fn query_module(
         LoadQuasiInverseOption::IfNoSave => resolution.save_dir().is_none(),
     };
 
-    #[cfg(feature = "concurrent")]
-    let bucket = query_bucket();
-
     let max_s: u32 = query::with_default("Max s", "7", str::parse);
     let max_n: i32 = query::with_default("Max n", "30", str::parse);
 
-    #[cfg(not(feature = "concurrent"))]
     resolution.compute_through_stem(max_s, max_n);
 
-    #[cfg(feature = "concurrent")]
-    resolution.compute_through_stem_concurrent(max_s, max_n, &bucket);
-
-    Ok(QueryModuleResult {
-        resolution,
-        #[cfg(feature = "concurrent")]
-        bucket,
-    })
-}
-
-#[cfg(feature = "concurrent")]
-pub fn query_num_threads() -> core::num::NonZeroUsize {
-    use std::env;
-
-    match env::var("EXT_THREADS") {
-        Ok(n) => match n.parse::<core::num::NonZeroUsize>() {
-            Ok(n) => return n,
-            Err(_) => eprintln!("Invalid value of EXT_THREADS variable: {n}"),
-        },
-        Err(env::VarError::NotUnicode(_)) => eprintln!("Invalid value of EXT_THREADS variable"),
-        Err(env::VarError::NotPresent) => (),
-    };
-
-    query::with_default("Number of threads", "2", str::parse)
-}
-
-#[cfg(feature = "concurrent")]
-pub fn query_bucket() -> thread_token::TokenBucket {
-    thread_token::TokenBucket::new(query_num_threads())
+    Ok(resolution)
 }
 
 /// Prints an element in the bidegree `(n, s)` to stdout. For example, `[0, 2, 1]` will be printed

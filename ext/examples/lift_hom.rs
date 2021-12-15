@@ -72,35 +72,14 @@ fn main() -> anyhow::Result<()> {
     let shift_n: i32 = query::with_default("n of Ext class", "0", str::parse);
     let shift_t = shift_n + shift_s as i32;
 
-    #[cfg(feature = "concurrent")]
-    let bucket = ext::utils::query_bucket();
-
-    #[cfg(feature = "concurrent")]
-    rayon::ThreadPoolBuilder::new()
-        .num_threads(bucket.max_threads.into())
-        .build_global()?;
-
     let s: u32 = query::with_default("Max target s", "10", str::parse);
     let n: i32 = query::with_default("Max target n", "10", str::parse);
 
     if source_equal_target {
-        #[cfg(feature = "concurrent")]
-        target.compute_through_stem_concurrent(s + shift_s, n + std::cmp::max(0, shift_n), &bucket);
-
-        #[cfg(not(feature = "concurrent"))]
         target.compute_through_stem(s + shift_s, n + std::cmp::max(0, shift_n));
     } else {
-        #[cfg(feature = "concurrent")]
-        {
-            source.compute_through_stem_concurrent(s + shift_s, n + shift_n, &bucket);
-            target.compute_through_stem_concurrent(s, n, &bucket);
-        }
-
-        #[cfg(not(feature = "concurrent"))]
-        {
-            source.compute_through_stem(s + shift_s, n + shift_n);
-            target.compute_through_stem(s, n);
-        }
+        source.compute_through_stem(s + shift_s, n + shift_n);
+        target.compute_through_stem(s, n);
     }
 
     let target_module = target.complex().module(0);

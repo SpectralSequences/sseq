@@ -19,7 +19,12 @@ pub struct TokenBucket {
 impl Default for TokenBucket {
     /// The default value of TokenBucket has two threads.
     fn default() -> Self {
-        Self::new(NonZeroUsize::new(2).unwrap())
+        // We use however many threads rayon would have used
+        let num_threads = rayon::ThreadPoolBuilder::new()
+            .build()
+            .unwrap()
+            .current_num_threads();
+        Self::new(NonZeroUsize::new(num_threads).unwrap())
     }
 }
 

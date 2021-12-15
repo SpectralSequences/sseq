@@ -9,25 +9,7 @@ use ext::CCC;
 
 use serde_json::{json, Value};
 
-#[cfg(feature = "concurrent")]
-use {core::num::NonZeroUsize, thread_token::TokenBucket};
-
 use crate::Sender;
-
-#[cfg(feature = "concurrent")]
-fn num_threads() -> NonZeroUsize {
-    use std::env;
-
-    match env::var("EXT_THREADS") {
-        Ok(n) => match n.parse::<core::num::NonZeroUsize>() {
-            Ok(n) => return n,
-            Err(_) => eprintln!("Invalid value of EXT_THREADS variable: {}", n),
-        },
-        Err(env::VarError::NotUnicode(_)) => eprintln!("Invalid value of EXT_THREADS variable"),
-        Err(env::VarError::NotPresent) => (),
-    }
-    core::num::NonZeroUsize::new(2).unwrap()
-}
 
 /// ResolutionManager is a struct that manipulates a Resolution. It is constructed with a "sender"
 /// which is used to relay the results of the computation. This sender should send all messages to
@@ -39,8 +21,6 @@ fn num_threads() -> NonZeroUsize {
 ///  products etc.
 ///  * `resolution` : The resolution object itself.
 pub struct ResolutionManager {
-    #[cfg(feature = "concurrent")]
-    bucket: TokenBucket,
     sender: Sender,
     is_unit: bool,
     resolved: bool,
@@ -54,9 +34,6 @@ impl ResolutionManager {
     ///  * `sender` - The `sender` object to send messages to.
     pub fn new(sender: Sender) -> Self {
         ResolutionManager {
-            #[cfg(feature = "concurrent")]
-            bucket: TokenBucket::new(num_threads()),
-
             sender,
             resolution: None,
             is_unit: false,
@@ -184,11 +161,7 @@ impl ResolutionManager {
             self.resolved = true;
         }
 
-        #[cfg(not(feature = "concurrent"))]
         resolution.compute_through_degree(action.max_degree);
-
-        #[cfg(feature = "concurrent")]
-        resolution.compute_through_degree_concurrent(action.max_degree, &self.bucket);
 
         Ok(())
     }

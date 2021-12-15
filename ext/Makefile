@@ -33,13 +33,13 @@ examples/benchmarks/%-fixed: dummy
 
 benchmarks: $(wildcard examples/benchmarks/*)
 examples/benchmarks/%: dummy
-	(head -n 1 $@ && bash -c "echo '' | EXT_THREADS=2 cargo run --example $$(head -n 1 $@)") | diff --color $@ -
+	(head -n 1 $@ && bash -c "echo '' | cargo run --example $$(head -n 1 $@)") | diff --color $@ -
 
 benchmarks-concurrent: $(patsubst examples/benchmarks/%, examples/benchmarks/%-concurrent, $(wildcard examples/benchmarks/*))
 
 examples/benchmarks/%-concurrent: FILE = examples/benchmarks/$*
 examples/benchmarks/%-concurrent: dummy
-	(head -n 1 $(FILE) && bash -c "echo '' | EXT_THREADS=2 cargo run --features concurrent --example $$(head -n 1 $(FILE))") | diff --color $(FILE) -
+	(head -n 1 $(FILE) && bash -c "echo '' | cargo run --features concurrent --example $$(head -n 1 $(FILE))") | diff --color $(FILE) -
 
 miri:
 	cargo miri test -p once

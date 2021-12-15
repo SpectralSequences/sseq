@@ -18,7 +18,7 @@ fn parse_vec(s: &str) -> Result<Vec<u32>, core::num::ParseIntError> {
 }
 
 fn main() -> anyhow::Result<()> {
-    let resolution = Arc::new(ext::utils::query_module(None, true)?.resolution);
+    let resolution = Arc::new(ext::utils::query_module(None, true)?);
     let p = resolution.prime();
 
     let (is_unit, unit) = if resolution.complex().module(0).is_unit() {

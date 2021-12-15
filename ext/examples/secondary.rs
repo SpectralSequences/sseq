@@ -27,17 +27,10 @@ use ext::secondary::*;
 use ext::utils::query_module;
 
 fn main() -> anyhow::Result<()> {
-    let data = query_module(
+    let resolution = Arc::new(query_module(
         Some(algebra::AlgebraType::Milnor),
         ext::utils::LoadQuasiInverseOption::IfNoSave,
-    )?;
-
-    #[cfg(feature = "concurrent")]
-    rayon::ThreadPoolBuilder::new()
-        .num_threads(data.bucket.max_threads.into())
-        .build_global()?;
-
-    let resolution = Arc::new(data.resolution);
+    )?);
 
     if !can_compute(&resolution) {
         eprintln!(

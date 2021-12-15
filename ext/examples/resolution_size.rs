@@ -3,7 +3,7 @@ use ext::chain_complex::ChainComplex;
 use ext::utils::query_module;
 
 fn main() -> anyhow::Result<()> {
-    let res = query_module(None, false)?.resolution;
+    let res = query_module(None, false)?;
 
     for s in (0..res.next_homological_degree()).rev() {
         let module = res.module(s);

@@ -31,7 +31,7 @@ fn main() -> anyhow::Result<()> {
 
     let p = ValidPrime::new(2);
     #[cfg(feature = "concurrent")]
-    let bucket = Arc::new(ext::utils::query_bucket());
+    let bucket = Arc::new(thread_token::TokenBucket::default());
 
     let x: i32 = query::with_default("t - s", "8", str::parse);
     let s: u32 = query::with_default("s", "3", str::parse);
@@ -41,10 +41,6 @@ fn main() -> anyhow::Result<()> {
     eprint!("Resolving ext: ");
     let start = Instant::now();
 
-    #[cfg(feature = "concurrent")]
-    resolution.compute_through_bidegree_concurrent(2 * s, 2 * t, &bucket);
-
-    #[cfg(not(feature = "concurrent"))]
     resolution.compute_through_bidegree(2 * s, 2 * t);
 
     eprintln!("{:?}", start.elapsed());

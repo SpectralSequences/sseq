@@ -4,7 +4,7 @@ use ext::chain_complex::ChainComplex;
 use ext::utils::query_module;
 
 fn main() -> anyhow::Result<()> {
-    let resolution = query_module(None, false)?.resolution;
+    let resolution = query_module(None, false)?;
 
     for (s, n, t) in resolution.iter_stem() {
         for i in 0..resolution.module(s).number_of_gens_in_degree(t) {

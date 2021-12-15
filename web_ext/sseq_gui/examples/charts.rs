@@ -26,9 +26,6 @@ fn main() -> anyhow::Result<()> {
         std::result::Result::<PathBuf, std::convert::Infallible>::Ok(PathBuf::from(s))
     });
 
-    #[cfg(feature = "concurrent")]
-    let bucket = ext::utils::query_bucket();
-
     let resolution = construct(
         (&*module_file_name, algebra::AlgebraType::Milnor),
         save_file,
@@ -38,11 +35,7 @@ fn main() -> anyhow::Result<()> {
         print!("Resolving module: ");
         let start = Instant::now();
 
-        #[cfg(not(feature = "concurrent"))]
         resolution.compute_through_bidegree(max_s, max_t);
-
-        #[cfg(feature = "concurrent")]
-        resolution.compute_through_bidegree_concurrent(max_s, max_t, &bucket);
 
         println!("{:.2?}", start.elapsed());
     }

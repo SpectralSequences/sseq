@@ -18,9 +18,6 @@ fn main() -> anyhow::Result<()> {
     let module = resolution.complex().module(0);
     let min_degree = resolution.min_degree();
 
-    #[cfg(feature = "concurrent")]
-    let bucket = ext::utils::query_bucket();
-
     let x: i32 = query::with_default("t - s", "20", str::parse);
     let s: u32 = query::with_default("s", "4", str::parse);
     let i: usize = query::with_default("idx", "0", str::parse);
@@ -28,11 +25,7 @@ fn main() -> anyhow::Result<()> {
     let start = Instant::now();
     let t = x + s as i32;
 
-    #[cfg(not(feature = "concurrent"))]
     resolution.compute_through_bidegree(s + 1, t + 1);
-
-    #[cfg(feature = "concurrent")]
-    resolution.compute_through_bidegree_concurrent(s + 1, t + 1, &bucket);
 
     eprintln!("Resolving time: {:?}", start.elapsed());
 

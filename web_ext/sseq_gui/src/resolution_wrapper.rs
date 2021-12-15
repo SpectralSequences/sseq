@@ -12,9 +12,6 @@ use fp::matrix::Matrix;
 use fp::prime::ValidPrime;
 use once::{OnceBiVec, OnceVec};
 
-#[cfg(feature = "concurrent")]
-use thread_token::TokenBucket;
-
 use ext::resolution_homomorphism::ResolutionHomomorphism as ResolutionHomomorphism_;
 pub type ResolutionHomomorphism<CC> =
     ResolutionHomomorphism_<ResolutionInner<CC>, ResolutionInner<CC>>;
@@ -137,19 +134,6 @@ impl<CC: ChainComplex> Resolution<CC> {
         }
     }
 
-    #[cfg(feature = "concurrent")]
-    pub fn compute_through_bidegree_concurrent(&self, s: u32, t: i32, bucket: &TokenBucket) {
-        // If products were defined through the module specification, the unit resolution might not
-        // have been resolved yet
-        if let UnitResolution::Some(r) = &self.unit_resolution {
-            r.compute_through_bidegree_concurrent(self.max_product_s, self.max_product_t, bucket);
-        }
-        self.inner
-            .compute_through_bidegree_concurrent_with_callback(s, t, bucket, |s, t| {
-                self.step_after(s, t)
-            });
-    }
-
     pub fn compute_through_bidegree(&self, s: u32, t: i32) {
         // If products were defined through the module specification, the unit resolution might not
         // have been resolved yet
@@ -158,11 +142,6 @@ impl<CC: ChainComplex> Resolution<CC> {
         }
         self.inner
             .compute_through_bidegree_with_callback(s, t, |s, t| self.step_after(s, t));
-    }
-
-    #[cfg(feature = "concurrent")]
-    pub fn compute_through_degree_concurrent(&self, degree: i32, bucket: &TokenBucket) {
-        self.compute_through_bidegree_concurrent(degree as u32, degree, bucket);
     }
 
     pub fn compute_through_degree(&self, degree: i32) {

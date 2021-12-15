@@ -17,10 +17,10 @@ use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use dashmap::DashMap;
 
 #[cfg(feature = "concurrent")]
-use crossbeam_channel::{unbounded, Receiver};
-
-#[cfg(feature = "concurrent")]
-use thread_token::TokenBucket;
+use {
+    crossbeam_channel::{unbounded, Receiver},
+    thread_token::TokenBucket,
+};
 
 /// This is the maximum number of new generators we expect in each bidegree. This affects how much
 /// space we allocate when we are extending our resolutions. Having more than this many new
@@ -655,13 +655,14 @@ impl<CC: ChainComplex> Resolution<CC> {
     }
 
     #[cfg(feature = "concurrent")]
-    pub fn compute_through_bidegree_concurrent_with_callback(
+    pub fn compute_through_bidegree_with_callback(
         &self,
         max_s: u32,
         max_t: i32,
-        bucket: &TokenBucket,
         mut cb: impl FnMut(u32, i32),
     ) {
+        let bucket = TokenBucket::default();
+        let bucket = &bucket;
         let min_degree = self.min_degree();
         let _lock = self.lock.lock();
 
@@ -704,6 +705,7 @@ impl<CC: ChainComplex> Resolution<CC> {
         .unwrap();
     }
 
+    #[cfg(not(feature = "concurrent"))]
     pub fn compute_through_bidegree_with_callback(
         &self,
         max_s: u32,
@@ -730,6 +732,7 @@ impl<CC: ChainComplex> Resolution<CC> {
 
     /// This function resolves up till a fixed stem instead of a fixed t. It is an error to
     /// attempt to resolve further after this is called, and will result in a deadlock.
+    #[cfg(not(feature = "concurrent"))]
     pub fn compute_through_stem(&self, max_s: u32, max_n: i32) {
         let min_degree = self.min_degree();
         let _lock = self.lock.lock();
@@ -751,7 +754,9 @@ impl<CC: ChainComplex> Resolution<CC> {
 
     /// A concurrent version of [`Resolution::compute_through_stem`]
     #[cfg(feature = "concurrent")]
-    pub fn compute_through_stem_concurrent(&self, max_s: u32, max_n: i32, bucket: &TokenBucket) {
+    pub fn compute_through_stem(&self, max_s: u32, max_n: i32) {
+        let bucket = TokenBucket::default();
+        let bucket = &bucket;
         let min_degree = self.min_degree();
         let _lock = self.lock.lock();
         let max_t = max_s as i32 + max_n;
@@ -855,11 +860,6 @@ impl<CC: ChainComplex> ChainComplex for Resolution<CC> {
         self.compute_through_bidegree_with_callback(s, t, |_, _| ())
     }
 
-    #[cfg(feature = "concurrent")]
-    fn compute_through_bidegree_concurrent(&self, max_s: u32, max_t: i32, bucket: &TokenBucket) {
-        self.compute_through_bidegree_concurrent_with_callback(max_s, max_t, bucket, |_, _| ())
-    }
-
     fn next_homological_degree(&self) -> u32 {
         self.modules.len() as u32
     }
@@ -915,18 +915,8 @@ mod test {
     #[test]
     fn test_restart_stem() {
         let res = construct("S_2", None).unwrap();
-        #[cfg(not(feature = "concurrent"))]
-        {
-            res.compute_through_stem(8, 14);
-            res.compute_through_bidegree(5, 19);
-        }
-
-        #[cfg(feature = "concurrent")]
-        {
-            let bucket = thread_token::TokenBucket::new(core::num::NonZeroUsize::new(2).unwrap());
-            res.compute_through_stem_concurrent(8, 14, &bucket);
-            res.compute_through_bidegree_concurrent(5, 19, &bucket);
-        }
+        res.compute_through_stem(8, 14);
+        res.compute_through_bidegree(5, 19);
 
         expect![[r#"
             ·                             

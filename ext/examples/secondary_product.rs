@@ -13,17 +13,10 @@ use ext::secondary::*;
 use ext::utils::query_module;
 
 fn main() -> anyhow::Result<()> {
-    let data = query_module(
+    let resolution = Arc::new(query_module(
         Some(algebra::AlgebraType::Milnor),
         ext::utils::LoadQuasiInverseOption::IfNoSave,
-    )?;
-
-    #[cfg(feature = "concurrent")]
-    rayon::ThreadPoolBuilder::new()
-        .num_threads(data.bucket.max_threads.into())
-        .build_global()?;
-
-    let resolution = Arc::new(data.resolution);
+    )?);
 
     let is_unit =
         resolution.complex().modules.len() == 1 && resolution.complex().module(0).is_unit();
@@ -76,14 +69,6 @@ fn main() -> anyhow::Result<()> {
     }
 
     if !is_unit {
-        #[cfg(feature = "concurrent")]
-        unit.compute_through_stem_concurrent(
-            resolution.next_homological_degree() - 1 - shift_s,
-            resolution.module(0).max_computed_degree() - shift_n,
-            &data.bucket,
-        );
-
-        #[cfg(not(feature = "concurrent"))]
         unit.compute_through_stem(
             resolution.next_homological_degree() - 1 - shift_s,
             resolution.module(0).max_computed_degree() - shift_n,
