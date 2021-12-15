@@ -5,7 +5,7 @@ use algebra::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
 use algebra::module::Module;
 use fp::prime::ValidPrime;
 use fp::vector::FpVector;
-use once::OnceVec;
+use once::OnceBiVec;
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -29,7 +29,7 @@ pub struct ChainHomotopy<
     right: Arc<ResolutionHomomorphism<T, U>>,
     lock: Mutex<()>,
     /// Homotopies, indexed by the filtration of the target of f - g.
-    homotopies: OnceVec<Arc<FreeModuleHomomorphism<U::Module>>>,
+    homotopies: OnceBiVec<Arc<FreeModuleHomomorphism<U::Module>>>,
     save_dir: Option<PathBuf>,
 }
 
@@ -59,10 +59,10 @@ impl<
 
         assert!(Arc::ptr_eq(&left.target, &right.source));
         Self {
+            homotopies: OnceBiVec::new((left.shift_s + right.shift_s) as i32 - 1),
             left,
             right,
             lock: Mutex::new(()),
-            homotopies: OnceVec::new(),
             save_dir,
         }
     }
@@ -106,7 +106,7 @@ impl<
                 self.left.source.module(s).max_computed_degree() + 1,
                 self.right
                     .target
-                    .module(s - self.shift_s() + 1)
+                    .module(s + 1 - self.shift_s())
                     .max_computed_degree()
                     + self.shift_t()
                     + 1,
@@ -116,32 +116,37 @@ impl<
         self.extend_profile(max_source_s, &max_source_t);
     }
 
+    /// Initialize self.homotopies to contain [`FreeModuleHomomorphisms`]s up to but excluding
+    /// `max_source_s`, which can be returned by [`Self::homotopy`]. This does not actually lift
+    /// the maps, which is done by [`Self::extend_all`] and [`Self::extend`].
+    fn initialize_homotopies(&self, max_source_s: u32) {
+        self.homotopies.extend(max_source_s as i32 - 1, |s| {
+            let s = s as u32;
+            Arc::new(FreeModuleHomomorphism::new(
+                self.left.source.module(s),
+                self.right.target.module(s + 1 - self.shift_s()),
+                self.shift_t(),
+            ))
+        });
+    }
+
     /// Exclusive bounds
     fn extend_profile(&self, max_source_s: u32, max_source_t: &(impl Fn(u32) -> i32 + Sync)) {
         let shift_s = self.shift_s();
-        let shift_t = self.shift_t();
 
-        if max_source_s == shift_s {
+        if max_source_s == shift_s - 1 {
             return;
         }
 
         let _lock = self.lock.lock();
 
-        self.homotopies
-            .extend((max_source_s - shift_s - 1) as usize, |s| {
-                let s = s as u32;
-                Arc::new(FreeModuleHomomorphism::new(
-                    self.left.source.module(s + shift_s),
-                    self.right.target.module(s + 1),
-                    shift_t,
-                ))
-            });
+        self.initialize_homotopies(max_source_s);
 
         #[cfg(not(feature = "concurrent"))]
         {
-            for source_s in shift_s..max_source_s {
-                for source_t in self.homotopies[(source_s - shift_s) as usize].next_degree()
-                    ..max_source_t(source_s)
+            for source_s in shift_s - 1..max_source_s {
+                for source_t in
+                    self.homotopies[source_s as i32].next_degree()..max_source_t(source_s)
                 {
                     self.extend_step(source_s, source_t);
                 }
@@ -152,12 +157,12 @@ impl<
         {
             let min_source_t = std::cmp::min(
                 self.left.source.min_degree(),
-                self.right.target.min_degree() + shift_t,
+                self.right.target.min_degree() + self.shift_t(),
             );
 
             crate::utils::iter_s_t(
                 &|s, t| self.extend_step(s, t),
-                shift_s,
+                shift_s - 1,
                 min_source_t,
                 max_source_s,
                 max_source_t,
@@ -169,10 +174,10 @@ impl<
         let p = self.prime();
         let shift_s = self.shift_s();
         let shift_t = self.shift_t();
-        let target_s = source_s - shift_s;
+        let target_s = source_s + 1 - shift_s;
         let target_t = source_t - shift_t;
 
-        if self.homotopies[target_s].next_degree() > source_t {
+        if self.homotopies[source_s as i32].next_degree() > source_t {
             return source_t..source_t + 1;
         }
 
@@ -182,11 +187,15 @@ impl<
             .module(source_s)
             .number_of_gens_in_degree(source_t);
 
-        let target_dim = self.right.target.module(target_s + 1).dimension(target_t);
+        let target_dim = self.right.target.module(target_s).dimension(target_t);
 
-        if target_dim == 0 || num_gens == 0 {
+        // Default to the zero homotopy for the bottom-most homotopy. For computing normal Massey
+        // products, any choice works, and it is conventional to choose zero. For secondary Massey
+        // products, this may have to be non-zero, in which case the user should manually set up
+        // these values.
+        if target_s == 0 || target_dim == 0 || num_gens == 0 {
             let outputs = vec![FpVector::new(p, target_dim); num_gens];
-            return self.homotopies[target_s as usize]
+            return self.homotopies[source_s as i32]
                 .add_generators_from_rows_ooo(source_t, outputs);
         }
 
@@ -201,15 +210,18 @@ impl<
                 for _ in 0..num_gens {
                     outputs.push(FpVector::from_bytes(p, target_dim, &mut f).unwrap());
                 }
-                return self.homotopies[target_s].add_generators_from_rows_ooo(source_t, outputs);
+                return self.homotopies[source_s as i32]
+                    .add_generators_from_rows_ooo(source_t, outputs);
             }
         }
 
         let mut outputs = vec![FpVector::new(p, target_dim); num_gens];
 
         let f = |i| {
-            let mut scratch =
-                FpVector::new(p, self.right.target.module(target_s).dimension(target_t));
+            let mut scratch = FpVector::new(
+                p,
+                self.right.target.module(target_s - 1).dimension(target_t),
+            );
             self.right.get_map(source_s - self.left.shift_s).apply(
                 scratch.as_slice_mut(),
                 1,
@@ -217,31 +229,29 @@ impl<
                 self.left.get_map(source_s).output(source_t, i).as_slice(),
             );
 
-            if target_s > 0 {
-                self.homotopies[target_s as usize - 1].apply(
-                    scratch.as_slice_mut(),
-                    *p - 1,
-                    source_t,
-                    self.left
-                        .source
-                        .differential(source_s)
-                        .output(source_t, i)
-                        .as_slice(),
-                );
-            }
+            self.homotopies[source_s as i32 - 1].apply(
+                scratch.as_slice_mut(),
+                *p - 1,
+                source_t,
+                self.left
+                    .source
+                    .differential(source_s)
+                    .output(source_t, i)
+                    .as_slice(),
+            );
 
             #[cfg(debug_assertions)]
-            if target_s > 0
+            if target_s > 1
                 && self
                     .right
                     .target
-                    .has_computed_bidegree(target_s - 1, target_t)
+                    .has_computed_bidegree(target_s - 2, target_t)
             {
                 let mut r = FpVector::new(
                     p,
-                    self.right.target.module(target_s - 1).dimension(target_t),
+                    self.right.target.module(target_s - 2).dimension(target_t),
                 );
-                self.right.target.differential(target_s).apply(
+                self.right.target.differential(target_s - 1).apply(
                     r.as_slice_mut(),
                     1,
                     target_t,
@@ -250,7 +260,7 @@ impl<
                 assert!(
                     r.is_zero(),
                     "Failed to lift at (target_s, target_t) = ({}, {})",
-                    target_s,
+                    target_s - 1,
                     target_t
                 );
             }
@@ -266,7 +276,7 @@ impl<
 
         assert!(self.right.target.apply_quasi_inverse(
             &mut outputs,
-            target_s + 1,
+            target_s,
             target_t,
             &scratches,
         ));
@@ -281,11 +291,11 @@ impl<
                 row.to_bytes(&mut f).unwrap();
             }
         }
-        self.homotopies[target_s as usize].add_generators_from_rows_ooo(source_t, outputs)
+        self.homotopies[source_s as i32].add_generators_from_rows_ooo(source_t, outputs)
     }
 
     pub fn homotopy(&self, source_s: u32) -> Arc<FreeModuleHomomorphism<U::Module>> {
-        Arc::clone(&self.homotopies[(source_s - self.shift_s()) as usize])
+        Arc::clone(&self.homotopies[source_s as i32])
     }
 
     pub fn save_dir(&self) -> Option<&Path> {
