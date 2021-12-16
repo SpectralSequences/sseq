@@ -3,6 +3,8 @@ use crate::limb::{number, Limb};
 use crate::matrix::Matrix;
 use crate::simd;
 
+use itertools::Itertools;
+
 #[derive(Debug, Default)]
 /// M4RI works as follows --- first row reduce k rows using the naive algorithm. We then construct
 /// a table of all 2^k linear combinations of these rows. This can be done in O(2^k) time. We then
@@ -81,7 +83,7 @@ impl M4riTable {
     pub fn generate(&mut self, matrix: &Matrix) {
         let num_limbs = matrix[0].limbs().len();
         self.min_limb = usize::MAX;
-        for (n, (c, &r)) in self.columns.iter().zip(&self.rows).enumerate() {
+        for (n, (c, &r)) in self.columns.iter().zip_eq(&self.rows).enumerate() {
             let old_len = self.data.len();
             self.data.extend_from_slice(matrix[r].limbs());
             self.data.extend_from_within(..old_len);
@@ -97,7 +99,7 @@ impl M4riTable {
     }
 
     pub fn reduce_naive(&self, matrix: &mut Matrix, target: usize) {
-        for (&row, col) in self.rows.iter().zip(&self.columns) {
+        for (&row, col) in self.rows.iter().zip_eq(&self.columns) {
             assert!(target != row);
             unsafe {
                 let coef = (matrix[target].limbs()[col.0] >> col.1) & 1;

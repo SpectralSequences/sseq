@@ -12,6 +12,8 @@ use ext::resolution_homomorphism::ResolutionHomomorphism;
 use ext::secondary::*;
 use ext::utils::query_module;
 
+use itertools::Itertools;
+
 fn main() -> anyhow::Result<()> {
     let resolution = Arc::new(query_module(
         Some(algebra::AlgebraType::Milnor),
@@ -86,8 +88,8 @@ fn main() -> anyhow::Result<()> {
         let m = res_lift.homotopy(shift_s + 2).homotopies.hom_k(shift_t);
         assert_eq!(m.len(), v.len());
         let mut sum = vec![0; m[0].len()];
-        for (x, d2) in v.iter().zip(&m) {
-            sum.iter_mut().zip(d2).for_each(|(a, b)| *a += x * b);
+        for (x, d2) in v.iter().zip_eq(&m) {
+            sum.iter_mut().zip_eq(d2).for_each(|(a, b)| *a += x * b);
         }
         assert!(
             sum.iter().all(|x| x % *p == 0),
@@ -158,13 +160,13 @@ fn main() -> anyhow::Result<()> {
             vec![FpVector::new(p, target_num_gens + tau_num_gens); page_data.subspace_dimension()];
 
         hom_lift.hom_k(
-            &res_sseq,
+            Some(&res_sseq),
             s,
             t,
             page_data.subspace_gens().map(|x| x.as_slice()),
             outputs.iter_mut().map(|x| x.as_slice_mut()),
         );
-        for (gen, output) in page_data.subspace_gens().zip(outputs) {
+        for (gen, output) in page_data.subspace_gens().zip_eq(outputs) {
             print!("{name} ");
             ext::utils::print_element(gen.as_slice(), n, s);
             println!(

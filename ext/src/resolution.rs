@@ -16,6 +16,8 @@ use anyhow::Context;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use dashmap::DashMap;
 
+use itertools::Itertools;
+
 #[cfg(feature = "concurrent")]
 use {
     crossbeam_channel::{unbounded, Receiver},
@@ -872,7 +874,7 @@ impl<CC: ChainComplex> ChainComplex for Resolution<CC> {
         assert_eq!(results.len(), inputs.len());
 
         if let Some(qi) = self.differential(s).quasi_inverse(t) {
-            for (input, result) in inputs.iter().zip(results) {
+            for (input, result) in inputs.iter().zip_eq(results) {
                 qi.apply(result.into(), 1, input.into());
             }
             true

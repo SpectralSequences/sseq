@@ -11,6 +11,8 @@ use std::ops::Range;
 
 use crate::simd;
 
+use itertools::Itertools;
+
 /// An `FpVectorP` is a vector over $\mathbb{F}_p$ for a fixed prime, implemented using const
 /// generics. Due to limitations with const generics, we cannot constrain P to actually be a prime,
 /// so we allow it to be any u32. However, most functions will panic if P is not a prime.
@@ -158,7 +160,7 @@ impl<const P: u32> FpVectorP<P> {
                 simd::add_simd(&mut self.limbs, &other.limbs, min_limb);
             }
         } else {
-            for (left, right) in self.limbs.iter_mut().zip(&other.limbs).skip(min_limb) {
+            for (left, right) in self.limbs.iter_mut().zip_eq(&other.limbs).skip(min_limb) {
                 *left = limb::add::<P>(*left, *right, c);
             }
             for limb in &mut self.limbs[min_limb..] {
@@ -179,7 +181,7 @@ impl<const P: u32> FpVectorP<P> {
                 }
             }
         } else {
-            for (left, right) in self.limbs.iter_mut().zip(&other.limbs).skip(min_limb) {
+            for (left, right) in self.limbs.iter_mut().zip_eq(&other.limbs).skip(min_limb) {
                 *left = limb::add::<P>(*left, *right, c);
             }
             for limb in &mut self.limbs[min_limb..] {
@@ -282,7 +284,7 @@ impl<const P: u32> FpVectorP<P> {
     }
 
     pub fn add_truncate(&mut self, other: &Self, c: u32) -> Option<()> {
-        for (left, right) in self.limbs.iter_mut().zip(&other.limbs) {
+        for (left, right) in self.limbs.iter_mut().zip_eq(&other.limbs) {
             *left = limb::add::<P>(*left, *right, c);
             *left = limb::truncate::<P>(*left)?;
         }
@@ -701,7 +703,7 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
         if !source_inner_range.is_empty() {
             for (left, right) in self.limbs[target_inner_range]
                 .iter_mut()
-                .zip(&other.limbs[source_inner_range])
+                .zip_eq(&other.limbs[source_inner_range])
             {
                 *left = limb::add::<P>(*left, *right, c);
                 *left = limb::reduce::<P>(*left);

@@ -11,6 +11,8 @@ use fp::prime::ValidPrime;
 use fp::vector::{FpVector, Slice, SliceMut};
 use std::sync::Arc;
 
+use itertools::Itertools;
+
 // pub use hom_complex::HomComplex;
 pub use chain_homotopy::ChainHomotopy;
 pub use finite_chain_complex::{FiniteAugmentedChainComplex, FiniteChainComplex};
@@ -226,7 +228,7 @@ pub trait ChainComplex: Send + Sync {
             return true;
         }
 
-        let mut iter = inputs.iter().zip(results);
+        let mut iter = inputs.iter().zip_eq(results);
         let (input, result) = iter.next().unwrap();
         let d = self.differential(s);
         if d.apply_quasi_inverse(result.into(), t, input.into()) {

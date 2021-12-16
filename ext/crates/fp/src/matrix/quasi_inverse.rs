@@ -4,6 +4,8 @@ use crate::vector::{FpVector, Slice, SliceMut};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::io::{Read, Write};
 
+use itertools::Itertools;
+
 /// Given a matrix M, a quasi-inverse Q is a map from the co-domain to the domain such that xQM = x
 /// for all x in the image (recall our matrices act on the right).
 ///
@@ -120,7 +122,7 @@ impl QuasiInverse {
                     *limb = Limb::from_le_bytes(bytes);
                 }
             }
-            for (input, result) in inputs.iter().zip(&mut *results) {
+            for (input, result) in inputs.iter().zip_eq(&mut *results) {
                 result.into().add(v.as_slice(), input.into().entry(i));
             }
         }

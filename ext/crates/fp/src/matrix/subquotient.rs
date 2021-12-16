@@ -3,6 +3,8 @@ use crate::matrix::Matrix;
 use crate::prime::ValidPrime;
 use crate::vector::{FpVector, Slice, SliceMut};
 
+use itertools::Itertools;
+
 #[derive(Clone)]
 pub struct Subquotient {
     gens: Subspace,
@@ -150,7 +152,7 @@ impl Subquotient {
         space
             .pivots()
             .iter()
-            .zip(subspace.pivots().iter())
+            .zip_eq(subspace.pivots().iter())
             .filter(|(x, y)| {
                 debug_assert!(**x >= 0 || **y < 0);
                 **x >= 0 && **y < 0
