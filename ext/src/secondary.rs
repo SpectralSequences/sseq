@@ -1074,6 +1074,7 @@ impl<
     }
 }
 
+#[doc(hidden)]
 pub struct SecondaryChainHomotopy<
     A: PairAlgebra,
     S: FreeChainComplex<Algebra = A>,
