@@ -238,11 +238,15 @@
 <span id="212">212</span>
 <span id="213">213</span>
 <span id="214">214</span>
+<span id="215">215</span>
+<span id="216">216</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident"><span class="kw">super</span>::Matrix</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::prime::ValidPrime</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::vector</span>::{<span class="ident">FpVector</span>, <span class="ident">Slice</span>, <span class="ident">SliceMut</span>};
 <span class="kw">use</span> <span class="ident">byteorder</span>::{<span class="ident">LittleEndian</span>, <span class="ident">ReadBytesExt</span>, <span class="ident">WriteBytesExt</span>};
 <span class="kw">use</span> <span class="ident">std::io</span>::{<span class="ident">Read</span>, <span class="ident">Write</span>};
+
+<span class="kw">use</span> <span class="ident">itertools::Itertools</span>;
 
 <span class="doccomment">/// Given a matrix M, a quasi-inverse Q is a map from the co-domain to the domain such that xQM = x</span>
 <span class="doccomment">/// for all x in the image (recall our matrices act on the right).</span>
@@ -360,7 +364,7 @@
                     <span class="kw-2">*</span><span class="ident">limb</span> <span class="op">=</span> <span class="ident">Limb::from_le_bytes</span>(<span class="ident">bytes</span>);
                 }
             }
-            <span class="kw">for</span> (<span class="ident">input</span>, <span class="ident">result</span>) <span class="kw">in</span> <span class="ident">inputs</span>.<span class="ident">iter</span>().<span class="ident">zip</span>(<span class="kw-2">&amp;mut</span> <span class="kw-2">*</span><span class="ident">results</span>) {
+            <span class="kw">for</span> (<span class="ident">input</span>, <span class="ident">result</span>) <span class="kw">in</span> <span class="ident">inputs</span>.<span class="ident">iter</span>().<span class="ident">zip_eq</span>(<span class="kw-2">&amp;mut</span> <span class="kw-2">*</span><span class="ident">results</span>) {
                 <span class="ident">result</span>.<span class="ident">into</span>().<span class="ident">add</span>(<span class="ident">v</span>.<span class="ident">as_slice</span>(), <span class="ident">input</span>.<span class="ident">into</span>().<span class="ident">entry</span>(<span class="ident">i</span>));
             }
         }

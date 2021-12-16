@@ -449,7 +449,7 @@
     <span class="doccomment">/// Initialize self.homotopies to contain [`FreeModuleHomomorphisms`]s up to but excluding</span>
     <span class="doccomment">/// `max_source_s`, which can be returned by [`Self::homotopy`]. This does not actually lift</span>
     <span class="doccomment">/// the maps, which is done by [`Self::extend_all`] and [`Self::extend`].</span>
-    <span class="kw">fn</span> <span class="ident">initialize_homotopies</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">max_source_s</span>: <span class="ident">u32</span>) {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">initialize_homotopies</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">max_source_s</span>: <span class="ident">u32</span>) {
         <span class="self">self</span>.<span class="ident">homotopies</span>.<span class="ident">extend</span>(<span class="ident">max_source_s</span> <span class="kw">as</span> <span class="ident">i32</span> <span class="op">-</span> <span class="number">1</span>, <span class="op">|</span><span class="ident">s</span><span class="op">|</span> {
             <span class="kw">let</span> <span class="ident">s</span> <span class="op">=</span> <span class="ident">s</span> <span class="kw">as</span> <span class="ident">u32</span>;
             <span class="ident">Arc::new</span>(<span class="ident">FreeModuleHomomorphism::new</span>(

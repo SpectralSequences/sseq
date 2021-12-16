@@ -976,6 +976,8 @@
 <span id="950">950</span>
 <span id="951">951</span>
 <span id="952">952</span>
+<span id="953">953</span>
+<span id="954">954</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::sync</span>::{<span class="ident">Arc</span>, <span class="ident">Mutex</span>};
 
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::chain_complex</span>::{<span class="ident">AugmentedChainComplex</span>, <span class="ident">ChainComplex</span>, <span class="ident">FreeChainComplex</span>};
@@ -993,6 +995,8 @@
 <span class="kw">use</span> <span class="ident">anyhow::Context</span>;
 <span class="kw">use</span> <span class="ident">byteorder</span>::{<span class="ident">LittleEndian</span>, <span class="ident">ReadBytesExt</span>, <span class="ident">WriteBytesExt</span>};
 <span class="kw">use</span> <span class="ident">dashmap::DashMap</span>;
+
+<span class="kw">use</span> <span class="ident">itertools::Itertools</span>;
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
 <span class="kw">use</span> {
@@ -1850,7 +1854,7 @@
         <span class="macro">assert_eq!</span>(<span class="ident">results</span>.<span class="ident">len</span>(), <span class="ident">inputs</span>.<span class="ident">len</span>());
 
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">qi</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">differential</span>(<span class="ident">s</span>).<span class="ident">quasi_inverse</span>(<span class="ident">t</span>) {
-            <span class="kw">for</span> (<span class="ident">input</span>, <span class="ident">result</span>) <span class="kw">in</span> <span class="ident">inputs</span>.<span class="ident">iter</span>().<span class="ident">zip</span>(<span class="ident">results</span>) {
+            <span class="kw">for</span> (<span class="ident">input</span>, <span class="ident">result</span>) <span class="kw">in</span> <span class="ident">inputs</span>.<span class="ident">iter</span>().<span class="ident">zip_eq</span>(<span class="ident">results</span>) {
                 <span class="ident">qi</span>.<span class="ident">apply</span>(<span class="ident">result</span>.<span class="ident">into</span>(), <span class="number">1</span>, <span class="ident">input</span>.<span class="ident">into</span>());
             }
             <span class="bool-val">true</span>

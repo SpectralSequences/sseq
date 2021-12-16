@@ -222,10 +222,22 @@
 <span id="196">196</span>
 <span id="197">197</span>
 <span id="198">198</span>
+<span id="199">199</span>
+<span id="200">200</span>
+<span id="201">201</span>
+<span id="202">202</span>
+<span id="203">203</span>
+<span id="204">204</span>
+<span id="205">205</span>
+<span id="206">206</span>
+<span id="207">207</span>
+<span id="208">208</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident"><span class="kw">super</span>::Subspace</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::matrix::Matrix</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::prime::ValidPrime</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::vector</span>::{<span class="ident">FpVector</span>, <span class="ident">Slice</span>, <span class="ident">SliceMut</span>};
+
+<span class="kw">use</span> <span class="ident">itertools::Itertools</span>;
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Subquotient</span> {
@@ -302,6 +314,10 @@
         <span class="self">self</span>.<span class="ident">gens</span>.<span class="ident">iter</span>().<span class="ident">take</span>(<span class="self">self</span>.<span class="ident">dimension</span>)
     }
 
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">quotient_dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">usize</span> {
+        <span class="self">self</span>.<span class="ident">ambient_dimension</span>() <span class="op">-</span> <span class="self">self</span>.<span class="ident">quotient</span>.<span class="ident">dimension</span>()
+    }
+
     <span class="doccomment">/// The dimension of the subspace part of the subquotient.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">subspace_dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">usize</span> {
         <span class="self">self</span>.<span class="ident">dimension</span> <span class="op">+</span> <span class="self">self</span>.<span class="ident">quotient</span>.<span class="ident">dimension</span>()
@@ -374,13 +390,17 @@
         <span class="ident">space</span>
             .<span class="ident">pivots</span>()
             .<span class="ident">iter</span>()
-            .<span class="ident">zip</span>(<span class="ident">subspace</span>.<span class="ident">pivots</span>().<span class="ident">iter</span>())
+            .<span class="ident">zip_eq</span>(<span class="ident">subspace</span>.<span class="ident">pivots</span>().<span class="ident">iter</span>())
             .<span class="ident">filter</span>(<span class="op">|</span>(<span class="ident">x</span>, <span class="ident">y</span>)<span class="op">|</span> {
                 <span class="macro">debug_assert!</span>(<span class="kw-2">*</span><span class="kw-2">*</span><span class="ident">x</span> <span class="op">&gt;</span><span class="op">=</span> <span class="number">0</span> <span class="op">|</span><span class="op">|</span> <span class="kw-2">*</span><span class="kw-2">*</span><span class="ident">y</span> <span class="op">&lt;</span> <span class="number">0</span>);
                 <span class="kw-2">*</span><span class="kw-2">*</span><span class="ident">x</span> <span class="op">&gt;</span><span class="op">=</span> <span class="number">0</span> <span class="op">&amp;&amp;</span> <span class="kw-2">*</span><span class="kw-2">*</span><span class="ident">y</span> <span class="op">&lt;</span> <span class="number">0</span>
             })
             .<span class="ident">map</span>(<span class="op">|</span>(<span class="ident">x</span>, <span class="kw">_</span>)<span class="op">|</span> <span class="kw-2">*</span><span class="ident">x</span> <span class="kw">as</span> <span class="ident">usize</span>)
             .<span class="ident">collect</span>()
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">quotient_pivots</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[<span class="ident">isize</span>] {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">quotient</span>.<span class="ident">matrix</span>.<span class="ident">pivots</span>
     }
 }
 

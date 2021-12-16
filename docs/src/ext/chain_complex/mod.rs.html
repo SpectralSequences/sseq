@@ -418,6 +418,8 @@
 <span id="392">392</span>
 <span id="393">393</span>
 <span id="394">394</span>
+<span id="395">395</span>
+<span id="396">396</span>
 </pre><pre class="rust"><code><span class="kw">mod</span> <span class="ident">chain_homotopy</span>;
 <span class="kw">mod</span> <span class="ident">finite_chain_complex</span>;
 <span class="kw">mod</span> <span class="ident">tensor_product_chain_complex</span>;
@@ -430,6 +432,8 @@
 <span class="kw">use</span> <span class="ident">fp::prime::ValidPrime</span>;
 <span class="kw">use</span> <span class="ident">fp::vector</span>::{<span class="ident">FpVector</span>, <span class="ident">Slice</span>, <span class="ident">SliceMut</span>};
 <span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
+
+<span class="kw">use</span> <span class="ident">itertools::Itertools</span>;
 
 <span class="comment">// pub use hom_complex::HomComplex;</span>
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">chain_homotopy::ChainHomotopy</span>;
@@ -646,7 +650,7 @@
             <span class="kw">return</span> <span class="bool-val">true</span>;
         }
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">iter</span> <span class="op">=</span> <span class="ident">inputs</span>.<span class="ident">iter</span>().<span class="ident">zip</span>(<span class="ident">results</span>);
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">iter</span> <span class="op">=</span> <span class="ident">inputs</span>.<span class="ident">iter</span>().<span class="ident">zip_eq</span>(<span class="ident">results</span>);
         <span class="kw">let</span> (<span class="ident">input</span>, <span class="ident">result</span>) <span class="op">=</span> <span class="ident">iter</span>.<span class="ident">next</span>().<span class="ident">unwrap</span>();
         <span class="kw">let</span> <span class="ident">d</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">differential</span>(<span class="ident">s</span>);
         <span class="kw">if</span> <span class="ident">d</span>.<span class="ident">apply_quasi_inverse</span>(<span class="ident">result</span>.<span class="ident">into</span>(), <span class="ident">t</span>, <span class="ident">input</span>.<span class="ident">into</span>()) {
