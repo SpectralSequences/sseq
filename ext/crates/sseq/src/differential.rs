@@ -129,4 +129,28 @@ impl Differential {
     pub fn inconsistent(&self) -> bool {
         self.error
     }
+
+    /// Find the differential that hits `value`, and write the result to `result`.
+    ///
+    /// This computes the quasi-inverse from scratch and allocates two matrices, and should not be
+    /// used in a hot path.
+    pub fn quasi_inverse(&self, result: SliceMut, value: Slice) {
+        let mut matrix = Matrix::new(
+            self.matrix.prime(),
+            self.source_dim,
+            self.source_dim + self.target_dim,
+        );
+        // Transpose the source and target columns
+        for (target, source) in matrix.iter_mut().zip(self.matrix.iter()) {
+            target
+                .slice_mut(0, self.target_dim)
+                .assign(source.slice(self.source_dim, self.source_dim + self.target_dim));
+            target
+                .slice_mut(self.target_dim, self.target_dim + self.source_dim)
+                .assign(source.slice(0, self.source_dim));
+        }
+        matrix.row_reduce();
+        let qi = matrix.compute_quasi_inverse(self.target_dim, self.target_dim);
+        qi.apply(result, 1, value);
+    }
 }

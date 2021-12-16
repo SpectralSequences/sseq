@@ -80,6 +80,10 @@ impl Subquotient {
         self.gens.iter().take(self.dimension)
     }
 
+    pub fn quotient_dimension(&self) -> usize {
+        self.ambient_dimension() - self.quotient.dimension()
+    }
+
     /// The dimension of the subspace part of the subquotient.
     pub fn subspace_dimension(&self) -> usize {
         self.dimension + self.quotient.dimension()
@@ -159,6 +163,10 @@ impl Subquotient {
             })
             .map(|(x, _)| *x as usize)
             .collect()
+    }
+
+    pub fn quotient_pivots(&self) -> &[isize] {
+        &self.quotient.matrix.pivots
     }
 }
 

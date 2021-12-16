@@ -1,4 +1,4 @@
-use crate::chain_complex::{BoundedChainComplex, ChainComplex, FreeChainComplex};
+use crate::chain_complex::{BoundedChainComplex, ChainComplex, ChainHomotopy, FreeChainComplex};
 use crate::resolution::Resolution;
 use crate::resolution_homomorphism::ResolutionHomomorphism;
 use crate::save::{SaveFile, SaveKind};
@@ -21,6 +21,7 @@ use crate::CCC;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use dashmap::DashMap;
+use itertools::Itertools;
 #[cfg(feature = "concurrent")]
 use rayon::prelude::*;
 
@@ -934,27 +935,27 @@ impl<
     /// records the τ part of the result.
     ///
     /// This reduces the τ part of the result by the image of d₂.
+    ///
+    /// # Arguments
+    /// - `sseq`: A sseq object that records the $d_2$ differentials. If present, reduce the value
+    ///   of the map by the image of $d_2$.
     pub fn hom_k<'a>(
         &self,
-        sseq: &sseq::Sseq,
+        sseq: Option<&sseq::Sseq>,
         s: u32,
         t: i32,
         inputs: impl Iterator<Item = Slice<'a>>,
         outputs: impl Iterator<Item = SliceMut<'a>>,
     ) {
-        let source_s = s + self.underlying.shift_s;
-        let source_t = t + self.underlying.shift_t;
+        let source_s = s + self.shift_s() - 1;
+        let source_t = t + self.shift_t();
 
         let p = self.prime();
         let h_0 = self.algebra().p_tilde();
 
-        let source_num_gens = self
-            .source
-            .underlying
-            .number_of_gens_in_bidegree(source_s, source_t);
+        let source_num_gens = self.source().number_of_gens_in_bidegree(source_s, source_t);
         let tau_num_gens = self
-            .source
-            .underlying
+            .source()
             .number_of_gens_in_bidegree(source_s + 1, source_t + 1);
 
         let m0 = self.underlying.get_map(source_s).hom_k(t);
@@ -963,8 +964,7 @@ impl<
         let mp = Matrix::from_vec(
             p,
             &self
-                .source
-                .underlying()
+                .source()
                 .filtration_one_product(1, h_0, source_s + 1, source_t + 1)
                 .unwrap(),
         );
@@ -976,19 +976,19 @@ impl<
         };
         let filtration_one_sign = if (t as i32 % 2) == 1 { *p - 1 } else { 1 };
 
-        let page_data = {
+        let page_data = sseq.map(|sseq| {
             let d = sseq.page_data(source_t - source_s as i32, source_s as i32 + 1);
             &d[std::cmp::min(3, d.len() - 1)]
-        };
+        });
 
         let mut scratch0: Vec<u32> = Vec::new();
-        for (input, mut out) in inputs.zip(outputs) {
+        for (input, mut out) in inputs.zip_eq(outputs) {
             scratch0.clear();
             scratch0.resize(source_num_gens, 0);
             for (i, v) in input.iter_nonzero() {
                 scratch0
                     .iter_mut()
-                    .zip(&m0[i])
+                    .zip_eq(&m0[i])
                     .for_each(|(a, b)| *a += v * b * sign);
                 out.slice_mut(source_num_gens, source_num_gens + tau_num_gens)
                     .add(m1[i].as_slice(), (v * sign) % *p);
@@ -1000,8 +1000,270 @@ impl<
                 out.slice_mut(source_num_gens, source_num_gens + tau_num_gens)
                     .add(mp[i].as_slice(), (extra * filtration_one_sign) % *p);
             }
-            page_data
-                .reduce_by_quotient(out.slice_mut(source_num_gens, source_num_gens + tau_num_gens));
+            if let Some(page_data) = page_data {
+                page_data.reduce_by_quotient(
+                    out.slice_mut(source_num_gens, source_num_gens + tau_num_gens),
+                );
+            }
+        }
+    }
+
+    /// Given an element b whose product with this is null, find the element whose $d_2$ hits the
+    /// τ part of the composition.
+    ///
+    /// # Arguments:
+    /// - `sseq`: spectral sequence object of the source
+    pub fn product_nullhomotopy(
+        &self,
+        sseq: &sseq::Sseq,
+        s: u32,
+        t: i32,
+        class: Slice,
+    ) -> FpVector {
+        let p = self.prime();
+
+        let shift_s = self.underlying.shift_s;
+        let shift_t = self.underlying.shift_t;
+        let shift_n = shift_t - shift_s as i32;
+
+        let n = t - s as i32;
+
+        let result_num_gens = self
+            .source()
+            .number_of_gens_in_bidegree(shift_s + s - 1, shift_t + t);
+
+        let tau_num_gens = self
+            .source()
+            .number_of_gens_in_bidegree(shift_s + s + 1, shift_t + t + 1);
+
+        let lower_num_gens = self
+            .source()
+            .number_of_gens_in_bidegree(shift_s + s, shift_t + t);
+
+        let target_num_gens = self.target().number_of_gens_in_bidegree(s, t);
+        let target_tau_num_gens = self.target().number_of_gens_in_bidegree(s + 1, t + 1);
+
+        let mut output_class = FpVector::new(p, result_num_gens);
+        if result_num_gens == 0 || tau_num_gens == 0 {
+            return output_class;
+        }
+
+        let mut prod_value = FpVector::new(p, lower_num_gens + tau_num_gens);
+        self.hom_k(
+            None,
+            s,
+            t,
+            [class.slice(0, target_num_gens)].into_iter(),
+            [prod_value.as_slice_mut()].into_iter(),
+        );
+        assert!(prod_value.slice(0, lower_num_gens).is_zero());
+
+        let matrix = Matrix::from_vec(p, &self.underlying.get_map(s + shift_s + 1).hom_k(t + 1));
+        matrix.apply(
+            prod_value.slice_mut(lower_num_gens, lower_num_gens + tau_num_gens),
+            1,
+            class.slice(target_num_gens, target_num_gens + target_tau_num_gens),
+        );
+
+        sseq.differentials(shift_n + n + 1, (shift_s + s) as i32 - 1)[2].quasi_inverse(
+            output_class.as_slice_mut(),
+            prod_value.slice(lower_num_gens, lower_num_gens + tau_num_gens),
+        );
+
+        output_class
+    }
+}
+
+pub struct SecondaryChainHomotopy<
+    A: PairAlgebra,
+    S: FreeChainComplex<Algebra = A>,
+    T: FreeChainComplex<Algebra = A> + Sync,
+    U: FreeChainComplex<Algebra = A> + Sync,
+> {
+    underlying: Arc<ChainHomotopy<S, T, U>>,
+    left: Arc<SecondaryResolutionHomomorphism<A, S, T>>,
+    right: Arc<SecondaryResolutionHomomorphism<A, T, U>>,
+    homotopies: OnceBiVec<SecondaryHomotopy<A>>,
+    intermediates: DashMap<(u32, i32, usize), FpVector>,
+}
+
+impl<
+        A: PairAlgebra,
+        S: FreeChainComplex<Algebra = A>,
+        T: FreeChainComplex<Algebra = A> + Sync,
+        U: FreeChainComplex<Algebra = A> + Sync,
+    > SecondaryLift for SecondaryChainHomotopy<A, S, T, U>
+{
+    type Algebra = A;
+    type Source = S;
+    type Target = U;
+    type Underlying = ChainHomotopy<S, T, U>;
+
+    fn underlying(&self) -> Arc<Self::Underlying> {
+        Arc::clone(&self.underlying)
+    }
+
+    fn algebra(&self) -> Arc<Self::Algebra> {
+        self.left.algebra()
+    }
+
+    fn source(&self) -> Arc<Self::Source> {
+        self.left.source()
+    }
+
+    fn target(&self) -> Arc<Self::Target> {
+        self.right.target()
+    }
+
+    fn shift_t(&self) -> i32 {
+        self.left.shift_t() + self.right.shift_t()
+    }
+
+    fn shift_s(&self) -> u32 {
+        self.underlying.shift_s()
+    }
+
+    fn max_s(&self) -> u32 {
+        std::cmp::min(
+            self.right.target.max_s() + self.shift_s() - 1,
+            self.left.source.max_s(),
+        )
+    }
+
+    fn max_t(&self, s: u32) -> i32 {
+        std::cmp::min(
+            self.left.source.max_t(s),
+            if s == self.shift_s() {
+                i32::MAX
+            } else {
+                self.right.target.max_t(s - self.shift_s() + 1) + self.shift_t()
+            },
+        )
+    }
+
+    fn homotopies(&self) -> &OnceBiVec<SecondaryHomotopy<Self::Algebra>> {
+        &self.homotopies
+    }
+
+    fn intermediates(&self) -> &DashMap<(u32, i32, usize), FpVector> {
+        &self.intermediates
+    }
+
+    fn save_dir(&self) -> Option<&Path> {
+        self.underlying.save_dir()
+    }
+
+    fn compute_intermediate(&self, s: u32, t: i32, idx: usize) -> FpVector {
+        let p = self.prime();
+        let neg_1 = *p - 1;
+
+        let target = self.target().module(s - self.shift_s() - 1);
+
+        let mut result = FpVector::new(p, Module::dimension(&*target, t - 1 - self.shift_t()));
+
+        self.homotopies[s as i32 - 1].act(
+            result.as_slice_mut(),
+            1,
+            t,
+            self.source().differential(s).output(t, idx).as_slice(),
+            false,
+        );
+
+        self.right.target.homotopies()[(s + 1 - self.shift_s()) as i32].act(
+            result.as_slice_mut(),
+            1,
+            t - self.shift_t(),
+            self.underlying.homotopy(s).output(t, idx).as_slice(),
+            true,
+        );
+
+        self.underlying.homotopy(s - 2).apply(
+            result.as_slice_mut(),
+            neg_1,
+            t - 1,
+            self.left.source.homotopies()[s as i32]
+                .homotopies
+                .output(t, idx)
+                .as_slice(),
+        );
+
+        self.right.homotopies()[(s - self.left.underlying.shift_s) as i32].act(
+            result.as_slice_mut(),
+            neg_1,
+            t - self.left.shift_t(),
+            self.left.underlying.get_map(s).output(t, idx).as_slice(),
+            true,
+        );
+
+        self.right
+            .underlying
+            .get_map(s - self.left.shift_s())
+            .apply(
+                result.as_slice_mut(),
+                neg_1,
+                t - self.left.shift_t() - 1,
+                self.left.homotopies()[s as i32]
+                    .homotopies
+                    .output(t, idx)
+                    .as_slice(),
+            );
+        result
+    }
+
+    fn composite(&self, s: u32) -> CompositeData<Self::Algebra> {
+        let p = *self.prime();
+        // This is -1 mod p^2
+        let neg_1 = p * p - 1;
+
+        vec![
+            (
+                neg_1,
+                self.underlying.left().get_map(s),
+                self.underlying
+                    .right()
+                    .get_map(s - self.left.underlying.shift_s),
+            ),
+            (
+                1,
+                self.underlying.homotopy(s),
+                self.target().differential(s - self.shift_s() + 1),
+            ),
+            (
+                1,
+                self.source().differential(s),
+                self.underlying.homotopy(s - 1),
+            ),
+        ]
+    }
+}
+
+impl<
+        A: PairAlgebra,
+        S: FreeChainComplex<Algebra = A>,
+        T: FreeChainComplex<Algebra = A> + Sync,
+        U: FreeChainComplex<Algebra = A> + Sync,
+    > SecondaryChainHomotopy<A, S, T, U>
+{
+    pub fn new(
+        left: Arc<SecondaryResolutionHomomorphism<A, S, T>>,
+        right: Arc<SecondaryResolutionHomomorphism<A, T, U>>,
+        underlying: Arc<ChainHomotopy<S, T, U>>,
+    ) -> Self {
+        assert!(Arc::ptr_eq(&underlying.left(), &left.underlying));
+        assert!(Arc::ptr_eq(&underlying.right(), &right.underlying));
+
+        if let Some(p) = underlying.save_dir() {
+            for subdir in SaveKind::secondary_data() {
+                subdir.create_dir(p).unwrap();
+            }
+        }
+
+        Self {
+            left,
+            right,
+            homotopies: OnceBiVec::new(underlying.shift_s() as i32),
+            underlying,
+            intermediates: DashMap::new(),
         }
     }
 }

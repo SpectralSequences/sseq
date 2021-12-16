@@ -119,7 +119,7 @@ impl<
     /// Initialize self.homotopies to contain [`FreeModuleHomomorphisms`]s up to but excluding
     /// `max_source_s`, which can be returned by [`Self::homotopy`]. This does not actually lift
     /// the maps, which is done by [`Self::extend_all`] and [`Self::extend`].
-    fn initialize_homotopies(&self, max_source_s: u32) {
+    pub fn initialize_homotopies(&self, max_source_s: u32) {
         self.homotopies.extend(max_source_s as i32 - 1, |s| {
             let s = s as u32;
             Arc::new(FreeModuleHomomorphism::new(
