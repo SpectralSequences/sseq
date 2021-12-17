@@ -163,11 +163,15 @@ pub struct OnceVec<T> {
 impl<T> Drop for OnceVec<T> {
     fn drop(&mut self) {
         let len = self.len();
-        let ooo = self.ooo.lock().unwrap();
 
         unsafe {
-            for entry in ooo.0.iter() {
-                std::ptr::drop_in_place(self.entry_ptr(*entry));
+            // The lock may be poisoned. Access is always safe because we have mutable reference,
+            // but if we can acquire the lock we want to drop the elements inside. If the lock is
+            // poisoned, then we are probably panicking so we don't care about memory leakage.
+            if let Ok(ooo) = self.ooo.lock() {
+                for entry in ooo.0.iter() {
+                    std::ptr::drop_in_place(self.entry_ptr(*entry));
+                }
             }
             for idx in 0..MAX_OUTER_LENGTH {
                 // We have mutable reference so we can do whatever we want
