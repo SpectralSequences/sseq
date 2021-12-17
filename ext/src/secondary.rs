@@ -45,13 +45,14 @@ impl<A: PairAlgebra> SecondaryComposite<A> {
         self.target.algebra()
     }
 
-    pub fn new(target: Arc<FreeModule<A>>, degree: i32) -> Self {
+    pub fn new(target: Arc<FreeModule<A>>, degree: i32, hit_generator: bool) -> Self {
         let algebra = target.algebra();
         let min_degree = target.min_degree();
 
         let mut composite = BiVec::with_capacity(min_degree, degree);
 
-        for t_ in min_degree..degree {
+        let end = if hit_generator { degree + 1 } else {degree };
+        for t_ in min_degree..end {
             let num_gens = target.number_of_gens_in_degree(t_);
             let mut c = Vec::with_capacity(num_gens);
             c.resize_with(num_gens, || algebra.new_pair_element(degree - t_));
@@ -79,13 +80,15 @@ impl<A: PairAlgebra> SecondaryComposite<A> {
     pub fn from_bytes(
         target: Arc<FreeModule<A>>,
         degree: i32,
+        hit_generator: bool,
         buffer: &mut impl Read,
     ) -> std::io::Result<Self> {
         let min_degree = target.min_degree();
         let algebra = target.algebra();
         let mut composite = BiVec::with_capacity(min_degree, degree);
 
-        for t in min_degree..degree {
+        let end = if hit_generator { degree + 1 } else {degree };
+        for t in min_degree..end {
             let num_gens = buffer.read_u64::<LittleEndian>()? as usize;
             let mut c = Vec::with_capacity(num_gens);
             for _ in 0..num_gens {
@@ -195,10 +198,12 @@ pub struct SecondaryHomotopy<A: PairAlgebra> {
 
     /// gen_deg -> gen_idx -> homotopy
     pub homotopies: FreeModuleHomomorphism<FreeModule<A>>,
+
+    hit_generator: bool,
 }
 
 impl<A: PairAlgebra + Send + Sync> SecondaryHomotopy<A> {
-    pub fn new(source: Arc<FreeModule<A>>, target: Arc<FreeModule<A>>, shift_t: i32) -> Self {
+    pub fn new(source: Arc<FreeModule<A>>, target: Arc<FreeModule<A>>, shift_t: i32, hit_generator: bool) -> Self {
         Self {
             composites: OnceBiVec::new(std::cmp::max(
                 source.min_degree(),
@@ -212,6 +217,7 @@ impl<A: PairAlgebra + Send + Sync> SecondaryHomotopy<A> {
             source,
             target,
             shift_t,
+            hit_generator
         }
     }
 
@@ -236,13 +242,14 @@ impl<A: PairAlgebra + Send + Sync> SecondaryHomotopy<A> {
                     return SecondaryComposite::from_bytes(
                         Arc::clone(&self.target),
                         t - self.shift_t,
+                        self.hit_generator,
                         &mut f,
                     )
                     .unwrap();
                 }
             }
 
-            let mut composite = SecondaryComposite::new(Arc::clone(&self.target), t - self.shift_t);
+            let mut composite = SecondaryComposite::new(Arc::clone(&self.target), t - self.shift_t, self.hit_generator);
             for (coef, d1, d0) in &maps {
                 composite.add_composite(*coef, t, idx, &*d1, &*d0);
             }
@@ -327,6 +334,12 @@ pub trait SecondaryLift: Sync {
     type Target: FreeChainComplex<Algebra = Self::Algebra>;
     type Underlying;
 
+    /// Whether the composite can hit generators. This is true for `SecondaryChainHomotopy` and
+    /// false for the rest. This is important because for [`SecondaryResolution`], we don't
+    /// actually know all the generators if we resolve up to a stem. So in composites for
+    /// [`SecondaryResolution`], we need to ignore target generators of the same degree uniformly.
+    const HIT_GENERATOR: bool = false;
+
     fn underlying(&self) -> Arc<Self::Underlying>;
     fn algebra(&self) -> Arc<Self::Algebra>;
     fn prime(&self) -> ValidPrime {
@@ -363,6 +376,7 @@ pub trait SecondaryLift: Sync {
                 self.source().module(s),
                 self.target().module(s - shift_s),
                 shift_t,
+                Self::HIT_GENERATOR,
             )
         });
     }
@@ -1099,6 +1113,7 @@ impl<
     type Source = S;
     type Target = U;
     type Underlying = ChainHomotopy<S, T, U>;
+    const HIT_GENERATOR: bool = true;
 
     fn underlying(&self) -> Arc<Self::Underlying> {
         Arc::clone(&self.underlying)
