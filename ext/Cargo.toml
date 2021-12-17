@@ -14,8 +14,6 @@ bivec = { path = "crates/bivec"}
 fp = { path = "crates/fp", default-features = false }
 once = { path = "crates/once"}
 query = { path = "crates/query" }
-# This is only needed as a dev dependency but
-# https://github.com/rust-lang/cargo/issues/9060
 sseq = { path = "crates/sseq", default-features = false }
 thread-token = { path = "crates/thread-token", optional = true }
 adler = "1"
