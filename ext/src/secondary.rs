@@ -51,7 +51,7 @@ impl<A: PairAlgebra> SecondaryComposite<A> {
 
         let mut composite = BiVec::with_capacity(min_degree, degree);
 
-        let end = if hit_generator { degree + 1 } else {degree };
+        let end = if hit_generator { degree + 1 } else { degree };
         for t_ in min_degree..end {
             let num_gens = target.number_of_gens_in_degree(t_);
             let mut c = Vec::with_capacity(num_gens);
@@ -87,7 +87,7 @@ impl<A: PairAlgebra> SecondaryComposite<A> {
         let algebra = target.algebra();
         let mut composite = BiVec::with_capacity(min_degree, degree);
 
-        let end = if hit_generator { degree + 1 } else {degree };
+        let end = if hit_generator { degree + 1 } else { degree };
         for t in min_degree..end {
             let num_gens = buffer.read_u64::<LittleEndian>()? as usize;
             let mut c = Vec::with_capacity(num_gens);
@@ -203,7 +203,12 @@ pub struct SecondaryHomotopy<A: PairAlgebra> {
 }
 
 impl<A: PairAlgebra + Send + Sync> SecondaryHomotopy<A> {
-    pub fn new(source: Arc<FreeModule<A>>, target: Arc<FreeModule<A>>, shift_t: i32, hit_generator: bool) -> Self {
+    pub fn new(
+        source: Arc<FreeModule<A>>,
+        target: Arc<FreeModule<A>>,
+        shift_t: i32,
+        hit_generator: bool,
+    ) -> Self {
         Self {
             composites: OnceBiVec::new(std::cmp::max(
                 source.min_degree(),
@@ -217,7 +222,7 @@ impl<A: PairAlgebra + Send + Sync> SecondaryHomotopy<A> {
             source,
             target,
             shift_t,
-            hit_generator
+            hit_generator,
         }
     }
 
@@ -249,7 +254,11 @@ impl<A: PairAlgebra + Send + Sync> SecondaryHomotopy<A> {
                 }
             }
 
-            let mut composite = SecondaryComposite::new(Arc::clone(&self.target), t - self.shift_t, self.hit_generator);
+            let mut composite = SecondaryComposite::new(
+                Arc::clone(&self.target),
+                t - self.shift_t,
+                self.hit_generator,
+            );
             for (coef, d1, d0) in &maps {
                 composite.add_composite(*coef, t, idx, &*d1, &*d0);
             }
