@@ -63,6 +63,7 @@ macro_rules! dispatch_vector_inner {
         }
     };
     ($vis:vis fn $method:ident(&mut self $(, $arg:ident: $ty:ty )* ) -> (dispatch $ret:tt)) => {
+        #[must_use]
         $vis fn $method(&mut self, $($arg: $ty),* ) -> $ret {
             match self {
                 Self::_2(ref mut x) => $ret::_2(x.$method($($arg),*)),
@@ -73,6 +74,7 @@ macro_rules! dispatch_vector_inner {
         }
     };
     ($vis:vis fn $method:ident(&self $(, $arg:ident: $ty:ty )* ) -> (dispatch $ret:tt)) => {
+        #[must_use]
         $vis fn $method(&self, $($arg: $ty),* ) -> $ret {
             match self {
                 Self::_2(ref x) => $ret::_2(x.$method($($arg),*)),
@@ -83,6 +85,7 @@ macro_rules! dispatch_vector_inner {
         }
     };
     ($vis:vis fn $method:ident(self $(, $arg:ident: $ty:ty )* ) -> (dispatch $ret:tt)) => {
+        #[must_use]
         $vis fn $method(self, $($arg: $ty),* ) -> $ret {
             match self {
                 Self::_2(x) => $ret::_2(x.$method($($arg),*)),
@@ -94,6 +97,7 @@ macro_rules! dispatch_vector_inner {
     };
 
     ($vis:vis fn $method:ident(self $(, $arg:ident: $ty:ty )* ) -> (dispatch $ret:tt $lifetime:tt)) => {
+        #[must_use]
         $vis fn $method(self, $($arg: $ty),* ) -> $ret<$lifetime> {
             match self {
                 Self::_2(x) => $ret::_2(x.$method($($arg),*)),

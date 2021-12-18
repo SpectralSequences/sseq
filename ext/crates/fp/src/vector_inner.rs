@@ -76,6 +76,7 @@ impl<const P: u32> FpVectorP<P> {
         ValidPrime::new(P)
     }
 
+    #[must_use]
     pub fn slice(&self, start: usize, end: usize) -> SliceP<'_, P> {
         assert!(start <= end && end <= self.len);
         SliceP {
@@ -85,6 +86,7 @@ impl<const P: u32> FpVectorP<P> {
         }
     }
 
+    #[must_use]
     pub fn slice_mut(&mut self, start: usize, end: usize) -> SliceMutP<'_, P> {
         assert!(start <= end && end <= self.len);
         SliceMutP {
@@ -95,11 +97,13 @@ impl<const P: u32> FpVectorP<P> {
     }
 
     #[inline]
+    #[must_use]
     pub fn as_slice(&self) -> SliceP<'_, P> {
         self.into()
     }
 
     #[inline]
+    #[must_use]
     pub fn as_slice_mut(&mut self) -> SliceMutP<'_, P> {
         self.into()
     }
@@ -376,6 +380,7 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
     }
 
     #[inline]
+    #[must_use]
     pub fn as_slice(&self) -> SliceP<'_, P> {
         SliceP {
             limbs: &*self.limbs,
@@ -386,6 +391,7 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
 
     /// Generates a version of itself with a shorter lifetime
     #[inline]
+    #[must_use]
     pub fn copy(&mut self) -> SliceMutP<'_, P> {
         SliceMutP {
             limbs: self.limbs,
@@ -396,6 +402,7 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
 }
 
 impl<'a, const P: u32> SliceP<'a, P> {
+    #[must_use]
     pub fn slice(self, start: usize, end: usize) -> SliceP<'a, P> {
         assert!(start <= end && end <= self.len());
 
@@ -407,6 +414,7 @@ impl<'a, const P: u32> SliceP<'a, P> {
     }
 
     /// Converts a slice to an owned FpVectorP. This is vastly more efficient if the start of the vector is aligned.
+    #[must_use]
     pub fn to_owned(self) -> FpVectorP<P> {
         let mut new = FpVectorP::<P>::new_(self.len());
         if self.start % limb::entries_per_limb_const::<P>() == 0 {
