@@ -19,10 +19,7 @@ use dashmap::DashMap;
 use itertools::Itertools;
 
 #[cfg(feature = "concurrent")]
-use {
-    crossbeam_channel::{unbounded, Receiver},
-    thread_token::TokenBucket,
-};
+use std::sync::mpsc;
 
 /// This is the maximum number of new generators we expect in each bidegree. This affects how much
 /// space we allocate when we are extending our resolutions. Having more than this many new
@@ -663,8 +660,6 @@ impl<CC: ChainComplex> Resolution<CC> {
         max_t: i32,
         mut cb: impl FnMut(u32, i32),
     ) {
-        let bucket = TokenBucket::default();
-        let bucket = &bucket;
         let min_degree = self.min_degree();
         let _lock = self.lock.lock();
 
@@ -672,39 +667,54 @@ impl<CC: ChainComplex> Resolution<CC> {
         self.extend_through_degree(max_s);
         self.algebra().compute_basis(max_t - min_degree);
 
-        crossbeam_utils::thread::scope(|s| {
-            let (pp_sender, pp_receiver) = unbounded();
-            let mut last_receiver: Option<Receiver<()>> = None;
-            for t in min_degree..=max_t {
-                let (sender, receiver) = unbounded();
+        rayon::in_place_scope(|scope| {
+            // Things that we have finished computing.
+            let mut progress: Vec<i32> = vec![min_degree - 1; max_s as usize + 1];
+            // We will kickstart the process by pretending we have computed (0, min_degree - 1). So
+            // we must pretend we have only computed up to (0, min_degree - 2);
+            progress[0] = min_degree - 2;
 
-                let pp_sender = pp_sender.clone();
-                s.builder()
-                    .name(format!("t = {}", t))
-                    .spawn(move |_| {
-                        let mut token = bucket.take_token();
-                        for s in 0..=max_s {
-                            token = bucket.recv_or_release(token, &last_receiver);
-                            if !self.has_computed_bidegree(s, t) {
-                                self.step_resolution(s, t);
+            let mut remaining = max_s + 1;
 
-                                pp_sender.send((s, t)).unwrap();
-                            }
-                            sender.send(()).unwrap();
-                        }
-                    })
-                    .unwrap();
-                last_receiver = Some(receiver);
-            }
-            // We drop this pp_sender, so that when all previous threads end, no pp_sender's are
-            // present, so pp_receiver terminates.
-            drop(pp_sender);
+            let (sender, receiver) = mpsc::channel();
+            sender.send((0, min_degree - 1)).unwrap();
 
-            for (s, t) in pp_receiver {
+            let f = |s, t| {
+                if self.has_computed_bidegree(s, t) {
+                    sender.send((s, t)).unwrap();
+                    return;
+                } else {
+                    let sender = sender.clone();
+                    scope.spawn(move |_| {
+                        self.step_resolution(s, t);
+                        sender.send((s, t)).unwrap();
+                    });
+                }
+            };
+
+            loop {
+                let (s, t) = receiver.recv().unwrap();
+                assert!(progress[s as usize] == t - 1);
+                progress[s as usize] = t;
+
+                if t == max_t {
+                    remaining -= 1;
+                }
+                if remaining == 0 {
+                    cb(s, t);
+                    break;
+                }
+
+                if t < max_t && (s == 0 || progress[s as usize - 1] > t) {
+                    // We are computing a normal step
+                    f(s, t + 1);
+                }
+                if s < max_s && progress[s as usize + 1] == t - 1 {
+                    f(s + 1, t);
+                }
                 cb(s, t);
             }
-        })
-        .unwrap();
+        });
     }
 
     #[cfg(not(feature = "concurrent"))]
@@ -757,8 +767,6 @@ impl<CC: ChainComplex> Resolution<CC> {
     /// A concurrent version of [`Resolution::compute_through_stem`]
     #[cfg(feature = "concurrent")]
     pub fn compute_through_stem(&self, max_s: u32, max_n: i32) {
-        let bucket = TokenBucket::default();
-        let bucket = &bucket;
         let min_degree = self.min_degree();
         let _lock = self.lock.lock();
         let max_t = max_s as i32 + max_n;
@@ -767,49 +775,73 @@ impl<CC: ChainComplex> Resolution<CC> {
         self.extend_through_degree(max_s);
         self.algebra().compute_basis(max_t - min_degree);
 
-        crossbeam_utils::thread::scope(|s| {
-            let mut last_receiver: Option<Receiver<()>> = None;
-            for t in min_degree..=max_t {
-                let (sender, receiver) = unbounded();
-                s.builder()
-                    .name(format!("t = {}", t))
-                    .spawn(move |_| {
-                        let mut token = bucket.take_token();
-                        let start_s = std::cmp::max(0, t - max_n - 1) as u32;
-                        for s in start_s..=max_s {
-                            token = bucket.recv_or_release(token, &last_receiver);
-                            if !self.has_computed_bidegree(s, t) {
-                                if s as i32 + max_n + 1 == t {
-                                    // This is the bidegree just beyond max_n. We are not computing
-                                    // this bidegree, but if we have to compute the next s, we have
-                                    // to compute the kernel of this bidegree.
-                                    //
-                                    // We can wait until the next step to compute the kernel, but
-                                    // we are already ready to do so, so let's do it now while we
-                                    // have time.
-                                    if !self.has_computed_bidegree(s + 1, t)
-                                        && (self.save_dir.is_none()
-                                            || !self
-                                                .save_file(SaveKind::Differential, s + 1, t)
-                                                .exists(self.save_dir.clone().unwrap()))
-                                    {
-                                        self.kernels.insert((s, t), self.get_kernel(s, t));
-                                    }
-                                    // The next t cannot be computed yet
-                                    continue;
-                                } else {
-                                    self.step_resolution(s, t);
-                                }
-                            }
-                            // In the last round the receiver would have been dropped
-                            sender.send(()).ok();
-                        }
-                    })
-                    .unwrap();
-                last_receiver = Some(receiver);
+        rayon::in_place_scope(|scope| {
+            // Things that we have finished computing.
+            let mut progress: Vec<i32> = vec![min_degree - 1; max_s as usize + 1];
+            // We will kickstart the process by pretending we have computed (0, min_degree - 1). So
+            // we must pretend we have only computed up to (0, min_degree - 2);
+            progress[0] = min_degree - 2;
+
+            let mut remaining = max_s + 1;
+
+            let (sender, receiver) = mpsc::channel();
+            sender.send((0, min_degree - 1)).unwrap();
+
+            let f = |s, t| {
+                if self.has_computed_bidegree(s, t) {
+                    sender.send((s, t)).unwrap();
+                    return;
+                } else {
+                    let sender = sender.clone();
+                    scope.spawn(move |_| {
+                        self.step_resolution(s, t);
+                        sender.send((s, t)).unwrap();
+                    });
+                }
+            };
+
+            loop {
+                let (s, t) = receiver.recv().unwrap();
+                assert!(progress[s as usize] == t - 1);
+                progress[s as usize] = t;
+
+                // How far we are from the last one for this s.
+                let distance = max_n + 1 - (t - s as i32);
+
+                if distance == 0 || (distance == 1 && s == max_s) {
+                    remaining -= 1;
+                }
+                if remaining == 0 {
+                    break;
+                }
+
+                if distance > 1 && (s == 0 || progress[s as usize - 1] > t) {
+                    // We are computing a normal step
+                    f(s, t + 1);
+                }
+                if distance == 1 && s < max_s {
+                    // We compute the kernel at the edge if necessary
+                    if !self.has_computed_bidegree(s + 1, t + 1)
+                        && (self.save_dir.is_none()
+                            || !self
+                                .save_file(SaveKind::Differential, s + 1, t + 1)
+                                .exists(self.save_dir.clone().unwrap()))
+                    {
+                        let sender = sender.clone();
+                        scope.spawn(move |_| {
+                            self.kernels.insert((s, t + 1), self.get_kernel(s, t + 1));
+                            sender.send((s, t + 1)).unwrap();
+                        });
+                    } else {
+                        sender.send((s, t + 1)).unwrap();
+                    }
+                }
+
+                if s < max_s && progress[s as usize + 1] == t - 1 {
+                    f(s + 1, t);
+                }
             }
-        })
-        .unwrap();
+        });
     }
 }
 

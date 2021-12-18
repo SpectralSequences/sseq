@@ -25,7 +25,6 @@ serde = { version = "1.0.0", features = ["derive"] }
 time = "0.3.0"
 ws = "=0.9.1"
 textwrap = { version = "0.11.0", features = ["term_size"] }
-crossbeam-channel = "0.5.0"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 # Match wasm-bindgen version with wasm-bindgen-cli

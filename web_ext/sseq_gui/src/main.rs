@@ -1,4 +1,3 @@
-use crossbeam_channel::unbounded;
 use std::{fs, thread};
 use textwrap::Wrapper;
 use time::OffsetDateTime;
@@ -62,9 +61,9 @@ impl Manager {
     where
         T: Fn(String) + Send + 'static,
     {
-        let (sseq_sender, sseq_receiver) = unbounded();
-        let (server_sender, server_receiver) = unbounded();
-        let (res_sender, res_receiver) = unbounded();
+        let (sseq_sender, sseq_receiver) = std::sync::mpsc::channel();
+        let (server_sender, server_receiver) = std::sync::mpsc::channel();
+        let (res_sender, res_receiver) = std::sync::mpsc::channel();
 
         // ResolutionManager thread
         let sender = sseq_sender.clone();

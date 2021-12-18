@@ -132,19 +132,6 @@ pub trait ChainComplex: Send + Sync {
     /// Ensure all bidegrees less than or equal to (s, t) have been computed
     fn compute_through_bidegree(&self, s: u32, t: i32);
 
-    /// A concurrent version of compute_through_bidegree_concurrent. This defaults to the
-    /// non-concurrent version
-    #[cfg(feature = "concurrent")]
-    #[allow(unused_variables)]
-    fn compute_through_bidegree_concurrent(
-        &self,
-        s: u32,
-        t: i32,
-        bucket: &thread_token::TokenBucket,
-    ) {
-        self.compute_through_bidegree(s, t);
-    }
-
     /// The first s such that `self.module(s)` is not defined.
     fn next_homological_degree(&self) -> u32;
 

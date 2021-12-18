@@ -14,12 +14,6 @@ use std::io::{stderr, stdout, Write};
 use std::sync::Arc;
 use std::time::Instant;
 
-#[cfg(feature = "concurrent")]
-use std::{thread, thread::JoinHandle};
-
-#[cfg(feature = "concurrent")]
-use crossbeam_channel::{unbounded, Receiver};
-
 fn main() -> anyhow::Result<()> {
     let resolution = Arc::new(utils::query_module_only(
         "Module",
@@ -30,8 +24,6 @@ fn main() -> anyhow::Result<()> {
     let module = complex.module(0);
 
     let p = ValidPrime::new(2);
-    #[cfg(feature = "concurrent")]
-    let bucket = Arc::new(thread_token::TokenBucket::default());
 
     let x: i32 = query::with_default("t - s", "8", str::parse);
     let s: u32 = query::with_default("s", "3", str::parse);
@@ -131,7 +123,7 @@ fn main() -> anyhow::Result<()> {
         delta.push(maps);
     }
 
-    #[cfg(feature = "concurrent")]
+    /* #[cfg(feature = "concurrent")]
     let mut prev_i_receivers: Vec<Option<Receiver<()>>> = Vec::new();
     #[cfg(feature = "concurrent")]
     for _ in 0..=2 * s {
@@ -139,7 +131,7 @@ fn main() -> anyhow::Result<()> {
     }
 
     #[cfg(feature = "concurrent")]
-    let mut handles: Vec<Vec<JoinHandle<()>>> = Vec::with_capacity(s as usize + 1);
+    let mut handles: Vec<Vec<JoinHandle<()>>> = Vec::with_capacity(s as usize + 1);*/
 
     let start = Instant::now();
 
@@ -147,17 +139,17 @@ fn main() -> anyhow::Result<()> {
     for i in 0..=s {
         // Δ_i is a map C_s -> C_{s + i}. So to hit C_{2s}, we only need to compute up to 2
         // * s - i
-        #[cfg(not(feature = "concurrent"))]
+        //        #[cfg(not(feature = "concurrent"))]
         let start = Instant::now();
 
-        #[cfg(feature = "concurrent")]
+        /* #[cfg(feature = "concurrent")]
         let mut handles_inner: Vec<JoinHandle<()>> = Vec::with_capacity((2 * s - i + 1) as usize);
 
         #[cfg(feature = "concurrent")]
         let mut last_receiver: Option<Receiver<()>> = None;
 
         #[cfg(feature = "concurrent")]
-        let top_s = 2 * s - i;
+        let top_s = 2 * s - i;*/
 
         for s in 0..=2 * s - i {
             if i == 0 && s == 0 {
@@ -191,29 +183,27 @@ fn main() -> anyhow::Result<()> {
                 _ => Some(Arc::clone(&delta[i as usize - 1][s as usize])),
             };
 
-            #[cfg(feature = "concurrent")]
+            /* #[cfg(feature = "concurrent")]
             let (sender, new_receiver) = unbounded();
             #[cfg(feature = "concurrent")]
             let (prev_i_sender, new_prev_i_receiver) = unbounded();
 
-            #[cfg(feature = "concurrent")]
-            let bucket = Arc::clone(&bucket);
 
             #[cfg(feature = "concurrent")]
             let prev_i_receiver =
-                std::mem::replace(&mut prev_i_receivers[s as usize], Some(new_prev_i_receiver));
+                std::mem::replace(&mut prev_i_receivers[s as usize], Some(new_prev_i_receiver));*/
 
             // Define this as a closure so that we can easily switch between threaded and
             // un-threaded
             let fun = move || {
-                #[cfg(feature = "concurrent")]
-                let mut token = bucket.take_token();
+                /* #[cfg(feature = "concurrent")]
+                let mut token = bucket.take_token();*/
 
                 for t in 0..=2 * t {
-                    #[cfg(feature = "concurrent")]
+                    /* #[cfg(feature = "concurrent")]
                     {
                         token = bucket.recv2_or_release(token, &last_receiver, &prev_i_receiver);
-                    }
+                    }*/
 
                     let num_gens = source.number_of_gens_in_degree(t);
 
@@ -223,13 +213,13 @@ fn main() -> anyhow::Result<()> {
                     if fx_dim == 0 || fdx_dim == 0 || num_gens == 0 {
                         map.extend_by_zero(t);
 
-                        #[cfg(feature = "concurrent")]
+                        /* #[cfg(feature = "concurrent")]
                         {
                             if s < top_s {
                                 sender.send(()).unwrap();
                                 prev_i_sender.send(()).unwrap();
                             }
-                        }
+                        }*/
 
                         continue;
                     }
@@ -260,31 +250,31 @@ fn main() -> anyhow::Result<()> {
                     }
                     map.add_generators_from_matrix_rows(t, output_matrix.as_slice_mut());
 
-                    #[cfg(feature = "concurrent")]
+                    /* #[cfg(feature = "concurrent")]
                     {
                         if s < top_s {
                             sender.send(()).unwrap();
                             prev_i_sender.send(()).unwrap();
                         }
-                    }
+                    }*/
                 }
             };
 
-            #[cfg(feature = "concurrent")]
+            /* #[cfg(feature = "concurrent")]
             {
                 let handle = thread::Builder::new()
                     .name(format!("D_{}, s = {}", i, s))
                     .spawn(fun);
                 last_receiver = Some(new_receiver);
                 handles_inner.push(handle.unwrap());
-            }
-            #[cfg(not(feature = "concurrent"))]
+            }*/
+            // #[cfg(not(feature = "concurrent"))]
             fun();
         }
-        #[cfg(feature = "concurrent")]
-        handles.push(handles_inner);
+        /* #[cfg(feature = "concurrent")]
+        handles.push(handles_inner); */
 
-        #[cfg(not(feature = "concurrent"))]
+        // #[cfg(not(feature = "concurrent"))]
         {
             let final_map = &delta[i as usize][(2 * s - i) as usize];
             let num_gens = resolution.number_of_gens_in_bidegree(2 * s - i, 2 * t);
@@ -306,7 +296,7 @@ fn main() -> anyhow::Result<()> {
         }
     }
 
-    #[cfg(feature = "concurrent")]
+    /* #[cfg(feature = "concurrent")]
     for (i, handle_inner) in handles.into_iter().enumerate() {
         let i = i as u32;
 
@@ -330,7 +320,7 @@ fn main() -> anyhow::Result<()> {
         eprint!(" ({:?} total)", start.elapsed());
         stderr().flush().unwrap();
         println!();
-    }
+    }*/
 
     eprintln!("Computing Steenrod operations: {:?}", start.elapsed());
 
