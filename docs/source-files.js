@@ -24,6 +24,5 @@ sourcesIndex["secondary_product"] = {"name":"","files":["secondary_product.rs"]}
 sourcesIndex["sseq"] = {"name":"","files":["bigraded.rs","differential.rs","lib.rs","sseq.rs"]};
 sourcesIndex["steenrod"] = {"name":"","files":["steenrod.rs"]};
 sourcesIndex["tensor"] = {"name":"","files":["tensor.rs"]};
-sourcesIndex["thread_token"] = {"name":"","files":["lib.rs"]};
 sourcesIndex["yoneda"] = {"name":"","files":["yoneda.rs"]};
 createSourceSidebar();
