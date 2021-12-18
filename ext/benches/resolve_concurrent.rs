@@ -1,6 +1,5 @@
 #[cfg(feature = "concurrent")]
 fn benchmark(algebra: &str) {
-    use core::num::NonZeroUsize;
     use ext::chain_complex::ChainComplex;
     use ext::utils::construct;
     use std::io::Write;

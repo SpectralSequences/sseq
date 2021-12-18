@@ -76,7 +76,7 @@ impl Resolution<ext::CCC> {
                 let class: Vec<u32> = Vec::<u32>::deserialize(&prod["class"]).unwrap();
                 let name = prod["name"].as_str().unwrap();
 
-                result.add_product(hom_deg, int_deg, class, &name.to_string());
+                result.add_product(hom_deg, int_deg, class, name);
             }
         }
 
@@ -102,7 +102,7 @@ impl Resolution<ext::CCC> {
                         map_data[r].set_entry(c, json_map_data[r][c].as_u64().unwrap() as u32);
                     }
                 }
-                result.add_self_map(s, t, &name.to_string(), map_data);
+                result.add_self_map(s, t, name, map_data);
             }
         }
 
