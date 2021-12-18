@@ -1204,6 +1204,14 @@
 <span id="1178">1178</span>
 <span id="1179">1179</span>
 <span id="1180">1180</span>
+<span id="1181">1181</span>
+<span id="1182">1182</span>
+<span id="1183">1183</span>
+<span id="1184">1184</span>
+<span id="1185">1185</span>
+<span id="1186">1186</span>
+<span id="1187">1187</span>
+<span id="1188">1188</span>
 </pre><pre class="rust"><code><span class="comment">// This generates better llvm optimization</span>
 <span class="attribute">#![<span class="ident">allow</span>(<span class="ident">clippy::int_plus_one</span>)]</span>
 
@@ -1282,6 +1290,7 @@
         <span class="ident">ValidPrime::new</span>(<span class="ident">P</span>)
     }
 
+    <span class="attribute">#[<span class="ident">must_use</span>]</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">slice</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">start</span>: <span class="ident">usize</span>, <span class="ident">end</span>: <span class="ident">usize</span>) -&gt; <span class="ident">SliceP</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span>, <span class="ident">P</span><span class="op">&gt;</span> {
         <span class="macro">assert!</span>(<span class="ident">start</span> <span class="op">&lt;</span><span class="op">=</span> <span class="ident">end</span> <span class="op">&amp;&amp;</span> <span class="ident">end</span> <span class="op">&lt;</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">len</span>);
         <span class="ident">SliceP</span> {
@@ -1291,6 +1300,7 @@
         }
     }
 
+    <span class="attribute">#[<span class="ident">must_use</span>]</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">slice_mut</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">start</span>: <span class="ident">usize</span>, <span class="ident">end</span>: <span class="ident">usize</span>) -&gt; <span class="ident">SliceMutP</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span>, <span class="ident">P</span><span class="op">&gt;</span> {
         <span class="macro">assert!</span>(<span class="ident">start</span> <span class="op">&lt;</span><span class="op">=</span> <span class="ident">end</span> <span class="op">&amp;&amp;</span> <span class="ident">end</span> <span class="op">&lt;</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">len</span>);
         <span class="ident">SliceMutP</span> {
@@ -1301,11 +1311,13 @@
     }
 
     <span class="attribute">#[<span class="ident">inline</span>]</span>
+    <span class="attribute">#[<span class="ident">must_use</span>]</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">as_slice</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">SliceP</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span>, <span class="ident">P</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">into</span>()
     }
 
     <span class="attribute">#[<span class="ident">inline</span>]</span>
+    <span class="attribute">#[<span class="ident">must_use</span>]</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">as_slice_mut</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) -&gt; <span class="ident">SliceMutP</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span>, <span class="ident">P</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">into</span>()
     }
@@ -1582,6 +1594,7 @@
     }
 
     <span class="attribute">#[<span class="ident">inline</span>]</span>
+    <span class="attribute">#[<span class="ident">must_use</span>]</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">as_slice</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">SliceP</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span>, <span class="ident">P</span><span class="op">&gt;</span> {
         <span class="ident">SliceP</span> {
             <span class="ident">limbs</span>: <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">limbs</span>,
@@ -1592,6 +1605,7 @@
 
     <span class="doccomment">/// Generates a version of itself with a shorter lifetime</span>
     <span class="attribute">#[<span class="ident">inline</span>]</span>
+    <span class="attribute">#[<span class="ident">must_use</span>]</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">copy</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) -&gt; <span class="ident">SliceMutP</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span>, <span class="ident">P</span><span class="op">&gt;</span> {
         <span class="ident">SliceMutP</span> {
             <span class="ident">limbs</span>: <span class="self">self</span>.<span class="ident">limbs</span>,
@@ -1602,6 +1616,7 @@
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="kw">const</span> <span class="ident">P</span>: <span class="ident">u32</span><span class="op">&gt;</span> <span class="ident">SliceP</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">P</span><span class="op">&gt;</span> {
+    <span class="attribute">#[<span class="ident">must_use</span>]</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">slice</span>(<span class="self">self</span>, <span class="ident">start</span>: <span class="ident">usize</span>, <span class="ident">end</span>: <span class="ident">usize</span>) -&gt; <span class="ident">SliceP</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">P</span><span class="op">&gt;</span> {
         <span class="macro">assert!</span>(<span class="ident">start</span> <span class="op">&lt;</span><span class="op">=</span> <span class="ident">end</span> <span class="op">&amp;&amp;</span> <span class="ident">end</span> <span class="op">&lt;</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">len</span>());
 
@@ -1613,6 +1628,7 @@
     }
 
     <span class="doccomment">/// Converts a slice to an owned FpVectorP. This is vastly more efficient if the start of the vector is aligned.</span>
+    <span class="attribute">#[<span class="ident">must_use</span>]</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">to_owned</span>(<span class="self">self</span>) -&gt; <span class="ident">FpVectorP</span><span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">new</span> <span class="op">=</span> <span class="ident">FpVectorP</span>::<span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span><span class="ident">::new_</span>(<span class="self">self</span>.<span class="ident">len</span>());
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">start</span> <span class="op">%</span> <span class="ident">limb::entries_per_limb_const</span>::<span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span>() <span class="op">==</span> <span class="number">0</span> {

@@ -1481,6 +1481,10 @@
 <span id="1455">1455</span>
 <span id="1456">1456</span>
 <span id="1457">1457</span>
+<span id="1458">1458</span>
+<span id="1459">1459</span>
+<span id="1460">1460</span>
+<span id="1461">1461</span>
 </pre><pre class="rust"><code><span class="doccomment">//! This module is provides wrappers around the contents of [`crate::vector_inner`]. The main</span>
 <span class="doccomment">//! purpose is to put [`FpVectorP`] for different `p` into a single enum. It does the same for the</span>
 <span class="doccomment">//! various slice structs.</span>
@@ -1546,6 +1550,7 @@
         }
     };
     (<span class="macro-nonterminal">$</span><span class="macro-nonterminal">vis</span>:<span class="ident">vis</span> <span class="kw">fn</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">method</span>:<span class="ident">ident</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span> $(, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">arg</span>:<span class="ident">ident</span>: <span class="macro-nonterminal">$</span><span class="macro-nonterminal">ty</span>:<span class="ident">ty</span> )<span class="op">*</span> ) -&gt; (<span class="ident">dispatch</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">ret</span>:<span class="ident">tt</span>)) =&gt; {
+        <span class="attribute">#[<span class="ident">must_use</span>]</span>
         <span class="macro-nonterminal">$</span><span class="macro-nonterminal">vis</span> <span class="kw">fn</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">method</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, $(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">arg</span>: <span class="macro-nonterminal">$</span><span class="macro-nonterminal">ty</span>),<span class="op">*</span> ) -&gt; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">ret</span> {
             <span class="kw">match</span> <span class="self">self</span> {
                 <span class="ident"><span class="self">Self</span>::_2</span>(<span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">x</span>) =&gt; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">ret::_2</span>(<span class="ident">x</span>.<span class="macro-nonterminal">$</span><span class="macro-nonterminal">method</span>($(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">arg</span>),<span class="kw-2">*</span>)),
@@ -1556,6 +1561,7 @@
         }
     };
     (<span class="macro-nonterminal">$</span><span class="macro-nonterminal">vis</span>:<span class="ident">vis</span> <span class="kw">fn</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">method</span>:<span class="ident">ident</span>(<span class="kw-2">&amp;</span><span class="self">self</span> $(, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">arg</span>:<span class="ident">ident</span>: <span class="macro-nonterminal">$</span><span class="macro-nonterminal">ty</span>:<span class="ident">ty</span> )<span class="op">*</span> ) -&gt; (<span class="ident">dispatch</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">ret</span>:<span class="ident">tt</span>)) =&gt; {
+        <span class="attribute">#[<span class="ident">must_use</span>]</span>
         <span class="macro-nonterminal">$</span><span class="macro-nonterminal">vis</span> <span class="kw">fn</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">method</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, $(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">arg</span>: <span class="macro-nonterminal">$</span><span class="macro-nonterminal">ty</span>),<span class="op">*</span> ) -&gt; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">ret</span> {
             <span class="kw">match</span> <span class="self">self</span> {
                 <span class="ident"><span class="self">Self</span>::_2</span>(<span class="kw-2">ref</span> <span class="ident">x</span>) =&gt; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">ret::_2</span>(<span class="ident">x</span>.<span class="macro-nonterminal">$</span><span class="macro-nonterminal">method</span>($(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">arg</span>),<span class="kw-2">*</span>)),
@@ -1566,6 +1572,7 @@
         }
     };
     (<span class="macro-nonterminal">$</span><span class="macro-nonterminal">vis</span>:<span class="ident">vis</span> <span class="kw">fn</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">method</span>:<span class="ident">ident</span>(<span class="self">self</span> $(, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">arg</span>:<span class="ident">ident</span>: <span class="macro-nonterminal">$</span><span class="macro-nonterminal">ty</span>:<span class="ident">ty</span> )<span class="op">*</span> ) -&gt; (<span class="ident">dispatch</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">ret</span>:<span class="ident">tt</span>)) =&gt; {
+        <span class="attribute">#[<span class="ident">must_use</span>]</span>
         <span class="macro-nonterminal">$</span><span class="macro-nonterminal">vis</span> <span class="kw">fn</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">method</span>(<span class="self">self</span>, $(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">arg</span>: <span class="macro-nonterminal">$</span><span class="macro-nonterminal">ty</span>),<span class="op">*</span> ) -&gt; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">ret</span> {
             <span class="kw">match</span> <span class="self">self</span> {
                 <span class="ident"><span class="self">Self</span>::_2</span>(<span class="ident">x</span>) =&gt; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">ret::_2</span>(<span class="ident">x</span>.<span class="macro-nonterminal">$</span><span class="macro-nonterminal">method</span>($(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">arg</span>),<span class="kw-2">*</span>)),
@@ -1577,6 +1584,7 @@
     };
 
     (<span class="macro-nonterminal">$</span><span class="macro-nonterminal">vis</span>:<span class="ident">vis</span> <span class="kw">fn</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">method</span>:<span class="ident">ident</span>(<span class="self">self</span> $(, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">arg</span>:<span class="ident">ident</span>: <span class="macro-nonterminal">$</span><span class="macro-nonterminal">ty</span>:<span class="ident">ty</span> )<span class="op">*</span> ) -&gt; (<span class="ident">dispatch</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">ret</span>:<span class="ident">tt</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">lifetime</span>:<span class="ident">tt</span>)) =&gt; {
+        <span class="attribute">#[<span class="ident">must_use</span>]</span>
         <span class="macro-nonterminal">$</span><span class="macro-nonterminal">vis</span> <span class="kw">fn</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">method</span>(<span class="self">self</span>, $(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">arg</span>: <span class="macro-nonterminal">$</span><span class="macro-nonterminal">ty</span>),<span class="op">*</span> ) -&gt; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">ret</span><span class="op">&lt;</span><span class="macro-nonterminal">$</span><span class="macro-nonterminal">lifetime</span><span class="op">&gt;</span> {
             <span class="kw">match</span> <span class="self">self</span> {
                 <span class="ident"><span class="self">Self</span>::_2</span>(<span class="ident">x</span>) =&gt; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">ret::_2</span>(<span class="ident">x</span>.<span class="macro-nonterminal">$</span><span class="macro-nonterminal">method</span>($(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">arg</span>),<span class="kw-2">*</span>)),
