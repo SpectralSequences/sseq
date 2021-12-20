@@ -1,6 +1,6 @@
 //! This prints all the differentials in the resolution.
 
-use ext::chain_complex::ChainComplex;
+use ext::chain_complex::{ChainComplex, FreeChainComplex};
 use ext::utils::query_module;
 
 fn main() -> anyhow::Result<()> {
