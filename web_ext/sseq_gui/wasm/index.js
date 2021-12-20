@@ -57,7 +57,7 @@ for (const [k, v] of url.searchParams.entries()) {
 }
 
 if (params.module) {
-    const maxDegree = parseInt(params.degree ? params.degree : 50);
+    const maxDegree = parseInt(params.degree ? params.degree : 40);
     const algebra = params.algebra ? params.algebra : 'adem';
 
     openWebSocket([
@@ -93,7 +93,7 @@ if (params.module) {
         n.children[1].children.forEach(a => {
             if (a.tagName == 'A') {
                 a.innerHTML = renderLaTeX(a.innerHTML);
-                a.href = `?module=${a.getAttribute('data')}&degree=50`;
+                a.href = `?module=${a.getAttribute('data')}&degree=40`;
             }
         });
     });
