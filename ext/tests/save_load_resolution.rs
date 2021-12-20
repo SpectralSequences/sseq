@@ -35,9 +35,7 @@ fn unlock_tempdir(dir: &Path) {
     }
 }
 
-// Panicking deadlocks when concurrent
 #[test]
-#[cfg(not(feature = "concurrent"))]
 #[should_panic]
 fn test_tempdir_lock() {
     let tempdir = tempfile::TempDir::new().unwrap();
@@ -92,9 +90,7 @@ fn test_save_load() {
     unlock_tempdir(tempdir.path());
 }
 
-// Panicking deadlocks when concurrent
 #[test]
-#[cfg(not(feature = "concurrent"))]
 #[should_panic]
 fn wrong_algebra() {
     let tempdir = tempfile::TempDir::new().unwrap();
@@ -221,9 +217,7 @@ fn test_load_secondary() {
     lift3.compute_homotopies();
 }
 
-// Panicking deadlocks when concurrent
 #[test]
-#[cfg(not(feature = "concurrent"))]
 #[should_panic]
 fn test_checksum() {
     use std::fs::OpenOptions;

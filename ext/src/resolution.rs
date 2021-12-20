@@ -21,6 +21,36 @@ use itertools::Itertools;
 #[cfg(feature = "concurrent")]
 use std::sync::mpsc;
 
+/// In [`Resolution::resolve_through_stem`] and [`Resolution::resolve_through_bidegree`], we pass
+/// this struct around to inform the supervisor what bidegrees have been computed. We use an
+/// explicit struct instead of a tuple to avoid an infinite type problem.
+#[cfg(feature = "concurrent")]
+struct SenderData {
+    s: u32,
+    t: i32,
+    /// Whether this bidegree was newly calculated or have already been calculated.
+    new: bool,
+    /// The sender object used to send the `SenderData`. We put this in the struct and pass it
+    /// around the mpsc, so that when all senders are dropped, we know the computation has
+    /// completed. Compared to keeping track of calculations manually, this has the advantage of
+    /// behaving correctly when a thread panicking.
+    sender: mpsc::Sender<SenderData>,
+}
+
+#[cfg(feature = "concurrent")]
+impl SenderData {
+    fn send(s: u32, t: i32, new: bool, sender: mpsc::Sender<Self>) {
+        sender
+            .send(Self {
+                s,
+                t,
+                new,
+                sender: sender.clone(),
+            })
+            .unwrap()
+    }
+}
+
 /// This is the maximum number of new generators we expect in each bidegree. This affects how much
 /// space we allocate when we are extending our resolutions. Having more than this many new
 /// generators will result in a slowdown but not an error. It is relatively cheap to increment this
@@ -653,7 +683,6 @@ impl<CC: ChainComplex> Resolution<CC> {
         self.complex.prime()
     }
 
-    #[cfg(feature = "concurrent")]
     pub fn compute_through_bidegree_with_callback(
         &self,
         max_s: u32,
@@ -667,70 +696,7 @@ impl<CC: ChainComplex> Resolution<CC> {
         self.extend_through_degree(max_s);
         self.algebra().compute_basis(max_t - min_degree);
 
-        rayon::in_place_scope(|scope| {
-            // Things that we have finished computing.
-            let mut progress: Vec<i32> = vec![min_degree - 1; max_s as usize + 1];
-            // We will kickstart the process by pretending we have computed (0, min_degree - 1). So
-            // we must pretend we have only computed up to (0, min_degree - 2);
-            progress[0] = min_degree - 2;
-
-            let mut remaining = max_s + 1;
-
-            let (sender, receiver) = mpsc::channel();
-            sender.send((0, min_degree - 1)).unwrap();
-
-            let f = |s, t| {
-                if self.has_computed_bidegree(s, t) {
-                    sender.send((s, t)).unwrap();
-                    return;
-                } else {
-                    let sender = sender.clone();
-                    scope.spawn(move |_| {
-                        self.step_resolution(s, t);
-                        sender.send((s, t)).unwrap();
-                    });
-                }
-            };
-
-            loop {
-                let (s, t) = receiver.recv().unwrap();
-                assert!(progress[s as usize] == t - 1);
-                progress[s as usize] = t;
-
-                if t == max_t {
-                    remaining -= 1;
-                }
-                if remaining == 0 {
-                    cb(s, t);
-                    break;
-                }
-
-                if t < max_t && (s == 0 || progress[s as usize - 1] > t) {
-                    // We are computing a normal step
-                    f(s, t + 1);
-                }
-                if s < max_s && progress[s as usize + 1] == t - 1 {
-                    f(s + 1, t);
-                }
-                cb(s, t);
-            }
-        });
-    }
-
-    #[cfg(not(feature = "concurrent"))]
-    pub fn compute_through_bidegree_with_callback(
-        &self,
-        max_s: u32,
-        max_t: i32,
-        mut cb: impl FnMut(u32, i32),
-    ) {
-        let min_degree = self.min_degree();
-        let _lock = self.lock.lock();
-
-        self.complex().compute_through_bidegree(max_s, max_t);
-        self.extend_through_degree(max_s);
-        self.algebra().compute_basis(max_t - min_degree);
-
+        #[cfg(not(feature = "concurrent"))]
         for t in min_degree..=max_t {
             for s in 0..=max_s {
                 if self.has_computed_bidegree(s, t) {
@@ -740,19 +706,58 @@ impl<CC: ChainComplex> Resolution<CC> {
                 cb(s, t);
             }
         }
+
+        #[cfg(feature = "concurrent")]
+        rayon::in_place_scope(|scope| {
+            // Things that we have finished computing.
+            let mut progress: Vec<i32> = vec![min_degree - 1; max_s as usize + 1];
+            // We will kickstart the process by pretending we have computed (0, min_degree - 1). So
+            // we must pretend we have only computed up to (0, min_degree - 2);
+            progress[0] = min_degree - 2;
+
+            let (sender, receiver) = mpsc::channel();
+            SenderData::send(0, min_degree - 1, false, sender);
+
+            let f = |s, t, sender| {
+                if self.has_computed_bidegree(s, t) {
+                    SenderData::send(s, t, false, sender);
+                } else {
+                    scope.spawn(move |_| {
+                        self.step_resolution(s, t);
+                        SenderData::send(s, t, true, sender);
+                    });
+                }
+            };
+
+            while let Ok(SenderData { s, t, new, sender }) = receiver.recv() {
+                assert!(progress[s as usize] == t - 1);
+                progress[s as usize] = t;
+
+                if t < max_t && (s == 0 || progress[s as usize - 1] > t) {
+                    // We are computing a normal step
+                    f(s, t + 1, sender.clone());
+                }
+                if s < max_s && progress[s as usize + 1] == t - 1 {
+                    f(s + 1, t, sender);
+                }
+                if new {
+                    cb(s, t);
+                }
+            }
+        });
     }
 
-    /// This function resolves up till a fixed stem instead of a fixed t. It is an error to
-    /// attempt to resolve further after this is called, and will result in a deadlock.
-    #[cfg(not(feature = "concurrent"))]
+    /// This function resolves up till a fixed stem instead of a fixed t.
     pub fn compute_through_stem(&self, max_s: u32, max_n: i32) {
         let min_degree = self.min_degree();
         let _lock = self.lock.lock();
         let max_t = max_s as i32 + max_n;
+
         self.complex().compute_through_bidegree(max_s, max_t);
         self.extend_through_degree(max_s);
         self.algebra().compute_basis(max_t - min_degree);
 
+        #[cfg(not(feature = "concurrent"))]
         for t in min_degree..=max_t {
             let start_s = std::cmp::max(0, t - max_n) as u32;
             for s in start_s..=max_s {
@@ -762,19 +767,8 @@ impl<CC: ChainComplex> Resolution<CC> {
                 self.step_resolution(s, t);
             }
         }
-    }
 
-    /// A concurrent version of [`Resolution::compute_through_stem`]
-    #[cfg(feature = "concurrent")]
-    pub fn compute_through_stem(&self, max_s: u32, max_n: i32) {
-        let min_degree = self.min_degree();
-        let _lock = self.lock.lock();
-        let max_t = max_s as i32 + max_n;
-
-        self.complex().compute_through_bidegree(max_s, max_t);
-        self.extend_through_degree(max_s);
-        self.algebra().compute_basis(max_t - min_degree);
-
+        #[cfg(feature = "concurrent")]
         rayon::in_place_scope(|scope| {
             // Things that we have finished computing.
             let mut progress: Vec<i32> = vec![min_degree - 1; max_s as usize + 1];
@@ -782,44 +776,42 @@ impl<CC: ChainComplex> Resolution<CC> {
             // we must pretend we have only computed up to (0, min_degree - 2);
             progress[0] = min_degree - 2;
 
-            let mut remaining = max_s + 1;
-
             let (sender, receiver) = mpsc::channel();
-            sender.send((0, min_degree - 1)).unwrap();
+            SenderData::send(0, min_degree - 1, false, sender);
 
-            let f = |s, t| {
+            let f = |s, t, sender| {
                 if self.has_computed_bidegree(s, t) {
-                    sender.send((s, t)).unwrap();
-                    return;
+                    SenderData::send(s, t, false, sender);
                 } else {
                     let sender = sender.clone();
                     scope.spawn(move |_| {
                         self.step_resolution(s, t);
-                        sender.send((s, t)).unwrap();
+                        SenderData::send(s, t, true, sender);
                     });
                 }
             };
 
-            loop {
-                let (s, t) = receiver.recv().unwrap();
+            while let Ok(SenderData {
+                s,
+                t,
+                new: _,
+                sender,
+            }) = receiver.recv()
+            {
                 assert!(progress[s as usize] == t - 1);
                 progress[s as usize] = t;
 
                 // How far we are from the last one for this s.
                 let distance = max_n + 1 - (t - s as i32);
 
-                if distance == 0 || (distance == 1 && s == max_s) {
-                    remaining -= 1;
-                }
-                if remaining == 0 {
-                    break;
+                if s < max_s && progress[s as usize + 1] == t - 1 {
+                    f(s + 1, t, sender.clone());
                 }
 
                 if distance > 1 && (s == 0 || progress[s as usize - 1] > t) {
                     // We are computing a normal step
-                    f(s, t + 1);
-                }
-                if distance == 1 && s < max_s {
+                    f(s, t + 1, sender);
+                } else if distance == 1 && s < max_s {
                     // We compute the kernel at the edge if necessary
                     if !self.has_computed_bidegree(s + 1, t + 1)
                         && (self.save_dir.is_none()
@@ -827,18 +819,13 @@ impl<CC: ChainComplex> Resolution<CC> {
                                 .save_file(SaveKind::Differential, s + 1, t + 1)
                                 .exists(self.save_dir.clone().unwrap()))
                     {
-                        let sender = sender.clone();
                         scope.spawn(move |_| {
                             self.kernels.insert((s, t + 1), self.get_kernel(s, t + 1));
-                            sender.send((s, t + 1)).unwrap();
+                            SenderData::send(s, t + 1, false, sender);
                         });
                     } else {
-                        sender.send((s, t + 1)).unwrap();
+                        SenderData::send(s, t + 1, false, sender);
                     }
-                }
-
-                if s < max_s && progress[s as usize + 1] == t - 1 {
-                    f(s + 1, t);
                 }
             }
         });
