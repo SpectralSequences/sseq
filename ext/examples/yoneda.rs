@@ -1,6 +1,6 @@
 use algebra::module::homomorphism::{FiniteModuleHomomorphism, IdentityHomomorphism};
 use algebra::module::{BoundedModule, Module};
-use ext::chain_complex::{ChainComplex, FreeChainComplex};
+use ext::chain_complex::{AugmentedChainComplex, ChainComplex, FreeChainComplex};
 use ext::resolution_homomorphism::ResolutionHomomorphism;
 use ext::utils::construct;
 use ext::yoneda::yoneda_representative_element;
@@ -15,7 +15,7 @@ fn main() -> anyhow::Result<()> {
         construct(name, None)
     }));
 
-    let module = resolution.complex().module(0);
+    let module = resolution.target().module(0);
     let min_degree = resolution.min_degree();
 
     let x: i32 = query::with_default("t - s", "20", str::parse);

@@ -4,7 +4,7 @@
 //! degree.
 
 use algebra::module::{FDModule, Module};
-use ext::chain_complex::{ChainComplex, ChainHomotopy, FiniteChainComplex};
+use ext::chain_complex::{AugmentedChainComplex, ChainComplex, ChainHomotopy, FiniteChainComplex};
 use ext::resolution::Resolution;
 use ext::resolution_homomorphism::ResolutionHomomorphism;
 use fp::matrix::{AugmentedMatrix, Matrix};
@@ -21,7 +21,7 @@ fn main() -> anyhow::Result<()> {
     let resolution = Arc::new(ext::utils::query_module(None, true)?);
     let p = resolution.prime();
 
-    let (is_unit, unit) = if resolution.complex().module(0).is_unit() {
+    let (is_unit, unit) = if resolution.target().module(0).is_unit() {
         (true, Arc::clone(&resolution))
     } else {
         let module = Arc::new(

@@ -7,7 +7,7 @@ use algebra::module::Module;
 use fp::matrix::Matrix;
 use fp::vector::FpVector;
 
-use ext::chain_complex::{ChainComplex, FreeChainComplex};
+use ext::chain_complex::{AugmentedChainComplex, ChainComplex, FreeChainComplex};
 use ext::resolution_homomorphism::ResolutionHomomorphism;
 use ext::secondary::*;
 use ext::utils::query_module;
@@ -20,8 +20,7 @@ fn main() -> anyhow::Result<()> {
         ext::utils::LoadQuasiInverseOption::IfNoSave,
     )?);
 
-    let is_unit =
-        resolution.complex().modules.len() == 1 && resolution.complex().module(0).is_unit();
+    let is_unit = resolution.target().modules.len() == 1 && resolution.target().module(0).is_unit();
 
     let unit = if is_unit {
         Arc::clone(&resolution)
@@ -35,7 +34,7 @@ fn main() -> anyhow::Result<()> {
     if !can_compute(&resolution) {
         eprintln!(
             "Cannot compute d2 for the module {}",
-            resolution.complex().module(0)
+            resolution.target().module(0)
         );
         return Ok(());
     }

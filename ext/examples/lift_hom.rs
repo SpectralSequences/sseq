@@ -40,7 +40,7 @@
 //! Steenrod modules.
 
 use algebra::module::{BoundedModule, Module};
-use ext::chain_complex::{ChainComplex, FreeChainComplex};
+use ext::chain_complex::{AugmentedChainComplex, ChainComplex, FreeChainComplex};
 use ext::resolution_homomorphism::ResolutionHomomorphism;
 use ext::utils;
 use fp::matrix::Matrix;
@@ -82,7 +82,7 @@ fn main() -> anyhow::Result<()> {
         target.compute_through_stem(s, n);
     }
 
-    let target_module = target.complex().module(0);
+    let target_module = target.target().module(0);
     let hom = ResolutionHomomorphism::new(name.clone(), source, target, shift_s, shift_t);
 
     eprintln!("\nInput Ext class to lift:");

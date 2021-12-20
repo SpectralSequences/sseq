@@ -2,7 +2,9 @@ use algebra::module::homomorphism::{
     FiniteModuleHomomorphism, FreeModuleHomomorphism, IdentityHomomorphism, ModuleHomomorphism,
 };
 use algebra::module::{BoundedModule, Module};
-use ext::chain_complex::{ChainComplex, FreeChainComplex, TensorChainComplex};
+use ext::chain_complex::{
+    AugmentedChainComplex, ChainComplex, FreeChainComplex, TensorChainComplex,
+};
 use ext::resolution_homomorphism::ResolutionHomomorphism;
 use ext::utils;
 use ext::yoneda::yoneda_representative_element;
@@ -20,7 +22,7 @@ fn main() -> anyhow::Result<()> {
         Some(algebra::AlgebraType::Adem),
     )?);
 
-    let complex = resolution.complex();
+    let complex = resolution.target();
     let module = complex.module(0);
 
     let p = ValidPrime::new(2);

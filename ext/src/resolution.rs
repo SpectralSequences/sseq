@@ -6,7 +6,6 @@ use algebra::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
 use algebra::module::{FreeModule, Module};
 use algebra::Algebra;
 use fp::matrix::{AugmentedMatrix, QuasiInverse, Subspace};
-use fp::prime::ValidPrime;
 use fp::vector::{FpVector, Slice, SliceMut};
 use once::OnceVec;
 
@@ -186,7 +185,7 @@ impl<CC: ChainComplex> Resolution<CC> {
             }
         }
 
-        let complex = self.complex();
+        let complex = self.target();
         complex.compute_through_bidegree(s, t);
 
         let current_differential = self.differential(s);
@@ -313,7 +312,7 @@ impl<CC: ChainComplex> Resolution<CC> {
         //                   v                               v
         // old_kernel <= X_{s-1, t} -------------------> C_{s-1, t}
 
-        let complex = self.complex();
+        let complex = self.target();
         complex.compute_through_bidegree(s, t);
 
         let current_differential = self.differential(s);
@@ -667,22 +666,6 @@ impl<CC: ChainComplex> Resolution<CC> {
         current_differential.set_image(t, None);
     }
 
-    pub fn cocycle_string(&self, hom_deg: u32, int_deg: i32, idx: usize) -> String {
-        let d = self.differential(hom_deg);
-        let target = d.target();
-        let result_vector = d.output(int_deg, idx);
-
-        target.element_to_string_pretty(hom_deg, int_deg, result_vector.as_slice())
-    }
-
-    pub fn complex(&self) -> Arc<CC> {
-        Arc::clone(&self.complex)
-    }
-
-    pub fn prime(&self) -> ValidPrime {
-        self.complex.prime()
-    }
-
     pub fn compute_through_bidegree_with_callback(
         &self,
         max_s: u32,
@@ -692,7 +675,7 @@ impl<CC: ChainComplex> Resolution<CC> {
         let min_degree = self.min_degree();
         let _lock = self.lock.lock();
 
-        self.complex().compute_through_bidegree(max_s, max_t);
+        self.target().compute_through_bidegree(max_s, max_t);
         self.extend_through_degree(max_s);
         self.algebra().compute_basis(max_t - min_degree);
 
@@ -753,7 +736,7 @@ impl<CC: ChainComplex> Resolution<CC> {
         let _lock = self.lock.lock();
         let max_t = max_s as i32 + max_n;
 
-        self.complex().compute_through_bidegree(max_s, max_t);
+        self.target().compute_through_bidegree(max_s, max_t);
         self.extend_through_degree(max_s);
         self.algebra().compute_basis(max_t - min_degree);
 
@@ -838,7 +821,7 @@ impl<CC: ChainComplex> ChainComplex for Resolution<CC> {
     type Homomorphism = FreeModuleHomomorphism<FreeModule<Self::Algebra>>;
 
     fn algebra(&self) -> Arc<Self::Algebra> {
-        self.complex().algebra()
+        self.target().algebra()
     }
 
     fn module(&self, s: u32) -> Arc<Self::Module> {
@@ -850,7 +833,7 @@ impl<CC: ChainComplex> ChainComplex for Resolution<CC> {
     }
 
     fn min_degree(&self) -> i32 {
-        self.complex().min_degree()
+        self.target().min_degree()
     }
 
     fn has_computed_bidegree(&self, s: u32, t: i32) -> bool {
@@ -919,7 +902,7 @@ impl<CC: ChainComplex> AugmentedChainComplex for Resolution<CC> {
     type ChainMap = FreeModuleHomomorphism<CC::Module>;
 
     fn target(&self) -> Arc<Self::TargetComplex> {
-        self.complex()
+        Arc::clone(&self.complex)
     }
 
     fn chain_map(&self, s: u32) -> Arc<Self::ChainMap> {

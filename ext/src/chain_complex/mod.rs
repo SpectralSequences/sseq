@@ -94,6 +94,14 @@ pub trait FreeChainComplex:
     fn number_of_gens_in_bidegree(&self, s: u32, t: i32) -> usize {
         self.module(s).number_of_gens_in_degree(t)
     }
+
+    fn cocycle_string(&self, s: u32, t: i32, idx: usize) -> String {
+        let d = self.differential(s);
+        let target = d.target();
+        let result_vector = d.output(t, idx);
+
+        target.element_to_string_pretty(s, t, result_vector.as_slice())
+    }
 }
 
 impl<CC> FreeChainComplex for CC where

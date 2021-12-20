@@ -6,7 +6,7 @@ use std::sync::Arc;
 use algebra::module::homomorphism::FreeModuleHomomorphism;
 use algebra::module::{FreeModule, Module};
 use algebra::Algebra;
-use ext::chain_complex::{ChainComplex, FreeChainComplex};
+use ext::chain_complex::{AugmentedChainComplex, ChainComplex, FreeChainComplex};
 use ext::resolution::Resolution as ResolutionInner;
 use fp::matrix::Matrix;
 use fp::prime::ValidPrime;
@@ -113,7 +113,7 @@ impl Resolution<ext::CCC> {
 impl<CC: ChainComplex> Resolution<CC> {
     pub fn new_with_inner(inner: ResolutionInner<CC>) -> Self {
         let inner = Arc::new(inner);
-        let algebra = inner.complex().algebra();
+        let algebra = inner.algebra();
 
         Self {
             inner,
@@ -195,7 +195,7 @@ impl<CC: ChainComplex> Resolution<CC> {
     }
 
     pub fn complex(&self) -> Arc<CC> {
-        self.inner.complex()
+        self.inner.target()
     }
 }
 

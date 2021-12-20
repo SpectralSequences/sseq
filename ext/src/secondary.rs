@@ -1,4 +1,6 @@
-use crate::chain_complex::{BoundedChainComplex, ChainComplex, ChainHomotopy, FreeChainComplex};
+use crate::chain_complex::{
+    AugmentedChainComplex, BoundedChainComplex, ChainComplex, ChainHomotopy, FreeChainComplex,
+};
 use crate::resolution::Resolution;
 use crate::resolution_homomorphism::ResolutionHomomorphism;
 use crate::save::{SaveFile, SaveKind};
@@ -1298,7 +1300,7 @@ impl<
 ///  2. The module is finite dimensional; and
 ///  3. $\mathrm{Hom}(\mathrm{Ext}^{2, t}_A(H^*X, k), H^{t - 1} X) = 0$ for all $t$ or $\mathrm{Hom}(\mathrm{Ext}^{3, t}_A(H^*X, k), H^{t - 1} X) = 0$ for all $t$.
 pub fn can_compute(res: &Resolution<CCC>) -> bool {
-    let complex = res.complex();
+    let complex = res.target();
     if *complex.prime() != 2 {
         eprintln!("Prime is not 2");
         return false;

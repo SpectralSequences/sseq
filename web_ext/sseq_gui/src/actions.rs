@@ -3,7 +3,7 @@ use crate::sseq::{ClassState, ProductItem, SseqWrapper, INFINITY};
 use algebra::module::Module;
 use bivec::BiVec;
 use enum_dispatch::enum_dispatch;
-use ext::CCC;
+use ext::{chain_complex::FreeChainComplex, CCC};
 use fp::vector::FpVector;
 use serde::{Deserialize, Serialize};
 

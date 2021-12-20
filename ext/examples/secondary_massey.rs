@@ -10,7 +10,7 @@ use ext::resolution::Resolution;
 use fp::matrix::{Matrix, Subspace};
 use fp::vector::FpVector;
 
-use ext::chain_complex::{ChainComplex, ChainHomotopy, FreeChainComplex};
+use ext::chain_complex::{AugmentedChainComplex, ChainComplex, ChainHomotopy, FreeChainComplex};
 use ext::resolution_homomorphism::ResolutionHomomorphism;
 use ext::utils::query_module;
 use ext::{secondary::*, CCC};
@@ -105,8 +105,7 @@ fn main() -> anyhow::Result<()> {
         ext::utils::LoadQuasiInverseOption::IfNoSave,
     )?);
 
-    let is_unit =
-        resolution.complex().modules.len() == 1 && resolution.complex().module(0).is_unit();
+    let is_unit = resolution.target().modules.len() == 1 && resolution.target().module(0).is_unit();
 
     let unit = if is_unit {
         Arc::clone(&resolution)
@@ -120,7 +119,7 @@ fn main() -> anyhow::Result<()> {
     if !can_compute(&resolution) {
         eprintln!(
             "Cannot compute d2 for the module {}",
-            resolution.complex().module(0)
+            resolution.target().module(0)
         );
         return Ok(());
     }

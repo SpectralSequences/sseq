@@ -22,7 +22,7 @@
 use algebra::module::Module;
 use std::sync::Arc;
 
-use ext::chain_complex::ChainComplex;
+use ext::chain_complex::{AugmentedChainComplex, ChainComplex};
 use ext::secondary::*;
 use ext::utils::query_module;
 
@@ -35,7 +35,7 @@ fn main() -> anyhow::Result<()> {
     if !can_compute(&resolution) {
         eprintln!(
             "Cannot compute d2 for the module {}",
-            resolution.complex().module(0)
+            resolution.target().module(0)
         );
         return Ok(());
     }
