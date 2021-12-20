@@ -20,6 +20,8 @@ bivec = { path = "../bivec"}
 fp = { path = "../fp", default-features = false }
 once = { path = "../once" }
 
+rayon = { version = "1.5", optional = true }
+
 [dev-dependencies]
 rstest = "0.10.0"
 bencher = "0.1.5"
@@ -29,6 +31,7 @@ expect-test = "1.1.0"
 default = ["odd-primes", "json"]
 json = ["serde", "serde_json", "bivec/json", "fp/json"]
 odd-primes = ["fp/odd-primes"]
+concurrent = ["rayon", "fp/concurrent"]
 
 [[bench]]
 name = "milnor"

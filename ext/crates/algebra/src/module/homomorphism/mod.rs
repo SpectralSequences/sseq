@@ -5,6 +5,9 @@ use fp::matrix::{AugmentedMatrix, MatrixSliceMut, QuasiInverse, Subspace};
 use fp::prime::ValidPrime;
 use fp::vector::{Slice, SliceMut};
 
+#[cfg(feature = "concurrent")]
+use rayon::prelude::*;
+
 mod bounded_module_homomorphism;
 mod finite_module_homomorphism;
 mod fp_module_homomorphism;
@@ -121,9 +124,16 @@ pub trait ModuleHomomorphism: Send + Sync {
         assert_eq!(self.source().dimension(degree), matrix.rows());
         assert_eq!(self.target().dimension(degree), matrix.columns());
 
+        #[cfg(not(feature = "concurrent"))]
         for (i, row) in matrix.iter_mut().enumerate() {
             self.apply_to_basis_element(row, 1, degree, i);
         }
+
+        #[cfg(feature = "concurrent")]
+        matrix
+            .par_iter_mut()
+            .enumerate()
+            .for_each(|(i, row)| self.apply_to_basis_element(row, 1, degree, i));
     }
 
     /// Attempt to apply quasi inverse to the input. Returns whether the operation was

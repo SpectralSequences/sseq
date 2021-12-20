@@ -7,6 +7,9 @@ use std::fmt;
 use std::io::{Read, Write};
 use std::ops::{Index, IndexMut};
 
+#[cfg(feature = "concurrent")]
+use rayon::prelude::*;
+
 /// A matrix! In particular, a matrix with values in F_p. The way we store matrices means it is
 /// easier to perform row operations than column operations, and the way we use matrices means we
 /// want our matrices to act on the right. Hence we think of vectors as row vectors.
@@ -295,6 +298,11 @@ impl Matrix {
 
     pub fn iter_mut(&mut self) -> std::slice::IterMut<FpVector> {
         self.vectors.iter_mut()
+    }
+
+    #[cfg(feature = "concurrent")]
+    pub fn par_iter_mut(&mut self) -> impl IndexedParallelIterator<Item = &mut FpVector> + '_ {
+        self.vectors.par_iter_mut()
     }
 }
 
@@ -1114,6 +1122,15 @@ impl<'a> MatrixSliceMut<'a> {
         let end = self.col_end;
         self.vectors
             .iter_mut()
+            .map(move |x| x.slice_mut(start, end))
+    }
+
+    #[cfg(feature = "concurrent")]
+    pub fn par_iter_mut(&mut self) -> impl IndexedParallelIterator<Item = SliceMut> + '_ {
+        let start = self.col_start;
+        let end = self.col_end;
+        self.vectors
+            .par_iter_mut()
             .map(move |x| x.slice_mut(start, end))
     }
 
