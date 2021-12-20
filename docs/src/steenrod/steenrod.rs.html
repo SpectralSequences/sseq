@@ -352,11 +352,15 @@
 <span id="326">326</span>
 <span id="327">327</span>
 <span id="328">328</span>
+<span id="329">329</span>
+<span id="330">330</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">algebra::module::homomorphism</span>::{
     <span class="ident">FiniteModuleHomomorphism</span>, <span class="ident">FreeModuleHomomorphism</span>, <span class="ident">IdentityHomomorphism</span>, <span class="ident">ModuleHomomorphism</span>,
 };
 <span class="kw">use</span> <span class="ident">algebra::module</span>::{<span class="ident">BoundedModule</span>, <span class="ident">Module</span>};
-<span class="kw">use</span> <span class="ident">ext::chain_complex</span>::{<span class="ident">ChainComplex</span>, <span class="ident">FreeChainComplex</span>, <span class="ident">TensorChainComplex</span>};
+<span class="kw">use</span> <span class="ident">ext::chain_complex</span>::{
+    <span class="ident">AugmentedChainComplex</span>, <span class="ident">ChainComplex</span>, <span class="ident">FreeChainComplex</span>, <span class="ident">TensorChainComplex</span>,
+};
 <span class="kw">use</span> <span class="ident">ext::resolution_homomorphism::ResolutionHomomorphism</span>;
 <span class="kw">use</span> <span class="ident">ext::utils</span>;
 <span class="kw">use</span> <span class="ident">ext::yoneda::yoneda_representative_element</span>;
@@ -374,7 +378,7 @@
         <span class="prelude-val">Some</span>(<span class="ident">algebra::AlgebraType::Adem</span>),
     )<span class="question-mark">?</span>);
 
-    <span class="kw">let</span> <span class="ident">complex</span> <span class="op">=</span> <span class="ident">resolution</span>.<span class="ident">complex</span>();
+    <span class="kw">let</span> <span class="ident">complex</span> <span class="op">=</span> <span class="ident">resolution</span>.<span class="ident">target</span>();
     <span class="kw">let</span> <span class="ident">module</span> <span class="op">=</span> <span class="ident">complex</span>.<span class="ident">module</span>(<span class="number">0</span>);
 
     <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">ValidPrime::new</span>(<span class="number">2</span>);

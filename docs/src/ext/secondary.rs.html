@@ -1347,7 +1347,11 @@
 <span id="1321">1321</span>
 <span id="1322">1322</span>
 <span id="1323">1323</span>
-</pre><pre class="rust"><code><span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::chain_complex</span>::{<span class="ident">BoundedChainComplex</span>, <span class="ident">ChainComplex</span>, <span class="ident">ChainHomotopy</span>, <span class="ident">FreeChainComplex</span>};
+<span id="1324">1324</span>
+<span id="1325">1325</span>
+</pre><pre class="rust"><code><span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::chain_complex</span>::{
+    <span class="ident">AugmentedChainComplex</span>, <span class="ident">BoundedChainComplex</span>, <span class="ident">ChainComplex</span>, <span class="ident">ChainHomotopy</span>, <span class="ident">FreeChainComplex</span>,
+};
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::resolution::Resolution</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::resolution_homomorphism::ResolutionHomomorphism</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::save</span>::{<span class="ident">SaveFile</span>, <span class="ident">SaveKind</span>};
@@ -2647,7 +2651,7 @@
 <span class="doccomment">///  2. The module is finite dimensional; and</span>
 <span class="doccomment">///  3. $\mathrm{Hom}(\mathrm{Ext}^{2, t}_A(H^*X, k), H^{t - 1} X) = 0$ for all $t$ or $\mathrm{Hom}(\mathrm{Ext}^{3, t}_A(H^*X, k), H^{t - 1} X) = 0$ for all $t$.</span>
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">can_compute</span>(<span class="ident">res</span>: <span class="kw-2">&amp;</span><span class="ident">Resolution</span><span class="op">&lt;</span><span class="ident">CCC</span><span class="op">&gt;</span>) -&gt; <span class="ident">bool</span> {
-    <span class="kw">let</span> <span class="ident">complex</span> <span class="op">=</span> <span class="ident">res</span>.<span class="ident">complex</span>();
+    <span class="kw">let</span> <span class="ident">complex</span> <span class="op">=</span> <span class="ident">res</span>.<span class="ident">target</span>();
     <span class="kw">if</span> <span class="kw-2">*</span><span class="ident">complex</span>.<span class="ident">prime</span>() <span class="op">!</span><span class="op">=</span> <span class="number">2</span> {
         <span class="macro">eprintln!</span>(<span class="string">&quot;Prime is not 2&quot;</span>);
         <span class="kw">return</span> <span class="bool-val">false</span>;

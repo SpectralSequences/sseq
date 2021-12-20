@@ -407,6 +407,14 @@
 <span id="381">381</span>
 <span id="382">382</span>
 <span id="383">383</span>
+<span id="384">384</span>
+<span id="385">385</span>
+<span id="386">386</span>
+<span id="387">387</span>
+<span id="388">388</span>
+<span id="389">389</span>
+<span id="390">390</span>
+<span id="391">391</span>
 </pre><pre class="rust"><code><span class="kw">mod</span> <span class="ident">chain_homotopy</span>;
 <span class="kw">mod</span> <span class="ident">finite_chain_complex</span>;
 <span class="kw">mod</span> <span class="ident">tensor_product_chain_complex</span>;
@@ -502,6 +510,14 @@
 
     <span class="kw">fn</span> <span class="ident">number_of_gens_in_bidegree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">s</span>: <span class="ident">u32</span>, <span class="ident">t</span>: <span class="ident">i32</span>) -&gt; <span class="ident">usize</span> {
         <span class="self">self</span>.<span class="ident">module</span>(<span class="ident">s</span>).<span class="ident">number_of_gens_in_degree</span>(<span class="ident">t</span>)
+    }
+
+    <span class="kw">fn</span> <span class="ident">cocycle_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">s</span>: <span class="ident">u32</span>, <span class="ident">t</span>: <span class="ident">i32</span>, <span class="ident">idx</span>: <span class="ident">usize</span>) -&gt; <span class="ident">String</span> {
+        <span class="kw">let</span> <span class="ident">d</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">differential</span>(<span class="ident">s</span>);
+        <span class="kw">let</span> <span class="ident">target</span> <span class="op">=</span> <span class="ident">d</span>.<span class="ident">target</span>();
+        <span class="kw">let</span> <span class="ident">result_vector</span> <span class="op">=</span> <span class="ident">d</span>.<span class="ident">output</span>(<span class="ident">t</span>, <span class="ident">idx</span>);
+
+        <span class="ident">target</span>.<span class="ident">element_to_string_pretty</span>(<span class="ident">s</span>, <span class="ident">t</span>, <span class="ident">result_vector</span>.<span class="ident">as_slice</span>())
     }
 }
 
