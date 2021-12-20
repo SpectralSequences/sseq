@@ -1223,6 +1223,23 @@
 <span id="1197">1197</span>
 <span id="1198">1198</span>
 <span id="1199">1199</span>
+<span id="1200">1200</span>
+<span id="1201">1201</span>
+<span id="1202">1202</span>
+<span id="1203">1203</span>
+<span id="1204">1204</span>
+<span id="1205">1205</span>
+<span id="1206">1206</span>
+<span id="1207">1207</span>
+<span id="1208">1208</span>
+<span id="1209">1209</span>
+<span id="1210">1210</span>
+<span id="1211">1211</span>
+<span id="1212">1212</span>
+<span id="1213">1213</span>
+<span id="1214">1214</span>
+<span id="1215">1215</span>
+<span id="1216">1216</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="kw">super</span>::{<span class="ident">QuasiInverse</span>, <span class="ident">Subspace</span>};
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::matrix::m4ri::M4riTable</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::prime</span>::{<span class="self">self</span>, <span class="ident">ValidPrime</span>};
@@ -1231,6 +1248,9 @@
 <span class="kw">use</span> <span class="ident">std::fmt</span>;
 <span class="kw">use</span> <span class="ident">std::io</span>::{<span class="ident">Read</span>, <span class="ident">Write</span>};
 <span class="kw">use</span> <span class="ident">std::ops</span>::{<span class="ident">Index</span>, <span class="ident">IndexMut</span>};
+
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
+<span class="kw">use</span> <span class="ident">rayon::prelude</span>::<span class="kw-2">*</span>;
 
 <span class="doccomment">/// A matrix! In particular, a matrix with values in F_p. The way we store matrices means it is</span>
 <span class="doccomment">/// easier to perform row operations than column operations, and the way we use matrices means we</span>
@@ -1520,6 +1540,11 @@
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">iter_mut</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) -&gt; <span class="ident">std::slice::IterMut</span><span class="op">&lt;</span><span class="ident">FpVector</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">vectors</span>.<span class="ident">iter_mut</span>()
+    }
+
+    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">par_iter_mut</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) -&gt; <span class="kw">impl</span> <span class="ident">IndexedParallelIterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="kw-2">&amp;mut</span> <span class="ident">FpVector</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;_</span> {
+        <span class="self">self</span>.<span class="ident">vectors</span>.<span class="ident">par_iter_mut</span>()
     }
 }
 
@@ -2339,6 +2364,15 @@
         <span class="kw">let</span> <span class="ident">end</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">col_end</span>;
         <span class="self">self</span>.<span class="ident">vectors</span>
             .<span class="ident">iter_mut</span>()
+            .<span class="ident">map</span>(<span class="kw">move</span> <span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">x</span>.<span class="ident">slice_mut</span>(<span class="ident">start</span>, <span class="ident">end</span>))
+    }
+
+    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">par_iter_mut</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) -&gt; <span class="kw">impl</span> <span class="ident">IndexedParallelIterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">SliceMut</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;_</span> {
+        <span class="kw">let</span> <span class="ident">start</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">col_start</span>;
+        <span class="kw">let</span> <span class="ident">end</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">col_end</span>;
+        <span class="self">self</span>.<span class="ident">vectors</span>
+            .<span class="ident">par_iter_mut</span>()
             .<span class="ident">map</span>(<span class="kw">move</span> <span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">x</span>.<span class="ident">slice_mut</span>(<span class="ident">start</span>, <span class="ident">end</span>))
     }
 

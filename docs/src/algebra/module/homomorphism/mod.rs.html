@@ -174,12 +174,25 @@
 <span id="148">148</span>
 <span id="149">149</span>
 <span id="150">150</span>
+<span id="151">151</span>
+<span id="152">152</span>
+<span id="153">153</span>
+<span id="154">154</span>
+<span id="155">155</span>
+<span id="156">156</span>
+<span id="157">157</span>
+<span id="158">158</span>
+<span id="159">159</span>
+<span id="160">160</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
 
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::module::Module</span>;
 <span class="kw">use</span> <span class="ident">fp::matrix</span>::{<span class="ident">AugmentedMatrix</span>, <span class="ident">MatrixSliceMut</span>, <span class="ident">QuasiInverse</span>, <span class="ident">Subspace</span>};
 <span class="kw">use</span> <span class="ident">fp::prime::ValidPrime</span>;
 <span class="kw">use</span> <span class="ident">fp::vector</span>::{<span class="ident">Slice</span>, <span class="ident">SliceMut</span>};
+
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
+<span class="kw">use</span> <span class="ident">rayon::prelude</span>::<span class="kw-2">*</span>;
 
 <span class="kw">mod</span> <span class="ident">bounded_module_homomorphism</span>;
 <span class="kw">mod</span> <span class="ident">finite_module_homomorphism</span>;
@@ -297,9 +310,16 @@
         <span class="macro">assert_eq!</span>(<span class="self">self</span>.<span class="ident">source</span>().<span class="ident">dimension</span>(<span class="ident">degree</span>), <span class="ident">matrix</span>.<span class="ident">rows</span>());
         <span class="macro">assert_eq!</span>(<span class="self">self</span>.<span class="ident">target</span>().<span class="ident">dimension</span>(<span class="ident">degree</span>), <span class="ident">matrix</span>.<span class="ident">columns</span>());
 
+        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>))]</span>
         <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">row</span>) <span class="kw">in</span> <span class="ident">matrix</span>.<span class="ident">iter_mut</span>().<span class="ident">enumerate</span>() {
             <span class="self">self</span>.<span class="ident">apply_to_basis_element</span>(<span class="ident">row</span>, <span class="number">1</span>, <span class="ident">degree</span>, <span class="ident">i</span>);
         }
+
+        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
+        <span class="ident">matrix</span>
+            .<span class="ident">par_iter_mut</span>()
+            .<span class="ident">enumerate</span>()
+            .<span class="ident">for_each</span>(<span class="op">|</span>(<span class="ident">i</span>, <span class="ident">row</span>)<span class="op">|</span> <span class="self">self</span>.<span class="ident">apply_to_basis_element</span>(<span class="ident">row</span>, <span class="number">1</span>, <span class="ident">degree</span>, <span class="ident">i</span>));
     }
 
     <span class="doccomment">/// Attempt to apply quasi inverse to the input. Returns whether the operation was</span>
