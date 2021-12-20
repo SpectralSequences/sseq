@@ -20,7 +20,7 @@ use itertools::Itertools;
 #[cfg(feature = "concurrent")]
 use std::sync::mpsc;
 
-/// In [`Resolution::resolve_through_stem`] and [`Resolution::resolve_through_bidegree`], we pass
+/// In [`Resolution::compute_through_stem`] and [`Resolution::compute_through_bidegree`], we pass
 /// this struct around to inform the supervisor what bidegrees have been computed. We use an
 /// explicit struct instead of a tuple to avoid an infinite type problem.
 #[cfg(feature = "concurrent")]
@@ -732,6 +732,15 @@ impl<CC: ChainComplex> Resolution<CC> {
 
     /// This function resolves up till a fixed stem instead of a fixed t.
     pub fn compute_through_stem(&self, max_s: u32, max_n: i32) {
+        self.compute_through_stem_with_callback(max_s, max_n, |_, _| ());
+    }
+
+    pub fn compute_through_stem_with_callback(
+        &self,
+        max_s: u32,
+        max_n: i32,
+        mut cb: impl FnMut(u32, i32),
+    ) {
         let min_degree = self.min_degree();
         let _lock = self.lock.lock();
         let max_t = max_s as i32 + max_n;
@@ -748,6 +757,7 @@ impl<CC: ChainComplex> Resolution<CC> {
                     continue;
                 }
                 self.step_resolution(s, t);
+                cb(s, t);
             }
         }
 
@@ -774,13 +784,7 @@ impl<CC: ChainComplex> Resolution<CC> {
                 }
             };
 
-            while let Ok(SenderData {
-                s,
-                t,
-                new: _,
-                sender,
-            }) = receiver.recv()
-            {
+            while let Ok(SenderData { s, t, new, sender }) = receiver.recv() {
                 assert!(progress[s as usize] == t - 1);
                 progress[s as usize] = t;
 
@@ -809,6 +813,9 @@ impl<CC: ChainComplex> Resolution<CC> {
                     } else {
                         SenderData::send(s, t + 1, false, sender);
                     }
+                }
+                if new {
+                    cb(s, t);
                 }
             }
         });

@@ -134,18 +134,18 @@ impl<CC: ChainComplex> Resolution<CC> {
         }
     }
 
-    pub fn compute_through_bidegree(&self, s: u32, t: i32) {
+    pub fn compute_through_stem(&self, s: u32, n: i32) {
         // If products were defined through the module specification, the unit resolution might not
         // have been resolved yet
         if let UnitResolution::Some(r) = &self.unit_resolution {
-            r.compute_through_bidegree(self.max_product_s, self.max_product_t);
+            r.compute_through_stem(self.max_product_s, self.max_product_t);
         }
         self.inner
-            .compute_through_bidegree_with_callback(s, t, |s, t| self.step_after(s, t));
+            .compute_through_stem_with_callback(s, n, |s, t| self.step_after(s, t));
     }
 
     pub fn compute_through_degree(&self, degree: i32) {
-        self.compute_through_bidegree(degree as u32, degree);
+        self.compute_through_stem(degree as u32 / 2 + 5, degree);
     }
 
     pub fn step_after(&self, s: u32, t: i32) {
