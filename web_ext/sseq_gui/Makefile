@@ -28,7 +28,7 @@ $(WASM_FILE): $(WASM_LIB)
 	wasm-bindgen --no-typescript --target no-modules --out-dir $(WASM_OUT) --out-name $(NAME)_wasm $(WASM_LIB)
 	wasm-opt -O3 $(WASM_FILE) -o $(WASM_FILE) || true
 
-.PHONY: wasm serve-wasm clean-wasm clean dummy run_examples test
+.PHONY: wasm serve-wasm clean-wasm clean dummy run_examples test selenium selenium-update
 
 wasm: $(WASM_FILE) $(wildcard interface/*) $(wildcard wasm/*) $(wildcard $(EXT)/steenrod_modules/*)
 	# Must be done in this order since both contain index.js and we want the wasm version
@@ -38,7 +38,7 @@ wasm: $(WASM_FILE) $(wildcard interface/*) $(wildcard wasm/*) $(wildcard $(EXT)/
 	cp -r $(EXT)/steenrod_modules $(WASM_OUT)
 
 serve-wasm:
-	cd dist && python -m http.server
+	python3 -m http.server --directory dist 8080
 
 clean-wasm:
 	rm -r dist/*
@@ -53,3 +53,14 @@ run_examples: $(patsubst examples/%.rs, target/debug/examples/%, $(wildcard exam
 
 target/debug/examples/%: dummy
 	cargo run --example "$(notdir $@)"
+
+lint-selenium:
+	flake8 --ignore E501 tests
+	black --diff --check tests
+
+selenium:
+	python3 -m pytest tests --driver firefox
+	python3 -m pytest tests --driver chrome
+
+selenium-update:
+	python3 -m pytest tests --driver firefox --update

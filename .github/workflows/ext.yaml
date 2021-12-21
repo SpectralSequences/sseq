@@ -105,6 +105,10 @@ jobs:
           toolchain: ${{ matrix.toolchain }}
           components: clippy, rustfmt
 
+      # Install black from pip3 to ensure latest version
+      - name: Install python dependencies
+        run: sudo apt-get install flake8 && pip3 install black
+
       - name: Cache files
         uses: actions/cache@v2
         with:
@@ -119,6 +123,9 @@ jobs:
 
       - name: Lint sseq_gui
         run: make -C web_ext/sseq_gui lint
+
+      - name: Lint sseq_gui tests
+        run: make -C web_ext/sseq_gui lint-selenium
 
   webserver:
     if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository }}
@@ -173,6 +180,68 @@ jobs:
         with:
           name: webserver-${{ matrix.toolchain }}
           path: web_ext/sseq_gui/dist/
+
+  selenium:
+    if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository }}
+    runs-on: ubuntu-20.04
+    needs: [webserver]
+    env:
+      RUST_BACKTRACE: 1
+      RUSTFLAGS: "-D warnings"
+      RUSTUP_TOOLCHAIN: ${{ matrix.toolchain }}
+
+    strategy:
+      matrix:
+        toolchain: ["nightly", "beta"]
+
+    defaults:
+      run:
+        working-directory: web_ext/sseq_gui
+
+    continue-on-error: ${{ matrix.toolchain == 'nightly' }}
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Download webserver
+        uses: actions/download-artifact@v2
+        with:
+          name: webserver-beta
+          path: web_ext/sseq_gui/dist/
+
+      - name: Install rustup
+        uses: actions-rs/toolchain@v1
+        id: rustup
+        with:
+          toolchain: ${{ matrix.toolchain }}
+
+      - name: Install dependencies
+        run: sudo apt-get install --no-install-recommends python3-pytest python3-selenium
+
+      - name: Cache files
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo
+            /usr/share/rust/.cargo
+            **/target
+          key: webserver-${{ steps.rustup.outputs.rustc_hash }}-${{ hashFiles('**/Cargo.*') }}
+
+      - name: Test wasm
+        run: |
+          make serve-wasm &
+          (sleep 1 && make selenium)
+
+      - name: Test local
+        run: |
+          cargo build &&
+          target/debug/sseq_gui &
+          sleep 1 && make selenium
+
+      - name: Test local concurrent
+        run: |
+          cargo build --features concurrent &&
+          target/debug/sseq_gui &
+          sleep 1 && make selenium
 
   calculator:
     if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository }}
@@ -269,7 +338,7 @@ jobs:
           path: ext/target/doc/
 
   deploy:
-    needs: [test, lint, webserver, calculator, docs]
+    needs: [test, lint, webserver, calculator, docs, selenium]
     runs-on: ubuntu-20.04
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
 

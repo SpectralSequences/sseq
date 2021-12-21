@@ -57,6 +57,7 @@ export class Chart extends HTMLElement {
         this.maxY = Chart.GRID_MARGIN;
 
         this.svg = document.createElementNS(svgNS, 'svg');
+        this.svg.setAttribute('xmlns', svgNS);
 
         const node = document.createElement('style');
         node.textContent = ':host { display: block; }';
