@@ -7,7 +7,7 @@ use ext::chain_complex::ChainComplex;
 use ext::utils::load_module_json;
 use ext::CCC;
 
-use serde_json::{json, Value};
+use serde_json::json;
 
 use crate::Sender;
 
@@ -23,7 +23,6 @@ use crate::Sender;
 pub struct ResolutionManager {
     sender: Sender,
     is_unit: bool,
-    resolved: bool,
     resolution: Option<Resolution<CCC>>,
 }
 
@@ -37,7 +36,6 @@ impl ResolutionManager {
             sender,
             resolution: None,
             is_unit: false,
-            resolved: false,
         }
     }
 
@@ -84,7 +82,7 @@ impl ResolutionManager {
     fn construct_json(&mut self, action: ConstructJson) -> anyhow::Result<()> {
         let json_data = serde_json::from_str(&action.data)?;
         let resolution = Resolution::new_from_json(&json_data, &action.algebra_name);
-        self.process_bundle(resolution, json_data);
+        self.process_bundle(resolution);
 
         Ok(())
     }
@@ -93,12 +91,12 @@ impl ResolutionManager {
     fn construct(&mut self, action: Construct) -> anyhow::Result<()> {
         let json = load_module_json(&action.module_name)?;
         let resolution = Resolution::new_from_json(&json, &action.algebra_name);
-        self.process_bundle(resolution, json);
+        self.process_bundle(resolution);
 
         Ok(())
     }
 
-    fn process_bundle(&mut self, mut resolution: Resolution<CCC>, json: Value) {
+    fn process_bundle(&mut self, mut resolution: Resolution<CCC>) {
         self.is_unit =
             resolution.complex().modules.len() == 1 && resolution.complex().module(0).is_unit();
 
@@ -111,7 +109,6 @@ impl ResolutionManager {
                     "p": *resolution.prime(),
                     "gens": {"x0": 0},
                     "actions": [],
-                    "save_file": json["unit_save_file"],
                 }),
                 resolution.algebra().prefix(),
             );
@@ -124,11 +121,11 @@ impl ResolutionManager {
         self.resolution = Some(resolution);
     }
 
-    fn resolve(&mut self, action: Resolve, sseq: SseqChoice) -> anyhow::Result<()> {
-        let resolution = self.resolution.as_mut().unwrap();
+    fn resolve(&self, action: Resolve, sseq: SseqChoice) -> anyhow::Result<()> {
+        let resolution = self.resolution.as_ref().unwrap();
         let resolution = match sseq {
             SseqChoice::Main => resolution,
-            SseqChoice::Unit => resolution.unit_resolution_mut(),
+            SseqChoice::Unit => resolution.unit_resolution(),
         };
 
         let min_degree = resolution.min_degree();
@@ -144,22 +141,6 @@ impl ResolutionManager {
             }),
         };
         self.sender.send(msg)?;
-
-        if !self.resolved {
-            // We resolve main first
-            assert_eq!(sseq, SseqChoice::Main);
-            for (s, _, t) in resolution.inner.iter_stem() {
-                resolution.step_after(s, t);
-            }
-            if !self.is_unit {
-                let unit = resolution.unit_resolution_mut();
-                for (s, _, t) in unit.inner.iter_stem() {
-                    unit.step_after(s, t);
-                }
-            }
-
-            self.resolved = true;
-        }
 
         resolution.compute_through_degree(action.max_degree);
 
