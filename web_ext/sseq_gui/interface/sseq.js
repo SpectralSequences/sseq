@@ -783,17 +783,27 @@ export class ExtSseq {
      * integration testing.
      */
     sort() {
+        let compare = (a, b) => {
+            if (a == b) {
+                return 0;
+            } else if (a > b) {
+                return 1;
+            } else {
+                return -1;
+            }
+        };
+
         for (const page of this.chart.pages) {
             [...page.querySelectorAll(".structline")]
-                .sort((a, b) => a.classList > b.classList)
+                .sort((a, b) => compare(a.className.baseVal, b.className.baseVal))
                 .forEach(n => page.appendChild(n));
 
             [...page.querySelectorAll(".differential")]
-                .sort((a, b) => a.classList > b.classList)
+                .sort((a, b) => compare(a.className.baseVal, b.className.baseVal))
                 .forEach(n => page.appendChild(n));
 
             [...page.querySelectorAll(".class-group")]
-                .sort((a, b) => a.classList > b.classList)
+                .sort((a, b) => compare(a.className.baseVal, b.className.baseVal))
                 .forEach(n => page.appendChild(n));
         }
     }

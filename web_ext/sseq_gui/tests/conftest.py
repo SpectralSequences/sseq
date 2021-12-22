@@ -39,7 +39,7 @@ class DriverWrapper:
         return self.driver.execute_script("return window.mainSseq.chart.svg")
 
     def check_svg(self, path: str):
-        self.driver.execute_script("window.mainSseq.sort()");
+        self.driver.execute_script("window.mainSseq.sort()")
         svg = self.main_svg().get_attribute("outerHTML")
         check_file(
             path,

@@ -77,6 +77,7 @@ def test_propagate_differential(driver):
 
     driver.check_pages("S_2_propagate_diff", 4)
 
+
 def test_undo_redo(driver):
     driver.click_button("Undo")
     driver.click_button("Undo")

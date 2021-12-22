@@ -243,6 +243,10 @@ jobs:
           target/debug/sseq_gui &
           sleep 1 && make selenium
 
+      - name: Upload Artifact
+        if: ${{ failure() }}
+        path: web_ext/sseq_gui/tests/benchmarks/*-new.svg
+
   calculator:
     if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository }}
     runs-on: ubuntu-20.04
