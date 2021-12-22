@@ -1,6 +1,8 @@
 import pytest
 from pathlib import Path
 
+import xml.etree.ElementTree as ET
+
 from typing import Union
 
 from selenium import webdriver
@@ -8,6 +10,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.keys import Keys
 
 PATH: str = "http://localhost:8080"
+SVGNS: str = "http://www.w3.org/2000/svg"
 
 
 class DriverWrapper:
@@ -130,17 +133,17 @@ def driver(pytestconfig):
         driver.driver.quit()
 
 
-def find_data(svg: str) -> str:
-    """
-    Given an svg, find the row that contains the actual chart, as opposed to
-    the display data (e.g. transforms). This part should be stable across
-    browsers
-    """
-    svg = svg.replace(' style=""', "")
-    for line in svg.split("\n"):
-        if line.startswith("</style>"):
-            return line
-    raise ValueError("Content line not found")
+def clean_svg(svg: str) -> str:
+    svg = ET.fromstring(svg.replace(' style=""', ""))
+
+    del svg.attrib["viewBox"]
+    del svg.find(f"./{{{SVGNS}}}g[@id='inner']").attrib["transform"]
+    svg.remove(svg.find(f"./{{{SVGNS}}}g[@id='axisLabels']"))
+    svg.remove(svg.find(f"./{{{SVGNS}}}rect[@id='xBlock']"))
+    svg.remove(svg.find(f"./{{{SVGNS}}}rect[@id='yBlock']"))
+    svg.remove(svg.find(f"./{{{SVGNS}}}path[@id='axis']"))
+
+    return ET.canonicalize(ET.tostring(svg))
 
 
 def check_file(filename: str, value: str, config):
@@ -160,7 +163,7 @@ def check_file(filename: str, value: str, config):
             f.write(value)
         return
 
-    if find_data(bench) != find_data(value):
+    if clean_svg(bench) != clean_svg(value):
         new_path = filename.parent / (filename.stem + "-new.svg")
         with open(new_path, "w") as f:
             f.write(value)
