@@ -245,7 +245,7 @@ jobs:
 
       - name: Upload Artifact
         if: ${{ failure() }}
-        uses: actions-rs/toolchain@v1
+        uses: actions/upload-artifact@v2
         with:
           name: svg-changes-${{ matrix.toolchain }}
           path: web_ext/sseq_gui/tests/benchmarks/*-new.svg
