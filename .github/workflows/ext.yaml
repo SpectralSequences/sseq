@@ -245,7 +245,10 @@ jobs:
 
       - name: Upload Artifact
         if: ${{ failure() }}
-        path: web_ext/sseq_gui/tests/benchmarks/*-new.svg
+        uses: actions-rs/toolchain@v1
+        with:
+          name: svg-changes-${{ matrix.toolchain }}
+          path: web_ext/sseq_gui/tests/benchmarks/*-new.svg
 
   calculator:
     if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository }}
