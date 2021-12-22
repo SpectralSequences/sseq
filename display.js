@@ -56,7 +56,7 @@ export class MainDisplay {
 
         this.generalPanel = generalPanel(sseq);
         inner.appendChild(this.generalPanel);
-        this.currentPanel = generalPanel;
+        this.currentPanel = this.generalPanel;
 
         this.classPanel = classPanel(sseq);
         inner.appendChild(this.classPanel);
@@ -136,7 +136,7 @@ export class MainDisplay {
                 }
                 break;
             case 'm':
-                if (this.isUnit) {
+                if (this.isUnit && this.sseq.selected) {
                     const [x, y] = this.sseq.selected;
                     const num = this.sseq.getClasses(x, y, MIN_PAGE).length;
                     this.sseq.addProductInteractive(x, y, num);
