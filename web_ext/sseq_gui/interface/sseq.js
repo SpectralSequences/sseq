@@ -778,6 +778,26 @@ export class ExtSseq {
         }
     }
 
+    /**
+     * Sort the nodes in the svg in some consistent way. This is useful for
+     * integration testing.
+     */
+    sort() {
+        for (const page of this.chart.pages) {
+            [...page.querySelectorAll(".structline")]
+                .sort((a, b) => a.classList > b.classList)
+                .forEach(n => page.appendChild(n));
+
+            [...page.querySelectorAll(".differential")]
+                .sort((a, b) => a.classList > b.classList)
+                .forEach(n => page.appendChild(n));
+
+            [...page.querySelectorAll(".class-group")]
+                .sort((a, b) => a.classList > b.classList)
+                .forEach(n => page.appendChild(n));
+        }
+    }
+
     getDifferentials(x, y, page) {
         return this.differentials.get(x, y)?.[page - MIN_PAGE];
     }
