@@ -1,6 +1,7 @@
 import { MainDisplay, UnitDisplay } from './display.js';
 import { ExtSseq } from './sseq.js';
 import { renderLaTeX, download } from './utils.js';
+import { openSocket } from './socket.js';
 
 window.commandCounter = 0;
 window.commandQueue = [];
@@ -60,27 +61,34 @@ if (params.module) {
     const maxDegree = parseInt(params.degree ? params.degree : 40);
     const algebra = params.algebra ? params.algebra : 'adem';
 
-    openWebSocket([
-        {
-            recipients: ['Resolver'],
-            sseq: 'Main',
-            action: {
-                Construct: {
-                    algebra_name: algebra,
-                    module_name: params.module,
-                },
+    // Record this for the save functionality, since the wasm version modifies it
+    window.constructCommand = {
+        recipients: ['Resolver'],
+        sseq: 'Main',
+        action: {
+            Construct: {
+                algebra_name: algebra,
+                module_name: params.module,
             },
         },
-        {
-            recipients: ['Resolver'],
-            sseq: 'Main',
-            action: {
-                Resolve: {
-                    max_degree: maxDegree,
+    };
+
+    window.sendSocket = openSocket(
+        [
+            // The wasm version might mutate this object
+            Object.assign({}, window.constructCommand),
+            {
+                recipients: ['Resolver'],
+                sseq: 'Main',
+                action: {
+                    Resolve: {
+                        max_degree: maxDegree,
+                    },
                 },
             },
-        },
-    ]);
+        ],
+        onMessage,
+    );
 } else {
     document.querySelector('#home').style.removeProperty('display');
 
@@ -98,6 +106,14 @@ if (params.module) {
         });
     });
 }
+
+window.send = msg => {
+    window.commandCounter += msg.recipients.length;
+    if (window.display !== undefined)
+        window.display.runningSign.style.removeProperty('display');
+
+    window.sendSocket(msg);
+};
 
 function onMessage(e) {
     const data = JSON.parse(e.data);
@@ -121,53 +137,6 @@ function onMessage(e) {
         console.log(data);
         console.log(`Error: ${err}`);
         console.log(err.stack);
-    }
-}
-
-async function openWebSocket(initialData) {
-    // Keep this for the save button
-    window.constructCommand = Object.assign({}, initialData[0]);
-
-    const resolutionWorker = new Worker('./resolution_worker.js');
-    const sseqWorker = new Worker('./sseq_worker.js');
-
-    resolutionWorker.addEventListener('message', ev =>
-        sseqWorker.postMessage(ev.data),
-    );
-
-    sseqWorker.addEventListener('message', onMessage);
-
-    window.send = msg => {
-        window.commandCounter += msg.recipients.length;
-        if (window.display !== undefined)
-            window.display.runningSign.style.removeProperty('display');
-
-        const str = JSON.stringify(msg);
-        for (const recipient of msg.recipients) {
-            if (recipient == 'Sseq') {
-                sseqWorker.postMessage(str);
-            } else {
-                resolutionWorker.postMessage(str);
-            }
-        }
-    };
-
-    if (initialData[0].action['Construct']) {
-        const name = initialData[0].action['Construct'].module_name;
-        const algebra = initialData[0].action['Construct'].algebra_name;
-
-        const response = await fetch(`steenrod_modules/${name}.json`);
-        const json = await response.json();
-        initialData[0].action = {
-            ConstructJson: {
-                algebra_name: algebra,
-                data: JSON.stringify(json),
-            },
-        };
-    }
-
-    for (const data of initialData) {
-        send(data);
     }
 }
 
@@ -213,7 +182,8 @@ function loadHistory(hist) {
     }
 
     // First command is construct and second command is resolve
-    openWebSocket(lines.splice(0, 2).map(JSON.parse));
+    window.constructCommand = JSON.parse(lines[0]);
+    window.sendSocket = openSocket(lines.splice(0, 2).map(JSON.parse));
 
     lines.reverse();
     window.commandQueue = lines;
@@ -280,17 +250,19 @@ document.getElementById('json-upload').addEventListener('change', () => {
     const file = document.getElementById('json-upload').files[0];
     const fileReader = new FileReader();
     fileReader.onload = e => {
-        openWebSocket([
-            {
-                recipients: ['Resolver'],
-                sseq: 'Main',
-                action: {
-                    ConstructJson: {
-                        algebra_name: 'adem',
-                        data: e.target.result,
-                    },
+        window.constructCommand = {
+            recipients: ['Resolver'],
+            sseq: 'Main',
+            action: {
+                ConstructJson: {
+                    algebra_name: 'adem',
+                    data: e.target.result,
                 },
             },
+        };
+
+        window.sendSocket = openSocket([
+            window.constructCommand,
             {
                 recipients: ['Resolver'],
                 sseq: 'Main',
