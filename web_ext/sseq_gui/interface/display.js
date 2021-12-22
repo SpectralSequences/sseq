@@ -136,7 +136,7 @@ export class MainDisplay {
                 }
                 break;
             case 'm':
-                if (this.isUnit) {
+                if (this.isUnit && this.sseq.selected) {
                     const [x, y] = this.sseq.selected;
                     const num = this.sseq.getClasses(x, y, MIN_PAGE).length;
                     this.sseq.addProductInteractive(x, y, num);
