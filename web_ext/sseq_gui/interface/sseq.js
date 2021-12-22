@@ -794,16 +794,22 @@ export class ExtSseq {
         };
 
         for (const page of this.chart.pages) {
-            [...page.querySelectorAll(".structline")]
-                .sort((a, b) => compare(a.className.baseVal, b.className.baseVal))
+            [...page.querySelectorAll('.structline')]
+                .sort((a, b) =>
+                    compare(a.className.baseVal, b.className.baseVal),
+                )
                 .forEach(n => page.appendChild(n));
 
-            [...page.querySelectorAll(".differential")]
-                .sort((a, b) => compare(a.className.baseVal, b.className.baseVal))
+            [...page.querySelectorAll('.differential')]
+                .sort((a, b) =>
+                    compare(a.className.baseVal, b.className.baseVal),
+                )
                 .forEach(n => page.appendChild(n));
 
-            [...page.querySelectorAll(".class-group")]
-                .sort((a, b) => compare(a.className.baseVal, b.className.baseVal))
+            [...page.querySelectorAll('.class-group')]
+                .sort((a, b) =>
+                    compare(a.className.baseVal, b.className.baseVal),
+                )
                 .forEach(n => page.appendChild(n));
         }
     }
