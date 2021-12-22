@@ -156,7 +156,9 @@ def check_file(filename: str, value: str, config):
         with open(filename) as f:
             bench = f.read()
     except OSError:
-        bench = ""
+        with open(filename, "w") as f:
+            f.write(value)
+        return
 
     if find_data(bench) != find_data(value):
         new_path = filename.parent / (filename.stem + "-new.svg")

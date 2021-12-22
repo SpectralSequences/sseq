@@ -56,7 +56,7 @@ export class MainDisplay {
 
         this.generalPanel = generalPanel(sseq);
         inner.appendChild(this.generalPanel);
-        this.currentPanel = generalPanel;
+        this.currentPanel = this.generalPanel;
 
         this.classPanel = classPanel(sseq);
         inner.appendChild(this.classPanel);

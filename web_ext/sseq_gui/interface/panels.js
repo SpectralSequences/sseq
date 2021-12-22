@@ -520,7 +520,7 @@ function* structlinePanel(sseq) {
         const dash = InputRow.new('Dash', mult.style.dash);
         dash.setAttribute(
             'title',
-            "A dash pattern, in the format of SVG's stroke-dasharray",
+            "A dash pattern, in the format of SVG's stroke-dasharray. Note that each grid square has side length 1.",
         );
         dash.addEventListener('change', e => {
             mult.style.dash = e.target.value;
