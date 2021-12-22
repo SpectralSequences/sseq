@@ -18,14 +18,10 @@ const FILE_LIST: &[(&str, &str, &[u8])] = &[
     ("/sseq.js", "sseq.js", b"text/javascript"),
     ("/chart.js", "chart.js", b"text/javascript"),
     ("/index.css", "index.css", b"text/css"),
+    ("/katex.js", "../vendor/katex.js", b"text/javascript"),
     (
         "/d3-combined.js",
         "../vendor/d3-combined.js",
-        b"text/javascript",
-    ),
-    (
-        "/katex-0.13.11.js",
-        "../vendor/katex-0.13.11.js",
         b"text/javascript",
     ),
 ];
