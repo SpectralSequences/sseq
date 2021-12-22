@@ -76,3 +76,12 @@ def test_propagate_differential(driver):
     driver.reply("h_0^2 e_0")
 
     driver.check_pages("S_2_propagate_diff", 4)
+
+def test_undo_redo(driver):
+    driver.click_button("Undo")
+    driver.click_button("Undo")
+    driver.check_pages("S_2_multiplication", 4)
+
+    driver.click_button("Redo")
+    driver.click_button("Redo")
+    driver.check_pages("S_2_propagate_diff", 4)

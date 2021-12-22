@@ -85,6 +85,18 @@ class DriverWrapper:
     def panel(self):
         return self.driver.execute_script("return window.display.currentPanel.inner")
 
+    def sidebar(self):
+        return self.driver.execute_script("return window.display.sidebar")
+
+    def click_button(self, text: str):
+        """Click the button in the side bar with the given text"""
+        for elt in self.sidebar().find_elements_by_tag_name("button"):
+            if elt.text == text:
+                elt.click()
+                return
+
+        raise ValueError(f"Button {text} not found")
+
     def reply(self, text: Union[str, bool]):
         alert = self.driver.switch_to.alert
         if isinstance(text, str):
