@@ -183,7 +183,7 @@ function loadHistory(hist) {
 
     // First command is construct and second command is resolve
     window.constructCommand = JSON.parse(lines[0]);
-    window.sendSocket = openSocket(lines.splice(0, 2).map(JSON.parse));
+    window.sendSocket = openSocket(lines.splice(0, 2).map(JSON.parse), onMessage);
 
     lines.reverse();
     window.commandQueue = lines;
