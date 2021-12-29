@@ -2,7 +2,7 @@ import time
 
 
 def test_differential(driver):
-    driver.go("/?module=S_2")
+    driver.go("/?module=S_2&degree=36")
     driver.wait_complete()
 
     driver.click_class(15, 1)
