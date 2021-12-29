@@ -1,0 +1,13 @@
+{"recipients":["Resolver"],"sseq":"Main","action":{"Construct":{"algebra_name":"adem","module_name":"S_2"}}}
+{"recipients":["Resolver"],"sseq":"Main","action":{"Resolve":{"max_degree":36}}}
+{"recipients":["Sseq"],"action":{"AddDifferential":{"r":2,"x":15,"y":1,"source":[1],"target":[1]}},"sseq":"Main"}
+{"recipients":["Sseq"],"action":{"AddDifferential":{"r":3,"x":15,"y":2,"source":[1],"target":[1]}},"sseq":"Main"}
+{"recipients":["Sseq"],"action":{"AddDifferential":{"r":2,"x":17,"y":4,"source":[1],"target":[1]}},"sseq":"Main"}
+{"recipients":["Sseq"],"action":{"AddDifferential":{"r":2,"x":18,"y":4,"source":[0,1],"target":[1]}},"sseq":"Main"}
+{"recipients":["Sseq"],"action":{"AddPermanentClass":{"x":0,"y":0,"class":[1]}},"sseq":"Main"}
+{"recipients":["Sseq","Resolver"],"action":{"AddProductType":{"permanent":true,"x":8,"y":3,"class":[1],"name":"c_0"}},"sseq":"Main"}
+{"recipients":["Sseq","Resolver"],"action":{"AddProductType":{"permanent":true,"x":9,"y":5,"class":[1],"name":"Ph_1"}},"sseq":"Main"}
+{"recipients":["Sseq","Resolver"],"action":{"AddProductType":{"permanent":true,"x":14,"y":4,"class":[1],"name":"d_0"}},"sseq":"Main"}
+{"recipients":["Sseq","Resolver"],"action":{"AddProductType":{"permanent":true,"x":20,"y":4,"class":[1],"name":"g"}},"sseq":"Main"}
+{"recipients":["Sseq","Resolver"],"action":{"AddProductDifferential":{"source":{"permanent":false,"x":17,"y":4,"class":[1],"name":"e_0"},"target":{"permanent":false,"x":16,"y":6,"class":[1],"name":"h_1^2 d_0"}}},"sseq":"Main"}
+{"recipients":["Sseq","Resolver"],"action":{"AddProductDifferential":{"source":{"permanent":false,"x":18,"y":4,"class":[0,1],"name":"f_0"},"target":{"permanent":false,"x":17,"y":6,"class":[1],"name":"h_0^2 e_0"}}},"sseq":"Main"}

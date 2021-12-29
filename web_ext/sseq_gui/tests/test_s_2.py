@@ -86,3 +86,17 @@ def test_undo_redo(driver):
     driver.click_button("Redo")
     driver.click_button("Redo")
     driver.check_pages("S_2_propagate_diff", 4)
+
+def test_history(driver):
+    driver.click_button("Save")
+    driver.reply("s_2.save")
+    time.sleep(0.1)
+
+    with open(f"{driver.tempdir}/s_2.save") as f:
+        driver.check_file("s_2.save", f.read())
+
+    driver.go("/")
+    driver.driver.find_element_by_id("history-upload").send_keys(f"{driver.tempdir}/s_2.save")
+    driver.wait_complete()
+
+    driver.check_pages("S_2_propagate_diff", 4)

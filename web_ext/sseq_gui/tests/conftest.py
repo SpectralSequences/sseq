@@ -14,18 +14,27 @@ SVGNS: str = "http://www.w3.org/2000/svg"
 
 
 class DriverWrapper:
-    def __init__(self, config):
+    def __init__(self, config, tempdir):
         self.headless = not config.getoption("head")
         self.config = config
+        self.tempdir = tempdir
 
         if config.getoption("driver") == "firefox":
             options = webdriver.FirefoxOptions()
             options.headless = self.headless
+            options.set_preference("browser.download.folderList", 2)
+            options.set_preference("browser.download.dir", str(tempdir))
+            options.set_preference(
+                "browser.helperApps.neverAsk.saveToDisk", "text/plain"
+            )
 
             self.driver = webdriver.Firefox(options=options)
         elif config.getoption("driver") == "chrome":
             options = webdriver.ChromeOptions()
             options.headless = self.headless
+            options.add_experimental_option(
+                "prefs", {"download.default_directory": str(tempdir)}
+            )
 
             self.driver = webdriver.Chrome(options=options)
 
@@ -41,13 +50,15 @@ class DriverWrapper:
     def main_svg(self):
         return self.driver.execute_script("return window.mainSseq.chart.svg")
 
+    def check_file(self, path: str, value: str):
+        check_file(path, value, self.config)
+
     def check_svg(self, path: str):
         self.driver.execute_script("window.mainSseq.sort()")
         svg = self.main_svg().get_attribute("outerHTML")
-        check_file(
+        self.check_file(
             path,
             svg,
-            self.config,
         )
 
     def check_pages(self, suffix: str, max_page: int):
@@ -126,8 +137,8 @@ def pytest_addoption(parser):
 
 
 @pytest.fixture(scope="session")
-def driver(pytestconfig):
-    driver = DriverWrapper(pytestconfig)
+def driver(pytestconfig, tmp_path_factory):
+    driver = DriverWrapper(pytestconfig, tmp_path_factory.getbasetemp())
     yield driver
     if driver.headless:
         driver.driver.quit()
@@ -142,6 +153,10 @@ def clean_svg(svg: str) -> str:
     svg.remove(svg.find(f"./{{{SVGNS}}}rect[@id='xBlock']"))
     svg.remove(svg.find(f"./{{{SVGNS}}}rect[@id='yBlock']"))
     svg.remove(svg.find(f"./{{{SVGNS}}}path[@id='axis']"))
+
+    grid = svg.find(f"./{{{SVGNS}}}g[@id='inner']/{{{SVGNS}}}rect[@id='grid']")
+    for attrib in ["y", "width", "height"]:
+        del grid.attrib[attrib]
 
     return ET.canonicalize(ET.tostring(svg))
 
@@ -163,11 +178,16 @@ def check_file(filename: str, value: str, config):
             f.write(value)
         return
 
-    if clean_svg(bench) != clean_svg(value):
-        new_path = filename.parent / (filename.stem + "-new.svg")
+    if filename.suffix == ".svg":
+        equal = clean_svg(bench) == clean_svg(value)
+    else:
+        equal = bench == value
+
+    if not equal:
+        new_path = filename.parent / f"{filename.stem}-new{filename.suffix}"
         with open(new_path, "w") as f:
             f.write(value)
 
         raise ValueError(
-            f"{filename.name} changed. New version saved at {filename.stem}-new.svg"
+            f"{filename.name} changed. New version saved at {filename.stem}-new{filename.suffix}"
         )
