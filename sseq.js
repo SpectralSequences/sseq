@@ -783,7 +783,7 @@ export class ExtSseq {
      * integration testing.
      */
     sort() {
-        let compare = (a, b) => {
+        const compare = (a, b) => {
             if (a == b) {
                 return 0;
             } else if (a > b) {

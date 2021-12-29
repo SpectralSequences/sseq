@@ -5,7 +5,6 @@ import { openSocket } from './socket.js';
 
 window.commandCounter = 0;
 window.commandQueue = [];
-window.onComplete = [];
 
 function processCommandQueue() {
     if (window.commandQueue.length == 0) return;
@@ -183,7 +182,7 @@ function loadHistory(hist) {
 
     // First command is construct and second command is resolve
     window.constructCommand = JSON.parse(lines[0]);
-    window.sendSocket = openSocket(lines.splice(0, 2).map(JSON.parse));
+    window.sendSocket = openSocket(lines.splice(0, 2).map(JSON.parse), onMessage);
 
     lines.reverse();
     window.commandQueue = lines;
@@ -224,10 +223,6 @@ messageHandler.Complete = () => {
     if (window.commandCounter == 0) {
         window.display.runningSign.style.display = 'none';
         processCommandQueue();
-        let f;
-        while ((f = window.onComplete.pop())) {
-            f();
-        }
     }
 };
 
