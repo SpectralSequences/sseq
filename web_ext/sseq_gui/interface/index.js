@@ -5,7 +5,6 @@ import { openSocket } from './socket.js';
 
 window.commandCounter = 0;
 window.commandQueue = [];
-window.onComplete = [];
 
 function processCommandQueue() {
     if (window.commandQueue.length == 0) return;
@@ -224,10 +223,6 @@ messageHandler.Complete = () => {
     if (window.commandCounter == 0) {
         window.display.runningSign.style.display = 'none';
         processCommandQueue();
-        let f;
-        while ((f = window.onComplete.pop())) {
-            f();
-        }
     }
 };
 
