@@ -182,7 +182,10 @@ function loadHistory(hist) {
 
     // First command is construct and second command is resolve
     window.constructCommand = JSON.parse(lines[0]);
-    window.sendSocket = openSocket(lines.splice(0, 2).map(JSON.parse), onMessage);
+    window.sendSocket = openSocket(
+        lines.splice(0, 2).map(JSON.parse),
+        onMessage,
+    );
 
     lines.reverse();
     window.commandQueue = lines;
@@ -256,18 +259,21 @@ document.getElementById('json-upload').addEventListener('change', () => {
             },
         };
 
-        window.sendSocket = openSocket([
-            window.constructCommand,
-            {
-                recipients: ['Resolver'],
-                sseq: 'Main',
-                action: {
-                    Resolve: {
-                        max_degree: maxDegree,
+        window.sendSocket = openSocket(
+            [
+                window.constructCommand,
+                {
+                    recipients: ['Resolver'],
+                    sseq: 'Main',
+                    action: {
+                        Resolve: {
+                            max_degree: maxDegree,
+                        },
                     },
                 },
-            },
-        ]);
+            ],
+            onMessage,
+        );
     };
     fileReader.readAsText(file, 'UTF-8');
     document.querySelector('#home').style.display = 'none';
