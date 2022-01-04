@@ -29,8 +29,8 @@ fn get_hom(
 
     let name: String = query::raw(&format!("Name of Ext class {name}"), str::parse);
 
-    let shift_s: u32 = query::with_default(&format!("s of Ext class {name}"), "0", str::parse);
     let shift_n: i32 = query::with_default(&format!("n of Ext class {name}"), "0", str::parse);
+    let shift_s: u32 = query::with_default(&format!("s of Ext class {name}"), "0", str::parse);
     let shift_t = shift_n + shift_s as i32;
 
     source

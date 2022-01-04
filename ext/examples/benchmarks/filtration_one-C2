@@ -1,4 +1,4 @@
-filtration_one -- C2 "" 5 10
+filtration_one -- C2 "" 10 5
 h_1 x_(0, 0, 0) = [1]
 h_2 x_(0, 0, 0) = [1]
 h_3 x_(0, 0, 0) = [1]

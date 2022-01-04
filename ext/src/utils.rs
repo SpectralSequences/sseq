@@ -283,8 +283,8 @@ pub fn query_module(
         LoadQuasiInverseOption::IfNoSave => resolution.save_dir().is_none(),
     };
 
-    let max_s: u32 = query::with_default("Max s", "7", str::parse);
     let max_n: i32 = query::with_default("Max n", "30", str::parse);
+    let max_s: u32 = query::with_default("Max s", "7", str::parse);
 
     resolution.compute_through_stem(max_s, max_n);
 

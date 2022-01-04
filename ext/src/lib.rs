@@ -34,9 +34,9 @@
 //! ```sh
 //!  $ cargo run --features concurrent --example filtration_one
 //! Module (default: S_2): C2
-//! Resolution save file (optional):
+//! Module save directory (optional):
+//! Max n (default: 30): 40
 //! Max s (default: 7): 20
-//! Max f (default: 30): 40
 //! ```
 //! In each line, the text after the final `:` is input by the user.
 //!
@@ -56,7 +56,7 @@
 //! command line arguments instead; the nth command line argument is treated as the
 //! answer to the nth prompt. For example, the previous interaction can be called by
 //! ```sh
-//!  $ cargo run --features concurrent --example filtration_one -- C2 "" 2 20 40
+//!  $ cargo run --features concurrent --example filtration_one -- C2 "" 2 40 20
 //! ```
 //!
 //! ## Conventions
@@ -83,36 +83,6 @@
 //! basis. We can specify the basis by appending `@basis_name`. For example, if we
 //! want to resolve `Ceta[1]` with the Adem basis, we can specify it as `Ceta[1]@adem`.
 //!
-//! ### Resolution specification
-//! Most examples act on a (partial) resolution of a module. Usually, these are
-//! supplied as follows:
-//!
-//!  1. The program asks for the module to be resolved.
-//!  2. The program asks for a saved resolution of the module, and the user
-//!     supplies a path to the save file, relative to the current directory.
-//!     Generally speaking, the program does not check that this is indeed a
-//!     resolution of the module specified in the first step; supplying the wrong
-//!     save file will lead to nonsensical results.
-//!  3. If a save file is supplied, this is the resolution the example acts on.
-//!     Otherwise the program creates a new resolution and asks for the maximum
-//!     filtration ($s$) and stem ($n$) to resolve to. It computes the resolution and
-//!     acts on the result.
-//!
-//! The following are two interactions using the different possible options. The
-//! first one specifies a save file while the second does not.
-//!
-//! ```sh
-//!  $ cargo run --example filtration_one > filtration_one_S_2
-//! Module (default: S_2): S_2
-//! Resolution save file (optional): resolution_S_2.save
-//!
-//!  $ cargo run --example filtration_one > filtration_one_C2
-//! Module (default: S_2): C2
-//! Resolution save file (optional):
-//! Max s (default: 7): 20
-//! Max f (default: 30): 40
-//! ```
-//!
 //! ### Ext elements
 //! Each Ext group comes with a basis. The ith basis element of $\Ext^{s, n + s}$ is
 //! denoted `x_(n, s, i)`. If we want to specify an element in a particular Ext
@@ -138,6 +108,7 @@
 //! | [save_bruner](../save_bruner/index.html) | Save the resolution in the format used by Bruner's [ext](http://www.rrb.wayne.edu/papers/index.html). |
 //! | [secondary](../secondary/index.html) | Compute $d_2$ differentials using the secondary Steenrod algebra. |
 //! | [secondary_product](../secondary_product/index.html) | Compute products in $\Mod_{C\tau^2}$ using the secondary Stennrod algebra. |
+//! | [secondary_massey](../secondary_massey/index.html) | Compute Massey products in $\Mod_{C\tau^2}$ using the secondary Stennrod algebra. |
 //! | [steenrod](../steenrod/index.html) | Compute Steenrod operations in Ext. |
 //! | [tensor](../tensor/index.html) | Compute the tensor product of two modules. |
 //! | [yoneda](../yoneda/index.html) | Compute a Yoneda representative of an Ext class. |

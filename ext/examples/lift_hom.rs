@@ -68,12 +68,12 @@ fn main() -> anyhow::Result<()> {
 
     let name: String = query::raw("Name of product", str::parse);
 
-    let shift_s: u32 = query::with_default("s of Ext class", "0", str::parse);
     let shift_n: i32 = query::with_default("n of Ext class", "0", str::parse);
+    let shift_s: u32 = query::with_default("s of Ext class", "0", str::parse);
     let shift_t = shift_n + shift_s as i32;
 
-    let s: u32 = query::with_default("Max target s", "10", str::parse);
     let n: i32 = query::with_default("Max target n", "10", str::parse);
+    let s: u32 = query::with_default("Max target s", "10", str::parse);
 
     if source_equal_target {
         target.compute_through_stem(s + shift_s, n + std::cmp::max(0, shift_n));

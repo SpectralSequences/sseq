@@ -36,8 +36,8 @@ fn main() -> anyhow::Result<()> {
     });
     res.load_quasi_inverse = false;
 
-    let max_s = query::with_default("Max s", "15", str::parse);
     let max_n = query::with_default("Max n", "30", str::parse);
+    let max_s = query::with_default("Max s", "15", str::parse);
 
     res.compute_through_stem(max_s, max_n);
 

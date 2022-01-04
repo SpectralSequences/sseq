@@ -1,4 +1,4 @@
-chart -- S_2 "" 8 20
+chart -- S_2 "" 20 8
 <svg version = "1.1" width="460" height="220" xmlns="http://www.w3.org/2000/svg">
 <style>
     circle {
