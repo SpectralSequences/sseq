@@ -219,12 +219,12 @@
 
     <span class="kw">let</span> <span class="ident">name</span>: <span class="ident">String</span> <span class="op">=</span> <span class="ident">query::raw</span>(<span class="string">&quot;Name of product&quot;</span>, <span class="ident">str::parse</span>);
 
-    <span class="kw">let</span> <span class="ident">shift_s</span>: <span class="ident">u32</span> <span class="op">=</span> <span class="ident">query::with_default</span>(<span class="string">&quot;s of Ext class&quot;</span>, <span class="string">&quot;0&quot;</span>, <span class="ident">str::parse</span>);
     <span class="kw">let</span> <span class="ident">shift_n</span>: <span class="ident">i32</span> <span class="op">=</span> <span class="ident">query::with_default</span>(<span class="string">&quot;n of Ext class&quot;</span>, <span class="string">&quot;0&quot;</span>, <span class="ident">str::parse</span>);
+    <span class="kw">let</span> <span class="ident">shift_s</span>: <span class="ident">u32</span> <span class="op">=</span> <span class="ident">query::with_default</span>(<span class="string">&quot;s of Ext class&quot;</span>, <span class="string">&quot;0&quot;</span>, <span class="ident">str::parse</span>);
     <span class="kw">let</span> <span class="ident">shift_t</span> <span class="op">=</span> <span class="ident">shift_n</span> <span class="op">+</span> <span class="ident">shift_s</span> <span class="kw">as</span> <span class="ident">i32</span>;
 
-    <span class="kw">let</span> <span class="ident">s</span>: <span class="ident">u32</span> <span class="op">=</span> <span class="ident">query::with_default</span>(<span class="string">&quot;Max target s&quot;</span>, <span class="string">&quot;10&quot;</span>, <span class="ident">str::parse</span>);
     <span class="kw">let</span> <span class="ident">n</span>: <span class="ident">i32</span> <span class="op">=</span> <span class="ident">query::with_default</span>(<span class="string">&quot;Max target n&quot;</span>, <span class="string">&quot;10&quot;</span>, <span class="ident">str::parse</span>);
+    <span class="kw">let</span> <span class="ident">s</span>: <span class="ident">u32</span> <span class="op">=</span> <span class="ident">query::with_default</span>(<span class="string">&quot;Max target s&quot;</span>, <span class="string">&quot;10&quot;</span>, <span class="ident">str::parse</span>);
 
     <span class="kw">if</span> <span class="ident">source_equal_target</span> {
         <span class="ident">target</span>.<span class="ident">compute_through_stem</span>(<span class="ident">s</span> <span class="op">+</span> <span class="ident">shift_s</span>, <span class="ident">n</span> <span class="op">+</span> <span class="ident">std::cmp::max</span>(<span class="number">0</span>, <span class="ident">shift_n</span>));

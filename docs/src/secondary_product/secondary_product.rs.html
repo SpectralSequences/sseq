@@ -249,8 +249,8 @@
 
     <span class="kw">let</span> <span class="ident">name</span>: <span class="ident">String</span> <span class="op">=</span> <span class="ident">query::raw</span>(<span class="string">&quot;Name of product&quot;</span>, <span class="ident">str::parse</span>);
 
-    <span class="kw">let</span> <span class="ident">shift_s</span>: <span class="ident">u32</span> <span class="op">=</span> <span class="ident">query::with_default</span>(<span class="string">&quot;s of Ext class&quot;</span>, <span class="string">&quot;0&quot;</span>, <span class="ident">str::parse</span>);
     <span class="kw">let</span> <span class="ident">shift_n</span>: <span class="ident">i32</span> <span class="op">=</span> <span class="ident">query::with_default</span>(<span class="string">&quot;n of Ext class&quot;</span>, <span class="string">&quot;0&quot;</span>, <span class="ident">str::parse</span>);
+    <span class="kw">let</span> <span class="ident">shift_s</span>: <span class="ident">u32</span> <span class="op">=</span> <span class="ident">query::with_default</span>(<span class="string">&quot;s of Ext class&quot;</span>, <span class="string">&quot;0&quot;</span>, <span class="ident">str::parse</span>);
     <span class="kw">let</span> <span class="ident">shift_t</span> <span class="op">=</span> <span class="ident">shift_n</span> <span class="op">+</span> <span class="ident">shift_s</span> <span class="kw">as</span> <span class="ident">i32</span>;
 
     <span class="kw">let</span> <span class="ident">hom</span> <span class="op">=</span> <span class="ident">ResolutionHomomorphism::new</span>(

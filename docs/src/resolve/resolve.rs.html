@@ -98,8 +98,8 @@
     });
     <span class="ident">res</span>.<span class="ident">load_quasi_inverse</span> <span class="op">=</span> <span class="bool-val">false</span>;
 
-    <span class="kw">let</span> <span class="ident">max_s</span> <span class="op">=</span> <span class="ident">query::with_default</span>(<span class="string">&quot;Max s&quot;</span>, <span class="string">&quot;15&quot;</span>, <span class="ident">str::parse</span>);
     <span class="kw">let</span> <span class="ident">max_t</span> <span class="op">=</span> <span class="ident">query::with_default</span>(<span class="string">&quot;Max t&quot;</span>, <span class="string">&quot;30&quot;</span>, <span class="ident">str::parse</span>);
+    <span class="kw">let</span> <span class="ident">max_s</span> <span class="op">=</span> <span class="ident">query::with_default</span>(<span class="string">&quot;Max s&quot;</span>, <span class="string">&quot;15&quot;</span>, <span class="ident">str::parse</span>);
 
     <span class="ident">res</span>.<span class="ident">compute_through_bidegree</span>(<span class="ident">max_s</span>, <span class="ident">max_t</span>);
 

@@ -684,8 +684,8 @@
         <span class="ident">LoadQuasiInverseOption::IfNoSave</span> =&gt; <span class="ident">resolution</span>.<span class="ident">save_dir</span>().<span class="ident">is_none</span>(),
     };
 
-    <span class="kw">let</span> <span class="ident">max_s</span>: <span class="ident">u32</span> <span class="op">=</span> <span class="ident">query::with_default</span>(<span class="string">&quot;Max s&quot;</span>, <span class="string">&quot;7&quot;</span>, <span class="ident">str::parse</span>);
     <span class="kw">let</span> <span class="ident">max_n</span>: <span class="ident">i32</span> <span class="op">=</span> <span class="ident">query::with_default</span>(<span class="string">&quot;Max n&quot;</span>, <span class="string">&quot;30&quot;</span>, <span class="ident">str::parse</span>);
+    <span class="kw">let</span> <span class="ident">max_s</span>: <span class="ident">u32</span> <span class="op">=</span> <span class="ident">query::with_default</span>(<span class="string">&quot;Max s&quot;</span>, <span class="string">&quot;7&quot;</span>, <span class="ident">str::parse</span>);
 
     <span class="ident">resolution</span>.<span class="ident">compute_through_stem</span>(<span class="ident">max_s</span>, <span class="ident">max_n</span>);
 
