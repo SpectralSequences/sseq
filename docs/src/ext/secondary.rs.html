@@ -1349,6 +1349,15 @@
 <span id="1323">1323</span>
 <span id="1324">1324</span>
 <span id="1325">1325</span>
+<span id="1326">1326</span>
+<span id="1327">1327</span>
+<span id="1328">1328</span>
+<span id="1329">1329</span>
+<span id="1330">1330</span>
+<span id="1331">1331</span>
+<span id="1332">1332</span>
+<span id="1333">1333</span>
+<span id="1334">1334</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::chain_complex</span>::{
     <span class="ident">AugmentedChainComplex</span>, <span class="ident">BoundedChainComplex</span>, <span class="ident">ChainComplex</span>, <span class="ident">ChainHomotopy</span>, <span class="ident">FreeChainComplex</span>,
 };
@@ -2297,6 +2306,15 @@
             <span class="ident">homotopies</span>: <span class="ident">OnceBiVec::new</span>(<span class="ident">underlying</span>.<span class="ident">shift_s</span> <span class="kw">as</span> <span class="ident">i32</span> <span class="op">+</span> <span class="number">1</span>),
             <span class="ident">underlying</span>,
             <span class="ident">intermediates</span>: <span class="ident">DashMap::new</span>(),
+        }
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">name</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">String</span> {
+        <span class="kw">let</span> <span class="ident">name</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">underlying</span>.<span class="ident">name</span>();
+        <span class="kw">if</span> <span class="ident">name</span>.<span class="ident">starts_with</span>(<span class="string">&#39;[&#39;</span>) <span class="op">|</span><span class="op">|</span> <span class="ident">name</span>.<span class="ident">starts_with</span>(<span class="string">&#39;τ&#39;</span>) {
+            <span class="ident">name</span>.<span class="ident">to_owned</span>()
+        } <span class="kw">else</span> {
+            <span class="macro">format!</span>(<span class="string">&quot;[{}]&quot;</span>, <span class="ident">name</span>)
         }
     }
 
