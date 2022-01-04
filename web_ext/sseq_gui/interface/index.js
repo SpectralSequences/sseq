@@ -58,7 +58,7 @@ for (const [k, v] of url.searchParams.entries()) {
 
 if (params.module) {
     const maxDegree = parseInt(params.degree ? params.degree : 40);
-    const algebra = params.algebra ? params.algebra : 'adem';
+    const algebra = params.algebra ? params.algebra : 'milnor';
 
     // Record this for the save functionality, since the wasm version modifies it
     window.constructCommand = {
@@ -253,7 +253,7 @@ document.getElementById('json-upload').addEventListener('change', () => {
             sseq: 'Main',
             action: {
                 ConstructJson: {
-                    algebra_name: 'adem',
+                    algebra_name: 'milnor',
                     data: e.target.result,
                 },
             },
