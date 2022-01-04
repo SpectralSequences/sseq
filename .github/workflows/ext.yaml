@@ -234,14 +234,14 @@ jobs:
       - name: Test local
         run: |
           cargo build &&
-          target/debug/sseq_gui &
-          sleep 1 && make selenium
+          (target/debug/sseq_gui &
+          (sleep 1 && make selenium))
 
       - name: Test local concurrent
         run: |
           cargo build --features concurrent &&
-          target/debug/sseq_gui &
-          sleep 1 && make selenium
+          (target/debug/sseq_gui &
+          (sleep 1 && make selenium))
 
       - name: Upload Artifact
         if: ${{ failure() }}
