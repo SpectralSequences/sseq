@@ -949,6 +949,15 @@ impl<
         }
     }
 
+    pub fn name(&self) -> String {
+        let name = self.underlying.name();
+        if name.starts_with('[') || name.starts_with('τ') {
+            name.to_owned()
+        } else {
+            format!("[{}]", name)
+        }
+    }
+
     pub fn homotopy(&self, s: u32) -> &SecondaryHomotopy<A> {
         &self.homotopies[s as i32]
     }

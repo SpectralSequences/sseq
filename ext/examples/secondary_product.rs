@@ -48,7 +48,7 @@ fn main() -> anyhow::Result<()> {
     let shift_t = shift_n + shift_s as i32;
 
     let hom = ResolutionHomomorphism::new(
-        name.clone(),
+        name,
         Arc::clone(&resolution),
         Arc::clone(&unit),
         shift_s,
@@ -131,6 +131,7 @@ fn main() -> anyhow::Result<()> {
         &d[std::cmp::min(3, d.len() - 1)]
     }
 
+    let name = hom_lift.name();
     // Iterate through the multiplicand
     for (s, n, t) in unit.iter_stem() {
         // The potential target has to be hit, and we need to have computed (the data need for) the
@@ -166,10 +167,10 @@ fn main() -> anyhow::Result<()> {
             outputs.iter_mut().map(|x| x.as_slice_mut()),
         );
         for (gen, output) in page_data.subspace_gens().zip_eq(outputs) {
-            print!("{name} ");
+            print!("{name} [");
             ext::utils::print_element(gen.as_slice(), n, s);
             println!(
-                " = {} + τ {}",
+                "] = {} + τ {}",
                 output.slice(0, target_num_gens),
                 output.slice(target_num_gens, target_num_gens + tau_num_gens)
             );

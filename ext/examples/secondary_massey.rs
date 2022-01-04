@@ -227,6 +227,9 @@ fn main() -> anyhow::Result<()> {
 
     let h_0 = ch_lift.algebra().p_tilde();
 
+    let a_name = a.name();
+    let b_name = b.name();
+
     // Iterate through the multiplicand
     for (s, n, t) in unit.iter_stem() {
         if !resolution.has_computed_bidegree(s + shift_s - 2, t + shift_t)
@@ -360,11 +363,13 @@ fn main() -> anyhow::Result<()> {
         for gen in e3_kernel.iter() {
             // Print name
             {
-                print!("<{}, {}, ", a.underlying().name(), b.underlying().name());
+                print!("<{a_name}, {b_name}, ");
                 let has_ext = {
                     let ext_part = gen.slice(0, target_num_gens);
                     if ext_part.iter_nonzero().count() > 0 {
+                        print!("[");
                         ext::utils::print_element(ext_part, n, s);
+                        print!("]");
                         true
                     } else {
                         false
