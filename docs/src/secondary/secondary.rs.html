@@ -89,12 +89,6 @@
 <span id="63">63</span>
 <span id="64">64</span>
 <span id="65">65</span>
-<span id="66">66</span>
-<span id="67">67</span>
-<span id="68">68</span>
-<span id="69">69</span>
-<span id="70">70</span>
-<span id="71">71</span>
 </pre><pre class="rust"><code><span class="doccomment">//! This computes $d_2$ differentials in the Adams spectral sequence. This only works for fairly</span>
 <span class="doccomment">//! specific modules, but tends to cover most cases of interest.</span>
 <span class="doccomment">//!</span>
@@ -105,13 +99,7 @@
 <span class="doccomment">//! of $d_2$&#39;s.</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! # Usage</span>
-<span class="doccomment">//! This asks for a module and a resolution in the usual way. It only works with the Milnor basis,</span>
-<span class="doccomment">//! and the `@milnor` modifier can be omitted.</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! If `concurrent` is enabled, it also asks for a save file for the C function. Computing the C</span>
-<span class="doccomment">//! function is the most expensive part of the of the computation. If a save file is provided, we</span>
-<span class="doccomment">//! read existing computations from the save file and write new ones into it. The same save file</span>
-<span class="doccomment">//! can be reused for different ranges of the same module.</span>
+<span class="doccomment">//! This asks for a module in the usual way. It only works with the Milnor basis,</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! # Output</span>
 <span class="doccomment">//! We omit differentials if the target bidegree is zero</span>

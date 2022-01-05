@@ -24,7 +24,7 @@
     });
 </script>
 
-<style type="text/css">#crate-search{background-image:url("../down-arrow.svg");}</style></head><body class="rustdoc mod crate"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu" role="button">&#9776;</div><a href='../ext/index.html'><div class='logo-container rust-logo'><img src='../rust-logo.png' alt='logo'></div></a><h2 class="location">Crate ext</h2><div class="block version"><div class="narrow-helper"></div><p>Version 0.1.0</p></div><div class="sidebar-elems"><a id="all-types" href="all.html"><p>See all ext's items</p></a><div class="block items"><ul><li><a href="#modules">Modules</a></li><li><a href="#types">Type Definitions</a></li></ul></div><div id="sidebar-vars" data-name="ext" data-ty="mod" data-relpath=""></div><script defer src="sidebar-items.js"></script></div></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu" title="themes"><img width="18" height="18" alt="Pick another theme!" src="../brush.svg"></button><div id="theme-choices" role="menu"></div></div><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><button type="button" id="help-button" title="help">?</button><a id="settings-menu" href="../settings.html" title="settings"><img width="18" height="18" alt="Change settings" src="../wheel.svg"></a></div></form></nav><section id="main" class="content"><h1 class="fqn"><span class="in-band">Crate <a class="mod" href="#">ext</a><button id="copy-path" onclick="copy_path(this)" title="Copy item path to clipboard"><img src="../clipboard.svg" width="19" height="18" alt="Copy item path"></button></span><span class="out-of-band"><span id="render-detail"><a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">[<span class="inner">&#x2212;</span>]</a></span><a class="srclink" href="../src/ext/lib.rs.html#1-148" title="goto source code">[src]</a></span></h1><details class="rustdoc-toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p><code>ext-rs</code> is a collection of libraries for doing homological algebra over $\F_p$. The
+<style type="text/css">#crate-search{background-image:url("../down-arrow.svg");}</style></head><body class="rustdoc mod crate"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu" role="button">&#9776;</div><a href='../ext/index.html'><div class='logo-container rust-logo'><img src='../rust-logo.png' alt='logo'></div></a><h2 class="location">Crate ext</h2><div class="block version"><div class="narrow-helper"></div><p>Version 0.1.0</p></div><div class="sidebar-elems"><a id="all-types" href="all.html"><p>See all ext's items</p></a><div class="block items"><ul><li><a href="#modules">Modules</a></li><li><a href="#types">Type Definitions</a></li></ul></div><div id="sidebar-vars" data-name="ext" data-ty="mod" data-relpath=""></div><script defer src="sidebar-items.js"></script></div></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu" title="themes"><img width="18" height="18" alt="Pick another theme!" src="../brush.svg"></button><div id="theme-choices" role="menu"></div></div><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><button type="button" id="help-button" title="help">?</button><a id="settings-menu" href="../settings.html" title="settings"><img width="18" height="18" alt="Change settings" src="../wheel.svg"></a></div></form></nav><section id="main" class="content"><h1 class="fqn"><span class="in-band">Crate <a class="mod" href="#">ext</a><button id="copy-path" onclick="copy_path(this)" title="Copy item path to clipboard"><img src="../clipboard.svg" width="19" height="18" alt="Copy item path"></button></span><span class="out-of-band"><span id="render-detail"><a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">[<span class="inner">&#x2212;</span>]</a></span><a class="srclink" href="../src/ext/lib.rs.html#1-184" title="goto source code">[src]</a></span></h1><details class="rustdoc-toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p><code>ext-rs</code> is a collection of libraries for doing homological algebra over $\F_p$. The
 main and original purpose is to compute Ext of a Steenrod module, but the library is written to
 be sufficiently generic to deal with more general applications.</p>
 <h2 id="examples" class="section-header"><a href="#examples">Examples</a></h2>
@@ -44,7 +44,8 @@ run-time sanity checks.</li>
 using all CPU cores, and can be configured via <code>RAYON_NUM_THREADS</code>.</li>
 </ul>
 <p>These are supplied right after <code>cargo run</code>, in any order. In general, one
-should set all of these flags for any non-trivial calculation at the prime 2.</p>
+should set all of these flags for any non-trivial calculation at the prime 2. See the
+<a href="#features">Features</a> section for other features that can be enabled.</p>
 <p>Each example runs interactively, and prompts the user for input. For example,
 the following session computes all filtration one products in $\Ext(C2, \F_2)$ and
 prints them to <code>stdout</code>:</p>
@@ -90,6 +91,25 @@ want to resolve <code>Ceta[1]</code> with the Adem basis, we can specify it as <
 denoted <code>x_(n, s, i)</code>. If we want to specify an element in a particular Ext
 group, we either write it as a linear combination of the <code>x_(n, s, i)</code>, or
 written as a vector of the form e.g. <code>[0, 1, 0]</code>. In the latter case, the bidegree is implicit.</p>
+<h4 id="save-directory" class="section-header"><a href="#save-directory">Save directory</a></h4>
+<p>For most scripts, one can specify a save directory for each module. All save data relating to
+the module will be saved in this directory, including resolution data, products, secondary
+Steenrod algebra computations etc. For products, the data is saved in the save directory of the
+source of the chain map.</p>
+<p>In general, the data for each bidegree (or each generator in some cases) is stored in a
+separate file in an appropriate directory. This lets us only load the data we need when doing a
+computation, and protects against corruption when the program is terminated halfway through
+writing (only the data for said bidegree would be corrupted).</p>
+<p>For products, the subdirectory will be named after the name of the product. One must not reuse
+a name for different products; the script may produce and write erroneous results silently in
+such cases (though it practice it is likely to hit some error sooner or later).</p>
+<p>If the script is compiled with the <code>use-zstd</code> feature, then it supports reading from zstd
+compressed save files, where each save file is individually compressed. The script will first
+look for the uncompressed file. If it does not exist, it then looks for the file with the same
+name but with a <code>.zst</code> extension.</p>
+<p>Note that any new save file will still be written uncompressed. To compress the files, one must
+run the <code>zstd</code> program on each file in the save directory. It is safe to remove the original
+file after compression (i.e. run with the <code>--rm</code> option).</p>
 <h2 id="list-of-examples" class="section-header"><a href="#list-of-examples">List of examples</a></h2>
 <p>Click on the individual examples for further information.</p>
 <div><table><thead><tr><th>Name</th><th>Description</th></tr></thead><tbody>
@@ -123,7 +143,18 @@ is as follows:</p>
 <tr><td><a href="../once/index.html" title="once">once</a></td><td>This provides <code>OnceVec</code> and <code>OnceBiVec</code>, a push-only vector with non-blocking reads. This models some partially computed infinite data structure, and we think of pushing as simply finding out more of this infinite data structure instead of genuinely mutating it.</td></tr>
 <tr><td><a href="../query/index.html" title="query">query</a></td><td>This contains some helper functions for a command line interface.</td></tr>
 </tbody></table>
-</div></div></details><h2 id="modules" class="section-header"><a href="#modules">Modules</a></h2>
+</div><h2 id="features" class="section-header"><a href="#features">Features</a></h2>
+<ul>
+<li><code>odd-primes</code>: This enables support for odd primes, and is enabled by default. Disabling this
+feature offers significant improvements at the prime 2.</li>
+<li><code>concurrent</code>: Use multiple threads for computations. The number of threads used can be
+configured via the <code>RAYON_NUM_THREADS</code> environment variable.</li>
+<li><code>use-zstd</code>: Support reading zstd-compressed save files.</li>
+<li><code>cache-multiplication</code>: Precompute and cache the multiplication table under the Milnor basis.
+This is only feasible when using a small, finite subalgebra, e.g. when working with tmf
+modules.</li>
+</ul>
+</div></details><h2 id="modules" class="section-header"><a href="#modules">Modules</a></h2>
 <div class="item-table"><div class="item-row"><div class="item-left module-item"><a class="mod" href="chain_complex/index.html" title="ext::chain_complex mod">chain_complex</a></div><div class="item-right docblock-short"></div></div><div class="item-row"><div class="item-left module-item"><a class="mod" href="resolution/index.html" title="ext::resolution mod">resolution</a></div><div class="item-right docblock-short"></div></div><div class="item-row"><div class="item-left module-item"><a class="mod" href="resolution_homomorphism/index.html" title="ext::resolution_homomorphism mod">resolution_homomorphism</a></div><div class="item-right docblock-short"></div></div><div class="item-row"><div class="item-left module-item"><a class="mod" href="save/index.html" title="ext::save mod">save</a></div><div class="item-right docblock-short"></div></div><div class="item-row"><div class="item-left module-item"><a class="mod" href="secondary/index.html" title="ext::secondary mod">secondary</a></div><div class="item-right docblock-short"></div></div><div class="item-row"><div class="item-left module-item"><a class="mod" href="utils/index.html" title="ext::utils mod">utils</a></div><div class="item-right docblock-short"></div></div><div class="item-row"><div class="item-left module-item"><a class="mod" href="yoneda/index.html" title="ext::yoneda mod">yoneda</a></div><div class="item-right docblock-short"></div></div></div><h2 id="types" class="section-header"><a href="#types">Type Definitions</a></h2>
 <div class="item-table"><div class="item-row"><div class="item-left module-item"><a class="type" href="type.CCC.html" title="ext::CCC type">CCC</a></div><div class="item-right docblock-short"></div></div></div></section><section id="search" class="content hidden"></section><div id="rustdoc-vars" data-root-path="../" data-current-crate="ext" data-search-index-js="../search-index.js" data-search-js="../search.js"></div>
 </body></html>
