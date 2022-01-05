@@ -8,13 +8,7 @@
 //! of $d_2$'s.
 //!
 //! # Usage
-//! This asks for a module and a resolution in the usual way. It only works with the Milnor basis,
-//! and the `@milnor` modifier can be omitted.
-//!
-//! If `concurrent` is enabled, it also asks for a save file for the C function. Computing the C
-//! function is the most expensive part of the of the computation. If a save file is provided, we
-//! read existing computations from the save file and write new ones into it. The same save file
-//! can be reused for different ranges of the same module.
+//! This asks for a module in the usual way. It only works with the Milnor basis,
 //!
 //! # Output
 //! We omit differentials if the target bidegree is zero

@@ -25,7 +25,8 @@
 //!    using all CPU cores, and can be configured via `RAYON_NUM_THREADS`.
 //!
 //! These are supplied right after `cargo run`, in any order. In general, one
-//! should set all of these flags for any non-trivial calculation at the prime 2.
+//! should set all of these flags for any non-trivial calculation at the prime 2. See the
+//! [Features](#features) section for other features that can be enabled.
 //!
 //! Each example runs interactively, and prompts the user for input. For example,
 //! the following session computes all filtration one products in $\Ext(C2, \F_2)$ and
@@ -89,6 +90,30 @@
 //! group, we either write it as a linear combination of the `x_(n, s, i)`, or
 //! written as a vector of the form e.g. `[0, 1, 0]`. In the latter case, the bidegree is implicit.
 //!
+//! ### Save directory
+//! For most scripts, one can specify a save directory for each module. All save data relating to
+//! the module will be saved in this directory, including resolution data, products, secondary
+//! Steenrod algebra computations etc. For products, the data is saved in the save directory of the
+//! source of the chain map.
+//!
+//! In general, the data for each bidegree (or each generator in some cases) is stored in a
+//! separate file in an appropriate directory. This lets us only load the data we need when doing a
+//! computation, and protects against corruption when the program is terminated halfway through
+//! writing (only the data for said bidegree would be corrupted).
+//!
+//! For products, the subdirectory will be named after the name of the product. One must not reuse
+//! a name for different products; the script may produce and write erroneous results silently in
+//! such cases (though it practice it is likely to hit some error sooner or later).
+//!
+//! If the script is compiled with the `use-zstd` feature, then it supports reading from zstd
+//! compressed save files, where each save file is individually compressed. The script will first
+//! look for the uncompressed file. If it does not exist, it then looks for the file with the same
+//! name but with a `.zst` extension.
+//!
+//! Note that any new save file will still be written uncompressed. To compress the files, one must
+//! run the `zstd` program on each file in the save directory. It is safe to remove the original
+//! file after compression (i.e. run with the `--rm` option).
+//!
 //! # List of examples
 //! Click on the individual examples for further information.
 //!
@@ -125,6 +150,17 @@
 //! | [fp] | This implements linear algebra over $\mathbb{F}_p$, as well as general helper functions about primes. |
 //! | [once] | This provides `OnceVec` and `OnceBiVec`, a push-only vector with non-blocking reads. This models some partially computed infinite data structure, and we think of pushing as simply finding out more of this infinite data structure instead of genuinely mutating it. |
 //! | [query] | This contains some helper functions for a command line interface. |
+//!
+//! # Features
+//!
+//! - `odd-primes`: This enables support for odd primes, and is enabled by default. Disabling this
+//!   feature offers significant improvements at the prime 2.
+//! - `concurrent`: Use multiple threads for computations. The number of threads used can be
+//!   configured via the `RAYON_NUM_THREADS` environment variable.
+//! - `use-zstd`: Support reading zstd-compressed save files.
+//! - `cache-multiplication`: Precompute and cache the multiplication table under the Milnor basis.
+//!    This is only feasible when using a small, finite subalgebra, e.g. when working with tmf
+//!    modules.
 
 #![allow(clippy::upper_case_acronyms)]
 
