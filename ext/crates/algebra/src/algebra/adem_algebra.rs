@@ -182,7 +182,6 @@ unsafe fn shift_vec<T>(v: &mut Vec<T>, offset: isize) {
 pub struct AdemAlgebra {
     p: ValidPrime,
     pub generic: bool,
-    pub unstable: bool,
     pub unstable_enabled: bool,
     lock: Mutex<()>,
 
@@ -284,15 +283,9 @@ impl Algebra for AdemAlgebra {
         }
     }
 
-    fn dimension(&self, degree: i32, excess: i32) -> usize {
+    fn dimension(&self, degree: i32) -> usize {
         if degree < 0 {
             0
-        } else if self.unstable && excess < degree {
-            if excess < 0 {
-                0
-            } else {
-                self.excess_table[degree as usize][excess as usize]
-            }
         } else {
             self.basis_table[degree as usize].len()
         }
@@ -306,17 +299,16 @@ impl Algebra for AdemAlgebra {
         r_index: usize,
         s_degree: i32,
         s_index: usize,
-        excess: i32,
     ) {
-        self.multiply(
+        self.multiply_unstable(
             result,
             coeff,
             r_degree,
             r_index,
             s_degree,
             s_index,
-            excess,
-            self.unstable,
+            i32::MAX,
+            false,
         );
     }
 
@@ -543,7 +535,6 @@ impl AdemAlgebra {
             p,
             generic,
             lock: Mutex::new(()),
-            unstable,
             unstable_enabled,
             even_basis_table,
             basis_table,
@@ -784,11 +775,11 @@ impl AdemAlgebra {
             let mut table: Vec<Vec<FpVector>> = Vec::with_capacity((n + 1) as usize);
             table.push(Vec::with_capacity(0));
             for x in 1..=n {
-                let dimension = self.dimension(n - x, i32::max_value());
+                let dimension = self.dimension(n - x);
                 table.push(Vec::with_capacity(dimension));
             }
             for x in (1..=n).rev() {
-                for idx in 0..self.dimension(n - x, i32::max_value()) {
+                for idx in 0..self.dimension(n - x) {
                     let res = self.generate_multiplication_table_2_step(&table, n, x, idx);
                     table[x as usize].push(res);
                 }
@@ -804,7 +795,7 @@ impl AdemAlgebra {
         x: i32,
         idx: usize,
     ) -> FpVector {
-        let output_dimension = self.dimension(n, i32::max_value());
+        let output_dimension = self.dimension(n);
         let mut result = FpVector::new(self.prime(), output_dimension);
         let cur_basis_elt = self.basis_element_from_index(n - x, idx);
         let x = x as u32;
@@ -866,18 +857,18 @@ impl AdemAlgebra {
             for i in 0..=n / q {
                 for b in 0..=1 {
                     // This corresponds to x = 2i + b
-                    let dimension = self.dimension(n - q * i - b, i32::max_value());
+                    let dimension = self.dimension(n - q * i - b);
                     table.push(Vec::with_capacity(dimension));
                 }
             }
             for i in (0..=n / q).rev() {
-                for idx in 0..self.dimension(n - q * i - 1, i32::max_value()) {
+                for idx in 0..self.dimension(n - q * i - 1) {
                     let res =
                         self.generate_multiplication_table_generic_step(&table, n, 2 * i + 1, idx);
                     table[1 + 2 * i as usize].push(res);
                 }
                 if i != 0 {
-                    for idx in 0..self.dimension(n - q * i, i32::max_value()) {
+                    for idx in 0..self.dimension(n - q * i) {
                         let res =
                             self.generate_multiplication_table_generic_step(&table, n, 2 * i, idx);
                         table[2 * i as usize].push(res);
@@ -907,7 +898,7 @@ impl AdemAlgebra {
 
         let x: u32 = x as u32;
 
-        let output_dimension = self.dimension(n, i32::max_value());
+        let output_dimension = self.dimension(n);
         let mut result = FpVector::new(self.prime(), output_dimension);
 
         // If x is just \beta, this is super easy.
@@ -1028,14 +1019,10 @@ impl AdemAlgebra {
     }
 
     pub fn dimension_unstable(&self, degree: i32, excess: i32) -> usize {
-        if degree < 0 {
+        if degree < 0 || excess < 0 {
             0
         } else if excess < degree {
-            if excess < 0 {
-                0
-            } else {
-                self.excess_table[degree as usize][excess as usize]
-            }
+            self.excess_table[degree as usize][excess as usize]
         } else {
             self.basis_table[degree as usize].len()
         }
@@ -1051,7 +1038,7 @@ impl AdemAlgebra {
         s_index: usize,
         excess: i32,
     ) {
-        self.multiply(
+        self.multiply_unstable(
             result.copy(),
             coeff,
             r_degree,
@@ -1071,7 +1058,7 @@ impl AdemAlgebra {
             .set_to_zero();
     }
 
-    pub fn multiply(
+    pub fn multiply_unstable(
         &self,
         mut result: SliceMut,
         coeff: u32,
@@ -1085,8 +1072,8 @@ impl AdemAlgebra {
         if coeff == 0 {
             return;
         }
-        assert!(r_index < self.dimension(r_degree, i32::max_value()));
-        assert!(s_index < self.dimension(s_degree, excess));
+        assert!(r_index < self.dimension(r_degree));
+        assert!(s_index < self.dimension_unstable(s_degree, excess));
 
         if s_degree == 0 {
             // If s is of length 0 then max_idx "r->P_length" is off the edge of the list and it segfaults.
@@ -1217,7 +1204,7 @@ impl AdemAlgebra {
                 let idx = self.basis_element_to_index(monomial);
                 // If excess is too large, quit. It's faster to check this by comparing idx to dimension
                 // than to use fromIndex because fromIndex dereferences a hash map.
-                if unstable && idx >= self.dimension(monomial.degree, excess) {
+                if unstable && idx >= self.dimension_unstable(monomial.degree, excess) {
                     return;
                 }
                 result.add_basis_element(idx, 1);
@@ -1283,7 +1270,7 @@ impl AdemAlgebra {
             if idx < 0 || stop_early {
                 // Admissible so write monomial to result.
                 let idx = self.basis_element_to_index(monomial);
-                if unstable && idx >= self.dimension(monomial.degree, excess) {
+                if unstable && idx >= self.dimension_unstable(monomial.degree, excess) {
                     return;
                 }
                 result.add_basis_element(idx, coeff);
@@ -1374,8 +1361,7 @@ impl AdemAlgebra {
             ps: vec![second_sq],
             p_or_sq: *self.prime() != 2,
         });
-        let mut out_vec =
-            FpVector::new(ValidPrime::new(2), self.dimension(degree, i32::max_value()));
+        let mut out_vec = FpVector::new(ValidPrime::new(2), self.dimension(degree));
         self.multiply_basis_elements(
             out_vec.as_slice_mut(),
             1,
@@ -1383,7 +1369,6 @@ impl AdemAlgebra {
             first_idx,
             second_degree,
             second_idx,
-            i32::max_value(),
         );
         out_vec.set_entry(idx, 0);
         let mut result = vec![(1, (first_degree, first_idx), (second_degree, second_idx))];
@@ -1463,7 +1448,7 @@ impl AdemAlgebra {
             ps: vec![second_sq],
             p_or_sq: *self.prime() != 2,
         });
-        let mut out_vec = FpVector::new(p, self.dimension(degree, i32::max_value()));
+        let mut out_vec = FpVector::new(p, self.dimension(degree));
         self.multiply_basis_elements(
             out_vec.as_slice_mut(),
             1,
@@ -1471,7 +1456,6 @@ impl AdemAlgebra {
             first_idx,
             second_degree,
             second_idx,
-            i32::max_value(),
         );
         let mut result = Vec::new();
         let c = out_vec.entry(idx);
@@ -1514,7 +1498,7 @@ impl AdemAlgebra {
 impl AdemAlgebra {
     fn generate_excess_table(&self, max_degree: i32) {
         for n in self.excess_table.len() as i32..=max_degree {
-            let dim = self.dimension(n, i32::max_value());
+            let dim = self.dimension(n);
             let mut new_entry = Vec::with_capacity(n as usize);
             let mut cur_excess = 0;
             for i in 0..dim {
@@ -1631,14 +1615,14 @@ mod tests {
         let s_deg = 5;
         let s_idx = 0;
         let out_deg = r_deg + s_deg;
-        let mut result1 = FpVector::new(p, A.dimension(out_deg, 0));
-        let mut result2 = FpVector::new(p, A.dimension(out_deg, 0) + 3);
+        let mut result1 = FpVector::new(p, A.dimension(out_deg));
+        let mut result2 = FpVector::new(p, A.dimension(out_deg) + 3);
 
         let mut result1 = result1.as_slice_mut();
         let mut result2 = result2.slice_mut(3, 3 + result1.as_slice().len());
 
-        A.multiply_basis_elements(result1.copy(), 1, r_deg, r_idx, s_deg, s_idx, 0);
-        A.multiply_basis_elements(result2.copy(), 1, r_deg, r_idx, s_deg, s_idx, 0);
+        A.multiply_basis_elements(result1.copy(), 1, r_deg, r_idx, s_deg, s_idx);
+        A.multiply_basis_elements(result2.copy(), 1, r_deg, r_idx, s_deg, s_idx);
         println!(
             "result : {}",
             A.element_to_string(out_deg, result1.as_slice())
@@ -1658,7 +1642,7 @@ mod tests {
         let algebra = AdemAlgebra::new(p, *p != 2, false, false);
         algebra.compute_basis(max_degree);
         for i in 1..=max_degree {
-            let dim = algebra.dimension(i, i32::max_value());
+            let dim = algebra.dimension(i);
             for j in 0..dim {
                 let b = algebra.basis_element_from_index(i, j);
                 assert_eq!(algebra.basis_element_to_index(b), j);
@@ -1676,7 +1660,7 @@ mod tests {
         let algebra = AdemAlgebra::new(p, *p != 2, false, false);
         algebra.compute_basis(max_degree);
         for i in 1..=max_degree {
-            let dim = algebra.dimension(i, i32::max_value());
+            let dim = algebra.dimension(i);
             let gens = algebra.generators(i);
             println!("i : {}, gens : {:?}", i, gens);
             let mut out_vec = FpVector::new(p, dim);
@@ -1700,7 +1684,6 @@ mod tests {
                         first_idx,
                         second_degree,
                         second_idx,
-                        i32::max_value(),
                     );
                 }
                 assert!(
@@ -1729,7 +1712,7 @@ mod tests {
         algebra.compute_basis(max_degree);
         let mut output_vec = FpVector::new(p, 0);
         for i in 1..=max_degree {
-            let output_dim = algebra.dimension(i, i32::max_value());
+            let output_dim = algebra.dimension(i);
             output_vec.set_scratch_vector_size(output_dim);
             let relations = algebra.generating_relations(i);
             for relation in relations {
@@ -1741,7 +1724,6 @@ mod tests {
                         *idx_1,
                         *deg_2,
                         *idx_2,
-                        i32::max_value(),
                     );
                 }
                 if !output_vec.is_zero() {

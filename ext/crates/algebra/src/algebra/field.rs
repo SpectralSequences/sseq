@@ -33,7 +33,7 @@ impl Algebra for Field {
 
     fn compute_basis(&self, _degree: i32) {}
 
-    fn dimension(&self, degree: i32, _excess: i32) -> usize {
+    fn dimension(&self, degree: i32) -> usize {
         if degree == 0 {
             1
         } else {
@@ -49,7 +49,6 @@ impl Algebra for Field {
         _r_idx: usize,
         _s_degree: i32,
         _s_idx: usize,
-        _excess: i32,
     ) {
         result.add_basis_element(0, coeff)
     }

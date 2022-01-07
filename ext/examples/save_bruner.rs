@@ -50,7 +50,7 @@ fn main() -> anyhow::Result<()> {
                 for gen_deg in min_degree..t {
                     for gen_idx in 0..dmodule.number_of_gens_in_degree(gen_deg) {
                         let op_deg = t - gen_deg;
-                        let algebra_dim = algebra.dimension(op_deg, 0);
+                        let algebra_dim = algebra.dimension(op_deg);
                         let start = dmodule.generator_offset(t, gen_deg, gen_idx);
                         let slice = dx.slice(start, start + algebra_dim);
                         if slice.is_zero() {

@@ -178,8 +178,7 @@ pub trait PolynomialAlgebra: std::fmt::Display + Sized + Send + Sync {
         right: &FpVector,
     ) {
         let p = *self.prime();
-        target
-            .set_scratch_vector_size(self.dimension(left_degree + right_degree, i32::max_value()));
+        target.set_scratch_vector_size(self.dimension(left_degree + right_degree));
         for (left_idx, left_entry) in left.iter_nonzero() {
             for (right_idx, right_entry) in right.iter_nonzero() {
                 let mut target_mono = self.index_to_monomial(left_degree, left_idx).clone();
@@ -202,7 +201,7 @@ pub trait PolynomialAlgebra: std::fmt::Display + Sized + Send + Sync {
         right_mono: &PolynomialAlgebraMonomial,
     ) {
         let p = *self.prime();
-        target.extend_len(self.dimension(left_degree + right_mono.degree, i32::max_value()));
+        target.extend_len(self.dimension(left_degree + right_mono.degree));
         for (left_idx, left_entry) in left.iter_nonzero() {
             let mut target_mono = self.index_to_monomial(left_degree, left_idx).clone(); // Could reduce cloning a bit but probably best not to worry.
             let nonzero_result = self.multiply_monomials(&mut target_mono, right_mono);
@@ -223,7 +222,7 @@ pub trait PolynomialAlgebra: std::fmt::Display + Sized + Send + Sync {
         right: &FpVector,
     ) {
         let p = *self.prime();
-        target.extend_len(self.dimension(right_degree + left_mono.degree, i32::max_value()));
+        target.extend_len(self.dimension(right_degree + left_mono.degree));
         for (right_idx, right_entry) in right.iter_nonzero() {
             let mut target_mono = left_mono.clone(); // Could reduce cloning a bit but probably best not to worry.
             let right_mono = self.index_to_monomial(right_degree, right_idx);
@@ -264,7 +263,7 @@ impl<A: PolynomialAlgebra> Algebra for A {
         }
     }
 
-    fn dimension(&self, degree: i32, _excess: i32) -> usize {
+    fn dimension(&self, degree: i32) -> usize {
         if degree < 0 {
             0
         } else {
@@ -318,7 +317,6 @@ impl<A: PolynomialAlgebra> Algebra for A {
         left_idx: usize,
         right_degree: i32,
         right_idx: usize,
-        _excess: i32,
     ) {
         if coeff == 0 {
             return;

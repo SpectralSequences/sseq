@@ -336,7 +336,7 @@ impl Algebra for MilnorAlgebra {
         }
     }
 
-    fn dimension(&self, degree: i32, _excess: i32) -> usize {
+    fn dimension(&self, degree: i32) -> usize {
         if degree < 0 {
             return 0;
         }
@@ -352,7 +352,6 @@ impl Algebra for MilnorAlgebra {
         r_idx: usize,
         s_degree: i32,
         s_idx: usize,
-        _excess: i32,
     ) {
         self.multiply(
             result,
@@ -371,7 +370,6 @@ impl Algebra for MilnorAlgebra {
         r_idx: usize,
         s_degree: i32,
         s_idx: usize,
-        _excess: i32,
     ) {
         result.shift_add(
             &self.multiplication_table[r_degree as usize][s_degree as usize][r_idx][s_idx]
@@ -1392,7 +1390,7 @@ impl MilnorAlgebra {
             first = self.beps_pn(0, pow);
             second = self.beps_pn(0, sq - pow);
         }
-        let mut out_vec = FpVector::new(p, self.dimension(degree, -1));
+        let mut out_vec = FpVector::new(p, self.dimension(degree));
         self.multiply_basis_elements(
             out_vec.as_slice_mut(),
             1,
@@ -1400,7 +1398,6 @@ impl MilnorAlgebra {
             first.1,
             second.0,
             second.1,
-            -1,
         );
         let mut result = Vec::new();
         let c = out_vec.entry(idx);
@@ -1431,7 +1428,7 @@ mod tests {
         let algebra = MilnorAlgebra::new(p); //p != 2
         algebra.compute_basis(max_degree);
         for i in 1..max_degree {
-            let dim = algebra.dimension(i, -1);
+            let dim = algebra.dimension(i);
             for j in 0..dim {
                 let b = algebra.basis_element_from_index(i, j);
                 assert_eq!(algebra.basis_element_to_index(b), j);
@@ -1449,7 +1446,7 @@ mod tests {
         let algebra = MilnorAlgebra::new(p);
         algebra.compute_basis(max_degree);
         for i in 1..max_degree {
-            let dim = algebra.dimension(i, -1);
+            let dim = algebra.dimension(i);
             let gens = algebra.generators(i);
             // println!("i : {}, gens : {:?}", i, gens);
             let mut out_vec = FpVector::new(p, dim);
@@ -1468,7 +1465,6 @@ mod tests {
                         first_idx,
                         second_degree,
                         second_idx,
-                        -1,
                     );
                 }
                 assert!(
@@ -1497,7 +1493,7 @@ mod tests {
         algebra.compute_basis(max_degree + 2);
         let mut output_vec = FpVector::new(p, 0);
         for i in 1..max_degree {
-            let output_dim = algebra.dimension(i, -1);
+            let output_dim = algebra.dimension(i);
             output_vec.set_scratch_vector_size(output_dim);
             let relations = algebra.generating_relations(i);
             println!("{:?}", relations);
@@ -1510,7 +1506,6 @@ mod tests {
                         *idx_1,
                         *deg_2,
                         *idx_2,
-                        -1,
                     );
                 }
                 if !output_vec.is_zero() {

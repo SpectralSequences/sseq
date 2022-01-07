@@ -178,7 +178,7 @@ impl<A: Algebra> Module for FiniteDimensionalModule<A> {
         mod_degree: i32,
         mod_index: usize,
     ) {
-        assert!(op_index < self.algebra().dimension(op_degree, mod_degree));
+        assert!(op_index < self.algebra().dimension(op_degree));
         assert!(mod_index < self.dimension(mod_degree));
         let output_dimension = self.dimension(mod_degree + op_degree);
         if output_dimension == 0 {
@@ -272,7 +272,7 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
 
             for output_degree in input_degree + 1..max_degree {
                 let op_deg = output_degree - input_degree;
-                let number_of_operations = algebra.dimension(op_deg, min_degree + input_degree);
+                let number_of_operations = algebra.dimension(op_deg);
                 let number_of_inputs = graded_dimension[input_degree];
                 let number_of_outputs = graded_dimension[output_degree];
 
@@ -330,7 +330,7 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
                 {
                     // This code is copied from allocate_actions
                     let op_deg = output_degree - input_degree;
-                    let number_of_operations = algebra.dimension(op_deg, min_degree + input_degree);
+                    let number_of_operations = algebra.dimension(op_deg);
                     let number_of_inputs = self.dimension(input_degree);
                     let number_of_outputs = self.dimension(output_degree);
 
@@ -393,7 +393,7 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
         input_idx: usize,
         output: &FpVector,
     ) {
-        assert!(operation_idx < self.algebra.dimension(operation_degree, input_degree));
+        assert!(operation_idx < self.algebra.dimension(operation_degree));
         assert!(input_idx < self.dimension(input_degree));
         let output_degree = input_degree + operation_degree;
         // (in_deg) -> (out_deg) -> (op_index) -> (in_index) -> Vector
@@ -410,7 +410,7 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
         input_idx: usize,
         output: Vec<u32>,
     ) {
-        assert!(operation_idx < self.algebra.dimension(operation_degree, input_degree));
+        assert!(operation_idx < self.algebra.dimension(operation_degree));
         assert!(input_idx < self.dimension(input_degree));
         let output_degree = input_degree + operation_degree;
         // (in_deg) -> (out_deg) -> (op_index) -> (in_index) -> Vector
@@ -707,7 +707,7 @@ impl<A: JsonAlgebra + GeneratedAlgebra> FiniteDimensionalModule<A> {
         let mut tmp_output = FpVector::new(p, self.dimension(output_deg));
         let generators = algebra.generators(op_deg);
         for idx in 0..self.dimension(input_deg) {
-            for op_idx in 0..algebra.dimension(op_deg, -1) {
+            for op_idx in 0..algebra.dimension(op_deg) {
                 if !generators.contains(&op_idx) {
                     let decomposition = algebra.decompose_basis_element(op_deg, op_idx);
                     for (coef, (deg_1, idx_1), (deg_2, idx_2)) in decomposition {

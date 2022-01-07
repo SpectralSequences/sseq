@@ -42,7 +42,7 @@ pub trait Algebra: std::fmt::Display + Send + Sync {
     fn compute_basis(&self, degree: i32);
 
     /// Returns the dimension of the algebra in degree `degree`.
-    fn dimension(&self, degree: i32, excess: i32) -> usize;
+    fn dimension(&self, degree: i32) -> usize;
 
     /// Computes the product `r * s` of two basis elements, and adds the
     /// result to `result`.
@@ -56,7 +56,6 @@ pub trait Algebra: std::fmt::Display + Send + Sync {
         r_idx: usize,
         s_degree: i32,
         s_idx: usize,
-        excess: i32,
     );
 
     /// Computes the product `r * s` of a basis element `r` and a general element `s`, and adds the
@@ -71,7 +70,6 @@ pub trait Algebra: std::fmt::Display + Send + Sync {
         r_idx: usize,
         s_degree: i32,
         s: Slice,
-        excess: i32,
     ) {
         let p = self.prime();
         for (i, v) in s.iter_nonzero() {
@@ -82,7 +80,6 @@ pub trait Algebra: std::fmt::Display + Send + Sync {
                 r_idx,
                 s_degree,
                 i,
-                excess,
             );
         }
     }
@@ -99,7 +96,6 @@ pub trait Algebra: std::fmt::Display + Send + Sync {
         r: Slice,
         s_degree: i32,
         s_idx: usize,
-        excess: i32,
     ) {
         let p = self.prime();
         for (i, v) in r.iter_nonzero() {
@@ -110,7 +106,6 @@ pub trait Algebra: std::fmt::Display + Send + Sync {
                 i,
                 s_degree,
                 s_idx,
-                excess,
             );
         }
     }
@@ -127,7 +122,6 @@ pub trait Algebra: std::fmt::Display + Send + Sync {
         r: Slice,
         s_degree: i32,
         s: Slice,
-        excess: i32,
     ) {
         let p = self.prime();
         for (i, v) in s.iter_nonzero() {
@@ -138,7 +132,6 @@ pub trait Algebra: std::fmt::Display + Send + Sync {
                 r,
                 s_degree,
                 i,
-                excess,
             );
         }
     }
@@ -265,7 +258,7 @@ macro_rules! dispatch_algebra {
                 fn magic(&self) -> u32;
                 fn prime(&self) -> ValidPrime;
                 fn compute_basis(&self, degree: i32);
-                fn dimension(&self, degree: i32, excess: i32) -> usize;
+                fn dimension(&self, degree: i32) -> usize;
                 fn multiply_basis_elements(
                     &self,
                     result: SliceMut,
@@ -274,7 +267,6 @@ macro_rules! dispatch_algebra {
                     r_idx: usize,
                     s_degree: i32,
                     s_idx: usize,
-                    excess: i32,
                 );
 
                 fn multiply_basis_element_by_element(
@@ -285,7 +277,6 @@ macro_rules! dispatch_algebra {
                     r_idx: usize,
                     s_degree: i32,
                     s: Slice,
-                    excess: i32,
                 );
 
                 fn multiply_element_by_basis_element(
@@ -296,7 +287,6 @@ macro_rules! dispatch_algebra {
                     r: Slice,
                     s_degree: i32,
                     s_idx: usize,
-                    excess: i32,
                 );
 
                 fn multiply_element_by_element(
@@ -307,7 +297,6 @@ macro_rules! dispatch_algebra {
                     r: Slice,
                     s_degree: i32,
                     s: Slice,
-                    excess: i32,
                 );
 
                 fn default_filtration_one_products(&self) -> Vec<(String, i32, usize)>;

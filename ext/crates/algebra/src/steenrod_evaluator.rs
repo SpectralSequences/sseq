@@ -81,7 +81,7 @@ fn evaluate_algebra_tree_helper(
             let degree = degree_left + degree_right;
             adem_algebra.compute_basis(degree);
             milnor_algebra.compute_basis(degree);
-            let mut result = FpVector::new(p, adem_algebra.dimension(degree, -1));
+            let mut result = FpVector::new(p, adem_algebra.dimension(degree));
             adem_algebra.multiply_element_by_element(
                 result.as_slice_mut(),
                 1,
@@ -89,7 +89,6 @@ fn evaluate_algebra_tree_helper(
                 output_left.as_slice(),
                 degree_right,
                 output_right.as_slice(),
-                -1,
             );
             Ok((degree, result))
         }
@@ -139,7 +138,7 @@ fn evaluate_basis_element(
             degree = temp_deg as i32;
             adem_algebra.compute_basis(degree);
             milnor_algebra.compute_basis(degree);
-            result = FpVector::new(p, adem_algebra.dimension(degree, -1));
+            result = FpVector::new(p, adem_algebra.dimension(degree));
             change_of_basis::adem_plist(
                 adem_algebra,
                 milnor_algebra,
@@ -160,7 +159,7 @@ fn evaluate_basis_element(
             let tuple = adem_algebra.beps_pn(0, x);
             degree = tuple.0;
             let idx = tuple.1;
-            result = FpVector::new(p, adem_algebra.dimension(degree, -1));
+            result = FpVector::new(p, adem_algebra.dimension(degree));
             result.set_entry(idx, 1);
         }
         AlgebraBasisElt::Q(x) => {
@@ -168,7 +167,7 @@ fn evaluate_basis_element(
             degree = tau_degrees[x as usize];
             adem_algebra.compute_basis(degree);
             milnor_algebra.compute_basis(degree);
-            result = FpVector::new(p, adem_algebra.dimension(degree, -1));
+            result = FpVector::new(p, adem_algebra.dimension(degree));
             change_of_basis::adem_q(adem_algebra, milnor_algebra, &mut result, 1, x);
         }
     }
@@ -355,7 +354,7 @@ fn evaluate_p_or_b_list(adem_algebra: &AdemAlgebra, list: &[BocksteinOrSq]) -> (
     let mut total_degree = first_elt.degree;
     adem_algebra.compute_basis(total_degree);
     let idx = adem_algebra.basis_element_to_index(&first_elt);
-    let cur_dim = adem_algebra.dimension(total_degree, -1);
+    let cur_dim = adem_algebra.dimension(total_degree);
 
     let mut tmp_vector_a = FpVector::new(p, cur_dim);
     let mut tmp_vector_b = FpVector::new(p, 0);
@@ -365,7 +364,7 @@ fn evaluate_p_or_b_list(adem_algebra: &AdemAlgebra, list: &[BocksteinOrSq]) -> (
     for item in &list[1..] {
         let cur_elt = bockstein_or_sq_to_adem_basis_elt(item, q);
         let idx = adem_algebra.basis_element_to_index(&cur_elt);
-        let cur_dim = adem_algebra.dimension(total_degree + cur_elt.degree, -1);
+        let cur_dim = adem_algebra.dimension(total_degree + cur_elt.degree);
         tmp_vector_b.set_scratch_vector_size(cur_dim);
         adem_algebra.multiply_element_by_basis_element(
             tmp_vector_b.as_slice_mut(),
@@ -374,7 +373,6 @@ fn evaluate_p_or_b_list(adem_algebra: &AdemAlgebra, list: &[BocksteinOrSq]) -> (
             tmp_vector_a.as_slice(),
             cur_elt.degree,
             idx,
-            -1,
         );
         total_degree += cur_elt.degree;
         std::mem::swap(&mut tmp_vector_a, &mut tmp_vector_b);

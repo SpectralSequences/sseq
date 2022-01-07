@@ -101,7 +101,7 @@ impl<A: SteenrodAlgebraT> Module for RealProjectiveSpace<A> {
         mod_degree: i32,
         mod_index: usize,
     ) {
-        assert!(op_index < self.algebra().dimension(op_degree, mod_degree));
+        assert!(op_index < self.algebra().dimension(op_degree));
         assert!(mod_index < self.dimension(mod_degree));
 
         let output_degree = mod_degree + op_degree;

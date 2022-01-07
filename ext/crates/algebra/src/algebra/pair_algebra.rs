@@ -142,15 +142,15 @@ impl PairAlgebra for MilnorAlgebra {
             for l in 0..max_l {
                 row.push(FpVector::new(
                     p,
-                    self.dimension((rem_degree - (1 << l)) as i32, 0),
+                    self.dimension((rem_degree - (1 << l)) as i32),
                 ));
             }
             ys.push(row);
         }
 
         MilnorPairElement {
-            ones: FpVector::new(p, self.dimension(degree, 0)),
-            twos: FpVector::new(p, self.dimension(degree, 0)),
+            ones: FpVector::new(p, self.dimension(degree)),
+            twos: FpVector::new(p, self.dimension(degree)),
             ys,
             #[cfg(debug_assertions)]
             degree,
@@ -324,7 +324,7 @@ impl PairAlgebra for MilnorAlgebra {
             fp::prime::log2(degree as usize) + 1
         };
 
-        let twos = FpVector::from_bytes(p, self.dimension(degree, 0), buffer)?;
+        let twos = FpVector::from_bytes(p, self.dimension(degree), buffer)?;
 
         let mut ys = Vec::with_capacity(max_k);
         for k in 0..max_k {
@@ -334,7 +334,7 @@ impl PairAlgebra for MilnorAlgebra {
             for l in 0..max_l {
                 row.push(FpVector::from_bytes(
                     p,
-                    self.dimension((rem_degree - (1 << l)) as i32, 0),
+                    self.dimension((rem_degree - (1 << l)) as i32),
                     buffer,
                 )?);
             }
@@ -396,10 +396,7 @@ fn a_y_cached<T>(
 /// Actually computes $A(a, Y_{k, l})$ and returns the result.
 fn a_y_inner(algebra: &MilnorAlgebra, a: &MilnorElt, k: usize, l: usize) -> FpVector {
     let mut a = a.clone();
-    let mut result = FpVector::new(
-        TWO,
-        algebra.dimension(a.degree + (1 << k) + (1 << l) - 2, 0),
-    );
+    let mut result = FpVector::new(TWO, algebra.dimension(a.degree + (1 << k) + (1 << l) - 2));
     let mut t = MilnorElt {
         q_part: 0,
         p_part: vec![],
@@ -465,7 +462,7 @@ mod test {
 
             let target_deg = a.degree + (1 << k) + (1 << l) - 2;
             algebra.compute_basis(target_deg + 1);
-            result.set_scratch_vector_size(algebra.dimension(target_deg, 0));
+            result.set_scratch_vector_size(algebra.dimension(target_deg));
             a_y_cached(&algebra, &a, k, l, |v| result.add(v, 1));
             ans.assert_eq(&algebra.element_to_string(target_deg, result.as_slice()));
         };

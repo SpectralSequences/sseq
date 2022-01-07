@@ -89,7 +89,7 @@ impl<M: BoundedModule> HomModule<M> {
         let input_block_start = self
             .source
             .operation_generator_to_index(op_deg, 0, gen_deg, gen_idx);
-        let input_block_dim = self.source.algebra().dimension(op_deg, gen_deg);
+        let input_block_dim = self.source.algebra().dimension(op_deg);
         let input_block_end = input_block_start + input_block_dim;
         let p = *self.prime();
         for i in input_block_start..input_block_end {

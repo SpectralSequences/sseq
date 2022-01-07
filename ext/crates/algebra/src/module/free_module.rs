@@ -123,7 +123,7 @@ impl<A: Algebra> Module for FreeModule<A> {
         // Now all of the output elements are going to be of the form s * x. Find where such things go in the output vector.
         let num_ops = self
             .algebra()
-            .dimension(module_operation_degree + op_degree, generator_degree);
+            .dimension(module_operation_degree + op_degree);
         let output_block_min = self.operation_generator_to_index(
             module_operation_degree + op_degree,
             0,
@@ -140,7 +140,6 @@ impl<A: Algebra> Module for FreeModule<A> {
             op_index,
             module_operation_degree,
             module_operation_index,
-            generator_degree,
         );
     }
 
@@ -185,7 +184,6 @@ impl<A: Algebra> Module for FreeModule<A> {
                 op_index,
                 opgen.operation_degree,
                 input.slice(idx, end_idx),
-                opgen.generator_degree,
             );
         }
     }
@@ -229,7 +227,7 @@ impl<A: Algebra> FreeModule<A> {
             let mut offset = 0;
             for (gen_deg, &num_gens) in self.num_gens.iter_enum() {
                 let op_deg = degree - gen_deg;
-                let num_ops = self.algebra().dimension(op_deg, gen_deg);
+                let num_ops = self.algebra().dimension(op_deg);
                 for gen_idx in 0..num_gens {
                     self.generator_to_index[degree].push(offset);
                     offset += num_ops;
@@ -274,7 +272,7 @@ impl<A: Algebra> FreeModule<A> {
         for total_degree in degree..self.basis_element_to_opgen.len() {
             let op_deg = total_degree - gen_deg;
             let mut offset = self.basis_element_to_opgen[total_degree].len();
-            let num_ops = self.algebra().dimension(op_deg, gen_deg);
+            let num_ops = self.algebra().dimension(op_deg);
             for gen_idx in 0..num_gens {
                 self.generator_to_index[total_degree].push(offset);
                 offset += num_ops;
@@ -413,7 +411,7 @@ impl<A: Algebra> FreeModule<A> {
         v: Slice<'a>,
     ) -> Slice<'a> {
         let start = self.generator_offset(degree, gen_degree, gen_index);
-        let len = self.algebra().dimension(degree - gen_degree, 0);
+        let len = self.algebra().dimension(degree - gen_degree);
         v.slice(
             std::cmp::min(v.len(), start),
             std::cmp::min(v.len(), start + len),
@@ -699,7 +697,7 @@ mod tests {
         let output_dim = M.dimension(output_deg);
         for i in 0..9 {
             println!("i : {}", i);
-            assert_eq!(M.dimension(i), A.dimension(i, 0) + A.dimension(i - 1, 1));
+            assert_eq!(M.dimension(i), A.dimension(i) + A.dimension(i - 1));
         }
 
         for (gen_deg, gen_idx) in &[(0, 0), (1, 0)] {

@@ -174,7 +174,7 @@ impl<A: PairAlgebra> SecondaryComposite<A> {
                 let offset =
                     self.target
                         .generator_offset(self.degree + op_degree - 1, gen_deg, gen_idx);
-                let len = Algebra::dimension(&*algebra, module_op_deg + op_degree - 1, 0);
+                let len = algebra.dimension(module_op_deg + op_degree - 1);
 
                 algebra.a_multiply(
                     result.slice_mut(offset, offset + len),

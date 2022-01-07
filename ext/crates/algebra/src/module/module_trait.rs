@@ -92,10 +92,7 @@ pub trait Module: std::fmt::Display + Send + Sync {
         input: Slice,
     ) {
         assert_eq!(input.len(), self.dimension(input_degree));
-        assert_eq!(
-            op.len(),
-            self.algebra().dimension(op_degree, i32::max_value())
-        );
+        assert_eq!(op.len(), self.algebra().dimension(op_degree));
         let p = self.prime();
         for (i, v) in op.iter_nonzero() {
             self.act(
@@ -118,10 +115,7 @@ pub trait Module: std::fmt::Display + Send + Sync {
         input_degree: i32,
         input_index: usize,
     ) {
-        assert_eq!(
-            op.len(),
-            self.algebra().dimension(op_degree, i32::max_value())
-        );
+        assert_eq!(op.len(), self.algebra().dimension(op_degree));
         let p = self.prime();
         for (i, v) in op.iter_nonzero() {
             self.act_on_basis(
@@ -208,10 +202,8 @@ pub trait Module: std::fmt::Display + Send + Sync {
         );
         // println!("scratch 1 : {}", self.element_to_string(inner_op_degree + module_degree, &scratch));
         // println!("result 1 : {}", self.element_to_string(outer_op_degree + inner_op_degree + module_degree, &result));
-        scratch.set_scratch_vector_size(
-            self.algebra()
-                .dimension(outer_op_degree + inner_op_degree, i32::max_value()),
-        );
+        scratch
+            .set_scratch_vector_size(self.algebra().dimension(outer_op_degree + inner_op_degree));
         self.algebra().multiply_basis_elements(
             scratch.as_slice_mut(),
             1,
@@ -219,7 +211,6 @@ pub trait Module: std::fmt::Display + Send + Sync {
             outer_op_index,
             inner_op_degree,
             inner_op_index,
-            i32::max_value(),
         );
         self.act_by_element_on_basis(
             result.as_slice_mut(),
@@ -246,9 +237,9 @@ pub trait Module: std::fmt::Display + Send + Sync {
         algebra.compute_basis(max_degree);
         self.compute_basis(max_degree);
         for outer_op_degree in 0..=max_degree {
-            for outer_op_index in 0..algebra.dimension(outer_op_degree, i32::max_value()) {
+            for outer_op_index in 0..algebra.dimension(outer_op_degree) {
                 for inner_op_degree in 0..=max_degree - outer_op_degree {
-                    for inner_op_index in 0..algebra.dimension(inner_op_degree, i32::max_value()) {
+                    for inner_op_index in 0..algebra.dimension(inner_op_degree) {
                         for module_degree in 0..=max_degree - outer_op_degree - inner_op_degree {
                             for module_index in 0..self.dimension(module_degree) {
                                 self.check_relation(

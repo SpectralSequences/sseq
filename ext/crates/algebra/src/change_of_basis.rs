@@ -16,7 +16,7 @@ pub fn adem_to_milnor_on_basis(
     let elt = adem_algebra.basis_element_from_index(degree, idx);
     let p = milnor_algebra.prime();
     let q = milnor_algebra.q() as u32;
-    let dim = milnor_algebra.dimension(elt.degree, -1);
+    let dim = milnor_algebra.dimension(elt.degree);
     if dim == 1 {
         result.set_entry(0, coeff);
         return;
@@ -30,7 +30,7 @@ pub fn adem_to_milnor_on_basis(
     bocksteins >>= 1;
     let idx = milnor_algebra.basis_element_to_index(&mbe);
     let mut total_degree = mbe.degree;
-    let cur_dim = milnor_algebra.dimension(total_degree, -1);
+    let cur_dim = milnor_algebra.dimension(total_degree);
 
     let mut tmp_vector_a = FpVector::new(p, cur_dim);
     let mut tmp_vector_b = FpVector::new(p, 0);
@@ -44,7 +44,7 @@ pub fn adem_to_milnor_on_basis(
         };
         let idx = milnor_algebra.basis_element_to_index(&mbe);
         bocksteins >>= 1;
-        let cur_dim = milnor_algebra.dimension(total_degree + mbe.degree, -1);
+        let cur_dim = milnor_algebra.dimension(total_degree + mbe.degree);
         tmp_vector_b.set_scratch_vector_size(cur_dim);
         milnor_algebra.multiply_element_by_basis_element(
             tmp_vector_b.as_slice_mut(),
@@ -53,7 +53,6 @@ pub fn adem_to_milnor_on_basis(
             tmp_vector_a.as_slice(),
             mbe.degree,
             idx,
-            -1,
         );
         total_degree += mbe.degree;
         std::mem::swap(&mut tmp_vector_a, &mut tmp_vector_b);
@@ -69,7 +68,6 @@ pub fn adem_to_milnor_on_basis(
             tmp_vector_a.as_slice(),
             1,
             0,
-            -1,
         );
     }
 }
@@ -125,7 +123,7 @@ fn milnor_to_adem_on_basis_2(
 ) {
     let elt = milnor_algebra.basis_element_from_index(degree, idx);
     let p = milnor_algebra.prime();
-    let dim = milnor_algebra.dimension(elt.degree, -1);
+    let dim = milnor_algebra.dimension(elt.degree);
     if dim == 1 {
         result.set_entry(0, coeff);
         return;
@@ -174,7 +172,7 @@ fn milnor_to_adem_on_basis_generic(
 ) {
     let elt = milnor_algebra.basis_element_from_index(degree, idx);
     let p = milnor_algebra.prime();
-    let dim = milnor_algebra.dimension(elt.degree, -1);
+    let dim = milnor_algebra.dimension(elt.degree);
     if dim == 1 {
         result.set_entry(0, coeff);
         return;
@@ -317,7 +315,7 @@ mod tests {
             (2, "Sq7 + Sq5 Sq2 + Sq6 Sq1 + Sq4 Sq2 Sq1"),
         ] {
             let degree = (1 << (*qi + 1)) - 1;
-            let mut result = FpVector::new(p, adem.dimension(degree, -1));
+            let mut result = FpVector::new(p, adem.dimension(degree));
             adem_q(&adem, &milnor, &mut result, 1, *qi);
             println!(
                 "Q{} ==> {}",
@@ -343,7 +341,7 @@ mod tests {
 
         for degree in 0..max_degree {
             println!("degree : {}", degree);
-            let dim = adem.dimension(degree, -1);
+            let dim = adem.dimension(degree);
             let mut milnor_result = FpVector::new(p, dim);
             let mut adem_result = FpVector::new(p, dim);
             for i in 0..dim {

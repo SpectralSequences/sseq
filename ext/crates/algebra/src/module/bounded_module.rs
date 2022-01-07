@@ -43,7 +43,7 @@ pub trait BoundedModule: Module {
                 let op_degree = output_degree - input_degree;
 
                 for input_idx in 0..result.dimension(input_degree) {
-                    for op_idx in 0..algebra.dimension(op_degree, -1) {
+                    for op_idx in 0..algebra.dimension(op_degree) {
                         let output_vec: &mut FpVector =
                             result.action_mut(op_degree, op_idx, input_degree, input_idx);
                         self.act_on_basis(

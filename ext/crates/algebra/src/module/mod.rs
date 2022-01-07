@@ -7,12 +7,7 @@ mod module_trait;
 mod rpn;
 mod zero_module;
 
-mod bcp;
-mod dickson2;
-mod free_unstable_module;
 mod hom_module;
-mod kfpn;
-mod polynomial_algebra_module;
 mod quotient_module;
 mod sum_module;
 mod tensor_module;
@@ -32,10 +27,8 @@ pub use rpn::RealProjectiveSpace;
 pub use zero_module::ZeroModule;
 
 pub use {
-    bcp::BCp, dickson2::Dickson2, free_unstable_module::FreeUnstableModule, hom_module::HomModule,
-    kfpn::KFpn, polynomial_algebra_module::PolynomialAlgebraModule,
-    quotient_module::QuotientModule, sum_module::SumModule, tensor_module::TensorModule,
-    truncated_module::TruncatedModule,
+    hom_module::HomModule, quotient_module::QuotientModule, sum_module::SumModule,
+    tensor_module::TensorModule, truncated_module::TruncatedModule,
 };
 
 use crate::algebra::SteenrodAlgebra;
