@@ -1,45 +1,39 @@
 //! This file implements the support for [Nassau's algorithm](https://arxiv.org/abs/1910.04063)
 //! from the algebra side.
 use fp::matrix::Matrix;
+use fp::prime::ValidPrime;
 use fp::vector::FpVector;
 
-use crate::algebra::milnor_algebra::{MilnorAlgebra, MilnorBasisElement};
+use crate::algebra::combinatorics;
+use crate::algebra::milnor_algebra::{MilnorAlgebra, MilnorBasisElement, PPartEntry};
 use crate::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
 use crate::module::{FreeModule, Module};
 
 /// A Milnor subalgebra to be used in [Nassau's algorithm](https://arxiv.org/abs/1910.04063). This
 /// is equipped with an ordering of the signature as in Lemma 2.4 of the paper.
 ///
-/// To implement the ordering, we seek to define an order isomorphism from the set of signatures
-/// to `0..dimension`, which we store as a `u32`. Since the algorithm involes a loop whose length
-/// is the dimension of the subalgebra, we are not going to run out of space.
-///
-/// Noting that the lexicographic ordering of a bit vector is just the usual ordering when we view
-/// them as the binary digits (most-significant-bit first), the order isomorphism is given by
-/// simply concatenating the p part of the basis element (this corresponds to ordering of
+/// To simplify implementation, we pick the ordering so that the lexicographic ordering in Lemma
+/// 2.4 is just the lexicographic ordering of the P parts. This corresponds to the ordering of
 /// $\mathcal{P}$ where $P^s_t < P^{s'}_t$ if $s > s'$).
 pub struct MilnorSubalgebra {
-    profile: Vec<u32>,
+    profile: Vec<u8>,
 }
 
 impl MilnorSubalgebra {
-    pub fn new(profile: Vec<u32>) -> Self {
+    /// This should be used when you want an entry of the profile to be infinity
+    pub const INFINITY: u8 = (std::mem::size_of::<PPartEntry>() * 4 - 1) as u8;
+
+    pub fn new(profile: Vec<u8>) -> Self {
         Self { profile }
     }
 
     /// Computes the signature of an element
-    pub fn signature(&self, elt: &MilnorBasisElement) -> u32 {
-        let mut signature = 0;
-        for (&profile, &entry) in self.profile.iter().zip(&elt.p_part) {
-            signature <<= profile;
-            signature += entry as u32 & ((1 << profile) - 1);
-        }
-        signature
-    }
-
-    /// The dimension of the subalgebra is `1 << self.log_dim()`.
-    pub fn log_dim(&self) -> u32 {
-        self.profile.iter().copied().sum()
+    pub fn has_signature(&self, elt: &MilnorBasisElement, signature: &[PPartEntry]) -> bool {
+        elt.p_part
+            .iter()
+            .zip(&self.profile)
+            .zip(signature)
+            .all(|((ppart, profile), &signature)| ppart & ((1 << profile) - 1) == signature)
     }
 
     /// Give a list of basis elements in degree `degree` that has signature `signature`.
@@ -47,15 +41,16 @@ impl MilnorSubalgebra {
         &self,
         module: &FreeModule<MilnorAlgebra>,
         degree: i32,
-        signature: u32,
+        signature: &[PPartEntry],
     ) -> Vec<usize> {
         let algebra = module.algebra();
         (0..module.dimension(degree))
             .filter(move |&i| {
                 let opgen = module.index_to_op_gen(degree, i);
-                self.signature(
+                self.has_signature(
                     algebra.basis_element_from_index(opgen.operation_degree, opgen.operation_index),
-                ) == signature
+                    signature,
+                )
             })
             .collect()
     }
@@ -66,7 +61,7 @@ impl MilnorSubalgebra {
         &self,
         hom: &FreeModuleHomomorphism<FreeModule<MilnorAlgebra>>,
         degree: i32,
-        signature: u32,
+        signature: &[PPartEntry],
     ) -> Matrix {
         let p = hom.prime();
         let source = hom.source();
@@ -87,5 +82,142 @@ impl MilnorSubalgebra {
                 .add_masked(scratch.as_slice(), 1, &target_mask);
         }
         matrix
+    }
+
+    /// Iterate through all signatures of this algebra that contain elements of degree at most
+    /// `degree` (inclusive).
+    pub fn iter_signature(&self, degree: i32) -> impl Iterator<Item = Vec<PPartEntry>> + '_ {
+        SignatureIterator::new(self, degree)
+    }
+}
+
+struct SignatureIterator<'a> {
+    subalgebra: &'a MilnorSubalgebra,
+    current: Vec<PPartEntry>,
+    init: bool,
+    signature_degree: i32,
+    degree: i32,
+}
+
+impl<'a> SignatureIterator<'a> {
+    fn new(subalgebra: &'a MilnorSubalgebra, degree: i32) -> Self {
+        Self {
+            current: vec![0; subalgebra.profile.len()],
+            degree,
+            subalgebra,
+            signature_degree: 0,
+            init: false,
+        }
+    }
+}
+
+impl<'a> Iterator for SignatureIterator<'a> {
+    type Item = Vec<PPartEntry>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let xi_degrees = combinatorics::xi_degrees(ValidPrime::new(2));
+        if !self.init {
+            self.init = true;
+            return Some(self.current.clone());
+        }
+        for i in (0..self.current.len()).rev() {
+            self.current[i] += 1;
+            self.signature_degree += xi_degrees[i];
+
+            if self.signature_degree > self.degree
+                || self.current[i] == 1 << self.subalgebra.profile[i]
+            {
+                self.signature_degree -= xi_degrees[i] * self.current[i] as i32;
+                self.current[i] = 0;
+                if i == 0 {
+                    return None;
+                }
+            } else {
+                return Some(self.current.clone());
+            }
+        }
+        unreachable!();
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_signature_iterator() {
+        let subalgebra = MilnorSubalgebra::new(vec![2, 1]);
+        assert_eq!(
+            subalgebra.iter_signature(6).collect::<Vec<_>>(),
+            vec![
+                vec![0, 0],
+                vec![0, 1],
+                vec![1, 0],
+                vec![1, 1],
+                vec![2, 0],
+                vec![2, 1],
+                vec![3, 0],
+                vec![3, 1],
+            ]
+        );
+
+        assert_eq!(
+            subalgebra.iter_signature(5).collect::<Vec<_>>(),
+            vec![
+                vec![0, 0],
+                vec![0, 1],
+                vec![1, 0],
+                vec![1, 1],
+                vec![2, 0],
+                vec![2, 1],
+                vec![3, 0],
+            ]
+        );
+        assert_eq!(
+            subalgebra.iter_signature(4).collect::<Vec<_>>(),
+            vec![
+                vec![0, 0],
+                vec![0, 1],
+                vec![1, 0],
+                vec![1, 1],
+                vec![2, 0],
+                vec![3, 0],
+            ]
+        );
+        assert_eq!(
+            subalgebra.iter_signature(3).collect::<Vec<_>>(),
+            vec![vec![0, 0], vec![0, 1], vec![1, 0], vec![2, 0], vec![3, 0],]
+        );
+        assert_eq!(
+            subalgebra.iter_signature(2).collect::<Vec<_>>(),
+            vec![vec![0, 0], vec![1, 0], vec![2, 0],]
+        );
+        assert_eq!(
+            subalgebra.iter_signature(1).collect::<Vec<_>>(),
+            vec![vec![0, 0], vec![1, 0],]
+        );
+        assert_eq!(
+            subalgebra.iter_signature(0).collect::<Vec<_>>(),
+            vec![vec![0, 0],]
+        );
+    }
+
+    #[test]
+    fn test_signature_iterator_large() {
+        let subalgebra = MilnorSubalgebra::new(vec![
+            0,
+            MilnorSubalgebra::INFINITY,
+            MilnorSubalgebra::INFINITY,
+            MilnorSubalgebra::INFINITY,
+        ]);
+        assert_eq!(
+            subalgebra.iter_signature(7).collect::<Vec<_>>(),
+            vec![
+                vec![0, 0, 0, 0],
+                vec![0, 0, 1, 0],
+                vec![0, 1, 0, 0],
+                vec![0, 2, 0, 0],
+            ]
+        );
     }
 }
