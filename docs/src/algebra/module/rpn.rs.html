@@ -361,7 +361,7 @@
         <span class="ident">mod_degree</span>: <span class="ident">i32</span>,
         <span class="ident">mod_index</span>: <span class="ident">usize</span>,
     ) {
-        <span class="macro">assert!</span>(<span class="ident">op_index</span> <span class="op">&lt;</span> <span class="self">self</span>.<span class="ident">algebra</span>().<span class="ident">dimension</span>(<span class="ident">op_degree</span>, <span class="ident">mod_degree</span>));
+        <span class="macro">assert!</span>(<span class="ident">op_index</span> <span class="op">&lt;</span> <span class="self">self</span>.<span class="ident">algebra</span>().<span class="ident">dimension</span>(<span class="ident">op_degree</span>));
         <span class="macro">assert!</span>(<span class="ident">mod_index</span> <span class="op">&lt;</span> <span class="self">self</span>.<span class="ident">dimension</span>(<span class="ident">mod_degree</span>));
 
         <span class="kw">let</span> <span class="ident">output_degree</span> <span class="op">=</span> <span class="ident">mod_degree</span> <span class="op">+</span> <span class="ident">op_degree</span>;

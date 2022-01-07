@@ -415,7 +415,7 @@
         <span class="kw">let</span> <span class="ident">input_block_start</span> <span class="op">=</span> <span class="self">self</span>
             .<span class="ident">source</span>
             .<span class="ident">operation_generator_to_index</span>(<span class="ident">op_deg</span>, <span class="number">0</span>, <span class="ident">gen_deg</span>, <span class="ident">gen_idx</span>);
-        <span class="kw">let</span> <span class="ident">input_block_dim</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">source</span>.<span class="ident">algebra</span>().<span class="ident">dimension</span>(<span class="ident">op_deg</span>, <span class="ident">gen_deg</span>);
+        <span class="kw">let</span> <span class="ident">input_block_dim</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">source</span>.<span class="ident">algebra</span>().<span class="ident">dimension</span>(<span class="ident">op_deg</span>);
         <span class="kw">let</span> <span class="ident">input_block_end</span> <span class="op">=</span> <span class="ident">input_block_start</span> <span class="op">+</span> <span class="ident">input_block_dim</span>;
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="kw-2">*</span><span class="self">self</span>.<span class="ident">prime</span>();
         <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="ident">input_block_start</span>..<span class="ident">input_block_end</span> {

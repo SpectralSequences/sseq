@@ -334,17 +334,6 @@
 <span id="308">308</span>
 <span id="309">309</span>
 <span id="310">310</span>
-<span id="311">311</span>
-<span id="312">312</span>
-<span id="313">313</span>
-<span id="314">314</span>
-<span id="315">315</span>
-<span id="316">316</span>
-<span id="317">317</span>
-<span id="318">318</span>
-<span id="319">319</span>
-<span id="320">320</span>
-<span id="321">321</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">fp::prime::ValidPrime</span>;
 <span class="kw">use</span> <span class="ident">fp::vector</span>::{<span class="ident">Slice</span>, <span class="ident">SliceMut</span>};
 
@@ -389,7 +378,7 @@
     <span class="kw">fn</span> <span class="ident">compute_basis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>);
 
     <span class="doccomment">/// Returns the dimension of the algebra in degree `degree`.</span>
-    <span class="kw">fn</span> <span class="ident">dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">excess</span>: <span class="ident">i32</span>) -&gt; <span class="ident">usize</span>;
+    <span class="kw">fn</span> <span class="ident">dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) -&gt; <span class="ident">usize</span>;
 
     <span class="doccomment">/// Computes the product `r * s` of two basis elements, and adds the</span>
     <span class="doccomment">/// result to `result`.</span>
@@ -403,7 +392,6 @@
         <span class="ident">r_idx</span>: <span class="ident">usize</span>,
         <span class="ident">s_degree</span>: <span class="ident">i32</span>,
         <span class="ident">s_idx</span>: <span class="ident">usize</span>,
-        <span class="ident">excess</span>: <span class="ident">i32</span>,
     );
 
     <span class="doccomment">/// Computes the product `r * s` of a basis element `r` and a general element `s`, and adds the</span>
@@ -418,7 +406,6 @@
         <span class="ident">r_idx</span>: <span class="ident">usize</span>,
         <span class="ident">s_degree</span>: <span class="ident">i32</span>,
         <span class="ident">s</span>: <span class="ident">Slice</span>,
-        <span class="ident">excess</span>: <span class="ident">i32</span>,
     ) {
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prime</span>();
         <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">v</span>) <span class="kw">in</span> <span class="ident">s</span>.<span class="ident">iter_nonzero</span>() {
@@ -429,7 +416,6 @@
                 <span class="ident">r_idx</span>,
                 <span class="ident">s_degree</span>,
                 <span class="ident">i</span>,
-                <span class="ident">excess</span>,
             );
         }
     }
@@ -446,7 +432,6 @@
         <span class="ident">r</span>: <span class="ident">Slice</span>,
         <span class="ident">s_degree</span>: <span class="ident">i32</span>,
         <span class="ident">s_idx</span>: <span class="ident">usize</span>,
-        <span class="ident">excess</span>: <span class="ident">i32</span>,
     ) {
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prime</span>();
         <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">v</span>) <span class="kw">in</span> <span class="ident">r</span>.<span class="ident">iter_nonzero</span>() {
@@ -457,7 +442,6 @@
                 <span class="ident">i</span>,
                 <span class="ident">s_degree</span>,
                 <span class="ident">s_idx</span>,
-                <span class="ident">excess</span>,
             );
         }
     }
@@ -474,7 +458,6 @@
         <span class="ident">r</span>: <span class="ident">Slice</span>,
         <span class="ident">s_degree</span>: <span class="ident">i32</span>,
         <span class="ident">s</span>: <span class="ident">Slice</span>,
-        <span class="ident">excess</span>: <span class="ident">i32</span>,
     ) {
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prime</span>();
         <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">v</span>) <span class="kw">in</span> <span class="ident">s</span>.<span class="ident">iter_nonzero</span>() {
@@ -485,7 +468,6 @@
                 <span class="ident">r</span>,
                 <span class="ident">s_degree</span>,
                 <span class="ident">i</span>,
-                <span class="ident">excess</span>,
             );
         }
     }
@@ -612,7 +594,7 @@
                 <span class="kw">fn</span> <span class="macro-nonterminal">magic</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">u32</span>;
                 <span class="kw">fn</span> <span class="ident">prime</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">ValidPrime</span>;
                 <span class="kw">fn</span> <span class="ident">compute_basis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>);
-                <span class="kw">fn</span> <span class="ident">dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">excess</span>: <span class="ident">i32</span>) -&gt; <span class="ident">usize</span>;
+                <span class="kw">fn</span> <span class="ident">dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) -&gt; <span class="ident">usize</span>;
                 <span class="kw">fn</span> <span class="ident">multiply_basis_elements</span>(
                     <span class="kw-2">&amp;</span><span class="self">self</span>,
                     <span class="ident">result</span>: <span class="ident">SliceMut</span>,
@@ -621,7 +603,6 @@
                     <span class="ident">r_idx</span>: <span class="ident">usize</span>,
                     <span class="ident">s_degree</span>: <span class="ident">i32</span>,
                     <span class="ident">s_idx</span>: <span class="ident">usize</span>,
-                    <span class="ident">excess</span>: <span class="ident">i32</span>,
                 );
 
                 <span class="kw">fn</span> <span class="ident">multiply_basis_element_by_element</span>(
@@ -632,7 +613,6 @@
                     <span class="ident">r_idx</span>: <span class="ident">usize</span>,
                     <span class="ident">s_degree</span>: <span class="ident">i32</span>,
                     <span class="ident">s</span>: <span class="ident">Slice</span>,
-                    <span class="ident">excess</span>: <span class="ident">i32</span>,
                 );
 
                 <span class="kw">fn</span> <span class="ident">multiply_element_by_basis_element</span>(
@@ -643,7 +623,6 @@
                     <span class="ident">r</span>: <span class="ident">Slice</span>,
                     <span class="ident">s_degree</span>: <span class="ident">i32</span>,
                     <span class="ident">s_idx</span>: <span class="ident">usize</span>,
-                    <span class="ident">excess</span>: <span class="ident">i32</span>,
                 );
 
                 <span class="kw">fn</span> <span class="ident">multiply_element_by_element</span>(
@@ -654,7 +633,6 @@
                     <span class="ident">r</span>: <span class="ident">Slice</span>,
                     <span class="ident">s_degree</span>: <span class="ident">i32</span>,
                     <span class="ident">s</span>: <span class="ident">Slice</span>,
-                    <span class="ident">excess</span>: <span class="ident">i32</span>,
                 );
 
                 <span class="kw">fn</span> <span class="ident">default_filtration_one_products</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">String</span>, <span class="ident">i32</span>, <span class="ident">usize</span>)<span class="op">&gt;</span>;

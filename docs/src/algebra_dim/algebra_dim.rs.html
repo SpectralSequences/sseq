@@ -41,7 +41,7 @@
     <span class="kw">let</span> <span class="ident">algebra</span> <span class="op">=</span> <span class="ident">MilnorAlgebra::new</span>(<span class="ident">ValidPrime::new</span>(<span class="number">2</span>));
     <span class="ident">algebra</span>.<span class="ident">compute_basis</span>(<span class="number">125</span>);
     <span class="kw">for</span> <span class="ident">n</span> <span class="kw">in</span> <span class="number">0</span>..<span class="op">=</span><span class="number">125</span> {
-        <span class="macro">println!</span>(<span class="string">&quot;dim A_{} = {}&quot;</span>, <span class="ident">n</span>, <span class="ident">algebra</span>.<span class="ident">dimension</span>(<span class="ident">n</span>, <span class="number">0</span>));
+        <span class="macro">println!</span>(<span class="string">&quot;dim A_{} = {}&quot;</span>, <span class="ident">n</span>, <span class="ident">algebra</span>.<span class="ident">dimension</span>(<span class="ident">n</span>));
     }
 }
 </code></pre></div>

@@ -62,13 +62,6 @@
 <span id="36">36</span>
 <span id="37">37</span>
 <span id="38">38</span>
-<span id="39">39</span>
-<span id="40">40</span>
-<span id="41">41</span>
-<span id="42">42</span>
-<span id="43">43</span>
-<span id="44">44</span>
-<span id="45">45</span>
 </pre><pre class="rust"><code><span class="kw">mod</span> <span class="ident">bounded_module</span>;
 <span class="kw">mod</span> <span class="ident">finite_dimensional_module</span>;
 <span class="kw">mod</span> <span class="ident">finite_module</span>;
@@ -78,12 +71,7 @@
 <span class="kw">mod</span> <span class="ident">rpn</span>;
 <span class="kw">mod</span> <span class="ident">zero_module</span>;
 
-<span class="kw">mod</span> <span class="ident">bcp</span>;
-<span class="kw">mod</span> <span class="ident">dickson2</span>;
-<span class="kw">mod</span> <span class="ident">free_unstable_module</span>;
 <span class="kw">mod</span> <span class="ident">hom_module</span>;
-<span class="kw">mod</span> <span class="ident">kfpn</span>;
-<span class="kw">mod</span> <span class="ident">polynomial_algebra_module</span>;
 <span class="kw">mod</span> <span class="ident">quotient_module</span>;
 <span class="kw">mod</span> <span class="ident">sum_module</span>;
 <span class="kw">mod</span> <span class="ident">tensor_module</span>;
@@ -103,10 +91,8 @@
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">zero_module::ZeroModule</span>;
 
 <span class="kw">pub</span> <span class="kw">use</span> {
-    <span class="ident">bcp::BCp</span>, <span class="ident">dickson2::Dickson2</span>, <span class="ident">free_unstable_module::FreeUnstableModule</span>, <span class="ident">hom_module::HomModule</span>,
-    <span class="ident">kfpn::KFpn</span>, <span class="ident">polynomial_algebra_module::PolynomialAlgebraModule</span>,
-    <span class="ident">quotient_module::QuotientModule</span>, <span class="ident">sum_module::SumModule</span>, <span class="ident">tensor_module::TensorModule</span>,
-    <span class="ident">truncated_module::TruncatedModule</span>,
+    <span class="ident">hom_module::HomModule</span>, <span class="ident">quotient_module::QuotientModule</span>, <span class="ident">sum_module::SumModule</span>,
+    <span class="ident">tensor_module::TensorModule</span>, <span class="ident">truncated_module::TruncatedModule</span>,
 };
 
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::algebra::SteenrodAlgebra</span>;

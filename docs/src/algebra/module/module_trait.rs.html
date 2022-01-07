@@ -417,15 +417,6 @@
 <span id="391">391</span>
 <span id="392">392</span>
 <span id="393">393</span>
-<span id="394">394</span>
-<span id="395">395</span>
-<span id="396">396</span>
-<span id="397">397</span>
-<span id="398">398</span>
-<span id="399">399</span>
-<span id="400">400</span>
-<span id="401">401</span>
-<span id="402">402</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">itertools::Itertools</span>;
 <span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
 
@@ -520,10 +511,7 @@
         <span class="ident">input</span>: <span class="ident">Slice</span>,
     ) {
         <span class="macro">assert_eq!</span>(<span class="ident">input</span>.<span class="ident">len</span>(), <span class="self">self</span>.<span class="ident">dimension</span>(<span class="ident">input_degree</span>));
-        <span class="macro">assert_eq!</span>(
-            <span class="ident">op</span>.<span class="ident">len</span>(),
-            <span class="self">self</span>.<span class="ident">algebra</span>().<span class="ident">dimension</span>(<span class="ident">op_degree</span>, <span class="ident">i32::max_value</span>())
-        );
+        <span class="macro">assert_eq!</span>(<span class="ident">op</span>.<span class="ident">len</span>(), <span class="self">self</span>.<span class="ident">algebra</span>().<span class="ident">dimension</span>(<span class="ident">op_degree</span>));
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prime</span>();
         <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">v</span>) <span class="kw">in</span> <span class="ident">op</span>.<span class="ident">iter_nonzero</span>() {
             <span class="self">self</span>.<span class="ident">act</span>(
@@ -546,10 +534,7 @@
         <span class="ident">input_degree</span>: <span class="ident">i32</span>,
         <span class="ident">input_index</span>: <span class="ident">usize</span>,
     ) {
-        <span class="macro">assert_eq!</span>(
-            <span class="ident">op</span>.<span class="ident">len</span>(),
-            <span class="self">self</span>.<span class="ident">algebra</span>().<span class="ident">dimension</span>(<span class="ident">op_degree</span>, <span class="ident">i32::max_value</span>())
-        );
+        <span class="macro">assert_eq!</span>(<span class="ident">op</span>.<span class="ident">len</span>(), <span class="self">self</span>.<span class="ident">algebra</span>().<span class="ident">dimension</span>(<span class="ident">op_degree</span>));
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prime</span>();
         <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">v</span>) <span class="kw">in</span> <span class="ident">op</span>.<span class="ident">iter_nonzero</span>() {
             <span class="self">self</span>.<span class="ident">act_on_basis</span>(
@@ -636,10 +621,8 @@
         );
         <span class="comment">// println!(&quot;scratch 1 : {}&quot;, self.element_to_string(inner_op_degree + module_degree, &amp;scratch));</span>
         <span class="comment">// println!(&quot;result 1 : {}&quot;, self.element_to_string(outer_op_degree + inner_op_degree + module_degree, &amp;result));</span>
-        <span class="ident">scratch</span>.<span class="ident">set_scratch_vector_size</span>(
-            <span class="self">self</span>.<span class="ident">algebra</span>()
-                .<span class="ident">dimension</span>(<span class="ident">outer_op_degree</span> <span class="op">+</span> <span class="ident">inner_op_degree</span>, <span class="ident">i32::max_value</span>()),
-        );
+        <span class="ident">scratch</span>
+            .<span class="ident">set_scratch_vector_size</span>(<span class="self">self</span>.<span class="ident">algebra</span>().<span class="ident">dimension</span>(<span class="ident">outer_op_degree</span> <span class="op">+</span> <span class="ident">inner_op_degree</span>));
         <span class="self">self</span>.<span class="ident">algebra</span>().<span class="ident">multiply_basis_elements</span>(
             <span class="ident">scratch</span>.<span class="ident">as_slice_mut</span>(),
             <span class="number">1</span>,
@@ -647,7 +630,6 @@
             <span class="ident">outer_op_index</span>,
             <span class="ident">inner_op_degree</span>,
             <span class="ident">inner_op_index</span>,
-            <span class="ident">i32::max_value</span>(),
         );
         <span class="self">self</span>.<span class="ident">act_by_element_on_basis</span>(
             <span class="ident">result</span>.<span class="ident">as_slice_mut</span>(),
@@ -674,9 +656,9 @@
         <span class="ident">algebra</span>.<span class="ident">compute_basis</span>(<span class="ident">max_degree</span>);
         <span class="self">self</span>.<span class="ident">compute_basis</span>(<span class="ident">max_degree</span>);
         <span class="kw">for</span> <span class="ident">outer_op_degree</span> <span class="kw">in</span> <span class="number">0</span>..<span class="op">=</span><span class="ident">max_degree</span> {
-            <span class="kw">for</span> <span class="ident">outer_op_index</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">algebra</span>.<span class="ident">dimension</span>(<span class="ident">outer_op_degree</span>, <span class="ident">i32::max_value</span>()) {
+            <span class="kw">for</span> <span class="ident">outer_op_index</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">algebra</span>.<span class="ident">dimension</span>(<span class="ident">outer_op_degree</span>) {
                 <span class="kw">for</span> <span class="ident">inner_op_degree</span> <span class="kw">in</span> <span class="number">0</span>..<span class="op">=</span><span class="ident">max_degree</span> <span class="op">-</span> <span class="ident">outer_op_degree</span> {
-                    <span class="kw">for</span> <span class="ident">inner_op_index</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">algebra</span>.<span class="ident">dimension</span>(<span class="ident">inner_op_degree</span>, <span class="ident">i32::max_value</span>()) {
+                    <span class="kw">for</span> <span class="ident">inner_op_index</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">algebra</span>.<span class="ident">dimension</span>(<span class="ident">inner_op_degree</span>) {
                         <span class="kw">for</span> <span class="ident">module_degree</span> <span class="kw">in</span> <span class="number">0</span>..<span class="op">=</span><span class="ident">max_degree</span> <span class="op">-</span> <span class="ident">outer_op_degree</span> <span class="op">-</span> <span class="ident">inner_op_degree</span> {
                             <span class="kw">for</span> <span class="ident">module_index</span> <span class="kw">in</span> <span class="number">0</span>..<span class="self">self</span>.<span class="ident">dimension</span>(<span class="ident">module_degree</span>) {
                                 <span class="self">self</span>.<span class="ident">check_relation</span>(

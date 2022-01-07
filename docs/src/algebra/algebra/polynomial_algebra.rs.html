@@ -355,8 +355,6 @@
 <span id="329">329</span>
 <span id="330">330</span>
 <span id="331">331</span>
-<span id="332">332</span>
-<span id="333">333</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">itertools::Itertools</span>;
 <span class="kw">use</span> <span class="ident">rustc_hash::FxHashMap</span> <span class="kw">as</span> <span class="ident">HashMap</span>;
 <span class="kw">use</span> <span class="ident">std::fmt</span>;
@@ -537,8 +535,7 @@
         <span class="ident">right</span>: <span class="kw-2">&amp;</span><span class="ident">FpVector</span>,
     ) {
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="kw-2">*</span><span class="self">self</span>.<span class="ident">prime</span>();
-        <span class="ident">target</span>
-            .<span class="ident">set_scratch_vector_size</span>(<span class="self">self</span>.<span class="ident">dimension</span>(<span class="ident">left_degree</span> <span class="op">+</span> <span class="ident">right_degree</span>, <span class="ident">i32::max_value</span>()));
+        <span class="ident">target</span>.<span class="ident">set_scratch_vector_size</span>(<span class="self">self</span>.<span class="ident">dimension</span>(<span class="ident">left_degree</span> <span class="op">+</span> <span class="ident">right_degree</span>));
         <span class="kw">for</span> (<span class="ident">left_idx</span>, <span class="ident">left_entry</span>) <span class="kw">in</span> <span class="ident">left</span>.<span class="ident">iter_nonzero</span>() {
             <span class="kw">for</span> (<span class="ident">right_idx</span>, <span class="ident">right_entry</span>) <span class="kw">in</span> <span class="ident">right</span>.<span class="ident">iter_nonzero</span>() {
                 <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">target_mono</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">index_to_monomial</span>(<span class="ident">left_degree</span>, <span class="ident">left_idx</span>).<span class="ident">clone</span>();
@@ -561,7 +558,7 @@
         <span class="ident">right_mono</span>: <span class="kw-2">&amp;</span><span class="ident">PolynomialAlgebraMonomial</span>,
     ) {
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="kw-2">*</span><span class="self">self</span>.<span class="ident">prime</span>();
-        <span class="ident">target</span>.<span class="ident">extend_len</span>(<span class="self">self</span>.<span class="ident">dimension</span>(<span class="ident">left_degree</span> <span class="op">+</span> <span class="ident">right_mono</span>.<span class="ident">degree</span>, <span class="ident">i32::max_value</span>()));
+        <span class="ident">target</span>.<span class="ident">extend_len</span>(<span class="self">self</span>.<span class="ident">dimension</span>(<span class="ident">left_degree</span> <span class="op">+</span> <span class="ident">right_mono</span>.<span class="ident">degree</span>));
         <span class="kw">for</span> (<span class="ident">left_idx</span>, <span class="ident">left_entry</span>) <span class="kw">in</span> <span class="ident">left</span>.<span class="ident">iter_nonzero</span>() {
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">target_mono</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">index_to_monomial</span>(<span class="ident">left_degree</span>, <span class="ident">left_idx</span>).<span class="ident">clone</span>(); <span class="comment">// Could reduce cloning a bit but probably best not to worry.</span>
             <span class="kw">let</span> <span class="ident">nonzero_result</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">multiply_monomials</span>(<span class="kw-2">&amp;mut</span> <span class="ident">target_mono</span>, <span class="ident">right_mono</span>);
@@ -582,7 +579,7 @@
         <span class="ident">right</span>: <span class="kw-2">&amp;</span><span class="ident">FpVector</span>,
     ) {
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="kw-2">*</span><span class="self">self</span>.<span class="ident">prime</span>();
-        <span class="ident">target</span>.<span class="ident">extend_len</span>(<span class="self">self</span>.<span class="ident">dimension</span>(<span class="ident">right_degree</span> <span class="op">+</span> <span class="ident">left_mono</span>.<span class="ident">degree</span>, <span class="ident">i32::max_value</span>()));
+        <span class="ident">target</span>.<span class="ident">extend_len</span>(<span class="self">self</span>.<span class="ident">dimension</span>(<span class="ident">right_degree</span> <span class="op">+</span> <span class="ident">left_mono</span>.<span class="ident">degree</span>));
         <span class="kw">for</span> (<span class="ident">right_idx</span>, <span class="ident">right_entry</span>) <span class="kw">in</span> <span class="ident">right</span>.<span class="ident">iter_nonzero</span>() {
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">target_mono</span> <span class="op">=</span> <span class="ident">left_mono</span>.<span class="ident">clone</span>(); <span class="comment">// Could reduce cloning a bit but probably best not to worry.</span>
             <span class="kw">let</span> <span class="ident">right_mono</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">index_to_monomial</span>(<span class="ident">right_degree</span>, <span class="ident">right_idx</span>);
@@ -623,7 +620,7 @@
         }
     }
 
-    <span class="kw">fn</span> <span class="ident">dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">_excess</span>: <span class="ident">i32</span>) -&gt; <span class="ident">usize</span> {
+    <span class="kw">fn</span> <span class="ident">dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) -&gt; <span class="ident">usize</span> {
         <span class="kw">if</span> <span class="ident">degree</span> <span class="op">&lt;</span> <span class="number">0</span> {
             <span class="number">0</span>
         } <span class="kw">else</span> {
@@ -677,7 +674,6 @@
         <span class="ident">left_idx</span>: <span class="ident">usize</span>,
         <span class="ident">right_degree</span>: <span class="ident">i32</span>,
         <span class="ident">right_idx</span>: <span class="ident">usize</span>,
-        <span class="ident">_excess</span>: <span class="ident">i32</span>,
     ) {
         <span class="kw">if</span> <span class="ident">coeff</span> <span class="op">==</span> <span class="number">0</span> {
             <span class="kw">return</span>;

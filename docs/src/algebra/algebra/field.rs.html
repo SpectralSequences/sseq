@@ -102,7 +102,6 @@
 <span id="76">76</span>
 <span id="77">77</span>
 <span id="78">78</span>
-<span id="79">79</span>
 </pre><pre class="rust"><code><span class="doccomment">//! Finite fields over a prime.</span>
 
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::algebra</span>::{<span class="ident">Algebra</span>, <span class="ident">Bialgebra</span>};
@@ -138,7 +137,7 @@
 
     <span class="kw">fn</span> <span class="ident">compute_basis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">_degree</span>: <span class="ident">i32</span>) {}
 
-    <span class="kw">fn</span> <span class="ident">dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">_excess</span>: <span class="ident">i32</span>) -&gt; <span class="ident">usize</span> {
+    <span class="kw">fn</span> <span class="ident">dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) -&gt; <span class="ident">usize</span> {
         <span class="kw">if</span> <span class="ident">degree</span> <span class="op">==</span> <span class="number">0</span> {
             <span class="number">1</span>
         } <span class="kw">else</span> {
@@ -154,7 +153,6 @@
         <span class="ident">_r_idx</span>: <span class="ident">usize</span>,
         <span class="ident">_s_degree</span>: <span class="ident">i32</span>,
         <span class="ident">_s_idx</span>: <span class="ident">usize</span>,
-        <span class="ident">_excess</span>: <span class="ident">i32</span>,
     ) {
         <span class="ident">result</span>.<span class="ident">add_basis_element</span>(<span class="number">0</span>, <span class="ident">coeff</span>)
     }

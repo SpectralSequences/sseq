@@ -132,7 +132,7 @@
                 <span class="kw">let</span> <span class="ident">op_degree</span> <span class="op">=</span> <span class="ident">output_degree</span> <span class="op">-</span> <span class="ident">input_degree</span>;
 
                 <span class="kw">for</span> <span class="ident">input_idx</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">result</span>.<span class="ident">dimension</span>(<span class="ident">input_degree</span>) {
-                    <span class="kw">for</span> <span class="ident">op_idx</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">algebra</span>.<span class="ident">dimension</span>(<span class="ident">op_degree</span>, <span class="op">-</span><span class="number">1</span>) {
+                    <span class="kw">for</span> <span class="ident">op_idx</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">algebra</span>.<span class="ident">dimension</span>(<span class="ident">op_degree</span>) {
                         <span class="kw">let</span> <span class="ident">output_vec</span>: <span class="kw-2">&amp;mut</span> <span class="ident">FpVector</span> <span class="op">=</span>
                             <span class="ident">result</span>.<span class="ident">action_mut</span>(<span class="ident">op_degree</span>, <span class="ident">op_idx</span>, <span class="ident">input_degree</span>, <span class="ident">input_idx</span>);
                         <span class="self">self</span>.<span class="ident">act_on_basis</span>(

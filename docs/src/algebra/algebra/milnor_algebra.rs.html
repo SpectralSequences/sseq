@@ -1751,11 +1751,6 @@
 <span id="1725">1725</span>
 <span id="1726">1726</span>
 <span id="1727">1727</span>
-<span id="1728">1728</span>
-<span id="1729">1729</span>
-<span id="1730">1730</span>
-<span id="1731">1731</span>
-<span id="1732">1732</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">itertools::Itertools</span>;
 <span class="kw">use</span> <span class="ident">rustc_hash::FxHashMap</span> <span class="kw">as</span> <span class="ident">HashMap</span>;
 <span class="kw">use</span> <span class="ident">std::sync::Mutex</span>;
@@ -2094,7 +2089,7 @@
         }
     }
 
-    <span class="kw">fn</span> <span class="ident">dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">_excess</span>: <span class="ident">i32</span>) -&gt; <span class="ident">usize</span> {
+    <span class="kw">fn</span> <span class="ident">dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) -&gt; <span class="ident">usize</span> {
         <span class="kw">if</span> <span class="ident">degree</span> <span class="op">&lt;</span> <span class="number">0</span> {
             <span class="kw">return</span> <span class="number">0</span>;
         }
@@ -2110,7 +2105,6 @@
         <span class="ident">r_idx</span>: <span class="ident">usize</span>,
         <span class="ident">s_degree</span>: <span class="ident">i32</span>,
         <span class="ident">s_idx</span>: <span class="ident">usize</span>,
-        <span class="ident">_excess</span>: <span class="ident">i32</span>,
     ) {
         <span class="self">self</span>.<span class="ident">multiply</span>(
             <span class="ident">result</span>,
@@ -2129,7 +2123,6 @@
         <span class="ident">r_idx</span>: <span class="ident">usize</span>,
         <span class="ident">s_degree</span>: <span class="ident">i32</span>,
         <span class="ident">s_idx</span>: <span class="ident">usize</span>,
-        <span class="ident">_excess</span>: <span class="ident">i32</span>,
     ) {
         <span class="ident">result</span>.<span class="ident">shift_add</span>(
             <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">multiplication_table</span>[<span class="ident">r_degree</span> <span class="kw">as</span> <span class="ident">usize</span>][<span class="ident">s_degree</span> <span class="kw">as</span> <span class="ident">usize</span>][<span class="ident">r_idx</span>][<span class="ident">s_idx</span>]
@@ -3150,7 +3143,7 @@
             <span class="ident">first</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">beps_pn</span>(<span class="number">0</span>, <span class="ident">pow</span>);
             <span class="ident">second</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">beps_pn</span>(<span class="number">0</span>, <span class="ident">sq</span> <span class="op">-</span> <span class="ident">pow</span>);
         }
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">out_vec</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="self">self</span>.<span class="ident">dimension</span>(<span class="ident">degree</span>, <span class="op">-</span><span class="number">1</span>));
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">out_vec</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="self">self</span>.<span class="ident">dimension</span>(<span class="ident">degree</span>));
         <span class="self">self</span>.<span class="ident">multiply_basis_elements</span>(
             <span class="ident">out_vec</span>.<span class="ident">as_slice_mut</span>(),
             <span class="number">1</span>,
@@ -3158,7 +3151,6 @@
             <span class="ident">first</span>.<span class="number">1</span>,
             <span class="ident">second</span>.<span class="number">0</span>,
             <span class="ident">second</span>.<span class="number">1</span>,
-            <span class="op">-</span><span class="number">1</span>,
         );
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">Vec::new</span>();
         <span class="kw">let</span> <span class="ident">c</span> <span class="op">=</span> <span class="ident">out_vec</span>.<span class="ident">entry</span>(<span class="ident">idx</span>);
@@ -3189,7 +3181,7 @@
         <span class="kw">let</span> <span class="ident">algebra</span> <span class="op">=</span> <span class="ident">MilnorAlgebra::new</span>(<span class="ident">p</span>); <span class="comment">//p != 2</span>
         <span class="ident">algebra</span>.<span class="ident">compute_basis</span>(<span class="ident">max_degree</span>);
         <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">1</span>..<span class="ident">max_degree</span> {
-            <span class="kw">let</span> <span class="ident">dim</span> <span class="op">=</span> <span class="ident">algebra</span>.<span class="ident">dimension</span>(<span class="ident">i</span>, <span class="op">-</span><span class="number">1</span>);
+            <span class="kw">let</span> <span class="ident">dim</span> <span class="op">=</span> <span class="ident">algebra</span>.<span class="ident">dimension</span>(<span class="ident">i</span>);
             <span class="kw">for</span> <span class="ident">j</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">dim</span> {
                 <span class="kw">let</span> <span class="ident">b</span> <span class="op">=</span> <span class="ident">algebra</span>.<span class="ident">basis_element_from_index</span>(<span class="ident">i</span>, <span class="ident">j</span>);
                 <span class="macro">assert_eq!</span>(<span class="ident">algebra</span>.<span class="ident">basis_element_to_index</span>(<span class="ident">b</span>), <span class="ident">j</span>);
@@ -3207,7 +3199,7 @@
         <span class="kw">let</span> <span class="ident">algebra</span> <span class="op">=</span> <span class="ident">MilnorAlgebra::new</span>(<span class="ident">p</span>);
         <span class="ident">algebra</span>.<span class="ident">compute_basis</span>(<span class="ident">max_degree</span>);
         <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">1</span>..<span class="ident">max_degree</span> {
-            <span class="kw">let</span> <span class="ident">dim</span> <span class="op">=</span> <span class="ident">algebra</span>.<span class="ident">dimension</span>(<span class="ident">i</span>, <span class="op">-</span><span class="number">1</span>);
+            <span class="kw">let</span> <span class="ident">dim</span> <span class="op">=</span> <span class="ident">algebra</span>.<span class="ident">dimension</span>(<span class="ident">i</span>);
             <span class="kw">let</span> <span class="ident">gens</span> <span class="op">=</span> <span class="ident">algebra</span>.<span class="ident">generators</span>(<span class="ident">i</span>);
             <span class="comment">// println!(&quot;i : {}, gens : {:?}&quot;, i, gens);</span>
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">out_vec</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="ident">dim</span>);
@@ -3226,7 +3218,6 @@
                         <span class="ident">first_idx</span>,
                         <span class="ident">second_degree</span>,
                         <span class="ident">second_idx</span>,
-                        <span class="op">-</span><span class="number">1</span>,
                     );
                 }
                 <span class="macro">assert!</span>(
@@ -3255,7 +3246,7 @@
         <span class="ident">algebra</span>.<span class="ident">compute_basis</span>(<span class="ident">max_degree</span> <span class="op">+</span> <span class="number">2</span>);
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">output_vec</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="number">0</span>);
         <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">1</span>..<span class="ident">max_degree</span> {
-            <span class="kw">let</span> <span class="ident">output_dim</span> <span class="op">=</span> <span class="ident">algebra</span>.<span class="ident">dimension</span>(<span class="ident">i</span>, <span class="op">-</span><span class="number">1</span>);
+            <span class="kw">let</span> <span class="ident">output_dim</span> <span class="op">=</span> <span class="ident">algebra</span>.<span class="ident">dimension</span>(<span class="ident">i</span>);
             <span class="ident">output_vec</span>.<span class="ident">set_scratch_vector_size</span>(<span class="ident">output_dim</span>);
             <span class="kw">let</span> <span class="ident">relations</span> <span class="op">=</span> <span class="ident">algebra</span>.<span class="ident">generating_relations</span>(<span class="ident">i</span>);
             <span class="macro">println!</span>(<span class="string">&quot;{:?}&quot;</span>, <span class="ident">relations</span>);
@@ -3268,7 +3259,6 @@
                         <span class="kw-2">*</span><span class="ident">idx_1</span>,
                         <span class="kw-2">*</span><span class="ident">deg_2</span>,
                         <span class="kw-2">*</span><span class="ident">idx_2</span>,
-                        <span class="op">-</span><span class="number">1</span>,
                     );
                 }
                 <span class="kw">if</span> <span class="op">!</span><span class="ident">output_vec</span>.<span class="ident">is_zero</span>() {
