@@ -60,11 +60,10 @@ const MAX_NEW_GENS: usize = 10;
 pub struct Resolution<CC: ChainComplex> {
     lock: Mutex<()>,
     complex: Arc<CC>,
-    modules: OnceVec<Arc<FreeModule<<CC::Module as Module>::Algebra>>>,
-    zero_module: Arc<FreeModule<<CC::Module as Module>::Algebra>>,
+    modules: OnceVec<Arc<FreeModule<CC::Algebra>>>,
+    zero_module: Arc<FreeModule<CC::Algebra>>,
     chain_maps: OnceVec<Arc<FreeModuleHomomorphism<CC::Module>>>,
-    differentials:
-        OnceVec<Arc<FreeModuleHomomorphism<FreeModule<<CC::Module as Module>::Algebra>>>>,
+    differentials: OnceVec<Arc<FreeModuleHomomorphism<FreeModule<CC::Algebra>>>>,
 
     ///  For each *internal* degree, store the kernel of the most recently calculated chain map as
     ///  returned by `generate_old_kernel_and_compute_new_kernel`, to be used if we run
