@@ -29,3 +29,5 @@ mod steenrod_algebra;
 pub use steenrod_algebra::{AlgebraType, SteenrodAlgebra, SteenrodAlgebraBorrow, SteenrodAlgebraT};
 
 pub mod pair_algebra;
+
+pub mod nassau;

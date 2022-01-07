@@ -325,6 +325,8 @@ impl<'a> SliceMut<'a> {
         pub fn slice_mut(&mut self, start: usize, end: usize) -> (dispatch SliceMut);
         pub fn add_basis_element(&mut self, index: usize, value: u32);
         pub fn copy(&mut self) -> (dispatch SliceMut);
+        pub fn add_masked(&mut self, other: Slice, c: u32, mask: &[usize]);
+        pub fn add_unmasked(&mut self, other: Slice, c: u32, mask: &[usize]);
     }
 
     pub fn add_tensor(&mut self, offset: usize, coeff: u32, left: Slice, right: Slice) {
@@ -812,6 +814,40 @@ mod test {
                 .add(w.slice(slice_start, slice_end), 1);
             for i in slice_start - 2..slice_end - 2 {
                 v_arr[i] = (v_arr[i] + w_arr[i + 2]) % *p;
+            }
+            v.assert_list_eq(&v_arr);
+        }
+
+        fn test_add_masked(p: ValidPrime) {
+            let mut v_arr = random_vector(p, 10);
+            let w_arr = random_vector(p, 100);
+
+            let mut v = FpVector::from_slice(p, &v_arr);
+            let w = FpVector::from_slice(p, &w_arr);
+
+            let mask = &[4, 6, 7, 12, 30, 45, 50, 60, 72, 75];
+
+            v.as_slice_mut().add_masked(w.as_slice(), 1, mask);
+            for (i, x) in v_arr.iter_mut().enumerate() {
+                *x += w_arr[mask[i]];
+                *x %= *p;
+            }
+            v.assert_list_eq(&v_arr);
+        }
+
+        fn test_add_unmasked(p: ValidPrime) {
+            let mut v_arr = random_vector(p, 100);
+            let w_arr = random_vector(p, 10);
+
+            let mut v = FpVector::from_slice(p, &v_arr);
+            let w = FpVector::from_slice(p, &w_arr);
+
+            let mask = &[4, 6, 7, 12, 30, 45, 50, 60, 72, 75];
+
+            v.as_slice_mut().add_unmasked(w.as_slice(), 1, mask);
+            for (i, &x) in w_arr.iter().enumerate() {
+                v_arr[mask[i]] += x;
+                v_arr[mask[i]] %= *p;
             }
             v.assert_list_eq(&v_arr);
         }

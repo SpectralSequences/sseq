@@ -831,6 +831,26 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
                 limb::reduce::<P>(self.limbs[i + dat.min_target_limb + 1]);
         }
     }
+
+    /// Given a mask v, add the `v[i]`th entry of `other` to the `i`th entry of `self`.
+    pub fn add_masked(&mut self, other: SliceP<'_, P>, c: u32, mask: &[usize]) {
+        // TODO: If this ends up being a bottleneck, try to use PDEP/PEXT
+        assert_eq!(self.as_slice().len(), mask.len());
+        for (i, &x) in mask.iter().enumerate() {
+            let entry = other.entry(x);
+            if entry != 0 {
+                self.add_basis_element(i, entry * c);
+            }
+        }
+    }
+
+    /// Given a mask v, add the `i`th entry of `other` to the `v[i]`th entry of `self`.
+    pub fn add_unmasked(&mut self, other: SliceP<'_, P>, c: u32, mask: &[usize]) {
+        assert_eq!(other.len(), mask.len());
+        for (i, v) in other.iter_nonzero() {
+            self.add_basis_element(mask[i], v * c);
+        }
+    }
 }
 
 struct AddShiftLeftData {
