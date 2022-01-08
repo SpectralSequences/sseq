@@ -8,17 +8,11 @@ use algebra::milnor_algebra::{MilnorAlgebra, MilnorBasisElement, PPartEntry};
 use algebra::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
 use algebra::module::{FreeModule, Module};
 use algebra::Algebra;
-use fp::matrix::{AugmentedMatrix, Matrix, MatrixSliceMut};
+use fp::matrix::{AugmentedMatrix, Matrix};
 use fp::prime::ValidPrime;
 use fp::vector::FpVector;
 use itertools::Itertools;
 use once::OnceVec;
-
-/// This is the maximum number of new generators we expect in each bidegree. This affects how much
-/// space we allocate when we are extending our resolutions. Having more than this many new
-/// generators will result in a slowdown but not an error. It is relatively cheap to increment this
-/// number if needs be, but up to the 140th stem we only see at most 8 new generators.
-const MAX_NEW_GENS: usize = 10;
 
 /// A Milnor subalgebra to be used in [Nassau's algorithm](https://arxiv.org/abs/1910.04063). This
 /// is equipped with an ordering of the signature as in Lemma 2.4 of the paper.
@@ -77,25 +71,34 @@ impl MilnorSubalgebra {
         hom: &FreeModuleHomomorphism<FreeModule<MilnorAlgebra>>,
         degree: i32,
         signature: &[PPartEntry],
-        matrix: &mut MatrixSliceMut,
-    ) {
+    ) -> Matrix {
         let p = hom.prime();
         let source = hom.source();
         let target = hom.target();
         let target_degree = degree - hom.degree_shift();
 
-        let source_mask = self.signature_mask(&source, degree, signature);
         let target_mask: Vec<usize> = self
             .signature_mask(&target, degree - hom.degree_shift(), signature)
             .collect();
 
+        let num_cols = target_mask.len();
+
         let mut scratch = FpVector::new(p, target.dimension(target_degree));
 
-        for (mut row, masked_index) in matrix.iter_mut().zip(source_mask) {
-            scratch.set_to_zero();
-            hom.apply_to_basis_element(scratch.as_slice_mut(), 1, degree, masked_index);
-            row.add_masked(scratch.as_slice(), 1, &target_mask);
-        }
+        let rows: Vec<FpVector> = self
+            .signature_mask(&source, degree, signature)
+            .map(|masked_index| {
+                scratch.set_to_zero();
+                hom.apply_to_basis_element(scratch.as_slice_mut(), 1, degree, masked_index);
+
+                let mut row = FpVector::new(p, num_cols);
+                row.as_slice_mut()
+                    .add_masked(scratch.as_slice(), 1, &target_mask);
+                row
+            })
+            .collect();
+
+        Matrix::from_rows(p, rows, num_cols)
     }
 
     /// Iterate through all signatures of this algebra that contain elements of degree at most
@@ -222,23 +225,22 @@ impl Resolution {
         target.extend_table_entries(t);
 
         let zero_sig = subalgebra.zero_signature();
-        let source_masked_dim = subalgebra.signature_mask(source, t, &zero_sig).count();
         let target_mask: Vec<usize> = subalgebra.signature_mask(target, t, &zero_sig).collect();
         let target_masked_dim = target_mask.len();
 
         if s == 1 {
             // Everything is in the kernel, so just surject onto everything
-            let mut n =
-                Matrix::new_with_capacity(p, source_masked_dim, target_masked_dim, MAX_NEW_GENS, 0);
-            subalgebra.signature_matrix(&self.differential(s), t, &zero_sig, &mut n.as_slice_mut());
+            let mut n = subalgebra.signature_matrix(&self.differential(s), t, &zero_sig);
             n.row_reduce();
+
+            let next_row = n.rows();
 
             let num_new_gens = n.extend_to_surjection(0, n.columns(), 0).len();
             source.add_generators(t, num_new_gens, None);
 
             let mut xs = vec![FpVector::new(p, target.dimension(t)); num_new_gens];
 
-            for (x, x_masked) in xs.iter_mut().zip_eq(&n[source_masked_dim..]) {
+            for (x, x_masked) in xs.iter_mut().zip_eq(&n[next_row..]) {
                 x.as_slice_mut()
                     .add_unmasked(x_masked.as_slice(), 1, &target_mask)
             }
@@ -266,10 +268,9 @@ impl Resolution {
         let kernel = masked_matrix.compute_kernel();
 
         // Compute image
-        let mut n =
-            Matrix::new_with_capacity(p, source_masked_dim, target_masked_dim, MAX_NEW_GENS, 0);
-        subalgebra.signature_matrix(&self.differentials[s], t, &zero_sig, &mut n.as_slice_mut());
+        let mut n = subalgebra.signature_matrix(&self.differentials[s], t, &zero_sig);
         n.row_reduce();
+        let next_row = n.rows();
 
         let num_new_gens = n.extend_image(0, n.columns(), &kernel, 0).len();
 
@@ -287,11 +288,7 @@ impl Resolution {
         let mut xs = vec![FpVector::new(p, target.dimension(t)); num_new_gens];
         let mut dxs = vec![FpVector::new(p, next.dimension(t)); num_new_gens];
 
-        for ((x, x_masked), dx) in xs
-            .iter_mut()
-            .zip_eq(&n[source_masked_dim..])
-            .zip_eq(&mut dxs)
-        {
+        for ((x, x_masked), dx) in xs.iter_mut().zip_eq(&n[next_row..]).zip_eq(&mut dxs) {
             x.as_slice_mut()
                 .add_unmasked(x_masked.as_slice(), 1, &target_mask);
             for (i, _) in x_masked.iter_nonzero() {
@@ -300,10 +297,15 @@ impl Resolution {
         }
 
         // Now add correction terms
+        let mut scratch = FpVector::new(p, 0);
+        let mut target_mask: Vec<usize> = Vec::new();
+        let mut next_mask: Vec<usize> = Vec::new();
+
         for signature in subalgebra.iter_signatures(t) {
-            let target_mask: Vec<usize> =
-                subalgebra.signature_mask(target, t, &signature).collect();
-            let next_mask: Vec<usize> = subalgebra.signature_mask(next, t, &signature).collect();
+            target_mask.clear();
+            next_mask.clear();
+            target_mask.extend(subalgebra.signature_mask(target, t, &signature));
+            next_mask.extend(subalgebra.signature_mask(next, t, &signature));
 
             let full_matrix = self.differential(s - 1).get_partial_matrix(t, &target_mask);
 
@@ -319,10 +321,8 @@ impl Resolution {
             let pivots = qi.pivots().unwrap();
             let preimage = qi.preimage();
 
-            let mut scratch = FpVector::new(p, target_mask.len());
-
             for (x, dx) in xs.iter_mut().zip(&mut dxs) {
-                scratch.set_to_zero();
+                scratch.set_scratch_vector_size(target_mask.len());
                 let mut row = 0;
                 for (i, &v) in next_mask.iter().enumerate() {
                     if pivots[i] < 0 {
