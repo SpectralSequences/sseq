@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::module::Module;
-use fp::matrix::{AugmentedMatrix, MatrixSliceMut, QuasiInverse, Subspace};
+use fp::matrix::{AugmentedMatrix, Matrix, MatrixSliceMut, QuasiInverse, Subspace};
 use fp::prime::ValidPrime;
 use fp::vector::{Slice, SliceMut};
 
@@ -134,6 +134,27 @@ pub trait ModuleHomomorphism: Send + Sync {
             .par_iter_mut()
             .enumerate()
             .for_each(|(i, row)| self.apply_to_basis_element(row, 1, degree, i));
+    }
+
+    /// Get the values of the homomorphism on the specified inputs to `matrix`.
+    fn get_partial_matrix(&self, degree: i32, inputs: &[usize]) -> Matrix {
+        let mut matrix = Matrix::new(self.prime(), inputs.len(), self.target().dimension(degree));
+
+        if matrix.columns() == 0 {
+            return matrix;
+        }
+
+        #[cfg(not(feature = "concurrent"))]
+        for (row, &v) in matrix.iter_mut().zip(inputs) {
+            self.apply_to_basis_element(row.as_slice_mut(), 1, degree, v);
+        }
+
+        #[cfg(feature = "concurrent")]
+        matrix.par_iter_mut().enumerate().for_each(|(i, row)| {
+            self.apply_to_basis_element(row.as_slice_mut(), 1, degree, inputs[i])
+        });
+
+        matrix
     }
 
     /// Attempt to apply quasi inverse to the input. Returns whether the operation was

@@ -1148,6 +1148,15 @@ impl<'a> MatrixSliceMut<'a> {
             row.add_basis_element(self.col_start + i, 1);
         }
     }
+
+    /// For each row, add the v[i]th entry of `other` to `self`.
+    pub fn add_masked(&mut self, other: &Matrix, mask: &[usize]) {
+        assert_eq!(self.rows(), other.rows());
+
+        for (mut l, r) in self.iter_mut().zip(other) {
+            l.add_masked(r.as_slice(), 1, mask);
+        }
+    }
 }
 
 #[cfg(test)]

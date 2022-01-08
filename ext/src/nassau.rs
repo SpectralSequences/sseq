@@ -223,40 +223,55 @@ impl Resolution {
 
         let zero_sig = subalgebra.zero_signature();
         let source_masked_dim = subalgebra.signature_mask(source, t, &zero_sig).count();
-        let target_masked_dim = subalgebra.signature_mask(target, t, &zero_sig).count();
+        let target_mask: Vec<usize> = subalgebra.signature_mask(target, t, &zero_sig).collect();
+        let target_masked_dim = target_mask.len();
 
-        // Compute kernel
-        let ker = if s > 1 {
-            self.modules[s - 2].extend_table_entries(t);
+        if s == 1 {
+            // Everything is in the kernel, so just surject onto everything
+            let mut n =
+                Matrix::new_with_capacity(p, source_masked_dim, target_masked_dim, MAX_NEW_GENS, 0);
+            subalgebra.signature_matrix(&self.differential(s), t, &zero_sig, &mut n.as_slice_mut());
+            n.row_reduce();
 
-            let next_masked_dim = subalgebra
-                .signature_mask(&self.modules[s - 2], t, &zero_sig)
-                .count();
-            let mut m =
-                AugmentedMatrix::new(p, target_masked_dim, [next_masked_dim, target_masked_dim]);
-            subalgebra.signature_matrix(
-                &self.differential(s - 1),
-                t,
-                &zero_sig,
-                &mut m.segment(0, 0),
-            );
-            m.segment(1, 1).add_identity();
-            m.row_reduce();
-            Some(m.compute_kernel())
-        } else {
-            None
-        };
+            let num_new_gens = n.extend_to_surjection(0, n.columns(), 0).len();
+            source.add_generators(t, num_new_gens, None);
 
+            let mut xs = vec![FpVector::new(p, target.dimension(t)); num_new_gens];
+
+            for (x, x_masked) in xs.iter_mut().zip_eq(&n[source_masked_dim..]) {
+                x.as_slice_mut()
+                    .add_unmasked(x_masked.as_slice(), 1, &target_mask)
+            }
+            self.differential(s).add_generators_from_rows(t, xs);
+            return;
+        }
+
+        let next = &self.modules[s - 2];
+        next.extend_table_entries(t);
+
+        let next_mask: Vec<usize> = subalgebra
+            .signature_mask(&self.modules[s - 2], t, &zero_sig)
+            .collect();
+        let next_masked_dim = next_mask.len();
+
+        let full_matrix = self.differentials[s - 1].get_partial_matrix(t, &target_mask);
+        let mut masked_matrix =
+            AugmentedMatrix::new(p, target_masked_dim, [next_masked_dim, target_masked_dim]);
+
+        masked_matrix
+            .segment(0, 0)
+            .add_masked(&full_matrix, &next_mask);
+        masked_matrix.segment(1, 1).add_identity();
+        masked_matrix.row_reduce();
+        let kernel = masked_matrix.compute_kernel();
+
+        // Compute image
         let mut n =
             Matrix::new_with_capacity(p, source_masked_dim, target_masked_dim, MAX_NEW_GENS, 0);
-        subalgebra.signature_matrix(&self.differential(s), t, &zero_sig, &mut n.as_slice_mut());
+        subalgebra.signature_matrix(&self.differentials[s], t, &zero_sig, &mut n.as_slice_mut());
         n.row_reduce();
 
-        let num_new_gens = if let Some(ker) = ker {
-            n.extend_image(0, n.columns(), &ker, 0).len()
-        } else {
-            n.extend_to_surjection(0, n.columns(), 0).len()
-        };
+        let num_new_gens = n.extend_image(0, n.columns(), &kernel, 0).len();
 
         if t < s as i32 {
             assert_eq!(num_new_gens, 0, "Adding generators at t = {t}, s = {s}");
@@ -270,40 +285,37 @@ impl Resolution {
         }
 
         let mut xs = vec![FpVector::new(p, target.dimension(t)); num_new_gens];
-        let target_mask: Vec<usize> = subalgebra.signature_mask(target, t, &zero_sig).collect();
-
-        for (x, x_masked) in xs.iter_mut().zip_eq(&n[source_masked_dim..]) {
-            x.as_slice_mut()
-                .add_unmasked(x_masked.as_slice(), 1, &target_mask)
-        }
-        if s == 1 {
-            self.differential(s).add_generators_from_rows(t, xs);
-            return;
-        }
-
-        let next = &self.modules[s - 2];
-
         let mut dxs = vec![FpVector::new(p, next.dimension(t)); num_new_gens];
-        for (x, dx) in xs.iter().zip(&mut dxs) {
-            self.differential(s - 1)
-                .apply(dx.as_slice_mut(), 1, t, x.as_slice());
+
+        for ((x, x_masked), dx) in xs
+            .iter_mut()
+            .zip_eq(&n[source_masked_dim..])
+            .zip_eq(&mut dxs)
+        {
+            x.as_slice_mut()
+                .add_unmasked(x_masked.as_slice(), 1, &target_mask);
+            for (i, _) in x_masked.iter_nonzero() {
+                dx.add(&full_matrix[i], 1);
+            }
         }
+
+        // Now add correction terms
         for signature in subalgebra.iter_signatures(t) {
             let target_mask: Vec<usize> =
                 subalgebra.signature_mask(target, t, &signature).collect();
             let next_mask: Vec<usize> = subalgebra.signature_mask(next, t, &signature).collect();
 
-            let mut m =
+            let full_matrix = self.differential(s - 1).get_partial_matrix(t, &target_mask);
+
+            let mut masked_matrix =
                 AugmentedMatrix::new(p, target_mask.len(), [next_mask.len(), target_mask.len()]);
-            subalgebra.signature_matrix(
-                &self.differential(s - 1),
-                t,
-                &signature,
-                &mut m.segment(0, 0),
-            );
-            m.segment(1, 1).add_identity();
-            m.row_reduce();
-            let qi = m.compute_quasi_inverse();
+            masked_matrix
+                .segment(0, 0)
+                .add_masked(&full_matrix, &next_mask);
+            masked_matrix.segment(1, 1).add_identity();
+            masked_matrix.row_reduce();
+
+            let qi = masked_matrix.compute_quasi_inverse();
             let pivots = qi.pivots().unwrap();
             let preimage = qi.preimage();
 
@@ -323,12 +335,7 @@ impl Resolution {
                 }
                 for (i, _) in scratch.iter_nonzero() {
                     x.add_basis_element(target_mask[i], 1);
-                    self.differential(s - 1).apply_to_basis_element(
-                        dx.as_slice_mut(),
-                        1,
-                        t,
-                        target_mask[i],
-                    );
+                    dx.add(&full_matrix[i], 1);
                 }
             }
         }
