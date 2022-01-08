@@ -1,1 +1,0 @@
-initSidebarItems({"struct":[["MilnorSubalgebra","A Milnor subalgebra to be used in Nassau’s algorithm. This is equipped with an ordering of the signature as in Lemma 2.4 of the paper."]]});

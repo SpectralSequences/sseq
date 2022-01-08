@@ -184,10 +184,31 @@
 <span id="158">158</span>
 <span id="159">159</span>
 <span id="160">160</span>
+<span id="161">161</span>
+<span id="162">162</span>
+<span id="163">163</span>
+<span id="164">164</span>
+<span id="165">165</span>
+<span id="166">166</span>
+<span id="167">167</span>
+<span id="168">168</span>
+<span id="169">169</span>
+<span id="170">170</span>
+<span id="171">171</span>
+<span id="172">172</span>
+<span id="173">173</span>
+<span id="174">174</span>
+<span id="175">175</span>
+<span id="176">176</span>
+<span id="177">177</span>
+<span id="178">178</span>
+<span id="179">179</span>
+<span id="180">180</span>
+<span id="181">181</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
 
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::module::Module</span>;
-<span class="kw">use</span> <span class="ident">fp::matrix</span>::{<span class="ident">AugmentedMatrix</span>, <span class="ident">MatrixSliceMut</span>, <span class="ident">QuasiInverse</span>, <span class="ident">Subspace</span>};
+<span class="kw">use</span> <span class="ident">fp::matrix</span>::{<span class="ident">AugmentedMatrix</span>, <span class="ident">Matrix</span>, <span class="ident">MatrixSliceMut</span>, <span class="ident">QuasiInverse</span>, <span class="ident">Subspace</span>};
 <span class="kw">use</span> <span class="ident">fp::prime::ValidPrime</span>;
 <span class="kw">use</span> <span class="ident">fp::vector</span>::{<span class="ident">Slice</span>, <span class="ident">SliceMut</span>};
 
@@ -320,6 +341,27 @@
             .<span class="ident">par_iter_mut</span>()
             .<span class="ident">enumerate</span>()
             .<span class="ident">for_each</span>(<span class="op">|</span>(<span class="ident">i</span>, <span class="ident">row</span>)<span class="op">|</span> <span class="self">self</span>.<span class="ident">apply_to_basis_element</span>(<span class="ident">row</span>, <span class="number">1</span>, <span class="ident">degree</span>, <span class="ident">i</span>));
+    }
+
+    <span class="doccomment">/// Get the values of the homomorphism on the specified inputs to `matrix`.</span>
+    <span class="kw">fn</span> <span class="ident">get_partial_matrix</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">inputs</span>: <span class="kw-2">&amp;</span>[<span class="ident">usize</span>]) -&gt; <span class="ident">Matrix</span> {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">matrix</span> <span class="op">=</span> <span class="ident">Matrix::new</span>(<span class="self">self</span>.<span class="ident">prime</span>(), <span class="ident">inputs</span>.<span class="ident">len</span>(), <span class="self">self</span>.<span class="ident">target</span>().<span class="ident">dimension</span>(<span class="ident">degree</span>));
+
+        <span class="kw">if</span> <span class="ident">matrix</span>.<span class="ident">columns</span>() <span class="op">==</span> <span class="number">0</span> {
+            <span class="kw">return</span> <span class="ident">matrix</span>;
+        }
+
+        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>))]</span>
+        <span class="kw">for</span> (<span class="ident">row</span>, <span class="kw-2">&amp;</span><span class="ident">v</span>) <span class="kw">in</span> <span class="ident">matrix</span>.<span class="ident">iter_mut</span>().<span class="ident">zip</span>(<span class="ident">inputs</span>) {
+            <span class="self">self</span>.<span class="ident">apply_to_basis_element</span>(<span class="ident">row</span>.<span class="ident">as_slice_mut</span>(), <span class="number">1</span>, <span class="ident">degree</span>, <span class="ident">v</span>);
+        }
+
+        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
+        <span class="ident">matrix</span>.<span class="ident">par_iter_mut</span>().<span class="ident">enumerate</span>().<span class="ident">for_each</span>(<span class="op">|</span>(<span class="ident">i</span>, <span class="ident">row</span>)<span class="op">|</span> {
+            <span class="self">self</span>.<span class="ident">apply_to_basis_element</span>(<span class="ident">row</span>.<span class="ident">as_slice_mut</span>(), <span class="number">1</span>, <span class="ident">degree</span>, <span class="ident">inputs</span>[<span class="ident">i</span>])
+        });
+
+        <span class="ident">matrix</span>
     }
 
     <span class="doccomment">/// Attempt to apply quasi inverse to the input. Returns whether the operation was</span>
