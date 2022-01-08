@@ -12,9 +12,9 @@ use crate::module::{FreeModule, Module};
 /// A Milnor subalgebra to be used in [Nassau's algorithm](https://arxiv.org/abs/1910.04063). This
 /// is equipped with an ordering of the signature as in Lemma 2.4 of the paper.
 ///
-/// To simplify implementation, we pick the ordering so that the lexicographic ordering in Lemma
-/// 2.4 is just the lexicographic ordering of the P parts. This corresponds to the ordering of
-/// $\mathcal{P}$ where $P^s_t < P^{s'}_t$ if $s > s'$).
+/// To simplify implementation, we pick the ordering so that the (reverse) lexicographic ordering
+/// in Lemma 2.4 is just the (reverse) lexicographic ordering of the P parts. This corresponds to
+/// the ordering of $\mathcal{P}$ where $P^s_t < P^{s'}_t$ if $s < s'$).
 pub struct MilnorSubalgebra {
     profile: Vec<u8>,
 }
@@ -148,12 +148,12 @@ mod test {
         assert_eq!(
             subalgebra.iter_signatures(6).collect::<Vec<_>>(),
             vec![
-                vec![0, 1],
                 vec![1, 0],
-                vec![1, 1],
                 vec![2, 0],
-                vec![2, 1],
                 vec![3, 0],
+                vec![0, 1],
+                vec![1, 1],
+                vec![2, 1],
                 vec![3, 1],
             ]
         );
@@ -161,21 +161,21 @@ mod test {
         assert_eq!(
             subalgebra.iter_signatures(5).collect::<Vec<_>>(),
             vec![
-                vec![0, 1],
                 vec![1, 0],
-                vec![1, 1],
                 vec![2, 0],
-                vec![2, 1],
                 vec![3, 0],
+                vec![0, 1],
+                vec![1, 1],
+                vec![2, 1],
             ]
         );
         assert_eq!(
             subalgebra.iter_signatures(4).collect::<Vec<_>>(),
-            vec![vec![0, 1], vec![1, 0], vec![1, 1], vec![2, 0], vec![3, 0],]
+            vec![vec![1, 0], vec![2, 0], vec![3, 0], vec![0, 1], vec![1, 1],]
         );
         assert_eq!(
             subalgebra.iter_signatures(3).collect::<Vec<_>>(),
-            vec![vec![0, 1], vec![1, 0], vec![2, 0], vec![3, 0],]
+            vec![vec![1, 0], vec![2, 0], vec![3, 0], vec![0, 1],]
         );
         assert_eq!(
             subalgebra.iter_signatures(2).collect::<Vec<_>>(),
@@ -201,7 +201,7 @@ mod test {
         ]);
         assert_eq!(
             subalgebra.iter_signatures(7).collect::<Vec<_>>(),
-            vec![vec![0, 0, 1, 0], vec![0, 1, 0, 0], vec![0, 2, 0, 0],]
+            vec![vec![0, 1, 0, 0], vec![0, 2, 0, 0], vec![0, 0, 1, 0],]
         );
     }
 }
