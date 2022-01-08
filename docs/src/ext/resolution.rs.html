@@ -986,7 +986,6 @@
 <span id="960">960</span>
 <span id="961">961</span>
 <span id="962">962</span>
-<span id="963">963</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::sync</span>::{<span class="ident">Arc</span>, <span class="ident">Mutex</span>};
 
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::chain_complex</span>::{<span class="ident">AugmentedChainComplex</span>, <span class="ident">ChainComplex</span>, <span class="ident">FreeChainComplex</span>};
@@ -1049,11 +1048,10 @@
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Resolution</span><span class="op">&lt;</span><span class="ident">CC</span>: <span class="ident">ChainComplex</span><span class="op">&gt;</span> {
     <span class="ident">lock</span>: <span class="ident">Mutex</span><span class="op">&lt;</span>()<span class="op">&gt;</span>,
     <span class="ident">complex</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">CC</span><span class="op">&gt;</span>,
-    <span class="ident">modules</span>: <span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">FreeModule</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="ident">CC::Module</span> <span class="kw">as</span> <span class="ident">Module</span><span class="op">&gt;</span><span class="ident">::Algebra</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    <span class="ident">zero_module</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">FreeModule</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="ident">CC::Module</span> <span class="kw">as</span> <span class="ident">Module</span><span class="op">&gt;</span><span class="ident">::Algebra</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">modules</span>: <span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident">CC::Algebra</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">zero_module</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident">CC::Algebra</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="ident">chain_maps</span>: <span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">CC::Module</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    <span class="ident">differentials</span>:
-        <span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">FreeModule</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="ident">CC::Module</span> <span class="kw">as</span> <span class="ident">Module</span><span class="op">&gt;</span><span class="ident">::Algebra</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">differentials</span>: <span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident">CC::Algebra</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 
     <span class="doccomment">///  For each *internal* degree, store the kernel of the most recently calculated chain map as</span>
     <span class="doccomment">///  returned by `generate_old_kernel_and_compute_new_kernel`, to be used if we run</span>

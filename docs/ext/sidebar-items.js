@@ -1,1 +1,1 @@
-initSidebarItems({"mod":[["chain_complex",""],["resolution",""],["resolution_homomorphism",""],["save",""],["secondary",""],["utils",""],["yoneda",""]],"type":[["CCC",""]]});
+initSidebarItems({"mod":[["chain_complex",""],["nassau",""],["resolution",""],["resolution_homomorphism",""],["save",""],["secondary",""],["utils",""],["yoneda",""]],"type":[["CCC",""]]});
