@@ -1246,9 +1246,6 @@
 <span id="1220">1220</span>
 <span id="1221">1221</span>
 <span id="1222">1222</span>
-<span id="1223">1223</span>
-<span id="1224">1224</span>
-<span id="1225">1225</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="kw">super</span>::{<span class="ident">QuasiInverse</span>, <span class="ident">Subspace</span>};
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::matrix::m4ri::M4riTable</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::prime</span>::{<span class="self">self</span>, <span class="ident">ValidPrime</span>};
@@ -1514,7 +1511,6 @@
         <span class="ident">col_end</span>: <span class="ident">usize</span>,
     ) -&gt; <span class="ident">MatrixSliceMut</span> {
         <span class="ident">MatrixSliceMut</span> {
-            <span class="ident">p</span>: <span class="self">self</span>.<span class="ident">p</span>,
             <span class="ident">vectors</span>: <span class="kw-2">&amp;mut</span> <span class="self">self</span>.<span class="ident">vectors</span>[<span class="ident">row_start</span>..<span class="ident">row_end</span>],
             <span class="ident">col_start</span>,
             <span class="ident">col_end</span>,
@@ -2338,7 +2334,6 @@
 }
 
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">MatrixSliceMut</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> {
-    <span class="ident">p</span>: <span class="ident">ValidPrime</span>,
     <span class="ident">vectors</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="kw-2">mut</span> [<span class="ident">FpVector</span>],
     <span class="ident">col_start</span>: <span class="ident">usize</span>,
     <span class="ident">col_end</span>: <span class="ident">usize</span>,
@@ -2355,7 +2350,6 @@
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">row_slice</span><span class="op">&lt;</span><span class="lifetime">&#39;b</span>: <span class="lifetime">&#39;a</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;b</span> <span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">row_start</span>: <span class="ident">usize</span>, <span class="ident">row_end</span>: <span class="ident">usize</span>) -&gt; <span class="ident">MatrixSliceMut</span><span class="op">&lt;</span><span class="lifetime">&#39;b</span><span class="op">&gt;</span> {
         <span class="self">Self</span> {
-            <span class="ident">p</span>: <span class="self">self</span>.<span class="ident">p</span>,
             <span class="ident">vectors</span>: <span class="kw-2">&amp;mut</span> <span class="self">self</span>.<span class="ident">vectors</span>[<span class="ident">row_start</span>..<span class="ident">row_end</span>],
             <span class="ident">col_start</span>: <span class="self">self</span>.<span class="ident">col_start</span>,
             <span class="ident">col_end</span>: <span class="self">self</span>.<span class="ident">col_end</span>,

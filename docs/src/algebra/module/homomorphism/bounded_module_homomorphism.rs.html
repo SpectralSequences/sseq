@@ -426,7 +426,7 @@
             <span class="kw">let</span> <span class="ident">target_dim</span> <span class="op">=</span> <span class="ident">Module::dimension</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">target</span>, <span class="ident">target_deg</span>);
 
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">matrix</span> <span class="op">=</span> <span class="ident">Matrix::new</span>(<span class="ident">p</span>, <span class="ident">source_dim</span>, <span class="ident">target_dim</span>);
-            <span class="ident">f</span>.<span class="ident">get_matrix</span>(<span class="kw-2">&amp;mut</span> <span class="ident">matrix</span>.<span class="ident">as_slice_mut</span>(), <span class="ident">source_deg</span>);
+            <span class="ident">f</span>.<span class="ident">get_matrix</span>(<span class="ident">matrix</span>.<span class="ident">as_slice_mut</span>(), <span class="ident">source_deg</span>);
             <span class="ident">matrices</span>.<span class="ident">push</span>(<span class="ident">matrix</span>);
         }
 
