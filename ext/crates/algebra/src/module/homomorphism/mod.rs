@@ -100,7 +100,7 @@ pub trait ModuleHomomorphism: Send + Sync {
         let mut matrix =
             AugmentedMatrix::<2>::new(p, source_dimension, [target_dimension, source_dimension]);
 
-        self.get_matrix(&mut matrix.segment(0, 0), degree);
+        self.get_matrix(matrix.segment(0, 0), degree);
         matrix.segment(1, 1).add_identity();
 
         matrix.row_reduce();
@@ -116,13 +116,16 @@ pub trait ModuleHomomorphism: Send + Sync {
     ///
     /// The (sliced) dimensions of `matrix` must be equal to source_dimension x
     /// target_dimension
-    fn get_matrix(&self, matrix: &mut MatrixSliceMut, degree: i32) {
-        if self.target().dimension(degree) == 0 {
+    fn get_matrix(&self, mut matrix: MatrixSliceMut, degree: i32) {
+        assert_eq!(self.source().dimension(degree), matrix.rows());
+        assert_eq!(
+            self.target().dimension(degree - self.degree_shift()),
+            matrix.columns()
+        );
+
+        if matrix.columns() == 0 {
             return;
         }
-
-        assert_eq!(self.source().dimension(degree), matrix.rows());
-        assert_eq!(self.target().dimension(degree), matrix.columns());
 
         #[cfg(not(feature = "concurrent"))]
         for (i, row) in matrix.iter_mut().enumerate() {

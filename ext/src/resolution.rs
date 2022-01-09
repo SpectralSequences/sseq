@@ -207,8 +207,8 @@ impl<CC: ChainComplex> Resolution<CC> {
             [target_cc_dimension, target_res_dimension, source_dimension],
         );
 
-        current_chain_map.get_matrix(&mut matrix.segment(0, 0), t);
-        current_differential.get_matrix(&mut matrix.segment(1, 1), t);
+        current_chain_map.get_matrix(matrix.segment(0, 0), t);
+        current_differential.get_matrix(matrix.segment(1, 1), t);
         matrix.segment(2, 2).add_identity();
         matrix.row_reduce();
 
@@ -440,8 +440,8 @@ impl<CC: ChainComplex> Resolution<CC> {
         );
         // Get the map (d, f) : X_{s, t} -> X_{s-1, t} (+) C_{s, t} into matrix
 
-        current_chain_map.get_matrix(&mut matrix.segment(0, 0), t);
-        current_differential.get_matrix(&mut matrix.segment(1, 1), t);
+        current_chain_map.get_matrix(matrix.segment(0, 0), t);
+        current_differential.get_matrix(matrix.segment(1, 1), t);
         matrix.segment(2, 2).add_identity();
 
         matrix.row_reduce();

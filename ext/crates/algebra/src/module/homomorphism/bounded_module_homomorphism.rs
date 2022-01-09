@@ -156,7 +156,7 @@ where
             let target_dim = Module::dimension(&*target, target_deg);
 
             let mut matrix = Matrix::new(p, source_dim, target_dim);
-            f.get_matrix(&mut matrix.as_slice_mut(), source_deg);
+            f.get_matrix(matrix.as_slice_mut(), source_deg);
             matrices.push(matrix);
         }
 
