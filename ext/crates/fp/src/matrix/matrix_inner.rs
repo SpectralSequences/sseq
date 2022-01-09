@@ -263,7 +263,6 @@ impl Matrix {
         col_end: usize,
     ) -> MatrixSliceMut {
         MatrixSliceMut {
-            p: self.p,
             vectors: &mut self.vectors[row_start..row_end],
             col_start,
             col_end,
@@ -1087,7 +1086,6 @@ impl AugmentedMatrix<3> {
 }
 
 pub struct MatrixSliceMut<'a> {
-    p: ValidPrime,
     vectors: &'a mut [FpVector],
     col_start: usize,
     col_end: usize,
@@ -1104,7 +1102,6 @@ impl<'a> MatrixSliceMut<'a> {
 
     pub fn row_slice<'b: 'a>(&'b mut self, row_start: usize, row_end: usize) -> MatrixSliceMut<'b> {
         Self {
-            p: self.p,
             vectors: &mut self.vectors[row_start..row_end],
             col_start: self.col_start,
             col_end: self.col_end,
