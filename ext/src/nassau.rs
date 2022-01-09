@@ -307,6 +307,13 @@ impl Resolution {
             target_mask.extend(subalgebra.signature_mask(target, t, &signature));
             next_mask.extend(subalgebra.signature_mask(next, t, &signature));
 
+            if !dxs
+                .iter()
+                .any(|dx| next_mask.iter().any(|&v| dx.entry(v) != 0))
+            {
+                continue;
+            }
+
             let full_matrix = self.differential(s - 1).get_partial_matrix(t, &target_mask);
 
             let mut masked_matrix =
