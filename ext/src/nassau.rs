@@ -368,6 +368,8 @@ impl Resolution {
 
         if t <= s as i32 {
             self.step_resolution_with_subalgebra(s, t, MilnorSubalgebra::new(vec![]));
+        } else if t > 7 * (s as i32 + 1) + 23 {
+            self.step_resolution_with_subalgebra(s, t, MilnorSubalgebra::new(vec![3, 2, 1]));
         } else if t > 3 * (s as i32 + 1) + 6 {
             self.step_resolution_with_subalgebra(s, t, MilnorSubalgebra::new(vec![2, 1]));
         } else {
