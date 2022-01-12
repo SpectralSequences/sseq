@@ -1993,6 +1993,13 @@
     }
 }
 
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">SecondaryResolution</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">PairAlgebra</span>, <span class="ident">CC</span>: <span class="ident">FreeChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="ident">underlying</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">CC</span><span class="op">&gt;</span>,
+    <span class="doccomment">/// s -&gt; t -&gt; idx -&gt; homotopy</span>
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">homotopies</span>: <span class="ident">OnceBiVec</span><span class="op">&lt;</span><span class="ident">SecondaryHomotopy</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">intermediates</span>: <span class="ident">DashMap</span><span class="op">&lt;</span>(<span class="ident">u32</span>, <span class="ident">i32</span>, <span class="ident">usize</span>), <span class="ident">FpVector</span><span class="op">&gt;</span>,
+}
+
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">PairAlgebra</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span>, <span class="ident">CC</span>: <span class="ident">FreeChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">SecondaryLift</span>
     <span class="kw">for</span> <span class="ident">SecondaryResolution</span><span class="op">&lt;</span><span class="ident">A</span>, <span class="ident">CC</span><span class="op">&gt;</span>
 {
@@ -2068,13 +2075,6 @@
         );
         <span class="ident">result</span>
     }
-}
-
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">SecondaryResolution</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">PairAlgebra</span>, <span class="ident">CC</span>: <span class="ident">FreeChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-    <span class="ident">underlying</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">CC</span><span class="op">&gt;</span>,
-    <span class="doccomment">/// s -&gt; t -&gt; idx -&gt; homotopy</span>
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">homotopies</span>: <span class="ident">OnceBiVec</span><span class="op">&lt;</span><span class="ident">SecondaryHomotopy</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    <span class="ident">intermediates</span>: <span class="ident">DashMap</span><span class="op">&lt;</span>(<span class="ident">u32</span>, <span class="ident">i32</span>, <span class="ident">usize</span>), <span class="ident">FpVector</span><span class="op">&gt;</span>,
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">PairAlgebra</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span>, <span class="ident">CC</span>: <span class="ident">FreeChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">SecondaryResolution</span><span class="op">&lt;</span><span class="ident">A</span>, <span class="ident">CC</span><span class="op">&gt;</span> {
