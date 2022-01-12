@@ -633,6 +633,13 @@ pub trait SecondaryLift: Sync {
     }
 }
 
+pub struct SecondaryResolution<A: PairAlgebra, CC: FreeChainComplex<Algebra = A>> {
+    underlying: Arc<CC>,
+    /// s -> t -> idx -> homotopy
+    pub(crate) homotopies: OnceBiVec<SecondaryHomotopy<A>>,
+    intermediates: DashMap<(u32, i32, usize), FpVector>,
+}
+
 impl<A: PairAlgebra + Send + Sync, CC: FreeChainComplex<Algebra = A>> SecondaryLift
     for SecondaryResolution<A, CC>
 {
@@ -708,13 +715,6 @@ impl<A: PairAlgebra + Send + Sync, CC: FreeChainComplex<Algebra = A>> SecondaryL
         );
         result
     }
-}
-
-pub struct SecondaryResolution<A: PairAlgebra, CC: FreeChainComplex<Algebra = A>> {
-    underlying: Arc<CC>,
-    /// s -> t -> idx -> homotopy
-    pub(crate) homotopies: OnceBiVec<SecondaryHomotopy<A>>,
-    intermediates: DashMap<(u32, i32, usize), FpVector>,
 }
 
 impl<A: PairAlgebra + Send + Sync, CC: FreeChainComplex<Algebra = A>> SecondaryResolution<A, CC> {
