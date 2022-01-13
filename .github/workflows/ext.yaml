@@ -13,9 +13,9 @@ jobs:
 
     strategy:
       matrix:
-        toolchain: ["nightly", "beta"]
+        toolchain: ["stable", "beta", "nightly"]
 
-    continue-on-error: ${{ matrix.toolchain == 'nightly' }}
+    continue-on-error: ${{ matrix.toolchain != "stable" }}
     steps:
       - uses: actions/checkout@v2
 
@@ -92,9 +92,9 @@ jobs:
 
     strategy:
       matrix:
-        toolchain: ["nightly", "beta"]
+        toolchain: ["stable", "beta", "nightly"]
 
-    continue-on-error: ${{ matrix.toolchain == 'nightly' }}
+    continue-on-error: ${{ matrix.toolchain != "stable" }}
     steps:
       - uses: actions/checkout@v2
 
@@ -137,9 +137,9 @@ jobs:
 
     strategy:
       matrix:
-        toolchain: ["nightly", "beta"]
+        toolchain: ["stable", "beta", "nightly"]
 
-    continue-on-error: ${{ matrix.toolchain == 'nightly' }}
+    continue-on-error: ${{ matrix.toolchain != "stable" }}
     steps:
       - uses: actions/checkout@v2
 
@@ -192,13 +192,13 @@ jobs:
 
     strategy:
       matrix:
-        toolchain: ["nightly", "beta"]
+        toolchain: ["stable", "beta", "nightly"]
 
     defaults:
       run:
         working-directory: web_ext/sseq_gui
 
-    continue-on-error: ${{ matrix.toolchain == 'nightly' }}
+    continue-on-error: ${{ matrix.toolchain != "stable" }}
     steps:
       - uses: actions/checkout@v2
 
@@ -260,9 +260,9 @@ jobs:
 
     strategy:
       matrix:
-        toolchain: ["nightly", "beta"]
+        toolchain: ["stable", "beta", "nightly"]
 
-    continue-on-error: ${{ matrix.toolchain == 'nightly' }}
+    continue-on-error: ${{ matrix.toolchain != "stable" }}
     steps:
       - uses: actions/checkout@v2
 
@@ -314,9 +314,9 @@ jobs:
 
     strategy:
       matrix:
-        toolchain: ["nightly", "beta"]
+        toolchain: ["stable", "beta", "nightly"]
 
-    continue-on-error: ${{ matrix.toolchain == 'nightly' }}
+    continue-on-error: ${{ matrix.toolchain != "stable" }}
     steps:
       - uses: actions/checkout@v2
 
@@ -353,18 +353,18 @@ jobs:
       - name: Download webserver
         uses: actions/download-artifact@v2
         with:
-          name: webserver-beta
+          name: webserver-stable
 
       - name: Download calculator
         uses: actions/download-artifact@v2
         with:
-          name: calculator-beta
+          name: calculator-stable
           path: calculator
 
       - name: Download docs
         uses: actions/download-artifact@v2
         with:
-          name: docs-beta
+          name: docs-stable
           path: docs
 
       - name: Deploy
