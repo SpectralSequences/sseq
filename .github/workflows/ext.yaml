@@ -15,7 +15,7 @@ jobs:
       matrix:
         toolchain: ["stable", "beta", "nightly"]
 
-    continue-on-error: ${{ matrix.toolchain != "stable" }}
+    continue-on-error: ${{ matrix.toolchain != 'stable' }}
     steps:
       - uses: actions/checkout@v2
 
@@ -94,7 +94,7 @@ jobs:
       matrix:
         toolchain: ["stable", "beta", "nightly"]
 
-    continue-on-error: ${{ matrix.toolchain != "stable" }}
+    continue-on-error: ${{ matrix.toolchain != 'stable' }}
     steps:
       - uses: actions/checkout@v2
 
@@ -139,7 +139,7 @@ jobs:
       matrix:
         toolchain: ["stable", "beta", "nightly"]
 
-    continue-on-error: ${{ matrix.toolchain != "stable" }}
+    continue-on-error: ${{ matrix.toolchain != 'stable' }}
     steps:
       - uses: actions/checkout@v2
 
@@ -198,7 +198,7 @@ jobs:
       run:
         working-directory: web_ext/sseq_gui
 
-    continue-on-error: ${{ matrix.toolchain != "stable" }}
+    continue-on-error: ${{ matrix.toolchain != 'stable' }}
     steps:
       - uses: actions/checkout@v2
 
@@ -262,7 +262,7 @@ jobs:
       matrix:
         toolchain: ["stable", "beta", "nightly"]
 
-    continue-on-error: ${{ matrix.toolchain != "stable" }}
+    continue-on-error: ${{ matrix.toolchain != 'stable' }}
     steps:
       - uses: actions/checkout@v2
 
@@ -316,7 +316,7 @@ jobs:
       matrix:
         toolchain: ["stable", "beta", "nightly"]
 
-    continue-on-error: ${{ matrix.toolchain != "stable" }}
+    continue-on-error: ${{ matrix.toolchain != 'stable' }}
     steps:
       - uses: actions/checkout@v2
 
