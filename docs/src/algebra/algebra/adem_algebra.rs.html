@@ -1778,8 +1778,6 @@
 <span id="1752">1752</span>
 <span id="1753">1753</span>
 <span id="1754">1754</span>
-<span id="1755">1755</span>
-<span id="1756">1756</span>
 </pre><pre class="rust"><code><span class="doccomment">//! The Steenrod algebra using the Adem basis.</span>
 
 <span class="kw">use</span> <span class="ident">std::cmp::Ordering</span>;
@@ -2956,17 +2954,15 @@
         }
     }
 
-    <span class="doccomment">/**
-     * Reduce a Steenrod monomial at the prime 2.
-     * # Arguments:
-     *  * `algebra` - an Adem algebra. This would be a method of class AdemAlgebra.
-     *  * `result`  - Where we put the result
-     *  * `monomial` - a not necessarily admissible Steenrod monomial which we will reduce.
-     *                We destroy monomial-&gt;Ps.
-     *  * `idx` - the only index to check for inadmissibility in the input (we assume that we&#39;ve gotten
-     *           our input as a product of two admissible sequences.)
-     *  * `leading_degree` - the degree of the squares between 0 and idx (so of length idx + 1)
-     */</span>
+    <span class="doccomment">/// Reduce a Steenrod monomial at the prime 2.</span>
+    <span class="doccomment">/// # Arguments:</span>
+    <span class="doccomment">///  * `algebra` - an Adem algebra. This would be a method of class AdemAlgebra.</span>
+    <span class="doccomment">///  * `result`  - Where we put the result</span>
+    <span class="doccomment">///  * `monomial` - a not necessarily admissible Steenrod monomial which we will reduce.</span>
+    <span class="doccomment">///                We destroy monomial-&gt;Ps.</span>
+    <span class="doccomment">///  * `idx` - the only index to check for inadmissibility in the input (we assume that we&#39;ve gotten</span>
+    <span class="doccomment">///           our input as a product of two admissible sequences.)</span>
+    <span class="doccomment">///  * `leading_degree` - the degree of the squares between 0 and idx (so of length idx + 1)</span>
     <span class="kw">fn</span> <span class="ident">make_mono_admissible_2</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         <span class="kw-2">mut</span> <span class="ident">result</span>: <span class="ident">SliceMut</span>,
