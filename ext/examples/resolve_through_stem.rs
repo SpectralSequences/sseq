@@ -1,4 +1,4 @@
-//! Resolves a module up to a $(s, n)$ and prints an ASCII depiction of the Ext groups:
+//! Resolves a module up to an $(n, s)$ and prints an ASCII depiction of the Ext groups:
 //! ```text
 //! ·
 //! ·                                                     ·

@@ -159,8 +159,8 @@
 //!   configured via the `RAYON_NUM_THREADS` environment variable.
 //! - `use-zstd`: Support reading zstd-compressed save files.
 //! - `cache-multiplication`: Precompute and cache the multiplication table under the Milnor basis.
-//!    This is only feasible when using a small, finite subalgebra, e.g. when working with tmf
-//!    modules.
+//!    This is only feasible when using a small, finite subalgebra, e.g. when working with
+//!    $\mathrm{tmf}$ modules.
 
 #![allow(clippy::upper_case_acronyms)]
 

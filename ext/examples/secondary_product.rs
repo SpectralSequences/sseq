@@ -1,4 +1,20 @@
 //! Computes products in $\Mod_{C\tau^2}$.
+//!
+//! # Usage
+//! The program asks for a module $M$ and an element $x \in \Ext^{\*, \*}(M, k)$. It then
+//! computes the secondary product of the standard lift of $x$ with all (standard lifts of)
+//! elements in $\Ext^{\*, \*}(M, k)$ that survive $d_2$.
+//!
+//! These products are computed for all elements whose product with $x$ lies in the specified
+//! bidegree of $M$, and $k$ is resolved as far as necessary to support this computation.
+//!
+//! Running this program requires computing the secondary resolution of both $M$ and $k$, i.e. the
+//! calculations performed by [`secondary`](../secondary/index.html). The user is encouraged to
+//! make use of a save file to reuse these calculations for different products. (When $M$ is not
+//! equal to $k$, the user will be prompted for the save directory of $k$)
+//!
+//! # Notes
+//! The program verifies that $x$ is indeed permanent.
 
 use std::path::PathBuf;
 use std::sync::Arc;

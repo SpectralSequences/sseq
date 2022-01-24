@@ -17,8 +17,8 @@ use once::OnceVec;
 #[cfg(feature = "concurrent")]
 use std::sync::mpsc;
 
-/// See [`Resolution::SenderData`]. This differs by not having the `new` field.
 #[cfg(feature = "concurrent")]
+/// See [`resolution::SenderData`](../resolution/struct.SenderData.html). This differs by not having the `new` field.
 struct SenderData {
     s: u32,
     t: i32,

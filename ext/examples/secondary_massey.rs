@@ -1,4 +1,26 @@
-//! Computes massey products in $\Mod_{C\tau^2}$. This is only correct up to a sign!!!
+//! Computes massey products in $\Mod_{C\tau^2}$.
+//!
+//! # Usage
+//! This computes all Massey products of the form $\langle a, b, -\rangle$, where
+//! $a \in \Ext^{\*, \*}(M, k)$ and $b, (-) \in \Ext^{\*, \*}(k, k)$. It does not verify that the
+//! Massey product is valid, i.e. $a$ and $b$ both lift to $\Mod_{C\tau^2}$ and have trivial
+//! product.
+//!
+//! Since we must choose $a$ and $b$ to have trivial product, it is necessary to be able to specify
+//! the $\tau$ part of them, and not insist that they are standard lifts of the $\Ext$ classes.
+//! Thus, the user is first prompted for the $\Ext$ part, then the $\tau$ part of each class. If
+//! the bidegree right above the class is empty, the user is not prompted for the $\tau$ part.
+//!
+//! Note that for the purposes of save files, the name of the product should include the $\tau$
+//! part as well. Products with different $\tau$ parts should have separate save directories. (If
+//! one wishes to save some of computation, one can symlink the `secondary_composites` directory,
+//! which *can* be shared for products with the same $\Ext$ part but different $\tau$ part) There
+//! is no theoretical reason this has to be the case, but it is rather unpleasant to make it use
+//! the same save file, and such a need has not arisen yet.
+//!
+//! # Output
+//! This computes the Massey products up to a sign. Brave souls are encouraged to figure out the
+//! correct sign for the products.
 
 use std::path::PathBuf;
 use std::sync::Arc;
