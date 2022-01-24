@@ -84,25 +84,15 @@
 <span id="58">58</span>
 <span id="59">59</span>
 <span id="60">60</span>
-<span id="61">61</span>
-<span id="62">62</span>
-<span id="63">63</span>
-<span id="64">64</span>
-<span id="65">65</span>
 </pre><pre class="rust"><code><span class="doccomment">//! This computes $d_2$ differentials in the Adams spectral sequence. This only works for fairly</span>
 <span class="doccomment">//! specific modules, but tends to cover most cases of interest.</span>
 <span class="doccomment">//!</span>
-<span class="doccomment">//! In general, the set of possible $d_2$&#39;s is a torsor over $\Ext^{2, 1}(M, M)$; the</span>
-<span class="doccomment">//! action of $\chi \in \Ext^{2, 1}(M, M)$ is given by adding $\chi$-multiplication</span>
-<span class="doccomment">//! to the $d_2$ map. This algorithm computes one possible set of $d_2$&#39;s. If $\Ext^{2, 1}(M, M)$</span>
-<span class="doccomment">//! is non-zero, some differentials will have to be calculated by hand to determine the actual set</span>
-<span class="doccomment">//! of $d_2$&#39;s.</span>
-<span class="doccomment">//!</span>
 <span class="doccomment">//! # Usage</span>
-<span class="doccomment">//! This asks for a module in the usual way. It only works with the Milnor basis,</span>
+<span class="doccomment">//! This asks for a module in the usual way, and verifies that the module satisfies the conditions</span>
+<span class="doccomment">//! necessary for the algorithm the work. It only works with the Milnor basis.</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! # Output</span>
-<span class="doccomment">//! We omit differentials if the target bidegree is zero</span>
+<span class="doccomment">//! We omit differentials if the target bidegree is zero.</span>
 
 <span class="kw">use</span> <span class="ident">algebra::module::Module</span>;
 <span class="kw">use</span> <span class="ident">std::sync::Arc</span>;

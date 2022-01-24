@@ -677,8 +677,8 @@
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
 <span class="kw">use</span> <span class="ident">std::sync::mpsc</span>;
 
-<span class="doccomment">/// See [`Resolution::SenderData`]. This differs by not having the `new` field.</span>
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
+<span class="doccomment">/// See [`resolution::SenderData`](../resolution/struct.SenderData.html). This differs by not having the `new` field.</span>
 <span class="kw">struct</span> <span class="ident">SenderData</span> {
     <span class="ident">s</span>: <span class="ident">u32</span>,
     <span class="ident">t</span>: <span class="ident">i32</span>,

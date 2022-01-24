@@ -495,7 +495,51 @@
 <span id="469">469</span>
 <span id="470">470</span>
 <span id="471">471</span>
-</pre><pre class="rust"><code><span class="doccomment">//! Computes massey products in $\Mod_{C\tau^2}$. This is only correct up to a sign!!!</span>
+<span id="472">472</span>
+<span id="473">473</span>
+<span id="474">474</span>
+<span id="475">475</span>
+<span id="476">476</span>
+<span id="477">477</span>
+<span id="478">478</span>
+<span id="479">479</span>
+<span id="480">480</span>
+<span id="481">481</span>
+<span id="482">482</span>
+<span id="483">483</span>
+<span id="484">484</span>
+<span id="485">485</span>
+<span id="486">486</span>
+<span id="487">487</span>
+<span id="488">488</span>
+<span id="489">489</span>
+<span id="490">490</span>
+<span id="491">491</span>
+<span id="492">492</span>
+<span id="493">493</span>
+</pre><pre class="rust"><code><span class="doccomment">//! Computes massey products in $\Mod_{C\tau^2}$.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! # Usage</span>
+<span class="doccomment">//! This computes all Massey products of the form $\langle a, b, -\rangle$, where</span>
+<span class="doccomment">//! $a \in \Ext^{\*, \*}(M, k)$ and $b, (-) \in \Ext^{\*, \*}(k, k)$. It does not verify that the</span>
+<span class="doccomment">//! Massey product is valid, i.e. $a$ and $b$ both lift to $\Mod_{C\tau^2}$ and have trivial</span>
+<span class="doccomment">//! product.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! Since we must choose $a$ and $b$ to have trivial product, it is necessary to be able to specify</span>
+<span class="doccomment">//! the $\tau$ part of them, and not insist that they are standard lifts of the $\Ext$ classes.</span>
+<span class="doccomment">//! Thus, the user is first prompted for the $\Ext$ part, then the $\tau$ part of each class. If</span>
+<span class="doccomment">//! the bidegree right above the class is empty, the user is not prompted for the $\tau$ part.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! Note that for the purposes of save files, the name of the product should include the $\tau$</span>
+<span class="doccomment">//! part as well. Products with different $\tau$ parts should have separate save directories. (If</span>
+<span class="doccomment">//! one wishes to save some of computation, one can symlink the `secondary_composites` directory,</span>
+<span class="doccomment">//! which *can* be shared for products with the same $\Ext$ part but different $\tau$ part) There</span>
+<span class="doccomment">//! is no theoretical reason this has to be the case, but it is rather unpleasant to make it use</span>
+<span class="doccomment">//! the same save file, and such a need has not arisen yet.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! # Output</span>
+<span class="doccomment">//! This computes the Massey products up to a sign. Brave souls are encouraged to figure out the</span>
+<span class="doccomment">//! correct sign for the products.</span>
 
 <span class="kw">use</span> <span class="ident">std::path::PathBuf</span>;
 <span class="kw">use</span> <span class="ident">std::sync::Arc</span>;

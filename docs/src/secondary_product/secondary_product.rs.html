@@ -204,7 +204,39 @@
 <span id="178">178</span>
 <span id="179">179</span>
 <span id="180">180</span>
+<span id="181">181</span>
+<span id="182">182</span>
+<span id="183">183</span>
+<span id="184">184</span>
+<span id="185">185</span>
+<span id="186">186</span>
+<span id="187">187</span>
+<span id="188">188</span>
+<span id="189">189</span>
+<span id="190">190</span>
+<span id="191">191</span>
+<span id="192">192</span>
+<span id="193">193</span>
+<span id="194">194</span>
+<span id="195">195</span>
+<span id="196">196</span>
 </pre><pre class="rust"><code><span class="doccomment">//! Computes products in $\Mod_{C\tau^2}$.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! # Usage</span>
+<span class="doccomment">//! The program asks for a module $M$ and an element $x \in \Ext^{\*, \*}(M, k)$. It then</span>
+<span class="doccomment">//! computes the secondary product of the standard lift of $x$ with all (standard lifts of)</span>
+<span class="doccomment">//! elements in $\Ext^{\*, \*}(M, k)$ that survive $d_2$.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! These products are computed for all elements whose product with $x$ lies in the specified</span>
+<span class="doccomment">//! bidegree of $M$, and $k$ is resolved as far as necessary to support this computation.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! Running this program requires computing the secondary resolution of both $M$ and $k$, i.e. the</span>
+<span class="doccomment">//! calculations performed by [`secondary`](../secondary/index.html). The user is encouraged to</span>
+<span class="doccomment">//! make use of a save file to reuse these calculations for different products. (When $M$ is not</span>
+<span class="doccomment">//! equal to $k$, the user will be prompted for the save directory of $k$)</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! # Notes</span>
+<span class="doccomment">//! The program verifies that $x$ is indeed permanent.</span>
 
 <span class="kw">use</span> <span class="ident">std::path::PathBuf</span>;
 <span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
