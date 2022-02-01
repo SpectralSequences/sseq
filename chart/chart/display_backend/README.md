@@ -1,16 +1,19 @@
 # WebGl Chart
+
 This is an implementation of a simple 2D graphics backend using webgl2 and Rust / wasm_bindgen.
 The logic is inspired by tikz: there are "nodes" which have known boundary and we draw edges between the nodes.
 The edges can be straight or circular arcs and have adjustable thickness, dash pattern, color and arrowheads.
 
-
 # Build instructions:
-To build: 
+
+To build:
+
 ```sh
     wasm-pack build
 ```
 
 To build the test app (just displays a test page):
+
 ```sh
     npm i
     npm run build

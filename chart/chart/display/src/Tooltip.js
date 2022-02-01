@@ -1,6 +1,6 @@
-import {LitElement, html, css} from 'lit-element';
-import { promiseFromDomEvent, findAncestorElement } from "./utils.js";
-import { renderLatex } from "./latex.js";
+import { LitElement, html, css } from 'lit-element';
+import { promiseFromDomEvent, findAncestorElement } from './utils.js';
+import { renderLatex } from './latex.js';
 
 const MARGIN = 10;
 
@@ -10,15 +10,18 @@ export class TooltipElement extends LitElement {
             return false;
         }
 
-        if(obj.constructor === String){
+        if (obj.constructor === String) {
             return obj;
         }
 
-        if(obj.constructor === Array) {
-            return obj.map((x) => Tooltip.toTooltipString(x, page)).filter((x) => x).join("\n");
+        if (obj.constructor === Array) {
+            return obj
+                .map(x => Tooltip.toTooltipString(x, page))
+                .filter(x => x)
+                .join('\n');
         }
 
-        if(obj.constructor === Map){
+        if (obj.constructor === Map) {
             let lastkey;
             for (let k of obj.keys()) {
                 if (k > page) {
@@ -33,37 +36,36 @@ export class TooltipElement extends LitElement {
     }
 
     static get styles() {
-        return css `
-        :host {
-            position: absolute;
-            z-index: 999;
-            transition: opacity 500ms ease 0s;             
-            text-align: center;
-            padding: 5px;
-            font: 12px sans-serif;
-            background: lightsteelblue;
-            border: 0px;
-            /* border-radius: 8px; */
-            pointer-events: none;
-            opacity : 0;
-            width : max-content;
-            color : rgba(var(--text-color), var(--text-opacity));
-        }
-        
-        :host([shown]) {
-            opacity: 0.9;
-        }
+        return css`
+            :host {
+                position: absolute;
+                z-index: 999;
+                transition: opacity 500ms ease 0s;
+                text-align: center;
+                padding: 5px;
+                font: 12px sans-serif;
+                background: lightsteelblue;
+                border: 0px;
+                /* border-radius: 8px; */
+                pointer-events: none;
+                opacity: 0;
+                width: max-content;
+                color: rgba(var(--text-color), var(--text-opacity));
+            }
 
-        :host([transition=show]) {
-            transition : opacity 200ms ease-out;
-        }
-        
-        :host([transition=hide]) {
-            transition : opacity 500ms ease-in;
-        }
+            :host([shown]) {
+                opacity: 0.9;
+            }
+
+            :host([transition='show']) {
+                transition: opacity 200ms ease-out;
+            }
+
+            :host([transition='hide']) {
+                transition: opacity 500ms ease-in;
+            }
         `;
     }
-
 
     constructor() {
         super();
@@ -72,19 +74,17 @@ export class TooltipElement extends LitElement {
         this._handle_redraw = this._handle_redraw.bind(this);
     }
 
-    render(){
-        return html`
-            <slot></slot>
-        `;
+    render() {
+        return html` <slot></slot> `;
     }
 
     firstUpdated(changedProperties) {
-        this.disp = this.closest("sseq-chart");
-        this.disp.addEventListener("mouseover-class", this._mouseover_class);
-        this.disp.addEventListener("mouseout-class", this._mouseout_class);
+        this.disp = this.closest('sseq-chart');
+        this.disp.addEventListener('mouseover-class', this._mouseover_class);
+        this.disp.addEventListener('mouseout-class', this._mouseout_class);
     }
 
-    _mouseover_class(event){
+    _mouseover_class(event) {
         let { cls } = event.detail;
         this.cls = cls;
         let sseq = this.disp.sseq;
@@ -93,12 +93,12 @@ export class TooltipElement extends LitElement {
         this.show();
     }
 
-    _mouseout_class(event){
+    _mouseout_class(event) {
         this.cls = undefined;
         this.hide();
     }
 
-    _handle_redraw(){
+    _handle_redraw() {
         this.position();
     }
 
@@ -117,18 +117,18 @@ export class TooltipElement extends LitElement {
          * where the location of the previous tooltip is now outside of the
          * window.
          */
-        this.style.left = "0px";
-        this.style.top = "0px";
+        this.style.left = '0px';
+        this.style.top = '0px';
 
         this.position();
-        this.disp.addEventListener("draw", this._handle_redraw);
-        this.setAttribute("shown", "");
-        this.setAttribute("transition", "show");
-        await promiseFromDomEvent(this, "transitionend");
-        this.removeAttribute("transition");
+        this.disp.addEventListener('draw', this._handle_redraw);
+        this.setAttribute('shown', '');
+        this.setAttribute('transition', 'show');
+        await promiseFromDomEvent(this, 'transitionend');
+        this.removeAttribute('transition');
     }
 
-    position(){
+    position() {
         this.rect = this.getBoundingClientRect();
         this.displayRect = this.disp.getBoundingClientRect();
         let [x, y] = this.disp.getClassPosition(this.cls);
@@ -140,13 +140,13 @@ export class TooltipElement extends LitElement {
          * by MARGIN. If this causes the tooltip to leave the window, position
          * it to the bottom/left accordingly.
          */
-        if(x + MARGIN + this.rect.width < this.displayRect.width){
+        if (x + MARGIN + this.rect.width < this.displayRect.width) {
             x = x + MARGIN;
         } else {
             x = x - this.rect.width - MARGIN;
         }
-        
-        if(y - this.rect.height - MARGIN > 0){
+
+        if (y - this.rect.height - MARGIN > 0) {
             y = y - this.rect.height - MARGIN;
         } else {
             y = y + MARGIN;
@@ -156,14 +156,14 @@ export class TooltipElement extends LitElement {
     }
 
     async hide() {
-        this.disp.removeEventListener("draw", this._handle_redraw);
-        this.removeAttribute("shown", "");
-        this.setAttribute("transition", "hide");
-        await promiseFromDomEvent(this, "transitionend");
-        this.removeAttribute("transition");
+        this.disp.removeEventListener('draw', this._handle_redraw);
+        this.removeAttribute('shown', '');
+        this.setAttribute('transition', 'hide');
+        await promiseFromDomEvent(this, 'transitionend');
+        this.removeAttribute('transition');
     }
 }
 
-if(!customElements.get('sseq-tooltip')){
+if (!customElements.get('sseq-tooltip')) {
     customElements.define('sseq-tooltip', TooltipElement);
 }

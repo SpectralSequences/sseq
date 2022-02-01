@@ -1,0 +1,17 @@
+README.md
+setup.py
+spectralsequence_chart/__init__.py
+spectralsequence_chart/chart.py
+spectralsequence_chart/chart_class.py
+spectralsequence_chart/chart_edge.py
+spectralsequence_chart/css_colors.py
+spectralsequence_chart/display_primitives.py
+spectralsequence_chart/infinity.py
+spectralsequence_chart/page_property.py
+spectralsequence_chart/serialization.py
+spectralsequence_chart/signal_dict.py
+spectralsequence_chart/utils.py
+spectralsequence_chart.egg-info/PKG-INFO
+spectralsequence_chart.egg-info/SOURCES.txt
+spectralsequence_chart.egg-info/dependency_links.txt
+spectralsequence_chart.egg-info/top_level.txt

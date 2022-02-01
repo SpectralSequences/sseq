@@ -4,17 +4,17 @@ Original by Dempfi (https://github.com/dempfi/ayu)
 */
 
 .hljs {
-  display: block;
-  overflow-x: auto;
-  background: #191f26;
-  color: #e6e1cf;
-  padding: 0.5em;
+    display: block;
+    overflow-x: auto;
+    background: #191f26;
+    color: #e6e1cf;
+    padding: 0.5em;
 }
 
 .hljs-comment,
 .hljs-quote {
-  color: #5c6773;
-  font-style: italic;
+    color: #5c6773;
+    font-style: italic;
 }
 
 .hljs-variable,
@@ -25,7 +25,7 @@ Original by Dempfi (https://github.com/dempfi/ayu)
 .hljs-link,
 .hljs-selector-id,
 .hljs-selector-class {
-  color: #ff7733;
+    color: #ff7733;
 }
 
 .hljs-number,
@@ -34,24 +34,24 @@ Original by Dempfi (https://github.com/dempfi/ayu)
 .hljs-literal,
 .hljs-type,
 .hljs-params {
-  color: #ffee99;
+    color: #ffee99;
 }
 
 .hljs-string,
 .hljs-bullet {
-  color: #b8cc52;
+    color: #b8cc52;
 }
 
 .hljs-title,
 .hljs-built_in,
 .hljs-section {
-  color: #ffb454;
+    color: #ffb454;
 }
 
 .hljs-keyword,
 .hljs-selector-tag,
 .hljs-symbol {
-  color: #ff7733;
+    color: #ff7733;
 }
 
 .hljs-name {
@@ -63,17 +63,17 @@ Original by Dempfi (https://github.com/dempfi/ayu)
 }
 
 .hljs-emphasis {
-  font-style: italic;
+    font-style: italic;
 }
 
 .hljs-strong {
-  font-weight: bold;
+    font-weight: bold;
 }
 
 .hljs-addition {
-  color: #91b362;
+    color: #91b362;
 }
 
 .hljs-deletion {
-  color: #d96c75;
+    color: #d96c75;
 }

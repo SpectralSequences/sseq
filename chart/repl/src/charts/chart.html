@@ -1,316 +1,320 @@
 <!DOCTYPE html>
 <html>
-<head>
-<meta charset="utf-8">
-<title>Chart {{chart_name}}</title>
-<!--<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css" integrity="sha384-AfEj0r4/OFrOo5t7NnNe46zW/tFgW6x/bCJG8FqQCEo3+Aro6EYUG4+cU+KJWu/X" crossorigin="anonymous">-->
-<script src="index.bundle.js" type="text/javascript"></script>
+    <head>
+        <meta charset="utf-8" />
+        <title>Chart {{chart_name}}</title>
+        <!--<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css" integrity="sha384-AfEj0r4/OFrOo5t7NnNe46zW/tFgW6x/bCJG8FqQCEo3+Aro6EYUG4+cU+KJWu/X" crossorigin="anonymous">-->
+        <script src="index.bundle.js" type="text/javascript"></script>
 
+        <style>
+            :root {
+                --focus-outline-color: rgba(var(--complement-2), 1);
+                --focus-outline-thickness: 1px;
+            }
 
-<style>
-    :root {
-        --focus-outline-color: rgba(var(--complement-2), 1);
-        --focus-outline-thickness : 1px;
-    }
+            :focus {
+                outline: var(--focus-outline-color) solid
+                    var(--focus-outline-thickness);
+            }
 
-    :focus {
-        outline: var(--focus-outline-color) solid var(--focus-outline-thickness);
-    }
+            body {
+                margin: 0;
+            }
 
-    body {
-        margin : 0;
-    }
+            katex-expr {
+                border: rgba(0, 0, 0, 0) solid v ar(--focus-outline-thickness);
+            }
 
-    katex-expr {
-        border: rgba(0,0,0,0) solid v
-        ar(--focus-outline-thickness);
-    }
+            input:invalid {
+                border-color: #fdd !important;
+                background-color: #900 !important;
+            }
 
-    input:invalid {
-       border-color: #FDD !important;
-       background-color:  #900 !important;
-    }
+            katex-expr:focus {
+                outline-style: none;
+                border: var(--focus-outline-color) solid
+                    var(--focus-outline-thickness);
+            }
 
-    katex-expr:focus {
-        outline-style: none;
-        border: var(--focus-outline-color) solid var(--focus-outline-thickness);
-    }
+            .error {
+                width: 100%;
+                padding: 0.3em;
+                font-size: 80%;
+                color: white;
+                opacity: 0;
+                background-color: #900;
+                box-sizing: border-box;
+            }
 
-    .error {
-        width  : 100%;
-        padding: 0.3em;
-        font-size: 80%;
-        color: white;
-        opacity: 0;
-        background-color: #900;     
-        box-sizing: border-box;
-    }
+            input[transition='show'] {
+                transition: 0.5s ease;
+            }
+            .error[transition='show'] {
+                transition: 0.5s ease;
+            }
 
-    input[transition=show] {
-        transition : 0.5s ease;
-    }
-    .error[transition=show] {
-        transition : 0.5s ease;
-    }
+            input[transition='hide'] {
+                transition: 0.2s ease;
+            }
+            .error[transition='hide'] {
+                transition: 0.2s ease;
+            }
 
-    input[transition=hide] {
-        transition : 0.2s ease;
-    }
-    .error[transition=hide] {
-        transition : 0.2s ease;
-    }        
+            .error.active {
+                opacity: 1;
+            }
 
-    .error.active {
-        opacity: 1;
-    }        
+            /* outline*/
+            tr {
+                border-top: rgba(0, 0, 0, 0) double
+                    var(--focus-outline-thickness);
+            }
 
+            tr:last-child {
+                border-bottom: rgba(0, 0, 0, 0) double
+                    var(--focus-outline-thickness);
+            }
 
-    /* outline*/
-    tr {
-        border-top: rgba(0,0,0,0) double var(--focus-outline-thickness);
-    }
+            tr:focus {
+                border-color: var(--focus-outline-color);
+                border-style: double;
+                border-width: var(--focus-outline-thickness);
+                outline: none;
+            }
 
-    tr:last-child {
-        border-bottom: rgba(0,0,0,0) double var(--focus-outline-thickness);
-    }
+            .sidebar-group {
+                padding: 0px 20px 0px 5px;
+                margin: 15px 0px 15px 0px;
+            }
 
-    tr:focus {
-        border-color: var(--focus-outline-color);
-        border-style: double;
-        border-width: var(--focus-outline-thickness);
-        outline : none;
-    }
+            .sidebar div {
+                /* Only works on Firefox */
+                scrollbar-width: thin;
+            }
 
-    .sidebar-group {
-        padding: 0px 20px 0px 5px;
-        margin: 15px 0px 15px 0px;
-    }
+            [tab] {
+                text-align: center;
+                padding-right: 1.5rem;
+                padding-top: 0.8rem;
+                /*padding-bottom: 2rem;*/
+                /*height: 100vh;*/
+            }
 
-    .sidebar div {
-        /* Only works on Firefox */
-        scrollbar-width: thin;
-    }
+            sseq-sidebar h4 {
+                --text-opacity: 0.87;
+                color: rgba(var(--text-color), var(--text-opacity));
+                /* font-size: 120%; */
+                font-weight: 450;
+                margin: 0.25rem 0rem;
+                margin-bottom: 0.8rem;
+            }
 
-    [tab] {
-        text-align: center;
-        padding-right: 1.5rem; 
-        padding-top: 0.8rem; 
-        /*padding-bottom: 2rem;*/
-        /*height: 100vh;*/
-    }
+            sseq-sidebar h5 {
+                --text-opacity: 0.87;
+                color: rgba(var(--text-color), var(--text-opacity));
+                font-size: 120%;
+                font-weight: 400;
+                margin: 0.25rem 0rem;
+                margin-bottom: 0.8rem;
+            }
 
-    sseq-sidebar h4 {
-        --text-opacity : 0.87;
-        color : rgba(var(--text-color), var(--text-opacity));
-        /* font-size: 120%; */
-        font-weight: 450;
-        margin: 0.25rem 0rem;
-        margin-bottom: 0.8rem;
-    }
+            sseq-sidebar div {
+                display: flex;
+                flex-direction: column;
+            }
 
-    sseq-sidebar h5 {
-        --text-opacity : 0.87;
-        color : rgba(var(--text-color), var(--text-opacity));
-        font-size: 120%;
-        font-weight: 400;
-        margin: 0.25rem 0rem;
-        margin-bottom: 0.8rem;
-    }
+            input {
+                font-family: inherit;
+                padding: 0.375rem 0.75rem;
+                font-size: 1rem;
+                line-height: 1.5;
+                display: block;
+                line-height: inherit;
+                border-radius: 0.25rem;
+                border: 1px solid #ccc;
+            }
 
-    sseq-sidebar div {
-        display: flex;
-        flex-direction: column;
-    }        
+            .input-row {
+                margin-top: 0.4rem;
+                margin-bottom: 0.4rem;
+                display: flex;
+                align-items: center;
+            }
 
-    input {
-        font-family: inherit;
-        padding: 0.375rem 0.75rem;
-        font-size: 1rem;
-        line-height: 1.5;
-        display: block;
-        line-height: inherit;
-        border-radius: 0.25rem;
-        border: 1px solid #CCC;
-    }
+            .input-row label {
+                margin-right: 0.6rem;
+                text-align: right;
+            }
 
-    .input-row {
-        margin-top: 0.4rem;
-        margin-bottom: 0.4rem;
-        display: flex;
-        align-items: center;
-    }
+            .input-row input {
+                flex-grow: 1;
+                width: 1px;
+            }
 
-    .input-row label {
-        margin-right: 0.6rem;
-        text-align: right;
-    }
+            sseq-tooltip {
+                --text-color: var(--complement-3-text);
+                --text-opacity: 1;
+                background: rgba(var(--complement-3), 1);
+            }
 
-    .input-row input {
-        flex-grow: 1;
-        width: 1px;
-    }
+            .status-indicator {
+                position: absolute;
+                bottom: 10px;
+                left: 10px;
+                --text-color: var(--complement-3-text);
+                --text-opacity: 1;
+                background: rgba(var(--complement-3), 1);
+                color: rgba(var(--text-color), var(--text-opacity));
+                opacity: 0;
+                padding: 3px;
+            }
 
-    sseq-tooltip {
-        --text-color : var(--complement-3-text);
-        --text-opacity : 1;
-        background: rgba(var(--complement-3), 1);
-    }
+            .status-indicator[shown] {
+                opacity: 1;
+            }
 
+            .status-indicator[transition='show'] {
+                transition: opacity 200ms ease-out;
+            }
 
-    .status-indicator {
-        position: absolute;
-        bottom : 10px;
-        left : 10px;
-        --text-color : var(--complement-3-text);
-        --text-opacity : 1;
-        background: rgba(var(--complement-3), 1);
-        color : rgba(var(--text-color), var(--text-opacity));
-        opacity: 0;
-        padding : 3px;
-    }
+            .status-indicator[transition='hide'] {
+                transition: opacity 500ms ease-in;
+            }
 
-    .status-indicator[shown] {
-        opacity: 1;
-    }
+            sseq-matrix {
+                --row-selected: rgba(var(--complement-3), 0.7);
+                --row-hover: rgba(
+                    var(--complement-3),
+                    0.4
+                ); /* rgba(0, 0, 255, 0.25);*/
+                --row-hover-selected: rgba(var(--complement-3), 1);
+                --row-active: rgba(var(--complement-2), 1);
+                --row-active-selected: rgba(
+                    var(--complement-2),
+                    0.5
+                ); /* about to turn off */
+            }
 
-    .status-indicator[transition=show] {
-        transition : opacity 200ms ease-out;
-    }
-    
-    .status-indicator[transition=hide] {
-        transition : opacity 500ms ease-in;
-    }
+            sseq-sidebar * {
+                color: rgba(var(--text-color), var(--text-opacity));
+            }
 
+            sseq-sidebar {
+                --text-opacity: var(--disabled-text-opacity);
+            }
 
+            sseq-sidebar [tabindex='0'] {
+                --text-opacity: 0.7;
+            }
 
-    sseq-matrix {
-        --row-selected : rgba(var(--complement-3),0.7);
-        --row-hover : rgba(var(--complement-3), 0.4); /* rgba(0, 0, 255, 0.25);*/
-        --row-hover-selected : rgba(var(--complement-3),1);
-        --row-active : rgba(var(--complement-2),1);
-        --row-active-selected : rgba(var(--complement-2),0.5); /* about to turn off */
-    }
+            sseq-sidebar :hover[tabindex='0'] {
+                --text-opacity: 0.87;
+            }
 
-    sseq-sidebar * {
-        color : rgba(var(--text-color), var(--text-opacity));
-    }
+            sseq-sidebar :active[tabindex='0'] {
+                --text-opacity: 1;
+            }
 
-    sseq-sidebar {
-        --text-opacity : var(--disabled-text-opacity);
-    }
+            ::selection {
+                background: rgba(var(--selection-background-color), 1);
+            }
 
-    sseq-sidebar [tabindex="0"] {
-        --text-opacity : 0.7;
-    }
+            .name:active {
+                --text-opacity: 1;
+            }
 
-    sseq-sidebar :hover[tabindex="0"] {
-        --text-opacity : 0.87;
-    }
+            input[type='text'] {
+                border-radius: 0px;
+                background-color: rgba(var(--input-background-color), 1);
+                color: rgba(var(--input-text-color), 1);
+                border: 1px solid #ccc; /* default for text input */
+            }
 
-    sseq-sidebar :active[tabindex="0"] {
-        --text-opacity : 1;
-    }
+            /*.help*/
+            dt {
+                display: inline-block;
+                margin-right: 10px;
+            }
 
+            /*.help*/
+            dd {
+                display: inline-block;
+                margin-inline-start: 0;
+            } /**/
 
-    ::selection {
-        background : rgba(var(--selection-background-color), 1);
-    }
-
-    .name:active {
-        --text-opacity : 1;
-    }
-    
-    input[type=text] {
-        border-radius: 0px;
-        background-color: rgba(var(--input-background-color), 1);
-        color : rgba(var(--input-text-color), 1);
-        border: 1px solid #CCC; /* default for text input */
-    }
-
-    /*.help*/ dt {
-        display : inline-block;
-        margin-right : 10px;
-    }
-
-    /*.help*/ dd {
-        display : inline-block;
-        margin-inline-start: 0;
-    }/**/
-
-    /*.help/ kbd {
+            /*.help/ kbd {
         margin-left : 3px;
         margin-right : 3px;
     }/**/
-    .help h4 {
-        margin-top: 6px;
-        margin-bottom: 6px;
-        --text-opacity : 0.87;
-        color : rgba(var(--text-color), var(--text-opacity));
-    }
+            .help h4 {
+                margin-top: 6px;
+                margin-bottom: 6px;
+                --text-opacity: 0.87;
+                color: rgba(var(--text-color), var(--text-opacity));
+            }
 
+            :root {
+                --body-background-color: var(--primary-4);
+                --body-text-color: var(--primary-4-text);
+                --header-background-color: var(--primary-2);
+                --header-text-color: var(--primary-2-text);
+            }
 
-    :root {
-        --body-background-color : var(--primary-4);
-        --body-text-color : var(--primary-4-text);
-        --header-background-color : var(--primary-2);
-        --header-text-color : var(--primary-2-text);
-    }
+            :root {
+                --disabled-text-opacity: 0.5;
+                --text-opacity: 0.7;
+                --button-text-color: var(--primary-2-text);
+                --button-text-opacity: 0.8;
+                --button-background-color: var(--primary-2);
+                --button-background-opacity: 1;
+                --input-background-color: var(--primary-1);
+                --input-text-color: var(--primary-1-text);
+                --close-icon-font-size: 18pt;
+                --selection-background-color: var(--complement-0);
+            }
 
-    :root {
-        --disabled-text-opacity : 0.5;
-        --text-opacity : 0.7;
-        --button-text-color : var(--primary-2-text);
-        --button-text-opacity : 0.8;
-        --button-background-color : var(--primary-2);
-        --button-background-opacity : 1;
-        --input-background-color : var(--primary-1);
-        --input-text-color : var(--primary-1-text);
-        --close-icon-font-size : 18pt;
-        --selection-background-color : var(--complement-0);
-    }
+            :root {
+                --primary-0: 56, 54, 41;
+                --primary-1: 134, 129, 103;
+                --primary-2: 96, 92, 74;
+                --primary-3: 52, 48, 30;
+                --primary-4: 47, 43, 21;
 
-    :root {
-        --primary-0: 56, 54, 41;
-        --primary-1: 134,129, 103;
-        --primary-2: 96, 92, 74;
-        --primary-3: 52, 48, 30;
-        --primary-4: 47, 43, 21;
+                --primary-0-text: 255, 255, 255;
+                --primary-1-text: 255, 255, 255;
+                --primary-2-text: 255, 255, 255;
+                --primary-3-text: 255, 255, 255;
+                --primary-4-text: 255, 255, 255;
 
-        --primary-0-text: 255, 255, 255;
-        --primary-1-text: 255, 255, 255;
-        --primary-2-text: 255, 255, 255;
-        --primary-3-text: 255, 255, 255;
-        --primary-4-text: 255, 255, 255;
+                --complement-0: 57, 20, 175;
+                --complement-1: 115, 90, 195;
+                --complement-2: 86, 56, 180;
+                --complement-3: 43, 14, 136;
+                --complement-4: 32, 9, 106;
 
-        --complement-0: 57, 20,175;	
-        --complement-1: 115, 90,195;
-        --complement-2: 86, 56,180;
-        --complement-3: 43, 14,136;
-        --complement-4: 32,  9,106;
+                --complement-0-text: 255, 255, 255;
+                --complement-1-text: 255, 255, 255;
+                --complement-2-text: 255, 255, 255;
+                --complement-3-text: 255, 255, 255;
+                --complement-4-text: 255, 255, 255;
+            }
 
-        --complement-0-text: 255, 255, 255;
-        --complement-1-text: 255, 255, 255;
-        --complement-2-text: 255, 255, 255;
-        --complement-3-text: 255, 255, 255;
-        --complement-4-text: 255, 255, 255;
-    }
+            kbd {
+                background-color: #eee;
+                border-radius: 3px;
+                border: 1px solid #b4b4b4;
+                box-shadow: 0 1px 1px rgba(0, 0, 0, 0.2),
+                    0 2px 0 0 rgba(255, 255, 255, 0.7) inset;
+                color: #333;
+                display: inline-block;
+                font-size: 0.85em;
+                font-weight: 700;
+                line-height: 1;
+                padding: 2px 4px;
+                white-space: nowrap;
+            }
 
-
-    kbd {
-        background-color: #eee;
-        border-radius: 3px;
-        border: 1px solid #b4b4b4;
-        box-shadow: 0 1px 1px rgba(0, 0, 0, .2), 0 2px 0 0 rgba(255, 255, 255, .7) inset;
-        color: #333;
-        display: inline-block;
-        font-size: .85em;
-        font-weight: 700;
-        line-height: 1;
-        padding: 2px 4px;
-        white-space: nowrap;
-    }
-
-    /* kbd {
+            /* kbd {
         display: inline-block;
         margin: 0 .1em;
         padding: .1em .6em;
@@ -325,106 +329,162 @@
         box-shadow: 0 1px 1px rgba(12,13,14,0.15),inset 0 1px 0 0 var(--white);
         white-space: nowrap;
     } */
+        </style>
+    </head>
 
+    <body style="overflow: hidden">
+        <sseq-ui>
+            <sseq-chart style="flex-grow: 1">
+                <sseq-axes></sseq-axes>
+                <sseq-bidegree-highlighter></sseq-bidegree-highlighter>
+                <sseq-class-highlighter></sseq-class-highlighter>
+                <sseq-page-indicator
+                    style="
+                        position: absolute;
+                        left: 60px;
+                        top: 0px;
+                        font-family: Arial;
+                        font-size: 15px;
+                    "
+                ></sseq-page-indicator>
+                <sseq-tooltip></sseq-tooltip>
+            </sseq-chart>
+            <sseq-sidebar max-width="400" initial-width="280" closed>
+                <div id="names" tab="Names"></div>
+                <sseq-button
+                    slot="footer"
+                    class="help-btn"
+                    style="
+                        padding-left: 0.5rem;
+                        padding-right: 0.5rem;
+                        margin-bottom: 10px;
+                        align-self: center;
+                    "
+                >
+                    Help
+                </sseq-button>
+            </sseq-sidebar>
+            <sseq-popup>
+                <span slot="header"></span>
+                <div slot="body"></div>
+            </sseq-popup>
+            <sseq-popup modal class="help">
+                <span slot="header"><h4>Help</h4></span>
+                <div slot="body"></div>
+                <div slot="buttons">
+                    <sseq-button class="cancel">close</sseq-button>
+                </div>
+            </sseq-popup>
+            <div class="status-indicator"></div>
+        </sseq-ui>
 
+        <script>
+            let keybindings = [
+                [
+                    'General',
+                    [
+                        ['<kbd>t</kbd>', 'Take the console'],
+                        ['<kbd>h</kbd>', 'Show this help window'],
+                        ['<kbd>z</kbd>', 'Undo'],
+                        ['<kbd>Shift ⇧</kbd> + <kbd>z</kbd>', 'Redo'],
+                    ],
+                ],
+                [
+                    'Chart',
+                    [
+                        [
+                            '<kbd>w</kbd> <kbd>a</kbd> <kbd>s</kbd> <kbd>d</kbd>',
+                            'Pan chart content',
+                        ],
+                        ['<kbd>+</kbd> <kbd>-</kbd>', 'Zoom in and out'],
+                        [
+                            '<kbd>]</kbd> <kbd>[</kbd>',
+                            'Zoom x direction in and out',
+                        ],
+                        [
+                            '<kbd>}</kbd> <kbd>{</kbd>',
+                            'Zoom y direction in and out',
+                        ],
+                        [
+                            '<kbd>↑</kbd> <kbd>←</kbd> <kbd>↓</kbd> <kbd>→</kbd>',
+                            'Move selected bidegree',
+                        ],
+                        ['<kbd>Home</kbd>', 'Move to bidegree (0,0)'],
+                        [
+                            '<kbd>m</kbd>',
+                            'Select next bidegree that contains an element that is decomposable but not divisible by <katex-expr>h_i</katex-expr>',
+                        ],
+                        [
+                            '<kbd>n</kbd>',
+                            'Select next bidegree containing an indecomposable element',
+                        ],
+                    ],
+                ],
+                [
+                    'Interface',
+                    [
+                        ['<kbd>Tab ↹</kbd>', 'Move to next control'],
+                        [
+                            '<kbd>Shift ⇧</kbd> + <kbd>Tab ↹</kbd>',
+                            'Move to previous control',
+                        ],
+                        ['<kbd>Space</kbd>', 'Toggle'],
+                        ['<kbd>Enter ↵</kbd>', 'Submit'],
+                        ['<kbd>Esc</kbd>', 'Cancel'],
+                        ['<kbd>1</kbd> - <kbd>9</kbd>', 'Focus sidebar group'],
+                        ['<kbd>0</kbd>', 'Focus popup'],
+                    ],
+                ],
+                [
+                    'Matrix Popup',
+                    [
+                        [
+                            '<kbd>↑</kbd> <kbd>←</kbd> <kbd>↓</kbd> <kbd>→</kbd>',
+                            'Move selected entry',
+                        ],
+                        ['<kbd>0</kbd> <kbd>1</kbd>', 'Update selected entry'],
+                        [
+                            '<kbd>Ctrl</kbd> + <kbd>↑</kbd>, <kbd>Ctrl</kbd> + <kbd>↓</kbd>',
+                            'Swap selected row up / down',
+                        ],
+                        [
+                            '<kbd>Ctrl</kbd> + <kbd>C</kbd>, <kbd>Ctrl</kbd> + <kbd>V</kbd>',
+                            'Copy / paste selected row',
+                        ],
+                    ],
+                ],
+            ];
 
-</style>
-</head>
-
-<body style="overflow: hidden;">
-    <sseq-ui>
-        <sseq-chart  style="flex-grow: 1;">
-            <sseq-axes></sseq-axes>
-            <sseq-bidegree-highlighter></sseq-bidegree-highlighter>
-            <sseq-class-highlighter></sseq-class-highlighter>
-            <sseq-page-indicator style="position: absolute; left: 60px; top: 0px; font-family: Arial; font-size: 15px;"></sseq-page-indicator>
-            <sseq-tooltip></sseq-tooltip>
-        </sseq-chart>
-        <sseq-sidebar max-width=400 initial-width=280 closed>
-            <div id="names" tab="Names">
-            </div>
-            <sseq-button slot="footer" class="help-btn" 
-                style="
-                    padding-left: 0.5rem; 
-                    padding-right: 0.5rem; 
-                    margin-bottom : 10px; 
-                    align-self: center;
-                ">
-                Help
-            </sseq-button>  
-        </sseq-sidebar>
-        <sseq-popup>
-            <span slot="header"></span>
-            <div slot="body"></div>
-        </sseq-popup>
-        <sseq-popup modal class="help">
-            <span slot="header"><h4>Help</h4></span>
-            <div slot="body">
-            </div>
-            <div slot="buttons">
-                <sseq-button class="cancel">close</sseq-button>
-            </div>
-        </sseq-popup>
-        <div class="status-indicator"></div>
-    </sseq-ui>
-
-    <script>
-        let keybindings = [
-            ["General", [
-                ["<kbd>t</kbd>", "Take the console"],
-                ["<kbd>h</kbd>", "Show this help window"],
-                ["<kbd>z</kbd>", "Undo"],
-                ["<kbd>Shift ⇧</kbd> + <kbd>z</kbd>", "Redo"],
-            ]],
-            ["Chart", [
-                ["<kbd>w</kbd> <kbd>a</kbd> <kbd>s</kbd> <kbd>d</kbd>", "Pan chart content"],
-                ["<kbd>+</kbd> <kbd>-</kbd>", "Zoom in and out"],
-                ["<kbd>]</kbd> <kbd>[</kbd>", "Zoom x direction in and out"],
-                ["<kbd>}</kbd> <kbd>{</kbd>", "Zoom y direction in and out"],
-                ["<kbd>↑</kbd> <kbd>←</kbd> <kbd>↓</kbd> <kbd>→</kbd>", "Move selected bidegree"],
-                ["<kbd>Home</kbd>", "Move to bidegree (0,0)"],
-                ["<kbd>m</kbd>", "Select next bidegree that contains an element that is decomposable but not divisible by <katex-expr>h_i</katex-expr>"],
-                ["<kbd>n</kbd>", "Select next bidegree containing an indecomposable element"],
-            ]],
-            ["Interface", [
-                ["<kbd>Tab ↹</kbd>", "Move to next control"],
-                ["<kbd>Shift ⇧</kbd> + <kbd>Tab ↹</kbd>", "Move to previous control"],
-                ["<kbd>Space</kbd>", "Toggle"],
-                ["<kbd>Enter ↵</kbd>", "Submit"],
-                ["<kbd>Esc</kbd>", "Cancel"],
-                ["<kbd>1</kbd> - <kbd>9</kbd>", "Focus sidebar group"],
-                ["<kbd>0</kbd>", "Focus popup"],
-            ]],
-            ["Matrix Popup", [
-                ["<kbd>↑</kbd> <kbd>←</kbd> <kbd>↓</kbd> <kbd>→</kbd>", "Move selected entry"],
-                ["<kbd>0</kbd> <kbd>1</kbd>", "Update selected entry"],
-                ["<kbd>Ctrl</kbd> + <kbd>↑</kbd>, <kbd>Ctrl</kbd> + <kbd>↓</kbd>", "Swap selected row up / down"],
-                ["<kbd>Ctrl</kbd> + <kbd>C</kbd>, <kbd>Ctrl</kbd> + <kbd>V</kbd>", "Copy / paste selected row"]
-            ]]   
-        ]
-
-        document.querySelector(".help [slot=body]").innerHTML =
-            `<div>
-                    ${keybindings.map(([group, controls]) => `
+            document.querySelector('.help [slot=body]').innerHTML = `<div>
+                    ${keybindings
+                        .map(
+                            ([group, controls]) => `
                     <div>
                         <h4>${group}</h4>  
                         <dl>
-                        ${controls.map(([key, description]) => `
+                        ${controls
+                            .map(
+                                ([key, description]) => `
                             <dt>${key} :</dt>
                             <dd>${description}</dd>
                             <span style="display:block"></span>
-                        `).join("\n")}
+                        `,
+                            )
+                            .join('\n')}
                         </dl>
                     </div>
-                `).join("\n")}
+                `,
+                        )
+                        .join('\n')}
             </div>`;
-        
-            
 
-        window.chart_name = "{{chart_name}}";
+            window.chart_name = '{{chart_name}}';
 
-        let replDisplayUI = new ReplDisplayUI(document.querySelector("sseq-ui"), chart_name);
-        replDisplayUI.start();
-    </script>
-</body>
+            let replDisplayUI = new ReplDisplayUI(
+                document.querySelector('sseq-ui'),
+                chart_name,
+            );
+            replDisplayUI.start();
+        </script>
+    </body>
 </html>

@@ -51,7 +51,8 @@ a > .hljs {
 #menu-bar.bordered {
     border-bottom-color: var(--table-border-color);
 }
-#menu-bar i, #menu-bar .icon-button {
+#menu-bar i,
+#menu-bar .icon-button {
     position: relative;
     padding: 0 8px;
     z-index: 10;
@@ -60,7 +61,8 @@ a > .hljs {
     transition: color 0.5s;
 }
 @media only screen and (max-width: 420px) {
-    #menu-bar i, #menu-bar .icon-button {
+    #menu-bar i,
+    #menu-bar .icon-button {
         padding: 0 5px;
     }
 }
@@ -176,13 +178,21 @@ a > .hljs {
 }
 
 @media only screen and (max-width: 1080px) {
-    .nav-wide-wrapper { display: none; }
-    .nav-wrapper { display: block; }
+    .nav-wide-wrapper {
+        display: none;
+    }
+    .nav-wrapper {
+        display: block;
+    }
 }
 
 @media only screen and (max-width: 1380px) {
-    .sidebar-visible .nav-wide-wrapper { display: none; }
-    .sidebar-visible .nav-wrapper { display: block; }
+    .sidebar-visible .nav-wide-wrapper {
+        display: none;
+    }
+    .sidebar-visible .nav-wrapper {
+        display: block;
+    }
 }
 
 /* Inline code */
@@ -246,7 +256,7 @@ mark {
 }
 
 mark.fade-out {
-    background-color: rgba(0,0,0,0) !important;
+    background-color: rgba(0, 0, 0, 0) !important;
     cursor: auto;
 }
 
@@ -442,8 +452,12 @@ ul#searchresults span.teaser em {
 }
 
 @media (-moz-touch-enabled: 1), (pointer: coarse) {
-    .chapter li a { padding: 5px 0; }
-    .spacer { margin: 10px 0; }
+    .chapter li a {
+        padding: 5px 0;
+    }
+    .spacer {
+        margin: 10px 0;
+    }
 }
 
 .section {

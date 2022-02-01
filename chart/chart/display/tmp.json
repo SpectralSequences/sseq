@@ -1,0 +1,41 @@
+{
+    "type": "ChartClass",
+    "degree": [0, 0],
+    "idx": 0,
+    "uuid": "4c659141-36f2-464c-823d-7d019bce447c",
+    "name": { "type": "PageProperty", "values": [[-65535, ""]] },
+    "max_page": 65535,
+    "shape": {
+        "type": "PageProperty",
+        "values": [
+            [
+                -65535,
+                {
+                    "circle_gap": 0,
+                    "include_background": true,
+                    "innerShape": { "ty": "empty" },
+                    "name": "stdcircle",
+                    "num_circles": 1,
+                    "operation": "circled",
+                    "padding": 5,
+                    "ty": "composed"
+                }
+            ]
+        ]
+    },
+    "background_color": {
+        "type": "PageProperty",
+        "values": [[-65535, [0, 0, 0]]]
+    },
+    "border_color": { "type": "PageProperty", "values": [[-65535, [0, 0, 0]]] },
+    "border_width": { "type": "PageProperty", "values": [[-65535, 2]] },
+    "foreground_color": {
+        "type": "PageProperty",
+        "values": [[-65535, [0, 0, 0]]]
+    },
+    "scale": { "type": "PageProperty", "values": [[-65535, 1]] },
+    "visible": { "type": "PageProperty", "values": [[-65535, true]] },
+    "x_nudge": { "type": "PageProperty", "values": [[-65535, 0]] },
+    "y_nudge": { "type": "PageProperty", "values": [[-65535, 0]] },
+    "user_data": {}
+}

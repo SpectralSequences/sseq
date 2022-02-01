@@ -1,26 +1,26 @@
-import {LitElement, html, css} from 'lit-element';
+import { LitElement, html, css } from 'lit-element';
 import { ifDefined } from 'lit-html/directives/if-defined';
 // import {unsafeHTML} from 'lit-html/directives/unsafe-html.js';
 // import { KatexExprElement } from "../KatexExprElement.js";
-import { promiseFromDomEvent } from "./utils.js";
+import { promiseFromDomEvent } from './utils.js';
 
 export class MatrixElement extends LitElement {
     static get properties() {
-        return { 
-            value : { type: Array },
-            selectedRows : { type : Array },
-            enabledRows : { type : Array }
+        return {
+            value: { type: Array },
+            selectedRows: { type: Array },
+            enabledRows: { type: Array },
         };
     }
 
     static get styles() {
         return css`
             :host {
-                color : rgba(var(--text-color), var(--text-opacity));
+                color: rgba(var(--text-color), var(--text-opacity));
             }
 
             ::selection {
-                background : rgba(var(--selection-background-color), 1);
+                background: rgba(var(--selection-background-color), 1);
             }
 
             /*tr {
@@ -28,20 +28,21 @@ export class MatrixElement extends LitElement {
                 border-top-style: double;
                 border-top-width: var(--focus-outline-thickness);
             }*/
-    
+
             /*tr:last-child {
                 border-bottom-color: rgba(0,0,0,0);
                 border-bottom-style: double;
                 border-bottom-width: var(--focus-outline-thickness);
             }*/
-    
+
             :focus {
                 /*border-color: var(--focus-outline-color);
                 border-style: double;
                 border-width: 2px;*/
-                --test : var(--focus-outline-color);
+                --test: var(--focus-outline-color);
                 border: var(--focus-outline-thickness) solid purple;
-                outline : var(--focus-outline-color) solid var(--focus-outline-thickness);
+                outline: var(--focus-outline-color) solid
+                    var(--focus-outline-thickness);
             }
 
             .matrixbrak {
@@ -53,7 +54,7 @@ export class MatrixElement extends LitElement {
             }
 
             .row {
-                margin-left : -var(--label-width);
+                margin-left: -var(--label-width);
             }
 
             td.lbrak {
@@ -83,7 +84,7 @@ export class MatrixElement extends LitElement {
             td {
                 text-align: center;
                 line-height: 1.2rem;
-                padding : 2px;
+                padding: 2px;
                 user-select: none;
             }
 
@@ -93,8 +94,8 @@ export class MatrixElement extends LitElement {
                 height: 1.2rem;
                 /* We want this to be above lbrak and rbrak so we use z-index
                    z-index only applies to positioned elements, so set position to relative. */
-                position : relative; 
-                z-index : 100;
+                position: relative;
+                z-index: 100;
             }
 
             td .entry {
@@ -103,69 +104,69 @@ export class MatrixElement extends LitElement {
             }
 
             td .label-entry {
-                display : flex;
-                flex-direction : row-reverse;
-                padding-right : 10pt;
+                display: flex;
+                flex-direction: row-reverse;
+                padding-right: 10pt;
             }
 
             input {
-                width : 1.5rem;
+                width: 1.5rem;
                 height: 1.5rem;
                 padding: 0;
                 text-align: center;
                 margin: 0;
                 background-color: rgba(var(--input-background-color), 1);
-                color : rgba(var(--input-text-color), 1);                
+                color: rgba(var(--input-text-color), 1);
             }
 
-            input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-inner-spin-button {
+            input[type='number']::-webkit-outer-spin-button,
+            input[type='number']::-webkit-inner-spin-button {
                 -webkit-appearance: none;
                 margin: 0;
             }
-            
-            input[type="number"] {
+
+            input[type='number'] {
                 -moz-appearance: textfield;
             }
 
-            :host([type="select-row"]) .row:active, :host([type="select-row"]) .row.active {
+            :host([type='select-row']) .row:active,
+            :host([type='select-row']) .row.active {
                 box-shadow: 0px 2px 2px -1px var(--row-active);
-                background-color : var(--row-active) !important;
-                color : rgba(var(--text-color), 1);
+                background-color: var(--row-active) !important;
+                color: rgba(var(--text-color), 1);
             }
 
-            :host([type="select-row"]) .row[disabled] {
-                --text-opacity : var(--disabled-text-opacity);
-                color : rgba(var(--text-color), var(--text-opacity));
-                pointer-events : none;
+            :host([type='select-row']) .row[disabled] {
+                --text-opacity: var(--disabled-text-opacity);
+                color: rgba(var(--text-color), var(--text-opacity));
+                pointer-events: none;
             }
 
-            :host([type="select-row"]) .row:hover:not([disabled]) {
-                background-color : var(--row-hover) !important;
-                color : rgba(var(--text-color), 1);
+            :host([type='select-row']) .row:hover:not([disabled]) {
+                background-color: var(--row-hover) !important;
+                color: rgba(var(--text-color), 1);
             }
 
-            :host([type="select-row"]) .row:hover:active, :host([type="select-row"]) .row:hover.active {
-                background-color : var(--row-active) !important;
-            }            
-            
-            :host([type="select-row"]) .row[selected] {
-                background-color : var(--row-selected);
-                color : rgba(var(--text-color), 1);
+            :host([type='select-row']) .row:hover:active,
+            :host([type='select-row']) .row:hover.active {
+                background-color: var(--row-active) !important;
             }
 
-            :host([type="select-row"]) .row:hover:active[selected], :host([type="select-row"]) .row.active[selected] {
+            :host([type='select-row']) .row[selected] {
+                background-color: var(--row-selected);
+                color: rgba(var(--text-color), 1);
+            }
+
+            :host([type='select-row']) .row:hover:active[selected],
+            :host([type='select-row']) .row.active[selected] {
                 box-shadow: 0px 2px 2px -1px var(--row-active-selected);
-                background-color : var(--row-active-selected) !important;
+                background-color: var(--row-active-selected) !important;
             }
 
-            :host([type="select-row"]) .row:hover[selected] { 
-                background-color : var(--row-hover-selected) !important;
+            :host([type='select-row']) .row:hover[selected] {
+                background-color: var(--row-hover-selected) !important;
             }
-            
 
-
-            
-            
             /*
             .row:active td.padding,  .row:active td.entry {
                 box-shadow: 0px 2px 2px -1px var(--row-active);
@@ -188,10 +189,10 @@ export class MatrixElement extends LitElement {
             .row:hover[selected]  td.padding,  .row:hover[selected]  td.entry {
                 background-color : var(--row-hover-selected) !important;
             }  */
-        `
+        `;
     }
 
-    constructor(){
+    constructor() {
         super();
         this._handleMouseEvent = this._handleMouseEvent.bind(this);
         this.value = [];
@@ -199,129 +200,212 @@ export class MatrixElement extends LitElement {
         this.selectedRows = [];
     }
 
-    firstUpdated(changedProperties){
-        this.addEventListener("matrix-click", (e) => {
+    firstUpdated(changedProperties) {
+        this.addEventListener('matrix-click', e => {
             this.toggleRowSelect(e.detail.row_idx);
         });
-        this.addEventListener("interact-toggle", (e) => {
+        this.addEventListener('interact-toggle', e => {
             e.stopPropagation();
             this.toggle(e);
         });
     }
 
-    get type(){
-        return this.getAttribute("type");
+    get type() {
+        return this.getAttribute('type');
     }
 
-    get max_value(){
-        return this.getAttribute("max-value") || 1;
+    get max_value() {
+        return this.getAttribute('max-value') || 1;
     }
 
-    get labels(){
+    get labels() {
         return this._labels;
     }
 
-    set labels(v){
-        if(!this._labels){
+    set labels(v) {
+        if (!this._labels) {
             this._labels = v;
             this.requestUpdate();
             return;
         }
         this._labels = v;
-        let label_entries = this.shadowRoot.querySelectorAll(".label-entry katex-expr");
-        v.forEach((v, idx) => { label_entries[idx].innerText = v });
+        let label_entries = this.shadowRoot.querySelectorAll(
+            '.label-entry katex-expr',
+        );
+        v.forEach((v, idx) => {
+            label_entries[idx].innerText = v;
+        });
     }
 
-    async toggle(e){
+    async toggle(e) {
         let elt = this.shadowRoot.activeElement;
-        if(!elt) {
-            return
-        }
-        if(e.constructor === CustomEvent) {
-            e = e.detail.originalEvent;
-        }
-        if(e.constructor === KeyboardEvent){
-            elt.classList.add("active");
-            await promiseFromDomEvent(window, "keyup", (keyupEvent) => keyupEvent.key === e.key);
-            elt.classList.remove("active");
-            this.toggleRowSelect(parseInt(elt.getAttribute("pos")));
-        }        
-    }
-
-    toggleRowSelect(row){
-        if(this.type !== "select-row"){
+        if (!elt) {
             return;
         }
-        if(this.enabledRows){
-            if(!this.enabledRows[row]){
+        if (e.constructor === CustomEvent) {
+            e = e.detail.originalEvent;
+        }
+        if (e.constructor === KeyboardEvent) {
+            elt.classList.add('active');
+            await promiseFromDomEvent(
+                window,
+                'keyup',
+                keyupEvent => keyupEvent.key === e.key,
+            );
+            elt.classList.remove('active');
+            this.toggleRowSelect(parseInt(elt.getAttribute('pos')));
+        }
+    }
+
+    toggleRowSelect(row) {
+        if (this.type !== 'select-row') {
+            return;
+        }
+        if (this.enabledRows) {
+            if (!this.enabledRows[row]) {
                 return;
             }
         }
-        if(this.selectedRows.includes(row)){
+        if (this.selectedRows.includes(row)) {
             this.selectedRows = [];
         } else {
             this.selectedRows = [row];
         }
-        this.dispatchEvent(new CustomEvent("matrix-select", { "detail" : this.selectedRows }));
+        this.dispatchEvent(
+            new CustomEvent('matrix-select', { detail: this.selectedRows }),
+        );
         this.requestUpdate();
     }
 
-    render(){
+    render() {
         let rows = this.value.length;
         let columns = rows > 0 ? this.value[0].length : 0;
-        let selectedEntries = new Array(rows).fill(0).map(() => new Array(columns).fill(false));
-        for(let i of this.selectedRows){
-            for(let j = 0; j < columns; j++){
+        let selectedEntries = new Array(rows)
+            .fill(0)
+            .map(() => new Array(columns).fill(false));
+        for (let i of this.selectedRows) {
+            for (let j = 0; j < columns; j++) {
                 selectedEntries[i][j] = true;
             }
         }
         let enabledRows = this.enabledRows || Array(rows).fill(true);
-        let rowTabIndices = enabledRows.map( e => (this.type === "select-row") && e ? 0 : undefined);
+        let rowTabIndices = enabledRows.map(e =>
+            this.type === 'select-row' && e ? 0 : undefined,
+        );
         return html`
-<table class="matrixbrak" 
-        @click=${this._handleMouseEvent} @dblclick=${this._handleMouseEvent} @contextmenu=${this._handleMouseEvent} 
-        @mousedown=${this._handleMouseEvent} @mouseup=${this._handleMouseEvent}
-        @mouseover=${this._handleMouseEvent} @mouseout=${this._handleMouseEvent}
-        @mouseenter=${this._handleMouseEvent} @mouseleave=${this._handleMouseEvent}
-        @mousemove=${this._handleMouseEvent}
->
-<tbody>
-    <tr>
-        <!-- ${  
-            this.labels ? html`
-                <td><table class="labels"><tbody>
-                    ${this.labels.map((label, ridx) => html`
-                        <tr class="label-row" pos="${ridx}"><td class="label-entry" pos="${ridx}"><span style="flex-grow:1;"></span><katex-expr>${label}</katex-expr></td></tr>
-                    `)}
-                </tbody></table></td>
-            ` : ""
-        } -->
-        <td class="lbrak">&nbsp;</td>
-        <td> <table class="matrix"><tbody>
-            ${
-                this.value.map((r, ridx) => html`
-                    <tr class="row" pos="${ridx}" 
-                        tabindex="${ifDefined(rowTabIndices[ridx])}" 
-                        ?selected=${this.selectedRows.includes(ridx)} 
-                        ?focus=${enabledRows[ridx]} 
-                        ?disabled=${!enabledRows[ridx]} 
-                    >
-                    ${  this.labels ?
-                        html`<td class="label-entry" pos="${ridx}"><div><katex-expr>${this.labels[ridx]}</katex-expr></div></td>`
-                    :""}
-                        <td class="padding" ?selected=${this.selectedRows.includes(ridx)}></td>
-                        ${r.map((e, colidx) => 
-                            html`<td class="entry" pos="${ridx}-${colidx}" ?selected=${selectedEntries[ridx][colidx]}>${this.wrapEntry(e)}</td>`
-                        )}
-                        <td class="padding" ?selected=${this.selectedRows.includes(ridx)}></td>
+            <table
+                class="matrixbrak"
+                @click=${this._handleMouseEvent}
+                @dblclick=${this._handleMouseEvent}
+                @contextmenu=${this._handleMouseEvent}
+                @mousedown=${this._handleMouseEvent}
+                @mouseup=${this._handleMouseEvent}
+                @mouseover=${this._handleMouseEvent}
+                @mouseout=${this._handleMouseEvent}
+                @mouseenter=${this._handleMouseEvent}
+                @mouseleave=${this._handleMouseEvent}
+                @mousemove=${this._handleMouseEvent}
+            >
+                <tbody>
+                    <tr>
+                        <!-- ${this.labels
+                            ? html`
+                                  <td>
+                                      <table class="labels">
+                                          <tbody>
+                                              ${this.labels.map(
+                                                  (label, ridx) => html`
+                                                      <tr
+                                                          class="label-row"
+                                                          pos="${ridx}"
+                                                      >
+                                                          <td
+                                                              class="label-entry"
+                                                              pos="${ridx}"
+                                                          >
+                                                              <span
+                                                                  style="flex-grow:1;"
+                                                              ></span
+                                                              ><katex-expr
+                                                                  >${label}</katex-expr
+                                                              >
+                                                          </td>
+                                                      </tr>
+                                                  `,
+                                              )}
+                                          </tbody>
+                                      </table>
+                                  </td>
+                              `
+                            : ''} -->
+                        <td class="lbrak">&nbsp;</td>
+                        <td>
+                            <table class="matrix">
+                                <tbody>
+                                    ${this.value.map(
+                                        (r, ridx) => html`
+                                            <tr
+                                                class="row"
+                                                pos="${ridx}"
+                                                tabindex="${ifDefined(
+                                                    rowTabIndices[ridx],
+                                                )}"
+                                                ?selected=${this.selectedRows.includes(
+                                                    ridx,
+                                                )}
+                                                ?focus=${enabledRows[ridx]}
+                                                ?disabled=${!enabledRows[ridx]}
+                                            >
+                                                ${this.labels
+                                                    ? html`<td
+                                                          class="label-entry"
+                                                          pos="${ridx}"
+                                                      >
+                                                          <div>
+                                                              <katex-expr
+                                                                  >${this
+                                                                      .labels[
+                                                                      ridx
+                                                                  ]}</katex-expr
+                                                              >
+                                                          </div>
+                                                      </td>`
+                                                    : ''}
+                                                <td
+                                                    class="padding"
+                                                    ?selected=${this.selectedRows.includes(
+                                                        ridx,
+                                                    )}
+                                                ></td>
+                                                ${r.map(
+                                                    (e, colidx) =>
+                                                        html`<td
+                                                            class="entry"
+                                                            pos="${ridx}-${colidx}"
+                                                            ?selected=${selectedEntries[
+                                                                ridx
+                                                            ][colidx]}
+                                                        >
+                                                            ${this.wrapEntry(e)}
+                                                        </td>`,
+                                                )}
+                                                <td
+                                                    class="padding"
+                                                    ?selected=${this.selectedRows.includes(
+                                                        ridx,
+                                                    )}
+                                                ></td>
+                                            </tr>
+                                        `,
+                                    )}
+                                </tbody>
+                            </table>
+                        </td>
+                        <td class="rbrak">&nbsp;</td>
                     </tr>
-                `)
-            }
-        </tbody></table></td>
-        <td class="rbrak">&nbsp;</td>
-    </tr>
-</tbody></table>
-        `
+                </tbody>
+            </table>
+        `;
     }
 
     updated(changedProperties) {
@@ -331,169 +415,206 @@ export class MatrixElement extends LitElement {
         //         row.tabIndex = 0;
         //     }
         // }
-        let label_entry = this.shadowRoot.querySelector(".label-entry");
-        if(label_entry){
-            if(!this.resizeObserver) {
+        let label_entry = this.shadowRoot.querySelector('.label-entry');
+        if (label_entry) {
+            if (!this.resizeObserver) {
                 this.resizeObserver = new ResizeObserver(entries => {
-                    this.style.setProperty("--label-width", `${label_entry.offsetWidth}px`);
+                    this.style.setProperty(
+                        '--label-width',
+                        `${label_entry.offsetWidth}px`,
+                    );
                 });
             }
-            this.resizeObserver.observe(label_entry);      
+            this.resizeObserver.observe(label_entry);
         }
     }
 
-    getEntry(e){
+    getEntry(e) {
         let path = e.composedPath();
         // if(e.type === "mouseover"){
         //     this.lastTarget = target;
         // }
-        if(path[1].className !== "row"){
+        if (path[1].className !== 'row') {
             return;
         }
-        let row_idx = Number.parseInt(path[1].getAttribute("pos"));
+        let row_idx = Number.parseInt(path[1].getAttribute('pos'));
         let result = {};
         result.originalEvent = e;
         result.row_idx = row_idx;
-        result.row = this.shadowRoot.querySelectorAll(".row")[row_idx];
-        if(path[0].className === "entry") {
-            let col_idx = Number.parseInt(path[0].getAttribute("pos").split("-")[1]);
+        result.row = this.shadowRoot.querySelectorAll('.row')[row_idx];
+        if (path[0].className === 'entry') {
+            let col_idx = Number.parseInt(
+                path[0].getAttribute('pos').split('-')[1],
+            );
             result.col_idx = col_idx;
-            result.entry = result.row.querySelectorAll(".entry")[col_idx];
+            result.entry = result.row.querySelectorAll('.entry')[col_idx];
         }
         return result;
     }
 
-    _handleMouseEvent(e){
+    _handleMouseEvent(e) {
         let detail = this.getEntry(e);
-        if(!detail){
+        if (!detail) {
             return;
         }
-        this.dispatchEvent(new CustomEvent(`matrix-${e.type}`, { 
-            detail: detail,
-            bubbles: true, 
-            composed: true 
-        }));
+        this.dispatchEvent(
+            new CustomEvent(`matrix-${e.type}`, {
+                detail: detail,
+                bubbles: true,
+                composed: true,
+            }),
+        );
     }
 
-    getEntryInput(row, col){
+    getEntryInput(row, col) {
         return this.shadowRoot.querySelector(`[pos='${row}-${col}'] input`);
     }
 
-    updateEntryInput(row, col){
-        this.getEntryInput(row, col).value  = this.value[row][col]
+    updateEntryInput(row, col) {
+        this.getEntryInput(row, col).value = this.value[row][col];
     }
 
-    focusEntryInput(row, col){
+    focusEntryInput(row, col) {
         let target = this.getEntryInput(row, col);
-        if(target){
+        if (target) {
             target.focus();
         }
     }
-    
-    _inputKeydown(e){
+
+    _inputKeydown(e) {
         let path = e.composedPath();
-        if(["Backspace", "Delete"].includes(e.code)){
-            e.preventDefault();    
+        if (['Backspace', 'Delete'].includes(e.code)) {
+            e.preventDefault();
         }
-        if(!e.code.startsWith("Arrow")){
+        if (!e.code.startsWith('Arrow')) {
             return;
         }
         e.preventDefault();
-        let [row, col] = path[1].getAttribute("pos").split("-").map((x) => parseInt(x));
-        let direction = e.code.slice("Arrow".length).toLowerCase();
-        let dr = {"up" : -1, "down" : 1, "left" : 0, "right" : 0}[direction];
-        let dc = {"up" : 0, "down" : 0, "left" : -1, "right" : 1}[direction];
+        let [row, col] = path[1]
+            .getAttribute('pos')
+            .split('-')
+            .map(x => parseInt(x));
+        let direction = e.code.slice('Arrow'.length).toLowerCase();
+        let dr = { up: -1, down: 1, left: 0, right: 0 }[direction];
+        let dc = { up: 0, down: 0, left: -1, right: 1 }[direction];
         let targetRow = row + dr;
         let targetCol = col + dc;
-        if(e.ctrlKey){
-            if(dr === 0 || targetRow < 0 || targetRow >= this.value.length ){
+        if (e.ctrlKey) {
+            if (dr === 0 || targetRow < 0 || targetRow >= this.value.length) {
                 return;
             }
             let curRow = this.value[row];
             let swapRow = this.value[targetRow];
             this.value[row] = swapRow;
             this.value[targetRow] = curRow;
-            for(let i = 0; i < curRow.length; i++){
+            for (let i = 0; i < curRow.length; i++) {
                 this.updateEntryInput(row, i);
                 this.updateEntryInput(targetRow, i);
             }
-            this.dispatchEvent(new CustomEvent("change"));
+            this.dispatchEvent(new CustomEvent('change'));
         }
         this.focusEntryInput(targetRow, targetCol);
     }
 
-    _inputKeypress(e){
+    _inputKeypress(e) {
         e.preventDefault();
         let path = e.composedPath();
         let value = parseInt(e.key);
-        if(isNaN(value)){
+        if (isNaN(value)) {
             return;
         }
         let digit = parseInt(e.key);
-        if(digit <= this.max_value){
+        if (digit <= this.max_value) {
             path[0].value = digit;
             path[0].select();
-            let [row, col] = path[1].getAttribute("pos").split("-").map((x) => parseInt(x));
+            let [row, col] = path[1]
+                .getAttribute('pos')
+                .split('-')
+                .map(x => parseInt(x));
             this.value[row][col] = digit;
-            this.dispatchEvent(new CustomEvent("change", { detail : { row : row, col : col } } ));
+            this.dispatchEvent(
+                new CustomEvent('change', { detail: { row: row, col: col } }),
+            );
         }
     }
 
-    _inputCopy(e){
+    _inputCopy(e) {
         e.preventDefault();
         let path = e.composedPath();
-        let [row, col] = path[1].getAttribute("pos").split("-").map((x) => parseInt(x));
-        (e.clipboardData || window.clipboardData).setData('text', JSON.stringify(this.value[row]));
+        let [row, col] = path[1]
+            .getAttribute('pos')
+            .split('-')
+            .map(x => parseInt(x));
+        (e.clipboardData || window.clipboardData).setData(
+            'text',
+            JSON.stringify(this.value[row]),
+        );
     }
 
-    _inputPaste(e){
+    _inputPaste(e) {
         e.preventDefault();
         let path = e.composedPath();
-        let [row, col] = path[1].getAttribute("pos").split("-").map((x) => parseInt(x));
-        let pastedText = (e.clipboardData || window.clipboardData).getData('text');
+        let [row, col] = path[1]
+            .getAttribute('pos')
+            .split('-')
+            .map(x => parseInt(x));
+        let pastedText = (e.clipboardData || window.clipboardData).getData(
+            'text',
+        );
         let filterRegex = new RegExp(`^\[?[, 0-${this.max_value}]*\]?$`);
-        if(!filterRegex.test(pastedText)){
+        if (!filterRegex.test(pastedText)) {
             return;
         }
-        let values = pastedText.replace(/[, \[\]]/g,"").split("").map((v) => parseInt(v));
-        if(values.length === this.value[row].length){
-            for(let i = 0; i < values.length; i++){
+        let values = pastedText
+            .replace(/[, \[\]]/g, '')
+            .split('')
+            .map(v => parseInt(v));
+        if (values.length === this.value[row].length) {
+            for (let i = 0; i < values.length; i++) {
                 this.value[row][i] = values[i];
                 this.updateEntryInput(row, i);
             }
-            this.dispatchEvent(new CustomEvent("change", { detail : { row : row } } ));
-        } else if(values.length + col <= this.value[row].length){
-            for(let i = 0; i < values.length; i++){
+            this.dispatchEvent(
+                new CustomEvent('change', { detail: { row: row } }),
+            );
+        } else if (values.length + col <= this.value[row].length) {
+            for (let i = 0; i < values.length; i++) {
                 this.value[row][col + i] = values[i];
                 this.updateEntryInput(row, col + i);
             }
-            this.dispatchEvent(new CustomEvent("change", { detail : { row : row } } ));
+            this.dispatchEvent(
+                new CustomEvent('change', { detail: { row: row } }),
+            );
         }
     }
 
-    _inputFocus(e){
+    _inputFocus(e) {
         let path = e.composedPath();
         path[0].select();
     }
 
-    wrapEntry(e){
-        switch(this.type){
-            case "input":
+    wrapEntry(e) {
+        switch (this.type) {
+            case 'input':
                 return html`
-                    <input type="number" tabindex="0" focus value="${e}"  
-                           @keydown="${this._inputKeydown}"
-                           @keypress="${this._inputKeypress}"
-                           @focus="${(e) => this._inputFocus(e)}"
-                           @copy="${(e)=> this._inputCopy(e)}"
-                           @paste="${(e)=> this._inputPaste(e)}"
-                    >
-                    `;
-            case "display":
+                    <input
+                        type="number"
+                        tabindex="0"
+                        focus
+                        value="${e}"
+                        @keydown="${this._inputKeydown}"
+                        @keypress="${this._inputKeypress}"
+                        @focus="${e => this._inputFocus(e)}"
+                        @copy="${e => this._inputCopy(e)}"
+                        @paste="${e => this._inputPaste(e)}"
+                    />
+                `;
+            case 'display':
                 return e;
-            case "select-row":
+            case 'select-row':
                 return e;
             case null:
-                return e; // throw Error(`Matrix is missing type.`); //?? 
+                return e; // throw Error(`Matrix is missing type.`); //??
             default:
                 throw Error(`Invalid value "${this.type}" for type`);
         }
