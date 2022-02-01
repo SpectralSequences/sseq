@@ -25,6 +25,11 @@ jobs:
               **/target
           key: ${{ runner.os }}-${{ hashFiles('**/package.json', '**/Cargo.toml') }}
 
+    - name: Versions
+      run: |
+         npm -v
+         node -v
+
     - name: Install python build dependencies
       run: python3 -m pip install setuptools wheel
 
