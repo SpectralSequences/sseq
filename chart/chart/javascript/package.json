@@ -14,7 +14,7 @@
     "ts-node": "^8.10.2",
     "typescript": "^3.9.7",
     "uglifyify": "^5.0.0",
-    "webpack": "^5.68.0",
+    "webpack": "^5.68.0"
   },
   "dependencies": {
     "css-loader": "^3.5.3",
