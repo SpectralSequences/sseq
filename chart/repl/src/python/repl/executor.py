@@ -19,14 +19,15 @@ class Executor:
         self.send_message_a = send_message_a
 
 
-    def handle_message(self, cmd, **kwargs):
+    async def handle_message(self, cmd, **kwargs):
         if cmd not in self.message_handlers:
             raise Exception(f'Message with unrecognized command "{cmd}"')
-        self.loop.call_soon(self.message_handlers[cmd](self, **kwargs))
+        await self.message_handlers[cmd](self, **kwargs)
 
     @handle("execute")
     async def execute_a(self, **kwargs):
         await Execution(self, **kwargs).run_a()
+
 
     @handle("complete")
     async def complete_a(self, uuid, subcmd, **kwargs):

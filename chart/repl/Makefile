@@ -4,7 +4,7 @@ SSEQ_CHART_WHL = spectralsequence_chart-0.0.28-py3-none-any.whl
 COPY = dist/index.html dist/charts/chart.html dist/charts/nonexistent-chart.html
 .PHONY: dist/index.bundle.js
 
-all: dist/index.bundle.js dist/editor.worker.js $(COPY) dist/$(SSEQ_CHART_WHL)
+all: dist/index.bundle.js dist/editor.worker.js $(COPY) dist/$(SSEQ_CHART_WHL) dist/python.tar
 
 dist/index.bundle.js: monaco.json node_modules src/python_imports.js
 	npx webpack
@@ -24,8 +24,9 @@ $(COPY): dist/%: src/%
 dist/$(SSEQ_CHART_WHL): ../chart/python/dist/$(SSEQ_CHART_WHL)
 	cp $< $@
 
-src/python_imports.js: scripts/bundle_python_sources.py $(wildcard src/python/**/*)
-	python3 scripts/bundle_python_sources.py
+dist/python.tar:  $(wildcard src/python/**/*) $(wildcard src/python/*.py)
+	cd src/python && tar -cvf ../../dist/python.tar *
+
 
 .PHONY: clean
 

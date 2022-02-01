@@ -81,7 +81,7 @@ class SseqDisplay:
     @property
     def url(self):
         directory = str(pathlib.Path(location.pathname).parent)
-        return f"{location.protocol}//{location.host}{directory}/charts/{self.name}"
+        return f"{location.protocol}//{location.host}{directory}charts/{self.name}"
 
     async def start_a(self):
         if self._started:
@@ -141,21 +141,21 @@ class SseqDisplay:
         await self.reset_state_a()
 
     @staticmethod
-    def dispatch_message(obj):
+    async def dispatch_message(obj):
         message = json.loads(obj["message"])
         del obj["message"]
         message.update(obj)        
         chart_name = message["chart_name"]
         del message["chart_name"]
         display = SseqDisplay.displays[chart_name]
-        display.handle_message(**message)
+        await display.handle_message(**message)
 
-    def handle_message(self, cmd, args, port, client_id, uuid, kwargs):
+    async def handle_message(self, cmd, args, port, client_id, uuid, kwargs):
         kwargs = dict(kwargs)
         console.log(f"SseqDisplay.handle_message({cmd}, {JSON.stringify(kwargs)})")
-        self.executor.loop.call_soon(self.message_handlers[cmd](
+        await self.message_handlers[cmd](
             self, uuid=uuid, port=port, client_id=client_id, **kwargs
-        ))
+        )
 
     @staticmethod
     def _create_message(cmd, **kwargs):

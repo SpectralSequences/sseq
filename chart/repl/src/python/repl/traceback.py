@@ -2,15 +2,13 @@ from typing import List
 
 class Traceback:
     @staticmethod
-    def format_exception(exception, file : str, trash_exception):
-        return Traceback.format_traceback_list(Traceback.exception_to_traceback_list(exception, file, trash_exception))
+    def format_exception(exception, file : str):
+        return Traceback.format_traceback_list(Traceback.exception_to_traceback_list(exception, file))
 
     @staticmethod
-    def exception_to_traceback_list(exception, file : str, trash_exception) -> List[str]:
-        # If there's a wasm stack overflow it may leave some orphaned exception in sys.exc_info()
-        # This is trash_exception. We don't want to report trash_exception as part of our error message.
+    def exception_to_traceback_list(exception, file : str) -> List[str]:
         exception_chain = [exception]
-        while (exception := exception.__context__) not in [trash_exception, None]:
+        while (exception := exception.__context__):
             exception_chain.append(exception)
         return [Traceback.exception_to_traceback(e, file) for e in reversed(exception_chain)]
 

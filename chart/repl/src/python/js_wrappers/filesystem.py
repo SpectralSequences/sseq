@@ -1,5 +1,4 @@
-from .async_js import PromiseException, wrap_promise, sleep_a
-from js import filePicker, requestHandlePermission
+from js import filePicker, requestHandlePermission, sleep as sleep_a
 
 class Mode:
     READWRITE = "readwrite"
@@ -17,10 +16,10 @@ class PickerType:
 
 async def request_handle_permission_a(handle, mode):
     print("query permission", handle.name, mode)
-    permission = await wrap_promise(handle.queryPermission(dict(mode=mode)))
+    permission = await handle.queryPermission(dict(mode=mode))
     print(" -- permission:", permission)
     if permission == Permission.PROMPT:
-        permission = await wrap_promise(requestHandlePermission(handle, mode)  )
+        permission = await requestHandlePermission(handle, mode)
     if permission != Permission.GRANTED:
         raise PermissionError("Permission denied.")
 
@@ -60,8 +59,8 @@ class DirectoryHandle:
         err = None
         response = None
         try:
-            response = await wrap_promise(filePicker(PickerType.DIRECTORY))
-        except PromiseException as e:
+            response = await filePicker(PickerType.DIRECTORY)
+        except Exception as e:
             err = classify_error(e)
             if not err:
                 raise
@@ -88,9 +87,9 @@ class DirectoryHandle:
         err = None
         try:
             print("await...")
-            result._handle = await wrap_promise(self._handle.getFileHandle(path, dict(create=create)))
+            result._handle = await self._handle.getFileHandle(path, dict(create=create))
             print("got result?")
-        except PromiseException as e:
+        except Exception as e:
             err = classify_error(e)
             if not err:
                 raise
@@ -109,8 +108,8 @@ class DirectoryHandle:
         result = DirectoryHandle()
         err = None
         try:
-            result._handle = await wrap_promise(self._handle.getDirectoryHandle(path, dict(create=create)))
-        except PromiseException as e:
+            result._handle = await self._handle.getDirectoryHandle(path, dict(create=create))
+        except Exception as e:
             err = classify_error(e)
             if not err:
                 raise            
@@ -128,7 +127,7 @@ class DirectoryHandle:
 
     async def resolve_a(self, handle):
         self._check_handle()
-        await wrap_promise(self._handle.resolve(handle._handle))
+        await self._handle.resolve(handle._handle)
 
 class RelativePath:
     def __init__(self, directory_handle, path):
@@ -210,7 +209,7 @@ class DirectoryIterator:
         return self
 
     async def __anext__(self):
-        e = await wrap_promise(self._iter.next())
+        e = await self._iter.next()
         if e["done"]:
             raise StopAsyncIteration
         return e["value"]
@@ -240,7 +239,7 @@ class FileHandle:
         response = None
         err = None
         try:
-            response = await wrap_promise(filePicker(picker_type))
+            response = await filePicker(picker_type)
         except PromiseException as e:
             err = classify_error(e)
             if not err:
@@ -261,17 +260,17 @@ class FileHandle:
 
     async def create_writable_a(self, keep_existing_data = False):
         self._check_handle()
-        return WritableFileStream(await wrap_promise(self._handle.createWritable(dict(keepExistingData = keep_existing_data))))
+        return WritableFileStream(await self._handle.createWritable(dict(keepExistingData = keep_existing_data)))
 
     async def get_file_a(self):
-        return File(await wrap_promise(self._handle.getFile()))
+        return File(await self._handle.getFile())
 
 class File:
     def __init__(self, file):
         self._file = file
 
     async def text_a(self):
-        return await wrap_promise(self._file.text())
+        return await self._file.text()
 
     @property
     def name(self):
@@ -289,16 +288,16 @@ class WritableFileStream:
         self._stream = stream
 
     async def write_a(self, data, position=None):
-        await wrap_promise(self._stream.write(dict(type="write", position=position, data=data)))
+        await self._stream.write(dict(type="write", position=position, data=data))
 
     async def seek_a(self, position):
-        await wrap_promise(self._stream.seek(position))
+        await self._stream.seek(position)
 
     async def truncate_a(self, length):
-        await wrap_promise(self._stream.truncate(length))
+        await self._stream.truncate(length)
 
     async def close_a(self):
-        await wrap_promise(self._stream.close())
+        await self._stream.close()
 
 
     

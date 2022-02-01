@@ -1,124 +1,29 @@
 from asyncio import AbstractEventLoop
 from functools import partial 
-from js import sleep
-from js import fetch as jsfetch
+from js import sleep, fetch as jsfetch
+from js.Object import fromEntries as to_js_object
+from pyodide import to_js as _to_js
 import json
 
-async def sleep_a(time):
-    await wrap_promise(jssleep(time))
-
-class WebLoop(AbstractEventLoop):
-    def call_soon(self, coro, arg=None):
-        try:
-            x = coro.send(arg)
-            x = x.then(partial(self.call_soon, coro))
-            x.catch(partial(self.fail,coro))
-        except StopIteration as result:
-            pass
-
-    def fail(self, coro,arg=None):
-        try:
-            coro.throw(PromiseException(arg))
-        except StopIteration:
-            pass
-
-
-class Request:
-    def __init__(self, promise):
-        self.promise = promise
-        self._response = None
-
-    def __await__(self):
-        _resp = yield self.promise
-        return Response(_resp)
-
-    async def __aenter__(self):
-        return await self
-
-    async def __aexit__(self, exc_type, exc_value, traceback):
-        pass
-
-    async def json(self):
-        result = await self.text()
-        return json.loads(result)
-
-    async def text(self):
-        if not self._response:
-            await self
-        result = await wrap_promise(self._response.text())
-        return result
-
-class Response:
-    def __init__(self, resp):
-        self._response = resp
-
-    @property
-    def ok(self):
-        return self._response.ok
-    
-    @property
-    def status(self):
-        return int(self._response.status)
-
-    @property
-    def status_text(self):
-        return self._response.statusText
-
-    async def json(self):
-        result = await self.text()
-        return json.loads(result)
-
-    async def text(self):
-        result = await wrap_promise(self._response.text())
-        return result
-        
-    async def read_chunks(self):
-        stream_reader = self._response.body.getReader()
-
-        while 1:
-            chunk = await wrap_promise(stream_reader.read())
-            if chunk['value'] is not None:
-                yield chunk['value']
-            if chunk['done']:
-                return
-
-    def __repr__(self):
-        return f"Response(status={self.status}, status_text='{self.status_text}')"
-
-
-class WrappedPromise:
-    def __init__(self, promise):
-        self.promise = promise
-    def __await__(self):
-        x = yield self.promise
-        return x
-
-
-def wrap_promise(promise):
-    return WrappedPromise(promise)
-
+def to_js(arg):
+    return _to_js(arg, dict_converter=to_js_object)
 
 class Fetcher:
     def __init__(self, base_url=""):
         self.base_url = base_url
 
-    def get(self, path):
-        promise = jsfetch(self.base_url+path, dict(
+    async def get(self, path):
+        return await jsfetch(self.base_url+path, to_js(dict(
             method="GET"
-        ))
-        return Request(promise)
+        )))
 
-    def put(self, path, body):
-        promise = jsfetch(self.base_url+path, dict(
+    async def put(self, path, body):
+        return await jsfetch(self.base_url+path, to_js(dict(
             method= "PUT",
             headers= {
                 'Accept': 'application/json',
                 'Content-Type': 'application/json'
             },
             body= json.dumps(body)
-        ))
-        return Request(promise)
-
-class PromiseException(RuntimeError):
-    pass
+        )))
 
