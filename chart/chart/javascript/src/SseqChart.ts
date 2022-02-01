@@ -386,8 +386,8 @@ export class SseqChart extends EventEmitter<Events> {
                         this._commit_edge(<ChartEdge>msg.target);
                         return;
                     default:
-                        // @ts-expect-error // Typescript thinks this case is impossible.
                         throw Error(
+                            // @ts-expect-error // Typescript thinks this case is impossible.
                             `Cannot create object of unknown type: ${msg.target_type}`,
                         );
                 }
