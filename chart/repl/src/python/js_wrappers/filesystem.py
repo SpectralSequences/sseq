@@ -1,18 +1,22 @@
 from js import filePicker, requestHandlePermission, sleep as sleep_a
 
+
 class Mode:
     READWRITE = "readwrite"
     READ = "read"
+
 
 class Permission:
     GRANTED = "granted"
     DENIED = "denied"
     PROMPT = "prompt"
 
+
 class PickerType:
     DIRECTORY = "directory"
     READWRITE = "readwrite"
     READ = "read"
+
 
 async def request_handle_permission_a(handle, mode):
     print("query permission", handle.name, mode)
@@ -23,14 +27,18 @@ async def request_handle_permission_a(handle, mode):
     if permission != Permission.GRANTED:
         raise PermissionError("Permission denied.")
 
+
 class NotFoundException(IOError):
     pass
+
 
 class TypeMismatchException(IOError):
     pass
 
+
 class UserAbortException(IOError):
     pass
+
 
 def classify_error(e):
     if str(e).find("NotFoundError:") >= 0:
@@ -76,7 +84,7 @@ class DirectoryHandle:
     def path(self, path):
         return RelativePath(self, path)
 
-    async def file_handle_a(self, path, create = False):
+    async def file_handle_a(self, path, create=False):
         print("file_handle_a:", path)
         self._check_handle()
         permission_needed = Mode.READWRITE if create else Mode.READ
@@ -101,27 +109,29 @@ class DirectoryHandle:
             raise AssertionError()
         return result
 
-    async def directory_handle_a(self, path, create = False):
+    async def directory_handle_a(self, path, create=False):
         self._check_handle()
         permission_needed = Mode.READWRITE if create else Mode.READ
-        await request_handle_permission_a(self._handle, permission_needed)      
+        await request_handle_permission_a(self._handle, permission_needed)
         result = DirectoryHandle()
         err = None
         try:
-            result._handle = await self._handle.getDirectoryHandle(path, dict(create=create))
+            result._handle = await self._handle.getDirectoryHandle(
+                path, dict(create=create)
+            )
         except Exception as e:
             err = classify_error(e)
             if not err:
-                raise            
+                raise
         if err is NotFoundException:
             raise NotFoundException(f"Directory '{path}' not found")
         if err is TypeMismatchException:
             raise TypeMismatchException("'{path}' is a file not a directory")
         if not result._handle:
-            raise AssertionError()        
+            raise AssertionError()
         return result
 
-    async def remove_entry_a(self, name, recursive = False):
+    async def remove_entry_a(self, name, recursive=False):
         self._check_handle()
         await self._handle.removeEntry(name, dict(recursive=recursive))
 
@@ -129,12 +139,13 @@ class DirectoryHandle:
         self._check_handle()
         await self._handle.resolve(handle._handle)
 
+
 class RelativePath:
     def __init__(self, directory_handle, path):
         self.root_handle = directory_handle
         self.path = path.split("/")
         self._target_handle = None
-    
+
     @staticmethod
     async def follow_dir_path_if_exists_a(handle, path):
         for p in path:
@@ -168,43 +179,51 @@ class RelativePath:
         for p in path:
             handle = await handle.directory_handle_a(p, create=True)
         return handle
-        
 
     async def exists_a(self):
         if self._target_handle:
             return True
-        self._target_handle = await RelativePath.follow_path_if_exists_a(self.root_handle, self.path)
+        self._target_handle = await RelativePath.follow_path_if_exists_a(
+            self.root_handle, self.path
+        )
         return self._target_handle is not None
 
-    async def resolve_file_handle_a(self, create = True, recursive = False):
+    async def resolve_file_handle_a(self, create=True, recursive=False):
         if not self._target_handle:
             path = self.path
             handle = self.root_handle
             if recursive:
-                directory = await RelativePath.ensure_directory_exists_a(handle, path[:-1])
+                directory = await RelativePath.ensure_directory_exists_a(
+                    handle, path[:-1]
+                )
             else:
-                directory = await RelativePath.follow_dir_path_if_exists_a(handle, path[:-1])
+                directory = await RelativePath.follow_dir_path_if_exists_a(
+                    handle, path[:-1]
+                )
             if not directory:
-                raise NotFoundException(f"The directory '{'/'.join(path[:-1])} does not exist.")
+                raise NotFoundException(
+                    f"The directory '{'/'.join(path[:-1])} does not exist."
+                )
             self._target_handle = await directory.file_handle_a(self.path[-1], create)
         return self._target_handle
 
-    async def write_text_a(self, text, recursive = False):
+    async def write_text_a(self, text, recursive=False):
         handle = await self.resolve_file_handle_a()
         await handle.write_text_a(text, True, recursive)
 
     async def read_text_a(self):
         if not self._target_handle:
-            directory = await RelativePath.follow_dir_path_if_exists_a(self.root_handle, self.path[:-1])
+            directory = await RelativePath.follow_dir_path_if_exists_a(
+                self.root_handle, self.path[:-1]
+            )
             self._target_handle = await directory.file_handle_a(self.path[-1])
         return await self._target_handle.read_text_a()
-
 
 
 class DirectoryIterator:
     def __init__(self, iter):
         self._iter = iter
-    
+
     def __aiter__(self):
         return self
 
@@ -213,6 +232,7 @@ class DirectoryIterator:
         if e["done"]:
             raise StopAsyncIteration
         return e["value"]
+
 
 class FileHandle:
     def __init__(self):
@@ -225,14 +245,14 @@ class FileHandle:
         if not self._handle:
             raise RuntimeError("File handle not open.")
 
-    async def ensure_open_a(self, modify = False):
+    async def ensure_open_a(self, modify=False):
         if not self.is_open():
             await self.open_a(modify)
         else:
             permission = Mode.READWRITE if modify else Mode.READ
             await request_handle_permission_a(self._handle, permission)
 
-    async def open_a(self, modify = False):
+    async def open_a(self, modify=False):
         if self._handle:
             raise RuntimeError("File handle is already open")
         picker_type = PickerType.READWRITE if modify else PickerType.READ
@@ -258,12 +278,15 @@ class FileHandle:
         await stream.write_a(text)
         await stream.close_a()
 
-    async def create_writable_a(self, keep_existing_data = False):
+    async def create_writable_a(self, keep_existing_data=False):
         self._check_handle()
-        return WritableFileStream(await self._handle.createWritable(dict(keepExistingData = keep_existing_data)))
+        return WritableFileStream(
+            await self._handle.createWritable(dict(keepExistingData=keep_existing_data))
+        )
 
     async def get_file_a(self):
         return File(await self._handle.getFile())
+
 
 class File:
     def __init__(self, file):
@@ -275,7 +298,7 @@ class File:
     @property
     def name(self):
         return self._file.name
-    
+
     @property
     def last_modified_date(self):
         return self._file.lastModifiedDate
@@ -298,8 +321,3 @@ class WritableFileStream:
 
     async def close_a(self):
         await self._stream.close()
-
-
-    
-
-    

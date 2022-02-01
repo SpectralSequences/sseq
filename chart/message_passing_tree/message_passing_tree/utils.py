@@ -1,5 +1,6 @@
 import json
 
+
 def stringifier(obj):
     if hasattr(obj, "to_json"):
         return obj.to_json()
@@ -8,8 +9,10 @@ def stringifier(obj):
     else:
         return str(obj)
 
+
 def json_stringify(obj):
     return json.dumps(obj, default=stringifier)
+
 
 def arguments(*args, **kwargs):
     return [args, kwargs]

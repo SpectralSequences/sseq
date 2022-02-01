@@ -11,15 +11,17 @@ GOOGLE = re.compile(r"\s*[*]{0,2}(?P<param>\w+).*:\s*(?P<doc>[^\n]+)")
 
 DOC_REGEX = [SPHINX, EPYDOC, GOOGLE]
 
+
 def _param_docs(docstring, param_name):
     for line in docstring.splitlines():
         for regex in DOC_REGEX:
             m = regex.match(line)
             if not m:
                 continue
-            if m.group('param') != param_name:
+            if m.group("param") != param_name:
                 continue
-            return m.group('doc') or ""
+            return m.group("doc") or ""
+
 
 def format_docstring(contents):
     """Python doc strings come in a number of formats, but LSP wants markdown.
@@ -28,13 +30,13 @@ def format_docstring(contents):
     """
     if contents is None:
         return contents
-    contents = contents.replace('\t', u'\u00A0' * 4)
-    contents = contents.replace('  ', u'\u00A0' * 2)
+    contents = contents.replace("\t", "\u00A0" * 4)
+    contents = contents.replace("  ", "\u00A0" * 2)
     return contents
 
 
 class LRU(OrderedDict):
-    'Limit size, evicting the least recently looked-up key when full'
+    "Limit size, evicting the least recently looked-up key when full"
 
     def __init__(self, maxsize=5, *args, **kwdargs):
         self.maxsize = maxsize
@@ -53,6 +55,7 @@ class LRU(OrderedDict):
             oldest = next(iter(self))
             del self[oldest]
 
+
 @collect_handlers("message_handlers")
 class Completer:
     def __init__(self, executor, *, uuid):
@@ -68,24 +71,37 @@ class Completer:
         await handler(self, **kwargs)
 
     async def send_message_a(self, subcmd, subuuid, **kwargs):
-        await self.executor.send_message_a("complete", self.uuid, subcmd=subcmd, subuuid=subuuid, **kwargs)
-    
+        await self.executor.send_message_a(
+            "complete", self.uuid, subcmd=subcmd, subuuid=subuuid, **kwargs
+        )
+
     @handle("signatures")
     async def get_signature_help_a(self, subuuid, code, lineNumber, column):
         try:
 
             interpreter = jedi.Interpreter(code, [self.executor.namespace])
-            jedi_signatures =  interpreter.get_signatures(line=lineNumber, column=column)
+            jedi_signatures = interpreter.get_signatures(line=lineNumber, column=column)
             # For some reason, get_type_hint doesn't work the same on signatures as on completions...
-            [signatures, full_name, root] = self.get_signature_help_helper(jedi_signatures, code)
-            await self.send_message_a("signatures", subuuid, signatures=signatures, full_name=full_name, root=root)
+            [signatures, full_name, root] = self.get_signature_help_helper(
+                jedi_signatures, code
+            )
+            await self.send_message_a(
+                "signatures",
+                subuuid,
+                signatures=signatures,
+                full_name=full_name,
+                root=root,
+            )
         except RecursionError:
-            await self.send_message_a("signatures", subuuid, signatures=None, full_name=None, root=None)
+            await self.send_message_a(
+                "signatures", subuuid, signatures=None, full_name=None, root=None
+            )
         except KeyboardInterrupt:
             pass
-    
+
     def get_signature_help_helper(self, jedi_signatures, code):
         import jedi
+
         if not jedi_signatures:
             return [None, None, None]
 
@@ -94,33 +110,35 @@ class Completer:
         # This is ugly. get_type_hint() does better but it only works on Completion objects,
         # not on Signature. Thus, we get a completion object. To do so, we ask for a completion at
         # the open bracket of the current function.
-        completion = jedi.Interpreter(code, [self.executor.namespace]).complete(*s.bracket_start)[0]
+        completion = jedi.Interpreter(code, [self.executor.namespace]).complete(
+            *s.bracket_start
+        )[0]
         try:
             function_sig = completion.get_type_hint()
         except NotImplementedError:
             return [None, None, None]
-            
+
         [full_name, root] = self.get_fullname_root(completion)
         if function_sig and completion.parent().type == "instance":
             function_sig = function_sig.replace("self, ", "")
         sig = {
-            'label': function_sig,
-            'documentation': format_docstring(s.docstring(raw=True))
+            "label": function_sig,
+            "documentation": format_docstring(s.docstring(raw=True)),
         }
 
         # If there are params, add those
         if s.params:
-            sig['parameters'] = [{
-                'label': p.name,
-                'documentation': _param_docs(s.docstring(), p.name)
-            } for p in s.params]
+            sig["parameters"] = [
+                {"label": p.name, "documentation": _param_docs(s.docstring(), p.name)}
+                for p in s.params
+            ]
 
         # We only return a single signature because Python doesn't allow overloading
-        sig_info = {'signatures': [sig], 'activeSignature': 0}
+        sig_info = {"signatures": [sig], "activeSignature": 0}
 
         if s.index is not None and s.params:
             # Then we know which parameter we're looking at
-            sig_info['activeParameter'] = s.index
+            sig_info["activeParameter"] = s.index
         return [sig_info, full_name, root]
 
     @handle("completions")
@@ -128,20 +146,22 @@ class Completer:
         try:
             self.code = code
             state_id = str(uuid4())
-            completions = jedi.Interpreter(code, [self.executor.namespace]) \
-                            .complete(line=lineNumber, column=column, fuzzy=True)
+            completions = jedi.Interpreter(code, [self.executor.namespace]).complete(
+                line=lineNumber, column=column, fuzzy=True
+            )
             self.states[state_id] = completions
             result = []
             for comp in completions:
-                result.append(dict(
-                    name=comp.name, 
-                    kind=comp.type
-                ))
-            await self.send_message_a("completions", subuuid, completions=result, state_id=state_id)
+                result.append(dict(name=comp.name, kind=comp.type))
+            await self.send_message_a(
+                "completions", subuuid, completions=result, state_id=state_id
+            )
         except RecursionError:
-            await self.send_message_a("completions", subuuid, completions=[], state_id=None)
+            await self.send_message_a(
+                "completions", subuuid, completions=[], state_id=None
+            )
         except KeyboardInterrupt:
-            pass 
+            pass
 
     @handle("completion_detail")
     async def get_completion_info_a(self, subuuid, state_id, idx):
@@ -151,9 +171,16 @@ class Completer:
             # Will fail on properties.
             [full_name, root] = self.get_fullname_root(completion)
             if completion.type == "instance":
-                [docstring, signature, full_name, root] = self.get_completion_info_instance(subuuid, completion)
+                [
+                    docstring,
+                    signature,
+                    full_name,
+                    root,
+                ] = self.get_completion_info_instance(subuuid, completion)
             elif completion.type in ["function", "method"]:
-                [docstring, signature] = self.get_completion_info_function_or_method(subuuid, completion)
+                [docstring, signature] = self.get_completion_info_function_or_method(
+                    subuuid, completion
+                )
             elif completion.type == "module":
                 signature = completion.infer()[0].full_name
                 docstring = completion.docstring(raw=True)
@@ -161,18 +188,33 @@ class Completer:
                 signature = completion._get_docstring_signature()
                 docstring = completion.docstring(raw=True)
         except Exception as e:
-            print("Error triggered during completion detail for", completion.name, "type:", completion.type)
+            print(
+                "Error triggered during completion detail for",
+                completion.name,
+                "type:",
+                completion.type,
+            )
             raise
         except KeyboardInterrupt:
             return
 
         # regex = re.compile('(?<!\n)\n(?!\n)', re.MULTILINE) # Remove isolated newline characters.
-        remove_links = re.compile('`(\S*) <\S*>`')
+        remove_links = re.compile("`(\S*) <\S*>`")
         docstring = remove_links.sub(r"`\1`", docstring)
-        await self.send_message_a("completion_detail", subuuid, docstring=format_docstring(docstring), signature=signature, full_name=full_name, root=root)
+        await self.send_message_a(
+            "completion_detail",
+            subuuid,
+            docstring=format_docstring(docstring),
+            signature=signature,
+            full_name=full_name,
+            root=root,
+        )
 
     def get_fullname_root(self, completion):
-        if completion.name.startswith("_") or completion.name in ["from_json", "to_json"]:
+        if completion.name.startswith("_") or completion.name in [
+            "from_json",
+            "to_json",
+        ]:
             return [None, None]
         try:
             full_name = completion.infer()[0].full_name
@@ -185,11 +227,10 @@ class Completer:
         root = ".".join(full_name.split(".")[:-1])
         return [full_name, root]
 
-    
     def get_completion_info_instance(self, subuuid, completion):
-        """ Jedi by default does a bad job of getting the completion info for "instances". 
-            If the instance is a property on a class with an available docstring, then we report that.
-            In any case, give the signature as "name: type".
+        """Jedi by default does a bad job of getting the completion info for "instances".
+        If the instance is a property on a class with an available docstring, then we report that.
+        In any case, give the signature as "name: type".
         """
         docstring = ""
         type_string = ""
@@ -197,11 +238,16 @@ class Completer:
         root = None
         try:
             # Jedi makes it a bit tricky to get from the Jedi wrapper object to the object it refers to...
-            object = completion.get_signatures()[0]._name._value.access_handle.access._obj
-            parent_object = completion._name._wrapped_name._parent_value.access_handle.access._obj
+            object = completion.get_signatures()[
+                0
+            ]._name._value.access_handle.access._obj
+            parent_object = (
+                completion._name._wrapped_name._parent_value.access_handle.access._obj
+            )
             parent_type = type(parent_object)
             object = None
-            from inspect import getdoc    
+            from inspect import getdoc
+
             if hasattr(parent_type, completion.name):
                 prop = getattr(parent_type, completion.name)
                 docstring = getdoc(prop)
@@ -216,14 +262,15 @@ class Completer:
             # full_name = object.full_name
             if object:
                 from parso import parse
-                from inspect import getsource                
+                from inspect import getsource
+
                 # In this case, type(object).__name__ unfortunately gives "property", which isn't very descriptive.
                 # We would like to get the actual type, so we use parso to extract the type from the source.
                 # This will throw OSError for interpreter defined classes, but we don't expect many of those.
-                funcdef = next(parse(getsource(object)).iter_funcdefs()) 
+                funcdef = next(parse(getsource(object)).iter_funcdefs())
                 type_string = funcdef.annotation.get_code()
 
-        except (AttributeError, OSError): # AttributeError:
+        except (AttributeError, OSError):  # AttributeError:
             pass
         if type_string:
             signature = f"{completion.name}: {type_string}"

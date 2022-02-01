@@ -1,20 +1,22 @@
-import {LitElement, html} from 'lit-element';
-import { INFINITY } from "./chart/infinity";
+import { LitElement, html } from 'lit-element';
+import { INFINITY } from './chart/infinity';
 
 export class PageIndicatorElement extends LitElement {
-    constructor(){
-        super(); 
+    constructor() {
+        super();
         this.pageRange = undefined;
     }
 
     firstUpdated(changedProperties) {
-        let elt = this.closest("sseq-chart");
-        if(!elt){
-            throw Error("<sseq-class-highlighter> must be a descendant of <sseq-chart>.");
+        let elt = this.closest('sseq-chart');
+        if (!elt) {
+            throw Error(
+                '<sseq-class-highlighter> must be a descendant of <sseq-chart>.',
+            );
         }
         this.disp = elt;
         this.pageRange = this.disp.page;
-        this.disp.addEventListener("page-change", (e) => {
+        this.disp.addEventListener('page-change', e => {
             this.pageRange = e.detail.pageRange;
             this.requestUpdate();
         });
@@ -22,22 +24,22 @@ export class PageIndicatorElement extends LitElement {
 
     getPageDescriptor(pageRange) {
         if (!this.pageRange) {
-            return;  
+            return;
         }
 
         if (pageRange[0] === INFINITY) {
-            return "Page ∞";
+            return 'Page ∞';
         }
 
-        if(pageRange[1] === INFINITY){
+        if (pageRange[1] === INFINITY) {
             return `Page ${pageRange[0]} with all differentials`;
         }
 
-        if(pageRange[1] < pageRange[0]){
+        if (pageRange[1] < pageRange[0]) {
             return `Page ${pageRange[0]} with no differentials`;
         }
 
-        if(pageRange[0] === pageRange[1]){
+        if (pageRange[0] === pageRange[1]) {
             return `Page ${pageRange[0]}`;
         }
 

@@ -26,8 +26,11 @@ from .infinity import INFINITY
 from .chart import SseqChart
 from .chart_class import ChartClass, ChartClassStyle, Shape
 from .chart_edge import (
-    ChartEdge, ChartEdgeStyle,
-    ChartStructline, ChartDifferential, ChartExtension,
+    ChartEdge,
+    ChartEdgeStyle,
+    ChartStructline,
+    ChartDifferential,
+    ChartExtension,
 )
 from .display_primitives import ArrowTip, Color, Shape
 from .serialization import JSON

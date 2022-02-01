@@ -7,7 +7,7 @@
         "alwaysStrict": true,
         "strict": true,
         "lib": ["es2017", "dom"],
-        "moduleResolution": "node",
+        "moduleResolution": "node"
     },
     "include": ["./src/**/*"]
 }

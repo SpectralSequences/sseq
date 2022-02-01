@@ -1,3 +1,3 @@
 # Summary
 
-- [Chart Format](./format.md)
+-   [Chart Format](./format.md)

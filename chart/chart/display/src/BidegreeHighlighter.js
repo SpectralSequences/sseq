@@ -1,27 +1,27 @@
-import {LitElement, html, css} from 'lit-element';
-import { sleep, promiseFromDomEvent, findAncestorElement } from "./utils.js";
+import { LitElement, html, css } from 'lit-element';
+import { sleep, promiseFromDomEvent, findAncestorElement } from './utils.js';
 
 export class BidegreeHighlighterElement extends LitElement {
     static get styles() {
         return css`
             .overflow-hider {
-                overflow : hidden;
-                position : absolute;
-                z-index : -5;
+                overflow: hidden;
+                position: absolute;
+                z-index: -5;
             }
 
             span {
-                position: absolute; 
+                position: absolute;
                 background-color: gray;
-                border : 30px transparent;
-                filter : blur(7px);
-                opacity : 0.7;
-                z-index : -500; /* should be underneath class highlighter */
+                border: 30px transparent;
+                filter: blur(7px);
+                opacity: 0.7;
+                z-index: -500; /* should be underneath class highlighter */
             }
         `;
     }
 
-    constructor(){
+    constructor() {
         super();
         this.numElements = 0;
         this.bidegreeMap = {};
@@ -29,23 +29,23 @@ export class BidegreeHighlighterElement extends LitElement {
         this.handleMarginUpdate = this.handleMarginUpdate.bind(this);
     }
 
-    highlighterElements(){
-        return this.shadowRoot.querySelectorAll("span");
+    highlighterElements() {
+        return this.shadowRoot.querySelectorAll('span');
     }
 
-    filterHighlighterElements(callback){
+    filterHighlighterElements(callback) {
         return Array.from(this.highlighterElements()).filter(callback);
     }
 
-    firstUpdated(){
-        this.disp = this.closest("sseq-chart");
-        this.disp.addEventListener("scale-update", this.handleScaleUpdate);
-        this.disp.addEventListener("margin-update", this.handleMarginUpdate)
+    firstUpdated() {
+        this.disp = this.closest('sseq-chart');
+        this.disp.addEventListener('scale-update', this.handleScaleUpdate);
+        this.disp.addEventListener('margin-update', this.handleMarginUpdate);
         this.handleMarginUpdate();
     }
 
-    handleMarginUpdate(){
-        let overflowHider = this.shadowRoot.querySelector(".overflow-hider");
+    handleMarginUpdate() {
+        let overflowHider = this.shadowRoot.querySelector('.overflow-hider');
         overflowHider.style.left = `${this.disp.leftMargin}px`;
         overflowHider.style.right = `${this.disp.rightMargin}px`;
         overflowHider.style.top = `${this.disp.topMargin}px`;
@@ -55,21 +55,23 @@ export class BidegreeHighlighterElement extends LitElement {
     render() {
         return html`
             <div class="overflow-hider">
-            ${Array(this.numElements).fill().map(() => html`<span></span>`)}
+                ${Array(this.numElements)
+                    .fill()
+                    .map(() => html`<span></span>`)}
             </div>
         `;
     }
 
-    handleScaleUpdate(){
-        for(let elt of this.filterHighlighterElements(elt => elt.bidegree)){
+    handleScaleUpdate() {
+        for (let elt of this.filterHighlighterElements(elt => elt.bidegree)) {
             this.positionElement(elt);
         }
     }
 
-    positionElement(elt){
+    positionElement(elt) {
         let [x, y] = elt.bidegree;
-        let left = this.disp.xScale(x - 1/2) - this.disp.leftMargin;
-        let top = this.disp.yScale(y + 1/2) - this.disp.topMargin;
+        let left = this.disp.xScale(x - 1 / 2) - this.disp.leftMargin;
+        let top = this.disp.yScale(y + 1 / 2) - this.disp.topMargin;
         let width = this.disp.dxScale(1);
         let height = this.disp.dyScale(-1);
         elt.style.left = `${left}px`;
@@ -78,56 +80,61 @@ export class BidegreeHighlighterElement extends LitElement {
         elt.style.height = `${height}px`;
     }
 
-    clear(){
+    clear() {
         let clearedElements = [];
-        for(let elt of this.highlighterElements()){
-            if(elt.bidegree) {
+        for (let elt of this.highlighterElements()) {
+            if (elt.bidegree) {
                 clearedElements.push(elt);
-                elt.style.display = "none";
+                elt.style.display = 'none';
                 delete this.bidegreeMap[JSON.stringify(elt.bidegree)];
             }
         }
         sleep(30).then(() => {
-            for(let c of clearedElements){
+            for (let c of clearedElements) {
                 c.busy = false;
             }
-        })
-        
+        });
     }
 
-    async _setupBidegrees(bidegrees){
-        let availableElements = this.filterHighlighterElements((elt) => !elt.busy);
-        let numElementsNeeded = bidegrees.filter(bidegree => !(JSON.stringify(bidegree) in this.bidegreeMap)).length;
-        if(numElementsNeeded > availableElements.length){
+    async _setupBidegrees(bidegrees) {
+        let availableElements = this.filterHighlighterElements(
+            elt => !elt.busy,
+        );
+        let numElementsNeeded = bidegrees.filter(
+            bidegree => !(JSON.stringify(bidegree) in this.bidegreeMap),
+        ).length;
+        if (numElementsNeeded > availableElements.length) {
             this.numElements += numElementsNeeded - availableElements.length;
             this.requestUpdate();
             await sleep(10);
-            availableElements = this.filterHighlighterElements((elt) => !elt.busy);
+            availableElements = this.filterHighlighterElements(
+                elt => !elt.busy,
+            );
         }
 
-        for(let bidegree of bidegrees){
+        for (let bidegree of bidegrees) {
             let key = JSON.stringify(bidegree);
-            if(key in this.bidegreeMap){
+            if (key in this.bidegreeMap) {
                 continue;
             }
             let elt = availableElements.pop();
             elt.bidegree = bidegree;
-            elt.style.display = "";
+            elt.style.display = '';
             this.bidegreeMap[key] = elt;
             elt.busy = true;
         }
     }
 
-    async highlight(bidegrees){
-        if(bidegrees.constructor != Array){
+    async highlight(bidegrees) {
+        if (bidegrees.constructor != Array) {
             bidegrees = [bidegrees];
         }
-        if(bidegrees.length === 0){
+        if (bidegrees.length === 0) {
             return;
         }
 
         await this._setupBidegrees(bidegrees);
-        for(let bidegree of bidegrees){
+        for (let bidegree of bidegrees) {
             let elt = this.bidegreeMap[JSON.stringify(bidegree)];
             this.positionElement(elt);
         }
@@ -156,8 +163,8 @@ export class BidegreeHighlighterElement extends LitElement {
     //         elt.setAttribute("transition", "");
     //         this.setSize(elt, 15);
     //         promiseFromDomEvent(elt, "transitionend").then(() => {
-    //             elt.removeAttribute("transition");                    
-    //         });            
+    //             elt.removeAttribute("transition");
+    //         });
     //     }
     // }
 }

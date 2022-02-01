@@ -1,31 +1,31 @@
 {
-  "name": "spectralsequences-webclient",
-  "author": "Hood Chatham <hood@mit.edu> (http://math.mit.edu/~hood)",
-  "description": "Spectral sequence chart.",
-  "version": "0.1.0",
-  "license": "ISC",
-  "repository": "github:SpectralSequences/chart/",
-  "main": "bundle.js",
-  "devDependencies": {
-    "@types/eventemitter3": "^2.0.2",
-    "@types/node": "^14.6.0",
-    "@types/uuid": "^8.0.0",
-    "ee-ts": "^1.0.2",
-    "ts-node": "^8.10.2",
-    "typescript": "^3.9.7",
-    "uglifyify": "^5.0.0",
-    "webpack": "^5.68.0"
-  },
-  "dependencies": {
-    "css-loader": "^3.5.3",
-    "source-map-loader": "^1.0.1",
-    "ts-loader": "~8.2.0",
-    "uuid": "^8.2.0",
-    "webpack-cli": "^4.9.2"
-  },
-  "scripts": {
-    "build": "webpack",
-    "start": "webpack -w",
-    "test": "./node_modules/.bin/mocha --require ts-node/register  ./test/*.ts"
-  }
+    "name": "spectralsequences-webclient",
+    "author": "Hood Chatham <hood@mit.edu> (http://math.mit.edu/~hood)",
+    "description": "Spectral sequence chart.",
+    "version": "0.1.0",
+    "license": "ISC",
+    "repository": "github:SpectralSequences/chart/",
+    "main": "bundle.js",
+    "devDependencies": {
+        "@types/eventemitter3": "^2.0.2",
+        "@types/node": "^14.6.0",
+        "@types/uuid": "^8.0.0",
+        "ee-ts": "^1.0.2",
+        "ts-node": "^8.10.2",
+        "typescript": "^3.9.7",
+        "uglifyify": "^5.0.0",
+        "webpack": "^5.68.0"
+    },
+    "dependencies": {
+        "css-loader": "^3.5.3",
+        "source-map-loader": "^1.0.1",
+        "ts-loader": "~8.2.0",
+        "uuid": "^8.2.0",
+        "webpack-cli": "^4.9.2"
+    },
+    "scripts": {
+        "build": "webpack",
+        "start": "webpack -w",
+        "test": "./node_modules/.bin/mocha --require ts-node/register  ./test/*.ts"
+    }
 }

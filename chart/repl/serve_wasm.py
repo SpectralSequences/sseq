@@ -6,9 +6,11 @@ import socketserver
 PORT = 8101
 
 Handler = http.server.SimpleHTTPRequestHandler
-Handler.extensions_map.update({
-    '.wasm': 'application/wasm',
-})
+Handler.extensions_map.update(
+    {
+        ".wasm": "application/wasm",
+    }
+)
 
 socketserver.TCPServer.allow_reuse_address = True
 with socketserver.TCPServer(("", PORT), Handler) as httpd:
