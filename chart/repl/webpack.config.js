@@ -73,6 +73,9 @@ const configCharts = Object.assign({}, commonConfig, {
         filename: '[name].bundle.js',
         strictModuleExceptionHandling: true,
     },
+    experiments: {
+        asyncWebAssembly: true,
+    },
 });
 
 module.exports = [configMain, configCharts];

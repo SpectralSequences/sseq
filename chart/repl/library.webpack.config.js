@@ -28,9 +28,8 @@ module.exports = {
       new webpack.DllPlugin(
       { 
         name: '[name]', 
-        path: '[name].json',
+        path: path.resolve('[name].json'),
         entryOnly : true,
-
       }),
       new MonacoWebpackPlugin({
             languages: ["python"],
@@ -51,5 +50,5 @@ module.exports = {
                 'transpose', 'wordHighlighter', 'wordOperations', 'wordPartOperations'
             ]
         })
-    ] 
+    ]
   };
