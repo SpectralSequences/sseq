@@ -6,7 +6,7 @@ COPY = dist/index.html dist/charts/chart.html dist/charts/nonexistent-chart.html
 
 all: dist/index.bundle.js dist/editor.worker.js $(COPY) dist/$(SSEQ_CHART_WHL) dist/python.tar
 
-dist/index.bundle.js: monaco.json node_modules src/python_imports.js
+dist/index.bundle.js: monaco.json node_modules
 	npx webpack
 
 monaco.json dist/editor.worker.js: library.webpack.config.js src/monaco.js node_modules
