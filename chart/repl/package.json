@@ -32,7 +32,6 @@
     "awesome-typescript-loader": "^5.2.1",
     "raw-loader": "^4.0.1",
     "typescript": "^4.0.5",
-    "webpack-cli": "^3.3.12",
     "webpack-dev-server": "^3.11.0",
     "webpack-zip-files-plugin": "^1.0.0"
   }
