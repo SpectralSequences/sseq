@@ -13,7 +13,7 @@ monaco.json dist/editor.worker.js: library.webpack.config.js src/monaco.js node_
 	npx webpack --config library.webpack.config.js
 
 node_modules: package.json
-	npm i
+	npm i --force
 	touch -m node_modules
 
 # This does pattern matching over the items in $(COPY). $< is the source file

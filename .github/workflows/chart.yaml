@@ -8,7 +8,7 @@ defaults:
 
 jobs:
   build:
-    if: ${{ false && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository) }}
+    if: ${{(github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository) }}
     runs-on: ubuntu-latest
 
     steps:
@@ -24,6 +24,11 @@ jobs:
               **/node_modules
               **/target
           key: ${{ runner.os }}-${{ hashFiles('**/package.json', '**/Cargo.toml') }}
+
+    - name: Versions
+      run: |
+         npm -v
+         node -v
 
     - name: Install python build dependencies
       run: python3 -m pip install setuptools wheel

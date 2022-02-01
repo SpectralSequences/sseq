@@ -16,7 +16,7 @@ const commonConfig = {
               test: /\.css$/,
               use: ["style-loader", 'css-loader']
           },
-          { test: /\.tsx?$/, loader: "awesome-typescript-loader" },
+          { test: /\.tsx?$/, loader: "ts-loader" },
         ],
     },
     watchOptions: {
@@ -72,6 +72,9 @@ const configCharts = Object.assign({}, commonConfig, {
         // publicPath : "/dist/",
         filename: '[name].bundle.js',
         strictModuleExceptionHandling: true,
+    },
+    experiments: {
+        asyncWebAssembly: true,
     },
 });
 
