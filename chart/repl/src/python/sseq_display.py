@@ -5,6 +5,7 @@ from js import (
 
 from js_wrappers.async_js import Fetcher
 from js_wrappers.filesystem import FileHandle
+from asyncio import ensure_future
 
 
 import json
@@ -47,7 +48,7 @@ class SseqDisplay:
         from repl.executor import Executor
         self.executor = Executor.executor
         self._started = False
-        self.executor.loop.call_soon(self.start_a())
+        ensure_future(self.start_a())
 
     def __repr__(self):
         if self._started:
@@ -100,7 +101,7 @@ class SseqDisplay:
         await self.maybe_autosave_a()
 
     def update(self):
-        self.executor.loop.call_soon(self.update_a())
+        ensure_future(self.update_a())
 
     async def update_a(self):
         await self.chart.update_a()

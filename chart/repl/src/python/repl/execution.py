@@ -3,6 +3,7 @@ import sys
 
 from contextlib import redirect_stdout, redirect_stderr, contextmanager
 from .write_stream import WriteStream
+from asyncio import ensure_future
 
 from textwrap import dedent
 from .traceback import Traceback
@@ -101,11 +102,11 @@ class Execution:
     
     def send_stdout_write(self, data):
         coroutine = self.send_message_a("stdout", last_response=False, data=data)
-        self.executor.loop.call_soon(coroutine)
+        ensure_future(coroutine)
     
     def send_stderr_write(self, data):
         coroutine = self.send_message_a("stderr", last_response=False, data=data)
-        self.executor.loop.call_soon(coroutine)
+        ensure_future(coroutine)
 
 
     async def send_result_a(self, result):
