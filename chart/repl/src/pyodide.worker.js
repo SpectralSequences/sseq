@@ -7,8 +7,8 @@ import { IndexedDBStorage } from "./indexedDB";
 
 self.loaded = false;
 
-self.languagePluginUrl = 'https://cdn.jsdelivr.net/pyodide/v0.16.1/full/pyodide.js'
-importScripts(`https://cdn.jsdelivr.net/pyodide/v0.16.1/full/pyodide.js`);
+const pyodideBaseURL = 'https://cdn.jsdelivr.net/pyodide/v0.19.0/full/'
+importScripts(pyodideBaseURL + "pyodide.js");
 
 self.sleep = sleep;
 self.fetch = fetch.bind(self);
@@ -74,79 +74,37 @@ function makeOutputStream(streamFunc){
 }
 
 // See scripts/bundle_python_sources.py
-import { files_to_install, directories_to_install } from "./python_imports";
-function initializeFileSystem(){
-    /**  
-     * NOTE: When pyodide is finished initializing, the original "pyodide" object
-     * is stored as "pyodide._module" (so then FS is pyodide._module.FS). 
-     * We don't want to wait for this to happen and I'm not sure when the exactly
-     * the move occurs, but this code consistently executes before the move.
-     */
-    let pyodide_FS = pyodide.FS;
-    let stdoutStream = makeOutputStream((m) => {
-        if(self.loaded){
-            console.log("pyodide stdout::", m);
-        } else {
-            loadingMessage(m);
-        }
-    });
-    let stderrStream = makeOutputStream((m) => {
-        if(self.loaded){
-            console.error("pyodide stderr::", m);
-        } else {
-            loadingError(m);
-        }
-    });
-
-    pyodide_FS.init(() => null, stdoutStream, stderrStream);
-    pyodide_FS.mkdir('/repl');
-    for(let dir of directories_to_install){
-        pyodide_FS.mkdir(`/repl/${dir}`);
-    }
-    for(let [k, v] of Object.entries(files_to_install)){
-        pyodide_FS.writeFile(`/repl/${k}`, v);
-    }
-}
-initializeFileSystem();
-
 
 function sendMessage(message){
     self.postMessage(message);
 }
 self.sendMessage = sendMessage;
-self.messageLookup = {};
+self.messageLookup = new Map();
 
 
+let path = self.location.href;
+path = path.substring(0, path.lastIndexOf("/"))
+
+const pyodide_promise = loadPyodide({indexURL : pyodideBaseURL}).then((pyodide) => self.pyodide = pyodide);
+
+async function fetch_and_unpack(url){
+    const fetch_promise = fetch(url).then(resp => resp.arrayBuffer());
+    await pyodide_promise;
+    const buffer = await fetch_promise;
+    pyodide.unpackArchive(buffer, url.substring(url.lastIndexOf(".") + 1));
+}
+
+const chart_wheel_promise = fetch_and_unpack(`${path}/spectralsequence_chart-0.0.28-py3-none-any.whl`)
+const python_tar_promise = fetch_and_unpack("python.tar");
 self.loadingMessage = loadingMessage;
 async function startup(){
     try {
         loadingMessage("Loading Pyodide packages");
-        await languagePluginLoader;
-        await pyodide.loadPackage([
-                // "pygments", 
-                "pyodide-interrupts",
-                // "astunparse",
-                "micropip",
-            ],
-            // loadingMessage,
-            // loadingError,
-        );
-        let path = self.location.href;
-        path = path.substring(0, path.lastIndexOf("/"))
-
-        // This is correct. pyodide.runPython executes the python code, blocks
-        // until it completes, and returns the python object given by the final
-        // line. In this case, micropip.install returns a Promise object
-        // *inside* Python, which we await for.
-        await pyodide.runPython(`
-            import micropip
-            micropip.install('${path}/spectralsequence_chart-0.0.28-py3-none-any.whl')
-        `);
+        let jedi_promise = pyodide_promise.then(() => pyodide.loadPackage("jedi"));
+        await Promise.all([chart_wheel_promise, python_tar_promise, jedi_promise]);
+        pyodide.runPython("import importlib; importlib.invalidate_caches()");
         loadingMessage("Initializing Python Executor");
         pyodide.runPython(`
-            import sys
-            sys.path.append("/repl")
-            sys.setrecursionlimit(150) # 150?
             from initialize_pyodide import *
         `);
         self.loaded = true;
@@ -190,10 +148,10 @@ self.addEventListener("message", async function(e) {
     }
 
     // Store data into message lookup. This allows us to use the FFI to convert the arguments.
-    messageLookup[uuid] = e.data;
+    messageLookup.set(uuid, e.data);
     // get_message looks up e.data in messageLookup using uuid.
     try {
-        self.pyodide.globals["handle_message"](uuid);
+        await self.pyodide.globals.get("handle_message")(uuid);
     } finally {
         // pyo
     }
@@ -202,7 +160,7 @@ self.addEventListener("message", async function(e) {
 
 async function handleSubscribeChartDisplay(e){
     let uuid = e.data;
-    messageLookup[uuid] = e.data; 
+    messageLookup.set(uuid, e.data); 
     await self.pyodide.runPythonAsync(`
         from js_wrappers.messages import get_message
         msg = get_message("${uuid}")
@@ -274,10 +232,11 @@ function registerNewSubscriber(event){
     self.subscribers.push(port);
 }
 
-function handleMessageFromChart(event, port, chart_name, client_id){
+async function handleMessageFromChart(event, port, chart_name, client_id){
     let message = event.data;
+    console.log("handleMessageFromChart", message);
     let { uuid } = JSON.parse(message);
-    messageLookup[uuid] = { message, chart_name, port, client_id };
+    messageLookup.set(uuid, { message, chart_name, port, client_id });
     console.log("message from chart:", message);
-    pyodide.runPython(`SseqDisplay.dispatch_message(get_message("${uuid}"))`);
+    await pyodide.runPythonAsync(`await SseqDisplay.dispatch_message(get_message("${uuid}"))`);
 }

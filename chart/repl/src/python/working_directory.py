@@ -1,6 +1,5 @@
 from js_wrappers.filesystem import DirectoryHandle
-from js_wrappers.async_js import wrap_promise, sleep_a
-from js import setWorkingDirectory, getWorkingDirectory
+from js import setWorkingDirectory, getWorkingDirectory, sleep as sleep_a
 
 async def set_working_directory_a():
     handle = DirectoryHandle()
@@ -9,7 +8,7 @@ async def set_working_directory_a():
         setWorkingDirectory(handle._handle)
 
 async def get_working_directory_a():
-    handle = await wrap_promise(getWorkingDirectory())
+    handle = await getWorkingDirectory()
     if not handle:
         return None
     result = DirectoryHandle()

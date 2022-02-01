@@ -3,6 +3,7 @@ import sys
 
 from contextlib import redirect_stdout, redirect_stderr, contextmanager
 from .write_stream import WriteStream
+from asyncio import ensure_future
 
 from textwrap import dedent
 from .traceback import Traceback
@@ -78,7 +79,6 @@ class Execution:
         # Sometimes there is a wasm stack overflow which leaves sys.exc_info() set when it should have been cleared.
         # Surprisingly these stack overflows don't seem to cause other harm.
         # Store exc_info ahead of time and don't report these stale trash exceptions as part of our stack trace.
-        trash_exception = sys.exc_info()[1]
         file = '<exec>'
         try:
             with self.execution_context():
@@ -86,7 +86,7 @@ class Execution:
             result = repr(result) if result is not None else None
             await self.send_result_a(result)
         except Exception as e:
-            await self.send_exception_a(e, file, trash_exception)
+            await self.send_exception_a(e, file)
         except KeyboardInterrupt as e:
             await self.send_keyboard_interrupt_a(e)
 
@@ -102,18 +102,18 @@ class Execution:
     
     def send_stdout_write(self, data):
         coroutine = self.send_message_a("stdout", last_response=False, data=data)
-        self.executor.loop.call_soon(coroutine)
+        ensure_future(coroutine)
     
     def send_stderr_write(self, data):
         coroutine = self.send_message_a("stderr", last_response=False, data=data)
-        self.executor.loop.call_soon(coroutine)
+        ensure_future(coroutine)
 
 
     async def send_result_a(self, result):
         await self.send_message_a("result", last_response=True, result=result)
 
-    async def send_exception_a(self, e, file, trash_exception):
-        await self.send_message_a("exception", last_response=True, traceback=Traceback.format_exception(e, file, trash_exception))
+    async def send_exception_a(self, e, file):
+        await self.send_message_a("exception", last_response=True, traceback=Traceback.format_exception(e, file))
 
     async def send_keyboard_interrupt_a(self, e):
         await self.send_message_a("keyboard_interrupt", last_response=True)
