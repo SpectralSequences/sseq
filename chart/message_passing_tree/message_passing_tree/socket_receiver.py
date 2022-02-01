@@ -10,9 +10,10 @@ from .exceptions import *
 from . import Agent, Receiver
 from .prelude import *
 
-from .utils import (json_stringify, arguments)
+from .utils import json_stringify, arguments
 
-@collect_handlers(inherit=True) #inherit "all" handler
+
+@collect_handlers(inherit=True)  # inherit "all" handler
 @subscribe_to("*")
 class SocketReceiver(Receiver):
     def __init__(self, ws):
@@ -37,7 +38,11 @@ class SocketReceiver(Receiver):
             asyncio.ensure_future(self.send_message_to_socket_a(envelope))
             # self.schedule_coroutine(self.send_message_to_socket_a(envelope))
             return
-        msg = { "cmd" : cmd.filter_list, "args" : envelope.msg.args, "kwargs" : envelope.msg.kwargs }
+        msg = {
+            "cmd": cmd.filter_list,
+            "args": envelope.msg.args,
+            "kwargs": envelope.msg.kwargs,
+        }
         try:
             await self.socket.send_text(json_stringify(msg))
         except ConnectionClosedOK:
@@ -57,11 +62,12 @@ class SocketReceiver(Receiver):
 
     async def start_a(self):
         await self.run_a()
-        
 
     async def run_a(self):
         if self.accepted_connection.is_set():
-            self.log_warning("Already accepted connection for some reason? This will become an error when I have time to fix it.")
+            self.log_warning(
+                "Already accepted connection for some reason? This will become an error when I have time to fix it."
+            )
             return
         else:
             await self.socket.accept()
@@ -75,36 +81,36 @@ class SocketReceiver(Receiver):
             except TypeError as e:
                 # TODO: what's the right threshold?
                 consecutive_failed_passes += 1
-                if e.args[0] != "An asyncio.Future, a coroutine or an awaitable is required":
-                    await self.handle_exception_a(e)               
-                if consecutive_failed_passes > 2: 
+                if (
+                    e.args[0]
+                    != "An asyncio.Future, a coroutine or an awaitable is required"
+                ):
+                    await self.handle_exception_a(e)
+                if consecutive_failed_passes > 2:
                     print("Too many errors, quitting!")
-                    return                    
+                    return
             except Exception as e:
                 await self.handle_exception_a(e)
                 # TODO: what's the right threshold?
                 consecutive_failed_passes += 1
-                if consecutive_failed_passes > 2: 
+                if consecutive_failed_passes > 2:
                     print("Too many errors, quitting!")
                     return
         await self.shutdown_a()
-
 
     # # TODO: Should this be here?
     async def shutdown_a(self):
         await self.send_message_inward_a("socket.close", *arguments())
 
     async def abort_a(self):
-        await self.send_text_a(json.dumps({
-            "cmd" : "invalid_channel"
-        }))
+        await self.send_text_a(json.dumps({"cmd": "invalid_channel"}))
 
     async def main_loop_a(self):
         try:
             json_str = await self.socket.receive_text()
         except WebSocketDisconnect:
             self.log_info("Disconnect")
-            return False 
+            return False
         self.log_info("User sent: " + str(json_str))
         data = json.loads(json_str)
         if "cmd" not in data:
@@ -151,7 +157,6 @@ class SocketReceiver(Receiver):
         part_list.insert(1, "client")
         envelope.msg.cmd.set_part_list(part_list)
         envelope.msg.update_arguments(additional_info=additional_info)
-        
 
     @handle_inbound_messages
     async def handle__warning__a(self, envelope, text, orig_msg=None, stack_trace=None):
@@ -179,6 +184,8 @@ class SocketReceiver(Receiver):
             additional_info += exception["stack"]
         part_list = envelope.msg.cmd.part_list
         part_list.insert(1, "additional_info")
-        envelope.msg.cmd.set_part_list(part_list)        
-        envelope.msg.update_arguments(msg=exception["msg"], additional_info=additional_info)
+        envelope.msg.cmd.set_part_list(part_list)
+        envelope.msg.update_arguments(
+            msg=exception["msg"], additional_info=additional_info
+        )
         envelope.msg.del_arguments(["exception", "orig_msg"])

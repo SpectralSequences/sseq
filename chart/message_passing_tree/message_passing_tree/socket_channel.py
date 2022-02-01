@@ -11,10 +11,12 @@ from fastapi.responses import HTMLResponse, FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 import logging
+
 logger = logging.getLogger(__name__)
 
+
 @subscribe_to("*")
-@collect_handlers(inherit = False)
+@collect_handlers(inherit=False)
 class SocketChannel(Agent):
     channels = {}
     serving_class_to = None
@@ -31,34 +33,36 @@ class SocketChannel(Agent):
         dist_static_files = StaticFiles(directory=cls.CHANNEL_DIR / "dist")
 
         @app.get(f"/{cls_dir}/{{channel_name}}")
-        async def get_html_a(request: Request, channel_name : str):
+        async def get_html_a(request: Request, channel_name: str):
             if channel_name.endswith(".js") or channel_name.endswith(".wasm"):
                 # Came here from webpack code splitting
                 # redirect to dist
                 scope = request.scope
                 path = dist_static_files.get_path(scope)
                 import pathlib
+
                 # Pull off the inital /cls_dir from the path
                 path = str(pathlib.Path(path).relative_to(f"{cls_dir}"))
                 return await dist_static_files.get_response(path, scope)
             try:
-                response_data = { 
-                    "port" : port, 
-                    "directory" : cls_dir,
-                    "channel_name" : channel_name,
-                    "request" : request, 
+                response_data = {
+                    "port": port,
+                    "directory": cls_dir,
+                    "channel_name": channel_name,
+                    "request": request,
                 }
                 response = cls.http_response(channel_name, request)
                 if response is None:
-                    return cls.templates.TemplateResponse("invalid_channel.html", response_data)
+                    return cls.templates.TemplateResponse(
+                        "invalid_channel.html", response_data
+                    )
                 else:
                     return response
             except Exception as e:
                 repl.console_io._handle_exception(e)
 
-
         @app.websocket(f"/ws/{cls_dir}/{{channel_name}}")
-        async def websocket_subscribe_a(websocket: WebSocket, channel_name : str):
+        async def websocket_subscribe_a(websocket: WebSocket, channel_name: str):
             logger.debug(f"ws: {cls_dir}/{channel_name}")
             try:
                 channel = await cls.get_channel_a(channel_name, repl)
@@ -67,18 +71,26 @@ class SocketChannel(Agent):
                     # One reasonable reason we could end up here is if the channel closed between the
                     # get request and now...
                     # In that case we should respond with GOING_AWAY rather than INTERNAL_ERROR.
-                    raise RuntimeError(f"""No channel available named "{cls_dir}/{channel_name}".""")
+                    raise RuntimeError(
+                        f"""No channel available named "{cls_dir}/{channel_name}"."""
+                    )
                 await channel.add_subscriber_a(websocket)
             except Exception as e:
                 await websocket.close(socket_close_codes.INTERNAL_ERROR)
                 repl.console_io._handle_exception(e)
 
-
-        app.mount(f"/client/{cls_dir}", dist_static_files , name="client")
+        app.mount(f"/client/{cls_dir}", dist_static_files, name="client")
         if (cls.CHANNEL_DIR / "static").is_dir():
-            app.mount(f"/static/{cls_dir}", StaticFiles(directory=cls.CHANNEL_DIR / "static"), name="client")
-        app.mount(f"/debug/{cls_dir}/chart", StaticFiles(directory=config.CHART_REPOSITORY_ROOT), name="debug")
-
+            app.mount(
+                f"/static/{cls_dir}",
+                StaticFiles(directory=cls.CHANNEL_DIR / "static"),
+                name="client",
+            )
+        app.mount(
+            f"/debug/{cls_dir}/chart",
+            StaticFiles(directory=config.CHART_REPOSITORY_ROOT),
+            name="debug",
+        )
 
         cls.serve_extra(app, host, config, port, cls_dir)
         cls.routes = app.routes[num_routes:]
@@ -111,8 +123,8 @@ class SocketChannel(Agent):
             tasks.append(self.schedule_coroutine(receiver.close_a(code)))
             tasks.append(self.schedule_coroutine(self.remove_subscriber_a(receiver)))
         return await asyncio.gather(*tasks)
-    
-    @staticmethod 
+
+    @staticmethod
     def get_receivers(agent):
         for child in agent.children.values():
             if isinstance(child, SocketReceiver):
@@ -134,16 +146,16 @@ class SocketChannel(Agent):
 
     @classmethod
     def initialize_channel(cls):
-        """ Override me """
+        """Override me"""
         pass
 
     @classmethod
     def http_response(cls, channel_name, request):
-        """ Override me. 
-            If I return `None` we reject the request.
-            Otherwise, probably use Jinja2Templates.
+        """Override me.
+        If I return `None` we reject the request.
+        Otherwise, probably use Jinja2Templates.
         """
-        pass    
+        pass
 
     def __init__(self, name):
         super().__init__()
@@ -163,11 +175,10 @@ class SocketChannel(Agent):
     # async def handle_leaked_envelope_a(self, envelope):
     #     self.log_info(f"""Leaked envelope self: {self.info()}  envelope: {envelope.info()}""")
 
-
     async def add_subscriber_a(self, sock_recv):
-        """ For overriding by subclasses. 
-            Will be called by server when it gets a request to /ws/class_directory/channel_name.
-            Channels are in charge of assembling the connection to the SocketReceiver themselves.
+        """For overriding by subclasses.
+        Will be called by server when it gets a request to /ws/class_directory/channel_name.
+        Channels are in charge of assembling the connection to the SocketReceiver themselves.
         """
         await self.add_child_a(sock_recv)
 
@@ -183,4 +194,3 @@ class SocketChannel(Agent):
         while child.parent is not self:
             child = child.parent
         await self.remove_child_a(child)
-

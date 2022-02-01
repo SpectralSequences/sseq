@@ -1,7 +1,9 @@
 import asyncio
-import logging 
+import logging
+
 logger = logging.getLogger(__name__)
 import inspect
+
 # from abc import ABC, abstractmethod
 from uuid import UUID, uuid4
 
@@ -11,19 +13,29 @@ from .messages import *
 
 
 class Envelope:
-    def __init__(self, direction, msg, *, 
-        source_agent_id = None, source_agent_path = None,
-        target_agent_id = None, target_agent_path = None,
+    def __init__(
+        self,
+        direction,
+        msg,
+        *,
+        source_agent_id=None,
+        source_agent_path=None,
+        target_agent_id=None,
+        target_agent_path=None,
     ):
         if direction not in ["in", "out"]:
             raise TypeError(
                 f"""Expected argument "direction" to have value "in" or "out" not "{direction}"."""
             )
-        if direction == "in" and (source_agent_path is None or source_agent_id is not None):
+        if direction == "in" and (
+            source_agent_path is None or source_agent_id is not None
+        ):
             raise TypeError(
                 f"""Inbound envelope should have a "source_agent_path" and no "source_agent_id"."""
             )
-        if direction == "out" and (source_agent_id is None or source_agent_path is not None):
+        if direction == "out" and (
+            source_agent_id is None or source_agent_path is not None
+        ):
             raise TypeError(
                 f"""Outbound envelope should have a "source_agent_id" and no "source_agent_path"."""
             )
@@ -44,10 +56,9 @@ class Envelope:
         self._used = False
         self._stop_propagation = False
 
-    
     def mark_used(self):
         self._used = True
-    
+
     def stop_propagation(self):
         self._stop_propagation = True
 
@@ -60,6 +71,7 @@ class Envelope:
     def info(self):
         return f"""cmd: {ansi.highlight(self.msg.cmd.str)} args: {ansi.info(self.msg.args)} kwargs: {ansi.info(self.msg.kwargs)}"""
 
+
 class Agent:
     outward_handlers = None
     inward_handlers = None
@@ -71,6 +83,7 @@ class Agent:
                 await cofunc
             except Exception as e:
                 await self.handle_exception_a(e)
+
         return asyncio.ensure_future(temp())
 
     @classmethod
@@ -82,9 +95,13 @@ class Agent:
 
     def __init__(self):
         if type(self).inward_handlers is None:
-            raise RuntimeError(f"""You forgot to use "@collect_handlers" on {type(self).__name__}.""")
+            raise RuntimeError(
+                f"""You forgot to use "@collect_handlers" on {type(self).__name__}."""
+            )
         if type(self).subscriptions is None:
-            raise RuntimeError(f"""You forgot to use "@subscribe_to(...)" on {type(self).__name__}.""")
+            raise RuntimeError(
+                f"""You forgot to use "@subscribe_to(...)" on {type(self).__name__}."""
+            )
         self.parent = None
         self.has_parent = asyncio.Event()
         self.uuid = uuid4()
@@ -96,7 +113,7 @@ class Agent:
         # self.inward_responses_expected = []
         # self.inward_responses_expected_lock = asyncio.Lock()
         # self.outward_responses_expected = []
-        # self.outward_responses_expected_lock = asyncio.Lock()        
+        # self.outward_responses_expected_lock = asyncio.Lock()
 
     @classmethod
     def log_debug(cls, msg):
@@ -124,17 +141,23 @@ class Agent:
         return f"""Task: {ansi.highlight(name)}  self: {self.info()}  envelope: {envelope.info()}"""
 
     async def handle_leaked_envelope_a(self, direction, envelope):
-        print(f"""Leaked {direction} envelope self: {self.info()}  envelope: {envelope.info()}""")
+        print(
+            f"""Leaked {direction} envelope self: {self.info()}  envelope: {envelope.info()}"""
+        )
 
     def get_uuid(self) -> UUID:
         return self.uuid
 
-    def add_handler(self, cmd : str, direction):
+    def add_handler(self, cmd: str, direction):
         if not hasattr(self, f"{direction}ward_handlers"):
-            raise ValueError(f"""Direction should be "in" or "out" not "{direction}".""")
+            raise ValueError(
+                f"""Direction should be "in" or "out" not "{direction}"."""
+            )
+
         def helper(handler):
             getattr(self, f"{direction}ward_handlers")[cmd] = handler
             return handler
+
         return helper
 
     async def add_child_a(self, recv):
@@ -172,7 +195,7 @@ class Agent:
                 return True
         return False
 
-    async def handle_outbound_envelope_a(self, envelope : Envelope):
+    async def handle_outbound_envelope_a(self, envelope: Envelope):
         self.log_envelope_task("handle_outbound_envelope", envelope)
         handle_a = self.get_handler(self.outward_handlers, envelope.msg.cmd)
         if handle_a is None:
@@ -184,9 +207,9 @@ class Agent:
 
     async def handle_inbound_envelope_a(self, envelope):
         # async with self.inward_responses_expected_lock:
-            # for (i, (cmd_filter, evt)) in enumerate(self.inward_responses_expected):
-                # if cmd_filter in envelope.msg.cmd.filter_list:
-                    # return True
+        # for (i, (cmd_filter, evt)) in enumerate(self.inward_responses_expected):
+        # if cmd_filter in envelope.msg.cmd.filter_list:
+        # return True
         handle_a = Agent.get_handler(self.inward_handlers, envelope.msg.cmd)
         if handle_a is None:
             handle_a = Agent.get_handler(type(self).inward_handlers, envelope.msg.cmd)
@@ -195,94 +218,105 @@ class Agent:
         envelope.mark_used()
         return await handle_a(self, envelope)
 
-
     async def pass_envelope_inward_a(self, envelope):
         self.log_envelope_task("pass_envelope_inward", envelope)
         await self.handle_inbound_envelope_a(envelope)
         if envelope.stop_propagation_q():
             return
         if envelope.target_agent_id == self.uuid and envelope.unused_q():
-            raise RuntimeError(f"""Unconsumed message with command "{envelope.msg.cmd.str}" targeted to me.""")
+            raise RuntimeError(
+                f"""Unconsumed message with command "{envelope.msg.cmd.str}" targeted to me."""
+            )
         if self.parent is None and envelope.unused_q():
             await self.handle_leaked_envelope_a("inbound", envelope)
         if self.parent is None:
             return
         envelope.source_agent_path.append(self.uuid)
-        await self.parent.pass_envelope_inward_a(envelope)        
-        
+        await self.parent.pass_envelope_inward_a(envelope)
+
     async def pass_envelope_outward_a(self, envelope):
         self.log_envelope_task("pass_envelope_outward", envelope)
         await self.handle_outbound_envelope_a(envelope)
         if envelope.stop_propagation_q():
-            return 
-        children_to_pass_to = self.pass_envelope_outward_get_children_to_pass_to(envelope)
+            return
+        children_to_pass_to = self.pass_envelope_outward_get_children_to_pass_to(
+            envelope
+        )
         if not children_to_pass_to and envelope.unused_q():
             # TODO: extra logging info about subscriber filters!
             await self.handle_leaked_envelope_a("outbound", envelope)
         for recv in children_to_pass_to:
-            await recv.pass_envelope_outward_a(envelope)        
-   
-    def pass_envelope_outward_get_children_to_pass_to(self,  envelope):
+            await recv.pass_envelope_outward_a(envelope)
+
+    def pass_envelope_outward_get_children_to_pass_to(self, envelope):
         if envelope.target_agent_path is None or len(envelope.target_agent_path) == 0:
             # TODO: extra logging info about subscriber filters!
-            return [recv for recv in self.children.values() if recv.is_subscribed_to(envelope.msg.cmd.filter_list)]
+            return [
+                recv
+                for recv in self.children.values()
+                if recv.is_subscribed_to(envelope.msg.cmd.filter_list)
+            ]
         child_uuid = envelope.target_agent_path.pop()
         if child_uuid not in self.children:
             raise RuntimeError(f"""I don't have a child with id "{child_uuid}".""")
         return [self.children[child_uuid]]
 
-
-    async def send_message_inward_a(self, 
-        cmd_str, args, kwargs,
-        target_agent_id : Optional[AgentID] = None
+    async def send_message_inward_a(
+        self, cmd_str, args, kwargs, target_agent_id: Optional[AgentID] = None
     ):
         cmd = Command().set_str(cmd_str)
         message = Message(cmd, args, kwargs)
-        envelope = Envelope("in", message, source_agent_path = [], target_agent_id = target_agent_id)
+        envelope = Envelope(
+            "in", message, source_agent_path=[], target_agent_id=target_agent_id
+        )
         self.log_envelope_task("send_message_inward", envelope)
         await self.pass_envelope_inward_a(envelope)
 
-    async def send_event_inward_a(self, 
-        cmd_str, args, kwargs,
-        target_agent_id : Optional[AgentID] = None
+    async def send_event_inward_a(
+        self, cmd_str, args, kwargs, target_agent_id: Optional[AgentID] = None
     ):
         cmd = Command().set_str(cmd_str)
         message = Message(cmd, args, kwargs)
-        envelope = Envelope("in", message, source_agent_path = [], target_agent_id = target_agent_id)
+        envelope = Envelope(
+            "in", message, source_agent_path=[], target_agent_id=target_agent_id
+        )
         envelope.mark_used()
         self.log_envelope_task("send_event_inward", envelope)
         await self.pass_envelope_inward_a(envelope)
 
-    async def send_message_outward_a(self, 
-        cmd_str, args, kwargs, *,
-        target_agent_path : Optional[AgentPath] = None
+    async def send_message_outward_a(
+        self, cmd_str, args, kwargs, *, target_agent_path: Optional[AgentPath] = None
     ):
         self.log_debug(f"smo {cmd_str}")
         cmd = Command().set_str(cmd_str)
         message = Message(cmd, args, kwargs)
-        envelope = Envelope("out", message, source_agent_id = self.uuid, target_agent_path = target_agent_path)
+        envelope = Envelope(
+            "out",
+            message,
+            source_agent_id=self.uuid,
+            target_agent_path=target_agent_path,
+        )
         self.log_envelope_task("send_message_outward", envelope)
         await self.pass_envelope_outward_a(envelope)
-    
-    async def send_event_outward_a(self, 
-        cmd_str, args, kwargs, *,
-        target_agent_path : Optional[AgentPath] = None
+
+    async def send_event_outward_a(
+        self, cmd_str, args, kwargs, *, target_agent_path: Optional[AgentPath] = None
     ):
         self.log_debug(f"smo {cmd_str}")
         cmd = Command().set_str(cmd_str)
         message = Message(cmd, args, kwargs)
-        envelope = Envelope("out", message, source_agent_id = self.uuid, target_agent_path = target_agent_path)
+        envelope = Envelope(
+            "out",
+            message,
+            source_agent_id=self.uuid,
+            target_agent_path=target_agent_path,
+        )
         envelope.mark_used()
         self.log_envelope_task("send_event_outward", envelope)
         await self.pass_envelope_outward_a(envelope)
 
-
-    async def broadcast_a(self, 
-        cmd : CmdStr,
-        args, kwargs
-    ):
+    async def broadcast_a(self, cmd: CmdStr, args, kwargs):
         await self.send_message_outward_a(cmd, args, kwargs)
-
 
     async def send_debug_a(self, msg_type, msg):
         cmd = "debug"
@@ -293,13 +327,13 @@ class Agent:
     async def send_info_a(self, msg_type, msg):
         cmd = "info"
         if msg_type != "":
-            cmd = f"{cmd}.{msg_type}"        
+            cmd = f"{cmd}.{msg_type}"
         await self.send_message_inward_a(cmd, *arguments(msg=msg))
 
     async def send_warning_a(self, msg_type, msg):
         cmd = "warning"
         if msg_type != "":
-            cmd = f"{cmd}.{msg_type}"        
+            cmd = f"{cmd}.{msg_type}"
         await self.send_message_inward_a(cmd, *arguments(msg=msg))
 
     async def send_error_a(self, msg_type, msg=None, exception=None):
@@ -311,7 +345,9 @@ class Agent:
     async def handle_exception_a(self, exception):
         try:
             # raise RuntimeError("Double fault test")
-            await self.parent.send_error_a("exception." + type(exception).__name__, exception=exception)
+            await self.parent.send_error_a(
+                "exception." + type(exception).__name__, exception=exception
+            )
         except Exception as double_fault:
             if hasattr(self, "double_fault_handler"):
                 self.double_fault_handler(double_fault)
