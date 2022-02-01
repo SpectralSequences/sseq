@@ -5,8 +5,8 @@ use pyo3::{
     types::{PyTuple, PyList}
 };
 
-use fp::vector::{FpVector as FpVectorRust, FpVectorT};
-use fp::matrix::Basis as BasisRust;
+use fp::vector::{FpVector as FpVectorRust};
+use fp::matrix::basis::Basis as BasisRust;
 
 
 use python_utils;
@@ -67,16 +67,16 @@ impl Basis {
     }
 
     pub fn apply(&self, result : &mut FpVector, v : &FpVector) -> PyResult<()> {
-        self.check_dimension(v.inner()?.dimension())?;
-        self.check_dimension(result.inner()?.dimension())?;
+        self.check_dimension(v.inner()?.len())?;
+        self.check_dimension(result.inner()?.len())?;
         self.check_nonsingular()?;
         self.inner()?.apply(result.inner_mut()?, 1, v.inner()?);
         Ok(())
     }
 
     pub fn apply_inverse(&self, result : &mut FpVector, v : &FpVector) -> PyResult<()> {
-        self.check_dimension(v.inner()?.dimension())?;
-        self.check_dimension(result.inner()?.dimension())?;
+        self.check_dimension(v.inner()?.len())?;
+        self.check_dimension(result.inner()?.len())?;
         self.check_nonsingular()?;
         self.inner_mut()?.apply_inverse(result.inner_mut()?, 1, v.inner()?);
         Ok(())

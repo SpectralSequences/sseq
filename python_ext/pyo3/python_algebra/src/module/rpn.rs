@@ -4,18 +4,20 @@ use pyo3::{
     types::PyTuple
 };
 
+
 use python_utils;
 
 // use crate::module_methods;
+use python_fp::vector::FpVector;
 use crate::algebra::AlgebraRust;
 use crate::module::module_rust::ModuleRust;
 
 use algebra::Algebra as AlgebraT;
 use algebra::module::{RealProjectiveSpace as RealProjectiveSpaceRust, Module};
 
-crate::module_bindings!(RealProjectiveSpace, RealProjectiveSpaceRust);
+crate::module_bindings!(RealProjectiveSpace, RealProjectiveSpaceRust, RealProjectiveSpaceElement);
 
-python_utils::py_repr!(RealProjectiveSpace, "FreedRealProjectiveSpace", {
+python_utils::py_repr!(RealProjectiveSpace, inner, "FreedRealProjectiveSpace", {
     Ok(format!(
         "RealProjectiveSpace(min={}, max=??)",
         inner.min

@@ -1,0 +1,684 @@
+   Compiling fp v0.1.0 (/home/hood/Documents/programming/sseq/ext/crates/fp)
+error[E0599]: no method named `len` found for enum `vector::Slice` in the current scope
+   --> crates/fp/src/matrix/matrix_inner.rs:860:32
+    |
+860 |         debug_assert_eq!(input.len(), self.rows());
+    |                                ^^^ method not found in `vector::Slice<'_>`
+    |
+   ::: crates/fp/src/vector.rs:177:1
+    |
+177 | pub enum Slice<'a> {
+    | ------------------ method `len` not found for this
+...
+304 |     fn len(&self) -> usize;
+    |        --- the method is available for `vector::Slice<'_>` here
+    |
+    = help: items from traits can only be used if the trait is in scope
+help: the following trait is implemented but not in scope; perhaps add a `use` for it:
+    |
+1   | use crate::vector::SliceT;
+    |
+
+error[E0599]: no method named `len` found for enum `vector::Slice` in the current scope
+   --> crates/fp/src/matrix/matrix_inner.rs:861:27
+    |
+861 |         for i in 0..input.len() {
+    |                           ^^^ method not found in `vector::Slice<'_>`
+    |
+   ::: crates/fp/src/vector.rs:177:1
+    |
+177 | pub enum Slice<'a> {
+    | ------------------ method `len` not found for this
+...
+304 |     fn len(&self) -> usize;
+    |        --- the method is available for `vector::Slice<'_>` here
+    |
+    = help: items from traits can only be used if the trait is in scope
+help: the following trait is implemented but not in scope; perhaps add a `use` for it:
+    |
+1   | use crate::vector::SliceT;
+    |
+
+error[E0599]: no method named `entry` found for enum `vector::Slice` in the current scope
+   --> crates/fp/src/matrix/matrix_inner.rs:864:32
+    |
+864 |                 (coeff * input.entry(i)) % *self.p,
+    |                                ^^^^^ method not found in `vector::Slice<'_>`
+    |
+   ::: crates/fp/src/vector.rs:177:1
+    |
+177 | pub enum Slice<'a> {
+    | ------------------ method `entry` not found for this
+...
+306 |     fn entry(&self, index: usize) -> u32;
+    |        ----- the method is available for `vector::Slice<'_>` here
+    |
+    = help: items from traits can only be used if the trait is in scope
+help: the following trait is implemented but not in scope; perhaps add a `use` for it:
+    |
+1   | use crate::vector::SliceT;
+    |
+
+error[E0599]: no method named `len` found for enum `vector::Slice` in the current scope
+   --> crates/fp/src/matrix/quasi_inverse.rs:98:49
+    |
+98  |             assert_eq!(result.into().as_slice().len(), source_dim);
+    |                                                 ^^^ method not found in `vector::Slice<'_>`
+    |
+   ::: crates/fp/src/vector.rs:177:1
+    |
+177 | pub enum Slice<'a> {
+    | ------------------ method `len` not found for this
+...
+304 |     fn len(&self) -> usize;
+    |        --- the method is available for `vector::Slice<'_>` here
+    |
+    = help: items from traits can only be used if the trait is in scope
+help: the following trait is implemented but not in scope; perhaps add a `use` for it:
+    |
+1   | use crate::vector::SliceT;
+    |
+
+error[E0599]: no method named `entry` found for enum `vector::Slice` in the current scope
+   --> crates/fp/src/matrix/quasi_inverse.rs:126:62
+    |
+126 |                 result.into().add(v.as_slice(), input.into().entry(i));
+    |                                                              ^^^^^ method not found in `vector::Slice<'_>`
+    |
+   ::: crates/fp/src/vector.rs:177:1
+    |
+177 | pub enum Slice<'a> {
+    | ------------------ method `entry` not found for this
+...
+306 |     fn entry(&self, index: usize) -> u32;
+    |        ----- the method is available for `vector::Slice<'_>` here
+    |
+    = help: items from traits can only be used if the trait is in scope
+help: the following trait is implemented but not in scope; perhaps add a `use` for it:
+    |
+1   | use crate::vector::SliceT;
+    |
+
+error[E0599]: no method named `iter` found for enum `vector::Slice` in the current scope
+   --> crates/fp/src/matrix/quasi_inverse.rs:154:29
+    |
+154 |         for (i, c) in input.iter().enumerate() {
+    |                             ^^^^ method not found in `vector::Slice<'_>`
+    |
+   ::: crates/fp/src/vector.rs:177:1
+    |
+177 | pub enum Slice<'a> {
+    | ------------------ method `iter` not found for this
+...
+307 |     fn iter(self) -> FpVectorIterator<'a>;
+    |        ---- the method is available for `vector::Slice<'_>` here
+    |
+    = help: items from traits can only be used if the trait is in scope
+help: the following trait is implemented but not in scope; perhaps add a `use` for it:
+    |
+1   | use crate::vector::SliceT;
+    |
+
+error[E0599]: no method named `entry` found for enum `vector::Slice` in the current scope
+   --> crates/fp/src/matrix/subquotient.rs:52:36
+    |
+52  |             let c = elt.as_slice().entry(i);
+    |                                    ^^^^^ method not found in `vector::Slice<'_>`
+    |
+   ::: crates/fp/src/vector.rs:177:1
+    |
+177 | pub enum Slice<'a> {
+    | ------------------ method `entry` not found for this
+...
+306 |     fn entry(&self, index: usize) -> u32;
+    |        ----- the method is available for `vector::Slice<'_>` here
+    |
+    = help: items from traits can only be used if the trait is in scope
+help: the following trait is implemented but not in scope; perhaps add a `use` for it:
+    |
+1   | use crate::vector::SliceT;
+    |
+
+error[E0599]: no method named `len` found for enum `vector::Slice` in the current scope
+   --> crates/fp/src/matrix/subspace.rs:143:38
+    |
+143 |         assert_eq!(vector.as_slice().len(), self.columns());
+    |                                      ^^^ method not found in `vector::Slice<'_>`
+    |
+   ::: crates/fp/src/vector.rs:177:1
+    |
+177 | pub enum Slice<'a> {
+    | ------------------ method `len` not found for this
+...
+304 |     fn len(&self) -> usize;
+    |        --- the method is available for `vector::Slice<'_>` here
+    |
+    = help: items from traits can only be used if the trait is in scope
+help: the following trait is implemented but not in scope; perhaps add a `use` for it:
+    |
+1   | use crate::vector::SliceT;
+    |
+
+error[E0599]: no method named `entry` found for enum `vector::Slice` in the current scope
+   --> crates/fp/src/matrix/subspace.rs:156:39
+    |
+156 |             let c = vector.as_slice().entry(i);
+    |                                       ^^^^^ method not found in `vector::Slice<'_>`
+    |
+   ::: crates/fp/src/vector.rs:177:1
+    |
+177 | pub enum Slice<'a> {
+    | ------------------ method `entry` not found for this
+...
+306 |     fn entry(&self, index: usize) -> u32;
+    |        ----- the method is available for `vector::Slice<'_>` here
+    |
+    = help: items from traits can only be used if the trait is in scope
+help: the following trait is implemented but not in scope; perhaps add a `use` for it:
+    |
+1   | use crate::vector::SliceT;
+    |
+
+error[E0308]: mismatched types
+   --> crates/fp/src/matrix/subspace.rs:168:36
+    |
+168 |         let mut vector: FpVector = vector.to_owned();
+    |                         --------   ^^^^^^^^^^^^^^^^^ expected enum `vector::FpVector`, found enum `vector::Slice`
+    |                         |
+    |                         expected due to this
+
+error[E0599]: no method named `len` found for reference `&SliceMutP<'_, 2_u32>` in the current scope
+   --> crates/fp/src/vector.rs:345:12
+    |
+345 |         fn len(&self) -> usize;
+    |            ^^^ method not found in `&SliceMutP<'_, 2_u32>`
+    |
+    = help: items from traits can only be used if the trait is implemented and in scope
+    = note: the following traits define an item `len`, perhaps you need to implement one of them:
+            candidate #1: `SliceT`
+            candidate #2: `ExactSizeIterator`
+
+error[E0599]: no method named `len` found for reference `&SliceMutP<'_, 3_u32>` in the current scope
+   --> crates/fp/src/vector.rs:345:12
+    |
+345 |         fn len(&self) -> usize;
+    |            ^^^ method not found in `&SliceMutP<'_, 3_u32>`
+    |
+    = help: items from traits can only be used if the trait is implemented and in scope
+    = note: the following traits define an item `len`, perhaps you need to implement one of them:
+            candidate #1: `SliceT`
+            candidate #2: `ExactSizeIterator`
+
+error[E0599]: no method named `len` found for reference `&SliceMutP<'_, 5_u32>` in the current scope
+   --> crates/fp/src/vector.rs:345:12
+    |
+345 |         fn len(&self) -> usize;
+    |            ^^^ method not found in `&SliceMutP<'_, 5_u32>`
+    |
+    = help: items from traits can only be used if the trait is implemented and in scope
+    = note: the following traits define an item `len`, perhaps you need to implement one of them:
+            candidate #1: `SliceT`
+            candidate #2: `ExactSizeIterator`
+
+error[E0599]: no method named `len` found for reference `&SliceMutP<'_, 7_u32>` in the current scope
+   --> crates/fp/src/vector.rs:345:12
+    |
+345 |         fn len(&self) -> usize;
+    |            ^^^ method not found in `&SliceMutP<'_, 7_u32>`
+    |
+    = help: items from traits can only be used if the trait is implemented and in scope
+    = note: the following traits define an item `len`, perhaps you need to implement one of them:
+            candidate #1: `SliceT`
+            candidate #2: `ExactSizeIterator`
+
+error[E0599]: no method named `is_empty` found for reference `&SliceMutP<'_, 2_u32>` in the current scope
+   --> crates/fp/src/vector.rs:346:12
+    |
+346 |         fn is_empty(&self) -> bool;
+    |            ^^^^^^^^ method not found in `&SliceMutP<'_, 2_u32>`
+    |
+    = help: items from traits can only be used if the trait is implemented and in scope
+    = note: the following traits define an item `is_empty`, perhaps you need to implement one of them:
+            candidate #1: `SliceT`
+            candidate #2: `ExactSizeIterator`
+
+error[E0599]: no method named `is_empty` found for reference `&SliceMutP<'_, 3_u32>` in the current scope
+   --> crates/fp/src/vector.rs:346:12
+    |
+346 |         fn is_empty(&self) -> bool;
+    |            ^^^^^^^^ method not found in `&SliceMutP<'_, 3_u32>`
+    |
+    = help: items from traits can only be used if the trait is implemented and in scope
+    = note: the following traits define an item `is_empty`, perhaps you need to implement one of them:
+            candidate #1: `SliceT`
+            candidate #2: `ExactSizeIterator`
+
+error[E0599]: no method named `is_empty` found for reference `&SliceMutP<'_, 5_u32>` in the current scope
+   --> crates/fp/src/vector.rs:346:12
+    |
+346 |         fn is_empty(&self) -> bool;
+    |            ^^^^^^^^ method not found in `&SliceMutP<'_, 5_u32>`
+    |
+    = help: items from traits can only be used if the trait is implemented and in scope
+    = note: the following traits define an item `is_empty`, perhaps you need to implement one of them:
+            candidate #1: `SliceT`
+            candidate #2: `ExactSizeIterator`
+
+error[E0599]: no method named `is_empty` found for reference `&SliceMutP<'_, 7_u32>` in the current scope
+   --> crates/fp/src/vector.rs:346:12
+    |
+346 |         fn is_empty(&self) -> bool;
+    |            ^^^^^^^^ method not found in `&SliceMutP<'_, 7_u32>`
+    |
+    = help: items from traits can only be used if the trait is implemented and in scope
+    = note: the following traits define an item `is_empty`, perhaps you need to implement one of them:
+            candidate #1: `SliceT`
+            candidate #2: `ExactSizeIterator`
+
+error[E0599]: no method named `entry` found for reference `&SliceMutP<'_, 2_u32>` in the current scope
+   --> crates/fp/src/vector.rs:347:12
+    |
+347 |         fn entry(&self, index: usize) -> u32;
+    |            ^^^^^ method not found in `&SliceMutP<'_, 2_u32>`
+    |
+    = help: items from traits can only be used if the trait is implemented and in scope
+note: `SliceT` defines an item `entry`, perhaps you need to implement it
+   --> crates/fp/src/vector.rs:302:1
+    |
+302 | pub trait SliceT<'a> {
+    | ^^^^^^^^^^^^^^^^^^^^
+
+error[E0599]: no method named `entry` found for reference `&SliceMutP<'_, 3_u32>` in the current scope
+   --> crates/fp/src/vector.rs:347:12
+    |
+347 |         fn entry(&self, index: usize) -> u32;
+    |            ^^^^^ method not found in `&SliceMutP<'_, 3_u32>`
+    |
+    = help: items from traits can only be used if the trait is implemented and in scope
+note: `SliceT` defines an item `entry`, perhaps you need to implement it
+   --> crates/fp/src/vector.rs:302:1
+    |
+302 | pub trait SliceT<'a> {
+    | ^^^^^^^^^^^^^^^^^^^^
+
+error[E0599]: no method named `entry` found for reference `&SliceMutP<'_, 5_u32>` in the current scope
+   --> crates/fp/src/vector.rs:347:12
+    |
+347 |         fn entry(&self, index: usize) -> u32;
+    |            ^^^^^ method not found in `&SliceMutP<'_, 5_u32>`
+    |
+    = help: items from traits can only be used if the trait is implemented and in scope
+note: `SliceT` defines an item `entry`, perhaps you need to implement it
+   --> crates/fp/src/vector.rs:302:1
+    |
+302 | pub trait SliceT<'a> {
+    | ^^^^^^^^^^^^^^^^^^^^
+
+error[E0599]: no method named `entry` found for reference `&SliceMutP<'_, 7_u32>` in the current scope
+   --> crates/fp/src/vector.rs:347:12
+    |
+347 |         fn entry(&self, index: usize) -> u32;
+    |            ^^^^^ method not found in `&SliceMutP<'_, 7_u32>`
+    |
+    = help: items from traits can only be used if the trait is implemented and in scope
+note: `SliceT` defines an item `entry`, perhaps you need to implement it
+   --> crates/fp/src/vector.rs:302:1
+    |
+302 | pub trait SliceT<'a> {
+    | ^^^^^^^^^^^^^^^^^^^^
+
+error[E0599]: no method named `iter` found for struct `SliceMutP` in the current scope
+   --> crates/fp/src/vector.rs:348:12
+    |
+348 |         fn iter(self) -> (FpVectorIterator<'a>);
+    |            ^^^^ method not found in `SliceMutP<'_, 2_u32>`
+    |
+   ::: crates/fp/src/vector_inner.rs:41:1
+    |
+41  | pub struct SliceMutP<'a, const P: u32> {
+    | -------------------------------------- method `iter` not found for this
+    |
+    = help: items from traits can only be used if the trait is implemented and in scope
+note: `SliceT` defines an item `iter`, perhaps you need to implement it
+   --> crates/fp/src/vector.rs:302:1
+    |
+302 | pub trait SliceT<'a> {
+    | ^^^^^^^^^^^^^^^^^^^^
+
+error[E0599]: no method named `iter` found for struct `SliceMutP` in the current scope
+   --> crates/fp/src/vector.rs:348:12
+    |
+348 |         fn iter(self) -> (FpVectorIterator<'a>);
+    |            ^^^^ method not found in `SliceMutP<'_, 3_u32>`
+    |
+   ::: crates/fp/src/vector_inner.rs:41:1
+    |
+41  | pub struct SliceMutP<'a, const P: u32> {
+    | -------------------------------------- method `iter` not found for this
+    |
+    = help: items from traits can only be used if the trait is implemented and in scope
+note: `SliceT` defines an item `iter`, perhaps you need to implement it
+   --> crates/fp/src/vector.rs:302:1
+    |
+302 | pub trait SliceT<'a> {
+    | ^^^^^^^^^^^^^^^^^^^^
+
+error[E0599]: no method named `iter` found for struct `SliceMutP` in the current scope
+   --> crates/fp/src/vector.rs:348:12
+    |
+348 |         fn iter(self) -> (FpVectorIterator<'a>);
+    |            ^^^^ method not found in `SliceMutP<'_, 5_u32>`
+    |
+   ::: crates/fp/src/vector_inner.rs:41:1
+    |
+41  | pub struct SliceMutP<'a, const P: u32> {
+    | -------------------------------------- method `iter` not found for this
+    |
+    = help: items from traits can only be used if the trait is implemented and in scope
+note: `SliceT` defines an item `iter`, perhaps you need to implement it
+   --> crates/fp/src/vector.rs:302:1
+    |
+302 | pub trait SliceT<'a> {
+    | ^^^^^^^^^^^^^^^^^^^^
+
+error[E0599]: no method named `iter` found for struct `SliceMutP` in the current scope
+   --> crates/fp/src/vector.rs:348:12
+    |
+348 |         fn iter(self) -> (FpVectorIterator<'a>);
+    |            ^^^^ method not found in `SliceMutP<'_, 7_u32>`
+    |
+   ::: crates/fp/src/vector_inner.rs:41:1
+    |
+41  | pub struct SliceMutP<'a, const P: u32> {
+    | -------------------------------------- method `iter` not found for this
+    |
+    = help: items from traits can only be used if the trait is implemented and in scope
+note: `SliceT` defines an item `iter`, perhaps you need to implement it
+   --> crates/fp/src/vector.rs:302:1
+    |
+302 | pub trait SliceT<'a> {
+    | ^^^^^^^^^^^^^^^^^^^^
+
+error[E0599]: no method named `iter_nonzero` found for struct `SliceMutP` in the current scope
+   --> crates/fp/src/vector.rs:349:12
+    |
+349 |         fn iter_nonzero(self) -> (dispatch FpVectorNonZeroIterator 'a);
+    |            ^^^^^^^^^^^^ method not found in `SliceMutP<'_, 2_u32>`
+    |
+   ::: crates/fp/src/vector_inner.rs:41:1
+    |
+41  | pub struct SliceMutP<'a, const P: u32> {
+    | -------------------------------------- method `iter_nonzero` not found for this
+    |
+    = help: items from traits can only be used if the trait is implemented and in scope
+note: `SliceT` defines an item `iter_nonzero`, perhaps you need to implement it
+   --> crates/fp/src/vector.rs:302:1
+    |
+302 | pub trait SliceT<'a> {
+    | ^^^^^^^^^^^^^^^^^^^^
+
+error[E0599]: no method named `iter_nonzero` found for struct `SliceMutP` in the current scope
+   --> crates/fp/src/vector.rs:349:12
+    |
+349 |         fn iter_nonzero(self) -> (dispatch FpVectorNonZeroIterator 'a);
+    |            ^^^^^^^^^^^^ method not found in `SliceMutP<'_, 3_u32>`
+    |
+   ::: crates/fp/src/vector_inner.rs:41:1
+    |
+41  | pub struct SliceMutP<'a, const P: u32> {
+    | -------------------------------------- method `iter_nonzero` not found for this
+    |
+    = help: items from traits can only be used if the trait is implemented and in scope
+note: `SliceT` defines an item `iter_nonzero`, perhaps you need to implement it
+   --> crates/fp/src/vector.rs:302:1
+    |
+302 | pub trait SliceT<'a> {
+    | ^^^^^^^^^^^^^^^^^^^^
+
+error[E0599]: no method named `iter_nonzero` found for struct `SliceMutP` in the current scope
+   --> crates/fp/src/vector.rs:349:12
+    |
+349 |         fn iter_nonzero(self) -> (dispatch FpVectorNonZeroIterator 'a);
+    |            ^^^^^^^^^^^^ method not found in `SliceMutP<'_, 5_u32>`
+    |
+   ::: crates/fp/src/vector_inner.rs:41:1
+    |
+41  | pub struct SliceMutP<'a, const P: u32> {
+    | -------------------------------------- method `iter_nonzero` not found for this
+    |
+    = help: items from traits can only be used if the trait is implemented and in scope
+note: `SliceT` defines an item `iter_nonzero`, perhaps you need to implement it
+   --> crates/fp/src/vector.rs:302:1
+    |
+302 | pub trait SliceT<'a> {
+    | ^^^^^^^^^^^^^^^^^^^^
+
+error[E0599]: no method named `iter_nonzero` found for struct `SliceMutP` in the current scope
+   --> crates/fp/src/vector.rs:349:12
+    |
+349 |         fn iter_nonzero(self) -> (dispatch FpVectorNonZeroIterator 'a);
+    |            ^^^^^^^^^^^^ method not found in `SliceMutP<'_, 7_u32>`
+    |
+   ::: crates/fp/src/vector_inner.rs:41:1
+    |
+41  | pub struct SliceMutP<'a, const P: u32> {
+    | -------------------------------------- method `iter_nonzero` not found for this
+    |
+    = help: items from traits can only be used if the trait is implemented and in scope
+note: `SliceT` defines an item `iter_nonzero`, perhaps you need to implement it
+   --> crates/fp/src/vector.rs:302:1
+    |
+302 | pub trait SliceT<'a> {
+    | ^^^^^^^^^^^^^^^^^^^^
+
+error[E0599]: no method named `is_zero` found for reference `&SliceMutP<'_, 2_u32>` in the current scope
+   --> crates/fp/src/vector.rs:350:12
+    |
+350 |         fn is_zero(&self) -> bool;
+    |            ^^^^^^^ method not found in `&SliceMutP<'_, 2_u32>`
+    |
+    = help: items from traits can only be used if the trait is implemented and in scope
+note: `SliceT` defines an item `is_zero`, perhaps you need to implement it
+   --> crates/fp/src/vector.rs:302:1
+    |
+302 | pub trait SliceT<'a> {
+    | ^^^^^^^^^^^^^^^^^^^^
+
+error[E0599]: no method named `is_zero` found for reference `&SliceMutP<'_, 3_u32>` in the current scope
+   --> crates/fp/src/vector.rs:350:12
+    |
+350 |         fn is_zero(&self) -> bool;
+    |            ^^^^^^^ method not found in `&SliceMutP<'_, 3_u32>`
+    |
+    = help: items from traits can only be used if the trait is implemented and in scope
+note: `SliceT` defines an item `is_zero`, perhaps you need to implement it
+   --> crates/fp/src/vector.rs:302:1
+    |
+302 | pub trait SliceT<'a> {
+    | ^^^^^^^^^^^^^^^^^^^^
+
+error[E0599]: no method named `is_zero` found for reference `&SliceMutP<'_, 5_u32>` in the current scope
+   --> crates/fp/src/vector.rs:350:12
+    |
+350 |         fn is_zero(&self) -> bool;
+    |            ^^^^^^^ method not found in `&SliceMutP<'_, 5_u32>`
+    |
+    = help: items from traits can only be used if the trait is implemented and in scope
+note: `SliceT` defines an item `is_zero`, perhaps you need to implement it
+   --> crates/fp/src/vector.rs:302:1
+    |
+302 | pub trait SliceT<'a> {
+    | ^^^^^^^^^^^^^^^^^^^^
+
+error[E0599]: no method named `is_zero` found for reference `&SliceMutP<'_, 7_u32>` in the current scope
+   --> crates/fp/src/vector.rs:350:12
+    |
+350 |         fn is_zero(&self) -> bool;
+    |            ^^^^^^^ method not found in `&SliceMutP<'_, 7_u32>`
+    |
+    = help: items from traits can only be used if the trait is implemented and in scope
+note: `SliceT` defines an item `is_zero`, perhaps you need to implement it
+   --> crates/fp/src/vector.rs:302:1
+    |
+302 | pub trait SliceT<'a> {
+    | ^^^^^^^^^^^^^^^^^^^^
+
+error[E0599]: no method named `slice` found for struct `SliceMutP` in the current scope
+   --> crates/fp/src/vector.rs:351:12
+    |
+351 |         fn slice(self, start: usize, end: usize) -> (dispatch Slice 'a);
+    |            ^^^^^ method not found in `SliceMutP<'_, 2_u32>`
+    |
+   ::: crates/fp/src/vector_inner.rs:41:1
+    |
+41  | pub struct SliceMutP<'a, const P: u32> {
+    | -------------------------------------- method `slice` not found for this
+    |
+    = help: items from traits can only be used if the trait is implemented and in scope
+    = note: the following traits define an item `slice`, perhaps you need to implement one of them:
+            candidate #1: `SliceT`
+            candidate #2: `vec_deque::ring_slices::RingSlices`
+
+error[E0599]: no method named `slice` found for struct `SliceMutP` in the current scope
+   --> crates/fp/src/vector.rs:351:12
+    |
+351 |         fn slice(self, start: usize, end: usize) -> (dispatch Slice 'a);
+    |            ^^^^^ method not found in `SliceMutP<'_, 3_u32>`
+    |
+   ::: crates/fp/src/vector_inner.rs:41:1
+    |
+41  | pub struct SliceMutP<'a, const P: u32> {
+    | -------------------------------------- method `slice` not found for this
+    |
+    = help: items from traits can only be used if the trait is implemented and in scope
+    = note: the following traits define an item `slice`, perhaps you need to implement one of them:
+            candidate #1: `SliceT`
+            candidate #2: `vec_deque::ring_slices::RingSlices`
+
+error[E0599]: no method named `slice` found for struct `SliceMutP` in the current scope
+   --> crates/fp/src/vector.rs:351:12
+    |
+351 |         fn slice(self, start: usize, end: usize) -> (dispatch Slice 'a);
+    |            ^^^^^ method not found in `SliceMutP<'_, 5_u32>`
+    |
+   ::: crates/fp/src/vector_inner.rs:41:1
+    |
+41  | pub struct SliceMutP<'a, const P: u32> {
+    | -------------------------------------- method `slice` not found for this
+    |
+    = help: items from traits can only be used if the trait is implemented and in scope
+    = note: the following traits define an item `slice`, perhaps you need to implement one of them:
+            candidate #1: `SliceT`
+            candidate #2: `vec_deque::ring_slices::RingSlices`
+
+error[E0599]: no method named `slice` found for struct `SliceMutP` in the current scope
+   --> crates/fp/src/vector.rs:351:12
+    |
+351 |         fn slice(self, start: usize, end: usize) -> (dispatch Slice 'a);
+    |            ^^^^^ method not found in `SliceMutP<'_, 7_u32>`
+    |
+   ::: crates/fp/src/vector_inner.rs:41:1
+    |
+41  | pub struct SliceMutP<'a, const P: u32> {
+    | -------------------------------------- method `slice` not found for this
+    |
+    = help: items from traits can only be used if the trait is implemented and in scope
+    = note: the following traits define an item `slice`, perhaps you need to implement one of them:
+            candidate #1: `SliceT`
+            candidate #2: `vec_deque::ring_slices::RingSlices`
+
+error[E0599]: the method `to_owned` exists for struct `SliceMutP<'_, 2_u32>`, but its trait bounds were not satisfied
+   --> crates/fp/src/vector.rs:352:12
+    |
+352 |         fn to_owned(self) -> (dispatch FpVector);
+    |            ^^^^^^^^ method cannot be called on `SliceMutP<'_, 2_u32>` due to unsatisfied trait bounds
+    |
+   ::: crates/fp/src/vector_inner.rs:41:1
+    |
+41  | pub struct SliceMutP<'a, const P: u32> {
+    | --------------------------------------
+    | |
+    | method `to_owned` not found for this
+    | doesn't satisfy `SliceMutP<'_, 2_u32>: Clone`
+    | doesn't satisfy `SliceMutP<'_, 2_u32>: ToOwned`
+    |
+    = note: the following trait bounds were not satisfied:
+            `SliceMutP<'_, 2_u32>: Clone`
+            which is required by `SliceMutP<'_, 2_u32>: ToOwned`
+help: consider annotating `SliceMutP<'_, 2_u32>` with `#[derive(Clone)]`
+    |
+41  | #[derive(Clone)]
+    |
+
+error[E0599]: the method `to_owned` exists for struct `SliceMutP<'_, 3_u32>`, but its trait bounds were not satisfied
+   --> crates/fp/src/vector.rs:352:12
+    |
+352 |         fn to_owned(self) -> (dispatch FpVector);
+    |            ^^^^^^^^ method cannot be called on `SliceMutP<'_, 3_u32>` due to unsatisfied trait bounds
+    |
+   ::: crates/fp/src/vector_inner.rs:41:1
+    |
+41  | pub struct SliceMutP<'a, const P: u32> {
+    | --------------------------------------
+    | |
+    | method `to_owned` not found for this
+    | doesn't satisfy `SliceMutP<'_, 3_u32>: Clone`
+    | doesn't satisfy `SliceMutP<'_, 3_u32>: ToOwned`
+    |
+    = note: the following trait bounds were not satisfied:
+            `SliceMutP<'_, 3_u32>: Clone`
+            which is required by `SliceMutP<'_, 3_u32>: ToOwned`
+help: consider annotating `SliceMutP<'_, 3_u32>` with `#[derive(Clone)]`
+    |
+41  | #[derive(Clone)]
+    |
+
+error[E0599]: the method `to_owned` exists for struct `SliceMutP<'_, 5_u32>`, but its trait bounds were not satisfied
+   --> crates/fp/src/vector.rs:352:12
+    |
+352 |         fn to_owned(self) -> (dispatch FpVector);
+    |            ^^^^^^^^ method cannot be called on `SliceMutP<'_, 5_u32>` due to unsatisfied trait bounds
+    |
+   ::: crates/fp/src/vector_inner.rs:41:1
+    |
+41  | pub struct SliceMutP<'a, const P: u32> {
+    | --------------------------------------
+    | |
+    | method `to_owned` not found for this
+    | doesn't satisfy `SliceMutP<'_, 5_u32>: Clone`
+    | doesn't satisfy `SliceMutP<'_, 5_u32>: ToOwned`
+    |
+    = note: the following trait bounds were not satisfied:
+            `SliceMutP<'_, 5_u32>: Clone`
+            which is required by `SliceMutP<'_, 5_u32>: ToOwned`
+help: consider annotating `SliceMutP<'_, 5_u32>` with `#[derive(Clone)]`
+    |
+41  | #[derive(Clone)]
+    |
+
+error[E0599]: the method `to_owned` exists for struct `SliceMutP<'_, 7_u32>`, but its trait bounds were not satisfied
+   --> crates/fp/src/vector.rs:352:12
+    |
+352 |         fn to_owned(self) -> (dispatch FpVector);
+    |            ^^^^^^^^ method cannot be called on `SliceMutP<'_, 7_u32>` due to unsatisfied trait bounds
+    |
+   ::: crates/fp/src/vector_inner.rs:41:1
+    |
+41  | pub struct SliceMutP<'a, const P: u32> {
+    | --------------------------------------
+    | |
+    | method `to_owned` not found for this
+    | doesn't satisfy `SliceMutP<'_, 7_u32>: Clone`
+    | doesn't satisfy `SliceMutP<'_, 7_u32>: ToOwned`
+    |
+    = note: the following trait bounds were not satisfied:
+            `SliceMutP<'_, 7_u32>: Clone`
+            which is required by `SliceMutP<'_, 7_u32>: ToOwned`
+help: consider annotating `SliceMutP<'_, 7_u32>` with `#[derive(Clone)]`
+    |
+41  | #[derive(Clone)]
+    |
+
+Some errors have detailed explanations: E0308, E0599.
+For more information about an error, try `rustc --explain E0308`.
+error: could not compile `fp` due to 42 previous errors

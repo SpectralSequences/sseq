@@ -63,7 +63,7 @@ macro_rules! module_methods {
     
     
             fn check_algebra_dimension(&self, degree : i32, vec : &python_fp::vector::FpVector) -> PyResult<()> {
-                let what_the_dimension_should_be = self.inner_unchkd().algebra().dimension(degree, 0);
+                let what_the_dimension_should_be = self.inner_unchkd().algebra().dimension(degree);
                 let the_dimension = vec.get_dimension()?;
                 if the_dimension == what_the_dimension_should_be {
                     Ok(())
@@ -78,7 +78,7 @@ macro_rules! module_methods {
             }
     
             pub fn check_algebra_index(&self, degree : i32, idx : usize) -> PyResult<()> {
-                let dimension = self.inner_unchkd().algebra().dimension(degree, 0);
+                let dimension = self.inner_unchkd().algebra().dimension(degree);
                 if idx < dimension {
                     Ok(())
                 } else {
@@ -103,11 +103,6 @@ macro_rules! module_methods {
             #[getter]
             pub fn get_prime(&self) -> PyResult<u32> {
                 Ok(*Module::prime(self.inner()?))
-            }
-    
-            #[getter]
-            pub fn get_name(&self) -> PyResult<String> {
-                Ok(Module::name(self.inner()?))
             }
     
             #[getter]
@@ -142,7 +137,7 @@ macro_rules! module_methods {
                 self.check_dimension(op_degree + mod_degree, result)?;
                 self.check_index(mod_degree, mod_index)?;
                 self.check_algebra_index(op_degree, op_index)?;
-                self.inner_unchkd().act_on_basis(result.inner_mut_unchkd(), coeff, op_degree, op_index, mod_degree, mod_index);
+                self.inner_unchkd().act_on_basis(result.inner_mut_unchkd().as_slice_mut(), coeff, op_degree, op_index, mod_degree, mod_index);
                 Ok(())
             }
 
@@ -164,7 +159,7 @@ macro_rules! module_methods {
                 input.check_not_null()?;
                 self.check_dimension(input_degree, input)?;
                 self.check_algebra_index(op_degree, op_index)?;
-                self.inner_unchkd().act(result.inner_mut_unchkd(), coeff, op_degree, op_index, input_degree, input.inner_unchkd());
+                self.inner_unchkd().act(result.inner_mut_unchkd().as_slice_mut(), coeff, op_degree, op_index, input_degree, input.inner_unchkd().as_slice());
                 Ok(())
             }
 
@@ -186,7 +181,7 @@ macro_rules! module_methods {
                 self.check_dimension(input_degree, input)?;
                 op.check_not_null()?;
                 self.check_algebra_dimension(op_degree, op)?;
-                self.inner_unchkd().act_by_element(result.inner_mut_unchkd(), coeff, op_degree, op.inner_unchkd(), input_degree, input.inner_unchkd());
+                self.inner_unchkd().act_by_element(result.inner_mut_unchkd().as_slice_mut(), coeff, op_degree, op.inner_unchkd().as_slice(), input_degree, input.inner_unchkd().as_slice());
                 Ok(())
             }
 
@@ -208,7 +203,7 @@ macro_rules! module_methods {
                 self.check_degree(degree)?;
                 element.check_not_null()?;
                 self.check_dimension(degree, element)?;
-                Ok(Module::element_to_string(self.inner_unchkd(), degree, element.inner_unchkd()))
+                Ok(Module::element_to_string(self.inner_unchkd(), degree, element.inner_unchkd().as_slice()))
             }
 
             pub fn check_relation(&self,
@@ -220,8 +215,8 @@ macro_rules! module_methods {
                 self.check_degree(outer_op_degree + inner_op_degree + module_degree)?;
                 self.check_algebra_degree(outer_op_degree + inner_op_degree)?;
                 let p = *self.inner_unchkd().algebra().prime();
-                let mut result = python_fp::vector::FpVector::new(p, 0)?;
-                let mut scratch = python_fp::vector::FpVector::new(p, 0)?;
+                let result = python_fp::vector::FpVector::new(p, 0)?;
+                let scratch = python_fp::vector::FpVector::new(p, 0)?;
                 self.inner_unchkd().check_relation(
                     result.inner_mut_unchkd(), scratch.inner_mut_unchkd(),
                     outer_op_degree, outer_op_index, 
@@ -238,117 +233,117 @@ macro_rules! module_methods {
 
 
 #[macro_export]
-macro_rules! module_bindings { ( $module : ident, $module_rust : ident) => {
+macro_rules! module_bindings { ( $module : ident, $module_rust : ident, $element : ident) => {
 
     python_utils::rc_wrapper_type_inner!($module, ModuleRust);
     python_utils::wrapper_outer_defs_dispatch_to_enum_variant!($module, ModuleRust, $module, $module_rust<AlgebraRust>);
 
     module_methods!($module);
 
-    // #[pyclass(dict)]
-    // pub struct $element {
-    //     module : $module,
-    //     degree : i32,
-    //     element : FpVector
-    // }
+    #[pyclass(dict)]
+    #[derive(Clone)]
+    pub struct $element {
+        module : $module,
+        degree : i32,
+        element : FpVector
+    }
     
-    // #[pyproto]
-    // impl PyObjectProtocol for $element {
-    //     fn __repr__(&self) -> PyResult<String> {
-    //         self.algebra.element_to_string(self.degree, &self.element)
-    //     }
-    // }
+    #[pyproto]
+    impl PyObjectProtocol for $element {
+        fn __repr__(&self) -> PyResult<String> {
+            self.module.element_to_string(self.degree, &self.element)
+        }
+    }
 
-    // #[pyproto]
-    // impl pyo3::PySequenceProtocol for $element {
-    //     fn __len__(self) -> PyResult<usize> {
-    //         self.element.get_dimension()
-    //     }
+    #[pyproto]
+    impl pyo3::PySequenceProtocol for $element {
+        fn __len__(self) -> PyResult<usize> {
+            self.element.get_dimension()
+        }
 
-    //     fn __getitem__(self, index : isize) -> PyResult<u32> {
-    //         self.element.check_not_null()?;
-    //         self.element.check_index(index)?;
-    //         Ok(self.element.inner_unchkd().entry(index as usize))
-    //     }
+        fn __getitem__(self, index : isize) -> PyResult<u32> {
+            self.element.check_not_null()?;
+            self.element.check_index(index)?;
+            Ok(self.element.inner_unchkd().entry(index as usize))
+        }
 
-    //     fn __setitem__(mut self, index : isize, value : i32) -> PyResult<()> {
-    //         self.element.check_not_null()?;
-    //         self.element.check_index(index)?;
-    //         self.element.inner_mut_unchkd().set_entry(index as usize, self.element.reduce_coefficient(value));
-    //         Ok(())
-    //     }
-    // }
+        fn __setitem__(mut self, index : isize, value : i32) -> PyResult<()> {
+            self.element.check_not_null()?;
+            self.element.check_index(index)?;
+            self.element.inner_mut_unchkd().set_entry(index as usize, self.element.reduce_coefficient(value));
+            Ok(())
+        }
+    }
     
-    // impl $element {
-    //     fn obj_to_vec(obj : PyObject, argument_name : &str) -> PyResult<FpVector> {
-    //         let gil = Python::acquire_gil();
-    //         let py = gil.python();
-    //         Ok(obj.extract::<&FpVector>(py).or_else(|_err| {
-    //             Ok(&obj.extract::<&$element>(py)?.element)
-    //         }).map_err(|_err : PyErr| {
-    //             Err(python_utils::exception!(TypeError,
-    //                 "Argument \"{}\" expected to be either an {} or an FpVector.",
-    //                 $element_name,
-    //                 argument_name
-    //             )
-    //         })?.clone())
-    //     }
-    // }
+    impl $element {
+        fn obj_to_vec(obj : PyObject, argument_name : &str) -> PyResult<FpVector> {
+            let gil = Python::acquire_gil();
+            let py = gil.python();
+            Ok(obj.extract::<FpVector>(py).or_else(|_err| {
+                Ok(obj.extract::<$element>(py)?.element)
+            }).map_err(|_err : PyErr| {
+                python_utils::exception!(TypeError,
+                    "Argument \"{}\" expected to be either an {} or an FpVector.",
+                    stringify!($element),
+                    argument_name
+                )
+            })?.clone())
+        }
+    }
     
-    // #[pymethods]
-    // impl $element {
-    //     #[getter]
-    //     fn get_vec(&self) -> FpVector {
-    //         self.element.clone()
-    //     }
+    #[pymethods]
+    impl $element {
+        #[getter]
+        fn get_vec(&self) -> FpVector {
+            self.element.clone()
+        }
 
-    //     #[getter]
-    //     fn get_module(&self) -> $module {
-    //         self.module.clone()
-    //     }
+        #[getter]
+        fn get_module(&self) -> $module {
+            self.module.clone()
+        }
 
-    //     #[getter]
-    //     fn get_degree(&self) -> i32 {
-    //         self.degree
-    //     }
+        #[getter]
+        fn get_degree(&self) -> i32 {
+            self.degree
+        }
 
-    //     #[getter]
-    //     fn get_dimension(&self) -> PyResult<usize> {
-    //         self.element.get_dimension()
-    //     }
+        #[getter]
+        fn get_dimension(&self) -> PyResult<usize> {
+            self.element.get_dimension()
+        }
     
-    //     #[args(c=1)]
-    //     fn add(&mut self, other : PyObject, c : i32) -> PyResult<()> {
-    //         self.element.add(&$element::obj_to_vec(other, "other")?, c)
-    //     }
+        #[args(c=1)]
+        fn add(&mut self, other : PyObject, c : i32) -> PyResult<()> {
+            self.element.add(&$element::obj_to_vec(other, "other")?, c)
+        }
     
-    //     #[args(coeff=1)]
-    //     fn multiply_add(&mut self, left : &$element, right : &$element, coeff : i32) -> PyResult<()> {
-    //         let coeff = python_utils::reduce_coefficient(self.algebra.get_prime()?, coeff);
-    //         self.algebra.multiply_element_by_element(&mut self.element, coeff, 
-    //             left.degree, &left.element, 
-    //             -1
-    //             right.degree, &right.element, 
-    //         )
-    //     }
-    // }
+        // #[args(coeff=1)]
+        // fn multiply_add(&mut self, left : &$element, right : &$element, coeff : i32) -> PyResult<()> {
+        //     let coeff = python_utils::reduce_coefficient(self.algebra.get_prime()?, coeff);
+        //     self.algebra.multiply_element_by_element(&mut self.element, coeff, 
+        //         left.degree, &left.element, 
+        //         right.degree, &right.element, 
+        //     )
+        // }
+    }
     
-    // #[pymethods]
-    // impl $module {
-    //     fn new_element(&self, degree : i32) -> PyResult<$element> {
-    //         Ok($element {
-    //             algebra : self.clone(),
-    //             degree,
-    //             element : FpVector::new(self.get_prime()?, self.dimension(degree, -1)?)?
-    //         })
-    //     }
+    #[pymethods]
+    impl $module {
+        fn new_element(&self, degree : i32) -> PyResult<$element> {
+            Ok($element {
+                module : self.clone(),
+                degree,
+                element : FpVector::new(self.get_prime()?, self.dimension(degree)?)?
+            })
+        }
     
-    //     fn element_from_vec(&self, degree : i32, v : &FpVector) -> PyResult<$element> {
-    //         Ok($element {
-    //             algebra : self.clone(),
-    //             degree,
-    //             element : v.clone()
-    //         })
-    //     }
-    // }
+        fn element_from_vec(&self, degree : i32, v : &FpVector) -> PyResult<$element> {
+            Ok($element {
+                module : self.clone(),
+                degree,
+                element : v.clone()
+            })
+        }
+    }
 }}

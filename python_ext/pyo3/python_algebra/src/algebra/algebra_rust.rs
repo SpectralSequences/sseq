@@ -1,16 +1,17 @@
 // #![allow(unused_macros)]
 
-use enum_dispatch::enum_dispatch;
+use derive_more::{Display};
+
 use std::sync::Arc;
 
-use fp::vector::FpVector;
-
 use algebra::{
-    // Algebra,
+    Algebra,
     AdemAlgebra as AdemAlgebraRust, 
     MilnorAlgebra as MilnorAlgebraRust,
     SteenrodAlgebraT as SteenrodAlgebraRustT,
-    SteenrodAlgebraBorrow as SteenrodAlgebraBorrowRust
+    SteenrodAlgebraBorrow as SteenrodAlgebraBorrowRust,
+    GeneratedAlgebra,
+    JsonAlgebra
 };
 
 use crate::algebra::{
@@ -25,26 +26,61 @@ use pyo3::{
     PyErr
 };
 
-use error;
 
 // For some reason the enum_dispatch doesn't work right?
-#[enum_dispatch(Algebra)]
+#[derive(Display)]
 pub enum AlgebraRust {
-    AdemAlgebraRust,
-    MilnorAlgebraRust,
-    PythonAlgebraRust
+    AdemAlgebraRust(AdemAlgebraRust),
+    MilnorAlgebraRust(MilnorAlgebraRust),
+    PythonAlgebraRust(PythonAlgebraRust)
 }
 
 impl SteenrodAlgebraRustT for AlgebraRust {
     fn steenrod_algebra(&self) -> SteenrodAlgebraBorrowRust {
         match self {
-            AlgebraRust::AdemAlgebraRust(a) => SteenrodAlgebraBorrowRust::BorrowAdem(&a),
-            AlgebraRust::MilnorAlgebraRust(a) => SteenrodAlgebraBorrowRust::BorrowMilnor(&a),
+            AlgebraRust::AdemAlgebraRust(a) => SteenrodAlgebraBorrowRust::BorrowAdem(a),
+            AlgebraRust::MilnorAlgebraRust(a) => SteenrodAlgebraBorrowRust::BorrowMilnor(a),
             _ => panic!("Invalid algebra type: to_steenrod_algebra requires a AdemAlgebra or a MilnorAlgebra.")
         }
     }
 }
 
+impl GeneratedAlgebra for AlgebraRust {
+    fn generators(&self, x: i32) -> Vec<usize> { 
+        match self {
+            AlgebraRust::AdemAlgebraRust(a) => a.generators(x),
+            AlgebraRust::MilnorAlgebraRust(a) => a.generators(x),
+            _ => panic!("Invalid algebra type: generators requires a AdemAlgebra or a MilnorAlgebra.")
+        }
+    }
+    fn string_to_generator<'a, 'b>(&'a self, input: &'b str) -> nom::IResult<&'b str, (i32, usize)> {
+        match self {
+            AlgebraRust::AdemAlgebraRust(a) => a.string_to_generator(input),
+            AlgebraRust::MilnorAlgebraRust(a) => a.string_to_generator(input),
+            _ => panic!("Invalid algebra type: string_to_generator requires a AdemAlgebra or a MilnorAlgebra.")
+        }
+    }
+    fn decompose_basis_element(&self, x: i32, y: usize) -> Vec<(u32, (i32, usize), (i32, usize))> {
+        match self {
+            AlgebraRust::AdemAlgebraRust(a) => a.decompose_basis_element(x, y),
+            AlgebraRust::MilnorAlgebraRust(a) => a.decompose_basis_element(x, y),
+            _ => panic!("Invalid algebra type: decompose_basis_element requires a AdemAlgebra or a MilnorAlgebra.")
+        }
+    }
+    fn generating_relations(&self, x: i32) -> Vec<Vec<(u32, (i32, usize), (i32, usize))>> {
+        match self {
+            AlgebraRust::AdemAlgebraRust(a) => a.generating_relations(x),
+            AlgebraRust::MilnorAlgebraRust(a) => a.generating_relations(x),
+            _ => panic!("Invalid algebra type: generating_relations requires a AdemAlgebra or a MilnorAlgebra.")
+        }
+    }
+}
+
+impl JsonAlgebra for AlgebraRust {
+    fn prefix(&self) -> &str { todo!() }
+    fn json_to_basis(&self, _: &serde_json::value::Value) -> anyhow::Result<(i32, usize)> { todo!() }
+    fn json_from_basis(&self, _: i32, _: usize) -> serde_json::value::Value { todo!() }
+}
 
 impl AlgebraRust {
     pub fn into_py_object(algebra : Arc<AlgebraRust>) -> PyObject {
@@ -74,18 +110,21 @@ impl AlgebraRust {
 }
 
 
-
-macro_rules! because_enum_dispatch_doesnt_work_for_me {
-    ($method : ident, $self_ : expr, $( $args : ident ),*) => {
-        match $self_ {
-            AlgebraRust::AdemAlgebraRust(alg) => alg.$method($($args),*),
-            AlgebraRust::MilnorAlgebraRust(alg) => alg.$method($($args),*),
-            AlgebraRust::PythonAlgebraRust(alg) => alg.$method($($args),*)
+macro_rules! dispatch_algebra_rust {
+    () => {};
+    ($vis:vis fn $method:ident$(<$($lt:lifetime),+>)?(&$($lt2:lifetime)?self$(, $arg:ident: $ty:ty )*$(,)?) $(-> $ret:ty)?; $($tail:tt)*) => {
+        $vis fn $method$(<$($lt),+>)?(&$($lt2)?self, $($arg: $ty),* ) $(-> $ret)* {
+            match self {
+                AlgebraRust::AdemAlgebraRust(alg) => alg.$method($($arg),*),
+                AlgebraRust::MilnorAlgebraRust(alg) => alg.$method($($arg),*),
+                AlgebraRust::PythonAlgebraRust(alg) => alg.$method($($arg),*)
+            }
         }
+        dispatch_algebra_rust!{$($tail)*}
     };
 }
 
-algebra::dispatch_algebra!{AlgebraRust, because_enum_dispatch_doesnt_work_for_me}
+algebra::dispatch_algebra!{AlgebraRust, dispatch_algebra_rust}
 
 
 // #[derive(Debug)]

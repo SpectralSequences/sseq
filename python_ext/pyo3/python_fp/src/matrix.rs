@@ -54,7 +54,7 @@ impl PivotVecWrapper {
     }
 }
 
-py_repr!(PivotVecWrapper, "FreedPivotVector", {
+py_repr!(PivotVecWrapper, inner, "FreedPivotVector", {
     Ok(format!(
         "PivotVector {:?}",
         inner
@@ -63,7 +63,7 @@ py_repr!(PivotVecWrapper, "FreedPivotVector", {
 
 wrapper_type!(Matrix, MatrixRust);
 
-py_repr!(Matrix, "FreedMatrix", {
+py_repr!(Matrix, inner, "FreedMatrix", {
     Ok(format!(
         "F{}Matrix {}",
         inner.prime(),
@@ -114,25 +114,25 @@ impl Matrix {
     // pub fn to_vec(&self) -> Vec<Vec<u32>> {}
     // pub fn augmented_from_vec(p : ValidPrime, input : &[Vec<u32>]) -> (usize, Matrix) {}
 
-    fn add_identity(&mut self, size : usize, row : usize, column : usize) -> PyResult<()> {
-        self.check_not_null()?;
-        let rows = self.rows()?;
-        let cols = self.columns()?;
-        if row + size > rows {
-            return Err(python_utils::exception!(IndexError,
-                "Matrix has only {} rows but needs at least {} rows for desired operation.",
-                rows, row + size
-            ));
-        }
-        if column + size > cols {
-            return Err(python_utils::exception!(IndexError,
-                "Matrix has only {} columns but needs at least {} columns for desired operation.",
-                cols, column + size
-            ));
-        }        
-        self.inner_mut()?.add_identity(size, row, column);
-        Ok(())
-    }
+    // fn add_identity(&mut self, size : usize, row : usize, column : usize) -> PyResult<()> {
+    //     self.check_not_null()?;
+    //     let rows = self.rows()?;
+    //     let cols = self.columns()?;
+    //     if row + size > rows {
+    //         return Err(python_utils::exception!(IndexError,
+    //             "Matrix has only {} rows but needs at least {} rows for desired operation.",
+    //             rows, row + size
+    //         ));
+    //     }
+    //     if column + size > cols {
+    //         return Err(python_utils::exception!(IndexError,
+    //             "Matrix has only {} columns but needs at least {} columns for desired operation.",
+    //             cols, column + size
+    //         ));
+    //     }        
+    //     self.inner_mut()?.add_identity(size, row, column);
+    //     Ok(())
+    // }
 
     pub fn prime(&self) -> PyResult<u32> {
         Ok(*self.inner()?.prime())
@@ -146,34 +146,15 @@ impl Matrix {
         Ok(self.inner()?.columns())
     }
 
-    pub fn set_slice(&mut self, row_start : usize, row_end : usize, col_start : usize, col_end : usize) -> PyResult<()> {
-        self.inner_mut()?.set_slice(row_start, row_end, col_start, col_end);
-        Ok(())
-    }
-
-    pub fn clear_slice(&mut self) -> PyResult<()> {
-        self.inner_mut()?.clear_slice();
-        Ok(())
-    }
-
-    pub fn set_row_slice(&mut self, row_start: usize, row_end: usize) -> PyResult<()> {
-        self.inner_mut()?.set_row_slice(row_start, row_end);
-        Ok(())
-    }
-
-    pub fn clear_row_slice(&mut self) -> PyResult<()> {
-        self.inner_mut()?.clear_row_slice();
-        Ok(())
-    }
 
     // pub fn into_slice(mut self) -> Self {}
     // pub fn into_vec(self) -> Vec<FpVector> {}
 
 
-    pub fn swap_rows(&mut self, i : usize, j : usize) -> PyResult<()> {
-        self.inner_mut()?.swap_rows(i, j);
-        Ok(())
-    }
+    // pub fn swap_rows(&mut self, i : usize, j : usize) -> PyResult<()> {
+    //     self.inner_mut()?.swap_rows(i, j);
+    //     Ok(())
+    // }
 
     pub fn row_reduce(&mut self) -> PyResult<()> {
         let gil = Python::acquire_gil();
@@ -214,7 +195,7 @@ impl PySequenceProtocol for Matrix {
 wrapper_type!(Subspace, SubspaceRust);
 
 
-py_repr!(Subspace, "FreedSubspace", {
+py_repr!(Subspace, inner, "FreedSubspace", {
     Ok(format!(
         "F{}Subspace {}",
         inner.prime(),
@@ -250,17 +231,17 @@ impl Subspace {
 
 
     pub fn reduce(&self, vector : &mut FpVector) -> PyResult<()> { 
-        self.inner()?.reduce(vector.inner_mut()?);
+        self.inner()?.reduce(vector.inner_mut()?.as_slice_mut());
         Ok(())
     }
 
     pub fn shift_reduce(&self, vector : &mut FpVector) -> PyResult<()> {
-        self.inner()?.reduce(vector.inner_mut()?);
+        self.inner()?.reduce(vector.inner_mut()?.as_slice_mut());
         Ok(())
     }
 
     pub fn contains(&self, vector : &FpVector) -> PyResult<bool> { 
-        Ok(self.inner()?.contains(vector.inner()?))
+        Ok(self.inner()?.contains(vector.inner()?.as_slice()))
     }
 
     pub fn dimension(&self) -> PyResult<usize> { 
@@ -274,7 +255,7 @@ impl Subspace {
     }
 
     pub fn add_vector(&mut self, row : &FpVector) -> PyResult<()> { 
-        self.inner_mut()?.add_vector(row.inner()?);
+        self.inner_mut()?.add_vector(row.inner()?.as_slice());
         Ok(())
     }
 
@@ -308,7 +289,7 @@ impl Subspace {
 
 wrapper_type!(QuasiInverse, QuasiInverseRust);
 
-py_repr!(QuasiInverse, "FreedQuasiInverse", {
+py_repr!(QuasiInverse, inner, "FreedQuasiInverse", {
     Ok(format!(
         "F{}QuasiInverse {:?}",
         inner.prime(),
@@ -323,7 +304,7 @@ impl QuasiInverse {
     }
 
     pub fn apply(&self, target : &mut FpVector, coeff : u32, input : &FpVector) -> PyResult<()> {
-        self.inner()?.apply(target.inner_mut()?, coeff, input.inner_mut()?);
+        self.inner()?.apply(target.inner_mut()?.as_slice_mut(), coeff, input.inner_mut()?.as_slice());
         Ok(())
     }
 }
@@ -351,24 +332,6 @@ impl Matrix {
         Ok(QuasiInverse::box_and_wrap(self.inner_mut()?.compute_quasi_inverse(last_target_col, first_source_column)))
     }
 
-    pub fn compute_quasi_inverses(
-            &mut self, 
-            first_res_col : usize, 
-            last_res_column : usize,  
-            first_source_column : usize
-    ) -> PyResult<(QuasiInverse, QuasiInverse)> {
-        let (qi1,qi2) = self.inner_mut()?.compute_quasi_inverses(first_res_col, last_res_column, first_source_column);
-        Ok((QuasiInverse::box_and_wrap(qi1), QuasiInverse::box_and_wrap(qi2)))
-    }
-
-    pub fn get_image(&mut self, image_rows : usize, target_dimension : usize, pivots : &PivotVecWrapper) -> PyResult<Subspace> {
-        let self_inner = self.inner_mut()?;
-        let pivots_inner = pivots.inner()?;
-        Ok(Subspace::box_and_wrap(python_utils::release_gil!(
-            self_inner.get_image(image_rows, target_dimension, pivots_inner)
-        )))
-    }
-
    
     pub fn extend_to_surjection(&mut self,
         first_empty_row : usize,
@@ -380,45 +343,25 @@ impl Matrix {
         ))
     }
 
-    pub fn extend_image_to_desired_image(&mut self,
-        first_empty_row : usize,
-        start_column : usize, end_column : usize,
-        desired_image : &Subspace
-    ) -> PyResult<Vec<usize>> { 
-        let self_inner = self.inner_mut()?;
-        let desired_image_inner = desired_image.inner()?;
-        Ok(python_utils::release_gil!( 
-            self_inner.extend_image_to_desired_image(
-                first_empty_row, start_column, end_column, desired_image_inner
-            )
-        ))
-    }
-
     #[args(pyargs="*")]
     pub fn extend_image(&mut self,
-        first_empty_row : usize,
         start_column : usize, end_column : usize,
-        pyargs : &PyTuple
+        pyargs : &PyTuple, extra_column_capacity : usize
     ) -> PyResult<Vec<usize>> {  
         python_utils::check_number_of_positional_arguments!("extend_image", 5, 6, 5 + pyargs.len())?;
         let self_inner = self.inner_mut()?;
-        let temp;
-        let desired_image = if pyargs.is_empty() {
-                None
-            } else {
-                temp = pyargs.get_item(0).extract::<Subspace>()?;
-                Some(temp.inner()?)
-            };
+        let temp = pyargs.get_item(0).extract::<Subspace>()?;
+        let desired_image = temp.inner()?;
         Ok(python_utils::release_gil!(
             self_inner.extend_image(
-                first_empty_row, start_column, end_column,  
-                desired_image
+                start_column, end_column,
+                desired_image, extra_column_capacity
             )
         ))
     }
 
     pub fn apply(&self, result : &mut FpVector, coeff : u32, input : &FpVector) -> PyResult<()> {
-        self.inner()?.apply(result.inner_mut()?, coeff, input.inner()?);
+        self.inner()?.apply(result.inner_mut()?.as_slice_mut(), coeff, input.inner()?.as_slice());
         Ok(())
     }
 }

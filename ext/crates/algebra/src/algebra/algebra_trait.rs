@@ -256,12 +256,12 @@ macro_rules! dispatch_algebra {
         impl Algebra for $struct {
             $dispatch_macro! {
                 fn magic(&self) -> u32;
-                fn prime(&self) -> ValidPrime;
+                fn prime(&self) -> fp::prime::ValidPrime;
                 fn compute_basis(&self, degree: i32);
                 fn dimension(&self, degree: i32) -> usize;
                 fn multiply_basis_elements(
                     &self,
-                    result: SliceMut,
+                    result: fp::vector::SliceMut,
                     coeff: u32,
                     r_degree: i32,
                     r_idx: usize,
@@ -271,39 +271,39 @@ macro_rules! dispatch_algebra {
 
                 fn multiply_basis_element_by_element(
                     &self,
-                    result: SliceMut,
+                    result: fp::vector::SliceMut,
                     coeff: u32,
                     r_degree: i32,
                     r_idx: usize,
                     s_degree: i32,
-                    s: Slice,
+                    s: fp::vector::Slice,
                 );
 
                 fn multiply_element_by_basis_element(
                     &self,
-                    result: SliceMut,
+                    result: fp::vector::SliceMut,
                     coeff: u32,
                     r_degree: i32,
-                    r: Slice,
+                    r: fp::vector::Slice,
                     s_degree: i32,
                     s_idx: usize,
                 );
 
                 fn multiply_element_by_element(
                     &self,
-                    result: SliceMut,
+                    result: fp::vector::SliceMut,
                     coeff: u32,
                     r_degree: i32,
-                    r: Slice,
+                    r: fp::vector::Slice,
                     s_degree: i32,
-                    s: Slice,
+                    s: fp::vector::Slice,
                 );
 
                 fn default_filtration_one_products(&self) -> Vec<(String, i32, usize)>;
 
                 fn basis_element_to_string(&self, degree: i32, idx: usize) -> String;
 
-                fn element_to_string(&self, degree: i32, element: Slice) -> String;
+                fn element_to_string(&self, degree: i32, element: fp::vector::Slice) -> String;
             }
         }
     };

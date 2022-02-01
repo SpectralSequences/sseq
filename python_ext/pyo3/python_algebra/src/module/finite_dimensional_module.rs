@@ -7,11 +7,11 @@ use pyo3::{
 // use std::fs::File;
 // use std::io::BufReader;
 // use std::sync::Arc;
-use std::collections::HashMap;
 
 // use serde_json::{json, Value};
 
 use python_utils;
+use rustc_hash::FxHashMap as HashMap;
 
 
 use bivec::BiVec;
@@ -22,9 +22,9 @@ use python_fp::vector::FpVector;
 use crate::algebra::AlgebraRust;
 use crate::module::module_rust::ModuleRust;
 
-crate::module_bindings!(FDModule, FDModuleRust);
+crate::module_bindings!(FDModule, FDModuleRust, FDModuleElement);
 
-python_utils::py_repr!(FDModule, "FreedFDModule", {
+python_utils::py_repr!(FDModule, inner, "FreedFDModule", {
     Ok(format!(
         "FDModule(p={})",
         inner.prime(),
@@ -148,7 +148,7 @@ impl FDModule {
         let inner = self.inner_mut()?;
         let mut gen_to_idx : HashMap<String, (i32, usize)>;
         if pyargs.is_empty() {
-            gen_to_idx = HashMap::new();
+            gen_to_idx = HashMap::default();
             for degree in inner.min_degree()..=inner.max_degree() {
                 for idx in 0 .. inner.dimension(degree){
                     gen_to_idx.insert(

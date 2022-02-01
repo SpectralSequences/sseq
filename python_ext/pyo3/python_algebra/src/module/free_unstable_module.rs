@@ -25,7 +25,7 @@ use crate::module::module_rust::ModuleRust;
 wrapper_type!(OperationGeneratorPair, OperationGeneratorPairRust);
 
 crate::module_bindings!(FreeUnstableModule, FreeUnstableModuleRust);
-py_repr!(FreeUnstableModule, "FreedFreeModuleUnstable", {
+py_repr!(FreeUnstableModule, inner, "FreedFreeModuleUnstable", {
     Ok(format!(
         "FreeModuleUnstable(p={})",
         inner.prime()

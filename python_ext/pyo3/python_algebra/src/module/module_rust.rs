@@ -1,29 +1,28 @@
 use std::sync::Arc;
-
+use derive_more::Display;
 use fp::prime::ValidPrime;
-use fp::vector::FpVector;
+use fp::vector::{FpVector, Slice, SliceMut};
 use algebra::module::{
     Module as ModuleT,
+    ZeroModule,
     FDModule as FDModuleRust,
     // FPModule as FPModuleRust,
-    // FreeModule as FreeModuleRust,
-    FreeUnstableModule as FreeUnstableModuleRust,
+    FreeModule as FreeModuleRust,
     RealProjectiveSpace as RealProjectiveSpaceRust,
-    KFpn as KFpnRust,
-    BCp as BCpRust,
-    Dickson2 as Dickson2Rust,
-    ZeroModule
+    // KFpn as KFpnRust,
+    // BCp as BCpRust,
+    // Dickson2 as Dickson2Rust,
+    // ZeroModule
 };
 
 use pyo3::{prelude::*};//, exceptions, PyErr};
 use crate::algebra::AlgebraRust;
 use crate::module::{
     FDModule,
-    FreeUnstableModule,
     RealProjectiveSpace,
-    KFpn,
-    BCp,
-    Dickson2
+    // KFpn,
+    // BCp,
+    // Dickson2
 };
 
 // For escaping macro definition inside macro, see https://github.com/rust-lang/rust/issues/35853
@@ -38,6 +37,7 @@ macro_rules! with_dollar_sign {
 macro_rules! export_modules {
     ($(register($module_name : ident)),+) => {
         paste::item!{
+            #[derive(Display)]
             pub enum ModuleRust {
                 $( $module_name([<$module_name Rust>]<AlgebraRust>) ),+
             }
@@ -80,11 +80,8 @@ macro_rules! export_modules {
 export_modules! {
     register(FDModule),
     // register(FPModule),
-    register(FreeUnstableModule),
-    register(RealProjectiveSpace),
-    register(KFpn),
-    register(BCp),
-    register(Dickson2)
+    // register(FreeUnstableModule),
+    register(RealProjectiveSpace)
 }
 
 impl ZeroModule for ModuleRust {
@@ -98,10 +95,6 @@ impl ModuleT for ModuleRust {
 
     fn algebra(&self) -> Arc<Self::Algebra> {
         because_enum_dispatch_doesnt_work_for_me!(algebra, self, )   
-    }
-
-    fn name(&self) -> String {
-        because_enum_dispatch_doesnt_work_for_me!(name, self, )
     }
 
     fn min_degree(&self) -> i32 {
@@ -122,7 +115,7 @@ impl ModuleT for ModuleRust {
 
     fn act_on_basis(
         &self,
-        result: &mut FpVector,
+        result: SliceMut,
         coeff: u32,
         op_degree: i32,
         op_index: usize,
@@ -160,24 +153,24 @@ impl ModuleT for ModuleRust {
 
     fn act(
         &self,
-        result: &mut FpVector,
+        result: SliceMut,
         coeff: u32,
         op_degree: i32,
         op_index: usize,
         input_degree: i32,
-        input: &FpVector,
+        input: Slice,
     ) {
         because_enum_dispatch_doesnt_work_for_me!(act, self, result, coeff, op_degree, op_index, input_degree, input)
     }
 
     fn act_by_element(
         &self,
-        result: &mut FpVector,
+        result: SliceMut,
         coeff: u32,
         op_degree: i32,
-        op: &FpVector,
+        op: Slice,
         input_degree: i32,
-        input: &FpVector,
+        input: Slice,
     ) {
         because_enum_dispatch_doesnt_work_for_me!(act_by_element, self, result, coeff, op_degree, op, input_degree, input)
     }
@@ -186,7 +179,7 @@ impl ModuleT for ModuleRust {
         because_enum_dispatch_doesnt_work_for_me!(basis_string_list, self, degree)
     }
 
-    fn element_to_string(&self, degree: i32, element: &FpVector) -> String {
+    fn element_to_string(&self, degree: i32, element: Slice) -> String {
         because_enum_dispatch_doesnt_work_for_me!(element_to_string, self, degree, element)
     }
 }

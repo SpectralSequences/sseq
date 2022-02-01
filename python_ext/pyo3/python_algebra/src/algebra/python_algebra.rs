@@ -2,6 +2,7 @@
 #![allow(unused_variables)]
 #![allow(unused_imports)]
 
+use derive_more::Display;
 use pyo3::{
     prelude::*,
     PyObjectProtocol,
@@ -12,14 +13,15 @@ use pyo3::{
 use std::sync::Arc;
 
 use fp::prime::ValidPrime;
-use fp::vector::{FpVector as FpVectorRust, FpVectorT};
+use fp::vector::{FpVector as FpVectorRust, SliceMut};
 use algebra::Algebra;
 
 use python_fp::prime::new_valid_prime;
 use python_fp::vector::FpVector;
 use crate::algebra::AlgebraRust;
 
-
+#[derive(Display, Debug)]
+#[display(fmt = "PythonAlgebraRust")]
 pub struct PythonAlgebraRust {
     pub prime : ValidPrime,
     pub compute_basis : PyObject,
@@ -37,7 +39,7 @@ use python_utils::{
     // get_from_kwargs
 };
 
-py_repr!(PythonAlgebra, "FreedPythonAlgebra", {
+py_repr!(PythonAlgebra, inner, "FreedPythonAlgebra", {
     Ok(format!(
         "PythonAlgebra(p={})",
         *inner.prime
@@ -70,9 +72,6 @@ impl PythonAlgebra {
 }
 
 impl Algebra for PythonAlgebraRust {
-    fn algebra_type(&self) -> &str {
-        "PythonAlgebra"
-    }
 
     fn prime(&self) -> ValidPrime {
         self.prime
@@ -95,19 +94,15 @@ impl Algebra for PythonAlgebraRust {
         }
     }
 
-    fn max_computed_degree(&self) -> i32 {
-        i32::max_value()
-    }
-
-    fn dimension(&self, degree : i32, excess : i32) -> usize {
+    fn dimension(&self, degree : i32) -> usize {
         let gil = Python::acquire_gil();
         let py = gil.python();
-        let result = self.get_dimension.call1(py, (degree,excess)).unwrap()
+        let result = self.get_dimension.call1(py, (degree,)).unwrap()
             .extract(py);
         match result {
             Err(e) => {
-                eprintln!("Error occurred in call dimension({}, {}):",
-                    degree, excess
+                eprintln!("Error occurred in call dimension({}):",
+                    degree
                 );
                 e.print(py);
                 panic!();
@@ -116,20 +111,20 @@ impl Algebra for PythonAlgebraRust {
         }
     }
 
-    fn multiply_basis_elements(&self, result : &mut FpVectorRust, coeff : u32, r_degree : i32, r_idx : usize, s_degree: i32, s_idx : usize, excess : i32){
+    fn multiply_basis_elements(&self, result : SliceMut, coeff : u32, r_degree : i32, r_idx : usize, s_degree: i32, s_idx : usize){
         let gil = Python::acquire_gil();
         let py = gil.python();
         let temp_arc = Arc::new(());
-        let result = self.multiply_basis_elements.call1(py,
-                (FpVector::wrap(result, Arc::downgrade(&temp_arc)), coeff, r_degree, r_idx, s_degree, s_idx, excess)
-            );
-        if let Err(e) = result {
-            eprintln!("Error occurred in call multiply_basis_elements(result, {}, {}, {}, {}, {}, {}):",
-                coeff, r_degree, r_idx, s_degree, s_idx, excess
-            );
-            e.print(py);
-            panic!();
-        }
+        // let result = self.multiply_basis_elements.call1(py,
+        //         (FpVector::wrap(result, Arc::downgrade(&temp_arc)), coeff, r_degree, r_idx, s_degree, s_idx)
+        //     );
+        // if let Err(e) = result {
+        //     eprintln!("Error occurred in call multiply_basis_elements(result, {}, {}, {}, {}, {}):",
+        //         coeff, r_degree, r_idx, s_degree, s_idx
+        //     );
+        //     e.print(py);
+        //     panic!();
+        // }
     }
 
     fn default_filtration_one_products(&self) -> Vec<(String, i32, usize)> { Vec::new() }
@@ -150,5 +145,4 @@ impl Algebra for PythonAlgebraRust {
             Ok(value) => value
         }
     }
-
 }

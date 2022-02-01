@@ -11,26 +11,24 @@ crate-type = ["cdylib", "rlib"]
 paste = "0.1"
 serde_json = "1.0.0"
 serde = { version = "1.0.0", features = ["derive"] }
-enum_dispatch = "0.2.0"
-nom = "5.0.0"
+nom = "7.0.0"
 parking_lot = "0.10"
+derive_more = "0.99.17"
+anyhow = "1.0.0"
 
 algebra = { path = "../../../ext/crates/algebra" }
 bivec = { path = "../../../ext/crates/bivec" }
-error = { path = "../../../ext/crates/error" }
 fp = { path = "../../../ext/crates/fp" }
 
 python_fp = { path = "../python_fp" }
 python_utils = { path = "../python_utils" }
+rustc-hash = { version = "1.0" }
 
 
 [dev-dependencies]
 rand = "0.7.0"
 rstest = "0.6.4"
 bencher = "0.1.5"
-
-[features]
-prime-two = []
 
 [dependencies.pyo3]
 version = "0.10.1"
