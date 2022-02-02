@@ -105,7 +105,7 @@
 //! a name for different products; the script may produce and write erroneous results silently in
 //! such cases (though it practice it is likely to hit some error sooner or later).
 //!
-//! If the script is compiled with the `use-zstd` feature, then it supports reading from zstd
+//! If the script is compiled with the `zstd` feature, then it supports reading from zstd
 //! compressed save files, where each save file is individually compressed. The script will first
 //! look for the uncompressed file. If it does not exist, it then looks for the file with the same
 //! name but with a `.zst` extension.
@@ -157,7 +157,7 @@
 //!   feature offers significant improvements at the prime 2.
 //! - `concurrent`: Use multiple threads for computations. The number of threads used can be
 //!   configured via the `RAYON_NUM_THREADS` environment variable.
-//! - `use-zstd`: Support reading zstd-compressed save files.
+//! - `zstd`: Support reading zstd-compressed save files.
 //! - `cache-multiplication`: Precompute and cache the multiplication table under the Milnor basis.
 //!    This is only feasible when using a small, finite subalgebra, e.g. when working with
 //!    $\mathrm{tmf}$ modules.

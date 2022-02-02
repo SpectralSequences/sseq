@@ -200,7 +200,7 @@ fn open_file(mut path: PathBuf) -> Option<Box<dyn Read>> {
         }
     }
 
-    #[cfg(feature = "use-zstd")]
+    #[cfg(feature = "zstd")]
     {
         path.set_extension("zst");
         match File::open(&path) {
