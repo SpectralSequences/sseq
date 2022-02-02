@@ -316,7 +316,7 @@
 <span class="doccomment">//! a name for different products; the script may produce and write erroneous results silently in</span>
 <span class="doccomment">//! such cases (though it practice it is likely to hit some error sooner or later).</span>
 <span class="doccomment">//!</span>
-<span class="doccomment">//! If the script is compiled with the `use-zstd` feature, then it supports reading from zstd</span>
+<span class="doccomment">//! If the script is compiled with the `zstd` feature, then it supports reading from zstd</span>
 <span class="doccomment">//! compressed save files, where each save file is individually compressed. The script will first</span>
 <span class="doccomment">//! look for the uncompressed file. If it does not exist, it then looks for the file with the same</span>
 <span class="doccomment">//! name but with a `.zst` extension.</span>
@@ -368,7 +368,7 @@
 <span class="doccomment">//!   feature offers significant improvements at the prime 2.</span>
 <span class="doccomment">//! - `concurrent`: Use multiple threads for computations. The number of threads used can be</span>
 <span class="doccomment">//!   configured via the `RAYON_NUM_THREADS` environment variable.</span>
-<span class="doccomment">//! - `use-zstd`: Support reading zstd-compressed save files.</span>
+<span class="doccomment">//! - `zstd`: Support reading zstd-compressed save files.</span>
 <span class="doccomment">//! - `cache-multiplication`: Precompute and cache the multiplication table under the Milnor basis.</span>
 <span class="doccomment">//!    This is only feasible when using a small, finite subalgebra, e.g. when working with</span>
 <span class="doccomment">//!    $\mathrm{tmf}$ modules.</span>

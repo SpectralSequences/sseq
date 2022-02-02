@@ -103,7 +103,7 @@ writing (only the data for said bidegree would be corrupted).</p>
 <p>For products, the subdirectory will be named after the name of the product. One must not reuse
 a name for different products; the script may produce and write erroneous results silently in
 such cases (though it practice it is likely to hit some error sooner or later).</p>
-<p>If the script is compiled with the <code>use-zstd</code> feature, then it supports reading from zstd
+<p>If the script is compiled with the <code>zstd</code> feature, then it supports reading from zstd
 compressed save files, where each save file is individually compressed. The script will first
 look for the uncompressed file. If it does not exist, it then looks for the file with the same
 name but with a <code>.zst</code> extension.</p>
@@ -149,7 +149,7 @@ is as follows:</p>
 feature offers significant improvements at the prime 2.</li>
 <li><code>concurrent</code>: Use multiple threads for computations. The number of threads used can be
 configured via the <code>RAYON_NUM_THREADS</code> environment variable.</li>
-<li><code>use-zstd</code>: Support reading zstd-compressed save files.</li>
+<li><code>zstd</code>: Support reading zstd-compressed save files.</li>
 <li><code>cache-multiplication</code>: Precompute and cache the multiplication table under the Milnor basis.
 This is only feasible when using a small, finite subalgebra, e.g. when working with
 $\mathrm{tmf}$ modules.</li>
