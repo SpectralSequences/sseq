@@ -1,9 +1,9 @@
-from .handler_decorator import *
-
+from .util import to_js, set_interrupt_buffer
 import jedi
 from uuid import uuid4
 from collections import OrderedDict
 import re
+
 
 SPHINX = re.compile(r"\s*:param\s+(?P<param>\w+):\s*(?P<doc>[^\n]+)")
 EPYDOC = re.compile(r"\s*@param\s+(?P<param>\w+):\s*(?P<doc>[^\n]+)")
@@ -56,48 +56,23 @@ class LRU(OrderedDict):
             del self[oldest]
 
 
-@collect_handlers("message_handlers")
 class Completer:
-    def __init__(self, executor, *, uuid):
-        self.executor = executor
-        self.uuid = uuid
+    def __init__(self, namespace):
+        self.namespace = namespace
         self.code = None
         self.states = LRU()
 
-    async def handle_message_a(self, subcmd, **kwargs):
-        if subcmd not in self.message_handlers:
-            raise Exception(f'Message with unrecognized subcommand "{subcmd}"')
-        handler = self.message_handlers[subcmd]
-        await handler(self, **kwargs)
-
-    async def send_message_a(self, subcmd, subuuid, **kwargs):
-        await self.executor.send_message_a(
-            "complete", self.uuid, subcmd=subcmd, subuuid=subuuid, **kwargs
-        )
-
-    @handle("signatures")
-    async def get_signature_help_a(self, subuuid, code, lineNumber, column):
-        try:
-
-            interpreter = jedi.Interpreter(code, [self.executor.namespace])
+    def get_signatures(self, code, lineNumber, column, interrupt_buffer):
+        with set_interrupt_buffer(interrupt_buffer):
+            interpreter = jedi.Interpreter(code, [self.namespace])
             jedi_signatures = interpreter.get_signatures(line=lineNumber, column=column)
             # For some reason, get_type_hint doesn't work the same on signatures as on completions...
             [signatures, full_name, root] = self.get_signature_help_helper(
                 jedi_signatures, code
             )
-            await self.send_message_a(
-                "signatures",
-                subuuid,
-                signatures=signatures,
-                full_name=full_name,
-                root=root,
+            return to_js(
+                {"signatures": signatures, "full_name": full_name, "root": root}
             )
-        except RecursionError:
-            await self.send_message_a(
-                "signatures", subuuid, signatures=None, full_name=None, root=None
-            )
-        except KeyboardInterrupt:
-            pass
 
     def get_signature_help_helper(self, jedi_signatures, code):
         import jedi
@@ -110,7 +85,7 @@ class Completer:
         # This is ugly. get_type_hint() does better but it only works on Completion objects,
         # not on Signature. Thus, we get a completion object. To do so, we ask for a completion at
         # the open bracket of the current function.
-        completion = jedi.Interpreter(code, [self.executor.namespace]).complete(
+        completion = jedi.Interpreter(code, [self.namespace]).complete(
             *s.bracket_start
         )[0]
         try:
@@ -141,74 +116,66 @@ class Completer:
             sig_info["activeParameter"] = s.index
         return [sig_info, full_name, root]
 
-    @handle("completions")
-    async def get_completions_a(self, subuuid, code, lineNumber, column):
-        try:
+    def get_completions(self, code, lineNumber, column, interrupt_buffer):
+        with set_interrupt_buffer(interrupt_buffer):
             self.code = code
             state_id = str(uuid4())
-            completions = jedi.Interpreter(code, [self.executor.namespace]).complete(
+            completions = jedi.Interpreter(code, [self.namespace]).complete(
                 line=lineNumber, column=column, fuzzy=True
             )
             self.states[state_id] = completions
             result = []
             for comp in completions:
                 result.append(dict(name=comp.name, kind=comp.type))
-            await self.send_message_a(
-                "completions", subuuid, completions=result, state_id=state_id
-            )
-        except RecursionError:
-            await self.send_message_a(
-                "completions", subuuid, completions=[], state_id=None
-            )
-        except KeyboardInterrupt:
-            pass
+            return to_js({"state_id": state_id, "completions": result})
 
-    @handle("completion_detail")
-    async def get_completion_info_a(self, subuuid, state_id, idx):
-        completion = self.states[state_id][idx]
-        try:
-            # Try getting name and root for link to api docs.
-            # Will fail on properties.
-            [full_name, root] = self.get_fullname_root(completion)
-            if completion.type == "instance":
-                [
-                    docstring,
-                    signature,
-                    full_name,
-                    root,
-                ] = self.get_completion_info_instance(subuuid, completion)
-            elif completion.type in ["function", "method"]:
-                [docstring, signature] = self.get_completion_info_function_or_method(
-                    subuuid, completion
+    def get_completion_info(self, state_id, idx, interrupt_buffer):
+        with set_interrupt_buffer(interrupt_buffer):
+            completion = self.states[state_id][idx]
+            try:
+                # Try getting name and root for link to api docs.
+                # Will fail on properties.
+                [full_name, root] = self.get_fullname_root(completion)
+                if completion.type == "instance":
+                    [
+                        docstring,
+                        signature,
+                        full_name,
+                        root,
+                    ] = self.get_completion_info_instance(completion)
+                elif completion.type in ["function", "method"]:
+                    [
+                        docstring,
+                        signature,
+                    ] = self.get_completion_info_function_or_method(completion)
+                elif completion.type == "module":
+                    signature = completion.infer()[0].full_name
+                    docstring = completion.docstring(raw=True)
+                else:
+                    signature = completion._get_docstring_signature()
+                    docstring = completion.docstring(raw=True)
+            except Exception as e:
+                print(
+                    "Error triggered during completion detail for",
+                    completion.name,
+                    "type:",
+                    completion.type,
                 )
-            elif completion.type == "module":
-                signature = completion.infer()[0].full_name
-                docstring = completion.docstring(raw=True)
-            else:
-                signature = completion._get_docstring_signature()
-                docstring = completion.docstring(raw=True)
-        except Exception as e:
-            print(
-                "Error triggered during completion detail for",
-                completion.name,
-                "type:",
-                completion.type,
-            )
-            raise
-        except KeyboardInterrupt:
-            return
+                raise
+            except KeyboardInterrupt:
+                return
 
-        # regex = re.compile('(?<!\n)\n(?!\n)', re.MULTILINE) # Remove isolated newline characters.
-        remove_links = re.compile("`(\S*) <\S*>`")
-        docstring = remove_links.sub(r"`\1`", docstring)
-        await self.send_message_a(
-            "completion_detail",
-            subuuid,
-            docstring=format_docstring(docstring),
-            signature=signature,
-            full_name=full_name,
-            root=root,
-        )
+            # regex = re.compile('(?<!\n)\n(?!\n)', re.MULTILINE) # Remove isolated newline characters.
+            remove_links = re.compile("`(\S*) <\S*>`")
+            docstring = remove_links.sub(r"`\1`", docstring)
+            return to_js(
+                dict(
+                    docstring=format_docstring(docstring),
+                    signature=signature,
+                    full_name=full_name,
+                    root=root,
+                )
+            )
 
     def get_fullname_root(self, completion):
         if completion.name.startswith("_") or completion.name in [
@@ -278,7 +245,7 @@ class Completer:
             signature = ""
         return [docstring, signature, full_name, root]
 
-    def get_completion_info_function_or_method(self, subuuid, completion):
+    def get_completion_info_function_or_method(self, completion):
         docstring = completion.docstring(raw=True) or completion._get_docstring()
         try:
             # Collect the return type signature for the method. TODO: this only should be used for type function or method.

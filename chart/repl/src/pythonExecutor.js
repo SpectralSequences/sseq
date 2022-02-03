@@ -1,7 +1,8 @@
 // import Worker from './pyodide.worker.js';
 import { v4 as uuid4 } from 'uuid';
-import { sleep } from './utils';
 import { EventEmitter } from 'eventemitter3';
+import * as Comlink from 'comlink';
+window.Comlink = Comlink;
 
 function createInterruptBuffer() {
     if (window.SharedArrayBuffer) {
@@ -16,49 +17,44 @@ export class PythonExecutor {
         this.executions = {};
         this.completers = {};
         window.loadingWidget.addLoadingMessage('Loading Pyodide');
-        this.pyodide_worker = new Worker('pyodide_worker.bundle.js');
-        this.pyodide_worker.addEventListener(
-            'message',
-            this._handlePyodideMessage.bind(this),
+        this._raw_pyodide_worker = new Worker('pyodide_worker.bundle.js');
+        this.pyodide_worker = Comlink.wrap(
+            new Worker('pyodide_worker.bundle.js'),
         );
-        // The pyodide worker needs to be able to send messages to the service worker, so we make a channel
-        // and send one end to the service worker and the other to the pyodide worker.
-        navigator.serviceWorker.addEventListener(
-            'message',
-            this._handleServiceWorkerMessage.bind(this),
-        );
-
-        let _readyPromise = new Promise(
-            (resolve, reject) => (this._readyPromise = { resolve, reject }),
-        );
-        this._readyPromise.promise = _readyPromise;
+        window.python_executor = this;
+        const handleLoadingMessage = Comlink.proxy(msg => {
+            loadingWidget.addLoadingMessage(msg);
+        });
+        const handleLoadingError = Comlink.proxy(msg => {
+            console.error(msg);
+        });
+        this._ready = this.pyodide_worker
+            .startup(handleLoadingMessage, handleLoadingError)
+            .then(() =>
+                window.loadingWidget.addLoadingMessage('Pyodide is ready!'),
+            );
     }
 
-    _postMessage(cmd, uuid, msg) {
-        Object.assign(msg, { cmd, uuid });
-        this.pyodide_worker.postMessage(msg);
-    }
+    // _handleServiceWorkerMessage(event) {
+    //     if (event.data.cmd !== 'connect_to_pyodide') {
+    //         throw Error('Unexpected command from service worker!');
+    //     }
+    //     this._handleServiceWorkerConnection(event);
+    // }
 
-    _handleServiceWorkerMessage(event) {
-        if (event.data.cmd !== 'connect_to_pyodide') {
-            throw Error('Unexpected command from service worker!');
-        }
-        this._handleServiceWorkerConnection(event);
-    }
-
-    _handleServiceWorkerConnection(event) {
-        console.log('handle service worker connection');
-        let msg = event.data;
-        let { port, repl_id } = msg;
-        this.pyodide_worker.postMessage(
-            {
-                cmd: 'service_worker_channel',
-                port,
-                repl_id,
-            },
-            [port],
-        );
-    }
+    // _handleServiceWorkerConnection(event) {
+    //     console.log('handle service worker connection');
+    //     let msg = event.data;
+    //     let { port, repl_id } = msg;
+    //     this.pyodide_worker.postMessage(
+    //         {
+    //             cmd: 'service_worker_channel',
+    //             port,
+    //             repl_id,
+    //         },
+    //         [port],
+    //     );
+    // }
 
     _handlePyodideMessage(event) {
         let message = event.data;
@@ -118,15 +114,6 @@ export class PythonExecutor {
         });
     }
 
-    _handleReadyMessage(message) {
-        if (message.exception) {
-            this._readyPromise.reject(message.exception);
-            return;
-        }
-        window.loadingWidget.addLoadingMessage('Pyodide is ready!');
-        this._readyPromise.resolve();
-    }
-
     _handleExecutionMessage(message) {
         // execution messages get emitted on the execution object.
         const { uuid, subcmd, last_response } = message;
@@ -146,67 +133,55 @@ export class PythonExecutor {
         }
     }
 
-    _handleCompletionMessage(message) {
-        const { uuid, subcmd } = message;
-        const completer = this.completers[uuid];
-        if (!completer) {
-            throw new Error(`Invalid completer uuid "${uuid}"`);
-        }
-        if (completer.listenerCount(subcmd) === 0) {
-            throw new Error(`Unexpected command "${subcmd}"`);
-        }
-        completer.emit(subcmd, message);
-    }
-
     async ready() {
-        return await this._readyPromise.promise;
+        await this._ready;
     }
 
     execute(code) {
-        const interrupt_buffer = createInterruptBuffer();
-        const uuid = uuid4();
-        const execution = new Execution(interrupt_buffer);
-        this.executions[uuid] = execution;
-        this._postMessage('execute', uuid, { code, interrupt_buffer });
-        return execution;
+        return new Execution(this.pyodide_worker, code);
     }
 
-    new_completer() {
-        const uuid = uuid4();
-        const completer = new Completer(this, uuid);
-        this.completers[uuid] = completer;
-        this._postMessage('complete', uuid, { subcmd: 'new_completer' });
-        return completer;
+    async new_completer() {
+        await this._ready;
+        return new Completer(await this.pyodide_worker.new_completer());
     }
 }
 
-export class Execution extends EventEmitter {
+export class Execution {
     /* An execution object. This is for attaching handlers / giving out promises for various lifecycle events of the execution.
        The execution object is created and scheduled by PythonExecutor.execute. Other files do not construct these directly.
        The Executor also dispatches messages from the pyodide worker to the appropriate execution.
        See the python file "execution.py" for when python generates the messages this is responding to.
     */
-    constructor(interrupt_buffer) {
-        super();
+    constructor(pyodide_worker, code) {
+        const interrupt_buffer = createInterruptBuffer();
+        const stdout = Comlink.proxy(x => {
+            this._stdout(x);
+        });
+        const stderr = Comlink.proxy(x => {
+            this._stderr(x);
+        });
         this.interrupt_buffer = interrupt_buffer;
-        // Using "once" here helps us throw a useful error if some logic error causes the pyodide worker to send
-        // the same event twice.
-        this._validate_syntax = new Promise((resolve, reject) => {
-            this.once('validate_syntax', resolve);
-        });
-        this._result = new Promise((resolve, reject) => {
-            this.once('result', message => resolve(message.result));
-            this.once('exception', message => reject(message));
-            this.once('keyboard_interrupt', message => reject(message));
-        });
+        this.proxy_promise = pyodide_worker
+            .new_executor(code, stdout, stderr, interrupt_buffer)
+            .then(res => (this.proxy = res));
     }
 
     async validate_syntax() {
-        return await this._validate_syntax;
+        await this.proxy_promise;
+        let res = await this.proxy.validate_syntax();
+        if (!res.valid) {
+            this.proxy[Comlink.releaseProxy]();
+        }
+        return res;
     }
 
     async result() {
-        return await this._result;
+        try {
+            return await this.proxy.run();
+        } finally {
+            this.proxy[Comlink.releaseProxy]();
+        }
     }
 
     setInterrupt(i) {
@@ -219,132 +194,68 @@ export class Execution extends EventEmitter {
     }
 
     onStdout(handler, context) {
-        this.on(
-            'stdout',
-            function (message) {
-                handler.call(this, message.data);
-            },
-            context,
-        );
+        this._stdout = handler;
     }
 
     ignoreStdout() {
-        this.on('stdout', () => undefined);
+        this._stdout = () => undefined;
     }
 
-    onStderr(handler, context) {
-        this.on(
-            'stderr',
-            function (message) {
-                handler.call(this, message.data);
-            },
-            context,
-        );
+    onStderr(handler) {
+        this._stderr = handler;
     }
 
     ignoreStderr() {
-        this.on('stderr', () => undefined);
+        this._stderr = () => undefined;
     }
 
     _close() {}
 }
 
-export class Completer extends EventEmitter {
-    constructor(executor, uuid) {
-        super();
-        this.executor = executor;
-        this.uuid = uuid;
-        this.responses = {};
-        for (let cmd of ['signatures', 'completions', 'completion_detail']) {
-            this._attachResponseHandler(cmd);
-        }
-    }
-
-    _attachResponseHandler(cmd) {
-        this.on(cmd, msg => {
-            let promise_obj = this.responses[msg.subuuid];
-            if (!promise_obj) {
-                throw Error(`Unknown subuuid ${subuuid}`);
-            }
-            if (cmd !== promise_obj.cmd) {
-                throw new Error(
-                    `Wrong command for response subuuid ${subuuid}. Was expecting command to be "${cmd}" but got "${promise_obj.cmd}"`,
-                );
-            }
-            promise_obj.resolve(msg);
-        });
-    }
-
-    _getResponsePromise(cmd) {
-        let subuuid = uuid4();
-        return [
-            subuuid,
-            new Promise(
-                (resolve, reject) =>
-                    (this.responses[subuuid] = { resolve, reject, cmd }),
-            ),
-        ];
-    }
-
-    _postMessage(subcmd, msg) {
-        Object.assign(msg, { subcmd });
-        this.executor._postMessage('complete', this.uuid, msg);
-    }
-
-    async getSignatures(code, position, cancellation_token) {
-        let [subuuid, response_promise] =
-            this._getResponsePromise('signatures');
-        let { lineNumber, column } = position;
-        let interrupt_buffer = createInterruptBuffer();
-        cancellation_token.onCancellationRequested(() => {
-            interrupt_buffer[0] = 2;
-        });
-        this._postMessage('signatures', {
-            subuuid,
-            interrupt_buffer,
-            code,
-            lineNumber,
-            column,
-        });
-        return await response_promise;
+export class Completer {
+    constructor(completer) {
+        this.completer = completer;
     }
 
     async getCompletions(code, position, cancellation_token) {
-        let [subuuid, response_promise] =
-            this._getResponsePromise('completions');
-        let interrupt_buffer = createInterruptBuffer();
+        const interrupt_buffer = createInterruptBuffer();
         cancellation_token.onCancellationRequested(() => {
             interrupt_buffer[0] = 2;
         });
-        let { lineNumber, column } = position;
-        this._postMessage('completions', {
-            subuuid,
-            interrupt_buffer,
+        const { lineNumber, column } = position;
+        return await this.completer.get_completions(
             code,
             lineNumber,
             column,
-        });
-        return await response_promise;
+            interrupt_buffer,
+        );
     }
 
     async getCompletionInfo(state_id, idx, cancellation_token) {
-        let [subuuid, response_promise] =
-            this._getResponsePromise('completion_detail');
         let interrupt_buffer = createInterruptBuffer();
         cancellation_token.onCancellationRequested(() => {
             interrupt_buffer[0] = 2;
         });
-        this._postMessage('completion_detail', {
-            subuuid,
-            interrupt_buffer,
-            idx,
+
+        return await this.completer.get_completion_info(
             state_id,
-        });
-        return await response_promise;
+            idx,
+            interrupt_buffer,
+        );
+    }
+
+    async getSignatures(code, position, cancellation_token) {
+        const interrupt_buffer = createInterruptBuffer();
+        const { lineNumber, column } = position;
+        return await this.completer.get_signatures(
+            code,
+            lineNumber,
+            column,
+            interrupt_buffer,
+        );
     }
 
     close() {
-        delete this.executor.completers[this.uuid];
-        delete this.executor;
+        this.completer[Comlink.releaseProxy]();
     }
 }

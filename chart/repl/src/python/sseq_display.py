@@ -48,9 +48,6 @@ class SseqDisplay:
         self.set_sseq(chart)
         self.subscribers = {}
         SseqDisplay.displays[name] = self
-        from repl.executor import Executor
-
-        self.executor = Executor.executor
         self._started = False
         ensure_future(self.start_a())
 

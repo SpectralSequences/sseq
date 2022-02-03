@@ -4,8 +4,8 @@
 import { v4 as uuid4 } from 'uuid';
 import { sleep } from './utils';
 import { IndexedDBStorage } from './indexedDB';
-
-self.loaded = false;
+import * as Comlink from 'comlink';
+self.Comlink = Comlink;
 
 const pyodideBaseURL = 'https://cdn.jsdelivr.net/pyodide/v0.19.0/full/';
 importScripts(pyodideBaseURL + 'pyodide.js');
@@ -43,17 +43,6 @@ async function getWorkingDirectory() {
 }
 self.getWorkingDirectory = getWorkingDirectory;
 
-function loadingMessage(text) {
-    postMessage({ cmd: 'loadingMessage', text });
-}
-
-function loadingError(text) {
-    postMessage({ cmd: 'loadingError', text });
-}
-
-// files_to_install is a map file_name => file_contents for the files in the python directory.
-// It's produced by the webpack prebuild script scripts/bundle_python_sources.py
-
 let outBuffer = [];
 let lastStreamFunc = undefined;
 function makeOutputStream(streamFunc) {
@@ -75,14 +64,6 @@ function makeOutputStream(streamFunc) {
     return writeToStream;
 }
 
-// See scripts/bundle_python_sources.py
-
-function sendMessage(message) {
-    self.postMessage(message);
-}
-self.sendMessage = sendMessage;
-self.messageLookup = new Map();
-
 let path = self.location.href;
 path = path.substring(0, path.lastIndexOf('/'));
 
@@ -101,72 +82,41 @@ const chart_wheel_promise = fetch_and_unpack(
     `${path}/spectralsequence_chart-0.0.28-py3-none-any.whl`,
 );
 const python_tar_promise = fetch_and_unpack('python.tar');
-self.loadingMessage = loadingMessage;
-async function startup() {
-    try {
-        loadingMessage('Loading Pyodide packages');
-        let jedi_promise = pyodide_promise.then(() =>
-            pyodide.loadPackage('jedi'),
-        );
-        await Promise.all([
-            chart_wheel_promise,
-            python_tar_promise,
-            jedi_promise,
-        ]);
-        pyodide.runPython('import importlib; importlib.invalidate_caches()');
-        loadingMessage('Initializing Python Executor');
-        pyodide.runPython(`
-            from initialize_pyodide import *
-        `);
-        self.loaded = true;
-        self.postMessage({ cmd: 'ready' });
-    } catch (e) {
-        self.postMessage({ cmd: 'ready', exception: e });
-    }
+async function startup(loadingMessage, loadingError) {
+    self.loadingMessage = loadingMessage;
+    self.loadingError = loadingError;
+
+    loadingMessage('Loading Pyodide packages');
+    let jedi_promise = pyodide_promise.then(() => pyodide.loadPackage('jedi'));
+    await Promise.all([chart_wheel_promise, python_tar_promise, jedi_promise]);
+    pyodide.runPython('import importlib; importlib.invalidate_caches()');
+    loadingMessage('Initializing Python Executor');
+    pyodide.runPython(`
+        from initialize_pyodide import *
+    `);
+    self.completer_mod = pyodide.pyimport('repl.completer');
+    self.execution_mod = pyodide.pyimport('repl.execution');
+    self.namespace = pyodide.globals.get('namespace');
+    loadingMessage[Comlink.releaseProxy]();
+    loadingError[Comlink.releaseProxy]();
+    pyodide.registerComlink(Comlink);
 }
-let startup_promise = startup();
 
 self.subscribers = [];
 
-let handledCommands = {
-    service_worker_channel: registerServiceWorkerPort,
-    respondToQuery: handleQueryResponse,
-    subscribe_chart_display: handleSubscribeChartDisplay,
-};
+async function new_executor(code, stdout, stderr, interrupt_buffer) {
+    return Comlink.proxy(
+        self.execution_mod.Execution.callKwargs(self.namespace, code, {
+            stdout,
+            stderr,
+            interrupt_buffer,
+        }),
+    );
+}
 
-self.addEventListener('message', async function (e) {
-    if (handledCommands[e.data.cmd]) {
-        await handledCommands[e.data.cmd](e);
-        return;
-    }
-    await startup_promise;
-    // interrupt_buffer is a single byte SharedArrayBuffer used to signal a keyboard interrupt.
-    // If it contains 0, no keyboard interrupt has occurred, on keyboard interrupt is set to 1.
-    const { uuid, interrupt_buffer } = e.data;
-
-    // I was unable to access the data in the SharedArrayBuffer directly accross the pyodide FFI.
-    // Best solution I came up with was to pass a wrapper function that indexes the SAB in js
-    if (interrupt_buffer) {
-        e.data.interrupt_buffer = function () {
-            return interrupt_buffer[0];
-            // I think this Atomics call didn't work for some reason -- for one thing Atomics are limited to
-            // Int32Buffers for some reason, though that isn't a big deal. Of course it isn't critical that
-            // keyboard interrupts are processed as soon as possible, and the nonatomic read should be sufficient.
-            // return Atomics.load(interrupt_buffer, 0);
-        };
-    } else {
-        e.data.interrupt_buffer = () => 0;
-    }
-
-    // Store data into message lookup. This allows us to use the FFI to convert the arguments.
-    messageLookup.set(uuid, e.data);
-    // get_message looks up e.data in messageLookup using uuid.
-    try {
-        await self.pyodide.globals.get('handle_message')(uuid);
-    } finally {
-        // pyo
-    }
-});
+async function new_completer() {
+    return Comlink.proxy(completer_mod.Completer(self.namespace));
+}
 
 async function handleSubscribeChartDisplay(e) {
     let uuid = e.data;
@@ -177,21 +127,6 @@ async function handleSubscribeChartDisplay(e) {
         display = SseqDisplay.displays[msg["chart_name"]]
         await display.add_subscriber(msg["uuid"], msg["port"])
     `);
-}
-
-let responses = {};
-function handleQueryResponse(e) {
-    responses[e.data.uuid].resolve(e.data);
-}
-
-function getResponsePromise() {
-    let subuuid = uuid4();
-    return [
-        subuuid,
-        new Promise(
-            (resolve, reject) => (responses[subuuid] = { resolve, reject }),
-        ),
-    ];
 }
 
 async function filePicker(type) {
@@ -255,3 +190,13 @@ async function handleMessageFromChart(event, port, chart_name, client_id) {
         `await SseqDisplay.dispatch_message(get_message("${uuid}"))`,
     );
 }
+
+Comlink.expose({
+    startup,
+    new_completer,
+    new_executor,
+    // service_worker_channel: registerServiceWorkerPort,
+    // respondToQuery: handleQueryResponse,
+    // subscribe_chart_display: handleSubscribeChartDisplay,
+    // handle_message,
+});

@@ -313,9 +313,15 @@ class ReplElement extends HTMLElement {
             }
             // await navigator.serviceWorker.ready;
             this.executor = new PythonExecutor();
-            this.jedi_history = this.executor.new_completer();
-            this.jedi_value = this.executor.new_completer();
+            let p1 = this.executor
+                .new_completer()
+                .then(res => (this.jedi_history = res));
+            let p2 = this.executor
+                .new_completer()
+                .then(res => (this.jedi_value = res));
             await this.executor.ready();
+            await p1;
+            await p2;
             this._loaded();
         } catch (e) {
             this._loadingFailed(e);
@@ -1091,13 +1097,24 @@ class ReplElement extends HTMLElement {
         await sleep(0);
         this.historyIdx = this.history.length;
 
-        let result;
-        try {
-            result = await execution.result();
-            this.addOutput(result);
-        } catch (e) {
-            this.addOutput(e.traceback);
+        const [status, result] = await execution.result();
+        switch (status) {
+            case 'success':
+                this.addOutput(result);
+                break;
+            case 'exception':
+                this.addOutput(result);
+                break;
+
+            case 'keyboard_interrupt':
+                this.addOutput('KeyboardInterrupt');
+                break;
+
+            default:
+                throw new Error('Unexpected status: ' + status);
         }
+        try {
+        } catch (e) {}
         this.currentExecution = undefined;
         this.prepareInput();
         await sleep(0);
