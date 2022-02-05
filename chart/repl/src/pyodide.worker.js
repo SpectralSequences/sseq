@@ -20,7 +20,7 @@ self.is_promise = is_promise;
 
 self.store = new IndexedDBStorage('pyodide-config', 2);
 
-self.releaseComlinkProxy = releaseComlinkProxy(proxy){
+self.releaseComlinkProxy = function(proxy){
     proxy[Comlink.releaseProxy]();
 }
 
