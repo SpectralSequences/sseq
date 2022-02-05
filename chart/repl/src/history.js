@@ -9,11 +9,15 @@ export class History {
         this.stringsFromStorage = [];
         this.undoStack = [];
         this.redoStack = [];
+        this.reverse_search_position;
         window.addEventListener('pagehide', this.stowHistory.bind(this));
     }
 
     async getItem(key) {
         await this.databaseReady;
+        if (key > this.length) {
+            return undefined;
+        }
         if (key in this.temporaryValues) {
             return this.temporaryValues[key];
         }
@@ -24,17 +28,37 @@ export class History {
             return this.stringsFromStorage[key];
         }
         await this.store.open();
-        this.stringsFromStorage[key] = await this.store
-            .readTransaction()
-            .getItem(key);
+        const transaction = this.store.readTransaction();
+        await this.fetchRangeFromStorage(transaction, key - 10, key + 1);
         return this.stringsFromStorage[key];
+    }
+
+    async fetchRangeFromStorage(transaction, min, max) {
+        max = Math.min(max, this.length);
+        min = Math.max(min, 0);
+        const promises = [];
+        for (let k = min; k < max; k++) {
+            promises.push(
+                transaction.getItem(k).then(item => {
+                    this.stringsFromStorage[k] = item;
+                }),
+            );
+        }
+        await Promise.all(promises);
     }
 
     async openDatabase() {
         await this.store.open();
         await this.commitStowedHistories();
-        this.storedHistoryLength =
-            (await this.store.readTransaction().getItem('length')) || 0;
+        const transaction = this.store.readTransaction();
+        this.storedHistoryLength = (await transaction.getItem('length')) || 0;
+        if (this.storedHistoryLength > 0) {
+            await this.fetchRangeFromStorage(
+                transaction,
+                this.storedHistoryLength - 10,
+                this.storedHistoryLength,
+            );
+        }
         this.idx = this.storedHistoryLength;
     }
 
@@ -140,6 +164,33 @@ export class History {
         requests.push(transaction.setItem('length', length));
         requests.push(transaction.setItem('lastCommitTime', newLastCommitTime));
         await Promise.all(requests);
+    }
+
+    async reverse_history_search(search_str, next = false) {
+        const start_idx = this.idx - (next ? 1 : 0);
+        for (let i = start_idx; i >= 0; i--) {
+            const value = await this.getItem(i);
+            if (!value.includes(search_str)) {
+                continue;
+            }
+            // Found
+            this.idx = i;
+            return value;
+        }
+    }
+
+    async forward_history_search(search_str, next = false) {
+        const start_idx = this.idx + (next ? 1 : 0);
+        const length = this.length;
+        for (let i = start_idx; i < length; i++) {
+            const value = await this.getItem(i);
+            if (!value.includes(search_str)) {
+                continue;
+            }
+            // Found
+            this.idx = i;
+            return value;
+        }
     }
 }
 

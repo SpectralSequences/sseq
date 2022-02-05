@@ -204,16 +204,16 @@ export function updatePythonLanguageDefinition(monaco, repl) {
             increaseIndentPattern: /^.*:\s*$/,
         },
     });
-    monaco.languages.registerCompletionItemProvider(
-        'python',
-        getCompletionProvider(monaco, repl),
-    );
-    monaco.languages.registerSignatureHelpProvider(
-        'python',
-        getSignatureHelpProvider(monaco, repl),
-    );
-    monaco.languages.registerColorProvider(
-        'python',
-        getColorProvider(monaco, repl),
-    );
+    // monaco.languages.registerCompletionItemProvider(
+    //     'python',
+    //     getCompletionProvider(monaco, repl),
+    // );
+    // monaco.languages.registerSignatureHelpProvider(
+    //     'python',
+    //     getSignatureHelpProvider(monaco, repl),
+    // );
+    // monaco.languages.registerColorProvider(
+    //     'python',
+    //     getColorProvider(monaco, repl),
+    // );
 }

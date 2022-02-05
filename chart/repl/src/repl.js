@@ -189,7 +189,6 @@ class ReplElement extends HTMLElement {
         this.readOnlyLines = 1;
         updatePythonLanguageDefinition(monaco, this);
         this.history = new History();
-        this.historyIdx = this.history.length || 0;
         this.historyIndexUndoStack = [];
         this.historyIndexRedoStack = [];
         this.firstLines = {};
@@ -311,7 +310,7 @@ class ReplElement extends HTMLElement {
                 );
                 window.loadingWidget.addLoadingMessage('Service worker ready.');
             }
-            // await navigator.serviceWorker.ready;
+            await navigator.serviceWorker.ready;
             this.executor = new PythonExecutor();
             let p1 = this.executor
                 .new_completer()
@@ -597,6 +596,10 @@ class ReplElement extends HTMLElement {
     }
 
     _onkey(e) {
+        if (this.searchState) {
+            this._search_onKey(e);
+            return;
+        }
         // Test if completion suggestion widget is visible.
         // Usually it is hidden by removing the ".visible" class, but in some unusual circumstances
         // it ends up with height 0 but still ".visible". So we also test the height.
@@ -718,6 +721,7 @@ class ReplElement extends HTMLElement {
     static get _ctrlCmdHandlers() {
         return {
             c: ReplElement.prototype._onCtrlC,
+            r: ReplElement.prototype._onCtrlR,
             v: ReplElement.prototype._onCtrlV,
             x: ReplElement.prototype._onCtrlX,
             a: ReplElement.prototype._onCtrlA,
@@ -806,6 +810,179 @@ class ReplElement extends HTMLElement {
             this.editor.setPosition(this.endOfInputPosition);
             this.revealSelection();
         }
+    }
+
+    async _onCtrlR(e) {
+        if(e.browserEvent.shiftKey){
+            location.reload();
+            return;
+        }
+        e.preventDefault();
+        this.history.setTemporaryValue(this.value);
+        this.readOnly = true;
+        await sleep(5);
+        this.editor.getModel().applyEdits([
+            {
+                range: this.endOfInputSelection,
+                text: '\n',
+            },
+        ]);
+        this.editor.setPosition(new monaco.Position(1,1));
+        this.readOnly = false;
+        const searchModelLine = this.getModelLineCount();
+        const searchScreenLine = this.getScreenLineCount();
+        this.searchState = {
+            searchModelLine,
+            searchScreenLine,
+
+            searchString: '',
+            succeededSearchString: '',
+            foundValue: '',
+            reverse : true,
+        };
+        let endOfInput = this.endOfInputPosition;
+        this._search_updateState(false);
+        this.outputModelLines[searchModelLine] = true;
+        this.outputScreenLines[searchScreenLine] = true;
+        this.readOnlyLines = searchModelLine - 1;
+        this.updateLineOffsets();
+    }
+
+    _search_clear() {
+        let { searchModelLine, searchScreenLine } = this.searchState;
+        this.searchState = undefined;
+        delete this.outputScreenLines[searchScreenLine];
+        delete this.outputModelLines[searchModelLine];
+        delete this.firstLines[searchModelLine + 1];
+        this.updateLineOffsets();
+        this.readOnlyLines = Math.max(...Object.keys(this.outputModelLines));
+        this.editor.getModel().applyEdits([
+            {
+                range: new monaco.Range(
+                    searchModelLine - 1,
+                    10000,
+                    searchModelLine + 1000,
+                    1000,
+                ),
+                text: '',
+            },
+        ]);
+    }
+
+    async _search_onKey(e) {
+        this.preventKeyEvent();
+        e.preventDefault();
+        const state = this.searchState;
+        if (e.browserEvent.key === 'Escape') {
+            this._search_clear();
+            this.history.idx = this.history.length - 1;
+            return;
+        }
+        if (e.browserEvent.key === 'Backspace') {
+            state.searchString = state.searchString.slice(0, -1);
+            await this._search_updateState(false);
+            return;
+        }
+        if (e.browserEvent.ctrlKey) {
+            if (e.browserEvent.key === 'r') {
+                state.reverse = true;
+                await this._search_updateState(true);
+                return;
+            }
+            if (e.browserEvent.key === 's') {
+                state.reverse = false;
+                await this._search_updateState(true);
+                return;
+            }
+            if (e.browserEvent.key === 'g') {
+                this._search_clear();
+            }
+            return;
+        }
+        if (e.browserEvent.key.length > 1) {
+            if(e.browserEvent.key === "Shift"){
+                return;
+            }
+            this._search_clear();
+            this.editor.getModel().applyEdits([
+                {
+                    range: this.allOfInputSelection,
+                    text: state.foundValue,
+                },
+            ]);
+            return;
+        }
+        const char = e.browserEvent.key;
+        state.searchString += char;
+        await this._search_updateState(false);
+    }
+
+    async _search_updateState(next = false) {
+        const state = this.searchState;
+        let value;
+        if(state.searchString === ""){
+            next = false;
+        }
+        if(state.reverse){
+            value = await this.history.reverse_history_search(
+                state.searchString,
+                next,
+            );
+        } else {
+            value = await this.history.forward_history_search(
+                state.searchString,
+                next,
+            );   
+        }
+        const failed = value === undefined;
+        if (value) {
+            state.foundValue = value;
+        }
+        if(value && state.searchString !== ''){
+            state.succeededSearchString = state.searchString;
+        }
+
+        const { searchModelLine, searchString, reverse, succeededSearchString, foundValue } = state;
+
+        let prefixString = failed ? '(failed ' : '(';
+        if(reverse){
+            prefixString += "reverse-";
+        }
+        prefixString += 'i-search)';
+        const leader = `${prefixString}\`${searchString}':`;
+        let text = leader;
+        if(foundValue !== ""){
+            text +=  "\n" + foundValue;
+            this.firstLines[searchModelLine + 1] = true;
+        }
+        this.editor.getModel().applyEdits([{
+            text,
+            range: new monaco.Range(searchModelLine, 1, 10000, 10000),
+        }]);
+        // Now update selection
+        if (succeededSearchString === '') {
+            return;
+        }
+        const searchStringIndex =
+            leader.length + foundValue.indexOf(succeededSearchString) + 1;
+        let line = searchModelLine;
+        let col = 1;
+        for(let i = 0; i < searchStringIndex; i++){
+            if(text[i] === "\n"){
+                line ++;
+                col = 1;
+            } else {
+                col ++;
+            }
+        }
+        this.editor.setSelection(
+            new monaco.Range(
+                line,
+                col,
+                line,
+                col + Math.min(searchString.length, succeededSearchString.length),
+            ),
+        );
     }
 
     _handleCut() {
@@ -1057,6 +1234,42 @@ class ReplElement extends HTMLElement {
         return true;
     }
 
+    async *execute(code){
+        if(!this.executor){
+            yield;
+            return "dummy result";
+        }
+        const execution = this.executor.execute(code);
+        this.currentExecution = execution;
+        execution.onStdout(data => this.printToConsole(data));
+        execution.onStderr(data => this.printToConsole(data));
+        let syntaxCheck = await execution.validate_syntax(code);
+        if (!syntaxCheck.valid) {
+            await sleep(0);
+            this.currentExecution = undefined;
+            yield syntaxCheck.errors;            
+            // await sleep(0);
+            // this.editor.setPosition(this.endOfInputPosition);
+            return;
+        }
+        yield;
+        let [status, result] = await execution.result();
+        switch (status) {
+            case 'success':
+                break;
+            case 'exception':
+                break;
+
+            case 'keyboard_interrupt':
+                result = 'KeyboardInterrupt';
+                break;
+            default:
+                throw new Error('Unexpected status: ' + status);
+        }
+        this.currentExecution = undefined;
+        return result;
+    }
+
     async submit(addToHistory = true) {
         if (this.syntaxErrorWidget) {
             // Don't do anything if there's already a syntax error...
@@ -1066,25 +1279,16 @@ class ReplElement extends HTMLElement {
         if (!code.trim()) {
             return;
         }
-        // this.editor.setValue(this.editor.getValue().trimEnd());
-        // this.printToConsole("\n");
-        // await sleep(0);
+        this.editor.setValue(this.editor.getValue().trimEnd());
+        this.printToConsole("\n");
+        await sleep(0);
         // editor.setValue seems to undo changes to the console so readOnly has to be set second
         // and we need to sleep first.
         this.readOnly = true;
-        // execution is a handle we can use to cancel.
-        const execution = this.executor.execute(code);
-        this.currentExecution = execution;
-        execution.onStdout(data => this.printToConsole(data));
-        execution.onStderr(data => this.printToConsole(data));
-        let syntaxCheck = await execution.validate_syntax(code);
-        if (!syntaxCheck.valid) {
-            await sleep(0);
-            this.showSyntaxError(syntaxCheck.errors);
-            this.currentExecution = undefined;
-            this.readOnly = false;
-            // await sleep(0);
-            // this.editor.setPosition(this.endOfInputPosition);
+        const executor = this.execute(code);
+        let syntaxErrors = (await executor.next()).value;
+        if(syntaxErrors){
+            this.showSyntaxError(syntaxErrors);
             return;
         }
 
@@ -1095,27 +1299,10 @@ class ReplElement extends HTMLElement {
             this.history.push(code);
         }
         await sleep(0);
-        this.historyIdx = this.history.length;
+        let result = (await executor.next()).value;
+        this.addOutput(result);
 
-        const [status, result] = await execution.result();
-        switch (status) {
-            case 'success':
-                this.addOutput(result);
-                break;
-            case 'exception':
-                this.addOutput(result);
-                break;
 
-            case 'keyboard_interrupt':
-                this.addOutput('KeyboardInterrupt');
-                break;
-
-            default:
-                throw new Error('Unexpected status: ' + status);
-        }
-        try {
-        } catch (e) {}
-        this.currentExecution = undefined;
         this.prepareInput();
         await sleep(0);
         this.readOnly = false;
