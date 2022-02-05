@@ -174,7 +174,7 @@ export class History {
                 continue;
             }
             // Found
-            this.idx = i;
+            this.step(i - this.idx);
             return value;
         }
     }
@@ -188,7 +188,7 @@ export class History {
                 continue;
             }
             // Found
-            this.idx = i;
+            this.step(i - this.idx);
             return value;
         }
     }

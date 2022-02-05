@@ -721,6 +721,7 @@ class ReplElement extends HTMLElement {
     static get _ctrlCmdHandlers() {
         return {
             c: ReplElement.prototype._onCtrlC,
+            C: ReplElement.prototype._onCtrlC,
             r: ReplElement.prototype._onCtrlR,
             v: ReplElement.prototype._onCtrlV,
             x: ReplElement.prototype._onCtrlX,
@@ -795,7 +796,24 @@ class ReplElement extends HTMLElement {
         }
     }
 
-    _onCtrlC() {}
+    async _onCtrlC(e) {
+        if(e.browserEvent.shiftKey){
+            e.browserEvent.preventDefault();
+            this.editor.trigger('source','editor.action.clipboardCopyAction');
+            return;
+        }
+        await this.preventKeyEvent();
+        this.editor.setValue(this.editor.getValue().trimEnd());
+        if(this.value === ""){
+            this.printToConsole("\n");
+        }
+        this.printToConsole("\n");
+        this.addOutput("KeyboardInterrupt");
+        this.prepareInput();
+        this.editor.setPosition(new monaco.Position(1,1));
+        await sleep(10);
+        this.editor.setPosition(this.endOfInputPosition);
+    }
 
     _onCtrlV(e) {
         if (e.browserEvent.altKey) {
@@ -813,6 +831,7 @@ class ReplElement extends HTMLElement {
     }
 
     async _onCtrlR(e) {
+        this.editor.pushUndoStop();
         if(e.browserEvent.shiftKey){
             location.reload();
             return;
@@ -839,6 +858,7 @@ class ReplElement extends HTMLElement {
             succeededSearchString: '',
             foundValue: '',
             reverse : true,
+            origHistoryIdx : this.history.idx
         };
         let endOfInput = this.endOfInputPosition;
         this._search_updateState(false);
@@ -867,6 +887,7 @@ class ReplElement extends HTMLElement {
                 text: '',
             },
         ]);
+        this.editor.setPosition(this.endOfInputPosition);
     }
 
     async _search_onKey(e) {
@@ -875,7 +896,7 @@ class ReplElement extends HTMLElement {
         const state = this.searchState;
         if (e.browserEvent.key === 'Escape') {
             this._search_clear();
-            this.history.idx = this.history.length - 1;
+            this.history.idx = state.origHistoryIdx;
             return;
         }
         if (e.browserEvent.key === 'Backspace') {
@@ -884,6 +905,11 @@ class ReplElement extends HTMLElement {
             return;
         }
         if (e.browserEvent.ctrlKey) {
+            if (e.browserEvent.key === 'c') {
+                this._search_clear();
+                this.history.idx = state.origHistoryIdx;
+                return;
+            }
             if (e.browserEvent.key === 'r') {
                 state.reverse = true;
                 await this._search_updateState(true);
@@ -904,12 +930,17 @@ class ReplElement extends HTMLElement {
                 return;
             }
             this._search_clear();
-            this.editor.getModel().applyEdits([
-                {
-                    range: this.allOfInputSelection,
-                    text: state.foundValue,
-                },
-            ]);
+            this.editor.getModel().pushEditOperations(
+                [this.endOfInputSelection, new monaco.Selection(1, 1, 1, 1)],
+                [
+                    {
+                        range: this.allOfInputSelection,
+                        text: state.foundValue,
+                    },
+                ],
+                () => [this.endOfInputSelection, new monaco.Selection(1, 1, 1, 1)],
+            );
+            this.editor.pushUndoStop();
             return;
         }
         const char = e.browserEvent.key;
@@ -917,12 +948,9 @@ class ReplElement extends HTMLElement {
         await this._search_updateState(false);
     }
 
-    async _search_updateState(next = false) {
+    async _search_doStateUpdate(next = false){
         const state = this.searchState;
         let value;
-        if(state.searchString === ""){
-            next = false;
-        }
         if(state.reverse){
             value = await this.history.reverse_history_search(
                 state.searchString,
@@ -934,15 +962,23 @@ class ReplElement extends HTMLElement {
                 next,
             );   
         }
-        const failed = value === undefined;
         if (value) {
             state.foundValue = value;
         }
         if(value && state.searchString !== ''){
             state.succeededSearchString = state.searchString;
         }
+        const failed = value === undefined;
+        return failed;
+    }
 
-        const { searchModelLine, searchString, reverse, succeededSearchString, foundValue } = state;
+    async _search_updateState(next = false) {
+        let failed = false;
+        if(this.searchState.searchString !== ""){
+            failed = await this._search_doStateUpdate(next);
+        }
+
+        const { searchModelLine, searchString, reverse, succeededSearchString, foundValue } = this.searchState;
 
         let prefixString = failed ? '(failed ' : '(';
         if(reverse){
@@ -961,6 +997,7 @@ class ReplElement extends HTMLElement {
         }]);
         // Now update selection
         if (succeededSearchString === '') {
+            this.editor.setPosition(new monaco.Position(searchModelLine, leader.length));
             return;
         }
         const searchStringIndex =
