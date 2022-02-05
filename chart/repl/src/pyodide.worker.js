@@ -20,6 +20,10 @@ self.is_promise = is_promise;
 
 self.store = new IndexedDBStorage('pyodide-config', 2);
 
+self.releaseComlinkProxy = releaseComlinkProxy(proxy){
+    proxy[Comlink.releaseProxy]();
+}
+
 async function setWorkingDirectory(directoryHandle) {
     await self.store.open();
     await self.store

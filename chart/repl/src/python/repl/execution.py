@@ -4,7 +4,7 @@ from .traceback import Traceback
 
 from .util import contextmanager, set_interrupt_buffer, to_js
 from pyodide import CodeRunner
-from js import Comlink
+from js import releaseComlinkProxy
 
 
 class Execution:
@@ -17,10 +17,10 @@ class Execution:
 
     def dispose(self):
         if self.stdout:
-            self.stdout[Comlink.releaseProxy]()
+            releaseComlinkProxy(self.stdout)
             self.stdout = None
         if self.stderr:
-            self.stderr[Comlink.releaseProxy]()
+            releaseComlinkProxy(self.stderr)
             self.stderr = None
 
     def __del__(self):
