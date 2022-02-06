@@ -1,6 +1,7 @@
 import { Swork, FetchContext } from 'swork';
 import { Router } from 'swork-router';
 import Mustache from 'mustache';
+import * as Comlink from 'comlink';
 // import nonexistent_chart_html from 'raw-loader!./charts/nonexistent-chart.html';
 // import chart_html from 'raw-loader!./charts/chart.html';
 
@@ -15,7 +16,6 @@ const router = new Router({
 });
 
 const repl_connections = {};
-const repl_connection_promises = {};
 const chart_owning_repls = {};
 
 function make_json_response(body, status) {
@@ -155,21 +155,11 @@ let messageDispatch = {
     chart_display_focus_repl: focusRepl,
 };
 
-function handlePyodideMessage(event) {
-    if (event.data.cmd === 'ready') {
-        repl_connection_promises[event.data.repl_id].resolve();
-        return;
-    }
-    console.error(`Unexpected message from pyodide repl`, event.data, event);
-    throw Error('Unexpected message from pyodide repl:', event.data);
-}
-
 async function getPyodidePort(target_repl) {
-    if (!repl_connection_promises[target_repl.id]) {
+    if (!repl_connections[target_repl.id]) {
         // Not already connected or in the process of connecting
         installPyodideRepl(target_repl);
     }
-    await repl_connection_promises[target_repl.id].promise;
     return repl_connections[target_repl.id];
 }
 
@@ -191,24 +181,24 @@ function installPyodideRepl(target_repl) {
     promise.promise = new Promise((resolve, reject) =>
         Object.assign(promise, { resolve, reject }),
     );
-    repl_connection_promises[target_repl.id] = promise;
-    repl_connections[target_repl.id] = port1;
-    port1.addEventListener('message', handlePyodideMessage);
-    port1.start();
+    repl_connections[target_repl.id] = Comlink.wrap(port1);
 }
 
 async function passChartChannelToPyodide(event) {
-    let { port, chart_name } = event.data;
-    chart_owning_repls[event.source.id] = chart_name;
-    event.data.client_id = event.source.id;
-    let owningRepl = await get_owning_repl(chart_name);
-    let repl_port = await getPyodidePort(owningRepl);
-    console.log('repl_port:', repl_port);
-    repl_port.postMessage(event.data, [port]);
+    const { port, chart_name } = event.data;
+    const source_id = event.source.id;
+    chart_owning_repls[source_id] = chart_name;
+    const owningRepl = await get_owning_repl(chart_name);
+    const repl_port = await getPyodidePort(owningRepl);
+    await repl_port.connect_chart(
+        chart_name,
+        source_id,
+        Comlink.transfer(port, port),
+    );
 }
 
 async function focusRepl(event) {
-    let chart_name = chart_owning_repls[event.source.id];
-    let owningRepl = await get_owning_repl(chart_name);
+    const chart_name = chart_owning_repls[event.source.id];
+    const owningRepl = await get_owning_repl(chart_name);
     owningRepl.focus();
 }

@@ -3,6 +3,8 @@ from .write_stream import WriteStream
 from .traceback import Traceback
 
 from .util import contextmanager, set_interrupt_buffer, to_js
+
+from ast import PyCF_ALLOW_TOP_LEVEL_AWAIT
 from pyodide import CodeRunner
 from js import releaseComlinkProxy
 
@@ -28,7 +30,9 @@ class Execution:
 
     def validate_syntax(self):
         try:
-            self.code_runner = CodeRunner(self.code).compile()
+            self.code_runner = CodeRunner(
+                self.code, flags=PyCF_ALLOW_TOP_LEVEL_AWAIT
+            ).compile()
         except SyntaxError:
             import parso
 

@@ -1,7 +1,6 @@
 // This pyodide worker starts the pyodide runtime on a worker thread.
 // It talks to pythonExecutor, which is responsible for wrapping communication between the main thread and the pyodide thread.
 //
-import { v4 as uuid4 } from 'uuid';
 import { sleep } from './utils';
 import { IndexedDBStorage } from './indexedDB';
 import * as Comlink from 'comlink';
@@ -20,9 +19,9 @@ self.is_promise = is_promise;
 
 self.store = new IndexedDBStorage('pyodide-config', 2);
 
-self.releaseComlinkProxy = function(proxy){
+self.releaseComlinkProxy = function (proxy) {
     proxy[Comlink.releaseProxy]();
-}
+};
 
 async function setWorkingDirectory(directoryHandle) {
     await self.store.open();
@@ -100,11 +99,17 @@ async function startup(loadingMessage, loadingError) {
     `);
     self.completer_mod = pyodide.pyimport('repl.completer');
     self.execution_mod = pyodide.pyimport('repl.execution');
+    self.sseq_display_mod = pyodide.pyimport('sseq_display');
     self.namespace = pyodide.globals.get('namespace');
     loadingMessage[Comlink.releaseProxy]();
     loadingError[Comlink.releaseProxy]();
     pyodide.registerComlink(Comlink);
 }
+
+function releaseComlinkProxy(px) {
+    px[Comlink.releaseProxy]();
+}
+self.releaseComlinkProxy = releaseComlinkProxy;
 
 self.subscribers = [];
 
@@ -153,27 +158,6 @@ async function requestHandlePermission(handle, mode) {
 }
 self.requestHandlePermission = requestHandlePermission;
 
-function registerServiceWorkerPort(e) {
-    console.log('registerServiceWorkerPort');
-    let { port, repl_id } = e.data;
-    self.serviceWorker = port;
-    self.serviceWorker.addEventListener(
-        'message',
-        handleMessageFromServiceWorker,
-    );
-    port.start();
-    port.postMessage({ cmd: 'ready', repl_id });
-}
-
-function handleMessageFromServiceWorker(event) {
-    if (event.data.cmd === 'subscribe_chart_display') {
-        registerNewSubscriber(event);
-        return;
-    }
-    console.error(`Unknown command: ${event.data.cmd}`, event.data, event);
-    throw Error(`Unknown command: ${event.data.cmd}`);
-}
-
 function registerNewSubscriber(event) {
     let { port, chart_name, uuid, client_id } = event.data;
     console.log(`New subscriber to ${chart_name}`, event.data);
@@ -195,12 +179,38 @@ async function handleMessageFromChart(event, port, chart_name, client_id) {
     );
 }
 
-Comlink.expose({
+const service_worker_interface = {
+    async connect_chart(chart_name, source_id, port) {
+        const ui = Comlink.wrap(port);
+        const toExpose = ['initializeSseq', 'reset', 'appplyMessages'];
+        const ui_wrap = {};
+        for (const func of toExpose) {
+            ui_wrap[func] = async (...args) => {
+                console.log(func, args);
+                return await ui[func](...args);
+            };
+        }
+        await self.sseq_display_mod.SseqDisplay.subscribe_ui(
+            chart_name,
+            source_id,
+            ui_wrap,
+        );
+    },
+};
+
+function registerServiceWorkerPort(port) {
+    Comlink.expose(service_worker_interface, port);
+}
+
+const repl_interface = {
     startup,
     new_completer,
     new_executor,
+    registerServiceWorkerPort,
     // service_worker_channel: registerServiceWorkerPort,
     // respondToQuery: handleQueryResponse,
     // subscribe_chart_display: handleSubscribeChartDisplay,
     // handle_message,
-});
+};
+
+Comlink.expose(repl_interface);

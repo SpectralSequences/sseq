@@ -8,9 +8,8 @@ import {
 import { PageProperty } from './PageProperty';
 import { SseqChart } from './SseqChart';
 
-export function parse(json: string): any {
-    let result = JSON.parse(json);
-    return new Walker().walk({ '': result }, '');
+export function parse(json: any): any {
+    return new Walker().walk({ '': json }, '');
 }
 
 interface Deserializable {

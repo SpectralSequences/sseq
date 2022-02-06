@@ -576,19 +576,10 @@ export class ChartElement extends LitElement {
                 this.initializeSseq(message.kwargs.state);
                 return;
             case 'chart.state.reset':
-                this.setSseq(message.kwargs.state);
-                this.fixPageRangeAndIndex();
-                this.updateChart();
+                this.reset(message.kwargs.state);
                 return;
             case 'chart.update':
-                if (!this.sseq) {
-                    throw Error('Asked to update sseq but sseq is null.');
-                }
-                for (let update of message.kwargs.messages) {
-                    this.sseq.handleMessage(update);
-                }
-                this.fixPageRangeAndIndex();
-                this.updateChart();
+                this.appplyMessages(message.kwargs.messages);
                 return;
         }
         console.error('Message with unrecognized command:', message);
@@ -601,6 +592,23 @@ export class ChartElement extends LitElement {
             this.setInitialRange();
             this.updateChart();
         }
+    }
+
+    reset(sseq: SpectralSequenceChart) {
+        this.setSseq(sseq);
+        this.fixPageRangeAndIndex();
+        this.updateChart();
+    }
+
+    appplyMessages(messages: any[]) {
+        if (!this.sseq) {
+            throw Error('Asked to update sseq but sseq is null.');
+        }
+        for (let update of messages) {
+            this.sseq.handleMessage(update);
+        }
+        this.fixPageRangeAndIndex();
+        this.updateChart();
     }
 
     setInitialRange() {

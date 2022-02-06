@@ -151,7 +151,7 @@ class SseqChart:
             num_gradings=self.num_gradings,
             x_projection=self.x_projection,
             y_projection=self.y_projection,
-            page_list=self.page_list,
+            page_list=[list(x) for x in self.page_list],
             classes=list(self._classes.values()),
             edges=list(self._edges.values()),
         )

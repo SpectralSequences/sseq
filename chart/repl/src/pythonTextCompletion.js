@@ -204,9 +204,6 @@ export function updatePythonLanguageDefinition(monaco, repl) {
             increaseIndentPattern: /^.*:\s*$/,
         },
     });
-    if(!repl.jedi_value){
-        return;
-    }
     monaco.languages.registerCompletionItemProvider(
         'python',
         getCompletionProvider(monaco, repl),

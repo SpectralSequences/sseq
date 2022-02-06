@@ -33,46 +33,26 @@ export class PythonExecutor {
             .then(() =>
                 window.loadingWidget.addLoadingMessage('Pyodide is ready!'),
             );
+        navigator.serviceWorker.addEventListener(
+            'message',
+            this._handleServiceWorkerMessage.bind(this),
+        );
     }
 
-    // _handleServiceWorkerMessage(event) {
-    //     if (event.data.cmd !== 'connect_to_pyodide') {
-    //         throw Error('Unexpected command from service worker!');
-    //     }
-    //     this._handleServiceWorkerConnection(event);
-    // }
-
-    // _handleServiceWorkerConnection(event) {
-    //     console.log('handle service worker connection');
-    //     let msg = event.data;
-    //     let { port, repl_id } = msg;
-    //     this.pyodide_worker.postMessage(
-    //         {
-    //             cmd: 'service_worker_channel',
-    //             port,
-    //             repl_id,
-    //         },
-    //         [port],
-    //     );
-    // }
-
-    _handlePyodideMessage(event) {
-        let message = event.data;
-        let message_cmd = message.cmd;
-        let subhandlers = {
-            execute: '_handleExecutionMessage',
-            complete: '_handleCompletionMessage',
-            ready: '_handleReadyMessage',
-            file_picker: 'file_picker',
-            request_handle_permission: '_handleRequestHandlePermission',
-            loadingMessage: '_handleLoadingMessage',
-            loadingError: '_handleLoadingError',
-        };
-        let subhandler_name = subhandlers[message_cmd];
-        if (!subhandler_name) {
-            throw new Error(`Unknown command "${message_cmd}"`);
+    _handleServiceWorkerMessage(event) {
+        if (event.data.cmd !== 'connect_to_pyodide') {
+            throw Error('Unexpected command from service worker!');
         }
-        this[subhandler_name](message);
+        this._handleServiceWorkerConnection(event);
+    }
+
+    async _handleServiceWorkerConnection(event) {
+        console.log('handle service worker connection');
+        let msg = event.data;
+        let { port } = msg;
+        await this.pyodide_worker.registerServiceWorkerPort(
+            Comlink.transfer(port, [port]),
+        );
     }
 
     async file_picker(message) {
@@ -95,23 +75,9 @@ export class PythonExecutor {
         }
     }
 
-    _handleLoadingMessage(message) {
-        window.loadingWidget.addLoadingMessage(message.text);
-    }
-
-    _handleLoadingError(message) {
-        console.error(message);
-        throw Error('TODO: handle me!');
-    }
-
-    async _handleRequestHandlePermission(message) {
-        let { uuid, handle, mode } = message;
+    async requestHandlePermission(handle, mode) {
         let status = await handle.requestPermission({ mode });
-        this._postMessage({
-            cmd: 'respondToQuery',
-            uuid,
-            status,
-        });
+        return status;
     }
 
     _handleExecutionMessage(message) {

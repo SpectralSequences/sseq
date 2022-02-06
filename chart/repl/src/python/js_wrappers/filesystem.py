@@ -260,7 +260,7 @@ class FileHandle:
         err = None
         try:
             response = await filePicker(picker_type)
-        except PromiseException as e:
+        except Exception as e:
             err = classify_error(e)
             if not err:
                 raise

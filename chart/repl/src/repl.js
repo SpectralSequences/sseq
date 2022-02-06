@@ -797,20 +797,20 @@ class ReplElement extends HTMLElement {
     }
 
     async _onCtrlC(e) {
-        if(e.browserEvent.shiftKey){
+        if (e.browserEvent.shiftKey) {
             e.browserEvent.preventDefault();
-            this.editor.trigger('source','editor.action.clipboardCopyAction');
+            this.editor.trigger('source', 'editor.action.clipboardCopyAction');
             return;
         }
         await this.preventKeyEvent();
         this.editor.setValue(this.editor.getValue().trimEnd());
-        if(this.value === ""){
-            this.printToConsole("\n");
+        if (this.value === '') {
+            this.printToConsole('\n');
         }
-        this.printToConsole("\n");
-        this.addOutput("KeyboardInterrupt");
+        this.printToConsole('\n');
+        this.addOutput('KeyboardInterrupt');
         this.prepareInput();
-        this.editor.setPosition(new monaco.Position(1,1));
+        this.editor.setPosition(new monaco.Position(1, 1));
         await sleep(10);
         this.editor.setPosition(this.endOfInputPosition);
     }
@@ -832,7 +832,7 @@ class ReplElement extends HTMLElement {
 
     async _onCtrlR(e) {
         this.editor.pushUndoStop();
-        if(e.browserEvent.shiftKey){
+        if (e.browserEvent.shiftKey) {
             location.reload();
             return;
         }
@@ -846,7 +846,7 @@ class ReplElement extends HTMLElement {
                 text: '\n',
             },
         ]);
-        this.editor.setPosition(new monaco.Position(1,1));
+        this.editor.setPosition(new monaco.Position(1, 1));
         this.readOnly = false;
         const searchModelLine = this.getModelLineCount();
         const searchScreenLine = this.getScreenLineCount();
@@ -857,8 +857,8 @@ class ReplElement extends HTMLElement {
             searchString: '',
             succeededSearchString: '',
             foundValue: '',
-            reverse : true,
-            origHistoryIdx : this.history.idx
+            reverse: true,
+            origHistoryIdx: this.history.idx,
         };
         let endOfInput = this.endOfInputPosition;
         this._search_updateState(false);
@@ -926,7 +926,7 @@ class ReplElement extends HTMLElement {
             return;
         }
         if (e.browserEvent.key.length > 1) {
-            if(e.browserEvent.key === "Shift"){
+            if (e.browserEvent.key === 'Shift') {
                 return;
             }
             this._search_clear();
@@ -938,7 +938,10 @@ class ReplElement extends HTMLElement {
                         text: state.foundValue,
                     },
                 ],
-                () => [this.endOfInputSelection, new monaco.Selection(1, 1, 1, 1)],
+                () => [
+                    this.endOfInputSelection,
+                    new monaco.Selection(1, 1, 1, 1),
+                ],
             );
             this.editor.pushUndoStop();
             return;
@@ -948,10 +951,10 @@ class ReplElement extends HTMLElement {
         await this._search_updateState(false);
     }
 
-    async _search_doStateUpdate(next = false){
+    async _search_doStateUpdate(next = false) {
         const state = this.searchState;
         let value;
-        if(state.reverse){
+        if (state.reverse) {
             value = await this.history.reverse_history_search(
                 state.searchString,
                 next,
@@ -960,12 +963,12 @@ class ReplElement extends HTMLElement {
             value = await this.history.forward_history_search(
                 state.searchString,
                 next,
-            );   
+            );
         }
         if (value) {
             state.foundValue = value;
         }
-        if(value && state.searchString !== ''){
+        if (value && state.searchString !== '') {
             state.succeededSearchString = state.searchString;
         }
         const failed = value === undefined;
@@ -974,42 +977,52 @@ class ReplElement extends HTMLElement {
 
     async _search_updateState(next = false) {
         let failed = false;
-        if(this.searchState.searchString !== ""){
+        if (this.searchState.searchString !== '') {
             failed = await this._search_doStateUpdate(next);
         }
 
-        const { searchModelLine, searchString, reverse, succeededSearchString, foundValue } = this.searchState;
+        const {
+            searchModelLine,
+            searchString,
+            reverse,
+            succeededSearchString,
+            foundValue,
+        } = this.searchState;
 
         let prefixString = failed ? '(failed ' : '(';
-        if(reverse){
-            prefixString += "reverse-";
+        if (reverse) {
+            prefixString += 'reverse-';
         }
         prefixString += 'i-search)';
         const leader = `${prefixString}\`${searchString}':`;
         let text = leader;
-        if(foundValue !== ""){
-            text +=  "\n" + foundValue;
+        if (foundValue !== '') {
+            text += '\n' + foundValue;
             this.firstLines[searchModelLine + 1] = true;
         }
-        this.editor.getModel().applyEdits([{
-            text,
-            range: new monaco.Range(searchModelLine, 1, 10000, 10000),
-        }]);
+        this.editor.getModel().applyEdits([
+            {
+                text,
+                range: new monaco.Range(searchModelLine, 1, 10000, 10000),
+            },
+        ]);
         // Now update selection
         if (succeededSearchString === '') {
-            this.editor.setPosition(new monaco.Position(searchModelLine, leader.length));
+            this.editor.setPosition(
+                new monaco.Position(searchModelLine, leader.length),
+            );
             return;
         }
         const searchStringIndex =
             leader.length + foundValue.indexOf(succeededSearchString) + 1;
         let line = searchModelLine;
         let col = 1;
-        for(let i = 0; i < searchStringIndex; i++){
-            if(text[i] === "\n"){
-                line ++;
+        for (let i = 0; i < searchStringIndex; i++) {
+            if (text[i] === '\n') {
+                line++;
                 col = 1;
             } else {
-                col ++;
+                col++;
             }
         }
         this.editor.setSelection(
@@ -1017,7 +1030,8 @@ class ReplElement extends HTMLElement {
                 line,
                 col,
                 line,
-                col + Math.min(searchString.length, succeededSearchString.length),
+                col +
+                    Math.min(searchString.length, succeededSearchString.length),
             ),
         );
     }
@@ -1271,10 +1285,10 @@ class ReplElement extends HTMLElement {
         return true;
     }
 
-    async *execute(code){
-        if(!this.executor){
+    async *execute(code) {
+        if (!this.executor) {
             yield;
-            return "dummy result";
+            return 'dummy result';
         }
         const execution = this.executor.execute(code);
         this.currentExecution = execution;
@@ -1284,7 +1298,7 @@ class ReplElement extends HTMLElement {
         if (!syntaxCheck.valid) {
             await sleep(0);
             this.currentExecution = undefined;
-            yield syntaxCheck.errors;            
+            yield syntaxCheck.errors;
             // await sleep(0);
             // this.editor.setPosition(this.endOfInputPosition);
             return;
@@ -1317,14 +1331,14 @@ class ReplElement extends HTMLElement {
             return;
         }
         this.editor.setValue(this.editor.getValue().trimEnd());
-        this.printToConsole("\n");
+        this.printToConsole('\n');
         await sleep(0);
         // editor.setValue seems to undo changes to the console so readOnly has to be set second
         // and we need to sleep first.
         this.readOnly = true;
         const executor = this.execute(code);
         let syntaxErrors = (await executor.next()).value;
-        if(syntaxErrors){
+        if (syntaxErrors) {
             this.showSyntaxError(syntaxErrors);
             return;
         }
@@ -1338,7 +1352,6 @@ class ReplElement extends HTMLElement {
         await sleep(0);
         let result = (await executor.next()).value;
         this.addOutput(result);
-
 
         this.prepareInput();
         await sleep(0);

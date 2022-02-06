@@ -1,6 +1,7 @@
 'use strict';
 import css from './katex.min.css';
 import Mousetrap from 'mousetrap';
+import * as Comlink from 'comlink';
 
 import { SseqChart } from 'chart/SseqChart';
 window.SseqChart = SseqChart;
@@ -23,26 +24,10 @@ import { UIElement } from 'display/UI.js';
 import { v4 as uuid4 } from 'uuid';
 import { parse } from 'chart/json_utils';
 
-window.parseChart = parse;
-
 async function main() {
     await import('display/Chart.ts');
 }
 let chart_loaded = main().catch(console.error);
-
-// import registerServiceWorker, {
-//     ServiceWorkerNoSupportError
-// } from 'service-worker-loader!../service.worker';
-
-// let service_worker_loaded = registerServiceWorker({ scope: '/dist/' }).then((registration) => {
-//     console.log("Loaded worker!");
-// }).catch((err) => {
-//     if (err instanceof ServiceWorkerNoSupportError) {
-//         console.error('Service worker is not supported.');
-//     } else {
-//         console.error('Error loading service worker!', err);
-//     }
-// });
 
 class ReplDisplayUI {
     constructor(uiElement, chart_name) {
@@ -57,77 +42,35 @@ class ReplDisplayUI {
             [port1],
         );
 
-        // this.ws.onclose = function(event){
-        //     document.querySelector("[error=disconnected]").removeAttribute("hidden");
-        // }
-        // this.socket_opened = new Promise((resolve) =>  this.ws.onopen = () => resolve());
-
         this.uiElement = uiElement;
         this.chartElement = uiElement.querySelector('sseq-chart');
         this.mousetrap = new Mousetrap(this.chartElement);
         this.popup = uiElement.querySelector('sseq-popup');
         this.sidebar = uiElement.querySelector('sseq-sidebar');
-        this.port = port2;
-        this.port.onmessage = this.onmessage.bind(this);
+
+        const toExpose = [this.initializeSseq, this.reset, this.appplyMessages];
+        const exposedFunctions = {};
+        for (const func of toExpose) {
+            exposedFunctions[func.name] = func.bind(this);
+        }
+        this.port = Comlink.expose(exposedFunctions, port2);
     }
 
-    async start() {
+    //
+    async initializeSseq(sseq) {
         await chart_loaded;
-        await navigator.serviceWorker.ready;
-        this.setupUIBindings();
-        this.setupSocketMessageBindings();
-        this.send('initialize.complete', {}); // Who reads this message?
-        this.send('new_user', {});
-        // Start UI after handling "chart.state.initialize" in onmessage handler.
+        console.log('initializeSseq', sseq);
+        this.chartElement.initializeSseq(parse(sseq));
+        this.uiElement.start();
     }
 
-    onmessage(event) {
-        let data = parse(event.data);
-        if (data.cmd.startsWith('chart.')) {
-            this.chartElement.handleMessage(data);
-            if (data.cmd === 'chart.state.initialize') {
-                console.log('starting ui...');
-                this.uiElement.start();
-            }
-            return;
-        }
-        console.error('Message with unrecognized command:', message);
-        throw Error(`Unrecognized command ${message.cmd}`);
+    reset(sseq) {
+        this.chartElement.reset(sseq);
     }
 
-    setupSocketMessageBindings() {}
-
-    send(cmd, kwargs) {
-        // args parameter?
-        let args = [];
-        // this.console_log_if_debug("send message", cmd, args, kwargs);
-        if (args === undefined || kwargs === undefined) {
-            throw TypeError(`Send with missing arguments.`);
-        }
-        if (args.constructor !== Array) {
-            throw TypeError(
-                `Argument "args" expected to have type "Array" not "${args.constructor.name}"`,
-            );
-        }
-        if (kwargs.constructor !== Object) {
-            throw TypeError(
-                `Argument "kwargs" expected to have type "Object" not "${kwargs.constructor.name}"`,
-            );
-        }
-        if ('cmd' in kwargs) {
-            throw ValueError(`Tried to send message with top level "cmd" key`);
-        }
-        let obj = Object.assign(
-            {
-                cmd,
-                args,
-                kwargs,
-                uuid: uuid4(),
-            },
-            this.message_extra_data,
-        );
-        let json_str = JSON.stringify(obj);
-        this.port.postMessage(json_str);
+    appplyMessages(messages) {
+        console.log(messages);
+        this.chartElement.appplyMessages(parse(messages));
     }
 
     async showHelpWindow() {

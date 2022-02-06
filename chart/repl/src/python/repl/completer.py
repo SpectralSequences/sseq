@@ -194,7 +194,7 @@ class Completer:
         root = ".".join(full_name.split(".")[:-1])
         return [full_name, root]
 
-    def get_completion_info_instance(self, subuuid, completion):
+    def get_completion_info_instance(self, completion):
         """Jedi by default does a bad job of getting the completion info for "instances".
         If the instance is a property on a class with an available docstring, then we report that.
         In any case, give the signature as "name: type".
