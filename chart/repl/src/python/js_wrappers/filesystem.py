@@ -1,4 +1,5 @@
 from js import filePicker, requestHandlePermission, sleep as sleep_a
+from repl.util import to_js
 
 
 class Mode:
@@ -95,7 +96,7 @@ class DirectoryHandle:
         err = None
         try:
             print("await...")
-            result._handle = await self._handle.getFileHandle(path, dict(create=create))
+            result._handle = await self._handle.getFileHandle(path, create=create)
             print("got result?")
         except Exception as e:
             err = classify_error(e)
@@ -207,9 +208,9 @@ class RelativePath:
             self._target_handle = await directory.file_handle_a(self.path[-1], create)
         return self._target_handle
 
-    async def write_text_a(self, text, recursive=False):
+    async def write_text_a(self, text):
         handle = await self.resolve_file_handle_a()
-        await handle.write_text_a(text, True, recursive)
+        await handle.write_text_a(text)
 
     async def read_text_a(self):
         if not self._target_handle:
@@ -311,7 +312,7 @@ class WritableFileStream:
         self._stream = stream
 
     async def write_a(self, data, position=None):
-        await self._stream.write(dict(type="write", position=position, data=data))
+        await self._stream.write(to_js(dict(type="write", position=position, data=data)))
 
     async def seek_a(self, position):
         await self._stream.seek(position)

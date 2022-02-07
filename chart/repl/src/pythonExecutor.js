@@ -22,14 +22,23 @@ export class PythonExecutor {
             new Worker('pyodide_worker.bundle.js'),
         );
         window.python_executor = this;
-        const handleLoadingMessage = Comlink.proxy(msg => {
-            loadingWidget.addLoadingMessage(msg);
-        });
-        const handleLoadingError = Comlink.proxy(msg => {
-            console.error(msg);
-        });
+        const main_thread_pyodide_interface = {
+            loadingMessage(msg){
+                loadingWidget.addLoadingMessage(msg);
+            },
+            loadingError(msg){
+                console.error(msg);
+            },
+            async test(){
+                resp = await fetch("index.html");
+                return await resp.text();
+            }
+        };
+        for(let func of [this.file_picker, this.requestHandlePermission]){
+            main_thread_pyodide_interface[func.name] = func.bind(this);
+        }
         this._ready = this.pyodide_worker
-            .startup(handleLoadingMessage, handleLoadingError)
+            .startup(Comlink.proxy(main_thread_pyodide_interface))
             .then(() =>
                 window.loadingWidget.addLoadingMessage('Pyodide is ready!'),
             );
@@ -39,15 +48,10 @@ export class PythonExecutor {
         );
     }
 
-    _handleServiceWorkerMessage(event) {
+    async _handleServiceWorkerMessage(event) {
         if (event.data.cmd !== 'connect_to_pyodide') {
             throw Error('Unexpected command from service worker!');
         }
-        this._handleServiceWorkerConnection(event);
-    }
-
-    async _handleServiceWorkerConnection(event) {
-        console.log('handle service worker connection');
         let msg = event.data;
         let { port } = msg;
         await this.pyodide_worker.registerServiceWorkerPort(
@@ -55,48 +59,26 @@ export class PythonExecutor {
         );
     }
 
-    async file_picker(message) {
+    async file_picker(type) {
+        console.log("file_picker", type);
         let pickerFunction = {
             directory: showDirectoryPicker,
             read: showOpenFilePicker,
             readwrite: showSaveFilePicker,
-        }[message.type];
-        try {
-            let handle = await pickerFunction();
-            if (message.type !== 'read') {
-                // In case "read", it returns a list.
-                // In remaining cases, it returns a single handle.
-                // Allow more consistent handling by always giving a list.
-                handle = [handle];
-            }
-            this._postMessage('respondToQuery', message.uuid, { handle });
-        } catch (error) {
-            this._postMessage('respondToQuery', message.uuid, { error });
+        }[type];
+        let handle = await pickerFunction();
+        if (type !== 'read') {
+            // In case "read", it returns a list.
+            // In remaining cases, it returns a single handle.
+            // Allow more consistent handling by always giving a list.
+            handle = [handle];
         }
+        return handle;
     }
 
     async requestHandlePermission(handle, mode) {
         let status = await handle.requestPermission({ mode });
         return status;
-    }
-
-    _handleExecutionMessage(message) {
-        // execution messages get emitted on the execution object.
-        const { uuid, subcmd, last_response } = message;
-        const execution = this.executions[uuid];
-        if (!execution) {
-            throw new Error(`Invalid execution uuid "${uuid}"`);
-        }
-        // Check if there is a handler for the given command, otherwise fail.
-        // All messages are meant to be handled.
-        if (execution.listenerCount(subcmd) === 0) {
-            throw new Error(`Unexpected command "${subcmd}"`);
-        }
-        execution.emit(subcmd, message);
-        if (last_response) {
-            execution._close();
-            delete this.executions[uuid];
-        }
     }
 
     async ready() {

@@ -10,12 +10,6 @@ const pyodideBaseURL = 'https://cdn.jsdelivr.net/pyodide/v0.19.0/full/';
 importScripts(pyodideBaseURL + 'pyodide.js');
 
 self.sleep = sleep;
-self.fetch = fetch.bind(self);
-
-async function is_promise(obj) {
-    return obj && typeof obj.then == 'function';
-}
-self.is_promise = is_promise;
 
 self.store = new IndexedDBStorage('pyodide-config', 2);
 
@@ -31,6 +25,10 @@ async function setWorkingDirectory(directoryHandle) {
 }
 self.setWorkingDirectory = setWorkingDirectory;
 
+self.requestHandlePermission = async function(handle, mode){
+    return await main_thread_interface.requestHandlePermission(handle, mode);
+}
+
 async function getWorkingDirectory() {
     await self.store.open();
     let result = await self.store
@@ -39,7 +37,7 @@ async function getWorkingDirectory() {
     if (!result) {
         return;
     }
-    let permission = await requestHandlePermission(result, 'readwrite');
+    let permission = await self.requestHandlePermission(result, 'readwrite')
     if (permission === 'granted') {
         return result;
     }
@@ -85,9 +83,10 @@ const chart_wheel_promise = fetch_and_unpack(
     `${path}/spectralsequence_chart-0.0.28-py3-none-any.whl`,
 );
 const python_tar_promise = fetch_and_unpack('python.tar');
-async function startup(loadingMessage, loadingError) {
-    self.loadingMessage = loadingMessage;
-    self.loadingError = loadingError;
+async function startup(main_thread_interface) {
+    self.main_thread_interface = main_thread_interface;
+    self.loadingMessage = async (msg) =>  await main_thread_interface.loadingMessage(msg);
+    self.loadingError = async (msg) =>  await main_thread_interface.loadingError(msg);
 
     loadingMessage('Loading Pyodide packages');
     let jedi_promise = pyodide_promise.then(() => pyodide.loadPackage('jedi'));
@@ -101,8 +100,6 @@ async function startup(loadingMessage, loadingError) {
     self.execution_mod = pyodide.pyimport('repl.execution');
     self.sseq_display_mod = pyodide.pyimport('sseq_display');
     self.namespace = pyodide.globals.get('namespace');
-    loadingMessage[Comlink.releaseProxy]();
-    loadingError[Comlink.releaseProxy]();
     pyodide.registerComlink(Comlink);
 }
 
@@ -127,36 +124,11 @@ async function new_completer() {
     return Comlink.proxy(completer_mod.Completer(self.namespace));
 }
 
-async function handleSubscribeChartDisplay(e) {
-    let uuid = e.data;
-    messageLookup.set(uuid, e.data);
-    await self.pyodide.runPythonAsync(`
-        from js_wrappers.messages import get_message
-        msg = get_message("${uuid}")
-        display = SseqDisplay.displays[msg["chart_name"]]
-        await display.add_subscriber(msg["uuid"], msg["port"])
-    `);
-}
-
 async function filePicker(type) {
-    let [uuid, promise] = getResponsePromise();
-    self.postMessage({ cmd: 'file_picker', uuid, type });
-    let response = await promise;
-    if (response.handle) {
-        return response.handle;
-    } else {
-        throw Error(response.error);
-    }
+    return await self.main_thread_interface.file_picker(type);
 }
 self.filePicker = filePicker;
 
-async function requestHandlePermission(handle, mode) {
-    let [uuid, promise] = getResponsePromise();
-    self.postMessage({ cmd: 'request_handle_permission', handle, mode, uuid });
-    let response = await promise;
-    return response.status;
-}
-self.requestHandlePermission = requestHandlePermission;
 
 function registerNewSubscriber(event) {
     let { port, chart_name, uuid, client_id } = event.data;
