@@ -173,9 +173,11 @@ fn main() -> anyhow::Result<()> {
         }
 
         // First print the products with non-surviving classes
-        let hom_k = hom.get_map(s + shift_s).hom_k(t);
-        for i in page_data.complement_pivots() {
-            println!("{name} τ x_({n}, {s}, {i}) = τ {:?}", &hom_k[i]);
+        if target_num_gens > 0 {
+            let hom_k = hom.get_map(s + shift_s).hom_k(t);
+            for i in page_data.complement_pivots() {
+                println!("{name} τ x_({n}, {s}, {i}) = τ {:?}", &hom_k[i]);
+            }
         }
 
         // Now print the secondary products
