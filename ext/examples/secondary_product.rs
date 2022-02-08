@@ -159,16 +159,27 @@ fn main() -> anyhow::Result<()> {
             continue;
         }
 
-        let page_data = get_page_data(&*unit_sseq, n, s);
-
-        if page_data.subspace_dimension() == 0 {
+        if unit.number_of_gens_in_bidegree(s, t) == 0 {
             continue;
         }
+
+        let page_data = get_page_data(&*unit_sseq, n, s);
 
         let target_num_gens = resolution.number_of_gens_in_bidegree(s + shift_s, t + shift_t);
         let tau_num_gens = resolution.number_of_gens_in_bidegree(s + shift_s + 1, t + shift_t + 1);
 
         if target_num_gens == 0 && tau_num_gens == 0 {
+            continue;
+        }
+
+        // First print the products with non-surviving classes
+        let hom_k = hom.get_map(s + shift_s).hom_k(t);
+        for i in page_data.complement_pivots() {
+            println!("{name} τ x_({n}, {s}, {i}) = τ {:?}", &hom_k[i]);
+        }
+
+        // Now print the secondary products
+        if page_data.subspace_dimension() == 0 {
             continue;
         }
 
