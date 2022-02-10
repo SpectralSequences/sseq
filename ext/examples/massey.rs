@@ -4,18 +4,13 @@
 //! degree.
 
 use algebra::module::{FDModule, Module};
-use ext::chain_complex::{AugmentedChainComplex, ChainComplex, ChainHomotopy, FiniteChainComplex};
+use ext::chain_complex::{
+    AugmentedChainComplex, ChainComplex, ChainHomotopy, FiniteChainComplex, FreeChainComplex,
+};
 use ext::resolution::Resolution;
 use ext::resolution_homomorphism::ResolutionHomomorphism;
 use fp::matrix::{AugmentedMatrix, Matrix};
 use std::sync::Arc;
-
-fn parse_vec(s: &str) -> Result<Vec<u32>, core::num::ParseIntError> {
-    s[1..s.len() - 1]
-        .split(',')
-        .map(|x| x.trim().parse())
-        .collect::<Result<Vec<_>, _>>()
-}
 
 fn main() -> anyhow::Result<()> {
     let resolution = Arc::new(ext::utils::query_module(None, true)?);
@@ -39,25 +34,29 @@ fn main() -> anyhow::Result<()> {
     eprintln!("\nComputing Massey products <a, b, ->");
     eprintln!("\nEnter a:");
 
-    let a_n: i32 = query::with_default("n", "0", str::parse);
-    let a_s: u32 = query::with_default("s", "1", |v| match v.parse::<u32>() {
-        Ok(0) => Err(String::from("Must be positive filtration class")),
-        Ok(x) => Ok(x),
-        Err(e) => Err(e.to_string()),
-    });
+    let a_n: i32 = query::raw("n of Ext class a", str::parse);
+    let a_s: u32 = query::raw("s of Ext class a", str::parse::<std::num::NonZeroU32>).get();
     let a_t = a_n + a_s as i32;
-    let a_class = query::with_default("class", "[1]", parse_vec);
+
+    unit.compute_through_stem(a_s, a_n);
+
+    let a_class = query::vector(
+        "Input Ext class a",
+        unit.number_of_gens_in_bidegree(a_s, a_t),
+    );
 
     eprintln!("\nEnter b:");
 
-    let b_n: i32 = query::with_default("n", "1", str::parse);
-    let b_s: u32 = query::with_default("s", "1", |v| match v.parse::<u32>() {
-        Ok(0) => Err(String::from("Must be positive filtration class")),
-        Ok(x) => Ok(x),
-        Err(e) => Err(e.to_string()),
-    });
+    let b_n: i32 = query::raw("n of Ext class b", str::parse);
+    let b_s: u32 = query::raw("s of Ext class b", str::parse::<std::num::NonZeroU32>).get();
     let b_t = b_n + b_s as i32;
-    let b_class = query::with_default("class", "[1]", parse_vec);
+
+    unit.compute_through_stem(b_s, b_n);
+
+    let b_class = query::vector(
+        "Input Ext class b",
+        unit.number_of_gens_in_bidegree(b_s, b_t),
+    );
 
     // The Massey product shifts the bidegree by this amount
     let shift_s = a_s + b_s - 1;
@@ -74,7 +73,7 @@ fn main() -> anyhow::Result<()> {
     }
 
     let b_hom = Arc::new(ResolutionHomomorphism::from_class(
-        "b".into(),
+        String::new(),
         Arc::clone(&unit),
         Arc::clone(&unit),
         b_s,
@@ -108,7 +107,7 @@ fn main() -> anyhow::Result<()> {
         let mut matrix = Matrix::new(p, num_gens, 1);
         for idx in 0..num_gens {
             let hom = Arc::new(ResolutionHomomorphism::new(
-                "c".into(),
+                String::new(),
                 Arc::clone(&resolution),
                 Arc::clone(&unit),
                 s,
