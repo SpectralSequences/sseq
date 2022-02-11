@@ -44,6 +44,7 @@ impl SenderData {
 /// To simplify implementation, we pick the ordering so that the (reverse) lexicographic ordering
 /// in Lemma 2.4 is just the (reverse) lexicographic ordering of the P parts. This corresponds to
 /// the ordering of $\mathcal{P}$ where $P^s_t < P^{s'}_t$ if $s < s'$).
+#[derive(Clone)]
 pub struct MilnorSubalgebra {
     profile: Vec<u8>,
 }
@@ -54,6 +55,10 @@ impl MilnorSubalgebra {
 
     pub fn new(profile: Vec<u8>) -> Self {
         Self { profile }
+    }
+
+    pub fn zero_algebra() -> Self {
+        Self { profile: vec![] }
     }
 
     /// Computes the signature of an element
@@ -129,6 +134,67 @@ impl MilnorSubalgebra {
     /// `degree` (inclusive). This skips the initial zero signature
     pub fn iter_signatures(&self, degree: i32) -> impl Iterator<Item = Vec<PPartEntry>> + '_ {
         SignatureIterator::new(self, degree)
+    }
+
+    fn top_degree(&self) -> i32 {
+        self.profile
+            .iter()
+            .map(|&entry| 2i32.pow(entry as u32) - 1)
+            .enumerate()
+            .map(|(idx, entry)| (2i32.pow(idx as u32 + 1) - 1) * entry)
+            .sum()
+    }
+
+    fn optimal_for(s: u32, t: i32) -> MilnorSubalgebra {
+        let mut subalgebras = vec![MilnorSubalgebra::zero_algebra()];
+        for subalgebra in SubalgebraIterator::new() {
+            let coeff = 2i32.pow(subalgebra.profile.len() as u32) - 1;
+            if t < coeff * (s as i32 + 1) + subalgebra.top_degree() {
+                // (s,t) is not in the vanishing region of `subalgebra` or any further subalgebra
+                break;
+            }
+            subalgebras.push(subalgebra);
+        }
+        subalgebras.pop().unwrap()
+    }
+}
+
+struct SubalgebraIterator {
+    current: MilnorSubalgebra,
+}
+
+impl SubalgebraIterator {
+    pub fn new() -> Self {
+        Self {
+            current: MilnorSubalgebra::new(vec![]),
+        }
+    }
+}
+
+impl Iterator for SubalgebraIterator {
+    type Item = MilnorSubalgebra;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.current.profile.is_empty()
+            || self.current.profile[0] == self.current.profile.len() as u8
+        {
+            // We are at F_2 or at A(n) where n = self.current.profile.len() - 1.
+            self.current.profile.push(1);
+            Some(self.current.clone())
+        } else {
+            // We find the first entry that can be incremented and increment it
+            if let Some((_, entry)) = self
+                .current
+                .profile
+                .iter_mut()
+                .rev()
+                .enumerate()
+                .find(|(idx, entry)| **entry == *idx as u8)
+            {
+                *entry += 1;
+            }
+            Some(self.current.clone())
+        }
     }
 }
 
@@ -397,15 +463,7 @@ impl Resolution {
             return;
         }
 
-        if t <= s as i32 {
-            self.step_resolution_with_subalgebra(s, t, MilnorSubalgebra::new(vec![]));
-        } else if t > 7 * (s as i32 + 1) + 23 {
-            self.step_resolution_with_subalgebra(s, t, MilnorSubalgebra::new(vec![3, 2, 1]));
-        } else if t > 3 * (s as i32 + 1) + 6 {
-            self.step_resolution_with_subalgebra(s, t, MilnorSubalgebra::new(vec![2, 1]));
-        } else {
-            self.step_resolution_with_subalgebra(s, t, MilnorSubalgebra::new(vec![1]));
-        }
+        self.step_resolution_with_subalgebra(s, t, MilnorSubalgebra::optimal_for(s, t));
     }
 
     /// This function resolves up till a fixed stem instead of a fixed t.
