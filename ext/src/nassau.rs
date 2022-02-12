@@ -146,16 +146,16 @@ impl MilnorSubalgebra {
     }
 
     fn optimal_for(s: u32, t: i32) -> MilnorSubalgebra {
-        let mut subalgebras = vec![MilnorSubalgebra::zero_algebra()];
+        let mut result = MilnorSubalgebra::zero_algebra();
         for subalgebra in SubalgebraIterator::new() {
             let coeff = 2i32.pow(subalgebra.profile.len() as u32) - 1;
             if t < coeff * (s as i32 + 1) + subalgebra.top_degree() {
                 // (s,t) is not in the vanishing region of `subalgebra` or any further subalgebra
                 break;
             }
-            subalgebras.push(subalgebra);
+            result = subalgebra;
         }
-        subalgebras.pop().unwrap()
+        result
     }
 }
 
