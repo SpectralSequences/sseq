@@ -80,7 +80,11 @@ async function startup(main_thread_interface, mainNativeFSHelpers) {
         if(result){
             return result;
         }
-        mainNativeFSHelpers.setWorkingDirectory().syncify()
+        result = mainNativeFSHelpers.setWorkingDirectory().syncify();
+        if(result){
+            return result;
+        }
+        throw new Error("Didn't get a directory");
     };
 
     pyodide.runPython('import importlib; importlib.invalidate_caches()');

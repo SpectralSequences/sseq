@@ -1,8 +1,8 @@
-import { IndexedDBStorage } from './indexedDB';
+import * as IDBKeyVal from 'idb-keyval';
 
 export class History {
     constructor() {
-        this.store = new IndexedDBStorage('sseq-repl-history', 2);
+        this.store = IDBKeyVal.createStore('sseq-repl-history2', 'sseq-repl-history2');
         this.databaseReady = this.openDatabase();
         this.historyStrings = [];
         this.temporaryValues = [];
@@ -27,34 +27,26 @@ export class History {
         if (key in this.stringsFromStorage) {
             return this.stringsFromStorage[key];
         }
-        await this.store.open();
-        const transaction = this.store.readTransaction();
-        await this.fetchRangeFromStorage(transaction, key - 10, key + 1);
+        await this.fetchRangeFromStorage(key - 10, key + 1);
         return this.stringsFromStorage[key];
     }
 
-    async fetchRangeFromStorage(transaction, min, max) {
+    async fetchRangeFromStorage(min, max) {
         max = Math.min(max, this.length);
         min = Math.max(min, 0);
-        const promises = [];
-        for (let k = min; k < max; k++) {
-            promises.push(
-                transaction.getItem(k).then(item => {
-                    this.stringsFromStorage[k] = item;
-                }),
-            );
+        const keys = Array.from({length : max - min}, (_, i) => min + i);
+        const values = await IDBKeyVal.getMany(keys, this.store);
+        console.log({values});
+        for(let i = 0; i < keys.length; i++){
+            this.stringsFromStorage[keys[i]] = values[i];
         }
-        await Promise.all(promises);
     }
 
     async openDatabase() {
-        await this.store.open();
         await this.commitStowedHistories();
-        const transaction = this.store.readTransaction();
-        this.storedHistoryLength = (await transaction.getItem('length')) || 0;
+        this.storedHistoryLength = (await IDBKeyVal.get('length', this.store)) || 0;
         if (this.storedHistoryLength > 0) {
             await this.fetchRangeFromStorage(
-                transaction,
                 this.storedHistoryLength - 10,
                 this.storedHistoryLength,
             );
@@ -143,27 +135,28 @@ export class History {
         if (keysToStore.length === 0) {
             return;
         }
-        let transaction = this.store.writeTransaction();
-        let lastCommitTime = (await transaction.getItem('lastCommitTime')) || 0;
-        let length = (await transaction.getItem('length')) || 0;
-        let requests = [];
+        let [lastCommitTime, length] = await IDBKeyVal.getMany(['lastCommitTime', 'length'], this.store);
+        lastCommitTime = lastCommitTime || 0;
+        length = length || 0;
+        console.log({lastCommitTime, length});
+        let toSet = [];
         keysToStore = keysToStore.filter(v => v > lastCommitTime);
         for (let key of keysToStore) {
             let localStorageKey = `${History.stowagePrefix}${key}`;
             let stowedHistory = JSON.parse(
                 localStorage.getItem(localStorageKey),
             );
-            // console.log(stowedHistory);
             localStorage.removeItem(localStorageKey);
             for (let histItem of stowedHistory) {
-                requests.push(transaction.setItem(length, histItem));
+                toSet.push([length, histItem]);
                 length++;
             }
         }
         let newLastCommitTime = keysToStore[keysToStore.length - 1];
-        requests.push(transaction.setItem('length', length));
-        requests.push(transaction.setItem('lastCommitTime', newLastCommitTime));
-        await Promise.all(requests);
+        toSet.push(['length', length]);
+        toSet.push(['lastCommitTime', newLastCommitTime]);
+        console.log({newLastCommitTime, length, toSet});
+        await IDBKeyVal.setMany(toSet, this.store);
     }
 
     async reverse_history_search(search_str, next = false) {

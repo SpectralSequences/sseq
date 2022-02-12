@@ -1,18 +1,13 @@
-import { IndexedDBStorage } from './indexedDB';
+import * as IDBKeyVal from 'idb-keyval';
 
-const store = new IndexedDBStorage('pyodide-config', 2);
+const store = IDBKeyVal.createStore('pyodide-config-2', 'pyodide-config-2');
 async function setWorkingDirectory(directoryHandle) {
-    await store.open();
-    await store
-        .writeTransaction()
-        .setItem('working_directory', directoryHandle);
+    await IDBKeyVal.set("working_directory", directoryHandle, store);
 }
 
 async function getWorkingDirectory() {
-    await store.open();
-    let result = await store
-        .readTransaction()
-        .getItem('working_directory');
+    let result = await IDBKeyVal.get("working_directory", store);
+    console.log({result});
     if (!result) {
         return;
     }
@@ -31,7 +26,7 @@ export const nativeFSHelpers = {
     },
     async setWorkingDirectory(h){
         let handle = await showDirectoryPicker();
-        await setWorkingDirectory();
+        await setWorkingDirectory(handle);
         return handle;
     },
     async readdir(dirHandle){
