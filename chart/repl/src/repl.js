@@ -47,7 +47,6 @@ class ReplElement extends HTMLElement {
         // but it doesn't seem to do anything. Modifying the dom directly works fine though.
         // Cursor blinking happens by toggling visibility, but we can use display without trouble.
         this.querySelector('.cursor').style.display = v ? 'none' : 'block';
-        // console.log(this.querySelector(".cursor").style.display);
         this.querySelector('.view-lines').style.cursor = v ? 'default' : 'text';
         this.editor.updateOptions({ renderLineHighlight: v ? 'none' : 'line' });
     }
@@ -853,6 +852,7 @@ class ReplElement extends HTMLElement {
         this.searchState = {
             searchModelLine,
             searchScreenLine,
+            readOnlyLines : this.readOnlyLines,
 
             searchString: '',
             succeededSearchString: '',
@@ -869,13 +869,13 @@ class ReplElement extends HTMLElement {
     }
 
     _search_clear() {
-        let { searchModelLine, searchScreenLine } = this.searchState;
+        let { searchModelLine, searchScreenLine, readOnlyLines } = this.searchState;
         this.searchState = undefined;
         delete this.outputScreenLines[searchScreenLine];
         delete this.outputModelLines[searchModelLine];
         delete this.firstLines[searchModelLine + 1];
         this.updateLineOffsets();
-        this.readOnlyLines = Math.max(...Object.keys(this.outputModelLines));
+        this.readOnlyLines = readOnlyLines;
         this.editor.getModel().applyEdits([
             {
                 range: new monaco.Range(
@@ -930,6 +930,9 @@ class ReplElement extends HTMLElement {
                 return;
             }
             this._search_clear();
+            if(!state.foundValue){
+                return;
+            }
             this.editor.getModel().pushEditOperations(
                 [this.endOfInputSelection, new monaco.Selection(1, 1, 1, 1)],
                 [
@@ -943,6 +946,7 @@ class ReplElement extends HTMLElement {
                     new monaco.Selection(1, 1, 1, 1),
                 ],
             );
+            this.editor.setPosition(this.endOfInputPosition);
             this.editor.pushUndoStop();
             return;
         }
@@ -1288,6 +1292,9 @@ class ReplElement extends HTMLElement {
     async *execute(code) {
         if (!this.executor) {
             yield;
+            if(code === "None"){
+                return undefined;
+            }
             return 'dummy result';
         }
         const execution = this.executor.execute(code);
@@ -1424,7 +1431,6 @@ class ReplElement extends HTMLElement {
             document.querySelector('.repl-error-decoration-underline'),
             document.querySelector('.repl-error-widget'),
         ];
-        // console.log("updateSyntaxErrorDecorationAttributes state:", state, "elts:", elts);
         for (let elt of elts) {
             if (!elt) {
                 continue;
@@ -1495,7 +1501,6 @@ class ReplElement extends HTMLElement {
                 },
             },
         ];
-        // console.log([start_line, start_col, end_line, end_col + 1]);
         if (start_line !== end_line || start_col != end_col) {
             // let endCol = this.editor.getModel().getLineMaxColumn(line);
             decorations.push({
@@ -1551,7 +1556,6 @@ class ReplElement extends HTMLElement {
         };
         this.editor.addContentWidget(this.syntaxErrorWidget);
         await sleep(0);
-        // console.log(document.querySelector(".repl-error-widget"));
         this.updateSyntaxErrorDecorationAttributes({
             'not-visible': '',
             transition: 'show',
