@@ -1,7 +1,7 @@
 import { Swork, FetchContext } from 'swork';
 import { Router } from 'swork-router';
 import Mustache from 'mustache';
-import * as Comlink from 'comlink';
+import * as Synclink from 'synclink';
 // import nonexistent_chart_html from 'raw-loader!./charts/nonexistent-chart.html';
 // import chart_html from 'raw-loader!./charts/chart.html';
 
@@ -181,7 +181,7 @@ function installPyodideRepl(target_repl) {
     promise.promise = new Promise((resolve, reject) =>
         Object.assign(promise, { resolve, reject }),
     );
-    repl_connections[target_repl.id] = Comlink.wrap(port1);
+    repl_connections[target_repl.id] = Synclink.wrap(port1);
 }
 
 async function passChartChannelToPyodide(event) {
@@ -193,7 +193,7 @@ async function passChartChannelToPyodide(event) {
     await repl_port.connect_chart(
         chart_name,
         source_id,
-        Comlink.transfer(port, port),
+        Synclink.transfer(port, port),
     );
 }
 

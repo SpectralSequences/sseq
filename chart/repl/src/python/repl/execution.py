@@ -6,7 +6,7 @@ from .util import contextmanager, set_interrupt_buffer, to_js
 
 from ast import PyCF_ALLOW_TOP_LEVEL_AWAIT
 from pyodide import CodeRunner
-from js import releaseComlinkProxy
+from js import releaseSynclinkProxy
 
 
 class Execution:
@@ -19,10 +19,10 @@ class Execution:
 
     def dispose(self):
         if self.stdout:
-            releaseComlinkProxy(self.stdout)
+            releaseSynclinkProxy(self.stdout)
             self.stdout = None
         if self.stderr:
-            releaseComlinkProxy(self.stderr)
+            releaseSynclinkProxy(self.stderr)
             self.stderr = None
 
     def __del__(self):

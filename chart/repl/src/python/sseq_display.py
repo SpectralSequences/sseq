@@ -2,7 +2,6 @@ from js import location, console, JSON as js_JSON
 from typing import Dict
 
 from js_wrappers.async_js import Fetcher
-from js_wrappers.filesystem import FileHandle
 from repl.util import to_js
 from asyncio import ensure_future
 
@@ -12,7 +11,6 @@ import pathlib
 
 from spectralsequence_chart import SseqChart
 from spectralsequence_chart.serialization import JSON
-from working_directory import get_working_directory_a, set_working_directory_a
 from functools import wraps
 from repl.handler_decorator import collect_handlers, handle
 
@@ -48,7 +46,6 @@ class SseqDisplay:
     def __init__(self, name, chart=None):
         self.name = name
         self.chart: SseqChart = None
-        self.save_file_handle = FileHandle()
         self.autosave = False
         chart = chart or SseqChart(name)
         self.set_sseq(chart)
@@ -106,7 +103,7 @@ class SseqDisplay:
         state = self.chart.to_json()
         for ui in self.ui_tabs:
             await ui.reset(state)
-        await self.maybe_autosave_a()
+        self.maybe_autosave()
 
     def update(self):
         ensure_future(self.update_a())
@@ -117,40 +114,24 @@ class SseqDisplay:
     async def send_batched_messages_a(self, messages):
         console.log("Sending batched messages:", messages)
         await self.update_charts_a(messages=messages)
-        await self.maybe_autosave_a()
+        self.maybe_autosave()
 
-    async def maybe_autosave_a(self):
-        if self.autosave and self.save_file_handle.is_open():
-            await self.save_a()
+    async def maybe_autosave(self):
+        if self.autosave:
+            self.save()
 
-    async def save_a(self):
-        await self.save_file_handle.ensure_open_a(modify=True)
-        await self.save_file_handle.write_text_a(JSON.stringify(self.chart))
+    def save(self):
+        self.file_path.write_text(JSON.stringify(self.chart))
 
-    async def save_as_a(self, path=None):
+    def save_as_a(self, path=None):
         if path:
-            working_directory = await get_working_directory_a()
-            if not working_directory:
-                raise RuntimeError("...")
-            self.save_file_handle = await working_directory.path(
-                path
-            ).resolve_file_handle_a(create=True)
-        else:
-            self.save_file_handle = FileHandle()
-        await self.save_a()
+            self.file_path = path
+        self.save()
 
     async def load_a(self, path=None):
         if path:
-            working_directory = await get_working_directory_a()
-            if not working_directory:
-                raise RuntimeError("...")
-            self.save_file_handle = await working_directory.path(
-                path
-            ).resolve_file_handle_a()
-        else:
-            self.save_file_handle = FileHandle()
-            await self.save_file_handle.open_a()
-        self.set_sseq(JSON.parse(await self.save_file_handle.read_text_a()))
+            self.save_path = path
+        self.set_sseq(JSON.parse(self.save_path.read_text()))
         await self.reset_state_a()
 
     @staticmethod

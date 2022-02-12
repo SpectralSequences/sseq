@@ -1,8 +1,9 @@
 // import Worker from './pyodide.worker.js';
 import { v4 as uuid4 } from 'uuid';
 import { EventEmitter } from 'eventemitter3';
-import * as Comlink from 'comlink';
-window.Comlink = Comlink;
+import { nativeFSHelpers } from "./nativefs_main_thread";
+import * as Synclink from 'synclink';
+window.Synclink = Synclink;
 
 function createInterruptBuffer() {
     if (window.SharedArrayBuffer) {
@@ -12,33 +13,28 @@ function createInterruptBuffer() {
     }
 }
 
+
+const main_thread_pyodide_interface = {
+    loadingMessage(msg){
+        window.loadingWidget.addLoadingMessage(msg);
+    },
+    loadingError(msg){
+        console.error(msg);
+    },
+};
+
 export class PythonExecutor {
     constructor() {
         this.executions = {};
         this.completers = {};
         window.loadingWidget.addLoadingMessage('Loading Pyodide');
         this._raw_pyodide_worker = new Worker('pyodide_worker.bundle.js');
-        this.pyodide_worker = Comlink.wrap(
+        this.pyodide_worker = Synclink.wrap(
             new Worker('pyodide_worker.bundle.js'),
         );
         window.python_executor = this;
-        const main_thread_pyodide_interface = {
-            loadingMessage(msg){
-                loadingWidget.addLoadingMessage(msg);
-            },
-            loadingError(msg){
-                console.error(msg);
-            },
-            async test(){
-                resp = await fetch("index.html");
-                return await resp.text();
-            }
-        };
-        for(let func of [this.file_picker, this.requestHandlePermission]){
-            main_thread_pyodide_interface[func.name] = func.bind(this);
-        }
         this._ready = this.pyodide_worker
-            .startup(Comlink.proxy(main_thread_pyodide_interface))
+            .startup(Synclink.proxy(main_thread_pyodide_interface), Synclink.proxy(nativeFSHelpers))
             .then(() =>
                 window.loadingWidget.addLoadingMessage('Pyodide is ready!'),
             );
@@ -55,30 +51,8 @@ export class PythonExecutor {
         let msg = event.data;
         let { port } = msg;
         await this.pyodide_worker.registerServiceWorkerPort(
-            Comlink.transfer(port, [port]),
+            Synclink.transfer(port, [port]),
         );
-    }
-
-    async file_picker(type) {
-        console.log("file_picker", type);
-        let pickerFunction = {
-            directory: showDirectoryPicker,
-            read: showOpenFilePicker,
-            readwrite: showSaveFilePicker,
-        }[type];
-        let handle = await pickerFunction();
-        if (type !== 'read') {
-            // In case "read", it returns a list.
-            // In remaining cases, it returns a single handle.
-            // Allow more consistent handling by always giving a list.
-            handle = [handle];
-        }
-        return handle;
-    }
-
-    async requestHandlePermission(handle, mode) {
-        let status = await handle.requestPermission({ mode });
-        return status;
     }
 
     async ready() {
@@ -103,10 +77,10 @@ export class Execution {
     */
     constructor(pyodide_worker, code) {
         const interrupt_buffer = createInterruptBuffer();
-        const stdout = Comlink.proxy(x => {
+        const stdout = Synclink.proxy(x => {
             this._stdout(x);
         });
-        const stderr = Comlink.proxy(x => {
+        const stderr = Synclink.proxy(x => {
             this._stderr(x);
         });
         this.interrupt_buffer = interrupt_buffer;
@@ -119,7 +93,7 @@ export class Execution {
         await this.proxy_promise;
         let res = await this.proxy.validate_syntax();
         if (!res.valid) {
-            this.proxy[Comlink.releaseProxy]();
+            this.proxy[Synclink.releaseProxy]();
         }
         return res;
     }
@@ -128,7 +102,7 @@ export class Execution {
         try {
             return await this.proxy.run();
         } finally {
-            this.proxy[Comlink.releaseProxy]();
+            this.proxy[Synclink.releaseProxy]();
         }
     }
 
@@ -204,6 +178,6 @@ export class Completer {
     }
 
     close() {
-        this.completer[Comlink.releaseProxy]();
+        this.completer[Synclink.releaseProxy]();
     }
 }

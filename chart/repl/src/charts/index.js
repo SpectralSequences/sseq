@@ -1,7 +1,7 @@
 'use strict';
 import css from './katex.min.css';
 import Mousetrap from 'mousetrap';
-import * as Comlink from 'comlink';
+import * as Synclink from 'synclink';
 
 import { SseqChart } from 'chart/SseqChart';
 window.SseqChart = SseqChart;
@@ -53,7 +53,7 @@ class ReplDisplayUI {
         for (const func of toExpose) {
             exposedFunctions[func.name] = func.bind(this);
         }
-        this.port = Comlink.expose(exposedFunctions, port2);
+        this.port = Synclink.expose(exposedFunctions, port2);
     }
 
     //
