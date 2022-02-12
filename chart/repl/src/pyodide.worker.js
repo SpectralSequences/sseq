@@ -3,14 +3,13 @@
 //
 import { sleep } from './utils';
 import * as Synclink from 'synclink';
-import {addNativeFS} from "./nativefs_pyodide_thread";
+import { addNativeFS } from './nativefs_pyodide_thread';
 self.Synclink = Synclink;
 
 const pyodideBaseURL = 'https://cdn.jsdelivr.net/pyodide/v0.19.0/full/';
 importScripts(pyodideBaseURL + 'pyodide.js');
 
 self.sleep = sleep;
-
 
 self.releaseSynclinkProxy = function (proxy) {
     proxy[Synclink.releaseProxy]();
@@ -56,20 +55,22 @@ const chart_wheel_promise = fetch_and_unpack(
 );
 const python_tar_promise = fetch_and_unpack('python.tar');
 
-self.mountNative = function(path){
+self.mountNative = function (path) {
     const handle = self.openNativeDirectory();
     try {
-        pyodide.FS.mount(pyodide.FS.filesystems.NATIVEFS, { handle }, path)
-    } catch(e){
+        pyodide.FS.mount(pyodide.FS.filesystems.NATIVEFS, { handle }, path);
+    } catch (e) {
         console.warn(e);
         throw e;
     }
-}
+};
 
 async function startup(main_thread_interface, mainNativeFSHelpers) {
     self.main_thread_interface = main_thread_interface;
-    self.loadingMessage = async (msg) =>  await main_thread_interface.loadingMessage(msg);
-    self.loadingError = async (msg) =>  await main_thread_interface.loadingError(msg);
+    self.loadingMessage = async msg =>
+        await main_thread_interface.loadingMessage(msg);
+    self.loadingError = async msg =>
+        await main_thread_interface.loadingError(msg);
 
     loadingMessage('Loading Pyodide packages');
     let jedi_promise = pyodide_promise.then(() => pyodide.loadPackage('jedi'));
@@ -77,11 +78,11 @@ async function startup(main_thread_interface, mainNativeFSHelpers) {
     addNativeFS(pyodide, mainNativeFSHelpers);
     self.openNativeDirectory = () => {
         let result = mainNativeFSHelpers.openWorkingDirectory().syncify();
-        if(result){
+        if (result) {
             return result;
         }
         result = mainNativeFSHelpers.setWorkingDirectory().syncify();
-        if(result){
+        if (result) {
             return result;
         }
         throw new Error("Didn't get a directory");

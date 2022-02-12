@@ -1,7 +1,7 @@
 // import Worker from './pyodide.worker.js';
 import { v4 as uuid4 } from 'uuid';
 import { EventEmitter } from 'eventemitter3';
-import { nativeFSHelpers } from "./nativefs_main_thread";
+import { nativeFSHelpers } from './nativefs_main_thread';
 import * as Synclink from 'synclink';
 window.Synclink = Synclink;
 
@@ -13,12 +13,11 @@ function createInterruptBuffer() {
     }
 }
 
-
 const main_thread_pyodide_interface = {
-    loadingMessage(msg){
+    loadingMessage(msg) {
         window.loadingWidget.addLoadingMessage(msg);
     },
-    loadingError(msg){
+    loadingError(msg) {
         console.error(msg);
     },
 };
@@ -34,7 +33,10 @@ export class PythonExecutor {
         );
         window.python_executor = this;
         this._ready = this.pyodide_worker
-            .startup(Synclink.proxy(main_thread_pyodide_interface), Synclink.proxy(nativeFSHelpers))
+            .startup(
+                Synclink.proxy(main_thread_pyodide_interface),
+                Synclink.proxy(nativeFSHelpers),
+            )
             .then(() =>
                 window.loadingWidget.addLoadingMessage('Pyodide is ready!'),
             );

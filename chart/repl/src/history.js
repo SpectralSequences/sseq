@@ -2,7 +2,10 @@ import * as IDBKeyVal from 'idb-keyval';
 
 export class History {
     constructor() {
-        this.store = IDBKeyVal.createStore('sseq-repl-history2', 'sseq-repl-history2');
+        this.store = IDBKeyVal.createStore(
+            'sseq-repl-history2',
+            'sseq-repl-history2',
+        );
         this.databaseReady = this.openDatabase();
         this.historyStrings = [];
         this.temporaryValues = [];
@@ -34,17 +37,17 @@ export class History {
     async fetchRangeFromStorage(min, max) {
         max = Math.min(max, this.length);
         min = Math.max(min, 0);
-        const keys = Array.from({length : max - min}, (_, i) => min + i);
+        const keys = Array.from({ length: max - min }, (_, i) => min + i);
         const values = await IDBKeyVal.getMany(keys, this.store);
-        console.log({values});
-        for(let i = 0; i < keys.length; i++){
+        for (let i = 0; i < keys.length; i++) {
             this.stringsFromStorage[keys[i]] = values[i];
         }
     }
 
     async openDatabase() {
         await this.commitStowedHistories();
-        this.storedHistoryLength = (await IDBKeyVal.get('length', this.store)) || 0;
+        this.storedHistoryLength =
+            (await IDBKeyVal.get('length', this.store)) || 0;
         if (this.storedHistoryLength > 0) {
             await this.fetchRangeFromStorage(
                 this.storedHistoryLength - 10,
@@ -135,10 +138,13 @@ export class History {
         if (keysToStore.length === 0) {
             return;
         }
-        let [lastCommitTime, length] = await IDBKeyVal.getMany(['lastCommitTime', 'length'], this.store);
+        let [lastCommitTime, length] = await IDBKeyVal.getMany(
+            ['lastCommitTime', 'length'],
+            this.store,
+        );
         lastCommitTime = lastCommitTime || 0;
         length = length || 0;
-        console.log({lastCommitTime, length});
+        console.log({ lastCommitTime, length });
         let toSet = [];
         keysToStore = keysToStore.filter(v => v > lastCommitTime);
         for (let key of keysToStore) {
@@ -155,7 +161,6 @@ export class History {
         let newLastCommitTime = keysToStore[keysToStore.length - 1];
         toSet.push(['length', length]);
         toSet.push(['lastCommitTime', newLastCommitTime]);
-        console.log({newLastCommitTime, length, toSet});
         await IDBKeyVal.setMany(toSet, this.store);
     }
 

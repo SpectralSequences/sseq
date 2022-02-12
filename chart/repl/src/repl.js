@@ -852,7 +852,7 @@ class ReplElement extends HTMLElement {
         this.searchState = {
             searchModelLine,
             searchScreenLine,
-            readOnlyLines : this.readOnlyLines,
+            readOnlyLines: this.readOnlyLines,
 
             searchString: '',
             succeededSearchString: '',
@@ -869,7 +869,8 @@ class ReplElement extends HTMLElement {
     }
 
     _search_clear() {
-        let { searchModelLine, searchScreenLine, readOnlyLines } = this.searchState;
+        let { searchModelLine, searchScreenLine, readOnlyLines } =
+            this.searchState;
         this.searchState = undefined;
         delete this.outputScreenLines[searchScreenLine];
         delete this.outputModelLines[searchModelLine];
@@ -930,7 +931,7 @@ class ReplElement extends HTMLElement {
                 return;
             }
             this._search_clear();
-            if(!state.foundValue){
+            if (!state.foundValue) {
                 return;
             }
             this.editor.getModel().pushEditOperations(
@@ -1292,7 +1293,7 @@ class ReplElement extends HTMLElement {
     async *execute(code) {
         if (!this.executor) {
             yield;
-            if(code === "None"){
+            if (code === 'None') {
                 return undefined;
             }
             return 'dummy result';

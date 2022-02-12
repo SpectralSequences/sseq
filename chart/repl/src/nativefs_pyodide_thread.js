@@ -28,7 +28,9 @@ export function addNativeFS(pyodide, mainThreadNativeFSHelpers) {
         },
         lookup(dirHandle, name) {
             const isDirBuff = new Uint8Array(new SharedArrayBuffer(1));
-            const handle = mainThreadNativeFSHelpers.lookup(dirHandle, name, isDirBuff).syncify();
+            const handle = mainThreadNativeFSHelpers
+                .lookup(dirHandle, name, isDirBuff)
+                .syncify();
             const isDir = !!isDirBuff[0];
             return [handle, isDir];
         },
@@ -66,6 +68,7 @@ export function addNativeFS(pyodide, mainThreadNativeFSHelpers) {
                             rename: NATIVEFS.node_ops.rename,
                             unlink: NATIVEFS.node_ops.unlink,
                             rmdir: NATIVEFS.node_ops.rmdir,
+                            readdir: NATIVEFS.node_ops.readdir,
                         },
                         stream: {
                             llseek: NATIVEFS.stream_ops.llseek,
@@ -163,21 +166,28 @@ export function addNativeFS(pyodide, mainThreadNativeFSHelpers) {
                 }
             },
             lookup: function (parent, name) {
-                const [handle, isDir] = nativeFSHelpers.lookup(parent.handle, name);
+                const [handle, isDir] = nativeFSHelpers.lookup(
+                    parent.handle,
+                    name,
+                );
                 if (!handle) {
                     throw FS.genericErrors[44 /* ENOENT */];
                 }
-                let mode;
+                let mode, timestamp;
                 if (isDir) {
                     mode = 0o040000 /*  S_IFDIR */ | 0o777 /* permissions */;
+                    // I don't know a way to find directory modified time, so
+                    // just report current time I guess?
+                    timestamp = Date.now();
                 } else {
                     mode = 0o100000 /* S_IFREG */ | 0o666 /* permissions */;
+                    timestamp = new Date(
+                        nativeFSHelpers.getFileTimestamp(handle),
+                    );
                 }
                 const node = NATIVEFS.createNode(parent, name, mode);
                 node.handle = handle;
-                node.timestamp = new Date(
-                    nativeFSHelpers.getFileTimestamp(handle),
-                );
+                node.timestamp = timestamp;
                 return node;
             },
             mknod: function (parent, name, mode, dev) {
