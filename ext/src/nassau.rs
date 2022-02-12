@@ -139,16 +139,16 @@ impl MilnorSubalgebra {
     fn top_degree(&self) -> i32 {
         self.profile
             .iter()
-            .map(|&entry| (2 << entry) - 1)
+            .map(|&entry| (1 << entry) - 1)
             .enumerate()
-            .map(|(idx, entry)| ((2 << (idx + 1)) - 1) * entry)
+            .map(|(idx, entry)| ((1 << (idx + 1)) - 1) * entry)
             .sum()
     }
 
     fn optimal_for(s: u32, t: i32) -> MilnorSubalgebra {
         let mut result = MilnorSubalgebra::zero_algebra();
         for subalgebra in SubalgebraIterator::new() {
-            let coeff = (2 << subalgebra.profile.len()) - 1;
+            let coeff = (1 << subalgebra.profile.len()) - 1;
             if t < coeff * (s as i32 + 1) + subalgebra.top_degree() {
                 // (s,t) is not in the vanishing region of `subalgebra` or any further subalgebra
                 break;
