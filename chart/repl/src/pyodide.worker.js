@@ -59,7 +59,6 @@ const python_tar_promise = fetch_and_unpack('python.tar');
 self.mountNative = function(path){
     const handle = self.openNativeDirectory();
     try {
-        console.log(pyodide.FS.filesystems.NATIVEFS);
         pyodide.FS.mount(pyodide.FS.filesystems.NATIVEFS, { handle }, path)
     } catch(e){
         console.warn(e);
@@ -76,7 +75,13 @@ async function startup(main_thread_interface, mainNativeFSHelpers) {
     let jedi_promise = pyodide_promise.then(() => pyodide.loadPackage('jedi'));
     await Promise.all([chart_wheel_promise, python_tar_promise, jedi_promise]);
     addNativeFS(pyodide, mainNativeFSHelpers);
-    self.openNativeDirectory = () => mainNativeFSHelpers.openDirectory().syncify();
+    self.openNativeDirectory = () => {
+        let result = mainNativeFSHelpers.openWorkingDirectory().syncify();
+        if(result){
+            return result;
+        }
+        mainNativeFSHelpers.setWorkingDirectory().syncify()
+    };
 
     pyodide.runPython('import importlib; importlib.invalidate_caches()');
     loadingMessage('Initializing Python Executor');

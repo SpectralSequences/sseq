@@ -16,7 +16,7 @@ async function getWorkingDirectory() {
     if (!result) {
         return;
     }
-    let permission = await self.requestHandlePermission(result, 'readwrite')
+    let permission = await result.requestPermission({mode: 'readwrite'});
     if (permission === 'granted') {
         return result;
     }
@@ -30,7 +30,9 @@ export const nativeFSHelpers = {
         return await getWorkingDirectory();
     },
     async setWorkingDirectory(h){
-        await setWorkingDirectory(h);
+        let handle = await showDirectoryPicker();
+        await setWorkingDirectory();
+        return handle;
     },
     async readdir(dirHandle){
         const result = [];
@@ -53,7 +55,6 @@ export const nativeFSHelpers = {
         return file.lastModified;
     },
     async writeToFile(fileHandle, position, data){
-        console.log("writeToFile", {fileHandle, position, data});
         const stream = await fileHandle.createWritable({keepExistingData: true});
         await stream.write({type : "write", position, data});
         await stream.close();

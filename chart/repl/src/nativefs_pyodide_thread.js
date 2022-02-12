@@ -38,7 +38,6 @@ export function addNativeFS(pyodide, mainThreadNativeFSHelpers) {
     const NATIVEFS = {
         ops_table: null,
         mount: function (mount) {
-            console.log('mount??');
             const node = NATIVEFS.createNode(
                 null,
                 '/',
