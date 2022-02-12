@@ -1,6 +1,8 @@
 //! This file implements the support for [Nassau's algorithm](https://arxiv.org/abs/1910.04063).
 
+use std::fmt::Display;
 use std::sync::{Arc, Mutex};
+use std::time::Instant;
 
 use crate::chain_complex::{ChainComplex, FreeChainComplex};
 use algebra::combinatorics;
@@ -159,6 +161,25 @@ impl MilnorSubalgebra {
     }
 }
 
+impl Display for MilnorSubalgebra {
+    fn fmt(&self, out: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
+        let name = if let Ok(a_name) = match self.profile[..] {
+            [] => Ok("F_2"),
+            [1] => Ok("A(0)"),
+            [2, 1] => Ok("A(1)"),
+            [3, 2, 1] => Ok("A(2)"),
+            [4, 3, 2, 1] => Ok("A(3)"),
+            [5, 4, 3, 2, 1] => Ok("A(4)"),
+            _ => Err(()),
+        } {
+            a_name.to_string()
+        } else {
+            format!("Algebra with profile {:?}", self.profile)
+        };
+        write!(out, "{}", name)
+    }
+}
+
 struct SubalgebraIterator {
     current: MilnorSubalgebra,
 }
@@ -306,6 +327,7 @@ impl Resolution {
     }
 
     fn step_resolution_with_subalgebra(&self, s: u32, t: i32, subalgebra: MilnorSubalgebra) {
+        let timer = Instant::now();
         let p = self.prime();
 
         let source = &*self.modules[s];
@@ -440,6 +462,12 @@ impl Resolution {
             assert!(dx.is_zero(), "dx non-zero at t = {t}, s = {s}");
         }
         self.differential(s).add_generators_from_rows(t, xs);
+        let stop_the_clock = timer.elapsed();
+        eprintln!(
+            "[{:>6}.{:>06} s] Computed bidegree ({s}, {t}) with {subalgebra}",
+            stop_the_clock.as_secs(),
+            stop_the_clock.subsec_micros()
+        );
     }
 
     fn step_resolution(&self, s: u32, t: i32) {
