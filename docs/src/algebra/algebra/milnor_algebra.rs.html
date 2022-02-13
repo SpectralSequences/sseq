@@ -2064,16 +2064,16 @@
                 }
                 <span class="kw">for</span> <span class="ident">e</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">multiplication_table</span>[<span class="ident">d</span>].<span class="ident">len</span>()..<span class="op">=</span><span class="ident">max_degree</span> <span class="kw">as</span> <span class="ident">usize</span> <span class="op">-</span> <span class="ident">d</span> {
                     <span class="self">self</span>.<span class="ident">multiplication_table</span>[<span class="ident">d</span>].<span class="ident">push</span>(
-                        (<span class="number">0</span>..<span class="self">self</span>.<span class="ident">dimension</span>(<span class="ident">d</span> <span class="kw">as</span> <span class="ident">i32</span>, <span class="op">-</span><span class="number">1</span>))
+                        (<span class="number">0</span>..<span class="self">self</span>.<span class="ident">dimension</span>(<span class="ident">d</span> <span class="kw">as</span> <span class="ident">i32</span>))
                             .<span class="ident">map</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> {
-                                (<span class="number">0</span>..<span class="self">self</span>.<span class="ident">dimension</span>(<span class="ident">e</span> <span class="kw">as</span> <span class="ident">i32</span>, <span class="op">-</span><span class="number">1</span>))
+                                (<span class="number">0</span>..<span class="self">self</span>.<span class="ident">dimension</span>(<span class="ident">e</span> <span class="kw">as</span> <span class="ident">i32</span>))
                                     .<span class="ident">map</span>(<span class="op">|</span><span class="ident">j</span><span class="op">|</span> {
                                         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(
                                             <span class="self">self</span>.<span class="ident">prime</span>(),
-                                            <span class="self">self</span>.<span class="ident">dimension</span>((<span class="ident">d</span> <span class="op">+</span> <span class="ident">e</span>) <span class="kw">as</span> <span class="ident">i32</span>, <span class="op">-</span><span class="number">1</span>),
+                                            <span class="self">self</span>.<span class="ident">dimension</span>((<span class="ident">d</span> <span class="op">+</span> <span class="ident">e</span>) <span class="kw">as</span> <span class="ident">i32</span>),
                                         );
                                         <span class="self">self</span>.<span class="ident">multiply</span>(
-                                            <span class="kw-2">&amp;mut</span> <span class="ident">res</span>,
+                                            <span class="ident">res</span>.<span class="ident">as_slice_mut</span>(),
                                             <span class="number">1</span>,
                                             <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">basis_table</span>[<span class="ident">d</span>][<span class="ident">i</span>],
                                             <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">basis_table</span>[<span class="ident">e</span>][<span class="ident">j</span>],
@@ -2117,15 +2117,15 @@
     <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;cache-multiplication&quot;</span>)]</span>
     <span class="kw">fn</span> <span class="ident">multiply_basis_elements</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">result</span>: <span class="ident">SliceMut</span>,
+        <span class="kw-2">mut</span> <span class="ident">result</span>: <span class="ident">SliceMut</span>,
         <span class="ident">coef</span>: <span class="ident">u32</span>,
         <span class="ident">r_degree</span>: <span class="ident">i32</span>,
         <span class="ident">r_idx</span>: <span class="ident">usize</span>,
         <span class="ident">s_degree</span>: <span class="ident">i32</span>,
         <span class="ident">s_idx</span>: <span class="ident">usize</span>,
     ) {
-        <span class="ident">result</span>.<span class="ident">shift_add</span>(
-            <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">multiplication_table</span>[<span class="ident">r_degree</span> <span class="kw">as</span> <span class="ident">usize</span>][<span class="ident">s_degree</span> <span class="kw">as</span> <span class="ident">usize</span>][<span class="ident">r_idx</span>][<span class="ident">s_idx</span>]
+        <span class="ident">result</span>.<span class="ident">add</span>(
+            <span class="self">self</span>.<span class="ident">multiplication_table</span>[<span class="ident">r_degree</span> <span class="kw">as</span> <span class="ident">usize</span>][<span class="ident">s_degree</span> <span class="kw">as</span> <span class="ident">usize</span>][<span class="ident">r_idx</span>][<span class="ident">s_idx</span>]
                 .<span class="ident">as_slice</span>(),
             <span class="ident">coef</span>,
         );

@@ -209,6 +209,7 @@
 <span id="183">183</span>
 <span id="184">184</span>
 <span id="185">185</span>
+<span id="186">186</span>
 </pre><pre class="rust"><code><span class="doccomment">//! `ext-rs` is a collection of libraries for doing homological algebra over $\F_p$. The</span>
 <span class="doccomment">//! main and original purpose is to compute Ext of a Steenrod module, but the library is written to</span>
 <span class="doccomment">//! be sufficiently generic to deal with more general applications.</span>
@@ -372,6 +373,7 @@
 <span class="doccomment">//! - `cache-multiplication`: Precompute and cache the multiplication table under the Milnor basis.</span>
 <span class="doccomment">//!    This is only feasible when using a small, finite subalgebra, e.g. when working with</span>
 <span class="doccomment">//!    $\mathrm{tmf}$ modules.</span>
+<span class="doccomment">//! - `logging`: Print timing information of the computations to stderr.</span>
 
 <span class="attribute">#![<span class="ident">allow</span>(<span class="ident">clippy::upper_case_acronyms</span>)]</span>
 
