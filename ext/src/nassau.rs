@@ -163,20 +163,13 @@ impl MilnorSubalgebra {
 
 impl Display for MilnorSubalgebra {
     fn fmt(&self, out: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
-        let name = if let Ok(a_name) = match self.profile[..] {
-            [] => Ok("F_2"),
-            [1] => Ok("A(0)"),
-            [2, 1] => Ok("A(1)"),
-            [3, 2, 1] => Ok("A(2)"),
-            [4, 3, 2, 1] => Ok("A(3)"),
-            [5, 4, 3, 2, 1] => Ok("A(4)"),
-            _ => Err(()),
-        } {
-            a_name.to_string()
+        if self.profile.is_empty() {
+            write!(out, "F_2")
+        } else if self.profile.len() as u8 == self.profile[0] {
+            write!(out, "A({})", self.profile.len() - 1)
         } else {
-            format!("Algebra with profile {:?}", self.profile)
-        };
-        write!(out, "{}", name)
+            write!(out, "Algebra with profile {:?}", self.profile)
+        }
     }
 }
 
