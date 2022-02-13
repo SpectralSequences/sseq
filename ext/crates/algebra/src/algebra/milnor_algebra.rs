@@ -311,16 +311,16 @@ impl Algebra for MilnorAlgebra {
                 }
                 for e in self.multiplication_table[d].len()..=max_degree as usize - d {
                     self.multiplication_table[d].push(
-                        (0..self.dimension(d as i32, -1))
+                        (0..self.dimension(d as i32))
                             .map(|i| {
-                                (0..self.dimension(e as i32, -1))
+                                (0..self.dimension(e as i32))
                                     .map(|j| {
                                         let mut res = FpVector::new(
                                             self.prime(),
-                                            self.dimension((d + e) as i32, -1),
+                                            self.dimension((d + e) as i32),
                                         );
                                         self.multiply(
-                                            &mut res,
+                                            res.as_slice_mut(),
                                             1,
                                             &self.basis_table[d][i],
                                             &self.basis_table[e][j],
@@ -364,15 +364,15 @@ impl Algebra for MilnorAlgebra {
     #[cfg(feature = "cache-multiplication")]
     fn multiply_basis_elements(
         &self,
-        result: SliceMut,
+        mut result: SliceMut,
         coef: u32,
         r_degree: i32,
         r_idx: usize,
         s_degree: i32,
         s_idx: usize,
     ) {
-        result.shift_add(
-            &self.multiplication_table[r_degree as usize][s_degree as usize][r_idx][s_idx]
+        result.add(
+            self.multiplication_table[r_degree as usize][s_degree as usize][r_idx][s_idx]
                 .as_slice(),
             coef,
         );

@@ -39,9 +39,10 @@ crate-type = ["cdylib", "rlib"]
 
 [features]
 default = ["odd-primes"]
-cache-multiplication = []
+cache-multiplication = ["algebra/cache-multiplication"]
 concurrent = ["rayon", "once/concurrent", "fp/concurrent", "algebra/concurrent"]
 odd-primes = ["fp/odd-primes", "algebra/odd-primes", "sseq/odd-primes"]
+logging = []
 
 [workspace]
 members = [
