@@ -320,7 +320,7 @@ impl Resolution {
     }
 
     fn step_resolution_with_subalgebra(&self, s: u32, t: i32, subalgebra: MilnorSubalgebra) {
-        let timer = Instant::now();
+        let start = Instant::now();
         let p = self.prime();
 
         let source = &*self.modules[s];
@@ -455,12 +455,10 @@ impl Resolution {
             assert!(dx.is_zero(), "dx non-zero at t = {t}, s = {s}");
         }
         self.differential(s).add_generators_from_rows(t, xs);
-        let stop_the_clock = timer.elapsed();
-        eprintln!(
-            "[{:>6}.{:>06} s] Computed bidegree ({s}, {t}) with {subalgebra}",
-            stop_the_clock.as_secs(),
-            stop_the_clock.subsec_micros()
-        );
+        crate::utils::log_time(
+            start.elapsed(),
+            format_args!("Computed bidegree ({s}, {t}) with {subalgebra}"),
+        )
     }
 
     fn step_resolution(&self, s: u32, t: i32) {

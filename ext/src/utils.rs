@@ -373,3 +373,13 @@ pub fn iter_s_t(
         );
     });
 }
+
+#[allow(unused_variables)]
+pub fn log_time(duration: std::time::Duration, info: std::fmt::Arguments) {
+    #[cfg(feature = "logging")]
+    eprintln!(
+        "[{:>6}.{:>06} s] {info}",
+        duration.as_secs(),
+        duration.subsec_micros()
+    );
+}
