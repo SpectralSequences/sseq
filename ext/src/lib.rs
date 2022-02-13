@@ -161,6 +161,7 @@
 //! - `cache-multiplication`: Precompute and cache the multiplication table under the Milnor basis.
 //!    This is only feasible when using a small, finite subalgebra, e.g. when working with
 //!    $\mathrm{tmf}$ modules.
+//! - `logging`: Print timing information of the computations to stderr.
 
 #![allow(clippy::upper_case_acronyms)]
 
