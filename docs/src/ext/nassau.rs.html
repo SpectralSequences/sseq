@@ -735,6 +735,9 @@
 <span id="709">709</span>
 <span id="710">710</span>
 <span id="711">711</span>
+<span id="712">712</span>
+<span id="713">713</span>
+<span id="714">714</span>
 </pre><pre class="rust"><code><span class="doccomment">//! This file implements the support for [Nassau&#39;s algorithm](https://arxiv.org/abs/1910.04063).</span>
 
 <span class="kw">use</span> <span class="ident">std::fmt::Display</span>;
@@ -1194,7 +1197,10 @@
         <span class="self">self</span>.<span class="ident">differential</span>(<span class="ident">s</span>).<span class="ident">add_generators_from_rows</span>(<span class="ident">t</span>, <span class="ident">xs</span>);
         <span class="ident"><span class="kw">crate</span>::utils::log_time</span>(
             <span class="ident">start</span>.<span class="ident">elapsed</span>(),
-            <span class="macro">format_args!</span>(<span class="string">&quot;Computed bidegree ({s}, {t}) with {subalgebra}&quot;</span>),
+            <span class="macro">format_args!</span>(
+                <span class="string">&quot;Computed bidegree ({n}, {s}) with {subalgebra}&quot;</span>,
+                <span class="ident">n</span> <span class="op">=</span> <span class="ident">t</span> <span class="op">-</span> <span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span>
+            ),
         )
     }
 
