@@ -49,7 +49,7 @@ pub struct QPart {
 pub type PPartEntry = u32;
 
 #[cfg(not(feature = "odd-primes"))]
-pub type PPartEntry = u8;
+pub type PPartEntry = u16;
 
 pub type PPart = Vec<PPartEntry>;
 
@@ -119,6 +119,62 @@ impl std::fmt::Display for MilnorBasisElement {
     }
 }
 
+/// A version of `HashMap<MilnorBasisElement, T>` that is more efficient at the prime 2.
+#[cfg(feature = "odd-primes")]
+type MilnorHashMap<V> = HashMap<MilnorBasisElement, V>;
+
+#[cfg(not(feature = "odd-primes"))]
+struct MilnorHashMap<V> {
+    degree: i32,
+    inner: HashMap<u64, V>,
+}
+
+#[cfg(not(feature = "odd-primes"))]
+impl<V> Default for MilnorHashMap<V> {
+    fn default() -> Self {
+        Self {
+            degree: -1,
+            inner: HashMap::default(),
+        }
+    }
+}
+
+#[cfg(not(feature = "odd-primes"))]
+impl<V> MilnorHashMap<V> {
+    /// Encode a [`MilnorBasisElement`] of a known degree into a `u64`. This is achieved by packing
+    /// the PPart into a single `u64`, where we omit the first entry since it can be derived from
+    /// the degree. This currently supports elements up to degree 2^9 * 3 = 1536.
+    fn code(x: &MilnorBasisElement) -> u64 {
+        let mut counter = 0;
+        let mut shift = 0;
+        for (idx, &entry) in x.p_part.iter().skip(1).enumerate() {
+            counter += (entry as u64) << shift;
+            shift += 9 - idx;
+        }
+        counter
+    }
+
+    fn reserve(&mut self, additional: usize) {
+        self.inner.reserve(additional);
+    }
+
+    fn insert(&mut self, k: MilnorBasisElement, v: V) {
+        if self.degree == -1 {
+            self.degree = k.degree;
+        }
+        assert_eq!(k.degree, self.degree);
+        assert!(
+            matches!(self.inner.insert(Self::code(&k), v), None),
+            "Duplicate entry for {k}"
+        );
+    }
+
+    fn get(&self, k: &MilnorBasisElement) -> Option<&V> {
+        assert_eq!(k.degree, self.degree);
+        self.inner.get(&Self::code(k))
+    }
+}
+
 // A basis element of a Milnor Algebra is of the form Q(E) P(R). Nore that deg P(R) is *always* a
 // multiple of q = 2p - 2. So qpart_table is a vector of length (2p - 2), each containing a list of
 // possible Q(E) of appropriate residue class mod q, sorted in increasing order of degree. On the
@@ -135,7 +191,7 @@ pub struct MilnorAlgebra {
     ppart_table: OnceVec<Vec<PPart>>,
     qpart_table: Vec<OnceVec<QPart>>,
     pub basis_table: OnceVec<Vec<MilnorBasisElement>>,
-    basis_element_to_index_map: OnceVec<HashMap<MilnorBasisElement, usize>>, // degree -> MilnorBasisElement -> index
+    basis_element_to_index_map: OnceVec<MilnorHashMap<usize>>, // degree -> MilnorBasisElement -> index
     #[cfg(feature = "cache-multiplication")]
     multiplication_table: OnceVec<OnceVec<Vec<Vec<FpVector>>>>, // source_deg -> target_deg -> source_op -> target_op
 }
@@ -295,7 +351,7 @@ impl Algebra for MilnorAlgebra {
         // Populate hash map
         for d in next_degree as usize..=max_degree as usize {
             let basis = &self.basis_table[d];
-            let mut map = HashMap::default();
+            let mut map = MilnorHashMap::default();
             map.reserve(basis.len());
             for (i, b) in basis.iter().enumerate() {
                 map.insert(b.clone(), i);
