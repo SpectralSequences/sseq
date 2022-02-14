@@ -120,7 +120,7 @@ fn get_hom(
 }
 
 fn main() -> anyhow::Result<()> {
-    eprintln!("We are going to compute <a, b, -> for all (-), where a is an element in Ext(M, k) and b and (-) are elements in Ext(k, k).");
+    eprintln!("We are going to compute <-, b, a> for all (-), where a is an element in Ext(M, k) and b and (-) are elements in Ext(k, k).");
 
     let resolution = Arc::new(query_module(
         Some(algebra::AlgebraType::Milnor),
