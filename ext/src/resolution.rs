@@ -184,6 +184,7 @@ impl<CC: ChainComplex> Resolution<CC> {
             }
         }
 
+        let start = std::time::Instant::now();
         let complex = self.target();
         complex.compute_through_bidegree(s, t);
 
@@ -213,6 +214,11 @@ impl<CC: ChainComplex> Resolution<CC> {
         matrix.row_reduce();
 
         let kernel = matrix.compute_kernel();
+
+        crate::utils::log_time(
+            start.elapsed(),
+            format_args!("Computed kernel for bidegree ({n}, {s})", n = t - s as i32),
+        );
 
         if self.should_save {
             if let Some(dir) = self.save_dir.as_ref() {
@@ -329,6 +335,8 @@ impl<CC: ChainComplex> Resolution<CC> {
             }
             std::cmp::Ordering::Equal => (),
         };
+
+        let start = std::time::Instant::now();
 
         let source = self.module(s);
         let target_cc = complex.module(s);
@@ -663,6 +671,11 @@ impl<CC: ChainComplex> Resolution<CC> {
 
         current_differential.set_kernel(t, None);
         current_differential.set_image(t, None);
+
+        crate::utils::log_time(
+            start.elapsed(),
+            format_args!("Computed bidegree ({n}, {s})", n = t - s as i32),
+        );
     }
 
     pub fn compute_through_bidegree_with_callback(

@@ -457,7 +457,10 @@ impl Resolution {
         self.differential(s).add_generators_from_rows(t, xs);
         crate::utils::log_time(
             start.elapsed(),
-            format_args!("Computed bidegree ({s}, {t}) with {subalgebra}"),
+            format_args!(
+                "Computed bidegree ({n}, {s}) with {subalgebra}",
+                n = t - s as i32
+            ),
         )
     }
 
