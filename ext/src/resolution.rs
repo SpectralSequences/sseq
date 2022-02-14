@@ -184,6 +184,7 @@ impl<CC: ChainComplex> Resolution<CC> {
             }
         }
 
+        #[cfg(feature = "logging")]
         let start = std::time::Instant::now();
         let complex = self.target();
         complex.compute_through_bidegree(s, t);
@@ -215,6 +216,7 @@ impl<CC: ChainComplex> Resolution<CC> {
 
         let kernel = matrix.compute_kernel();
 
+        #[cfg(feature = "logging")]
         crate::utils::log_time(
             start.elapsed(),
             format_args!("Computed kernel for bidegree ({n}, {s})", n = t - s as i32),
@@ -336,8 +338,6 @@ impl<CC: ChainComplex> Resolution<CC> {
             std::cmp::Ordering::Equal => (),
         };
 
-        let start = std::time::Instant::now();
-
         let source = self.module(s);
         let target_cc = complex.module(s);
         let target_res = current_differential.target(); // This is self.module(s - 1) unless s = 0.
@@ -438,6 +438,9 @@ impl<CC: ChainComplex> Resolution<CC> {
                 return;
             }
         }
+
+        #[cfg(feature = "logging")]
+        let start = std::time::Instant::now();
 
         let mut matrix = AugmentedMatrix::<3>::new_with_capacity(
             p,
@@ -609,6 +612,12 @@ impl<CC: ChainComplex> Resolution<CC> {
         }
         let (cm_qi, res_qi) = matrix.compute_quasi_inverses();
 
+        #[cfg(feature = "logging")]
+        crate::utils::log_time(
+            start.elapsed(),
+            format_args!("Computed bidegree ({n}, {s})", n = t - s as i32),
+        );
+
         if self.should_save {
             if let Some(dir) = self.save_dir.as_ref() {
                 // Write differentials
@@ -671,11 +680,6 @@ impl<CC: ChainComplex> Resolution<CC> {
 
         current_differential.set_kernel(t, None);
         current_differential.set_image(t, None);
-
-        crate::utils::log_time(
-            start.elapsed(),
-            format_args!("Computed bidegree ({n}, {s})", n = t - s as i32),
-        );
     }
 
     pub fn compute_through_bidegree_with_callback(
