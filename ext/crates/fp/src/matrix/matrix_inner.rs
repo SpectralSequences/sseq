@@ -198,11 +198,7 @@ impl Matrix {
     }
 
     pub fn to_vec(&self) -> Vec<Vec<u32>> {
-        let mut result = Vec::with_capacity(self.columns());
-        for i in 0..self.rows() {
-            result.push((&self[i]).into());
-        }
-        result
+        self.vectors.iter().map(Vec::<u32>::from).collect()
     }
 
     /// Produces a padded augmented matrix from an `&[Vec<u32>]` object (produces [A|0|I] from
