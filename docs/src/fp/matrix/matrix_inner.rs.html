@@ -1242,10 +1242,6 @@
 <span id="1216">1216</span>
 <span id="1217">1217</span>
 <span id="1218">1218</span>
-<span id="1219">1219</span>
-<span id="1220">1220</span>
-<span id="1221">1221</span>
-<span id="1222">1222</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="kw">super</span>::{<span class="ident">QuasiInverse</span>, <span class="ident">Subspace</span>};
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::matrix::m4ri::M4riTable</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::prime</span>::{<span class="self">self</span>, <span class="ident">ValidPrime</span>};
@@ -1446,11 +1442,7 @@
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">to_vec</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">Vec::with_capacity</span>(<span class="self">self</span>.<span class="ident">columns</span>());
-        <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="self">self</span>.<span class="ident">rows</span>() {
-            <span class="ident">result</span>.<span class="ident">push</span>((<span class="kw-2">&amp;</span><span class="self">self</span>[<span class="ident">i</span>]).<span class="ident">into</span>());
-        }
-        <span class="ident">result</span>
+        <span class="self">self</span>.<span class="ident">vectors</span>.<span class="ident">iter</span>().<span class="ident">map</span>(<span class="ident">Vec</span>::<span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span><span class="ident">::from</span>).<span class="ident">collect</span>()
     }
 
     <span class="doccomment">/// Produces a padded augmented matrix from an `&amp;[Vec&lt;u32&gt;]` object (produces [A|0|I] from</span>
