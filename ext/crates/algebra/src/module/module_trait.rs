@@ -312,22 +312,22 @@ impl<A: Algebra> Module for Arc<dyn Module<Algebra = A>> {
     type Algebra = A;
 
     fn algebra(&self) -> Arc<Self::Algebra> {
-        (&**self).algebra()
+        (**self).algebra()
     }
 
     fn min_degree(&self) -> i32 {
-        (&**self).min_degree()
+        (**self).min_degree()
     }
 
     fn max_computed_degree(&self) -> i32 {
-        (&**self).max_computed_degree()
+        (**self).max_computed_degree()
     }
 
     fn compute_basis(&self, degree: i32) {
-        (&**self).compute_basis(degree);
+        (**self).compute_basis(degree);
     }
     fn dimension(&self, degree: i32) -> usize {
-        (&**self).dimension(degree)
+        (**self).dimension(degree)
     }
 
     fn act_on_basis(
@@ -339,25 +339,25 @@ impl<A: Algebra> Module for Arc<dyn Module<Algebra = A>> {
         mod_degree: i32,
         mod_index: usize,
     ) {
-        (&**self).act_on_basis(result, coeff, op_degree, op_index, mod_degree, mod_index);
+        (**self).act_on_basis(result, coeff, op_degree, op_index, mod_degree, mod_index);
     }
 
     fn basis_element_to_string(&self, degree: i32, idx: usize) -> String {
-        (&**self).basis_element_to_string(degree, idx)
+        (**self).basis_element_to_string(degree, idx)
     }
 
     // Whether this is the unit module.
     fn is_unit(&self) -> bool {
-        (&**self).is_unit()
+        (**self).is_unit()
     }
 
     fn prime(&self) -> ValidPrime {
-        (&**self).prime()
+        (**self).prime()
     }
 
     /// Whether act_on_basis_borrow is available.
     fn borrow_output(&self) -> bool {
-        (&**self).borrow_output()
+        (**self).borrow_output()
     }
 
     /// Returns a borrow of the value of the corresponding action on the basis element. This
@@ -370,7 +370,7 @@ impl<A: Algebra> Module for Arc<dyn Module<Algebra = A>> {
         mod_degree: i32,
         mod_index: usize,
     ) -> &FpVector {
-        (&**self).act_on_basis_borrow(op_degree, op_index, mod_degree, mod_index)
+        (**self).act_on_basis_borrow(op_degree, op_index, mod_degree, mod_index)
     }
 }
 
