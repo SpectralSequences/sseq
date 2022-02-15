@@ -517,29 +517,71 @@
 <span id="491">491</span>
 <span id="492">492</span>
 <span id="493">493</span>
+<span id="494">494</span>
+<span id="495">495</span>
+<span id="496">496</span>
+<span id="497">497</span>
+<span id="498">498</span>
+<span id="499">499</span>
+<span id="500">500</span>
+<span id="501">501</span>
+<span id="502">502</span>
+<span id="503">503</span>
+<span id="504">504</span>
+<span id="505">505</span>
+<span id="506">506</span>
+<span id="507">507</span>
+<span id="508">508</span>
+<span id="509">509</span>
+<span id="510">510</span>
+<span id="511">511</span>
+<span id="512">512</span>
+<span id="513">513</span>
+<span id="514">514</span>
+<span id="515">515</span>
+<span id="516">516</span>
+<span id="517">517</span>
+<span id="518">518</span>
+<span id="519">519</span>
+<span id="520">520</span>
+<span id="521">521</span>
+<span id="522">522</span>
+<span id="523">523</span>
+<span id="524">524</span>
+<span id="525">525</span>
+<span id="526">526</span>
+<span id="527">527</span>
+<span id="528">528</span>
+<span id="529">529</span>
+<span id="530">530</span>
+<span id="531">531</span>
+<span id="532">532</span>
+<span id="533">533</span>
+<span id="534">534</span>
+<span id="535">535</span>
+<span id="536">536</span>
+<span id="537">537</span>
+<span id="538">538</span>
+<span id="539">539</span>
+<span id="540">540</span>
 </pre><pre class="rust"><code><span class="doccomment">//! Computes massey products in $\Mod_{C\tau^2}$.</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! # Usage</span>
-<span class="doccomment">//! This computes all Massey products of the form $\langle a, b, -\rangle$, where</span>
+<span class="doccomment">//! This computes all Massey products of the form $\langle -, b, a\rangle$, where</span>
 <span class="doccomment">//! $a \in \Ext^{\*, \*}(M, k)$ and $b, (-) \in \Ext^{\*, \*}(k, k)$. It does not verify that the</span>
 <span class="doccomment">//! Massey product is valid, i.e. $a$ and $b$ both lift to $\Mod_{C\tau^2}$ and have trivial</span>
 <span class="doccomment">//! product.</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! Since we must choose $a$ and $b$ to have trivial product, it is necessary to be able to specify</span>
 <span class="doccomment">//! the $\tau$ part of them, and not insist that they are standard lifts of the $\Ext$ classes.</span>
-<span class="doccomment">//! Thus, the user is first prompted for the $\Ext$ part, then the $\tau$ part of each class. If</span>
-<span class="doccomment">//! the bidegree right above the class is empty, the user is not prompted for the $\tau$ part.</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! Note that for the purposes of save files, the name of the product should include the $\tau$</span>
-<span class="doccomment">//! part as well. Products with different $\tau$ parts should have separate save directories. (If</span>
-<span class="doccomment">//! one wishes to save some of computation, one can symlink the `secondary_composites` directory,</span>
-<span class="doccomment">//! which *can* be shared for products with the same $\Ext$ part but different $\tau$ part) There</span>
-<span class="doccomment">//! is no theoretical reason this has to be the case, but it is rather unpleasant to make it use</span>
-<span class="doccomment">//! the same save file, and such a need has not arisen yet.</span>
+<span class="doccomment">//! Thus, the user is first prompted for the $\Ext$ part, then the $\tau$ part of each class. To</span>
+<span class="doccomment">//! set a part to zero, supply an empty name. Note that if the bidegree right above the class is</span>
+<span class="doccomment">//! empty, the user is not prompted for the $\tau$ part.</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! # Output</span>
-<span class="doccomment">//! This computes the Massey products up to a sign. Brave souls are encouraged to figure out the</span>
-<span class="doccomment">//! correct sign for the products.</span>
+<span class="doccomment">//! This computes the Massey products up to a sign. We write our output in the category</span>
+<span class="doccomment">//! $\Mod_{C\tau^2}$, so the format is $\langle a, b, -\rangle$ instead of $\langle -, b,</span>
+<span class="doccomment">//! a\rangle$. Brave souls are encouraged to figure out the correct sign for the products.</span>
 
 <span class="kw">use</span> <span class="ident">std::path::PathBuf</span>;
 <span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
@@ -558,20 +600,26 @@
 
 <span class="kw">use</span> <span class="ident">itertools::Itertools</span>;
 
+<span class="kw">struct</span> <span class="ident">HomData</span> {
+    <span class="ident">name</span>: <span class="ident">String</span>,
+    <span class="ident">class</span>: <span class="ident">FpVector</span>,
+    <span class="ident">hom_lift</span>:
+        <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">SecondaryResolutionHomomorphism</span><span class="op">&lt;</span><span class="ident">SteenrodAlgebra</span>, <span class="ident">Resolution</span><span class="op">&lt;</span><span class="ident">CCC</span><span class="op">&gt;</span>, <span class="ident">Resolution</span><span class="op">&lt;</span><span class="ident">CCC</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">tau_part</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">ResolutionHomomorphism</span><span class="op">&lt;</span><span class="ident">Resolution</span><span class="op">&lt;</span><span class="ident">CCC</span><span class="op">&gt;</span>, <span class="ident">Resolution</span><span class="op">&lt;</span><span class="ident">CCC</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+}
+
 <span class="kw">fn</span> <span class="ident">get_hom</span>(
     <span class="ident">name</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>,
     <span class="ident">source</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">SecondaryResolution</span><span class="op">&lt;</span><span class="ident">SteenrodAlgebra</span>, <span class="ident">Resolution</span><span class="op">&lt;</span><span class="ident">CCC</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="ident">target</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">SecondaryResolution</span><span class="op">&lt;</span><span class="ident">SteenrodAlgebra</span>, <span class="ident">Resolution</span><span class="op">&lt;</span><span class="ident">CCC</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-) -&gt; (
-    <span class="ident">FpVector</span>,
-    <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">SecondaryResolutionHomomorphism</span><span class="op">&lt;</span><span class="ident">SteenrodAlgebra</span>, <span class="ident">Resolution</span><span class="op">&lt;</span><span class="ident">CCC</span><span class="op">&gt;</span>, <span class="ident">Resolution</span><span class="op">&lt;</span><span class="ident">CCC</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-) {
+) -&gt; <span class="ident">HomData</span> {
     <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">source</span>.<span class="ident">prime</span>();
 
-    <span class="kw">let</span> <span class="ident">name</span>: <span class="ident">String</span> <span class="op">=</span> <span class="ident">query::raw</span>(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;Name of Ext class {name}&quot;</span>), <span class="ident">str::parse</span>);
+    <span class="kw">let</span> <span class="ident">shift_n</span>: <span class="ident">i32</span> <span class="op">=</span> <span class="ident">query::raw</span>(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;n of {name}&quot;</span>), <span class="ident">str::parse</span>);
+    <span class="kw">let</span> <span class="ident">shift_s</span>: <span class="ident">u32</span> <span class="op">=</span> <span class="ident">query::raw</span>(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;s of {name}&quot;</span>), <span class="ident">str::parse</span>);
 
-    <span class="kw">let</span> <span class="ident">shift_n</span>: <span class="ident">i32</span> <span class="op">=</span> <span class="ident">query::raw</span>(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;n of Ext class {name}&quot;</span>), <span class="ident">str::parse</span>);
-    <span class="kw">let</span> <span class="ident">shift_s</span>: <span class="ident">u32</span> <span class="op">=</span> <span class="ident">query::raw</span>(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;s of Ext class {name}&quot;</span>), <span class="ident">str::parse</span>);
+    <span class="kw">let</span> <span class="ident">ext_name</span>: <span class="ident">String</span> <span class="op">=</span> <span class="ident">query::raw</span>(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;Name of Ext part of {name}&quot;</span>), <span class="ident">str::parse</span>);
+
     <span class="kw">let</span> <span class="ident">shift_t</span> <span class="op">=</span> <span class="ident">shift_n</span> <span class="op">+</span> <span class="ident">shift_s</span> <span class="kw">as</span> <span class="ident">i32</span>;
 
     <span class="ident">source</span>
@@ -579,7 +627,7 @@
         .<span class="ident">compute_through_stem</span>(<span class="ident">shift_s</span> <span class="op">+</span> <span class="number">1</span>, <span class="ident">shift_n</span>);
 
     <span class="kw">let</span> <span class="ident">hom</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">ResolutionHomomorphism::new</span>(
-        <span class="ident">name</span>.<span class="ident">clone</span>(),
+        <span class="ident">ext_name</span>.<span class="ident">clone</span>(),
         <span class="ident">source</span>.<span class="ident">underlying</span>(),
         <span class="ident">target</span>.<span class="ident">underlying</span>(),
         <span class="ident">shift_s</span>,
@@ -597,45 +645,59 @@
 
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">matrix</span> <span class="op">=</span> <span class="ident">Matrix::new</span>(<span class="ident">p</span>, <span class="ident">num_gens</span>, <span class="number">1</span>);
 
-    <span class="kw">if</span> <span class="ident">matrix</span>.<span class="ident">rows</span>() <span class="op">==</span> <span class="number">0</span> {
-        <span class="macro">eprintln!</span>(<span class="string">&quot;No classes in this bidegree&quot;</span>);
-    } <span class="kw">else</span> {
-        <span class="kw">let</span> <span class="ident">v</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">query::vector</span>(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;Input Ext class {name}&quot;</span>), <span class="ident">num_gens</span>);
-        <span class="kw">for</span> (<span class="ident">i</span>, <span class="kw-2">&amp;</span><span class="ident">x</span>) <span class="kw">in</span> <span class="ident">v</span>.<span class="ident">iter</span>().<span class="ident">enumerate</span>() {
-            <span class="ident">matrix</span>[<span class="ident">i</span>].<span class="ident">set_entry</span>(<span class="number">0</span>, <span class="ident">x</span>);
-            <span class="ident">class</span>.<span class="ident">set_entry</span>(<span class="ident">i</span>, <span class="ident">x</span>);
+    <span class="kw">if</span> <span class="op">!</span><span class="ident">hom</span>.<span class="ident">name</span>().<span class="ident">is_empty</span>() {
+        <span class="kw">if</span> <span class="ident">matrix</span>.<span class="ident">rows</span>() <span class="op">==</span> <span class="number">0</span> {
+            <span class="macro">eprintln!</span>(<span class="string">&quot;No classes in this bidegree&quot;</span>);
+        } <span class="kw">else</span> {
+            <span class="kw">let</span> <span class="ident">v</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">query::vector</span>(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;Input Ext class {ext_name}&quot;</span>), <span class="ident">num_gens</span>);
+            <span class="kw">for</span> (<span class="ident">i</span>, <span class="kw-2">&amp;</span><span class="ident">x</span>) <span class="kw">in</span> <span class="ident">v</span>.<span class="ident">iter</span>().<span class="ident">enumerate</span>() {
+                <span class="ident">matrix</span>[<span class="ident">i</span>].<span class="ident">set_entry</span>(<span class="number">0</span>, <span class="ident">x</span>);
+                <span class="ident">class</span>.<span class="ident">set_entry</span>(<span class="ident">i</span>, <span class="ident">x</span>);
+            }
         }
     }
 
     <span class="ident">hom</span>.<span class="ident">extend_step</span>(<span class="ident">shift_s</span>, <span class="ident">shift_t</span>, <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="ident">matrix</span>));
-    <span class="comment">// Make room for the tau part</span>
-    <span class="ident">hom</span>.<span class="ident">extend_through_stem</span>(<span class="ident">shift_s</span> <span class="op">+</span> <span class="number">1</span>, <span class="ident">shift_t</span> <span class="op">-</span> <span class="ident">shift_s</span> <span class="kw">as</span> <span class="ident">i32</span>);
 
-    <span class="kw">let</span> <span class="ident">hom_lift</span> <span class="op">=</span> <span class="ident">SecondaryResolutionHomomorphism::new</span>(
-        <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">source</span>),
-        <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">target</span>),
-        <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">hom</span>),
-    );
+    <span class="kw">let</span> <span class="ident">hom_lift</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">SecondaryResolutionHomomorphism::new</span>(<span class="ident">source</span>, <span class="ident">target</span>, <span class="ident">hom</span>));
 
-    <span class="kw">let</span> <span class="ident">num_tau_gens</span> <span class="op">=</span> <span class="ident">hom</span>
-        .<span class="ident">source</span>
-        .<span class="ident">number_of_gens_in_bidegree</span>(<span class="ident">shift_s</span> <span class="op">+</span> <span class="number">1</span>, <span class="ident">shift_t</span> <span class="op">+</span> <span class="number">1</span>);
-    <span class="kw">if</span> <span class="ident">num_tau_gens</span> <span class="op">&gt;</span> <span class="number">0</span> {
-        <span class="kw">let</span> <span class="ident">v</span> <span class="op">=</span> <span class="ident">query::vector</span>(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;Input τ part of {name}&quot;</span>), <span class="ident">num_tau_gens</span>);
-        <span class="kw">for</span> (<span class="ident">i</span>, <span class="kw-2">&amp;</span><span class="ident">x</span>) <span class="kw">in</span> <span class="ident">v</span>.<span class="ident">iter</span>().<span class="ident">enumerate</span>() {
-            <span class="ident">class</span>.<span class="ident">set_entry</span>(<span class="ident">num_gens</span> <span class="op">+</span> <span class="ident">i</span>, <span class="ident">x</span>);
+    <span class="kw">let</span> <span class="ident">tau_part</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">num_tau_gens</span> <span class="op">&gt;</span> <span class="number">0</span> {
+        <span class="kw">let</span> <span class="ident">tau_name</span>: <span class="ident">String</span> <span class="op">=</span> <span class="ident">query::raw</span>(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;Name of τ part of {name}&quot;</span>), <span class="ident">str::parse</span>);
+        <span class="kw">if</span> <span class="ident">tau_name</span>.<span class="ident">is_empty</span>() {
+            <span class="prelude-val">None</span>
+        } <span class="kw">else</span> {
+            <span class="kw">let</span> <span class="ident">v</span> <span class="op">=</span> <span class="ident">query::vector</span>(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;Input Ext class {tau_name}&quot;</span>), <span class="ident">num_tau_gens</span>);
+            <span class="kw">for</span> (<span class="ident">i</span>, <span class="kw-2">&amp;</span><span class="ident">x</span>) <span class="kw">in</span> <span class="ident">v</span>.<span class="ident">iter</span>().<span class="ident">enumerate</span>() {
+                <span class="ident">class</span>.<span class="ident">set_entry</span>(<span class="ident">num_gens</span> <span class="op">+</span> <span class="ident">i</span>, <span class="ident">x</span>);
+            }
+            <span class="prelude-val">Some</span>(<span class="ident">Arc::new</span>(<span class="ident">ResolutionHomomorphism::from_class</span>(
+                <span class="ident">tau_name</span>,
+                <span class="ident">hom_lift</span>.<span class="ident">source</span>(),
+                <span class="ident">hom_lift</span>.<span class="ident">target</span>(),
+                <span class="ident">shift_s</span> <span class="op">+</span> <span class="number">1</span>,
+                <span class="ident">shift_t</span> <span class="op">+</span> <span class="number">1</span>,
+                <span class="kw-2">&amp;</span><span class="ident">v</span>,
+            )))
         }
-        <span class="kw">let</span> <span class="ident">rows</span> <span class="op">=</span> <span class="ident">v</span>
-            .<span class="ident">into_iter</span>()
-            .<span class="ident">map</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">FpVector::from_slice</span>(<span class="ident">p</span>, <span class="kw-2">&amp;</span>[<span class="ident">x</span>]))
-            .<span class="ident">collect</span>();
+    } <span class="kw">else</span> {
+        <span class="prelude-val">None</span>
+    };
 
-        <span class="ident">hom_lift</span>.<span class="ident">initialize_homotopies</span>();
-        <span class="ident">hom_lift</span>.<span class="ident">homotopies</span>()[<span class="ident">shift_s</span> <span class="kw">as</span> <span class="ident">i32</span> <span class="op">+</span> <span class="number">1</span>]
-            .<span class="ident">homotopies</span>
-            .<span class="ident">add_generators_from_rows</span>(<span class="ident">shift_t</span> <span class="op">+</span> <span class="number">1</span>, <span class="ident">rows</span>);
+    <span class="kw">let</span> <span class="ident">name</span> <span class="op">=</span> <span class="kw">match</span> (
+        <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">ext_name</span>,
+        <span class="ident">tau_part</span>.<span class="ident">as_ref</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">x</span>.<span class="ident">name</span>()).<span class="ident">unwrap_or</span>(<span class="string">&quot;&quot;</span>),
+    ) {
+        (<span class="string">&quot;&quot;</span>, <span class="string">&quot;&quot;</span>) =&gt; <span class="macro">panic!</span>(<span class="string">&quot;Do not compute zero Massey product&quot;</span>),
+        (<span class="string">&quot;&quot;</span>, <span class="ident">x</span>) =&gt; <span class="macro">format!</span>(<span class="string">&quot;τ{x}&quot;</span>),
+        (<span class="ident">x</span>, <span class="string">&quot;&quot;</span>) =&gt; <span class="macro">format!</span>(<span class="string">&quot;[{x}]&quot;</span>),
+        (<span class="ident">x</span>, <span class="ident">y</span>) =&gt; <span class="macro">format!</span>(<span class="string">&quot;[{x}] + τ{y}&quot;</span>),
+    };
+    <span class="ident">HomData</span> {
+        <span class="ident">name</span>,
+        <span class="ident">class</span>,
+        <span class="ident">hom_lift</span>,
+        <span class="ident">tau_part</span>,
     }
-    (<span class="ident">class</span>, <span class="ident">Arc::new</span>(<span class="ident">hom_lift</span>))
 }
 
 <span class="kw">fn</span> <span class="ident">main</span>() -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
@@ -675,8 +737,18 @@
         <span class="ident">Arc::new</span>(<span class="ident">lift</span>)
     };
 
-    <span class="kw">let</span> (<span class="kw">_</span>, <span class="ident">a</span>) <span class="op">=</span> <span class="ident">get_hom</span>(<span class="string">&quot;a&quot;</span>, <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">res_lift</span>), <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">unit_lift</span>));
-    <span class="kw">let</span> (<span class="ident">b_class</span>, <span class="ident">b</span>) <span class="op">=</span> <span class="ident">get_hom</span>(<span class="string">&quot;b&quot;</span>, <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">unit_lift</span>), <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">unit_lift</span>));
+    <span class="kw">let</span> <span class="ident">HomData</span> {
+        <span class="ident">name</span>: <span class="ident">a_name</span>,
+        <span class="ident">class</span>: <span class="kw">_</span>,
+        <span class="ident">hom_lift</span>: <span class="ident">a</span>,
+        <span class="ident">tau_part</span>: <span class="ident">a_tau</span>,
+    } <span class="op">=</span> <span class="ident">get_hom</span>(<span class="string">&quot;a&quot;</span>, <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">res_lift</span>), <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">unit_lift</span>));
+    <span class="kw">let</span> <span class="ident">HomData</span> {
+        <span class="ident">name</span>: <span class="ident">b_name</span>,
+        <span class="ident">class</span>: <span class="ident">b_class</span>,
+        <span class="ident">hom_lift</span>: <span class="ident">b</span>,
+        <span class="ident">tau_part</span>: <span class="ident">b_tau</span>,
+    } <span class="op">=</span> <span class="ident">get_hom</span>(<span class="string">&quot;b&quot;</span>, <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">unit_lift</span>), <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">unit_lift</span>));
 
     <span class="kw">let</span> <span class="ident">shift_s</span> <span class="op">=</span> <span class="ident">a</span>.<span class="ident">underlying</span>().<span class="ident">shift_s</span> <span class="op">+</span> <span class="ident">b</span>.<span class="ident">underlying</span>().<span class="ident">shift_s</span>;
     <span class="kw">let</span> <span class="ident">shift_t</span> <span class="op">=</span> <span class="ident">a</span>.<span class="ident">shift_t</span>() <span class="op">+</span> <span class="ident">b</span>.<span class="ident">shift_t</span>();
@@ -705,16 +777,22 @@
 
     <span class="comment">// Now extend homomorphisms</span>
     <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
-    <span class="ident">rayon::join</span>(
-        <span class="op">|</span><span class="op">|</span> {
+    <span class="ident">rayon::scope</span>(<span class="op">|</span><span class="ident">s</span><span class="op">|</span> {
+        <span class="ident">s</span>.<span class="ident">spawn</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> {
             <span class="ident">a</span>.<span class="ident">underlying</span>().<span class="ident">extend_all</span>();
             <span class="ident">a</span>.<span class="ident">extend_all</span>();
-        },
-        <span class="op">|</span><span class="op">|</span> {
+        });
+        <span class="ident">s</span>.<span class="ident">spawn</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> {
             <span class="ident">b</span>.<span class="ident">underlying</span>().<span class="ident">extend_all</span>();
             <span class="ident">b</span>.<span class="ident">extend_all</span>();
-        },
-    );
+        });
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">a_tau</span>) <span class="op">=</span> <span class="ident">a_tau</span>.<span class="ident">as_ref</span>() {
+            <span class="ident">s</span>.<span class="ident">spawn</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">a_tau</span>.<span class="ident">extend_all</span>());
+        }
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">b_tau</span>) <span class="op">=</span> <span class="ident">b_tau</span>.<span class="ident">as_ref</span>() {
+            <span class="ident">s</span>.<span class="ident">spawn</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">b_tau</span>.<span class="ident">extend_all</span>());
+        }
+    });
 
     <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>))]</span>
     {
@@ -722,6 +800,12 @@
         <span class="ident">a</span>.<span class="ident">extend_all</span>();
         <span class="ident">b</span>.<span class="ident">underlying</span>().<span class="ident">extend_all</span>();
         <span class="ident">b</span>.<span class="ident">extend_all</span>();
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">a_tau</span>) <span class="op">=</span> <span class="ident">a_tau</span>.<span class="ident">as_ref</span>() {
+            <span class="ident">a_tau</span>.<span class="ident">extend_all</span>();
+        }
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">b_tau</span>) <span class="op">=</span> <span class="ident">b_tau</span>.<span class="ident">as_ref</span>() {
+            <span class="ident">b_tau</span>.<span class="ident">extend_all</span>();
+        }
     }
 
     <span class="kw">let</span> <span class="ident">res_sseq</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">res_lift</span>.<span class="ident">e3_page</span>());
@@ -740,7 +824,13 @@
 
     <span class="comment">// Compute first homotopy</span>
     {
-        <span class="kw">let</span> <span class="ident">v</span> <span class="op">=</span> <span class="ident">a</span>.<span class="ident">product_nullhomotopy</span>(<span class="kw-2">&amp;</span><span class="ident">res_sseq</span>, <span class="ident">b_shift_s</span>, <span class="ident">b_shift_t</span>, <span class="ident">b_class</span>.<span class="ident">as_slice</span>());
+        <span class="kw">let</span> <span class="ident">v</span> <span class="op">=</span> <span class="ident">a</span>.<span class="ident">product_nullhomotopy</span>(
+            <span class="ident">a_tau</span>.<span class="ident">as_deref</span>(),
+            <span class="kw-2">&amp;</span><span class="ident">res_sseq</span>,
+            <span class="ident">b_shift_s</span>,
+            <span class="ident">b_shift_t</span>,
+            <span class="ident">b_class</span>.<span class="ident">as_slice</span>(),
+        );
         <span class="kw">let</span> <span class="ident">homotopy</span> <span class="op">=</span> <span class="ident">chain_homotopy</span>.<span class="ident">homotopy</span>(<span class="ident">b_shift_s</span> <span class="op">+</span> <span class="ident">a</span>.<span class="ident">underlying</span>().<span class="ident">shift_s</span> <span class="op">-</span> <span class="number">1</span>);
         <span class="ident">homotopy</span>.<span class="ident">extend_by_zero</span>(<span class="ident">a</span>.<span class="ident">shift_t</span>() <span class="op">+</span> <span class="ident">b_shift_t</span> <span class="op">-</span> <span class="number">1</span>);
         <span class="ident">homotopy</span>.<span class="ident">add_generators_from_rows</span>(
@@ -753,8 +843,13 @@
 
     <span class="ident">chain_homotopy</span>.<span class="ident">extend_all</span>();
 
-    <span class="kw">let</span> <span class="ident">ch_lift</span> <span class="op">=</span>
-        <span class="ident">SecondaryChainHomotopy::new</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">a</span>), <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">b</span>), <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">chain_homotopy</span>));
+    <span class="kw">let</span> <span class="ident">ch_lift</span> <span class="op">=</span> <span class="ident">SecondaryChainHomotopy::new</span>(
+        <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">a</span>),
+        <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">b</span>),
+        <span class="ident">a_tau</span>.<span class="ident">as_ref</span>().<span class="ident">map</span>(<span class="ident">Arc::clone</span>),
+        <span class="ident">b_tau</span>.<span class="ident">as_ref</span>().<span class="ident">map</span>(<span class="ident">Arc::clone</span>),
+        <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">chain_homotopy</span>),
+    );
 
     <span class="ident">ch_lift</span>.<span class="ident">extend_all</span>();
 
@@ -767,9 +862,6 @@
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">scratch1</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="number">0</span>);
 
     <span class="kw">let</span> <span class="ident">h_0</span> <span class="op">=</span> <span class="ident">ch_lift</span>.<span class="ident">algebra</span>().<span class="ident">p_tilde</span>();
-
-    <span class="kw">let</span> <span class="ident">a_name</span> <span class="op">=</span> <span class="ident">a</span>.<span class="ident">name</span>();
-    <span class="kw">let</span> <span class="ident">b_name</span> <span class="op">=</span> <span class="ident">b</span>.<span class="ident">name</span>();
 
     <span class="comment">// Iterate through the multiplicand</span>
     <span class="kw">for</span> (<span class="ident">s</span>, <span class="ident">n</span>, <span class="ident">t</span>) <span class="kw">in</span> <span class="ident">unit</span>.<span class="ident">iter_stem</span>() {
@@ -843,7 +935,8 @@
                     <span class="ident">target_all_gens</span> <span class="op">+</span> <span class="ident">prod_all_gens</span>,
                 );
 
-                <span class="ident">b</span>.<span class="ident">hom_k</span>(
+                <span class="ident">b</span>.<span class="ident">hom_k_with</span>(
+                    <span class="ident">b_tau</span>.<span class="ident">as_deref</span>(),
                     <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="ident">unit_sseq</span>),
                     <span class="ident">s</span>,
                     <span class="ident">t</span>,
@@ -961,7 +1054,8 @@
             <span class="comment">// Now do the -1 part of the null-homotopy of bc.</span>
             {
                 <span class="kw">let</span> <span class="ident">sign</span> <span class="op">=</span> <span class="kw-2">*</span><span class="ident">p</span> <span class="op">*</span> <span class="kw-2">*</span><span class="ident">p</span> <span class="op">-</span> <span class="number">1</span>;
-                <span class="kw">let</span> <span class="ident">out</span> <span class="op">=</span> <span class="ident">b</span>.<span class="ident">product_nullhomotopy</span>(<span class="kw-2">&amp;</span><span class="ident">unit_sseq</span>, <span class="ident">s</span>, <span class="ident">t</span>, <span class="ident">gen</span>.<span class="ident">as_slice</span>());
+                <span class="kw">let</span> <span class="ident">out</span> <span class="op">=</span>
+                    <span class="ident">b</span>.<span class="ident">product_nullhomotopy</span>(<span class="ident">b_tau</span>.<span class="ident">as_deref</span>(), <span class="kw-2">&amp;</span><span class="ident">unit_sseq</span>, <span class="ident">s</span>, <span class="ident">t</span>, <span class="ident">gen</span>.<span class="ident">as_slice</span>());
                 <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">v</span>) <span class="kw">in</span> <span class="ident">out</span>.<span class="ident">iter_nonzero</span>() {
                     <span class="ident">scratch0</span>
                         .<span class="ident">iter_mut</span>()
