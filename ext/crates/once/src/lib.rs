@@ -262,13 +262,13 @@ impl<T> OnceVec<T> {
             for page in 0..max_page {
                 std::ptr::copy_nonoverlapping(
                     vec.as_ptr().add((1 << page) - 1),
-                    (&*result.page_raw(page)).ptr(),
+                    (*result.page_raw(page)).ptr(),
                     1 << page,
                 );
             }
             std::ptr::copy_nonoverlapping(
                 vec.as_ptr().add((1 << max_page) - 1),
-                (&*result.page_raw(max_page)).ptr(),
+                (*result.page_raw(max_page)).ptr(),
                 max_index + 1,
             );
             // Don't drop the elements, but deallocate the vector
@@ -337,7 +337,7 @@ impl<T> OnceVec<T> {
     /// page references should exist.
     unsafe fn entry_ptr(&self, index: usize) -> *mut T {
         let (page, idx) = inner_index(index);
-        (&*self.page_raw(page)).ptr().add(idx)
+        (*self.page_raw(page)).ptr().add(idx)
     }
 
     /// # Returns
@@ -415,8 +415,8 @@ impl<T> OnceVec<T> {
             if index == 0 {
                 let page_ptr = self.page_raw(page);
                 // Safety: since lock has been taken, we can create unsafe references.
-                if !(&*page_ptr).allocated() {
-                    (&mut *page_ptr).allocate(page);
+                if !(*page_ptr).allocated() {
+                    (*page_ptr).allocate(page);
                 }
             }
 
@@ -497,9 +497,9 @@ impl<T> OnceVec<T> {
         for i in 0..=max_page {
             let page_ptr = self.page_raw(i);
             // Safety assumption is propagated up call chain
-            if !(&*page_ptr).allocated() {
+            if !(*page_ptr).allocated() {
                 // Only make mutable reference if the page is not allocated
-                (&mut *page_ptr).allocate(i);
+                (*page_ptr).allocate(i);
             }
         }
     }
