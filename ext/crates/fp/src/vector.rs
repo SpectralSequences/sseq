@@ -934,7 +934,7 @@ mod test {
             println!("v: {}", v);
             println!("v_arr: {:?}", v_arr);
             let result: Vec<_> = v.slice(slice_start, slice_end).iter_nonzero().collect();
-            let comparison_result: Vec<_> = (&v_arr[slice_start..slice_end])
+            let comparison_result: Vec<_> = v_arr[slice_start..slice_end]
                 .iter()
                 .copied()
                 .enumerate()

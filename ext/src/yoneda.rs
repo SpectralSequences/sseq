@@ -76,7 +76,7 @@ fn operation_drop(algebra: &AdemAlgebra, deg: i32, idx: usize) -> i32 {
     deg - drop
 }
 
-fn split_mut_borrow<T>(v: &mut Vec<T>, i: usize, j: usize) -> (&mut T, &mut T) {
+fn split_mut_borrow<T>(v: &mut [T], i: usize, j: usize) -> (&mut T, &mut T) {
     assert!(i < j);
     let (first, second) = v.split_at_mut(j);
     (&mut first[i], &mut second[0])
