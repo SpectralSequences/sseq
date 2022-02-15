@@ -13,6 +13,10 @@
 //! make use of a save file to reuse these calculations for different products. (When $M$ is not
 //! equal to $k$, the user will be prompted for the save directory of $k$)
 //!
+//! # Output
+//! This prints the corresponding products in $\Mod_{C\tau^2}$. In particular, $x$ multiplies on
+//! the left, and the sign twist of $(-1)^{s't}$ is inserted.
+//!
 //! # Notes
 //! The program verifies that $x$ is indeed permanent.
 

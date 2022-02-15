@@ -1,26 +1,21 @@
 //! Computes massey products in $\Mod_{C\tau^2}$.
 //!
 //! # Usage
-//! This computes all Massey products of the form $\langle a, b, -\rangle$, where
+//! This computes all Massey products of the form $\langle -, b, a\rangle$, where
 //! $a \in \Ext^{\*, \*}(M, k)$ and $b, (-) \in \Ext^{\*, \*}(k, k)$. It does not verify that the
 //! Massey product is valid, i.e. $a$ and $b$ both lift to $\Mod_{C\tau^2}$ and have trivial
 //! product.
 //!
 //! Since we must choose $a$ and $b$ to have trivial product, it is necessary to be able to specify
 //! the $\tau$ part of them, and not insist that they are standard lifts of the $\Ext$ classes.
-//! Thus, the user is first prompted for the $\Ext$ part, then the $\tau$ part of each class. If
-//! the bidegree right above the class is empty, the user is not prompted for the $\tau$ part.
-//!
-//! Note that for the purposes of save files, the name of the product should include the $\tau$
-//! part as well. Products with different $\tau$ parts should have separate save directories. (If
-//! one wishes to save some of computation, one can symlink the `secondary_composites` directory,
-//! which *can* be shared for products with the same $\Ext$ part but different $\tau$ part) There
-//! is no theoretical reason this has to be the case, but it is rather unpleasant to make it use
-//! the same save file, and such a need has not arisen yet.
+//! Thus, the user is first prompted for the $\Ext$ part, then the $\tau$ part of each class. To
+//! set a part to zero, supply an empty name. Note that if the bidegree right above the class is
+//! empty, the user is not prompted for the $\tau$ part.
 //!
 //! # Output
-//! This computes the Massey products up to a sign. Brave souls are encouraged to figure out the
-//! correct sign for the products.
+//! This computes the Massey products up to a sign. We write our output in the category
+//! $\Mod_{C\tau^2}$, so the format is $\langle a, b, -\rangle$ instead of $\langle -, b,
+//! a\rangle$. Brave souls are encouraged to figure out the correct sign for the products.
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -39,20 +34,26 @@ use ext::{secondary::*, CCC};
 
 use itertools::Itertools;
 
+struct HomData {
+    name: String,
+    class: FpVector,
+    hom_lift:
+        Arc<SecondaryResolutionHomomorphism<SteenrodAlgebra, Resolution<CCC>, Resolution<CCC>>>,
+    tau_part: Option<Arc<ResolutionHomomorphism<Resolution<CCC>, Resolution<CCC>>>>,
+}
+
 fn get_hom(
     name: &str,
     source: Arc<SecondaryResolution<SteenrodAlgebra, Resolution<CCC>>>,
     target: Arc<SecondaryResolution<SteenrodAlgebra, Resolution<CCC>>>,
-) -> (
-    FpVector,
-    Arc<SecondaryResolutionHomomorphism<SteenrodAlgebra, Resolution<CCC>, Resolution<CCC>>>,
-) {
+) -> HomData {
     let p = source.prime();
 
-    let name: String = query::raw(&format!("Name of Ext class {name}"), str::parse);
+    let shift_n: i32 = query::raw(&format!("n of {name}"), str::parse);
+    let shift_s: u32 = query::raw(&format!("s of {name}"), str::parse);
 
-    let shift_n: i32 = query::raw(&format!("n of Ext class {name}"), str::parse);
-    let shift_s: u32 = query::raw(&format!("s of Ext class {name}"), str::parse);
+    let ext_name: String = query::raw(&format!("Name of Ext part of {name}"), str::parse);
+
     let shift_t = shift_n + shift_s as i32;
 
     source
@@ -60,7 +61,7 @@ fn get_hom(
         .compute_through_stem(shift_s + 1, shift_n);
 
     let hom = Arc::new(ResolutionHomomorphism::new(
-        name.clone(),
+        ext_name.clone(),
         source.underlying(),
         target.underlying(),
         shift_s,
@@ -78,45 +79,59 @@ fn get_hom(
 
     let mut matrix = Matrix::new(p, num_gens, 1);
 
-    if matrix.rows() == 0 {
-        eprintln!("No classes in this bidegree");
-    } else {
-        let v: Vec<u32> = query::vector(&format!("Input Ext class {name}"), num_gens);
-        for (i, &x) in v.iter().enumerate() {
-            matrix[i].set_entry(0, x);
-            class.set_entry(i, x);
+    if !hom.name().is_empty() {
+        if matrix.rows() == 0 {
+            eprintln!("No classes in this bidegree");
+        } else {
+            let v: Vec<u32> = query::vector(&format!("Input Ext class {ext_name}"), num_gens);
+            for (i, &x) in v.iter().enumerate() {
+                matrix[i].set_entry(0, x);
+                class.set_entry(i, x);
+            }
         }
     }
 
     hom.extend_step(shift_s, shift_t, Some(&matrix));
-    // Make room for the tau part
-    hom.extend_through_stem(shift_s + 1, shift_t - shift_s as i32);
 
-    let hom_lift = SecondaryResolutionHomomorphism::new(
-        Arc::clone(&source),
-        Arc::clone(&target),
-        Arc::clone(&hom),
-    );
+    let hom_lift = Arc::new(SecondaryResolutionHomomorphism::new(source, target, hom));
 
-    let num_tau_gens = hom
-        .source
-        .number_of_gens_in_bidegree(shift_s + 1, shift_t + 1);
-    if num_tau_gens > 0 {
-        let v = query::vector(&format!("Input τ part of {name}"), num_tau_gens);
-        for (i, &x) in v.iter().enumerate() {
-            class.set_entry(num_gens + i, x);
+    let tau_part = if num_tau_gens > 0 {
+        let tau_name: String = query::raw(&format!("Name of τ part of {name}"), str::parse);
+        if tau_name.is_empty() {
+            None
+        } else {
+            let v = query::vector(&format!("Input Ext class {tau_name}"), num_tau_gens);
+            for (i, &x) in v.iter().enumerate() {
+                class.set_entry(num_gens + i, x);
+            }
+            Some(Arc::new(ResolutionHomomorphism::from_class(
+                tau_name,
+                hom_lift.source(),
+                hom_lift.target(),
+                shift_s + 1,
+                shift_t + 1,
+                &v,
+            )))
         }
-        let rows = v
-            .into_iter()
-            .map(|x| FpVector::from_slice(p, &[x]))
-            .collect();
+    } else {
+        None
+    };
 
-        hom_lift.initialize_homotopies();
-        hom_lift.homotopies()[shift_s as i32 + 1]
-            .homotopies
-            .add_generators_from_rows(shift_t + 1, rows);
+    let name = match (
+        &*ext_name,
+        tau_part.as_ref().map(|x| x.name()).unwrap_or(""),
+    ) {
+        ("", "") => panic!("Do not compute zero Massey product"),
+        ("", x) => format!("τ{x}"),
+        (x, "") => format!("[{x}]"),
+        (x, y) => format!("[{x}] + τ{y}"),
+    };
+    HomData {
+        name,
+        class,
+        hom_lift,
+        tau_part,
     }
-    (class, Arc::new(hom_lift))
 }
 
 fn main() -> anyhow::Result<()> {
@@ -156,8 +171,18 @@ fn main() -> anyhow::Result<()> {
         Arc::new(lift)
     };
 
-    let (_, a) = get_hom("a", Arc::clone(&res_lift), Arc::clone(&unit_lift));
-    let (b_class, b) = get_hom("b", Arc::clone(&unit_lift), Arc::clone(&unit_lift));
+    let HomData {
+        name: a_name,
+        class: _,
+        hom_lift: a,
+        tau_part: a_tau,
+    } = get_hom("a", Arc::clone(&res_lift), Arc::clone(&unit_lift));
+    let HomData {
+        name: b_name,
+        class: b_class,
+        hom_lift: b,
+        tau_part: b_tau,
+    } = get_hom("b", Arc::clone(&unit_lift), Arc::clone(&unit_lift));
 
     let shift_s = a.underlying().shift_s + b.underlying().shift_s;
     let shift_t = a.shift_t() + b.shift_t();
@@ -186,16 +211,22 @@ fn main() -> anyhow::Result<()> {
 
     // Now extend homomorphisms
     #[cfg(feature = "concurrent")]
-    rayon::join(
-        || {
+    rayon::scope(|s| {
+        s.spawn(|_| {
             a.underlying().extend_all();
             a.extend_all();
-        },
-        || {
+        });
+        s.spawn(|_| {
             b.underlying().extend_all();
             b.extend_all();
-        },
-    );
+        });
+        if let Some(a_tau) = a_tau.as_ref() {
+            s.spawn(|_| a_tau.extend_all());
+        }
+        if let Some(b_tau) = b_tau.as_ref() {
+            s.spawn(|_| b_tau.extend_all());
+        }
+    });
 
     #[cfg(not(feature = "concurrent"))]
     {
@@ -203,6 +234,12 @@ fn main() -> anyhow::Result<()> {
         a.extend_all();
         b.underlying().extend_all();
         b.extend_all();
+        if let Some(a_tau) = a_tau.as_ref() {
+            a_tau.extend_all();
+        }
+        if let Some(b_tau) = b_tau.as_ref() {
+            b_tau.extend_all();
+        }
     }
 
     let res_sseq = Arc::new(res_lift.e3_page());
@@ -221,7 +258,13 @@ fn main() -> anyhow::Result<()> {
 
     // Compute first homotopy
     {
-        let v = a.product_nullhomotopy(&res_sseq, b_shift_s, b_shift_t, b_class.as_slice());
+        let v = a.product_nullhomotopy(
+            a_tau.as_deref(),
+            &res_sseq,
+            b_shift_s,
+            b_shift_t,
+            b_class.as_slice(),
+        );
         let homotopy = chain_homotopy.homotopy(b_shift_s + a.underlying().shift_s - 1);
         homotopy.extend_by_zero(a.shift_t() + b_shift_t - 1);
         homotopy.add_generators_from_rows(
@@ -234,8 +277,13 @@ fn main() -> anyhow::Result<()> {
 
     chain_homotopy.extend_all();
 
-    let ch_lift =
-        SecondaryChainHomotopy::new(Arc::clone(&a), Arc::clone(&b), Arc::clone(&chain_homotopy));
+    let ch_lift = SecondaryChainHomotopy::new(
+        Arc::clone(&a),
+        Arc::clone(&b),
+        a_tau.as_ref().map(Arc::clone),
+        b_tau.as_ref().map(Arc::clone),
+        Arc::clone(&chain_homotopy),
+    );
 
     ch_lift.extend_all();
 
@@ -248,9 +296,6 @@ fn main() -> anyhow::Result<()> {
     let mut scratch1 = FpVector::new(p, 0);
 
     let h_0 = ch_lift.algebra().p_tilde();
-
-    let a_name = a.name();
-    let b_name = b.name();
 
     // Iterate through the multiplicand
     for (s, n, t) in unit.iter_stem() {
@@ -324,7 +369,8 @@ fn main() -> anyhow::Result<()> {
                     target_all_gens + prod_all_gens,
                 );
 
-                b.hom_k(
+                b.hom_k_with(
+                    b_tau.as_deref(),
                     Some(&unit_sseq),
                     s,
                     t,
@@ -442,7 +488,8 @@ fn main() -> anyhow::Result<()> {
             // Now do the -1 part of the null-homotopy of bc.
             {
                 let sign = *p * *p - 1;
-                let out = b.product_nullhomotopy(&unit_sseq, s, t, gen.as_slice());
+                let out =
+                    b.product_nullhomotopy(b_tau.as_deref(), &unit_sseq, s, t, gen.as_slice());
                 for (i, v) in out.iter_nonzero() {
                     scratch0
                         .iter_mut()

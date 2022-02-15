@@ -981,19 +981,10 @@ impl<
         &self.homotopies[s as i32]
     }
 
-    /// Compute the induced map on Mod_{C\tau^2} homotopy groups. This only computes it on
-    /// standard lifts on elements in Ext. `outputs` is an iterator of `SliceMut`s whose lengths
-    /// are equal to the total dimension of `(s + shift_s, t + shift_t)` and `(s + shift_s + 1, t +
-    /// shift_t + 1)`. The first chunk records the Ext part of the result, and the second chunk
-    /// records the τ part of the result.
-    ///
-    /// This reduces the τ part of the result by the image of d₂.
-    ///
-    /// # Arguments
-    /// - `sseq`: A sseq object that records the $d_2$ differentials. If present, reduce the value
-    ///   of the map by the image of $d_2$.
-    pub fn hom_k<'a>(
+    /// A version of [`hom_k`] but with a non-trivial τ part.
+    pub fn hom_k_with<'a>(
         &self,
+        tau_part: Option<&ResolutionHomomorphism<CC1, CC2>>,
         sseq: Option<&sseq::Sseq>,
         s: u32,
         t: i32,
@@ -1012,7 +1003,11 @@ impl<
             .number_of_gens_in_bidegree(source_s + 1, source_t + 1);
 
         let m0 = self.underlying.get_map(source_s).hom_k(t);
-        let m1 = Matrix::from_vec(p, &self.homotopy(source_s + 1).homotopies.hom_k(t));
+        let mut m1 = Matrix::from_vec(p, &self.homotopy(source_s + 1).homotopies.hom_k(t));
+        if let Some(tau_part) = tau_part {
+            m1 += &Matrix::from_vec(p, &tau_part.get_map(source_s + 1).hom_k(t));
+        }
+
         // The multiplication by p map
         let mp = Matrix::from_vec(
             p,
@@ -1061,6 +1056,28 @@ impl<
         }
     }
 
+    /// Compute the induced map on Mod_{C\tau^2} homotopy groups. This only computes it on
+    /// standard lifts on elements in Ext. `outputs` is an iterator of `SliceMut`s whose lengths
+    /// are equal to the total dimension of `(s + shift_s, t + shift_t)` and `(s + shift_s + 1, t +
+    /// shift_t + 1)`. The first chunk records the Ext part of the result, and the second chunk
+    /// records the τ part of the result.
+    ///
+    /// This reduces the τ part of the result by the image of d₂.
+    ///
+    /// # Arguments
+    /// - `sseq`: A sseq object that records the $d_2$ differentials. If present, reduce the value
+    ///   of the map by the image of $d_2$.
+    pub fn hom_k<'a>(
+        &self,
+        sseq: Option<&sseq::Sseq>,
+        s: u32,
+        t: i32,
+        inputs: impl Iterator<Item = Slice<'a>>,
+        outputs: impl Iterator<Item = SliceMut<'a>>,
+    ) {
+        self.hom_k_with(None, sseq, s, t, inputs, outputs);
+    }
+
     /// Given an element b whose product with this is null, find the element whose $d_2$ hits the
     /// τ part of the composition.
     ///
@@ -1068,6 +1085,7 @@ impl<
     /// - `sseq`: spectral sequence object of the source
     pub fn product_nullhomotopy(
         &self,
+        tau_part: Option<&ResolutionHomomorphism<CC1, CC2>>,
         sseq: &sseq::Sseq,
         s: u32,
         t: i32,
@@ -1102,7 +1120,8 @@ impl<
         }
 
         let mut prod_value = FpVector::new(p, lower_num_gens + tau_num_gens);
-        self.hom_k(
+        self.hom_k_with(
+            tau_part,
             None,
             s,
             t,
@@ -1137,6 +1156,8 @@ pub struct SecondaryChainHomotopy<
     underlying: Arc<ChainHomotopy<S, T, U>>,
     left: Arc<SecondaryResolutionHomomorphism<A, S, T>>,
     right: Arc<SecondaryResolutionHomomorphism<A, T, U>>,
+    left_tau: Option<Arc<ResolutionHomomorphism<S, T>>>,
+    right_tau: Option<Arc<ResolutionHomomorphism<T, U>>>,
     homotopies: OnceBiVec<SecondaryHomotopy<A>>,
     intermediates: DashMap<(u32, i32, usize), FpVector>,
 }
@@ -1250,6 +1271,17 @@ impl<
             true,
         );
 
+        // This is inefficient if both right_tau and right are non-zero, but this is not needed atm
+        // and the change would not be user-facing.
+        if let Some(right_tau) = self.right_tau.as_ref() {
+            right_tau.get_map(s - self.left.underlying.shift_s).apply(
+                result.as_slice_mut(),
+                neg_1,
+                t - self.left.shift_t(),
+                self.left.underlying.get_map(s).output(t, idx).as_slice(),
+            );
+        }
+
         self.right
             .underlying
             .get_map(s - self.left.shift_s())
@@ -1262,6 +1294,18 @@ impl<
                     .output(t, idx)
                     .as_slice(),
             );
+
+        if let Some(left_tau) = self.left_tau.as_ref() {
+            self.right
+                .underlying
+                .get_map(s - self.left.shift_s())
+                .apply(
+                    result.as_slice_mut(),
+                    neg_1,
+                    t - self.left.shift_t() - 1,
+                    left_tau.get_map(s).output(t, idx).as_slice(),
+                );
+        }
         result
     }
 
@@ -1302,10 +1346,28 @@ impl<
     pub fn new(
         left: Arc<SecondaryResolutionHomomorphism<A, S, T>>,
         right: Arc<SecondaryResolutionHomomorphism<A, T, U>>,
+        left_tau: Option<Arc<ResolutionHomomorphism<S, T>>>,
+        right_tau: Option<Arc<ResolutionHomomorphism<T, U>>>,
         underlying: Arc<ChainHomotopy<S, T, U>>,
     ) -> Self {
         assert!(Arc::ptr_eq(&underlying.left(), &left.underlying));
         assert!(Arc::ptr_eq(&underlying.right(), &right.underlying));
+
+        if let Some(left_tau) = left_tau.as_ref() {
+            assert!(Arc::ptr_eq(&left_tau.source, &underlying.left().source));
+            assert!(Arc::ptr_eq(&left_tau.target, &underlying.left().target));
+
+            assert_eq!(left_tau.shift_t, underlying.left().shift_t + 1);
+            assert_eq!(left_tau.shift_s, underlying.left().shift_s + 1);
+        }
+
+        if let Some(right_tau) = right_tau.as_ref() {
+            assert!(Arc::ptr_eq(&right_tau.source, &underlying.right().source));
+            assert!(Arc::ptr_eq(&right_tau.target, &underlying.right().target));
+
+            assert_eq!(right_tau.shift_t, underlying.right().shift_t + 1);
+            assert_eq!(right_tau.shift_s, underlying.right().shift_s + 1);
+        }
 
         if let Some(p) = underlying.save_dir() {
             for subdir in SaveKind::secondary_data() {
@@ -1316,6 +1378,8 @@ impl<
         Self {
             left,
             right,
+            left_tau,
+            right_tau,
             homotopies: OnceBiVec::new(underlying.shift_s() as i32),
             underlying,
             intermediates: DashMap::new(),
