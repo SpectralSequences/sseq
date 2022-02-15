@@ -549,7 +549,7 @@ pub trait SecondaryLift: Sync {
 
         let get_intermediate = |i| {
             let mut v = self.get_intermediate(s, t, i);
-            if s > shift_s {
+            if s > shift_s + 1 {
                 self.homotopies()[s as i32 - 1].homotopies.apply(
                     v.as_slice_mut(),
                     1,
