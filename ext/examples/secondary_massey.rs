@@ -290,7 +290,9 @@ fn main() -> anyhow::Result<()> {
         return Ok(());
     }
 
+    let start = std::time::Instant::now();
     ch_lift.extend_all();
+    ext::utils::log_time(start.elapsed(), format_args!("Total computation time"));
 
     fn get_page_data(sseq: &sseq::Sseq, n: i32, s: u32) -> &fp::matrix::Subquotient {
         let d = sseq.page_data(n, s as i32);

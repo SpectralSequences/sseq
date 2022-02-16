@@ -141,7 +141,7 @@ fn main() -> anyhow::Result<()> {
 
     hom_lift.extend_all();
 
-    eprintln!("Time spent: {:?}", start.elapsed());
+    ext::utils::log_time(start.elapsed(), format_args!("Total computation time"));
 
     // Compute E3 page
     let res_sseq = Arc::new(res_lift.e3_page());

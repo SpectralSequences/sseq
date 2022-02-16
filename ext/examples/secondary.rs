@@ -66,16 +66,16 @@ fn main() -> anyhow::Result<()> {
         return Ok(());
     }
 
-    let start = std::time::Instant::now();
-
     let lift = SecondaryResolution::new(Arc::clone(&resolution));
     if let Some(s) = ext::utils::secondary_job() {
         lift.compute_partial(s);
         return Ok(());
     }
+
+    let start = std::time::Instant::now();
     lift.extend_all();
 
-    eprintln!("Time spent: {:?}", start.elapsed());
+    ext::utils::log_time(start.elapsed(), format_args!("Total computation time"));
 
     // Iterate through target of the d2
     for (s, n, t) in lift.underlying().iter_stem() {
