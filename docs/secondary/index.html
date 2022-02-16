@@ -24,12 +24,40 @@
     });
 </script>
 
-<style type="text/css">#crate-search{background-image:url("../down-arrow.svg");}</style></head><body class="rustdoc mod crate"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu" role="button">&#9776;</div><a href='../secondary/index.html'><div class='logo-container rust-logo'><img src='../rust-logo.png' alt='logo'></div></a><h2 class="location">Crate secondary</h2><div class="block version"><div class="narrow-helper"></div><p>Version 0.1.0</p></div><div class="sidebar-elems"><a id="all-types" href="all.html"><p>See all secondary's items</p></a><div id="sidebar-vars" data-name="secondary" data-ty="mod" data-relpath=""></div><script defer src="sidebar-items.js"></script></div></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu" title="themes"><img width="18" height="18" alt="Pick another theme!" src="../brush.svg"></button><div id="theme-choices" role="menu"></div></div><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><button type="button" id="help-button" title="help">?</button><a id="settings-menu" href="../settings.html" title="settings"><img width="18" height="18" alt="Change settings" src="../wheel.svg"></a></div></form></nav><section id="main" class="content"><h1 class="fqn"><span class="in-band">Crate <a class="mod" href="#">secondary</a><button id="copy-path" onclick="copy_path(this)" title="Copy item path to clipboard"><img src="../clipboard.svg" width="19" height="18" alt="Copy item path"></button></span><span class="out-of-band"><span id="render-detail"><a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">[<span class="inner">&#x2212;</span>]</a></span><a class="srclink" href="../src/secondary/secondary.rs.html#1-60" title="goto source code">[src]</a></span></h1><details class="rustdoc-toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>This computes $d_2$ differentials in the Adams spectral sequence. This only works for fairly
+<style type="text/css">#crate-search{background-image:url("../down-arrow.svg");}</style></head><body class="rustdoc mod crate"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu" role="button">&#9776;</div><a href='../secondary/index.html'><div class='logo-container rust-logo'><img src='../rust-logo.png' alt='logo'></div></a><h2 class="location">Crate secondary</h2><div class="block version"><div class="narrow-helper"></div><p>Version 0.1.0</p></div><div class="sidebar-elems"><a id="all-types" href="all.html"><p>See all secondary's items</p></a><div id="sidebar-vars" data-name="secondary" data-ty="mod" data-relpath=""></div><script defer src="sidebar-items.js"></script></div></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu" title="themes"><img width="18" height="18" alt="Pick another theme!" src="../brush.svg"></button><div id="theme-choices" role="menu"></div></div><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><button type="button" id="help-button" title="help">?</button><a id="settings-menu" href="../settings.html" title="settings"><img width="18" height="18" alt="Change settings" src="../wheel.svg"></a></div></form></nav><section id="main" class="content"><h1 class="fqn"><span class="in-band">Crate <a class="mod" href="#">secondary</a><button id="copy-path" onclick="copy_path(this)" title="Copy item path to clipboard"><img src="../clipboard.svg" width="19" height="18" alt="Copy item path"></button></span><span class="out-of-band"><span id="render-detail"><a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">[<span class="inner">&#x2212;</span>]</a></span><a class="srclink" href="../src/secondary/secondary.rs.html#1-101" title="goto source code">[src]</a></span></h1><details class="rustdoc-toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>This computes $d_2$ differentials in the Adams spectral sequence. This only works for fairly
 specific modules, but tends to cover most cases of interest.</p>
 <h2 id="usage" class="section-header"><a href="#usage">Usage</a></h2>
 <p>This asks for a module in the usual way, and verifies that the module satisfies the conditions
 necessary for the algorithm the work. It only works with the Milnor basis.</p>
 <h2 id="output" class="section-header"><a href="#output">Output</a></h2>
 <p>We omit differentials if the target bidegree is zero.</p>
-</div></details></section><section id="search" class="content hidden"></section><div id="rustdoc-vars" data-root-path="../" data-current-crate="secondary" data-search-index-js="../search-index.js" data-search-js="../search.js"></div>
+<h2 id="sharding" class="section-header"><a href="#sharding">Sharding</a></h2>
+<p><em>This section applies to all of the secondary scripts, namely <code>secondary</code>,
+<a href="../secondary_product/index.html"><code>secondary_product</code></a>
+and <a href="../secondary_massey/index.html"><code>secondary_massey</code></a>.</em></p>
+<p>Most of the computation can be fully distributed. Rudimentary sharding over multiple machines
+is currently supported, where each machine works on a single <code>s</code>.</p>
+<p>These machines should share the same save directory (e.g. over a network-mounted drive), and
+all prerequisites for the computation must have been computed. This includes the “primary” data
+(resolutions, lifts, etc.) as well as the secondary prerequisites (the secondary resolution for
+secondary products, secondary products for secondary Massey product). Otherwise, conflicts may
+arise.</p>
+<p>To compute data for a single <code>s</code>, run the script with the environment variable
+<code>SECONDARY_JOB=s</code>. The minimum value of <code>s</code> is the cohomological degree shift of the secondary
+homotopy (i.e. the difference in degrees between the input class and the τ part of the answer;
+2 in the case of <code>secondary</code>), and the maximum value of <code>s</code> is the <code>max_s</code> of the resolution.</p>
+<p>After running this script for all <code>s</code> in the range, run it as usual to produce the final
+output. An example script is as follows:</p>
+<div class="example-wrap"><pre class="language-shell"><code>#!/bin/sh
+
+cargo run --example resolve_through_stem S_2 /tmp/save 40 20;
+
+cargo build --example secondary
+for n in `seq 20 -1 2`; do
+    SECONDARY_JOB=$n target/debug/examples/secondary S_2 /tmp/save 40 20 &amp;
+done
+
+wait
+
+target/debug/examples/secondary S_2 /tmp/save 40 20;</code></pre></div></div></details></section><section id="search" class="content hidden"></section><div id="rustdoc-vars" data-root-path="../" data-current-crate="secondary" data-search-index-js="../search-index.js" data-search-js="../search.js"></div>
 </body></html>

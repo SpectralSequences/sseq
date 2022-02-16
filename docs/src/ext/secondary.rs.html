@@ -1441,6 +1441,44 @@
 <span id="1415">1415</span>
 <span id="1416">1416</span>
 <span id="1417">1417</span>
+<span id="1418">1418</span>
+<span id="1419">1419</span>
+<span id="1420">1420</span>
+<span id="1421">1421</span>
+<span id="1422">1422</span>
+<span id="1423">1423</span>
+<span id="1424">1424</span>
+<span id="1425">1425</span>
+<span id="1426">1426</span>
+<span id="1427">1427</span>
+<span id="1428">1428</span>
+<span id="1429">1429</span>
+<span id="1430">1430</span>
+<span id="1431">1431</span>
+<span id="1432">1432</span>
+<span id="1433">1433</span>
+<span id="1434">1434</span>
+<span id="1435">1435</span>
+<span id="1436">1436</span>
+<span id="1437">1437</span>
+<span id="1438">1438</span>
+<span id="1439">1439</span>
+<span id="1440">1440</span>
+<span id="1441">1441</span>
+<span id="1442">1442</span>
+<span id="1443">1443</span>
+<span id="1444">1444</span>
+<span id="1445">1445</span>
+<span id="1446">1446</span>
+<span id="1447">1447</span>
+<span id="1448">1448</span>
+<span id="1449">1449</span>
+<span id="1450">1450</span>
+<span id="1451">1451</span>
+<span id="1452">1452</span>
+<span id="1453">1453</span>
+<span id="1454">1454</span>
+<span id="1455">1455</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::chain_complex</span>::{
     <span class="ident">AugmentedChainComplex</span>, <span class="ident">BoundedChainComplex</span>, <span class="ident">ChainComplex</span>, <span class="ident">ChainHomotopy</span>, <span class="ident">FreeChainComplex</span>,
 };
@@ -1902,6 +1940,44 @@
         }
 
         <span class="ident">result</span>
+    }
+
+    <span class="kw">fn</span> <span class="ident">compute_partial</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">s</span>: <span class="ident">u32</span>) {
+        <span class="self">self</span>.<span class="ident">initialize_homotopies</span>();
+        <span class="kw">let</span> <span class="ident">homotopies</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">homotopies</span>();
+
+        <span class="kw">if</span> (<span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span>) <span class="op">&lt;</span> <span class="ident">homotopies</span>.<span class="ident">min_degree</span>() {
+            <span class="macro">eprintln!</span>(
+                <span class="string">&quot;Computing partial for s = {s} when minimum degree is {}&quot;</span>,
+                <span class="ident">homotopies</span>.<span class="ident">min_degree</span>()
+            );
+            <span class="kw">return</span>;
+        }
+
+        <span class="ident">homotopies</span>[<span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span>].<span class="ident">add_composite</span>(
+            <span class="ident">s</span>,
+            <span class="self">self</span>.<span class="ident">max_t</span>(<span class="ident">s</span>) <span class="op">-</span> <span class="number">1</span>,
+            <span class="self">self</span>.<span class="ident">composite</span>(<span class="ident">s</span>),
+            <span class="self">self</span>.<span class="ident">save_dir</span>(),
+        );
+
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">homotopy</span>) <span class="op">=</span> <span class="ident">homotopies</span>.<span class="ident">get</span>(<span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span> <span class="op">+</span> <span class="number">1</span>) {
+            <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>))]</span>
+            <span class="kw">for</span> <span class="ident">t</span> <span class="kw">in</span> <span class="number">0</span>..<span class="self">self</span>.<span class="ident">max_t</span>(<span class="ident">s</span> <span class="op">+</span> <span class="number">1</span>) {
+                <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">homotopy</span>.<span class="ident">source</span>.<span class="ident">number_of_gens_in_degree</span>(<span class="ident">t</span>) {
+                    <span class="self">self</span>.<span class="ident">get_intermediate</span>(<span class="ident">s</span> <span class="op">+</span> <span class="number">1</span>, <span class="ident">t</span>, <span class="ident">i</span>);
+                }
+            }
+
+            <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
+            (<span class="number">0</span>..<span class="self">self</span>.<span class="ident">max_t</span>(<span class="ident">s</span> <span class="op">+</span> <span class="number">1</span>)).<span class="ident">into_par_iter</span>().<span class="ident">for_each</span>(<span class="op">|</span><span class="ident">t</span><span class="op">|</span> {
+                (<span class="number">0</span>..<span class="ident">homotopy</span>.<span class="ident">source</span>.<span class="ident">number_of_gens_in_degree</span>(<span class="ident">t</span>))
+                    .<span class="ident">into_par_iter</span>()
+                    .<span class="ident">for_each</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> {
+                        <span class="self">self</span>.<span class="ident">get_intermediate</span>(<span class="ident">s</span> <span class="op">+</span> <span class="number">1</span>, <span class="ident">t</span>, <span class="ident">i</span>);
+                    })
+            });
+        }
     }
 
     <span class="kw">fn</span> <span class="ident">compute_intermediates</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) {
