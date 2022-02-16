@@ -321,6 +321,16 @@ impl Resolution {
 
     fn step_resolution_with_subalgebra(&self, s: u32, t: i32, subalgebra: MilnorSubalgebra) {
         let start = Instant::now();
+        let end = || {
+            crate::utils::log_time(
+                start.elapsed(),
+                format_args!(
+                    "Computed bidegree ({n}, {s}) with {subalgebra}",
+                    n = t - s as i32
+                ),
+            );
+        };
+
         let p = self.prime();
 
         let source = &*self.modules[s];
@@ -350,6 +360,8 @@ impl Resolution {
                     .add_unmasked(x_masked.as_slice(), 1, &target_mask)
             }
             self.differential(s).add_generators_from_rows(t, xs);
+
+            end();
             return;
         }
 
@@ -387,6 +399,8 @@ impl Resolution {
 
         if num_new_gens == 0 {
             self.differential(s).extend_by_zero(t);
+
+            end();
             return;
         }
 
@@ -455,13 +469,7 @@ impl Resolution {
             assert!(dx.is_zero(), "dx non-zero at t = {t}, s = {s}");
         }
         self.differential(s).add_generators_from_rows(t, xs);
-        crate::utils::log_time(
-            start.elapsed(),
-            format_args!(
-                "Computed bidegree ({n}, {s}) with {subalgebra}",
-                n = t - s as i32
-            ),
-        )
+        end();
     }
 
     fn step_resolution(&self, s: u32, t: i32) {
