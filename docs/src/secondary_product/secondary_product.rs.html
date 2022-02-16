@@ -385,7 +385,7 @@
 
     <span class="ident">hom_lift</span>.<span class="ident">extend_all</span>();
 
-    <span class="macro">eprintln!</span>(<span class="string">&quot;Time spent: {:?}&quot;</span>, <span class="ident">start</span>.<span class="ident">elapsed</span>());
+    <span class="ident">ext::utils::log_time</span>(<span class="ident">start</span>.<span class="ident">elapsed</span>(), <span class="macro">format_args!</span>(<span class="string">&quot;Total computation time&quot;</span>));
 
     <span class="comment">// Compute E3 page</span>
     <span class="kw">let</span> <span class="ident">res_sseq</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">res_lift</span>.<span class="ident">e3_page</span>());

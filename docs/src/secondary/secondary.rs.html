@@ -193,16 +193,16 @@
         <span class="kw">return</span> <span class="prelude-val">Ok</span>(());
     }
 
-    <span class="kw">let</span> <span class="ident">start</span> <span class="op">=</span> <span class="ident">std::time::Instant::now</span>();
-
     <span class="kw">let</span> <span class="ident">lift</span> <span class="op">=</span> <span class="ident">SecondaryResolution::new</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">resolution</span>));
     <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">s</span>) <span class="op">=</span> <span class="ident">ext::utils::secondary_job</span>() {
         <span class="ident">lift</span>.<span class="ident">compute_partial</span>(<span class="ident">s</span>);
         <span class="kw">return</span> <span class="prelude-val">Ok</span>(());
     }
+
+    <span class="kw">let</span> <span class="ident">start</span> <span class="op">=</span> <span class="ident">std::time::Instant::now</span>();
     <span class="ident">lift</span>.<span class="ident">extend_all</span>();
 
-    <span class="macro">eprintln!</span>(<span class="string">&quot;Time spent: {:?}&quot;</span>, <span class="ident">start</span>.<span class="ident">elapsed</span>());
+    <span class="ident">ext::utils::log_time</span>(<span class="ident">start</span>.<span class="ident">elapsed</span>(), <span class="macro">format_args!</span>(<span class="string">&quot;Total computation time&quot;</span>));
 
     <span class="comment">// Iterate through target of the d2</span>
     <span class="kw">for</span> (<span class="ident">s</span>, <span class="ident">n</span>, <span class="ident">t</span>) <span class="kw">in</span> <span class="ident">lift</span>.<span class="ident">underlying</span>().<span class="ident">iter_stem</span>() {
