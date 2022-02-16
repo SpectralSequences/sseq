@@ -7,6 +7,43 @@
 //!
 //! # Output
 //! We omit differentials if the target bidegree is zero.
+//!
+//! # Sharding
+//! *This section applies to all of the secondary scripts, namely `secondary`,
+//! [`secondary_product`](../secondary_product/index.html)
+//! and [`secondary_massey`](../secondary_massey/index.html).*
+//!
+//! Most of the computation can be fully distributed. Rudimentary sharding over multiple machines
+//! is currently supported, where each machine works on a single `s`.
+//!
+//! These machines should share the same save directory (e.g. over a network-mounted drive), and
+//! all prerequisites for the computation must have been computed. This includes the "primary" data
+//! (resolutions, lifts, etc.) as well as the secondary prerequisites (the secondary resolution for
+//! secondary products, secondary products for secondary Massey product). Otherwise, conflicts may
+//! arise.
+//!
+//! To compute data for a single `s`, run the script with the environment variable
+//! `SECONDARY_JOB=s`. The minimum value of `s` is the cohomological degree shift of the secondary
+//! homotopy (i.e. the difference in degrees between the input class and the τ part of the answer;
+//! 2 in the case of `secondary`), and the maximum value of `s` is the `max_s` of the resolution.
+//!
+//! After running this script for all `s` in the range, run it as usual to produce the final
+//! output. An example script is as follows:
+//!
+//! ```shell
+//! #!/bin/sh
+//!
+//! cargo run --example resolve_through_stem S_2 /tmp/save 40 20;
+//!
+//! cargo build --example secondary
+//! for n in `seq 20 -1 2`; do
+//!     SECONDARY_JOB=$n target/debug/examples/secondary S_2 /tmp/save 40 20 &
+//! done
+//!
+//! wait
+//!
+//! target/debug/examples/secondary S_2 /tmp/save 40 20;
+//! ```
 
 use algebra::module::Module;
 use std::sync::Arc;
@@ -32,6 +69,10 @@ fn main() -> anyhow::Result<()> {
     let start = std::time::Instant::now();
 
     let lift = SecondaryResolution::new(Arc::clone(&resolution));
+    if let Some(s) = ext::utils::secondary_job() {
+        lift.compute_partial(s);
+        return Ok(());
+    }
     lift.extend_all();
 
     eprintln!("Time spent: {:?}", start.elapsed());

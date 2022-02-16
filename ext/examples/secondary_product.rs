@@ -132,6 +132,11 @@ fn main() -> anyhow::Result<()> {
         Arc::clone(&hom),
     );
 
+    if let Some(s) = ext::utils::secondary_job() {
+        hom_lift.compute_partial(s);
+        return Ok(());
+    }
+
     let start = std::time::Instant::now();
 
     hom_lift.extend_all();

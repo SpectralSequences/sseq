@@ -461,6 +461,44 @@ pub trait SecondaryLift: Sync {
         result
     }
 
+    fn compute_partial(&self, s: u32) {
+        self.initialize_homotopies();
+        let homotopies = self.homotopies();
+
+        if (s as i32) < homotopies.min_degree() {
+            eprintln!(
+                "Computing partial for s = {s} when minimum degree is {}",
+                homotopies.min_degree()
+            );
+            return;
+        }
+
+        homotopies[s as i32].add_composite(
+            s,
+            self.max_t(s) - 1,
+            self.composite(s),
+            self.save_dir(),
+        );
+
+        if let Some(homotopy) = homotopies.get(s as i32 + 1) {
+            #[cfg(not(feature = "concurrent"))]
+            for t in 0..self.max_t(s + 1) {
+                for i in 0..homotopy.source.number_of_gens_in_degree(t) {
+                    self.get_intermediate(s + 1, t, i);
+                }
+            }
+
+            #[cfg(feature = "concurrent")]
+            (0..self.max_t(s + 1)).into_par_iter().for_each(|t| {
+                (0..homotopy.source.number_of_gens_in_degree(t))
+                    .into_par_iter()
+                    .for_each(|i| {
+                        self.get_intermediate(s + 1, t, i);
+                    })
+            });
+        }
+    }
+
     fn compute_intermediates(&self) {
         let f = |s, t, i| {
             // If we already have homotopies, we don't need to compute intermediate

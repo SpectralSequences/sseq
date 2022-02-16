@@ -284,7 +284,15 @@ pub fn query_module(
     };
 
     let max_n: i32 = query::with_default("Max n", "30", str::parse);
-    let max_s: u32 = query::with_default("Max s", "7", str::parse);
+    let mut max_s: u32 = query::with_default("Max s", "7", str::parse);
+
+    if let Some(s) = secondary_job() {
+        if s <= max_s {
+            max_s = std::cmp::min(s + 1, max_s);
+        } else {
+            panic!("SECONDARY_JOB is larger than max_s");
+        }
+    }
 
     resolution.compute_through_stem(max_s, max_n);
 
@@ -382,4 +390,19 @@ pub fn log_time(duration: std::time::Duration, info: std::fmt::Arguments) {
         duration.as_secs(),
         duration.subsec_micros()
     );
+}
+
+/// The value of the SECONDARY_JOB environment variable. This is used for distributing the
+/// `secondary`. If set, only data with `s = SECONDARY_JOB` will be computed. The minimum value of
+/// `s` is the `shift_s` of the [`SecondaryLift`](crate::secondary::SecondaryLift) and the maximum
+/// value (inclusive) is the maximum `s` of the resolution.
+pub fn secondary_job() -> Option<u32> {
+    let val = std::env::var("SECONDARY_JOB").ok()?;
+    let parsed: Option<u32> = str::parse(&val).ok();
+    if parsed.is_none() {
+        eprintln!(
+            "Invalid argument for `SECONDARY_JOB`. Expected non-negative integer but found {val}"
+        );
+    }
+    parsed
 }

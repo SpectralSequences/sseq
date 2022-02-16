@@ -285,6 +285,11 @@ fn main() -> anyhow::Result<()> {
         Arc::clone(&chain_homotopy),
     );
 
+    if let Some(s) = ext::utils::secondary_job() {
+        ch_lift.compute_partial(s);
+        return Ok(());
+    }
+
     ch_lift.extend_all();
 
     fn get_page_data(sseq: &sseq::Sseq, n: i32, s: u32) -> &fp::matrix::Subquotient {
