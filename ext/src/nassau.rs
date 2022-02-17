@@ -147,8 +147,7 @@ impl MilnorSubalgebra {
             .sum()
     }
 
-    /// Find a good subalgebra for working below the vanishing line
-    fn b_subalgebra(s: u32, t: i32) -> MilnorSubalgebra {
+    fn optimal_for(s: u32, t: i32) -> MilnorSubalgebra {
         let mut result = MilnorSubalgebra::zero_algebra();
         for subalgebra in SubalgebraIterator::new() {
             let coeff = (1 << subalgebra.profile.len()) - 1;
@@ -159,22 +158,6 @@ impl MilnorSubalgebra {
             result = subalgebra;
         }
         result
-    }
-
-    /// Find the best subalgebra for working above the vanishing line. We will use the largest
-    /// subalgebra of the form F(n).
-    fn f_subalgebra(s: u32, t: i32) -> Self {
-        let mut profile = vec![Self::INFINITY; 10];
-        let t = t as u32;
-        for (n, entry) in profile.iter_mut().enumerate() {
-            *entry = 0;
-            // This -3 is not in Nassau's paper but appears to be needed. In any case, we always
-            // double-check that our answer is correct so we will not get wrong values.
-            if t < ((1 << (n + 2)) - 1) * s - 3 {
-                break;
-            }
-        }
-        Self { profile }
     }
 }
 
@@ -334,17 +317,6 @@ impl Resolution {
                     0,
                 )));
         }
-    }
-
-    fn rate_subalgebra(&self, s: u32, t: i32, subalgebra: &MilnorSubalgebra) -> usize {
-        let zero_sig = subalgebra.zero_signature();
-        let source = &*self.modules[s - 1];
-        let target = &*self.modules[s - 2];
-        source.extend_table_entries(t);
-        target.extend_table_entries(t);
-
-        subalgebra.signature_mask(source, t, &zero_sig).count()
-            * subalgebra.signature_mask(target, t, &zero_sig).count()
     }
 
     fn step_resolution_with_subalgebra(&self, s: u32, t: i32, subalgebra: MilnorSubalgebra) {
@@ -521,19 +493,7 @@ impl Resolution {
             return;
         }
 
-        if s == 1 {
-            self.step_resolution_with_subalgebra(s, t, MilnorSubalgebra::b_subalgebra(s, t));
-        } else {
-            let f_subalgebra = MilnorSubalgebra::f_subalgebra(s, t);
-            let b_subalgebra = MilnorSubalgebra::b_subalgebra(s, t);
-
-            if self.rate_subalgebra(s, t, &f_subalgebra) < self.rate_subalgebra(s, t, &b_subalgebra)
-            {
-                self.step_resolution_with_subalgebra(s, t, f_subalgebra);
-            } else {
-                self.step_resolution_with_subalgebra(s, t, b_subalgebra);
-            }
-        }
+        self.step_resolution_with_subalgebra(s, t, MilnorSubalgebra::optimal_for(s, t));
     }
 
     /// This function resolves up till a fixed stem instead of a fixed t.
