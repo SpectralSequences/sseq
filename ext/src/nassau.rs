@@ -4,11 +4,15 @@ use std::fmt::Display;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
-use crate::chain_complex::{ChainComplex, FreeChainComplex};
+use crate::chain_complex::{
+    AugmentedChainComplex, ChainComplex, FiniteChainComplex, FreeChainComplex,
+};
 use algebra::combinatorics;
 use algebra::milnor_algebra::{MilnorAlgebra, MilnorBasisElement, PPartEntry};
-use algebra::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
-use algebra::module::{FreeModule, Module};
+use algebra::module::homomorphism::{
+    BoundedModuleHomomorphism, FreeModuleHomomorphism, ModuleHomomorphism,
+};
+use algebra::module::{FDModule, FreeModule, Module};
 use algebra::Algebra;
 use fp::matrix::{AugmentedMatrix, Matrix};
 use fp::prime::ValidPrime;
@@ -256,12 +260,16 @@ impl<'a> Iterator for SignatureIterator<'a> {
     }
 }
 
+type CCDZ<A> = FiniteChainComplex<FDModule<A>, BoundedModuleHomomorphism<FDModule<A>, FDModule<A>>>;
+
 /// A resolution of a chain complex.
 pub struct Resolution {
     lock: Mutex<()>,
     modules: OnceVec<Arc<FreeModule<MilnorAlgebra>>>,
     zero_module: Arc<FreeModule<MilnorAlgebra>>,
     differentials: OnceVec<Arc<FreeModuleHomomorphism<FreeModule<MilnorAlgebra>>>>,
+    target: Arc<CCDZ<MilnorAlgebra>>,
+    chain_maps: OnceVec<Arc<FreeModuleHomomorphism<FDModule<MilnorAlgebra>>>>,
 }
 
 impl Default for Resolution {
@@ -277,12 +285,21 @@ impl Resolution {
 
     pub fn new() -> Self {
         let algebra = Arc::new(MilnorAlgebra::new(ValidPrime::new(2)));
+        let module = FDModule::new(
+            Arc::clone(&algebra),
+            String::from("S_2"),
+            bivec::BiVec::from_vec(0, vec![1]),
+        );
+
+        let target = Arc::new(FiniteChainComplex::ccdz(Arc::new(module)));
 
         Self {
             lock: Mutex::new(()),
             zero_module: Arc::new(FreeModule::new(algebra, "F_{-1}".to_string(), 0)),
             modules: OnceVec::new(),
             differentials: OnceVec::new(),
+            chain_maps: OnceVec::new(),
+            target,
         }
     }
 
@@ -292,31 +309,37 @@ impl Resolution {
     fn extend_through_degree(&self, max_s: u32) {
         let min_degree = self.min_degree();
 
-        for i in self.modules.len() as u32..=max_s {
-            self.modules.push(Arc::new(FreeModule::new(
+        self.modules.extend(max_s as usize, |i| {
+            Arc::new(FreeModule::new(
                 Arc::clone(&self.algebra()),
                 format!("F{}", i),
                 min_degree,
-            )));
-        }
+            ))
+        });
 
-        if self.differentials.is_empty() {
-            self.differentials
-                .push(Arc::new(FreeModuleHomomorphism::new(
-                    Arc::clone(&self.modules[0u32]),
-                    Arc::clone(&self.zero_module),
-                    0,
-                )));
-        }
+        self.differentials.extend(0, |_| {
+            Arc::new(FreeModuleHomomorphism::new(
+                Arc::clone(&self.modules[0u32]),
+                Arc::clone(&self.zero_module),
+                0,
+            ))
+        });
 
-        for i in self.differentials.len() as u32..=max_s {
-            self.differentials
-                .push(Arc::new(FreeModuleHomomorphism::new(
-                    Arc::clone(&self.modules[i]),
-                    Arc::clone(&self.modules[i - 1]),
-                    0,
-                )));
-        }
+        self.differentials.extend(max_s as usize, |i| {
+            Arc::new(FreeModuleHomomorphism::new(
+                Arc::clone(&self.modules[i]),
+                Arc::clone(&self.modules[i - 1]),
+                0,
+            ))
+        });
+
+        self.chain_maps.extend(max_s as usize, |i| {
+            Arc::new(FreeModuleHomomorphism::new(
+                Arc::clone(&self.modules[i]),
+                self.target.module(i as u32),
+                0,
+            ))
+        });
     }
 
     fn step_resolution_with_subalgebra(&self, s: u32, t: i32, subalgebra: MilnorSubalgebra) {
@@ -478,8 +501,17 @@ impl Resolution {
 
             if t == 0 {
                 self.modules[0usize].add_generators(t, 1, None);
+
+                let p = self.prime();
+                let chain_map = &self.chain_maps[0usize];
+                chain_map.add_generators_from_rows(0, vec![FpVector::from_slice(p, &[1])]);
+
+                let qi =
+                    fp::matrix::QuasiInverse::new(Some(vec![0]), Matrix::from_vec(p, &[vec![1]]));
+                chain_map.set_quasi_inverse(0, Some(qi));
             } else {
                 self.modules[0usize].extend_by_zero(t);
+                self.chain_maps[0usize].extend_by_zero(t);
             }
             self.differentials[0usize].extend_by_zero(t);
             self.modules[0usize].extend_table_entries(t);
@@ -490,10 +522,12 @@ impl Resolution {
             // We special case this because we don't add any new generators
             self.modules[1usize].extend_by_zero(0);
             self.differentials[1usize].extend_by_zero(0);
+            self.chain_maps[1usize].extend_by_zero(0);
             return;
         }
 
         self.step_resolution_with_subalgebra(s, t, MilnorSubalgebra::optimal_for(s, t));
+        self.chain_maps[s].extend_by_zero(t);
     }
 
     /// This function resolves up till a fixed stem instead of a fixed t.
@@ -628,6 +662,19 @@ impl ChainComplex for Resolution {
 
     fn next_homological_degree(&self) -> u32 {
         self.modules.len() as u32
+    }
+}
+
+impl AugmentedChainComplex for Resolution {
+    type TargetComplex = CCDZ<MilnorAlgebra>;
+    type ChainMap = FreeModuleHomomorphism<FDModule<MilnorAlgebra>>;
+
+    fn target(&self) -> Arc<Self::TargetComplex> {
+        Arc::clone(&self.target)
+    }
+
+    fn chain_map(&self, s: u32) -> Arc<Self::ChainMap> {
+        Arc::clone(&self.chain_maps[s])
     }
 }
 
