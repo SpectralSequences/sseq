@@ -1267,21 +1267,27 @@ impl<'a, const MOD4: bool> Iterator for PPartMultiplier<'a, MOD4> {
                         continue 'outer;
                     }
                 }
-                for &k in &self.M[0][1..self.cols] {
-                    self.ans.p_part.push(k);
-                }
+                self.ans
+                    .p_part
+                    .reserve(std::cmp::max(self.cols, self.rows) - 1);
+                self.ans.p_part.extend(&self.M[0][1..self.cols]);
+
                 if self.rows > self.cols {
                     self.ans.p_part.resize(self.r.len(), 0);
                 }
-                for (i, &entry) in self.r.iter().enumerate() {
-                    self.ans.p_part[i] += entry;
-                }
+                self.ans
+                    .p_part
+                    .iter_mut()
+                    .zip(self.r.iter())
+                    .for_each(|(l, r)| *l += r);
+
                 // If new_p ends with 0, drop them
                 while let Some(0) = self.ans.p_part.last() {
                     self.ans.p_part.pop();
                 }
                 return Some(coef as u32);
             } else if self.update() {
+                self.ans.p_part.reserve(self.diag_num);
                 for diag_idx in 1..=self.diag_num {
                     let i_min = if diag_idx + 1 > self.cols {
                         diag_idx + 1 - self.cols
