@@ -73,7 +73,6 @@ struct MilnorSubalgebra {
 
 impl MilnorSubalgebra {
     /// This should be used when you want an entry of the profile to be infinity
-    #[allow(dead_code)]
     const INFINITY: u8 = (std::mem::size_of::<PPartEntry>() * 4 - 1) as u8;
 
     fn new(profile: Vec<u8>) -> Self {
@@ -183,7 +182,8 @@ impl MilnorSubalgebra {
             .sum()
     }
 
-    fn optimal_for(s: u32, t: i32) -> MilnorSubalgebra {
+    /// Find a good subalgebra for working below the vanishing line
+    fn b_subalgebra(s: u32, t: i32) -> MilnorSubalgebra {
         let mut result = MilnorSubalgebra::zero_algebra();
         for subalgebra in SubalgebraIterator::new() {
             let coeff = (1 << subalgebra.profile.len()) - 1;
@@ -194,6 +194,21 @@ impl MilnorSubalgebra {
             result = subalgebra;
         }
         result
+    }
+
+    /// Find the best subalgebra for working above the vanishing line. We will use the largest
+    /// subalgebra of the form F(n).
+    fn f_subalgebra(s: u32, t: i32) -> Self {
+        let mut profile = vec![Self::INFINITY; 10];
+        let t = t as u32;
+        for (n, entry) in profile.iter_mut().enumerate() {
+            *entry = 0;
+            // This (n + 2) is not in Nassau's paper but appears to be needed.
+            if t < ((1 << (n + 2)) - 1) * (s - 1) {
+                break;
+            }
+        }
+        Self { profile }
     }
 
     fn to_bytes(&self, buffer: &mut impl Write) -> std::io::Result<()> {
@@ -517,6 +532,15 @@ impl Resolution {
         Ok(())
     }
 
+    fn rate_subalgebra(&self, s: u32, t: i32, subalgebra: &MilnorSubalgebra) -> usize {
+        let zero_sig = subalgebra.zero_signature();
+        let source = &*self.modules[s - 1];
+        source.extend_table_entries(t);
+        subalgebra
+            .signature_mask(&*source.algebra(), source, t, &zero_sig)
+            .count()
+    }
+
     fn step_resolution_with_subalgebra(&self, s: u32, t: i32, subalgebra: MilnorSubalgebra) {
         let start = Instant::now();
         let end = || {
@@ -799,9 +823,21 @@ impl Resolution {
             }
         }
 
-        self.step_resolution_with_subalgebra(s, t, MilnorSubalgebra::optimal_for(s, t));
-        self.chain_maps[s].extend_by_zero(t);
+        if s == 1 {
+            self.step_resolution_with_subalgebra(s, t, MilnorSubalgebra::b_subalgebra(s, t));
+        } else {
+            let f_subalgebra = MilnorSubalgebra::f_subalgebra(s, t);
+            let b_subalgebra = MilnorSubalgebra::b_subalgebra(s, t);
 
+            if self.rate_subalgebra(s, t, &f_subalgebra) < self.rate_subalgebra(s, t, &b_subalgebra)
+            {
+                self.step_resolution_with_subalgebra(s, t, f_subalgebra);
+            } else {
+                self.step_resolution_with_subalgebra(s, t, b_subalgebra);
+            }
+        }
+
+        self.chain_maps[s].extend_by_zero(t);
         set_data();
     }
 
