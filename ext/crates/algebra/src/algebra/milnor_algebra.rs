@@ -1,5 +1,6 @@
 use itertools::Itertools;
 use rustc_hash::FxHashMap as HashMap;
+use std::cell::RefCell;
 use std::sync::Mutex;
 
 use crate::algebra::combinatorics;
@@ -418,8 +419,8 @@ impl Algebra for MilnorAlgebra {
         self.multiply(
             result,
             coef,
-            &self.basis_table[r_degree as usize][r_idx],
-            &self.basis_table[s_degree as usize][s_idx],
+            self.basis_element_from_index(r_degree, r_idx),
+            self.basis_element_from_index(s_degree, s_idx),
         );
     }
 
@@ -440,8 +441,57 @@ impl Algebra for MilnorAlgebra {
         );
     }
 
+    fn multiply_basis_element_by_element(
+        &self,
+        mut result: SliceMut,
+        coeff: u32,
+        r_degree: i32,
+        r_idx: usize,
+        s_degree: i32,
+        s: Slice,
+    ) {
+        let p = self.prime();
+        let r = self.basis_element_from_index(r_degree, r_idx);
+        PPartAllocation::with_local(|mut allocation| {
+            for (i, v) in s.iter_nonzero() {
+                allocation = self.multiply_with_allocation(
+                    result.copy(),
+                    (coeff * v) % *p,
+                    r,
+                    self.basis_element_from_index(s_degree, i),
+                    allocation,
+                );
+            }
+            allocation
+        });
+    }
+
+    fn multiply_element_by_element(
+        &self,
+        mut res: SliceMut,
+        coef: u32,
+        r_deg: i32,
+        r: Slice,
+        s_deg: i32,
+        s: Slice,
+    ) {
+        PPartAllocation::with_local(|mut allocation| {
+            for (i, c) in r.iter_nonzero() {
+                allocation = self.multiply_basis_by_element_with_allocation(
+                    res.copy(),
+                    coef * c,
+                    self.basis_element_from_index(r_deg, i),
+                    s_deg,
+                    s,
+                    allocation,
+                );
+            }
+            allocation
+        })
+    }
+
     fn basis_element_to_string(&self, degree: i32, idx: usize) -> String {
-        format!("{}", self.basis_table[degree as usize][idx])
+        format!("{}", self.basis_element_from_index(degree, idx))
     }
 }
 
@@ -575,7 +625,7 @@ impl GeneratedAlgebra for MilnorAlgebra {
         degree: i32,
         idx: usize,
     ) -> Vec<(u32, (i32, usize), (i32, usize))> {
-        let basis = &self.basis_table[degree as usize][idx];
+        let basis = self.basis_element_from_index(degree, idx);
         // If qpart = 0, return self
         if basis.q_part == 0 {
             self.decompose_basis_element_ppart(degree, idx)
@@ -872,7 +922,9 @@ impl MilnorAlgebra {
         m1: &MilnorBasisElement,
         m2: &MilnorBasisElement,
     ) {
-        self.multiply_with_allocation(res, coef, m1, m2, PPartAllocation::default());
+        PPartAllocation::with_local(|allocation| {
+            self.multiply_with_allocation(res, coef, m1, m2, allocation)
+        });
     }
 
     pub fn multiply_with_allocation(
@@ -921,7 +973,20 @@ impl MilnorAlgebra {
         allocation
     }
 
-    pub fn multiply_basis_by_element_with_allocation(
+    pub fn multiply_basis_by_element(
+        &self,
+        res: SliceMut,
+        coef: u32,
+        m1: &MilnorBasisElement,
+        s_deg: i32,
+        s: Slice,
+    ) {
+        PPartAllocation::with_local(|allocation| {
+            self.multiply_basis_by_element_with_allocation(res, coef, m1, s_deg, s, allocation)
+        });
+    }
+
+    fn multiply_basis_by_element_with_allocation(
         &self,
         mut res: SliceMut,
         coef: u32,
@@ -936,50 +1001,6 @@ impl MilnorAlgebra {
                 coef * c,
                 m1,
                 self.basis_element_from_index(s_deg, i),
-                allocation,
-            );
-        }
-        allocation
-    }
-
-    pub fn multiply_element_by_basis_with_allocation(
-        &self,
-        mut res: SliceMut,
-        coef: u32,
-        r_deg: i32,
-        r: Slice,
-        m2: &MilnorBasisElement,
-        mut allocation: PPartAllocation,
-    ) -> PPartAllocation {
-        for (i, c) in r.iter_nonzero() {
-            allocation = self.multiply_with_allocation(
-                res.copy(),
-                coef * c,
-                self.basis_element_from_index(r_deg, i),
-                m2,
-                allocation,
-            );
-        }
-        allocation
-    }
-
-    pub fn multiply_elements_with_allocation(
-        &self,
-        mut res: SliceMut,
-        coef: u32,
-        r_deg: i32,
-        r: Slice,
-        s_deg: i32,
-        s: Slice,
-        mut allocation: PPartAllocation,
-    ) -> PPartAllocation {
-        for (i, c) in r.iter_nonzero() {
-            allocation = self.multiply_basis_by_element_with_allocation(
-                res.copy(),
-                coef * c,
-                self.basis_element_from_index(r_deg, i),
-                s_deg,
-                s,
                 allocation,
             );
         }
@@ -1045,6 +1066,10 @@ pub struct PPartAllocation {
     p_part: PPart,
 }
 
+thread_local! {
+    static ALLOCATION: RefCell<PPartAllocation> = RefCell::new(PPartAllocation::with_capacity(9));
+}
+
 impl PPartAllocation {
     /// This creates a PPartAllocation with enough capacity to handle mulitiply elements with
     /// of total degree < 2^n - ε at p = 2.
@@ -1057,6 +1082,12 @@ impl PPartAllocation {
             // long, we still insert zeros then pop them out later.
             p_part: Vec::with_capacity(2 * n),
         }
+    }
+
+    pub fn with_local(f: impl FnOnce(Self) -> Self) {
+        ALLOCATION.with(|alloc| {
+            *alloc.borrow_mut() = f(alloc.take());
+        });
     }
 }
 
@@ -1364,7 +1395,7 @@ impl MilnorAlgebra {
         degree: i32,
         idx: usize,
     ) -> Vec<(u32, (i32, usize), (i32, usize))> {
-        let basis = &self.basis_table[degree as usize][idx];
+        let basis = self.basis_element_from_index(degree, idx);
         // Look for left-most non-zero qpart
         let i = basis.q_part.trailing_zeros();
         // If the basis element is just Q_{k+1}, we decompose Q_{k+1} = P(p^k) Q_k - Q_k P(p^k).
@@ -1423,7 +1454,7 @@ impl MilnorAlgebra {
     ) -> Vec<(u32, (i32, usize), (i32, usize))> {
         let p = self.prime();
         let pp = *self.prime() as PPartEntry;
-        let b = &self.basis_table[degree as usize][idx];
+        let b = self.basis_element_from_index(degree, idx);
         let first;
         let second;
         if b.p_part.len() > 1 {

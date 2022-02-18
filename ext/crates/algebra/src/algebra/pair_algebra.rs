@@ -190,53 +190,54 @@ impl PairAlgebra for MilnorAlgebra {
         let mut r = self.basis_element_from_index(r_degree, r_idx).clone();
         let mut s = self.basis_element_from_index(s_degree, s_idx).clone();
 
-        let mut allocation = PPartAllocation::with_capacity(8);
-
-        for k in 0..s.p_part.len() {
-            sub!(s, k + 1, 0);
-            for n in 1..r.p_part.len() + 1 {
-                sub!(r, n, k);
-                for m in 0..n {
-                    sub!(r, m, k);
-                    allocation = self.multiply_with_allocation(
-                        result.ys[m + k][n + k].as_slice_mut(),
-                        coeff,
-                        &r,
-                        &s,
-                        allocation,
-                    );
-                    unsub!(r, m, k);
+        PPartAllocation::with_local(|mut allocation| {
+            for k in 0..s.p_part.len() {
+                sub!(s, k + 1, 0);
+                for n in 1..r.p_part.len() + 1 {
+                    sub!(r, n, k);
+                    for m in 0..n {
+                        sub!(r, m, k);
+                        allocation = self.multiply_with_allocation(
+                            result.ys[m + k][n + k].as_slice_mut(),
+                            coeff,
+                            &r,
+                            &s,
+                            allocation,
+                        );
+                        unsub!(r, m, k);
+                    }
+                    unsub!(r, n, k);
                 }
-                unsub!(r, n, k);
+                unsub!(s, k + 1, 0);
             }
-            unsub!(s, k + 1, 0);
-        }
 
-        // Now the product terms
-        let mut multiplier = PPartMultiplier::<true>::new_from_allocation(
-            TWO,
-            &r.p_part,
-            &s.p_part,
-            allocation,
-            0,
-            r.degree + s.degree,
-        );
+            // Now the product terms
+            let mut multiplier = PPartMultiplier::<true>::new_from_allocation(
+                TWO,
+                &r.p_part,
+                &s.p_part,
+                allocation,
+                0,
+                r.degree + s.degree,
+            );
 
-        // coeff should always be 1, so no need to optimize the even case.
-        while let Some(c) = multiplier.next() {
-            let idx = self.basis_element_to_index(&multiplier.ans);
-            let c = c * coeff;
-            // TODO: optimize
-            if c == 2 {
-                result.twos.add_basis_element(idx, 1);
-            } else {
-                // c = 1 or 3
-                let existing = result.ones.entry(idx);
-                let c = c + existing;
-                result.ones.set_entry(idx, c & 1);
-                result.twos.add_basis_element(idx, (c >> 1) & 1);
+            // coeff should always be 1, so no need to optimize the even case.
+            while let Some(c) = multiplier.next() {
+                let idx = self.basis_element_to_index(&multiplier.ans);
+                let c = c * coeff;
+                // TODO: optimize
+                if c == 2 {
+                    result.twos.add_basis_element(idx, 1);
+                } else {
+                    // c = 1 or 3
+                    let existing = result.ones.entry(idx);
+                    let c = c + existing;
+                    result.ones.set_entry(idx, c & 1);
+                    result.twos.add_basis_element(idx, (c >> 1) & 1);
+                }
             }
-        }
+            multiplier.into_allocation()
+        });
     }
 
     fn a_multiply(
@@ -249,7 +250,6 @@ impl PairAlgebra for MilnorAlgebra {
         s: &Self::Element,
     ) {
         assert!(s.ones.is_zero());
-        let mut allocation = PPartAllocation::with_capacity(8);
 
         if r_degree == 0 {
             return;
@@ -259,13 +259,12 @@ impl PairAlgebra for MilnorAlgebra {
         for (r_idx, c) in r.iter_nonzero() {
             let mut r = self.basis_element_from_index(r_degree, r_idx).clone();
             sub!(r, 1, 0);
-            allocation = self.multiply_basis_by_element_with_allocation(
+            self.multiply_basis_by_element(
                 result.copy(),
                 coeff * c,
                 &r,
                 s_degree,
                 s.twos.as_slice(),
-                allocation,
             );
             unsub!(r, 1, 0);
         }
@@ -280,15 +279,14 @@ impl PairAlgebra for MilnorAlgebra {
                 for (r_idx, c) in r.iter_nonzero() {
                     let r = self.basis_element_from_index(r_degree, r_idx);
                     let a_degree = r_degree + degree_shift - 1;
-                    allocation = a_y_cached(self, r, k, l, |v| {
-                        self.multiply_elements_with_allocation(
+                    a_y_cached(self, r, k, l, |v| {
+                        self.multiply_element_by_element(
                             result.copy(),
                             coeff * c,
                             a_degree,
                             v.as_slice(),
                             s_degree - degree_shift,
                             vec.as_slice(),
-                            allocation,
                         )
                     });
                 }
@@ -363,13 +361,13 @@ thread_local! {
 
 /// Compute $A(Sq(R), Y_{k, l})$ where $a = Sq(R)$. This queries the cache and computes it using
 /// [`a_y_inner`] if not available.
-fn a_y_cached<T>(
+fn a_y_cached(
     algebra: &MilnorAlgebra,
     a: &MilnorElt,
     k: usize,
     l: usize,
-    f: impl FnOnce(&FpVector) -> T,
-) -> T {
+    f: impl FnOnce(&FpVector),
+) {
     AY_CACHE.with(|cache| {
         let cache = &mut *cache.try_borrow_mut().unwrap();
         let mut hasher = cache.hasher().build_hasher();
@@ -385,9 +383,8 @@ fn a_y_cached<T>(
             Some(v) => f(v),
             None => {
                 let v = a_y_inner(algebra, a, k, l);
-                let ret = f(&v);
+                f(&v);
                 cache.insert((a.clone(), (k, l)), v);
-                ret
             }
         }
     })
