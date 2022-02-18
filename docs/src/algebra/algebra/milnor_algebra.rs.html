@@ -1819,8 +1819,40 @@
 <span id="1793">1793</span>
 <span id="1794">1794</span>
 <span id="1795">1795</span>
+<span id="1796">1796</span>
+<span id="1797">1797</span>
+<span id="1798">1798</span>
+<span id="1799">1799</span>
+<span id="1800">1800</span>
+<span id="1801">1801</span>
+<span id="1802">1802</span>
+<span id="1803">1803</span>
+<span id="1804">1804</span>
+<span id="1805">1805</span>
+<span id="1806">1806</span>
+<span id="1807">1807</span>
+<span id="1808">1808</span>
+<span id="1809">1809</span>
+<span id="1810">1810</span>
+<span id="1811">1811</span>
+<span id="1812">1812</span>
+<span id="1813">1813</span>
+<span id="1814">1814</span>
+<span id="1815">1815</span>
+<span id="1816">1816</span>
+<span id="1817">1817</span>
+<span id="1818">1818</span>
+<span id="1819">1819</span>
+<span id="1820">1820</span>
+<span id="1821">1821</span>
+<span id="1822">1822</span>
+<span id="1823">1823</span>
+<span id="1824">1824</span>
+<span id="1825">1825</span>
+<span id="1826">1826</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">itertools::Itertools</span>;
 <span class="kw">use</span> <span class="ident">rustc_hash::FxHashMap</span> <span class="kw">as</span> <span class="ident">HashMap</span>;
+<span class="kw">use</span> <span class="ident">std::cell::RefCell</span>;
 <span class="kw">use</span> <span class="ident">std::sync::Mutex</span>;
 
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::algebra::combinatorics</span>;
@@ -2239,8 +2271,8 @@
         <span class="self">self</span>.<span class="ident">multiply</span>(
             <span class="ident">result</span>,
             <span class="ident">coef</span>,
-            <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">basis_table</span>[<span class="ident">r_degree</span> <span class="kw">as</span> <span class="ident">usize</span>][<span class="ident">r_idx</span>],
-            <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">basis_table</span>[<span class="ident">s_degree</span> <span class="kw">as</span> <span class="ident">usize</span>][<span class="ident">s_idx</span>],
+            <span class="self">self</span>.<span class="ident">basis_element_from_index</span>(<span class="ident">r_degree</span>, <span class="ident">r_idx</span>),
+            <span class="self">self</span>.<span class="ident">basis_element_from_index</span>(<span class="ident">s_degree</span>, <span class="ident">s_idx</span>),
         );
     }
 
@@ -2261,8 +2293,57 @@
         );
     }
 
+    <span class="kw">fn</span> <span class="ident">multiply_basis_element_by_element</span>(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        <span class="kw-2">mut</span> <span class="ident">result</span>: <span class="ident">SliceMut</span>,
+        <span class="ident">coeff</span>: <span class="ident">u32</span>,
+        <span class="ident">r_degree</span>: <span class="ident">i32</span>,
+        <span class="ident">r_idx</span>: <span class="ident">usize</span>,
+        <span class="ident">s_degree</span>: <span class="ident">i32</span>,
+        <span class="ident">s</span>: <span class="ident">Slice</span>,
+    ) {
+        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prime</span>();
+        <span class="kw">let</span> <span class="ident">r</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">basis_element_from_index</span>(<span class="ident">r_degree</span>, <span class="ident">r_idx</span>);
+        <span class="ident">PPartAllocation::with_local</span>(<span class="op">|</span><span class="kw-2">mut</span> <span class="ident">allocation</span><span class="op">|</span> {
+            <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">v</span>) <span class="kw">in</span> <span class="ident">s</span>.<span class="ident">iter_nonzero</span>() {
+                <span class="ident">allocation</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">multiply_with_allocation</span>(
+                    <span class="ident">result</span>.<span class="ident">copy</span>(),
+                    (<span class="ident">coeff</span> <span class="op">*</span> <span class="ident">v</span>) <span class="op">%</span> <span class="kw-2">*</span><span class="ident">p</span>,
+                    <span class="ident">r</span>,
+                    <span class="self">self</span>.<span class="ident">basis_element_from_index</span>(<span class="ident">s_degree</span>, <span class="ident">i</span>),
+                    <span class="ident">allocation</span>,
+                );
+            }
+            <span class="ident">allocation</span>
+        });
+    }
+
+    <span class="kw">fn</span> <span class="ident">multiply_element_by_element</span>(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        <span class="kw-2">mut</span> <span class="ident">res</span>: <span class="ident">SliceMut</span>,
+        <span class="ident">coef</span>: <span class="ident">u32</span>,
+        <span class="ident">r_deg</span>: <span class="ident">i32</span>,
+        <span class="ident">r</span>: <span class="ident">Slice</span>,
+        <span class="ident">s_deg</span>: <span class="ident">i32</span>,
+        <span class="ident">s</span>: <span class="ident">Slice</span>,
+    ) {
+        <span class="ident">PPartAllocation::with_local</span>(<span class="op">|</span><span class="kw-2">mut</span> <span class="ident">allocation</span><span class="op">|</span> {
+            <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">c</span>) <span class="kw">in</span> <span class="ident">r</span>.<span class="ident">iter_nonzero</span>() {
+                <span class="ident">allocation</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">multiply_basis_by_element_with_allocation</span>(
+                    <span class="ident">res</span>.<span class="ident">copy</span>(),
+                    <span class="ident">coef</span> <span class="op">*</span> <span class="ident">c</span>,
+                    <span class="self">self</span>.<span class="ident">basis_element_from_index</span>(<span class="ident">r_deg</span>, <span class="ident">i</span>),
+                    <span class="ident">s_deg</span>,
+                    <span class="ident">s</span>,
+                    <span class="ident">allocation</span>,
+                );
+            }
+            <span class="ident">allocation</span>
+        })
+    }
+
     <span class="kw">fn</span> <span class="ident">basis_element_to_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">idx</span>: <span class="ident">usize</span>) -&gt; <span class="ident">String</span> {
-        <span class="macro">format!</span>(<span class="string">&quot;{}&quot;</span>, <span class="self">self</span>.<span class="ident">basis_table</span>[<span class="ident">degree</span> <span class="kw">as</span> <span class="ident">usize</span>][<span class="ident">idx</span>])
+        <span class="macro">format!</span>(<span class="string">&quot;{}&quot;</span>, <span class="self">self</span>.<span class="ident">basis_element_from_index</span>(<span class="ident">degree</span>, <span class="ident">idx</span>))
     }
 }
 
@@ -2396,7 +2477,7 @@
         <span class="ident">degree</span>: <span class="ident">i32</span>,
         <span class="ident">idx</span>: <span class="ident">usize</span>,
     ) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">u32</span>, (<span class="ident">i32</span>, <span class="ident">usize</span>), (<span class="ident">i32</span>, <span class="ident">usize</span>))<span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">basis</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">basis_table</span>[<span class="ident">degree</span> <span class="kw">as</span> <span class="ident">usize</span>][<span class="ident">idx</span>];
+        <span class="kw">let</span> <span class="ident">basis</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">basis_element_from_index</span>(<span class="ident">degree</span>, <span class="ident">idx</span>);
         <span class="comment">// If qpart = 0, return self</span>
         <span class="kw">if</span> <span class="ident">basis</span>.<span class="ident">q_part</span> <span class="op">==</span> <span class="number">0</span> {
             <span class="self">self</span>.<span class="ident">decompose_basis_element_ppart</span>(<span class="ident">degree</span>, <span class="ident">idx</span>)
@@ -2693,7 +2774,9 @@
         <span class="ident">m1</span>: <span class="kw-2">&amp;</span><span class="ident">MilnorBasisElement</span>,
         <span class="ident">m2</span>: <span class="kw-2">&amp;</span><span class="ident">MilnorBasisElement</span>,
     ) {
-        <span class="self">self</span>.<span class="ident">multiply_with_allocation</span>(<span class="ident">res</span>, <span class="ident">coef</span>, <span class="ident">m1</span>, <span class="ident">m2</span>, <span class="ident">PPartAllocation::default</span>());
+        <span class="ident">PPartAllocation::with_local</span>(<span class="op">|</span><span class="ident">allocation</span><span class="op">|</span> {
+            <span class="self">self</span>.<span class="ident">multiply_with_allocation</span>(<span class="ident">res</span>, <span class="ident">coef</span>, <span class="ident">m1</span>, <span class="ident">m2</span>, <span class="ident">allocation</span>)
+        });
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">multiply_with_allocation</span>(
@@ -2742,7 +2825,20 @@
         <span class="ident">allocation</span>
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">multiply_basis_by_element_with_allocation</span>(
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">multiply_basis_by_element</span>(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        <span class="ident">res</span>: <span class="ident">SliceMut</span>,
+        <span class="ident">coef</span>: <span class="ident">u32</span>,
+        <span class="ident">m1</span>: <span class="kw-2">&amp;</span><span class="ident">MilnorBasisElement</span>,
+        <span class="ident">s_deg</span>: <span class="ident">i32</span>,
+        <span class="ident">s</span>: <span class="ident">Slice</span>,
+    ) {
+        <span class="ident">PPartAllocation::with_local</span>(<span class="op">|</span><span class="ident">allocation</span><span class="op">|</span> {
+            <span class="self">self</span>.<span class="ident">multiply_basis_by_element_with_allocation</span>(<span class="ident">res</span>, <span class="ident">coef</span>, <span class="ident">m1</span>, <span class="ident">s_deg</span>, <span class="ident">s</span>, <span class="ident">allocation</span>)
+        });
+    }
+
+    <span class="kw">fn</span> <span class="ident">multiply_basis_by_element_with_allocation</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         <span class="kw-2">mut</span> <span class="ident">res</span>: <span class="ident">SliceMut</span>,
         <span class="ident">coef</span>: <span class="ident">u32</span>,
@@ -2757,50 +2853,6 @@
                 <span class="ident">coef</span> <span class="op">*</span> <span class="ident">c</span>,
                 <span class="ident">m1</span>,
                 <span class="self">self</span>.<span class="ident">basis_element_from_index</span>(<span class="ident">s_deg</span>, <span class="ident">i</span>),
-                <span class="ident">allocation</span>,
-            );
-        }
-        <span class="ident">allocation</span>
-    }
-
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">multiply_element_by_basis_with_allocation</span>(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="kw-2">mut</span> <span class="ident">res</span>: <span class="ident">SliceMut</span>,
-        <span class="ident">coef</span>: <span class="ident">u32</span>,
-        <span class="ident">r_deg</span>: <span class="ident">i32</span>,
-        <span class="ident">r</span>: <span class="ident">Slice</span>,
-        <span class="ident">m2</span>: <span class="kw-2">&amp;</span><span class="ident">MilnorBasisElement</span>,
-        <span class="kw-2">mut</span> <span class="ident">allocation</span>: <span class="ident">PPartAllocation</span>,
-    ) -&gt; <span class="ident">PPartAllocation</span> {
-        <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">c</span>) <span class="kw">in</span> <span class="ident">r</span>.<span class="ident">iter_nonzero</span>() {
-            <span class="ident">allocation</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">multiply_with_allocation</span>(
-                <span class="ident">res</span>.<span class="ident">copy</span>(),
-                <span class="ident">coef</span> <span class="op">*</span> <span class="ident">c</span>,
-                <span class="self">self</span>.<span class="ident">basis_element_from_index</span>(<span class="ident">r_deg</span>, <span class="ident">i</span>),
-                <span class="ident">m2</span>,
-                <span class="ident">allocation</span>,
-            );
-        }
-        <span class="ident">allocation</span>
-    }
-
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">multiply_elements_with_allocation</span>(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="kw-2">mut</span> <span class="ident">res</span>: <span class="ident">SliceMut</span>,
-        <span class="ident">coef</span>: <span class="ident">u32</span>,
-        <span class="ident">r_deg</span>: <span class="ident">i32</span>,
-        <span class="ident">r</span>: <span class="ident">Slice</span>,
-        <span class="ident">s_deg</span>: <span class="ident">i32</span>,
-        <span class="ident">s</span>: <span class="ident">Slice</span>,
-        <span class="kw-2">mut</span> <span class="ident">allocation</span>: <span class="ident">PPartAllocation</span>,
-    ) -&gt; <span class="ident">PPartAllocation</span> {
-        <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">c</span>) <span class="kw">in</span> <span class="ident">r</span>.<span class="ident">iter_nonzero</span>() {
-            <span class="ident">allocation</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">multiply_basis_by_element_with_allocation</span>(
-                <span class="ident">res</span>.<span class="ident">copy</span>(),
-                <span class="ident">coef</span> <span class="op">*</span> <span class="ident">c</span>,
-                <span class="self">self</span>.<span class="ident">basis_element_from_index</span>(<span class="ident">r_deg</span>, <span class="ident">i</span>),
-                <span class="ident">s_deg</span>,
-                <span class="ident">s</span>,
                 <span class="ident">allocation</span>,
             );
         }
@@ -2866,6 +2918,10 @@
     <span class="ident">p_part</span>: <span class="ident">PPart</span>,
 }
 
+<span class="macro">thread_local!</span> {
+    <span class="kw">static</span> <span class="ident">ALLOCATION</span>: <span class="ident">RefCell</span><span class="op">&lt;</span><span class="ident">PPartAllocation</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">RefCell::new</span>(<span class="ident">PPartAllocation::with_capacity</span>(<span class="number">9</span>));
+}
+
 <span class="kw">impl</span> <span class="ident">PPartAllocation</span> {
     <span class="doccomment">/// This creates a PPartAllocation with enough capacity to handle mulitiply elements with</span>
     <span class="doccomment">/// of total degree &lt; 2^n - ε at p = 2.</span>
@@ -2878,6 +2934,12 @@
             <span class="comment">// long, we still insert zeros then pop them out later.</span>
             <span class="ident">p_part</span>: <span class="ident">Vec::with_capacity</span>(<span class="number">2</span> <span class="op">*</span> <span class="ident">n</span>),
         }
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">with_local</span>(<span class="ident">f</span>: <span class="kw">impl</span> <span class="ident">FnOnce</span>(<span class="self">Self</span>) -&gt; <span class="self">Self</span>) {
+        <span class="ident">ALLOCATION</span>.<span class="ident">with</span>(<span class="op">|</span><span class="ident">alloc</span><span class="op">|</span> {
+            <span class="kw-2">*</span><span class="ident">alloc</span>.<span class="ident">borrow_mut</span>() <span class="op">=</span> <span class="ident">f</span>(<span class="ident">alloc</span>.<span class="ident">take</span>());
+        });
     }
 }
 
@@ -3185,7 +3247,7 @@
         <span class="ident">degree</span>: <span class="ident">i32</span>,
         <span class="ident">idx</span>: <span class="ident">usize</span>,
     ) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">u32</span>, (<span class="ident">i32</span>, <span class="ident">usize</span>), (<span class="ident">i32</span>, <span class="ident">usize</span>))<span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">basis</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">basis_table</span>[<span class="ident">degree</span> <span class="kw">as</span> <span class="ident">usize</span>][<span class="ident">idx</span>];
+        <span class="kw">let</span> <span class="ident">basis</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">basis_element_from_index</span>(<span class="ident">degree</span>, <span class="ident">idx</span>);
         <span class="comment">// Look for left-most non-zero qpart</span>
         <span class="kw">let</span> <span class="ident">i</span> <span class="op">=</span> <span class="ident">basis</span>.<span class="ident">q_part</span>.<span class="ident">trailing_zeros</span>();
         <span class="comment">// If the basis element is just Q_{k+1}, we decompose Q_{k+1} = P(p^k) Q_k - Q_k P(p^k).</span>
@@ -3244,7 +3306,7 @@
     ) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">u32</span>, (<span class="ident">i32</span>, <span class="ident">usize</span>), (<span class="ident">i32</span>, <span class="ident">usize</span>))<span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prime</span>();
         <span class="kw">let</span> <span class="ident">pp</span> <span class="op">=</span> <span class="kw-2">*</span><span class="self">self</span>.<span class="ident">prime</span>() <span class="kw">as</span> <span class="ident">PPartEntry</span>;
-        <span class="kw">let</span> <span class="ident">b</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">basis_table</span>[<span class="ident">degree</span> <span class="kw">as</span> <span class="ident">usize</span>][<span class="ident">idx</span>];
+        <span class="kw">let</span> <span class="ident">b</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">basis_element_from_index</span>(<span class="ident">degree</span>, <span class="ident">idx</span>);
         <span class="kw">let</span> <span class="ident">first</span>;
         <span class="kw">let</span> <span class="ident">second</span>;
         <span class="kw">if</span> <span class="ident">b</span>.<span class="ident">p_part</span>.<span class="ident">len</span>() <span class="op">&gt;</span> <span class="number">1</span> {
