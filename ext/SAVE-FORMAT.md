@@ -186,3 +186,55 @@ struct {
 Note that it is not necessary to know what the image is, as long as the user of
 the quasi-inverse guarantees their vector is in the image. This is due to the
 fact that our basis is in *reduced* row ecehlon form.
+
+### Nassau's algorithm
+We save data for Nassau's algorithm differently.
+
+The differential is the same except we don't store the augmentation data, since
+we always resolve the sphere.
+
+The quasi-inverse is stored in a custom format. One can interpret the saved
+data as bytecode for a state machine that computes the quasi-inverse, whose
+state is the signature we are currently working on.
+
+The file starts with a header, which is given by
+```
+struct {
+    target_dimension: u64,
+    target_masked_dimension: u64,
+    subalgebra_profile_length: u64,
+    subalgebra_profile: [u8; subalgebra_profile_length],
+}
+```
+
+where the masked dimension is the mask under the zero signature. This (and
+target_dimension) is needed because we might have computed the quasi-inverse
+using incomplete information if resolving up to a stem.
+
+The header is followed by a series of commands. The starting state of the state
+machine is the zero signature. Each command of this state machine starts with a
+u64, which is to be interpreted as follows:
+
+ - (-1) indicates the end of the program. There should be no bytes after this
+   program (apart from checksums).
+
+ - (-2) indicates a change of signature. We should read in a
+   `[u16; subalgebra_profile_length]` which will be the new signature.
+
+ - (-3) instructs the machine to perform a "differential fix" --- when
+   resolving up to a stem, at the boundary, we compute the quasi-inverse before
+   computing the source itself. This means the quasi-inverse is missing the
+   parts that come from the new generator.
+
+   Since a generator has zero signature, this only affects zero signature part,
+   and this command is encountered at the end of the instructions for the zero
+   signature. Note that data has to be collected for the fix before this
+   command is encountered. The machine must detect beforehand whether the fix
+   is needed. This instruction merely indicates *when* the fix is to be
+   performed.
+
+ - Any other number is a pivot column. The upcoming data gives an element that
+   hits this pivot column and the image of this element under the differential.
+   The pivot column and the image are expressed in terms of the original basis,
+   while the lift is expressed in terms of the masked basis under the current
+   signature. The latter measure is done in order to save space.

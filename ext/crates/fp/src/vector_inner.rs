@@ -846,7 +846,7 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
 
     /// Given a mask v, add the `i`th entry of `other` to the `v[i]`th entry of `self`.
     pub fn add_unmasked(&mut self, other: SliceP<'_, P>, c: u32, mask: &[usize]) {
-        assert_eq!(other.len(), mask.len());
+        assert!(other.len() <= mask.len());
         for (i, v) in other.iter_nonzero() {
             self.add_basis_element(mask[i], v * c);
         }

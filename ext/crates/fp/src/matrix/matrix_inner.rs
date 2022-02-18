@@ -794,12 +794,15 @@ impl Matrix {
     }
 
     /// Given a matrix in rref, say [A|B|C], where B lies between columns `start_column` and
-    /// `end_columns`, and a subspace of the image of B, add rows to the matrix such that the image
-    /// of B becomes this subspace.
+    /// `end_columns`, and a superspace of the image of B, add rows to the matrix such that the
+    /// image of B becomes this superspace.
     ///
     /// The rows added are basis vectors of the desired image as specified in the Subspace object.
     /// The function returns the list of new pivot columns.
     ///
+    /// # Arguments
+    ///  - `clean`: If true, then the new rows are empty in the pivot columns of the existing
+    ///    matrix.
     /// # Panics
     /// It *may* panic if the current image is not contained in `desired_image`, but is not
     /// guaranteed to do so.
@@ -828,13 +831,14 @@ impl Matrix {
             }
             // Look up the cycle that we're missing and add a generator hitting it.
             let kernel_vector_row = desired_pivots[i - start_column] as usize;
-            let new_image = &desired_image[kernel_vector_row];
+            let new_image = desired_image.row(kernel_vector_row);
 
             let mut new_row =
                 FpVector::new_with_capacity(self.prime(), columns, columns + extra_column_capacity);
             new_row
                 .slice_mut(start_column, start_column + desired_image.matrix.columns)
-                .assign(new_image.as_slice());
+                .assign(new_image);
+
             self.vectors.push(new_row);
 
             added_pivots.push(i);
@@ -994,10 +998,16 @@ impl<const N: usize> AugmentedMatrix<N> {
         self.slice_mut(0, rows, start, end)
     }
 
-    pub fn row_segment(&mut self, i: usize, start: usize, end: usize) -> SliceMut {
+    pub fn row_segment_mut(&mut self, i: usize, start: usize, end: usize) -> SliceMut {
         let start_idx = self.start[start];
         let end_idx = self.end[end];
         self[i].slice_mut(start_idx, end_idx)
+    }
+
+    pub fn row_segment(&self, i: usize, start: usize, end: usize) -> Slice {
+        let start_idx = self.start[start];
+        let end_idx = self.end[end];
+        self[i].slice(start_idx, end_idx)
     }
 
     pub fn into_matrix(self) -> Matrix {

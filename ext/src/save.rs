@@ -36,6 +36,13 @@ pub enum SaveKind {
 
     /// A chain homotopy
     ChainHomotopy,
+
+    /// The differential with Nassau's algorithm. This does not store the chain map data because we
+    /// always only resolve the sphere
+    NassauDifferential,
+
+    /// The quasi-inverse data in Nassau's algorithm
+    NassauQi,
 }
 
 impl SaveKind {
@@ -50,6 +57,8 @@ impl SaveKind {
             Self::SecondaryHomotopy => 0x00020002,
             Self::ChainMap => 0x10100000,
             Self::ChainHomotopy => 0x11110000,
+            Self::NassauDifferential => 0xD1FF0001,
+            Self::NassauQi => 0x0100D1FE,
         }
     }
 
@@ -64,12 +73,20 @@ impl SaveKind {
             Self::SecondaryHomotopy => "secondary_homotopy",
             Self::ChainMap => "chain_map",
             Self::ChainHomotopy => "chain_homotopy",
+            Self::NassauDifferential => "nassau_differential",
+            Self::NassauQi => "nassau_qi",
         }
     }
 
     pub fn resolution_data() -> impl Iterator<Item = SaveKind> {
         use SaveKind::*;
         static KINDS: [SaveKind; 4] = [Kernel, Differential, ResQi, AugmentationQi];
+        KINDS.iter().copied()
+    }
+
+    pub fn nassau_data() -> impl Iterator<Item = SaveKind> {
+        use SaveKind::*;
+        static KINDS: [SaveKind; 2] = [NassauDifferential, NassauQi];
         KINDS.iter().copied()
     }
 

@@ -503,7 +503,7 @@ impl<CC: ChainComplex> Resolution<CC> {
                         column,
                     );
                     quasi_inverse.apply(
-                        matrix.row_segment(source_dimension + i, 1, 1),
+                        matrix.row_segment_mut(source_dimension + i, 1, 1),
                         1,
                         dfx.as_slice(),
                     );

@@ -38,29 +38,31 @@ impl FpVector {
         Self::num_limbs(p, len) * entries_per_limb_const::<2>()
     }
 
-    pub fn from_bytes(p: ValidPrime, len: usize, data: &mut impl Read) -> std::io::Result<Self> {
-        let num_limbs = Self::num_limbs(p, len);
+    pub fn update_from_bytes(&mut self, data: &mut impl Read) -> std::io::Result<()> {
+        let limbs = self.limbs_mut();
+        let num_limbs = limbs.len();
 
-        let limbs: Vec<Limb> = if cfg!(target_endian = "little") {
-            let mut limbs = vec![0; num_limbs];
+        if cfg!(target_endian = "little") {
             let num_bytes = num_limbs * size_of::<Limb>();
             unsafe {
                 let buf: &mut [u8] =
                     std::slice::from_raw_parts_mut(limbs.as_mut_ptr() as *mut u8, num_bytes);
                 data.read_exact(buf).unwrap();
             }
-            limbs
         } else {
-            let mut limbs = Vec::with_capacity(num_limbs);
-
-            for _ in 0..num_limbs {
+            for entry in limbs {
                 let mut bytes: [u8; size_of::<Limb>()] = [0; size_of::<Limb>()];
                 data.read_exact(&mut bytes)?;
-                limbs.push(Limb::from_le_bytes(bytes));
+                *entry = Limb::from_le_bytes(bytes);
             }
-            limbs
         };
-        Ok(Self::from_raw_parts(len, limbs))
+        Ok(())
+    }
+
+    pub fn from_bytes(p: ValidPrime, len: usize, data: &mut impl Read) -> std::io::Result<Self> {
+        let mut v = Self::new(p, len);
+        v.update_from_bytes(data)?;
+        Ok(v)
     }
 
     pub fn to_bytes(&self, buffer: &mut impl Write) -> std::io::Result<()> {

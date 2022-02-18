@@ -84,8 +84,6 @@ impl QuasiInverse {
         for<'a> &'a mut T: Into<SliceMut<'a>>,
         for<'a> &'a S: Into<Slice<'a>>,
     {
-        use crate::limb::Limb;
-
         let source_dim = data.read_u64::<LittleEndian>()? as usize;
         let target_dim = data.read_u64::<LittleEndian>()? as usize;
         let _image_dim = data.read_u64::<LittleEndian>()? as usize;
@@ -98,30 +96,12 @@ impl QuasiInverse {
             assert_eq!(result.into().as_slice().len(), source_dim);
         }
 
-        let num_limbs = FpVector::num_limbs(p, source_dim);
-
         for (i, r) in image.into_iter().enumerate() {
             if r < 0 {
                 continue;
             }
 
-            let limbs = v.limbs_mut();
-            // Read in data
-            if cfg!(target_endian = "little") {
-                let num_bytes = num_limbs * std::mem::size_of::<Limb>();
-                unsafe {
-                    let buf: &mut [u8] =
-                        std::slice::from_raw_parts_mut(limbs.as_mut_ptr() as *mut u8, num_bytes);
-                    data.read_exact(buf).unwrap();
-                }
-            } else {
-                for limb in limbs.iter_mut() {
-                    let mut bytes: [u8; std::mem::size_of::<Limb>()] =
-                        [0; std::mem::size_of::<Limb>()];
-                    data.read_exact(&mut bytes)?;
-                    *limb = Limb::from_le_bytes(bytes);
-                }
-            }
+            v.update_from_bytes(data)?;
             for (input, result) in inputs.iter().zip_eq(&mut *results) {
                 result.into().add(v.as_slice(), input.into().entry(i));
             }
