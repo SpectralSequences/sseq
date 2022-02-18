@@ -365,6 +365,23 @@
 <span id="339">339</span>
 <span id="340">340</span>
 <span id="341">341</span>
+<span id="342">342</span>
+<span id="343">343</span>
+<span id="344">344</span>
+<span id="345">345</span>
+<span id="346">346</span>
+<span id="347">347</span>
+<span id="348">348</span>
+<span id="349">349</span>
+<span id="350">350</span>
+<span id="351">351</span>
+<span id="352">352</span>
+<span id="353">353</span>
+<span id="354">354</span>
+<span id="355">355</span>
+<span id="356">356</span>
+<span id="357">357</span>
+<span id="358">358</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">byteorder</span>::{<span class="ident">LittleEndian</span>, <span class="ident">ReadBytesExt</span>, <span class="ident">WriteBytesExt</span>};
 <span class="kw">use</span> <span class="ident">std::fs::File</span>;
 <span class="kw">use</span> <span class="ident">std::io</span>::{<span class="ident">BufReader</span>, <span class="ident">BufWriter</span>, <span class="ident">Error</span>, <span class="ident">ErrorKind</span>, <span class="ident">Read</span>, <span class="ident">Write</span>};
@@ -403,6 +420,13 @@
 
     <span class="doccomment">/// A chain homotopy</span>
     <span class="ident">ChainHomotopy</span>,
+
+    <span class="doccomment">/// The differential with Nassau&#39;s algorithm. This does not store the chain map data because we</span>
+    <span class="doccomment">/// always only resolve the sphere</span>
+    <span class="ident">NassauDifferential</span>,
+
+    <span class="doccomment">/// The quasi-inverse data in Nassau&#39;s algorithm</span>
+    <span class="ident">NassauQi</span>,
 }
 
 <span class="kw">impl</span> <span class="ident">SaveKind</span> {
@@ -417,6 +441,8 @@
             <span class="ident"><span class="self">Self</span>::SecondaryHomotopy</span> =&gt; <span class="number">0x00020002</span>,
             <span class="ident"><span class="self">Self</span>::ChainMap</span> =&gt; <span class="number">0x10100000</span>,
             <span class="ident"><span class="self">Self</span>::ChainHomotopy</span> =&gt; <span class="number">0x11110000</span>,
+            <span class="ident"><span class="self">Self</span>::NassauDifferential</span> =&gt; <span class="number">0xD1FF0001</span>,
+            <span class="ident"><span class="self">Self</span>::NassauQi</span> =&gt; <span class="number">0x0100D1FE</span>,
         }
     }
 
@@ -431,12 +457,20 @@
             <span class="ident"><span class="self">Self</span>::SecondaryHomotopy</span> =&gt; <span class="string">&quot;secondary_homotopy&quot;</span>,
             <span class="ident"><span class="self">Self</span>::ChainMap</span> =&gt; <span class="string">&quot;chain_map&quot;</span>,
             <span class="ident"><span class="self">Self</span>::ChainHomotopy</span> =&gt; <span class="string">&quot;chain_homotopy&quot;</span>,
+            <span class="ident"><span class="self">Self</span>::NassauDifferential</span> =&gt; <span class="string">&quot;nassau_differential&quot;</span>,
+            <span class="ident"><span class="self">Self</span>::NassauQi</span> =&gt; <span class="string">&quot;nassau_qi&quot;</span>,
         }
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">resolution_data</span>() -&gt; <span class="kw">impl</span> <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">SaveKind</span><span class="op">&gt;</span> {
         <span class="kw">use</span> <span class="ident">SaveKind</span>::<span class="kw-2">*</span>;
         <span class="kw">static</span> <span class="ident">KINDS</span>: [<span class="ident">SaveKind</span>; <span class="number">4</span>] <span class="op">=</span> [<span class="ident">Kernel</span>, <span class="ident">Differential</span>, <span class="ident">ResQi</span>, <span class="ident">AugmentationQi</span>];
+        <span class="ident">KINDS</span>.<span class="ident">iter</span>().<span class="ident">copied</span>()
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">nassau_data</span>() -&gt; <span class="kw">impl</span> <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">SaveKind</span><span class="op">&gt;</span> {
+        <span class="kw">use</span> <span class="ident">SaveKind</span>::<span class="kw-2">*</span>;
+        <span class="kw">static</span> <span class="ident">KINDS</span>: [<span class="ident">SaveKind</span>; <span class="number">2</span>] <span class="op">=</span> [<span class="ident">NassauDifferential</span>, <span class="ident">NassauQi</span>];
         <span class="ident">KINDS</span>.<span class="ident">iter</span>().<span class="ident">copied</span>()
     }
 

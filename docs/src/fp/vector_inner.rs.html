@@ -2080,7 +2080,7 @@
 
     <span class="doccomment">/// Given a mask v, add the `i`th entry of `other` to the `v[i]`th entry of `self`.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">add_unmasked</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">other</span>: <span class="ident">SliceP</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span>, <span class="ident">P</span><span class="op">&gt;</span>, <span class="ident">c</span>: <span class="ident">u32</span>, <span class="ident">mask</span>: <span class="kw-2">&amp;</span>[<span class="ident">usize</span>]) {
-        <span class="macro">assert_eq!</span>(<span class="ident">other</span>.<span class="ident">len</span>(), <span class="ident">mask</span>.<span class="ident">len</span>());
+        <span class="macro">assert!</span>(<span class="ident">other</span>.<span class="ident">len</span>() <span class="op">&lt;</span><span class="op">=</span> <span class="ident">mask</span>.<span class="ident">len</span>());
         <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">v</span>) <span class="kw">in</span> <span class="ident">other</span>.<span class="ident">iter_nonzero</span>() {
             <span class="self">self</span>.<span class="ident">add_basis_element</span>(<span class="ident">mask</span>[<span class="ident">i</span>], <span class="ident">v</span> <span class="op">*</span> <span class="ident">c</span>);
         }

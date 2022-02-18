@@ -1508,7 +1508,7 @@
                         <span class="ident">column</span>,
                     );
                     <span class="ident">quasi_inverse</span>.<span class="ident">apply</span>(
-                        <span class="ident">matrix</span>.<span class="ident">row_segment</span>(<span class="ident">source_dimension</span> <span class="op">+</span> <span class="ident">i</span>, <span class="number">1</span>, <span class="number">1</span>),
+                        <span class="ident">matrix</span>.<span class="ident">row_segment_mut</span>(<span class="ident">source_dimension</span> <span class="op">+</span> <span class="ident">i</span>, <span class="number">1</span>, <span class="number">1</span>),
                         <span class="number">1</span>,
                         <span class="ident">dfx</span>.<span class="ident">as_slice</span>(),
                     );
