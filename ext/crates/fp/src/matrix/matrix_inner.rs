@@ -264,6 +264,14 @@ impl Matrix {
             col_end,
         }
     }
+
+    pub fn row(&self, row: usize) -> Slice {
+        self.vectors[row].as_slice()
+    }
+
+    pub fn row_mut(&mut self, row: usize) -> SliceMut {
+        self.vectors[row].as_slice_mut()
+    }
 }
 
 impl From<Matrix> for Vec<FpVector> {
