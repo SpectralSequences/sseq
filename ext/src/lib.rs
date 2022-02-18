@@ -180,7 +180,6 @@ use algebra::module::homomorphism::FiniteModuleHomomorphism;
 use algebra::module::FiniteModule;
 pub type CCC = FiniteChainComplex<FiniteModule, FiniteModuleHomomorphism<FiniteModule>>;
 
-#[cfg(feature = "nassau")]
 pub mod nassau;
 pub mod secondary;
 pub mod utils;
