@@ -1479,10 +1479,16 @@
 <span id="1453">1453</span>
 <span id="1454">1454</span>
 <span id="1455">1455</span>
+<span id="1456">1456</span>
+<span id="1457">1457</span>
+<span id="1458">1458</span>
+<span id="1459">1459</span>
+<span id="1460">1460</span>
+<span id="1461">1461</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::chain_complex</span>::{
-    <span class="ident">AugmentedChainComplex</span>, <span class="ident">BoundedChainComplex</span>, <span class="ident">ChainComplex</span>, <span class="ident">ChainHomotopy</span>, <span class="ident">FreeChainComplex</span>,
+    <span class="ident">AugmentedChainComplex</span>, <span class="ident">BoundedChainComplex</span>, <span class="ident">ChainComplex</span>, <span class="ident">ChainHomotopy</span>, <span class="ident">FiniteChainComplex</span>,
+    <span class="ident">FreeChainComplex</span>,
 };
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::resolution::Resolution</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::resolution_homomorphism::ResolutionHomomorphism</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::save</span>::{<span class="ident">SaveFile</span>, <span class="ident">SaveKind</span>};
 
@@ -1499,8 +1505,6 @@
 <span class="kw">use</span> <span class="ident">std::io</span>::{<span class="ident">Read</span>, <span class="ident">Write</span>};
 <span class="kw">use</span> <span class="ident">std::path::Path</span>;
 <span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
-
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::CCC</span>;
 
 <span class="kw">use</span> <span class="ident">byteorder</span>::{<span class="ident">LittleEndian</span>, <span class="ident">ReadBytesExt</span>, <span class="ident">WriteBytesExt</span>};
 <span class="kw">use</span> <span class="ident">dashmap::DashMap</span>;
@@ -2171,17 +2175,21 @@
     }
 }
 
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">SecondaryResolution</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">PairAlgebra</span>, <span class="ident">CC</span>: <span class="ident">FreeChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">SecondaryResolution</span><span class="op">&lt;</span><span class="ident">CC</span>: <span class="ident">FreeChainComplex</span><span class="op">&gt;</span>
+<span class="kw">where</span>
+    <span class="ident">CC::Algebra</span>: <span class="ident">PairAlgebra</span>,
+{
     <span class="ident">underlying</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">CC</span><span class="op">&gt;</span>,
     <span class="doccomment">/// s -&gt; t -&gt; idx -&gt; homotopy</span>
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">homotopies</span>: <span class="ident">OnceBiVec</span><span class="op">&lt;</span><span class="ident">SecondaryHomotopy</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">homotopies</span>: <span class="ident">OnceBiVec</span><span class="op">&lt;</span><span class="ident">SecondaryHomotopy</span><span class="op">&lt;</span><span class="ident">CC::Algebra</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="ident">intermediates</span>: <span class="ident">DashMap</span><span class="op">&lt;</span>(<span class="ident">u32</span>, <span class="ident">i32</span>, <span class="ident">usize</span>), <span class="ident">FpVector</span><span class="op">&gt;</span>,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">PairAlgebra</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span>, <span class="ident">CC</span>: <span class="ident">FreeChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">SecondaryLift</span>
-    <span class="kw">for</span> <span class="ident">SecondaryResolution</span><span class="op">&lt;</span><span class="ident">A</span>, <span class="ident">CC</span><span class="op">&gt;</span>
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">CC</span>: <span class="ident">FreeChainComplex</span><span class="op">&gt;</span> <span class="ident">SecondaryLift</span> <span class="kw">for</span> <span class="ident">SecondaryResolution</span><span class="op">&lt;</span><span class="ident">CC</span><span class="op">&gt;</span>
+<span class="kw">where</span>
+    <span class="ident">CC::Algebra</span>: <span class="ident">PairAlgebra</span>,
 {
-    <span class="kw">type</span> <span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">A</span>;
+    <span class="kw">type</span> <span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">CC::Algebra</span>;
     <span class="kw">type</span> <span class="ident">Source</span> <span class="op">=</span> <span class="ident">CC</span>;
     <span class="kw">type</span> <span class="ident">Target</span> <span class="op">=</span> <span class="ident">CC</span>;
     <span class="kw">type</span> <span class="ident">Underlying</span> <span class="op">=</span> <span class="ident">CC</span>;
@@ -2221,7 +2229,7 @@
         ) <span class="op">+</span> <span class="number">1</span>
     }
 
-    <span class="kw">fn</span> <span class="ident">homotopies</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">OnceBiVec</span><span class="op">&lt;</span><span class="ident">SecondaryHomotopy</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Algebra</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">homotopies</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">OnceBiVec</span><span class="op">&lt;</span><span class="ident">SecondaryHomotopy</span><span class="op">&lt;</span><span class="ident">CC::Algebra</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">homotopies</span>
     }
 
@@ -2233,7 +2241,7 @@
         <span class="self">self</span>.<span class="ident">underlying</span>.<span class="ident">save_dir</span>()
     }
 
-    <span class="kw">fn</span> <span class="ident">composite</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">s</span>: <span class="ident">u32</span>) -&gt; <span class="ident">CompositeData</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Algebra</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">composite</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">s</span>: <span class="ident">u32</span>) -&gt; <span class="ident">CompositeData</span><span class="op">&lt;</span><span class="ident">CC::Algebra</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">d1</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">underlying</span>.<span class="ident">differential</span>(<span class="ident">s</span>);
         <span class="kw">let</span> <span class="ident">d0</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">underlying</span>.<span class="ident">differential</span>(<span class="ident">s</span> <span class="op">-</span> <span class="number">1</span>);
         <span class="macro">vec!</span>[(<span class="number">1</span>, <span class="ident">d1</span>, <span class="ident">d0</span>)]
@@ -2255,7 +2263,10 @@
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">PairAlgebra</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span>, <span class="ident">CC</span>: <span class="ident">FreeChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">SecondaryResolution</span><span class="op">&lt;</span><span class="ident">A</span>, <span class="ident">CC</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">CC</span>: <span class="ident">FreeChainComplex</span><span class="op">&gt;</span> <span class="ident">SecondaryResolution</span><span class="op">&lt;</span><span class="ident">CC</span><span class="op">&gt;</span>
+<span class="kw">where</span>
+    <span class="ident">CC::Algebra</span>: <span class="ident">PairAlgebra</span>,
+{
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">cc</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">CC</span><span class="op">&gt;</span>) -&gt; <span class="self">Self</span> {
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">p</span>) <span class="op">=</span> <span class="ident">cc</span>.<span class="ident">save_dir</span>() {
             <span class="kw">for</span> <span class="ident">subdir</span> <span class="kw">in</span> <span class="ident">SaveKind::secondary_data</span>() {
@@ -2270,7 +2281,7 @@
         }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">homotopy</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">s</span>: <span class="ident">u32</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">SecondaryHomotopy</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">homotopy</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">s</span>: <span class="ident">u32</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">SecondaryHomotopy</span><span class="op">&lt;</span><span class="ident">CC::Algebra</span><span class="op">&gt;</span> {
         <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">homotopies</span>[<span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span>]
     }
 
@@ -2324,25 +2335,25 @@
 <span class="comment">// https://github.com/rust-lang/rust/issues/91380</span>
 <span class="attribute">#[<span class="ident">doc</span>(<span class="ident">hidden</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">SecondaryResolutionHomomorphism</span><span class="op">&lt;</span>
-    <span class="ident">A</span>: <span class="ident">PairAlgebra</span>,
-    <span class="ident">CC1</span>: <span class="ident">FreeChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">A</span><span class="op">&gt;</span>,
-    <span class="ident">CC2</span>: <span class="ident">FreeChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">A</span><span class="op">&gt;</span>,
-<span class="op">&gt;</span> {
-    <span class="ident">source</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">SecondaryResolution</span><span class="op">&lt;</span><span class="ident">A</span>, <span class="ident">CC1</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    <span class="ident">target</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">SecondaryResolution</span><span class="op">&lt;</span><span class="ident">A</span>, <span class="ident">CC2</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">CC1</span>: <span class="ident">FreeChainComplex</span>,
+    <span class="ident">CC2</span>: <span class="ident">FreeChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">CC1::Algebra</span><span class="op">&gt;</span>,
+<span class="op">&gt;</span> <span class="kw">where</span>
+    <span class="ident">CC1::Algebra</span>: <span class="ident">PairAlgebra</span>,
+{
+    <span class="ident">source</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">SecondaryResolution</span><span class="op">&lt;</span><span class="ident">CC1</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">target</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">SecondaryResolution</span><span class="op">&lt;</span><span class="ident">CC2</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="ident">underlying</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">ResolutionHomomorphism</span><span class="op">&lt;</span><span class="ident">CC1</span>, <span class="ident">CC2</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="doccomment">/// input s -&gt; homotopy</span>
-    <span class="ident">homotopies</span>: <span class="ident">OnceBiVec</span><span class="op">&lt;</span><span class="ident">SecondaryHomotopy</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">homotopies</span>: <span class="ident">OnceBiVec</span><span class="op">&lt;</span><span class="ident">SecondaryHomotopy</span><span class="op">&lt;</span><span class="ident">CC1::Algebra</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="ident">intermediates</span>: <span class="ident">DashMap</span><span class="op">&lt;</span>(<span class="ident">u32</span>, <span class="ident">i32</span>, <span class="ident">usize</span>), <span class="ident">FpVector</span><span class="op">&gt;</span>,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span>
-        <span class="ident">A</span>: <span class="ident">PairAlgebra</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span>,
-        <span class="ident">CC1</span>: <span class="ident">FreeChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">A</span><span class="op">&gt;</span>,
-        <span class="ident">CC2</span>: <span class="ident">FreeChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">A</span><span class="op">&gt;</span>,
-    <span class="op">&gt;</span> <span class="ident">SecondaryLift</span> <span class="kw">for</span> <span class="ident">SecondaryResolutionHomomorphism</span><span class="op">&lt;</span><span class="ident">A</span>, <span class="ident">CC1</span>, <span class="ident">CC2</span><span class="op">&gt;</span>
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">CC1</span>: <span class="ident">FreeChainComplex</span>, <span class="ident">CC2</span>: <span class="ident">FreeChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">CC1::Algebra</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">SecondaryLift</span>
+    <span class="kw">for</span> <span class="ident">SecondaryResolutionHomomorphism</span><span class="op">&lt;</span><span class="ident">CC1</span>, <span class="ident">CC2</span><span class="op">&gt;</span>
+<span class="kw">where</span>
+    <span class="ident">CC1::Algebra</span>: <span class="ident">PairAlgebra</span>,
 {
-    <span class="kw">type</span> <span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">A</span>;
+    <span class="kw">type</span> <span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">CC1::Algebra</span>;
     <span class="kw">type</span> <span class="ident">Source</span> <span class="op">=</span> <span class="ident">CC1</span>;
     <span class="kw">type</span> <span class="ident">Target</span> <span class="op">=</span> <span class="ident">CC2</span>;
     <span class="kw">type</span> <span class="ident">Underlying</span> <span class="op">=</span> <span class="ident">ResolutionHomomorphism</span><span class="op">&lt;</span><span class="ident">CC1</span>, <span class="ident">CC2</span><span class="op">&gt;</span>;
@@ -2458,15 +2469,14 @@
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span>
-        <span class="ident">A</span>: <span class="ident">PairAlgebra</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span>,
-        <span class="ident">CC1</span>: <span class="ident">FreeChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">A</span><span class="op">&gt;</span>,
-        <span class="ident">CC2</span>: <span class="ident">FreeChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">A</span><span class="op">&gt;</span>,
-    <span class="op">&gt;</span> <span class="ident">SecondaryResolutionHomomorphism</span><span class="op">&lt;</span><span class="ident">A</span>, <span class="ident">CC1</span>, <span class="ident">CC2</span><span class="op">&gt;</span>
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">CC1</span>: <span class="ident">FreeChainComplex</span>, <span class="ident">CC2</span>: <span class="ident">FreeChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">CC1::Algebra</span><span class="op">&gt;</span><span class="op">&gt;</span>
+    <span class="ident">SecondaryResolutionHomomorphism</span><span class="op">&lt;</span><span class="ident">CC1</span>, <span class="ident">CC2</span><span class="op">&gt;</span>
+<span class="kw">where</span>
+    <span class="ident">CC1::Algebra</span>: <span class="ident">PairAlgebra</span>,
 {
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(
-        <span class="ident">source</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">SecondaryResolution</span><span class="op">&lt;</span><span class="ident">A</span>, <span class="ident">CC1</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-        <span class="ident">target</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">SecondaryResolution</span><span class="op">&lt;</span><span class="ident">A</span>, <span class="ident">CC2</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">source</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">SecondaryResolution</span><span class="op">&lt;</span><span class="ident">CC1</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">target</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">SecondaryResolution</span><span class="op">&lt;</span><span class="ident">CC2</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">underlying</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">ResolutionHomomorphism</span><span class="op">&lt;</span><span class="ident">CC1</span>, <span class="ident">CC2</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     ) -&gt; <span class="self">Self</span> {
         <span class="macro">assert!</span>(<span class="ident">Arc::ptr_eq</span>(<span class="kw-2">&amp;</span><span class="ident">underlying</span>.<span class="ident">source</span>, <span class="kw-2">&amp;</span><span class="ident">source</span>.<span class="ident">underlying</span>));
@@ -2496,7 +2506,7 @@
         }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">homotopy</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">s</span>: <span class="ident">u32</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">SecondaryHomotopy</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">homotopy</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">s</span>: <span class="ident">u32</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">SecondaryHomotopy</span><span class="op">&lt;</span><span class="ident">CC1::Algebra</span><span class="op">&gt;</span> {
         <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">homotopies</span>[<span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span>]
     }
 
@@ -2667,28 +2677,30 @@
 
 <span class="attribute">#[<span class="ident">doc</span>(<span class="ident">hidden</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">SecondaryChainHomotopy</span><span class="op">&lt;</span>
-    <span class="ident">A</span>: <span class="ident">PairAlgebra</span>,
-    <span class="ident">S</span>: <span class="ident">FreeChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">A</span><span class="op">&gt;</span>,
-    <span class="ident">T</span>: <span class="ident">FreeChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">A</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Sync</span>,
-    <span class="ident">U</span>: <span class="ident">FreeChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">A</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Sync</span>,
-<span class="op">&gt;</span> {
+    <span class="ident">S</span>: <span class="ident">FreeChainComplex</span>,
+    <span class="ident">T</span>: <span class="ident">FreeChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">S::Algebra</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Sync</span>,
+    <span class="ident">U</span>: <span class="ident">FreeChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">S::Algebra</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Sync</span>,
+<span class="op">&gt;</span> <span class="kw">where</span>
+    <span class="ident">S::Algebra</span>: <span class="ident">PairAlgebra</span>,
+{
     <span class="ident">underlying</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">ChainHomotopy</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">T</span>, <span class="ident">U</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    <span class="ident">left</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">SecondaryResolutionHomomorphism</span><span class="op">&lt;</span><span class="ident">A</span>, <span class="ident">S</span>, <span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    <span class="ident">right</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">SecondaryResolutionHomomorphism</span><span class="op">&lt;</span><span class="ident">A</span>, <span class="ident">T</span>, <span class="ident">U</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">left</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">SecondaryResolutionHomomorphism</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">right</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">SecondaryResolutionHomomorphism</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">U</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="ident">left_tau</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">ResolutionHomomorphism</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="ident">right_tau</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">ResolutionHomomorphism</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">U</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    <span class="ident">homotopies</span>: <span class="ident">OnceBiVec</span><span class="op">&lt;</span><span class="ident">SecondaryHomotopy</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">homotopies</span>: <span class="ident">OnceBiVec</span><span class="op">&lt;</span><span class="ident">SecondaryHomotopy</span><span class="op">&lt;</span><span class="ident">S::Algebra</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="ident">intermediates</span>: <span class="ident">DashMap</span><span class="op">&lt;</span>(<span class="ident">u32</span>, <span class="ident">i32</span>, <span class="ident">usize</span>), <span class="ident">FpVector</span><span class="op">&gt;</span>,
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span>
-        <span class="ident">A</span>: <span class="ident">PairAlgebra</span>,
-        <span class="ident">S</span>: <span class="ident">FreeChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">A</span><span class="op">&gt;</span>,
-        <span class="ident">T</span>: <span class="ident">FreeChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">A</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Sync</span>,
-        <span class="ident">U</span>: <span class="ident">FreeChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">A</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Sync</span>,
-    <span class="op">&gt;</span> <span class="ident">SecondaryLift</span> <span class="kw">for</span> <span class="ident">SecondaryChainHomotopy</span><span class="op">&lt;</span><span class="ident">A</span>, <span class="ident">S</span>, <span class="ident">T</span>, <span class="ident">U</span><span class="op">&gt;</span>
+        <span class="ident">S</span>: <span class="ident">FreeChainComplex</span>,
+        <span class="ident">T</span>: <span class="ident">FreeChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">S::Algebra</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Sync</span>,
+        <span class="ident">U</span>: <span class="ident">FreeChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">S::Algebra</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Sync</span>,
+    <span class="op">&gt;</span> <span class="ident">SecondaryLift</span> <span class="kw">for</span> <span class="ident">SecondaryChainHomotopy</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">T</span>, <span class="ident">U</span><span class="op">&gt;</span>
+<span class="kw">where</span>
+    <span class="ident">S::Algebra</span>: <span class="ident">PairAlgebra</span>,
 {
-    <span class="kw">type</span> <span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">A</span>;
+    <span class="kw">type</span> <span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">S::Algebra</span>;
     <span class="kw">type</span> <span class="ident">Source</span> <span class="op">=</span> <span class="ident">S</span>;
     <span class="kw">type</span> <span class="ident">Target</span> <span class="op">=</span> <span class="ident">U</span>;
     <span class="kw">type</span> <span class="ident">Underlying</span> <span class="op">=</span> <span class="ident">ChainHomotopy</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">T</span>, <span class="ident">U</span><span class="op">&gt;</span>;
@@ -2736,7 +2748,7 @@
         )
     }
 
-    <span class="kw">fn</span> <span class="ident">homotopies</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">OnceBiVec</span><span class="op">&lt;</span><span class="ident">SecondaryHomotopy</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Algebra</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">homotopies</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">OnceBiVec</span><span class="op">&lt;</span><span class="ident">SecondaryHomotopy</span><span class="op">&lt;</span><span class="ident">S::Algebra</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">homotopies</span>
     }
 
@@ -2828,7 +2840,7 @@
         <span class="ident">result</span>
     }
 
-    <span class="kw">fn</span> <span class="ident">composite</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">s</span>: <span class="ident">u32</span>) -&gt; <span class="ident">CompositeData</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Algebra</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">composite</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">s</span>: <span class="ident">u32</span>) -&gt; <span class="ident">CompositeData</span><span class="op">&lt;</span><span class="ident">S::Algebra</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="kw-2">*</span><span class="self">self</span>.<span class="ident">prime</span>();
         <span class="comment">// This is -1 mod p^2</span>
         <span class="kw">let</span> <span class="ident">neg_1</span> <span class="op">=</span> <span class="ident">p</span> <span class="op">*</span> <span class="ident">p</span> <span class="op">-</span> <span class="number">1</span>;
@@ -2856,15 +2868,16 @@
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span>
-        <span class="ident">A</span>: <span class="ident">PairAlgebra</span>,
-        <span class="ident">S</span>: <span class="ident">FreeChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">A</span><span class="op">&gt;</span>,
-        <span class="ident">T</span>: <span class="ident">FreeChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">A</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Sync</span>,
-        <span class="ident">U</span>: <span class="ident">FreeChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">A</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Sync</span>,
-    <span class="op">&gt;</span> <span class="ident">SecondaryChainHomotopy</span><span class="op">&lt;</span><span class="ident">A</span>, <span class="ident">S</span>, <span class="ident">T</span>, <span class="ident">U</span><span class="op">&gt;</span>
+        <span class="ident">S</span>: <span class="ident">FreeChainComplex</span>,
+        <span class="ident">T</span>: <span class="ident">FreeChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">S::Algebra</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Sync</span>,
+        <span class="ident">U</span>: <span class="ident">FreeChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">S::Algebra</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Sync</span>,
+    <span class="op">&gt;</span> <span class="ident">SecondaryChainHomotopy</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">T</span>, <span class="ident">U</span><span class="op">&gt;</span>
+<span class="kw">where</span>
+    <span class="ident">S::Algebra</span>: <span class="ident">PairAlgebra</span>,
 {
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(
-        <span class="ident">left</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">SecondaryResolutionHomomorphism</span><span class="op">&lt;</span><span class="ident">A</span>, <span class="ident">S</span>, <span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-        <span class="ident">right</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">SecondaryResolutionHomomorphism</span><span class="op">&lt;</span><span class="ident">A</span>, <span class="ident">T</span>, <span class="ident">U</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">left</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">SecondaryResolutionHomomorphism</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">right</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">SecondaryResolutionHomomorphism</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">U</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">left_tau</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">ResolutionHomomorphism</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">right_tau</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">ResolutionHomomorphism</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">U</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">underlying</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">ChainHomotopy</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">T</span>, <span class="ident">U</span><span class="op">&gt;</span><span class="op">&gt;</span>,
@@ -2910,7 +2923,12 @@
 <span class="doccomment">///  1. The chain complex is concentrated in degree zero;</span>
 <span class="doccomment">///  2. The module is finite dimensional; and</span>
 <span class="doccomment">///  3. $\mathrm{Hom}(\mathrm{Ext}^{2, t}_A(H^*X, k), H^{t - 1} X) = 0$ for all $t$ or $\mathrm{Hom}(\mathrm{Ext}^{3, t}_A(H^*X, k), H^{t - 1} X) = 0$ for all $t$.</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">can_compute</span>(<span class="ident">res</span>: <span class="kw-2">&amp;</span><span class="ident">Resolution</span><span class="op">&lt;</span><span class="ident">CCC</span><span class="op">&gt;</span>) -&gt; <span class="ident">bool</span> {
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">can_compute</span><span class="op">&lt;</span><span class="ident">M</span>, <span class="ident">F</span>, <span class="ident">CC</span><span class="op">&gt;</span>(<span class="ident">res</span>: <span class="kw-2">&amp;</span><span class="ident">CC</span>) -&gt; <span class="ident">bool</span>
+<span class="kw">where</span>
+    <span class="ident">M</span>: <span class="ident">BoundedModule</span>,
+    <span class="ident">F</span>: <span class="ident">ModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">Source</span> <span class="op">=</span> <span class="ident">M</span>, <span class="ident">Target</span> <span class="op">=</span> <span class="ident">M</span><span class="op">&gt;</span>,
+    <span class="ident">CC</span>: <span class="ident">FreeChainComplex</span> <span class="op">+</span> <span class="ident">AugmentedChainComplex</span><span class="op">&lt;</span><span class="ident">TargetComplex</span> <span class="op">=</span> <span class="ident">FiniteChainComplex</span><span class="op">&lt;</span><span class="ident">M</span>, <span class="ident">F</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+{
     <span class="kw">let</span> <span class="ident">complex</span> <span class="op">=</span> <span class="ident">res</span>.<span class="ident">target</span>();
     <span class="kw">if</span> <span class="kw-2">*</span><span class="ident">complex</span>.<span class="ident">prime</span>() <span class="op">!</span><span class="op">=</span> <span class="number">2</span> {
         <span class="macro">eprintln!</span>(<span class="string">&quot;Prime is not 2&quot;</span>);
@@ -2921,12 +2939,6 @@
         <span class="kw">return</span> <span class="bool-val">false</span>;
     }
     <span class="kw">let</span> <span class="ident">module</span> <span class="op">=</span> <span class="ident">complex</span>.<span class="ident">module</span>(<span class="number">0</span>);
-    <span class="kw">let</span> <span class="ident">module</span> <span class="op">=</span> <span class="ident">module</span>.<span class="ident">as_fd_module</span>();
-    <span class="kw">if</span> <span class="ident">module</span>.<span class="ident">is_none</span>() {
-        <span class="macro">eprintln!</span>(<span class="string">&quot;Module is not finite dimensional&quot;</span>);
-        <span class="kw">return</span> <span class="bool-val">false</span>;
-    }
-    <span class="kw">let</span> <span class="ident">module</span> <span class="op">=</span> <span class="ident">module</span>.<span class="ident">unwrap</span>();
     <span class="kw">let</span> <span class="ident">max_degree</span> <span class="op">=</span> <span class="ident">module</span>.<span class="ident">max_degree</span>();
 
     (<span class="number">0</span>..<span class="ident">max_degree</span>)

@@ -1813,6 +1813,12 @@
 <span id="1787">1787</span>
 <span id="1788">1788</span>
 <span id="1789">1789</span>
+<span id="1790">1790</span>
+<span id="1791">1791</span>
+<span id="1792">1792</span>
+<span id="1793">1793</span>
+<span id="1794">1794</span>
+<span id="1795">1795</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">itertools::Itertools</span>;
 <span class="kw">use</span> <span class="ident">rustc_hash::FxHashMap</span> <span class="kw">as</span> <span class="ident">HashMap</span>;
 <span class="kw">use</span> <span class="ident">std::sync::Mutex</span>;
@@ -1840,6 +1846,12 @@
 <span class="comment">// Otherwise, the algebra enum for our bindings will see an implementation clash.</span>
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">MilnorAlgebraT</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="ident">Algebra</span> {
     <span class="kw">fn</span> <span class="ident">milnor_algebra</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">MilnorAlgebra</span>;
+}
+
+<span class="kw">impl</span> <span class="ident">MilnorAlgebraT</span> <span class="kw">for</span> <span class="ident">MilnorAlgebra</span> {
+    <span class="kw">fn</span> <span class="ident">milnor_algebra</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">MilnorAlgebra</span> {
+        <span class="self">self</span>
+    }
 }
 
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">MilnorProfile</span> {

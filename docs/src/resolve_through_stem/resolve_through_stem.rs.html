@@ -59,18 +59,6 @@
 <span id="33">33</span>
 <span id="34">34</span>
 <span id="35">35</span>
-<span id="36">36</span>
-<span id="37">37</span>
-<span id="38">38</span>
-<span id="39">39</span>
-<span id="40">40</span>
-<span id="41">41</span>
-<span id="42">42</span>
-<span id="43">43</span>
-<span id="44">44</span>
-<span id="45">45</span>
-<span id="46">46</span>
-<span id="47">47</span>
 </pre><pre class="rust"><code><span class="doccomment">//! Resolves a module up to an $(n, s)$ and prints an ASCII depiction of the Ext groups:</span>
 <span class="doccomment">//! ```text</span>
 <span class="doccomment">//! ·</span>
@@ -93,21 +81,9 @@
 <span class="doccomment">//! ```</span>
 
 <span class="kw">use</span> <span class="ident">ext::chain_complex::FreeChainComplex</span>;
-<span class="kw">use</span> <span class="ident">ext::utils::construct</span>;
-<span class="kw">use</span> <span class="ident">std::path::PathBuf</span>;
 
 <span class="kw">fn</span> <span class="ident">main</span>() -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">query::with_default</span>(<span class="string">&quot;Module&quot;</span>, <span class="string">&quot;S_2&quot;</span>, <span class="op">|</span><span class="ident">name</span><span class="op">|</span> {
-        <span class="ident">construct</span>(
-            <span class="ident">name</span>,
-            <span class="ident">query::optional</span>(<span class="string">&quot;Save directory&quot;</span>, <span class="op">|</span><span class="ident">filename</span><span class="op">|</span> {
-                <span class="ident">core::result::Result</span>::<span class="op">&lt;</span><span class="ident">PathBuf</span>, <span class="ident">std::convert::Infallible</span><span class="op">&gt;</span><span class="ident">::Ok</span>(<span class="ident">PathBuf::from</span>(
-                    <span class="ident">filename</span>,
-                ))
-            }),
-        )
-    });
-    <span class="ident">res</span>.<span class="ident">load_quasi_inverse</span> <span class="op">=</span> <span class="bool-val">false</span>;
+    <span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">ext::utils::query_module_only</span>(<span class="string">&quot;Module&quot;</span>, <span class="prelude-val">None</span>, <span class="bool-val">false</span>)<span class="question-mark">?</span>;
 
     <span class="kw">let</span> <span class="ident">max_n</span> <span class="op">=</span> <span class="ident">query::with_default</span>(<span class="string">&quot;Max n&quot;</span>, <span class="string">&quot;30&quot;</span>, <span class="ident">str::parse</span>);
     <span class="kw">let</span> <span class="ident">max_s</span> <span class="op">=</span> <span class="ident">query::with_default</span>(<span class="string">&quot;Max s&quot;</span>, <span class="string">&quot;15&quot;</span>, <span class="ident">str::parse</span>);

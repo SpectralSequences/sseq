@@ -558,19 +558,6 @@
 <span id="532">532</span>
 <span id="533">533</span>
 <span id="534">534</span>
-<span id="535">535</span>
-<span id="536">536</span>
-<span id="537">537</span>
-<span id="538">538</span>
-<span id="539">539</span>
-<span id="540">540</span>
-<span id="541">541</span>
-<span id="542">542</span>
-<span id="543">543</span>
-<span id="544">544</span>
-<span id="545">545</span>
-<span id="546">546</span>
-<span id="547">547</span>
 </pre><pre class="rust"><code><span class="doccomment">//! Computes massey products in $\Mod_{C\tau^2}$.</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! # Usage</span>
@@ -590,35 +577,31 @@
 <span class="doccomment">//! $\Mod_{C\tau^2}$, so the format is $\langle a, b, -\rangle$ instead of $\langle -, b,</span>
 <span class="doccomment">//! a\rangle$. Brave souls are encouraged to figure out the correct sign for the products.</span>
 
-<span class="kw">use</span> <span class="ident">std::path::PathBuf</span>;
 <span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
 
 <span class="kw">use</span> <span class="ident">algebra::module::Module</span>;
 <span class="kw">use</span> <span class="ident">algebra::pair_algebra::PairAlgebra</span>;
-<span class="kw">use</span> <span class="ident">algebra::SteenrodAlgebra</span>;
-<span class="kw">use</span> <span class="ident">ext::resolution::Resolution</span>;
 <span class="kw">use</span> <span class="ident">fp::matrix</span>::{<span class="ident">Matrix</span>, <span class="ident">Subspace</span>};
 <span class="kw">use</span> <span class="ident">fp::vector::FpVector</span>;
 
 <span class="kw">use</span> <span class="ident">ext::chain_complex</span>::{<span class="ident">AugmentedChainComplex</span>, <span class="ident">ChainComplex</span>, <span class="ident">ChainHomotopy</span>, <span class="ident">FreeChainComplex</span>};
 <span class="kw">use</span> <span class="ident">ext::resolution_homomorphism::ResolutionHomomorphism</span>;
-<span class="kw">use</span> <span class="ident">ext::utils::query_module</span>;
-<span class="kw">use</span> <span class="ident">ext</span>::{<span class="ident">secondary</span>::<span class="kw-2">*</span>, <span class="ident">CCC</span>};
+<span class="kw">use</span> <span class="ident">ext::secondary</span>::<span class="kw-2">*</span>;
+<span class="kw">use</span> <span class="ident">ext::utils</span>::{<span class="ident">query_module</span>, <span class="ident">QueryModuleResolution</span>};
 
 <span class="kw">use</span> <span class="ident">itertools::Itertools</span>;
 
 <span class="kw">struct</span> <span class="ident">HomData</span> {
     <span class="ident">name</span>: <span class="ident">String</span>,
     <span class="ident">class</span>: <span class="ident">FpVector</span>,
-    <span class="ident">hom_lift</span>:
-        <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">SecondaryResolutionHomomorphism</span><span class="op">&lt;</span><span class="ident">SteenrodAlgebra</span>, <span class="ident">Resolution</span><span class="op">&lt;</span><span class="ident">CCC</span><span class="op">&gt;</span>, <span class="ident">Resolution</span><span class="op">&lt;</span><span class="ident">CCC</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    <span class="ident">tau_part</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">ResolutionHomomorphism</span><span class="op">&lt;</span><span class="ident">Resolution</span><span class="op">&lt;</span><span class="ident">CCC</span><span class="op">&gt;</span>, <span class="ident">Resolution</span><span class="op">&lt;</span><span class="ident">CCC</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">hom_lift</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">SecondaryResolutionHomomorphism</span><span class="op">&lt;</span><span class="ident">QueryModuleResolution</span>, <span class="ident">QueryModuleResolution</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">tau_part</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">ResolutionHomomorphism</span><span class="op">&lt;</span><span class="ident">QueryModuleResolution</span>, <span class="ident">QueryModuleResolution</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 }
 
 <span class="kw">fn</span> <span class="ident">get_hom</span>(
     <span class="ident">name</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>,
-    <span class="ident">source</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">SecondaryResolution</span><span class="op">&lt;</span><span class="ident">SteenrodAlgebra</span>, <span class="ident">Resolution</span><span class="op">&lt;</span><span class="ident">CCC</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    <span class="ident">target</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">SecondaryResolution</span><span class="op">&lt;</span><span class="ident">SteenrodAlgebra</span>, <span class="ident">Resolution</span><span class="op">&lt;</span><span class="ident">CCC</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">source</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">SecondaryResolution</span><span class="op">&lt;</span><span class="ident">QueryModuleResolution</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">target</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">SecondaryResolution</span><span class="op">&lt;</span><span class="ident">QueryModuleResolution</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 ) -&gt; <span class="ident">HomData</span> {
     <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">source</span>.<span class="ident">prime</span>();
 
@@ -715,18 +698,9 @@
         <span class="ident">ext::utils::LoadQuasiInverseOption::IfNoSave</span>,
     )<span class="question-mark">?</span>);
 
-    <span class="kw">let</span> <span class="ident">is_unit</span> <span class="op">=</span> <span class="ident">resolution</span>.<span class="ident">target</span>().<span class="ident">modules</span>.<span class="ident">len</span>() <span class="op">==</span> <span class="number">1</span> <span class="op">&amp;&amp;</span> <span class="ident">resolution</span>.<span class="ident">target</span>().<span class="ident">module</span>(<span class="number">0</span>).<span class="ident">is_unit</span>();
+    <span class="kw">let</span> (<span class="ident">is_unit</span>, <span class="ident">unit</span>) <span class="op">=</span> <span class="ident">ext::utils::get_unit</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">resolution</span>))<span class="question-mark">?</span>;
 
-    <span class="kw">let</span> <span class="ident">unit</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">is_unit</span> {
-        <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">resolution</span>)
-    } <span class="kw">else</span> {
-        <span class="kw">let</span> <span class="ident">save_dir</span> <span class="op">=</span> <span class="ident">query::optional</span>(<span class="string">&quot;Unit save directory&quot;</span>, <span class="op">|</span><span class="ident">x</span><span class="op">|</span> {
-            <span class="ident">core::result::Result</span>::<span class="op">&lt;</span><span class="ident">PathBuf</span>, <span class="ident">std::convert::Infallible</span><span class="op">&gt;</span><span class="ident">::Ok</span>(<span class="ident">PathBuf::from</span>(<span class="ident">x</span>))
-        });
-        <span class="ident">Arc::new</span>(<span class="ident">ext::utils::construct</span>(<span class="string">&quot;S_2@milnor&quot;</span>, <span class="ident">save_dir</span>)<span class="question-mark">?</span>)
-    };
-
-    <span class="kw">if</span> <span class="op">!</span><span class="ident">can_compute</span>(<span class="kw-2">&amp;</span><span class="ident">resolution</span>) {
+    <span class="kw">if</span> <span class="op">!</span><span class="ident">can_compute</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">resolution</span>) {
         <span class="macro">eprintln!</span>(
             <span class="string">&quot;Cannot compute d2 for the module {}&quot;</span>,
             <span class="ident">resolution</span>.<span class="ident">target</span>().<span class="ident">module</span>(<span class="number">0</span>)

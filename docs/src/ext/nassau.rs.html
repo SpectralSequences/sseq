@@ -746,17 +746,72 @@
 <span id="720">720</span>
 <span id="721">721</span>
 <span id="722">722</span>
+<span id="723">723</span>
+<span id="724">724</span>
+<span id="725">725</span>
+<span id="726">726</span>
+<span id="727">727</span>
+<span id="728">728</span>
+<span id="729">729</span>
+<span id="730">730</span>
+<span id="731">731</span>
+<span id="732">732</span>
+<span id="733">733</span>
+<span id="734">734</span>
+<span id="735">735</span>
+<span id="736">736</span>
+<span id="737">737</span>
+<span id="738">738</span>
+<span id="739">739</span>
+<span id="740">740</span>
+<span id="741">741</span>
+<span id="742">742</span>
+<span id="743">743</span>
+<span id="744">744</span>
+<span id="745">745</span>
+<span id="746">746</span>
+<span id="747">747</span>
+<span id="748">748</span>
+<span id="749">749</span>
+<span id="750">750</span>
+<span id="751">751</span>
+<span id="752">752</span>
+<span id="753">753</span>
+<span id="754">754</span>
+<span id="755">755</span>
+<span id="756">756</span>
+<span id="757">757</span>
+<span id="758">758</span>
+<span id="759">759</span>
+<span id="760">760</span>
+<span id="761">761</span>
+<span id="762">762</span>
+<span id="763">763</span>
+<span id="764">764</span>
+<span id="765">765</span>
+<span id="766">766</span>
+<span id="767">767</span>
+<span id="768">768</span>
+<span id="769">769</span>
+<span id="770">770</span>
+<span id="771">771</span>
+<span id="772">772</span>
 </pre><pre class="rust"><code><span class="doccomment">//! This file implements the support for [Nassau&#39;s algorithm](https://arxiv.org/abs/1910.04063).</span>
 
 <span class="kw">use</span> <span class="ident">std::fmt::Display</span>;
+<span class="kw">use</span> <span class="ident">std::path::PathBuf</span>;
 <span class="kw">use</span> <span class="ident">std::sync</span>::{<span class="ident">Arc</span>, <span class="ident">Mutex</span>};
 <span class="kw">use</span> <span class="ident">std::time::Instant</span>;
 
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::chain_complex</span>::{<span class="ident">ChainComplex</span>, <span class="ident">FreeChainComplex</span>};
+<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::chain_complex</span>::{
+    <span class="ident">AugmentedChainComplex</span>, <span class="ident">ChainComplex</span>, <span class="ident">FiniteChainComplex</span>, <span class="ident">FreeChainComplex</span>,
+};
 <span class="kw">use</span> <span class="ident">algebra::combinatorics</span>;
 <span class="kw">use</span> <span class="ident">algebra::milnor_algebra</span>::{<span class="ident">MilnorAlgebra</span>, <span class="ident">MilnorBasisElement</span>, <span class="ident">PPartEntry</span>};
-<span class="kw">use</span> <span class="ident">algebra::module::homomorphism</span>::{<span class="ident">FreeModuleHomomorphism</span>, <span class="ident">ModuleHomomorphism</span>};
-<span class="kw">use</span> <span class="ident">algebra::module</span>::{<span class="ident">FreeModule</span>, <span class="ident">Module</span>};
+<span class="kw">use</span> <span class="ident">algebra::module::homomorphism</span>::{
+    <span class="ident">BoundedModuleHomomorphism</span>, <span class="ident">FreeModuleHomomorphism</span>, <span class="ident">ModuleHomomorphism</span>,
+};
+<span class="kw">use</span> <span class="ident">algebra::module</span>::{<span class="ident">FDModule</span>, <span class="ident">FreeModule</span>, <span class="ident">Module</span>};
 <span class="kw">use</span> <span class="ident">algebra::Algebra</span>;
 <span class="kw">use</span> <span class="ident">fp::matrix</span>::{<span class="ident">AugmentedMatrix</span>, <span class="ident">Matrix</span>};
 <span class="kw">use</span> <span class="ident">fp::prime::ValidPrime</span>;
@@ -1004,18 +1059,17 @@
     }
 }
 
+<span class="kw">type</span> <span class="ident">CCDZ</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">FiniteChainComplex</span><span class="op">&lt;</span><span class="ident">FDModule</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>, <span class="ident">BoundedModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">FDModule</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>, <span class="ident">FDModule</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>;
+
 <span class="doccomment">/// A resolution of a chain complex.</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Resolution</span> {
     <span class="ident">lock</span>: <span class="ident">Mutex</span><span class="op">&lt;</span>()<span class="op">&gt;</span>,
     <span class="ident">modules</span>: <span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident">MilnorAlgebra</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="ident">zero_module</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident">MilnorAlgebra</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="ident">differentials</span>: <span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident">MilnorAlgebra</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-}
-
-<span class="kw">impl</span> <span class="ident">Default</span> <span class="kw">for</span> <span class="ident">Resolution</span> {
-    <span class="kw">fn</span> <span class="ident">default</span>() -&gt; <span class="self">Self</span> {
-        <span class="ident"><span class="self">Self</span>::new</span>()
-    }
+    <span class="ident">target</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">CCDZ</span><span class="op">&lt;</span><span class="ident">MilnorAlgebra</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">chain_maps</span>: <span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">FDModule</span><span class="op">&lt;</span><span class="ident">MilnorAlgebra</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">save_dir</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">PathBuf</span><span class="op">&gt;</span>,
 }
 
 <span class="kw">impl</span> <span class="ident">Resolution</span> {
@@ -1023,14 +1077,24 @@
         <span class="ident">ValidPrime::new</span>(<span class="number">2</span>)
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>() -&gt; <span class="self">Self</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">save_dir</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">PathBuf</span><span class="op">&gt;</span>) -&gt; <span class="self">Self</span> {
         <span class="kw">let</span> <span class="ident">algebra</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">MilnorAlgebra::new</span>(<span class="ident">ValidPrime::new</span>(<span class="number">2</span>)));
+        <span class="kw">let</span> <span class="ident">module</span> <span class="op">=</span> <span class="ident">FDModule::new</span>(
+            <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">algebra</span>),
+            <span class="ident">String::from</span>(<span class="string">&quot;S_2&quot;</span>),
+            <span class="ident">bivec::BiVec::from_vec</span>(<span class="number">0</span>, <span class="macro">vec!</span>[<span class="number">1</span>]),
+        );
+
+        <span class="kw">let</span> <span class="ident">target</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">FiniteChainComplex::ccdz</span>(<span class="ident">Arc::new</span>(<span class="ident">module</span>)));
 
         <span class="self">Self</span> {
             <span class="ident">lock</span>: <span class="ident">Mutex::new</span>(()),
             <span class="ident">zero_module</span>: <span class="ident">Arc::new</span>(<span class="ident">FreeModule::new</span>(<span class="ident">algebra</span>, <span class="string">&quot;F_{-1}&quot;</span>.<span class="ident">to_string</span>(), <span class="number">0</span>)),
             <span class="ident">modules</span>: <span class="ident">OnceVec::new</span>(),
             <span class="ident">differentials</span>: <span class="ident">OnceVec::new</span>(),
+            <span class="ident">chain_maps</span>: <span class="ident">OnceVec::new</span>(),
+            <span class="ident">target</span>,
+            <span class="ident">save_dir</span>,
         }
     }
 
@@ -1040,31 +1104,37 @@
     <span class="kw">fn</span> <span class="ident">extend_through_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">max_s</span>: <span class="ident">u32</span>) {
         <span class="kw">let</span> <span class="ident">min_degree</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">min_degree</span>();
 
-        <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">modules</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">u32</span>..<span class="op">=</span><span class="ident">max_s</span> {
-            <span class="self">self</span>.<span class="ident">modules</span>.<span class="ident">push</span>(<span class="ident">Arc::new</span>(<span class="ident">FreeModule::new</span>(
+        <span class="self">self</span>.<span class="ident">modules</span>.<span class="ident">extend</span>(<span class="ident">max_s</span> <span class="kw">as</span> <span class="ident">usize</span>, <span class="op">|</span><span class="ident">i</span><span class="op">|</span> {
+            <span class="ident">Arc::new</span>(<span class="ident">FreeModule::new</span>(
                 <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">algebra</span>()),
                 <span class="macro">format!</span>(<span class="string">&quot;F{}&quot;</span>, <span class="ident">i</span>),
                 <span class="ident">min_degree</span>,
-            )));
-        }
+            ))
+        });
 
-        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">differentials</span>.<span class="ident">is_empty</span>() {
-            <span class="self">self</span>.<span class="ident">differentials</span>
-                .<span class="ident">push</span>(<span class="ident">Arc::new</span>(<span class="ident">FreeModuleHomomorphism::new</span>(
-                    <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">modules</span>[<span class="number">0u32</span>]),
-                    <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">zero_module</span>),
-                    <span class="number">0</span>,
-                )));
-        }
+        <span class="self">self</span>.<span class="ident">differentials</span>.<span class="ident">extend</span>(<span class="number">0</span>, <span class="op">|</span><span class="kw">_</span><span class="op">|</span> {
+            <span class="ident">Arc::new</span>(<span class="ident">FreeModuleHomomorphism::new</span>(
+                <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">modules</span>[<span class="number">0u32</span>]),
+                <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">zero_module</span>),
+                <span class="number">0</span>,
+            ))
+        });
 
-        <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">differentials</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">u32</span>..<span class="op">=</span><span class="ident">max_s</span> {
-            <span class="self">self</span>.<span class="ident">differentials</span>
-                .<span class="ident">push</span>(<span class="ident">Arc::new</span>(<span class="ident">FreeModuleHomomorphism::new</span>(
-                    <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">modules</span>[<span class="ident">i</span>]),
-                    <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">modules</span>[<span class="ident">i</span> <span class="op">-</span> <span class="number">1</span>]),
-                    <span class="number">0</span>,
-                )));
-        }
+        <span class="self">self</span>.<span class="ident">differentials</span>.<span class="ident">extend</span>(<span class="ident">max_s</span> <span class="kw">as</span> <span class="ident">usize</span>, <span class="op">|</span><span class="ident">i</span><span class="op">|</span> {
+            <span class="ident">Arc::new</span>(<span class="ident">FreeModuleHomomorphism::new</span>(
+                <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">modules</span>[<span class="ident">i</span>]),
+                <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">modules</span>[<span class="ident">i</span> <span class="op">-</span> <span class="number">1</span>]),
+                <span class="number">0</span>,
+            ))
+        });
+
+        <span class="self">self</span>.<span class="ident">chain_maps</span>.<span class="ident">extend</span>(<span class="ident">max_s</span> <span class="kw">as</span> <span class="ident">usize</span>, <span class="op">|</span><span class="ident">i</span><span class="op">|</span> {
+            <span class="ident">Arc::new</span>(<span class="ident">FreeModuleHomomorphism::new</span>(
+                <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">modules</span>[<span class="ident">i</span>]),
+                <span class="self">self</span>.<span class="ident">target</span>.<span class="ident">module</span>(<span class="ident">i</span> <span class="kw">as</span> <span class="ident">u32</span>),
+                <span class="number">0</span>,
+            ))
+        });
     }
 
     <span class="kw">fn</span> <span class="ident">step_resolution_with_subalgebra</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">s</span>: <span class="ident">u32</span>, <span class="ident">t</span>: <span class="ident">i32</span>, <span class="ident">subalgebra</span>: <span class="ident">MilnorSubalgebra</span>) {
@@ -1226,8 +1296,19 @@
 
             <span class="kw">if</span> <span class="ident">t</span> <span class="op">==</span> <span class="number">0</span> {
                 <span class="self">self</span>.<span class="ident">modules</span>[<span class="number">0usize</span>].<span class="ident">add_generators</span>(<span class="ident">t</span>, <span class="number">1</span>, <span class="prelude-val">None</span>);
+
+                <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prime</span>();
+                <span class="kw">let</span> <span class="ident">chain_map</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">chain_maps</span>[<span class="number">0usize</span>];
+                <span class="ident">chain_map</span>.<span class="ident">add_generators_from_rows</span>(<span class="number">0</span>, <span class="macro">vec!</span>[<span class="ident">FpVector::from_slice</span>(<span class="ident">p</span>, <span class="kw-2">&amp;</span>[<span class="number">1</span>])]);
+
+                <span class="kw">let</span> <span class="ident">qi</span> <span class="op">=</span>
+                    <span class="ident">fp::matrix::QuasiInverse::new</span>(<span class="prelude-val">Some</span>(<span class="macro">vec!</span>[<span class="number">0</span>]), <span class="ident">Matrix::from_vec</span>(<span class="ident">p</span>, <span class="kw-2">&amp;</span>[<span class="macro">vec!</span>[<span class="number">1</span>]]));
+                <span class="ident">chain_map</span>.<span class="ident">set_quasi_inverse</span>(<span class="number">0</span>, <span class="prelude-val">Some</span>(<span class="ident">qi</span>));
+                <span class="ident">chain_map</span>.<span class="ident">set_kernel</span>(<span class="number">0</span>, <span class="prelude-val">None</span>);
+                <span class="ident">chain_map</span>.<span class="ident">set_image</span>(<span class="number">0</span>, <span class="prelude-val">None</span>);
             } <span class="kw">else</span> {
                 <span class="self">self</span>.<span class="ident">modules</span>[<span class="number">0usize</span>].<span class="ident">extend_by_zero</span>(<span class="ident">t</span>);
+                <span class="self">self</span>.<span class="ident">chain_maps</span>[<span class="number">0usize</span>].<span class="ident">extend_by_zero</span>(<span class="ident">t</span>);
             }
             <span class="self">self</span>.<span class="ident">differentials</span>[<span class="number">0usize</span>].<span class="ident">extend_by_zero</span>(<span class="ident">t</span>);
             <span class="self">self</span>.<span class="ident">modules</span>[<span class="number">0usize</span>].<span class="ident">extend_table_entries</span>(<span class="ident">t</span>);
@@ -1238,10 +1319,12 @@
             <span class="comment">// We special case this because we don&#39;t add any new generators</span>
             <span class="self">self</span>.<span class="ident">modules</span>[<span class="number">1usize</span>].<span class="ident">extend_by_zero</span>(<span class="number">0</span>);
             <span class="self">self</span>.<span class="ident">differentials</span>[<span class="number">1usize</span>].<span class="ident">extend_by_zero</span>(<span class="number">0</span>);
+            <span class="self">self</span>.<span class="ident">chain_maps</span>[<span class="number">1usize</span>].<span class="ident">extend_by_zero</span>(<span class="number">0</span>);
             <span class="kw">return</span>;
         }
 
         <span class="self">self</span>.<span class="ident">step_resolution_with_subalgebra</span>(<span class="ident">s</span>, <span class="ident">t</span>, <span class="ident">MilnorSubalgebra::optimal_for</span>(<span class="ident">s</span>, <span class="ident">t</span>));
+        <span class="self">self</span>.<span class="ident">chain_maps</span>[<span class="ident">s</span>].<span class="ident">extend_by_zero</span>(<span class="ident">t</span>);
     }
 
     <span class="doccomment">/// This function resolves up till a fixed stem instead of a fixed t.</span>
@@ -1377,6 +1460,23 @@
     <span class="kw">fn</span> <span class="ident">next_homological_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">u32</span> {
         <span class="self">self</span>.<span class="ident">modules</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">u32</span>
     }
+
+    <span class="kw">fn</span> <span class="ident">save_dir</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">std::path::Path</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">save_dir</span>.<span class="ident">as_deref</span>()
+    }
+}
+
+<span class="kw">impl</span> <span class="ident">AugmentedChainComplex</span> <span class="kw">for</span> <span class="ident">Resolution</span> {
+    <span class="kw">type</span> <span class="ident">TargetComplex</span> <span class="op">=</span> <span class="ident">CCDZ</span><span class="op">&lt;</span><span class="ident">MilnorAlgebra</span><span class="op">&gt;</span>;
+    <span class="kw">type</span> <span class="ident">ChainMap</span> <span class="op">=</span> <span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">FDModule</span><span class="op">&lt;</span><span class="ident">MilnorAlgebra</span><span class="op">&gt;</span><span class="op">&gt;</span>;
+
+    <span class="kw">fn</span> <span class="ident">target</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::TargetComplex</span><span class="op">&gt;</span> {
+        <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">target</span>)
+    }
+
+    <span class="kw">fn</span> <span class="ident">chain_map</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">s</span>: <span class="ident">u32</span>) -&gt; <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::ChainMap</span><span class="op">&gt;</span> {
+        <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">chain_maps</span>[<span class="ident">s</span>])
+    }
 }
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
@@ -1387,7 +1487,7 @@
 
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">test_restart_stem</span>() {
-        <span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">Resolution::new</span>();
+        <span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">Resolution::new</span>(<span class="prelude-val">None</span>);
         <span class="ident">res</span>.<span class="ident">compute_through_stem</span>(<span class="number">8</span>, <span class="number">14</span>);
         <span class="ident">res</span>.<span class="ident">compute_through_bidegree</span>(<span class="number">5</span>, <span class="number">19</span>);
 

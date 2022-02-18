@@ -11,7 +11,6 @@ sourcesIndex["filtration_one"] = {"name":"","files":["filtration_one.rs"]};
 sourcesIndex["fp"] = {"name":"","dirs":[{"name":"matrix","files":["m4ri.rs","matrix_inner.rs","mod.rs","quasi_inverse.rs","subquotient.rs","subspace.rs"]},{"name":"simd","files":["mod.rs","x86_64.rs"]}],"files":["constants.rs","lib.rs","limb.rs","prime.rs","vector.rs","vector_2.rs","vector_inner.rs"]};
 sourcesIndex["lift_hom"] = {"name":"","files":["lift_hom.rs"]};
 sourcesIndex["massey"] = {"name":"","files":["massey.rs"]};
-sourcesIndex["nassau"] = {"name":"","files":["nassau.rs"]};
 sourcesIndex["num_gens"] = {"name":"","files":["num_gens.rs"]};
 sourcesIndex["once"] = {"name":"","files":["lib.rs"]};
 sourcesIndex["query"] = {"name":"","files":["lib.rs"]};
