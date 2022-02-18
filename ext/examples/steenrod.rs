@@ -17,9 +17,10 @@ use std::sync::Arc;
 use std::time::Instant;
 
 fn main() -> anyhow::Result<()> {
-    let resolution = Arc::new(utils::query_module_only(
+    let resolution = Arc::new(utils::query_module_only_standard(
         "Module",
         Some(algebra::AlgebraType::Adem),
+        false,
     )?);
 
     let complex = resolution.target();

@@ -48,19 +48,17 @@ use fp::matrix::Matrix;
 use std::sync::Arc;
 
 fn main() -> anyhow::Result<()> {
-    let target = {
-        let mut target = utils::query_module_only("Target module", None)?;
-        target.load_quasi_inverse = target.save_dir().is_none();
-        Arc::new(target)
-    };
+    let target = Arc::new(utils::query_module_only(
+        "Target module",
+        None,
+        utils::LoadQuasiInverseOption::IfNoSave,
+    )?);
 
     let source_equal_target = query::yes_no("Source equal to target?");
     let source = if source_equal_target {
         Arc::clone(&target)
     } else {
-        let mut s = utils::query_module_only("Source module", None)?;
-        s.load_quasi_inverse = false;
-        Arc::new(s)
+        Arc::new(utils::query_module_only("Source module", None, false)?)
     };
 
     assert_eq!(source.prime(), target.prime());

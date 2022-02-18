@@ -238,9 +238,11 @@ pub fn print_resolution_color<C: FreeChainComplex, S: std::hash::BuildHasher>(
     }
 }
 
-pub fn query_module_only(
+/// This always loads the usual resolution, even when `nassau` is enabled.
+pub fn query_module_only_standard(
     prompt: &str,
     algebra: Option<AlgebraType>,
+    load_quasi_inverse: impl Into<LoadQuasiInverseOption>,
 ) -> anyhow::Result<Resolution<CCC>> {
     let module: Config = query::with_default(prompt, "S_2", |s| match algebra {
         Some(algebra) => (s, algebra).try_into(),
@@ -251,7 +253,16 @@ pub fn query_module_only(
         core::result::Result::<PathBuf, std::convert::Infallible>::Ok(PathBuf::from(x))
     });
 
-    construct(module, save_dir).context("Failed to load module from save file")
+    let mut resolution =
+        construct(module, save_dir).context("Failed to load module from save file")?;
+
+    resolution.load_quasi_inverse = match load_quasi_inverse.into() {
+        LoadQuasiInverseOption::Yes => true,
+        LoadQuasiInverseOption::No => false,
+        LoadQuasiInverseOption::IfNoSave => resolution.save_dir().is_none(),
+    };
+
+    Ok(resolution)
 }
 
 pub enum LoadQuasiInverseOption {
@@ -272,16 +283,49 @@ impl From<bool> for LoadQuasiInverseOption {
     }
 }
 
+#[cfg(not(feature = "nassau"))]
+pub type QueryModuleResolution = Resolution<CCC>;
+
+#[cfg(feature = "nassau")]
+pub type QueryModuleResolution = crate::nassau::Resolution;
+
+#[cfg(not(feature = "nassau"))]
+pub fn query_module_only(
+    prompt: &str,
+    algebra: Option<AlgebraType>,
+    load_quasi_inverse: impl Into<LoadQuasiInverseOption>,
+) -> anyhow::Result<QueryModuleResolution> {
+    query_module_only_standard(prompt, algebra, load_quasi_inverse)
+}
+
+#[cfg(feature = "nassau")]
+pub fn query_module_only(
+    prompt: &str,
+    algebra: Option<AlgebraType>,
+    _load_quasi_inverse: impl Into<LoadQuasiInverseOption>,
+) -> anyhow::Result<QueryModuleResolution> {
+    // The module must be S_2
+    let _ = query::with_default(prompt, "S_2", |s| match s {
+        "S_2" => Ok(""),
+        _ => Err("Can only resolve S_2 with Nassau"),
+    });
+
+    if let Some(AlgebraType::Adem) = algebra {
+        return Err(anyhow!("Cannot use Nassau's algorithm with the Adem basis"));
+    }
+
+    let save_dir = query::optional(&format!("{prompt} save directory"), |x| {
+        core::result::Result::<PathBuf, std::convert::Infallible>::Ok(PathBuf::from(x))
+    });
+
+    Ok(crate::nassau::Resolution::new(save_dir))
+}
+
 pub fn query_module(
     algebra: Option<AlgebraType>,
     load_quasi_inverse: impl Into<LoadQuasiInverseOption>,
-) -> anyhow::Result<Resolution<CCC>> {
-    let mut resolution = query_module_only("Module", algebra)?;
-    resolution.load_quasi_inverse = match load_quasi_inverse.into() {
-        LoadQuasiInverseOption::Yes => true,
-        LoadQuasiInverseOption::No => false,
-        LoadQuasiInverseOption::IfNoSave => resolution.save_dir().is_none(),
-    };
+) -> anyhow::Result<QueryModuleResolution> {
+    let resolution = query_module_only("Module", algebra, load_quasi_inverse)?;
 
     let max_n: i32 = query::with_default("Max n", "30", str::parse);
     let mut max_s: u32 = query::with_default("Max s", "7", str::parse);
@@ -313,6 +357,33 @@ pub fn print_element(v: fp::vector::Slice, n: i32, s: u32) {
         print!("x_({}, {}, {})", n, s, i);
         first = false;
     }
+}
+
+#[cfg(not(feature = "nassau"))]
+pub fn get_unit(
+    resolution: Arc<QueryModuleResolution>,
+) -> anyhow::Result<(bool, Arc<QueryModuleResolution>)> {
+    use crate::chain_complex::AugmentedChainComplex;
+
+    let is_unit = resolution.target().modules.len() == 1 && resolution.target().module(0).is_unit();
+
+    let unit = if is_unit {
+        Arc::clone(&resolution)
+    } else {
+        let save_dir = query::optional("Unit save directory", |x| {
+            core::result::Result::<PathBuf, std::convert::Infallible>::Ok(PathBuf::from(x))
+        });
+        Arc::new(crate::utils::construct("S_2@milnor", save_dir)?)
+    };
+
+    Ok((is_unit, unit))
+}
+
+#[cfg(feature = "nassau")]
+pub fn get_unit(
+    resolution: Arc<crate::nassau::Resolution>,
+) -> anyhow::Result<(bool, Arc<QueryModuleResolution>)> {
+    Ok((true, resolution))
 }
 
 /// Given a function f(s, t), compute it for every `s` in `[min_s, max_s]` and every `t` in

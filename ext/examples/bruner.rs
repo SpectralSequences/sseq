@@ -90,13 +90,11 @@
 use algebra::{
     milnor_algebra::MilnorBasisElement, module::homomorphism::FreeModuleHomomorphism as FMH,
     module::FreeModule as FM, module::Module, Algebra, MilnorAlgebra, MilnorAlgebraT,
-    SteenrodAlgebra,
 };
 use anyhow::{Error, Result};
 use ext::{
     chain_complex::{ChainComplex, FiniteChainComplex as FCC},
     resolution_homomorphism::ResolutionHomomorphism,
-    utils::construct,
 };
 use fp::{matrix::Matrix, prime::ValidPrime, vector::FpVector};
 use std::{
@@ -107,7 +105,11 @@ use std::{
     sync::Arc,
 };
 
-type FreeModule = FM<SteenrodAlgebra>;
+#[cfg(feature = "nassau")]
+type FreeModule = FM<MilnorAlgebra>;
+#[cfg(not(feature = "nassau"))]
+type FreeModule = FM<algebra::SteenrodAlgebra>;
+
 type FreeModuleHomomorphism = FMH<FreeModule>;
 type FiniteChainComplex = FCC<FreeModule, FreeModuleHomomorphism>;
 
@@ -201,7 +203,11 @@ fn get_element(
 
 /// Create a new FiniteChainComplex with `num_s` many non-zero modules.
 fn create_chain_complex(num_s: usize) -> FiniteChainComplex {
-    let algebra: Arc<SteenrodAlgebra> = Arc::new(MilnorAlgebra::new(TWO).into());
+    #[cfg(feature = "nassau")]
+    let algebra: Arc<MilnorAlgebra> = Arc::new(MilnorAlgebra::new(TWO));
+
+    #[cfg(not(feature = "nassau"))]
+    let algebra: Arc<algebra::SteenrodAlgebra> = Arc::new(MilnorAlgebra::new(TWO).into());
 
     let zero_module = Arc::new(FreeModule::new(Arc::clone(&algebra), String::from("0"), 0));
 
@@ -296,7 +302,11 @@ fn main() {
     let (max_s, cc) = read_bruner_resolution(data_dir, max_n).unwrap();
     let cc = Arc::new(cc);
 
-    let resolution = construct("S_2@milnor", None).unwrap();
+    #[cfg(feature = "nassau")]
+    let resolution = ext::nassau::Resolution::new(None);
+
+    #[cfg(not(feature = "nassau"))]
+    let resolution = ext::utils::construct("S_2@milnor", None).unwrap();
 
     resolution.compute_through_stem(max_s, max_n);
 

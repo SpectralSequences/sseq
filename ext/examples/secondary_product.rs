@@ -20,7 +20,6 @@
 //! # Notes
 //! The program verifies that $x$ is indeed permanent.
 
-use std::path::PathBuf;
 use std::sync::Arc;
 
 use algebra::module::Module;
@@ -40,18 +39,9 @@ fn main() -> anyhow::Result<()> {
         ext::utils::LoadQuasiInverseOption::IfNoSave,
     )?);
 
-    let is_unit = resolution.target().modules.len() == 1 && resolution.target().module(0).is_unit();
+    let (is_unit, unit) = ext::utils::get_unit(Arc::clone(&resolution))?;
 
-    let unit = if is_unit {
-        Arc::clone(&resolution)
-    } else {
-        let save_dir = query::optional("Unit save directory", |x| {
-            core::result::Result::<PathBuf, std::convert::Infallible>::Ok(PathBuf::from(x))
-        });
-        Arc::new(ext::utils::construct("S_2@milnor", save_dir)?)
-    };
-
-    if !can_compute(&resolution) {
+    if !can_compute(&*resolution) {
         eprintln!(
             "Cannot compute d2 for the module {}",
             resolution.target().module(0)

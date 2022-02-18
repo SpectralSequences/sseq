@@ -162,6 +162,9 @@
 //!    This is only feasible when using a small, finite subalgebra, e.g. when working with
 //!    $\mathrm{tmf}$ modules.
 //! - `logging`: Print timing information of the computations to stderr.
+//! - `nassau`: Use Nassau's algorithm to compute the minimal resolution instead of the usual
+//!    minimal resolution algorithm. This does not work with the `steenrod` and `yoneda` scripts,
+//!    and are currently suboptimal for everything that requires quasi-inverses.
 
 #![allow(clippy::upper_case_acronyms)]
 
@@ -177,6 +180,7 @@ use algebra::module::homomorphism::FiniteModuleHomomorphism;
 use algebra::module::FiniteModule;
 pub type CCC = FiniteChainComplex<FiniteModule, FiniteModuleHomomorphism<FiniteModule>>;
 
+#[cfg(feature = "nassau")]
 pub mod nassau;
 pub mod secondary;
 pub mod utils;

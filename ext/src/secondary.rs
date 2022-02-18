@@ -1,7 +1,7 @@
 use crate::chain_complex::{
-    AugmentedChainComplex, BoundedChainComplex, ChainComplex, ChainHomotopy, FreeChainComplex,
+    AugmentedChainComplex, BoundedChainComplex, ChainComplex, ChainHomotopy, FiniteChainComplex,
+    FreeChainComplex,
 };
-use crate::resolution::Resolution;
 use crate::resolution_homomorphism::ResolutionHomomorphism;
 use crate::save::{SaveFile, SaveKind};
 
@@ -18,8 +18,6 @@ use once::OnceBiVec;
 use std::io::{Read, Write};
 use std::path::Path;
 use std::sync::Arc;
-
-use crate::CCC;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use dashmap::DashMap;
@@ -690,17 +688,21 @@ pub trait SecondaryLift: Sync {
     }
 }
 
-pub struct SecondaryResolution<A: PairAlgebra, CC: FreeChainComplex<Algebra = A>> {
+pub struct SecondaryResolution<CC: FreeChainComplex>
+where
+    CC::Algebra: PairAlgebra,
+{
     underlying: Arc<CC>,
     /// s -> t -> idx -> homotopy
-    pub(crate) homotopies: OnceBiVec<SecondaryHomotopy<A>>,
+    pub(crate) homotopies: OnceBiVec<SecondaryHomotopy<CC::Algebra>>,
     intermediates: DashMap<(u32, i32, usize), FpVector>,
 }
 
-impl<A: PairAlgebra + Send + Sync, CC: FreeChainComplex<Algebra = A>> SecondaryLift
-    for SecondaryResolution<A, CC>
+impl<CC: FreeChainComplex> SecondaryLift for SecondaryResolution<CC>
+where
+    CC::Algebra: PairAlgebra,
 {
-    type Algebra = A;
+    type Algebra = CC::Algebra;
     type Source = CC;
     type Target = CC;
     type Underlying = CC;
@@ -740,7 +742,7 @@ impl<A: PairAlgebra + Send + Sync, CC: FreeChainComplex<Algebra = A>> SecondaryL
         ) + 1
     }
 
-    fn homotopies(&self) -> &OnceBiVec<SecondaryHomotopy<Self::Algebra>> {
+    fn homotopies(&self) -> &OnceBiVec<SecondaryHomotopy<CC::Algebra>> {
         &self.homotopies
     }
 
@@ -752,7 +754,7 @@ impl<A: PairAlgebra + Send + Sync, CC: FreeChainComplex<Algebra = A>> SecondaryL
         self.underlying.save_dir()
     }
 
-    fn composite(&self, s: u32) -> CompositeData<Self::Algebra> {
+    fn composite(&self, s: u32) -> CompositeData<CC::Algebra> {
         let d1 = self.underlying.differential(s);
         let d0 = self.underlying.differential(s - 1);
         vec![(1, d1, d0)]
@@ -774,7 +776,10 @@ impl<A: PairAlgebra + Send + Sync, CC: FreeChainComplex<Algebra = A>> SecondaryL
     }
 }
 
-impl<A: PairAlgebra + Send + Sync, CC: FreeChainComplex<Algebra = A>> SecondaryResolution<A, CC> {
+impl<CC: FreeChainComplex> SecondaryResolution<CC>
+where
+    CC::Algebra: PairAlgebra,
+{
     pub fn new(cc: Arc<CC>) -> Self {
         if let Some(p) = cc.save_dir() {
             for subdir in SaveKind::secondary_data() {
@@ -789,7 +794,7 @@ impl<A: PairAlgebra + Send + Sync, CC: FreeChainComplex<Algebra = A>> SecondaryR
         }
     }
 
-    pub fn homotopy(&self, s: u32) -> &SecondaryHomotopy<A> {
+    pub fn homotopy(&self, s: u32) -> &SecondaryHomotopy<CC::Algebra> {
         &self.homotopies[s as i32]
     }
 
@@ -843,25 +848,25 @@ impl<A: PairAlgebra + Send + Sync, CC: FreeChainComplex<Algebra = A>> SecondaryR
 // https://github.com/rust-lang/rust/issues/91380
 #[doc(hidden)]
 pub struct SecondaryResolutionHomomorphism<
-    A: PairAlgebra,
-    CC1: FreeChainComplex<Algebra = A>,
-    CC2: FreeChainComplex<Algebra = A>,
-> {
-    source: Arc<SecondaryResolution<A, CC1>>,
-    target: Arc<SecondaryResolution<A, CC2>>,
+    CC1: FreeChainComplex,
+    CC2: FreeChainComplex<Algebra = CC1::Algebra>,
+> where
+    CC1::Algebra: PairAlgebra,
+{
+    source: Arc<SecondaryResolution<CC1>>,
+    target: Arc<SecondaryResolution<CC2>>,
     underlying: Arc<ResolutionHomomorphism<CC1, CC2>>,
     /// input s -> homotopy
-    homotopies: OnceBiVec<SecondaryHomotopy<A>>,
+    homotopies: OnceBiVec<SecondaryHomotopy<CC1::Algebra>>,
     intermediates: DashMap<(u32, i32, usize), FpVector>,
 }
 
-impl<
-        A: PairAlgebra + Send + Sync,
-        CC1: FreeChainComplex<Algebra = A>,
-        CC2: FreeChainComplex<Algebra = A>,
-    > SecondaryLift for SecondaryResolutionHomomorphism<A, CC1, CC2>
+impl<CC1: FreeChainComplex, CC2: FreeChainComplex<Algebra = CC1::Algebra>> SecondaryLift
+    for SecondaryResolutionHomomorphism<CC1, CC2>
+where
+    CC1::Algebra: PairAlgebra,
 {
-    type Algebra = A;
+    type Algebra = CC1::Algebra;
     type Source = CC1;
     type Target = CC2;
     type Underlying = ResolutionHomomorphism<CC1, CC2>;
@@ -977,15 +982,14 @@ impl<
     }
 }
 
-impl<
-        A: PairAlgebra + Send + Sync,
-        CC1: FreeChainComplex<Algebra = A>,
-        CC2: FreeChainComplex<Algebra = A>,
-    > SecondaryResolutionHomomorphism<A, CC1, CC2>
+impl<CC1: FreeChainComplex, CC2: FreeChainComplex<Algebra = CC1::Algebra>>
+    SecondaryResolutionHomomorphism<CC1, CC2>
+where
+    CC1::Algebra: PairAlgebra,
 {
     pub fn new(
-        source: Arc<SecondaryResolution<A, CC1>>,
-        target: Arc<SecondaryResolution<A, CC2>>,
+        source: Arc<SecondaryResolution<CC1>>,
+        target: Arc<SecondaryResolution<CC2>>,
         underlying: Arc<ResolutionHomomorphism<CC1, CC2>>,
     ) -> Self {
         assert!(Arc::ptr_eq(&underlying.source, &source.underlying));
@@ -1015,7 +1019,7 @@ impl<
         }
     }
 
-    pub fn homotopy(&self, s: u32) -> &SecondaryHomotopy<A> {
+    pub fn homotopy(&self, s: u32) -> &SecondaryHomotopy<CC1::Algebra> {
         &self.homotopies[s as i32]
     }
 
@@ -1186,28 +1190,30 @@ impl<
 
 #[doc(hidden)]
 pub struct SecondaryChainHomotopy<
-    A: PairAlgebra,
-    S: FreeChainComplex<Algebra = A>,
-    T: FreeChainComplex<Algebra = A> + Sync,
-    U: FreeChainComplex<Algebra = A> + Sync,
-> {
+    S: FreeChainComplex,
+    T: FreeChainComplex<Algebra = S::Algebra> + Sync,
+    U: FreeChainComplex<Algebra = S::Algebra> + Sync,
+> where
+    S::Algebra: PairAlgebra,
+{
     underlying: Arc<ChainHomotopy<S, T, U>>,
-    left: Arc<SecondaryResolutionHomomorphism<A, S, T>>,
-    right: Arc<SecondaryResolutionHomomorphism<A, T, U>>,
+    left: Arc<SecondaryResolutionHomomorphism<S, T>>,
+    right: Arc<SecondaryResolutionHomomorphism<T, U>>,
     left_tau: Option<Arc<ResolutionHomomorphism<S, T>>>,
     right_tau: Option<Arc<ResolutionHomomorphism<T, U>>>,
-    homotopies: OnceBiVec<SecondaryHomotopy<A>>,
+    homotopies: OnceBiVec<SecondaryHomotopy<S::Algebra>>,
     intermediates: DashMap<(u32, i32, usize), FpVector>,
 }
 
 impl<
-        A: PairAlgebra,
-        S: FreeChainComplex<Algebra = A>,
-        T: FreeChainComplex<Algebra = A> + Sync,
-        U: FreeChainComplex<Algebra = A> + Sync,
-    > SecondaryLift for SecondaryChainHomotopy<A, S, T, U>
+        S: FreeChainComplex,
+        T: FreeChainComplex<Algebra = S::Algebra> + Sync,
+        U: FreeChainComplex<Algebra = S::Algebra> + Sync,
+    > SecondaryLift for SecondaryChainHomotopy<S, T, U>
+where
+    S::Algebra: PairAlgebra,
 {
-    type Algebra = A;
+    type Algebra = S::Algebra;
     type Source = S;
     type Target = U;
     type Underlying = ChainHomotopy<S, T, U>;
@@ -1255,7 +1261,7 @@ impl<
         )
     }
 
-    fn homotopies(&self) -> &OnceBiVec<SecondaryHomotopy<Self::Algebra>> {
+    fn homotopies(&self) -> &OnceBiVec<SecondaryHomotopy<S::Algebra>> {
         &self.homotopies
     }
 
@@ -1347,7 +1353,7 @@ impl<
         result
     }
 
-    fn composite(&self, s: u32) -> CompositeData<Self::Algebra> {
+    fn composite(&self, s: u32) -> CompositeData<S::Algebra> {
         let p = *self.prime();
         // This is -1 mod p^2
         let neg_1 = p * p - 1;
@@ -1375,15 +1381,16 @@ impl<
 }
 
 impl<
-        A: PairAlgebra,
-        S: FreeChainComplex<Algebra = A>,
-        T: FreeChainComplex<Algebra = A> + Sync,
-        U: FreeChainComplex<Algebra = A> + Sync,
-    > SecondaryChainHomotopy<A, S, T, U>
+        S: FreeChainComplex,
+        T: FreeChainComplex<Algebra = S::Algebra> + Sync,
+        U: FreeChainComplex<Algebra = S::Algebra> + Sync,
+    > SecondaryChainHomotopy<S, T, U>
+where
+    S::Algebra: PairAlgebra,
 {
     pub fn new(
-        left: Arc<SecondaryResolutionHomomorphism<A, S, T>>,
-        right: Arc<SecondaryResolutionHomomorphism<A, T, U>>,
+        left: Arc<SecondaryResolutionHomomorphism<S, T>>,
+        right: Arc<SecondaryResolutionHomomorphism<T, U>>,
         left_tau: Option<Arc<ResolutionHomomorphism<S, T>>>,
         right_tau: Option<Arc<ResolutionHomomorphism<T, U>>>,
         underlying: Arc<ChainHomotopy<S, T, U>>,
@@ -1429,7 +1436,12 @@ impl<
 ///  1. The chain complex is concentrated in degree zero;
 ///  2. The module is finite dimensional; and
 ///  3. $\mathrm{Hom}(\mathrm{Ext}^{2, t}_A(H^*X, k), H^{t - 1} X) = 0$ for all $t$ or $\mathrm{Hom}(\mathrm{Ext}^{3, t}_A(H^*X, k), H^{t - 1} X) = 0$ for all $t$.
-pub fn can_compute(res: &Resolution<CCC>) -> bool {
+pub fn can_compute<M, F, CC>(res: &CC) -> bool
+where
+    M: BoundedModule,
+    F: ModuleHomomorphism<Source = M, Target = M>,
+    CC: FreeChainComplex + AugmentedChainComplex<TargetComplex = FiniteChainComplex<M, F>>,
+{
     let complex = res.target();
     if *complex.prime() != 2 {
         eprintln!("Prime is not 2");
@@ -1440,12 +1452,6 @@ pub fn can_compute(res: &Resolution<CCC>) -> bool {
         return false;
     }
     let module = complex.module(0);
-    let module = module.as_fd_module();
-    if module.is_none() {
-        eprintln!("Module is not finite dimensional");
-        return false;
-    }
-    let module = module.unwrap();
     let max_degree = module.max_degree();
 
     (0..max_degree)

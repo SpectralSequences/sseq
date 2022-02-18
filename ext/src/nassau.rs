@@ -1,6 +1,7 @@
 //! This file implements the support for [Nassau's algorithm](https://arxiv.org/abs/1910.04063).
 
 use std::fmt::Display;
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
@@ -270,12 +271,7 @@ pub struct Resolution {
     differentials: OnceVec<Arc<FreeModuleHomomorphism<FreeModule<MilnorAlgebra>>>>,
     target: Arc<CCDZ<MilnorAlgebra>>,
     chain_maps: OnceVec<Arc<FreeModuleHomomorphism<FDModule<MilnorAlgebra>>>>,
-}
-
-impl Default for Resolution {
-    fn default() -> Self {
-        Self::new()
-    }
+    save_dir: Option<PathBuf>,
 }
 
 impl Resolution {
@@ -283,7 +279,7 @@ impl Resolution {
         ValidPrime::new(2)
     }
 
-    pub fn new() -> Self {
+    pub fn new(save_dir: Option<PathBuf>) -> Self {
         let algebra = Arc::new(MilnorAlgebra::new(ValidPrime::new(2)));
         let module = FDModule::new(
             Arc::clone(&algebra),
@@ -300,6 +296,7 @@ impl Resolution {
             differentials: OnceVec::new(),
             chain_maps: OnceVec::new(),
             target,
+            save_dir,
         }
     }
 
@@ -509,6 +506,8 @@ impl Resolution {
                 let qi =
                     fp::matrix::QuasiInverse::new(Some(vec![0]), Matrix::from_vec(p, &[vec![1]]));
                 chain_map.set_quasi_inverse(0, Some(qi));
+                chain_map.set_kernel(0, None);
+                chain_map.set_image(0, None);
             } else {
                 self.modules[0usize].extend_by_zero(t);
                 self.chain_maps[0usize].extend_by_zero(t);
@@ -663,6 +662,10 @@ impl ChainComplex for Resolution {
     fn next_homological_degree(&self) -> u32 {
         self.modules.len() as u32
     }
+
+    fn save_dir(&self) -> Option<&std::path::Path> {
+        self.save_dir.as_deref()
+    }
 }
 
 impl AugmentedChainComplex for Resolution {
@@ -686,7 +689,7 @@ mod test {
 
     #[test]
     fn test_restart_stem() {
-        let res = Resolution::new();
+        let res = Resolution::new(None);
         res.compute_through_stem(8, 14);
         res.compute_through_bidegree(5, 19);
 

@@ -27,6 +27,12 @@ pub trait MilnorAlgebraT: Send + Sync + Algebra {
     fn milnor_algebra(&self) -> &MilnorAlgebra;
 }
 
+impl MilnorAlgebraT for MilnorAlgebra {
+    fn milnor_algebra(&self) -> &MilnorAlgebra {
+        self
+    }
+}
+
 pub struct MilnorProfile {
     pub truncated: bool,
     pub q_part: u32,

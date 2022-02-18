@@ -58,7 +58,7 @@ fn main() -> anyhow::Result<()> {
         ext::utils::LoadQuasiInverseOption::IfNoSave,
     )?);
 
-    if !can_compute(&resolution) {
+    if !can_compute(&*resolution) {
         eprintln!(
             "Cannot compute d2 for the module {}",
             resolution.target().module(0)

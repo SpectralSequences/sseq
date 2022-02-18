@@ -17,35 +17,31 @@
 //! $\Mod_{C\tau^2}$, so the format is $\langle a, b, -\rangle$ instead of $\langle -, b,
 //! a\rangle$. Brave souls are encouraged to figure out the correct sign for the products.
 
-use std::path::PathBuf;
 use std::sync::Arc;
 
 use algebra::module::Module;
 use algebra::pair_algebra::PairAlgebra;
-use algebra::SteenrodAlgebra;
-use ext::resolution::Resolution;
 use fp::matrix::{Matrix, Subspace};
 use fp::vector::FpVector;
 
 use ext::chain_complex::{AugmentedChainComplex, ChainComplex, ChainHomotopy, FreeChainComplex};
 use ext::resolution_homomorphism::ResolutionHomomorphism;
-use ext::utils::query_module;
-use ext::{secondary::*, CCC};
+use ext::secondary::*;
+use ext::utils::{query_module, QueryModuleResolution};
 
 use itertools::Itertools;
 
 struct HomData {
     name: String,
     class: FpVector,
-    hom_lift:
-        Arc<SecondaryResolutionHomomorphism<SteenrodAlgebra, Resolution<CCC>, Resolution<CCC>>>,
-    tau_part: Option<Arc<ResolutionHomomorphism<Resolution<CCC>, Resolution<CCC>>>>,
+    hom_lift: Arc<SecondaryResolutionHomomorphism<QueryModuleResolution, QueryModuleResolution>>,
+    tau_part: Option<Arc<ResolutionHomomorphism<QueryModuleResolution, QueryModuleResolution>>>,
 }
 
 fn get_hom(
     name: &str,
-    source: Arc<SecondaryResolution<SteenrodAlgebra, Resolution<CCC>>>,
-    target: Arc<SecondaryResolution<SteenrodAlgebra, Resolution<CCC>>>,
+    source: Arc<SecondaryResolution<QueryModuleResolution>>,
+    target: Arc<SecondaryResolution<QueryModuleResolution>>,
 ) -> HomData {
     let p = source.prime();
 
@@ -142,18 +138,9 @@ fn main() -> anyhow::Result<()> {
         ext::utils::LoadQuasiInverseOption::IfNoSave,
     )?);
 
-    let is_unit = resolution.target().modules.len() == 1 && resolution.target().module(0).is_unit();
+    let (is_unit, unit) = ext::utils::get_unit(Arc::clone(&resolution))?;
 
-    let unit = if is_unit {
-        Arc::clone(&resolution)
-    } else {
-        let save_dir = query::optional("Unit save directory", |x| {
-            core::result::Result::<PathBuf, std::convert::Infallible>::Ok(PathBuf::from(x))
-        });
-        Arc::new(ext::utils::construct("S_2@milnor", save_dir)?)
-    };
-
-    if !can_compute(&resolution) {
+    if !can_compute(&*resolution) {
         eprintln!(
             "Cannot compute d2 for the module {}",
             resolution.target().module(0)

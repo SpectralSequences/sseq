@@ -3,11 +3,7 @@
 //! This is optimized to compute <a, b, -> for fixed a, b and all -, where a and b have small
 //! degree.
 
-use algebra::module::{FDModule, Module};
-use ext::chain_complex::{
-    AugmentedChainComplex, ChainComplex, ChainHomotopy, FiniteChainComplex, FreeChainComplex,
-};
-use ext::resolution::Resolution;
+use ext::chain_complex::{ChainComplex, ChainHomotopy, FreeChainComplex};
 use ext::resolution_homomorphism::ResolutionHomomorphism;
 use fp::matrix::{AugmentedMatrix, Matrix};
 use std::sync::Arc;
@@ -16,20 +12,7 @@ fn main() -> anyhow::Result<()> {
     let resolution = Arc::new(ext::utils::query_module(None, true)?);
     let p = resolution.prime();
 
-    let (is_unit, unit) = if resolution.target().module(0).is_unit() {
-        (true, Arc::clone(&resolution))
-    } else {
-        let module = Arc::new(
-            FDModule::new(
-                resolution.algebra(),
-                format!("S_{}", p),
-                bivec::BiVec::from_vec(0, vec![1]),
-            )
-            .into(),
-        );
-        let ccdz = Arc::new(FiniteChainComplex::ccdz(module));
-        (false, Arc::new(Resolution::new(ccdz)))
-    };
+    let (is_unit, unit) = ext::utils::get_unit(Arc::clone(&resolution))?;
 
     eprintln!("\nComputing Massey products <a, b, ->");
     eprintln!("\nEnter a:");
