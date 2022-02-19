@@ -1194,6 +1194,20 @@
 <span id="1168">1168</span>
 <span id="1169">1169</span>
 <span id="1170">1170</span>
+<span id="1171">1171</span>
+<span id="1172">1172</span>
+<span id="1173">1173</span>
+<span id="1174">1174</span>
+<span id="1175">1175</span>
+<span id="1176">1176</span>
+<span id="1177">1177</span>
+<span id="1178">1178</span>
+<span id="1179">1179</span>
+<span id="1180">1180</span>
+<span id="1181">1181</span>
+<span id="1182">1182</span>
+<span id="1183">1183</span>
+<span id="1184">1184</span>
 </pre><pre class="rust"><code><span class="doccomment">//! This file implements the support for [Nassau&#39;s algorithm](https://arxiv.org/abs/1910.04063).</span>
 
 <span class="kw">use</span> <span class="ident">std::fmt::Display</span>;
@@ -1207,7 +1221,7 @@
 };
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::save::SaveKind</span>;
 <span class="kw">use</span> <span class="ident">algebra::combinatorics</span>;
-<span class="kw">use</span> <span class="ident">algebra::milnor_algebra</span>::{<span class="ident">MilnorAlgebra</span>, <span class="ident">MilnorBasisElement</span>, <span class="ident">PPartEntry</span>};
+<span class="kw">use</span> <span class="ident">algebra::milnor_algebra</span>::{<span class="ident">MilnorAlgebra</span>, <span class="ident">PPartEntry</span>};
 <span class="kw">use</span> <span class="ident">algebra::module::homomorphism</span>::{
     <span class="ident">BoundedModuleHomomorphism</span>, <span class="ident">FreeModuleHomomorphism</span>, <span class="ident">ModuleHomomorphism</span>,
 };
@@ -1268,9 +1282,9 @@
     }
 
     <span class="doccomment">/// Computes the signature of an element</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">has_signature</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">elt</span>: <span class="kw-2">&amp;</span><span class="ident">MilnorBasisElement</span>, <span class="ident">signature</span>: <span class="kw-2">&amp;</span>[<span class="ident">PPartEntry</span>]) -&gt; <span class="ident">bool</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">has_signature</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">ppart</span>: <span class="kw-2">&amp;</span>[<span class="ident">PPartEntry</span>], <span class="ident">signature</span>: <span class="kw-2">&amp;</span>[<span class="ident">PPartEntry</span>]) -&gt; <span class="ident">bool</span> {
         <span class="kw">for</span> (<span class="ident">i</span>, (<span class="kw-2">&amp;</span><span class="ident">profile</span>, <span class="kw-2">&amp;</span><span class="ident">signature</span>)) <span class="kw">in</span> <span class="self">self</span>.<span class="ident">profile</span>.<span class="ident">iter</span>().<span class="ident">zip</span>(<span class="ident">signature</span>).<span class="ident">enumerate</span>() {
-            <span class="kw">let</span> <span class="ident">ppart</span> <span class="op">=</span> <span class="ident">elt</span>.<span class="ident">p_part</span>.<span class="ident">get</span>(<span class="ident">i</span>).<span class="ident">copied</span>().<span class="ident">unwrap_or</span>(<span class="number">0</span>);
+            <span class="kw">let</span> <span class="ident">ppart</span> <span class="op">=</span> <span class="ident">ppart</span>.<span class="ident">get</span>(<span class="ident">i</span>).<span class="ident">copied</span>().<span class="ident">unwrap_or</span>(<span class="number">0</span>);
             <span class="kw">if</span> <span class="ident">ppart</span> <span class="op">&amp;</span> ((<span class="number">1</span> <span class="op">&lt;</span><span class="op">&lt;</span> <span class="ident">profile</span>) <span class="op">-</span> <span class="number">1</span>) <span class="op">!</span><span class="op">=</span> <span class="ident">signature</span> {
                 <span class="kw">return</span> <span class="bool-val">false</span>;
             }
@@ -1283,20 +1297,29 @@
     }
 
     <span class="doccomment">/// Give a list of basis elements in degree `degree` that has signature `signature`.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// This requires passing the algebra for borrow checker reasons.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">signature_mask</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>(
         <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="self">self</span>,
+        <span class="ident">algebra</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">MilnorAlgebra</span>,
         <span class="ident">module</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident">MilnorAlgebra</span><span class="op">&gt;</span>,
         <span class="ident">degree</span>: <span class="ident">i32</span>,
         <span class="ident">signature</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> [<span class="ident">PPartEntry</span>],
     ) -&gt; <span class="kw">impl</span> <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">usize</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;a</span> {
-        <span class="kw">let</span> <span class="ident">algebra</span> <span class="op">=</span> <span class="ident">module</span>.<span class="ident">algebra</span>();
-        (<span class="number">0</span>..<span class="ident">module</span>.<span class="ident">dimension</span>(<span class="ident">degree</span>)).<span class="ident">filter</span>(<span class="kw">move</span> <span class="op">|</span><span class="kw-2">&amp;</span><span class="ident">i</span><span class="op">|</span> {
-            <span class="kw">let</span> <span class="ident">opgen</span> <span class="op">=</span> <span class="ident">module</span>.<span class="ident">index_to_op_gen</span>(<span class="ident">degree</span>, <span class="ident">i</span>);
-            <span class="self">self</span>.<span class="ident">has_signature</span>(
-                <span class="ident">algebra</span>.<span class="ident">basis_element_from_index</span>(<span class="ident">opgen</span>.<span class="ident">operation_degree</span>, <span class="ident">opgen</span>.<span class="ident">operation_index</span>),
-                <span class="ident">signature</span>,
-            )
-        })
+        <span class="ident">module</span>
+            .<span class="ident">iter_gen_degree_offset</span>(<span class="ident">degree</span>)
+            .<span class="ident">flat_map</span>(<span class="kw">move</span> <span class="op">|</span>(<span class="ident">t</span>, <span class="ident">offset</span>)<span class="op">|</span> {
+                <span class="ident">algebra</span>.<span class="ident">ppart_table</span>[(<span class="ident">degree</span> <span class="op">-</span> <span class="ident">t</span>) <span class="kw">as</span> <span class="ident">usize</span>]
+                    .<span class="ident">iter</span>()
+                    .<span class="ident">enumerate</span>()
+                    .<span class="ident">filter_map</span>(<span class="kw">move</span> <span class="op">|</span>(<span class="ident">n</span>, <span class="ident">op</span>)<span class="op">|</span> {
+                        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">has_signature</span>(<span class="ident">op</span>, <span class="ident">signature</span>) {
+                            <span class="prelude-val">Some</span>(<span class="ident">offset</span> <span class="op">+</span> <span class="ident">n</span>)
+                        } <span class="kw">else</span> {
+                            <span class="prelude-val">None</span>
+                        }
+                    })
+            })
     }
 
     <span class="doccomment">/// Get the matrix of a free module homomorphism when restricted to the subquotient given by</span>
@@ -1310,10 +1333,11 @@
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">hom</span>.<span class="ident">prime</span>();
         <span class="kw">let</span> <span class="ident">source</span> <span class="op">=</span> <span class="ident">hom</span>.<span class="ident">source</span>();
         <span class="kw">let</span> <span class="ident">target</span> <span class="op">=</span> <span class="ident">hom</span>.<span class="ident">target</span>();
+        <span class="kw">let</span> <span class="ident">algebra</span> <span class="op">=</span> <span class="ident">target</span>.<span class="ident">algebra</span>();
         <span class="kw">let</span> <span class="ident">target_degree</span> <span class="op">=</span> <span class="ident">degree</span> <span class="op">-</span> <span class="ident">hom</span>.<span class="ident">degree_shift</span>();
 
         <span class="kw">let</span> <span class="ident">target_mask</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span> <span class="op">=</span> <span class="self">self</span>
-            .<span class="ident">signature_mask</span>(<span class="kw-2">&amp;</span><span class="ident">target</span>, <span class="ident">degree</span> <span class="op">-</span> <span class="ident">hom</span>.<span class="ident">degree_shift</span>(), <span class="ident">signature</span>)
+            .<span class="ident">signature_mask</span>(<span class="kw-2">&amp;</span><span class="ident">algebra</span>, <span class="kw-2">&amp;</span><span class="ident">target</span>, <span class="ident">degree</span> <span class="op">-</span> <span class="ident">hom</span>.<span class="ident">degree_shift</span>(), <span class="ident">signature</span>)
             .<span class="ident">collect</span>();
 
         <span class="kw">let</span> <span class="ident">num_cols</span> <span class="op">=</span> <span class="ident">target_mask</span>.<span class="ident">len</span>();
@@ -1321,7 +1345,7 @@
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">scratch</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="ident">target</span>.<span class="ident">dimension</span>(<span class="ident">target_degree</span>));
 
         <span class="kw">let</span> <span class="ident">rows</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">FpVector</span><span class="op">&gt;</span> <span class="op">=</span> <span class="self">self</span>
-            .<span class="ident">signature_mask</span>(<span class="kw-2">&amp;</span><span class="ident">source</span>, <span class="ident">degree</span>, <span class="ident">signature</span>)
+            .<span class="ident">signature_mask</span>(<span class="kw-2">&amp;</span><span class="ident">algebra</span>, <span class="kw-2">&amp;</span><span class="ident">source</span>, <span class="ident">degree</span>, <span class="ident">signature</span>)
             .<span class="ident">map</span>(<span class="op">|</span><span class="ident">masked_index</span><span class="op">|</span> {
                 <span class="ident">scratch</span>.<span class="ident">set_to_zero</span>();
                 <span class="ident">hom</span>.<span class="ident">apply_to_basis_element</span>(<span class="ident">scratch</span>.<span class="ident">as_slice_mut</span>(), <span class="number">1</span>, <span class="ident">degree</span>, <span class="ident">masked_index</span>);
@@ -1691,10 +1715,13 @@
 
         <span class="kw">let</span> <span class="ident">source</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">modules</span>[<span class="ident">s</span>];
         <span class="kw">let</span> <span class="ident">target</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">modules</span>[<span class="ident">s</span> <span class="op">-</span> <span class="number">1</span>];
+        <span class="kw">let</span> <span class="ident">algebra</span> <span class="op">=</span> <span class="ident">target</span>.<span class="ident">algebra</span>();
 
         <span class="kw">let</span> <span class="ident">zero_sig</span> <span class="op">=</span> <span class="ident">subalgebra</span>.<span class="ident">zero_signature</span>();
         <span class="kw">let</span> <span class="ident">target_dim</span> <span class="op">=</span> <span class="ident">target</span>.<span class="ident">dimension</span>(<span class="ident">t</span>);
-        <span class="kw">let</span> <span class="ident">target_mask</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">subalgebra</span>.<span class="ident">signature_mask</span>(<span class="ident">target</span>, <span class="ident">t</span>, <span class="kw-2">&amp;</span><span class="ident">zero_sig</span>).<span class="ident">collect</span>();
+        <span class="kw">let</span> <span class="ident">target_mask</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">subalgebra</span>
+            .<span class="ident">signature_mask</span>(<span class="kw-2">&amp;</span><span class="ident">algebra</span>, <span class="ident">target</span>, <span class="ident">t</span>, <span class="kw-2">&amp;</span><span class="ident">zero_sig</span>)
+            .<span class="ident">collect</span>();
         <span class="kw">let</span> <span class="ident">target_masked_dim</span> <span class="op">=</span> <span class="ident">target_mask</span>.<span class="ident">len</span>();
 
         <span class="kw">if</span> <span class="ident">s</span> <span class="op">==</span> <span class="number">1</span> {
@@ -1737,7 +1764,7 @@
         };
 
         <span class="kw">let</span> <span class="ident">next_mask</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">subalgebra</span>
-            .<span class="ident">signature_mask</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">modules</span>[<span class="ident">s</span> <span class="op">-</span> <span class="number">2</span>], <span class="ident">t</span>, <span class="kw-2">&amp;</span><span class="ident">zero_sig</span>)
+            .<span class="ident">signature_mask</span>(<span class="kw-2">&amp;</span><span class="ident">algebra</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">modules</span>[<span class="ident">s</span> <span class="op">-</span> <span class="number">2</span>], <span class="ident">t</span>, <span class="kw-2">&amp;</span><span class="ident">zero_sig</span>)
             .<span class="ident">collect</span>();
         <span class="kw">let</span> <span class="ident">next_masked_dim</span> <span class="op">=</span> <span class="ident">next_mask</span>.<span class="ident">len</span>();
 
@@ -1799,8 +1826,8 @@
         <span class="kw">for</span> <span class="ident">signature</span> <span class="kw">in</span> <span class="ident">subalgebra</span>.<span class="ident">iter_signatures</span>(<span class="ident">t</span>) {
             <span class="ident">target_mask</span>.<span class="ident">clear</span>();
             <span class="ident">next_mask</span>.<span class="ident">clear</span>();
-            <span class="ident">target_mask</span>.<span class="ident">extend</span>(<span class="ident">subalgebra</span>.<span class="ident">signature_mask</span>(<span class="ident">target</span>, <span class="ident">t</span>, <span class="kw-2">&amp;</span><span class="ident">signature</span>));
-            <span class="ident">next_mask</span>.<span class="ident">extend</span>(<span class="ident">subalgebra</span>.<span class="ident">signature_mask</span>(<span class="ident">next</span>, <span class="ident">t</span>, <span class="kw-2">&amp;</span><span class="ident">signature</span>));
+            <span class="ident">target_mask</span>.<span class="ident">extend</span>(<span class="ident">subalgebra</span>.<span class="ident">signature_mask</span>(<span class="kw-2">&amp;</span><span class="ident">algebra</span>, <span class="ident">target</span>, <span class="ident">t</span>, <span class="kw-2">&amp;</span><span class="ident">signature</span>));
+            <span class="ident">next_mask</span>.<span class="ident">extend</span>(<span class="ident">subalgebra</span>.<span class="ident">signature_mask</span>(<span class="kw-2">&amp;</span><span class="ident">algebra</span>, <span class="ident">next</span>, <span class="ident">t</span>, <span class="kw-2">&amp;</span><span class="ident">signature</span>));
 
             <span class="kw">let</span> <span class="ident">full_matrix</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">differential</span>(<span class="ident">s</span> <span class="op">-</span> <span class="number">1</span>).<span class="ident">get_partial_matrix</span>(<span class="ident">t</span>, <span class="kw-2">&amp;</span><span class="ident">target_mask</span>);
 
@@ -2118,10 +2145,11 @@
         <span class="kw">let</span> <span class="ident">subalgebra</span> <span class="op">=</span> <span class="ident">MilnorSubalgebra::from_bytes</span>(<span class="kw-2">&amp;mut</span> <span class="ident">f</span>).<span class="ident">unwrap</span>();
         <span class="kw">let</span> <span class="ident">source</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">modules</span>[<span class="ident">s</span>];
         <span class="kw">let</span> <span class="ident">target</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">modules</span>[<span class="ident">s</span> <span class="op">-</span> <span class="number">1</span>];
+        <span class="kw">let</span> <span class="ident">algebra</span> <span class="op">=</span> <span class="ident">target</span>.<span class="ident">algebra</span>();
 
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">inputs</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">FpVector</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">inputs</span>.<span class="ident">iter</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">x</span>.<span class="ident">into</span>().<span class="ident">to_owned</span>()).<span class="ident">collect</span>();
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">mask</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Vec::with_capacity</span>(<span class="ident">zero_mask_dim</span> <span class="op">+</span> <span class="number">8</span>);
-        <span class="ident">mask</span>.<span class="ident">extend</span>(<span class="ident">subalgebra</span>.<span class="ident">signature_mask</span>(<span class="ident">source</span>, <span class="ident">t</span>, <span class="kw-2">&amp;</span><span class="ident">subalgebra</span>.<span class="ident">zero_signature</span>()));
+        <span class="ident">mask</span>.<span class="ident">extend</span>(<span class="ident">subalgebra</span>.<span class="ident">signature_mask</span>(<span class="kw-2">&amp;</span><span class="ident">algebra</span>, <span class="ident">source</span>, <span class="ident">t</span>, <span class="kw-2">&amp;</span><span class="ident">subalgebra</span>.<span class="ident">zero_signature</span>()));
 
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">scratch0</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="ident">zero_mask_dim</span>);
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">scratch1</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="ident">target_dim</span>);
@@ -2149,7 +2177,7 @@
             <span class="macro">assert_eq!</span>(<span class="ident">mask</span>.<span class="ident">len</span>(), <span class="ident">zero_mask_dim</span> <span class="op">+</span> <span class="ident">num_new_gens</span>);
 
             <span class="kw">let</span> <span class="ident">target_zero_mask</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">subalgebra</span>
-                .<span class="ident">signature_mask</span>(<span class="ident">target</span>, <span class="ident">t</span>, <span class="kw-2">&amp;</span><span class="ident">subalgebra</span>.<span class="ident">zero_signature</span>())
+                .<span class="ident">signature_mask</span>(<span class="kw-2">&amp;</span><span class="ident">algebra</span>, <span class="ident">target</span>, <span class="ident">t</span>, <span class="kw-2">&amp;</span><span class="ident">subalgebra</span>.<span class="ident">zero_signature</span>())
                 .<span class="ident">collect</span>();
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">matrix</span> <span class="op">=</span> <span class="ident">AugmentedMatrix</span>::<span class="op">&lt;</span><span class="number">3</span><span class="op">&gt;</span><span class="ident">::new</span>(
                 <span class="ident">p</span>,
@@ -2181,7 +2209,7 @@
                 <span class="kw">let</span> <span class="ident">signature</span> <span class="op">=</span> <span class="ident">subalgebra</span>.<span class="ident">signature_from_bytes</span>(<span class="kw-2">&amp;mut</span> <span class="ident">f</span>).<span class="ident">unwrap</span>();
 
                 <span class="ident">mask</span>.<span class="ident">clear</span>();
-                <span class="ident">mask</span>.<span class="ident">extend</span>(<span class="ident">subalgebra</span>.<span class="ident">signature_mask</span>(<span class="ident">source</span>, <span class="ident">t</span>, <span class="kw-2">&amp;</span><span class="ident">signature</span>));
+                <span class="ident">mask</span>.<span class="ident">extend</span>(<span class="ident">subalgebra</span>.<span class="ident">signature_mask</span>(<span class="kw-2">&amp;</span><span class="ident">algebra</span>, <span class="ident">source</span>, <span class="ident">t</span>, <span class="kw-2">&amp;</span><span class="ident">signature</span>));
                 <span class="ident">scratch0</span>.<span class="ident">set_scratch_vector_size</span>(<span class="ident">mask</span>.<span class="ident">len</span>());
             } <span class="kw">else</span> <span class="kw">if</span> <span class="ident">col</span> <span class="op">==</span> <span class="ident">Magic::Fix</span> <span class="kw">as</span> <span class="ident">usize</span> {
                 <span class="comment">// We need to fix the differential problem</span>

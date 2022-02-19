@@ -2047,7 +2047,7 @@
     <span class="ident">p</span>: <span class="ident">ValidPrime</span>,
     <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;odd-primes&quot;</span>)]</span>
     <span class="ident">generic</span>: <span class="ident">bool</span>,
-    <span class="ident">ppart_table</span>: <span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">PPart</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="kw">pub</span> <span class="ident">ppart_table</span>: <span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">PPart</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="ident">qpart_table</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">QPart</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="kw">pub</span> <span class="ident">basis_table</span>: <span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">MilnorBasisElement</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="ident">basis_element_to_index_map</span>: <span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">MilnorHashMap</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="comment">// degree -&gt; MilnorBasisElement -&gt; index</span>
