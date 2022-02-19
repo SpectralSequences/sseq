@@ -11,7 +11,7 @@ use crate::chain_complex::{
 };
 use crate::save::SaveKind;
 use algebra::combinatorics;
-use algebra::milnor_algebra::{MilnorAlgebra, MilnorBasisElement, PPartEntry};
+use algebra::milnor_algebra::{MilnorAlgebra, PPartEntry};
 use algebra::module::homomorphism::{
     BoundedModuleHomomorphism, FreeModuleHomomorphism, ModuleHomomorphism,
 };
@@ -72,9 +72,9 @@ impl MilnorSubalgebra {
     }
 
     /// Computes the signature of an element
-    pub fn has_signature(&self, elt: &MilnorBasisElement, signature: &[PPartEntry]) -> bool {
+    pub fn has_signature(&self, ppart: &[PPartEntry], signature: &[PPartEntry]) -> bool {
         for (i, (&profile, &signature)) in self.profile.iter().zip(signature).enumerate() {
-            let ppart = elt.p_part.get(i).copied().unwrap_or(0);
+            let ppart = ppart.get(i).copied().unwrap_or(0);
             if ppart & ((1 << profile) - 1) != signature {
                 return false;
             }
@@ -87,20 +87,29 @@ impl MilnorSubalgebra {
     }
 
     /// Give a list of basis elements in degree `degree` that has signature `signature`.
+    ///
+    /// This requires passing the algebra for borrow checker reasons.
     pub fn signature_mask<'a>(
         &'a self,
+        algebra: &'a MilnorAlgebra,
         module: &'a FreeModule<MilnorAlgebra>,
         degree: i32,
         signature: &'a [PPartEntry],
     ) -> impl Iterator<Item = usize> + 'a {
-        let algebra = module.algebra();
-        (0..module.dimension(degree)).filter(move |&i| {
-            let opgen = module.index_to_op_gen(degree, i);
-            self.has_signature(
-                algebra.basis_element_from_index(opgen.operation_degree, opgen.operation_index),
-                signature,
-            )
-        })
+        module
+            .iter_gen_degree_offset(degree)
+            .flat_map(move |(t, offset)| {
+                algebra.ppart_table[(degree - t) as usize]
+                    .iter()
+                    .enumerate()
+                    .filter_map(move |(n, op)| {
+                        if self.has_signature(op, signature) {
+                            Some(offset + n)
+                        } else {
+                            None
+                        }
+                    })
+            })
     }
 
     /// Get the matrix of a free module homomorphism when restricted to the subquotient given by
@@ -114,10 +123,11 @@ impl MilnorSubalgebra {
         let p = hom.prime();
         let source = hom.source();
         let target = hom.target();
+        let algebra = target.algebra();
         let target_degree = degree - hom.degree_shift();
 
         let target_mask: Vec<usize> = self
-            .signature_mask(&target, degree - hom.degree_shift(), signature)
+            .signature_mask(&algebra, &target, degree - hom.degree_shift(), signature)
             .collect();
 
         let num_cols = target_mask.len();
@@ -125,7 +135,7 @@ impl MilnorSubalgebra {
         let mut scratch = FpVector::new(p, target.dimension(target_degree));
 
         let rows: Vec<FpVector> = self
-            .signature_mask(&source, degree, signature)
+            .signature_mask(&algebra, &source, degree, signature)
             .map(|masked_index| {
                 scratch.set_to_zero();
                 hom.apply_to_basis_element(scratch.as_slice_mut(), 1, degree, masked_index);
@@ -495,10 +505,13 @@ impl Resolution {
 
         let source = &*self.modules[s];
         let target = &*self.modules[s - 1];
+        let algebra = target.algebra();
 
         let zero_sig = subalgebra.zero_signature();
         let target_dim = target.dimension(t);
-        let target_mask: Vec<usize> = subalgebra.signature_mask(target, t, &zero_sig).collect();
+        let target_mask: Vec<usize> = subalgebra
+            .signature_mask(&algebra, target, t, &zero_sig)
+            .collect();
         let target_masked_dim = target_mask.len();
 
         if s == 1 {
@@ -541,7 +554,7 @@ impl Resolution {
         };
 
         let next_mask: Vec<usize> = subalgebra
-            .signature_mask(&self.modules[s - 2], t, &zero_sig)
+            .signature_mask(&algebra, &self.modules[s - 2], t, &zero_sig)
             .collect();
         let next_masked_dim = next_mask.len();
 
@@ -603,8 +616,8 @@ impl Resolution {
         for signature in subalgebra.iter_signatures(t) {
             target_mask.clear();
             next_mask.clear();
-            target_mask.extend(subalgebra.signature_mask(target, t, &signature));
-            next_mask.extend(subalgebra.signature_mask(next, t, &signature));
+            target_mask.extend(subalgebra.signature_mask(&algebra, target, t, &signature));
+            next_mask.extend(subalgebra.signature_mask(&algebra, next, t, &signature));
 
             let full_matrix = self.differential(s - 1).get_partial_matrix(t, &target_mask);
 
@@ -922,10 +935,11 @@ impl ChainComplex for Resolution {
         let subalgebra = MilnorSubalgebra::from_bytes(&mut f).unwrap();
         let source = &self.modules[s];
         let target = &self.modules[s - 1];
+        let algebra = target.algebra();
 
         let mut inputs: Vec<FpVector> = inputs.iter().map(|x| x.into().to_owned()).collect();
         let mut mask: Vec<usize> = Vec::with_capacity(zero_mask_dim + 8);
-        mask.extend(subalgebra.signature_mask(source, t, &subalgebra.zero_signature()));
+        mask.extend(subalgebra.signature_mask(&algebra, source, t, &subalgebra.zero_signature()));
 
         let mut scratch0 = FpVector::new(p, zero_mask_dim);
         let mut scratch1 = FpVector::new(p, target_dim);
@@ -953,7 +967,7 @@ impl ChainComplex for Resolution {
             assert_eq!(mask.len(), zero_mask_dim + num_new_gens);
 
             let target_zero_mask: Vec<usize> = subalgebra
-                .signature_mask(target, t, &subalgebra.zero_signature())
+                .signature_mask(&algebra, target, t, &subalgebra.zero_signature())
                 .collect();
             let mut matrix = AugmentedMatrix::<3>::new(
                 p,
@@ -985,7 +999,7 @@ impl ChainComplex for Resolution {
                 let signature = subalgebra.signature_from_bytes(&mut f).unwrap();
 
                 mask.clear();
-                mask.extend(subalgebra.signature_mask(source, t, &signature));
+                mask.extend(subalgebra.signature_mask(&algebra, source, t, &signature));
                 scratch0.set_scratch_vector_size(mask.len());
             } else if col == Magic::Fix as usize {
                 // We need to fix the differential problem

@@ -195,7 +195,7 @@ pub struct MilnorAlgebra {
     p: ValidPrime,
     #[cfg(feature = "odd-primes")]
     generic: bool,
-    ppart_table: OnceVec<Vec<PPart>>,
+    pub ppart_table: OnceVec<Vec<PPart>>,
     qpart_table: Vec<OnceVec<QPart>>,
     pub basis_table: OnceVec<Vec<MilnorBasisElement>>,
     basis_element_to_index_map: OnceVec<MilnorHashMap<usize>>, // degree -> MilnorBasisElement -> index

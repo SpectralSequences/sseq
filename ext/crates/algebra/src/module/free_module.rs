@@ -298,6 +298,21 @@ impl<A: Algebra> FreeModule<A> {
         self.generator_to_index[degree][internal_gen_idx]
     }
 
+    /// Iterate the degrees of each generator up to degree `degree`.
+    pub fn iter_gen_degrees(&self, degree: i32) -> impl Iterator<Item = i32> + '_ {
+        self.num_gens
+            .iter_enum()
+            .take((degree - self.min_degree + 1) as usize)
+            .flat_map(|(t, &n)| std::iter::repeat(t).take(n))
+    }
+
+    /// Iterate the degrees and offsets of each generator up to degree `degree`.
+    pub fn iter_gen_degree_offset(&self, degree: i32) -> impl Iterator<Item = (i32, usize)> + '_ {
+        self.iter_gen_degrees(degree)
+            .enumerate()
+            .map(move |(i, t)| (t, self.generator_to_index[degree][i]))
+    }
+
     /// Given a generator `(gen_deg, gen_idx)`, find the first index in degree `degree` with
     /// elements from the generator.
     pub fn generator_offset(&self, degree: i32, gen_deg: i32, gen_idx: usize) -> usize {
