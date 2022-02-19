@@ -1,6 +1,6 @@
 use itertools::Itertools;
 use rustc_hash::FxHashMap as HashMap;
-use std::cell::RefCell;
+use std::cell::Cell;
 use std::sync::Mutex;
 
 use crate::algebra::combinatorics;
@@ -1067,7 +1067,7 @@ pub struct PPartAllocation {
 }
 
 thread_local! {
-    static ALLOCATION: RefCell<PPartAllocation> = RefCell::new(PPartAllocation::with_capacity(9));
+    static ALLOCATION: Cell<PPartAllocation> = Cell::new(PPartAllocation::with_capacity(9));
 }
 
 impl PPartAllocation {
@@ -1086,7 +1086,7 @@ impl PPartAllocation {
 
     pub fn with_local(f: impl FnOnce(Self) -> Self) {
         ALLOCATION.with(|alloc| {
-            *alloc.borrow_mut() = f(alloc.take());
+            alloc.set(f(alloc.take()));
         });
     }
 }
