@@ -377,6 +377,10 @@ impl Resolution {
         ValidPrime::new(2)
     }
 
+    pub const fn name(&self) -> &str {
+        "S_2"
+    }
+
     pub fn new(mut save_dir: Option<PathBuf>) -> Self {
         let algebra = Arc::new(MilnorAlgebra::new(ValidPrime::new(2)));
         let module = FDModule::new(

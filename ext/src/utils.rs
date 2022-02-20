@@ -244,9 +244,14 @@ pub fn query_module_only_standard(
     algebra: Option<AlgebraType>,
     load_quasi_inverse: impl Into<LoadQuasiInverseOption>,
 ) -> anyhow::Result<Resolution<CCC>> {
-    let module: Config = query::with_default(prompt, "S_2", |s| match algebra {
-        Some(algebra) => (s, algebra).try_into(),
-        None => s.try_into(),
+    let (name, module): (String, Config) = query::with_default(prompt, "S_2", |s| {
+        Result::<_, anyhow::Error>::Ok((
+            s.to_owned(),
+            match algebra {
+                Some(algebra) => (s, algebra).try_into()?,
+                None => s.try_into()?,
+            },
+        ))
     });
 
     let save_dir = query::optional(&format!("{prompt} save directory"), |x| {
@@ -261,6 +266,8 @@ pub fn query_module_only_standard(
         LoadQuasiInverseOption::No => false,
         LoadQuasiInverseOption::IfNoSave => resolution.save_dir().is_none(),
     };
+
+    resolution.set_name(name);
 
     Ok(resolution)
 }

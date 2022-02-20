@@ -58,6 +58,7 @@ const MAX_NEW_GENS: usize = 10;
 
 /// A resolution of a chain complex.
 pub struct Resolution<CC: ChainComplex> {
+    name: String,
     lock: Mutex<()>,
     complex: Arc<CC>,
     modules: OnceVec<Arc<FreeModule<CC::Algebra>>>,
@@ -106,6 +107,7 @@ impl<CC: ChainComplex> Resolution<CC> {
         }
 
         Ok(Self {
+            name: String::new(),
             complex,
             zero_module,
             should_save: save_dir.is_some(),
@@ -118,6 +120,14 @@ impl<CC: ChainComplex> Resolution<CC> {
             kernels: DashMap::new(),
             load_quasi_inverse: true,
         })
+    }
+
+    pub fn set_name(&mut self, name: String) {
+        self.name = name;
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
     }
 
     /// This function prepares the Resolution object to perform computations up to the

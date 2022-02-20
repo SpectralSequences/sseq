@@ -40,45 +40,61 @@
 //! Steenrod modules.
 
 use algebra::module::{BoundedModule, Module};
+use anyhow::{anyhow, Context};
 use ext::chain_complex::{AugmentedChainComplex, ChainComplex, FreeChainComplex};
 use ext::resolution_homomorphism::ResolutionHomomorphism;
 use ext::utils;
 use fp::matrix::Matrix;
 
+use std::path::PathBuf;
 use std::sync::Arc;
 
 fn main() -> anyhow::Result<()> {
-    let target = Arc::new(utils::query_module_only(
-        "Target module",
+    let source = Arc::new(utils::query_module_only(
+        "Source module",
         None,
         utils::LoadQuasiInverseOption::IfNoSave,
     )?);
+    let n: i32 = query::with_default("Max source n", "30", str::parse);
+    let s: u32 = query::with_default("Max source s", "7", str::parse);
 
-    let source_equal_target = query::yes_no("Source equal to target?");
-    let source = if source_equal_target {
-        Arc::clone(&target)
-    } else {
-        Arc::new(utils::query_module_only("Source module", None, false)?)
-    };
+    let source_name = source.name();
+    let target = query::with_default("Target module", source_name, |s| {
+        if s == source_name {
+            Ok(Arc::clone(&source))
+        } else if cfg!(feature = "nassau") {
+            Err(anyhow!("Can only resolve S_2 with nassau"))
+        } else {
+            let config: utils::Config = s.try_into()?;
+            let save_dir = query::optional("Target save directory", |x| {
+                Result::<PathBuf, std::convert::Infallible>::Ok(PathBuf::from(x))
+            });
+
+            let mut target = utils::construct(config, save_dir)
+                .context("Failed to load module from save file")
+                .unwrap();
+
+            target.set_name(s.to_owned());
+
+            #[cfg(feature = "nassau")]
+            unreachable!();
+
+            #[cfg(not(feature = "nassau"))]
+            Ok(Arc::new(target))
+        }
+    });
 
     assert_eq!(source.prime(), target.prime());
     let p = source.prime();
 
     let name: String = query::raw("Name of product", str::parse);
 
-    let shift_n: i32 = query::with_default("n of Ext class", "0", str::parse);
-    let shift_s: u32 = query::with_default("s of Ext class", "0", str::parse);
+    let shift_n: i32 = query::with_default("n of product", "0", str::parse);
+    let shift_s: u32 = query::with_default("s of product", "0", str::parse);
     let shift_t = shift_n + shift_s as i32;
 
-    let n: i32 = query::with_default("Max target n", "10", str::parse);
-    let s: u32 = query::with_default("Max target s", "10", str::parse);
-
-    if source_equal_target {
-        target.compute_through_stem(s + shift_s, n + std::cmp::max(0, shift_n));
-    } else {
-        source.compute_through_stem(s + shift_s, n + shift_n);
-        target.compute_through_stem(s, n);
-    }
+    source.compute_through_stem(s, n);
+    target.compute_through_stem(s - shift_s, n - shift_n);
 
     let target_module = target.target().module(0);
     let hom = ResolutionHomomorphism::new(name.clone(), source, target, shift_s, shift_t);
