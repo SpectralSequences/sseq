@@ -1208,6 +1208,10 @@
 <span id="1182">1182</span>
 <span id="1183">1183</span>
 <span id="1184">1184</span>
+<span id="1185">1185</span>
+<span id="1186">1186</span>
+<span id="1187">1187</span>
+<span id="1188">1188</span>
 </pre><pre class="rust"><code><span class="doccomment">//! This file implements the support for [Nassau&#39;s algorithm](https://arxiv.org/abs/1910.04063).</span>
 
 <span class="kw">use</span> <span class="ident">std::fmt::Display</span>;
@@ -1585,6 +1589,10 @@
 <span class="kw">impl</span> <span class="ident">Resolution</span> {
     <span class="kw">pub</span> <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">prime</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">ValidPrime</span> {
         <span class="ident">ValidPrime::new</span>(<span class="number">2</span>)
+    }
+
+    <span class="kw">pub</span> <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">name</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">str</span> {
+        <span class="string">&quot;S_2&quot;</span>
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="kw-2">mut</span> <span class="ident">save_dir</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">PathBuf</span><span class="op">&gt;</span>) -&gt; <span class="self">Self</span> {

@@ -503,6 +503,13 @@
 <span id="477">477</span>
 <span id="478">478</span>
 <span id="479">479</span>
+<span id="480">480</span>
+<span id="481">481</span>
+<span id="482">482</span>
+<span id="483">483</span>
+<span id="484">484</span>
+<span id="485">485</span>
+<span id="486">486</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::chain_complex</span>::{<span class="ident">ChainComplex</span>, <span class="ident">FiniteChainComplex</span>, <span class="ident">FreeChainComplex</span>};
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::resolution::Resolution</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::CCC</span>;
@@ -749,9 +756,14 @@
     <span class="ident">algebra</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">AlgebraType</span><span class="op">&gt;</span>,
     <span class="ident">load_quasi_inverse</span>: <span class="kw">impl</span> <span class="ident">Into</span><span class="op">&lt;</span><span class="ident">LoadQuasiInverseOption</span><span class="op">&gt;</span>,
 ) -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span><span class="ident">Resolution</span><span class="op">&lt;</span><span class="ident">CCC</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-    <span class="kw">let</span> <span class="ident">module</span>: <span class="ident">Config</span> <span class="op">=</span> <span class="ident">query::with_default</span>(<span class="ident">prompt</span>, <span class="string">&quot;S_2&quot;</span>, <span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">algebra</span> {
-        <span class="prelude-val">Some</span>(<span class="ident">algebra</span>) =&gt; (<span class="ident">s</span>, <span class="ident">algebra</span>).<span class="ident">try_into</span>(),
-        <span class="prelude-val">None</span> =&gt; <span class="ident">s</span>.<span class="ident">try_into</span>(),
+    <span class="kw">let</span> (<span class="ident">name</span>, <span class="ident">module</span>): (<span class="ident">String</span>, <span class="ident">Config</span>) <span class="op">=</span> <span class="ident">query::with_default</span>(<span class="ident">prompt</span>, <span class="string">&quot;S_2&quot;</span>, <span class="op">|</span><span class="ident">s</span><span class="op">|</span> {
+        <span class="prelude-ty">Result</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="ident">anyhow::Error</span><span class="op">&gt;</span><span class="ident">::Ok</span>((
+            <span class="ident">s</span>.<span class="ident">to_owned</span>(),
+            <span class="kw">match</span> <span class="ident">algebra</span> {
+                <span class="prelude-val">Some</span>(<span class="ident">algebra</span>) =&gt; (<span class="ident">s</span>, <span class="ident">algebra</span>).<span class="ident">try_into</span>()<span class="question-mark">?</span>,
+                <span class="prelude-val">None</span> =&gt; <span class="ident">s</span>.<span class="ident">try_into</span>()<span class="question-mark">?</span>,
+            },
+        ))
     });
 
     <span class="kw">let</span> <span class="ident">save_dir</span> <span class="op">=</span> <span class="ident">query::optional</span>(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;{prompt} save directory&quot;</span>), <span class="op">|</span><span class="ident">x</span><span class="op">|</span> {
@@ -766,6 +778,8 @@
         <span class="ident">LoadQuasiInverseOption::No</span> =&gt; <span class="bool-val">false</span>,
         <span class="ident">LoadQuasiInverseOption::IfNoSave</span> =&gt; <span class="ident">resolution</span>.<span class="ident">save_dir</span>().<span class="ident">is_none</span>(),
     };
+
+    <span class="ident">resolution</span>.<span class="ident">set_name</span>(<span class="ident">name</span>);
 
     <span class="prelude-val">Ok</span>(<span class="ident">resolution</span>)
 }
