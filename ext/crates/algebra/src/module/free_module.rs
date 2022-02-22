@@ -152,38 +152,23 @@ impl<A: Algebra> Module for FreeModule<A> {
         input_degree: i32,
         input: Slice,
     ) {
-        let input_dim = self.dimension(input_degree);
-        let output_dim = self.dimension(input_degree + op_degree);
-        let algebra = self.algebra();
-
-        let input_table = &self.generator_to_index[input_degree];
-        let output_table = &self.generator_to_index[input_degree + op_degree];
-        for (i, &idx) in input_table.iter().enumerate() {
-            if idx >= input.len() {
+        for GeneratorData {
+            gen_deg,
+            start: [input_start, output_start],
+            end: [input_end, output_end],
+        } in self.iter_gens([input_degree, input_degree + op_degree])
+        {
+            if input_start >= input.len() {
                 break;
             }
-            let end_idx = std::cmp::min(
-                input.len(),
-                input_table.get(i + 1).copied().unwrap_or(input_dim),
-            );
-            if end_idx == idx {
-                // The algebra is empty in this degree
-                continue;
-            }
-            if input.slice(idx, end_idx).is_empty() {
-                continue;
-            }
-            let opgen = self.index_to_op_gen(input_degree, idx);
-            algebra.multiply_basis_element_by_element(
-                result.slice_mut(
-                    output_table[i],
-                    output_table.get(i + 1).copied().unwrap_or(output_dim),
-                ),
+            let input_slice = input.slice(input_start, input_end);
+            self.algebra.multiply_basis_element_by_element(
+                result.slice_mut(output_start, output_end),
                 coeff,
                 op_degree,
                 op_index,
-                opgen.operation_degree,
-                input.slice(idx, end_idx),
+                input_degree - gen_deg,
+                input_slice,
             );
         }
     }
@@ -307,10 +292,16 @@ impl<A: Algebra> FreeModule<A> {
     }
 
     /// Iterate the degrees and offsets of each generator up to degree `degree`.
-    pub fn iter_gen_degree_offset(&self, degree: i32) -> impl Iterator<Item = (i32, usize)> + '_ {
-        self.iter_gen_degrees(degree)
-            .enumerate()
-            .map(move |(i, t)| (t, self.generator_to_index[degree][i]))
+    pub fn iter_gens<const N: usize>(
+        &self,
+        degree: [i32; N],
+    ) -> impl Iterator<Item = GeneratorData<N>> + '_ {
+        OffsetIterator {
+            module: self,
+            degree,
+            offset: [0; N],
+            gen_deg: self.iter_gen_degrees(degree.into_iter().min().unwrap()),
+        }
     }
 
     /// Given a generator `(gen_deg, gen_idx)`, find the first index in degree `degree` with
@@ -464,6 +455,45 @@ impl<A: JsonAlgebra> FreeModule<A> {
         Value::from(result)
     }
 }
+
+pub struct GeneratorData<const N: usize> {
+    pub gen_deg: i32,
+    pub start: [usize; N],
+    pub end: [usize; N],
+}
+
+struct OffsetIterator<'a, A: Algebra, T: Iterator<Item = i32> + 'a, const N: usize> {
+    module: &'a FreeModule<A>,
+    degree: [i32; N],
+    offset: [usize; N],
+    gen_deg: T,
+}
+
+impl<'a, A: Algebra, T: Iterator<Item = i32> + 'a, const N: usize> Iterator
+    for OffsetIterator<'a, A, T, N>
+{
+    type Item = GeneratorData<N>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut retval = GeneratorData {
+            gen_deg: self.gen_deg.next()?,
+            start: [0; N],
+            end: [0; N],
+        };
+
+        for i in 0..N {
+            retval.start[i] = self.offset[i];
+            retval.end[i] = retval.start[i]
+                + self
+                    .module
+                    .algebra
+                    .dimension(self.degree[i] - retval.gen_deg);
+            self.offset[i] = retval.end[i];
+        }
+        Some(retval)
+    }
+}
+
 /*
 #[cfg(not(feature = "cache-multiplication"))]
 impl<A: Algebra> FreeModule<A> {

@@ -21,7 +21,7 @@ pub use bounded_module::BoundedModule;
 pub use finite_dimensional_module::FiniteDimensionalModule as FDModule;
 pub use finite_module::FiniteModule;
 pub use finitely_presented_module::FinitelyPresentedModule as FPModule;
-pub use free_module::{FreeModule, OperationGeneratorPair};
+pub use free_module::{FreeModule, GeneratorData, OperationGeneratorPair};
 pub use module_trait::{Module, ModuleFailedRelationError};
 pub use rpn::RealProjectiveSpace;
 pub use zero_module::ZeroModule;

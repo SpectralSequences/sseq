@@ -15,7 +15,7 @@ use algebra::milnor_algebra::{MilnorAlgebra, PPartEntry};
 use algebra::module::homomorphism::{
     BoundedModuleHomomorphism, FreeModuleHomomorphism, ModuleHomomorphism,
 };
-use algebra::module::{FDModule, FreeModule, Module};
+use algebra::module::{FDModule, FreeModule, GeneratorData, Module};
 use algebra::Algebra;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use fp::matrix::{AugmentedMatrix, Matrix};
@@ -96,10 +96,13 @@ impl MilnorSubalgebra {
         degree: i32,
         signature: &'a [PPartEntry],
     ) -> impl Iterator<Item = usize> + 'a {
-        module
-            .iter_gen_degree_offset(degree)
-            .flat_map(move |(t, offset)| {
-                algebra.ppart_table[(degree - t) as usize]
+        module.iter_gens([degree]).flat_map(
+            move |GeneratorData {
+                      gen_deg,
+                      start: [offset],
+                      end: _,
+                  }| {
+                algebra.ppart_table[(degree - gen_deg) as usize]
                     .iter()
                     .enumerate()
                     .filter_map(move |(n, op)| {
@@ -109,7 +112,8 @@ impl MilnorSubalgebra {
                             None
                         }
                     })
-            })
+            },
+        )
     }
 
     /// Get the matrix of a free module homomorphism when restricted to the subquotient given by
