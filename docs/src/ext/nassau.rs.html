@@ -1212,6 +1212,10 @@
 <span id="1186">1186</span>
 <span id="1187">1187</span>
 <span id="1188">1188</span>
+<span id="1189">1189</span>
+<span id="1190">1190</span>
+<span id="1191">1191</span>
+<span id="1192">1192</span>
 </pre><pre class="rust"><code><span class="doccomment">//! This file implements the support for [Nassau&#39;s algorithm](https://arxiv.org/abs/1910.04063).</span>
 
 <span class="kw">use</span> <span class="ident">std::fmt::Display</span>;
@@ -1229,7 +1233,7 @@
 <span class="kw">use</span> <span class="ident">algebra::module::homomorphism</span>::{
     <span class="ident">BoundedModuleHomomorphism</span>, <span class="ident">FreeModuleHomomorphism</span>, <span class="ident">ModuleHomomorphism</span>,
 };
-<span class="kw">use</span> <span class="ident">algebra::module</span>::{<span class="ident">FDModule</span>, <span class="ident">FreeModule</span>, <span class="ident">Module</span>};
+<span class="kw">use</span> <span class="ident">algebra::module</span>::{<span class="ident">FDModule</span>, <span class="ident">FreeModule</span>, <span class="ident">GeneratorData</span>, <span class="ident">Module</span>};
 <span class="kw">use</span> <span class="ident">algebra::Algebra</span>;
 <span class="kw">use</span> <span class="ident">byteorder</span>::{<span class="ident">LittleEndian</span>, <span class="ident">ReadBytesExt</span>, <span class="ident">WriteBytesExt</span>};
 <span class="kw">use</span> <span class="ident">fp::matrix</span>::{<span class="ident">AugmentedMatrix</span>, <span class="ident">Matrix</span>};
@@ -1310,10 +1314,13 @@
         <span class="ident">degree</span>: <span class="ident">i32</span>,
         <span class="ident">signature</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> [<span class="ident">PPartEntry</span>],
     ) -&gt; <span class="kw">impl</span> <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">usize</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;a</span> {
-        <span class="ident">module</span>
-            .<span class="ident">iter_gen_degree_offset</span>(<span class="ident">degree</span>)
-            .<span class="ident">flat_map</span>(<span class="kw">move</span> <span class="op">|</span>(<span class="ident">t</span>, <span class="ident">offset</span>)<span class="op">|</span> {
-                <span class="ident">algebra</span>.<span class="ident">ppart_table</span>[(<span class="ident">degree</span> <span class="op">-</span> <span class="ident">t</span>) <span class="kw">as</span> <span class="ident">usize</span>]
+        <span class="ident">module</span>.<span class="ident">iter_gens</span>([<span class="ident">degree</span>]).<span class="ident">flat_map</span>(
+            <span class="kw">move</span> <span class="op">|</span><span class="ident">GeneratorData</span> {
+                      <span class="ident">gen_deg</span>,
+                      <span class="ident">start</span>: [<span class="ident">offset</span>],
+                      <span class="ident">end</span>: <span class="kw">_</span>,
+                  }<span class="op">|</span> {
+                <span class="ident">algebra</span>.<span class="ident">ppart_table</span>[(<span class="ident">degree</span> <span class="op">-</span> <span class="ident">gen_deg</span>) <span class="kw">as</span> <span class="ident">usize</span>]
                     .<span class="ident">iter</span>()
                     .<span class="ident">enumerate</span>()
                     .<span class="ident">filter_map</span>(<span class="kw">move</span> <span class="op">|</span>(<span class="ident">n</span>, <span class="ident">op</span>)<span class="op">|</span> {
@@ -1323,7 +1330,8 @@
                             <span class="prelude-val">None</span>
                         }
                     })
-            })
+            },
+        )
     }
 
     <span class="doccomment">/// Get the matrix of a free module homomorphism when restricted to the subquotient given by</span>
