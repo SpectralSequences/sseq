@@ -793,9 +793,6 @@
 <span id="767">767</span>
 <span id="768">768</span>
 <span id="769">769</span>
-<span id="770">770</span>
-<span id="771">771</span>
-<span id="772">772</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
 
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::algebra::Algebra</span>;
@@ -910,13 +907,12 @@
         <span class="ident">mod_degree</span>: <span class="ident">i32</span>,
         <span class="ident">mod_index</span>: <span class="ident">usize</span>,
     ) {
-        <span class="comment">// assert!(op_index &lt; self.algebra().dimension(op_degree, mod_degree));</span>
-        <span class="comment">// assert!(self.dimension(op_degree + mod_degree) &lt;= result.dimension());</span>
-        <span class="kw">let</span> <span class="ident">operation_generator</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">index_to_op_gen</span>(<span class="ident">mod_degree</span>, <span class="ident">mod_index</span>);
-        <span class="kw">let</span> <span class="ident">module_operation_degree</span> <span class="op">=</span> <span class="ident">operation_generator</span>.<span class="ident">operation_degree</span>;
-        <span class="kw">let</span> <span class="ident">module_operation_index</span> <span class="op">=</span> <span class="ident">operation_generator</span>.<span class="ident">operation_index</span>;
-        <span class="kw">let</span> <span class="ident">generator_degree</span> <span class="op">=</span> <span class="ident">operation_generator</span>.<span class="ident">generator_degree</span>;
-        <span class="kw">let</span> <span class="ident">generator_index</span> <span class="op">=</span> <span class="ident">operation_generator</span>.<span class="ident">generator_index</span>;
+        <span class="kw">let</span> <span class="ident">OperationGeneratorPair</span> {
+            <span class="ident">operation_degree</span>: <span class="ident">module_operation_degree</span>,
+            <span class="ident">operation_index</span>: <span class="ident">module_operation_index</span>,
+            <span class="ident">generator_degree</span>,
+            <span class="ident">generator_index</span>,
+        } <span class="op">=</span> <span class="kw-2">*</span><span class="self">self</span>.<span class="ident">index_to_op_gen</span>(<span class="ident">mod_degree</span>, <span class="ident">mod_index</span>);
 
         <span class="comment">// Now all of the output elements are going to be of the form s * x. Find where such things go in the output vector.</span>
         <span class="kw">let</span> <span class="ident">num_ops</span> <span class="op">=</span> <span class="self">self</span>
@@ -1566,8 +1562,6 @@ impl std::ops::IndexMut&lt;usize&gt; for AdmissibleMatrix {
         <span class="macro">println!</span>(<span class="string">&quot;1, 1 : {}&quot;</span>, <span class="ident">M</span>.<span class="ident">basis_element_to_string</span>(<span class="number">1</span>, <span class="number">1</span>));
     }
 }
-
-<span class="comment">// uint FreeModule_element_toJSONString(char *result, FreeModule *this, int degree, Vector *element);</span>
 </code></pre></div>
 </section><section id="search" class="content hidden"></section><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="algebra" data-search-index-js="../../../search-index.js" data-search-js="../../../search.js"></div>
 </body></html>
