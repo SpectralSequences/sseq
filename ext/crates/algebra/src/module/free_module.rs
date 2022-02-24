@@ -112,13 +112,12 @@ impl<A: Algebra> Module for FreeModule<A> {
         mod_degree: i32,
         mod_index: usize,
     ) {
-        // assert!(op_index < self.algebra().dimension(op_degree, mod_degree));
-        // assert!(self.dimension(op_degree + mod_degree) <= result.dimension());
-        let operation_generator = self.index_to_op_gen(mod_degree, mod_index);
-        let module_operation_degree = operation_generator.operation_degree;
-        let module_operation_index = operation_generator.operation_index;
-        let generator_degree = operation_generator.generator_degree;
-        let generator_index = operation_generator.generator_index;
+        let OperationGeneratorPair {
+            operation_degree: module_operation_degree,
+            operation_index: module_operation_index,
+            generator_degree,
+            generator_index,
+        } = *self.index_to_op_gen(mod_degree, mod_index);
 
         // Now all of the output elements are going to be of the form s * x. Find where such things go in the output vector.
         let num_ops = self
@@ -768,5 +767,3 @@ mod tests {
         println!("1, 1 : {}", M.basis_element_to_string(1, 1));
     }
 }
-
-// uint FreeModule_element_toJSONString(char *result, FreeModule *this, int degree, Vector *element);
