@@ -163,8 +163,9 @@
 //!    $\mathrm{tmf}$ modules.
 //! - `logging`: Print timing information of the computations to stderr.
 //! - `nassau`: Use Nassau's algorithm to compute the minimal resolution instead of the usual
-//!    minimal resolution algorithm. This does not work with the `steenrod` and `yoneda` scripts,
-//!    and are currently suboptimal for everything that requires quasi-inverses.
+//!    minimal resolution algorithm. When this feature is enabled, only `S_2` can be resolved.
+//!    This feature has no effect on the `steenrod` and `yoneda` scripts, which require the Adem
+//!    basis. See [`nassau`] for more details.
 
 #![allow(clippy::upper_case_acronyms)]
 

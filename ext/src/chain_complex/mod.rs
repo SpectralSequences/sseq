@@ -2,7 +2,7 @@ mod chain_homotopy;
 mod finite_chain_complex;
 mod tensor_product_chain_complex;
 
-use crate::utils::ascii_num;
+use crate::utils::unicode_num;
 use algebra::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
 use algebra::module::{FreeModule, Module};
 use algebra::Algebra;
@@ -36,7 +36,7 @@ pub trait FreeChainComplex:
             let module = self.module(s);
 
             for t in min_degree + s as i32..=module.max_computed_degree() {
-                result.push(ascii_num(module.number_of_gens_in_degree(t)));
+                result.push(unicode_num(module.number_of_gens_in_degree(t)));
                 result.push(' ');
             }
             result.push('\n');

@@ -1,4 +1,4 @@
-use crate::chain_complex::{ChainComplex, FiniteChainComplex, FreeChainComplex};
+use crate::chain_complex::{ChainComplex, FiniteChainComplex};
 use crate::resolution::Resolution;
 use crate::CCC;
 use algebra::module::{FiniteModule, Module};
@@ -8,7 +8,6 @@ use anyhow::{anyhow, Context};
 use serde_json::Value;
 
 use std::convert::{TryFrom, TryInto};
-use std::io::Write;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -23,6 +22,8 @@ pub struct Config {
     pub algebra: AlgebraType,
 }
 
+/// Given a module specification string, load a json description of the module as described
+/// [here](../index.html#module-specification).
 pub fn parse_module_name(module_name: &str) -> anyhow::Result<Value> {
     let mut args = module_name.split('[');
     let module_file = args.next().unwrap();
@@ -168,6 +169,9 @@ where
     Resolution::new_with_save(chain_complex, save_dir)
 }
 
+/// Given the name of a module file (without the `.json` extension), find a json file with this
+/// name, and return the parsed json object. The search path for this json file is described
+/// [here](../index.html#module-specification).
 pub fn load_module_json(name: &str) -> anyhow::Result<Value> {
     let current_dir = std::env::current_dir().unwrap();
     let relative_dir = current_dir.join("steenrod_modules");
@@ -188,10 +192,10 @@ pub fn load_module_json(name: &str) -> anyhow::Result<Value> {
     Err(anyhow!("Module file '{}' not found", name))
 }
 
-const RED_ANSI_CODE: &str = "\x1b[31;1m";
-const WHITE_ANSI_CODE: &str = "\x1b[0m";
-
-pub fn ascii_num(n: usize) -> char {
+/// Given an `n: usize`, return a UTF-8 character that best depicts this number. If `n < 9`, then
+/// this is a UTF-8 when `n` many dots. If `n = 9`, then this is the number `9`. Otherwise, it is
+/// `*`.
+pub fn unicode_num(n: usize) -> char {
     match n {
         0 => ' ',
         1 => '·',
@@ -207,38 +211,8 @@ pub fn ascii_num(n: usize) -> char {
     }
 }
 
-pub fn print_resolution_color<C: FreeChainComplex, S: std::hash::BuildHasher>(
-    res: &C,
-    max_s: u32,
-    highlight: &std::collections::HashMap<(u32, i32), u32, S>,
-) {
-    let stderr = std::io::stderr();
-    let mut stderr = stderr.lock();
-    for s in (0..max_s).rev() {
-        for t in s as i32..=res.module(s).max_computed_degree() {
-            if matches!(highlight.get(&(s, t)), None | Some(0)) {
-                write!(
-                    stderr,
-                    "{}{}{} ",
-                    RED_ANSI_CODE,
-                    ascii_num(res.module(s).number_of_gens_in_degree(t)),
-                    WHITE_ANSI_CODE
-                )
-                .unwrap();
-            } else {
-                write!(
-                    stderr,
-                    "{} ",
-                    ascii_num(res.module(s).number_of_gens_in_degree(t))
-                )
-                .unwrap();
-            }
-        }
-        writeln!(stderr, "\x1b[K").unwrap();
-    }
-}
-
-/// This always loads the usual resolution, even when `nassau` is enabled.
+/// A version of [`query_module_only`] that always returns the usual resolution, even when the
+/// `nassau` feature is enabled. This is useful for scripts that must use the Adem basis.
 pub fn query_module_only_standard(
     prompt: &str,
     algebra: Option<AlgebraType>,
@@ -272,12 +246,13 @@ pub fn query_module_only_standard(
     Ok(resolution)
 }
 
+/// Options for whether to load a quasi-inverse in a resolution.
 pub enum LoadQuasiInverseOption {
-    /// Always load quasi inverses
+    /// Always load quasi-inverses
     Yes,
-    /// Load quasi inverses if there is no save file (so that `apply_quasi_inverse` always works)
+    /// Load quasi-inverses if there is no save file (so that `apply_quasi_inverse` always works)
     IfNoSave,
-    /// Never load quasi inverses
+    /// Never load quasi-inverses
     No,
 }
 
@@ -290,44 +265,66 @@ impl From<bool> for LoadQuasiInverseOption {
     }
 }
 
+// We build docs with --all-features so the docs are at the feature = "nassau" version
 #[cfg(not(feature = "nassau"))]
 pub type QueryModuleResolution = Resolution<CCC>;
 
+/// The type returned by [`query_module`]. The value of this type depends on whether
+/// [`nassau`](crate::nassau) is enabled. In any case, it is an augmented free chain complex over
+/// either [`SteenrodAlgebra`] or [`MilnorAlgebra`](algebra::MilnorAlgebra) and supports the
+/// `compute_through_stem` function.
 #[cfg(feature = "nassau")]
 pub type QueryModuleResolution = crate::nassau::Resolution;
 
-#[cfg(not(feature = "nassau"))]
+/// Query the user for a module and its save directory. See
+/// [here](../index.html#module-specification) for details on the propmt format.
+///
+/// # Arguments
+/// - `prompt`: The prompt used to query the user for the module. This is `"Module"` when invoked
+///   through [`query_module`], but the user may want to use something more specific, e.g. `"Source
+///   module"`.
+/// - `algebra`: The Steenrod algebra basis allowed. Some applications only support using one of
+///   the two basis, and specifying this parameter forbids the user from specifying the other
+///   basis.
+/// - `load_quasi_inverse`: Whether or not the quasi-inverses of the resolution should be stored.
+///   This should be a [`LoadQuasiInverseOption`]. However, the options
+///   `LoadQuasiInverseOption::Yes` and `LoadQuasiInverseOption::No` can be specified via the
+///   booleans `true` and `false` instead for brevity.
+///
+/// # Returns
+/// A [`QueryModuleResolution`]. Note that this type depends on whether the `nassau` feature is
+/// enabled.
 pub fn query_module_only(
     prompt: &str,
     algebra: Option<AlgebraType>,
-    load_quasi_inverse: impl Into<LoadQuasiInverseOption>,
+    #[allow(unused_variables)] load_quasi_inverse: impl Into<LoadQuasiInverseOption>,
 ) -> anyhow::Result<QueryModuleResolution> {
+    #[cfg(feature = "nassau")]
+    {
+        // The module must be S_2
+        let _ = query::with_default(prompt, "S_2", |s| match s {
+            "S_2" => Ok(""),
+            _ => Err("Can only resolve S_2 with Nassau"),
+        });
+
+        if let Some(AlgebraType::Adem) = algebra {
+            return Err(anyhow!("Cannot use Nassau's algorithm with the Adem basis"));
+        }
+
+        let save_dir = query::optional(&format!("{prompt} save directory"), |x| {
+            core::result::Result::<PathBuf, std::convert::Infallible>::Ok(PathBuf::from(x))
+        });
+
+        Ok(crate::nassau::Resolution::new(save_dir))
+    }
+    #[cfg(not(feature = "nassau"))]
     query_module_only_standard(prompt, algebra, load_quasi_inverse)
 }
 
-#[cfg(feature = "nassau")]
-pub fn query_module_only(
-    prompt: &str,
-    algebra: Option<AlgebraType>,
-    _load_quasi_inverse: impl Into<LoadQuasiInverseOption>,
-) -> anyhow::Result<QueryModuleResolution> {
-    // The module must be S_2
-    let _ = query::with_default(prompt, "S_2", |s| match s {
-        "S_2" => Ok(""),
-        _ => Err("Can only resolve S_2 with Nassau"),
-    });
-
-    if let Some(AlgebraType::Adem) = algebra {
-        return Err(anyhow!("Cannot use Nassau's algorithm with the Adem basis"));
-    }
-
-    let save_dir = query::optional(&format!("{prompt} save directory"), |x| {
-        core::result::Result::<PathBuf, std::convert::Infallible>::Ok(PathBuf::from(x))
-    });
-
-    Ok(crate::nassau::Resolution::new(save_dir))
-}
-
+/// Query the user for a module and a bidegree, and return a resolution resolved up to said
+/// bidegree. This is mainly a wrapper around [`query_module_only`] that also asks for the bidegree
+/// to resolve up to as well. The prompt of [`query_module_only`] is always set to `"Module"` when
+/// invoked through this function.
 pub fn query_module(
     algebra: Option<AlgebraType>,
     load_quasi_inverse: impl Into<LoadQuasiInverseOption>,
@@ -351,7 +348,7 @@ pub fn query_module(
 }
 
 /// Prints an element in the bidegree `(n, s)` to stdout. For example, `[0, 2, 1]` will be printed
-/// as `2 x_(n, s, 1) + x_(f, s, 2)`.
+/// as `2 x_(n, s, 1) + x_(n, s, 2)`.
 pub fn print_element(v: fp::vector::Slice, n: i32, s: u32) {
     let mut first = true;
     for (i, v) in v.iter_nonzero() {
@@ -366,34 +363,35 @@ pub fn print_element(v: fp::vector::Slice, n: i32, s: u32) {
     }
 }
 
-#[cfg(not(feature = "nassau"))]
+/// Given a resolution, return a resolution of the unit, together with a boolean indicating whether
+/// this is the original resolution was already a resolution of the unit. If the boolean is true,
+/// then the original resolution is returned.
 pub fn get_unit(
     resolution: Arc<QueryModuleResolution>,
 ) -> anyhow::Result<(bool, Arc<QueryModuleResolution>)> {
-    use crate::chain_complex::AugmentedChainComplex;
+    #[cfg(not(feature = "nassau"))]
+    {
+        use crate::chain_complex::AugmentedChainComplex;
 
-    let is_unit = resolution.target().modules.len() == 1 && resolution.target().module(0).is_unit();
+        let is_unit =
+            resolution.target().modules.len() == 1 && resolution.target().module(0).is_unit();
 
-    let unit = if is_unit {
-        Arc::clone(&resolution)
-    } else {
-        let save_dir = query::optional("Unit save directory", |x| {
-            core::result::Result::<PathBuf, std::convert::Infallible>::Ok(PathBuf::from(x))
-        });
-        Arc::new(crate::utils::construct("S_2@milnor", save_dir)?)
-    };
+        let unit = if is_unit {
+            Arc::clone(&resolution)
+        } else {
+            let save_dir = query::optional("Unit save directory", |x| {
+                core::result::Result::<PathBuf, std::convert::Infallible>::Ok(PathBuf::from(x))
+            });
+            Arc::new(crate::utils::construct("S_2@milnor", save_dir)?)
+        };
 
-    Ok((is_unit, unit))
-}
-
-#[cfg(feature = "nassau")]
-pub fn get_unit(
-    resolution: Arc<crate::nassau::Resolution>,
-) -> anyhow::Result<(bool, Arc<QueryModuleResolution>)> {
+        Ok((is_unit, unit))
+    }
+    #[cfg(feature = "nassau")]
     Ok((true, resolution))
 }
 
-/// Given a function f(s, t), compute it for every `s` in `[min_s, max_s]` and every `t` in
+/// Given a function `f(s, t)`, compute it for every `s` in `[min_s, max_s]` and every `t` in
 /// `[min_t, max_t(s)]`.  Further, we only compute `f(s, t)` when `f(s - 1, t')` has been computed
 /// for all `t' < t`.
 ///
@@ -460,6 +458,11 @@ pub fn iter_s_t(
     });
 }
 
+/// If the `logging` feature is enabled, this prints the given duration together with some
+/// information about what this duration measures. This is useful for performance benchmarks and
+/// analysis.
+///
+/// If the `logging` features is disabled, this is a no-op.
 #[allow(unused_variables)]
 pub fn log_time(duration: std::time::Duration, info: std::fmt::Arguments) {
     #[cfg(feature = "logging")]

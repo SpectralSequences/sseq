@@ -1,4 +1,16 @@
-//! This file implements the support for [Nassau's algorithm](https://arxiv.org/abs/1910.04063).
+//! This module implements [Nassau's algorithm](https://arxiv.org/abs/1910.04063). The main export
+//! is the [`Resolution`] object, which is a resolution of the sphere at the prime 2 using Nassau's
+//! algorithm. It aims to provide an API similar to
+//! [`resolution::Resolution`](crate::resolution::Resolution). From an API point of view, the main
+//! difference between the two is that our `Resolution` is a chain complex over [`MilnorAlgebra`]
+//! over [`SteenrodAlgebra`](algebra::SteenrodAlgebra).
+//!
+//! To make use of this resolution in the example scripts, enable the `nassau` feature. This will
+//! cause [`utils::query_module`](crate::utils::query_module) to return the `Resolution` from this
+//! module instead of [`resolution`](crate::resolution). There is no formal polymorphism involved;
+//! the feature changes the return type of the function. While this is an incorrect use of
+//! features, we find that this the easiest way to make all scripts support both types of
+//! resolutions.
 
 use std::fmt::Display;
 use std::io::{Read, Write};
@@ -55,24 +67,26 @@ impl SenderData {
 /// in Lemma 2.4 is just the (reverse) lexicographic ordering of the P parts. This corresponds to
 /// the ordering of $\mathcal{P}$ where $P^s_t < P^{s'}_t$ if $s < s'$).
 #[derive(Clone)]
-pub struct MilnorSubalgebra {
+struct MilnorSubalgebra {
     profile: Vec<u8>,
 }
 
 impl MilnorSubalgebra {
     /// This should be used when you want an entry of the profile to be infinity
-    pub const INFINITY: u8 = (std::mem::size_of::<PPartEntry>() * 4 - 1) as u8;
+    #[allow(dead_code)]
+    const INFINITY: u8 = (std::mem::size_of::<PPartEntry>() * 4 - 1) as u8;
 
-    pub fn new(profile: Vec<u8>) -> Self {
+    fn new(profile: Vec<u8>) -> Self {
         Self { profile }
     }
 
-    pub fn zero_algebra() -> Self {
+    /// The algebra with trivial profile, corresponding to the trivial algebra.
+    fn zero_algebra() -> Self {
         Self { profile: vec![] }
     }
 
     /// Computes the signature of an element
-    pub fn has_signature(&self, ppart: &[PPartEntry], signature: &[PPartEntry]) -> bool {
+    fn has_signature(&self, ppart: &[PPartEntry], signature: &[PPartEntry]) -> bool {
         for (i, (&profile, &signature)) in self.profile.iter().zip(signature).enumerate() {
             let ppart = ppart.get(i).copied().unwrap_or(0);
             if ppart & ((1 << profile) - 1) != signature {
@@ -82,14 +96,14 @@ impl MilnorSubalgebra {
         true
     }
 
-    pub fn zero_signature(&self) -> Vec<PPartEntry> {
+    fn zero_signature(&self) -> Vec<PPartEntry> {
         vec![0; self.profile.len()]
     }
 
     /// Give a list of basis elements in degree `degree` that has signature `signature`.
     ///
     /// This requires passing the algebra for borrow checker reasons.
-    pub fn signature_mask<'a>(
+    fn signature_mask<'a>(
         &'a self,
         algebra: &'a MilnorAlgebra,
         module: &'a FreeModule<MilnorAlgebra>,
@@ -118,7 +132,7 @@ impl MilnorSubalgebra {
 
     /// Get the matrix of a free module homomorphism when restricted to the subquotient given by
     /// the signature.
-    pub fn signature_matrix(
+    fn signature_matrix(
         &self,
         hom: &FreeModuleHomomorphism<FreeModule<MilnorAlgebra>>,
         degree: i32,
@@ -155,8 +169,8 @@ impl MilnorSubalgebra {
     }
 
     /// Iterate through all signatures of this algebra that contain elements of degree at most
-    /// `degree` (inclusive). This skips the initial zero signature
-    pub fn iter_signatures(&self, degree: i32) -> impl Iterator<Item = Vec<PPartEntry>> + '_ {
+    /// `degree` (inclusive). This skips the initial zero signature.
+    fn iter_signatures(&self, degree: i32) -> impl Iterator<Item = Vec<PPartEntry>> + '_ {
         SignatureIterator::new(self, degree)
     }
 
@@ -182,7 +196,7 @@ impl MilnorSubalgebra {
         result
     }
 
-    pub fn to_bytes(&self, buffer: &mut impl Write) -> std::io::Result<()> {
+    fn to_bytes(&self, buffer: &mut impl Write) -> std::io::Result<()> {
         buffer.write_u64::<LittleEndian>(self.profile.len() as u64)?;
         buffer.write_all(&self.profile)?;
 
@@ -192,7 +206,7 @@ impl MilnorSubalgebra {
         buffer.write_all(&zeros[0..padding])
     }
 
-    pub fn from_bytes(data: &mut impl Read) -> std::io::Result<Self> {
+    fn from_bytes(data: &mut impl Read) -> std::io::Result<Self> {
         let len = data.read_u64::<LittleEndian>()? as usize;
         let mut profile = vec![0; len];
 
@@ -207,7 +221,7 @@ impl MilnorSubalgebra {
         Ok(Self { profile })
     }
 
-    pub fn signature_to_bytes(
+    fn signature_to_bytes(
         signature: &[PPartEntry],
         buffer: &mut impl Write,
     ) -> std::io::Result<()> {
@@ -235,7 +249,7 @@ impl MilnorSubalgebra {
         Ok(())
     }
 
-    pub fn signature_from_bytes(&self, data: &mut impl Read) -> std::io::Result<Vec<PPartEntry>> {
+    fn signature_from_bytes(&self, data: &mut impl Read) -> std::io::Result<Vec<PPartEntry>> {
         let len = self.profile.len();
         let mut signature: Vec<PPartEntry> = vec![0; len];
 
@@ -273,12 +287,15 @@ impl Display for MilnorSubalgebra {
     }
 }
 
+/// An iterator that iterates through a sequence of [`MilnorSubalgebra`] of increasing size. This
+/// is used by [`MilnorSubalgebra::optimal_for`] to find the largest subalgebra in this sequence
+/// that is applicable to a bidegree.
 struct SubalgebraIterator {
     current: MilnorSubalgebra,
 }
 
 impl SubalgebraIterator {
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {
             current: MilnorSubalgebra::new(vec![]),
         }
@@ -312,6 +329,7 @@ impl Iterator for SubalgebraIterator {
     }
 }
 
+/// See [`MilnorSubalgebra::iter_signatures`].
 struct SignatureIterator<'a> {
     subalgebra: &'a MilnorSubalgebra,
     current: Vec<PPartEntry>,
@@ -365,7 +383,10 @@ enum Magic {
     Fix = -3,
 }
 
-/// A resolution of a chain complex.
+/// A resolution of `S_2` using Nassau's algorithm. This aims to have an API similar to that of
+/// [`resolution::Resolution`](crate::resolution::Resolution). From an API point of view, the main
+/// difference between the two is that this is a chain complex over [`MilnorAlgebra`]
+/// over [`SteenrodAlgebra`](algebra::SteenrodAlgebra).
 pub struct Resolution {
     lock: Mutex<()>,
     modules: OnceVec<Arc<FreeModule<MilnorAlgebra>>>,
