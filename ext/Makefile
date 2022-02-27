@@ -15,8 +15,8 @@ lint:
 	cargo check --workspace --all-targets --all-features
 
 docs:
-	RUSTDOCFLAGS="--html-in-header gh-pages/katex-header.html" cargo doc --all --no-deps --document-private-items --all-features
 	RUSTDOCFLAGS="--html-in-header gh-pages/katex-header.html" cargo rustdoc --examples --all-features
+	RUSTDOCFLAGS="--html-in-header gh-pages/katex-header.html" cargo doc --all --no-deps --document-private-items --all-features
 	# Prevent the examples from showing up in the sidebar
 	echo "window.ALL_CRATES = [$$(ls crates/ | sed "s/.*/'&',/; s/-/_/g")'ext'];" > target/doc/crates.js
 
