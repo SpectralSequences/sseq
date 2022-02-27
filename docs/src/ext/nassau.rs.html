@@ -1217,7 +1217,40 @@
 <span id="1190">1190</span>
 <span id="1191">1191</span>
 <span id="1192">1192</span>
-</pre><pre class="rust"><code><span class="doccomment">//! This file implements the support for [Nassau&#39;s algorithm](https://arxiv.org/abs/1910.04063).</span>
+<span id="1193">1193</span>
+<span id="1194">1194</span>
+<span id="1195">1195</span>
+<span id="1196">1196</span>
+<span id="1197">1197</span>
+<span id="1198">1198</span>
+<span id="1199">1199</span>
+<span id="1200">1200</span>
+<span id="1201">1201</span>
+<span id="1202">1202</span>
+<span id="1203">1203</span>
+<span id="1204">1204</span>
+<span id="1205">1205</span>
+<span id="1206">1206</span>
+<span id="1207">1207</span>
+<span id="1208">1208</span>
+<span id="1209">1209</span>
+<span id="1210">1210</span>
+<span id="1211">1211</span>
+<span id="1212">1212</span>
+<span id="1213">1213</span>
+</pre><pre class="rust"><code><span class="doccomment">//! This module implements [Nassau&#39;s algorithm](https://arxiv.org/abs/1910.04063). The main export</span>
+<span class="doccomment">//! is the [`Resolution`] object, which is a resolution of the sphere at the prime 2 using Nassau&#39;s</span>
+<span class="doccomment">//! algorithm. It aims to provide an API similar to</span>
+<span class="doccomment">//! [`resolution::Resolution`](crate::resolution::Resolution). From an API point of view, the main</span>
+<span class="doccomment">//! difference between the two is that our `Resolution` is a chain complex over [`MilnorAlgebra`]</span>
+<span class="doccomment">//! over [`SteenrodAlgebra`](algebra::SteenrodAlgebra).</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! To make use of this resolution in the example scripts, enable the `nassau` feature. This will</span>
+<span class="doccomment">//! cause [`utils::query_module`](crate::utils::query_module) to return the `Resolution` from this</span>
+<span class="doccomment">//! module instead of [`resolution`](crate::resolution). There is no formal polymorphism involved;</span>
+<span class="doccomment">//! the feature changes the return type of the function. While this is an incorrect use of</span>
+<span class="doccomment">//! features, we find that this the easiest way to make all scripts support both types of</span>
+<span class="doccomment">//! resolutions.</span>
 
 <span class="kw">use</span> <span class="ident">std::fmt::Display</span>;
 <span class="kw">use</span> <span class="ident">std::io</span>::{<span class="ident">Read</span>, <span class="ident">Write</span>};
@@ -1274,24 +1307,26 @@
 <span class="doccomment">/// in Lemma 2.4 is just the (reverse) lexicographic ordering of the P parts. This corresponds to</span>
 <span class="doccomment">/// the ordering of $\mathcal{P}$ where $P^s_t &lt; P^{s&#39;}_t$ if $s &lt; s&#39;$).</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">MilnorSubalgebra</span> {
+<span class="kw">struct</span> <span class="ident">MilnorSubalgebra</span> {
     <span class="ident">profile</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>,
 }
 
 <span class="kw">impl</span> <span class="ident">MilnorSubalgebra</span> {
     <span class="doccomment">/// This should be used when you want an entry of the profile to be infinity</span>
-    <span class="kw">pub</span> <span class="kw">const</span> <span class="ident">INFINITY</span>: <span class="ident">u8</span> <span class="op">=</span> (<span class="ident">std::mem::size_of</span>::<span class="op">&lt;</span><span class="ident">PPartEntry</span><span class="op">&gt;</span>() <span class="op">*</span> <span class="number">4</span> <span class="op">-</span> <span class="number">1</span>) <span class="kw">as</span> <span class="ident">u8</span>;
+    <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">dead_code</span>)]</span>
+    <span class="kw">const</span> <span class="ident">INFINITY</span>: <span class="ident">u8</span> <span class="op">=</span> (<span class="ident">std::mem::size_of</span>::<span class="op">&lt;</span><span class="ident">PPartEntry</span><span class="op">&gt;</span>() <span class="op">*</span> <span class="number">4</span> <span class="op">-</span> <span class="number">1</span>) <span class="kw">as</span> <span class="ident">u8</span>;
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">profile</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>) -&gt; <span class="self">Self</span> {
+    <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">profile</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>) -&gt; <span class="self">Self</span> {
         <span class="self">Self</span> { <span class="ident">profile</span> }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">zero_algebra</span>() -&gt; <span class="self">Self</span> {
+    <span class="doccomment">/// The algebra with trivial profile, corresponding to the trivial algebra.</span>
+    <span class="kw">fn</span> <span class="ident">zero_algebra</span>() -&gt; <span class="self">Self</span> {
         <span class="self">Self</span> { <span class="ident">profile</span>: <span class="macro">vec!</span>[] }
     }
 
     <span class="doccomment">/// Computes the signature of an element</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">has_signature</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">ppart</span>: <span class="kw-2">&amp;</span>[<span class="ident">PPartEntry</span>], <span class="ident">signature</span>: <span class="kw-2">&amp;</span>[<span class="ident">PPartEntry</span>]) -&gt; <span class="ident">bool</span> {
+    <span class="kw">fn</span> <span class="ident">has_signature</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">ppart</span>: <span class="kw-2">&amp;</span>[<span class="ident">PPartEntry</span>], <span class="ident">signature</span>: <span class="kw-2">&amp;</span>[<span class="ident">PPartEntry</span>]) -&gt; <span class="ident">bool</span> {
         <span class="kw">for</span> (<span class="ident">i</span>, (<span class="kw-2">&amp;</span><span class="ident">profile</span>, <span class="kw-2">&amp;</span><span class="ident">signature</span>)) <span class="kw">in</span> <span class="self">self</span>.<span class="ident">profile</span>.<span class="ident">iter</span>().<span class="ident">zip</span>(<span class="ident">signature</span>).<span class="ident">enumerate</span>() {
             <span class="kw">let</span> <span class="ident">ppart</span> <span class="op">=</span> <span class="ident">ppart</span>.<span class="ident">get</span>(<span class="ident">i</span>).<span class="ident">copied</span>().<span class="ident">unwrap_or</span>(<span class="number">0</span>);
             <span class="kw">if</span> <span class="ident">ppart</span> <span class="op">&amp;</span> ((<span class="number">1</span> <span class="op">&lt;</span><span class="op">&lt;</span> <span class="ident">profile</span>) <span class="op">-</span> <span class="number">1</span>) <span class="op">!</span><span class="op">=</span> <span class="ident">signature</span> {
@@ -1301,14 +1336,14 @@
         <span class="bool-val">true</span>
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">zero_signature</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">PPartEntry</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">zero_signature</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">PPartEntry</span><span class="op">&gt;</span> {
         <span class="macro">vec!</span>[<span class="number">0</span>; <span class="self">self</span>.<span class="ident">profile</span>.<span class="ident">len</span>()]
     }
 
     <span class="doccomment">/// Give a list of basis elements in degree `degree` that has signature `signature`.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// This requires passing the algebra for borrow checker reasons.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">signature_mask</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>(
+    <span class="kw">fn</span> <span class="ident">signature_mask</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>(
         <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="self">self</span>,
         <span class="ident">algebra</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">MilnorAlgebra</span>,
         <span class="ident">module</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident">MilnorAlgebra</span><span class="op">&gt;</span>,
@@ -1337,7 +1372,7 @@
 
     <span class="doccomment">/// Get the matrix of a free module homomorphism when restricted to the subquotient given by</span>
     <span class="doccomment">/// the signature.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">signature_matrix</span>(
+    <span class="kw">fn</span> <span class="ident">signature_matrix</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         <span class="ident">hom</span>: <span class="kw-2">&amp;</span><span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident">MilnorAlgebra</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">degree</span>: <span class="ident">i32</span>,
@@ -1374,8 +1409,8 @@
     }
 
     <span class="doccomment">/// Iterate through all signatures of this algebra that contain elements of degree at most</span>
-    <span class="doccomment">/// `degree` (inclusive). This skips the initial zero signature</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">iter_signatures</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) -&gt; <span class="kw">impl</span> <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">PPartEntry</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;_</span> {
+    <span class="doccomment">/// `degree` (inclusive). This skips the initial zero signature.</span>
+    <span class="kw">fn</span> <span class="ident">iter_signatures</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) -&gt; <span class="kw">impl</span> <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">PPartEntry</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;_</span> {
         <span class="ident">SignatureIterator::new</span>(<span class="self">self</span>, <span class="ident">degree</span>)
     }
 
@@ -1401,7 +1436,7 @@
         <span class="ident">result</span>
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">to_bytes</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">buffer</span>: <span class="kw-2">&amp;mut</span> <span class="kw">impl</span> <span class="ident">Write</span>) -&gt; <span class="ident">std::io::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">to_bytes</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">buffer</span>: <span class="kw-2">&amp;mut</span> <span class="kw">impl</span> <span class="ident">Write</span>) -&gt; <span class="ident">std::io::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="ident">buffer</span>.<span class="ident">write_u64</span>::<span class="op">&lt;</span><span class="ident">LittleEndian</span><span class="op">&gt;</span>(<span class="self">self</span>.<span class="ident">profile</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">u64</span>)<span class="question-mark">?</span>;
         <span class="ident">buffer</span>.<span class="ident">write_all</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">profile</span>)<span class="question-mark">?</span>;
 
@@ -1411,7 +1446,7 @@
         <span class="ident">buffer</span>.<span class="ident">write_all</span>(<span class="kw-2">&amp;</span><span class="ident">zeros</span>[<span class="number">0</span>..<span class="ident">padding</span>])
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_bytes</span>(<span class="ident">data</span>: <span class="kw-2">&amp;mut</span> <span class="kw">impl</span> <span class="ident">Read</span>) -&gt; <span class="ident">std::io::Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">from_bytes</span>(<span class="ident">data</span>: <span class="kw-2">&amp;mut</span> <span class="kw">impl</span> <span class="ident">Read</span>) -&gt; <span class="ident">std::io::Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">len</span> <span class="op">=</span> <span class="ident">data</span>.<span class="ident">read_u64</span>::<span class="op">&lt;</span><span class="ident">LittleEndian</span><span class="op">&gt;</span>()<span class="question-mark">?</span> <span class="kw">as</span> <span class="ident">usize</span>;
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">profile</span> <span class="op">=</span> <span class="macro">vec!</span>[<span class="number">0</span>; <span class="ident">len</span>];
 
@@ -1426,7 +1461,7 @@
         <span class="prelude-val">Ok</span>(<span class="self">Self</span> { <span class="ident">profile</span> })
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">signature_to_bytes</span>(
+    <span class="kw">fn</span> <span class="ident">signature_to_bytes</span>(
         <span class="ident">signature</span>: <span class="kw-2">&amp;</span>[<span class="ident">PPartEntry</span>],
         <span class="ident">buffer</span>: <span class="kw-2">&amp;mut</span> <span class="kw">impl</span> <span class="ident">Write</span>,
     ) -&gt; <span class="ident">std::io::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
@@ -1454,7 +1489,7 @@
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">signature_from_bytes</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">data</span>: <span class="kw-2">&amp;mut</span> <span class="kw">impl</span> <span class="ident">Read</span>) -&gt; <span class="ident">std::io::Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">PPartEntry</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">signature_from_bytes</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">data</span>: <span class="kw-2">&amp;mut</span> <span class="kw">impl</span> <span class="ident">Read</span>) -&gt; <span class="ident">std::io::Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">PPartEntry</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">len</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">profile</span>.<span class="ident">len</span>();
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">signature</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">PPartEntry</span><span class="op">&gt;</span> <span class="op">=</span> <span class="macro">vec!</span>[<span class="number">0</span>; <span class="ident">len</span>];
 
@@ -1492,12 +1527,15 @@
     }
 }
 
+<span class="doccomment">/// An iterator that iterates through a sequence of [`MilnorSubalgebra`] of increasing size. This</span>
+<span class="doccomment">/// is used by [`MilnorSubalgebra::optimal_for`] to find the largest subalgebra in this sequence</span>
+<span class="doccomment">/// that is applicable to a bidegree.</span>
 <span class="kw">struct</span> <span class="ident">SubalgebraIterator</span> {
     <span class="ident">current</span>: <span class="ident">MilnorSubalgebra</span>,
 }
 
 <span class="kw">impl</span> <span class="ident">SubalgebraIterator</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>() -&gt; <span class="self">Self</span> {
+    <span class="kw">fn</span> <span class="ident">new</span>() -&gt; <span class="self">Self</span> {
         <span class="self">Self</span> {
             <span class="ident">current</span>: <span class="ident">MilnorSubalgebra::new</span>(<span class="macro">vec!</span>[]),
         }
@@ -1531,6 +1569,7 @@
     }
 }
 
+<span class="doccomment">/// See [`MilnorSubalgebra::iter_signatures`].</span>
 <span class="kw">struct</span> <span class="ident">SignatureIterator</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> {
     <span class="ident">subalgebra</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">MilnorSubalgebra</span>,
     <span class="ident">current</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">PPartEntry</span><span class="op">&gt;</span>,
@@ -1584,7 +1623,10 @@
     <span class="ident">Fix</span> <span class="op">=</span> <span class="op">-</span><span class="number">3</span>,
 }
 
-<span class="doccomment">/// A resolution of a chain complex.</span>
+<span class="doccomment">/// A resolution of `S_2` using Nassau&#39;s algorithm. This aims to have an API similar to that of</span>
+<span class="doccomment">/// [`resolution::Resolution`](crate::resolution::Resolution). From an API point of view, the main</span>
+<span class="doccomment">/// difference between the two is that this is a chain complex over [`MilnorAlgebra`]</span>
+<span class="doccomment">/// over [`SteenrodAlgebra`](algebra::SteenrodAlgebra).</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Resolution</span> {
     <span class="ident">lock</span>: <span class="ident">Mutex</span><span class="op">&lt;</span>()<span class="op">&gt;</span>,
     <span class="ident">modules</span>: <span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident">MilnorAlgebra</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,

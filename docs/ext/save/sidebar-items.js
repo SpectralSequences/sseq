@@ -1,1 +1,1 @@
-initSidebarItems({"enum":[["SaveKind",""]],"struct":[["ChecksumReader",""],["ChecksumWriter",""],["SaveFile",""]]});
+initSidebarItems({"enum":[["SaveKind",""]],"fn":[["open_file","Open the file pointed to by `path` as a `Box<dyn Read>`. If the file does not exist, look for compressed versions."]],"struct":[["ChecksumReader",""],["ChecksumWriter",""],["SaveFile",""]]});

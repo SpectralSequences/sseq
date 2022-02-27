@@ -496,7 +496,52 @@
 <span id="469">469</span>
 <span id="470">470</span>
 <span id="471">471</span>
-</pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::ops::Range</span>;
+<span id="472">472</span>
+<span id="473">473</span>
+<span id="474">474</span>
+<span id="475">475</span>
+<span id="476">476</span>
+<span id="477">477</span>
+<span id="478">478</span>
+<span id="479">479</span>
+<span id="480">480</span>
+<span id="481">481</span>
+<span id="482">482</span>
+<span id="483">483</span>
+<span id="484">484</span>
+<span id="485">485</span>
+<span id="486">486</span>
+<span id="487">487</span>
+<span id="488">488</span>
+<span id="489">489</span>
+<span id="490">490</span>
+<span id="491">491</span>
+<span id="492">492</span>
+<span id="493">493</span>
+<span id="494">494</span>
+<span id="495">495</span>
+<span id="496">496</span>
+<span id="497">497</span>
+<span id="498">498</span>
+<span id="499">499</span>
+<span id="500">500</span>
+<span id="501">501</span>
+<span id="502">502</span>
+<span id="503">503</span>
+<span id="504">504</span>
+<span id="505">505</span>
+<span id="506">506</span>
+<span id="507">507</span>
+<span id="508">508</span>
+<span id="509">509</span>
+<span id="510">510</span>
+<span id="511">511</span>
+<span id="512">512</span>
+<span id="513">513</span>
+<span id="514">514</span>
+</pre><pre class="rust"><code><span class="doccomment">//! This module defines [`ResolutionHomomorphism`], which is a chain map from a</span>
+<span class="doccomment">//! [`FreeChainComplex`].</span>
+<span class="kw">use</span> <span class="ident">std::ops::Range</span>;
 <span class="kw">use</span> <span class="ident">std::path::PathBuf</span>;
 <span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
 
@@ -516,6 +561,8 @@
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
 <span class="kw">use</span> <span class="ident">rayon::prelude</span>::<span class="kw-2">*</span>;
 
+<span class="doccomment">/// A chain complex homomorphims from a [`FreeChainComplex`]. This contains logic to lift chain</span>
+<span class="doccomment">/// maps using the freeness.</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ResolutionHomomorphism</span><span class="op">&lt;</span><span class="ident">CC1</span>, <span class="ident">CC2</span><span class="op">&gt;</span>
 <span class="kw">where</span>
     <span class="ident">CC1</span>: <span class="ident">FreeChainComplex</span>,
@@ -586,6 +633,7 @@
         <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">maps</span>[<span class="ident">input_s</span> <span class="kw">as</span> <span class="ident">i32</span>]
     }
 
+    <span class="doccomment">/// Returns the chain map on the `s`th source module.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_map</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">input_s</span>: <span class="ident">u32</span>) -&gt; <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">CC2::Module</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">maps</span>[<span class="ident">input_s</span> <span class="kw">as</span> <span class="ident">i32</span>])
     }
@@ -627,14 +675,30 @@
 
     <span class="doccomment">/// Extend the resolution homomorphism such that it is defined on degrees</span>
     <span class="doccomment">/// (`max_s`, `max_t`).</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// This assumes in yet-uncomputed bidegrees, the homology of the source consists only of</span>
+    <span class="doccomment">/// decomposables (e.g. it is trivial). More precisely, we assume</span>
+    <span class="doccomment">/// [`ResolutionHomomorphism::extend_step`] can be called with `extra_images = None`.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">extend</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">max_s</span>: <span class="ident">u32</span>, <span class="ident">max_t</span>: <span class="ident">i32</span>) {
         <span class="self">self</span>.<span class="ident">extend_profile</span>(<span class="ident">max_s</span> <span class="op">+</span> <span class="number">1</span>, <span class="op">|</span><span class="ident">_s</span><span class="op">|</span> <span class="ident">max_t</span> <span class="op">+</span> <span class="number">1</span>)
     }
 
+    <span class="doccomment">/// Extend the resolution homomorphism such that it is defined on degrees</span>
+    <span class="doccomment">/// (`max_n`, `max_s`).</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// This assumes in yet-uncomputed bidegrees, the homology of the source consists only of</span>
+    <span class="doccomment">/// decomposables (e.g. it is trivial). More precisely, we assume</span>
+    <span class="doccomment">/// [`ResolutionHomomorphism::extend_step`] can be called with `extra_images = None`.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">extend_through_stem</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">max_s</span>: <span class="ident">u32</span>, <span class="ident">max_n</span>: <span class="ident">i32</span>) {
         <span class="self">self</span>.<span class="ident">extend_profile</span>(<span class="ident">max_s</span> <span class="op">+</span> <span class="number">1</span>, <span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="ident">max_n</span> <span class="op">+</span> <span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span> <span class="op">+</span> <span class="number">1</span>)
     }
 
+    <span class="doccomment">/// Extend the resolution homomorphism as far as possible, as constrained by how much the</span>
+    <span class="doccomment">/// source and target have been resolved.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// This assumes in yet-uncomputed bidegrees, the homology of the source consists only of</span>
+    <span class="doccomment">/// decomposables (e.g. it is trivial). More precisely, we assume</span>
+    <span class="doccomment">/// [`ResolutionHomomorphism::extend_step`] can be called with `extra_images = None`.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">extend_all</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) {
         <span class="self">self</span>.<span class="ident">extend_profile</span>(
             <span class="ident">std::cmp::min</span>(
@@ -650,7 +714,7 @@
         );
     }
 
-    <span class="doccomment">/// `max_s` and `max_t` are exclusive</span>
+    <span class="comment">// See the concurrent version for documentation</span>
     <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>))]</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">extend_profile</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">max_s</span>: <span class="ident">u32</span>, <span class="ident">max_t</span>: <span class="kw">impl</span> <span class="ident">Fn</span>(<span class="ident">u32</span>) -&gt; <span class="ident">i32</span> <span class="op">+</span> <span class="ident">Sync</span>) {
         <span class="self">self</span>.<span class="ident">get_map_ensure_length</span>(<span class="ident">max_s</span> <span class="op">-</span> <span class="number">1</span>);
@@ -662,7 +726,18 @@
         }
     }
 
-    <span class="doccomment">/// `max_s` and `max_t` are exclusive</span>
+    <span class="doccomment">/// Extends the resolution homomorphism up to a given range. This range is first specified by</span>
+    <span class="doccomment">/// the maximum `s`, then the maximum `t` for each `s`. This should rarely be used directly;</span>
+    <span class="doccomment">/// instead one should use [`ResolutionHomomorphism::extend`],</span>
+    <span class="doccomment">/// [`ResolutionHomomorphism::extend_through_stem`] and [`ResolutionHomomorphism::extend_all`]</span>
+    <span class="doccomment">/// as appropriate.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// Note that unlike the more specific versions of this function, the bounds `max_s` and</span>
+    <span class="doccomment">/// `max_t` are exclusive.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// This assumes in yet-uncomputed bidegrees, the homology of the source consists only of</span>
+    <span class="doccomment">/// decomposables (e.g. it is trivial). More precisely, we assume</span>
+    <span class="doccomment">/// [`ResolutionHomomorphism::extend_step`] can be called with `extra_images = None`.</span>
     <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">extend_profile</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">max_s</span>: <span class="ident">u32</span>, <span class="ident">max_t</span>: <span class="kw">impl</span> <span class="ident">Fn</span>(<span class="ident">u32</span>) -&gt; <span class="ident">i32</span> <span class="op">+</span> <span class="ident">Sync</span>) {
         <span class="self">self</span>.<span class="ident">get_map_ensure_length</span>(<span class="ident">max_s</span> <span class="op">-</span> <span class="number">1</span>);
@@ -684,6 +759,14 @@
         }
     }
 
+    <span class="doccomment">/// Extend the [`ResolutionHomomorphism`] to be defined on `(input_s, input_t)`. The resulting</span>
+    <span class="doccomment">/// homomorphism `f` is a chain map such that if `g` is the `k`th generator in the source such</span>
+    <span class="doccomment">/// that `d(g) = 0`, then the image of `f(g)` in the augmentation of the target is the `k`th</span>
+    <span class="doccomment">/// row of `extra_images`.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// The user should call this function explicitly to manually define the chain map where the</span>
+    <span class="doccomment">/// chain complex is not exact, and then call [`ResolutionHomomorphism::extend_all`] to extend</span>
+    <span class="doccomment">/// the rest by exactness.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">extend_step</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         <span class="ident">input_s</span>: <span class="ident">u32</span>,
@@ -784,11 +867,10 @@
             <span class="kw">if</span> <span class="ident">d_source</span>.<span class="ident">output</span>(<span class="ident">input_t</span>, <span class="ident">k</span>).<span class="ident">is_zero</span>() {
                 <span class="kw">let</span> <span class="ident">target_chain_map</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">target</span>.<span class="ident">chain_map</span>(<span class="ident">output_s</span>);
                 <span class="kw">let</span> <span class="ident">target_cc_dimension</span> <span class="op">=</span> <span class="ident">target_chain_map</span>.<span class="ident">target</span>().<span class="ident">dimension</span>(<span class="ident">output_t</span>);
-                <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">extra_images_matrix</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">extra_images</span> {
-                    <span class="macro">assert!</span>(<span class="ident">target_cc_dimension</span> <span class="op">==</span> <span class="ident">extra_images_matrix</span>.<span class="ident">columns</span>());
-                }
 
                 <span class="kw">let</span> <span class="ident">extra_image_matrix</span> <span class="op">=</span> <span class="ident">extra_images</span>.<span class="ident">as_ref</span>().<span class="ident">expect</span>(<span class="string">&quot;Missing extra image rows&quot;</span>);
+                <span class="macro">assert!</span>(<span class="ident">target_cc_dimension</span> <span class="op">==</span> <span class="ident">extra_image_matrix</span>.<span class="ident">columns</span>());
+
                 <span class="ident">target_chain_map</span>.<span class="ident">compute_auxiliary_data_through_degree</span>(<span class="ident">output_t</span>);
                 <span class="macro">assert!</span>(<span class="ident">target_chain_map</span>.<span class="ident">apply_quasi_inverse</span>(
                     <span class="ident">output_row</span>.<span class="ident">as_slice_mut</span>(),
@@ -870,6 +952,7 @@
     <span class="ident">ACC</span>: <span class="ident">AugmentedChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">SteenrodAlgebra</span>, <span class="ident">TargetComplex</span> <span class="op">=</span> <span class="ident">TCC</span><span class="op">&gt;</span>,
     <span class="ident">TCC</span>: <span class="ident">BoundedChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">SteenrodAlgebra</span>, <span class="ident">Module</span> <span class="op">=</span> <span class="ident">M</span><span class="op">&gt;</span>,
 {
+    <span class="doccomment">/// Construct a chain map that lifts a given module homomorphism.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_module_homomorphism</span>(
         <span class="ident">name</span>: <span class="ident">String</span>,
         <span class="ident">source</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Resolution</span><span class="op">&lt;</span><span class="ident">CCC</span><span class="op">&gt;</span><span class="op">&gt;</span>,
@@ -947,6 +1030,9 @@
     <span class="ident">CC1</span>: <span class="ident">FreeChainComplex</span>,
     <span class="ident">CC2</span>: <span class="ident">FreeChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">CC1::Algebra</span><span class="op">&gt;</span>,
 {
+    <span class="doccomment">/// Given a chain map $f: C \to C&#39;$ between free chain complexes, apply</span>
+    <span class="doccomment">/// $$ \Hom(f, k): \Hom(C&#39;, k) \to \Hom(C, k) $$</span>
+    <span class="doccomment">/// to the specified generator of $\Hom(C&#39;, k)$.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">act</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut</span> <span class="ident">result</span>: <span class="ident">SliceMut</span>, <span class="ident">coef</span>: <span class="ident">u32</span>, <span class="ident">s</span>: <span class="ident">u32</span>, <span class="ident">t</span>: <span class="ident">i32</span>, <span class="ident">idx</span>: <span class="ident">usize</span>) {
         <span class="kw">let</span> <span class="ident">source_s</span> <span class="op">=</span> <span class="ident">s</span> <span class="op">+</span> <span class="self">self</span>.<span class="ident">shift_s</span>;
         <span class="kw">let</span> <span class="ident">source_t</span> <span class="op">=</span> <span class="ident">t</span> <span class="op">+</span> <span class="self">self</span>.<span class="ident">shift_t</span>;

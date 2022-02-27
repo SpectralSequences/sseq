@@ -1,1 +1,1 @@
-initSidebarItems({"struct":[["ResolutionHomomorphism",""]]});
+initSidebarItems({"struct":[["ResolutionHomomorphism","A chain complex homomorphims from a [`FreeChainComplex`]. This contains logic to lift chain maps using the freeness."]]});

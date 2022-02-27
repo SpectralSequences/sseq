@@ -1,1 +1,1 @@
-initSidebarItems({});
+initSidebarItems({"constant":[["PATTERNS",""]],"enum":[["Orientation",""]],"struct":[["SvgBackend",""],["TikzBackend",""]],"trait":[["Backend",""]]});
