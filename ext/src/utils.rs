@@ -1,3 +1,4 @@
+//! A module containing various utility functions related to user interaction in some way.
 use crate::chain_complex::{ChainComplex, FiniteChainComplex};
 use crate::resolution::Resolution;
 use crate::CCC;

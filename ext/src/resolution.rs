@@ -1,3 +1,5 @@
+//! This module exports the [`Resolution`] object, which is a chain complex resolving a module. In
+//! particular, this contains the core logic that compute minimal resolutions.
 use std::sync::{Arc, Mutex};
 
 use crate::chain_complex::{AugmentedChainComplex, ChainComplex, FreeChainComplex};
@@ -56,7 +58,8 @@ impl SenderData {
 /// number if needs be, but up to the 140th stem we only see at most 8 new generators.
 const MAX_NEW_GENS: usize = 10;
 
-/// A resolution of a chain complex.
+/// A minimal resolution of a chain complex. The functions [`Resolution::compute_through_stem`] and
+/// [`Resolution::compute_through_bidegree`] extends the minimal resolution to the given bidegree.
 pub struct Resolution<CC: ChainComplex> {
     name: String,
     lock: Mutex<()>,

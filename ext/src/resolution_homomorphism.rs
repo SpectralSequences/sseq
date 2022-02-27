@@ -1,3 +1,5 @@
+//! This module defines [`ResolutionHomomorphism`], which is a chain map from a
+//! [`FreeChainComplex`].
 use std::ops::Range;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -18,6 +20,8 @@ use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 #[cfg(feature = "concurrent")]
 use rayon::prelude::*;
 
+/// A chain complex homomorphims from a [`FreeChainComplex`]. This contains logic to lift chain
+/// maps using the freeness.
 pub struct ResolutionHomomorphism<CC1, CC2>
 where
     CC1: FreeChainComplex,
@@ -88,6 +92,7 @@ where
         &self.maps[input_s as i32]
     }
 
+    /// Returns the chain map on the `s`th source module.
     pub fn get_map(&self, input_s: u32) -> Arc<FreeModuleHomomorphism<CC2::Module>> {
         Arc::clone(&self.maps[input_s as i32])
     }
@@ -129,14 +134,30 @@ where
 
     /// Extend the resolution homomorphism such that it is defined on degrees
     /// (`max_s`, `max_t`).
+    ///
+    /// This assumes in yet-uncomputed bidegrees, the homology of the source consists only of
+    /// decomposables (e.g. it is trivial). More precisely, we assume
+    /// [`ResolutionHomomorphism::extend_step`] can be called with `extra_images = None`.
     pub fn extend(&self, max_s: u32, max_t: i32) {
         self.extend_profile(max_s + 1, |_s| max_t + 1)
     }
 
+    /// Extend the resolution homomorphism such that it is defined on degrees
+    /// (`max_n`, `max_s`).
+    ///
+    /// This assumes in yet-uncomputed bidegrees, the homology of the source consists only of
+    /// decomposables (e.g. it is trivial). More precisely, we assume
+    /// [`ResolutionHomomorphism::extend_step`] can be called with `extra_images = None`.
     pub fn extend_through_stem(&self, max_s: u32, max_n: i32) {
         self.extend_profile(max_s + 1, |s| max_n + s as i32 + 1)
     }
 
+    /// Extend the resolution homomorphism as far as possible, as constrained by how much the
+    /// source and target have been resolved.
+    ///
+    /// This assumes in yet-uncomputed bidegrees, the homology of the source consists only of
+    /// decomposables (e.g. it is trivial). More precisely, we assume
+    /// [`ResolutionHomomorphism::extend_step`] can be called with `extra_images = None`.
     pub fn extend_all(&self) {
         self.extend_profile(
             std::cmp::min(
@@ -152,7 +173,7 @@ where
         );
     }
 
-    /// `max_s` and `max_t` are exclusive
+    // See the concurrent version for documentation
     #[cfg(not(feature = "concurrent"))]
     pub fn extend_profile(&self, max_s: u32, max_t: impl Fn(u32) -> i32 + Sync) {
         self.get_map_ensure_length(max_s - 1);
@@ -164,7 +185,18 @@ where
         }
     }
 
-    /// `max_s` and `max_t` are exclusive
+    /// Extends the resolution homomorphism up to a given range. This range is first specified by
+    /// the maximum `s`, then the maximum `t` for each `s`. This should rarely be used directly;
+    /// instead one should use [`ResolutionHomomorphism::extend`],
+    /// [`ResolutionHomomorphism::extend_through_stem`] and [`ResolutionHomomorphism::extend_all`]
+    /// as appropriate.
+    ///
+    /// Note that unlike the more specific versions of this function, the bounds `max_s` and
+    /// `max_t` are exclusive.
+    ///
+    /// This assumes in yet-uncomputed bidegrees, the homology of the source consists only of
+    /// decomposables (e.g. it is trivial). More precisely, we assume
+    /// [`ResolutionHomomorphism::extend_step`] can be called with `extra_images = None`.
     #[cfg(feature = "concurrent")]
     pub fn extend_profile(&self, max_s: u32, max_t: impl Fn(u32) -> i32 + Sync) {
         self.get_map_ensure_length(max_s - 1);
@@ -186,6 +218,14 @@ where
         }
     }
 
+    /// Extend the [`ResolutionHomomorphism`] to be defined on `(input_s, input_t)`. The resulting
+    /// homomorphism `f` is a chain map such that if `g` is the `k`th generator in the source such
+    /// that `d(g) = 0`, then the image of `f(g)` in the augmentation of the target is the `k`th
+    /// row of `extra_images`.
+    ///
+    /// The user should call this function explicitly to manually define the chain map where the
+    /// chain complex is not exact, and then call [`ResolutionHomomorphism::extend_all`] to extend
+    /// the rest by exactness.
     pub fn extend_step(
         &self,
         input_s: u32,
@@ -286,11 +326,10 @@ where
             if d_source.output(input_t, k).is_zero() {
                 let target_chain_map = self.target.chain_map(output_s);
                 let target_cc_dimension = target_chain_map.target().dimension(output_t);
-                if let Some(extra_images_matrix) = &extra_images {
-                    assert!(target_cc_dimension == extra_images_matrix.columns());
-                }
 
                 let extra_image_matrix = extra_images.as_ref().expect("Missing extra image rows");
+                assert!(target_cc_dimension == extra_image_matrix.columns());
+
                 target_chain_map.compute_auxiliary_data_through_degree(output_t);
                 assert!(target_chain_map.apply_quasi_inverse(
                     output_row.as_slice_mut(),
@@ -372,6 +411,7 @@ where
     ACC: AugmentedChainComplex<Algebra = SteenrodAlgebra, TargetComplex = TCC>,
     TCC: BoundedChainComplex<Algebra = SteenrodAlgebra, Module = M>,
 {
+    /// Construct a chain map that lifts a given module homomorphism.
     pub fn from_module_homomorphism(
         name: String,
         source: Arc<Resolution<CCC>>,
@@ -449,6 +489,9 @@ where
     CC1: FreeChainComplex,
     CC2: FreeChainComplex<Algebra = CC1::Algebra>,
 {
+    /// Given a chain map $f: C \to C'$ between free chain complexes, apply
+    /// $$ \Hom(f, k): \Hom(C', k) \to \Hom(C, k) $$
+    /// to the specified generator of $\Hom(C', k)$.
     pub fn act(&self, mut result: SliceMut, coef: u32, s: u32, t: i32, idx: usize) {
         let source_s = s + self.shift_s;
         let source_t = t + self.shift_t;
