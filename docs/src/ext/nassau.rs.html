@@ -1238,6 +1238,10 @@
 <span id="1211">1211</span>
 <span id="1212">1212</span>
 <span id="1213">1213</span>
+<span id="1214">1214</span>
+<span id="1215">1215</span>
+<span id="1216">1216</span>
+<span id="1217">1217</span>
 </pre><pre class="rust"><code><span class="doccomment">//! This module implements [Nassau&#39;s algorithm](https://arxiv.org/abs/1910.04063). The main export</span>
 <span class="doccomment">//! is the [`Resolution`] object, which is a resolution of the sphere at the prime 2 using Nassau&#39;s</span>
 <span class="doccomment">//! algorithm. It aims to provide an API similar to</span>
@@ -1760,13 +1764,17 @@
     <span class="kw">fn</span> <span class="ident">step_resolution_with_subalgebra</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">s</span>: <span class="ident">u32</span>, <span class="ident">t</span>: <span class="ident">i32</span>, <span class="ident">subalgebra</span>: <span class="ident">MilnorSubalgebra</span>) {
         <span class="kw">let</span> <span class="ident">start</span> <span class="op">=</span> <span class="ident">Instant::now</span>();
         <span class="kw">let</span> <span class="ident">end</span> <span class="op">=</span> <span class="op">|</span><span class="op">|</span> {
-            <span class="ident"><span class="kw">crate</span>::utils::log_time</span>(
-                <span class="ident">start</span>.<span class="ident">elapsed</span>(),
-                <span class="macro">format_args!</span>(
-                    <span class="string">&quot;Computed bidegree ({n}, {s}) with {subalgebra}&quot;</span>,
-                    <span class="ident">n</span> <span class="op">=</span> <span class="ident">t</span> <span class="op">-</span> <span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span>
-                ),
-            );
+            <span class="kw">if</span> <span class="macro">cfg!</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;logging&quot;</span>) {
+                <span class="ident"><span class="kw">crate</span>::utils::log_time</span>(
+                    <span class="ident">start</span>.<span class="ident">elapsed</span>(),
+                    <span class="macro">format_args!</span>(
+                        <span class="string">&quot;Computed bidegree ({n}, {s}) with {subalgebra}, num new gens = {num_new_gens}, density = {density:.2}%&quot;</span>,
+                        <span class="ident">n</span> <span class="op">=</span> <span class="ident">t</span> <span class="op">-</span> <span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span>,
+                        <span class="ident">num_new_gens</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">number_of_gens_in_bidegree</span>(<span class="ident">s</span>, <span class="ident">t</span>),
+                        <span class="ident">density</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">differentials</span>[<span class="ident">s</span>].<span class="ident">differential_density</span>(<span class="ident">t</span>) <span class="op">*</span> <span class="number">100.0</span>,
+                    ),
+                );
+            }
         };
 
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prime</span>();
@@ -1934,6 +1942,8 @@
         }
         <span class="self">self</span>.<span class="ident">differential</span>(<span class="ident">s</span>).<span class="ident">add_generators_from_rows</span>(<span class="ident">t</span>, <span class="ident">xs</span>);
 
+        <span class="ident">end</span>();
+
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">f</span>) <span class="op">=</span> <span class="ident">f</span>.<span class="ident">as_mut</span>() {
             <span class="ident">f</span>.<span class="ident">write_u64</span>::<span class="op">&lt;</span><span class="ident">LittleEndian</span><span class="op">&gt;</span>(<span class="ident">Magic::End</span> <span class="kw">as</span> <span class="ident">u64</span>).<span class="ident">unwrap</span>();
         }
@@ -1949,8 +1959,6 @@
                 <span class="self">self</span>.<span class="ident">differential</span>(<span class="ident">s</span>).<span class="ident">output</span>(<span class="ident">t</span>, <span class="ident">n</span>).<span class="ident">to_bytes</span>(<span class="kw-2">&amp;mut</span> <span class="ident">f</span>).<span class="ident">unwrap</span>();
             }
         }
-
-        <span class="ident">end</span>();
     }
 
     <span class="kw">fn</span> <span class="ident">step_resolution</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">s</span>: <span class="ident">u32</span>, <span class="ident">t</span>: <span class="ident">i32</span>) {

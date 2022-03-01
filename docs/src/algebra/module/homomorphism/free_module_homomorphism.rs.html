@@ -278,6 +278,15 @@
 <span id="251">251</span>
 <span id="252">252</span>
 <span id="253">253</span>
+<span id="254">254</span>
+<span id="255">255</span>
+<span id="256">256</span>
+<span id="257">257</span>
+<span id="258">258</span>
+<span id="259">259</span>
+<span id="260">260</span>
+<span id="261">261</span>
+<span id="262">262</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
 
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::algebra::Algebra</span>;
@@ -417,6 +426,15 @@
             <span class="self">self</span>.<span class="ident">source</span>.<span class="ident">number_of_gens_in_degree</span>(<span class="ident">generator_degree</span>)
         );
         <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">outputs</span>[<span class="ident">generator_degree</span>][<span class="ident">generator_index</span>]
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">differential_density</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) -&gt; <span class="ident">f32</span> {
+        <span class="kw">let</span> <span class="ident">outputs</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">outputs</span>[<span class="ident">degree</span>];
+        <span class="kw">if</span> <span class="ident">outputs</span>.<span class="ident">is_empty</span>() {
+            <span class="ident">f32::NAN</span>
+        } <span class="kw">else</span> {
+            <span class="ident">outputs</span>.<span class="ident">iter</span>().<span class="ident">map</span>(<span class="ident">FpVector::density</span>).<span class="ident">sum</span>::<span class="op">&lt;</span><span class="ident">f32</span><span class="op">&gt;</span>() <span class="op">/</span> <span class="ident">outputs</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">f32</span>
+        }
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">extend_by_zero</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) {
