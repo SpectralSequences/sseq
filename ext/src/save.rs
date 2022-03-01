@@ -313,7 +313,7 @@ impl<A: Algebra> SaveFile<A> {
 
     pub fn open_file(&self, dir: PathBuf) -> Option<Box<dyn Read>> {
         let mut f = open_file(self.get_save_path(dir))?;
-        self.validate_header(&mut f).unwrap();
+        self.validate_header(&mut f).ok()?;
         Some(f)
     }
 
