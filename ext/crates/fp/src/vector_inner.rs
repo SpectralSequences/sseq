@@ -354,6 +354,19 @@ impl<const P: u32> FpVectorP<P> {
         }
         None
     }
+
+    pub fn density(&self) -> f32 {
+        let num_nonzero = if P == 2 {
+            self.limbs
+                .iter()
+                .copied()
+                .map(Limb::count_ones)
+                .sum::<u32>() as usize
+        } else {
+            self.iter_nonzero().count()
+        };
+        num_nonzero as f32 / self.len() as f32
+    }
 }
 
 impl<'a, const P: u32> From<&'a FpVectorP<P>> for SliceP<'a, P> {

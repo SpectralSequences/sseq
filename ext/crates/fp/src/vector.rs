@@ -295,6 +295,7 @@ impl FpVector {
         pub fn sign_rule(&self, other: &Self) -> bool;
         pub fn add_carry(&mut self, other: &Self, c: u32, rest: &mut [FpVector]) -> bool;
         pub fn first_nonzero(&self) -> (Option<(usize, u32)>);
+        pub fn density(&self) -> f32;
 
         pub(crate) fn limbs(&self) -> (&[Limb]);
         pub(crate) fn limbs_mut(&mut self) -> (&mut [Limb]);

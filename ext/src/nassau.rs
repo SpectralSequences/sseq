@@ -520,13 +520,17 @@ impl Resolution {
     fn step_resolution_with_subalgebra(&self, s: u32, t: i32, subalgebra: MilnorSubalgebra) {
         let start = Instant::now();
         let end = || {
-            crate::utils::log_time(
-                start.elapsed(),
-                format_args!(
-                    "Computed bidegree ({n}, {s}) with {subalgebra}",
-                    n = t - s as i32
-                ),
-            );
+            if cfg!(feature = "logging") {
+                crate::utils::log_time(
+                    start.elapsed(),
+                    format_args!(
+                        "Computed bidegree ({n}, {s}) with {subalgebra}, num new gens = {num_new_gens}, density = {density:.2}%",
+                        n = t - s as i32,
+                        num_new_gens = self.number_of_gens_in_bidegree(s, t),
+                        density = self.differentials[s].differential_density(t) * 100.0,
+                    ),
+                );
+            }
         };
 
         let p = self.prime();
@@ -694,6 +698,8 @@ impl Resolution {
         }
         self.differential(s).add_generators_from_rows(t, xs);
 
+        end();
+
         if let Some(f) = f.as_mut() {
             f.write_u64::<LittleEndian>(Magic::End as u64).unwrap();
         }
@@ -709,8 +715,6 @@ impl Resolution {
                 self.differential(s).output(t, n).to_bytes(&mut f).unwrap();
             }
         }
-
-        end();
     }
 
     fn step_resolution(&self, s: u32, t: i32) {

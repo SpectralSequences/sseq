@@ -628,7 +628,11 @@ impl<CC: ChainComplex> Resolution<CC> {
         #[cfg(feature = "logging")]
         crate::utils::log_time(
             start.elapsed(),
-            format_args!("Computed bidegree ({n}, {s})", n = t - s as i32),
+            format_args!(
+                "Computed bidegree ({n}, {s}), num new gens = {num_new_gens}, density = {density:.2}%",
+                n = t - s as i32,
+                density = current_differential.differential_density(t) * 100.0
+            ),
         );
 
         if self.should_save {

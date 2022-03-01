@@ -139,6 +139,15 @@ impl<M: Module> FreeModuleHomomorphism<M> {
         &self.outputs[generator_degree][generator_index]
     }
 
+    pub fn differential_density(&self, degree: i32) -> f32 {
+        let outputs = &self.outputs[degree];
+        if outputs.is_empty() {
+            f32::NAN
+        } else {
+            outputs.iter().map(FpVector::density).sum::<f32>() / outputs.len() as f32
+        }
+    }
+
     pub fn extend_by_zero(&self, degree: i32) {
         let p = self.prime();
         self.outputs.extend(degree, |i| {
