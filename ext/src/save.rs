@@ -347,7 +347,8 @@ impl<A: Algebra> SaveFile<A> {
 
         let f = std::fs::OpenOptions::new()
             .write(true)
-            .create_new(true)
+            .create(true)
+            .truncate(true)
             .open(&p)
             .with_context(|| format!("Failed to create save file {p:?}"))
             .unwrap();
