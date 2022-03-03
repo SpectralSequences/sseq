@@ -1,6 +1,6 @@
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::fs::File;
-use std::io::{BufReader, BufWriter, Error, ErrorKind, Read, Write};
+use std::io::{BufRead, BufReader, BufWriter, Error, ErrorKind, Read, Write};
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -209,10 +209,23 @@ impl<T: Read> std::ops::Drop for ChecksumReader<T> {
 fn open_file(mut path: PathBuf) -> Option<Box<dyn Read>> {
     // We should try in decreasing order of access speed.
     match File::open(&path) {
-        Ok(f) => return Some(Box::new(ChecksumReader::new(BufReader::new(f)))),
+        Ok(f) => {
+            let mut reader = BufReader::new(f);
+            if reader
+                .fill_buf()
+                .unwrap_or_else(|e| panic!("Error when reading from {path:?}: {e}"))
+                .is_empty()
+            {
+                // The file is empty. Delete the file and proceed as if it didn't exist
+                std::fs::remove_file(&path)
+                    .unwrap_or_else(|e| panic!("Error when deleting empty file {path:?}: {e}"));
+                return None;
+            }
+            return Some(Box::new(ChecksumReader::new(reader)));
+        }
         Err(e) => {
             if e.kind() != ErrorKind::NotFound {
-                panic!("Error when opening {path:?}");
+                panic!("Error when opening {path:?}: {e}");
             }
         }
     }
