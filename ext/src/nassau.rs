@@ -796,6 +796,17 @@ impl Resolution {
                 set_data();
 
                 return;
+            } else {
+                // The differential file does not exist. If the qi file exists, the program was
+                // killed halfway through computing this stem. Delete the qi file.
+                self.save_file(SaveKind::NassauQi, s - 1, t)
+                    .delete_file(dir.clone())
+                    .unwrap_or_else(|e| {
+                        panic!(
+                            "Error when deleting partial save file at ({n}, {s}): {e:?}",
+                            n = t - s as i32
+                        )
+                    });
             }
         }
 
