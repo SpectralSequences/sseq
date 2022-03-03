@@ -203,12 +203,6 @@
 <span id="176">176</span>
 <span id="177">177</span>
 <span id="178">178</span>
-<span id="179">179</span>
-<span id="180">180</span>
-<span id="181">181</span>
-<span id="182">182</span>
-<span id="183">183</span>
-<span id="184">184</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::ops::Range</span>;
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::constants::Limb</span>;
@@ -258,15 +252,9 @@
 }
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">limb_bit_index_pair</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">P</span>: <span class="ident">u32</span><span class="op">&gt;</span>(<span class="ident">idx</span>: <span class="ident">usize</span>) -&gt; <span class="ident">LimbBitIndexPair</span> {
-    <span class="kw">match</span> <span class="ident">P</span> {
-        <span class="number">2</span> =&gt; <span class="ident">LimbBitIndexPair</span> {
-            <span class="ident">limb</span>: <span class="ident">idx</span> <span class="op">/</span> <span class="ident">BITS_PER_LIMB</span>,
-            <span class="ident">bit_index</span>: <span class="ident">idx</span> <span class="op">%</span> <span class="ident">BITS_PER_LIMB</span>,
-        },
-        <span class="kw">_</span> =&gt; <span class="ident">LimbBitIndexPair</span> {
-            <span class="ident">limb</span>: <span class="ident">idx</span> <span class="op">/</span> <span class="ident">entries_per_limb_const</span>::<span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span>(),
-            <span class="ident">bit_index</span>: (<span class="ident">idx</span> <span class="op">%</span> <span class="ident">entries_per_limb_const</span>::<span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span>() <span class="op">*</span> <span class="ident">bit_length_const</span>::<span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span>()),
-        },
+    <span class="ident">LimbBitIndexPair</span> {
+        <span class="ident">limb</span>: <span class="ident">idx</span> <span class="op">/</span> <span class="ident">entries_per_limb_const</span>::<span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span>(),
+        <span class="ident">bit_index</span>: (<span class="ident">idx</span> <span class="op">%</span> <span class="ident">entries_per_limb_const</span>::<span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span>() <span class="op">*</span> <span class="ident">bit_length_const</span>::<span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span>()),
     }
 }
 
