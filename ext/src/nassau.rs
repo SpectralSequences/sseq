@@ -566,6 +566,19 @@ impl Resolution {
             self.differential(s).add_generators_from_rows(t, xs);
 
             end();
+
+            if let Some(dir) = self.save_dir.as_ref() {
+                let mut f = self
+                    .save_file(SaveKind::NassauDifferential, s, t)
+                    .create_file(dir.clone());
+                f.write_u64::<LittleEndian>(num_new_gens as u64).unwrap();
+                f.write_u64::<LittleEndian>(target_dim as u64).unwrap();
+
+                for n in 0..num_new_gens {
+                    self.differential(s).output(t, n).to_bytes(&mut f).unwrap();
+                }
+            }
+
             return;
         }
 
