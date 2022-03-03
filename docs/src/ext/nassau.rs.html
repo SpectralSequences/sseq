@@ -1242,6 +1242,30 @@
 <span id="1215">1215</span>
 <span id="1216">1216</span>
 <span id="1217">1217</span>
+<span id="1218">1218</span>
+<span id="1219">1219</span>
+<span id="1220">1220</span>
+<span id="1221">1221</span>
+<span id="1222">1222</span>
+<span id="1223">1223</span>
+<span id="1224">1224</span>
+<span id="1225">1225</span>
+<span id="1226">1226</span>
+<span id="1227">1227</span>
+<span id="1228">1228</span>
+<span id="1229">1229</span>
+<span id="1230">1230</span>
+<span id="1231">1231</span>
+<span id="1232">1232</span>
+<span id="1233">1233</span>
+<span id="1234">1234</span>
+<span id="1235">1235</span>
+<span id="1236">1236</span>
+<span id="1237">1237</span>
+<span id="1238">1238</span>
+<span id="1239">1239</span>
+<span id="1240">1240</span>
+<span id="1241">1241</span>
 </pre><pre class="rust"><code><span class="doccomment">//! This module implements [Nassau&#39;s algorithm](https://arxiv.org/abs/1910.04063). The main export</span>
 <span class="doccomment">//! is the [`Resolution`] object, which is a resolution of the sphere at the prime 2 using Nassau&#39;s</span>
 <span class="doccomment">//! algorithm. It aims to provide an API similar to</span>
@@ -1810,6 +1834,19 @@
             <span class="self">self</span>.<span class="ident">differential</span>(<span class="ident">s</span>).<span class="ident">add_generators_from_rows</span>(<span class="ident">t</span>, <span class="ident">xs</span>);
 
             <span class="ident">end</span>();
+
+            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dir</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">save_dir</span>.<span class="ident">as_ref</span>() {
+                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="self">self</span>
+                    .<span class="ident">save_file</span>(<span class="ident">SaveKind::NassauDifferential</span>, <span class="ident">s</span>, <span class="ident">t</span>)
+                    .<span class="ident">create_file</span>(<span class="ident">dir</span>.<span class="ident">clone</span>());
+                <span class="ident">f</span>.<span class="ident">write_u64</span>::<span class="op">&lt;</span><span class="ident">LittleEndian</span><span class="op">&gt;</span>(<span class="ident">num_new_gens</span> <span class="kw">as</span> <span class="ident">u64</span>).<span class="ident">unwrap</span>();
+                <span class="ident">f</span>.<span class="ident">write_u64</span>::<span class="op">&lt;</span><span class="ident">LittleEndian</span><span class="op">&gt;</span>(<span class="ident">target_dim</span> <span class="kw">as</span> <span class="ident">u64</span>).<span class="ident">unwrap</span>();
+
+                <span class="kw">for</span> <span class="ident">n</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">num_new_gens</span> {
+                    <span class="self">self</span>.<span class="ident">differential</span>(<span class="ident">s</span>).<span class="ident">output</span>(<span class="ident">t</span>, <span class="ident">n</span>).<span class="ident">to_bytes</span>(<span class="kw-2">&amp;mut</span> <span class="ident">f</span>).<span class="ident">unwrap</span>();
+                }
+            }
+
             <span class="kw">return</span>;
         }
 
@@ -2040,6 +2077,17 @@
                 <span class="ident">set_data</span>();
 
                 <span class="kw">return</span>;
+            } <span class="kw">else</span> {
+                <span class="comment">// The differential file does not exist. If the qi file exists, the program was</span>
+                <span class="comment">// killed halfway through computing this stem. Delete the qi file.</span>
+                <span class="self">self</span>.<span class="ident">save_file</span>(<span class="ident">SaveKind::NassauQi</span>, <span class="ident">s</span> <span class="op">-</span> <span class="number">1</span>, <span class="ident">t</span>)
+                    .<span class="ident">delete_file</span>(<span class="ident">dir</span>.<span class="ident">clone</span>())
+                    .<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> {
+                        <span class="macro">panic!</span>(
+                            <span class="string">&quot;Error when deleting partial save file at ({n}, {s}): {e:?}&quot;</span>,
+                            <span class="ident">n</span> <span class="op">=</span> <span class="ident">t</span> <span class="op">-</span> <span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span>
+                        )
+                    });
             }
         }
 
