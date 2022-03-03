@@ -47,15 +47,9 @@ pub(crate) const fn entries_per_limb_const<const P: u32>() -> usize {
 }
 
 pub(crate) const fn limb_bit_index_pair<const P: u32>(idx: usize) -> LimbBitIndexPair {
-    match P {
-        2 => LimbBitIndexPair {
-            limb: idx / BITS_PER_LIMB,
-            bit_index: idx % BITS_PER_LIMB,
-        },
-        _ => LimbBitIndexPair {
-            limb: idx / entries_per_limb_const::<P>(),
-            bit_index: (idx % entries_per_limb_const::<P>() * bit_length_const::<P>()),
-        },
+    LimbBitIndexPair {
+        limb: idx / entries_per_limb_const::<P>(),
+        bit_index: (idx % entries_per_limb_const::<P>() * bit_length_const::<P>()),
     }
 }
 
