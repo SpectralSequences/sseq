@@ -89,7 +89,7 @@
 
 use algebra::{
     milnor_algebra::MilnorBasisElement, module::homomorphism::FreeModuleHomomorphism as FMH,
-    module::FreeModule as FM, module::Module, Algebra, MilnorAlgebra, MilnorAlgebraT,
+    module::FreeModule as FM, module::Module, Algebra, MilnorAlgebra,
 };
 use anyhow::{Error, Result};
 use ext::{
@@ -245,7 +245,7 @@ fn read_bruner_resolution(data_dir: PathBuf, max_n: i32) -> Result<(u32, FiniteC
 
     let cc = create_chain_complex(num_s);
     let algebra = cc.algebra();
-    let algebra = algebra.milnor_algebra();
+    let algebra: &MilnorAlgebra = (&*algebra).try_into()?;
 
     let mut buf = String::new();
     let s = num_s as u32 - 1;

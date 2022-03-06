@@ -2,7 +2,7 @@
 //! working directory. It is recommended that you run this in a dedicated subdirectory.
 
 use algebra::module::Module;
-use algebra::{Algebra, AlgebraType, MilnorAlgebraT};
+use algebra::{Algebra, AlgebraType, MilnorAlgebra};
 use ext::{chain_complex::ChainComplex, utils::query_module};
 use itertools::Itertools;
 use std::fmt::Write as _;
@@ -14,7 +14,8 @@ fn main() -> anyhow::Result<()> {
 
     assert_eq!(*resolution.prime(), 2);
     let algebra = resolution.algebra();
-    let algebra = algebra.milnor_algebra();
+    let algebra: &MilnorAlgebra = (&*algebra).try_into()?;
+
     let mut buffer = String::new();
 
     for s in 0..resolution.next_homological_degree() {

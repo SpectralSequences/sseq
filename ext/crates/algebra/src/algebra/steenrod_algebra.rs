@@ -118,6 +118,30 @@ impl<A: SteenrodAlgebraT> MilnorAlgebraT for A {
     }
 }
 
+impl<'a> TryInto<&'a AdemAlgebra> for &'a SteenrodAlgebra {
+    type Error = anyhow::Error;
+    fn try_into(self) -> Result<&'a AdemAlgebra, Self::Error> {
+        match self {
+            SteenrodAlgebra::AdemAlgebra(a) => Ok(a),
+            SteenrodAlgebra::MilnorAlgebra(_) => {
+                Err(anyhow!("Expected AdemAlgebra, found MilnorAlgebra"))
+            }
+        }
+    }
+}
+
+impl<'a> TryInto<&'a MilnorAlgebra> for &'a SteenrodAlgebra {
+    type Error = anyhow::Error;
+    fn try_into(self) -> Result<&'a MilnorAlgebra, Self::Error> {
+        match self {
+            SteenrodAlgebra::MilnorAlgebra(a) => Ok(a),
+            SteenrodAlgebra::AdemAlgebra(_) => {
+                Err(anyhow!("Expected MilnorAlgebra, found AdemAlgebra"))
+            }
+        }
+    }
+}
+
 impl Bialgebra for SteenrodAlgebra {
     fn decompose(&self, op_deg: i32, op_idx: usize) -> Vec<(i32, usize)> {
         match self {
