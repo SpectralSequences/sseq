@@ -91,7 +91,7 @@ def test_undo_redo(driver):
 def test_history(driver):
     driver.click_button("Save")
     driver.reply("s_2.save")
-    time.sleep(0.1)
+    time.sleep(0.2)
 
     with open(f"{driver.tempdir}/s_2.save") as f:
         driver.check_file("s_2.save", f.read())
