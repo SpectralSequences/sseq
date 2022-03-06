@@ -102,11 +102,12 @@
 <span id="75">75</span>
 <span id="76">76</span>
 <span id="77">77</span>
+<span id="78">78</span>
 </pre><pre class="rust"><code><span class="doccomment">//! This saves a resolution to Bruner&#39;s format. This saves the resulting files to the current</span>
 <span class="doccomment">//! working directory. It is recommended that you run this in a dedicated subdirectory.</span>
 
 <span class="kw">use</span> <span class="ident">algebra::module::Module</span>;
-<span class="kw">use</span> <span class="ident">algebra</span>::{<span class="ident">Algebra</span>, <span class="ident">AlgebraType</span>, <span class="ident">MilnorAlgebraT</span>};
+<span class="kw">use</span> <span class="ident">algebra</span>::{<span class="ident">Algebra</span>, <span class="ident">AlgebraType</span>, <span class="ident">MilnorAlgebra</span>};
 <span class="kw">use</span> <span class="ident">ext</span>::{<span class="ident">chain_complex::ChainComplex</span>, <span class="ident">utils::query_module</span>};
 <span class="kw">use</span> <span class="ident">itertools::Itertools</span>;
 <span class="kw">use</span> <span class="ident">std::fmt::Write</span> <span class="kw">as</span> <span class="kw">_</span>;
@@ -118,7 +119,8 @@
 
     <span class="macro">assert_eq!</span>(<span class="kw-2">*</span><span class="ident">resolution</span>.<span class="ident">prime</span>(), <span class="number">2</span>);
     <span class="kw">let</span> <span class="ident">algebra</span> <span class="op">=</span> <span class="ident">resolution</span>.<span class="ident">algebra</span>();
-    <span class="kw">let</span> <span class="ident">algebra</span> <span class="op">=</span> <span class="ident">algebra</span>.<span class="ident">milnor_algebra</span>();
+    <span class="kw">let</span> <span class="ident">algebra</span>: <span class="kw-2">&amp;</span><span class="ident">MilnorAlgebra</span> <span class="op">=</span> (<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">algebra</span>).<span class="ident">try_into</span>()<span class="question-mark">?</span>;
+
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">buffer</span> <span class="op">=</span> <span class="ident">String::new</span>();
 
     <span class="kw">for</span> <span class="ident">s</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">resolution</span>.<span class="ident">next_homological_degree</span>() {
