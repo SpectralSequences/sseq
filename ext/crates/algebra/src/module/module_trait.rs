@@ -308,69 +308,47 @@ pub trait Module: std::fmt::Display + Send + Sync {
     }
 }
 
-impl<A: Algebra> Module for Arc<dyn Module<Algebra = A>> {
+macro_rules! dispatch {
+    () => {};
+    ($vis:vis fn $method:ident(&self$(, $arg:ident: $ty:ty )*$(,)?) $(-> $ret:ty)?; $($tail:tt)*) => {
+        $vis fn $method(&self, $($arg: $ty),* ) $(-> $ret)* {
+            (**self).$method($($arg),*)
+        }
+        dispatch!{$($tail)*}
+    };
+}
+
+impl<A: Algebra> Module for Box<dyn Module<Algebra = A>> {
     type Algebra = A;
 
-    fn algebra(&self) -> Arc<Self::Algebra> {
-        (**self).algebra()
-    }
+    dispatch! {
+        fn algebra(&self) -> Arc<Self::Algebra>;
+        fn min_degree(&self) -> i32;
+        fn max_computed_degree(&self) -> i32;
+        fn compute_basis(&self, degree: i32);
+        fn dimension(&self, degree: i32) -> usize;
+        fn basis_element_to_string(&self, degree: i32, idx: usize) -> String;
+        fn is_unit(&self) -> bool;
+        fn prime(&self) -> ValidPrime;
+        fn borrow_output(&self) -> bool;
 
-    fn min_degree(&self) -> i32 {
-        (**self).min_degree()
-    }
+        fn act_on_basis(
+            &self,
+            result: SliceMut,
+            coeff: u32,
+            op_degree: i32,
+            op_index: usize,
+            mod_degree: i32,
+            mod_index: usize,
+        );
 
-    fn max_computed_degree(&self) -> i32 {
-        (**self).max_computed_degree()
-    }
-
-    fn compute_basis(&self, degree: i32) {
-        (**self).compute_basis(degree);
-    }
-    fn dimension(&self, degree: i32) -> usize {
-        (**self).dimension(degree)
-    }
-
-    fn act_on_basis(
-        &self,
-        result: SliceMut,
-        coeff: u32,
-        op_degree: i32,
-        op_index: usize,
-        mod_degree: i32,
-        mod_index: usize,
-    ) {
-        (**self).act_on_basis(result, coeff, op_degree, op_index, mod_degree, mod_index);
-    }
-
-    fn basis_element_to_string(&self, degree: i32, idx: usize) -> String {
-        (**self).basis_element_to_string(degree, idx)
-    }
-
-    // Whether this is the unit module.
-    fn is_unit(&self) -> bool {
-        (**self).is_unit()
-    }
-
-    fn prime(&self) -> ValidPrime {
-        (**self).prime()
-    }
-
-    /// Whether act_on_basis_borrow is available.
-    fn borrow_output(&self) -> bool {
-        (**self).borrow_output()
-    }
-
-    /// Returns a borrow of the value of the corresponding action on the basis element. This
-    /// FpVector must be "pure", i.e. it is not sliced and the limbs are zero in indices greater
-    /// than the dimension of the vector.
-    fn act_on_basis_borrow(
-        &self,
-        op_degree: i32,
-        op_index: usize,
-        mod_degree: i32,
-        mod_index: usize,
-    ) -> &FpVector {
-        (**self).act_on_basis_borrow(op_degree, op_index, mod_degree, mod_index)
+        fn act_on_basis_borrow(
+            &self,
+            op_degree: i32,
+            op_index: usize,
+            mod_degree: i32,
+            mod_index: usize,
+        ) -> &FpVector;
     }
 }
 
