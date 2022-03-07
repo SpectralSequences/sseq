@@ -1,1 +1,1 @@
-initSidebarItems({"struct":[["ModuleFailedRelationError",""]],"trait":[["Module",""]]});
+initSidebarItems({"macro":[["dispatch",""]],"struct":[["ModuleFailedRelationError",""]],"trait":[["Module",""]]});
