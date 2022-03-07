@@ -1,4 +1,4 @@
-use algebra::module::homomorphism::{FiniteModuleHomomorphism, IdentityHomomorphism};
+use algebra::module::homomorphism::{FullModuleHomomorphism, IdentityHomomorphism};
 use algebra::module::Module;
 use ext::chain_complex::{AugmentedChainComplex, ChainComplex};
 use ext::resolution_homomorphism::ResolutionHomomorphism;
@@ -17,7 +17,6 @@ fn extend_identity() {
     check(("S_3", "milnor"), 50);
     check(("Calpha", "milnor"), 50);
     check(("tmf2", "milnor"), 40);
-    check(("A-mod-Sq1-Sq2", "adem"), 20);
 
     check(
         (
@@ -45,19 +44,6 @@ fn extend_identity() {
         ),
         50,
     );
-
-    check(
-        (
-            json!({
-                "type":"finitely presented module",
-                "p":2,
-                "gens": { "x0":0, "x1":1, "x2":2, "x4":4 },
-                "adem_relations":[[{"coeff":1,"gen":"x1","op":[]}],[{"coeff":1,"gen":"x0","op":[2]},{"coeff":1,"gen":"x2","op":[]}]],
-            }),
-            "adem",
-        ),
-        30,
-    );
 }
 
 fn check<T: TryInto<Config>>(config: T, max_degree: i32) {
@@ -69,7 +55,7 @@ fn check<T: TryInto<Config>>(config: T, max_degree: i32) {
     let module = resolution.target().module(0);
     let p = module.prime();
 
-    let id = FiniteModuleHomomorphism::identity_homomorphism(module);
+    let id = FullModuleHomomorphism::identity_homomorphism(module);
 
     let hom = ResolutionHomomorphism::from_module_homomorphism(
         "".to_string(),

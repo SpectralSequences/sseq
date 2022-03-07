@@ -177,9 +177,9 @@ pub mod save;
 pub mod yoneda;
 
 use crate::chain_complex::FiniteChainComplex;
-use algebra::module::homomorphism::FiniteModuleHomomorphism;
+use algebra::module::homomorphism::FullModuleHomomorphism;
 use algebra::module::FiniteModule;
-pub type CCC = FiniteChainComplex<FiniteModule, FiniteModuleHomomorphism<FiniteModule>>;
+pub type CCC = FiniteChainComplex<FiniteModule, FullModuleHomomorphism<FiniteModule>>;
 
 pub mod nassau;
 pub mod secondary;

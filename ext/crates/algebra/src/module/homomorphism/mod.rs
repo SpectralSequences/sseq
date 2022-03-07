@@ -8,8 +8,6 @@ use fp::vector::{Slice, SliceMut};
 #[cfg(feature = "concurrent")]
 use rayon::prelude::*;
 
-mod finite_module_homomorphism;
-mod fp_module_homomorphism;
 mod free_module_homomorphism;
 mod full_module_homomorphism;
 mod generic_zero_homomorphism;
@@ -17,8 +15,6 @@ mod hom_pullback;
 mod quotient_homomorphism;
 mod truncated_homomorphism;
 
-pub use finite_module_homomorphism::FiniteModuleHomomorphism;
-pub use fp_module_homomorphism::{FPModuleHomomorphism, FPModuleT};
 pub use free_module_homomorphism::FreeModuleHomomorphism;
 pub use full_module_homomorphism::FullModuleHomomorphism;
 pub use generic_zero_homomorphism::GenericZeroHomomorphism;
