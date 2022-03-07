@@ -1,5 +1,5 @@
 use crate::algebra::Algebra;
-use crate::module::{BoundedModule, Module, ZeroModule};
+use crate::module::{Module, ZeroModule};
 use bivec::BiVec;
 use fp::vector::{FpVector, SliceMut};
 use std::sync::Arc;
@@ -206,11 +206,9 @@ impl<A: Algebra> Module for FiniteDimensionalModule<A> {
     ) -> &FpVector {
         self.action(op_degree, op_index, mod_degree, mod_index)
     }
-}
 
-impl<A: Algebra> BoundedModule for FiniteDimensionalModule<A> {
-    fn max_degree(&self) -> i32 {
-        self.graded_dimension.max_degree()
+    fn max_degree(&self) -> Option<i32> {
+        Some(self.graded_dimension.max_degree())
     }
 }
 
@@ -292,7 +290,7 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
     }
 
     pub fn add_generator(&mut self, degree: i32, name: String) {
-        let old_max_degree = self.max_degree();
+        let old_max_degree = self.max_degree().unwrap();
         let algebra = self.algebra();
 
         self.graded_dimension.extend_with(degree, |_| 0);
@@ -500,8 +498,8 @@ impl<A: JsonAlgebra + GeneratedAlgebra> FiniteDimensionalModule<A> {
                     .parse_action(&gen_to_idx, &action, false)
                     .with_context(|| format!("Failed to parse action: {}", action))?;
             }
-            for input_degree in (result.min_degree()..=result.max_degree()).rev() {
-                for output_degree in input_degree + 1..=result.max_degree() {
+            for input_degree in (result.min_degree()..=result.max_degree().unwrap()).rev() {
+                for output_degree in input_degree + 1..=result.max_degree().unwrap() {
                     result.extend_actions(input_degree, output_degree);
                     result.check_validity(input_degree, output_degree)?;
                 }

@@ -2,14 +2,14 @@ use crate::chain_complex::{
     AugmentedChainComplex, BoundedChainComplex, ChainComplex, ChainMap, FiniteAugmentedChainComplex,
 };
 use algebra::module::homomorphism::{
-    BoundedModuleHomomorphism, FiniteModuleHomomorphism, FreeModuleHomomorphism,
-    ModuleHomomorphism, ZeroHomomorphism,
+    FiniteModuleHomomorphism, FreeModuleHomomorphism, FullModuleHomomorphism, ModuleHomomorphism,
+    ZeroHomomorphism,
 };
 use algebra::module::homomorphism::{
     QuotientHomomorphism, QuotientHomomorphismSource, TruncatedHomomorphism,
     TruncatedHomomorphismSource,
 };
-use algebra::module::{BoundedModule, FDModule, FiniteModule, FreeModule, Module};
+use algebra::module::{FDModule, FiniteModule, FreeModule, Module};
 use algebra::module::{QuotientModule as QM, TruncatedModule as TM};
 use algebra::{AdemAlgebra, Algebra, GeneratedAlgebra, SteenrodAlgebra};
 use fp::matrix::{Matrix, Subspace};
@@ -89,7 +89,7 @@ pub fn yoneda_representative_element<TCM, TC, CC>(
     idx: usize,
 ) -> Yoneda<CC>
 where
-    TCM: BoundedModule<Algebra = SteenrodAlgebra>,
+    TCM: Module<Algebra = SteenrodAlgebra>,
     TC: BoundedChainComplex<Algebra = SteenrodAlgebra, Module = TCM>,
     CC: AugmentedChainComplex<
         Algebra = SteenrodAlgebra,
@@ -120,7 +120,7 @@ pub fn yoneda_representative<TCM, TC, CC, CMM>(
     map: ChainMap<FreeModuleHomomorphism<CMM>>,
 ) -> Yoneda<CC>
 where
-    TCM: BoundedModule<Algebra = SteenrodAlgebra>,
+    TCM: Module<Algebra = SteenrodAlgebra>,
     TC: BoundedChainComplex<Algebra = SteenrodAlgebra, Module = TCM>,
     CC: AugmentedChainComplex<
         Algebra = SteenrodAlgebra,
@@ -128,7 +128,7 @@ where
         Module = FreeModule<SteenrodAlgebra>,
         ChainMap = FreeModuleHomomorphism<TCM>,
     >,
-    CMM: BoundedModule<Algebra = SteenrodAlgebra>,
+    CMM: Module<Algebra = SteenrodAlgebra>,
 {
     yoneda_representative_with_strategy(
         cc,
@@ -159,7 +159,7 @@ pub fn yoneda_representative_with_strategy<TCM, TC, CC, CMM, F>(
     strategy: F,
 ) -> Yoneda<CC>
 where
-    TCM: BoundedModule<Algebra = SteenrodAlgebra>,
+    TCM: Module<Algebra = SteenrodAlgebra>,
     TC: BoundedChainComplex<Algebra = SteenrodAlgebra, Module = TCM>,
     CC: AugmentedChainComplex<
         Algebra = SteenrodAlgebra,
@@ -167,7 +167,7 @@ where
         Module = FreeModule<SteenrodAlgebra>,
         ChainMap = FreeModuleHomomorphism<TCM>,
     >,
-    CMM: BoundedModule<Algebra = SteenrodAlgebra>,
+    CMM: Module<Algebra = SteenrodAlgebra>,
     F: Fn(&CC::Module, &Subspace, i32, usize) -> i32,
 {
     let p = cc.prime();
@@ -179,14 +179,14 @@ where
     let s_max = std::cmp::max(target_cc.max_s(), map.s_shift + map.chain_maps.len() as u32) - 1;
     let t_max = std::cmp::max(
         (0..target_cc.max_s())
-            .map(|i| target_cc.module(i).max_degree())
+            .map(|i| target_cc.module(i).max_degree().unwrap())
             .max()
             .unwrap_or_else(|| target_cc.min_degree()),
         map.chain_maps[0].degree_shift()
             + map
                 .chain_maps
                 .iter()
-                .map(|m| m.target().max_degree())
+                .map(|m| m.target().max_degree().unwrap())
                 .max()
                 .unwrap(),
     );
@@ -512,7 +512,7 @@ where
             Arc::clone(&modules[0].module),
             Arc::clone(&zero_module.module),
         ));
-        let qf = BoundedModuleHomomorphism::from(&QuotientHomomorphism::new(
+        let qf = FullModuleHomomorphism::from(&QuotientHomomorphism::new(
             tf,
             Arc::clone(&modules[0]),
             Arc::clone(&zero_module),
@@ -532,7 +532,7 @@ where
             Arc::clone(&modules[s + 1].module),
             Arc::clone(&modules[s].module),
         ));
-        let qf = BoundedModuleHomomorphism::from(&QuotientHomomorphism::new(
+        let qf = FullModuleHomomorphism::from(&QuotientHomomorphism::new(
             tf,
             Arc::clone(&modules[s + 1]),
             Arc::clone(&modules[s]),
@@ -543,14 +543,14 @@ where
         ))
     }));
     differentials.push(Arc::new(FiniteModuleHomomorphism::from(
-        BoundedModuleHomomorphism::zero_homomorphism(
+        FullModuleHomomorphism::zero_homomorphism(
             Arc::clone(&zero_module_fd),
             Arc::clone(&modules_fd[s_max as usize]),
             0,
         ),
     )));
     differentials.push(Arc::new(FiniteModuleHomomorphism::from(
-        BoundedModuleHomomorphism::zero_homomorphism(
+        FullModuleHomomorphism::zero_homomorphism(
             Arc::clone(&zero_module_fd),
             Arc::clone(&zero_module_fd),
             0,
@@ -567,7 +567,7 @@ where
                 Arc::clone(&modules[s].module),
                 Arc::clone(&target),
             ));
-            let qf = BoundedModuleHomomorphism::from(&QuotientHomomorphismSource::new(
+            let qf = FullModuleHomomorphism::from(&QuotientHomomorphismSource::new(
                 tf,
                 Arc::clone(&modules[s]),
                 target,
@@ -595,7 +595,7 @@ where
 ///
 /// If `keep` is `None`, it is interpreted as the empty subspace.
 
-fn compute_kernel_image<M: BoundedModule, F: ModuleHomomorphism, G: ModuleHomomorphism>(
+fn compute_kernel_image<M: Module, F: ModuleHomomorphism, G: ModuleHomomorphism>(
     source: &QM<M>,
     augmentation_map: Option<Arc<F>>,
     preserve_map: Option<&G>,
@@ -615,7 +615,7 @@ where
     let source_orig_dimension = source.module.dimension(t);
     let source_dimension = source.dimension(t);
 
-    for op_deg in 1..=source.max_degree() - t {
+    for op_deg in 1..=source.max_degree().unwrap() - t {
         for op_idx in algebra.generators(op_deg) {
             generators.push((op_deg, op_idx));
             target_degrees.push(source.module.dimension(t + op_deg));

@@ -1,5 +1,5 @@
 use algebra::module::homomorphism::{FiniteModuleHomomorphism, IdentityHomomorphism};
-use algebra::module::{BoundedModule, Module};
+use algebra::module::Module;
 use ext::chain_complex::{AugmentedChainComplex, ChainComplex, FreeChainComplex};
 use ext::resolution_homomorphism::ResolutionHomomorphism;
 use ext::utils::construct;

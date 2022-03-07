@@ -136,14 +136,17 @@ where
         use crate::chain_complex::ChainMap;
         use crate::yoneda::yoneda_representative;
         use algebra::module::homomorphism::FreeModuleHomomorphism;
-        use algebra::module::BoundedModule;
 
         let s = cofiber["s"].as_u64().unwrap() as u32;
         let t = cofiber["t"].as_i64().unwrap() as i32;
         let idx = cofiber["idx"].as_u64().unwrap() as usize;
 
+        let max_degree = module
+            .max_degree()
+            .expect("Can only take cofiber when module is bounded");
+
         let resolution = Resolution::new(Arc::clone(&chain_complex));
-        resolution.compute_through_bidegree(s, t + module.max_degree());
+        resolution.compute_through_bidegree(s, t + max_degree);
 
         let map = FreeModuleHomomorphism::new(resolution.module(s), Arc::clone(&module), t);
         let mut new_output = fp::matrix::Matrix::new(
@@ -154,7 +157,7 @@ where
         new_output[idx].set_entry(0, 1);
 
         map.add_generators_from_matrix_rows(t, new_output.as_slice_mut());
-        map.extend_by_zero(module.max_degree() + t);
+        map.extend_by_zero(max_degree + t);
 
         let cm = ChainMap {
             s_shift: s,

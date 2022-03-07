@@ -48,6 +48,8 @@ impl Module for FiniteModule {
         fn act(&self, result: SliceMut, coeff: u32, op_degree: i32, op_index: usize, input_degree: i32, input: Slice);
         fn act_by_element(&self, result: SliceMut, coeff: u32, op_degree: i32, op: Slice, input_degree: i32, input: Slice);
         fn basis_element_to_string(&self, degree: i32, idx: usize) -> String;
+        fn max_degree(&self) -> Option<i32>;
+        fn max_generator_degree(&self) -> Option<i32>;
     }
 
     fn is_unit(&self) -> bool {
@@ -182,16 +184,6 @@ impl FiniteModule {
         match self {
             FiniteModule::FDModule(m) => Some(m),
             _ => None,
-        }
-    }
-}
-
-impl crate::module::BoundedModule for FiniteModule {
-    fn max_degree(&self) -> i32 {
-        match self {
-            FiniteModule::FDModule(m) => m.max_degree(),
-            FiniteModule::RealProjectiveSpace(m) => m.max_degree(),
-            FiniteModule::FPModule(_) => i32::MAX,
         }
     }
 }

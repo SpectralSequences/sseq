@@ -321,4 +321,8 @@ impl<A: Algebra> Module for FinitelyPresentedModule<A> {
         let gen_idx = self.fp_idx_to_gen_idx(degree, idx);
         self.generators.basis_element_to_string(degree, gen_idx)
     }
+
+    fn max_generator_degree(&self) -> Option<i32> {
+        Some(self.generators.get_max_generator_degree())
+    }
 }

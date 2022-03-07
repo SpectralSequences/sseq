@@ -5,28 +5,31 @@ use bivec::BiVec;
 use crate::algebra::{Algebra, Field};
 use crate::module::block_structure::BlockStructure;
 use crate::module::homomorphism::FreeModuleHomomorphism;
-use crate::module::{BoundedModule, FreeModule, Module};
+use crate::module::{FreeModule, Module};
 use fp::vector::{Slice, SliceMut};
 use once::OnceBiVec;
 
-pub struct HomModule<M: BoundedModule> {
+pub struct HomModule<M: Module> {
     algebra: Arc<Field>,
     source: Arc<FreeModule<M::Algebra>>,
     target: Arc<M>,
     pub block_structures: OnceBiVec<BlockStructure>,
 }
 
-impl<M: BoundedModule> std::fmt::Display for HomModule<M> {
+impl<M: Module> std::fmt::Display for HomModule<M> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "Hom({}, {})", self.source, self.target)
     }
 }
 
-impl<M: BoundedModule> HomModule<M> {
+impl<M: Module> HomModule<M> {
     pub fn new(source: Arc<FreeModule<M::Algebra>>, target: Arc<M>) -> Self {
         let p = source.prime();
         let algebra = Arc::new(Field::new(p));
-        let min_degree = source.min_degree() - target.max_degree();
+        let min_degree = source.min_degree()
+            - target
+                .max_degree()
+                .expect("HomModule requires target to be bounded");
         Self {
             algebra,
             source,
@@ -49,7 +52,7 @@ impl<M: BoundedModule> HomModule<M> {
         let result =
             FreeModuleHomomorphism::new(Arc::clone(&self.source), Arc::clone(&self.target), degree);
         let min_nonzero_degree = degree + self.target.min_degree();
-        let max_nonzero_degree = degree + self.target.max_degree();
+        let max_nonzero_degree = degree + self.target.max_degree().unwrap();
         result.extend_by_zero(min_nonzero_degree - 1);
         let mut used_entries = 0;
         for i in min_nonzero_degree..=max_nonzero_degree {
@@ -74,7 +77,7 @@ impl<M: BoundedModule> HomModule<M> {
         x: Slice,
     ) {
         let out_degree = x_degree - f_degree;
-        if out_degree < self.target.min_degree() || out_degree > self.target.max_degree() {
+        if out_degree < self.target.min_degree() || out_degree > self.target.max_degree().unwrap() {
             return;
         }
         let gen_basis_elt = self.block_structures[f_degree].index_to_generator_basis_elt(f_idx);
@@ -110,7 +113,7 @@ impl<M: BoundedModule> HomModule<M> {
     }
 }
 
-impl<M: BoundedModule> Module for HomModule<M> {
+impl<M: Module> Module for HomModule<M> {
     type Algebra = Field;
 
     fn algebra(&self) -> Arc<Self::Algebra> {
@@ -131,9 +134,9 @@ impl<M: BoundedModule> Module for HomModule<M> {
         for d in self.min_degree()..=degree {
             let mut block_sizes = BiVec::with_capacity(
                 self.target.min_degree() + d,
-                self.target.max_degree() + d + 1,
+                self.target.max_degree().unwrap() + d + 1,
             );
-            for i in self.target.min_degree()..=self.target.max_degree() {
+            for i in self.target.min_degree()..=self.target.max_degree().unwrap() {
                 let target_dim = self.target.dimension(i);
                 if target_dim == 0 {
                     block_sizes.push(Vec::new());

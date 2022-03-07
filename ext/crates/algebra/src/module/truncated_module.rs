@@ -1,4 +1,4 @@
-use crate::module::{BoundedModule, Module};
+use crate::module::Module;
 use fp::vector::SliceMut;
 use std::sync::Arc;
 
@@ -17,12 +17,6 @@ impl<M: Module + ?Sized> std::fmt::Display for TruncatedModule<M> {
 impl<M: Module + ?Sized> TruncatedModule<M> {
     pub fn new(module: Arc<M>, truncation: i32) -> Self {
         TruncatedModule { module, truncation }
-    }
-}
-
-impl<M: Module + ?Sized> BoundedModule for TruncatedModule<M> {
-    fn max_degree(&self) -> i32 {
-        self.truncation
     }
 }
 
@@ -80,5 +74,9 @@ impl<M: Module + ?Sized> Module for TruncatedModule<M> {
         } else {
             self.module.basis_element_to_string(degree, idx)
         }
+    }
+
+    fn max_degree(&self) -> Option<i32> {
+        Some(self.truncation)
     }
 }

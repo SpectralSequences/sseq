@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::algebra::SteenrodAlgebra;
 use crate::module::homomorphism::FPModuleT;
 use crate::module::homomorphism::{
-    BoundedModuleHomomorphism, FPModuleHomomorphism, GenericZeroHomomorphism, IdentityHomomorphism,
+    FPModuleHomomorphism, FullModuleHomomorphism, GenericZeroHomomorphism, IdentityHomomorphism,
     ModuleHomomorphism, ZeroHomomorphism,
 };
 use crate::module::{FiniteModule, FreeModule, SteenrodModule};
@@ -26,10 +26,10 @@ impl FPModuleT for FiniteModule {
     }
 }
 
-impl<M: SteenrodModule> From<BoundedModuleHomomorphism<FiniteModule, M>>
+impl<M: SteenrodModule> From<FullModuleHomomorphism<FiniteModule, M>>
     for FiniteModuleHomomorphism<M>
 {
-    fn from(f: BoundedModuleHomomorphism<FiniteModule, M>) -> Self {
+    fn from(f: FullModuleHomomorphism<FiniteModule, M>) -> Self {
         FiniteModuleHomomorphism {
             source: f.source(),
             target: f.target(),
@@ -53,7 +53,7 @@ impl<M: SteenrodModule> From<FPModuleHomomorphism<FiniteModule, M>>
 // Finite Module Homomorphism Interior
 #[allow(clippy::upper_case_acronyms)]
 enum FMHI<M: SteenrodModule> {
-    FD(BoundedModuleHomomorphism<FiniteModule, M>),
+    FD(FullModuleHomomorphism<FiniteModule, M>),
     FP(FPModuleHomomorphism<FiniteModule, M>),
     RP(GenericZeroHomomorphism<FiniteModule, M>),
 }
@@ -134,7 +134,7 @@ impl<M: SteenrodModule> ModuleHomomorphism for FiniteModuleHomomorphism<M> {
 impl<M: SteenrodModule> ZeroHomomorphism<FiniteModule, M> for FiniteModuleHomomorphism<M> {
     fn zero_homomorphism(source: Arc<FiniteModule>, target: Arc<M>, degree_shift: i32) -> Self {
         let map = match &*source {
-            FiniteModule::FDModule(_) => FMHI::FD(BoundedModuleHomomorphism::zero_homomorphism(
+            FiniteModule::FDModule(_) => FMHI::FD(FullModuleHomomorphism::zero_homomorphism(
                 Arc::clone(&source),
                 Arc::clone(&target),
                 degree_shift,
@@ -163,9 +163,9 @@ impl<M: SteenrodModule> ZeroHomomorphism<FiniteModule, M> for FiniteModuleHomomo
 impl IdentityHomomorphism<FiniteModule> for FiniteModuleHomomorphism<FiniteModule> {
     fn identity_homomorphism(source: Arc<FiniteModule>) -> Self {
         let map = match &*source {
-            FiniteModule::FDModule(_) => FMHI::FD(
-                BoundedModuleHomomorphism::identity_homomorphism(Arc::clone(&source)),
-            ),
+            FiniteModule::FDModule(_) => FMHI::FD(FullModuleHomomorphism::identity_homomorphism(
+                Arc::clone(&source),
+            )),
             FiniteModule::RealProjectiveSpace(_) => {
                 panic!("Identity morphism not supported for RealProjectiveSpace")
             }

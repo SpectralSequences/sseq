@@ -1,7 +1,7 @@
 use crate::chain_complex::{AugmentedChainComplex, ChainComplex, FiniteAugmentedChainComplex};
 use crate::CCC;
 use algebra::module::homomorphism::{
-    BoundedModuleHomomorphism, FiniteModuleHomomorphism, ModuleHomomorphism,
+    FiniteModuleHomomorphism, FullModuleHomomorphism, ModuleHomomorphism,
 };
 use algebra::module::{FiniteModule, Module, SumModule, TensorModule, ZeroModule};
 use algebra::{Algebra, Bialgebra, SteenrodAlgebra};
@@ -514,7 +514,7 @@ impl AugmentedChainComplex
     >
 {
     type TargetComplex = CCC;
-    type ChainMap = BoundedModuleHomomorphism<STM<FiniteModule, FiniteModule>, FiniteModule>;
+    type ChainMap = FullModuleHomomorphism<STM<FiniteModule, FiniteModule>, FiniteModule>;
 
     fn target(&self) -> Arc<Self::TargetComplex> {
         self.left_cc.target()
@@ -522,7 +522,7 @@ impl AugmentedChainComplex
 
     fn chain_map(&self, s: u32) -> Arc<Self::ChainMap> {
         assert_eq!(s, 0);
-        Arc::new(BoundedModuleHomomorphism::from_matrices(
+        Arc::new(FullModuleHomomorphism::from_matrices(
             self.module(0),
             self.left_cc.target().module(0),
             0,

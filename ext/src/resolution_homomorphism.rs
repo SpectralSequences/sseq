@@ -4,13 +4,12 @@ use std::ops::Range;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use crate::chain_complex::{AugmentedChainComplex, ChainComplex, FreeChainComplex};
-use crate::resolution::Resolution;
+use crate::chain_complex::{
+    AugmentedChainComplex, BoundedChainComplex, ChainComplex, FreeChainComplex,
+};
 use crate::save::SaveKind;
-use crate::CCC;
 use algebra::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
 use algebra::module::Module;
-use algebra::SteenrodAlgebra;
 use fp::matrix::Matrix;
 use fp::vector::{FpVector, SliceMut};
 use once::OnceBiVec;
@@ -401,22 +400,22 @@ where
     }
 }
 
-use crate::chain_complex::BoundedChainComplex;
-use algebra::module::homomorphism::FiniteModuleHomomorphism;
-use algebra::module::{BoundedModule, FiniteModule};
-
-impl<M, ACC, TCC> ResolutionHomomorphism<Resolution<CCC>, ACC>
+impl<CC1, CC2> ResolutionHomomorphism<CC1, CC2>
 where
-    M: Module<Algebra = SteenrodAlgebra>,
-    ACC: AugmentedChainComplex<Algebra = SteenrodAlgebra, TargetComplex = TCC>,
-    TCC: BoundedChainComplex<Algebra = SteenrodAlgebra, Module = M>,
+    CC1: AugmentedChainComplex + FreeChainComplex,
+    CC2: AugmentedChainComplex<Algebra = CC1::Algebra>,
+    CC1::TargetComplex: BoundedChainComplex,
+    CC2::TargetComplex: BoundedChainComplex,
 {
     /// Construct a chain map that lifts a given module homomorphism.
     pub fn from_module_homomorphism(
         name: String,
-        source: Arc<Resolution<CCC>>,
-        target: Arc<ACC>,
-        f: &FiniteModuleHomomorphism<M>,
+        source: Arc<CC1>,
+        target: Arc<CC2>,
+        f: &impl ModuleHomomorphism<
+            Source = <<CC1 as AugmentedChainComplex>::TargetComplex as ChainComplex>::Module,
+            Target = <<CC2 as AugmentedChainComplex>::TargetComplex as ChainComplex>::Module,
+        >,
     ) -> Self {
         assert_eq!(source.target().max_s(), 1);
         assert_eq!(target.target().max_s(), 1);
@@ -429,11 +428,9 @@ where
         let p = source.prime();
         let degree_shift = f.degree_shift();
 
-        let max_degree = match &*source_module {
-            FiniteModule::FDModule(m) => m.max_degree(),
-            FiniteModule::FPModule(m) => m.generators().get_max_generator_degree(),
-            FiniteModule::RealProjectiveSpace(_) => panic!("Real Projective Space not supported"),
-        };
+        let max_degree = source_module.max_generator_degree().expect(
+            "ResolutionHomomorphism::from_module_homomorphism requires finite max_generator_degree",
+        );
 
         let hom = Self::new(name, source, target, 0, degree_shift);
 
@@ -449,6 +446,7 @@ where
         target_chain_map.compute_auxiliary_data_through_degree(degree_shift + max_degree);
 
         let g = hom.get_map_ensure_length(0);
+        let mut scratch = FpVector::new(hom.source.prime(), 0);
 
         for t in source_module.min_degree()..=max_degree {
             let num_gens = hom.source.module(0).number_of_gens_in_degree(t);
@@ -465,12 +463,14 @@ where
                 continue;
             }
             for j in 0..num_gens {
-                f.apply(
-                    fx.as_slice_mut(),
+                scratch.set_scratch_vector_size(target_module.dimension(t + degree_shift));
+                source_chain_map.apply_to_basis_element(
+                    scratch.as_slice_mut(),
                     1,
                     t,
-                    source_chain_map.output(t, j).as_slice(),
+                    hom.source.module(0).generator_offset(t, t, j),
                 );
+                f.apply(fx.as_slice_mut(), 1, t, scratch.as_slice());
                 assert!(target_chain_map.apply_quasi_inverse(
                     outputs_matrix[j].as_slice_mut(),
                     t + degree_shift,
