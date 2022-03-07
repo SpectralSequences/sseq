@@ -53,7 +53,7 @@ impl<A: Algebra> Clone for FiniteDimensionalModule<A> {
 
 impl<A: Algebra> PartialEq for FiniteDimensionalModule<A> {
     fn eq(&self, other: &Self) -> bool {
-        self.graded_dimension == other.graded_dimension && self.actions == other.actions
+        self.test_equal(other).is_ok()
     }
 }
 
@@ -69,32 +69,30 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
                     other.graded_dimension.min_degree()
                 ));
             }
-            if self.graded_dimension.len() != other.graded_dimension.len() {
-                return Err(format!(
-                    "Graded dimension lengths disagree. left.len() = {} but right.len() = {}.",
-                    self.graded_dimension.len(),
-                    other.graded_dimension.len()
-                ));
-            }
             let mut disagreements = vec![];
-            for i in self.graded_dimension.min_degree()..self.graded_dimension.len() {
-                if self.graded_dimension[i] != other.graded_dimension[i] {
+            for i in self.graded_dimension.min_degree()
+                ..std::cmp::max(self.graded_dimension.len(), other.graded_dimension.len())
+            {
+                if self.graded_dimension.get(i).copied().unwrap_or(0)
+                    != other.graded_dimension.get(i).copied().unwrap_or(0)
+                {
                     disagreements.push(i);
                 }
             }
-            return Err(format!("Graded dimensions disagree in positions {:?}. Left has graded dimensions:\n    {:?}\nRight has graded dimension:\n    {:?}\n",
+            if !disagreements.is_empty() {
+                return Err(format!("Graded dimensions disagree in positions {:?}. Left has graded dimensions:\n    {:?}\nRight has graded dimension:\n    {:?}\n",
                 disagreements,
                 self.graded_dimension,
                 other.graded_dimension
             ));
+            }
         }
+        let max_degree = std::cmp::min(self.actions.len(), other.actions.len());
         if self.actions != other.actions {
             // actions goes input_degree --> output_degree --> operation --> input_index --> Vector
             let mut disagreements = vec![];
-            for input_degree in self.actions.min_degree()..self.actions.len() {
-                for output_degree in
-                    self.actions[input_degree].min_degree()..self.actions[input_degree].len()
-                {
+            for input_degree in self.actions.min_degree()..max_degree {
+                for output_degree in self.actions[input_degree].min_degree()..max_degree {
                     for operation in 0..self.actions[input_degree][output_degree].len() {
                         for input_index in
                             0..self.actions[input_degree][output_degree][operation].len()
@@ -118,17 +116,19 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
                 }
             }
 
-            let mut err_string = "Actions disagree.\n".to_string();
-            for x in disagreements {
-                err_string.push_str(&format!(
-                    "  {} * {} disagreement.\n    Left: {}\n    Right: {}\n",
-                    self.algebra.basis_element_to_string(x.1 - x.0, x.2),
-                    self.basis_element_to_string(x.0, x.3),
-                    self.element_to_string(x.1, x.4.as_slice()),
-                    self.element_to_string(x.1, x.5.as_slice())
-                ))
+            if !disagreements.is_empty() {
+                let mut err_string = "Actions disagree.\n".to_string();
+                for x in disagreements {
+                    err_string.push_str(&format!(
+                        "  {} * {} disagreement.\n    Left: {}\n    Right: {}\n",
+                        self.algebra.basis_element_to_string(x.1 - x.0, x.2),
+                        self.basis_element_to_string(x.0, x.3),
+                        self.element_to_string(x.1, x.4.as_slice()),
+                        self.element_to_string(x.1, x.5.as_slice())
+                    ))
+                }
+                return Err(err_string);
             }
-            return Err(err_string);
         }
         Ok(())
     }
