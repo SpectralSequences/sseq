@@ -617,11 +617,6 @@
 <span id="590">590</span>
 <span id="591">591</span>
 <span id="592">592</span>
-<span id="593">593</span>
-<span id="594">594</span>
-<span id="595">595</span>
-<span id="596">596</span>
-<span id="597">597</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::chain_complex</span>::{<span class="ident">AugmentedChainComplex</span>, <span class="ident">ChainComplex</span>, <span class="ident">FiniteAugmentedChainComplex</span>};
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::CCC</span>;
 <span class="kw">use</span> <span class="ident">algebra::module::homomorphism</span>::{
@@ -1144,19 +1139,14 @@
         <span class="self">self</span>.<span class="ident">left_cc</span>.<span class="ident">target</span>()
     }
 
-    <span class="comment">// Once this is implemented correctly, make the fields in BoundedModuleHomomoprhism private</span>
-    <span class="comment">// again</span>
     <span class="kw">fn</span> <span class="ident">chain_map</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">s</span>: <span class="ident">u32</span>) -&gt; <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::ChainMap</span><span class="op">&gt;</span> {
         <span class="macro">assert_eq!</span>(<span class="ident">s</span>, <span class="number">0</span>);
-        <span class="ident">Arc::new</span>(<span class="ident">BoundedModuleHomomorphism</span> {
-            <span class="ident">source</span>: <span class="self">self</span>.<span class="ident">module</span>(<span class="number">0</span>),
-            <span class="ident">target</span>: <span class="self">self</span>.<span class="ident">left_cc</span>.<span class="ident">target</span>().<span class="ident">module</span>(<span class="number">0</span>),
-            <span class="ident">degree_shift</span>: <span class="number">0</span>,
-            <span class="ident">matrices</span>: <span class="ident">BiVec::from_vec</span>(<span class="number">0</span>, <span class="macro">vec!</span>[<span class="ident">Matrix::from_vec</span>(<span class="self">self</span>.<span class="ident">prime</span>(), <span class="kw-2">&amp;</span>[<span class="macro">vec!</span>[<span class="number">1</span>]])]),
-            <span class="ident">quasi_inverses</span>: <span class="ident">OnceBiVec::new</span>(<span class="number">0</span>),
-            <span class="ident">kernels</span>: <span class="ident">OnceBiVec::new</span>(<span class="number">0</span>),
-            <span class="ident">images</span>: <span class="ident">OnceBiVec::new</span>(<span class="number">0</span>),
-        })
+        <span class="ident">Arc::new</span>(<span class="ident">BoundedModuleHomomorphism::from_matrices</span>(
+            <span class="self">self</span>.<span class="ident">module</span>(<span class="number">0</span>),
+            <span class="self">self</span>.<span class="ident">left_cc</span>.<span class="ident">target</span>().<span class="ident">module</span>(<span class="number">0</span>),
+            <span class="number">0</span>,
+            <span class="ident">BiVec::from_vec</span>(<span class="number">0</span>, <span class="macro">vec!</span>[<span class="ident">Matrix::from_vec</span>(<span class="self">self</span>.<span class="ident">prime</span>(), <span class="kw-2">&amp;</span>[<span class="macro">vec!</span>[<span class="number">1</span>]])]),
+        ))
     }
 }
 
