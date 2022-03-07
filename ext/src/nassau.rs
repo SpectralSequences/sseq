@@ -25,7 +25,7 @@ use crate::save::SaveKind;
 use algebra::combinatorics;
 use algebra::milnor_algebra::{MilnorAlgebra, PPartEntry};
 use algebra::module::homomorphism::{
-    BoundedModuleHomomorphism, FreeModuleHomomorphism, ModuleHomomorphism,
+    FreeModuleHomomorphism, FullModuleHomomorphism, ModuleHomomorphism,
 };
 use algebra::module::{FDModule, FreeModule, GeneratorData, Module};
 use algebra::Algebra;
@@ -374,7 +374,7 @@ impl<'a> Iterator for SignatureIterator<'a> {
     }
 }
 
-type CCDZ<A> = FiniteChainComplex<FDModule<A>, BoundedModuleHomomorphism<FDModule<A>, FDModule<A>>>;
+type CCDZ<A> = FiniteChainComplex<FDModule<A>, FullModuleHomomorphism<FDModule<A>, FDModule<A>>>;
 
 /// Some magic constants used in the save file
 enum Magic {

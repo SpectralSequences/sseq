@@ -1,4 +1,3 @@
-mod bounded_module;
 mod finite_dimensional_module;
 mod finite_module;
 mod finitely_presented_module;
@@ -17,7 +16,6 @@ pub mod block_structure;
 
 pub mod homomorphism;
 
-pub use bounded_module::BoundedModule;
 pub use finite_dimensional_module::FiniteDimensionalModule as FDModule;
 pub use finite_module::FiniteModule;
 pub use finitely_presented_module::FinitelyPresentedModule as FPModule;

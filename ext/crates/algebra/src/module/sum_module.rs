@@ -2,7 +2,7 @@ use bivec::BiVec;
 use once::OnceBiVec;
 
 use crate::module::block_structure::{BlockStart, BlockStructure, GeneratorBasisEltPair};
-use crate::module::{BoundedModule, Module, ZeroModule};
+use crate::module::{Module, ZeroModule};
 use fp::vector::SliceMut;
 
 use std::sync::Arc;
@@ -126,15 +126,13 @@ impl<M: Module> Module for SumModule<M> {
         } = self.block_structures[degree].index_to_generator_basis_elt(index);
         self.modules[*module_num].basis_element_to_string(degree, *basis_index)
     }
-}
 
-impl<M: BoundedModule> BoundedModule for SumModule<M> {
-    fn max_degree(&self) -> i32 {
+    fn max_degree(&self) -> Option<i32> {
         self.modules
             .iter()
             .map(|m| m.max_degree())
             .max()
-            .unwrap_or(self.min_degree - 1)
+            .unwrap_or(Some(self.min_degree))
     }
 }
 

@@ -1,3 +1,4 @@
+use bivec::BiVec;
 use itertools::Itertools;
 use std::sync::Arc;
 
@@ -5,7 +6,7 @@ use fp::prime::ValidPrime;
 use fp::vector::{FpVector, Slice, SliceMut};
 
 use crate::algebra::Algebra;
-use {crate::module::BoundedModule, crate::module::FDModule, crate::module::TruncatedModule};
+use crate::module::{FDModule, TruncatedModule};
 
 pub trait Module: std::fmt::Display + Send + Sync {
     type Algebra: Algebra;
@@ -51,6 +52,72 @@ pub trait Module: std::fmt::Display + Send + Sync {
         _mod_index: usize,
     ) -> &FpVector {
         unimplemented!()
+    }
+
+    /// `max_degree` is the a degree such that if t > `max_degree`, then `self.dimension(t) = 0`.
+    fn max_degree(&self) -> Option<i32> {
+        None
+    }
+
+    /// Maximum degree of a generator.
+    fn max_generator_degree(&self) -> Option<i32> {
+        self.max_degree()
+    }
+
+    fn total_dimension(&self) -> usize {
+        let max_degree = self
+            .max_degree()
+            .expect("total_dimension requires module to be bounded");
+
+        (self.min_degree()..=max_degree)
+            .map(|i| self.dimension(i))
+            .sum()
+    }
+
+    fn to_fd_module(&self) -> FDModule<Self::Algebra> {
+        let min_degree = self.min_degree();
+        let max_degree = self
+            .max_degree()
+            .expect("to_fd_module requires module to be bounded");
+        self.compute_basis(max_degree);
+
+        let mut graded_dimension = BiVec::with_capacity(min_degree, max_degree + 1);
+        for t in min_degree..=max_degree {
+            graded_dimension.push(self.dimension(t));
+        }
+        let mut result = FDModule::new(self.algebra(), self.to_string(), graded_dimension);
+        for t in min_degree..=max_degree {
+            for idx in 0..result.dimension(t) {
+                result.set_basis_element_name(t, idx, self.basis_element_to_string(t, idx));
+            }
+        }
+
+        let algebra = self.algebra();
+        for input_degree in min_degree..=max_degree {
+            for output_degree in (input_degree + 1)..=max_degree {
+                let output_dimension = result.dimension(output_degree);
+                if output_dimension == 0 {
+                    continue;
+                }
+                let op_degree = output_degree - input_degree;
+
+                for input_idx in 0..result.dimension(input_degree) {
+                    for op_idx in 0..algebra.dimension(op_degree) {
+                        let output_vec: &mut FpVector =
+                            result.action_mut(op_degree, op_idx, input_degree, input_idx);
+                        self.act_on_basis(
+                            output_vec.as_slice_mut(),
+                            1,
+                            op_degree,
+                            op_idx,
+                            input_degree,
+                            input_idx,
+                        );
+                    }
+                }
+            }
+        }
+        result
     }
 
     /// The length of `input` need not be equal to the dimension of the module in said degree.
@@ -133,10 +200,6 @@ pub trait Module: std::fmt::Display + Send + Sync {
         (0..self.dimension(degree))
             .map(|idx| self.basis_element_to_string(degree, idx))
             .collect()
-        // let formatter = (0..self.dimension(degree))
-        //     .map(|idx| self.basis_element_to_string(degree, idx))
-        //     .format(", ");
-        // format!("[{}]", formatter)
     }
 
     fn element_to_string(&self, degree: i32, element: Slice) -> String {
@@ -331,6 +394,8 @@ impl<A: Algebra> Module for Box<dyn Module<Algebra = A>> {
         fn is_unit(&self) -> bool;
         fn prime(&self) -> ValidPrime;
         fn borrow_output(&self) -> bool;
+        fn max_degree(&self) -> Option<i32>;
+        fn max_generator_degree(&self) -> Option<i32>;
 
         fn act_on_basis(
             &self,

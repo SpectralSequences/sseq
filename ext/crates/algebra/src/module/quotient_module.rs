@@ -1,4 +1,4 @@
-use crate::module::{BoundedModule, Module};
+use crate::module::Module;
 use fp::matrix::Subspace;
 use fp::vector::{FpVector, Slice, SliceMut};
 use once::OnceBiVec;
@@ -156,10 +156,8 @@ impl<M: Module> Module for QuotientModule<M> {
         self.module
             .basis_element_to_string(degree, self.basis_list[degree][idx])
     }
-}
 
-impl<M: Module + BoundedModule> BoundedModule for QuotientModule<M> {
-    fn max_degree(&self) -> i32 {
+    fn max_degree(&self) -> Option<i32> {
         self.module.max_degree()
     }
 }

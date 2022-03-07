@@ -8,11 +8,11 @@ use once::OnceBiVec;
 // use crate::field::Field;
 use crate::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
 use crate::module::HomModule;
-use crate::module::{BoundedModule, FreeModule, Module};
+use crate::module::{FreeModule, Module};
 
 /// Given a map `map`: A -> B and `source` = Hom(B, X), `target` = Hom(A, X), produce the induced
 /// map `map`^* Hom(B, X) -> Hom(A, X).
-pub struct HomPullback<M: BoundedModule> {
+pub struct HomPullback<M: Module> {
     source: Arc<HomModule<M>>,
     target: Arc<HomModule<M>>,
     map: Arc<FreeModuleHomomorphism<FreeModule<M::Algebra>>>,
@@ -21,7 +21,7 @@ pub struct HomPullback<M: BoundedModule> {
     quasi_inverses: OnceBiVec<QuasiInverse>,
 }
 
-impl<M: BoundedModule> HomPullback<M> {
+impl<M: Module> HomPullback<M> {
     pub fn new(
         source: Arc<HomModule<M>>,
         target: Arc<HomModule<M>>,
@@ -39,7 +39,7 @@ impl<M: BoundedModule> HomPullback<M> {
     }
 }
 
-impl<M: BoundedModule> ModuleHomomorphism for HomPullback<M> {
+impl<M: Module> ModuleHomomorphism for HomPullback<M> {
     type Source = HomModule<M>;
     type Target = HomModule<M>;
 
@@ -68,7 +68,7 @@ impl<M: BoundedModule> ModuleHomomorphism for HomPullback<M> {
     ) {
         println!("fn_deg : {}, fn_idx : {}", fn_degree, fn_idx);
         let target_module = self.target.target();
-        for out_deg in target_module.min_degree()..=target_module.max_degree() {
+        for out_deg in target_module.min_degree()..=target_module.max_degree().unwrap() {
             let x_degree = fn_degree + out_deg;
             let num_gens = self.map.source().number_of_gens_in_degree(x_degree);
             for i in 0..num_gens {

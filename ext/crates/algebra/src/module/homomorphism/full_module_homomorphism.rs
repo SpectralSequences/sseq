@@ -2,23 +2,26 @@ use std::sync::Arc;
 
 use crate::algebra::Algebra;
 use crate::module::homomorphism::{IdentityHomomorphism, ModuleHomomorphism, ZeroHomomorphism};
-use crate::module::{BoundedModule, Module};
+use crate::module::Module;
 use bivec::BiVec;
 use fp::matrix::{Matrix, QuasiInverse, Subspace};
 use fp::vector::SliceMut;
 use once::OnceBiVec;
 
-pub struct BoundedModuleHomomorphism<S: BoundedModule, T: Module<Algebra = S::Algebra>> {
+/// A ModuleHomomorphism that simply records the matrix of the homomorphism in every degree.
+/// This is currently rather bare bones.
+pub struct FullModuleHomomorphism<S: Module, T: Module<Algebra = S::Algebra> = S> {
     source: Arc<S>,
     target: Arc<T>,
     degree_shift: i32,
-    matrices: BiVec<Matrix>,
+    /// The matrices of the module homomorphism. Unspecified matrices are assumed to be zero
+    matrices: OnceBiVec<Matrix>,
     quasi_inverses: OnceBiVec<QuasiInverse>,
     kernels: OnceBiVec<Subspace>,
     images: OnceBiVec<Subspace>,
 }
 
-impl<S: BoundedModule, T: Module<Algebra = S::Algebra>> Clone for BoundedModuleHomomorphism<S, T> {
+impl<S: Module, T: Module<Algebra = S::Algebra>> Clone for FullModuleHomomorphism<S, T> {
     fn clone(&self) -> Self {
         Self {
             source: Arc::clone(&self.source),
@@ -32,8 +35,8 @@ impl<S: BoundedModule, T: Module<Algebra = S::Algebra>> Clone for BoundedModuleH
     }
 }
 
-impl<S: BoundedModule, T: Module<Algebra = S::Algebra>> ModuleHomomorphism
-    for BoundedModuleHomomorphism<S, T>
+impl<S: Module, T: Module<Algebra = S::Algebra>> ModuleHomomorphism
+    for FullModuleHomomorphism<S, T>
 {
     type Source = S;
     type Target = T;
@@ -86,33 +89,15 @@ impl<S: BoundedModule, T: Module<Algebra = S::Algebra>> ModuleHomomorphism
     }
 }
 
-impl<A, S, T> BoundedModuleHomomorphism<S, T>
+impl<A, S, T> FullModuleHomomorphism<S, T>
 where
     A: Algebra,
-    S: BoundedModule<Algebra = A>,
+    S: Module<Algebra = A>,
     T: Module<Algebra = A>,
 {
     pub fn new(source: Arc<S>, target: Arc<T>, degree_shift: i32) -> Self {
-        let p = source.prime();
         let min_degree = source.min_degree();
-        let max_degree = source.max_degree();
-        source.compute_basis(max_degree);
-        target.compute_basis(max_degree + degree_shift);
-
-        let mut matrices = BiVec::with_capacity(min_degree, max_degree + 1);
-
-        for i in min_degree..=max_degree {
-            // Here we use `Module::dimension(&*m, i)` instead of `m.dimension(i)` because there are
-            // multiple `dimension` methods in scope and rust-analyzer gets confused if we're not
-            // explicit enough.
-            let matrix = Matrix::new(
-                p,
-                Module::dimension(&*source, i),
-                Module::dimension(&*target, i + degree_shift),
-            );
-            matrices.push(matrix);
-        }
-        Self::from_matrices(source, target, degree_shift, matrices)
+        Self::from_matrices(source, target, degree_shift, BiVec::new(min_degree))
     }
 
     pub fn from_matrices(
@@ -122,11 +107,11 @@ where
         matrices: BiVec<Matrix>,
     ) -> Self {
         let min_degree = target.min_degree();
-        BoundedModuleHomomorphism {
+        FullModuleHomomorphism {
             source,
             target,
             degree_shift,
-            matrices,
+            matrices: OnceBiVec::from_bivec(matrices),
             quasi_inverses: OnceBiVec::new(min_degree),
             kernels: OnceBiVec::new(min_degree),
             images: OnceBiVec::new(min_degree),
@@ -140,12 +125,16 @@ where
         let p = f.prime();
 
         let min_degree = f.target().min_degree();
-        let max_degree = f.source().max_degree() - degree_shift;
+        let max_degree = f
+            .source()
+            .max_degree()
+            .expect("FullModuleHomomorphism::from requires source to be bonuded")
+            - degree_shift;
 
         source.compute_basis(max_degree);
         target.compute_basis(max_degree);
 
-        let mut matrices = BiVec::with_capacity(min_degree, max_degree + 1);
+        let matrices = OnceBiVec::new(min_degree);
 
         for target_deg in min_degree..=max_degree {
             let source_deg = target_deg + degree_shift;
@@ -157,10 +146,10 @@ where
 
             let mut matrix = Matrix::new(p, source_dim, target_dim);
             f.get_matrix(matrix.as_slice_mut(), source_deg);
-            matrices.push(matrix);
+            matrices.push_checked(matrix, target_deg);
         }
 
-        BoundedModuleHomomorphism {
+        FullModuleHomomorphism {
             source,
             target,
             degree_shift,
@@ -171,14 +160,14 @@ where
         }
     }
 
-    /// This function replaces the source of the BoundedModuleHomomorphism and does nothing else.
+    /// This function replaces the source of the ModuleHomomorphism and does nothing else.
     /// This is useful for changing the type of the source (but not the mathematical module
-    /// itself). This is intended to be used in conjunction with `BoundedModule::to_fd_module`
-    pub fn replace_source<S_: BoundedModule<Algebra = A>>(
+    /// itself). This is intended to be used in conjunction with `Module::to_fd_module`
+    pub fn replace_source<S_: Module<Algebra = A>>(
         self,
         source: Arc<S_>,
-    ) -> BoundedModuleHomomorphism<S_, T> {
-        BoundedModuleHomomorphism {
+    ) -> FullModuleHomomorphism<S_, T> {
+        FullModuleHomomorphism {
             source,
             target: self.target,
             degree_shift: self.degree_shift,
@@ -190,11 +179,11 @@ where
     }
 
     /// See `replace_source`
-    pub fn replace_target<T_: BoundedModule<Algebra = A>>(
+    pub fn replace_target<T_: Module<Algebra = A>>(
         self,
         target: Arc<T_>,
-    ) -> BoundedModuleHomomorphism<S, T_> {
-        BoundedModuleHomomorphism {
+    ) -> FullModuleHomomorphism<S, T_> {
+        FullModuleHomomorphism {
             source: self.source,
             target,
             degree_shift: self.degree_shift,
@@ -206,27 +195,21 @@ where
     }
 }
 
-impl<S: BoundedModule, T: Module<Algebra = S::Algebra>> ZeroHomomorphism<S, T>
-    for BoundedModuleHomomorphism<S, T>
+impl<S: Module, T: Module<Algebra = S::Algebra>> ZeroHomomorphism<S, T>
+    for FullModuleHomomorphism<S, T>
 {
     fn zero_homomorphism(source: Arc<S>, target: Arc<T>, degree_shift: i32) -> Self {
-        BoundedModuleHomomorphism {
-            source,
-            target,
-            degree_shift,
-            matrices: BiVec::new(0),
-            quasi_inverses: OnceBiVec::new(0),
-            kernels: OnceBiVec::new(0),
-            images: OnceBiVec::new(0),
-        }
+        Self::new(source, target, degree_shift)
     }
 }
 
-impl<S: BoundedModule> IdentityHomomorphism<S> for BoundedModuleHomomorphism<S, S> {
+impl<S: Module> IdentityHomomorphism<S> for FullModuleHomomorphism<S, S> {
     fn identity_homomorphism(source: Arc<S>) -> Self {
         let p = source.prime();
         let min_degree = source.min_degree();
-        let max_degree = source.max_degree();
+        let max_degree = source
+            .max_degree()
+            .expect("FullModuleHomomorphism::identity_homomorphism requires a bounded module");
 
         let mut matrices = BiVec::with_capacity(min_degree, max_degree + 1);
 

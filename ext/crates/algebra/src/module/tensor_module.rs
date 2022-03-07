@@ -3,7 +3,7 @@ use once::OnceBiVec;
 
 use crate::algebra::{Algebra, Bialgebra};
 use crate::module::block_structure::BlockStructure;
-use crate::module::{BoundedModule, Module, ZeroModule};
+use crate::module::{Module, ZeroModule};
 use fp::prime::minus_one_to_the_n;
 use fp::vector::{FpVector, Slice, SliceMut};
 
@@ -331,16 +331,9 @@ where
                 .basis_element_to_string(right_degree, right_index)
         )
     }
-}
 
-impl<A, M, N> BoundedModule for TensorModule<M, N>
-where
-    A: Algebra + Bialgebra,
-    M: Module<Algebra = A> + BoundedModule,
-    N: Module<Algebra = A> + BoundedModule,
-{
-    fn max_degree(&self) -> i32 {
-        self.left.max_degree() + self.right.max_degree()
+    fn max_degree(&self) -> Option<i32> {
+        Some(self.left.max_degree()? + self.right.max_degree()?)
     }
 }
 

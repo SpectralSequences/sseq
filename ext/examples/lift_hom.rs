@@ -39,7 +39,7 @@
 //! $H^*(-)$ are contravariant functors. The words "source" and "target" refer to the map between
 //! Steenrod modules.
 
-use algebra::module::{BoundedModule, Module};
+use algebra::module::Module;
 use anyhow::{anyhow, Context};
 use ext::chain_complex::{AugmentedChainComplex, ChainComplex, FreeChainComplex};
 use ext::resolution_homomorphism::ResolutionHomomorphism;
@@ -100,7 +100,10 @@ fn main() -> anyhow::Result<()> {
     let hom = ResolutionHomomorphism::new(name.clone(), source, target, shift_s, shift_t);
 
     eprintln!("\nInput Ext class to lift:");
-    for output_t in 0..=target_module.max_degree() {
+    for output_t in 0..=target_module
+        .max_degree()
+        .expect("lift_hom requires target to be bounded")
+    {
         let input_t = output_t + shift_t;
         let mut matrix = Matrix::new(
             p,

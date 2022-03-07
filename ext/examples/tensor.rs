@@ -1,4 +1,4 @@
-use algebra::module::{BoundedModule, FDModule, TensorModule};
+use algebra::module::{FDModule, Module, TensorModule};
 use algebra::AdemAlgebra;
 use ext::utils::parse_module_name;
 use fp::prime::ValidPrime;

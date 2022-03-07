@@ -1,7 +1,7 @@
 use algebra::module::homomorphism::{
     FiniteModuleHomomorphism, FreeModuleHomomorphism, IdentityHomomorphism, ModuleHomomorphism,
 };
-use algebra::module::{BoundedModule, Module};
+use algebra::module::Module;
 use ext::chain_complex::{
     AugmentedChainComplex, ChainComplex, FreeChainComplex, TensorChainComplex,
 };

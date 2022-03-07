@@ -3,7 +3,7 @@ use crate::algebra::{
     milnor_algebra::{MilnorBasisElement, PPartEntry},
     AdemAlgebra, Algebra, MilnorAlgebra, SteenrodAlgebra,
 };
-use crate::module::{BoundedModule, Module, ZeroModule};
+use crate::module::{Module, ZeroModule};
 use fp::prime::{Binomial, ValidPrime};
 use fp::vector::SliceMut;
 
@@ -125,6 +125,10 @@ where
             result.add_basis_element(0, 1);
         }
     }
+
+    fn max_degree(&self) -> Option<i32> {
+        self.max
+    }
 }
 
 // Compute the coefficient of the operation on x^j.
@@ -240,15 +244,5 @@ impl<A: Algebra> RealProjectiveSpace<A> {
         if self.clear_bottom {
             json["clear_bottom"] = Value::Bool(true);
         }
-    }
-}
-
-impl<A: Algebra> BoundedModule for RealProjectiveSpace<A>
-where
-    for<'a> &'a A: Into<&'a SteenrodAlgebra>,
-{
-    /// `max_degree` is the a degree such that if t > `max_degree`, then `self.dimension(t) = 0`.
-    fn max_degree(&self) -> i32 {
-        self.max.unwrap_or(i32::MAX)
     }
 }

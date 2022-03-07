@@ -6,7 +6,7 @@ use crate::resolution_homomorphism::ResolutionHomomorphism;
 use crate::save::{SaveFile, SaveKind};
 
 use algebra::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
-use algebra::module::{BoundedModule, FreeModule, Module};
+use algebra::module::{FreeModule, Module};
 use algebra::pair_algebra::PairAlgebra;
 use algebra::Algebra;
 use bivec::BiVec;
@@ -1438,7 +1438,7 @@ where
 ///  3. $\mathrm{Hom}(\mathrm{Ext}^{2, t}_A(H^*X, k), H^{t - 1} X) = 0$ for all $t$ or $\mathrm{Hom}(\mathrm{Ext}^{3, t}_A(H^*X, k), H^{t - 1} X) = 0$ for all $t$.
 pub fn can_compute<M, F, CC>(res: &CC) -> bool
 where
-    M: BoundedModule,
+    M: Module,
     F: ModuleHomomorphism<Source = M, Target = M>,
     CC: FreeChainComplex + AugmentedChainComplex<TargetComplex = FiniteChainComplex<M, F>>,
 {
@@ -1452,7 +1452,9 @@ where
         return false;
     }
     let module = complex.module(0);
-    let max_degree = module.max_degree();
+    let max_degree = module
+        .max_degree()
+        .expect("secondary requires bounded modules");
 
     (0..max_degree)
         .all(|t| module.dimension(t) == 0 || res.number_of_gens_in_bidegree(2, t + 1) == 0)
