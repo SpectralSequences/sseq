@@ -520,19 +520,14 @@ impl AugmentedChainComplex
         self.left_cc.target()
     }
 
-    // Once this is implemented correctly, make the fields in BoundedModuleHomomoprhism private
-    // again
     fn chain_map(&self, s: u32) -> Arc<Self::ChainMap> {
         assert_eq!(s, 0);
-        Arc::new(BoundedModuleHomomorphism {
-            source: self.module(0),
-            target: self.left_cc.target().module(0),
-            degree_shift: 0,
-            matrices: BiVec::from_vec(0, vec![Matrix::from_vec(self.prime(), &[vec![1]])]),
-            quasi_inverses: OnceBiVec::new(0),
-            kernels: OnceBiVec::new(0),
-            images: OnceBiVec::new(0),
-        })
+        Arc::new(BoundedModuleHomomorphism::from_matrices(
+            self.module(0),
+            self.left_cc.target().module(0),
+            0,
+            BiVec::from_vec(0, vec![Matrix::from_vec(self.prime(), &[vec![1]])]),
+        ))
     }
 }
 
