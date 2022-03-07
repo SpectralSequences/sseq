@@ -1,8 +1,6 @@
 use crate::chain_complex::{AugmentedChainComplex, ChainComplex, FiniteAugmentedChainComplex};
 use crate::CCC;
-use algebra::module::homomorphism::{
-    FiniteModuleHomomorphism, FullModuleHomomorphism, ModuleHomomorphism,
-};
+use algebra::module::homomorphism::{FullModuleHomomorphism, ModuleHomomorphism};
 use algebra::module::{FiniteModule, Module, SumModule, TensorModule, ZeroModule};
 use algebra::{Algebra, Bialgebra, SteenrodAlgebra};
 use fp::matrix::Matrix;
@@ -507,8 +505,8 @@ impl AugmentedChainComplex
         SteenrodAlgebra,
         FiniteAugmentedChainComplex<
             FiniteModule,
-            FiniteModuleHomomorphism<FiniteModule>,
-            FiniteModuleHomomorphism<FiniteModule>,
+            FullModuleHomomorphism<FiniteModule>,
+            FullModuleHomomorphism<FiniteModule>,
             CCC,
         >,
     >

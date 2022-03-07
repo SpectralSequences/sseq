@@ -1,4 +1,4 @@
-use algebra::module::homomorphism::{FiniteModuleHomomorphism, IdentityHomomorphism};
+use algebra::module::homomorphism::{FullModuleHomomorphism, IdentityHomomorphism};
 use algebra::module::Module;
 use ext::chain_complex::{AugmentedChainComplex, ChainComplex, FreeChainComplex};
 use ext::resolution_homomorphism::ResolutionHomomorphism;
@@ -43,7 +43,7 @@ fn main() -> anyhow::Result<()> {
         "".to_string(),
         Arc::clone(&resolution),
         Arc::clone(&yoneda),
-        &FiniteModuleHomomorphism::identity_homomorphism(Arc::clone(&module)),
+        &FullModuleHomomorphism::identity_homomorphism(Arc::clone(&module)),
     );
 
     f.extend(s, t);

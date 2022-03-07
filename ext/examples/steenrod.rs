@@ -1,5 +1,5 @@
 use algebra::module::homomorphism::{
-    FiniteModuleHomomorphism, FreeModuleHomomorphism, IdentityHomomorphism, ModuleHomomorphism,
+    FreeModuleHomomorphism, FullModuleHomomorphism, IdentityHomomorphism, ModuleHomomorphism,
 };
 use algebra::module::Module;
 use ext::chain_complex::{
@@ -77,7 +77,7 @@ fn main() -> anyhow::Result<()> {
             "".to_string(),
             Arc::clone(&resolution),
             Arc::clone(&yoneda),
-            &FiniteModuleHomomorphism::identity_homomorphism(Arc::clone(&module)),
+            &FullModuleHomomorphism::identity_homomorphism(Arc::clone(&module)),
         );
 
         f.extend(s, t);

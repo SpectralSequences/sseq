@@ -2,8 +2,7 @@ use crate::chain_complex::{
     AugmentedChainComplex, BoundedChainComplex, ChainComplex, ChainMap, FiniteAugmentedChainComplex,
 };
 use algebra::module::homomorphism::{
-    FiniteModuleHomomorphism, FreeModuleHomomorphism, FullModuleHomomorphism, ModuleHomomorphism,
-    ZeroHomomorphism,
+    FreeModuleHomomorphism, FullModuleHomomorphism, ModuleHomomorphism, ZeroHomomorphism,
 };
 use algebra::module::homomorphism::{
     QuotientHomomorphism, QuotientHomomorphismSource, TruncatedHomomorphism,
@@ -24,8 +23,9 @@ const PENALTY_UNIT: i32 = 10000;
 
 pub type Yoneda<CC> = FiniteAugmentedChainComplex<
     FiniteModule,
-    FiniteModuleHomomorphism<FiniteModule>,
-    FiniteModuleHomomorphism<
+    FullModuleHomomorphism<FiniteModule>,
+    FullModuleHomomorphism<
+        FiniteModule,
         <<CC as AugmentedChainComplex>::TargetComplex as ChainComplex>::Module,
     >,
     <CC as AugmentedChainComplex>::TargetComplex,
@@ -517,8 +517,8 @@ where
             Arc::clone(&modules[0]),
             Arc::clone(&zero_module),
         ));
-        Arc::new(FiniteModuleHomomorphism::from(
-            qf.replace_source(Arc::clone(&modules_fd[0]))
+        Arc::new(FullModuleHomomorphism::from(
+            &qf.replace_source(Arc::clone(&modules_fd[0]))
                 .replace_target(Arc::clone(&zero_module_fd)),
         ))
     };
@@ -537,24 +537,20 @@ where
             Arc::clone(&modules[s + 1]),
             Arc::clone(&modules[s]),
         ));
-        Arc::new(FiniteModuleHomomorphism::from(
-            qf.replace_source(Arc::clone(&modules_fd[s + 1]))
+        Arc::new(FullModuleHomomorphism::from(
+            &qf.replace_source(Arc::clone(&modules_fd[s + 1]))
                 .replace_target(Arc::clone(&modules_fd[s])),
         ))
     }));
-    differentials.push(Arc::new(FiniteModuleHomomorphism::from(
-        FullModuleHomomorphism::zero_homomorphism(
-            Arc::clone(&zero_module_fd),
-            Arc::clone(&modules_fd[s_max as usize]),
-            0,
-        ),
+    differentials.push(Arc::new(FullModuleHomomorphism::zero_homomorphism(
+        Arc::clone(&zero_module_fd),
+        Arc::clone(&modules_fd[s_max as usize]),
+        0,
     )));
-    differentials.push(Arc::new(FiniteModuleHomomorphism::from(
-        FullModuleHomomorphism::zero_homomorphism(
-            Arc::clone(&zero_module_fd),
-            Arc::clone(&zero_module_fd),
-            0,
-        ),
+    differentials.push(Arc::new(FullModuleHomomorphism::zero_homomorphism(
+        Arc::clone(&zero_module_fd),
+        Arc::clone(&zero_module_fd),
+        0,
     )));
 
     let chain_maps = (0..=s_max)
@@ -572,8 +568,8 @@ where
                 Arc::clone(&modules[s]),
                 target,
             ));
-            Arc::new(FiniteModuleHomomorphism::from(
-                qf.replace_source(Arc::clone(&modules_fd[s])),
+            Arc::new(FullModuleHomomorphism::from(
+                &qf.replace_source(Arc::clone(&modules_fd[s])),
             ))
         })
         .collect::<Vec<_>>();
@@ -779,7 +775,7 @@ mod tests {
             "".to_string(),
             Arc::clone(&resolution),
             Arc::clone(&yoneda),
-            &FiniteModuleHomomorphism::identity_homomorphism(Arc::clone(&module)),
+            &FullModuleHomomorphism::identity_homomorphism(Arc::clone(&module)),
         );
 
         f.extend(s, t);
