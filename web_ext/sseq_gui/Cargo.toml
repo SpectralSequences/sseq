@@ -20,6 +20,7 @@ enum_dispatch = "0.3"
 rustc-hash = "1.1.0"
 serde_json = "1.0.0"
 serde = { version = "1.0.0", features = ["derive"] }
+itertools = { version = "0.10.0", default-features = false, features = ["use_alloc"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 time = "0.3.0"

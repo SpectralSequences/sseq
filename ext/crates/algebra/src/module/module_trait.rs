@@ -2,7 +2,7 @@ use itertools::Itertools;
 use std::sync::Arc;
 
 use fp::prime::ValidPrime;
-use fp::vector::{FpVector, Slice, SliceMut};
+use fp::vector::{Slice, SliceMut};
 
 use crate::algebra::Algebra;
 
@@ -29,27 +29,11 @@ pub trait Module: std::fmt::Display + std::any::Any + Send + Sync {
 
     /// Whether this is the unit module.
     fn is_unit(&self) -> bool {
-        false
+        self.min_degree() == 0 && self.max_degree() == Some(0) && self.dimension(0) == 1
     }
 
     fn prime(&self) -> ValidPrime {
         self.algebra().prime()
-    }
-
-    /// Whether act_on_basis_borrow is available.
-    fn borrow_output(&self) -> bool {
-        false
-    }
-
-    /// Returns a borrow of the value of the corresponding action on the basis element.
-    fn act_on_basis_borrow(
-        &self,
-        _op_degree: i32,
-        _op_index: usize,
-        _mod_degree: i32,
-        _mod_index: usize,
-    ) -> &FpVector {
-        unimplemented!()
     }
 
     /// `max_degree` is the a degree such that if t > `max_degree`, then `self.dimension(t) = 0`.
@@ -148,12 +132,6 @@ pub trait Module: std::fmt::Display + std::any::Any + Send + Sync {
         }
     }
 
-    fn basis_string_list(&self, degree: i32) -> Vec<String> {
-        (0..self.dimension(degree))
-            .map(|idx| self.basis_element_to_string(degree, idx))
-            .collect()
-    }
-
     fn element_to_string(&self, degree: i32, element: Slice) -> String {
         let result = element
             .iter_nonzero()
@@ -197,7 +175,6 @@ impl<A: Algebra> Module for Box<dyn Module<Algebra = A>> {
         fn basis_element_to_string(&self, degree: i32, idx: usize) -> String;
         fn is_unit(&self) -> bool;
         fn prime(&self) -> ValidPrime;
-        fn borrow_output(&self) -> bool;
         fn max_degree(&self) -> Option<i32>;
         fn max_generator_degree(&self) -> Option<i32>;
 
@@ -210,14 +187,6 @@ impl<A: Algebra> Module for Box<dyn Module<Algebra = A>> {
             mod_degree: i32,
             mod_index: usize,
         );
-
-        fn act_on_basis_borrow(
-            &self,
-            op_degree: i32,
-            op_index: usize,
-            mod_degree: i32,
-            mod_index: usize,
-        ) -> &FpVector;
     }
 }
 

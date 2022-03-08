@@ -65,7 +65,8 @@ where
         let coproduct = algebra.coproduct(op_degree, op_index).into_iter();
         let output_degree = mod_degree + op_degree;
 
-        let borrow_output = self.left.borrow_output() && self.right.borrow_output();
+        let mut left_result = FpVector::new(p, 0);
+        let mut right_result = FpVector::new(p, 0);
 
         for (op_deg_l, op_idx_l, op_deg_r, op_idx_r) in coproduct {
             let mut idx = 0;
@@ -89,88 +90,53 @@ where
                     idx += left_source_dim * right_source_dim;
                     continue;
                 }
-                if borrow_output {
-                    for i in 0..left_source_dim {
-                        let left_result = self
-                            .left
-                            .act_on_basis_borrow(op_deg_l, op_idx_l, left_deg, i);
 
-                        if left_result.is_zero() {
-                            idx += right_source_dim;
+                left_result.set_scratch_vector_size(left_target_dim);
+                right_result.set_scratch_vector_size(right_target_dim);
+
+                for i in 0..left_source_dim {
+                    self.left.act_on_basis(
+                        left_result.as_slice_mut(),
+                        coeff,
+                        op_deg_l,
+                        op_idx_l,
+                        left_deg,
+                        i,
+                    );
+
+                    if left_result.is_zero() {
+                        idx += right_source_dim;
+                        continue;
+                    }
+
+                    for j in 0..right_source_dim {
+                        let entry = input.entry(idx);
+                        idx += 1;
+                        if entry == 0 {
                             continue;
                         }
-
-                        for j in 0..right_source_dim {
-                            let entry = input.entry(idx);
-                            idx += 1;
-                            if entry == 0 {
-                                continue;
-                            }
-                            let right_result = self
-                                .right
-                                .act_on_basis_borrow(op_deg_r, op_idx_r, right_deg, j);
-
-                            if right_result.is_zero() {
-                                continue;
-                            }
-                            result.add_tensor(
-                                self.offset(output_degree, left_deg + op_deg_l),
-                                coeff
-                                    * entry
-                                    * minus_one_to_the_n(*self.prime(), op_deg_r * left_deg),
-                                left_result.as_slice(),
-                                right_result.as_slice(),
-                            );
-                        }
-                    }
-                } else {
-                    let mut left_result = FpVector::new(p, left_target_dim);
-                    let mut right_result = FpVector::new(p, right_target_dim);
-
-                    for i in 0..left_source_dim {
-                        self.left.act_on_basis(
-                            left_result.as_slice_mut(),
-                            coeff,
-                            op_deg_l,
-                            op_idx_l,
-                            left_deg,
-                            i,
+                        self.right.act_on_basis(
+                            right_result.as_slice_mut(),
+                            entry,
+                            op_deg_r,
+                            op_idx_r,
+                            right_deg,
+                            j,
                         );
 
-                        if left_result.is_zero() {
-                            idx += right_source_dim;
+                        if right_result.is_zero() {
                             continue;
                         }
+                        result.add_tensor(
+                            self.offset(output_degree, left_deg + op_deg_l),
+                            minus_one_to_the_n(*self.prime(), op_deg_r * left_deg),
+                            left_result.as_slice(),
+                            right_result.as_slice(),
+                        );
 
-                        for j in 0..right_source_dim {
-                            let entry = input.entry(idx);
-                            idx += 1;
-                            if entry == 0 {
-                                continue;
-                            }
-                            self.right.act_on_basis(
-                                right_result.as_slice_mut(),
-                                entry,
-                                op_deg_r,
-                                op_idx_r,
-                                right_deg,
-                                j,
-                            );
-
-                            if right_result.is_zero() {
-                                continue;
-                            }
-                            result.add_tensor(
-                                self.offset(output_degree, left_deg + op_deg_l),
-                                minus_one_to_the_n(*self.prime(), op_deg_r * left_deg),
-                                left_result.as_slice(),
-                                right_result.as_slice(),
-                            );
-
-                            right_result.set_to_zero();
-                        }
-                        left_result.set_to_zero();
+                        right_result.set_to_zero();
                     }
+                    left_result.set_to_zero();
                 }
             }
         }
