@@ -6,14 +6,43 @@ use fp::vector::{Slice, SliceMut};
 
 use crate::algebra::Algebra;
 
+/// A bounded below module over an algebra. To accommodate for infinite modules (e.g. modules in a
+/// free resolution), every module is potentially only define up to a degree. The extent to which
+/// the module is defined is kept track by two functions:
+///
+///  - [`Module::max_computed_degree`] gives the maximum degree for which the module is fully
+///    defined. It is guaranteed that the module will never change up to this degree in the future.
+///
+///  - [`Module::compute_basis`] extends the internal data to support querying data up to (and
+///    including) a given degree. In general, we can run this beyond the max computed degree.
+///
+/// A useful example to keep in mind is a [`FreeModule`](crate::module::FreeModule), where we have
+/// specified the generators up to some degree `t`. Then `t` is the max computed degree, while
+/// `compute_basis` computes data such as the offset of existing generators in potentially higher
+/// degrees.
 pub trait Module: std::fmt::Display + std::any::Any + Send + Sync {
     type Algebra: Algebra;
 
+    /// The algebra the module is over.
     fn algebra(&self) -> Arc<Self::Algebra>;
+
+    /// The minimum degree of the module, which is required to be bounded below
     fn min_degree(&self) -> i32;
-    fn compute_basis(&self, _degree: i32) {}
-    /// The maximum `t` for which the module is defined at `t`.
+
+    /// Compute internal data of the module so that we can query information up to degree `degree`.
+    /// This should be run by the user whenever they want to query such information.
+    ///
+    /// This function must be idempotent, and defaults to a no-op.
+    ///
+    /// See [`Module`] documentation for more details.
+    #[allow(unused_variables)]
+    fn compute_basis(&self, degree: i32) {}
+
+    /// The maximum `t` for which the module is fully defined at `t`. See [`Module`] documentation
+    /// for more details.
     fn max_computed_degree(&self) -> i32;
+
+    /// The dimension of a module at the given degree
     fn dimension(&self, degree: i32) -> usize;
     fn act_on_basis(
         &self,
@@ -25,6 +54,7 @@ pub trait Module: std::fmt::Display + std::any::Any + Send + Sync {
         mod_index: usize,
     );
 
+    /// The name of a basis element. This is useful for debugging and printing results.
     fn basis_element_to_string(&self, degree: i32, idx: usize) -> String;
 
     /// Whether this is the unit module.
@@ -32,6 +62,7 @@ pub trait Module: std::fmt::Display + std::any::Any + Send + Sync {
         self.min_degree() == 0 && self.max_degree() == Some(0) && self.dimension(0) == 1
     }
 
+    /// The prime the module is over, which should be equal to the prime of the algebra.
     fn prime(&self) -> ValidPrime {
         self.algebra().prime()
     }
@@ -41,7 +72,8 @@ pub trait Module: std::fmt::Display + std::any::Any + Send + Sync {
         None
     }
 
-    /// Maximum degree of a generator.
+    /// Maximum degree of a generator under the Steenrod action. Every element in higher degree
+    /// must be obtainable from applying a Steenrod action to a lower degree element.
     fn max_generator_degree(&self) -> Option<i32> {
         self.max_degree()
     }
@@ -132,6 +164,8 @@ pub trait Module: std::fmt::Display + std::any::Any + Send + Sync {
         }
     }
 
+    /// Gives the name of an element. The default implementation is derived from
+    /// [`Module::basis_element_to_string`] in the obvious way.
     fn element_to_string(&self, degree: i32, element: Slice) -> String {
         let result = element
             .iter_nonzero()

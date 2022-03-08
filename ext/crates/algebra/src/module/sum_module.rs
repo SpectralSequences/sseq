@@ -12,7 +12,6 @@ pub struct SumModule<M: Module> {
     algebra: Arc<M::Algebra>,
     min_degree: i32,
     pub modules: Vec<Arc<M>>,
-    // Use BlockStructure for this?
     pub block_structures: OnceBiVec<BlockStructure>,
 }
 
