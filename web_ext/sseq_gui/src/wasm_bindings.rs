@@ -34,15 +34,12 @@ impl Resolution {
     }
 
     pub fn run(&mut self, m: String) {
-        let msg: Result<Message, serde_json::Error> = serde_json::from_str(&m);
-        if msg.is_err() {
-            println!("Unable to understand message:\n{}", m);
-            println!("Error: {:?}", msg);
+        match serde_json::from_str(&m) {
+            Ok(msg) => self.r.process_message(msg),
+            Err(e) => self
+                .r
+                .send_error(format!("Failed to parse message:\n{m}\nError: {e}")),
         }
-
-        let msg = msg.unwrap();
-
-        self.r.process_message(msg).unwrap();
     }
 }
 
@@ -60,14 +57,11 @@ impl Sseq {
     }
 
     pub fn run(&mut self, m: String) {
-        let msg: Result<Message, serde_json::Error> = serde_json::from_str(&m);
-        if msg.is_err() {
-            println!("Unable to understand message:\n{}", m);
-            println!("Error: {:?}", msg);
+        match serde_json::from_str(&m) {
+            Ok(msg) => self.s.process_message(msg),
+            Err(e) => self
+                .s
+                .send_error(format!("Failed to parse message:\n{m}\nError: {e}")),
         }
-
-        let msg = msg.unwrap();
-
-        self.s.process_message(msg).unwrap();
     }
 }

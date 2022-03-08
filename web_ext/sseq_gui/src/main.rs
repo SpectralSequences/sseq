@@ -81,7 +81,7 @@ impl Manager {
                     ))
                 );
 
-                resolution_manager.process_message(msg).unwrap();
+                resolution_manager.process_message(msg);
 
                 let end = OffsetDateTime::now_utc();
                 let time_diff = (end - start).whole_milliseconds();
@@ -119,7 +119,7 @@ impl Manager {
                     );
                 }
 
-                sseq_manager.process_message(msg).unwrap();
+                sseq_manager.process_message(msg);
 
                 if user {
                     let end = OffsetDateTime::now_utc();
@@ -150,24 +150,34 @@ impl Manager {
     }
 
     fn on_message(&self, m: &str) {
-        let msg: Result<Message, serde_json::Error> = serde_json::from_str(m);
-        if msg.is_err() {
-            println!("Unable to understand message:\n{}", m);
-            println!("Error: {:?}", msg);
-        }
-
-        let msg = msg.unwrap();
-
-        for recipient in &msg.recipients {
-            match recipient {
-                Recipient::Sseq => match self.sseq_sender.send(msg.clone()) {
-                    Ok(_) => (),
-                    Err(e) => eprintln!("Failed to send message to ResolutionManager: {}", e),
-                },
-                Recipient::Resolver => match self.res_sender.send(msg.clone()) {
-                    Ok(_) => (),
-                    Err(e) => eprintln!("Failed to send message to ResolutionManager: {}", e),
-                },
+        match serde_json::from_str::<Message>(m) {
+            Err(e) => self
+                .sseq_sender
+                .send(Message {
+                    recipients: Vec::new(),
+                    sseq: SseqChoice::Main,
+                    action: Action::from(Error {
+                        message: format!("Failed to parse message:\n{m}\nError: {e}"),
+                    }),
+                })
+                .unwrap(),
+            Ok(msg) => {
+                for recipient in &msg.recipients {
+                    match recipient {
+                        Recipient::Sseq => match self.sseq_sender.send(msg.clone()) {
+                            Ok(_) => (),
+                            Err(e) => {
+                                eprintln!("Failed to send message to ResolutionManager: {}", e)
+                            }
+                        },
+                        Recipient::Resolver => match self.res_sender.send(msg.clone()) {
+                            Ok(_) => (),
+                            Err(e) => {
+                                eprintln!("Failed to send message to ResolutionManager: {}", e)
+                            }
+                        },
+                    }
+                }
             }
         }
     }

@@ -7,6 +7,7 @@ use ext::chain_complex::ChainComplex;
 use ext::utils::load_module_json;
 use ext::CCC;
 
+use anyhow::{anyhow, Context};
 use serde_json::json;
 
 use crate::Sender;
@@ -40,7 +41,13 @@ impl ResolutionManager {
     }
 
     /// Reads a message and performs the actions as instructed.
-    pub fn process_message(&mut self, msg: Message) -> anyhow::Result<()> {
+    pub fn process_message(&mut self, msg: Message) {
+        if let Err(e) = self.process_message_inner(msg) {
+            self.send_error(format!("{e:?}"));
+        }
+    }
+
+    fn process_message_inner(&mut self, msg: Message) -> anyhow::Result<()> {
         // If the message is BlockRefresh, SseqManager is responsible for marking
         // it as complete.
         let isblock = matches!(msg.action, Action::BlockRefresh(_));
@@ -53,7 +60,10 @@ impl ResolutionManager {
             Action::Resolve(a) => self.resolve(a, msg.sseq)?,
             Action::BlockRefresh(_) => self.sender.send(msg)?,
             _ => {
-                let resolution = self.resolution.as_mut().unwrap();
+                let resolution = self
+                    .resolution
+                    .as_mut()
+                    .ok_or_else(|| anyhow!("Resolution not yet constructed"))?;
                 let resolution = match msg.sseq {
                     SseqChoice::Main => resolution,
                     SseqChoice::Unit => resolution.unit_resolution_mut(),
@@ -80,8 +90,10 @@ impl ResolutionManager {
 
     /// Resolves a module defined by a json object. The result is stored in `self.bundle`.
     fn construct_json(&mut self, action: ConstructJson) -> anyhow::Result<()> {
-        let json_data = serde_json::from_str(&action.data)?;
-        let resolution = Resolution::new_from_json(&json_data, &action.algebra_name);
+        let json_data = serde_json::from_str(&action.data)
+            .with_context(|| format!("Failed to parse json {}", action.data))?;
+        let resolution = Resolution::new_from_json(&json_data, &action.algebra_name)
+            .ok_or_else(|| anyhow!("Invalid json encountered when parsing module file"))?;
         self.process_bundle(resolution);
 
         Ok(())
@@ -90,7 +102,8 @@ impl ResolutionManager {
     /// Resolves a module specified by `json`. The result is stored in `self.bundle`.
     fn construct(&mut self, action: Construct) -> anyhow::Result<()> {
         let json = load_module_json(&action.module_name)?;
-        let resolution = Resolution::new_from_json(&json, &action.algebra_name);
+        let resolution = Resolution::new_from_json(&json, &action.algebra_name)
+            .ok_or_else(|| anyhow!("Invalid json encountered when parsing module file"))?;
         self.process_bundle(resolution);
 
         Ok(())
@@ -111,7 +124,8 @@ impl ResolutionManager {
                     "actions": [],
                 }),
                 resolution.algebra().prefix(),
-            );
+            )
+            .unwrap();
             self.setup_callback(&mut unit_resolution, SseqChoice::Unit);
 
             resolution.set_unit_resolution(unit_resolution);
@@ -122,7 +136,10 @@ impl ResolutionManager {
     }
 
     fn resolve(&self, action: Resolve, sseq: SseqChoice) -> anyhow::Result<()> {
-        let resolution = self.resolution.as_ref().unwrap();
+        let resolution = self
+            .resolution
+            .as_ref()
+            .ok_or_else(|| anyhow!("Calling Resolve before Construct"))?;
         let resolution = match sseq {
             SseqChoice::Main => resolution,
             SseqChoice::Unit => resolution.unit_resolution(),
@@ -145,6 +162,16 @@ impl ResolutionManager {
         resolution.compute_through_degree(action.max_degree);
 
         Ok(())
+    }
+
+    pub fn send_error(&self, message: String) {
+        self.sender
+            .send(Message {
+                recipients: Vec::new(),
+                sseq: SseqChoice::Main,
+                action: Action::from(Error { message }),
+            })
+            .unwrap()
     }
 }
 
@@ -254,7 +281,13 @@ impl SseqManager {
         )
     }
 
-    pub fn process_message(&mut self, msg: Message) -> anyhow::Result<bool> {
+    pub fn process_message(&mut self, msg: Message) {
+        if let Err(e) = self.process_message_inner(msg) {
+            self.send_error(format!("{e:?}"));
+        }
+    }
+
+    fn process_message_inner(&mut self, msg: Message) -> anyhow::Result<bool> {
         let user = Self::is_user(&msg.action);
         let target_sseq = msg.sseq;
 
@@ -263,6 +296,7 @@ impl SseqManager {
             Action::Complete(_) => self.relay(msg)?,
             Action::QueryTableResult(_) => self.relay(msg)?,
             Action::QueryCocycleStringResult(_) => self.relay(msg)?,
+            Action::Error(_) => self.relay(msg)?,
             _ => {
                 if let Some(sseq) = self.get_sseq(msg.sseq) {
                     msg.action.act_sseq(sseq);
@@ -279,6 +313,16 @@ impl SseqManager {
             })?;
         }
         Ok(user)
+    }
+
+    pub fn send_error(&self, message: String) {
+        self.sender
+            .send(Message {
+                recipients: Vec::new(),
+                sseq: SseqChoice::Main,
+                action: Action::from(Error { message }),
+            })
+            .unwrap()
     }
 
     fn get_sseq(&mut self, sseq: SseqChoice) -> Option<&mut SseqWrapper> {

@@ -241,6 +241,11 @@ messageHandler.QueryTableResult = m => {
     console.log(m.string);
 };
 
+messageHandler.Error = m => {
+    console.error(m.message);
+    alert(`Fatal error encountered: ${m.message}`);
+};
+
 // Set up upload button
 document.getElementById('json-upload').addEventListener('change', () => {
     const maxDegree = parseInt(prompt('Maximum degree', 30).trim());

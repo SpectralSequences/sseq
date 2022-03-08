@@ -64,17 +64,17 @@ pub struct Resolution<CC: ChainComplex> {
 }
 
 impl Resolution<ext::CCC> {
-    pub fn new_from_json(json: &Value, algebra_name: &str) -> Self {
-        let inner = ext::utils::construct((json.clone(), algebra_name), None).unwrap();
+    pub fn new_from_json(json: &Value, algebra_name: &str) -> Option<Self> {
+        let inner = ext::utils::construct((json.clone(), algebra_name), None).ok()?;
         let mut result = Self::new_with_inner(inner);
         let products_value = &json["products"];
         if !products_value.is_null() {
-            let products = products_value.as_array().unwrap();
+            let products = products_value.as_array()?;
             for prod in products {
-                let hom_deg = prod["hom_deg"].as_u64().unwrap() as u32;
-                let int_deg = prod["int_deg"].as_i64().unwrap() as i32;
-                let class: Vec<u32> = Vec::<u32>::deserialize(&prod["class"]).unwrap();
-                let name = prod["name"].as_str().unwrap();
+                let hom_deg = prod["hom_deg"].as_u64()? as u32;
+                let int_deg = prod["int_deg"].as_i64()? as i32;
+                let class: Vec<u32> = Vec::<u32>::deserialize(&prod["class"]).ok()?;
+                let name = prod["name"].as_str()?;
 
                 result.add_product(hom_deg, int_deg, class, name);
             }
@@ -83,30 +83,30 @@ impl Resolution<ext::CCC> {
         let self_maps = &json["self_maps"];
 
         if !self_maps.is_null() {
-            for self_map in self_maps.as_array().unwrap() {
-                let s = self_map["hom_deg"].as_u64().unwrap() as u32;
-                let t = self_map["int_deg"].as_i64().unwrap() as i32;
-                let name = self_map["name"].as_str().unwrap();
+            for self_map in self_maps.as_array()? {
+                let s = self_map["hom_deg"].as_u64()? as u32;
+                let t = self_map["int_deg"].as_i64()? as i32;
+                let name = self_map["name"].as_str()?;
 
-                let json_map_data = self_map["map_data"].as_array().unwrap();
+                let json_map_data = self_map["map_data"].as_array()?;
                 let json_map_data: Vec<&Vec<Value>> = json_map_data
                     .iter()
-                    .map(|x| x.as_array().unwrap())
-                    .collect();
+                    .map(|x| x.as_array())
+                    .collect::<Option<Vec<_>>>()?;
 
                 let rows = json_map_data.len();
                 let cols = json_map_data[0].len();
                 let mut map_data = Matrix::new(result.prime(), rows, cols);
                 for r in 0..rows {
                     for c in 0..cols {
-                        map_data[r].set_entry(c, json_map_data[r][c].as_u64().unwrap() as u32);
+                        map_data[r].set_entry(c, json_map_data[r][c].as_u64()? as u32);
                     }
                 }
                 result.add_self_map(s, t, name, map_data);
             }
         }
 
-        result
+        Some(result)
     }
 }
 

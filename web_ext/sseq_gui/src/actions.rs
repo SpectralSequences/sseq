@@ -70,6 +70,9 @@ pub enum Action {
     QueryTableResult,
     QueryCocycleString,
     QueryCocycleStringResult,
+
+    // Error
+    Error,
 }
 
 /// The name `Action` is sort-of a misnomer. It is the content of any message that is sent between
@@ -424,3 +427,10 @@ pub struct QueryCocycleStringResult {
     string: String,
 }
 impl ActionT for QueryCocycleStringResult {}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Error {
+    pub message: String,
+}
+
+impl ActionT for Error {}
