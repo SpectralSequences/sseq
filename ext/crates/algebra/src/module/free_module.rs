@@ -74,6 +74,32 @@ impl<A: Algebra> Module for FreeModule<A> {
         self.num_gens.max_degree()
     }
 
+    fn compute_basis(&self, max_degree: i32) {
+        self.basis_element_to_opgen.extend(max_degree, |degree| {
+            let new_row = OnceVec::new();
+            self.generator_to_index.push_checked(OnceVec::new(), degree);
+
+            let mut offset = 0;
+            for (gen_deg, &num_gens) in self.num_gens.iter_enum() {
+                let op_deg = degree - gen_deg;
+                let num_ops = self.algebra().dimension(op_deg);
+                for gen_idx in 0..num_gens {
+                    self.generator_to_index[degree].push(offset);
+                    offset += num_ops;
+                    for op_idx in 0..num_ops {
+                        new_row.push(OperationGeneratorPair {
+                            generator_degree: gen_deg,
+                            generator_index: gen_idx,
+                            operation_degree: op_deg,
+                            operation_index: op_idx,
+                        });
+                    }
+                }
+            }
+            new_row
+        });
+    }
+
     fn dimension(&self, degree: i32) -> usize {
         if degree < self.min_degree {
             return 0;
@@ -192,41 +218,11 @@ impl<A: Algebra> FreeModule<A> {
         &self.gen_names
     }
 
-    pub fn max_table_degree(&self) -> i32 {
-        self.generator_to_index.max_degree()
-    }
-
     pub fn number_of_gens_in_degree(&self, degree: i32) -> usize {
         if degree < self.min_degree {
             return 0;
         }
         self.num_gens[degree]
-    }
-
-    pub fn extend_table_entries(&self, max_degree: i32) {
-        self.basis_element_to_opgen.extend(max_degree, |degree| {
-            let new_row = OnceVec::new();
-            self.generator_to_index.push_checked(OnceVec::new(), degree);
-
-            let mut offset = 0;
-            for (gen_deg, &num_gens) in self.num_gens.iter_enum() {
-                let op_deg = degree - gen_deg;
-                let num_ops = self.algebra().dimension(op_deg);
-                for gen_idx in 0..num_gens {
-                    self.generator_to_index[degree].push(offset);
-                    offset += num_ops;
-                    for op_idx in 0..num_ops {
-                        new_row.push(OperationGeneratorPair {
-                            generator_degree: gen_deg,
-                            generator_index: gen_idx,
-                            operation_degree: op_deg,
-                            operation_index: op_idx,
-                        });
-                    }
-                }
-            }
-            new_row
-        });
     }
 
     pub fn add_generators(&self, degree: i32, num_gens: usize, names: Option<Vec<String>>) {
@@ -341,7 +337,7 @@ impl<A: Algebra> FreeModule<A> {
 
     pub fn extend_by_zero(&self, degree: i32) {
         self.algebra.compute_basis(degree - self.min_degree);
-        self.extend_table_entries(degree);
+        self.compute_basis(degree);
         for i in self.num_gens.len()..=degree {
             self.add_generators(i, 0, None)
         }
@@ -727,7 +723,7 @@ mod tests {
         )));
         A.compute_basis(10);
         let M = FreeModule::new(Arc::clone(&A), "".to_string(), 0);
-        M.extend_table_entries(10);
+        M.compute_basis(10);
         println!("dim 0 : {}", M.dimension(0));
         M.add_generators(0, 1, None);
         println!("dim 0 : {}", M.dimension(0));

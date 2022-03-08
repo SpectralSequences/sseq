@@ -209,8 +209,8 @@ impl<CC: ChainComplex> Resolution<CC> {
         let target_cc = complex.module(s);
         let target_res = current_differential.target(); // This is self.module(s - 1) unless s = 0.
 
-        source.extend_table_entries(t);
-        target_res.extend_table_entries(t);
+        source.compute_basis(t);
+        target_res.compute_basis(t);
 
         let source_dimension = source.dimension(t);
         let target_cc_dimension = target_cc.dimension(t);
@@ -355,7 +355,7 @@ impl<CC: ChainComplex> Resolution<CC> {
         let target_cc = complex.module(s);
         let target_res = current_differential.target(); // This is self.module(s - 1) unless s = 0.
 
-        source.extend_table_entries(t);
+        source.compute_basis(t);
 
         // The Homomorphism matrix has size source_dimension x target_dimension, but we are going to augment it with an
         // identity matrix so that gives a matrix with dimensions source_dimension x (target_dimension + source_dimension).
@@ -364,7 +364,7 @@ impl<CC: ChainComplex> Resolution<CC> {
         // This latter matrix may be used to find a preimage of an element under the differential.
         let source_dimension = source.dimension(t);
         let target_cc_dimension = target_cc.dimension(t);
-        target_res.extend_table_entries(t);
+        target_res.compute_basis(t);
         let target_res_dimension = target_res.dimension(t);
 
         if let Some(dir) = self.save_dir.as_ref() {

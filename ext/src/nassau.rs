@@ -583,7 +583,7 @@ impl Resolution {
         }
 
         let next = &self.modules[s - 2];
-        next.extend_table_entries(t);
+        next.compute_basis(t);
 
         let mut f = if let Some(dir) = self.save_dir() {
             let mut f = self
@@ -744,9 +744,9 @@ impl Resolution {
             c.set_image(t, None);
             c.set_quasi_inverse(t, None);
         };
-        self.modules[s].extend_table_entries(t);
+        self.modules[s].compute_basis(t);
         if s > 0 {
-            self.modules[s - 1].extend_table_entries(t);
+            self.modules[s - 1].compute_basis(t);
         }
 
         if s == 0 {
