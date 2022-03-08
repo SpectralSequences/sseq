@@ -137,7 +137,7 @@ file after compression (i.e. run with the <code>--rm</code> option).</p>
 <p>This contains a number of sub-crates, which each have their own documentation. A brief overview
 is as follows:</p>
 <div><table><thead><tr><th>Name</th><th>Description</th></tr></thead><tbody>
-<tr><td>[algebra]</td><td>This defines algebras, modules and module homomorphisms</td></tr>
+<tr><td><a href="../algebra/index.html" title="algebra">algebra</a></td><td>This defines algebras, modules and module homomorphisms</td></tr>
 <tr><td><a href="../bivec/index.html" title="bivec">bivec</a></td><td>This is a small crate that provides <a href="../bivec/struct.BiVec.html"><code>BiVec</code></a> - a variant of <a href="https://doc.rust-lang.org/1.59.0/alloc/vec/struct.Vec.html" title="Vec"><code>Vec</code></a> indexed by an <code>i32</code> whose starting index may be non-zero.</td></tr>
 <tr><td><a href="../chart/index.html" title="chart">chart</a></td><td>This provides some APIs for generating charts</td></tr>
 <tr><td><a href="../fp/index.html" title="fp">fp</a></td><td>This implements linear algebra over $\mathbb{F}_p$, as well as general helper functions about primes.</td></tr>
@@ -165,8 +165,8 @@ basis. See <a href="nassau/index.html" title="nassau"><code>nassau</code></a> fo
 is the <a href="nassau/struct.Resolution.html" title="Resolution"><code>Resolution</code></a> object, which is a resolution of the sphere at the prime 2 using Nassau’s
 algorithm. It aims to provide an API similar to
 <a href="resolution/struct.Resolution.html"><code>resolution::Resolution</code></a>. From an API point of view, the main
-difference between the two is that our <code>Resolution</code> is a chain complex over [<code>MilnorAlgebra</code>]
-over <a href="algebra::SteenrodAlgebra"><code>SteenrodAlgebra</code></a>.</p>
+difference between the two is that our <code>Resolution</code> is a chain complex over <a href="../algebra/algebra/milnor_algebra/struct.MilnorAlgebra.html" title="MilnorAlgebra"><code>MilnorAlgebra</code></a>
+over <a href="../algebra/algebra/steenrod_algebra/enum.SteenrodAlgebra.html"><code>SteenrodAlgebra</code></a>.</p>
 </div></div><div class="item-row"><div class="item-left module-item"><a class="mod" href="resolution/index.html" title="ext::resolution mod">resolution</a></div><div class="item-right docblock-short"><p>This module exports the <a href="resolution/struct.Resolution.html" title="Resolution"><code>Resolution</code></a> object, which is a chain complex resolving a module. In
 particular, this contains the core logic that compute minimal resolutions.</p>
 </div></div><div class="item-row"><div class="item-left module-item"><a class="mod" href="resolution_homomorphism/index.html" title="ext::resolution_homomorphism mod">resolution_homomorphism</a></div><div class="item-right docblock-short"><p>This module defines <a href="resolution_homomorphism/struct.ResolutionHomomorphism.html" title="ResolutionHomomorphism"><code>ResolutionHomomorphism</code></a>, which is a chain map from a
