@@ -8,7 +8,7 @@ use fp::vector::{FpVector, Slice, SliceMut};
 use crate::algebra::Algebra;
 use crate::module::{FDModule, TruncatedModule};
 
-pub trait Module: std::fmt::Display + Send + Sync {
+pub trait Module: std::fmt::Display + std::any::Any + Send + Sync {
     type Algebra: Algebra;
 
     fn algebra(&self) -> Arc<Self::Algebra>;
@@ -381,7 +381,7 @@ macro_rules! dispatch {
     };
 }
 
-impl<A: Algebra> Module for Box<dyn Module<Algebra = A>> {
+impl<A: Algebra + 'static> Module for Box<dyn Module<Algebra = A>> {
     type Algebra = A;
 
     dispatch! {

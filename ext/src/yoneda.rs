@@ -8,7 +8,7 @@ use algebra::module::homomorphism::{
     QuotientHomomorphism, QuotientHomomorphismSource, TruncatedHomomorphism,
     TruncatedHomomorphismSource,
 };
-use algebra::module::{FDModule, FiniteModule, FreeModule, Module};
+use algebra::module::{FDModule, FreeModule, Module, SteenrodModule};
 use algebra::module::{QuotientModule as QM, TruncatedModule as TM};
 use algebra::{AdemAlgebra, Algebra, GeneratedAlgebra, SteenrodAlgebra};
 use fp::matrix::{Matrix, Subspace};
@@ -22,10 +22,10 @@ use std::sync::Arc;
 const PENALTY_UNIT: i32 = 10000;
 
 pub type Yoneda<CC> = FiniteAugmentedChainComplex<
-    FiniteModule,
-    FullModuleHomomorphism<FiniteModule>,
+    SteenrodModule,
+    FullModuleHomomorphism<SteenrodModule>,
     FullModuleHomomorphism<
-        FiniteModule,
+        SteenrodModule,
         <<CC as AugmentedChainComplex>::TargetComplex as ChainComplex>::Module,
     >,
     <CC as AugmentedChainComplex>::TargetComplex,
@@ -497,11 +497,11 @@ where
 
     let zero_module = Arc::new(QM::new(Arc::new(TM::new(cc.zero_module(), t_max))));
     zero_module.compute_basis(t_max);
-    let zero_module_fd = Arc::new(FiniteModule::FDModule(zero_module.to_fd_module()));
+    let zero_module_fd: Arc<SteenrodModule> = Arc::new(Box::new(zero_module.to_fd_module()));
 
-    let modules_fd = modules
+    let modules_fd: Vec<Arc<SteenrodModule>> = modules
         .iter()
-        .map(|m| Arc::new(FiniteModule::FDModule(m.to_fd_module())))
+        .map(|m| Arc::<SteenrodModule>::new(Box::new(m.to_fd_module())))
         .collect::<Vec<_>>();
     let modules = modules.into_iter().map(Arc::new).collect::<Vec<_>>();
 
@@ -749,7 +749,7 @@ mod tests {
             false,
             false,
         )));
-        let module = Arc::new(FiniteModule::from(FDModule::new(
+        let module: Arc<SteenrodModule> = Arc::new(Box::new(FDModule::new(
             algebra,
             "".to_string(),
             BiVec::from_vec(0, vec![1]),

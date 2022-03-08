@@ -17,7 +17,7 @@ use fp::vector::FpVector;
 /// this function before performing other operations at that degree.
 ///
 /// Algebras may have a distinguished set of generators; see [`GeneratedAlgebra`].
-pub trait Algebra: std::fmt::Display + Send + Sync {
+pub trait Algebra: std::fmt::Display + Send + Sync + 'static {
     /// A magic constant used to identify the algebra in save files. When working with the
     /// Milnor algebra, it is easy to forget to specify the algebra and load Milnor save files
     /// with the Adem basis. If we somehow manage to resume computation, this can have

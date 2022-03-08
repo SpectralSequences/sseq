@@ -149,7 +149,7 @@ mod tests {
     use super::*;
 
     use crate::algebra::{AdemAlgebra, SteenrodAlgebra};
-    use crate::module::FiniteModule;
+    use crate::module::FDModule;
 
     #[test]
     fn test_sum_modules() {
@@ -178,21 +178,18 @@ mod tests {
             false,
         )));
 
-        let M: Vec<Arc<FiniteModule>> = M
+        let M: Vec<Arc<FDModule<SteenrodAlgebra>>> = M
             .into_iter()
             .map(|s| {
                 let m = serde_json::from_str(s).unwrap();
-                Arc::new(FiniteModule::from_json(Arc::clone(&A), &m).unwrap())
+                Arc::new(FDModule::from_json(Arc::clone(&A), &m).unwrap())
             })
             .collect::<Vec<_>>();
 
         let sum = SumModule::new(Arc::clone(&A), M, 0).to_fd_module();
 
         let S = serde_json::from_str(S).unwrap();
-        let S = FiniteModule::from_json(Arc::clone(&A), &S)
-            .unwrap()
-            .into_fd_module()
-            .unwrap();
+        let S = FDModule::from_json(Arc::clone(&A), &S).unwrap();
 
         if let Err(msg) = sum.test_equal(&S) {
             panic!("Test case failed. {}", msg);
