@@ -169,15 +169,9 @@ impl<A: Algebra> Module for Box<dyn Module<Algebra = A>> {
     dispatch! {
         fn algebra(&self) -> Arc<Self::Algebra>;
         fn min_degree(&self) -> i32;
-        fn max_computed_degree(&self) -> i32;
         fn compute_basis(&self, degree: i32);
+        fn max_computed_degree(&self) -> i32;
         fn dimension(&self, degree: i32) -> usize;
-        fn basis_element_to_string(&self, degree: i32, idx: usize) -> String;
-        fn is_unit(&self) -> bool;
-        fn prime(&self) -> ValidPrime;
-        fn max_degree(&self) -> Option<i32>;
-        fn max_generator_degree(&self) -> Option<i32>;
-
         fn act_on_basis(
             &self,
             result: SliceMut,
@@ -187,6 +181,40 @@ impl<A: Algebra> Module for Box<dyn Module<Algebra = A>> {
             mod_degree: i32,
             mod_index: usize,
         );
+        fn basis_element_to_string(&self, degree: i32, idx: usize) -> String;
+        fn is_unit(&self) -> bool;
+        fn prime(&self) -> ValidPrime;
+        fn max_degree(&self) -> Option<i32>;
+        fn max_generator_degree(&self) -> Option<i32>;
+        fn total_dimension(&self) -> usize;
+        fn act(
+            &self,
+            result: SliceMut,
+            coeff: u32,
+            op_degree: i32,
+            op_index: usize,
+            input_degree: i32,
+            input: Slice,
+        );
+        fn act_by_element(
+            &self,
+            result: SliceMut,
+            coeff: u32,
+            op_degree: i32,
+            op: Slice,
+            input_degree: i32,
+            input: Slice,
+        );
+        fn act_by_element_on_basis(
+            &self,
+            result: SliceMut,
+            coeff: u32,
+            op_degree: i32,
+            op: Slice,
+            input_degree: i32,
+            input_index: usize,
+        );
+        fn element_to_string(&self, degree: i32, element: Slice) -> String;
     }
 }
 
