@@ -790,10 +790,6 @@
 <span id="763">763</span>
 <span id="764">764</span>
 <span id="765">765</span>
-<span id="766">766</span>
-<span id="767">767</span>
-<span id="768">768</span>
-<span id="769">769</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
 
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::algebra::Algebra</span>;
@@ -868,6 +864,32 @@
 
     <span class="kw">fn</span> <span class="ident">max_computed_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">i32</span> {
         <span class="self">self</span>.<span class="ident">num_gens</span>.<span class="ident">max_degree</span>()
+    }
+
+    <span class="kw">fn</span> <span class="ident">compute_basis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">max_degree</span>: <span class="ident">i32</span>) {
+        <span class="self">self</span>.<span class="ident">basis_element_to_opgen</span>.<span class="ident">extend</span>(<span class="ident">max_degree</span>, <span class="op">|</span><span class="ident">degree</span><span class="op">|</span> {
+            <span class="kw">let</span> <span class="ident">new_row</span> <span class="op">=</span> <span class="ident">OnceVec::new</span>();
+            <span class="self">self</span>.<span class="ident">generator_to_index</span>.<span class="ident">push_checked</span>(<span class="ident">OnceVec::new</span>(), <span class="ident">degree</span>);
+
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">offset</span> <span class="op">=</span> <span class="number">0</span>;
+            <span class="kw">for</span> (<span class="ident">gen_deg</span>, <span class="kw-2">&amp;</span><span class="ident">num_gens</span>) <span class="kw">in</span> <span class="self">self</span>.<span class="ident">num_gens</span>.<span class="ident">iter_enum</span>() {
+                <span class="kw">let</span> <span class="ident">op_deg</span> <span class="op">=</span> <span class="ident">degree</span> <span class="op">-</span> <span class="ident">gen_deg</span>;
+                <span class="kw">let</span> <span class="ident">num_ops</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">algebra</span>().<span class="ident">dimension</span>(<span class="ident">op_deg</span>);
+                <span class="kw">for</span> <span class="ident">gen_idx</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">num_gens</span> {
+                    <span class="self">self</span>.<span class="ident">generator_to_index</span>[<span class="ident">degree</span>].<span class="ident">push</span>(<span class="ident">offset</span>);
+                    <span class="ident">offset</span> <span class="op">+</span><span class="op">=</span> <span class="ident">num_ops</span>;
+                    <span class="kw">for</span> <span class="ident">op_idx</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">num_ops</span> {
+                        <span class="ident">new_row</span>.<span class="ident">push</span>(<span class="ident">OperationGeneratorPair</span> {
+                            <span class="ident">generator_degree</span>: <span class="ident">gen_deg</span>,
+                            <span class="ident">generator_index</span>: <span class="ident">gen_idx</span>,
+                            <span class="ident">operation_degree</span>: <span class="ident">op_deg</span>,
+                            <span class="ident">operation_index</span>: <span class="ident">op_idx</span>,
+                        });
+                    }
+                }
+            }
+            <span class="ident">new_row</span>
+        });
     }
 
     <span class="kw">fn</span> <span class="ident">dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) -&gt; <span class="ident">usize</span> {
@@ -988,41 +1010,11 @@
         <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">gen_names</span>
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">max_table_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">i32</span> {
-        <span class="self">self</span>.<span class="ident">generator_to_index</span>.<span class="ident">max_degree</span>()
-    }
-
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">number_of_gens_in_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) -&gt; <span class="ident">usize</span> {
         <span class="kw">if</span> <span class="ident">degree</span> <span class="op">&lt;</span> <span class="self">self</span>.<span class="ident">min_degree</span> {
             <span class="kw">return</span> <span class="number">0</span>;
         }
         <span class="self">self</span>.<span class="ident">num_gens</span>[<span class="ident">degree</span>]
-    }
-
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">extend_table_entries</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">max_degree</span>: <span class="ident">i32</span>) {
-        <span class="self">self</span>.<span class="ident">basis_element_to_opgen</span>.<span class="ident">extend</span>(<span class="ident">max_degree</span>, <span class="op">|</span><span class="ident">degree</span><span class="op">|</span> {
-            <span class="kw">let</span> <span class="ident">new_row</span> <span class="op">=</span> <span class="ident">OnceVec::new</span>();
-            <span class="self">self</span>.<span class="ident">generator_to_index</span>.<span class="ident">push_checked</span>(<span class="ident">OnceVec::new</span>(), <span class="ident">degree</span>);
-
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">offset</span> <span class="op">=</span> <span class="number">0</span>;
-            <span class="kw">for</span> (<span class="ident">gen_deg</span>, <span class="kw-2">&amp;</span><span class="ident">num_gens</span>) <span class="kw">in</span> <span class="self">self</span>.<span class="ident">num_gens</span>.<span class="ident">iter_enum</span>() {
-                <span class="kw">let</span> <span class="ident">op_deg</span> <span class="op">=</span> <span class="ident">degree</span> <span class="op">-</span> <span class="ident">gen_deg</span>;
-                <span class="kw">let</span> <span class="ident">num_ops</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">algebra</span>().<span class="ident">dimension</span>(<span class="ident">op_deg</span>);
-                <span class="kw">for</span> <span class="ident">gen_idx</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">num_gens</span> {
-                    <span class="self">self</span>.<span class="ident">generator_to_index</span>[<span class="ident">degree</span>].<span class="ident">push</span>(<span class="ident">offset</span>);
-                    <span class="ident">offset</span> <span class="op">+</span><span class="op">=</span> <span class="ident">num_ops</span>;
-                    <span class="kw">for</span> <span class="ident">op_idx</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">num_ops</span> {
-                        <span class="ident">new_row</span>.<span class="ident">push</span>(<span class="ident">OperationGeneratorPair</span> {
-                            <span class="ident">generator_degree</span>: <span class="ident">gen_deg</span>,
-                            <span class="ident">generator_index</span>: <span class="ident">gen_idx</span>,
-                            <span class="ident">operation_degree</span>: <span class="ident">op_deg</span>,
-                            <span class="ident">operation_index</span>: <span class="ident">op_idx</span>,
-                        });
-                    }
-                }
-            }
-            <span class="ident">new_row</span>
-        });
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">add_generators</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">num_gens</span>: <span class="ident">usize</span>, <span class="ident">names</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span><span class="op">&gt;</span>) {
@@ -1137,7 +1129,7 @@
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">extend_by_zero</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) {
         <span class="self">self</span>.<span class="ident">algebra</span>.<span class="ident">compute_basis</span>(<span class="ident">degree</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">min_degree</span>);
-        <span class="self">self</span>.<span class="ident">extend_table_entries</span>(<span class="ident">degree</span>);
+        <span class="self">self</span>.<span class="ident">compute_basis</span>(<span class="ident">degree</span>);
         <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">num_gens</span>.<span class="ident">len</span>()..<span class="op">=</span><span class="ident">degree</span> {
             <span class="self">self</span>.<span class="ident">add_generators</span>(<span class="ident">i</span>, <span class="number">0</span>, <span class="prelude-val">None</span>)
         }
@@ -1523,7 +1515,7 @@ impl std::ops::IndexMut&lt;usize&gt; for AdmissibleMatrix {
         )));
         <span class="ident">A</span>.<span class="ident">compute_basis</span>(<span class="number">10</span>);
         <span class="kw">let</span> <span class="ident">M</span> <span class="op">=</span> <span class="ident">FreeModule::new</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">A</span>), <span class="string">&quot;&quot;</span>.<span class="ident">to_string</span>(), <span class="number">0</span>);
-        <span class="ident">M</span>.<span class="ident">extend_table_entries</span>(<span class="number">10</span>);
+        <span class="ident">M</span>.<span class="ident">compute_basis</span>(<span class="number">10</span>);
         <span class="macro">println!</span>(<span class="string">&quot;dim 0 : {}&quot;</span>, <span class="ident">M</span>.<span class="ident">dimension</span>(<span class="number">0</span>));
         <span class="ident">M</span>.<span class="ident">add_generators</span>(<span class="number">0</span>, <span class="number">1</span>, <span class="prelude-val">None</span>);
         <span class="macro">println!</span>(<span class="string">&quot;dim 0 : {}&quot;</span>, <span class="ident">M</span>.<span class="ident">dimension</span>(<span class="number">0</span>));

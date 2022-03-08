@@ -1232,8 +1232,8 @@
         <span class="kw">let</span> <span class="ident">target_cc</span> <span class="op">=</span> <span class="ident">complex</span>.<span class="ident">module</span>(<span class="ident">s</span>);
         <span class="kw">let</span> <span class="ident">target_res</span> <span class="op">=</span> <span class="ident">current_differential</span>.<span class="ident">target</span>(); <span class="comment">// This is self.module(s - 1) unless s = 0.</span>
 
-        <span class="ident">source</span>.<span class="ident">extend_table_entries</span>(<span class="ident">t</span>);
-        <span class="ident">target_res</span>.<span class="ident">extend_table_entries</span>(<span class="ident">t</span>);
+        <span class="ident">source</span>.<span class="ident">compute_basis</span>(<span class="ident">t</span>);
+        <span class="ident">target_res</span>.<span class="ident">compute_basis</span>(<span class="ident">t</span>);
 
         <span class="kw">let</span> <span class="ident">source_dimension</span> <span class="op">=</span> <span class="ident">source</span>.<span class="ident">dimension</span>(<span class="ident">t</span>);
         <span class="kw">let</span> <span class="ident">target_cc_dimension</span> <span class="op">=</span> <span class="ident">target_cc</span>.<span class="ident">dimension</span>(<span class="ident">t</span>);
@@ -1378,7 +1378,7 @@
         <span class="kw">let</span> <span class="ident">target_cc</span> <span class="op">=</span> <span class="ident">complex</span>.<span class="ident">module</span>(<span class="ident">s</span>);
         <span class="kw">let</span> <span class="ident">target_res</span> <span class="op">=</span> <span class="ident">current_differential</span>.<span class="ident">target</span>(); <span class="comment">// This is self.module(s - 1) unless s = 0.</span>
 
-        <span class="ident">source</span>.<span class="ident">extend_table_entries</span>(<span class="ident">t</span>);
+        <span class="ident">source</span>.<span class="ident">compute_basis</span>(<span class="ident">t</span>);
 
         <span class="comment">// The Homomorphism matrix has size source_dimension x target_dimension, but we are going to augment it with an</span>
         <span class="comment">// identity matrix so that gives a matrix with dimensions source_dimension x (target_dimension + source_dimension).</span>
@@ -1387,7 +1387,7 @@
         <span class="comment">// This latter matrix may be used to find a preimage of an element under the differential.</span>
         <span class="kw">let</span> <span class="ident">source_dimension</span> <span class="op">=</span> <span class="ident">source</span>.<span class="ident">dimension</span>(<span class="ident">t</span>);
         <span class="kw">let</span> <span class="ident">target_cc_dimension</span> <span class="op">=</span> <span class="ident">target_cc</span>.<span class="ident">dimension</span>(<span class="ident">t</span>);
-        <span class="ident">target_res</span>.<span class="ident">extend_table_entries</span>(<span class="ident">t</span>);
+        <span class="ident">target_res</span>.<span class="ident">compute_basis</span>(<span class="ident">t</span>);
         <span class="kw">let</span> <span class="ident">target_res_dimension</span> <span class="op">=</span> <span class="ident">target_res</span>.<span class="ident">dimension</span>(<span class="ident">t</span>);
 
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dir</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">save_dir</span>.<span class="ident">as_ref</span>() {

@@ -1851,7 +1851,7 @@
         }
 
         <span class="kw">let</span> <span class="ident">next</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">modules</span>[<span class="ident">s</span> <span class="op">-</span> <span class="number">2</span>];
-        <span class="ident">next</span>.<span class="ident">extend_table_entries</span>(<span class="ident">t</span>);
+        <span class="ident">next</span>.<span class="ident">compute_basis</span>(<span class="ident">t</span>);
 
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dir</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">save_dir</span>() {
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="self">self</span>
@@ -2012,9 +2012,9 @@
             <span class="ident">c</span>.<span class="ident">set_image</span>(<span class="ident">t</span>, <span class="prelude-val">None</span>);
             <span class="ident">c</span>.<span class="ident">set_quasi_inverse</span>(<span class="ident">t</span>, <span class="prelude-val">None</span>);
         };
-        <span class="self">self</span>.<span class="ident">modules</span>[<span class="ident">s</span>].<span class="ident">extend_table_entries</span>(<span class="ident">t</span>);
+        <span class="self">self</span>.<span class="ident">modules</span>[<span class="ident">s</span>].<span class="ident">compute_basis</span>(<span class="ident">t</span>);
         <span class="kw">if</span> <span class="ident">s</span> <span class="op">&gt;</span> <span class="number">0</span> {
-            <span class="self">self</span>.<span class="ident">modules</span>[<span class="ident">s</span> <span class="op">-</span> <span class="number">1</span>].<span class="ident">extend_table_entries</span>(<span class="ident">t</span>);
+            <span class="self">self</span>.<span class="ident">modules</span>[<span class="ident">s</span> <span class="op">-</span> <span class="number">1</span>].<span class="ident">compute_basis</span>(<span class="ident">t</span>);
         }
 
         <span class="kw">if</span> <span class="ident">s</span> <span class="op">==</span> <span class="number">0</span> {
