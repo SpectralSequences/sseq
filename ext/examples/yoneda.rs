@@ -1,5 +1,5 @@
 use algebra::module::homomorphism::{FullModuleHomomorphism, IdentityHomomorphism};
-use algebra::module::Module;
+use algebra::module::{steenrod_module, Module};
 use ext::chain_complex::{AugmentedChainComplex, ChainComplex, FreeChainComplex};
 use ext::resolution_homomorphism::ResolutionHomomorphism;
 use ext::utils::construct;
@@ -89,10 +89,18 @@ fn main() -> anyhow::Result<()> {
 
     let mut module_strings = Vec::with_capacity(s as usize + 2);
 
-    module_strings.push(module.as_fd_module().unwrap().to_minimal_json());
+    module_strings.push(
+        steenrod_module::as_fd_module(&module)
+            .unwrap()
+            .to_minimal_json(),
+    );
 
     for s in 0..=s {
-        module_strings.push(yoneda.module(s).as_fd_module().unwrap().to_minimal_json());
+        module_strings.push(
+            steenrod_module::as_fd_module(&yoneda.module(s))
+                .unwrap()
+                .to_minimal_json(),
+        );
     }
 
     let mut output_path_buf = PathBuf::from(filename);

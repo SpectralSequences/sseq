@@ -2,7 +2,7 @@
 use crate::chain_complex::{ChainComplex, FiniteChainComplex};
 use crate::resolution::Resolution;
 use crate::CCC;
-use algebra::module::{FiniteModule, Module};
+use algebra::module::{steenrod_module, Module};
 use algebra::{AlgebraType, SteenrodAlgebra};
 
 use anyhow::{anyhow, Context};
@@ -128,7 +128,7 @@ where
     } = module_spec.try_into()?;
 
     let algebra = Arc::new(SteenrodAlgebra::from_json(&json, algebra)?);
-    let module = Arc::new(FiniteModule::from_json(Arc::clone(&algebra), &json)?);
+    let module = Arc::new(steenrod_module::from_json(Arc::clone(&algebra), &json)?);
     let mut chain_complex = Arc::new(FiniteChainComplex::ccdz(Arc::clone(&module)));
 
     let cofiber = &json["cofiber"];

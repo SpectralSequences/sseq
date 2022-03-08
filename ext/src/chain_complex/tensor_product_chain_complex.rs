@@ -1,7 +1,7 @@
 use crate::chain_complex::{AugmentedChainComplex, ChainComplex, FiniteAugmentedChainComplex};
 use crate::CCC;
 use algebra::module::homomorphism::{FullModuleHomomorphism, ModuleHomomorphism};
-use algebra::module::{FiniteModule, Module, SumModule, TensorModule, ZeroModule};
+use algebra::module::{Module, SteenrodModule, SumModule, TensorModule, ZeroModule};
 use algebra::{Algebra, Bialgebra, SteenrodAlgebra};
 use fp::matrix::Matrix;
 use fp::vector::{FpVector, Slice, SliceMut};
@@ -504,15 +504,15 @@ impl AugmentedChainComplex
     for TensorSquareCC<
         SteenrodAlgebra,
         FiniteAugmentedChainComplex<
-            FiniteModule,
-            FullModuleHomomorphism<FiniteModule>,
-            FullModuleHomomorphism<FiniteModule>,
+            SteenrodModule,
+            FullModuleHomomorphism<SteenrodModule>,
+            FullModuleHomomorphism<SteenrodModule>,
             CCC,
         >,
     >
 {
     type TargetComplex = CCC;
-    type ChainMap = FullModuleHomomorphism<STM<FiniteModule, FiniteModule>, FiniteModule>;
+    type ChainMap = FullModuleHomomorphism<STM<SteenrodModule, SteenrodModule>, SteenrodModule>;
 
     fn target(&self) -> Arc<Self::TargetComplex> {
         self.left_cc.target()
