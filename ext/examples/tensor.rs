@@ -1,4 +1,4 @@
-use algebra::module::{FDModule, Module, TensorModule};
+use algebra::module::{FDModule, TensorModule};
 use algebra::AdemAlgebra;
 use ext::utils::parse_module_name;
 use fp::prime::ValidPrime;
@@ -25,7 +25,10 @@ fn main() -> anyhow::Result<()> {
     let left_module = FDModule::from_json(Arc::clone(&algebra), &left)?;
     let right_module = FDModule::from_json(Arc::clone(&algebra), &right)?;
 
-    let tensor = TensorModule::new(Arc::new(left_module), Arc::new(right_module)).to_fd_module();
+    let tensor = FDModule::from(&TensorModule::new(
+        Arc::new(left_module),
+        Arc::new(right_module),
+    ));
 
     let mut output = json!({
         "p": *p,

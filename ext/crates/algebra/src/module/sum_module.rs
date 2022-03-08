@@ -186,7 +186,7 @@ mod tests {
             })
             .collect::<Vec<_>>();
 
-        let sum = SumModule::new(Arc::clone(&A), M, 0).to_fd_module();
+        let sum = FDModule::from(&SumModule::new(Arc::clone(&A), M, 0));
 
         let S = serde_json::from_str(S).unwrap();
         let S = FDModule::from_json(Arc::clone(&A), &S).unwrap();

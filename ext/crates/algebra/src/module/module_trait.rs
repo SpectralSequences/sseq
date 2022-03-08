@@ -1,4 +1,3 @@
-use bivec::BiVec;
 use itertools::Itertools;
 use std::sync::Arc;
 
@@ -6,7 +5,6 @@ use fp::prime::ValidPrime;
 use fp::vector::{FpVector, Slice, SliceMut};
 
 use crate::algebra::Algebra;
-use crate::module::{FDModule, TruncatedModule};
 
 pub trait Module: std::fmt::Display + std::any::Any + Send + Sync {
     type Algebra: Algebra;
@@ -72,52 +70,6 @@ pub trait Module: std::fmt::Display + std::any::Any + Send + Sync {
         (self.min_degree()..=max_degree)
             .map(|i| self.dimension(i))
             .sum()
-    }
-
-    fn to_fd_module(&self) -> FDModule<Self::Algebra> {
-        let min_degree = self.min_degree();
-        let max_degree = self
-            .max_degree()
-            .expect("to_fd_module requires module to be bounded");
-        self.compute_basis(max_degree);
-
-        let mut graded_dimension = BiVec::with_capacity(min_degree, max_degree + 1);
-        for t in min_degree..=max_degree {
-            graded_dimension.push(self.dimension(t));
-        }
-        let mut result = FDModule::new(self.algebra(), self.to_string(), graded_dimension);
-        for t in min_degree..=max_degree {
-            for idx in 0..result.dimension(t) {
-                result.set_basis_element_name(t, idx, self.basis_element_to_string(t, idx));
-            }
-        }
-
-        let algebra = self.algebra();
-        for input_degree in min_degree..=max_degree {
-            for output_degree in (input_degree + 1)..=max_degree {
-                let output_dimension = result.dimension(output_degree);
-                if output_dimension == 0 {
-                    continue;
-                }
-                let op_degree = output_degree - input_degree;
-
-                for input_idx in 0..result.dimension(input_degree) {
-                    for op_idx in 0..algebra.dimension(op_degree) {
-                        let output_vec: &mut FpVector =
-                            result.action_mut(op_degree, op_idx, input_degree, input_idx);
-                        self.act_on_basis(
-                            output_vec.as_slice_mut(),
-                            1,
-                            op_degree,
-                            op_idx,
-                            input_degree,
-                            input_idx,
-                        );
-                    }
-                }
-            }
-        }
-        result
     }
 
     /// The length of `input` need not be equal to the dimension of the module in said degree.
@@ -221,154 +173,6 @@ pub trait Module: std::fmt::Display + std::any::Any + Send + Sync {
             result
         }
     }
-
-    /// This truncates the module to `max_dim` and represents it as an `FDModule`. This retains the
-    /// original name of the module
-    fn truncate_to_fd_module(self: Arc<Self>, max_deg: i32) -> FDModule<Self::Algebra> {
-        let name = self.to_string();
-        let mut m = TruncatedModule::new(self, max_deg).to_fd_module();
-        m.name = name;
-        m
-    }
-
-    /// op1(op2(x)) - (op1*op2)(x)
-    fn check_relation(
-        &self,
-        result: &mut FpVector,
-        scratch: &mut FpVector,
-        outer_op_degree: i32,
-        outer_op_index: usize,
-        inner_op_degree: i32,
-        inner_op_index: usize,
-        module_degree: i32,
-        module_index: usize,
-    ) {
-        result.set_scratch_vector_size(
-            self.dimension(outer_op_degree + inner_op_degree + module_degree),
-        );
-        scratch.set_scratch_vector_size(self.dimension(inner_op_degree + module_degree));
-        self.act_on_basis(
-            scratch.as_slice_mut(),
-            1,
-            inner_op_degree,
-            inner_op_index,
-            module_degree,
-            module_index,
-        );
-        self.act(
-            result.as_slice_mut(),
-            1,
-            outer_op_degree,
-            outer_op_index,
-            inner_op_degree + module_degree,
-            scratch.as_slice(),
-        );
-        // println!("scratch 1 : {}", self.element_to_string(inner_op_degree + module_degree, &scratch));
-        // println!("result 1 : {}", self.element_to_string(outer_op_degree + inner_op_degree + module_degree, &result));
-        scratch
-            .set_scratch_vector_size(self.algebra().dimension(outer_op_degree + inner_op_degree));
-        self.algebra().multiply_basis_elements(
-            scratch.as_slice_mut(),
-            1,
-            outer_op_degree,
-            outer_op_index,
-            inner_op_degree,
-            inner_op_index,
-        );
-        self.act_by_element_on_basis(
-            result.as_slice_mut(),
-            *self.prime() - 1,
-            outer_op_degree + inner_op_degree,
-            scratch.as_slice(),
-            module_degree,
-            module_index,
-        );
-        // println!("result 2 : {}", self.element_to_string(outer_op_degree + inner_op_degree + module_degree, &result));
-    }
-
-    /// Input: degree through which to check.
-    /// Output: Vec of discrepancies.
-    fn check_relations(
-        &self,
-        max_degree: i32,
-    ) -> Vec<((i32, usize, i32, usize, i32, usize), FpVector)> {
-        let mut result = Vec::new();
-        let algebra = self.algebra();
-        let p = self.prime();
-        let mut scratch_vec = FpVector::new(p, 0);
-        let mut discrepancy_vec = FpVector::new(p, 0);
-        algebra.compute_basis(max_degree);
-        self.compute_basis(max_degree);
-        for outer_op_degree in 0..=max_degree {
-            for outer_op_index in 0..algebra.dimension(outer_op_degree) {
-                for inner_op_degree in 0..=max_degree - outer_op_degree {
-                    for inner_op_index in 0..algebra.dimension(inner_op_degree) {
-                        for module_degree in 0..=max_degree - outer_op_degree - inner_op_degree {
-                            for module_index in 0..self.dimension(module_degree) {
-                                self.check_relation(
-                                    &mut discrepancy_vec,
-                                    &mut scratch_vec,
-                                    outer_op_degree,
-                                    outer_op_index,
-                                    inner_op_degree,
-                                    inner_op_index,
-                                    module_degree,
-                                    module_index,
-                                );
-                                if !discrepancy_vec.is_zero() {
-                                    result.push((
-                                        (
-                                            outer_op_degree,
-                                            outer_op_index,
-                                            inner_op_degree,
-                                            inner_op_index,
-                                            module_degree,
-                                            module_index,
-                                        ),
-                                        discrepancy_vec.clone(),
-                                    ));
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        result
-    }
-
-    fn test_relations(&self, max_degree: i32, max_failures_to_display: usize) {
-        let discrepancies = self.check_relations(max_degree);
-        let algebra = self.algebra();
-        if !discrepancies.is_empty() {
-            let formatter = discrepancies.iter().take(max_failures_to_display).format_with("\n\n   ========= \n\n  ", 
-                |(
-                    tuple,
-                    discrepancy_vec
-                ), f| {
-                    let &(outer_op_degree, outer_op_index,
-                        inner_op_degree, inner_op_index,
-                        module_degree, module_index)
-                    = tuple;
-                    f(&format_args!(
-                        "{outer_op_degree}, {outer_op_index}, {inner_op_degree}, {inner_op_index}, {module_degree}, {module_index}\n\
-                        {op1}({op2}({m})) - ({op1} * {op2})({m}) == {disc}",
-                        outer_op_degree = outer_op_degree,
-                        outer_op_index = outer_op_index,
-                        inner_op_degree = inner_op_degree,
-                        inner_op_index = inner_op_index,
-                        module_degree = module_degree,
-                        module_index = module_index,
-                        op1 = algebra.basis_element_to_string(outer_op_degree, outer_op_index),
-                        op2 = algebra.basis_element_to_string(inner_op_degree, inner_op_index),
-                        m = self.basis_element_to_string(module_degree, module_index),
-                        disc = self.element_to_string(outer_op_degree + inner_op_degree + module_degree, discrepancy_vec.as_slice())
-                    ))
-                }
-            );
-            panic!("Discrepancies:\n  {}", formatter);
-        }
-    }
 }
 
 macro_rules! dispatch {
@@ -381,7 +185,7 @@ macro_rules! dispatch {
     };
 }
 
-impl<A: Algebra + 'static> Module for Box<dyn Module<Algebra = A>> {
+impl<A: Algebra> Module for Box<dyn Module<Algebra = A>> {
     type Algebra = A;
 
     dispatch! {

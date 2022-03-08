@@ -497,11 +497,11 @@ where
 
     let zero_module = Arc::new(QM::new(Arc::new(TM::new(cc.zero_module(), t_max))));
     zero_module.compute_basis(t_max);
-    let zero_module_fd: Arc<SteenrodModule> = Arc::new(Box::new(zero_module.to_fd_module()));
+    let zero_module_fd: Arc<SteenrodModule> = Arc::new(Box::new(FDModule::from(&*zero_module)));
 
     let modules_fd: Vec<Arc<SteenrodModule>> = modules
         .iter()
-        .map(|m| Arc::<SteenrodModule>::new(Box::new(m.to_fd_module())))
+        .map(|m| Arc::<SteenrodModule>::new(Box::new(FDModule::from(&*m))))
         .collect::<Vec<_>>();
     let modules = modules.into_iter().map(Arc::new).collect::<Vec<_>>();
 
