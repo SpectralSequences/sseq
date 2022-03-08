@@ -165,10 +165,6 @@ impl<A: Algebra> Module for FiniteDimensionalModule<A> {
         self.gen_names[degree][idx].clone()
     }
 
-    fn is_unit(&self) -> bool {
-        self.min_degree() == 0 && self.graded_dimension.len() == 1 && self.graded_dimension[0] == 1
-    }
-
     fn act_on_basis(
         &self,
         mut result: SliceMut,
@@ -191,20 +187,6 @@ impl<A: Algebra> Module for FiniteDimensionalModule<A> {
         }
         let output = self.action(op_degree, op_index, mod_degree, mod_index);
         result.add(output.as_slice(), coeff);
-    }
-
-    fn borrow_output(&self) -> bool {
-        true
-    }
-
-    fn act_on_basis_borrow(
-        &self,
-        op_degree: i32,
-        op_index: usize,
-        mod_degree: i32,
-        mod_index: usize,
-    ) -> &FpVector {
-        self.action(op_degree, op_index, mod_degree, mod_index)
     }
 
     fn max_degree(&self) -> Option<i32> {

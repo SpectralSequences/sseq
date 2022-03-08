@@ -5,6 +5,7 @@ use bivec::BiVec;
 use enum_dispatch::enum_dispatch;
 use ext::{chain_complex::FreeChainComplex, CCC};
 use fp::vector::FpVector;
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -372,7 +373,10 @@ impl ActionT for QueryTable {
         if t > module.max_computed_degree() {
             return None;
         }
-        let string = format!("{:?}", module.basis_string_list(t));
+        let dimension = module.dimension(t);
+        let string = (0..dimension)
+            .map(|i| module.basis_element_to_string(t, i))
+            .join(", ");
         Some(Message {
             recipients: vec![],
             sseq: SseqChoice::Main, // This will be overwritten
