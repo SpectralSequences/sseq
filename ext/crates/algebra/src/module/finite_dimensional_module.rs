@@ -444,6 +444,55 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
     }
 }
 
+impl<M: Module> From<&M> for FiniteDimensionalModule<M::Algebra> {
+    /// This should really by try_from but orphan rules prohibit this
+    fn from(module: &M) -> Self {
+        let min_degree = module.min_degree();
+        let max_degree = module
+            .max_degree()
+            .expect("Can only convert to fininte dimensional module if bounded");
+        module.compute_basis(max_degree);
+
+        let mut graded_dimension = BiVec::with_capacity(min_degree, max_degree + 1);
+        for t in min_degree..=max_degree {
+            graded_dimension.push(module.dimension(t));
+        }
+        let mut result = Self::new(module.algebra(), module.to_string(), graded_dimension);
+        for t in min_degree..=max_degree {
+            for idx in 0..result.dimension(t) {
+                result.set_basis_element_name(t, idx, module.basis_element_to_string(t, idx));
+            }
+        }
+
+        let algebra = module.algebra();
+        for input_degree in min_degree..=max_degree {
+            for output_degree in (input_degree + 1)..=max_degree {
+                let output_dimension = result.dimension(output_degree);
+                if output_dimension == 0 {
+                    continue;
+                }
+                let op_degree = output_degree - input_degree;
+
+                for input_idx in 0..result.dimension(input_degree) {
+                    for op_idx in 0..algebra.dimension(op_degree) {
+                        let output_vec: &mut FpVector =
+                            result.action_mut(op_degree, op_idx, input_degree, input_idx);
+                        module.act_on_basis(
+                            output_vec.as_slice_mut(),
+                            1,
+                            op_degree,
+                            op_idx,
+                            input_degree,
+                            input_idx,
+                        );
+                    }
+                }
+            }
+        }
+        result
+    }
+}
+
 #[cfg(feature = "json")]
 impl<A: JsonAlgebra + GeneratedAlgebra> FiniteDimensionalModule<A> {
     fn module_gens_from_json(

@@ -162,7 +162,7 @@ where
 
     /// This function replaces the source of the ModuleHomomorphism and does nothing else.
     /// This is useful for changing the type of the source (but not the mathematical module
-    /// itself). This is intended to be used in conjunction with `Module::to_fd_module`
+    /// itself).
     pub fn replace_source<S_: Module<Algebra = A>>(
         self,
         source: Arc<S_>,
