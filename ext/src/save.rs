@@ -366,12 +366,12 @@ impl<A: Algebra> SaveFile<A> {
             .write(true)
             .create_new(true)
             .open(&p)
-            .unwrap_or_else(|_| panic!("Failed to create save file {p:?}"));
+            .unwrap_or_else(|e| panic!("Failed to create save file {p:?}: {e}"));
 
         #[cfg(feature = "zstd")]
         // We hardcode the compression level to 10 for now
         let f = zstd::Encoder::new(f, 10)
-            .unwrap_or_else(|_| panic!("Failed to create zstd stream for file {p:?}"))
+            .unwrap_or_else(|e| panic!("Failed to create zstd stream for file {p:?}: {e}"))
             .auto_finish();
 
         let mut f = ChecksumWriter::new(BufWriter::new(f));
