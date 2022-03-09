@@ -355,15 +355,25 @@ impl<A: Algebra> SaveFile<A> {
         }
     }
 
+    #[allow(unused_mut)]
     pub fn create_file(&self, dir: PathBuf) -> impl Write {
-        let p = self.get_save_path(dir);
+        let mut p = self.get_save_path(dir);
+
+        #[cfg(feature = "zstd")]
+        p.set_extension("zst");
 
         let f = std::fs::OpenOptions::new()
             .write(true)
             .create_new(true)
             .open(&p)
-            .with_context(|| format!("Failed to create save file {p:?}"))
-            .unwrap();
+            .unwrap_or_else(|_| panic!("Failed to create save file {p:?}"));
+
+        #[cfg(feature = "zstd")]
+        // We hardcode the compression level to 10 for now
+        let f = zstd::Encoder::new(f, 10)
+            .unwrap_or_else(|_| panic!("Failed to create zstd stream for file {p:?}"))
+            .auto_finish();
+
         let mut f = ChecksumWriter::new(BufWriter::new(f));
         self.write_header(&mut f).unwrap();
         f
