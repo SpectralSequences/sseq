@@ -355,8 +355,8 @@ impl<A: Algebra> SaveFile<A> {
         }
     }
 
-    #[allow(unused_mut)]
     pub fn create_file(&self, dir: PathBuf) -> impl Write {
+        #[allow(unused_mut)]
         let mut p = self.get_save_path(dir);
 
         #[cfg(feature = "zstd")]
