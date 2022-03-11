@@ -1,3 +1,4 @@
 .hypothesis/
 build/
 dist/
+*.egg-info
