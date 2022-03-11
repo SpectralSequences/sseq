@@ -8,7 +8,7 @@ use algebra::module::homomorphism::{
     QuotientHomomorphism, QuotientHomomorphismSource, TruncatedHomomorphism,
     TruncatedHomomorphismSource,
 };
-use algebra::module::{FDModule, FreeModule, Module, SteenrodModule};
+use algebra::module::{FDModule, FreeModule, Module};
 use algebra::module::{QuotientModule as QM, TruncatedModule as TM};
 use algebra::{AdemAlgebra, Algebra, GeneratedAlgebra, SteenrodAlgebra};
 use fp::matrix::{Matrix, Subspace};
@@ -22,10 +22,10 @@ use std::sync::Arc;
 const PENALTY_UNIT: i32 = 10000;
 
 pub type Yoneda<CC> = FiniteAugmentedChainComplex<
-    SteenrodModule,
-    FullModuleHomomorphism<SteenrodModule>,
+    FDModule<SteenrodAlgebra>,
+    FullModuleHomomorphism<FDModule<SteenrodAlgebra>>,
     FullModuleHomomorphism<
-        SteenrodModule,
+        FDModule<SteenrodAlgebra>,
         <<CC as AugmentedChainComplex>::TargetComplex as ChainComplex>::Module,
     >,
     <CC as AugmentedChainComplex>::TargetComplex,
@@ -497,12 +497,7 @@ where
 
     let zero_module = Arc::new(QM::new(Arc::new(TM::new(cc.zero_module(), t_max))));
     zero_module.compute_basis(t_max);
-    let zero_module_fd: Arc<SteenrodModule> = Arc::new(Box::new(FDModule::from(&*zero_module)));
 
-    let modules_fd: Vec<Arc<SteenrodModule>> = modules
-        .iter()
-        .map(|m| Arc::<SteenrodModule>::new(Box::new(FDModule::from(&*m))))
-        .collect::<Vec<_>>();
     let modules = modules.into_iter().map(Arc::new).collect::<Vec<_>>();
 
     let zero_differential = {
@@ -517,10 +512,7 @@ where
             Arc::clone(&modules[0]),
             Arc::clone(&zero_module),
         ));
-        Arc::new(FullModuleHomomorphism::from(
-            &qf.replace_source(Arc::clone(&modules_fd[0]))
-                .replace_target(Arc::clone(&zero_module_fd)),
-        ))
+        Arc::new(qf)
     };
 
     let mut differentials = vec![zero_differential];
@@ -537,19 +529,17 @@ where
             Arc::clone(&modules[s + 1]),
             Arc::clone(&modules[s]),
         ));
-        Arc::new(FullModuleHomomorphism::from(
-            &qf.replace_source(Arc::clone(&modules_fd[s + 1]))
-                .replace_target(Arc::clone(&modules_fd[s])),
-        ))
+        Arc::new(qf)
     }));
+
     differentials.push(Arc::new(FullModuleHomomorphism::zero_homomorphism(
-        Arc::clone(&zero_module_fd),
-        Arc::clone(&modules_fd[s_max as usize]),
+        Arc::clone(&zero_module),
+        Arc::clone(&modules[s_max as usize]),
         0,
     )));
     differentials.push(Arc::new(FullModuleHomomorphism::zero_homomorphism(
-        Arc::clone(&zero_module_fd),
-        Arc::clone(&zero_module_fd),
+        Arc::clone(&zero_module),
+        Arc::clone(&zero_module),
         0,
     )));
 
@@ -568,19 +558,19 @@ where
                 Arc::clone(&modules[s]),
                 target,
             ));
-            Arc::new(FullModuleHomomorphism::from(
-                &qf.replace_source(Arc::clone(&modules_fd[s])),
-            ))
+            Arc::new(qf)
         })
         .collect::<Vec<_>>();
 
-    FiniteAugmentedChainComplex {
-        modules: modules_fd,
-        zero_module: zero_module_fd,
+    let yoneda_rep = FiniteAugmentedChainComplex {
+        modules,
+        zero_module,
         differentials,
         target_cc: cc.target(),
         chain_maps,
-    }
+    };
+
+    yoneda_rep.map(|m| FDModule::from(m))
 }
 
 /// This function does the following computation:
@@ -736,7 +726,6 @@ mod tests {
     use crate::chain_complex::{FiniteChainComplex, FreeChainComplex};
     use crate::resolution::Resolution;
     use crate::resolution_homomorphism::ResolutionHomomorphism;
-    use crate::CCC;
     use algebra::module::homomorphism::IdentityHomomorphism;
 
     use fp::prime::ValidPrime;
@@ -749,12 +738,13 @@ mod tests {
             false,
             false,
         )));
-        let module: Arc<SteenrodModule> = Arc::new(Box::new(FDModule::new(
+        let module = Arc::new(FDModule::new(
             algebra,
             "".to_string(),
             BiVec::from_vec(0, vec![1]),
-        )));
-        let chain_complex: Arc<CCC> = Arc::new(FiniteChainComplex::ccdz(Arc::clone(&module)));
+        ));
+        let chain_complex: Arc<FiniteChainComplex<_, FullModuleHomomorphism<_>>> =
+            Arc::new(FiniteChainComplex::ccdz(Arc::clone(&module)));
         let resolution = Arc::new(Resolution::new(chain_complex));
 
         let x: i32 = 30;

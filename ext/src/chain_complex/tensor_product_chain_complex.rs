@@ -1,8 +1,7 @@
-use crate::chain_complex::{AugmentedChainComplex, ChainComplex, FiniteAugmentedChainComplex};
-use crate::CCC;
+use crate::chain_complex::{AugmentedChainComplex, ChainComplex};
 use algebra::module::homomorphism::{FullModuleHomomorphism, ModuleHomomorphism};
-use algebra::module::{Module, SteenrodModule, SumModule, TensorModule, ZeroModule};
-use algebra::{Algebra, Bialgebra, SteenrodAlgebra};
+use algebra::module::{Module, SumModule, TensorModule, ZeroModule};
+use algebra::{Algebra, Bialgebra};
 use fp::matrix::Matrix;
 use fp::vector::{FpVector, Slice, SliceMut};
 use std::sync::Arc;
@@ -500,19 +499,16 @@ where
 
 /// This implementation assumes the target of the augmentation is k, which is the only case we need
 /// for Steenrod operations.
-impl AugmentedChainComplex
-    for TensorSquareCC<
-        SteenrodAlgebra,
-        FiniteAugmentedChainComplex<
-            SteenrodModule,
-            FullModuleHomomorphism<SteenrodModule>,
-            FullModuleHomomorphism<SteenrodModule>,
-            CCC,
-        >,
-    >
+impl<A, CC> AugmentedChainComplex for TensorSquareCC<A, CC>
+where
+    A: Algebra + Bialgebra,
+    CC: AugmentedChainComplex<Algebra = A>,
 {
-    type TargetComplex = CCC;
-    type ChainMap = FullModuleHomomorphism<STM<SteenrodModule, SteenrodModule>, SteenrodModule>;
+    type TargetComplex = CC::TargetComplex;
+    type ChainMap = FullModuleHomomorphism<
+        STM<CC::Module, CC::Module>,
+        <CC::TargetComplex as ChainComplex>::Module,
+    >;
 
     fn target(&self) -> Arc<Self::TargetComplex> {
         self.left_cc.target()
@@ -520,9 +516,11 @@ impl AugmentedChainComplex
 
     fn chain_map(&self, s: u32) -> Arc<Self::ChainMap> {
         assert_eq!(s, 0);
+        let target_module = self.left_cc.target().module(0);
+        assert!(target_module.is_unit());
         Arc::new(FullModuleHomomorphism::from_matrices(
             self.module(0),
-            self.left_cc.target().module(0),
+            target_module,
             0,
             BiVec::from_vec(0, vec![Matrix::from_vec(self.prime(), &[vec![1]])]),
         ))
