@@ -1,7 +1,5 @@
-from js import (
-    sendMessage as js_send_message,
-    messageLookup as js_message_lookup,
-)
+from js import messageLookup as js_message_lookup
+from js import sendMessage as js_send_message
 from js.Object import fromEntries as to_js_object
 from pyodide import to_js
 

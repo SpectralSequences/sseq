@@ -9,7 +9,7 @@ class Traceback:
         )
 
     @staticmethod
-    def exception_to_traceback_list(exception, file: str) -> List[str]:
+    def exception_to_traceback_list(exception, file: str) -> list[str]:
         exception_chain = [exception]
         while exception := exception.__context__:
             exception_chain.append(exception)
@@ -18,7 +18,7 @@ class Traceback:
         ]
 
     @staticmethod
-    def format_traceback_list(tb_str_list: List[str]):
+    def format_traceback_list(tb_str_list: list[str]):
         result = ["", Traceback.format_traceback(tb_str_list[0])]
         for tb_str in tb_str_list[1:]:
             result.append(

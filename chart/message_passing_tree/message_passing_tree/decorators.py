@@ -1,8 +1,8 @@
-from copy import copy
 import functools
 import inspect
 import sys
 import traceback
+from copy import copy
 
 from . import ansi
 from .agent import Agent
@@ -22,7 +22,7 @@ reset_global_handlers()
 def subscribe_to(subs):
     def helper(cls):
         if subs == "*":
-            cls.subscriptions = set(["*"])
+            cls.subscriptions = {"*"}
         elif type(subs) is list:
             cls.subscriptions = set(subs)
         else:

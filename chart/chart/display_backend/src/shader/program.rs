@@ -3,8 +3,8 @@ use lyon::geom::math::{Point, Vector, Transform};
 
 use wasm_bindgen::JsValue;
 use crate::webgl_wrapper::WebGlWrapper;
-use web_sys::{ 
-    WebGl2RenderingContext, WebGlProgram, WebGlShader, 
+use web_sys::{
+    WebGl2RenderingContext, WebGlProgram, WebGlShader,
 };
 
 pub struct Program {
@@ -26,7 +26,7 @@ impl Program {
         )?;
         let program = link_program(&webgl, &vert_shader, &frag_shader)?;
         Ok(Program {
-            webgl, 
+            webgl,
             program
         })
     }
@@ -36,32 +36,32 @@ impl Program {
     }
 
     pub fn set_uniform_float(&self, name : &str, x : f32) {
-        let loc = self.webgl.get_uniform_location(&self.program, name);  
+        let loc = self.webgl.get_uniform_location(&self.program, name);
         self.webgl.uniform1f(loc.as_ref(), x);
     }
 
     pub fn set_uniform_texture_unit(&self, name : &str, x : u32) {
-        let loc = self.webgl.get_uniform_location(&self.program, name);  
+        let loc = self.webgl.get_uniform_location(&self.program, name);
         self.webgl.uniform1iv_with_i32_array(loc.as_ref(), &[x as i32]);
     }
 
     pub fn set_uniform_point(&self, name : &str, v2 : Point) {
-        let loc = self.webgl.get_uniform_location(&self.program, name);  
+        let loc = self.webgl.get_uniform_location(&self.program, name);
         self.webgl.uniform2fv_with_f32_array(loc.as_ref(), &v2.to_array());
     }
 
     pub fn set_uniform_vector(&self, name : &str, v2 : Vector) {
-        let loc = self.webgl.get_uniform_location(&self.program, name);  
+        let loc = self.webgl.get_uniform_location(&self.program, name);
         self.webgl.uniform2fv_with_f32_array(loc.as_ref(), &v2.to_array());
     }
 
     pub fn set_uniform_vec4(&self, name : &str, v4 : Vec4) {
-        let loc = self.webgl.get_uniform_location(&self.program, name);  
+        let loc = self.webgl.get_uniform_location(&self.program, name);
         self.webgl.uniform4fv_with_f32_array(loc.as_ref(), &[v4.x, v4.y, v4.z, v4.w]);
     }
 
     pub fn set_uniform_transform(&self, name : &str, transform : Transform) {
-        let loc = self.webgl.get_uniform_location(&self.program, name);  
+        let loc = self.webgl.get_uniform_location(&self.program, name);
         self.webgl.uniform_matrix3x2fv_with_f32_array(loc.as_ref(), false, &transform.to_array());
     }
 }

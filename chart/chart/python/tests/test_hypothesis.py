@@ -1,12 +1,12 @@
-from spectralsequence_chart import SseqChart, ChartClass
+import json
+from typing import Optional
+
+import hypothesis.strategies as st
+from hypothesis.stateful import Bundle, RuleBasedStateMachine, consumes, rule
+from spectralsequence_chart import ChartClass, SseqChart
 from spectralsequence_chart.css_colors import CSS_COLORS_JSON
 from spectralsequence_chart.display_primitives import Color
 from spectralsequence_chart.serialization import JSON
-from hypothesis.stateful import Bundle, RuleBasedStateMachine, rule, consumes
-import hypothesis.strategies as st
-import json
-
-from typing import Optional
 
 
 def update_patch(self):

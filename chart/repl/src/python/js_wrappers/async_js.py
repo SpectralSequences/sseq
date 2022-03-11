@@ -1,9 +1,11 @@
+import json
 from asyncio import AbstractEventLoop
 from functools import partial
-from js import sleep, fetch as jsfetch
+
+from js import fetch as jsfetch
+from js import sleep
 from js.Object import fromEntries as to_js_object
 from pyodide import to_js as _to_js
-import json
 
 
 def to_js(arg):

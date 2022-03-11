@@ -41,7 +41,7 @@ impl Canvas {
             canvas,
             coordinate_system,
             chart_shaders,
-        })   
+        })
     }
 
     // Returns : [xNearest, yNearest, distance]
@@ -79,7 +79,7 @@ impl Canvas {
         self.coordinate_system.glyph_position(position.into(), offset.into()).into()
     }
 
-    pub fn set_margins(&mut self, 
+    pub fn set_margins(&mut self,
         left_margin : i32,
         right_margin : i32,
         bottom_margin : i32,
@@ -90,7 +90,7 @@ impl Canvas {
 
     pub fn set_padding(&mut self, padding : f32) {
         self.coordinate_system.set_padding(padding);
-    }    
+    }
 
 
     // For the publically exposed version we update the "natural scale"
@@ -177,36 +177,36 @@ impl Canvas {
         self.chart_shaders.clear_edges();
     }
 
-    pub fn add_glyph(&mut self, 
-        point : &JsPoint, 
-        offset : &JsPoint, 
-        glyph : &Glyph, 
-        scale : f32,  
-        background_color : &Vec4,  
-        border_color : &Vec4, 
-        foreground_color : &Vec4 
+    pub fn add_glyph(&mut self,
+        point : &JsPoint,
+        offset : &JsPoint,
+        glyph : &Glyph,
+        scale : f32,
+        background_color : &Vec4,
+        border_color : &Vec4,
+        foreground_color : &Vec4
     ) -> Result<GlyphInstance, JsValue>  {
         let glyph_instance = GlyphInstance::new(glyph.clone(), point.into(), offset.into(), scale,  *background_color, *border_color, *foreground_color);
         self.chart_shaders.add_glyph_instance(glyph_instance.clone())?;
         Ok(glyph_instance)
     }
 
-    pub fn add_edge(&mut self, 
+    pub fn add_edge(&mut self,
         start_glyph_instance : &GlyphInstance,
         end_glyph_instance : &GlyphInstance,
         edge_options : &EdgeOptions
-    ) -> Result<(), JsValue> {        
+    ) -> Result<(), JsValue> {
         self.chart_shaders.add_edge(start_glyph_instance.clone(), end_glyph_instance.clone(), edge_options)?;
         Ok(())
     }
 
-    pub fn test_edge_shader(&mut self, 
+    pub fn test_edge_shader(&mut self,
         start_position : &JsPoint, start_offset : &JsPoint,
         end_position : &JsPoint, end_offset : &JsPoint,
-        start_glyph : &Glyph, end_glyph : &Glyph, 
+        start_glyph : &Glyph, end_glyph : &Glyph,
         scale : f32,
         edge_options : &EdgeOptions
-    ) -> Result<(), JsValue> {        
+    ) -> Result<(), JsValue> {
         self.clear();
         let start_glyph = GlyphInstance::new(start_glyph.clone(), start_position.into(),  start_offset.into(), scale, Vec4::new(1.0, 0.0, 0.0, 0.5), Vec4::new(0.0, 0.0, 0.0, 0.5), Vec4::new(1.0, 0.0, 0.0, 0.5));
         let end_glyph = GlyphInstance::new(end_glyph.clone(), end_position.into(),  end_offset.into(), scale,  Vec4::new(0.0, 0.0, 1.0, 0.5), Vec4::new(0.0, 1.0, 0.0, 0.5), Vec4::new(0.0, 0.0, 1.0, 0.5));
@@ -214,14 +214,14 @@ impl Canvas {
         self.chart_shaders.add_glyph_instance(end_glyph.clone())?;
 
         self.chart_shaders.add_edge(start_glyph, end_glyph, edge_options)?;
- 
+
         Ok(())
     }
 
 
-    pub fn test_speed_setup(&mut self, 
-        glyph1 : &Glyph, glyph2 : &Glyph, 
-        xy_max : usize,  scale : f32, 
+    pub fn test_speed_setup(&mut self,
+        glyph1 : &Glyph, glyph2 : &Glyph,
+        xy_max : usize,  scale : f32,
         edge_options : &EdgeOptions
     ) -> Result<(), JsValue> {
         self.clear();
@@ -236,12 +236,12 @@ impl Canvas {
 
                 let glyph = if (x + y) % 2 == 1 { glyph1 } else { glyph2 };
                 let glyph_instance = GlyphInstance::new(
-                    glyph.clone(), 
-                    point(x as f32, y as f32), 
+                    glyph.clone(),
+                    point(x as f32, y as f32),
                     vector(0.0, 0.0),
-                    scale, 
+                    scale,
                     Vec4::new(0.0, 0.0, 1.0, 0.5),
-                    Vec4::new(0.0, 0.0, 0.0, 0.5), 
+                    Vec4::new(0.0, 0.0, 0.0, 0.5),
                     Vec4::new(0.0, 0.0, 1.0, 0.5)
                 );
                 self.chart_shaders.add_glyph_instance(glyph_instance.clone())?;
@@ -266,7 +266,7 @@ impl Canvas {
         }
         Ok(())
     }
-    
+
     pub fn render(&mut self) -> Result<(), JsValue> {
         self.chart_shaders.render(self.coordinate_system)
     }
@@ -275,4 +275,3 @@ impl Canvas {
         self.chart_shaders.object_underneath_pixel(self.coordinate_system, p.into())
     }
 }
-

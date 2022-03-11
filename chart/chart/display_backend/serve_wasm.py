@@ -4,7 +4,6 @@ PORT = 8101
 import http.server
 import socketserver
 
-
 Handler = http.server.SimpleHTTPRequestHandler
 Handler.extensions_map.update(
     {

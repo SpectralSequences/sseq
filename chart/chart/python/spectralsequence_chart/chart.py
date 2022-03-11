@@ -1,25 +1,19 @@
 """ SseqChart is the main class which holds the data structure representing the chart."""
 
 import asyncio
-
-from spectralsequence_chart.page_property import PageProperty
-from spectralsequence_chart.display_primitives import ArrowTip, Color, Shape
-import spectralsequence_chart
-from spectralsequence_chart.signal_dict import SignalList
 import threading
 from typing import Any, Dict, Iterable, List, Set, Tuple, Union
 from uuid import uuid4
 
+import spectralsequence_chart
+from spectralsequence_chart.display_primitives import ArrowTip, Color, Shape
+from spectralsequence_chart.page_property import PageProperty
+from spectralsequence_chart.signal_dict import SignalList
 
-from .infinity import INFINITY
 from .chart_class import ChartClass, ChartClassArg, ChartClassStyle
-from .chart_edge import (
-    ChartStructline,
-    ChartDifferential,
-    ChartExtension,
-    ChartEdge,
-    ChartEdgeStyle,
-)
+from .chart_edge import (ChartDifferential, ChartEdge, ChartEdgeStyle,
+                         ChartExtension, ChartStructline)
+from .infinity import INFINITY
 
 
 class SseqChart:
@@ -43,10 +37,10 @@ class SseqChart:
         self.num_gradings = num_gradings
 
         self._agent: Any = None
-        self._batched_messages: List[Dict[str, Any]] = []
+        self._batched_messages: list[dict[str, Any]] = []
         # type: ignore
-        self._update_keys: Dict[str, int] = {}
-        self._global_fields_to_update: Set[str] = set()
+        self._update_keys: dict[str, int] = {}
+        self._global_fields_to_update: set[str] = set()
         self._batched_messages_lock = threading.Lock()
 
         self._uuid = str(uuid4())
@@ -66,17 +60,17 @@ class SseqChart:
             color="blue", end_tip=ArrowTip()
         )
         self._default_extension_style = ChartEdgeStyle()
-        self._class_styles: Dict[str, ChartClassStyle] = {}
-        self._edge_styles: Dict[str, ChartEdgeStyle] = {}
-        self._shapes: Dict[str, Shape] = {}
-        self._colors: Dict[str, Color] = {}
+        self._class_styles: dict[str, ChartClassStyle] = {}
+        self._edge_styles: dict[str, ChartEdgeStyle] = {}
+        self._shapes: dict[str, Shape] = {}
+        self._colors: dict[str, Color] = {}
 
         self.register_shape("stdcircle", Shape.circle(5))
 
         self._page_list_lock = threading.Lock()
-        self._classes: Dict[str, ChartClass] = {}
-        self._edges: Dict[str, ChartEdge] = {}
-        self._classes_by_degree: Dict[Tuple[int, ...], List[ChartClass]] = {}
+        self._classes: dict[str, ChartClass] = {}
+        self._edges: dict[str, ChartEdge] = {}
+        self._classes_by_degree: dict[tuple[int, ...], list[ChartClass]] = {}
         self.x_projection = (1, 0) + (0,) * (num_gradings - 2)
         self.y_projection = (0, 1) + (0,) * (num_gradings - 2)
         self._initialized: bool = True
@@ -112,7 +106,7 @@ class SseqChart:
         return f"{type(self).__name__}({', '.join(fields)})"
 
     @property
-    def classes(self) -> List[ChartClass]:
+    def classes(self) -> list[ChartClass]:
         """Get the list of all classes in the chart. This performs a copy.
         This is the same as ``list(self.classes_iter())``.
         """
@@ -126,7 +120,7 @@ class SseqChart:
         return self._classes.values()
 
     @property
-    def edges(self) -> List[ChartEdge]:
+    def edges(self) -> list[ChartEdge]:
         """Get the list of all edges in the chart. This performs a copy.
         This is the same as ``list(self.edges_iter())``.
         """
@@ -140,7 +134,7 @@ class SseqChart:
         """
         return self._classes.values()
 
-    def to_json(self) -> Dict[str, Any]:
+    def to_json(self) -> dict[str, Any]:
         return dict(
             type=type(self).__name__,
             version=spectralsequence_chart.__version__,
@@ -159,7 +153,7 @@ class SseqChart:
         )
 
     @staticmethod
-    def from_json(json_obj: Dict[str, Any]) -> "SseqChart":
+    def from_json(json_obj: dict[str, Any]) -> "SseqChart":
         chart = SseqChart(json_obj.pop("name"), json_obj.pop("num_gradings"))
         chart._from_json_helper(**json_obj)
         return chart
@@ -169,15 +163,15 @@ class SseqChart:
         type: str,
         uuid: str,
         version: str,
-        page_list: List[Tuple[int, int]],
-        initial_x_range: Tuple[int, int],
-        initial_y_range: Tuple[int, int],
-        x_range: Tuple[int, int],
-        y_range: Tuple[int, int],
-        x_projection: Tuple[int, ...],
-        y_projection: Tuple[int, ...],
-        classes: List[ChartClass],
-        edges: List[ChartEdge],
+        page_list: list[tuple[int, int]],
+        initial_x_range: tuple[int, int],
+        initial_y_range: tuple[int, int],
+        x_range: tuple[int, int],
+        y_range: tuple[int, int],
+        x_projection: tuple[int, ...],
+        y_projection: tuple[int, ...],
+        classes: list[ChartClass],
+        edges: list[ChartEdge],
     ):
         assert type == SseqChart.__name__
         self._uuid = uuid
@@ -354,7 +348,7 @@ class SseqChart:
     def _add_edge_to_delete(self, e: ChartEdge):
         self._add_delete_message(e)
 
-    def _add_batched_message(self, key: str, kwargs: Dict[str, Any], replace=False):
+    def _add_batched_message(self, key: str, kwargs: dict[str, Any], replace=False):
         """If replace is False, then if key"""
         if not self._initialized:
             return
@@ -363,7 +357,7 @@ class SseqChart:
         with self._batched_messages_lock:
             self._add_batched_message_raw(key, kwargs, replace)
 
-    def _add_batched_message_raw(self, key: str, kwargs: Dict[str, Any], replace):
+    def _add_batched_message_raw(self, key: str, kwargs: dict[str, Any], replace):
         # If we're actually bothering with locking we need to check again to make sure
         # key is not in dict to make sure that it didn't get inserted before we got the lock.
         if key in self._update_keys:
@@ -457,7 +451,7 @@ class SseqChart:
         else:
             raise ValueError(f"Unexpeted command '{cmd}'")
 
-    def get_settings(self) -> Dict[str, any]:
+    def get_settings(self) -> dict[str, any]:
         return dict(
             page_list=self._page_list,
             x_projection=self.x_projection,
@@ -559,7 +553,7 @@ class SseqChart:
             index = 0
         return self.classes_in_degree(*args)[index]
 
-    def classes_in_degree(self, *args: int) -> List[ChartClass]:
+    def classes_in_degree(self, *args: int) -> list[ChartClass]:
         """Get the list of classes in a given degree.
         The arguments should be a sequence of integers of length ``num_gradings``.
         """
@@ -720,7 +714,7 @@ class SseqChart:
         return self._x_projection
 
     @x_projection.setter
-    def x_projection(self, value: Tuple[int]):
+    def x_projection(self, value: tuple[int]):
         assert len(value) == self.num_gradings
         self._x_projection = value
 
@@ -730,7 +724,7 @@ class SseqChart:
         return self._y_projection
 
     @y_projection.setter
-    def y_projection(self, value: Tuple[int]):
+    def y_projection(self, value: tuple[int]):
         assert len(value) == self.num_gradings
         self._y_projection = value
 
@@ -749,7 +743,7 @@ class SseqChart:
         return self._page_list
 
     @page_list.setter
-    def page_list(self, v: List[Tuple[int, int]]):
+    def page_list(self, v: list[tuple[int, int]]):
         self._page_list = SignalList(v, callback=self._add_setting_message)
         self._add_setting_message()
 
@@ -815,7 +809,7 @@ class SseqChart:
         self._colors[name] = color
 
     @property
-    def class_styles(self) -> Dict[str, ChartClassStyle]:
+    def class_styles(self) -> dict[str, ChartClassStyle]:
         """A dictionary of `ChartClassStyles <ChartClassStyle>`. `SseqChart.register_class_style` adds styles to this.
         You can use this to unregister class styles, etc.
         If you pass a string argument to `ChartClass.set_style`, it will look up the style in this dictionary.
@@ -826,12 +820,12 @@ class SseqChart:
         return self._class_styles
 
     @class_styles.setter
-    def class_styles(self, v: Dict[str, ChartClassStyle]):
+    def class_styles(self, v: dict[str, ChartClassStyle]):
         self._class_styles = v
         self._class_styles["default"] = self._default_class_style
 
     @property
-    def edge_styles(self) -> Dict[str, ChartEdgeStyle]:
+    def edge_styles(self) -> dict[str, ChartEdgeStyle]:
         """A dictionary of `ChartEdgeStyles <ChartEdgeStyle>`. `SseqChart.register_edge_style` adds styles to this dictionary.
         You can use this to unregister edge styles, etc.
         If you pass a string argument to `ChartEdge.set_style`, it will look up the style in this dictionary.
@@ -841,11 +835,11 @@ class SseqChart:
         return self._edge_styles
 
     @edge_styles.setter
-    def edge_styles(self, v: Dict[str, ChartEdgeStyle]):
+    def edge_styles(self, v: dict[str, ChartEdgeStyle]):
         self._edge_styles = v
 
     @property
-    def shapes(self) -> Dict[str, Shape]:
+    def shapes(self) -> dict[str, Shape]:
         """A dictionary of `Shapes <Shape>`. `SseqChart.register_shape` adds shapes to this dictionary.
         You can use this to unregister shapes, etc.
         If you set the shape of a class to a string, the actual `Shape` will be looked up in this dictionary.
@@ -853,11 +847,11 @@ class SseqChart:
         return self._shapes
 
     @shapes.setter
-    def shapes(self, v: Dict[str, Shape]):
+    def shapes(self, v: dict[str, Shape]):
         self._shapes = v
 
     @property
-    def colors(self) -> Dict[str, Color]:
+    def colors(self) -> dict[str, Color]:
         """A dictionary of `Colors <Color>`. `SseqChart.register_color` adds colors to this dictionary.
         You can use this to unregister shapes, etc.
         If you set the color of a class or edge to a string, the actual `Color` will be looked up in this dictionary.
@@ -865,7 +859,7 @@ class SseqChart:
         return self._colors
 
     @colors.setter
-    def colors(self, v: Dict[str, Color]):
+    def colors(self, v: dict[str, Color]):
         self._colors = v
 
     def get_shape(self, shape: Union[str, Shape]) -> Shape:

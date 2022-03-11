@@ -1,12 +1,12 @@
-from contextlib import redirect_stdout, redirect_stderr, contextmanager
-from .write_stream import WriteStream
-from .traceback import Traceback
-
-from .util import contextmanager, set_interrupt_buffer, to_js
-
 from ast import PyCF_ALLOW_TOP_LEVEL_AWAIT
-from pyodide import CodeRunner
+from contextlib import contextmanager, redirect_stderr, redirect_stdout
+
 from js import releaseSynclinkProxy
+from pyodide import CodeRunner
+
+from .traceback import Traceback
+from .util import contextmanager, set_interrupt_buffer, to_js
+from .write_stream import WriteStream
 
 
 class Execution:

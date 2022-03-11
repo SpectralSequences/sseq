@@ -28,7 +28,7 @@ float aaStep(float compValue, float gradient){
     return stepped;
 }
 
-// This is the r = sin(theta) polar form of the circle. 
+// This is the r = sin(theta) polar form of the circle.
 float circleConstraint(float ab_dot_ab, float ab_dot_n, float epsilon, float curvature){
     float numerator = -2.0 * (ab_dot_n + epsilon);
     float denominator = ab_dot_ab + 2.0 * epsilon * ab_dot_n + epsilon * epsilon;

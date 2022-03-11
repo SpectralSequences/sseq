@@ -1,13 +1,15 @@
-from .page_property import PageProperty, PagePropertyOrValue, ensure_page_property
-from .signal_dict import SignalDict
-
-from .infinity import INFINITY
+from typing import (TYPE_CHECKING, Any, Dict, Iterable, List, NewType, Tuple,
+                    Union, cast)
 from uuid import uuid4
-from .display_primitives import UUID_str, Color, Shape
+
+from .display_primitives import Color, Shape, UUID_str
+from .infinity import INFINITY
+from .page_property import (PageProperty, PagePropertyOrValue,
+                            ensure_page_property)
+from .signal_dict import SignalDict
 
 # from .chart_edge import ChartEdge
 
-from typing import TYPE_CHECKING, List, Any, Tuple, cast, Dict, Union, NewType, Iterable
 
 if TYPE_CHECKING:
     from .chart import SseqChart
@@ -36,7 +38,7 @@ class ChartClassStyle:
         self._foreground_color = foreground_color
         self._border_width = border_width
 
-    def to_json(self) -> Dict[str, Any]:
+    def to_json(self) -> dict[str, Any]:
         return dict(
             type=type(self).__name__,
             group_name=self._group_name,
@@ -48,7 +50,7 @@ class ChartClassStyle:
         )
 
     @classmethod
-    def from_json(cls, json: Dict[str, Any]) -> "ChartClassStyle":
+    def from_json(cls, json: dict[str, Any]) -> "ChartClassStyle":
         assert json.pop("type") == cls.__name__
         return cls(**json)
 
@@ -127,7 +129,7 @@ class ChartClass:
     the image of a differential or supports a nontrivial differential.
     """
 
-    def __init__(self, degree: Tuple[int, ...], idx: int):
+    def __init__(self, degree: tuple[int, ...], idx: int):
         """Do not call `ChartClass` constructor directly, use instead `SseqChart.add_class`, or `JSON.parse`."""
         self._deleted = False
         self._initialized = False
@@ -135,7 +137,7 @@ class ChartClass:
         self._degree = tuple(degree)
         self._idx = idx
         self._max_page = INFINITY
-        self._edges: List["ChartEdge"] = []
+        self._edges: list["ChartEdge"] = []
         self._uuid = str(uuid4())
 
         # These values don't really matter, just need to initialize the PageProperties or set_style will raise.
@@ -173,7 +175,7 @@ class ChartClass:
     def set_style(
         self,
         style: Union[ChartClassStyle, str],
-        page: Union[int, Tuple[int, int]] = None,
+        page: Union[int, tuple[int, int]] = None,
     ) -> "ChartClass":
         """Sets the display style of the class.
 
@@ -217,7 +219,7 @@ class ChartClass:
             self._sseq._add_class_to_update(self)
 
     @staticmethod
-    def from_json(json: Dict[str, Any]) -> "ChartClass":
+    def from_json(json: dict[str, Any]) -> "ChartClass":
         assert json.pop("type") == ChartClass.__name__
         degree = json.pop("degree")
         idx = json.pop("idx")
@@ -259,7 +261,7 @@ class ChartClass:
         self._user_data = user_data  # type: ignore
         user_data.set_parent(self)
 
-    def to_json(self) -> Dict[str, Any]:
+    def to_json(self) -> dict[str, Any]:
         return dict(
             type=type(self).__name__,
             degree=self.degree,
@@ -327,12 +329,12 @@ class ChartClass:
         return self._uuid
 
     @property
-    def edges(self) -> List["ChartEdge"]:
+    def edges(self) -> list["ChartEdge"]:
         """The list of edges incident to the class. Includes structure lines, differentials, and extensions. Order is arbitrary."""
         return self._edges
 
     @property
-    def degree(self) -> Tuple[int, ...]:
+    def degree(self) -> tuple[int, ...]:
         """The multigrading of the class."""
         return self._degree
 

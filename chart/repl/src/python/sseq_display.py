@@ -1,18 +1,16 @@
-from js import location, console, JSON as js_JSON
-from typing import Dict
-
-from js_wrappers.async_js import Fetcher
-from repl.util import to_js
-from asyncio import ensure_future
-
-
 import json
 import pathlib
+from asyncio import ensure_future
+from functools import wraps
+from typing import Dict
 
+from js import JSON as js_JSON
+from js import console, location
+from js_wrappers.async_js import Fetcher
+from repl.handler_decorator import collect_handlers, handle
+from repl.util import to_js
 from spectralsequence_chart import SseqChart
 from spectralsequence_chart.serialization import JSON
-from functools import wraps
-from repl.handler_decorator import collect_handlers, handle
 
 fetcher = Fetcher("api/")
 

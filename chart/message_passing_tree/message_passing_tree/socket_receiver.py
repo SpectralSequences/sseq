@@ -1,16 +1,14 @@
 import asyncio
 import json
+from uuid import UUID, uuid4
+
 from starlette.websockets import WebSocketDisconnect
 from websockets.exceptions import ConnectionClosedOK
 
-from uuid import UUID, uuid4
-
-from .exceptions import *
-
 from . import Agent, Receiver
+from .exceptions import *
 from .prelude import *
-
-from .utils import json_stringify, arguments
+from .utils import arguments, json_stringify
 
 
 @collect_handlers(inherit=True)  # inherit "all" handler

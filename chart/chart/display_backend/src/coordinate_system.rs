@@ -18,13 +18,13 @@ impl BufferDimensions {
 	pub fn new(width : i32, height : i32, density : f64) -> Self {
 		Self { width, height, density }
 	}
-	
+
 	pub fn width(&self) -> i32 {
 		self.width
 	}
 
 	pub fn height(&self) -> i32 {
-		self.height 
+		self.height
 	}
 
 	pub fn density(&self) -> f64 {
@@ -62,8 +62,8 @@ pub struct CoordinateSystem {
     pub(crate) buffer_dimensions : BufferDimensions,
 
 
-    natural_scale_ratio : f32, 
-    max_scale : f32, 
+    natural_scale_ratio : f32,
+    max_scale : f32,
     min_xy_boundary : Point,
     max_xy_boundary : Point,
 }
@@ -77,7 +77,7 @@ impl CoordinateSystem {
 
             // pixel coordinates to WebGl coordinates [-1, 1] x [-1, 1]
             transform : Transform::identity(),
-            
+
             left_margin : 10,
             right_margin : 10,
             bottom_margin : 10,
@@ -131,7 +131,7 @@ impl CoordinateSystem {
         -(y - self.origin.y) / self.scale.y
     }
 
-    pub fn set_margins(&mut self, 
+    pub fn set_margins(&mut self,
         left_margin : i32,
         right_margin : i32,
         bottom_margin : i32,
@@ -146,7 +146,7 @@ impl CoordinateSystem {
     pub fn set_padding(&mut self, padding : f32) {
         self.padding = padding;
         self.update_max_scaled_padding();
-    }    
+    }
 
     pub fn set_glyph_scale(&mut self, glyph_scale : f32){
         let cur_xy_range = self.current_max_xy() - self.current_min_xy();
@@ -359,4 +359,3 @@ impl CoordinateSystem {
     }
 
 }
-

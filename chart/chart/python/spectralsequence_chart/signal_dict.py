@@ -1,6 +1,6 @@
-from typing import TypeVar, Generic, Dict, Any, Callable, Optional, List, Iterable
 from collections.abc import MutableMapping, MutableSequence
-
+from typing import (Any, Callable, Dict, Generic, Iterable, List, Optional,
+                    TypeVar)
 
 T = TypeVar("T")
 
@@ -13,7 +13,7 @@ class SignalDict(MutableMapping, Generic[T]):
 
     def __init__(
         self,
-        d: Dict[str, T] = None,
+        d: dict[str, T] = None,
         *,
         parent: Any = None,
         callback: Optional[Callable[[], None]] = None,
@@ -79,7 +79,7 @@ class SignalList(MutableSequence, Generic[T]):
 
     def __init__(
         self,
-        l: List[T] = None,
+        l: list[T] = None,
         *,
         parent: Any = None,
         callback: Optional[Callable[[], None]] = None,

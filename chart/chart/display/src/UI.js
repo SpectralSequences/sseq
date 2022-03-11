@@ -16,23 +16,23 @@ export class UIElement extends HTMLElement {
         this.shadowRoot.innerHTML = `
             <style>
                 :host {
-                    height: 100vh; 
-                    width: 100vw; 
+                    height: 100vh;
+                    width: 100vw;
                     display: flex;
                 }
 
                 :host([transition]) {
                     transition : 0.5s ease;
                 }
-                
+
                 #loading {
                     position : absolute;
                     left: 20px;
                     top: 20px;
                     font-size : 16pt;
                 }
-            </style>            
-            <slot name=loading> 
+            </style>
+            <slot name=loading>
                 <div id=loading>
                 Loading...
                 </div>

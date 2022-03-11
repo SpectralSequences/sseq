@@ -38,7 +38,7 @@ impl<T> VertexBuffer<T> {
     pub fn clear(&mut self){
         self.data.clear();
     }
-    
+
     pub fn is_empty(&self) -> bool {
         self.data.is_empty()
     }

@@ -2,7 +2,7 @@
 layout (std140) uniform Transform {
     uniform mat3x2 uTransformationMatrix;
     uniform vec2 uOrigin;
-    uniform vec2 uScale;    
+    uniform vec2 uScale;
     uniform float uGlyphScale;
 };
 uniform sampler2D uGlyphPaths;

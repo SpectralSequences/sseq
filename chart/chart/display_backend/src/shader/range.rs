@@ -11,7 +11,7 @@ impl Range {
             max : 0
         }
     }
-    
+
     pub fn new(min : usize, max : usize) -> Self {
         if max <= min {
             Self::empty()
@@ -28,7 +28,7 @@ impl Range {
     }
 
     pub fn include_int(&mut self, x : usize) {
-        self.min = self.min.min(x);       
+        self.min = self.min.min(x);
         self.max = self.max.max(x + 1);
     }
 

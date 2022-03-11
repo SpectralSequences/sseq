@@ -3,7 +3,7 @@ table = require("table")
 json = require "json"
 
 PageProperty = {type = "PageProperty"}
-function PageProperty:new(value) 
+function PageProperty:new(value)
     o = {}
     setmetatable(o, self)
     o.type = "PageProperty"
@@ -17,7 +17,7 @@ function PageProperty:find_index(target_page)
         if page_value[1] > target_page then
             break
         end
-        result_idx = idx 
+        result_idx = idx
     end
     return result_idx, self.values[result_idx][1] == target_page
 end
@@ -81,9 +81,9 @@ function PageProperty:merge_redundant(start_delete, end_delete)
     local j = 2
     local n = #t
     for i=2,n do
-        if 
-            t[i][2] == t[j-1][2] 
-            or ( start_delete < i and end_delete > i ) 
+        if
+            t[i][2] == t[j-1][2]
+            or ( start_delete < i and end_delete > i )
         then
             t[i] = nil
         else
@@ -93,10 +93,10 @@ function PageProperty:merge_redundant(start_delete, end_delete)
             end
             j = j + 1
         end
-    end   
+    end
 end
 
-function PageProperty:__tostring() 
+function PageProperty:__tostring()
     return string.format("PageProperty(%s)", json.encode(self.values))
 end
 

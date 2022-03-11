@@ -42,7 +42,7 @@ const DASH_PATTERNS_TEXTURE_UNIT : u32 = 3;
 #[wasm_bindgen]
 #[derive(Clone, Debug)]
 pub struct EdgeOptions {
-    start_tip : Option<Arrow>, 
+    start_tip : Option<Arrow>,
     end_tip : Option<Arrow>,
     angle : Angle,
     thickness : f32,
@@ -111,7 +111,7 @@ impl EdgeOptions {
 #[repr(C, align(4))]
 struct EdgeInstance {
     color : Vec4,
-    start_position : Point, 
+    start_position : Point,
     start_offset : Vector,
     end_position : Point,
     end_offset : Vector,
@@ -120,15 +120,15 @@ struct EdgeInstance {
     end_glyph_scale : f32,
     angle : f32,
     thickness : f32,
-    
+
     start_glyph : u16,
     start_arrow : ArrowIndices,
     end_glyph : u16,
     end_arrow : ArrowIndices,
 
-    dash_length : u16, 
-    dash_index : u16, 
-    dash_offset : u16, 
+    dash_length : u16,
+    dash_index : u16,
+    dash_offset : u16,
     dash_padding : u16,
 }
 
@@ -155,11 +155,11 @@ struct ArrowIndices {
 pub struct EdgeShader {
     webgl : WebGlWrapper,
     program : Program,
-    
+
     edge_instances : VertexBuffer<EdgeInstance>,
     max_vertices : i32,
     attribute_state : Option<WebGlVertexArrayObject>,
-    
+
     // This stores the distance to the boundary at each angle.
     // Angle resolution is 2 degrees, so the float at index n is the distance to boundary at 2n degrees.
     glyph_convex_hulls : DataTexture<f32>,
@@ -184,7 +184,7 @@ pub struct EdgeShader {
 impl EdgeShader {
     pub fn new(webgl : WebGlWrapper) -> Result<Self, JsValue> {
         let program = Program::new(
-            webgl.clone(), 
+            webgl.clone(),
             include_str!("edge.vert"),
             include_str!("edge.frag")
         )?;
@@ -195,7 +195,7 @@ impl EdgeShader {
         let glyph_convex_hulls = DataTexture::new(webgl.clone(), Format(Type::F32, NumChannels::Four));
         let arrow_metrics_data = DataTexture::new(webgl.clone(), Format(Type::F32, NumChannels::Four));
         let arrow_path_data = DataTexture::new(webgl.clone(), Format(Type::F32, NumChannels::Two));
-        
+
         program.use_program();
         program.set_uniform_texture_unit("uGlyphConvexHulls", GLYPH_HULL_TEXTURE_UNIT);
         program.set_uniform_texture_unit("uArrowMetrics", ARROW_METRICS_TEXTURE_UNIT);
@@ -221,7 +221,7 @@ impl EdgeShader {
             tip_map : BTreeMap::new(),
             arrow_metrics_data,
             arrow_path_data,
-            
+
             dash_data : Vec::new(),
             dash_texture,
             dash_texture_num_rows : 0,
@@ -309,14 +309,14 @@ impl EdgeShader {
         let num_rows = self.dash_data.len() / DASH_PATTERN_TEXTURE_WIDTH;
         self.webgl.bind_texture(WebGl2RenderingContext::TEXTURE_2D, self.dash_texture.as_ref());
         self.webgl.tex_sub_image_2d_with_i32_and_i32_and_u32_and_type_and_opt_u8_array(
-            WebGl2RenderingContext::TEXTURE_2D, 
+            WebGl2RenderingContext::TEXTURE_2D,
             0, // mip level
             0, 0, // xoffset, yoffset: i32,
             DASH_PATTERN_TEXTURE_WIDTH as i32, num_rows as i32, // width, height
             WebGl2RenderingContext::RED, // format: u32,
             WebGl2RenderingContext::UNSIGNED_BYTE, // type_: u32,
             Some(&self.dash_data) // pixels: Option<&Object>
-        )?; 
+        )?;
         Ok(())
     }
 
@@ -341,7 +341,7 @@ impl EdgeShader {
         self.max_vertices = 0;
         self.edge_instances.clear();
         self.ready = false;
-    }    
+    }
 
     // Get arrow tip data to put into the attribute buffer.
     // If the given arrow has never been used before, we tesselate it and add the path and metrics to the relevant data textures.
@@ -358,12 +358,12 @@ impl EdgeShader {
                 let metrics_index : Result<u16, _> = (std::mem::size_of_val(self.arrow_metrics_data.data())/4).try_into();
                 let metrics_index = metrics_index.map_err(|_| "Too many total arrow heads.")?;
                 self.arrow_path_data.append(buffers.indices.iter().map(|&i| buffers.vertices[i as usize]));
-                self.arrow_metrics_data.push(ArrowMetrics {     
+                self.arrow_metrics_data.push(ArrowMetrics {
                     tip_end : arrow.tip_end,
                     back_end : arrow.back_end,
                     visual_tip_end : arrow.visual_tip_end,
                     visual_back_end : arrow.visual_back_end,
-                    line_end : arrow.line_end, 
+                    line_end : arrow.line_end,
                 });
 
                 let arrow_indices = ArrowIndices {
@@ -382,9 +382,9 @@ impl EdgeShader {
     }
 
 
-    pub fn add_edge(&mut self, 
-        start : GlyphInstance, 
-        end : GlyphInstance, 
+    pub fn add_edge(&mut self,
+        start : GlyphInstance,
+        end : GlyphInstance,
         start_glyph_id : usize,
         end_glyph_id : usize,
         options : &EdgeOptions,
@@ -440,7 +440,7 @@ impl EdgeShader {
         self.bind_dash_data(DASH_PATTERNS_TEXTURE_UNIT)?;
 
         self.webgl.bind_vertex_array(self.attribute_state.as_ref());
-        
+
         self.webgl.draw_arrays_instanced(
             WebGl2RenderingContext::TRIANGLES,
             0,

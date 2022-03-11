@@ -25,7 +25,7 @@ So ``style`` is now the style for our $\mathbb{Z}$ classes. We register this sty
 
 >>> chart.register_class_style(style)
 
-This allows us to use "Z" as a short-hand for a solid black square. 
+This allows us to use "Z" as a short-hand for a solid black square.
 Let's also make a "2Z" style with a transparent background by setting `ChartClassStyle.background_color`:
 
 >>> style.group_name = "2Z"
@@ -43,7 +43,7 @@ Now let's add the classes:
 
 (Python ranges include the left endpoint and exclude the right endpoint, so for instance in the loop above $v\in \{-8, -7, \ldots, 8\}$.)
 
-We want to give the classes descriptive names. These will appear in the tooltips. We use 
+We want to give the classes descriptive names. These will appear in the tooltips. We use
 `format_monomial` to automatically give tidy names in the special cases when exponents are 1 or 0.
 Note also that for latex expressions it's important to use a "raw string" e.g., ``r"\alpha"``
 See `the backslash plague <https://docs.python.org/3/howto/regex.html#the-backslash-plague>`_ for more info.

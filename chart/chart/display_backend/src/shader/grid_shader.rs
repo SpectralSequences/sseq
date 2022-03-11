@@ -26,7 +26,7 @@ impl GridShader {
     pub fn new(webgl : WebGlWrapper) -> Result<Self, JsValue> {
         let program = Program::new(
             webgl,
-            // vertexShader : 
+            // vertexShader :
             include_str!("grid.vert"),
             // fragmentShader :
             r#"#version 300 es
@@ -85,7 +85,7 @@ impl GridShader {
         self.program.set_uniform_float("uThickness", self.thickness);
         self.program.set_uniform_vec4("uColor", self.color);
         self.program.set_uniform_point("uGridOffset", self.offsets);
-        let loc = self.program.webgl.get_uniform_location(&self.program.program, "uGridStep");  
+        let loc = self.program.webgl.get_uniform_location(&self.program.program, "uGridStep");
         self.program.webgl.uniform2iv_with_i32_array(loc.as_ref(), &[self.x_grid_step, self.y_grid_step]);
         self.ready = true;
     }
@@ -109,7 +109,7 @@ impl GridShader {
 
         let num_vertical_grid_lines = (chart_x_max - chart_x_min + self.x_grid_step - 1) / self.x_grid_step + 1;
         let num_horizontal_grid_lines = (chart_y_max - chart_y_min + self.y_grid_step - 1) / self.y_grid_step + 1;
-        let loc = self.program.webgl.get_uniform_location(&self.program.program, "uChartRange");  
+        let loc = self.program.webgl.get_uniform_location(&self.program.program, "uChartRange");
         self.program.webgl.uniform4iv_with_i32_array(loc.as_ref(), &[chart_x_min, chart_x_max, chart_y_min, chart_y_max]);
         self.program.set_uniform_vec4("uScreenRange", Vec4::new(screen_x_min, screen_x_max, screen_y_min, screen_y_max));
 

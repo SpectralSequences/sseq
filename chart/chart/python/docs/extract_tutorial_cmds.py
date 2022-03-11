@@ -1,6 +1,6 @@
-import sys
 import pathlib
 import re
+import sys
 
 r = re.compile("\n\n>>> (.|\n)*?\n\n", flags=re.MULTILINE)
 text = pathlib.Path(sys.argv[1]).read_text()

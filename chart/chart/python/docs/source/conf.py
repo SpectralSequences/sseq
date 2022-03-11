@@ -11,9 +11,9 @@
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
 import os
-from re import template
 import sys
 import textwrap
+from re import template
 
 sys.path.insert(0, os.path.abspath("../.."))
 
@@ -111,21 +111,14 @@ def autodoc_skip_member_handler(app, what, name, obj, skip, options):
 
 # Import a bunch of stuff so we can use Jedi to help with type labels.
 from spectralsequence_chart.chart import SseqChart
-from spectralsequence_chart.chart_class import (
-    ChartClass,
-    ChartClassArg,
-    ChartClassStyle,
-)
-from spectralsequence_chart.chart_edge import (
-    ChartEdgeStyle,
-    ChartEdge,
-    ChartStructline,
-    ChartDifferential,
-    ChartExtension,
-)
+from spectralsequence_chart.chart_class import (ChartClass, ChartClassArg,
+                                                ChartClassStyle)
+from spectralsequence_chart.chart_edge import (ChartDifferential, ChartEdge,
+                                               ChartEdgeStyle, ChartExtension,
+                                               ChartStructline)
 from spectralsequence_chart.display_primitives import ArrowTip, Color, Shape
-from spectralsequence_chart.serialization import JSON
 from spectralsequence_chart.page_property import PageProperty
+from spectralsequence_chart.serialization import JSON
 from spectralsequence_chart.utils import format_monomial
 
 chart = SseqChart  # chart is an instance of SseqChart for inference.
@@ -134,6 +127,7 @@ chart = SseqChart  # chart is an instance of SseqChart for inference.
 # Monkey patch signature cross reference producer
 from docutils import nodes
 from sphinx import addnodes
+
 
 # This produces the cross references in the method signatures.
 # I modified it with a monkey patch so it doesn't put in annoying fully qualified type names.
@@ -222,11 +216,12 @@ def get_inference_sphinx_type(inf):
     return sphinx_type
 
 
-import re
 import ast
 import inspect
-from astunparse import unparse
+import re
 from textwrap import dedent
+
+from astunparse import unparse
 
 type_annotation_re = re.compile(": ([^=,)]*)")
 

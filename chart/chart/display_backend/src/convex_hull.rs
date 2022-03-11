@@ -21,7 +21,7 @@ fn raster_midpoint<P: Pixel>(raster : &Raster<P>) -> Point {
 }
 
 fn raster_contains_point<P: Pixel>(raster : &Raster<P>, point : Point) -> bool {
-	raster.pixel(point.x as i32, point.y as i32).alpha() != P::Chan::MIN 
+	raster.pixel(point.x as i32, point.y as i32).alpha() != P::Chan::MIN
 }
 
 
@@ -120,7 +120,7 @@ impl Ord for NonNan {
 
 
 fn graham_scan(points : &mut Vec<Vector>) {
-	
+
 	// Find minimum Y
 	let (min_idx, _) = points.iter().enumerate().min_by_key(|(_idx, v)| NonNan::new(v.y).unwrap()).unwrap();
 
@@ -128,7 +128,7 @@ fn graham_scan(points : &mut Vec<Vector>) {
 	points.swap(0, min_idx);
 
 	let compare_point = points[0];
-	points.sort_by(	
+	points.sort_by(
 		move |&p1, &p2| // sort first by the handedness of (compare_point, p1, p2) then by distance from compare_pt.
 		orientation(compare_point, p1, p2).partial_cmp(&0.0).unwrap().then_with(|| compare_magnitudes(p1 - compare_point, p2 - compare_point))
 	);
@@ -172,7 +172,7 @@ pub struct ConvexHull {
 impl ConvexHull {
 
 	pub fn from_path<T>(path : T, bounding_box : Box2D<f32>) -> Self
-	where T: IntoIterator, T::Item: Borrow<PathOp>, 
+	where T: IntoIterator, T::Item: Borrow<PathOp>,
 	{
 		let width_and_height = bounding_box.max - bounding_box.min;
 		let raster_scale = RASTER_SCALE_FACTOR / f32::min(width_and_height.x, width_and_height.y);
@@ -214,4 +214,3 @@ impl ConvexHull {
 		self.bounding_box.max.lerp(self.bounding_box.min,  0.5)
 	}
 }
-

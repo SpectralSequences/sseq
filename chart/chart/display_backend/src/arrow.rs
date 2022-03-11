@@ -63,8 +63,8 @@ pub struct Arrow {
     pub(crate) visual_tip_end : f32,
     pub(crate) visual_back_end : f32,
     pub(crate) line_end : f32,
-    pub(crate) path : Rc<Path>, 
-    pub(crate) stroke : Option<StrokeOptions>, 
+    pub(crate) path : Rc<Path>,
+    pub(crate) stroke : Option<StrokeOptions>,
     pub(crate) fill : Option<FillOptions>,
     pub(crate) uuid : ArrowId,
 }
@@ -191,12 +191,12 @@ impl Arrow {
         let stroke_options = StrokeOptions::DEFAULT
             .with_line_join(
                 if round_join { LineJoin::Round } else { LineJoin::MiterClip }
-            ).with_line_cap( 
-                if round_cap { LineCap::Round } else { LineCap::Butt } 
+            ).with_line_cap(
+                if round_cap { LineCap::Round } else { LineCap::Butt }
             ).with_line_width(
                 line_width
             );
-        
+
         if reversed {
             std::mem::swap(&mut visual_back_end, &mut visual_tip_end);
             std::mem::swap(&mut back_end, &mut tip_end);
@@ -267,7 +267,7 @@ impl Arrow {
                 line_width / 2.0
             }
         } else if angle < Angle::frac_pi_2() * 3.0 {
-            sin_angle * length 
+            sin_angle * length
         } else {
             - length
         };
@@ -310,8 +310,8 @@ impl Arrow {
         let stroke_options = StrokeOptions::DEFAULT
             .with_line_join(
                 if round_join { LineJoin::Round } else { LineJoin::MiterClip }
-            ).with_line_cap( 
-                if round_cap { LineCap::Round } else { LineCap::Butt } 
+            ).with_line_cap(
+                if round_cap { LineCap::Round } else { LineCap::Butt }
             ).with_line_width(
                 line_width
             );

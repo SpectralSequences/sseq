@@ -43,7 +43,7 @@ void main() {
     int numHorizontalGridLines = (chartYMax - chartYMin) / chartYGridStep + 1;
     vec2 screenXRange = uScreenRange.xy;
     vec2 screenYRange = uScreenRange.zw;
-    
+
     vec2 position;
     if(gl_InstanceID < numHorizontalGridLines){
         // Horizontal lines

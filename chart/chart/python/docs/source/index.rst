@@ -10,11 +10,11 @@ spectralsequence_chart documentation
    :glob:
    :maxdepth: 3
    :caption: Tutorials:
-   
+
    tutorials/intro
    tutorials/KO
 
-   
+
 API Documentation:
 -----------------
 .. autosummary::
@@ -23,7 +23,7 @@ API Documentation:
    :template: custom-module-template.rst
    :recursive:
 
-   spectralsequence_chart  
+   spectralsequence_chart
 
 
 ..
@@ -33,4 +33,3 @@ API Documentation:
    * :ref:`genindex`
    * :ref:`modindex`
    * :ref:`search`
-  

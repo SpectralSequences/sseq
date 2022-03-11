@@ -176,7 +176,7 @@ export class MatrixElement extends LitElement {
             .row:hover td.padding,  .row:hover td.entry {
                 background-color : var(--row-hover) !important;
             }
-            
+
             .row[selected] td.padding,  .row[selected] td.entry {
                 background-color : var(--row-selected);
             }

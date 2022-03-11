@@ -8,7 +8,7 @@ extern "C" {
     pub fn log_1(s: &JsValue);
 
     #[wasm_bindgen(js_namespace = console, js_name = log)]
-    pub fn log_str(s: &str);    
+    pub fn log_str(s: &str);
 }
 
 #[macro_export]

@@ -39,7 +39,7 @@ in vec4 aColor;
 in vec4 aStartPositionOffset; // (start_position, start_offset)
 in vec4 aEndPositionOffset; // (end_position, end_offset)
 in vec4 aGlyphScales_angle_thickness; // (start_glyph_scale, end_glyph_scale, angle, thickness)
-in ivec4 aStart; // (startGlyph, vec3 startArrow = (NumVertices, HeaderIndex, VerticesIndex) ) 
+in ivec4 aStart; // (startGlyph, vec3 startArrow = (NumVertices, HeaderIndex, VerticesIndex) )
 in ivec4 aEnd; // (endGlyph, vec3 endArrow = (NumVertices, HeaderIndex, VerticesIndex) )
 in ivec4 aDashPattern; // (dash_length, dash_index, dash_offset, _ )
 
@@ -47,14 +47,14 @@ out vec4 fColor;
 flat out float fHalfThickness;
 // In frag shader, we test whether fCurvature is zero to decide whether we draw an arc or a line.
 // In the case of an arc, fCurvature > 0 means curve right, < 0 means curve left.
-flat out float fCurvature; 
+flat out float fCurvature;
 // Needed for arcs
 flat out vec2 fP0; // Position of start of arc
 flat out vec2 fN0; // Normal to start of arc
 
 // Needed to apply dash pattern
 flat out ivec4 fDashPattern;
-out vec2 vPosition; 
+out vec2 vPosition;
 // Needed to apply dash pattern to an arc.
 flat out vec2 fCenter;
 flat out float fInitialAngle;
@@ -133,7 +133,7 @@ int triangleStripPattern(int index){
 
 
 
-// This is the special case of circleOffset when position = (0, 0) and tangent = (1, 0). 
+// This is the special case of circleOffset when position = (0, 0) and tangent = (1, 0).
 // In that case the circle looks like the graph of r = sin(theta).
 // Needs: epsilon < dist * abs(curvature) / 2 < 1 - epsilon (upper bound comes from dist < diameter).
 // curvature -- curvature of circle (1/radius). If curvature > 0 it curves leftward, if curvature < 0 it curves rightward.
@@ -231,7 +231,7 @@ vec2 vertexPositionLinear(){
 
     int vertexID = gl_VertexID;
     // The line
-    if(vertexID < 6){ 
+    if(vertexID < 6){
         fDashPattern = aDashPattern;
         // Further shorten by lineEnd
         startPos -= tangent * arrowLineEnd(startArrow);
@@ -254,20 +254,20 @@ vec2 vertexPositionLinear(){
         return pos;
     }
     vertexID -= 6;
-    
+
     mat2 rotationMatrix = rotationMatrix(tangent);
     // Position start arrow tip
     if(vertexID < arrowNumVertices(startArrow)) {
         return startPos - rotationMatrix * getArrowVertex(startArrow, vertexID);
-    } 
+    }
     vertexID -= arrowNumVertices(startArrow);
-    
+
     // End arrow tip
     if(vertexID < arrowNumVertices(endArrow)) {
         return endPos + rotationMatrix * getArrowVertex(endArrow, vertexID).xy;
     }
     vertexID -= arrowNumVertices(endArrow);
-    
+
     // Extra throw-away vertices
     return vec2(0.0, 0.0);
 }
@@ -308,7 +308,7 @@ vec2 vertexPositionCurved(){
 
 
     // A couple of sign distinctions depend on whether we curve left or right.
-    bool curvesLeft = angle < 0.0; 
+    bool curvesLeft = angle < 0.0;
     float thickness = aGlyphScales_angle_thickness.w;
     float startGlyphScale = aGlyphScales_angle_thickness.x;
     float endGlyphScale = aGlyphScales_angle_thickness.y;
@@ -332,7 +332,7 @@ vec2 vertexPositionCurved(){
         float endSetback = arrowTipEnd(endArrow) - arrowLineEnd(endArrow);
         // Compute start and endpoints
         startPosTan = glyphOffsetCurved(startGlyph, startGlyphScale, startSetback, startPosTan, curvature);
-        // Negate curvature and reverse tangent directions to move backward along the curve (would suffice to negate distance, but we get the 
+        // Negate curvature and reverse tangent directions to move backward along the curve (would suffice to negate distance, but we get the
         // distance to glyph boundary inside glyphOffsetCurved so this is the easiest way)
         endPosTan = reverseTangent(glyphOffsetCurved(endGlyph, endGlyphScale, endSetback, reverseTangent(endPosTan), -curvature));
 
@@ -372,7 +372,7 @@ vec2 vertexPositionCurved(){
         float offset;
         if(inside){
             // Inside just needs to account for thickness. We double the thickness to be sure to avoid clipping at the end points.
-            offset = -thickness_scale * thickness;        
+            offset = -thickness_scale * thickness;
         } else {
             // Make sure to go out far enough that the line between outer points doesn't clip the midpoints of the segments (at 1/4 and 3/4 of angle)
             float magnitude = length(midPos - origStartPosTan.xy)/2.0 * abs(tan(angle/4.0))/cos(angle/2.0);
@@ -398,15 +398,15 @@ vec2 vertexPositionCurved(){
     // Start arrow
     if(vertexID < arrowNumVertices(startArrow)) {
         return positionCurvedArrrow(startArrow, startGlyph, startGlyphScale, startPosTan, curvature, vertexID);
-    } 
+    }
     vertexID -= arrowNumVertices(startArrow);
-    
+
     // End arrow
     if(vertexID < arrowNumVertices(endArrow)) {
         return positionCurvedArrrow(endArrow, endGlyph, endGlyphScale, reverseTangent(endPosTan), -curvature, vertexID);
     }
     vertexID -= arrowNumVertices(endArrow);
-    
+
     // Extra throw-away vertices
     return vec2(0.0, 0.0);
 }

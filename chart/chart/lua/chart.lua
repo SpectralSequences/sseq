@@ -21,4 +21,3 @@ ChartClass = {type = "ChartClass"}
 function ChartClass:new()
 
 end
-

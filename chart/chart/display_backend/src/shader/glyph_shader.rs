@@ -3,7 +3,7 @@ use std::convert::TryInto;
 
 use wasm_bindgen::JsValue;
 use web_sys::{
-    WebGl2RenderingContext, 
+    WebGl2RenderingContext,
     WebGlVertexArrayObject
 };
 
@@ -55,7 +55,7 @@ struct ShaderGlyphInstance {
     background_color : [u16;2],
     border_color : [u16;2],
     foreground_color : [u16;2],
-    
+
     // aGlyphData
     glyph : ShaderGlyphHeader
 }
@@ -63,12 +63,12 @@ struct ShaderGlyphInstance {
 
 fn color_to_u16_array(v : Vec4) -> [u16;2] {
     [u16::from_le_bytes([
-        (v.x * 255.0) as u8, 
-        (v.y * 255.0) as u8, 
+        (v.x * 255.0) as u8,
+        (v.y * 255.0) as u8,
     ]),
     u16::from_le_bytes([
-        (v.z * 255.0) as u8, 
-        (v.w * 255.0) as u8, 
+        (v.z * 255.0) as u8,
+        (v.w * 255.0) as u8,
     ])]
 }
 
@@ -80,7 +80,7 @@ pub struct GlyphShader {
     attribute_state : Option<WebGlVertexArrayObject>,
     glyph_instances : VertexBuffer<ShaderGlyphInstance>,
     max_triangles : i32,
-    
+
     glyph_map : Vec<ShaderGlyphHeader>,
     glyph_paths : DataTexture<Point>,
 
@@ -92,7 +92,7 @@ pub struct GlyphShader {
 impl GlyphShader {
     pub fn new(webgl : WebGlWrapper) -> Result<Self, JsValue> {
         let program = Program::new(
-            webgl.clone(), 
+            webgl.clone(),
             include_str!("glyph.vert"),
             // include_str!("glyph.frag"),
             r#"#version 300 es
@@ -122,9 +122,9 @@ impl GlyphShader {
             glyph_map : Vec::new(),
 
             attribute_state,
-            glyph_instances, 
+            glyph_instances,
             max_triangles : 0,
-            
+
             glyph_paths,
             ready : false
         })
@@ -148,7 +148,7 @@ impl GlyphShader {
         let index = index.map_err(|_| "Too many total glyph vertices : max number of triangles in all glyphs is 65535.")?;
 
         let mut buffers: VertexBuffers<Point, u16> = VertexBuffers::new();
-        
+
         glyph.tessellate_background(&mut buffers)?;
         let num_background_triangles = buffers.indices.len()  / 3;
         self.glyph_paths.append(buffers.indices.iter().map(|&i| buffers.vertices[i as usize]));
@@ -162,7 +162,7 @@ impl GlyphShader {
         // let len = 2*v.len();
         // let point_slice = unsafe {
         //     std::slice::from_raw_parts(
-        //         v.as_ptr() as *const Point, 
+        //         v.as_ptr() as *const Point,
         //         len
         //     )
         // };
@@ -174,7 +174,7 @@ impl GlyphShader {
         glyph.tessellate_boundary(&mut buffers)?;
         let num_boundary_triangles = buffers.indices.len() / 3;
         self.glyph_paths.append(buffers.indices.iter().map(|&i| buffers.vertices[i as usize]));
-        
+
         buffers.vertices.clear();
         buffers.indices.clear();
 
@@ -186,8 +186,8 @@ impl GlyphShader {
         let num_border_triangles = num_boundary_triangles.try_into().map_err(|_| "Too many triangles")?;
         let num_foreground_triangles  = num_foreground_triangles.try_into().map_err(|_| "Too many triangles")?;
         self.glyph_map.push(ShaderGlyphHeader {
-            index, 
-            num_background_triangles, 
+            index,
+            num_background_triangles,
             num_border_triangles,
             num_foreground_triangles
         });
@@ -196,7 +196,7 @@ impl GlyphShader {
 
     pub fn add_glyph_instance(&mut self, glyph_instance : GlyphInstance, glyph_index : usize) {
         let glyph = self.glyph_map[glyph_index];
-        let glyph_total_triangles = (glyph.num_background_triangles as i32) 
+        let glyph_total_triangles = (glyph.num_background_triangles as i32)
             + (glyph.num_border_triangles as i32) + (glyph.num_foreground_triangles as i32);
         self.max_triangles = self.max_triangles.max(glyph_total_triangles);
         self.glyph_instances.push(ShaderGlyphInstance {
@@ -206,7 +206,7 @@ impl GlyphShader {
             background_color : color_to_u16_array(glyph_instance.background_color),
             border_color : color_to_u16_array(glyph_instance.border_color),
             foreground_color : color_to_u16_array(glyph_instance.foreground_color),
-            glyph 
+            glyph
         });
         self.ready = false;
     }
@@ -215,7 +215,7 @@ impl GlyphShader {
         if self.glyph_instances.is_empty() {
             return Ok(());
         }
-        
+
         self.program.use_program();
         self.webgl.bind_vertex_array(self.attribute_state.as_ref());
         self.glyph_instances.prepare();

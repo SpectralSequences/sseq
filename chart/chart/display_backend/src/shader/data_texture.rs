@@ -13,8 +13,8 @@ pub struct DataTexture<T> {
     webgl : WebGlWrapper,
     width : usize,
     format : Format,
-    pub data : Vec<T>, 
-    used_entries : usize, 
+    pub data : Vec<T>,
+    used_entries : usize,
     texture : Option<WebGlTexture>,
     texture_rows : usize,
     pub dirty_range : Range,
@@ -26,7 +26,7 @@ impl<T : std::fmt::Debug + std::default::Default> DataTexture<T> {
         assert_eq!(std::mem::align_of::<T>() % format.0.alignment(), 0);
         Self {
             webgl,
-            width : 2048, 
+            width : 2048,
             format,
             data : Vec::new(),
             used_entries : 0,
@@ -106,7 +106,7 @@ impl<T : std::fmt::Debug + std::default::Default> DataTexture<T> {
         if total_rows_needed > self.num_rows() {
             self.data.resize_with(self.num_entries_to_fit_rows(total_rows_needed), || T::default());
         }
-        // splice replaces a range with the result of iterator. 
+        // splice replaces a range with the result of iterator.
         // splice returns an iterator over subbed out range, which we have to consume in order to ensure change takes place.
         self.data.splice(self.used_entries .. self.used_entries + data_len, data).for_each(drop);  // consume iterator, ignore values.
         self.used_entries += data_len;
@@ -144,7 +144,7 @@ impl<T : std::fmt::Debug + std::default::Default> DataTexture<T> {
             self.data_view(dirty_min, dirty_max)
         };
         self.webgl.tex_sub_image_2d_with_i32_and_i32_and_u32_and_type_and_opt_array_buffer_view(
-            WebGl2RenderingContext::TEXTURE_2D, 
+            WebGl2RenderingContext::TEXTURE_2D,
             0, // mip level
             0, yoffset, // xoffset, yoffset: i32,
             self.width as i32, (dirty_max - dirty_min) as i32, // width, height

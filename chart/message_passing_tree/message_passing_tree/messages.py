@@ -2,9 +2,9 @@ from typing import List, Optional
 from uuid import UUID
 
 CmdStr = str
-CmdList = List[str]
+CmdList = list[str]
 AgentID = UUID
-AgentPath = List[UUID]
+AgentPath = list[UUID]
 
 
 class Command:

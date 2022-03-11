@@ -1,7 +1,7 @@
-from typing import Union, List
+from typing import List, Union
 
 UUID_str = str
-DashPattern = List[int]
+DashPattern = list[int]
 LineWidth = float
 
 from .css_colors import CSS_COLORS_JSON

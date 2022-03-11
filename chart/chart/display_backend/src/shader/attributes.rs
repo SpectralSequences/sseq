@@ -13,7 +13,7 @@ pub enum Type {
 }
 
 
-impl Type { 
+impl Type {
     fn size(self) -> i32 {
         match self {
             Type::F32 => std::mem::size_of::<f32>() as i32,
@@ -129,8 +129,8 @@ impl Format {
 
 
 pub struct Attribute {
-    name : &'static str, 
-    size : usize, 
+    name : &'static str,
+    size : usize,
     ty : Type,
 }
 
@@ -159,7 +159,7 @@ impl Attributes {
             ty.size() * (size as i32)
         ).sum()
     }
-    
+
     fn stride(&self) -> i32 {
         self.offset(self.attributes.len())
     }
@@ -169,7 +169,7 @@ impl Attributes {
         // IMPORTANT: Must bind_buffer here!!!!
         // vertex_attrib_pointer uses the current bound buffer implicitly.
         webgl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, attributes_buffer);
-    
+
         let stride = self.stride();
         for (idx, &Attribute {name, size, ty}) in self.attributes.iter().enumerate() {
             let size = size as i32;
@@ -178,7 +178,7 @@ impl Attributes {
             webgl.enable_vertex_attrib_array(loc);
             match ty {
                 Type::F32 => {webgl.vertex_attrib_pointer_with_i32(loc, size, ty.webgl_type(), false, stride, offset)},
-                Type::U32 | Type::I16 | Type::U16 | Type::U8 
+                Type::U32 | Type::I16 | Type::U16 | Type::U8
                     => {webgl.vertex_attrib_i_pointer_with_i32(loc, size, ty.webgl_type(), stride, offset)}
             };
             webgl.vertex_attrib_divisor(loc, 1);
@@ -186,6 +186,5 @@ impl Attributes {
         webgl.bind_vertex_array(None);
         Ok(())
     }
-    
-}
 
+}

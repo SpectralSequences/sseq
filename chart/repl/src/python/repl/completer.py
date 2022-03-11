@@ -1,9 +1,10 @@
-from .util import to_js, set_interrupt_buffer
-import jedi
-from uuid import uuid4
-from collections import OrderedDict
 import re
+from collections import OrderedDict
+from uuid import uuid4
 
+import jedi
+
+from .util import set_interrupt_buffer, to_js
 
 SPHINX = re.compile(r"\s*:param\s+(?P<param>\w+):\s*(?P<doc>[^\n]+)")
 EPYDOC = re.compile(r"\s*@param\s+(?P<param>\w+):\s*(?P<doc>[^\n]+)")
@@ -166,7 +167,7 @@ class Completer:
                 return
 
             # regex = re.compile('(?<!\n)\n(?!\n)', re.MULTILINE) # Remove isolated newline characters.
-            remove_links = re.compile("`(\S*) <\S*>`")
+            remove_links = re.compile(r"`(\S*) <\S*>`")
             docstring = remove_links.sub(r"`\1`", docstring)
             return to_js(
                 dict(
@@ -228,8 +229,9 @@ class Completer:
                 root = ".".join(full_name.split(".")[:-1])
             # full_name = object.full_name
             if object:
-                from parso import parse
                 from inspect import getsource
+
+                from parso import parse
 
                 # In this case, type(object).__name__ unfortunately gives "property", which isn't very descriptive.
                 # We would like to get the actual type, so we use parso to extract the type from the source.

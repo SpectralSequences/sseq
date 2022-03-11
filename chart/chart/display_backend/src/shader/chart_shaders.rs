@@ -27,7 +27,7 @@ struct UniformBufferData {
     scale : Vector,
     glyph_scale : f32,
     // We have to be aligned to a multiple of 4 floats. This padding brings us up to 20.
-    padding : [f32 ; 3] 
+    padding : [f32 ; 3]
 }
 
 impl From<CoordinateSystem> for UniformBufferData {
@@ -83,7 +83,7 @@ impl ChartShaders {
         let glyph_shader = GlyphShader::new(webgl.clone())?;
         let hit_canvas_shader = HitCanvasShader::new(webgl.clone())?;
         let edge_shader = EdgeShader::new(webgl.clone())?;
-        Ok(Self { 
+        Ok(Self {
             webgl,
             glyph_map : BTreeMap::new(),
             uniform_buffer,
@@ -142,7 +142,7 @@ impl ChartShaders {
     pub fn object_underneath_pixel(&self, coordinate_system : CoordinateSystem, p : JsPoint) -> Result<Option<u32>, JsValue> {
         self.hit_canvas_shader.object_underneath_pixel(coordinate_system, p.into())
     }
-    
+
 
     pub fn update_canvas_dimensions(&self, coord_system : CoordinateSystem){
         let left = (coord_system.left_margin as f64 * coord_system.buffer_dimensions.density()) as i32;
@@ -178,7 +178,7 @@ impl ChartShaders {
         self.update_uniform_buffer(coordinate_system);
         self.disable_clip();
         self.webgl.clear_color(0.0, 0.0, 0.0, 0.0);
-        self.webgl.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT);        
+        self.webgl.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT);
         self.enable_clip();
         self.webgl.premultiplied_blend_mode();
         self.minor_grid_shader.draw(coordinate_system)?;

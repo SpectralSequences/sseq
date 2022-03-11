@@ -1,6 +1,7 @@
 from spectralsequence_chart.helper_classes.page_property import PageProperty
 from spectralsequence_chart.infinity import INFINITY
 from spectralsequence_chart.utils import JSON
+
 from .test_serialization import assert_serialize_parse
 
 

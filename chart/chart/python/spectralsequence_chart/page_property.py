@@ -1,18 +1,8 @@
-from .infinity import INFINITY
 import json
-from typing import (
-    List,
-    Tuple,
-    Any,
-    Type,
-    Union,
-    TypeVar,
-    Generic,
-    Optional,
-    Dict,
-    cast,
-    Callable,
-)
+from typing import (Any, Callable, Dict, Generic, List, Optional, Tuple, Type,
+                    TypeVar, Union, cast)
+
+from .infinity import INFINITY
 
 T = TypeVar("T")
 
@@ -40,7 +30,7 @@ class PageProperty(Generic[T]):
         callback: Optional[Callable[[], None]] = None,
     ):
         """Initialize the PageProperty to always have value v."""
-        self._values: List[Tuple[int, T]] = [(0, value)]
+        self._values: list[tuple[int, T]] = [(0, value)]
         self.set_parent(parent)
         self._callback = callback
 
@@ -56,7 +46,7 @@ class PageProperty(Generic[T]):
         if self._callback:
             self._callback()
 
-    def _find_index(self, target_page: int) -> Tuple[int, bool]:
+    def _find_index(self, target_page: int) -> tuple[int, bool]:
         result_idx = None
         for (idx, (page, _)) in enumerate(self._values):
             if page > target_page:
@@ -139,16 +129,16 @@ class PageProperty(Generic[T]):
             (p, v) = self._values[i]
             self._values[i] = (p, f(v))
 
-    def to_json(self) -> Dict[str, Any]:
+    def to_json(self) -> dict[str, Any]:
         if len(self._values) == 1:
             return self._values[0][1]
         else:
             return {"type": "PageProperty", "values": self._values}
 
     @staticmethod
-    def from_json(json_obj: Dict[str, Any]) -> "PageProperty[Any]":
+    def from_json(json_obj: dict[str, Any]) -> "PageProperty[Any]":
         result: PageProperty[Any] = PageProperty(None)
-        result._values = [cast(Tuple[int, Any], tuple(x)) for x in json_obj["values"]]
+        result._values = [cast(tuple[int, Any], tuple(x)) for x in json_obj["values"]]
         return result
 
 

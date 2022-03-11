@@ -33,7 +33,7 @@ features = [
   'Document',
   'Element',
   'HtmlElement',
-  'HtmlCanvasElement', 
+  'HtmlCanvasElement',
   'CssStyleDeclaration',
   # 'Response', # needed for fetch
 
@@ -45,7 +45,7 @@ features = [
   'WebGlRenderbuffer',
   'WebGl2RenderingContext',
   'WebGlShader',
-  'WebGlTexture',   
+  'WebGlTexture',
   'WebGlUniformLocation',
   'WebGlVertexArrayObject',
 ]

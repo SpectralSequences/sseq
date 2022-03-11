@@ -1,17 +1,19 @@
 from abc import ABC, abstractmethod
-from .page_property import PageProperty, PagePropertyOrValue, ensure_page_property
-from .signal_dict import SignalDict
+from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple, Union, cast
 from uuid import uuid4
-from .chart_class import ChartClass, ChartClassStyle
 
-from typing import Optional, TYPE_CHECKING, Any, Dict, cast, Union, Optional, Tuple
+from .chart_class import ChartClass, ChartClassStyle
+from .page_property import (PageProperty, PagePropertyOrValue,
+                            ensure_page_property)
+from .signal_dict import SignalDict
 
 if TYPE_CHECKING:
     from .chart import SseqChart
     from .chart_class import ChartClass, ChartClassStyle
     from .display_primitives import Shape
 
-from .display_primitives import UUID_str, Color, DashPattern, LineWidth, ArrowTip
+from .display_primitives import (ArrowTip, Color, DashPattern, LineWidth,
+                                 UUID_str)
 
 
 class ChartEdgeStyle:
@@ -31,7 +33,7 @@ class ChartEdgeStyle:
         self._start_tip: Optional[ArrowTip] = start_tip
         self._end_tip: Optional[ArrowTip] = end_tip
 
-    def to_json(self) -> Dict[str, Any]:
+    def to_json(self) -> dict[str, Any]:
         return dict(
             type=type(self).__name__,
             action=self._action,
@@ -43,7 +45,7 @@ class ChartEdgeStyle:
         )
 
     @classmethod
-    def from_json(cls, json: Dict[str, Any]) -> "ChartEdgeStyle":
+    def from_json(cls, json: dict[str, Any]) -> "ChartEdgeStyle":
         assert json.pop("type") == cls.__name__
         return cls(**json)
 
@@ -183,10 +185,10 @@ class ChartEdge(ABC):
         del self.target.edges[self.target.edges.index(self)]
         self._deleted = True
 
-    _EDGE_TYPE_DICT: Dict[str, type]
+    _EDGE_TYPE_DICT: dict[str, type]
 
     @staticmethod
-    def from_json(json: Dict[str, Any]) -> "ChartEdge":
+    def from_json(json: dict[str, Any]) -> "ChartEdge":
         if not hasattr(ChartEdge, "EDGE_TYPE_DICT"):
             ChartEdge._EDGE_TYPE_DICT = {
                 edge_type.__name__: edge_type
@@ -228,7 +230,7 @@ class ChartEdge(ABC):
         self,
         type: Optional[str],
         uuid: UUID_str,
-        user_data: Dict[str, Any],
+        user_data: dict[str, Any],
     ):
         assert type == self.__class__.__name__
         self._uuid = uuid
@@ -239,7 +241,7 @@ class ChartEdge(ABC):
         return self._user_data
 
     @abstractmethod
-    def to_json(self) -> Dict[str, Any]:
+    def to_json(self) -> dict[str, Any]:
         return dict(
             type=self.__class__.__name__,
             uuid=self.uuid,
@@ -273,7 +275,7 @@ class ChartStructline(ChartEdge):
     def set_style(
         self,
         style: Union[str, ChartEdgeStyle],
-        page: Union[int, Tuple[int, int]] = None,
+        page: Union[int, tuple[int, int]] = None,
     ) -> "ChartStructline":
         """Sets the display style of the structline.
 
@@ -317,7 +319,7 @@ class ChartStructline(ChartEdge):
             end_tip=self.end_tip[page],
         )
 
-    def to_json(self) -> Dict[str, Any]:
+    def to_json(self) -> dict[str, Any]:
         return dict(
             super().to_json(),
             type=self.__class__.__name__,
@@ -495,7 +497,7 @@ class SinglePageChartEdge(ChartEdge):
             end_tip=self.end_tip,
         )
 
-    def to_json(self) -> Dict[str, Any]:
+    def to_json(self) -> dict[str, Any]:
         return dict(
             super().to_json(),
             type=self.__class__.__name__,
@@ -631,7 +633,7 @@ class ChartDifferential(SinglePageChartEdge):
         super().__init__(source_uuid, target_uuid)
         self.page: int = page
 
-    def to_json(self) -> Dict[str, Any]:
+    def to_json(self) -> dict[str, Any]:
         return dict(super().to_json(), page=self.page)
 
 

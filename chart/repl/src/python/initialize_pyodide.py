@@ -1,14 +1,13 @@
-from parso import cache
-
-
 from js import loadingMessage
 from namespace import get_namespace
+from parso import cache
 from sseq_display import SseqDisplay
 
 namespace = get_namespace()
 loadingMessage("Initializing Jedi completion engine")
 
 import jedi  # This is slow but better to do it up front.
+
 
 # Prevent a common source of stack overflows
 def dummied_save_to_file_system(a, b, c, cache_path):

@@ -61,7 +61,7 @@ pub struct HitCanvasShader {
 impl HitCanvasShader {
     pub fn new(webgl : WebGlWrapper) -> Result<Self, JsValue> {
         let program = Program::new(
-            webgl.clone(), 
+            webgl.clone(),
             include_str!("hit_canvas.vert"),
             r#"#version 300 es
                 precision highp float;
@@ -96,8 +96,8 @@ impl HitCanvasShader {
             hit_canvas_depth_buffer : None,
 
             glyph_convex_hulls,
-            glyph_instances, 
-            
+            glyph_instances,
+
             attribute_state,
             ready : false
         })
@@ -126,16 +126,16 @@ impl HitCanvasShader {
         self.webgl.tex_parameteri(WebGl2RenderingContext::TEXTURE_2D, WebGl2RenderingContext::TEXTURE_MIN_FILTER, WebGl2RenderingContext::NEAREST as i32);
         self.webgl.tex_parameteri(WebGl2RenderingContext::TEXTURE_2D, WebGl2RenderingContext::TEXTURE_WRAP_S, WebGl2RenderingContext::CLAMP_TO_EDGE as i32);
         self.webgl.tex_parameteri(WebGl2RenderingContext::TEXTURE_2D, WebGl2RenderingContext::TEXTURE_WRAP_T, WebGl2RenderingContext::CLAMP_TO_EDGE as i32);
-        
+
         self.webgl.bind_framebuffer(WebGl2RenderingContext::FRAMEBUFFER, self.hit_canvas_framebuffer.as_ref());
         self.webgl.framebuffer_texture_2d(
-            WebGl2RenderingContext::FRAMEBUFFER, 
-            WebGl2RenderingContext::COLOR_ATTACHMENT0, 
-            WebGl2RenderingContext::TEXTURE_2D, 
+            WebGl2RenderingContext::FRAMEBUFFER,
+            WebGl2RenderingContext::COLOR_ATTACHMENT0,
+            WebGl2RenderingContext::TEXTURE_2D,
             self.hit_canvas_texture.as_ref(),
             0 // level
         );
-        self.webgl.framebuffer_renderbuffer(WebGl2RenderingContext::FRAMEBUFFER, WebGl2RenderingContext::DEPTH_ATTACHMENT, WebGl2RenderingContext::RENDERBUFFER, 
+        self.webgl.framebuffer_renderbuffer(WebGl2RenderingContext::FRAMEBUFFER, WebGl2RenderingContext::DEPTH_ATTACHMENT, WebGl2RenderingContext::RENDERBUFFER,
             self.hit_canvas_depth_buffer.as_ref()
         );
         self.webgl.renderbuffer_storage(WebGl2RenderingContext::RENDERBUFFER, WebGl2RenderingContext::DEPTH_COMPONENT16, dimensions.pixel_width(), dimensions.pixel_height());
@@ -151,7 +151,7 @@ impl HitCanvasShader {
             position : glyph_instance.position,
             offset : glyph_instance.offset,
             scale : glyph_instance.scale,
-            glyph : ShaderGlyphHeader { 
+            glyph : ShaderGlyphHeader {
                 index : glyph_index as u16,
                 padding : 0
             },
@@ -189,7 +189,7 @@ impl HitCanvasShader {
 
         self.glyph_instances.prepare();
         self.glyph_convex_hulls.bind(GLYPH_HULL_TEXTURE_UNIT)?;
-        
+
         let num_instances = self.glyph_instances.len() as i32;
         let num_vertices = ANGLE_RESOLUTION as i32;
         self.webgl.draw_arrays_instanced(

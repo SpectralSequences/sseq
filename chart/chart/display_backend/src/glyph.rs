@@ -1,5 +1,5 @@
 #[allow(unused_imports)]
-use crate::log; 
+use crate::log;
 use crate::error::convert_tessellation_error;
 
 use lazy_static::lazy_static;
@@ -61,7 +61,7 @@ fn pathop_bounding_box<'a, T : Iterator<Item=&'a PathOp>>(path : T) -> Box2D<f32
                 result.push(pt_to_euclid(*ctrl1));
                 result.push(pt_to_euclid(*ctrl2));
                 result.push(pt_to_euclid(*to));
-            } 
+            }
             PathOp::PenWidth(_) => {}
         };
         result.into_iter()
@@ -69,7 +69,7 @@ fn pathop_bounding_box<'a, T : Iterator<Item=&'a PathOp>>(path : T) -> Box2D<f32
 }
 
 fn footile_path_to_lyon_path<T : Iterator<Item=PathOp>>(path : T) -> impl Iterator<Item=PathEvent> {
-    let mut first = point(0.0, 0.0); 
+    let mut first = point(0.0, 0.0);
     let mut from = point(0.0, 0.0);
     path.filter_map(move |path_op| {
         let result; //= None;
@@ -116,7 +116,7 @@ fn lyon_path_to_footile_path<T : Iterator<Item=PathEvent>>(path : T) -> Vec<Path
         match path_event {
             PathEvent::End { close : false, ..} => {
                 None
-            }            
+            }
             PathEvent::End { close : true, ..} => {
                 Some(PathOp::Close())
             }
@@ -148,7 +148,7 @@ enum PathType {
     Foreground,
     #[allow(dead_code)]
     Background,
-    Boundary, 
+    Boundary,
     BackgroundAndBoundary
 }
 
@@ -205,7 +205,7 @@ impl GlyphBuilder {
         let component = GlyphComponent {
             path : footile_path_to_lyon_path(box_path.iter().copied()).collect(),
             path_type : if include_background { PathType::BackgroundAndBoundary } else { PathType::Boundary },
-        };        
+        };
         self.paths.push(component);
     }
 
@@ -223,7 +223,7 @@ impl GlyphBuilder {
         let component = GlyphComponent {
             path : circle_path,
             path_type : if include_background { PathType::BackgroundAndBoundary } else { PathType::Boundary },
-        };            
+        };
         self.paths.push(component);
         for i in 1..num_circles {
             let radius = radius + (i as f32) * circle_gap;
@@ -243,11 +243,11 @@ impl GlyphBuilder {
     pub fn build(self, tolerance : f32, line_width : f32) -> Glyph {
         let GlyphBuilder { paths, bounding_box } = self;
         let convex_hull = Rc::new(ConvexHull::from_path(
-            lyon_path_to_footile_path(paths.last().unwrap().path.iter().copied()), 
+            lyon_path_to_footile_path(paths.last().unwrap().path.iter().copied()),
             bounding_box
         ));
         let paths = Rc::new(paths);
-        Glyph { 
+        Glyph {
             paths,
             convex_hull,
             tolerance,
@@ -272,11 +272,11 @@ pub struct Glyph {
     pub(crate) uuid : GlyphUuid
 }
 
-impl Glyph { 
+impl Glyph {
     // pub fn width_scale(&self) -> f32 {
     //     SCALE_FACTOR / self.
     // }
-    
+
     pub(crate) fn tessellate_background(&self, buffers : &mut VertexBuffers<Point, u16>) -> Result<(), JsValue> {
         let mut vertex_builder = geometry_builder::simple_builder(buffers);
         let mut fill_tessellator = FillTessellator::new();
@@ -296,7 +296,7 @@ impl Glyph {
         let mut vertex_builder = geometry_builder::simple_builder(buffers);
         let mut stroke_tessellator = StrokeTessellator::new();
         let options = StrokeOptions::default().with_line_width(self.line_width).with_tolerance(self.tolerance / self.max_scale);
-        let transform = Transform::identity().then_translate(- self.convex_hull.center().to_vector());        
+        let transform = Transform::identity().then_translate(- self.convex_hull.center().to_vector());
         for &GlyphComponent { ref path, path_type} in &*self.paths {
             if let PathType::Boundary | PathType::BackgroundAndBoundary = path_type {
                 let path = path.iter().copied().transformed(&transform);
@@ -352,11 +352,11 @@ impl GlyphInstance {
 
 impl GlyphInstance {
     pub fn new(
-        glyph : Glyph, 
-        position : Point, 
-        offset : Vector, 
-        scale : f32, 
-        background_color : Vec4, 
+        glyph : Glyph,
+        position : Point,
+        offset : Vector,
+        scale : f32,
+        background_color : Vec4,
         border_color : Vec4,
         foreground_color : Vec4
     ) -> Self {
