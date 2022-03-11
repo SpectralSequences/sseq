@@ -8,17 +8,17 @@ use lyon::geom::math::{Point, Angle, Vector};
 use lyon::tessellation::{VertexBuffers};
 
 #[allow(unused_imports)]
-use crate::log;
-use crate::vector::{Vec4};
-use crate::shader::Program;
-use crate::webgl_wrapper::WebGlWrapper;
+use create::log;
+use create::vector::{Vec4};
+use create::shader::Program;
+use create::webgl_wrapper::WebGlWrapper;
 
-use crate::glyph::{GlyphInstance};
-use crate::arrow::{Arrow, ArrowId};
+use create::glyph::{GlyphInstance};
+use create::arrow::{Arrow, ArrowId};
 
-use crate::shader::attributes::{Format, Type, NumChannels, Attribute, Attributes};
-use crate::shader::data_texture::DataTexture;
-use crate::shader::vertex_buffer::VertexBuffer;
+use create::shader::attributes::{Format, Type, NumChannels, Attribute, Attributes};
+use create::shader::data_texture::DataTexture;
+use create::shader::vertex_buffer::VertexBuffer;
 
 
 const DASH_PATTERN_TEXTURE_WIDTH : usize = 512;
@@ -269,7 +269,7 @@ impl EdgeShader {
                     }
                 }
                 // An extra sentinel "on" value. This is so that the final "off" segment is correctly linearly blended
-                // with the inital "on" segment when we wrap around. If the length of the dash pattern is exactly
+                // with the initial "on" segment when we wrap around. If the length of the dash pattern is exactly
                 // DASH_PATTERN_TEXTURE_WIDTH, then we have no space for this but also the blending occurs automatically.
                 // (I assume that's how TEXTURE_WRAP_S = REPEAT must work...)
                 if pattern_len < DASH_PATTERN_TEXTURE_WIDTH as u16 {
@@ -344,7 +344,7 @@ impl EdgeShader {
     }
 
     // Get arrow tip data to put into the attribute buffer.
-    // If the given arrow has never been used before, we tesselate it and add the path and metrics to the relevant data textures.
+    // If the given arrow has never been used before, we tessellate it and add the path and metrics to the relevant data textures.
     fn arrow_tip_data(&mut self, arrow : &Arrow) -> Result<ArrowIndices, JsValue> {
         let entry = self.tip_map.entry(arrow.uuid);
         match entry {

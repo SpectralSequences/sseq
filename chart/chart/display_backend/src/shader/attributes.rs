@@ -2,7 +2,7 @@ use std::convert::{TryInto, TryFrom};
 use web_sys::{WebGl2RenderingContext, WebGlVertexArrayObject, WebGlBuffer, WebGlProgram};
 use wasm_bindgen::JsValue;
 
-use crate::webgl_wrapper::WebGlWrapper;
+use create::webgl_wrapper::WebGlWrapper;
 
 #[derive(Copy, Clone, Debug)]
 pub enum Type {

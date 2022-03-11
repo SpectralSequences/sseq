@@ -10,6 +10,8 @@
 **/*.rs.bk
 **/*.lock
 
+**/dist/
+
 
 # Probably need these back in ext.
 # Maybe should include target & dist in repo?

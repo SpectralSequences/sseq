@@ -480,7 +480,7 @@ export class PopupElement extends LitElement {
         }
     }
 
-    submited() {
+    submitted() {
         if (!this._submitPromise) {
             this._submitPromise = promiseFromDomEvent(this, 'submit').then(
                 e => {

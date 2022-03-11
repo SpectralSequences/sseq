@@ -449,7 +449,7 @@ class SseqChart:
             obj = self._objects_by_uuid[msg["target_uuid"]]
             obj.delete()
         else:
-            raise ValueError(f"Unexpeted command '{cmd}'")
+            raise ValueError(f"Unexpected command '{cmd}'")
 
     def get_settings(self) -> dict[str, any]:
         return dict(

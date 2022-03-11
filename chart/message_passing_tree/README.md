@@ -17,7 +17,7 @@ Each `Agent` has a set of _command filters_ that it subscribes to and it will on
 For instance, if an agent is subscribed to the command filters `chart` and `display.background` then it will receive `chart.class.add`, `chart.edge.update`, and `display.background.set_color` but not `display.set_status`.
 
 An `Agent` also has a set of transformers/consumers for inbound messages and a set of transformers/consumers for outbound messages. A transformer/consumer is a pair a command filter and a handler. When an `Agent` receives an inbound message, it looks to see whether the command matches any of the command filters that the agent transforms. If the command matches multiple command filters, the `Agent` always picks the most specific filter (in particular, it will only ever apply at most one transformer/consumer).
-If the handler applied is a transfomer, then the `Agent` will pass the transformed message onward.
+If the handler applied is a transformer, then the `Agent` will pass the transformed message onward.
 If the handler applied is a consumer, the `Agent` "consumes" the message and does not pass it onward.
 
 ## Definitions of Terms

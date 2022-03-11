@@ -141,7 +141,7 @@ int triangleStripPattern(int index){
 // direction -- does circle curve to the left or to the right of the tangent vector.
 vec4 circleOffsetHelper(float curvature, float dist) {
     // If dist == 0, tangent, vector we want to normalize to get tangent is (0, 0).
-    // Thus, it's necesary to special case distance == 0. (What about distance small?)
+    // Thus, it's necessary to special case distance == 0. (What about distance small?)
     if(dist == 0.0){
         return vec4(0.0, 0.0, 1.0, 0.0);
     }
@@ -322,7 +322,7 @@ vec2 vertexPositionCurved(){
     // Arc. It's our responsibility here to draw triangles such that:
     // (1) Triangles cover entire arc once each
     // (2) When arc passes out of our region, the edge is perpendicular to the tangent
-    // We use two trapezoids. Would be possible to accomodate angle < 90 degrees with just one. This deals with angle <
+    // We use two trapezoids. Would be possible to accommodate angle < 90 degrees with just one. This deals with angle <
     if(vertexID < 12){
         fDashPattern = aDashPattern;
         // Save original positions. We want to use angle in a bit, but we're not sure what the angle between the updated start and end position are.

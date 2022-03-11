@@ -12,8 +12,8 @@ use lyon::tessellation::{
     FillTessellator, FillOptions, VertexBuffers,
 };
 
-use crate::error::convert_tessellation_error;
-use crate::webgl_wrapper::WebGlWrapper;
+use create::error::convert_tessellation_error;
+use create::webgl_wrapper::WebGlWrapper;
 // pub struct ArrowSettings {
 //     length : ArrowLength,
 //     width : ArrowDimension,
@@ -58,15 +58,15 @@ pub struct ArrowId(Uuid);
 #[wasm_bindgen]
 #[derive(Clone, Debug)]
 pub struct Arrow {
-    pub(crate) tip_end : f32,
-    pub(crate) back_end : f32,
-    pub(crate) visual_tip_end : f32,
-    pub(crate) visual_back_end : f32,
-    pub(crate) line_end : f32,
-    pub(crate) path : Rc<Path>,
-    pub(crate) stroke : Option<StrokeOptions>,
-    pub(crate) fill : Option<FillOptions>,
-    pub(crate) uuid : ArrowId,
+    pub(create) tip_end : f32,
+    pub(create) back_end : f32,
+    pub(create) visual_tip_end : f32,
+    pub(create) visual_back_end : f32,
+    pub(create) line_end : f32,
+    pub(create) path : Rc<Path>,
+    pub(create) stroke : Option<StrokeOptions>,
+    pub(create) fill : Option<FillOptions>,
+    pub(create) uuid : ArrowId,
 }
 
 impl Arrow {

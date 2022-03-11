@@ -19,6 +19,6 @@ To build the test app (just displays a test page):
     npm run build
 ```
 
-To view the demo, you will need a webserver with the correct mimetype for wasm. For convenience a tiny wrapper around Python http-server is in serve_wasm.py. Inside the file, it explicity specifies that it will serve to port 8101, which I chose to avoid clashing with other ports I'm serving stuff to. If you want to serve to a different port, I would suggest copying `serve_wasm.py` into `dist` (in `.gitignore`) and changing the port number.
+To view the demo, you will need a webserver with the correct mimetype for wasm. For convenience a tiny wrapper around Python http-server is in serve_wasm.py. Inside the file, it explicitly specifies that it will serve to port 8101, which I chose to avoid clashing with other ports I'm serving stuff to. If you want to serve to a different port, I would suggest copying `serve_wasm.py` into `dist` (in `.gitignore`) and changing the port number.
 
 As a second option, you could use `webpack-dev-server` which automatically serves wasm with the correct mimetype. This you can start with `npm run serve`.

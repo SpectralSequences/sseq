@@ -337,7 +337,7 @@ class TableUI {
             input.value = name;
         }
         this.popup.show();
-        let ok_q = await this.popup.submited();
+        let ok_q = await this.popup.submitted();
         if(!ok_q){
             return;
         }
@@ -409,7 +409,7 @@ class TableUI {
             ${out_name ? `<p>Current name is <katex-expr>${out_name}</katex-expr>.</p>` : ``}
         `;
         this.popup.show();
-        let ok_q = await this.popup.submited();
+        let ok_q = await this.popup.submitted();
         if(!ok_q){
             return;
         }
@@ -459,7 +459,7 @@ class TableUI {
         });
         // TODO: disable rows of matrix not set in one_entries.
         this.popup.show();
-        let ok_q = await this.popup.submited();
+        let ok_q = await this.popup.submitted();
         if(!ok_q){
             this.socket_listener.send("interact.revert_preview", { bidegree : selected_bidegree });
             return;
@@ -524,7 +524,7 @@ class TableUI {
         });
         // matrix_elt.addEventListener("blur", (e) => console.log("blurred", e));
         this.popup.show();
-        let ok_q = await this.popup.submited();
+        let ok_q = await this.popup.submitted();
         if(!ok_q){
             this.socket_listener.send("interact.revert_preview", { bidegree : selected_bidegree });
             return;

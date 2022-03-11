@@ -1410,7 +1410,7 @@ class ReplElement extends HTMLElement {
             delete this.outputModelLines[numModelLines];
             delete this.outputScreenLines[numScreenLines];
         } else {
-            // Ocassionally something printed stuff to stdout but didn't terminate the line.
+            // Occasionally something printed stuff to stdout but didn't terminate the line.
             // We terminate it ourselves in that case to prevent weirdness.
             this.editor.setValue(this.editor.getValue() + '\n');
             numModelLines++;

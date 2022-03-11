@@ -324,7 +324,7 @@ link_regex = re.compile(r"(?<!:)`([^<>`]*)(?: <([_.A-Za-z]*)>)?`")
 
 
 def link_replacer(match):
-    """Subsitute `SseqChart.add_class` ==> :meth:`SseqChart.add_class`
+    """Substitute `SseqChart.add_class` ==> :meth:`SseqChart.add_class`
     Substitute `chart.add_class <SseqChart.add_class>` ==> :meth:`chart.add_class <SseqChart.add_class>`
     """
     text = match.group(1)

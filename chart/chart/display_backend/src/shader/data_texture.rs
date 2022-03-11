@@ -1,11 +1,11 @@
 #[allow(unused_imports)]
-use crate::log;
-use crate::shader::range::Range;
-use crate::shader::attributes::{Format, Type};
+use create::log;
+use create::shader::range::Range;
+use create::shader::attributes::{Format, Type};
 use web_sys::{WebGl2RenderingContext, WebGlTexture};
 use wasm_bindgen::{JsValue};
 use js_sys::Object;
-use crate::webgl_wrapper::WebGlWrapper;
+use create::webgl_wrapper::WebGlWrapper;
 
 
 // TODO: context loss?

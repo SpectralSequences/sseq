@@ -33,7 +33,7 @@ dist/sseq_webclient.js, run
 Due to CORS restrictions, opening an file directly in a browser is unlikely to
 succeed. Instead, you should run a web server that serves the directory and
 then access localhost. To do so, navigate into the directory containing the
-source code, and run one of the following two commans:
+source code, and run one of the following two commands:
 
 ```
  $ python3 -m http.server 8080

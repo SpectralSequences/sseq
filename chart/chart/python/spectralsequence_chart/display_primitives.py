@@ -85,7 +85,7 @@ Color.CSS_COLORS["transparent"]._name = "transparent"
 
 
 class ArrowTip:
-    """An ArrowTip. Curently the only possible arrow tip is the standard one.
+    """An ArrowTip. Currently the only possible arrow tip is the standard one.
     TODO: support for hook, some parameters.
     """
 

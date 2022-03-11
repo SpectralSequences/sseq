@@ -39,7 +39,7 @@ class SocketChannel(Agent):
                 path = dist_static_files.get_path(scope)
                 import pathlib
 
-                # Pull off the inital /cls_dir from the path
+                # Pull off the initial /cls_dir from the path
                 path = str(pathlib.Path(path).relative_to(f"{cls_dir}"))
                 return await dist_static_files.get_response(path, scope)
             try:

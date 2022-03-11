@@ -186,7 +186,7 @@ class ChartClass:
 
             page (int | Tuple[int, int]):
                 If argument ``page`` is omitted or ``None`` then the style is set on all pages.
-                If ``page`` is a single integer, then the stlye is set starting on that page and all later pages.
+                If ``page`` is a single integer, then the style is set starting on that page and all later pages.
                 If ``page`` is a pair of integers, the style is set on that range of pages inclusive of the lower
                 endpoint and exclusive of the upper endpoint.
         """

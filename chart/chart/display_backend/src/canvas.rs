@@ -4,19 +4,19 @@ use web_sys::{WebGl2RenderingContext, HtmlCanvasElement};
 // use std::f32::consts::PI;
 
 #[allow(unused_imports)]
-use crate::log;
+use create::log;
 
-use crate::glyph::{Glyph, GlyphInstance};
+use create::glyph::{Glyph, GlyphInstance};
 
-use crate::shader::{ChartShaders, EdgeOptions};
+use create::shader::{ChartShaders, EdgeOptions};
 
 
-use crate::webgl_wrapper::WebGlWrapper;
+use create::webgl_wrapper::WebGlWrapper;
 use lyon::geom::math::{point, vector};
-use crate::vector::{JsPoint, Vec4};
+use create::vector::{JsPoint, Vec4};
 
 
-use crate::coordinate_system::{CoordinateSystem, BufferDimensions};
+use create::coordinate_system::{CoordinateSystem, BufferDimensions};
 
 
 
@@ -93,13 +93,13 @@ impl Canvas {
     }
 
 
-    // For the publically exposed version we update the "natural scale"
+    // For the publicly exposed version we update the "natural scale"
     pub fn set_current_xrange(&mut self, xmin: f32, xmax: f32) {
         self.coordinate_system.set_current_xrange(xmin, xmax);
         self.coordinate_system.update_natural_ratio();
     }
 
-    // For the publically exposed version we update the "natural scale"
+    // For the publicly exposed version we update the "natural scale"
     pub fn set_current_yrange(&mut self, ymin: f32, ymax: f32) {
         self.coordinate_system.set_current_yrange(ymin, ymax);
         self.coordinate_system.update_natural_ratio();

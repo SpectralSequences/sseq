@@ -12,18 +12,18 @@ use lyon::geom::math::{Point, Vector};
 use lyon::tessellation::{VertexBuffers};
 
 #[allow(unused_imports)]
-use crate::log;
-use crate::webgl_wrapper::WebGlWrapper;
-use crate::shader::Program;
-use crate::vector::Vec4;
+use create::log;
+use create::webgl_wrapper::WebGlWrapper;
+use create::shader::Program;
+use create::vector::Vec4;
 
 #[allow(unused_imports)]
-use crate::stroke_tessellation::{PositionNormal};
-use crate::glyph::{GlyphInstance, Glyph};
+use create::stroke_tessellation::{PositionNormal};
+use create::glyph::{GlyphInstance, Glyph};
 
-use crate::shader::attributes::{Format, Type, NumChannels,  Attribute, Attributes};
-use crate::shader::data_texture::DataTexture;
-use crate::shader::vertex_buffer::VertexBuffer;
+use create::shader::attributes::{Format, Type, NumChannels,  Attribute, Attributes};
+use create::shader::data_texture::DataTexture;
+use create::shader::vertex_buffer::VertexBuffer;
 
 
 const ATTRIBUTES : Attributes = Attributes::new(&[
@@ -76,7 +76,7 @@ fn color_to_u16_array(v : Vec4) -> [u16;2] {
 
 pub struct GlyphShader {
     webgl : WebGlWrapper,
-    pub(in crate::shader) program : Program,
+    pub(in create::shader) program : Program,
     attribute_state : Option<WebGlVertexArrayObject>,
     glyph_instances : VertexBuffer<ShaderGlyphInstance>,
     max_triangles : i32,
@@ -142,7 +142,7 @@ impl GlyphShader {
         self.ready = false;
     }
 
-    pub(in crate::shader) fn add_glyph_data(&mut self, glyph : &Glyph) -> Result<(), JsValue> {
+    pub(in create::shader) fn add_glyph_data(&mut self, glyph : &Glyph) -> Result<(), JsValue> {
         let index = self.glyph_paths.len() / 3;
         let index : Result<u16, _> = index.try_into();
         let index = index.map_err(|_| "Too many total glyph vertices : max number of triangles in all glyphs is 65535.")?;

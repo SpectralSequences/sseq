@@ -20,7 +20,7 @@ mod canvas;
 mod stroke_tessellation;
 mod glyph;
 
-use crate::canvas::Canvas;
+use create::canvas::Canvas;
 
 
 use wasm_bindgen::prelude::*;

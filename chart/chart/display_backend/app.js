@@ -73,7 +73,7 @@ export class App {
             cancelAnimationFrame(this.requestAnimationFrameId);
         });
         canvasElement.addEventListener('webglcontextrestored', event => {
-            console.log('context retored!');
+            console.log('context restored!');
             let canvasContext = canvasElement.getContext(
                 'webgl2',
                 WEBGL_OPTIONS,

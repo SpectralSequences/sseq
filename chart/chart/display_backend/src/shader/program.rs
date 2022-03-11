@@ -1,8 +1,8 @@
-use crate::vector::{Vec4};
+use create::vector::{Vec4};
 use lyon::geom::math::{Point, Vector, Transform};
 
 use wasm_bindgen::JsValue;
-use crate::webgl_wrapper::WebGlWrapper;
+use create::webgl_wrapper::WebGlWrapper;
 use web_sys::{
     WebGl2RenderingContext, WebGlProgram, WebGlShader,
 };

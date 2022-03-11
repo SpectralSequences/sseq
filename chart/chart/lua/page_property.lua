@@ -30,7 +30,7 @@ function PageProperty:__index(index)
         end
         return PageProperty[index]
     end
-    assert(type(index) ~= "table", "Type Error: Can only assign to slice index, cannot retreive.")
+    assert(type(index) ~= "table", "Type Error: Can only assign to slice index, cannot retrieve.")
     assert(type(index) == "number", string.format("Type Error: expected number, got %s.", type(index)))
     idx, _ = self:find_index(index)
     return self.values[idx][2]

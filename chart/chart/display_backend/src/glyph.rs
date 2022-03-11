@@ -1,6 +1,6 @@
 #[allow(unused_imports)]
-use crate::log;
-use crate::error::convert_tessellation_error;
+use create::log;
+use create::error::convert_tessellation_error;
 
 use lazy_static::lazy_static;
 use arrayvec::ArrayVec;
@@ -22,10 +22,10 @@ use lyon::tessellation::{
 
 
 
-use crate::vector::{Vec4};
-use crate::convex_hull::{ConvexHull};
+use create::vector::{Vec4};
+use create::convex_hull::{ConvexHull};
 #[allow(unused_imports)]
-use crate::stroke_tessellation::{PositionNormal, PositionNormalConstructor};
+use create::stroke_tessellation::{PositionNormal, PositionNormalConstructor};
 
 const FONT_SIZE: f32 = 32.0;
 const SCALE_FACTOR : f32 = 100.0; // TODO: what/why is SCALE_FACTOR? What are the units here?
@@ -269,7 +269,7 @@ pub struct Glyph {
     tolerance : f32,
     line_width : f32,
     max_scale : f32,
-    pub(crate) uuid : GlyphUuid
+    pub(create) uuid : GlyphUuid
 }
 
 impl Glyph {
@@ -277,7 +277,7 @@ impl Glyph {
     //     SCALE_FACTOR / self.
     // }
 
-    pub(crate) fn tessellate_background(&self, buffers : &mut VertexBuffers<Point, u16>) -> Result<(), JsValue> {
+    pub(create) fn tessellate_background(&self, buffers : &mut VertexBuffers<Point, u16>) -> Result<(), JsValue> {
         let mut vertex_builder = geometry_builder::simple_builder(buffers);
         let mut fill_tessellator = FillTessellator::new();
         let options = FillOptions::default().with_tolerance(self.tolerance / self.max_scale);
@@ -291,7 +291,7 @@ impl Glyph {
         Ok(())
     }
 
-    pub(crate) fn tessellate_boundary(&self, buffers : &mut VertexBuffers<Point /*PositionNormal*/, u16>,) -> Result<(), JsValue> {
+    pub(create) fn tessellate_boundary(&self, buffers : &mut VertexBuffers<Point /*PositionNormal*/, u16>,) -> Result<(), JsValue> {
         // let mut vertex_builder = geometry_builder::BuffersBuilder::new(buffers, PositionNormalConstructor {});
         let mut vertex_builder = geometry_builder::simple_builder(buffers);
         let mut stroke_tessellator = StrokeTessellator::new();
@@ -306,7 +306,7 @@ impl Glyph {
         Ok(())
     }
 
-    pub(crate) fn tessellate_foreground(&self, buffers : &mut VertexBuffers<Point, u16>) -> Result<(), JsValue> {
+    pub(create) fn tessellate_foreground(&self, buffers : &mut VertexBuffers<Point, u16>) -> Result<(), JsValue> {
         let mut vertex_builder = geometry_builder::simple_builder(buffers);
         let mut fill_tessellator = FillTessellator::new();
         let options = FillOptions::default().with_tolerance(self.tolerance / self.max_scale);
@@ -320,7 +320,7 @@ impl Glyph {
         Ok(())
     }
 
-    pub(crate) fn boundary(&self) -> &Vec<Vector> {
+    pub(create) fn boundary(&self) -> &Vec<Vector> {
         &self.convex_hull.outline
     }
 }
@@ -329,13 +329,13 @@ impl Glyph {
 #[wasm_bindgen]
 #[derive(Clone)]
 pub struct GlyphInstance {
-    pub(crate) glyph : Glyph,
-    pub(crate) position : Point,
-    pub(crate) offset : Vector,
-    pub(crate) scale : f32,
-    pub(crate) background_color : Vec4,
-    pub(crate) border_color : Vec4,
-    pub(crate) foreground_color : Vec4,
+    pub(create) glyph : Glyph,
+    pub(create) position : Point,
+    pub(create) offset : Vector,
+    pub(create) scale : f32,
+    pub(create) background_color : Vec4,
+    pub(create) border_color : Vec4,
+    pub(create) foreground_color : Vec4,
 }
 
 #[wasm_bindgen]
