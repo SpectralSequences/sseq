@@ -33,9 +33,6 @@ jobs:
             /usr/share/rust/.cargo
           key: test-${{ steps.rustup.outputs.rustc_hash }}-${{ hashFiles('**/Cargo.*') }}
 
-      - name: Run sseq_gui tests
-        run: make -C web_ext/sseq_gui test
-
       - name: Run sseq_gui examples
         run: make -C web_ext/sseq_gui run_examples
 

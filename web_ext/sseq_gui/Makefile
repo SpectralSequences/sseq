@@ -46,9 +46,6 @@ clean-wasm:
 clean: clean-wasm
 	rm -r target
 
-test:
-	cargo test
-
 run_examples: $(patsubst examples/%.rs, target/debug/examples/%, $(wildcard examples/*.rs))
 
 target/debug/examples/%: dummy
