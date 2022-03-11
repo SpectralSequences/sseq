@@ -209,10 +209,8 @@ fn create_chain_complex(num_s: usize) -> FiniteChainComplex {
     #[cfg(not(feature = "nassau"))]
     let algebra: Arc<algebra::SteenrodAlgebra> = Arc::new(MilnorAlgebra::new(TWO).into());
 
-    let zero_module = Arc::new(FreeModule::new(Arc::clone(&algebra), String::from("0"), 0));
-
     let mut modules: Vec<Arc<FreeModule>> = Vec::with_capacity(num_s);
-    let mut differentials: Vec<Arc<FreeModuleHomomorphism>> = Vec::with_capacity(num_s);
+    let mut differentials: Vec<Arc<FreeModuleHomomorphism>> = Vec::with_capacity(num_s - 1);
     for _ in 0..num_s {
         modules.push(Arc::new(FreeModule::new(
             Arc::clone(&algebra),
@@ -220,11 +218,6 @@ fn create_chain_complex(num_s: usize) -> FiniteChainComplex {
             0,
         )));
     }
-    differentials.push(Arc::new(FreeModuleHomomorphism::new(
-        Arc::clone(&modules[0]),
-        Arc::clone(&zero_module),
-        0,
-    )));
     for s in 1..num_s {
         differentials.push(Arc::new(FreeModuleHomomorphism::new(
             Arc::clone(&modules[s]),
@@ -232,11 +225,7 @@ fn create_chain_complex(num_s: usize) -> FiniteChainComplex {
             0,
         )));
     }
-    FiniteChainComplex {
-        modules,
-        zero_module,
-        differentials,
-    }
+    FiniteChainComplex::new(modules, differentials)
 }
 
 /// Read the Diff.$N files in `data_dir` and produce the corresponding chain complex object.

@@ -1,4 +1,4 @@
-use crate::module::Module;
+use crate::module::{Module, ZeroModule};
 use fp::vector::SliceMut;
 use std::sync::Arc;
 
@@ -78,5 +78,11 @@ impl<M: Module + ?Sized> Module for TruncatedModule<M> {
 
     fn max_degree(&self) -> Option<i32> {
         Some(self.truncation)
+    }
+}
+
+impl<M: ZeroModule> ZeroModule for TruncatedModule<M> {
+    fn zero_module(algebra: Arc<M::Algebra>, min_degree: i32) -> Self {
+        Self::new(Arc::new(M::zero_module(algebra, min_degree)), min_degree)
     }
 }

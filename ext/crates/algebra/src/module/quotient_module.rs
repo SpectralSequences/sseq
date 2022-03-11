@@ -1,4 +1,4 @@
-use crate::module::Module;
+use crate::module::{Module, ZeroModule};
 use fp::matrix::Subspace;
 use fp::vector::{FpVector, Slice, SliceMut};
 use once::OnceBiVec;
@@ -159,5 +159,11 @@ impl<M: Module> Module for QuotientModule<M> {
 
     fn max_degree(&self) -> Option<i32> {
         self.module.max_degree()
+    }
+}
+
+impl<M: ZeroModule> ZeroModule for QuotientModule<M> {
+    fn zero_module(algebra: Arc<M::Algebra>, min_degree: i32) -> Self {
+        Self::new(Arc::new(M::zero_module(algebra, min_degree)))
     }
 }

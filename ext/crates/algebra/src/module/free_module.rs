@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::algebra::Algebra;
-use crate::module::Module;
+use crate::module::{Module, ZeroModule};
 use fp::vector::{Slice, SliceMut};
 use once::{OnceBiVec, OnceVec};
 
@@ -211,6 +211,12 @@ impl<A: Algebra> Module for FreeModule<A> {
                 self.standard_act(result, coeff, op_degree, op_index, input_degree, input);
         }
     }*/
+}
+
+impl<A: Algebra> ZeroModule for FreeModule<A> {
+    fn zero_module(algebra: Arc<A>, min_degree: i32) -> Self {
+        Self::new(algebra, String::from("0"), min_degree)
+    }
 }
 
 impl<A: Algebra> FreeModule<A> {

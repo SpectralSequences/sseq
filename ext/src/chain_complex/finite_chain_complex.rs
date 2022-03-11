@@ -8,37 +8,9 @@ where
     M: Module,
     F: ModuleHomomorphism<Source = M, Target = M>,
 {
-    pub modules: Vec<Arc<M>>,
-    pub zero_module: Arc<M>,
-    pub differentials: Vec<Arc<F>>,
-}
-
-impl<M, F> FiniteChainComplex<M, F>
-where
-    M: Module,
-    F: ModuleHomomorphism<Source = M, Target = M> + ZeroHomomorphism<M, M>,
-{
-    pub fn max_degree(&self) -> i32 {
-        unimplemented!()
-    }
-
-    pub fn pop(&mut self) {
-        if self.modules.is_empty() {
-            return;
-        }
-        self.modules.pop();
-        if self.modules.is_empty() {
-            self.differentials.drain(0..self.differentials.len() - 2);
-        } else {
-            let len = self.differentials.len();
-            self.differentials.remove(len - 2);
-            self.differentials[len - 3] = Arc::new(F::zero_homomorphism(
-                self.zero_module(),
-                Arc::clone(&self.modules[self.modules.len() - 1]),
-                0,
-            ));
-        }
-    }
+    modules: Vec<Arc<M>>,
+    zero_module: Arc<M>,
+    differentials: Vec<Arc<F>>,
 }
 
 impl<M, F> FiniteChainComplex<M, F>
@@ -46,30 +18,62 @@ where
     M: Module + ZeroModule,
     F: ModuleHomomorphism<Source = M, Target = M> + ZeroHomomorphism<M, M>,
 {
-    pub fn ccdz(module: Arc<M>) -> Self {
-        let zero_module = Arc::new(M::zero_module(module.algebra(), module.min_degree()));
-        let differentials = vec![
-            Arc::new(F::zero_homomorphism(
-                Arc::clone(&module),
-                Arc::clone(&zero_module),
-                0,
-            )),
-            Arc::new(F::zero_homomorphism(
-                Arc::clone(&zero_module),
-                Arc::clone(&module),
-                0,
-            )),
-            Arc::new(F::zero_homomorphism(
-                Arc::clone(&zero_module),
-                Arc::clone(&zero_module),
-                0,
-            )),
-        ];
-        let modules = vec![module];
+    pub fn new(modules: Vec<Arc<M>>, differentials: Vec<Arc<F>>) -> Self {
+        let zero_module = Arc::new(M::zero_module(
+            modules[0].algebra(),
+            modules[0].min_degree(),
+        ));
+
+        let mut all_differentials = Vec::with_capacity(differentials.len() + 2);
+        all_differentials.push(Arc::new(F::zero_homomorphism(
+            Arc::clone(&modules[0]),
+            Arc::clone(&zero_module),
+            0,
+        )));
+        all_differentials.extend(differentials.into_iter());
+        all_differentials.push(Arc::new(F::zero_homomorphism(
+            Arc::clone(&zero_module),
+            Arc::clone(&modules[modules.len() - 1]),
+            0,
+        )));
+
         Self {
             modules,
             zero_module,
-            differentials,
+            differentials: all_differentials,
+        }
+    }
+
+    pub fn ccdz(module: Arc<M>) -> Self {
+        Self::new(vec![module], vec![])
+    }
+}
+
+impl<M, F> FiniteChainComplex<M, F>
+where
+    M: Module,
+    F: ModuleHomomorphism<Source = M, Target = M> + ZeroHomomorphism<M, M>,
+{
+    pub fn pop(&mut self) {
+        if self.modules.is_empty() {
+            return;
+        }
+        self.modules.pop();
+        if self.modules.is_empty() {
+            self.differentials.clear();
+            self.differentials.push(Arc::new(F::zero_homomorphism(
+                self.zero_module(),
+                self.zero_module(),
+                0,
+            )));
+        } else {
+            self.differentials.pop();
+            self.differentials.pop();
+            self.differentials.push(Arc::new(F::zero_homomorphism(
+                self.zero_module(),
+                Arc::clone(&self.modules[self.modules.len() - 1]),
+                0,
+            )));
         }
     }
 }
@@ -193,11 +197,9 @@ where
     F1: ModuleHomomorphism<Source = M, Target = M>,
     F2: ModuleHomomorphism<Source = M, Target = CC::Module>,
 {
-    pub modules: Vec<Arc<M>>,
-    pub zero_module: Arc<M>,
-    pub differentials: Vec<Arc<F1>>,
-    pub target_cc: Arc<CC>,
-    pub chain_maps: Vec<Arc<F2>>,
+    cc: FiniteChainComplex<M, F1>,
+    target_cc: Arc<CC>,
+    chain_maps: Vec<Arc<F2>>,
 }
 
 impl<M, F1, F2, CC> ChainComplex for FiniteAugmentedChainComplex<M, F1, F2, CC>
@@ -212,55 +214,47 @@ where
     type Homomorphism = F1;
 
     fn algebra(&self) -> Arc<M::Algebra> {
-        self.zero_module.algebra()
+        self.cc.algebra()
     }
 
     fn min_degree(&self) -> i32 {
-        self.zero_module.min_degree()
+        self.cc.min_degree()
     }
 
     fn has_computed_bidegree(&self, s: u32, t: i32) -> bool {
-        s > self.modules.len() as u32 || t < self.module(s).max_computed_degree()
+        self.cc.has_computed_bidegree(s, t)
     }
 
     fn zero_module(&self) -> Arc<Self::Module> {
-        Arc::clone(&self.zero_module)
+        self.cc.zero_module()
     }
 
     fn module(&self, s: u32) -> Arc<Self::Module> {
-        let s = s as usize;
-        if s >= self.modules.len() {
-            self.zero_module()
-        } else {
-            Arc::clone(&self.modules[s])
-        }
+        self.cc.module(s)
     }
 
     fn differential(&self, s: u32) -> Arc<Self::Homomorphism> {
-        let s = s as usize;
-        let s = std::cmp::min(s, self.differentials.len() - 1); // The last entry is the zero homomorphism
-        Arc::clone(&self.differentials[s])
+        self.cc.differential(s)
     }
 
-    fn compute_through_bidegree(&self, _homological_degree: u32, _internal_degree: i32) {}
+    fn compute_through_bidegree(&self, s: u32, t: i32) {
+        self.cc.compute_through_bidegree(s, t)
+    }
 
-    fn set_homology_basis(
-        &self,
-        _homological_degree: u32,
-        _internal_degree: i32,
-        _homology_basis: Vec<usize>,
-    ) {
-        unimplemented!()
+    fn set_homology_basis(&self, s: u32, t: i32, homology_basis: Vec<usize>) {
+        self.cc.set_homology_basis(s, t, homology_basis)
     }
-    fn homology_basis(&self, _homological_degree: u32, _internal_degree: i32) -> &Vec<usize> {
-        unimplemented!()
+
+    fn homology_basis(&self, s: u32, t: i32) -> &Vec<usize> {
+        self.cc.homology_basis(s, t)
     }
-    fn max_homology_degree(&self, _homological_degree: u32) -> i32 {
-        std::i32::MAX
+
+    fn max_homology_degree(&self, s: u32) -> i32 {
+        self.cc.max_homology_degree(s)
     }
 
     fn next_homological_degree(&self) -> u32 {
-        u32::MAX
+        self.cc.next_homological_degree()
     }
 }
 
@@ -277,44 +271,19 @@ where
 {
     pub fn map<N: Module<Algebra = M::Algebra>>(
         &self,
-        mut f: impl FnMut(&M) -> N,
+        f: impl FnMut(&M) -> N,
     ) -> FiniteAugmentedChainComplex<
         N,
         FullModuleHomomorphism<N>,
         FullModuleHomomorphism<N, CC::Module>,
         CC,
     > {
-        let modules: Vec<Arc<N>> = self.modules.iter().map(|m| Arc::new(f(&*m))).collect();
-        let zero_module = Arc::new(f(&*self.zero_module));
-        let differentials: Vec<_> = self
-            .differentials
-            .iter()
-            .enumerate()
-            .map(|(s, d)| {
-                if s == 0 {
-                    Arc::new(
-                        (**d)
-                            .clone()
-                            .replace_source(Arc::clone(&modules[0]))
-                            .replace_target(Arc::clone(&zero_module)),
-                    )
-                } else {
-                    Arc::new(
-                        (**d)
-                            .clone()
-                            .replace_source(Arc::clone(modules.get(s).unwrap_or(&zero_module)))
-                            .replace_target(Arc::clone(modules.get(s - 1).unwrap_or(&zero_module))),
-                    )
-                }
-            })
-            .collect();
-        let chain_maps: Vec<_> = std::iter::zip(&self.chain_maps, &modules)
+        let cc = self.cc.map(f);
+        let chain_maps: Vec<_> = std::iter::zip(&self.chain_maps, &cc.modules)
             .map(|(c, m)| Arc::new((**c).clone().replace_source(Arc::clone(m))))
             .collect();
         FiniteAugmentedChainComplex {
-            modules,
-            zero_module,
-            differentials,
+            cc,
             chain_maps,
             target_cc: Arc::clone(&self.target_cc),
         }
@@ -349,13 +318,10 @@ where
     F2: ModuleHomomorphism<Source = M, Target = CC::Module>,
 {
     fn from(c: FiniteAugmentedChainComplex<M, F1, F2, CC>) -> FiniteChainComplex<M, F1> {
-        FiniteChainComplex {
-            modules: c.modules.clone(),
-            zero_module: Arc::clone(&c.zero_module),
-            differentials: c.differentials.clone(),
-        }
+        c.cc
     }
 }
+
 impl<M, F1, F2, CC> BoundedChainComplex for FiniteAugmentedChainComplex<M, F1, F2, CC>
 where
     M: Module,
@@ -364,6 +330,27 @@ where
     F2: ModuleHomomorphism<Source = M, Target = CC::Module>,
 {
     fn max_s(&self) -> u32 {
-        self.modules.len() as u32
+        self.cc.max_s()
+    }
+}
+
+impl<M, F1> FiniteChainComplex<M, F1>
+where
+    M: Module,
+    F1: ModuleHomomorphism<Source = M, Target = M>,
+{
+    pub fn augment<
+        CC: ChainComplex<Algebra = M::Algebra>,
+        F2: ModuleHomomorphism<Source = M, Target = CC::Module>,
+    >(
+        self,
+        target_cc: Arc<CC>,
+        chain_maps: Vec<Arc<F2>>,
+    ) -> FiniteAugmentedChainComplex<M, F1, F2, CC> {
+        FiniteAugmentedChainComplex {
+            cc: self,
+            target_cc,
+            chain_maps,
+        }
     }
 }
