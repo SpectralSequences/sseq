@@ -96,11 +96,7 @@ fn main() -> anyhow::Result<()> {
     );
 
     for s in 0..=s {
-        module_strings.push(
-            steenrod_module::as_fd_module(&yoneda.module(s))
-                .unwrap()
-                .to_minimal_json(),
-        );
+        module_strings.push(yoneda.module(s).to_minimal_json());
     }
 
     let mut output_path_buf = PathBuf::from(filename);

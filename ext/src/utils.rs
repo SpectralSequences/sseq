@@ -2,7 +2,7 @@
 use crate::chain_complex::{ChainComplex, FiniteChainComplex};
 use crate::resolution::Resolution;
 use crate::CCC;
-use algebra::module::{steenrod_module, Module};
+use algebra::module::{steenrod_module, Module, SteenrodModule};
 use algebra::{AlgebraType, SteenrodAlgebra};
 
 use anyhow::{anyhow, Context};
@@ -167,7 +167,7 @@ where
         let mut yoneda = FiniteChainComplex::from(yoneda);
         yoneda.pop();
 
-        chain_complex = Arc::new(yoneda);
+        chain_complex = Arc::new(yoneda.map(|m| Box::new(m.clone()) as SteenrodModule));
     }
 
     Resolution::new_with_save(chain_complex, save_dir)

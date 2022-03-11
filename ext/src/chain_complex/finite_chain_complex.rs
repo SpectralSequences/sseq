@@ -1,5 +1,5 @@
 use crate::chain_complex::{AugmentedChainComplex, BoundedChainComplex, ChainComplex};
-use algebra::module::homomorphism::{ModuleHomomorphism, ZeroHomomorphism};
+use algebra::module::homomorphism::{FullModuleHomomorphism, ModuleHomomorphism, ZeroHomomorphism};
 use algebra::module::{Module, ZeroModule};
 use std::sync::Arc;
 
@@ -67,6 +67,43 @@ where
         ];
         let modules = vec![module];
         Self {
+            modules,
+            zero_module,
+            differentials,
+        }
+    }
+}
+
+impl<M: Module> FiniteChainComplex<M, FullModuleHomomorphism<M>> {
+    pub fn map<N: Module<Algebra = M::Algebra>>(
+        &self,
+        mut f: impl FnMut(&M) -> N,
+    ) -> FiniteChainComplex<N, FullModuleHomomorphism<N>> {
+        let modules: Vec<Arc<N>> = self.modules.iter().map(|m| Arc::new(f(&*m))).collect();
+        let zero_module = Arc::new(f(&*self.zero_module));
+        let differentials: Vec<_> = self
+            .differentials
+            .iter()
+            .enumerate()
+            .map(|(s, d)| {
+                if s == 0 {
+                    Arc::new(
+                        (**d)
+                            .clone()
+                            .replace_source(Arc::clone(&modules[0]))
+                            .replace_target(Arc::clone(&zero_module)),
+                    )
+                } else {
+                    Arc::new(
+                        (**d)
+                            .clone()
+                            .replace_source(Arc::clone(modules.get(s).unwrap_or(&zero_module)))
+                            .replace_target(Arc::clone(modules.get(s - 1).unwrap_or(&zero_module))),
+                    )
+                }
+            })
+            .collect();
+        FiniteChainComplex {
             modules,
             zero_module,
             differentials,
@@ -224,6 +261,63 @@ where
 
     fn next_homological_degree(&self) -> u32 {
         u32::MAX
+    }
+}
+
+impl<M, CC>
+    FiniteAugmentedChainComplex<
+        M,
+        FullModuleHomomorphism<M>,
+        FullModuleHomomorphism<M, CC::Module>,
+        CC,
+    >
+where
+    M: Module,
+    CC: ChainComplex<Algebra = M::Algebra>,
+{
+    pub fn map<N: Module<Algebra = M::Algebra>>(
+        &self,
+        mut f: impl FnMut(&M) -> N,
+    ) -> FiniteAugmentedChainComplex<
+        N,
+        FullModuleHomomorphism<N>,
+        FullModuleHomomorphism<N, CC::Module>,
+        CC,
+    > {
+        let modules: Vec<Arc<N>> = self.modules.iter().map(|m| Arc::new(f(&*m))).collect();
+        let zero_module = Arc::new(f(&*self.zero_module));
+        let differentials: Vec<_> = self
+            .differentials
+            .iter()
+            .enumerate()
+            .map(|(s, d)| {
+                if s == 0 {
+                    Arc::new(
+                        (**d)
+                            .clone()
+                            .replace_source(Arc::clone(&modules[0]))
+                            .replace_target(Arc::clone(&zero_module)),
+                    )
+                } else {
+                    Arc::new(
+                        (**d)
+                            .clone()
+                            .replace_source(Arc::clone(modules.get(s).unwrap_or(&zero_module)))
+                            .replace_target(Arc::clone(modules.get(s - 1).unwrap_or(&zero_module))),
+                    )
+                }
+            })
+            .collect();
+        let chain_maps: Vec<_> = std::iter::zip(&self.chain_maps, &modules)
+            .map(|(c, m)| Arc::new((**c).clone().replace_source(Arc::clone(m))))
+            .collect();
+        FiniteAugmentedChainComplex {
+            modules,
+            zero_module,
+            differentials,
+            chain_maps,
+            target_cc: Arc::clone(&self.target_cc),
+        }
     }
 }
 
