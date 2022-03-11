@@ -8,14 +8,19 @@ import json
 
 from typing import Optional
 
+
 def update_patch(self):
     messages = self._batched_messages
     for msg in messages:
         self.other_chart.handle_message(json.loads(JSON.stringify(msg)))
     self._clear_batched_messages()
 
+
 colors_list = sorted(CSS_COLORS_JSON.keys())
-colors_strategy = st.one_of(st.tuples(*((st.integers(),)*4)).map(lambda t: Color(*t)), st.sampled_from(colors_list))
+colors_strategy = st.one_of(
+    st.tuples(*((st.integers(),) * 4)).map(lambda t: Color(*t)),
+    st.sampled_from(colors_list),
+)
 
 
 @st.composite
@@ -37,7 +42,6 @@ def slices(draw) -> Optional[slice]:
     return slice(start, stop)
 
 
-
 class HypothesisStateMachine(RuleBasedStateMachine):
     def __init__(self):
         super().__init__()
@@ -51,25 +55,34 @@ class HypothesisStateMachine(RuleBasedStateMachine):
     extensions = Bundle("extensions")
     edges = st.one_of(structlines, differentials, extensions)
     chart_objects = st.one_of(edges, classes)
-    edge_and_range = st.one_of(st.tuples(structlines, slices()), st.tuples(st.one_of(differentials, extensions), st.none()))
+    edge_and_range = st.one_of(
+        st.tuples(structlines, slices()),
+        st.tuples(st.one_of(differentials, extensions), st.none()),
+    )
     obj_and_range = st.one_of(st.tuples(classes, slices()), edge_and_range)
 
     @rule(target=classes, k=st.tuples(st.integers(), st.integers()))
     def add_class(self, k):
         self.num_classes += 1
         return self.chart.add_class(*k)
-    
+
     @rule(target=structlines, c1=classes, c2=classes)
     def add_structline(self, c1, c2):
         self.num_edges += 1
         return self.chart.add_structline(c1, c2)
-        
+
     @rule(target=extensions, c1=classes, c2=classes)
     def add_extension(self, c1, c2):
         self.num_edges += 1
         return self.chart.add_extension(c1, c2)
 
-    @rule(target=differentials, page=st.integers(), c1=classes, c2=classes, auto=st.booleans())
+    @rule(
+        target=differentials,
+        page=st.integers(),
+        c1=classes,
+        c2=classes,
+        auto=st.booleans(),
+    )
     def add_differential(self, page, c1, c2, auto):
         self.num_edges += 1
         return self.chart.add_differential(page, c1, c2, auto)
@@ -78,14 +91,24 @@ class HypothesisStateMachine(RuleBasedStateMachine):
     def set_class_name(self, o, prop, val):
         setattr(o, prop, val)
 
-    @rule(o=classes, prop=st.sampled_from(["background_color", "border_color", "foreground_color"]), page_range=slices(), val=colors_strategy)
+    @rule(
+        o=classes,
+        prop=st.sampled_from(["background_color", "border_color", "foreground_color"]),
+        page_range=slices(),
+        val=colors_strategy,
+    )
     def set_class_color(self, o, prop, page_range, val):
         if page_range:
             getattr(o, prop)[page_range] = val
         else:
             setattr(o, prop, val)
 
-    @rule(o=classes, prop=st.sampled_from(["border_width", "scale", "x_nudge", "y_nudge"]), page_range=slices(), val=st.integers())
+    @rule(
+        o=classes,
+        prop=st.sampled_from(["border_width", "scale", "x_nudge", "y_nudge"]),
+        page_range=slices(),
+        val=st.integers(),
+    )
     def set_class_number(self, o, prop, page_range, val):
         if page_range:
             getattr(o, prop)[page_range] = val
@@ -118,8 +141,12 @@ class HypothesisStateMachine(RuleBasedStateMachine):
             getattr(o, prop)[page_range] = val
         else:
             setattr(o, prop, val)
-    
-    @rule(edge_and_range=edge_and_range, prop=st.sampled_from(["line_width", "bend"]), val=st.integers())
+
+    @rule(
+        edge_and_range=edge_and_range,
+        prop=st.sampled_from(["line_width", "bend"]),
+        val=st.integers(),
+    )
     def set_edge_number(self, edge_and_range, prop, val):
         [o, page_range] = edge_and_range
         if page_range:
@@ -141,7 +168,14 @@ class HypothesisStateMachine(RuleBasedStateMachine):
         s2 = JSON.stringify(JSON.parse(s1))
         assert json.loads(s1) == json.loads(s2)
 
-    @rule(o=st.one_of(consumes(classes), consumes(extensions), consumes(structlines), consumes(differentials)))
+    @rule(
+        o=st.one_of(
+            consumes(classes),
+            consumes(extensions),
+            consumes(structlines),
+            consumes(differentials),
+        )
+    )
     def delete_object(self, o):
         if isinstance(o, ChartClass):
             self.num_classes -= 1
@@ -164,5 +198,6 @@ class StateMachinePythonToPython(HypothesisStateMachine):
         s1 = JSON.stringify(self.chart)
         s2 = JSON.stringify(self.other_chart)
         assert json.loads(s1) == json.loads(s2)
+
 
 TestStateMachinePythonToPython = StateMachinePythonToPython.TestCase

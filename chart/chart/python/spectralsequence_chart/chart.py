@@ -423,13 +423,18 @@ class SseqChart:
 
     def handle_message(self, msg):
         from spectralsequence_chart.serialization import JSON
+
         cmd = msg["command"]
         if cmd == "create":
             target_type = msg["target_type"]
             target = JSON.types[target_type].from_json(msg["target"])
             if msg["target_type"] == "ChartClass":
                 self._commit_class(target)
-            elif msg["target_type"] in ["ChartStructline", "ChartDifferential", "ChartExtension"]:
+            elif msg["target_type"] in [
+                "ChartStructline",
+                "ChartDifferential",
+                "ChartExtension",
+            ]:
                 self._commit_edge(target)
             else:
                 raise ValueError(f"Unexpected target_type '{target_type}'")
@@ -437,7 +442,7 @@ class SseqChart:
         elif cmd == "update":
             target_type = msg["target_type"]
             obj = self._objects_by_uuid[msg["target_uuid"]]
-            update_fields : dict = msg["update_fields"]
+            update_fields: dict = msg["update_fields"]
             update_fields.pop("degree", None)
             update_fields.pop("idx", None)
             update_fields.pop("uuid", None)
@@ -451,7 +456,6 @@ class SseqChart:
             obj.delete()
         else:
             raise ValueError(f"Unexpeted command '{cmd}'")
-
 
     def get_settings(self) -> Dict[str, any]:
         return dict(
