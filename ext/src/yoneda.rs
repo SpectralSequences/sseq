@@ -1,8 +1,9 @@
 use crate::chain_complex::{
-    AugmentedChainComplex, BoundedChainComplex, ChainComplex, ChainMap, FiniteAugmentedChainComplex,
+    AugmentedChainComplex, BoundedChainComplex, ChainComplex, ChainMap,
+    FiniteAugmentedChainComplex, FiniteChainComplex,
 };
 use algebra::module::homomorphism::{
-    FreeModuleHomomorphism, FullModuleHomomorphism, ModuleHomomorphism, ZeroHomomorphism,
+    FreeModuleHomomorphism, FullModuleHomomorphism, ModuleHomomorphism,
 };
 use algebra::module::homomorphism::{
     QuotientHomomorphism, QuotientHomomorphismSource, TruncatedHomomorphism,
@@ -495,53 +496,25 @@ where
         }
     }
 
-    let zero_module = Arc::new(QM::new(Arc::new(TM::new(cc.zero_module(), t_max))));
-    zero_module.compute_basis(t_max);
-
     let modules = modules.into_iter().map(Arc::new).collect::<Vec<_>>();
 
-    let zero_differential = {
-        let f = cc.differential(0);
-        let tf = Arc::new(TruncatedHomomorphism::new(
-            f,
-            Arc::clone(&modules[0].module),
-            Arc::clone(&zero_module.module),
-        ));
-        let qf = FullModuleHomomorphism::from(&QuotientHomomorphism::new(
-            tf,
-            Arc::clone(&modules[0]),
-            Arc::clone(&zero_module),
-        ));
-        Arc::new(qf)
-    };
-
-    let mut differentials = vec![zero_differential];
-    differentials.extend((0..s_max).map(|s| {
-        let f = cc.differential(s + 1);
-        let s = s as usize;
-        let tf = Arc::new(TruncatedHomomorphism::new(
-            f,
-            Arc::clone(&modules[s + 1].module),
-            Arc::clone(&modules[s].module),
-        ));
-        let qf = FullModuleHomomorphism::from(&QuotientHomomorphism::new(
-            tf,
-            Arc::clone(&modules[s + 1]),
-            Arc::clone(&modules[s]),
-        ));
-        Arc::new(qf)
-    }));
-
-    differentials.push(Arc::new(FullModuleHomomorphism::zero_homomorphism(
-        Arc::clone(&zero_module),
-        Arc::clone(&modules[s_max as usize]),
-        0,
-    )));
-    differentials.push(Arc::new(FullModuleHomomorphism::zero_homomorphism(
-        Arc::clone(&zero_module),
-        Arc::clone(&zero_module),
-        0,
-    )));
+    let differentials: Vec<_> = (0..s_max)
+        .map(|s| {
+            let f = cc.differential(s + 1);
+            let s = s as usize;
+            let tf = Arc::new(TruncatedHomomorphism::new(
+                f,
+                Arc::clone(&modules[s + 1].module),
+                Arc::clone(&modules[s].module),
+            ));
+            let qf = FullModuleHomomorphism::from(&QuotientHomomorphism::new(
+                tf,
+                Arc::clone(&modules[s + 1]),
+                Arc::clone(&modules[s]),
+            ));
+            Arc::new(qf)
+        })
+        .collect();
 
     let chain_maps = (0..=s_max)
         .map(|s| {
@@ -562,13 +535,8 @@ where
         })
         .collect::<Vec<_>>();
 
-    let yoneda_rep = FiniteAugmentedChainComplex {
-        modules,
-        zero_module,
-        differentials,
-        target_cc: cc.target(),
-        chain_maps,
-    };
+    let yoneda_rep =
+        FiniteChainComplex::new(modules, differentials).augment(cc.target(), chain_maps);
 
     yoneda_rep.map(|m| FDModule::from(m))
 }

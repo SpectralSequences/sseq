@@ -375,10 +375,9 @@ pub fn get_unit(
 ) -> anyhow::Result<(bool, Arc<QueryModuleResolution>)> {
     #[cfg(not(feature = "nassau"))]
     {
-        use crate::chain_complex::AugmentedChainComplex;
+        use crate::chain_complex::{AugmentedChainComplex, BoundedChainComplex};
 
-        let is_unit =
-            resolution.target().modules.len() == 1 && resolution.target().module(0).is_unit();
+        let is_unit = resolution.target().max_s() == 1 && resolution.target().module(0).is_unit();
 
         let unit = if is_unit {
             Arc::clone(&resolution)

@@ -3,7 +3,7 @@ use crate::sseq::SseqWrapper;
 
 use crate::resolution_wrapper::Resolution;
 use algebra::{module::Module, JsonAlgebra};
-use ext::chain_complex::ChainComplex;
+use ext::chain_complex::{BoundedChainComplex, ChainComplex};
 use ext::utils::load_module_json;
 use ext::CCC;
 
@@ -111,7 +111,7 @@ impl ResolutionManager {
 
     fn process_bundle(&mut self, mut resolution: Resolution<CCC>) {
         self.is_unit =
-            resolution.complex().modules.len() == 1 && resolution.complex().module(0).is_unit();
+            resolution.complex().max_s() == 1 && resolution.complex().module(0).is_unit();
 
         if self.is_unit {
             resolution.set_unit_resolution_self();
