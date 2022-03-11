@@ -1,5 +1,5 @@
 from spectralsequence_chart import SseqChart
-from spectralsequence_chart.utils import JSON
+from spectralsequence_chart.serialization import JSON
 
 
 def single_structline_chart():

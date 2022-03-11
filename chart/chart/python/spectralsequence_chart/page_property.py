@@ -161,6 +161,9 @@ def ensure_page_property(
 ) -> PageProperty[S]:
     if type(v) is PageProperty:
         result = v
+    elif type(v) is dict and v["type"] == "PageProperty":
+        result = PageProperty(0)
+        result._values = v["values"]
     else:
         result = PageProperty(v)
     if parent:

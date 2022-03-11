@@ -10,6 +10,7 @@ import threading
 from typing import Any, Dict, Iterable, List, Set, Tuple, Union
 from uuid import uuid4
 
+
 from .infinity import INFINITY
 from .chart_class import ChartClass, ChartClassArg, ChartClassStyle
 from .chart_edge import (
@@ -49,6 +50,7 @@ class SseqChart:
         self._batched_messages_lock = threading.Lock()
 
         self._uuid = str(uuid4())
+        self._objects_by_uuid = {}
 
         self._page_list = SignalList(
             [(2, INFINITY), (INFINITY, INFINITY)], callback=self._add_setting_message
@@ -179,8 +181,8 @@ class SseqChart:
     ):
         assert type == SseqChart.__name__
         self._uuid = uuid
-        self._page_list = page_list
-        page_list.set_callback(self._add_setting_message)
+        self._page_list = SignalList(page_list)
+        self._page_list.set_callback(self._add_setting_message)
         self._initial_x_range = initial_x_range
         self._initial_y_range = initial_y_range
         self._x_range = x_range
@@ -208,24 +210,27 @@ class SseqChart:
         assert len(degree) == self.num_gradings
         idx = len(self._classes_by_degree.get(degree, []))
         c = ChartClass(degree, idx)
+        c._sseq = self
         c.set_style(self.default_class_style)
         self._commit_class(c)
         return c
 
     def _commit_class(self, c: ChartClass):
         """Common logic between add_class and deserialization of classes."""
+        c._sseq = self
         if len(c.degree) != self.num_gradings:
             raise ValueError(
                 f"Wrong number of gradings: degree {c.degree} has length {len(c.degree)} but num_gradings is {self.num_gradings}"
             )
 
-        c._sseq = self
         c._normalize_attributes()
         self._add_create_message(c)
         self._classes[c.uuid] = c
+        self._objects_by_uuid[c.uuid] = c
         if c.degree not in self._classes_by_degree:
             self._classes_by_degree[c.degree] = []
         self._classes_by_degree[c.degree].append(c)
+        c._initialized = True
 
     def add_differential(
         self,
@@ -254,13 +259,13 @@ class SseqChart:
         if auto:
             # TODO: Does any sort of checking belong here?
             # if source._max_page < page:
-
-            source._max_page = page
-            target._max_page = page
+            source.max_page = page
+            target.max_page = page
             # self.add_page_range(page,page)
         e = ChartDifferential(
             page=page, source_uuid=source.uuid, target_uuid=target.uuid
         )
+        e._sseq = self
         e.set_style(self._default_differential_style)
         self._edges[e.uuid] = e
         self._commit_edge(e)
@@ -309,11 +314,15 @@ class SseqChart:
         e._sseq = self
         e._normalize_attributes()
         self._edges[e.uuid] = e
+        self._objects_by_uuid[e.uuid] = e
         e._source = self._classes[e._source_uuid]
         e._target = self._classes[e._target_uuid]
         e.source.edges.append(e)
         e.target.edges.append(e)
         self._add_create_message(e)
+        # make sure this appears after other stuff to prevent update messages
+        # from being generated.
+        e._initialized = True
 
     def add_page_range(self, page_min: int, page_max: int):
         """Add a range of pages to the list of page_views. This indicates to the display that when stepping
@@ -411,6 +420,38 @@ class SseqChart:
             ),
             replace=True,
         )
+
+    def handle_message(self, msg):
+        from spectralsequence_chart.serialization import JSON
+        cmd = msg["command"]
+        if cmd == "create":
+            target_type = msg["target_type"]
+            target = JSON.types[target_type].from_json(msg["target"])
+            if msg["target_type"] == "ChartClass":
+                self._commit_class(target)
+            elif msg["target_type"] in ["ChartStructline", "ChartDifferential", "ChartExtension"]:
+                self._commit_edge(target)
+            else:
+                raise ValueError(f"Unexpected target_type '{target_type}'")
+            return
+        elif cmd == "update":
+            target_type = msg["target_type"]
+            obj = self._objects_by_uuid[msg["target_uuid"]]
+            update_fields : dict = msg["update_fields"]
+            update_fields.pop("degree", None)
+            update_fields.pop("idx", None)
+            update_fields.pop("uuid", None)
+            user_data = update_fields.pop("user_data", None)
+            if user_data:
+                obj.user_data.update(user_data)
+            for (key, value) in msg["update_fields"].items():
+                setattr(obj, key, value)
+        elif cmd == "delete":
+            obj = self._objects_by_uuid[msg["target_uuid"]]
+            obj.delete()
+        else:
+            raise ValueError(f"Unexpeted command '{cmd}'")
+
 
     def get_settings(self) -> Dict[str, any]:
         return dict(
@@ -824,8 +865,10 @@ class SseqChart:
         self._colors = v
 
     def get_shape(self, shape: Union[str, Shape]) -> Shape:
-        if type(shape) is Shape:
+        if isinstance(shape, Shape):
             return shape
+        if isinstance(shape, dict):
+            return Shape.from_json(shape)
         if shape in self.shapes:
             return self.shapes[shape]
         raise ValueError(f"Unrecognized shape '{shape}'")
@@ -833,6 +876,13 @@ class SseqChart:
     def get_color(self, color: Union[str, Color]) -> Color:
         if type(color) is Color:
             return color
+        if isinstance(color, dict):
+            if "name" in color:
+                color = color["name"]
+            elif "color" in color:
+                color = color["color"]
+            else:
+                raise ValueError(f"Unrecognized color object '{color}'")
         if type(color) is not str:
             raise TypeError(
                 f"Expected argument to be of type 'Color' or 'str' not '{type(color)}'"

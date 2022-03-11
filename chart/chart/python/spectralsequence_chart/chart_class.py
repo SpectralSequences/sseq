@@ -129,6 +129,8 @@ class ChartClass:
 
     def __init__(self, degree: Tuple[int, ...], idx: int):
         """Do not call `ChartClass` constructor directly, use instead `SseqChart.add_class`, or `JSON.parse`."""
+        self._deleted = False
+        self._initialized = False
         self._sseq: SseqChart = None
         self._degree = tuple(degree)
         self._idx = idx
@@ -139,9 +141,9 @@ class ChartClass:
         # These values don't really matter, just need to initialize the PageProperties or set_style will raise.
         self.group_name = ""
         self.shape = Shape().circled(5)
-        self.background_color = (0, 0, 0, 1)
-        self.border_color = (0, 0, 0, 1)
-        self.foreground_color = (0, 0, 0, 1)
+        self.background_color = Color(0, 0, 0, 1)
+        self.border_color = Color(0, 0, 0, 1)
+        self.foreground_color = Color(0, 0, 0, 1)
         self.border_width = 2
 
         self.name = ""
@@ -211,7 +213,7 @@ class ChartClass:
         self.foreground_color._callback()
 
     def _needs_update(self):
-        if self._sseq:
+        if self._initialized and self._sseq:
             self._sseq._add_class_to_update(self)
 
     @staticmethod
@@ -252,7 +254,8 @@ class ChartClass:
         self.visible = visible
         self.x_nudge = x_nudge
         self.y_nudge = y_nudge
-
+        if not isinstance(user_data, SignalDict):
+            user_data = SignalDict(user_data)
         self._user_data = user_data  # type: ignore
         user_data.set_parent(self)
 
@@ -299,9 +302,12 @@ class ChartClass:
 
     def delete(self):
         """Deletes the class. Also deletes any edges incident to it."""
+        if self._deleted:
+            return
         self._sseq._add_class_to_delete(self)
         del self._sseq._classes[self.uuid]
-        for e in self.edges:
+        self._deleted = True
+        for e in list(self.edges):
             e.delete()
 
     def __repr__(self) -> str:
@@ -344,7 +350,7 @@ class ChartClass:
     def max_page(self) -> int:
         """The maximum page the class may appear on. Note that the `PageProperty` `class.visible` also
         affects whether the class appears on a certain page: the class appears if ``class.visible[page]``
-        is ``True`` and $page \leq max_page$.
+        is ``True`` and $page \\leq max_page$.
         """
         return self._max_page
 

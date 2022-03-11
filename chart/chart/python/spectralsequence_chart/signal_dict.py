@@ -28,7 +28,7 @@ class SignalDict(MutableMapping, Generic[T]):
     def set_callback(self, callback):
         self._callback = callback
 
-    def needs_update(self):
+    def _needs_update(self):
         if self._parent:
             self._parent._needs_update()
         if self._callback:

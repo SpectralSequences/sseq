@@ -24,7 +24,7 @@ class ChartEdgeStyle:
         start_tip: Optional[ArrowTip] = None,
         end_tip: Optional[ArrowTip] = None,
     ):
-        self._action: str = ""
+        self._action: str = action
         self._color: Color = color
         self._dash_pattern: DashPattern = dash_pattern
         self._line_width: float = line_width
@@ -127,6 +127,8 @@ class ChartEdge(ABC):
     def __init__(self, source_uuid: UUID_str, target_uuid: UUID_str):
         """Do not call SseqEdge constructor directly, use instead SseqChart.add_structline(),
         SseqChart.add_differential(), SseqChart.add_extension(), or JSON.parse()."""
+        self._deleted = False
+        self._initialized = False
         self._sseq: SseqChart = None
         self._source_uuid = source_uuid
         self._target_uuid = target_uuid
@@ -140,7 +142,7 @@ class ChartEdge(ABC):
         return f"{type(self).__name__}({', '.join(fields)})"
 
     def _needs_update(self):
-        if self._sseq:
+        if self._initialized and self._sseq:
             self._sseq._add_edge_to_update(self)
 
     def replace_source(self, style: Union[ChartClassStyle, str]) -> "ChartEdge":
@@ -173,10 +175,13 @@ class ChartEdge(ABC):
 
     def delete(self):
         """Deletes the edge."""
+        if self._deleted:
+            return
         self._sseq._add_edge_to_delete(self)
         del self._sseq._edges[self.uuid]
         del self.source.edges[self.source.edges.index(self)]
         del self.target.edges[self.target.edges.index(self)]
+        self._deleted = True
 
     _EDGE_TYPE_DICT: Dict[str, type]
 
@@ -228,6 +233,10 @@ class ChartEdge(ABC):
         assert type == self.__class__.__name__
         self._uuid = uuid
         self._user_data = SignalDict(user_data, parent=self)
+
+    @property
+    def user_data(self):
+        return self._user_data
 
     @abstractmethod
     def to_json(self) -> Dict[str, Any]:
