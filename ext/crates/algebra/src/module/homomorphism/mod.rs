@@ -13,14 +13,12 @@ mod full_module_homomorphism;
 mod generic_zero_homomorphism;
 mod hom_pullback;
 mod quotient_homomorphism;
-mod truncated_homomorphism;
 
 pub use free_module_homomorphism::FreeModuleHomomorphism;
 pub use full_module_homomorphism::FullModuleHomomorphism;
 pub use generic_zero_homomorphism::GenericZeroHomomorphism;
 pub use hom_pullback::HomPullback;
 pub use quotient_homomorphism::{QuotientHomomorphism, QuotientHomomorphismSource};
-pub use truncated_homomorphism::{TruncatedHomomorphism, TruncatedHomomorphismSource};
 
 /// Each `ModuleHomomorphism` may come with auxiliary data, namely the kernel, image and
 /// quasi_inverse at each degree (the quasi-inverse is a map that is a right inverse when

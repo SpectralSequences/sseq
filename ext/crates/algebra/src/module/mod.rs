@@ -10,7 +10,6 @@ mod hom_module;
 mod quotient_module;
 mod sum_module;
 mod tensor_module;
-mod truncated_module;
 
 pub mod block_structure;
 
@@ -26,5 +25,5 @@ pub use zero_module::ZeroModule;
 
 pub use {
     hom_module::HomModule, quotient_module::QuotientModule, sum_module::SumModule,
-    tensor_module::TensorModule, truncated_module::TruncatedModule,
+    tensor_module::TensorModule,
 };

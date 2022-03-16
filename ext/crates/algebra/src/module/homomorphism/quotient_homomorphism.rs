@@ -59,14 +59,14 @@ impl<F: ModuleHomomorphism> ModuleHomomorphism for QuotientHomomorphism<F> {
 pub struct QuotientHomomorphismSource<F: ModuleHomomorphism> {
     f: Arc<F>,
     s: Arc<QuotientModule<F::Source>>,
-    t: Arc<F::Target>,
 }
 
 impl<F: ModuleHomomorphism> QuotientHomomorphismSource<F> {
-    pub fn new(f: Arc<F>, s: Arc<QuotientModule<F::Source>>, t: Arc<F::Target>) -> Self {
-        QuotientHomomorphismSource { f, s, t }
+    pub fn new(f: Arc<F>, s: Arc<QuotientModule<F::Source>>) -> Self {
+        QuotientHomomorphismSource { f, s }
     }
 }
+
 impl<F: ModuleHomomorphism> ModuleHomomorphism for QuotientHomomorphismSource<F> {
     type Source = QuotientModule<F::Source>;
     type Target = F::Target;
@@ -74,9 +74,11 @@ impl<F: ModuleHomomorphism> ModuleHomomorphism for QuotientHomomorphismSource<F>
     fn source(&self) -> Arc<Self::Source> {
         Arc::clone(&self.s)
     }
+
     fn target(&self) -> Arc<Self::Target> {
-        Arc::clone(&self.t)
+        self.f.target()
     }
+
     fn degree_shift(&self) -> i32 {
         self.f.degree_shift()
     }

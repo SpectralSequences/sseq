@@ -1,21 +1,20 @@
 use crate::module::{Module, ZeroModule};
+use bivec::BiVec;
 use fp::matrix::Subspace;
 use fp::vector::{FpVector, Slice, SliceMut};
-use once::OnceBiVec;
 use std::sync::Arc;
 
-/// Given a module `module`, this is the quotient of `module` by a collection of basis elements.
-///
-/// # Fields
-///  * `module` - The original module
-///  * `basis` - For each degree `d`, `basis[d]` is the list of basis elements of `module` that are
-///  *not* quotiented out
-///  * `mask` - This is the mask that corresponds to `basis`. Applying the mask will project to the
-///  subspace defined by `basis`.
+/// A quotient of a module truncated below a fix degree.
 pub struct QuotientModule<M: Module> {
+    /// The underlying module
     pub module: Arc<M>,
-    pub subspaces: OnceBiVec<Subspace>,
-    pub basis_list: OnceBiVec<Vec<usize>>,
+    /// The subspaces that we quotient out by
+    pub subspaces: BiVec<Subspace>,
+    /// For each degree `d`, `basis_list[d]` is a list of basis elements of `self.module` that
+    /// generates the quotient.
+    pub basis_list: BiVec<Vec<usize>>,
+    /// Everything above this degree is quotiented out.
+    pub truncation: i32,
 }
 
 impl<M: Module> std::fmt::Display for QuotientModule<M> {
@@ -25,18 +24,35 @@ impl<M: Module> std::fmt::Display for QuotientModule<M> {
 }
 
 impl<M: Module> QuotientModule<M> {
-    pub fn new(module: Arc<M>) -> Self {
-        let min_deg = module.min_degree();
+    pub fn new(module: Arc<M>, truncation: i32) -> Self {
+        assert!(module.max_computed_degree() >= truncation,
+                "Cannot quotient module that has not yet been fully computed up to the truncation degree");
+        module.compute_basis(truncation);
+
+        let p = module.prime();
+        let min_degree = module.min_degree();
+
+        let mut subspaces = BiVec::with_capacity(min_degree, truncation + 1);
+        let mut basis_list = BiVec::with_capacity(min_degree, truncation + 1);
+
+        for t in min_degree..=truncation {
+            let dim = module.dimension(t);
+            subspaces.push(Subspace::new(p, dim + 1, dim));
+            basis_list.push((0..dim).collect());
+        }
         QuotientModule {
             module,
-            subspaces: OnceBiVec::new(min_deg),
-            basis_list: OnceBiVec::new(min_deg),
+            subspaces,
+            basis_list,
+            truncation,
         }
     }
 
     pub fn quotient(&mut self, degree: i32, element: Slice) {
-        self.subspaces[degree].add_vector(element);
-        self.flush(degree);
+        if degree <= self.truncation {
+            self.subspaces[degree].add_vector(element);
+            self.flush(degree);
+        }
     }
 
     pub fn quotient_basis_elements(
@@ -54,13 +70,14 @@ impl<M: Module> QuotientModule<M> {
     }
 
     fn flush(&mut self, degree: i32) {
-        let mut vec = Vec::with_capacity(self.basis_list[degree].len());
-        for i in 0..self.module.dimension(degree) {
-            if self.subspaces[degree].pivots()[i] < 0 {
-                vec.push(i);
-            }
-        }
-        self.basis_list[degree] = vec;
+        self.basis_list[degree].clear();
+        self.basis_list[degree].extend(
+            self.subspaces[degree]
+                .pivots()
+                .iter()
+                .enumerate()
+                .filter_map(|(idx, &row)| if row < 0 { Some(idx) } else { None }),
+        );
     }
 
     pub fn quotient_all(&mut self, degree: i32) {
@@ -109,23 +126,16 @@ impl<M: Module> Module for QuotientModule<M> {
         self.module.min_degree()
     }
 
-    fn compute_basis(&self, degree: i32) {
-        self.module.compute_basis(degree);
-
-        for i in self.subspaces.len()..=degree {
-            let dim = self.module.dimension(i);
-            self.subspaces
-                .push(Subspace::new(self.prime(), dim + 1, dim));
-            self.basis_list.push((0..dim).collect::<Vec<_>>());
-        }
-    }
-
     fn max_computed_degree(&self) -> i32 {
-        self.subspaces.len()
+        self.module.max_computed_degree()
     }
 
     fn dimension(&self, degree: i32) -> usize {
-        self.module.dimension(degree) - self.subspaces[degree].dimension()
+        if degree > self.truncation {
+            0
+        } else {
+            self.module.dimension(degree) - self.subspaces[degree].dimension()
+        }
     }
 
     fn act_on_basis(
@@ -138,6 +148,9 @@ impl<M: Module> Module for QuotientModule<M> {
         mod_index: usize,
     ) {
         let target_deg = op_degree + mod_degree;
+        if target_deg > self.truncation {
+            return;
+        }
 
         let mut result_ = FpVector::new(self.prime(), self.module.dimension(target_deg));
         self.act_on_original_basis(
@@ -158,12 +171,15 @@ impl<M: Module> Module for QuotientModule<M> {
     }
 
     fn max_degree(&self) -> Option<i32> {
-        self.module.max_degree()
+        Some(match self.module.max_degree() {
+            Some(max_degree) => std::cmp::min(max_degree, self.truncation),
+            None => self.truncation,
+        })
     }
 }
 
 impl<M: ZeroModule> ZeroModule for QuotientModule<M> {
     fn zero_module(algebra: Arc<M::Algebra>, min_degree: i32) -> Self {
-        Self::new(Arc::new(M::zero_module(algebra, min_degree)))
+        Self::new(Arc::new(M::zero_module(algebra, min_degree)), min_degree)
     }
 }

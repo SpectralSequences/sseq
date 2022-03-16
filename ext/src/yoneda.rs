@@ -5,12 +5,9 @@ use crate::chain_complex::{
 use algebra::module::homomorphism::{
     FreeModuleHomomorphism, FullModuleHomomorphism, ModuleHomomorphism,
 };
-use algebra::module::homomorphism::{
-    QuotientHomomorphism, QuotientHomomorphismSource, TruncatedHomomorphism,
-    TruncatedHomomorphismSource,
-};
+use algebra::module::homomorphism::{QuotientHomomorphism, QuotientHomomorphismSource};
+use algebra::module::QuotientModule as QM;
 use algebra::module::{FDModule, FreeModule, Module};
-use algebra::module::{QuotientModule as QM, TruncatedModule as TM};
 use algebra::{AdemAlgebra, Algebra, GeneratedAlgebra, SteenrodAlgebra};
 use fp::matrix::{Matrix, Subspace};
 use fp::vector::FpVector;
@@ -195,7 +192,7 @@ where
     let t_min = cc.min_degree();
 
     let mut modules = (0..=s_max)
-        .map(|s| QM::new(Arc::new(TM::new(cc.module(s), t_max))))
+        .map(|s| QM::new(cc.module(s), t_max))
         .collect::<Vec<_>>();
 
     for m in &modules {
@@ -233,7 +230,7 @@ where
         let (target, source) = split_mut_borrow(&mut modules, s as usize - 1, s as usize);
         let d = cc.differential(s);
         if s < s_max {
-            let degrees_with_gens = source.module.module.get_degrees_with_gens(t_max);
+            let degrees_with_gens = source.module.get_degrees_with_gens(t_max);
 
             let mut prev_differentials: BiVec<Option<Subspace>> =
                 BiVec::with_capacity(t_min, t_max + 1);
@@ -255,7 +252,7 @@ where
                 // Check if augmentation map is non-zero on the generator
                 if s < target_cc.max_s() && target_cc.module(s).dimension(gen_dim) > 0 {
                     let m = cc.chain_map(s);
-                    let num_gens = source.module.module.number_of_gens_in_degree(gen_dim);
+                    let num_gens = source.module.number_of_gens_in_degree(gen_dim);
                     for i in 0..num_gens {
                         if !m.output(gen_dim, i).is_zero() {
                             continue 'gen_loop;
@@ -267,7 +264,7 @@ where
                 if s >= s_shift && gen_dim >= t_shift {
                     if let Some(m) = map.chain_maps.get((s - s_shift) as usize) {
                         if m.target().dimension(gen_dim - t_shift) > 0 {
-                            let num_gens = source.module.module.number_of_gens_in_degree(gen_dim);
+                            let num_gens = source.module.number_of_gens_in_degree(gen_dim);
                             for i in 0..num_gens {
                                 if !m.output(gen_dim, i).is_zero() {
                                     continue 'gen_loop;
@@ -287,14 +284,13 @@ where
                     prev_subspaces[t] = Some(source.subspaces[t].clone());
                     prev_basis_list[t] = Some(source.basis_list[t].clone());
 
-                    let start = source.module.module.generator_offset(t, gen_dim, 0);
-                    let dim = source.module.module.dimension(t);
+                    let start = source.module.generator_offset(t, gen_dim, 0);
+                    let dim = source.module.dimension(t);
 
                     let end = if degrees_with_gens.get(i + 1).map_or(true, |&t_| t_ > t) {
                         dim
                     } else {
                         source
-                            .module
                             .module
                             .generator_offset(t, degrees_with_gens[i + 1], 0)
                     };
@@ -339,13 +335,12 @@ where
 
                 // We are free to clear this basis element. Do it
                 for t in gen_dim..=t_max {
-                    let start = source.module.module.generator_offset(t, gen_dim, 0);
+                    let start = source.module.generator_offset(t, gen_dim, 0);
 
                     let end = if degrees_with_gens.get(i + 1).map_or(true, |&t_| t_ > t) {
-                        source.module.module.dimension(t)
+                        source.module.dimension(t)
                     } else {
                         source
-                            .module
                             .module
                             .generator_offset(t, degrees_with_gens[i + 1], 0)
                     };
@@ -431,7 +426,7 @@ where
                 .iter()
                 .enumerate()
                 .filter(|&(_i, &v)| v >= 0)
-                .map(|(i, _v)| (strategy(&*source.module.module, subspace, t, i), i))
+                .map(|(i, _v)| (strategy(&*source.module, subspace, t, i), i))
                 .collect::<Vec<_>>();
             pivot_columns.sort_unstable();
 
@@ -500,17 +495,10 @@ where
 
     let differentials: Vec<_> = (0..s_max)
         .map(|s| {
-            let f = cc.differential(s + 1);
-            let s = s as usize;
-            let tf = Arc::new(TruncatedHomomorphism::new(
-                f,
-                Arc::clone(&modules[s + 1].module),
-                Arc::clone(&modules[s].module),
-            ));
             let qf = FullModuleHomomorphism::from(&QuotientHomomorphism::new(
-                tf,
-                Arc::clone(&modules[s + 1]),
-                Arc::clone(&modules[s]),
+                cc.differential(s + 1),
+                Arc::clone(&modules[s as usize + 1]),
+                Arc::clone(&modules[s as usize]),
             ));
             Arc::new(qf)
         })
@@ -518,18 +506,9 @@ where
 
     let chain_maps = (0..=s_max)
         .map(|s| {
-            let f = cc.chain_map(s);
-            let s = s as usize;
-            let target = f.target();
-            let tf = Arc::new(TruncatedHomomorphismSource::new(
-                f,
-                Arc::clone(&modules[s].module),
-                Arc::clone(&target),
-            ));
             let qf = FullModuleHomomorphism::from(&QuotientHomomorphismSource::new(
-                tf,
-                Arc::clone(&modules[s]),
-                target,
+                cc.chain_map(s),
+                Arc::clone(&modules[s as usize]),
             ));
             Arc::new(qf)
         })
@@ -766,85 +745,3 @@ mod tests {
         }
     }
 }
-//static mut MEMOIZED_SIZE : Option<once::OnceVec<Vec<u32>>> = None;
-//unsafe fn compute_size(algebra : &Arc<SteenrodAlgebra>, deg : i32) {
-//    if MEMOIZED_SIZE.is_none() {
-//        MEMOIZED_SIZE = Some(once::OnceVec::new());
-//    }
-//    let p = algebra.prime();
-//    if let Some(size) = &MEMOIZED_SIZE {
-//        while size.len() <= deg as usize {
-//            let t_max = size.len() as i32;
-//            let dim = algebra.dimension(t_max, -1);
-//
-//            let mut new_sizes = Vec::with_capacity(dim);
-//
-//            for i in 0 .. dim {
-//                let start_module = FreeModule::new(Arc::clone(algebra), "".to_string(), 0);
-//                start_module.add_generators(0, 1, None);
-//                start_module.extend_by_zero(t_max);
-//
-//                let mut test_module = QM::new(Arc::new(TM::new(Arc::new(start_module), t_max)));
-//                test_module.compute_basis(t_max);
-//
-//                let mut basis_list : Vec<usize> = (0 .. dim).collect::<Vec<_>>();
-//                basis_list.swap_remove(i);
-//
-//                test_module.quotient_basis_elements(t_max, basis_list);
-//
-//                for t in (0 .. t_max).rev() {
-//                    let mut generators : Vec<(i32, usize)> = Vec::new();
-//                    let mut target_degrees = Vec::new();
-//                    let mut padded_target_degrees : Vec<usize> = Vec::new();
-//
-//                    let cur_dimension = test_module.dimension(t);
-//                    for op_deg in 1 ..= t_max - t {
-//                        for op_idx in algebra.generators(op_deg) {
-//                            generators.push((op_deg, op_idx));
-//                            target_degrees.push(test_module.module.dimension(t + op_deg));
-//                            padded_target_degrees.push(FpVector::padded_dimension(p, test_module.module.dimension(t + op_deg)));
-//                        }
-//                    }
-//
-//                    let total_padded_degree : usize = padded_target_degrees.iter().sum();
-//                    let total_cols : usize = total_padded_degree + cur_dimension;
-//
-//                    let mut matrix_rows : Vec<FpVector> = Vec::with_capacity(cur_dimension);
-//
-//                    for j in 0 .. cur_dimension {
-//                        let mut result = FpVector::new(p, total_cols);
-//
-//                        let mut offset = 0;
-//
-//                        for (gen_idx, (op_deg, op_idx)) in generators.iter().enumerate() {
-//                            result.set_slice(offset, offset + target_degrees[gen_idx]);
-//                            test_module.act_on_original_basis(&mut result, 1, *op_deg, *op_idx, t, j);
-//                            result.clear_slice();
-//                            offset += padded_target_degrees[gen_idx];
-//                        }
-//                        result.set_entry(total_padded_degree + j, 1);
-//                        matrix_rows.push(result);
-//                    }
-//
-//                    let mut matrix = Matrix::from_rows(p, matrix_rows, total_cols);
-//                    let mut pivots = vec![-1; total_cols];
-//                    matrix.row_reduce(&mut pivots);
-//
-//                    let first_kernel_row = match &pivots[0..total_padded_degree].iter().rposition(|&i| i >= 0) {
-//                        Some(n) => pivots[*n] as usize + 1,
-//                        None => 0
-//                    };
-//
-//                    matrix.set_slice(first_kernel_row, cur_dimension, total_padded_degree, total_cols);
-//                    matrix.into_slice();
-//
-//                    let kill_rows = matrix.into_vec();
-//
-//                    test_module.quotient_vectors(t, kill_rows);
-//                }
-//                new_sizes.push(test_module.total_dimension() as u32);
-//            }
-//            size.push(new_sizes);
-//        }
-//    }
-//}

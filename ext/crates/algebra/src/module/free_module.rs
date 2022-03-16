@@ -215,7 +215,9 @@ impl<A: Algebra> Module for FreeModule<A> {
 
 impl<A: Algebra> ZeroModule for FreeModule<A> {
     fn zero_module(algebra: Arc<A>, min_degree: i32) -> Self {
-        Self::new(algebra, String::from("0"), min_degree)
+        let m = Self::new(algebra, String::from("0"), min_degree);
+        m.add_generators(0, 0, None);
+        m
     }
 }
 
