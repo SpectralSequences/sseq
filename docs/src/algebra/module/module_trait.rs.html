@@ -296,123 +296,51 @@
 <span id="269">269</span>
 <span id="270">270</span>
 <span id="271">271</span>
-<span id="272">272</span>
-<span id="273">273</span>
-<span id="274">274</span>
-<span id="275">275</span>
-<span id="276">276</span>
-<span id="277">277</span>
-<span id="278">278</span>
-<span id="279">279</span>
-<span id="280">280</span>
-<span id="281">281</span>
-<span id="282">282</span>
-<span id="283">283</span>
-<span id="284">284</span>
-<span id="285">285</span>
-<span id="286">286</span>
-<span id="287">287</span>
-<span id="288">288</span>
-<span id="289">289</span>
-<span id="290">290</span>
-<span id="291">291</span>
-<span id="292">292</span>
-<span id="293">293</span>
-<span id="294">294</span>
-<span id="295">295</span>
-<span id="296">296</span>
-<span id="297">297</span>
-<span id="298">298</span>
-<span id="299">299</span>
-<span id="300">300</span>
-<span id="301">301</span>
-<span id="302">302</span>
-<span id="303">303</span>
-<span id="304">304</span>
-<span id="305">305</span>
-<span id="306">306</span>
-<span id="307">307</span>
-<span id="308">308</span>
-<span id="309">309</span>
-<span id="310">310</span>
-<span id="311">311</span>
-<span id="312">312</span>
-<span id="313">313</span>
-<span id="314">314</span>
-<span id="315">315</span>
-<span id="316">316</span>
-<span id="317">317</span>
-<span id="318">318</span>
-<span id="319">319</span>
-<span id="320">320</span>
-<span id="321">321</span>
-<span id="322">322</span>
-<span id="323">323</span>
-<span id="324">324</span>
-<span id="325">325</span>
-<span id="326">326</span>
-<span id="327">327</span>
-<span id="328">328</span>
-<span id="329">329</span>
-<span id="330">330</span>
-<span id="331">331</span>
-<span id="332">332</span>
-<span id="333">333</span>
-<span id="334">334</span>
-<span id="335">335</span>
-<span id="336">336</span>
-<span id="337">337</span>
-<span id="338">338</span>
-<span id="339">339</span>
-<span id="340">340</span>
-<span id="341">341</span>
-<span id="342">342</span>
-<span id="343">343</span>
-<span id="344">344</span>
-<span id="345">345</span>
-<span id="346">346</span>
-<span id="347">347</span>
-<span id="348">348</span>
-<span id="349">349</span>
-<span id="350">350</span>
-<span id="351">351</span>
-<span id="352">352</span>
-<span id="353">353</span>
-<span id="354">354</span>
-<span id="355">355</span>
-<span id="356">356</span>
-<span id="357">357</span>
-<span id="358">358</span>
-<span id="359">359</span>
-<span id="360">360</span>
-<span id="361">361</span>
-<span id="362">362</span>
-<span id="363">363</span>
-<span id="364">364</span>
-<span id="365">365</span>
-<span id="366">366</span>
-<span id="367">367</span>
-<span id="368">368</span>
-<span id="369">369</span>
-<span id="370">370</span>
-<span id="371">371</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">itertools::Itertools</span>;
 <span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
 
 <span class="kw">use</span> <span class="ident">fp::prime::ValidPrime</span>;
-<span class="kw">use</span> <span class="ident">fp::vector</span>::{<span class="ident">FpVector</span>, <span class="ident">Slice</span>, <span class="ident">SliceMut</span>};
+<span class="kw">use</span> <span class="ident">fp::vector</span>::{<span class="ident">Slice</span>, <span class="ident">SliceMut</span>};
 
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::algebra::Algebra</span>;
-<span class="kw">use</span> {<span class="ident"><span class="kw">crate</span>::module::BoundedModule</span>, <span class="ident"><span class="kw">crate</span>::module::FDModule</span>, <span class="ident"><span class="kw">crate</span>::module::TruncatedModule</span>};
 
-<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">Module</span>: <span class="ident">std::fmt::Display</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> {
+<span class="doccomment">/// A bounded below module over an algebra. To accommodate for infinite modules (e.g. modules in a</span>
+<span class="doccomment">/// free resolution), every module is potentially only define up to a degree. The extent to which</span>
+<span class="doccomment">/// the module is defined is kept track by two functions:</span>
+<span class="doccomment">///</span>
+<span class="doccomment">///  - [`Module::max_computed_degree`] gives the maximum degree for which the module is fully</span>
+<span class="doccomment">///    defined. It is guaranteed that the module will never change up to this degree in the future.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">///  - [`Module::compute_basis`] extends the internal data to support querying data up to (and</span>
+<span class="doccomment">///    including) a given degree. In general, we can run this beyond the max computed degree.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// A useful example to keep in mind is a [`FreeModule`](crate::module::FreeModule), where we have</span>
+<span class="doccomment">/// specified the generators up to some degree `t`. Then `t` is the max computed degree, while</span>
+<span class="doccomment">/// `compute_basis` computes data such as the offset of existing generators in potentially higher</span>
+<span class="doccomment">/// degrees.</span>
+<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">Module</span>: <span class="ident">std::fmt::Display</span> <span class="op">+</span> <span class="ident">std::any::Any</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> {
     <span class="kw">type</span> <span class="ident">Algebra</span>: <span class="ident">Algebra</span>;
 
+    <span class="doccomment">/// The algebra the module is over.</span>
     <span class="kw">fn</span> <span class="ident">algebra</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Algebra</span><span class="op">&gt;</span>;
+
+    <span class="doccomment">/// The minimum degree of the module, which is required to be bounded below</span>
     <span class="kw">fn</span> <span class="ident">min_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">i32</span>;
-    <span class="kw">fn</span> <span class="ident">compute_basis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">_degree</span>: <span class="ident">i32</span>) {}
-    <span class="doccomment">/// The maximum `t` for which the module is defined at `t`.</span>
+
+    <span class="doccomment">/// Compute internal data of the module so that we can query information up to degree `degree`.</span>
+    <span class="doccomment">/// This should be run by the user whenever they want to query such information.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// This function must be idempotent, and defaults to a no-op.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// See [`Module`] documentation for more details.</span>
+    <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">unused_variables</span>)]</span>
+    <span class="kw">fn</span> <span class="ident">compute_basis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) {}
+
+    <span class="doccomment">/// The maximum `t` for which the module is fully defined at `t`. See [`Module`] documentation</span>
+    <span class="doccomment">/// for more details.</span>
     <span class="kw">fn</span> <span class="ident">max_computed_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">i32</span>;
+
+    <span class="doccomment">/// The dimension of a module at the given degree</span>
     <span class="kw">fn</span> <span class="ident">dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) -&gt; <span class="ident">usize</span>;
     <span class="kw">fn</span> <span class="ident">act_on_basis</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
@@ -424,31 +352,38 @@
         <span class="ident">mod_index</span>: <span class="ident">usize</span>,
     );
 
+    <span class="doccomment">/// The name of a basis element. This is useful for debugging and printing results.</span>
     <span class="kw">fn</span> <span class="ident">basis_element_to_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">idx</span>: <span class="ident">usize</span>) -&gt; <span class="ident">String</span>;
 
     <span class="doccomment">/// Whether this is the unit module.</span>
     <span class="kw">fn</span> <span class="ident">is_unit</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">bool</span> {
-        <span class="bool-val">false</span>
+        <span class="self">self</span>.<span class="ident">min_degree</span>() <span class="op">==</span> <span class="number">0</span> <span class="op">&amp;&amp;</span> <span class="self">self</span>.<span class="ident">max_degree</span>() <span class="op">==</span> <span class="prelude-val">Some</span>(<span class="number">0</span>) <span class="op">&amp;&amp;</span> <span class="self">self</span>.<span class="ident">dimension</span>(<span class="number">0</span>) <span class="op">==</span> <span class="number">1</span>
     }
 
+    <span class="doccomment">/// The prime the module is over, which should be equal to the prime of the algebra.</span>
     <span class="kw">fn</span> <span class="ident">prime</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">ValidPrime</span> {
         <span class="self">self</span>.<span class="ident">algebra</span>().<span class="ident">prime</span>()
     }
 
-    <span class="doccomment">/// Whether act_on_basis_borrow is available.</span>
-    <span class="kw">fn</span> <span class="ident">borrow_output</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">bool</span> {
-        <span class="bool-val">false</span>
+    <span class="doccomment">/// `max_degree` is the a degree such that if t &gt; `max_degree`, then `self.dimension(t) = 0`.</span>
+    <span class="kw">fn</span> <span class="ident">max_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">i32</span><span class="op">&gt;</span> {
+        <span class="prelude-val">None</span>
     }
 
-    <span class="doccomment">/// Returns a borrow of the value of the corresponding action on the basis element.</span>
-    <span class="kw">fn</span> <span class="ident">act_on_basis_borrow</span>(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">_op_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">_op_index</span>: <span class="ident">usize</span>,
-        <span class="ident">_mod_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">_mod_index</span>: <span class="ident">usize</span>,
-    ) -&gt; <span class="kw-2">&amp;</span><span class="ident">FpVector</span> {
-        <span class="macro">unimplemented!</span>()
+    <span class="doccomment">/// Maximum degree of a generator under the Steenrod action. Every element in higher degree</span>
+    <span class="doccomment">/// must be obtainable from applying a Steenrod action to a lower degree element.</span>
+    <span class="kw">fn</span> <span class="ident">max_generator_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">i32</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">max_degree</span>()
+    }
+
+    <span class="kw">fn</span> <span class="ident">total_dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">usize</span> {
+        <span class="kw">let</span> <span class="ident">max_degree</span> <span class="op">=</span> <span class="self">self</span>
+            .<span class="ident">max_degree</span>()
+            .<span class="ident">expect</span>(<span class="string">&quot;total_dimension requires module to be bounded&quot;</span>);
+
+        (<span class="self">self</span>.<span class="ident">min_degree</span>()..<span class="op">=</span><span class="ident">max_degree</span>)
+            .<span class="ident">map</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">dimension</span>(<span class="ident">i</span>))
+            .<span class="ident">sum</span>()
     }
 
     <span class="doccomment">/// The length of `input` need not be equal to the dimension of the module in said degree.</span>
@@ -527,16 +462,8 @@
         }
     }
 
-    <span class="kw">fn</span> <span class="ident">basis_string_list</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span> {
-        (<span class="number">0</span>..<span class="self">self</span>.<span class="ident">dimension</span>(<span class="ident">degree</span>))
-            .<span class="ident">map</span>(<span class="op">|</span><span class="ident">idx</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">basis_element_to_string</span>(<span class="ident">degree</span>, <span class="ident">idx</span>))
-            .<span class="ident">collect</span>()
-        <span class="comment">// let formatter = (0..self.dimension(degree))</span>
-        <span class="comment">//     .map(|idx| self.basis_element_to_string(degree, idx))</span>
-        <span class="comment">//     .format(&quot;, &quot;);</span>
-        <span class="comment">// format!(&quot;[{}]&quot;, formatter)</span>
-    }
-
+    <span class="doccomment">/// Gives the name of an element. The default implementation is derived from</span>
+    <span class="doccomment">/// [`Module::basis_element_to_string`] in the obvious way.</span>
     <span class="kw">fn</span> <span class="ident">element_to_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">element</span>: <span class="ident">Slice</span>) -&gt; <span class="ident">String</span> {
         <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">element</span>
             .<span class="ident">iter_nonzero</span>()
@@ -554,154 +481,6 @@
             <span class="string">&quot;0&quot;</span>.<span class="ident">to_string</span>()
         } <span class="kw">else</span> {
             <span class="ident">result</span>
-        }
-    }
-
-    <span class="doccomment">/// This truncates the module to `max_dim` and represents it as an `FDModule`. This retains the</span>
-    <span class="doccomment">/// original name of the module</span>
-    <span class="kw">fn</span> <span class="ident">truncate_to_fd_module</span>(<span class="self">self</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">max_deg</span>: <span class="ident">i32</span>) -&gt; <span class="ident">FDModule</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Algebra</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">name</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">to_string</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">m</span> <span class="op">=</span> <span class="ident">TruncatedModule::new</span>(<span class="self">self</span>, <span class="ident">max_deg</span>).<span class="ident">to_fd_module</span>();
-        <span class="ident">m</span>.<span class="ident">name</span> <span class="op">=</span> <span class="ident">name</span>;
-        <span class="ident">m</span>
-    }
-
-    <span class="doccomment">/// op1(op2(x)) - (op1*op2)(x)</span>
-    <span class="kw">fn</span> <span class="ident">check_relation</span>(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">result</span>: <span class="kw-2">&amp;mut</span> <span class="ident">FpVector</span>,
-        <span class="ident">scratch</span>: <span class="kw-2">&amp;mut</span> <span class="ident">FpVector</span>,
-        <span class="ident">outer_op_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">outer_op_index</span>: <span class="ident">usize</span>,
-        <span class="ident">inner_op_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">inner_op_index</span>: <span class="ident">usize</span>,
-        <span class="ident">module_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">module_index</span>: <span class="ident">usize</span>,
-    ) {
-        <span class="ident">result</span>.<span class="ident">set_scratch_vector_size</span>(
-            <span class="self">self</span>.<span class="ident">dimension</span>(<span class="ident">outer_op_degree</span> <span class="op">+</span> <span class="ident">inner_op_degree</span> <span class="op">+</span> <span class="ident">module_degree</span>),
-        );
-        <span class="ident">scratch</span>.<span class="ident">set_scratch_vector_size</span>(<span class="self">self</span>.<span class="ident">dimension</span>(<span class="ident">inner_op_degree</span> <span class="op">+</span> <span class="ident">module_degree</span>));
-        <span class="self">self</span>.<span class="ident">act_on_basis</span>(
-            <span class="ident">scratch</span>.<span class="ident">as_slice_mut</span>(),
-            <span class="number">1</span>,
-            <span class="ident">inner_op_degree</span>,
-            <span class="ident">inner_op_index</span>,
-            <span class="ident">module_degree</span>,
-            <span class="ident">module_index</span>,
-        );
-        <span class="self">self</span>.<span class="ident">act</span>(
-            <span class="ident">result</span>.<span class="ident">as_slice_mut</span>(),
-            <span class="number">1</span>,
-            <span class="ident">outer_op_degree</span>,
-            <span class="ident">outer_op_index</span>,
-            <span class="ident">inner_op_degree</span> <span class="op">+</span> <span class="ident">module_degree</span>,
-            <span class="ident">scratch</span>.<span class="ident">as_slice</span>(),
-        );
-        <span class="comment">// println!(&quot;scratch 1 : {}&quot;, self.element_to_string(inner_op_degree + module_degree, &amp;scratch));</span>
-        <span class="comment">// println!(&quot;result 1 : {}&quot;, self.element_to_string(outer_op_degree + inner_op_degree + module_degree, &amp;result));</span>
-        <span class="ident">scratch</span>
-            .<span class="ident">set_scratch_vector_size</span>(<span class="self">self</span>.<span class="ident">algebra</span>().<span class="ident">dimension</span>(<span class="ident">outer_op_degree</span> <span class="op">+</span> <span class="ident">inner_op_degree</span>));
-        <span class="self">self</span>.<span class="ident">algebra</span>().<span class="ident">multiply_basis_elements</span>(
-            <span class="ident">scratch</span>.<span class="ident">as_slice_mut</span>(),
-            <span class="number">1</span>,
-            <span class="ident">outer_op_degree</span>,
-            <span class="ident">outer_op_index</span>,
-            <span class="ident">inner_op_degree</span>,
-            <span class="ident">inner_op_index</span>,
-        );
-        <span class="self">self</span>.<span class="ident">act_by_element_on_basis</span>(
-            <span class="ident">result</span>.<span class="ident">as_slice_mut</span>(),
-            <span class="kw-2">*</span><span class="self">self</span>.<span class="ident">prime</span>() <span class="op">-</span> <span class="number">1</span>,
-            <span class="ident">outer_op_degree</span> <span class="op">+</span> <span class="ident">inner_op_degree</span>,
-            <span class="ident">scratch</span>.<span class="ident">as_slice</span>(),
-            <span class="ident">module_degree</span>,
-            <span class="ident">module_index</span>,
-        );
-        <span class="comment">// println!(&quot;result 2 : {}&quot;, self.element_to_string(outer_op_degree + inner_op_degree + module_degree, &amp;result));</span>
-    }
-
-    <span class="doccomment">/// Input: degree through which to check.</span>
-    <span class="doccomment">/// Output: Vec of discrepancies.</span>
-    <span class="kw">fn</span> <span class="ident">check_relations</span>(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">max_degree</span>: <span class="ident">i32</span>,
-    ) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span>((<span class="ident">i32</span>, <span class="ident">usize</span>, <span class="ident">i32</span>, <span class="ident">usize</span>, <span class="ident">i32</span>, <span class="ident">usize</span>), <span class="ident">FpVector</span>)<span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">Vec::new</span>();
-        <span class="kw">let</span> <span class="ident">algebra</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">algebra</span>();
-        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prime</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">scratch_vec</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="number">0</span>);
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">discrepancy_vec</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="number">0</span>);
-        <span class="ident">algebra</span>.<span class="ident">compute_basis</span>(<span class="ident">max_degree</span>);
-        <span class="self">self</span>.<span class="ident">compute_basis</span>(<span class="ident">max_degree</span>);
-        <span class="kw">for</span> <span class="ident">outer_op_degree</span> <span class="kw">in</span> <span class="number">0</span>..<span class="op">=</span><span class="ident">max_degree</span> {
-            <span class="kw">for</span> <span class="ident">outer_op_index</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">algebra</span>.<span class="ident">dimension</span>(<span class="ident">outer_op_degree</span>) {
-                <span class="kw">for</span> <span class="ident">inner_op_degree</span> <span class="kw">in</span> <span class="number">0</span>..<span class="op">=</span><span class="ident">max_degree</span> <span class="op">-</span> <span class="ident">outer_op_degree</span> {
-                    <span class="kw">for</span> <span class="ident">inner_op_index</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">algebra</span>.<span class="ident">dimension</span>(<span class="ident">inner_op_degree</span>) {
-                        <span class="kw">for</span> <span class="ident">module_degree</span> <span class="kw">in</span> <span class="number">0</span>..<span class="op">=</span><span class="ident">max_degree</span> <span class="op">-</span> <span class="ident">outer_op_degree</span> <span class="op">-</span> <span class="ident">inner_op_degree</span> {
-                            <span class="kw">for</span> <span class="ident">module_index</span> <span class="kw">in</span> <span class="number">0</span>..<span class="self">self</span>.<span class="ident">dimension</span>(<span class="ident">module_degree</span>) {
-                                <span class="self">self</span>.<span class="ident">check_relation</span>(
-                                    <span class="kw-2">&amp;mut</span> <span class="ident">discrepancy_vec</span>,
-                                    <span class="kw-2">&amp;mut</span> <span class="ident">scratch_vec</span>,
-                                    <span class="ident">outer_op_degree</span>,
-                                    <span class="ident">outer_op_index</span>,
-                                    <span class="ident">inner_op_degree</span>,
-                                    <span class="ident">inner_op_index</span>,
-                                    <span class="ident">module_degree</span>,
-                                    <span class="ident">module_index</span>,
-                                );
-                                <span class="kw">if</span> <span class="op">!</span><span class="ident">discrepancy_vec</span>.<span class="ident">is_zero</span>() {
-                                    <span class="ident">result</span>.<span class="ident">push</span>((
-                                        (
-                                            <span class="ident">outer_op_degree</span>,
-                                            <span class="ident">outer_op_index</span>,
-                                            <span class="ident">inner_op_degree</span>,
-                                            <span class="ident">inner_op_index</span>,
-                                            <span class="ident">module_degree</span>,
-                                            <span class="ident">module_index</span>,
-                                        ),
-                                        <span class="ident">discrepancy_vec</span>.<span class="ident">clone</span>(),
-                                    ));
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        <span class="ident">result</span>
-    }
-
-    <span class="kw">fn</span> <span class="ident">test_relations</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">max_degree</span>: <span class="ident">i32</span>, <span class="ident">max_failures_to_display</span>: <span class="ident">usize</span>) {
-        <span class="kw">let</span> <span class="ident">discrepancies</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">check_relations</span>(<span class="ident">max_degree</span>);
-        <span class="kw">let</span> <span class="ident">algebra</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">algebra</span>();
-        <span class="kw">if</span> <span class="op">!</span><span class="ident">discrepancies</span>.<span class="ident">is_empty</span>() {
-            <span class="kw">let</span> <span class="ident">formatter</span> <span class="op">=</span> <span class="ident">discrepancies</span>.<span class="ident">iter</span>().<span class="ident">take</span>(<span class="ident">max_failures_to_display</span>).<span class="ident">format_with</span>(<span class="string">&quot;\n\n   ========= \n\n  &quot;</span>, 
-                <span class="op">|</span>(
-                    <span class="ident">tuple</span>,
-                    <span class="ident">discrepancy_vec</span>
-                ), <span class="ident">f</span><span class="op">|</span> {
-                    <span class="kw">let</span> <span class="kw-2">&amp;</span>(<span class="ident">outer_op_degree</span>, <span class="ident">outer_op_index</span>,
-                        <span class="ident">inner_op_degree</span>, <span class="ident">inner_op_index</span>,
-                        <span class="ident">module_degree</span>, <span class="ident">module_index</span>)
-                    <span class="op">=</span> <span class="ident">tuple</span>;
-                    <span class="ident">f</span>(<span class="kw-2">&amp;</span><span class="macro">format_args!</span>(
-                        <span class="string">&quot;{outer_op_degree}, {outer_op_index}, {inner_op_degree}, {inner_op_index}, {module_degree}, {module_index}\n\
-                        {op1}({op2}({m})) - ({op1} * {op2})({m}) == {disc}&quot;</span>,
-                        <span class="ident">outer_op_degree</span> <span class="op">=</span> <span class="ident">outer_op_degree</span>,
-                        <span class="ident">outer_op_index</span> <span class="op">=</span> <span class="ident">outer_op_index</span>,
-                        <span class="ident">inner_op_degree</span> <span class="op">=</span> <span class="ident">inner_op_degree</span>,
-                        <span class="ident">inner_op_index</span> <span class="op">=</span> <span class="ident">inner_op_index</span>,
-                        <span class="ident">module_degree</span> <span class="op">=</span> <span class="ident">module_degree</span>,
-                        <span class="ident">module_index</span> <span class="op">=</span> <span class="ident">module_index</span>,
-                        <span class="ident">op1</span> <span class="op">=</span> <span class="ident">algebra</span>.<span class="ident">basis_element_to_string</span>(<span class="ident">outer_op_degree</span>, <span class="ident">outer_op_index</span>),
-                        <span class="ident">op2</span> <span class="op">=</span> <span class="ident">algebra</span>.<span class="ident">basis_element_to_string</span>(<span class="ident">inner_op_degree</span>, <span class="ident">inner_op_index</span>),
-                        <span class="ident">m</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">basis_element_to_string</span>(<span class="ident">module_degree</span>, <span class="ident">module_index</span>),
-                        <span class="ident">disc</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">element_to_string</span>(<span class="ident">outer_op_degree</span> <span class="op">+</span> <span class="ident">inner_op_degree</span> <span class="op">+</span> <span class="ident">module_degree</span>, <span class="ident">discrepancy_vec</span>.<span class="ident">as_slice</span>())
-                    ))
-                }
-            );
-            <span class="macro">panic!</span>(<span class="string">&quot;Discrepancies:\n  {}&quot;</span>, <span class="ident">formatter</span>);
         }
     }
 }
@@ -722,14 +501,9 @@
     <span class="macro">dispatch!</span> {
         <span class="kw">fn</span> <span class="ident">algebra</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Algebra</span><span class="op">&gt;</span>;
         <span class="kw">fn</span> <span class="ident">min_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">i32</span>;
-        <span class="kw">fn</span> <span class="ident">max_computed_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">i32</span>;
         <span class="kw">fn</span> <span class="ident">compute_basis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>);
+        <span class="kw">fn</span> <span class="ident">max_computed_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">i32</span>;
         <span class="kw">fn</span> <span class="ident">dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) -&gt; <span class="ident">usize</span>;
-        <span class="kw">fn</span> <span class="ident">basis_element_to_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">idx</span>: <span class="ident">usize</span>) -&gt; <span class="ident">String</span>;
-        <span class="kw">fn</span> <span class="ident">is_unit</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">bool</span>;
-        <span class="kw">fn</span> <span class="ident">prime</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">ValidPrime</span>;
-        <span class="kw">fn</span> <span class="ident">borrow_output</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">bool</span>;
-
         <span class="kw">fn</span> <span class="ident">act_on_basis</span>(
             <span class="kw-2">&amp;</span><span class="self">self</span>,
             <span class="ident">result</span>: <span class="ident">SliceMut</span>,
@@ -739,14 +513,40 @@
             <span class="ident">mod_degree</span>: <span class="ident">i32</span>,
             <span class="ident">mod_index</span>: <span class="ident">usize</span>,
         );
-
-        <span class="kw">fn</span> <span class="ident">act_on_basis_borrow</span>(
+        <span class="kw">fn</span> <span class="ident">basis_element_to_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">idx</span>: <span class="ident">usize</span>) -&gt; <span class="ident">String</span>;
+        <span class="kw">fn</span> <span class="ident">is_unit</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">bool</span>;
+        <span class="kw">fn</span> <span class="ident">prime</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">ValidPrime</span>;
+        <span class="kw">fn</span> <span class="ident">max_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">i32</span><span class="op">&gt;</span>;
+        <span class="kw">fn</span> <span class="ident">max_generator_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">i32</span><span class="op">&gt;</span>;
+        <span class="kw">fn</span> <span class="ident">total_dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">usize</span>;
+        <span class="kw">fn</span> <span class="ident">act</span>(
             <span class="kw-2">&amp;</span><span class="self">self</span>,
+            <span class="ident">result</span>: <span class="ident">SliceMut</span>,
+            <span class="ident">coeff</span>: <span class="ident">u32</span>,
             <span class="ident">op_degree</span>: <span class="ident">i32</span>,
             <span class="ident">op_index</span>: <span class="ident">usize</span>,
-            <span class="ident">mod_degree</span>: <span class="ident">i32</span>,
-            <span class="ident">mod_index</span>: <span class="ident">usize</span>,
-        ) -&gt; <span class="kw-2">&amp;</span><span class="ident">FpVector</span>;
+            <span class="ident">input_degree</span>: <span class="ident">i32</span>,
+            <span class="ident">input</span>: <span class="ident">Slice</span>,
+        );
+        <span class="kw">fn</span> <span class="ident">act_by_element</span>(
+            <span class="kw-2">&amp;</span><span class="self">self</span>,
+            <span class="ident">result</span>: <span class="ident">SliceMut</span>,
+            <span class="ident">coeff</span>: <span class="ident">u32</span>,
+            <span class="ident">op_degree</span>: <span class="ident">i32</span>,
+            <span class="ident">op</span>: <span class="ident">Slice</span>,
+            <span class="ident">input_degree</span>: <span class="ident">i32</span>,
+            <span class="ident">input</span>: <span class="ident">Slice</span>,
+        );
+        <span class="kw">fn</span> <span class="ident">act_by_element_on_basis</span>(
+            <span class="kw-2">&amp;</span><span class="self">self</span>,
+            <span class="ident">result</span>: <span class="ident">SliceMut</span>,
+            <span class="ident">coeff</span>: <span class="ident">u32</span>,
+            <span class="ident">op_degree</span>: <span class="ident">i32</span>,
+            <span class="ident">op</span>: <span class="ident">Slice</span>,
+            <span class="ident">input_degree</span>: <span class="ident">i32</span>,
+            <span class="ident">input_index</span>: <span class="ident">usize</span>,
+        );
+        <span class="kw">fn</span> <span class="ident">element_to_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">element</span>: <span class="ident">Slice</span>) -&gt; <span class="ident">String</span>;
     }
 }
 

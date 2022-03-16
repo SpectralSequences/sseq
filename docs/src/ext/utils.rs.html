@@ -515,11 +515,13 @@
 <span id="488">488</span>
 <span id="489">489</span>
 <span id="490">490</span>
+<span id="491">491</span>
+<span id="492">492</span>
 </pre><pre class="rust"><code><span class="doccomment">//! A module containing various utility functions related to user interaction in some way.</span>
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::chain_complex</span>::{<span class="ident">ChainComplex</span>, <span class="ident">FiniteChainComplex</span>};
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::resolution::Resolution</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::CCC</span>;
-<span class="kw">use</span> <span class="ident">algebra::module</span>::{<span class="ident">FiniteModule</span>, <span class="ident">Module</span>};
+<span class="kw">use</span> <span class="ident">algebra::module</span>::{<span class="ident">steenrod_module</span>, <span class="ident">Module</span>, <span class="ident">SteenrodModule</span>};
 <span class="kw">use</span> <span class="ident">algebra</span>::{<span class="ident">AlgebraType</span>, <span class="ident">SteenrodAlgebra</span>};
 
 <span class="kw">use</span> <span class="ident">anyhow</span>::{<span class="ident">anyhow</span>, <span class="ident">Context</span>};
@@ -645,7 +647,7 @@
     } <span class="op">=</span> <span class="ident">module_spec</span>.<span class="ident">try_into</span>()<span class="question-mark">?</span>;
 
     <span class="kw">let</span> <span class="ident">algebra</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">SteenrodAlgebra::from_json</span>(<span class="kw-2">&amp;</span><span class="ident">json</span>, <span class="ident">algebra</span>)<span class="question-mark">?</span>);
-    <span class="kw">let</span> <span class="ident">module</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">FiniteModule::from_json</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">algebra</span>), <span class="kw-2">&amp;</span><span class="ident">json</span>)<span class="question-mark">?</span>);
+    <span class="kw">let</span> <span class="ident">module</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">steenrod_module::from_json</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">algebra</span>), <span class="kw-2">&amp;</span><span class="ident">json</span>)<span class="question-mark">?</span>);
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">chain_complex</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">FiniteChainComplex::ccdz</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">module</span>)));
 
     <span class="kw">let</span> <span class="ident">cofiber</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">json</span>[<span class="string">&quot;cofiber&quot;</span>];
@@ -653,14 +655,17 @@
         <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::chain_complex::ChainMap</span>;
         <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::yoneda::yoneda_representative</span>;
         <span class="kw">use</span> <span class="ident">algebra::module::homomorphism::FreeModuleHomomorphism</span>;
-        <span class="kw">use</span> <span class="ident">algebra::module::BoundedModule</span>;
 
         <span class="kw">let</span> <span class="ident">s</span> <span class="op">=</span> <span class="ident">cofiber</span>[<span class="string">&quot;s&quot;</span>].<span class="ident">as_u64</span>().<span class="ident">unwrap</span>() <span class="kw">as</span> <span class="ident">u32</span>;
         <span class="kw">let</span> <span class="ident">t</span> <span class="op">=</span> <span class="ident">cofiber</span>[<span class="string">&quot;t&quot;</span>].<span class="ident">as_i64</span>().<span class="ident">unwrap</span>() <span class="kw">as</span> <span class="ident">i32</span>;
         <span class="kw">let</span> <span class="ident">idx</span> <span class="op">=</span> <span class="ident">cofiber</span>[<span class="string">&quot;idx&quot;</span>].<span class="ident">as_u64</span>().<span class="ident">unwrap</span>() <span class="kw">as</span> <span class="ident">usize</span>;
 
+        <span class="kw">let</span> <span class="ident">max_degree</span> <span class="op">=</span> <span class="ident">module</span>
+            .<span class="ident">max_degree</span>()
+            .<span class="ident">expect</span>(<span class="string">&quot;Can only take cofiber when module is bounded&quot;</span>);
+
         <span class="kw">let</span> <span class="ident">resolution</span> <span class="op">=</span> <span class="ident">Resolution::new</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">chain_complex</span>));
-        <span class="ident">resolution</span>.<span class="ident">compute_through_bidegree</span>(<span class="ident">s</span>, <span class="ident">t</span> <span class="op">+</span> <span class="ident">module</span>.<span class="ident">max_degree</span>());
+        <span class="ident">resolution</span>.<span class="ident">compute_through_bidegree</span>(<span class="ident">s</span>, <span class="ident">t</span> <span class="op">+</span> <span class="ident">max_degree</span>);
 
         <span class="kw">let</span> <span class="ident">map</span> <span class="op">=</span> <span class="ident">FreeModuleHomomorphism::new</span>(<span class="ident">resolution</span>.<span class="ident">module</span>(<span class="ident">s</span>), <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">module</span>), <span class="ident">t</span>);
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">new_output</span> <span class="op">=</span> <span class="ident">fp::matrix::Matrix::new</span>(
@@ -671,7 +676,7 @@
         <span class="ident">new_output</span>[<span class="ident">idx</span>].<span class="ident">set_entry</span>(<span class="number">0</span>, <span class="number">1</span>);
 
         <span class="ident">map</span>.<span class="ident">add_generators_from_matrix_rows</span>(<span class="ident">t</span>, <span class="ident">new_output</span>.<span class="ident">as_slice_mut</span>());
-        <span class="ident">map</span>.<span class="ident">extend_by_zero</span>(<span class="ident">module</span>.<span class="ident">max_degree</span>() <span class="op">+</span> <span class="ident">t</span>);
+        <span class="ident">map</span>.<span class="ident">extend_by_zero</span>(<span class="ident">max_degree</span> <span class="op">+</span> <span class="ident">t</span>);
 
         <span class="kw">let</span> <span class="ident">cm</span> <span class="op">=</span> <span class="ident">ChainMap</span> {
             <span class="ident">s_shift</span>: <span class="ident">s</span>,
@@ -681,7 +686,7 @@
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">yoneda</span> <span class="op">=</span> <span class="ident">FiniteChainComplex::from</span>(<span class="ident">yoneda</span>);
         <span class="ident">yoneda</span>.<span class="ident">pop</span>();
 
-        <span class="ident">chain_complex</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">yoneda</span>);
+        <span class="ident">chain_complex</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">yoneda</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">m</span><span class="op">|</span> <span class="ident">Box::new</span>(<span class="ident">m</span>.<span class="ident">clone</span>()) <span class="kw">as</span> <span class="ident">SteenrodModule</span>));
     }
 
     <span class="ident">Resolution::new_with_save</span>(<span class="ident">chain_complex</span>, <span class="ident">save_dir</span>)
@@ -889,10 +894,9 @@
 ) -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span>(<span class="ident">bool</span>, <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">QueryModuleResolution</span><span class="op">&gt;</span>)<span class="op">&gt;</span> {
     <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;nassau&quot;</span>))]</span>
     {
-        <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::chain_complex::AugmentedChainComplex</span>;
+        <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::chain_complex</span>::{<span class="ident">AugmentedChainComplex</span>, <span class="ident">BoundedChainComplex</span>};
 
-        <span class="kw">let</span> <span class="ident">is_unit</span> <span class="op">=</span>
-            <span class="ident">resolution</span>.<span class="ident">target</span>().<span class="ident">modules</span>.<span class="ident">len</span>() <span class="op">==</span> <span class="number">1</span> <span class="op">&amp;&amp;</span> <span class="ident">resolution</span>.<span class="ident">target</span>().<span class="ident">module</span>(<span class="number">0</span>).<span class="ident">is_unit</span>();
+        <span class="kw">let</span> <span class="ident">is_unit</span> <span class="op">=</span> <span class="ident">resolution</span>.<span class="ident">target</span>().<span class="ident">max_s</span>() <span class="op">==</span> <span class="number">1</span> <span class="op">&amp;&amp;</span> <span class="ident">resolution</span>.<span class="ident">target</span>().<span class="ident">module</span>(<span class="number">0</span>).<span class="ident">is_unit</span>();
 
         <span class="kw">let</span> <span class="ident">unit</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">is_unit</span> {
             <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">resolution</span>)

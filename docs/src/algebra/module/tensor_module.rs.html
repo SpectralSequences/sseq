@@ -343,53 +343,12 @@
 <span id="316">316</span>
 <span id="317">317</span>
 <span id="318">318</span>
-<span id="319">319</span>
-<span id="320">320</span>
-<span id="321">321</span>
-<span id="322">322</span>
-<span id="323">323</span>
-<span id="324">324</span>
-<span id="325">325</span>
-<span id="326">326</span>
-<span id="327">327</span>
-<span id="328">328</span>
-<span id="329">329</span>
-<span id="330">330</span>
-<span id="331">331</span>
-<span id="332">332</span>
-<span id="333">333</span>
-<span id="334">334</span>
-<span id="335">335</span>
-<span id="336">336</span>
-<span id="337">337</span>
-<span id="338">338</span>
-<span id="339">339</span>
-<span id="340">340</span>
-<span id="341">341</span>
-<span id="342">342</span>
-<span id="343">343</span>
-<span id="344">344</span>
-<span id="345">345</span>
-<span id="346">346</span>
-<span id="347">347</span>
-<span id="348">348</span>
-<span id="349">349</span>
-<span id="350">350</span>
-<span id="351">351</span>
-<span id="352">352</span>
-<span id="353">353</span>
-<span id="354">354</span>
-<span id="355">355</span>
-<span id="356">356</span>
-<span id="357">357</span>
-<span id="358">358</span>
-<span id="359">359</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">bivec::BiVec</span>;
 <span class="kw">use</span> <span class="ident">once::OnceBiVec</span>;
 
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::algebra</span>::{<span class="ident">Algebra</span>, <span class="ident">Bialgebra</span>};
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::module::block_structure::BlockStructure</span>;
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::module</span>::{<span class="ident">BoundedModule</span>, <span class="ident">Module</span>, <span class="ident">ZeroModule</span>};
+<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::module</span>::{<span class="ident">Module</span>, <span class="ident">ZeroModule</span>};
 <span class="kw">use</span> <span class="ident">fp::prime::minus_one_to_the_n</span>;
 <span class="kw">use</span> <span class="ident">fp::vector</span>::{<span class="ident">FpVector</span>, <span class="ident">Slice</span>, <span class="ident">SliceMut</span>};
 
@@ -451,7 +410,8 @@
         <span class="kw">let</span> <span class="ident">coproduct</span> <span class="op">=</span> <span class="ident">algebra</span>.<span class="ident">coproduct</span>(<span class="ident">op_degree</span>, <span class="ident">op_index</span>).<span class="ident">into_iter</span>();
         <span class="kw">let</span> <span class="ident">output_degree</span> <span class="op">=</span> <span class="ident">mod_degree</span> <span class="op">+</span> <span class="ident">op_degree</span>;
 
-        <span class="kw">let</span> <span class="ident">borrow_output</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">left</span>.<span class="ident">borrow_output</span>() <span class="op">&amp;&amp;</span> <span class="self">self</span>.<span class="ident">right</span>.<span class="ident">borrow_output</span>();
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">left_result</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="number">0</span>);
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">right_result</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="number">0</span>);
 
         <span class="kw">for</span> (<span class="ident">op_deg_l</span>, <span class="ident">op_idx_l</span>, <span class="ident">op_deg_r</span>, <span class="ident">op_idx_r</span>) <span class="kw">in</span> <span class="ident">coproduct</span> {
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">idx</span> <span class="op">=</span> <span class="number">0</span>;
@@ -475,88 +435,53 @@
                     <span class="ident">idx</span> <span class="op">+</span><span class="op">=</span> <span class="ident">left_source_dim</span> <span class="op">*</span> <span class="ident">right_source_dim</span>;
                     <span class="kw">continue</span>;
                 }
-                <span class="kw">if</span> <span class="ident">borrow_output</span> {
-                    <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">left_source_dim</span> {
-                        <span class="kw">let</span> <span class="ident">left_result</span> <span class="op">=</span> <span class="self">self</span>
-                            .<span class="ident">left</span>
-                            .<span class="ident">act_on_basis_borrow</span>(<span class="ident">op_deg_l</span>, <span class="ident">op_idx_l</span>, <span class="ident">left_deg</span>, <span class="ident">i</span>);
 
-                        <span class="kw">if</span> <span class="ident">left_result</span>.<span class="ident">is_zero</span>() {
-                            <span class="ident">idx</span> <span class="op">+</span><span class="op">=</span> <span class="ident">right_source_dim</span>;
+                <span class="ident">left_result</span>.<span class="ident">set_scratch_vector_size</span>(<span class="ident">left_target_dim</span>);
+                <span class="ident">right_result</span>.<span class="ident">set_scratch_vector_size</span>(<span class="ident">right_target_dim</span>);
+
+                <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">left_source_dim</span> {
+                    <span class="self">self</span>.<span class="ident">left</span>.<span class="ident">act_on_basis</span>(
+                        <span class="ident">left_result</span>.<span class="ident">as_slice_mut</span>(),
+                        <span class="ident">coeff</span>,
+                        <span class="ident">op_deg_l</span>,
+                        <span class="ident">op_idx_l</span>,
+                        <span class="ident">left_deg</span>,
+                        <span class="ident">i</span>,
+                    );
+
+                    <span class="kw">if</span> <span class="ident">left_result</span>.<span class="ident">is_zero</span>() {
+                        <span class="ident">idx</span> <span class="op">+</span><span class="op">=</span> <span class="ident">right_source_dim</span>;
+                        <span class="kw">continue</span>;
+                    }
+
+                    <span class="kw">for</span> <span class="ident">j</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">right_source_dim</span> {
+                        <span class="kw">let</span> <span class="ident">entry</span> <span class="op">=</span> <span class="ident">input</span>.<span class="ident">entry</span>(<span class="ident">idx</span>);
+                        <span class="ident">idx</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
+                        <span class="kw">if</span> <span class="ident">entry</span> <span class="op">==</span> <span class="number">0</span> {
                             <span class="kw">continue</span>;
                         }
-
-                        <span class="kw">for</span> <span class="ident">j</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">right_source_dim</span> {
-                            <span class="kw">let</span> <span class="ident">entry</span> <span class="op">=</span> <span class="ident">input</span>.<span class="ident">entry</span>(<span class="ident">idx</span>);
-                            <span class="ident">idx</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
-                            <span class="kw">if</span> <span class="ident">entry</span> <span class="op">==</span> <span class="number">0</span> {
-                                <span class="kw">continue</span>;
-                            }
-                            <span class="kw">let</span> <span class="ident">right_result</span> <span class="op">=</span> <span class="self">self</span>
-                                .<span class="ident">right</span>
-                                .<span class="ident">act_on_basis_borrow</span>(<span class="ident">op_deg_r</span>, <span class="ident">op_idx_r</span>, <span class="ident">right_deg</span>, <span class="ident">j</span>);
-
-                            <span class="kw">if</span> <span class="ident">right_result</span>.<span class="ident">is_zero</span>() {
-                                <span class="kw">continue</span>;
-                            }
-                            <span class="ident">result</span>.<span class="ident">add_tensor</span>(
-                                <span class="self">self</span>.<span class="ident">offset</span>(<span class="ident">output_degree</span>, <span class="ident">left_deg</span> <span class="op">+</span> <span class="ident">op_deg_l</span>),
-                                <span class="ident">coeff</span>
-                                    <span class="op">*</span> <span class="ident">entry</span>
-                                    <span class="op">*</span> <span class="ident">minus_one_to_the_n</span>(<span class="kw-2">*</span><span class="self">self</span>.<span class="ident">prime</span>(), <span class="ident">op_deg_r</span> <span class="op">*</span> <span class="ident">left_deg</span>),
-                                <span class="ident">left_result</span>.<span class="ident">as_slice</span>(),
-                                <span class="ident">right_result</span>.<span class="ident">as_slice</span>(),
-                            );
-                        }
-                    }
-                } <span class="kw">else</span> {
-                    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">left_result</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="ident">left_target_dim</span>);
-                    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">right_result</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="ident">right_target_dim</span>);
-
-                    <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">left_source_dim</span> {
-                        <span class="self">self</span>.<span class="ident">left</span>.<span class="ident">act_on_basis</span>(
-                            <span class="ident">left_result</span>.<span class="ident">as_slice_mut</span>(),
-                            <span class="ident">coeff</span>,
-                            <span class="ident">op_deg_l</span>,
-                            <span class="ident">op_idx_l</span>,
-                            <span class="ident">left_deg</span>,
-                            <span class="ident">i</span>,
+                        <span class="self">self</span>.<span class="ident">right</span>.<span class="ident">act_on_basis</span>(
+                            <span class="ident">right_result</span>.<span class="ident">as_slice_mut</span>(),
+                            <span class="ident">entry</span>,
+                            <span class="ident">op_deg_r</span>,
+                            <span class="ident">op_idx_r</span>,
+                            <span class="ident">right_deg</span>,
+                            <span class="ident">j</span>,
                         );
 
-                        <span class="kw">if</span> <span class="ident">left_result</span>.<span class="ident">is_zero</span>() {
-                            <span class="ident">idx</span> <span class="op">+</span><span class="op">=</span> <span class="ident">right_source_dim</span>;
+                        <span class="kw">if</span> <span class="ident">right_result</span>.<span class="ident">is_zero</span>() {
                             <span class="kw">continue</span>;
                         }
+                        <span class="ident">result</span>.<span class="ident">add_tensor</span>(
+                            <span class="self">self</span>.<span class="ident">offset</span>(<span class="ident">output_degree</span>, <span class="ident">left_deg</span> <span class="op">+</span> <span class="ident">op_deg_l</span>),
+                            <span class="ident">minus_one_to_the_n</span>(<span class="kw-2">*</span><span class="self">self</span>.<span class="ident">prime</span>(), <span class="ident">op_deg_r</span> <span class="op">*</span> <span class="ident">left_deg</span>),
+                            <span class="ident">left_result</span>.<span class="ident">as_slice</span>(),
+                            <span class="ident">right_result</span>.<span class="ident">as_slice</span>(),
+                        );
 
-                        <span class="kw">for</span> <span class="ident">j</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">right_source_dim</span> {
-                            <span class="kw">let</span> <span class="ident">entry</span> <span class="op">=</span> <span class="ident">input</span>.<span class="ident">entry</span>(<span class="ident">idx</span>);
-                            <span class="ident">idx</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
-                            <span class="kw">if</span> <span class="ident">entry</span> <span class="op">==</span> <span class="number">0</span> {
-                                <span class="kw">continue</span>;
-                            }
-                            <span class="self">self</span>.<span class="ident">right</span>.<span class="ident">act_on_basis</span>(
-                                <span class="ident">right_result</span>.<span class="ident">as_slice_mut</span>(),
-                                <span class="ident">entry</span>,
-                                <span class="ident">op_deg_r</span>,
-                                <span class="ident">op_idx_r</span>,
-                                <span class="ident">right_deg</span>,
-                                <span class="ident">j</span>,
-                            );
-
-                            <span class="kw">if</span> <span class="ident">right_result</span>.<span class="ident">is_zero</span>() {
-                                <span class="kw">continue</span>;
-                            }
-                            <span class="ident">result</span>.<span class="ident">add_tensor</span>(
-                                <span class="self">self</span>.<span class="ident">offset</span>(<span class="ident">output_degree</span>, <span class="ident">left_deg</span> <span class="op">+</span> <span class="ident">op_deg_l</span>),
-                                <span class="ident">minus_one_to_the_n</span>(<span class="kw-2">*</span><span class="self">self</span>.<span class="ident">prime</span>(), <span class="ident">op_deg_r</span> <span class="op">*</span> <span class="ident">left_deg</span>),
-                                <span class="ident">left_result</span>.<span class="ident">as_slice</span>(),
-                                <span class="ident">right_result</span>.<span class="ident">as_slice</span>(),
-                            );
-
-                            <span class="ident">right_result</span>.<span class="ident">set_to_zero</span>();
-                        }
-                        <span class="ident">left_result</span>.<span class="ident">set_to_zero</span>();
+                        <span class="ident">right_result</span>.<span class="ident">set_to_zero</span>();
                     }
+                    <span class="ident">left_result</span>.<span class="ident">set_to_zero</span>();
                 }
             }
         }
@@ -717,16 +642,9 @@
                 .<span class="ident">basis_element_to_string</span>(<span class="ident">right_degree</span>, <span class="ident">right_index</span>)
         )
     }
-}
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>, <span class="ident">M</span>, <span class="ident">N</span><span class="op">&gt;</span> <span class="ident">BoundedModule</span> <span class="kw">for</span> <span class="ident">TensorModule</span><span class="op">&lt;</span><span class="ident">M</span>, <span class="ident">N</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">A</span>: <span class="ident">Algebra</span> <span class="op">+</span> <span class="ident">Bialgebra</span>,
-    <span class="ident">M</span>: <span class="ident">Module</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">A</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">BoundedModule</span>,
-    <span class="ident">N</span>: <span class="ident">Module</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">A</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">BoundedModule</span>,
-{
-    <span class="kw">fn</span> <span class="ident">max_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">i32</span> {
-        <span class="self">self</span>.<span class="ident">left</span>.<span class="ident">max_degree</span>() <span class="op">+</span> <span class="self">self</span>.<span class="ident">right</span>.<span class="ident">max_degree</span>()
+    <span class="kw">fn</span> <span class="ident">max_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">i32</span><span class="op">&gt;</span> {
+        <span class="prelude-val">Some</span>(<span class="self">self</span>.<span class="ident">left</span>.<span class="ident">max_degree</span>()<span class="question-mark">?</span> <span class="op">+</span> <span class="self">self</span>.<span class="ident">right</span>.<span class="ident">max_degree</span>()<span class="question-mark">?</span>)
     }
 }
 

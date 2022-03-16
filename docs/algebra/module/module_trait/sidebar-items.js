@@ -1,1 +1,1 @@
-initSidebarItems({"macro":[["dispatch",""]],"struct":[["ModuleFailedRelationError",""]],"trait":[["Module",""]]});
+initSidebarItems({"macro":[["dispatch",""]],"struct":[["ModuleFailedRelationError",""]],"trait":[["Module","A bounded below module over an algebra. To accommodate for infinite modules (e.g. modules in a free resolution), every module is potentially only define up to a degree. The extent to which the module is defined is kept track by two functions:"]]});

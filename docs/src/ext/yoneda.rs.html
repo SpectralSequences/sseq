@@ -875,64 +875,18 @@
 <span id="848">848</span>
 <span id="849">849</span>
 <span id="850">850</span>
-<span id="851">851</span>
-<span id="852">852</span>
-<span id="853">853</span>
-<span id="854">854</span>
-<span id="855">855</span>
-<span id="856">856</span>
-<span id="857">857</span>
-<span id="858">858</span>
-<span id="859">859</span>
-<span id="860">860</span>
-<span id="861">861</span>
-<span id="862">862</span>
-<span id="863">863</span>
-<span id="864">864</span>
-<span id="865">865</span>
-<span id="866">866</span>
-<span id="867">867</span>
-<span id="868">868</span>
-<span id="869">869</span>
-<span id="870">870</span>
-<span id="871">871</span>
-<span id="872">872</span>
-<span id="873">873</span>
-<span id="874">874</span>
-<span id="875">875</span>
-<span id="876">876</span>
-<span id="877">877</span>
-<span id="878">878</span>
-<span id="879">879</span>
-<span id="880">880</span>
-<span id="881">881</span>
-<span id="882">882</span>
-<span id="883">883</span>
-<span id="884">884</span>
-<span id="885">885</span>
-<span id="886">886</span>
-<span id="887">887</span>
-<span id="888">888</span>
-<span id="889">889</span>
-<span id="890">890</span>
-<span id="891">891</span>
-<span id="892">892</span>
-<span id="893">893</span>
-<span id="894">894</span>
-<span id="895">895</span>
-<span id="896">896</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::chain_complex</span>::{
-    <span class="ident">AugmentedChainComplex</span>, <span class="ident">BoundedChainComplex</span>, <span class="ident">ChainComplex</span>, <span class="ident">ChainMap</span>, <span class="ident">FiniteAugmentedChainComplex</span>,
+    <span class="ident">AugmentedChainComplex</span>, <span class="ident">BoundedChainComplex</span>, <span class="ident">ChainComplex</span>, <span class="ident">ChainMap</span>,
+    <span class="ident">FiniteAugmentedChainComplex</span>, <span class="ident">FiniteChainComplex</span>,
 };
 <span class="kw">use</span> <span class="ident">algebra::module::homomorphism</span>::{
-    <span class="ident">BoundedModuleHomomorphism</span>, <span class="ident">FiniteModuleHomomorphism</span>, <span class="ident">FreeModuleHomomorphism</span>,
-    <span class="ident">ModuleHomomorphism</span>, <span class="ident">ZeroHomomorphism</span>,
+    <span class="ident">FreeModuleHomomorphism</span>, <span class="ident">FullModuleHomomorphism</span>, <span class="ident">ModuleHomomorphism</span>,
 };
 <span class="kw">use</span> <span class="ident">algebra::module::homomorphism</span>::{
     <span class="ident">QuotientHomomorphism</span>, <span class="ident">QuotientHomomorphismSource</span>, <span class="ident">TruncatedHomomorphism</span>,
     <span class="ident">TruncatedHomomorphismSource</span>,
 };
-<span class="kw">use</span> <span class="ident">algebra::module</span>::{<span class="ident">BoundedModule</span>, <span class="ident">FDModule</span>, <span class="ident">FiniteModule</span>, <span class="ident">FreeModule</span>, <span class="ident">Module</span>};
+<span class="kw">use</span> <span class="ident">algebra::module</span>::{<span class="ident">FDModule</span>, <span class="ident">FreeModule</span>, <span class="ident">Module</span>};
 <span class="kw">use</span> <span class="ident">algebra::module</span>::{<span class="ident">QuotientModule</span> <span class="kw">as</span> <span class="ident">QM</span>, <span class="ident">TruncatedModule</span> <span class="kw">as</span> <span class="ident">TM</span>};
 <span class="kw">use</span> <span class="ident">algebra</span>::{<span class="ident">AdemAlgebra</span>, <span class="ident">Algebra</span>, <span class="ident">GeneratedAlgebra</span>, <span class="ident">SteenrodAlgebra</span>};
 <span class="kw">use</span> <span class="ident">fp::matrix</span>::{<span class="ident">Matrix</span>, <span class="ident">Subspace</span>};
@@ -946,9 +900,10 @@
 <span class="kw">const</span> <span class="ident">PENALTY_UNIT</span>: <span class="ident">i32</span> <span class="op">=</span> <span class="number">10000</span>;
 
 <span class="kw">pub</span> <span class="kw">type</span> <span class="ident">Yoneda</span><span class="op">&lt;</span><span class="ident">CC</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">FiniteAugmentedChainComplex</span><span class="op">&lt;</span>
-    <span class="ident">FiniteModule</span>,
-    <span class="ident">FiniteModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">FiniteModule</span><span class="op">&gt;</span>,
-    <span class="ident">FiniteModuleHomomorphism</span><span class="op">&lt;</span>
+    <span class="ident">FDModule</span><span class="op">&lt;</span><span class="ident">SteenrodAlgebra</span><span class="op">&gt;</span>,
+    <span class="ident">FullModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">FDModule</span><span class="op">&lt;</span><span class="ident">SteenrodAlgebra</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">FullModuleHomomorphism</span><span class="op">&lt;</span>
+        <span class="ident">FDModule</span><span class="op">&lt;</span><span class="ident">SteenrodAlgebra</span><span class="op">&gt;</span>,
         <span class="op">&lt;</span><span class="op">&lt;</span><span class="ident">CC</span> <span class="kw">as</span> <span class="ident">AugmentedChainComplex</span><span class="op">&gt;</span><span class="ident">::TargetComplex</span> <span class="kw">as</span> <span class="ident">ChainComplex</span><span class="op">&gt;</span><span class="ident">::Module</span>,
     <span class="op">&gt;</span>,
     <span class="op">&lt;</span><span class="ident">CC</span> <span class="kw">as</span> <span class="ident">AugmentedChainComplex</span><span class="op">&gt;</span><span class="ident">::TargetComplex</span>,
@@ -1012,7 +967,7 @@
     <span class="ident">idx</span>: <span class="ident">usize</span>,
 ) -&gt; <span class="ident">Yoneda</span><span class="op">&lt;</span><span class="ident">CC</span><span class="op">&gt;</span>
 <span class="kw">where</span>
-    <span class="ident">TCM</span>: <span class="ident">BoundedModule</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">SteenrodAlgebra</span><span class="op">&gt;</span>,
+    <span class="ident">TCM</span>: <span class="ident">Module</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">SteenrodAlgebra</span><span class="op">&gt;</span>,
     <span class="ident">TC</span>: <span class="ident">BoundedChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">SteenrodAlgebra</span>, <span class="ident">Module</span> <span class="op">=</span> <span class="ident">TCM</span><span class="op">&gt;</span>,
     <span class="ident">CC</span>: <span class="ident">AugmentedChainComplex</span><span class="op">&lt;</span>
         <span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">SteenrodAlgebra</span>,
@@ -1043,7 +998,7 @@
     <span class="ident">map</span>: <span class="ident">ChainMap</span><span class="op">&lt;</span><span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">CMM</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 ) -&gt; <span class="ident">Yoneda</span><span class="op">&lt;</span><span class="ident">CC</span><span class="op">&gt;</span>
 <span class="kw">where</span>
-    <span class="ident">TCM</span>: <span class="ident">BoundedModule</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">SteenrodAlgebra</span><span class="op">&gt;</span>,
+    <span class="ident">TCM</span>: <span class="ident">Module</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">SteenrodAlgebra</span><span class="op">&gt;</span>,
     <span class="ident">TC</span>: <span class="ident">BoundedChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">SteenrodAlgebra</span>, <span class="ident">Module</span> <span class="op">=</span> <span class="ident">TCM</span><span class="op">&gt;</span>,
     <span class="ident">CC</span>: <span class="ident">AugmentedChainComplex</span><span class="op">&lt;</span>
         <span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">SteenrodAlgebra</span>,
@@ -1051,7 +1006,7 @@
         <span class="ident">Module</span> <span class="op">=</span> <span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident">SteenrodAlgebra</span><span class="op">&gt;</span>,
         <span class="ident">ChainMap</span> <span class="op">=</span> <span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">TCM</span><span class="op">&gt;</span>,
     <span class="op">&gt;</span>,
-    <span class="ident">CMM</span>: <span class="ident">BoundedModule</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">SteenrodAlgebra</span><span class="op">&gt;</span>,
+    <span class="ident">CMM</span>: <span class="ident">Module</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">SteenrodAlgebra</span><span class="op">&gt;</span>,
 {
     <span class="ident">yoneda_representative_with_strategy</span>(
         <span class="ident">cc</span>,
@@ -1082,7 +1037,7 @@
     <span class="ident">strategy</span>: <span class="ident">F</span>,
 ) -&gt; <span class="ident">Yoneda</span><span class="op">&lt;</span><span class="ident">CC</span><span class="op">&gt;</span>
 <span class="kw">where</span>
-    <span class="ident">TCM</span>: <span class="ident">BoundedModule</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">SteenrodAlgebra</span><span class="op">&gt;</span>,
+    <span class="ident">TCM</span>: <span class="ident">Module</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">SteenrodAlgebra</span><span class="op">&gt;</span>,
     <span class="ident">TC</span>: <span class="ident">BoundedChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">SteenrodAlgebra</span>, <span class="ident">Module</span> <span class="op">=</span> <span class="ident">TCM</span><span class="op">&gt;</span>,
     <span class="ident">CC</span>: <span class="ident">AugmentedChainComplex</span><span class="op">&lt;</span>
         <span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">SteenrodAlgebra</span>,
@@ -1090,7 +1045,7 @@
         <span class="ident">Module</span> <span class="op">=</span> <span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident">SteenrodAlgebra</span><span class="op">&gt;</span>,
         <span class="ident">ChainMap</span> <span class="op">=</span> <span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">TCM</span><span class="op">&gt;</span>,
     <span class="op">&gt;</span>,
-    <span class="ident">CMM</span>: <span class="ident">BoundedModule</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">SteenrodAlgebra</span><span class="op">&gt;</span>,
+    <span class="ident">CMM</span>: <span class="ident">Module</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">SteenrodAlgebra</span><span class="op">&gt;</span>,
     <span class="ident">F</span>: <span class="ident">Fn</span>(<span class="kw-2">&amp;</span><span class="ident">CC::Module</span>, <span class="kw-2">&amp;</span><span class="ident">Subspace</span>, <span class="ident">i32</span>, <span class="ident">usize</span>) -&gt; <span class="ident">i32</span>,
 {
     <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">cc</span>.<span class="ident">prime</span>();
@@ -1102,14 +1057,14 @@
     <span class="kw">let</span> <span class="ident">s_max</span> <span class="op">=</span> <span class="ident">std::cmp::max</span>(<span class="ident">target_cc</span>.<span class="ident">max_s</span>(), <span class="ident">map</span>.<span class="ident">s_shift</span> <span class="op">+</span> <span class="ident">map</span>.<span class="ident">chain_maps</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">u32</span>) <span class="op">-</span> <span class="number">1</span>;
     <span class="kw">let</span> <span class="ident">t_max</span> <span class="op">=</span> <span class="ident">std::cmp::max</span>(
         (<span class="number">0</span>..<span class="ident">target_cc</span>.<span class="ident">max_s</span>())
-            .<span class="ident">map</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> <span class="ident">target_cc</span>.<span class="ident">module</span>(<span class="ident">i</span>).<span class="ident">max_degree</span>())
+            .<span class="ident">map</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> <span class="ident">target_cc</span>.<span class="ident">module</span>(<span class="ident">i</span>).<span class="ident">max_degree</span>().<span class="ident">unwrap</span>())
             .<span class="ident">max</span>()
             .<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">target_cc</span>.<span class="ident">min_degree</span>()),
         <span class="ident">map</span>.<span class="ident">chain_maps</span>[<span class="number">0</span>].<span class="ident">degree_shift</span>()
             <span class="op">+</span> <span class="ident">map</span>
                 .<span class="ident">chain_maps</span>
                 .<span class="ident">iter</span>()
-                .<span class="ident">map</span>(<span class="op">|</span><span class="ident">m</span><span class="op">|</span> <span class="ident">m</span>.<span class="ident">target</span>().<span class="ident">max_degree</span>())
+                .<span class="ident">map</span>(<span class="op">|</span><span class="ident">m</span><span class="op">|</span> <span class="ident">m</span>.<span class="ident">target</span>().<span class="ident">max_degree</span>().<span class="ident">unwrap</span>())
                 .<span class="ident">max</span>()
                 .<span class="ident">unwrap</span>(),
     );
@@ -1418,67 +1373,25 @@
         }
     }
 
-    <span class="kw">let</span> <span class="ident">zero_module</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">QM::new</span>(<span class="ident">Arc::new</span>(<span class="ident">TM::new</span>(<span class="ident">cc</span>.<span class="ident">zero_module</span>(), <span class="ident">t_max</span>))));
-    <span class="ident">zero_module</span>.<span class="ident">compute_basis</span>(<span class="ident">t_max</span>);
-    <span class="kw">let</span> <span class="ident">zero_module_fd</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">FiniteModule::FDModule</span>(<span class="ident">zero_module</span>.<span class="ident">to_fd_module</span>()));
-
-    <span class="kw">let</span> <span class="ident">modules_fd</span> <span class="op">=</span> <span class="ident">modules</span>
-        .<span class="ident">iter</span>()
-        .<span class="ident">map</span>(<span class="op">|</span><span class="ident">m</span><span class="op">|</span> <span class="ident">Arc::new</span>(<span class="ident">FiniteModule::FDModule</span>(<span class="ident">m</span>.<span class="ident">to_fd_module</span>())))
-        .<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span>();
     <span class="kw">let</span> <span class="ident">modules</span> <span class="op">=</span> <span class="ident">modules</span>.<span class="ident">into_iter</span>().<span class="ident">map</span>(<span class="ident">Arc::new</span>).<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span>();
 
-    <span class="kw">let</span> <span class="ident">zero_differential</span> <span class="op">=</span> {
-        <span class="kw">let</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">cc</span>.<span class="ident">differential</span>(<span class="number">0</span>);
-        <span class="kw">let</span> <span class="ident">tf</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">TruncatedHomomorphism::new</span>(
-            <span class="ident">f</span>,
-            <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">modules</span>[<span class="number">0</span>].<span class="ident">module</span>),
-            <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">zero_module</span>.<span class="ident">module</span>),
-        ));
-        <span class="kw">let</span> <span class="ident">qf</span> <span class="op">=</span> <span class="ident">BoundedModuleHomomorphism::from</span>(<span class="kw-2">&amp;</span><span class="ident">QuotientHomomorphism::new</span>(
-            <span class="ident">tf</span>,
-            <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">modules</span>[<span class="number">0</span>]),
-            <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">zero_module</span>),
-        ));
-        <span class="ident">Arc::new</span>(<span class="ident">FiniteModuleHomomorphism::from</span>(
-            <span class="ident">qf</span>.<span class="ident">replace_source</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">modules_fd</span>[<span class="number">0</span>]))
-                .<span class="ident">replace_target</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">zero_module_fd</span>)),
-        ))
-    };
-
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">differentials</span> <span class="op">=</span> <span class="macro">vec!</span>[<span class="ident">zero_differential</span>];
-    <span class="ident">differentials</span>.<span class="ident">extend</span>((<span class="number">0</span>..<span class="ident">s_max</span>).<span class="ident">map</span>(<span class="op">|</span><span class="ident">s</span><span class="op">|</span> {
-        <span class="kw">let</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">cc</span>.<span class="ident">differential</span>(<span class="ident">s</span> <span class="op">+</span> <span class="number">1</span>);
-        <span class="kw">let</span> <span class="ident">s</span> <span class="op">=</span> <span class="ident">s</span> <span class="kw">as</span> <span class="ident">usize</span>;
-        <span class="kw">let</span> <span class="ident">tf</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">TruncatedHomomorphism::new</span>(
-            <span class="ident">f</span>,
-            <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">modules</span>[<span class="ident">s</span> <span class="op">+</span> <span class="number">1</span>].<span class="ident">module</span>),
-            <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">modules</span>[<span class="ident">s</span>].<span class="ident">module</span>),
-        ));
-        <span class="kw">let</span> <span class="ident">qf</span> <span class="op">=</span> <span class="ident">BoundedModuleHomomorphism::from</span>(<span class="kw-2">&amp;</span><span class="ident">QuotientHomomorphism::new</span>(
-            <span class="ident">tf</span>,
-            <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">modules</span>[<span class="ident">s</span> <span class="op">+</span> <span class="number">1</span>]),
-            <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">modules</span>[<span class="ident">s</span>]),
-        ));
-        <span class="ident">Arc::new</span>(<span class="ident">FiniteModuleHomomorphism::from</span>(
-            <span class="ident">qf</span>.<span class="ident">replace_source</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">modules_fd</span>[<span class="ident">s</span> <span class="op">+</span> <span class="number">1</span>]))
-                .<span class="ident">replace_target</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">modules_fd</span>[<span class="ident">s</span>])),
-        ))
-    }));
-    <span class="ident">differentials</span>.<span class="ident">push</span>(<span class="ident">Arc::new</span>(<span class="ident">FiniteModuleHomomorphism::from</span>(
-        <span class="ident">BoundedModuleHomomorphism::zero_homomorphism</span>(
-            <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">zero_module_fd</span>),
-            <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">modules_fd</span>[<span class="ident">s_max</span> <span class="kw">as</span> <span class="ident">usize</span>]),
-            <span class="number">0</span>,
-        ),
-    )));
-    <span class="ident">differentials</span>.<span class="ident">push</span>(<span class="ident">Arc::new</span>(<span class="ident">FiniteModuleHomomorphism::from</span>(
-        <span class="ident">BoundedModuleHomomorphism::zero_homomorphism</span>(
-            <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">zero_module_fd</span>),
-            <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">zero_module_fd</span>),
-            <span class="number">0</span>,
-        ),
-    )));
+    <span class="kw">let</span> <span class="ident">differentials</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span> <span class="op">=</span> (<span class="number">0</span>..<span class="ident">s_max</span>)
+        .<span class="ident">map</span>(<span class="op">|</span><span class="ident">s</span><span class="op">|</span> {
+            <span class="kw">let</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">cc</span>.<span class="ident">differential</span>(<span class="ident">s</span> <span class="op">+</span> <span class="number">1</span>);
+            <span class="kw">let</span> <span class="ident">s</span> <span class="op">=</span> <span class="ident">s</span> <span class="kw">as</span> <span class="ident">usize</span>;
+            <span class="kw">let</span> <span class="ident">tf</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">TruncatedHomomorphism::new</span>(
+                <span class="ident">f</span>,
+                <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">modules</span>[<span class="ident">s</span> <span class="op">+</span> <span class="number">1</span>].<span class="ident">module</span>),
+                <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">modules</span>[<span class="ident">s</span>].<span class="ident">module</span>),
+            ));
+            <span class="kw">let</span> <span class="ident">qf</span> <span class="op">=</span> <span class="ident">FullModuleHomomorphism::from</span>(<span class="kw-2">&amp;</span><span class="ident">QuotientHomomorphism::new</span>(
+                <span class="ident">tf</span>,
+                <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">modules</span>[<span class="ident">s</span> <span class="op">+</span> <span class="number">1</span>]),
+                <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">modules</span>[<span class="ident">s</span>]),
+            ));
+            <span class="ident">Arc::new</span>(<span class="ident">qf</span>)
+        })
+        .<span class="ident">collect</span>();
 
     <span class="kw">let</span> <span class="ident">chain_maps</span> <span class="op">=</span> (<span class="number">0</span>..<span class="op">=</span><span class="ident">s_max</span>)
         .<span class="ident">map</span>(<span class="op">|</span><span class="ident">s</span><span class="op">|</span> {
@@ -1490,24 +1403,19 @@
                 <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">modules</span>[<span class="ident">s</span>].<span class="ident">module</span>),
                 <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">target</span>),
             ));
-            <span class="kw">let</span> <span class="ident">qf</span> <span class="op">=</span> <span class="ident">BoundedModuleHomomorphism::from</span>(<span class="kw-2">&amp;</span><span class="ident">QuotientHomomorphismSource::new</span>(
+            <span class="kw">let</span> <span class="ident">qf</span> <span class="op">=</span> <span class="ident">FullModuleHomomorphism::from</span>(<span class="kw-2">&amp;</span><span class="ident">QuotientHomomorphismSource::new</span>(
                 <span class="ident">tf</span>,
                 <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">modules</span>[<span class="ident">s</span>]),
                 <span class="ident">target</span>,
             ));
-            <span class="ident">Arc::new</span>(<span class="ident">FiniteModuleHomomorphism::from</span>(
-                <span class="ident">qf</span>.<span class="ident">replace_source</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">modules_fd</span>[<span class="ident">s</span>])),
-            ))
+            <span class="ident">Arc::new</span>(<span class="ident">qf</span>)
         })
         .<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span>();
 
-    <span class="ident">FiniteAugmentedChainComplex</span> {
-        <span class="ident">modules</span>: <span class="ident">modules_fd</span>,
-        <span class="ident">zero_module</span>: <span class="ident">zero_module_fd</span>,
-        <span class="ident">differentials</span>,
-        <span class="ident">target_cc</span>: <span class="ident">cc</span>.<span class="ident">target</span>(),
-        <span class="ident">chain_maps</span>,
-    }
+    <span class="kw">let</span> <span class="ident">yoneda_rep</span> <span class="op">=</span>
+        <span class="ident">FiniteChainComplex::new</span>(<span class="ident">modules</span>, <span class="ident">differentials</span>).<span class="ident">augment</span>(<span class="ident">cc</span>.<span class="ident">target</span>(), <span class="ident">chain_maps</span>);
+
+    <span class="ident">yoneda_rep</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">m</span><span class="op">|</span> <span class="ident">FDModule::from</span>(<span class="ident">m</span>))
 }
 
 <span class="doccomment">/// This function does the following computation:</span>
@@ -1518,7 +1426,7 @@
 <span class="doccomment">///</span>
 <span class="doccomment">/// If `keep` is `None`, it is interpreted as the empty subspace.</span>
 
-<span class="kw">fn</span> <span class="ident">compute_kernel_image</span><span class="op">&lt;</span><span class="ident">M</span>: <span class="ident">BoundedModule</span>, <span class="ident">F</span>: <span class="ident">ModuleHomomorphism</span>, <span class="ident">G</span>: <span class="ident">ModuleHomomorphism</span><span class="op">&gt;</span>(
+<span class="kw">fn</span> <span class="ident">compute_kernel_image</span><span class="op">&lt;</span><span class="ident">M</span>: <span class="ident">Module</span>, <span class="ident">F</span>: <span class="ident">ModuleHomomorphism</span>, <span class="ident">G</span>: <span class="ident">ModuleHomomorphism</span><span class="op">&gt;</span>(
     <span class="ident">source</span>: <span class="kw-2">&amp;</span><span class="ident">QM</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span>,
     <span class="ident">augmentation_map</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="ident">preserve_map</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">G</span><span class="op">&gt;</span>,
@@ -1538,7 +1446,7 @@
     <span class="kw">let</span> <span class="ident">source_orig_dimension</span> <span class="op">=</span> <span class="ident">source</span>.<span class="ident">module</span>.<span class="ident">dimension</span>(<span class="ident">t</span>);
     <span class="kw">let</span> <span class="ident">source_dimension</span> <span class="op">=</span> <span class="ident">source</span>.<span class="ident">dimension</span>(<span class="ident">t</span>);
 
-    <span class="kw">for</span> <span class="ident">op_deg</span> <span class="kw">in</span> <span class="number">1</span>..<span class="op">=</span><span class="ident">source</span>.<span class="ident">max_degree</span>() <span class="op">-</span> <span class="ident">t</span> {
+    <span class="kw">for</span> <span class="ident">op_deg</span> <span class="kw">in</span> <span class="number">1</span>..<span class="op">=</span><span class="ident">source</span>.<span class="ident">max_degree</span>().<span class="ident">unwrap</span>() <span class="op">-</span> <span class="ident">t</span> {
         <span class="kw">for</span> <span class="ident">op_idx</span> <span class="kw">in</span> <span class="ident">algebra</span>.<span class="ident">generators</span>(<span class="ident">op_deg</span>) {
             <span class="ident">generators</span>.<span class="ident">push</span>((<span class="ident">op_deg</span>, <span class="ident">op_idx</span>));
             <span class="ident">target_degrees</span>.<span class="ident">push</span>(<span class="ident">source</span>.<span class="ident">module</span>.<span class="ident">dimension</span>(<span class="ident">t</span> <span class="op">+</span> <span class="ident">op_deg</span>));
@@ -1663,7 +1571,6 @@
     <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::chain_complex</span>::{<span class="ident">FiniteChainComplex</span>, <span class="ident">FreeChainComplex</span>};
     <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::resolution::Resolution</span>;
     <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::resolution_homomorphism::ResolutionHomomorphism</span>;
-    <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::CCC</span>;
     <span class="kw">use</span> <span class="ident">algebra::module::homomorphism::IdentityHomomorphism</span>;
 
     <span class="kw">use</span> <span class="ident">fp::prime::ValidPrime</span>;
@@ -1676,12 +1583,13 @@
             <span class="bool-val">false</span>,
             <span class="bool-val">false</span>,
         )));
-        <span class="kw">let</span> <span class="ident">module</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">FiniteModule::from</span>(<span class="ident">FDModule::new</span>(
+        <span class="kw">let</span> <span class="ident">module</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">FDModule::new</span>(
             <span class="ident">algebra</span>,
             <span class="string">&quot;&quot;</span>.<span class="ident">to_string</span>(),
             <span class="ident">BiVec::from_vec</span>(<span class="number">0</span>, <span class="macro">vec!</span>[<span class="number">1</span>]),
-        )));
-        <span class="kw">let</span> <span class="ident">chain_complex</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">CCC</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">FiniteChainComplex::ccdz</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">module</span>)));
+        ));
+        <span class="kw">let</span> <span class="ident">chain_complex</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">FiniteChainComplex</span><span class="op">&lt;</span><span class="kw">_</span>, <span class="ident">FullModuleHomomorphism</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span>
+            <span class="ident">Arc::new</span>(<span class="ident">FiniteChainComplex::ccdz</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">module</span>)));
         <span class="kw">let</span> <span class="ident">resolution</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">Resolution::new</span>(<span class="ident">chain_complex</span>));
 
         <span class="kw">let</span> <span class="ident">x</span>: <span class="ident">i32</span> <span class="op">=</span> <span class="number">30</span>;
@@ -1702,7 +1610,7 @@
             <span class="string">&quot;&quot;</span>.<span class="ident">to_string</span>(),
             <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">resolution</span>),
             <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">yoneda</span>),
-            <span class="kw-2">&amp;</span><span class="ident">FiniteModuleHomomorphism::identity_homomorphism</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">module</span>)),
+            <span class="kw-2">&amp;</span><span class="ident">FullModuleHomomorphism::identity_homomorphism</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">module</span>)),
         );
 
         <span class="ident">f</span>.<span class="ident">extend</span>(<span class="ident">s</span>, <span class="ident">t</span>);

@@ -354,7 +354,7 @@
 <span class="doccomment">/// this function before performing other operations at that degree.</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// Algebras may have a distinguished set of generators; see [`GeneratedAlgebra`].</span>
-<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">Algebra</span>: <span class="ident">std::fmt::Display</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> {
+<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">Algebra</span>: <span class="ident">std::fmt::Display</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span> {
     <span class="doccomment">/// A magic constant used to identify the algebra in save files. When working with the</span>
     <span class="doccomment">/// Milnor algebra, it is easy to forget to specify the algebra and load Milnor save files</span>
     <span class="doccomment">/// with the Adem basis. If we somehow manage to resume computation, this can have</span>

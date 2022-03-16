@@ -127,8 +127,12 @@
 <span id="100">100</span>
 <span id="101">101</span>
 <span id="102">102</span>
-</pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">algebra::module::homomorphism</span>::{<span class="ident">FiniteModuleHomomorphism</span>, <span class="ident">IdentityHomomorphism</span>};
-<span class="kw">use</span> <span class="ident">algebra::module</span>::{<span class="ident">BoundedModule</span>, <span class="ident">Module</span>};
+<span id="103">103</span>
+<span id="104">104</span>
+<span id="105">105</span>
+<span id="106">106</span>
+</pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">algebra::module::homomorphism</span>::{<span class="ident">FullModuleHomomorphism</span>, <span class="ident">IdentityHomomorphism</span>};
+<span class="kw">use</span> <span class="ident">algebra::module</span>::{<span class="ident">steenrod_module</span>, <span class="ident">Module</span>};
 <span class="kw">use</span> <span class="ident">ext::chain_complex</span>::{<span class="ident">AugmentedChainComplex</span>, <span class="ident">ChainComplex</span>, <span class="ident">FreeChainComplex</span>};
 <span class="kw">use</span> <span class="ident">ext::resolution_homomorphism::ResolutionHomomorphism</span>;
 <span class="kw">use</span> <span class="ident">ext::utils::construct</span>;
@@ -172,7 +176,7 @@
         <span class="string">&quot;&quot;</span>.<span class="ident">to_string</span>(),
         <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">resolution</span>),
         <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">yoneda</span>),
-        <span class="kw-2">&amp;</span><span class="ident">FiniteModuleHomomorphism::identity_homomorphism</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">module</span>)),
+        <span class="kw-2">&amp;</span><span class="ident">FullModuleHomomorphism::identity_homomorphism</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">module</span>)),
     );
 
     <span class="ident">f</span>.<span class="ident">extend</span>(<span class="ident">s</span>, <span class="ident">t</span>);
@@ -218,10 +222,14 @@
 
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">module_strings</span> <span class="op">=</span> <span class="ident">Vec::with_capacity</span>(<span class="ident">s</span> <span class="kw">as</span> <span class="ident">usize</span> <span class="op">+</span> <span class="number">2</span>);
 
-    <span class="ident">module_strings</span>.<span class="ident">push</span>(<span class="ident">module</span>.<span class="ident">as_fd_module</span>().<span class="ident">unwrap</span>().<span class="ident">to_minimal_json</span>());
+    <span class="ident">module_strings</span>.<span class="ident">push</span>(
+        <span class="ident">steenrod_module::as_fd_module</span>(<span class="kw-2">&amp;</span><span class="ident">module</span>)
+            .<span class="ident">unwrap</span>()
+            .<span class="ident">to_minimal_json</span>(),
+    );
 
     <span class="kw">for</span> <span class="ident">s</span> <span class="kw">in</span> <span class="number">0</span>..<span class="op">=</span><span class="ident">s</span> {
-        <span class="ident">module_strings</span>.<span class="ident">push</span>(<span class="ident">yoneda</span>.<span class="ident">module</span>(<span class="ident">s</span>).<span class="ident">as_fd_module</span>().<span class="ident">unwrap</span>().<span class="ident">to_minimal_json</span>());
+        <span class="ident">module_strings</span>.<span class="ident">push</span>(<span class="ident">yoneda</span>.<span class="ident">module</span>(<span class="ident">s</span>).<span class="ident">to_minimal_json</span>());
     }
 
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">output_path_buf</span> <span class="op">=</span> <span class="ident">PathBuf::from</span>(<span class="ident">filename</span>);

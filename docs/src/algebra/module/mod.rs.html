@@ -55,21 +55,12 @@
 <span id="28">28</span>
 <span id="29">29</span>
 <span id="30">30</span>
-<span id="31">31</span>
-<span id="32">32</span>
-<span id="33">33</span>
-<span id="34">34</span>
-<span id="35">35</span>
-<span id="36">36</span>
-<span id="37">37</span>
-<span id="38">38</span>
-</pre><pre class="rust"><code><span class="kw">mod</span> <span class="ident">bounded_module</span>;
-<span class="kw">mod</span> <span class="ident">finite_dimensional_module</span>;
-<span class="kw">mod</span> <span class="ident">finite_module</span>;
+</pre><pre class="rust"><code><span class="kw">mod</span> <span class="ident">finite_dimensional_module</span>;
 <span class="kw">mod</span> <span class="ident">finitely_presented_module</span>;
 <span class="kw">mod</span> <span class="ident">free_module</span>;
 <span class="kw">mod</span> <span class="ident">module_trait</span>;
 <span class="kw">mod</span> <span class="ident">rpn</span>;
+<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">steenrod_module</span>;
 <span class="kw">mod</span> <span class="ident">zero_module</span>;
 
 <span class="kw">mod</span> <span class="ident">hom_module</span>;
@@ -82,25 +73,18 @@
 
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">homomorphism</span>;
 
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">bounded_module::BoundedModule</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">finite_dimensional_module::FiniteDimensionalModule</span> <span class="kw">as</span> <span class="ident">FDModule</span>;
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">finite_module::FiniteModule</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">finitely_presented_module::FinitelyPresentedModule</span> <span class="kw">as</span> <span class="ident">FPModule</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">free_module</span>::{<span class="ident">FreeModule</span>, <span class="ident">GeneratorData</span>, <span class="ident">OperationGeneratorPair</span>};
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">module_trait</span>::{<span class="ident">Module</span>, <span class="ident">ModuleFailedRelationError</span>};
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">rpn::RealProjectiveSpace</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">steenrod_module::SteenrodModule</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">zero_module::ZeroModule</span>;
 
 <span class="kw">pub</span> <span class="kw">use</span> {
     <span class="ident">hom_module::HomModule</span>, <span class="ident">quotient_module::QuotientModule</span>, <span class="ident">sum_module::SumModule</span>,
     <span class="ident">tensor_module::TensorModule</span>, <span class="ident">truncated_module::TruncatedModule</span>,
 };
-
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::algebra::SteenrodAlgebra</span>;
-
-<span class="comment">// Poor man&#39;s trait alias</span>
-<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">SteenrodModule</span>: <span class="ident">Module</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">SteenrodAlgebra</span><span class="op">&gt;</span> {}
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">M</span>: <span class="ident">Module</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">SteenrodAlgebra</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">SteenrodModule</span> <span class="kw">for</span> <span class="ident">M</span> {}
 </code></pre></div>
 </section><section id="search" class="content hidden"></section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="algebra" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.59.0 (9d1b2106e 2022-02-23)" ></div>
 </body></html>

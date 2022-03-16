@@ -164,6 +164,9 @@
 <span id="137">137</span>
 <span id="138">138</span>
 <span id="139">139</span>
+<span id="140">140</span>
+<span id="141">141</span>
+<span id="142">142</span>
 </pre><pre class="rust"><code><span class="doccomment">//! Given an element in $\Ext(M, N)$, this computes the induced map $\Ext(N, k) \to \Ext(M, k)$</span>
 <span class="doccomment">//! given by composition.</span>
 <span class="doccomment">//!</span>
@@ -205,7 +208,7 @@
 <span class="doccomment">//! $H^*(-)$ are contravariant functors. The words &quot;source&quot; and &quot;target&quot; refer to the map between</span>
 <span class="doccomment">//! Steenrod modules.</span>
 
-<span class="kw">use</span> <span class="ident">algebra::module</span>::{<span class="ident">BoundedModule</span>, <span class="ident">Module</span>};
+<span class="kw">use</span> <span class="ident">algebra::module::Module</span>;
 <span class="kw">use</span> <span class="ident">anyhow</span>::{<span class="ident">anyhow</span>, <span class="ident">Context</span>};
 <span class="kw">use</span> <span class="ident">ext::chain_complex</span>::{<span class="ident">AugmentedChainComplex</span>, <span class="ident">ChainComplex</span>, <span class="ident">FreeChainComplex</span>};
 <span class="kw">use</span> <span class="ident">ext::resolution_homomorphism::ResolutionHomomorphism</span>;
@@ -266,7 +269,10 @@
     <span class="kw">let</span> <span class="ident">hom</span> <span class="op">=</span> <span class="ident">ResolutionHomomorphism::new</span>(<span class="ident">name</span>.<span class="ident">clone</span>(), <span class="ident">source</span>, <span class="ident">target</span>, <span class="ident">shift_s</span>, <span class="ident">shift_t</span>);
 
     <span class="macro">eprintln!</span>(<span class="string">&quot;\nInput Ext class to lift:&quot;</span>);
-    <span class="kw">for</span> <span class="ident">output_t</span> <span class="kw">in</span> <span class="number">0</span>..<span class="op">=</span><span class="ident">target_module</span>.<span class="ident">max_degree</span>() {
+    <span class="kw">for</span> <span class="ident">output_t</span> <span class="kw">in</span> <span class="number">0</span>..<span class="op">=</span><span class="ident">target_module</span>
+        .<span class="ident">max_degree</span>()
+        .<span class="ident">expect</span>(<span class="string">&quot;lift_hom requires target to be bounded&quot;</span>)
+    {
         <span class="kw">let</span> <span class="ident">input_t</span> <span class="op">=</span> <span class="ident">output_t</span> <span class="op">+</span> <span class="ident">shift_t</span>;
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">matrix</span> <span class="op">=</span> <span class="ident">Matrix::new</span>(
             <span class="ident">p</span>,

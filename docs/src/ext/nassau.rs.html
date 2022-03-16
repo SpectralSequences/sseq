@@ -1293,7 +1293,7 @@
 <span class="kw">use</span> <span class="ident">algebra::combinatorics</span>;
 <span class="kw">use</span> <span class="ident">algebra::milnor_algebra</span>::{<span class="ident">MilnorAlgebra</span>, <span class="ident">PPartEntry</span>};
 <span class="kw">use</span> <span class="ident">algebra::module::homomorphism</span>::{
-    <span class="ident">BoundedModuleHomomorphism</span>, <span class="ident">FreeModuleHomomorphism</span>, <span class="ident">ModuleHomomorphism</span>,
+    <span class="ident">FreeModuleHomomorphism</span>, <span class="ident">FullModuleHomomorphism</span>, <span class="ident">ModuleHomomorphism</span>,
 };
 <span class="kw">use</span> <span class="ident">algebra::module</span>::{<span class="ident">FDModule</span>, <span class="ident">FreeModule</span>, <span class="ident">GeneratorData</span>, <span class="ident">Module</span>};
 <span class="kw">use</span> <span class="ident">algebra::Algebra</span>;
@@ -1642,7 +1642,7 @@
     }
 }
 
-<span class="kw">type</span> <span class="ident">CCDZ</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">FiniteChainComplex</span><span class="op">&lt;</span><span class="ident">FDModule</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>, <span class="ident">BoundedModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">FDModule</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>, <span class="ident">FDModule</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>;
+<span class="kw">type</span> <span class="ident">CCDZ</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">FiniteChainComplex</span><span class="op">&lt;</span><span class="ident">FDModule</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>, <span class="ident">FullModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">FDModule</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>, <span class="ident">FDModule</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>;
 
 <span class="doccomment">/// Some magic constants used in the save file</span>
 <span class="kw">enum</span> <span class="ident">Magic</span> {

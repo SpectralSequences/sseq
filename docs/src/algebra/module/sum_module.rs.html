@@ -222,17 +222,11 @@
 <span id="195">195</span>
 <span id="196">196</span>
 <span id="197">197</span>
-<span id="198">198</span>
-<span id="199">199</span>
-<span id="200">200</span>
-<span id="201">201</span>
-<span id="202">202</span>
-<span id="203">203</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">bivec::BiVec</span>;
 <span class="kw">use</span> <span class="ident">once::OnceBiVec</span>;
 
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::module::block_structure</span>::{<span class="ident">BlockStart</span>, <span class="ident">BlockStructure</span>, <span class="ident">GeneratorBasisEltPair</span>};
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::module</span>::{<span class="ident">BoundedModule</span>, <span class="ident">Module</span>, <span class="ident">ZeroModule</span>};
+<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::module</span>::{<span class="ident">Module</span>, <span class="ident">ZeroModule</span>};
 <span class="kw">use</span> <span class="ident">fp::vector::SliceMut</span>;
 
 <span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
@@ -242,7 +236,6 @@
     <span class="ident">algebra</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">M::Algebra</span><span class="op">&gt;</span>,
     <span class="ident">min_degree</span>: <span class="ident">i32</span>,
     <span class="kw">pub</span> <span class="ident">modules</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    <span class="comment">// Use BlockStructure for this?</span>
     <span class="kw">pub</span> <span class="ident">block_structures</span>: <span class="ident">OnceBiVec</span><span class="op">&lt;</span><span class="ident">BlockStructure</span><span class="op">&gt;</span>,
 }
 
@@ -356,15 +349,13 @@
         } <span class="op">=</span> <span class="self">self</span>.<span class="ident">block_structures</span>[<span class="ident">degree</span>].<span class="ident">index_to_generator_basis_elt</span>(<span class="ident">index</span>);
         <span class="self">self</span>.<span class="ident">modules</span>[<span class="kw-2">*</span><span class="ident">module_num</span>].<span class="ident">basis_element_to_string</span>(<span class="ident">degree</span>, <span class="kw-2">*</span><span class="ident">basis_index</span>)
     }
-}
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">M</span>: <span class="ident">BoundedModule</span><span class="op">&gt;</span> <span class="ident">BoundedModule</span> <span class="kw">for</span> <span class="ident">SumModule</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">max_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">i32</span> {
+    <span class="kw">fn</span> <span class="ident">max_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">i32</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">modules</span>
             .<span class="ident">iter</span>()
             .<span class="ident">map</span>(<span class="op">|</span><span class="ident">m</span><span class="op">|</span> <span class="ident">m</span>.<span class="ident">max_degree</span>())
             .<span class="ident">max</span>()
-            .<span class="ident">unwrap_or</span>(<span class="self">self</span>.<span class="ident">min_degree</span> <span class="op">-</span> <span class="number">1</span>)
+            .<span class="ident">unwrap_or</span>(<span class="prelude-val">Some</span>(<span class="self">self</span>.<span class="ident">min_degree</span>))
     }
 }
 
@@ -381,7 +372,7 @@
     <span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
 
     <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::algebra</span>::{<span class="ident">AdemAlgebra</span>, <span class="ident">SteenrodAlgebra</span>};
-    <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::module::FiniteModule</span>;
+    <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::module::FDModule</span>;
 
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">test_sum_modules</span>() {
@@ -410,21 +401,18 @@
             <span class="bool-val">false</span>,
         )));
 
-        <span class="kw">let</span> <span class="ident">M</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">FiniteModule</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">M</span>
+        <span class="kw">let</span> <span class="ident">M</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">FDModule</span><span class="op">&lt;</span><span class="ident">SteenrodAlgebra</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">M</span>
             .<span class="ident">into_iter</span>()
             .<span class="ident">map</span>(<span class="op">|</span><span class="ident">s</span><span class="op">|</span> {
                 <span class="kw">let</span> <span class="ident">m</span> <span class="op">=</span> <span class="ident">serde_json::from_str</span>(<span class="ident">s</span>).<span class="ident">unwrap</span>();
-                <span class="ident">Arc::new</span>(<span class="ident">FiniteModule::from_json</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">A</span>), <span class="kw-2">&amp;</span><span class="ident">m</span>).<span class="ident">unwrap</span>())
+                <span class="ident">Arc::new</span>(<span class="ident">FDModule::from_json</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">A</span>), <span class="kw-2">&amp;</span><span class="ident">m</span>).<span class="ident">unwrap</span>())
             })
             .<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span>();
 
-        <span class="kw">let</span> <span class="ident">sum</span> <span class="op">=</span> <span class="ident">SumModule::new</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">A</span>), <span class="ident">M</span>, <span class="number">0</span>).<span class="ident">to_fd_module</span>();
+        <span class="kw">let</span> <span class="ident">sum</span> <span class="op">=</span> <span class="ident">FDModule::from</span>(<span class="kw-2">&amp;</span><span class="ident">SumModule::new</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">A</span>), <span class="ident">M</span>, <span class="number">0</span>));
 
         <span class="kw">let</span> <span class="ident">S</span> <span class="op">=</span> <span class="ident">serde_json::from_str</span>(<span class="ident">S</span>).<span class="ident">unwrap</span>();
-        <span class="kw">let</span> <span class="ident">S</span> <span class="op">=</span> <span class="ident">FiniteModule::from_json</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">A</span>), <span class="kw-2">&amp;</span><span class="ident">S</span>)
-            .<span class="ident">unwrap</span>()
-            .<span class="ident">into_fd_module</span>()
-            .<span class="ident">unwrap</span>();
+        <span class="kw">let</span> <span class="ident">S</span> <span class="op">=</span> <span class="ident">FDModule::from_json</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">A</span>), <span class="kw-2">&amp;</span><span class="ident">S</span>).<span class="ident">unwrap</span>();
 
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Err</span>(<span class="ident">msg</span>) <span class="op">=</span> <span class="ident">sum</span>.<span class="ident">test_equal</span>(<span class="kw-2">&amp;</span><span class="ident">S</span>) {
             <span class="macro">panic!</span>(<span class="string">&quot;Test case failed. {}&quot;</span>, <span class="ident">msg</span>);

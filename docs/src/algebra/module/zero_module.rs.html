@@ -43,16 +43,16 @@
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
 
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::module::Module</span>;
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::module</span>::{<span class="ident">FDModule</span>, <span class="ident">FiniteModule</span>};
+<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::module</span>::{<span class="ident">FDModule</span>, <span class="ident">SteenrodModule</span>};
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::SteenrodAlgebra</span>;
 
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">ZeroModule</span>: <span class="ident">Module</span> {
     <span class="kw">fn</span> <span class="ident">zero_module</span>(<span class="ident">algebra</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Algebra</span><span class="op">&gt;</span>, <span class="ident">min_degree</span>: <span class="ident">i32</span>) -&gt; <span class="self">Self</span>;
 }
 
-<span class="kw">impl</span> <span class="ident">ZeroModule</span> <span class="kw">for</span> <span class="ident">FiniteModule</span> {
+<span class="kw">impl</span> <span class="ident">ZeroModule</span> <span class="kw">for</span> <span class="ident">SteenrodModule</span> {
     <span class="kw">fn</span> <span class="ident">zero_module</span>(<span class="ident">algebra</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">SteenrodAlgebra</span><span class="op">&gt;</span>, <span class="ident">min_degree</span>: <span class="ident">i32</span>) -&gt; <span class="self">Self</span> {
-        <span class="ident">FiniteModule::FDModule</span>(<span class="ident">FDModule::zero_module</span>(<span class="ident">algebra</span>, <span class="ident">min_degree</span>))
+        <span class="ident">Box::new</span>(<span class="ident">FDModule::zero_module</span>(<span class="ident">algebra</span>, <span class="ident">min_degree</span>))
     }
 }
 </code></pre></div>

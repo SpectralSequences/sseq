@@ -205,10 +205,6 @@
 <span id="178">178</span>
 <span id="179">179</span>
 <span id="180">180</span>
-<span id="181">181</span>
-<span id="182">182</span>
-<span id="183">183</span>
-<span id="184">184</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
 
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::module::Module</span>;
@@ -219,19 +215,15 @@
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
 <span class="kw">use</span> <span class="ident">rayon::prelude</span>::<span class="kw-2">*</span>;
 
-<span class="kw">mod</span> <span class="ident">bounded_module_homomorphism</span>;
-<span class="kw">mod</span> <span class="ident">finite_module_homomorphism</span>;
-<span class="kw">mod</span> <span class="ident">fp_module_homomorphism</span>;
 <span class="kw">mod</span> <span class="ident">free_module_homomorphism</span>;
+<span class="kw">mod</span> <span class="ident">full_module_homomorphism</span>;
 <span class="kw">mod</span> <span class="ident">generic_zero_homomorphism</span>;
 <span class="kw">mod</span> <span class="ident">hom_pullback</span>;
 <span class="kw">mod</span> <span class="ident">quotient_homomorphism</span>;
 <span class="kw">mod</span> <span class="ident">truncated_homomorphism</span>;
 
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">bounded_module_homomorphism::BoundedModuleHomomorphism</span>;
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">finite_module_homomorphism::FiniteModuleHomomorphism</span>;
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">fp_module_homomorphism</span>::{<span class="ident">FPModuleHomomorphism</span>, <span class="ident">FPModuleT</span>};
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">free_module_homomorphism::FreeModuleHomomorphism</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">full_module_homomorphism::FullModuleHomomorphism</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">generic_zero_homomorphism::GenericZeroHomomorphism</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">hom_pullback::HomPullback</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">quotient_homomorphism</span>::{<span class="ident">QuotientHomomorphism</span>, <span class="ident">QuotientHomomorphismSource</span>};

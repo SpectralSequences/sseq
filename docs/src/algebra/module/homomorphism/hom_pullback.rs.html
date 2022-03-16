@@ -245,11 +245,11 @@
 <span class="comment">// use crate::field::Field;</span>
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::module::homomorphism</span>::{<span class="ident">FreeModuleHomomorphism</span>, <span class="ident">ModuleHomomorphism</span>};
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::module::HomModule</span>;
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::module</span>::{<span class="ident">BoundedModule</span>, <span class="ident">FreeModule</span>, <span class="ident">Module</span>};
+<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::module</span>::{<span class="ident">FreeModule</span>, <span class="ident">Module</span>};
 
 <span class="doccomment">/// Given a map `map`: A -&gt; B and `source` = Hom(B, X), `target` = Hom(A, X), produce the induced</span>
 <span class="doccomment">/// map `map`^* Hom(B, X) -&gt; Hom(A, X).</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">HomPullback</span><span class="op">&lt;</span><span class="ident">M</span>: <span class="ident">BoundedModule</span><span class="op">&gt;</span> {
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">HomPullback</span><span class="op">&lt;</span><span class="ident">M</span>: <span class="ident">Module</span><span class="op">&gt;</span> {
     <span class="ident">source</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">HomModule</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="ident">target</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">HomModule</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="ident">map</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident">M::Algebra</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
@@ -258,7 +258,7 @@
     <span class="ident">quasi_inverses</span>: <span class="ident">OnceBiVec</span><span class="op">&lt;</span><span class="ident">QuasiInverse</span><span class="op">&gt;</span>,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">M</span>: <span class="ident">BoundedModule</span><span class="op">&gt;</span> <span class="ident">HomPullback</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">M</span>: <span class="ident">Module</span><span class="op">&gt;</span> <span class="ident">HomPullback</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span> {
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(
         <span class="ident">source</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">HomModule</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">target</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">HomModule</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span><span class="op">&gt;</span>,
@@ -276,7 +276,7 @@
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">M</span>: <span class="ident">BoundedModule</span><span class="op">&gt;</span> <span class="ident">ModuleHomomorphism</span> <span class="kw">for</span> <span class="ident">HomPullback</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">M</span>: <span class="ident">Module</span><span class="op">&gt;</span> <span class="ident">ModuleHomomorphism</span> <span class="kw">for</span> <span class="ident">HomPullback</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span> {
     <span class="kw">type</span> <span class="ident">Source</span> <span class="op">=</span> <span class="ident">HomModule</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span>;
     <span class="kw">type</span> <span class="ident">Target</span> <span class="op">=</span> <span class="ident">HomModule</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span>;
 
@@ -305,7 +305,7 @@
     ) {
         <span class="macro">println!</span>(<span class="string">&quot;fn_deg : {}, fn_idx : {}&quot;</span>, <span class="ident">fn_degree</span>, <span class="ident">fn_idx</span>);
         <span class="kw">let</span> <span class="ident">target_module</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">target</span>.<span class="ident">target</span>();
-        <span class="kw">for</span> <span class="ident">out_deg</span> <span class="kw">in</span> <span class="ident">target_module</span>.<span class="ident">min_degree</span>()..<span class="op">=</span><span class="ident">target_module</span>.<span class="ident">max_degree</span>() {
+        <span class="kw">for</span> <span class="ident">out_deg</span> <span class="kw">in</span> <span class="ident">target_module</span>.<span class="ident">min_degree</span>()..<span class="op">=</span><span class="ident">target_module</span>.<span class="ident">max_degree</span>().<span class="ident">unwrap</span>() {
             <span class="kw">let</span> <span class="ident">x_degree</span> <span class="op">=</span> <span class="ident">fn_degree</span> <span class="op">+</span> <span class="ident">out_deg</span>;
             <span class="kw">let</span> <span class="ident">num_gens</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">map</span>.<span class="ident">source</span>().<span class="ident">number_of_gens_in_degree</span>(<span class="ident">x_degree</span>);
             <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">num_gens</span> {

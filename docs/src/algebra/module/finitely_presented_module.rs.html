@@ -349,6 +349,10 @@
 <span id="322">322</span>
 <span id="323">323</span>
 <span id="324">324</span>
+<span id="325">325</span>
+<span id="326">326</span>
+<span id="327">327</span>
+<span id="328">328</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
 
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::algebra::Algebra</span>;
@@ -671,6 +675,10 @@
     <span class="kw">fn</span> <span class="ident">basis_element_to_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">idx</span>: <span class="ident">usize</span>) -&gt; <span class="ident">String</span> {
         <span class="kw">let</span> <span class="ident">gen_idx</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">fp_idx_to_gen_idx</span>(<span class="ident">degree</span>, <span class="ident">idx</span>);
         <span class="self">self</span>.<span class="ident">generators</span>.<span class="ident">basis_element_to_string</span>(<span class="ident">degree</span>, <span class="ident">gen_idx</span>)
+    }
+
+    <span class="kw">fn</span> <span class="ident">max_generator_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">i32</span><span class="op">&gt;</span> {
+        <span class="prelude-val">Some</span>(<span class="self">self</span>.<span class="ident">generators</span>.<span class="ident">get_max_generator_degree</span>())
     }
 }
 </code></pre></div>
