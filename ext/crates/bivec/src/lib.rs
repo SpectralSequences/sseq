@@ -222,6 +222,15 @@ impl<'a, T> IntoIterator for &'a mut BiVec<T> {
     }
 }
 
+impl<A> std::iter::Extend<A> for BiVec<A> {
+    fn extend<T>(&mut self, iter: T)
+    where
+        T: IntoIterator<Item = A>,
+    {
+        self.data.extend(iter)
+    }
+}
+
 #[cfg(feature = "json")]
 impl<T: Serialize> Serialize for BiVec<T> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
