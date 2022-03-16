@@ -203,8 +203,6 @@
 <span id="176">176</span>
 <span id="177">177</span>
 <span id="178">178</span>
-<span id="179">179</span>
-<span id="180">180</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
 
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::module::Module</span>;
@@ -220,14 +218,12 @@
 <span class="kw">mod</span> <span class="ident">generic_zero_homomorphism</span>;
 <span class="kw">mod</span> <span class="ident">hom_pullback</span>;
 <span class="kw">mod</span> <span class="ident">quotient_homomorphism</span>;
-<span class="kw">mod</span> <span class="ident">truncated_homomorphism</span>;
 
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">free_module_homomorphism::FreeModuleHomomorphism</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">full_module_homomorphism::FullModuleHomomorphism</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">generic_zero_homomorphism::GenericZeroHomomorphism</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">hom_pullback::HomPullback</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">quotient_homomorphism</span>::{<span class="ident">QuotientHomomorphism</span>, <span class="ident">QuotientHomomorphismSource</span>};
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">truncated_homomorphism</span>::{<span class="ident">TruncatedHomomorphism</span>, <span class="ident">TruncatedHomomorphismSource</span>};
 
 <span class="doccomment">/// Each `ModuleHomomorphism` may come with auxiliary data, namely the kernel, image and</span>
 <span class="doccomment">/// quasi_inverse at each degree (the quasi-inverse is a map that is a right inverse when</span>

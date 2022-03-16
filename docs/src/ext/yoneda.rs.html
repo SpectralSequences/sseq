@@ -772,109 +772,6 @@
 <span id="745">745</span>
 <span id="746">746</span>
 <span id="747">747</span>
-<span id="748">748</span>
-<span id="749">749</span>
-<span id="750">750</span>
-<span id="751">751</span>
-<span id="752">752</span>
-<span id="753">753</span>
-<span id="754">754</span>
-<span id="755">755</span>
-<span id="756">756</span>
-<span id="757">757</span>
-<span id="758">758</span>
-<span id="759">759</span>
-<span id="760">760</span>
-<span id="761">761</span>
-<span id="762">762</span>
-<span id="763">763</span>
-<span id="764">764</span>
-<span id="765">765</span>
-<span id="766">766</span>
-<span id="767">767</span>
-<span id="768">768</span>
-<span id="769">769</span>
-<span id="770">770</span>
-<span id="771">771</span>
-<span id="772">772</span>
-<span id="773">773</span>
-<span id="774">774</span>
-<span id="775">775</span>
-<span id="776">776</span>
-<span id="777">777</span>
-<span id="778">778</span>
-<span id="779">779</span>
-<span id="780">780</span>
-<span id="781">781</span>
-<span id="782">782</span>
-<span id="783">783</span>
-<span id="784">784</span>
-<span id="785">785</span>
-<span id="786">786</span>
-<span id="787">787</span>
-<span id="788">788</span>
-<span id="789">789</span>
-<span id="790">790</span>
-<span id="791">791</span>
-<span id="792">792</span>
-<span id="793">793</span>
-<span id="794">794</span>
-<span id="795">795</span>
-<span id="796">796</span>
-<span id="797">797</span>
-<span id="798">798</span>
-<span id="799">799</span>
-<span id="800">800</span>
-<span id="801">801</span>
-<span id="802">802</span>
-<span id="803">803</span>
-<span id="804">804</span>
-<span id="805">805</span>
-<span id="806">806</span>
-<span id="807">807</span>
-<span id="808">808</span>
-<span id="809">809</span>
-<span id="810">810</span>
-<span id="811">811</span>
-<span id="812">812</span>
-<span id="813">813</span>
-<span id="814">814</span>
-<span id="815">815</span>
-<span id="816">816</span>
-<span id="817">817</span>
-<span id="818">818</span>
-<span id="819">819</span>
-<span id="820">820</span>
-<span id="821">821</span>
-<span id="822">822</span>
-<span id="823">823</span>
-<span id="824">824</span>
-<span id="825">825</span>
-<span id="826">826</span>
-<span id="827">827</span>
-<span id="828">828</span>
-<span id="829">829</span>
-<span id="830">830</span>
-<span id="831">831</span>
-<span id="832">832</span>
-<span id="833">833</span>
-<span id="834">834</span>
-<span id="835">835</span>
-<span id="836">836</span>
-<span id="837">837</span>
-<span id="838">838</span>
-<span id="839">839</span>
-<span id="840">840</span>
-<span id="841">841</span>
-<span id="842">842</span>
-<span id="843">843</span>
-<span id="844">844</span>
-<span id="845">845</span>
-<span id="846">846</span>
-<span id="847">847</span>
-<span id="848">848</span>
-<span id="849">849</span>
-<span id="850">850</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::chain_complex</span>::{
     <span class="ident">AugmentedChainComplex</span>, <span class="ident">BoundedChainComplex</span>, <span class="ident">ChainComplex</span>, <span class="ident">ChainMap</span>,
     <span class="ident">FiniteAugmentedChainComplex</span>, <span class="ident">FiniteChainComplex</span>,
@@ -882,12 +779,9 @@
 <span class="kw">use</span> <span class="ident">algebra::module::homomorphism</span>::{
     <span class="ident">FreeModuleHomomorphism</span>, <span class="ident">FullModuleHomomorphism</span>, <span class="ident">ModuleHomomorphism</span>,
 };
-<span class="kw">use</span> <span class="ident">algebra::module::homomorphism</span>::{
-    <span class="ident">QuotientHomomorphism</span>, <span class="ident">QuotientHomomorphismSource</span>, <span class="ident">TruncatedHomomorphism</span>,
-    <span class="ident">TruncatedHomomorphismSource</span>,
-};
+<span class="kw">use</span> <span class="ident">algebra::module::homomorphism</span>::{<span class="ident">QuotientHomomorphism</span>, <span class="ident">QuotientHomomorphismSource</span>};
+<span class="kw">use</span> <span class="ident">algebra::module::QuotientModule</span> <span class="kw">as</span> <span class="ident">QM</span>;
 <span class="kw">use</span> <span class="ident">algebra::module</span>::{<span class="ident">FDModule</span>, <span class="ident">FreeModule</span>, <span class="ident">Module</span>};
-<span class="kw">use</span> <span class="ident">algebra::module</span>::{<span class="ident">QuotientModule</span> <span class="kw">as</span> <span class="ident">QM</span>, <span class="ident">TruncatedModule</span> <span class="kw">as</span> <span class="ident">TM</span>};
 <span class="kw">use</span> <span class="ident">algebra</span>::{<span class="ident">AdemAlgebra</span>, <span class="ident">Algebra</span>, <span class="ident">GeneratedAlgebra</span>, <span class="ident">SteenrodAlgebra</span>};
 <span class="kw">use</span> <span class="ident">fp::matrix</span>::{<span class="ident">Matrix</span>, <span class="ident">Subspace</span>};
 <span class="kw">use</span> <span class="ident">fp::vector::FpVector</span>;
@@ -1072,7 +966,7 @@
     <span class="kw">let</span> <span class="ident">t_min</span> <span class="op">=</span> <span class="ident">cc</span>.<span class="ident">min_degree</span>();
 
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">modules</span> <span class="op">=</span> (<span class="number">0</span>..<span class="op">=</span><span class="ident">s_max</span>)
-        .<span class="ident">map</span>(<span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="ident">QM::new</span>(<span class="ident">Arc::new</span>(<span class="ident">TM::new</span>(<span class="ident">cc</span>.<span class="ident">module</span>(<span class="ident">s</span>), <span class="ident">t_max</span>))))
+        .<span class="ident">map</span>(<span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="ident">QM::new</span>(<span class="ident">cc</span>.<span class="ident">module</span>(<span class="ident">s</span>), <span class="ident">t_max</span>))
         .<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span>();
 
     <span class="kw">for</span> <span class="ident">m</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="ident">modules</span> {
@@ -1110,7 +1004,7 @@
         <span class="kw">let</span> (<span class="ident">target</span>, <span class="ident">source</span>) <span class="op">=</span> <span class="ident">split_mut_borrow</span>(<span class="kw-2">&amp;mut</span> <span class="ident">modules</span>, <span class="ident">s</span> <span class="kw">as</span> <span class="ident">usize</span> <span class="op">-</span> <span class="number">1</span>, <span class="ident">s</span> <span class="kw">as</span> <span class="ident">usize</span>);
         <span class="kw">let</span> <span class="ident">d</span> <span class="op">=</span> <span class="ident">cc</span>.<span class="ident">differential</span>(<span class="ident">s</span>);
         <span class="kw">if</span> <span class="ident">s</span> <span class="op">&lt;</span> <span class="ident">s_max</span> {
-            <span class="kw">let</span> <span class="ident">degrees_with_gens</span> <span class="op">=</span> <span class="ident">source</span>.<span class="ident">module</span>.<span class="ident">module</span>.<span class="ident">get_degrees_with_gens</span>(<span class="ident">t_max</span>);
+            <span class="kw">let</span> <span class="ident">degrees_with_gens</span> <span class="op">=</span> <span class="ident">source</span>.<span class="ident">module</span>.<span class="ident">get_degrees_with_gens</span>(<span class="ident">t_max</span>);
 
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">prev_differentials</span>: <span class="ident">BiVec</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Subspace</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span>
                 <span class="ident">BiVec::with_capacity</span>(<span class="ident">t_min</span>, <span class="ident">t_max</span> <span class="op">+</span> <span class="number">1</span>);
@@ -1132,7 +1026,7 @@
                 <span class="comment">// Check if augmentation map is non-zero on the generator</span>
                 <span class="kw">if</span> <span class="ident">s</span> <span class="op">&lt;</span> <span class="ident">target_cc</span>.<span class="ident">max_s</span>() <span class="op">&amp;&amp;</span> <span class="ident">target_cc</span>.<span class="ident">module</span>(<span class="ident">s</span>).<span class="ident">dimension</span>(<span class="ident">gen_dim</span>) <span class="op">&gt;</span> <span class="number">0</span> {
                     <span class="kw">let</span> <span class="ident">m</span> <span class="op">=</span> <span class="ident">cc</span>.<span class="ident">chain_map</span>(<span class="ident">s</span>);
-                    <span class="kw">let</span> <span class="ident">num_gens</span> <span class="op">=</span> <span class="ident">source</span>.<span class="ident">module</span>.<span class="ident">module</span>.<span class="ident">number_of_gens_in_degree</span>(<span class="ident">gen_dim</span>);
+                    <span class="kw">let</span> <span class="ident">num_gens</span> <span class="op">=</span> <span class="ident">source</span>.<span class="ident">module</span>.<span class="ident">number_of_gens_in_degree</span>(<span class="ident">gen_dim</span>);
                     <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">num_gens</span> {
                         <span class="kw">if</span> <span class="op">!</span><span class="ident">m</span>.<span class="ident">output</span>(<span class="ident">gen_dim</span>, <span class="ident">i</span>).<span class="ident">is_zero</span>() {
                             <span class="kw">continue</span> <span class="lifetime">&#39;gen_loop</span>;
@@ -1144,7 +1038,7 @@
                 <span class="kw">if</span> <span class="ident">s</span> <span class="op">&gt;</span><span class="op">=</span> <span class="ident">s_shift</span> <span class="op">&amp;&amp;</span> <span class="ident">gen_dim</span> <span class="op">&gt;</span><span class="op">=</span> <span class="ident">t_shift</span> {
                     <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">m</span>) <span class="op">=</span> <span class="ident">map</span>.<span class="ident">chain_maps</span>.<span class="ident">get</span>((<span class="ident">s</span> <span class="op">-</span> <span class="ident">s_shift</span>) <span class="kw">as</span> <span class="ident">usize</span>) {
                         <span class="kw">if</span> <span class="ident">m</span>.<span class="ident">target</span>().<span class="ident">dimension</span>(<span class="ident">gen_dim</span> <span class="op">-</span> <span class="ident">t_shift</span>) <span class="op">&gt;</span> <span class="number">0</span> {
-                            <span class="kw">let</span> <span class="ident">num_gens</span> <span class="op">=</span> <span class="ident">source</span>.<span class="ident">module</span>.<span class="ident">module</span>.<span class="ident">number_of_gens_in_degree</span>(<span class="ident">gen_dim</span>);
+                            <span class="kw">let</span> <span class="ident">num_gens</span> <span class="op">=</span> <span class="ident">source</span>.<span class="ident">module</span>.<span class="ident">number_of_gens_in_degree</span>(<span class="ident">gen_dim</span>);
                             <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">num_gens</span> {
                                 <span class="kw">if</span> <span class="op">!</span><span class="ident">m</span>.<span class="ident">output</span>(<span class="ident">gen_dim</span>, <span class="ident">i</span>).<span class="ident">is_zero</span>() {
                                     <span class="kw">continue</span> <span class="lifetime">&#39;gen_loop</span>;
@@ -1164,14 +1058,13 @@
                     <span class="ident">prev_subspaces</span>[<span class="ident">t</span>] <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">source</span>.<span class="ident">subspaces</span>[<span class="ident">t</span>].<span class="ident">clone</span>());
                     <span class="ident">prev_basis_list</span>[<span class="ident">t</span>] <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">source</span>.<span class="ident">basis_list</span>[<span class="ident">t</span>].<span class="ident">clone</span>());
 
-                    <span class="kw">let</span> <span class="ident">start</span> <span class="op">=</span> <span class="ident">source</span>.<span class="ident">module</span>.<span class="ident">module</span>.<span class="ident">generator_offset</span>(<span class="ident">t</span>, <span class="ident">gen_dim</span>, <span class="number">0</span>);
-                    <span class="kw">let</span> <span class="ident">dim</span> <span class="op">=</span> <span class="ident">source</span>.<span class="ident">module</span>.<span class="ident">module</span>.<span class="ident">dimension</span>(<span class="ident">t</span>);
+                    <span class="kw">let</span> <span class="ident">start</span> <span class="op">=</span> <span class="ident">source</span>.<span class="ident">module</span>.<span class="ident">generator_offset</span>(<span class="ident">t</span>, <span class="ident">gen_dim</span>, <span class="number">0</span>);
+                    <span class="kw">let</span> <span class="ident">dim</span> <span class="op">=</span> <span class="ident">source</span>.<span class="ident">module</span>.<span class="ident">dimension</span>(<span class="ident">t</span>);
 
                     <span class="kw">let</span> <span class="ident">end</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">degrees_with_gens</span>.<span class="ident">get</span>(<span class="ident">i</span> <span class="op">+</span> <span class="number">1</span>).<span class="ident">map_or</span>(<span class="bool-val">true</span>, <span class="op">|</span><span class="kw-2">&amp;</span><span class="ident">t_</span><span class="op">|</span> <span class="ident">t_</span> <span class="op">&gt;</span> <span class="ident">t</span>) {
                         <span class="ident">dim</span>
                     } <span class="kw">else</span> {
                         <span class="ident">source</span>
-                            .<span class="ident">module</span>
                             .<span class="ident">module</span>
                             .<span class="ident">generator_offset</span>(<span class="ident">t</span>, <span class="ident">degrees_with_gens</span>[<span class="ident">i</span> <span class="op">+</span> <span class="number">1</span>], <span class="number">0</span>)
                     };
@@ -1216,13 +1109,12 @@
 
                 <span class="comment">// We are free to clear this basis element. Do it</span>
                 <span class="kw">for</span> <span class="ident">t</span> <span class="kw">in</span> <span class="ident">gen_dim</span>..<span class="op">=</span><span class="ident">t_max</span> {
-                    <span class="kw">let</span> <span class="ident">start</span> <span class="op">=</span> <span class="ident">source</span>.<span class="ident">module</span>.<span class="ident">module</span>.<span class="ident">generator_offset</span>(<span class="ident">t</span>, <span class="ident">gen_dim</span>, <span class="number">0</span>);
+                    <span class="kw">let</span> <span class="ident">start</span> <span class="op">=</span> <span class="ident">source</span>.<span class="ident">module</span>.<span class="ident">generator_offset</span>(<span class="ident">t</span>, <span class="ident">gen_dim</span>, <span class="number">0</span>);
 
                     <span class="kw">let</span> <span class="ident">end</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">degrees_with_gens</span>.<span class="ident">get</span>(<span class="ident">i</span> <span class="op">+</span> <span class="number">1</span>).<span class="ident">map_or</span>(<span class="bool-val">true</span>, <span class="op">|</span><span class="kw-2">&amp;</span><span class="ident">t_</span><span class="op">|</span> <span class="ident">t_</span> <span class="op">&gt;</span> <span class="ident">t</span>) {
-                        <span class="ident">source</span>.<span class="ident">module</span>.<span class="ident">module</span>.<span class="ident">dimension</span>(<span class="ident">t</span>)
+                        <span class="ident">source</span>.<span class="ident">module</span>.<span class="ident">dimension</span>(<span class="ident">t</span>)
                     } <span class="kw">else</span> {
                         <span class="ident">source</span>
-                            .<span class="ident">module</span>
                             .<span class="ident">module</span>
                             .<span class="ident">generator_offset</span>(<span class="ident">t</span>, <span class="ident">degrees_with_gens</span>[<span class="ident">i</span> <span class="op">+</span> <span class="number">1</span>], <span class="number">0</span>)
                     };
@@ -1308,7 +1200,7 @@
                 .<span class="ident">iter</span>()
                 .<span class="ident">enumerate</span>()
                 .<span class="ident">filter</span>(<span class="op">|</span><span class="kw-2">&amp;</span>(<span class="ident">_i</span>, <span class="kw-2">&amp;</span><span class="ident">v</span>)<span class="op">|</span> <span class="ident">v</span> <span class="op">&gt;</span><span class="op">=</span> <span class="number">0</span>)
-                .<span class="ident">map</span>(<span class="op">|</span>(<span class="ident">i</span>, <span class="ident">_v</span>)<span class="op">|</span> (<span class="ident">strategy</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">source</span>.<span class="ident">module</span>.<span class="ident">module</span>, <span class="ident">subspace</span>, <span class="ident">t</span>, <span class="ident">i</span>), <span class="ident">i</span>))
+                .<span class="ident">map</span>(<span class="op">|</span>(<span class="ident">i</span>, <span class="ident">_v</span>)<span class="op">|</span> (<span class="ident">strategy</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">source</span>.<span class="ident">module</span>, <span class="ident">subspace</span>, <span class="ident">t</span>, <span class="ident">i</span>), <span class="ident">i</span>))
                 .<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span>();
             <span class="ident">pivot_columns</span>.<span class="ident">sort_unstable</span>();
 
@@ -1377,17 +1269,10 @@
 
     <span class="kw">let</span> <span class="ident">differentials</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span> <span class="op">=</span> (<span class="number">0</span>..<span class="ident">s_max</span>)
         .<span class="ident">map</span>(<span class="op">|</span><span class="ident">s</span><span class="op">|</span> {
-            <span class="kw">let</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">cc</span>.<span class="ident">differential</span>(<span class="ident">s</span> <span class="op">+</span> <span class="number">1</span>);
-            <span class="kw">let</span> <span class="ident">s</span> <span class="op">=</span> <span class="ident">s</span> <span class="kw">as</span> <span class="ident">usize</span>;
-            <span class="kw">let</span> <span class="ident">tf</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">TruncatedHomomorphism::new</span>(
-                <span class="ident">f</span>,
-                <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">modules</span>[<span class="ident">s</span> <span class="op">+</span> <span class="number">1</span>].<span class="ident">module</span>),
-                <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">modules</span>[<span class="ident">s</span>].<span class="ident">module</span>),
-            ));
             <span class="kw">let</span> <span class="ident">qf</span> <span class="op">=</span> <span class="ident">FullModuleHomomorphism::from</span>(<span class="kw-2">&amp;</span><span class="ident">QuotientHomomorphism::new</span>(
-                <span class="ident">tf</span>,
-                <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">modules</span>[<span class="ident">s</span> <span class="op">+</span> <span class="number">1</span>]),
-                <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">modules</span>[<span class="ident">s</span>]),
+                <span class="ident">cc</span>.<span class="ident">differential</span>(<span class="ident">s</span> <span class="op">+</span> <span class="number">1</span>),
+                <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">modules</span>[<span class="ident">s</span> <span class="kw">as</span> <span class="ident">usize</span> <span class="op">+</span> <span class="number">1</span>]),
+                <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">modules</span>[<span class="ident">s</span> <span class="kw">as</span> <span class="ident">usize</span>]),
             ));
             <span class="ident">Arc::new</span>(<span class="ident">qf</span>)
         })
@@ -1395,18 +1280,9 @@
 
     <span class="kw">let</span> <span class="ident">chain_maps</span> <span class="op">=</span> (<span class="number">0</span>..<span class="op">=</span><span class="ident">s_max</span>)
         .<span class="ident">map</span>(<span class="op">|</span><span class="ident">s</span><span class="op">|</span> {
-            <span class="kw">let</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">cc</span>.<span class="ident">chain_map</span>(<span class="ident">s</span>);
-            <span class="kw">let</span> <span class="ident">s</span> <span class="op">=</span> <span class="ident">s</span> <span class="kw">as</span> <span class="ident">usize</span>;
-            <span class="kw">let</span> <span class="ident">target</span> <span class="op">=</span> <span class="ident">f</span>.<span class="ident">target</span>();
-            <span class="kw">let</span> <span class="ident">tf</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">TruncatedHomomorphismSource::new</span>(
-                <span class="ident">f</span>,
-                <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">modules</span>[<span class="ident">s</span>].<span class="ident">module</span>),
-                <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">target</span>),
-            ));
             <span class="kw">let</span> <span class="ident">qf</span> <span class="op">=</span> <span class="ident">FullModuleHomomorphism::from</span>(<span class="kw-2">&amp;</span><span class="ident">QuotientHomomorphismSource::new</span>(
-                <span class="ident">tf</span>,
-                <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">modules</span>[<span class="ident">s</span>]),
-                <span class="ident">target</span>,
+                <span class="ident">cc</span>.<span class="ident">chain_map</span>(<span class="ident">s</span>),
+                <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">modules</span>[<span class="ident">s</span> <span class="kw">as</span> <span class="ident">usize</span>]),
             ));
             <span class="ident">Arc::new</span>(<span class="ident">qf</span>)
         })
@@ -1643,88 +1519,6 @@
         }
     }
 }
-<span class="comment">//static mut MEMOIZED_SIZE : Option&lt;once::OnceVec&lt;Vec&lt;u32&gt;&gt;&gt; = None;</span>
-<span class="comment">//unsafe fn compute_size(algebra : &amp;Arc&lt;SteenrodAlgebra&gt;, deg : i32) {</span>
-<span class="comment">//    if MEMOIZED_SIZE.is_none() {</span>
-<span class="comment">//        MEMOIZED_SIZE = Some(once::OnceVec::new());</span>
-<span class="comment">//    }</span>
-<span class="comment">//    let p = algebra.prime();</span>
-<span class="comment">//    if let Some(size) = &amp;MEMOIZED_SIZE {</span>
-<span class="comment">//        while size.len() &lt;= deg as usize {</span>
-<span class="comment">//            let t_max = size.len() as i32;</span>
-<span class="comment">//            let dim = algebra.dimension(t_max, -1);</span>
-<span class="comment">//</span>
-<span class="comment">//            let mut new_sizes = Vec::with_capacity(dim);</span>
-<span class="comment">//</span>
-<span class="comment">//            for i in 0 .. dim {</span>
-<span class="comment">//                let start_module = FreeModule::new(Arc::clone(algebra), &quot;&quot;.to_string(), 0);</span>
-<span class="comment">//                start_module.add_generators(0, 1, None);</span>
-<span class="comment">//                start_module.extend_by_zero(t_max);</span>
-<span class="comment">//</span>
-<span class="comment">//                let mut test_module = QM::new(Arc::new(TM::new(Arc::new(start_module), t_max)));</span>
-<span class="comment">//                test_module.compute_basis(t_max);</span>
-<span class="comment">//</span>
-<span class="comment">//                let mut basis_list : Vec&lt;usize&gt; = (0 .. dim).collect::&lt;Vec&lt;_&gt;&gt;();</span>
-<span class="comment">//                basis_list.swap_remove(i);</span>
-<span class="comment">//</span>
-<span class="comment">//                test_module.quotient_basis_elements(t_max, basis_list);</span>
-<span class="comment">//</span>
-<span class="comment">//                for t in (0 .. t_max).rev() {</span>
-<span class="comment">//                    let mut generators : Vec&lt;(i32, usize)&gt; = Vec::new();</span>
-<span class="comment">//                    let mut target_degrees = Vec::new();</span>
-<span class="comment">//                    let mut padded_target_degrees : Vec&lt;usize&gt; = Vec::new();</span>
-<span class="comment">//</span>
-<span class="comment">//                    let cur_dimension = test_module.dimension(t);</span>
-<span class="comment">//                    for op_deg in 1 ..= t_max - t {</span>
-<span class="comment">//                        for op_idx in algebra.generators(op_deg) {</span>
-<span class="comment">//                            generators.push((op_deg, op_idx));</span>
-<span class="comment">//                            target_degrees.push(test_module.module.dimension(t + op_deg));</span>
-<span class="comment">//                            padded_target_degrees.push(FpVector::padded_dimension(p, test_module.module.dimension(t + op_deg)));</span>
-<span class="comment">//                        }</span>
-<span class="comment">//                    }</span>
-<span class="comment">//</span>
-<span class="comment">//                    let total_padded_degree : usize = padded_target_degrees.iter().sum();</span>
-<span class="comment">//                    let total_cols : usize = total_padded_degree + cur_dimension;</span>
-<span class="comment">//</span>
-<span class="comment">//                    let mut matrix_rows : Vec&lt;FpVector&gt; = Vec::with_capacity(cur_dimension);</span>
-<span class="comment">//</span>
-<span class="comment">//                    for j in 0 .. cur_dimension {</span>
-<span class="comment">//                        let mut result = FpVector::new(p, total_cols);</span>
-<span class="comment">//</span>
-<span class="comment">//                        let mut offset = 0;</span>
-<span class="comment">//</span>
-<span class="comment">//                        for (gen_idx, (op_deg, op_idx)) in generators.iter().enumerate() {</span>
-<span class="comment">//                            result.set_slice(offset, offset + target_degrees[gen_idx]);</span>
-<span class="comment">//                            test_module.act_on_original_basis(&amp;mut result, 1, *op_deg, *op_idx, t, j);</span>
-<span class="comment">//                            result.clear_slice();</span>
-<span class="comment">//                            offset += padded_target_degrees[gen_idx];</span>
-<span class="comment">//                        }</span>
-<span class="comment">//                        result.set_entry(total_padded_degree + j, 1);</span>
-<span class="comment">//                        matrix_rows.push(result);</span>
-<span class="comment">//                    }</span>
-<span class="comment">//</span>
-<span class="comment">//                    let mut matrix = Matrix::from_rows(p, matrix_rows, total_cols);</span>
-<span class="comment">//                    let mut pivots = vec![-1; total_cols];</span>
-<span class="comment">//                    matrix.row_reduce(&amp;mut pivots);</span>
-<span class="comment">//</span>
-<span class="comment">//                    let first_kernel_row = match &amp;pivots[0..total_padded_degree].iter().rposition(|&amp;i| i &gt;= 0) {</span>
-<span class="comment">//                        Some(n) =&gt; pivots[*n] as usize + 1,</span>
-<span class="comment">//                        None =&gt; 0</span>
-<span class="comment">//                    };</span>
-<span class="comment">//</span>
-<span class="comment">//                    matrix.set_slice(first_kernel_row, cur_dimension, total_padded_degree, total_cols);</span>
-<span class="comment">//                    matrix.into_slice();</span>
-<span class="comment">//</span>
-<span class="comment">//                    let kill_rows = matrix.into_vec();</span>
-<span class="comment">//</span>
-<span class="comment">//                    test_module.quotient_vectors(t, kill_rows);</span>
-<span class="comment">//                }</span>
-<span class="comment">//                new_sizes.push(test_module.total_dimension() as u32);</span>
-<span class="comment">//            }</span>
-<span class="comment">//            size.push(new_sizes);</span>
-<span class="comment">//        }</span>
-<span class="comment">//    }</span>
-<span class="comment">//}</span>
 </code></pre></div>
 </section><section id="search" class="content hidden"></section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="ext" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.59.0 (9d1b2106e 2022-02-23)" ></div>
 </body></html>

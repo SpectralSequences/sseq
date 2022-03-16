@@ -1,1 +1,1 @@
-initSidebarItems({"struct":[["QuotientModule","Given a module `module`, this is the quotient of `module` by a collection of basis elements."]]});
+initSidebarItems({"struct":[["QuotientModule","A quotient of a module truncated below a fix degree."]]});
