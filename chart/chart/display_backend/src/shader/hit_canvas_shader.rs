@@ -5,19 +5,19 @@ use lyon::geom::math::{Point, Vector};
 
 
 #[allow(unused_imports)]
-use create::log;
+use crate::log;
 
-use create::webgl_wrapper::WebGlWrapper;
-use create::shader::Program;
-use create::shader::attributes::{Format, NumChannels, Type, Attribute, Attributes};
+use crate::webgl_wrapper::WebGlWrapper;
+use crate::shader::Program;
+use crate::shader::attributes::{Format, NumChannels, Type, Attribute, Attributes};
 
-use create::shader::data_texture::DataTexture;
-use create::shader::vertex_buffer::VertexBuffer;
+use crate::shader::data_texture::DataTexture;
+use crate::shader::vertex_buffer::VertexBuffer;
 
-use create::glyph::{GlyphInstance};
+use crate::glyph::{GlyphInstance};
 
-use create::convex_hull::ANGLE_RESOLUTION;
-use create::coordinate_system::{CoordinateSystem, BufferDimensions};
+use crate::convex_hull::ANGLE_RESOLUTION;
+use crate::coordinate_system::{CoordinateSystem, BufferDimensions};
 
 
 const ATTRIBUTES : Attributes = Attributes::new(&[

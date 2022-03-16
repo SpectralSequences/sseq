@@ -1,5 +1,5 @@
-use create::shader::range::Range;
-use create::webgl_wrapper::WebGlWrapper;
+use crate::shader::range::Range;
+use crate::webgl_wrapper::WebGlWrapper;
 
 
 use std::ops::{Index, IndexMut};

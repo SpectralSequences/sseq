@@ -4,19 +4,19 @@ use web_sys::{WebGl2RenderingContext, HtmlCanvasElement};
 // use std::f32::consts::PI;
 
 #[allow(unused_imports)]
-use create::log;
+use crate::log;
 
-use create::glyph::{Glyph, GlyphInstance};
+use crate::glyph::{Glyph, GlyphInstance};
 
-use create::shader::{ChartShaders, EdgeOptions};
+use crate::shader::{ChartShaders, EdgeOptions};
 
 
-use create::webgl_wrapper::WebGlWrapper;
+use crate::webgl_wrapper::WebGlWrapper;
 use lyon::geom::math::{point, vector};
-use create::vector::{JsPoint, Vec4};
+use crate::vector::{JsPoint, Vec4};
 
 
-use create::coordinate_system::{CoordinateSystem, BufferDimensions};
+use crate::coordinate_system::{CoordinateSystem, BufferDimensions};
 
 
 

@@ -1,5 +1,5 @@
 // Stolen from: https://github.com/jobtalle/ConvexHull/tree/master/src/convexHull
-// use create::log;
+// use crate::log;
 
 use std::cmp::Ordering;
 use std::borrow::Borrow;

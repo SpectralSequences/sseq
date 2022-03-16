@@ -14,5 +14,5 @@ extern "C" {
 #[macro_export]
 macro_rules! log {
     () => { log_str("") };
-    ($($arg:tt)*) => { create::console_log::log_str(&format!($($arg)*)) };
+    ($($arg:tt)*) => { crate::console_log::log_str(&format!($($arg)*)) };
 }

@@ -6,14 +6,14 @@ use web_sys::{WebGlBuffer, WebGl2RenderingContext};
 use lyon::geom::math::{Point, Vector};
 
 #[allow(unused_imports)]
-use create::log;
-use create::webgl_wrapper::WebGlWrapper;
+use crate::log;
+use crate::webgl_wrapper::WebGlWrapper;
 
-use create::vector::{JsPoint, Vec4};
-use create::coordinate_system::CoordinateSystem;
-use create::glyph::{Glyph, GlyphUuid, GlyphInstance};
+use crate::vector::{JsPoint, Vec4};
+use crate::coordinate_system::CoordinateSystem;
+use crate::glyph::{Glyph, GlyphUuid, GlyphInstance};
 
-use create::shader::{GridShader, GlyphShader, HitCanvasShader, EdgeShader, EdgeOptions};
+use crate::shader::{GridShader, GlyphShader, HitCanvasShader, EdgeShader, EdgeOptions};
 
 // I'm pretty confused by the way matrices are laid out in opengl.
 // Apparently a mat3x2 has 3 "columns" and 2 "rows". std140 layout requires

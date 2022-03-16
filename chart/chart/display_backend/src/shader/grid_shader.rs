@@ -1,14 +1,14 @@
 #[allow(unused_imports)]
-use create::log;
+use crate::log;
 
-use create::vector::{Vec4};
+use crate::vector::{Vec4};
 use lyon::geom::math::{Point, vector};
-use create::webgl_wrapper::WebGlWrapper;
-use create::shader::Program;
+use crate::webgl_wrapper::WebGlWrapper;
+use crate::shader::Program;
 
 use wasm_bindgen::JsValue;
 use web_sys::WebGl2RenderingContext;
-use create::coordinate_system::CoordinateSystem;
+use crate::coordinate_system::CoordinateSystem;
 
 
 pub struct GridShader {

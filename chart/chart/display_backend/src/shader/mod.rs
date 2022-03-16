@@ -13,10 +13,10 @@ mod edge_shader;
 mod chart_shaders;
 
 
-pub(in create::shader) use program::Program;
-pub(in create::shader) use glyph_shader::GlyphShader;
-pub(in create::shader) use hit_canvas_shader::HitCanvasShader;
-pub(in create::shader) use edge_shader::EdgeShader;
+pub(in crate::shader) use program::Program;
+pub(in crate::shader) use glyph_shader::GlyphShader;
+pub(in crate::shader) use hit_canvas_shader::HitCanvasShader;
+pub(in crate::shader) use edge_shader::EdgeShader;
 
 
 pub use grid_shader::GridShader;

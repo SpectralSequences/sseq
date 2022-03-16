@@ -4,8 +4,8 @@ use std::cmp::Ordering;
 use wasm_bindgen::prelude::*;
 
 #[allow(unused_imports)]
-use create::log;
-use create::vector::JsPoint;
+use crate::log;
+use crate::vector::JsPoint;
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct BufferDimensions {
@@ -43,23 +43,23 @@ impl BufferDimensions {
 
 #[derive(Clone, Copy, Debug)]
 pub struct CoordinateSystem {
-	pub(create) origin : Point,
-    pub(create) scale : Vector,
-    pub(create) glyph_scale : f32,
+	pub(crate) origin : Point,
+    pub(crate) scale : Vector,
+    pub(crate) glyph_scale : f32,
 
-    pub(create) left_margin : i32,
-    pub(create) right_margin : i32,
-    pub(create) bottom_margin : i32,
-    pub(create) top_margin : i32,
+    pub(crate) left_margin : i32,
+    pub(crate) right_margin : i32,
+    pub(crate) bottom_margin : i32,
+    pub(crate) top_margin : i32,
 
     padding : f32,
     // Prevent padding jagging when scale is maxed
     max_scaled_padding : Vector,
 
     // pixel coordinates to WebGl coordinates [-1, 1] x [-1, 1]
-    pub(create) transform : Transform,
+    pub(crate) transform : Transform,
     // dimensions of screen
-    pub(create) buffer_dimensions : BufferDimensions,
+    pub(crate) buffer_dimensions : BufferDimensions,
 
 
     natural_scale_ratio : f32,
@@ -193,21 +193,21 @@ impl CoordinateSystem {
             .then_translate(vector(-1.0, 1.0));
     }
 
-    pub(create) fn screen_x_range(&self) -> (f32, f32) {
+    pub(crate) fn screen_x_range(&self) -> (f32, f32) {
         (self.left_margin as f32, (self.buffer_dimensions.width() - self.right_margin) as f32)
     }
 
-    pub(create) fn screen_y_range(&self) -> (f32, f32) {
+    pub(crate) fn screen_y_range(&self) -> (f32, f32) {
         (self.top_margin as f32, (self.buffer_dimensions.height() - self.bottom_margin) as f32)
     }
 
-    pub(create) fn current_min_xy(&self) -> Point {
+    pub(crate) fn current_min_xy(&self) -> Point {
         let (screen_x_min, _) = self.screen_x_range();
         let (_, screen_y_max) = self.screen_y_range();
         self.inverse_transform_point(point(screen_x_min, screen_y_max))
     }
 
-    pub(create) fn current_max_xy(&self) -> Point {
+    pub(crate) fn current_max_xy(&self) -> Point {
         let (_, screen_x_max) = self.screen_x_range();
         let (screen_y_min, _) = self.screen_y_range();
         self.inverse_transform_point(point(screen_x_max, screen_y_min))

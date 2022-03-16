@@ -8,17 +8,17 @@ use lyon::geom::math::{Point, Angle, Vector};
 use lyon::tessellation::{VertexBuffers};
 
 #[allow(unused_imports)]
-use create::log;
-use create::vector::{Vec4};
-use create::shader::Program;
-use create::webgl_wrapper::WebGlWrapper;
+use crate::log;
+use crate::vector::{Vec4};
+use crate::shader::Program;
+use crate::webgl_wrapper::WebGlWrapper;
 
-use create::glyph::{GlyphInstance};
-use create::arrow::{Arrow, ArrowId};
+use crate::glyph::{GlyphInstance};
+use crate::arrow::{Arrow, ArrowId};
 
-use create::shader::attributes::{Format, Type, NumChannels, Attribute, Attributes};
-use create::shader::data_texture::DataTexture;
-use create::shader::vertex_buffer::VertexBuffer;
+use crate::shader::attributes::{Format, Type, NumChannels, Attribute, Attributes};
+use crate::shader::data_texture::DataTexture;
+use crate::shader::vertex_buffer::VertexBuffer;
 
 
 const DASH_PATTERN_TEXTURE_WIDTH : usize = 512;
