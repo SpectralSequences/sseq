@@ -8,7 +8,8 @@ use algebra::module::homomorphism::{
 use algebra::module::homomorphism::{QuotientHomomorphism, QuotientHomomorphismSource};
 use algebra::module::QuotientModule as QM;
 use algebra::module::{FDModule, FreeModule, Module};
-use algebra::{AdemAlgebra, Algebra, GeneratedAlgebra, SteenrodAlgebra};
+use algebra::{AdemAlgebra, Algebra, GeneratedAlgebra, MilnorAlgebra, SteenrodAlgebra};
+
 use fp::matrix::{Matrix, Subspace};
 use fp::vector::FpVector;
 
@@ -20,39 +21,44 @@ use std::sync::Arc;
 const PENALTY_UNIT: i32 = 10000;
 
 pub type Yoneda<CC> = FiniteAugmentedChainComplex<
-    FDModule<SteenrodAlgebra>,
-    FullModuleHomomorphism<FDModule<SteenrodAlgebra>>,
+    FDModule<<CC as ChainComplex>::Algebra>,
+    FullModuleHomomorphism<FDModule<<CC as ChainComplex>::Algebra>>,
     FullModuleHomomorphism<
-        FDModule<SteenrodAlgebra>,
+        FDModule<<CC as ChainComplex>::Algebra>,
         <<CC as AugmentedChainComplex>::TargetComplex as ChainComplex>::Module,
     >,
     <CC as AugmentedChainComplex>::TargetComplex,
 >;
 
-#[allow(clippy::single_match)]
-fn rate_operation(algebra: &Arc<SteenrodAlgebra>, op_deg: i32, op_idx: usize) -> i32 {
-    let mut pref = 0;
-    match &**algebra {
-        SteenrodAlgebra::AdemAlgebra(a) => pref += rate_adem_operation(a, op_deg, op_idx),
-        _ => (),
-    };
-    pref
+fn rate_operation<A: Algebra>(algebra: &Arc<A>, op_deg: i32, op_idx: usize) -> i32 {
+    let algebra = &**algebra as &dyn std::any::Any;
+
+    if let Some(algebra) = algebra.downcast_ref::<SteenrodAlgebra>() {
+        match algebra {
+            SteenrodAlgebra::AdemAlgebra(a) => rate_adem_operation(a, op_deg, op_idx),
+            SteenrodAlgebra::MilnorAlgebra(a) => rate_milnor_operation(a, op_deg, op_idx),
+        }
+    } else if let Some(algebra) = algebra.downcast_ref::<MilnorAlgebra>() {
+        rate_milnor_operation(algebra, op_deg, op_idx)
+    } else if let Some(algebra) = algebra.downcast_ref::<AdemAlgebra>() {
+        rate_adem_operation(algebra, op_deg, op_idx)
+    } else {
+        0
+    }
+}
+
+fn rate_milnor_operation(algebra: &MilnorAlgebra, deg: i32, idx: usize) -> i32 {
+    let elt = algebra.basis_element_from_index(deg, idx);
+    elt.p_part
+        .iter()
+        .enumerate()
+        .map(|(i, &r)| r.count_ones() << i)
+        .sum::<u32>() as i32
 }
 
 fn rate_adem_operation(algebra: &AdemAlgebra, deg: i32, idx: usize) -> i32 {
-    if *algebra.prime() != 2 {
-        return 1;
-    }
     let elt = algebra.basis_element_from_index(deg, idx);
-    let mut pref = 0;
-    for i in &elt.ps {
-        let mut i = *i;
-        while i != 0 {
-            pref += (i & 1) as i32;
-            i >>= 1;
-        }
-    }
-    pref
+    elt.ps.iter().map(|&r| r.count_ones()).sum::<u32>() as i32
 }
 
 #[allow(dead_code)]
@@ -87,14 +93,15 @@ pub fn yoneda_representative_element<TCM, TC, CC>(
     idx: usize,
 ) -> Yoneda<CC>
 where
-    TCM: Module<Algebra = SteenrodAlgebra>,
-    TC: BoundedChainComplex<Algebra = SteenrodAlgebra, Module = TCM>,
+    TCM: Module,
+    TC: BoundedChainComplex<Algebra = TCM::Algebra, Module = TCM>,
     CC: AugmentedChainComplex<
-        Algebra = SteenrodAlgebra,
+        Algebra = TCM::Algebra,
         TargetComplex = TC,
-        Module = FreeModule<SteenrodAlgebra>,
+        Module = FreeModule<TCM::Algebra>,
         ChainMap = FreeModuleHomomorphism<TCM>,
     >,
+    TCM::Algebra: GeneratedAlgebra,
 {
     let p = cc.prime();
 
@@ -118,20 +125,21 @@ pub fn yoneda_representative<TCM, TC, CC, CMM>(
     map: ChainMap<FreeModuleHomomorphism<CMM>>,
 ) -> Yoneda<CC>
 where
-    TCM: Module<Algebra = SteenrodAlgebra>,
-    TC: BoundedChainComplex<Algebra = SteenrodAlgebra, Module = TCM>,
+    TCM: Module,
+    TC: BoundedChainComplex<Algebra = TCM::Algebra, Module = TCM>,
     CC: AugmentedChainComplex<
-        Algebra = SteenrodAlgebra,
+        Algebra = TCM::Algebra,
         TargetComplex = TC,
-        Module = FreeModule<SteenrodAlgebra>,
+        Module = FreeModule<TCM::Algebra>,
         ChainMap = FreeModuleHomomorphism<TCM>,
     >,
-    CMM: Module<Algebra = SteenrodAlgebra>,
+    CMM: Module<Algebra = TCM::Algebra>,
+    TCM::Algebra: GeneratedAlgebra,
 {
     yoneda_representative_with_strategy(
         cc,
         map,
-        |module: &FreeModule<SteenrodAlgebra>, subspace: &Subspace, t: i32, i: usize| {
+        |module: &FreeModule<TCM::Algebra>, subspace: &Subspace, t: i32, i: usize| {
             let opgen = module.index_to_op_gen(t, i);
 
             let mut pref = rate_operation(
@@ -157,15 +165,16 @@ pub fn yoneda_representative_with_strategy<TCM, TC, CC, CMM, F>(
     strategy: F,
 ) -> Yoneda<CC>
 where
-    TCM: Module<Algebra = SteenrodAlgebra>,
-    TC: BoundedChainComplex<Algebra = SteenrodAlgebra, Module = TCM>,
+    TCM: Module,
+    TC: BoundedChainComplex<Algebra = TCM::Algebra, Module = TCM>,
     CC: AugmentedChainComplex<
-        Algebra = SteenrodAlgebra,
+        Algebra = TCM::Algebra,
         TargetComplex = TC,
-        Module = FreeModule<SteenrodAlgebra>,
+        Module = FreeModule<TCM::Algebra>,
         ChainMap = FreeModuleHomomorphism<TCM>,
     >,
-    CMM: Module<Algebra = SteenrodAlgebra>,
+    CMM: Module<Algebra = TCM::Algebra>,
+    TCM::Algebra: GeneratedAlgebra,
     F: Fn(&CC::Module, &Subspace, i32, usize) -> i32,
 {
     let p = cc.prime();
@@ -495,22 +504,19 @@ where
 
     let differentials: Vec<_> = (0..s_max)
         .map(|s| {
-            let qf = FullModuleHomomorphism::from(&QuotientHomomorphism::new(
+            Arc::new(FullModuleHomomorphism::from(&QuotientHomomorphism::new(
                 cc.differential(s + 1),
                 Arc::clone(&modules[s as usize + 1]),
                 Arc::clone(&modules[s as usize]),
-            ));
-            Arc::new(qf)
+            )))
         })
         .collect();
 
     let chain_maps = (0..=s_max)
         .map(|s| {
-            let qf = FullModuleHomomorphism::from(&QuotientHomomorphismSource::new(
-                cc.chain_map(s),
-                Arc::clone(&modules[s as usize]),
-            ));
-            Arc::new(qf)
+            Arc::new(FullModuleHomomorphism::from(
+                &QuotientHomomorphismSource::new(cc.chain_map(s), Arc::clone(&modules[s as usize])),
+            ))
         })
         .collect::<Vec<_>>();
 
@@ -679,12 +685,17 @@ mod tests {
 
     #[test]
     fn test() {
+        #[cfg(not(feature = "nassau"))]
         let algebra = Arc::new(SteenrodAlgebra::from(AdemAlgebra::new(
             ValidPrime::new(2),
             false,
             false,
             false,
         )));
+
+        #[cfg(feature = "nassau")]
+        let algebra = Arc::new(MilnorAlgebra::new(ValidPrime::new(2)));
+
         let module = Arc::new(FDModule::new(
             algebra,
             "".to_string(),

@@ -1,5 +1,5 @@
 use algebra::module::homomorphism::{FullModuleHomomorphism, IdentityHomomorphism};
-use algebra::module::{steenrod_module, Module};
+use algebra::module::Module;
 use ext::chain_complex::{AugmentedChainComplex, ChainComplex, FreeChainComplex};
 use ext::resolution_homomorphism::ResolutionHomomorphism;
 use ext::utils::construct;
@@ -11,14 +11,14 @@ use std::sync::Arc;
 use std::time::Instant;
 
 fn main() -> anyhow::Result<()> {
-    let resolution = Arc::new(query::with_default("Module", "S_2@adem", |name| {
+    let resolution = Arc::new(query::with_default("Module", "S_2", |name| {
         construct(name, None)
     }));
 
     let module = resolution.target().module(0);
     let min_degree = resolution.min_degree();
 
-    let x: i32 = query::with_default("t - s", "20", str::parse);
+    let x: i32 = query::with_default("n", "20", str::parse);
     let s: u32 = query::with_default("s", "4", str::parse);
     let i: usize = query::with_default("idx", "0", str::parse);
 
@@ -89,8 +89,12 @@ fn main() -> anyhow::Result<()> {
 
     let mut module_strings = Vec::with_capacity(s as usize + 2);
 
+    #[cfg(feature = "nassau")]
+    module_strings.push(module.to_minimal_json());
+
+    #[cfg(not(feature = "nassau"))]
     module_strings.push(
-        steenrod_module::as_fd_module(&module)
+        algebra::module::steenrod_module::as_fd_module(&module)
             .unwrap()
             .to_minimal_json(),
     );

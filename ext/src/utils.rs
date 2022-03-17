@@ -2,6 +2,7 @@
 use crate::chain_complex::{
     AugmentedChainComplex, BoundedChainComplex, ChainComplex, FiniteChainComplex,
 };
+
 use crate::resolution::Resolution;
 use crate::CCC;
 use algebra::module::{steenrod_module, FDModule, Module, SteenrodModule};
