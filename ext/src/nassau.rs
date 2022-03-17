@@ -420,7 +420,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
     pub fn new_with_save(module: Arc<M>, mut save_dir: Option<PathBuf>) -> anyhow::Result<Self> {
         let max_degree = module
             .max_degree()
-            .ok_or(anyhow!("Nassau's algorithm requires bounded module"))?;
+            .ok_or_else(|| anyhow!("Nassau's algorithm requires bounded module"))?;
         let target = Arc::new(FiniteChainComplex::ccdz(module));
 
         if let Some(p) = save_dir.as_mut() {
