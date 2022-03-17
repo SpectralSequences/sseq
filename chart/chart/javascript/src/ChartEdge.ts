@@ -10,24 +10,40 @@ import {
 } from './PageProperty';
 import { INFINITY } from './infinity';
 import { v4 as uuidv4 } from 'uuid';
-import { Color, DashPattern } from './Color';
+import { Color, DashPattern, Black } from './Color';
 import { SseqChart, MessageUpdate } from './SseqChart';
 import { Walker } from './json_utils';
 
 const DefaultLineWidth: number = 3;
 
-export interface ArrowTip {
-    arrowName: string;
+export class ArrowTip {
+    tip: string;
+    type: string = "ArrowTip";
+    constructor({tip, type } : {tip? : string, type: "ArrowTip"}){
+        this.tip = tip || "None";
+    }
+    toJSON(){
+        if(this.tip === "None"){
+            return null;
+        } else {
+            return this;
+        }
+    }
+    static fromJSON(walker : Walker, obj : any){
+        return new ArrowTip(obj);
+    }
 }
+const NoTip = new ArrowTip({type : "ArrowTip"});
 
 export interface EdgeStyle {
-    start_tip: ArrowTip | undefined;
-    end_tip: ArrowTip | undefined;
+    start_tip: ArrowTip;
+    end_tip: ArrowTip;
     bend: number;
     color: Color;
     dash_pattern: DashPattern;
     line_width: number;
     visible: boolean;
+    action : string;
 }
 
 export interface ChartEdgeConstructorArgs {
@@ -129,13 +145,14 @@ export abstract class ChartEdge {
 }
 
 export class ChartStructline extends ChartEdge {
-    start_tip: PageProperty<ArrowTip | undefined>;
-    end_tip: PageProperty<ArrowTip | undefined>;
+    start_tip: PageProperty<ArrowTip>;
+    end_tip: PageProperty<ArrowTip>;
     bend: PageProperty<number>;
     color: PageProperty<Color>;
     dash_pattern: PageProperty<DashPattern>;
     line_width: PageProperty<number>;
     visible: PageProperty<boolean>;
+    action: PageProperty<string>;
     constructor(kwargs: ChartStructlineConstructorArgs) {
         super(kwargs);
         let errorContext = '';
@@ -145,13 +162,15 @@ export class ChartStructline extends ChartEdge {
             'visible',
             errorContext,
         );
-        this.start_tip = initialOptionalPagePropertyValue(
+        this.start_tip = initialPagePropertyValue(
             kwargs.start_tip,
+            NoTip,
             'start_tip',
             errorContext,
         );
-        this.end_tip = initialOptionalPagePropertyValue(
+        this.end_tip = initialPagePropertyValue(
             kwargs.end_tip,
+            NoTip,
             'end_tip',
             errorContext,
         );
@@ -163,7 +182,7 @@ export class ChartStructline extends ChartEdge {
         );
         this.color = initialPagePropertyValue(
             kwargs.color,
-            [0, 0, 0, 1],
+            Black,
             'color',
             errorContext,
         );
@@ -177,6 +196,12 @@ export class ChartStructline extends ChartEdge {
             kwargs.line_width,
             3,
             'line_width',
+            errorContext,
+        );
+        this.action = initialPagePropertyValue(
+            kwargs.action,
+            "",
+            'action',
             errorContext,
         );
     }
@@ -233,12 +258,13 @@ export class ChartStructline extends ChartEdge {
             dash_pattern: this.dash_pattern[page],
             line_width: this.line_width[page],
             visible: this.visible[page],
+            action: this.action[page],
         };
     }
 
     toJSON(): any {
         let result = super.toJSON();
-        let edge_style: PageProperties<EdgeStyle> & { user_data: any } = {
+        let edge_style: PageProperties<EdgeStyle> & { user_data: any, action : any } = {
             visible: this.visible,
             color: this.color,
             dash_pattern: this.dash_pattern,
@@ -247,6 +273,7 @@ export class ChartStructline extends ChartEdge {
             start_tip: this.start_tip,
             end_tip: this.end_tip,
             user_data: this.user_data,
+            action : this.action,
         };
         Object.assign(result, edge_style);
         return result;
@@ -265,15 +292,17 @@ abstract class SinglePageChartEdge extends ChartEdge {
     dash_pattern: DashPattern;
     line_width: number;
     visible: boolean;
+    action: string;
     constructor(kwargs: ChartEdgeConstructorArgs & Partial<EdgeStyle>) {
         super(kwargs);
         this.start_tip = kwargs.start_tip;
         this.end_tip = kwargs.end_tip;
         this.bend = kwargs.bend || 0;
-        this.color = kwargs.color || [0, 0, 0, 1];
+        this.color = kwargs.color || Black;
         this.dash_pattern = kwargs.dash_pattern || [];
         this.line_width = kwargs.line_width || DefaultLineWidth;
         this.visible = kwargs.visible || true;
+        this.action = kwargs.action || "";
     }
 
     _baseUpdate(msg: MessageUpdate<SinglePageChartEdge>) {
@@ -304,19 +333,21 @@ abstract class SinglePageChartEdge extends ChartEdge {
 
     getEdgeStyle(_page: number): EdgeStyle {
         return {
-            start_tip: this.start_tip,
-            end_tip: this.end_tip,
+            start_tip: this.start_tip || NoTip,
+            end_tip: this.end_tip || NoTip,
             bend: this.bend,
             color: this.color,
             dash_pattern: this.dash_pattern,
             line_width: this.line_width,
             visible: this.visible,
+            action : this.action,
         };
     }
 
     toJSON(): any {
         let result = super.toJSON();
         Object.assign(result, this.getEdgeStyle(0));
+        result.user_data = this.user_data;
         return result;
     }
 }

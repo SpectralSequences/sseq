@@ -16,9 +16,12 @@ def update_patch(self):
     self._clear_batched_messages()
 
 
+MAX_SAFE_INT = 1 << 53 - 1
+integers = st.integers(-MAX_SAFE_INT, MAX_SAFE_INT)
+
 colors_list = sorted(CSS_COLORS_JSON.keys())
 colors_strategy = st.one_of(
-    st.tuples(*((st.integers(),) * 4)).map(lambda t: Color(*t)),
+    st.tuples(*((integers,) * 4)).map(lambda t: Color(*t)),
     st.sampled_from(colors_list),
 )
 
@@ -50,9 +53,13 @@ class HypothesisStateMachine(RuleBasedStateMachine):
         self.num_edges = 0
 
     classes = Bundle("classes")
-    structlines = Bundle("structlines")
-    differentials = Bundle("differentials")
-    extensions = Bundle("extensions")
+    structline_bdl = Bundle("structlines")
+    differential_bdl = Bundle("differentials")
+    extension_bdl = Bundle("extensions")
+    structlines = structline_bdl.filter(lambda x : not x._deleted)
+    differentials = differential_bdl.filter(lambda x : not x._deleted)
+    extensions = extension_bdl.filter(lambda x : not x._deleted)
+
     edges = st.one_of(structlines, differentials, extensions)
     chart_objects = st.one_of(edges, classes)
     edge_and_range = st.one_of(
@@ -61,24 +68,24 @@ class HypothesisStateMachine(RuleBasedStateMachine):
     )
     obj_and_range = st.one_of(st.tuples(classes, slices()), edge_and_range)
 
-    @rule(target=classes, k=st.tuples(st.integers(), st.integers()))
+    @rule(target=classes, k=st.tuples(integers, integers))
     def add_class(self, k):
         self.num_classes += 1
         return self.chart.add_class(*k)
 
-    @rule(target=structlines, c1=classes, c2=classes)
+    @rule(target=structline_bdl, c1=classes, c2=classes)
     def add_structline(self, c1, c2):
         self.num_edges += 1
         return self.chart.add_structline(c1, c2)
 
-    @rule(target=extensions, c1=classes, c2=classes)
+    @rule(target=extension_bdl, c1=classes, c2=classes)
     def add_extension(self, c1, c2):
         self.num_edges += 1
         return self.chart.add_extension(c1, c2)
 
     @rule(
-        target=differentials,
-        page=st.integers(),
+        target=differential_bdl,
+        page=integers,
         c1=classes,
         c2=classes,
         auto=st.booleans(),
@@ -107,7 +114,7 @@ class HypothesisStateMachine(RuleBasedStateMachine):
         o=classes,
         prop=st.sampled_from(["border_width", "scale", "x_nudge", "y_nudge"]),
         page_range=slices(),
-        val=st.integers(),
+        val=integers,
     )
     def set_class_number(self, o, prop, page_range, val):
         if page_range:
@@ -133,7 +140,7 @@ class HypothesisStateMachine(RuleBasedStateMachine):
         else:
             setattr(o, prop, val)
 
-    @rule(edge_and_range=edge_and_range, val=st.lists(st.integers()))
+    @rule(edge_and_range=edge_and_range, val=st.lists(integers))
     def set_edge_dash_pattern(self, edge_and_range, val):
         [o, page_range] = edge_and_range
         prop = "dash_pattern"
@@ -145,7 +152,7 @@ class HypothesisStateMachine(RuleBasedStateMachine):
     @rule(
         edge_and_range=edge_and_range,
         prop=st.sampled_from(["line_width", "bend"]),
-        val=st.integers(),
+        val=integers,
     )
     def set_edge_number(self, edge_and_range, prop, val):
         [o, page_range] = edge_and_range
@@ -171,9 +178,9 @@ class HypothesisStateMachine(RuleBasedStateMachine):
     @rule(
         o=st.one_of(
             consumes(classes),
-            consumes(extensions),
-            consumes(structlines),
-            consumes(differentials),
+            consumes(extension_bdl).filter(lambda x : not x._deleted),
+            consumes(structline_bdl).filter(lambda x : not x._deleted),
+            consumes(differential_bdl).filter(lambda x : not x._deleted),
         )
     )
     def delete_object(self, o):

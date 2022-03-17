@@ -340,8 +340,12 @@ export class SseqChart extends EventEmitter<Events> {
     }
 
     toJSON() {
+        let type = this.constructor.name;
+        if(type.startsWith("_")){
+            type = type.slice(1);
+        }
         return {
-            type: this.constructor.name,
+            type,
             name: this.name,
             initial_x_range: this.initial_x_range,
             initial_y_range: this.initial_y_range,
@@ -353,6 +357,8 @@ export class SseqChart extends EventEmitter<Events> {
             y_projection: this.y_projection,
             classes: Array.from(this.classes.values()),
             edges: Array.from(this.edges.values()),
+            uuid: this.uuid,
+            // version: this.version,
             // offset_size : number = 8;
             // min_class_size : number = 1;
             // max_class_size : number = 3;
