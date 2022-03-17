@@ -800,9 +800,6 @@ impl Matrix {
     /// The rows added are basis vectors of the desired image as specified in the Subspace object.
     /// The function returns the list of new pivot columns.
     ///
-    /// # Arguments
-    ///  - `clean`: If true, then the new rows are empty in the pivot columns of the existing
-    ///    matrix.
     /// # Panics
     /// It *may* panic if the current image is not contained in `desired_image`, but is not
     /// guaranteed to do so.
