@@ -535,7 +535,6 @@ mod tests {
     use crate::resolution_homomorphism::ResolutionHomomorphism;
     use crate::utils::construct;
     use crate::yoneda::yoneda_representative_element;
-    use fp::prime::ValidPrime;
 
     #[test]
     fn test_square_ccs() {
@@ -547,11 +546,8 @@ mod tests {
     }
 
     fn test_square_cc(s: u32, t: i32, i: usize, fi: usize) {
-        let k = r#"{"type" : "finite dimensional module","name": "$S_2$", "file_name": "S_2", "p": 2, "generic": false, "gens": {"x0": 0}, "adem_actions": []}"#;
-        let p = ValidPrime::new(2);
-
-        let k: serde_json::Value = serde_json::from_str(k).unwrap();
-        let resolution = Arc::new(construct((k, "adem"), None).unwrap());
+        let resolution = Arc::new(construct("S_2", None).unwrap());
+        let p = resolution.prime();
         resolution.compute_through_bidegree(2 * s, 2 * t);
 
         let yoneda = Arc::new(yoneda_representative_element(

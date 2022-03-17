@@ -291,10 +291,6 @@ fn main() {
     let (max_s, cc) = read_bruner_resolution(data_dir, max_n).unwrap();
     let cc = Arc::new(cc);
 
-    #[cfg(feature = "nassau")]
-    let resolution = ext::nassau::Resolution::new(None);
-
-    #[cfg(not(feature = "nassau"))]
     let resolution = ext::utils::construct("S_2@milnor", None).unwrap();
 
     resolution.compute_through_stem(max_s, max_n);

@@ -27,8 +27,9 @@ use algebra::milnor_algebra::{MilnorAlgebra, PPartEntry};
 use algebra::module::homomorphism::{
     FreeModuleHomomorphism, FullModuleHomomorphism, ModuleHomomorphism,
 };
-use algebra::module::{FDModule, FreeModule, GeneratorData, Module};
+use algebra::module::{FreeModule, GeneratorData, Module, ZeroModule};
 use algebra::Algebra;
+use anyhow::anyhow;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use fp::matrix::{AugmentedMatrix, Matrix};
 use fp::prime::ValidPrime;
@@ -59,6 +60,8 @@ impl SenderData {
             .unwrap()
     }
 }
+
+const MAX_NEW_GENS: usize = 10;
 
 /// A Milnor subalgebra to be used in [Nassau's algorithm](https://arxiv.org/abs/1910.04063). This
 /// is equipped with an ordering of the signature as in Lemma 2.4 of the paper.
@@ -374,8 +377,6 @@ impl<'a> Iterator for SignatureIterator<'a> {
     }
 }
 
-type CCDZ<A> = FiniteChainComplex<FDModule<A>, FullModuleHomomorphism<FDModule<A>, FDModule<A>>>;
-
 /// Some magic constants used in the save file
 enum Magic {
     End = -1,
@@ -387,50 +388,58 @@ enum Magic {
 /// [`resolution::Resolution`](crate::resolution::Resolution). From an API point of view, the main
 /// difference between the two is that this is a chain complex over [`MilnorAlgebra`]
 /// over [`SteenrodAlgebra`](algebra::SteenrodAlgebra).
-pub struct Resolution {
+pub struct Resolution<M: ZeroModule<Algebra = MilnorAlgebra>> {
     lock: Mutex<()>,
+    name: String,
+    max_degree: i32,
     modules: OnceVec<Arc<FreeModule<MilnorAlgebra>>>,
     zero_module: Arc<FreeModule<MilnorAlgebra>>,
     differentials: OnceVec<Arc<FreeModuleHomomorphism<FreeModule<MilnorAlgebra>>>>,
-    target: Arc<CCDZ<MilnorAlgebra>>,
-    chain_maps: OnceVec<Arc<FreeModuleHomomorphism<FDModule<MilnorAlgebra>>>>,
+    target: Arc<FiniteChainComplex<M, FullModuleHomomorphism<M, M>>>,
+    chain_maps: OnceVec<Arc<FreeModuleHomomorphism<M>>>,
     save_dir: Option<PathBuf>,
 }
 
-impl Resolution {
-    pub const fn prime(&self) -> ValidPrime {
+impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
+    pub fn prime(&self) -> ValidPrime {
         ValidPrime::new(2)
     }
 
-    pub const fn name(&self) -> &str {
-        "S_2"
+    pub fn name(&self) -> &str {
+        &self.name
     }
 
-    pub fn new(mut save_dir: Option<PathBuf>) -> Self {
-        let algebra = Arc::new(MilnorAlgebra::new(ValidPrime::new(2)));
-        let module = FDModule::new(
-            Arc::clone(&algebra),
-            String::from("S_2"),
-            bivec::BiVec::from_vec(0, vec![1]),
-        );
+    pub fn set_name(&mut self, name: String) {
+        self.name = name;
+    }
 
-        let target = Arc::new(FiniteChainComplex::ccdz(Arc::new(module)));
+    pub fn new(module: Arc<M>) -> Self {
+        Self::new_with_save(module, None).unwrap()
+    }
+
+    pub fn new_with_save(module: Arc<M>, mut save_dir: Option<PathBuf>) -> anyhow::Result<Self> {
+        let max_degree = module
+            .max_degree()
+            .ok_or(anyhow!("Nassau's algorithm requires bounded module"))?;
+        let target = Arc::new(FiniteChainComplex::ccdz(module));
 
         if let Some(p) = save_dir.as_mut() {
             for subdir in SaveKind::nassau_data() {
-                subdir.create_dir(p).unwrap();
+                subdir.create_dir(p)?;
             }
         }
 
-        Self {
+        Ok(Self {
             lock: Mutex::new(()),
-            zero_module: Arc::new(FreeModule::new(algebra, "F_{-1}".to_string(), 0)),
+            zero_module: Arc::new(FreeModule::new(target.algebra(), "F_{-1}".to_string(), 0)),
+            name: String::new(),
             modules: OnceVec::new(),
             differentials: OnceVec::new(),
             chain_maps: OnceVec::new(),
             target,
+            max_degree,
             save_dir,
-        }
+        })
     }
 
     /// This function prepares the Resolution object to perform computations up to the
@@ -546,41 +555,6 @@ impl Resolution {
             .signature_mask(&algebra, target, t, &zero_sig)
             .collect();
         let target_masked_dim = target_mask.len();
-
-        if s == 1 {
-            // Everything is in the kernel, so just surject onto everything
-            let mut n = subalgebra.signature_matrix(&self.differential(s), t, &zero_sig);
-            n.row_reduce();
-
-            let next_row = n.rows();
-
-            let num_new_gens = n.extend_to_surjection(0, n.columns(), 0).len();
-            source.add_generators(t, num_new_gens, None);
-
-            let mut xs = vec![FpVector::new(p, target_dim); num_new_gens];
-
-            for (x, x_masked) in xs.iter_mut().zip_eq(&n[next_row..]) {
-                x.as_slice_mut()
-                    .add_unmasked(x_masked.as_slice(), 1, &target_mask)
-            }
-            self.differential(s).add_generators_from_rows(t, xs);
-
-            end();
-
-            if let Some(dir) = self.save_dir.as_ref() {
-                let mut f = self
-                    .save_file(SaveKind::NassauDifferential, s, t)
-                    .create_file(dir.clone());
-                f.write_u64::<LittleEndian>(num_new_gens as u64).unwrap();
-                f.write_u64::<LittleEndian>(target_dim as u64).unwrap();
-
-                for n in 0..num_new_gens {
-                    self.differential(s).output(t, n).to_bytes(&mut f).unwrap();
-                }
-            }
-
-            return;
-        }
 
         let next = &self.modules[s - 2];
         next.compute_basis(t);
@@ -730,6 +704,97 @@ impl Resolution {
         }
     }
 
+    /// Step resolution for s = 0
+    fn step0(&self, t: i32) {
+        self.zero_module.extend_by_zero(t);
+
+        let source_module = &self.modules[0usize];
+        let target_module = self.target.module(0);
+
+        let chain_map = &self.chain_maps[0usize];
+        let d = &self.differentials[0usize];
+
+        let source_dim = source_module.dimension(t);
+        let target_dim = target_module.dimension(t);
+
+        source_module.compute_basis(t);
+        target_module.compute_basis(t);
+
+        if target_dim == 0 {
+            source_module.extend_by_zero(t);
+            chain_map.extend_by_zero(t);
+        } else {
+            let mut matrix = AugmentedMatrix::<2>::new_with_capacity(
+                self.prime(),
+                source_dim,
+                &[target_dim, source_dim],
+                source_dim + target_dim,
+                0,
+            );
+            chain_map.get_matrix(matrix.segment(0, 0), t);
+            matrix.segment(1, 1).add_identity();
+
+            matrix.row_reduce();
+
+            let num_new_gens = matrix.extend_to_surjection(0, target_dim, 0).len();
+            source_module.add_generators(t, num_new_gens, None);
+
+            chain_map.add_generators_from_matrix_rows(
+                t,
+                matrix
+                    .segment(0, 0)
+                    .row_slice(source_dim, source_dim + num_new_gens),
+            );
+        }
+        chain_map.compute_auxiliary_data_through_degree(t);
+
+        d.set_kernel(t, None);
+        d.set_image(t, None);
+        d.set_quasi_inverse(t, None);
+        d.extend_by_zero(t);
+    }
+
+    /// Step resolution for s = 1
+    fn step1(&self, t: i32) {
+        let p = self.prime();
+
+        let source_module = &self.modules[1usize];
+        let target_module = &self.modules[0usize];
+        let cc_module = self.target.module(0);
+
+        let source_dim = source_module.dimension(t);
+        let target_dim = target_module.dimension(t);
+
+        let mut matrix =
+            AugmentedMatrix::<2>::new(p, target_dim, [cc_module.dimension(t), target_dim]);
+        self.chain_maps[0usize].get_matrix(matrix.segment(0, 0), t);
+        matrix.segment(1, 1).add_identity();
+        matrix.row_reduce();
+        let desired_image = matrix.compute_kernel();
+
+        let mut matrix = AugmentedMatrix::<2>::new_with_capacity(
+            p,
+            source_dim,
+            &[target_dim, source_dim],
+            source_dim + MAX_NEW_GENS,
+            0,
+        );
+        self.differentials[1usize].get_matrix(matrix.segment(0, 0), t);
+        matrix.segment(1, 1).add_identity();
+        matrix.row_reduce();
+
+        let num_new_gens = matrix.extend_image(0, target_dim, &desired_image, 0).len();
+
+        source_module.add_generators(t, num_new_gens, None);
+
+        self.differentials[1usize].add_generators_from_matrix_rows(
+            t,
+            matrix
+                .segment(0, 0)
+                .row_slice(source_dim, source_dim + num_new_gens),
+        );
+    }
+
     fn step_resolution(&self, s: u32, t: i32) {
         let p = self.prime();
         let set_data = || {
@@ -750,35 +815,9 @@ impl Resolution {
         }
 
         if s == 0 {
-            self.zero_module.extend_by_zero(t);
-
-            if t == 0 {
-                self.modules[0usize].add_generators(t, 1, None);
-
-                let chain_map = &self.chain_maps[0usize];
-                chain_map.add_generators_from_rows(0, vec![FpVector::from_slice(p, &[1])]);
-                chain_map.compute_auxiliary_data_through_degree(0);
-
-                let d = &self.differentials[s];
-
-                d.set_kernel(t, None);
-                d.set_image(t, None);
-                d.set_quasi_inverse(t, None);
-            } else {
-                self.modules[0usize].extend_by_zero(t);
-                self.chain_maps[0usize].extend_by_zero(t);
-                set_data();
-            }
-            self.differentials[0usize].extend_by_zero(t);
-
-            return;
-        }
-        if s == 1 && t == 0 {
-            // We special case this because we don't add any new generators
-            self.modules[1usize].extend_by_zero(0);
-            self.differentials[1usize].extend_by_zero(0);
-            self.chain_maps[1usize].extend_by_zero(0);
-
+            return self.step0(t);
+        } else if s == 1 {
+            self.step1(t);
             set_data();
             return;
         }
@@ -823,7 +862,11 @@ impl Resolution {
             }
         }
 
-        self.step_resolution_with_subalgebra(s, t, MilnorSubalgebra::optimal_for(s, t));
+        self.step_resolution_with_subalgebra(
+            s,
+            t,
+            MilnorSubalgebra::optimal_for(s, t - self.max_degree),
+        );
         self.chain_maps[s].extend_by_zero(t);
 
         set_data();
@@ -898,7 +941,7 @@ impl Resolution {
     }
 }
 
-impl ChainComplex for Resolution {
+impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
     type Algebra = MilnorAlgebra;
     type Module = FreeModule<Self::Algebra>;
     type Homomorphism = FreeModuleHomomorphism<FreeModule<Self::Algebra>>;
@@ -1137,9 +1180,9 @@ impl ChainComplex for Resolution {
     }
 }
 
-impl AugmentedChainComplex for Resolution {
-    type TargetComplex = CCDZ<MilnorAlgebra>;
-    type ChainMap = FreeModuleHomomorphism<FDModule<MilnorAlgebra>>;
+impl<M: ZeroModule<Algebra = MilnorAlgebra>> AugmentedChainComplex for Resolution<M> {
+    type TargetComplex = FiniteChainComplex<M, FullModuleHomomorphism<M, M>>;
+    type ChainMap = FreeModuleHomomorphism<M>;
 
     fn target(&self) -> Arc<Self::TargetComplex> {
         Arc::clone(&self.target)
@@ -1158,7 +1201,7 @@ mod test {
 
     #[test]
     fn test_restart_stem() {
-        let res = Resolution::new(None);
+        let res = crate::utils::construct_nassau("S_2", None).unwrap();
         res.compute_through_stem(8, 14);
         res.compute_through_bidegree(5, 19);
 

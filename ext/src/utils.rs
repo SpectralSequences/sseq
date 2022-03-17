@@ -1,16 +1,30 @@
 //! A module containing various utility functions related to user interaction in some way.
-use crate::chain_complex::{ChainComplex, FiniteChainComplex};
+use crate::chain_complex::{
+    AugmentedChainComplex, BoundedChainComplex, ChainComplex, FiniteChainComplex,
+};
 use crate::resolution::Resolution;
 use crate::CCC;
-use algebra::module::{steenrod_module, Module, SteenrodModule};
-use algebra::{AlgebraType, SteenrodAlgebra};
+use algebra::module::{steenrod_module, FDModule, Module, SteenrodModule};
+use algebra::{AlgebraType, MilnorAlgebra, SteenrodAlgebra};
 
 use anyhow::{anyhow, Context};
+use fp::prime::ValidPrime;
 use serde_json::Value;
 
 use std::convert::{TryFrom, TryInto};
 use std::path::PathBuf;
 use std::sync::Arc;
+
+// We build docs with --all-features so the docs are at the feature = "nassau" version
+#[cfg(not(feature = "nassau"))]
+pub type QueryModuleResolution = Resolution<CCC>;
+
+/// The type returned by [`query_module`]. The value of this type depends on whether
+/// [`nassau`](crate::nassau) is enabled. In any case, it is an augmented free chain complex over
+/// either [`SteenrodAlgebra`] or [`MilnorAlgebra`](algebra::MilnorAlgebra) and supports the
+/// `compute_through_stem` function.
+#[cfg(feature = "nassau")]
+pub type QueryModuleResolution = crate::nassau::Resolution<FDModule<MilnorAlgebra>>;
 
 const STATIC_MODULES_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../ext/steenrod_modules");
 
@@ -117,7 +131,73 @@ impl<T: TryInto<AlgebraType>> TryFrom<(Value, T)> for Config {
 ///       `algebra` are as above.
 ///  - `save_file`: The save file for the module. If it points to an invalid save file, an error is
 ///    returned.
-pub fn construct<T, E>(module_spec: T, save_dir: Option<PathBuf>) -> anyhow::Result<Resolution<CCC>>
+///
+/// This dispatches to either [`construct_nassau`] or [`construct_standard`] depending on whether
+/// the `nassau` feature is enabled.
+pub fn construct<T, E>(
+    module_spec: T,
+    save_dir: Option<PathBuf>,
+) -> anyhow::Result<QueryModuleResolution>
+where
+    anyhow::Error: From<E>,
+    T: TryInto<Config, Error = E>,
+{
+    #[cfg(feature = "nassau")]
+    {
+        construct_nassau(module_spec, save_dir)
+    }
+
+    #[cfg(not(feature = "nassau"))]
+    {
+        construct_standard(module_spec, save_dir)
+    }
+}
+
+/// See [`construct`]
+pub fn construct_nassau<T, E>(
+    module_spec: T,
+    save_dir: Option<PathBuf>,
+) -> anyhow::Result<crate::nassau::Resolution<FDModule<MilnorAlgebra>>>
+where
+    anyhow::Error: From<E>,
+    T: TryInto<Config, Error = E>,
+{
+    let Config {
+        module: json,
+        algebra,
+    } = module_spec.try_into()?;
+
+    if algebra == AlgebraType::Adem {
+        return Err(anyhow!("Nassau's algorithm requires Milnor's basis"));
+    }
+    if !json["profile"].is_null() {
+        return Err(anyhow!(
+            "Nassau's algorithm does not support non-trivial profile"
+        ));
+    }
+    if json["p"].as_i64() != Some(2) {
+        return Err(anyhow!("Nassau's algorithm does not support odd primes"));
+    }
+    if json["type"].as_str() != Some("finite dimensional module") {
+        return Err(anyhow!(
+            "Nassau's algorithm only supports finite dimensional modules"
+        ));
+    }
+
+    let algebra = Arc::new(MilnorAlgebra::new(ValidPrime::new(2)));
+    let module = Arc::new(FDModule::from_json(Arc::clone(&algebra), &json)?);
+
+    if !json["confiber"].is_null() {
+        return Err(anyhow!("Nassau's algorithm does not support cofiber"));
+    }
+    crate::nassau::Resolution::new_with_save(module, save_dir)
+}
+
+/// See [`construct`]
+pub fn construct_standard<T, E>(
+    module_spec: T,
+    save_dir: Option<PathBuf>,
+) -> anyhow::Result<Resolution<CCC>>
 where
     anyhow::Error: From<E>,
     T: TryInto<Config, Error = E>,
@@ -215,41 +295,6 @@ pub fn unicode_num(n: usize) -> char {
     }
 }
 
-/// A version of [`query_module_only`] that always returns the usual resolution, even when the
-/// `nassau` feature is enabled. This is useful for scripts that must use the Adem basis.
-pub fn query_module_only_standard(
-    prompt: &str,
-    algebra: Option<AlgebraType>,
-    load_quasi_inverse: impl Into<LoadQuasiInverseOption>,
-) -> anyhow::Result<Resolution<CCC>> {
-    let (name, module): (String, Config) = query::with_default(prompt, "S_2", |s| {
-        Result::<_, anyhow::Error>::Ok((
-            s.to_owned(),
-            match algebra {
-                Some(algebra) => (s, algebra).try_into()?,
-                None => s.try_into()?,
-            },
-        ))
-    });
-
-    let save_dir = query::optional(&format!("{prompt} save directory"), |x| {
-        core::result::Result::<PathBuf, std::convert::Infallible>::Ok(PathBuf::from(x))
-    });
-
-    let mut resolution =
-        construct(module, save_dir).context("Failed to load module from save file")?;
-
-    resolution.load_quasi_inverse = match load_quasi_inverse.into() {
-        LoadQuasiInverseOption::Yes => true,
-        LoadQuasiInverseOption::No => false,
-        LoadQuasiInverseOption::IfNoSave => resolution.save_dir().is_none(),
-    };
-
-    resolution.set_name(name);
-
-    Ok(resolution)
-}
-
 /// Options for whether to load a quasi-inverse in a resolution.
 pub enum LoadQuasiInverseOption {
     /// Always load quasi-inverses
@@ -268,17 +313,6 @@ impl From<bool> for LoadQuasiInverseOption {
         }
     }
 }
-
-// We build docs with --all-features so the docs are at the feature = "nassau" version
-#[cfg(not(feature = "nassau"))]
-pub type QueryModuleResolution = Resolution<CCC>;
-
-/// The type returned by [`query_module`]. The value of this type depends on whether
-/// [`nassau`](crate::nassau) is enabled. In any case, it is an augmented free chain complex over
-/// either [`SteenrodAlgebra`] or [`MilnorAlgebra`](algebra::MilnorAlgebra) and supports the
-/// `compute_through_stem` function.
-#[cfg(feature = "nassau")]
-pub type QueryModuleResolution = crate::nassau::Resolution;
 
 /// Query the user for a module and its save directory. See
 /// [here](../index.html#module-specification) for details on the propmt format.
@@ -303,26 +337,35 @@ pub fn query_module_only(
     algebra: Option<AlgebraType>,
     #[allow(unused_variables)] load_quasi_inverse: impl Into<LoadQuasiInverseOption>,
 ) -> anyhow::Result<QueryModuleResolution> {
-    #[cfg(feature = "nassau")]
-    {
-        // The module must be S_2
-        let _ = query::with_default(prompt, "S_2", |s| match s {
-            "S_2" => Ok(""),
-            _ => Err("Can only resolve S_2 with Nassau"),
-        });
+    let (name, module): (String, Config) = query::with_default(prompt, "S_2", |s| {
+        Result::<_, anyhow::Error>::Ok((
+            s.to_owned(),
+            match algebra {
+                Some(algebra) => (s, algebra).try_into()?,
+                None => s.try_into()?,
+            },
+        ))
+    });
 
-        if let Some(AlgebraType::Adem) = algebra {
-            return Err(anyhow!("Cannot use Nassau's algorithm with the Adem basis"));
-        }
+    let save_dir = query::optional(&format!("{prompt} save directory"), |x| {
+        core::result::Result::<PathBuf, std::convert::Infallible>::Ok(PathBuf::from(x))
+    });
 
-        let save_dir = query::optional(&format!("{prompt} save directory"), |x| {
-            core::result::Result::<PathBuf, std::convert::Infallible>::Ok(PathBuf::from(x))
-        });
+    let mut resolution =
+        construct(module, save_dir).context("Failed to load module from save file")?;
 
-        Ok(crate::nassau::Resolution::new(save_dir))
-    }
     #[cfg(not(feature = "nassau"))]
-    query_module_only_standard(prompt, algebra, load_quasi_inverse)
+    {
+        resolution.load_quasi_inverse = match load_quasi_inverse.into() {
+            LoadQuasiInverseOption::Yes => true,
+            LoadQuasiInverseOption::No => false,
+            LoadQuasiInverseOption::IfNoSave => resolution.save_dir().is_none(),
+        };
+    }
+
+    resolution.set_name(name);
+
+    Ok(resolution)
 }
 
 /// Query the user for a module and a bidegree, and return a resolution resolved up to said
@@ -373,25 +416,38 @@ pub fn print_element(v: fp::vector::Slice, n: i32, s: u32) {
 pub fn get_unit(
     resolution: Arc<QueryModuleResolution>,
 ) -> anyhow::Result<(bool, Arc<QueryModuleResolution>)> {
-    #[cfg(not(feature = "nassau"))]
-    {
-        use crate::chain_complex::{AugmentedChainComplex, BoundedChainComplex};
+    let is_unit = resolution.target().max_s() == 1 && resolution.target().module(0).is_unit();
 
-        let is_unit = resolution.target().max_s() == 1 && resolution.target().module(0).is_unit();
+    let unit = if is_unit {
+        Arc::clone(&resolution)
+    } else {
+        let save_dir = query::optional("Unit save directory", |x| {
+            core::result::Result::<PathBuf, std::convert::Infallible>::Ok(PathBuf::from(x))
+        });
 
-        let unit = if is_unit {
-            Arc::clone(&resolution)
-        } else {
-            let save_dir = query::optional("Unit save directory", |x| {
-                core::result::Result::<PathBuf, std::convert::Infallible>::Ok(PathBuf::from(x))
-            });
-            Arc::new(crate::utils::construct("S_2@milnor", save_dir)?)
-        };
+        let algebra = resolution.algebra();
+        let module = FDModule::new(
+            algebra,
+            String::from("unit"),
+            bivec::BiVec::from_vec(0, vec![1]),
+        );
 
-        Ok((is_unit, unit))
-    }
-    #[cfg(feature = "nassau")]
-    Ok((true, resolution))
+        #[cfg(feature = "nassau")]
+        {
+            Arc::new(crate::nassau::Resolution::new_with_save(
+                Arc::new(module),
+                save_dir,
+            )?)
+        }
+
+        #[cfg(not(feature = "nassau"))]
+        {
+            let cc = FiniteChainComplex::ccdz(Arc::new(Box::new(module) as SteenrodModule));
+            Arc::new(Resolution::new_with_save(Arc::new(cc), save_dir)?)
+        }
+    };
+
+    Ok((is_unit, unit))
 }
 
 /// Given a function `f(s, t)`, compute it for every `s` in `[min_s, max_s]` and every `t` in
