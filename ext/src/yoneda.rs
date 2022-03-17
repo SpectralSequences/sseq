@@ -86,22 +86,16 @@ fn split_mut_borrow<T>(v: &mut [T], i: usize, j: usize) -> (&mut T, &mut T) {
     (&mut first[i], &mut second[0])
 }
 
-pub fn yoneda_representative_element<TCM, TC, CC>(
-    cc: Arc<CC>,
-    s: u32,
-    t: i32,
-    idx: usize,
-) -> Yoneda<CC>
+pub fn yoneda_representative_element<CC>(cc: Arc<CC>, s: u32, t: i32, idx: usize) -> Yoneda<CC>
 where
-    TCM: Module,
-    TC: BoundedChainComplex<Algebra = TCM::Algebra, Module = TCM>,
     CC: AugmentedChainComplex<
-        Algebra = TCM::Algebra,
-        TargetComplex = TC,
-        Module = FreeModule<TCM::Algebra>,
-        ChainMap = FreeModuleHomomorphism<TCM>,
+        Module = FreeModule<<CC as ChainComplex>::Algebra>,
+        ChainMap = FreeModuleHomomorphism<
+            <<CC as AugmentedChainComplex>::TargetComplex as ChainComplex>::Module,
+        >,
     >,
-    TCM::Algebra: GeneratedAlgebra,
+    CC::TargetComplex: BoundedChainComplex,
+    CC::Algebra: GeneratedAlgebra,
 {
     let p = cc.prime();
 
@@ -120,26 +114,24 @@ where
 }
 
 /// This function produces a quasi-isomorphic quotient of `cc` (as an augmented chain complex) that `map` factors through
-pub fn yoneda_representative<TCM, TC, CC, CMM>(
+pub fn yoneda_representative<CC>(
     cc: Arc<CC>,
-    map: ChainMap<FreeModuleHomomorphism<CMM>>,
+    map: ChainMap<FreeModuleHomomorphism<impl Module<Algebra = CC::Algebra>>>,
 ) -> Yoneda<CC>
 where
-    TCM: Module,
-    TC: BoundedChainComplex<Algebra = TCM::Algebra, Module = TCM>,
     CC: AugmentedChainComplex<
-        Algebra = TCM::Algebra,
-        TargetComplex = TC,
-        Module = FreeModule<TCM::Algebra>,
-        ChainMap = FreeModuleHomomorphism<TCM>,
+        Module = FreeModule<<CC as ChainComplex>::Algebra>,
+        ChainMap = FreeModuleHomomorphism<
+            <<CC as AugmentedChainComplex>::TargetComplex as ChainComplex>::Module,
+        >,
     >,
-    CMM: Module<Algebra = TCM::Algebra>,
-    TCM::Algebra: GeneratedAlgebra,
+    CC::TargetComplex: BoundedChainComplex,
+    CC::Algebra: GeneratedAlgebra,
 {
     yoneda_representative_with_strategy(
         cc,
         map,
-        |module: &FreeModule<TCM::Algebra>, subspace: &Subspace, t: i32, i: usize| {
+        |module: &FreeModule<CC::Algebra>, subspace: &Subspace, t: i32, i: usize| {
             let opgen = module.index_to_op_gen(t, i);
 
             let mut pref = rate_operation(
@@ -159,23 +151,20 @@ where
 }
 
 #[allow(clippy::cognitive_complexity)]
-pub fn yoneda_representative_with_strategy<TCM, TC, CC, CMM, F>(
+pub fn yoneda_representative_with_strategy<CC>(
     cc: Arc<CC>,
-    map: ChainMap<FreeModuleHomomorphism<CMM>>,
-    strategy: F,
+    map: ChainMap<FreeModuleHomomorphism<impl Module<Algebra = CC::Algebra>>>,
+    strategy: impl Fn(&CC::Module, &Subspace, i32, usize) -> i32,
 ) -> Yoneda<CC>
 where
-    TCM: Module,
-    TC: BoundedChainComplex<Algebra = TCM::Algebra, Module = TCM>,
     CC: AugmentedChainComplex<
-        Algebra = TCM::Algebra,
-        TargetComplex = TC,
-        Module = FreeModule<TCM::Algebra>,
-        ChainMap = FreeModuleHomomorphism<TCM>,
+        Module = FreeModule<<CC as ChainComplex>::Algebra>,
+        ChainMap = FreeModuleHomomorphism<
+            <<CC as AugmentedChainComplex>::TargetComplex as ChainComplex>::Module,
+        >,
     >,
-    CMM: Module<Algebra = TCM::Algebra>,
-    TCM::Algebra: GeneratedAlgebra,
-    F: Fn(&CC::Module, &Subspace, i32, usize) -> i32,
+    CC::TargetComplex: BoundedChainComplex,
+    CC::Algebra: GeneratedAlgebra,
 {
     let p = cc.prime();
     let target_cc = cc.target();
