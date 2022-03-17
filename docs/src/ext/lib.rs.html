@@ -214,7 +214,6 @@
 <span id="187">187</span>
 <span id="188">188</span>
 <span id="189">189</span>
-<span id="190">190</span>
 </pre><pre class="rust"><code><span class="doccomment">//! `ext-rs` is a collection of libraries for doing homological algebra over $\F_p$. The</span>
 <span class="doccomment">//! main and original purpose is to compute Ext of a Steenrod module, but the library is written to</span>
 <span class="doccomment">//! be sufficiently generic to deal with more general applications.</span>
@@ -380,9 +379,8 @@
 <span class="doccomment">//!    $\mathrm{tmf}$ modules.</span>
 <span class="doccomment">//! - `logging`: Print timing information of the computations to stderr.</span>
 <span class="doccomment">//! - `nassau`: Use Nassau&#39;s algorithm to compute the minimal resolution instead of the usual</span>
-<span class="doccomment">//!    minimal resolution algorithm. When this feature is enabled, only `S_2` can be resolved.</span>
-<span class="doccomment">//!    This feature has no effect on the `steenrod` and `yoneda` scripts, which require the Adem</span>
-<span class="doccomment">//!    basis. See [`nassau`] for more details.</span>
+<span class="doccomment">//!    minimal resolution algorithm. When this feature is enabled, only finite dimensional modules</span>
+<span class="doccomment">//!    at the prime 2 can be resolved.</span>
 
 <span class="attribute">#![<span class="ident">allow</span>(<span class="ident">clippy::upper_case_acronyms</span>)]</span>
 

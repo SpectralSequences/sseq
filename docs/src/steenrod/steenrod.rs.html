@@ -352,10 +352,6 @@
 <span id="325">325</span>
 <span id="326">326</span>
 <span id="327">327</span>
-<span id="328">328</span>
-<span id="329">329</span>
-<span id="330">330</span>
-<span id="331">331</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">algebra::module::homomorphism</span>::{
     <span class="ident">FreeModuleHomomorphism</span>, <span class="ident">FullModuleHomomorphism</span>, <span class="ident">IdentityHomomorphism</span>, <span class="ident">ModuleHomomorphism</span>,
 };
@@ -375,11 +371,7 @@
 <span class="kw">use</span> <span class="ident">std::time::Instant</span>;
 
 <span class="kw">fn</span> <span class="ident">main</span>() -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-    <span class="kw">let</span> <span class="ident">resolution</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">utils::query_module_only_standard</span>(
-        <span class="string">&quot;Module&quot;</span>,
-        <span class="prelude-val">Some</span>(<span class="ident">algebra::AlgebraType::Adem</span>),
-        <span class="bool-val">false</span>,
-    )<span class="question-mark">?</span>);
+    <span class="kw">let</span> <span class="ident">resolution</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">utils::query_module_only</span>(<span class="string">&quot;Module&quot;</span>, <span class="prelude-val">None</span>, <span class="bool-val">false</span>)<span class="question-mark">?</span>);
 
     <span class="kw">let</span> <span class="ident">complex</span> <span class="op">=</span> <span class="ident">resolution</span>.<span class="ident">target</span>();
     <span class="kw">let</span> <span class="ident">module</span> <span class="op">=</span> <span class="ident">complex</span>.<span class="ident">module</span>(<span class="number">0</span>);

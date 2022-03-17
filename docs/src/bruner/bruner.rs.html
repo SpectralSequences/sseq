@@ -341,10 +341,6 @@
 <span id="314">314</span>
 <span id="315">315</span>
 <span id="316">316</span>
-<span id="317">317</span>
-<span id="318">318</span>
-<span id="319">319</span>
-<span id="320">320</span>
 </pre><pre class="rust"><code><span class="doccomment">//! This script converts between our basis and Bruner&#39;s basis. At the moment, most inputs are</span>
 <span class="doccomment">//! hardcoded, and this only works for the sphere.</span>
 <span class="doccomment">//!</span>
@@ -638,10 +634,6 @@
     <span class="kw">let</span> (<span class="ident">max_s</span>, <span class="ident">cc</span>) <span class="op">=</span> <span class="ident">read_bruner_resolution</span>(<span class="ident">data_dir</span>, <span class="ident">max_n</span>).<span class="ident">unwrap</span>();
     <span class="kw">let</span> <span class="ident">cc</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">cc</span>);
 
-    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;nassau&quot;</span>)]</span>
-    <span class="kw">let</span> <span class="ident">resolution</span> <span class="op">=</span> <span class="ident">ext::nassau::Resolution::new</span>(<span class="prelude-val">None</span>);
-
-    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;nassau&quot;</span>))]</span>
     <span class="kw">let</span> <span class="ident">resolution</span> <span class="op">=</span> <span class="ident">ext::utils::construct</span>(<span class="string">&quot;S_2@milnor&quot;</span>, <span class="prelude-val">None</span>).<span class="ident">unwrap</span>();
 
     <span class="ident">resolution</span>.<span class="ident">compute_through_stem</span>(<span class="ident">max_s</span>, <span class="ident">max_n</span>);

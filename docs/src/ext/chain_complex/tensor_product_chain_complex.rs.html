@@ -609,10 +609,6 @@
 <span id="582">582</span>
 <span id="583">583</span>
 <span id="584">584</span>
-<span id="585">585</span>
-<span id="586">586</span>
-<span id="587">587</span>
-<span id="588">588</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::chain_complex</span>::{<span class="ident">AugmentedChainComplex</span>, <span class="ident">ChainComplex</span>};
 <span class="kw">use</span> <span class="ident">algebra::module::homomorphism</span>::{<span class="ident">FullModuleHomomorphism</span>, <span class="ident">ModuleHomomorphism</span>};
 <span class="kw">use</span> <span class="ident">algebra::module</span>::{<span class="ident">Module</span>, <span class="ident">SumModule</span>, <span class="ident">TensorModule</span>, <span class="ident">ZeroModule</span>};
@@ -1150,7 +1146,6 @@
     <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::resolution_homomorphism::ResolutionHomomorphism</span>;
     <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::utils::construct</span>;
     <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::yoneda::yoneda_representative_element</span>;
-    <span class="kw">use</span> <span class="ident">fp::prime::ValidPrime</span>;
 
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">test_square_ccs</span>() {
@@ -1162,11 +1157,8 @@
     }
 
     <span class="kw">fn</span> <span class="ident">test_square_cc</span>(<span class="ident">s</span>: <span class="ident">u32</span>, <span class="ident">t</span>: <span class="ident">i32</span>, <span class="ident">i</span>: <span class="ident">usize</span>, <span class="ident">fi</span>: <span class="ident">usize</span>) {
-        <span class="kw">let</span> <span class="ident">k</span> <span class="op">=</span> <span class="string">r#&quot;{&quot;type&quot; : &quot;finite dimensional module&quot;,&quot;name&quot;: &quot;$S_2$&quot;, &quot;file_name&quot;: &quot;S_2&quot;, &quot;p&quot;: 2, &quot;generic&quot;: false, &quot;gens&quot;: {&quot;x0&quot;: 0}, &quot;adem_actions&quot;: []}&quot;#</span>;
-        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">ValidPrime::new</span>(<span class="number">2</span>);
-
-        <span class="kw">let</span> <span class="ident">k</span>: <span class="ident">serde_json::Value</span> <span class="op">=</span> <span class="ident">serde_json::from_str</span>(<span class="ident">k</span>).<span class="ident">unwrap</span>();
-        <span class="kw">let</span> <span class="ident">resolution</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">construct</span>((<span class="ident">k</span>, <span class="string">&quot;adem&quot;</span>), <span class="prelude-val">None</span>).<span class="ident">unwrap</span>());
+        <span class="kw">let</span> <span class="ident">resolution</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">construct</span>(<span class="string">&quot;S_2&quot;</span>, <span class="prelude-val">None</span>).<span class="ident">unwrap</span>());
+        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">resolution</span>.<span class="ident">prime</span>();
         <span class="ident">resolution</span>.<span class="ident">compute_through_bidegree</span>(<span class="number">2</span> <span class="op">*</span> <span class="ident">s</span>, <span class="number">2</span> <span class="op">*</span> <span class="ident">t</span>);
 
         <span class="kw">let</span> <span class="ident">yoneda</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">yoneda_representative_element</span>(

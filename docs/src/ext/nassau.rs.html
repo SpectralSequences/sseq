@@ -1266,6 +1266,49 @@
 <span id="1239">1239</span>
 <span id="1240">1240</span>
 <span id="1241">1241</span>
+<span id="1242">1242</span>
+<span id="1243">1243</span>
+<span id="1244">1244</span>
+<span id="1245">1245</span>
+<span id="1246">1246</span>
+<span id="1247">1247</span>
+<span id="1248">1248</span>
+<span id="1249">1249</span>
+<span id="1250">1250</span>
+<span id="1251">1251</span>
+<span id="1252">1252</span>
+<span id="1253">1253</span>
+<span id="1254">1254</span>
+<span id="1255">1255</span>
+<span id="1256">1256</span>
+<span id="1257">1257</span>
+<span id="1258">1258</span>
+<span id="1259">1259</span>
+<span id="1260">1260</span>
+<span id="1261">1261</span>
+<span id="1262">1262</span>
+<span id="1263">1263</span>
+<span id="1264">1264</span>
+<span id="1265">1265</span>
+<span id="1266">1266</span>
+<span id="1267">1267</span>
+<span id="1268">1268</span>
+<span id="1269">1269</span>
+<span id="1270">1270</span>
+<span id="1271">1271</span>
+<span id="1272">1272</span>
+<span id="1273">1273</span>
+<span id="1274">1274</span>
+<span id="1275">1275</span>
+<span id="1276">1276</span>
+<span id="1277">1277</span>
+<span id="1278">1278</span>
+<span id="1279">1279</span>
+<span id="1280">1280</span>
+<span id="1281">1281</span>
+<span id="1282">1282</span>
+<span id="1283">1283</span>
+<span id="1284">1284</span>
 </pre><pre class="rust"><code><span class="doccomment">//! This module implements [Nassau&#39;s algorithm](https://arxiv.org/abs/1910.04063). The main export</span>
 <span class="doccomment">//! is the [`Resolution`] object, which is a resolution of the sphere at the prime 2 using Nassau&#39;s</span>
 <span class="doccomment">//! algorithm. It aims to provide an API similar to</span>
@@ -1295,8 +1338,9 @@
 <span class="kw">use</span> <span class="ident">algebra::module::homomorphism</span>::{
     <span class="ident">FreeModuleHomomorphism</span>, <span class="ident">FullModuleHomomorphism</span>, <span class="ident">ModuleHomomorphism</span>,
 };
-<span class="kw">use</span> <span class="ident">algebra::module</span>::{<span class="ident">FDModule</span>, <span class="ident">FreeModule</span>, <span class="ident">GeneratorData</span>, <span class="ident">Module</span>};
+<span class="kw">use</span> <span class="ident">algebra::module</span>::{<span class="ident">FreeModule</span>, <span class="ident">GeneratorData</span>, <span class="ident">Module</span>, <span class="ident">ZeroModule</span>};
 <span class="kw">use</span> <span class="ident">algebra::Algebra</span>;
+<span class="kw">use</span> <span class="ident">anyhow::anyhow</span>;
 <span class="kw">use</span> <span class="ident">byteorder</span>::{<span class="ident">LittleEndian</span>, <span class="ident">ReadBytesExt</span>, <span class="ident">WriteBytesExt</span>};
 <span class="kw">use</span> <span class="ident">fp::matrix</span>::{<span class="ident">AugmentedMatrix</span>, <span class="ident">Matrix</span>};
 <span class="kw">use</span> <span class="ident">fp::prime::ValidPrime</span>;
@@ -1327,6 +1371,8 @@
             .<span class="ident">unwrap</span>()
     }
 }
+
+<span class="kw">const</span> <span class="ident">MAX_NEW_GENS</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="number">10</span>;
 
 <span class="doccomment">/// A Milnor subalgebra to be used in [Nassau&#39;s algorithm](https://arxiv.org/abs/1910.04063). This</span>
 <span class="doccomment">/// is equipped with an ordering of the signature as in Lemma 2.4 of the paper.</span>
@@ -1642,8 +1688,6 @@
     }
 }
 
-<span class="kw">type</span> <span class="ident">CCDZ</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">FiniteChainComplex</span><span class="op">&lt;</span><span class="ident">FDModule</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>, <span class="ident">FullModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">FDModule</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>, <span class="ident">FDModule</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>;
-
 <span class="doccomment">/// Some magic constants used in the save file</span>
 <span class="kw">enum</span> <span class="ident">Magic</span> {
     <span class="ident">End</span> <span class="op">=</span> <span class="op">-</span><span class="number">1</span>,
@@ -1655,50 +1699,58 @@
 <span class="doccomment">/// [`resolution::Resolution`](crate::resolution::Resolution). From an API point of view, the main</span>
 <span class="doccomment">/// difference between the two is that this is a chain complex over [`MilnorAlgebra`]</span>
 <span class="doccomment">/// over [`SteenrodAlgebra`](algebra::SteenrodAlgebra).</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Resolution</span> {
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Resolution</span><span class="op">&lt;</span><span class="ident">M</span>: <span class="ident">ZeroModule</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">MilnorAlgebra</span><span class="op">&gt;</span><span class="op">&gt;</span> {
     <span class="ident">lock</span>: <span class="ident">Mutex</span><span class="op">&lt;</span>()<span class="op">&gt;</span>,
+    <span class="ident">name</span>: <span class="ident">String</span>,
+    <span class="ident">max_degree</span>: <span class="ident">i32</span>,
     <span class="ident">modules</span>: <span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident">MilnorAlgebra</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="ident">zero_module</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident">MilnorAlgebra</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="ident">differentials</span>: <span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident">MilnorAlgebra</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    <span class="ident">target</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">CCDZ</span><span class="op">&lt;</span><span class="ident">MilnorAlgebra</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    <span class="ident">chain_maps</span>: <span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">FDModule</span><span class="op">&lt;</span><span class="ident">MilnorAlgebra</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">target</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">FiniteChainComplex</span><span class="op">&lt;</span><span class="ident">M</span>, <span class="ident">FullModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">M</span>, <span class="ident">M</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">chain_maps</span>: <span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="ident">save_dir</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">PathBuf</span><span class="op">&gt;</span>,
 }
 
-<span class="kw">impl</span> <span class="ident">Resolution</span> {
-    <span class="kw">pub</span> <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">prime</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">ValidPrime</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">M</span>: <span class="ident">ZeroModule</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">MilnorAlgebra</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">Resolution</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">prime</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">ValidPrime</span> {
         <span class="ident">ValidPrime::new</span>(<span class="number">2</span>)
     }
 
-    <span class="kw">pub</span> <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">name</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">str</span> {
-        <span class="string">&quot;S_2&quot;</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">name</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">str</span> {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">name</span>
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="kw-2">mut</span> <span class="ident">save_dir</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">PathBuf</span><span class="op">&gt;</span>) -&gt; <span class="self">Self</span> {
-        <span class="kw">let</span> <span class="ident">algebra</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">MilnorAlgebra::new</span>(<span class="ident">ValidPrime::new</span>(<span class="number">2</span>)));
-        <span class="kw">let</span> <span class="ident">module</span> <span class="op">=</span> <span class="ident">FDModule::new</span>(
-            <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">algebra</span>),
-            <span class="ident">String::from</span>(<span class="string">&quot;S_2&quot;</span>),
-            <span class="ident">bivec::BiVec::from_vec</span>(<span class="number">0</span>, <span class="macro">vec!</span>[<span class="number">1</span>]),
-        );
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">set_name</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">name</span>: <span class="ident">String</span>) {
+        <span class="self">self</span>.<span class="ident">name</span> <span class="op">=</span> <span class="ident">name</span>;
+    }
 
-        <span class="kw">let</span> <span class="ident">target</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">FiniteChainComplex::ccdz</span>(<span class="ident">Arc::new</span>(<span class="ident">module</span>)));
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">module</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span>) -&gt; <span class="self">Self</span> {
+        <span class="ident"><span class="self">Self</span>::new_with_save</span>(<span class="ident">module</span>, <span class="prelude-val">None</span>).<span class="ident">unwrap</span>()
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new_with_save</span>(<span class="ident">module</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span>, <span class="kw-2">mut</span> <span class="ident">save_dir</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">PathBuf</span><span class="op">&gt;</span>) -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">max_degree</span> <span class="op">=</span> <span class="ident">module</span>
+            .<span class="ident">max_degree</span>()
+            .<span class="ident">ok_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="macro">anyhow!</span>(<span class="string">&quot;Nassau&#39;s algorithm requires bounded module&quot;</span>))<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">target</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">FiniteChainComplex::ccdz</span>(<span class="ident">module</span>));
 
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">p</span>) <span class="op">=</span> <span class="ident">save_dir</span>.<span class="ident">as_mut</span>() {
             <span class="kw">for</span> <span class="ident">subdir</span> <span class="kw">in</span> <span class="ident">SaveKind::nassau_data</span>() {
-                <span class="ident">subdir</span>.<span class="ident">create_dir</span>(<span class="ident">p</span>).<span class="ident">unwrap</span>();
+                <span class="ident">subdir</span>.<span class="ident">create_dir</span>(<span class="ident">p</span>)<span class="question-mark">?</span>;
             }
         }
 
-        <span class="self">Self</span> {
+        <span class="prelude-val">Ok</span>(<span class="self">Self</span> {
             <span class="ident">lock</span>: <span class="ident">Mutex::new</span>(()),
-            <span class="ident">zero_module</span>: <span class="ident">Arc::new</span>(<span class="ident">FreeModule::new</span>(<span class="ident">algebra</span>, <span class="string">&quot;F_{-1}&quot;</span>.<span class="ident">to_string</span>(), <span class="number">0</span>)),
+            <span class="ident">zero_module</span>: <span class="ident">Arc::new</span>(<span class="ident">FreeModule::new</span>(<span class="ident">target</span>.<span class="ident">algebra</span>(), <span class="string">&quot;F_{-1}&quot;</span>.<span class="ident">to_string</span>(), <span class="number">0</span>)),
+            <span class="ident">name</span>: <span class="ident">String::new</span>(),
             <span class="ident">modules</span>: <span class="ident">OnceVec::new</span>(),
             <span class="ident">differentials</span>: <span class="ident">OnceVec::new</span>(),
             <span class="ident">chain_maps</span>: <span class="ident">OnceVec::new</span>(),
             <span class="ident">target</span>,
+            <span class="ident">max_degree</span>,
             <span class="ident">save_dir</span>,
-        }
+        })
     }
 
     <span class="doccomment">/// This function prepares the Resolution object to perform computations up to the</span>
@@ -1814,41 +1866,6 @@
             .<span class="ident">signature_mask</span>(<span class="kw-2">&amp;</span><span class="ident">algebra</span>, <span class="ident">target</span>, <span class="ident">t</span>, <span class="kw-2">&amp;</span><span class="ident">zero_sig</span>)
             .<span class="ident">collect</span>();
         <span class="kw">let</span> <span class="ident">target_masked_dim</span> <span class="op">=</span> <span class="ident">target_mask</span>.<span class="ident">len</span>();
-
-        <span class="kw">if</span> <span class="ident">s</span> <span class="op">==</span> <span class="number">1</span> {
-            <span class="comment">// Everything is in the kernel, so just surject onto everything</span>
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">n</span> <span class="op">=</span> <span class="ident">subalgebra</span>.<span class="ident">signature_matrix</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">differential</span>(<span class="ident">s</span>), <span class="ident">t</span>, <span class="kw-2">&amp;</span><span class="ident">zero_sig</span>);
-            <span class="ident">n</span>.<span class="ident">row_reduce</span>();
-
-            <span class="kw">let</span> <span class="ident">next_row</span> <span class="op">=</span> <span class="ident">n</span>.<span class="ident">rows</span>();
-
-            <span class="kw">let</span> <span class="ident">num_new_gens</span> <span class="op">=</span> <span class="ident">n</span>.<span class="ident">extend_to_surjection</span>(<span class="number">0</span>, <span class="ident">n</span>.<span class="ident">columns</span>(), <span class="number">0</span>).<span class="ident">len</span>();
-            <span class="ident">source</span>.<span class="ident">add_generators</span>(<span class="ident">t</span>, <span class="ident">num_new_gens</span>, <span class="prelude-val">None</span>);
-
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">xs</span> <span class="op">=</span> <span class="macro">vec!</span>[<span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="ident">target_dim</span>); <span class="ident">num_new_gens</span>];
-
-            <span class="kw">for</span> (<span class="ident">x</span>, <span class="ident">x_masked</span>) <span class="kw">in</span> <span class="ident">xs</span>.<span class="ident">iter_mut</span>().<span class="ident">zip_eq</span>(<span class="kw-2">&amp;</span><span class="ident">n</span>[<span class="ident">next_row</span>..]) {
-                <span class="ident">x</span>.<span class="ident">as_slice_mut</span>()
-                    .<span class="ident">add_unmasked</span>(<span class="ident">x_masked</span>.<span class="ident">as_slice</span>(), <span class="number">1</span>, <span class="kw-2">&amp;</span><span class="ident">target_mask</span>)
-            }
-            <span class="self">self</span>.<span class="ident">differential</span>(<span class="ident">s</span>).<span class="ident">add_generators_from_rows</span>(<span class="ident">t</span>, <span class="ident">xs</span>);
-
-            <span class="ident">end</span>();
-
-            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dir</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">save_dir</span>.<span class="ident">as_ref</span>() {
-                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="self">self</span>
-                    .<span class="ident">save_file</span>(<span class="ident">SaveKind::NassauDifferential</span>, <span class="ident">s</span>, <span class="ident">t</span>)
-                    .<span class="ident">create_file</span>(<span class="ident">dir</span>.<span class="ident">clone</span>());
-                <span class="ident">f</span>.<span class="ident">write_u64</span>::<span class="op">&lt;</span><span class="ident">LittleEndian</span><span class="op">&gt;</span>(<span class="ident">num_new_gens</span> <span class="kw">as</span> <span class="ident">u64</span>).<span class="ident">unwrap</span>();
-                <span class="ident">f</span>.<span class="ident">write_u64</span>::<span class="op">&lt;</span><span class="ident">LittleEndian</span><span class="op">&gt;</span>(<span class="ident">target_dim</span> <span class="kw">as</span> <span class="ident">u64</span>).<span class="ident">unwrap</span>();
-
-                <span class="kw">for</span> <span class="ident">n</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">num_new_gens</span> {
-                    <span class="self">self</span>.<span class="ident">differential</span>(<span class="ident">s</span>).<span class="ident">output</span>(<span class="ident">t</span>, <span class="ident">n</span>).<span class="ident">to_bytes</span>(<span class="kw-2">&amp;mut</span> <span class="ident">f</span>).<span class="ident">unwrap</span>();
-                }
-            }
-
-            <span class="kw">return</span>;
-        }
 
         <span class="kw">let</span> <span class="ident">next</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">modules</span>[<span class="ident">s</span> <span class="op">-</span> <span class="number">2</span>];
         <span class="ident">next</span>.<span class="ident">compute_basis</span>(<span class="ident">t</span>);
@@ -1998,6 +2015,97 @@
         }
     }
 
+    <span class="doccomment">/// Step resolution for s = 0</span>
+    <span class="kw">fn</span> <span class="ident">step0</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">t</span>: <span class="ident">i32</span>) {
+        <span class="self">self</span>.<span class="ident">zero_module</span>.<span class="ident">extend_by_zero</span>(<span class="ident">t</span>);
+
+        <span class="kw">let</span> <span class="ident">source_module</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">modules</span>[<span class="number">0usize</span>];
+        <span class="kw">let</span> <span class="ident">target_module</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">target</span>.<span class="ident">module</span>(<span class="number">0</span>);
+
+        <span class="kw">let</span> <span class="ident">chain_map</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">chain_maps</span>[<span class="number">0usize</span>];
+        <span class="kw">let</span> <span class="ident">d</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">differentials</span>[<span class="number">0usize</span>];
+
+        <span class="kw">let</span> <span class="ident">source_dim</span> <span class="op">=</span> <span class="ident">source_module</span>.<span class="ident">dimension</span>(<span class="ident">t</span>);
+        <span class="kw">let</span> <span class="ident">target_dim</span> <span class="op">=</span> <span class="ident">target_module</span>.<span class="ident">dimension</span>(<span class="ident">t</span>);
+
+        <span class="ident">source_module</span>.<span class="ident">compute_basis</span>(<span class="ident">t</span>);
+        <span class="ident">target_module</span>.<span class="ident">compute_basis</span>(<span class="ident">t</span>);
+
+        <span class="kw">if</span> <span class="ident">target_dim</span> <span class="op">==</span> <span class="number">0</span> {
+            <span class="ident">source_module</span>.<span class="ident">extend_by_zero</span>(<span class="ident">t</span>);
+            <span class="ident">chain_map</span>.<span class="ident">extend_by_zero</span>(<span class="ident">t</span>);
+        } <span class="kw">else</span> {
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">matrix</span> <span class="op">=</span> <span class="ident">AugmentedMatrix</span>::<span class="op">&lt;</span><span class="number">2</span><span class="op">&gt;</span><span class="ident">::new_with_capacity</span>(
+                <span class="self">self</span>.<span class="ident">prime</span>(),
+                <span class="ident">source_dim</span>,
+                <span class="kw-2">&amp;</span>[<span class="ident">target_dim</span>, <span class="ident">source_dim</span>],
+                <span class="ident">source_dim</span> <span class="op">+</span> <span class="ident">target_dim</span>,
+                <span class="number">0</span>,
+            );
+            <span class="ident">chain_map</span>.<span class="ident">get_matrix</span>(<span class="ident">matrix</span>.<span class="ident">segment</span>(<span class="number">0</span>, <span class="number">0</span>), <span class="ident">t</span>);
+            <span class="ident">matrix</span>.<span class="ident">segment</span>(<span class="number">1</span>, <span class="number">1</span>).<span class="ident">add_identity</span>();
+
+            <span class="ident">matrix</span>.<span class="ident">row_reduce</span>();
+
+            <span class="kw">let</span> <span class="ident">num_new_gens</span> <span class="op">=</span> <span class="ident">matrix</span>.<span class="ident">extend_to_surjection</span>(<span class="number">0</span>, <span class="ident">target_dim</span>, <span class="number">0</span>).<span class="ident">len</span>();
+            <span class="ident">source_module</span>.<span class="ident">add_generators</span>(<span class="ident">t</span>, <span class="ident">num_new_gens</span>, <span class="prelude-val">None</span>);
+
+            <span class="ident">chain_map</span>.<span class="ident">add_generators_from_matrix_rows</span>(
+                <span class="ident">t</span>,
+                <span class="ident">matrix</span>
+                    .<span class="ident">segment</span>(<span class="number">0</span>, <span class="number">0</span>)
+                    .<span class="ident">row_slice</span>(<span class="ident">source_dim</span>, <span class="ident">source_dim</span> <span class="op">+</span> <span class="ident">num_new_gens</span>),
+            );
+        }
+        <span class="ident">chain_map</span>.<span class="ident">compute_auxiliary_data_through_degree</span>(<span class="ident">t</span>);
+
+        <span class="ident">d</span>.<span class="ident">set_kernel</span>(<span class="ident">t</span>, <span class="prelude-val">None</span>);
+        <span class="ident">d</span>.<span class="ident">set_image</span>(<span class="ident">t</span>, <span class="prelude-val">None</span>);
+        <span class="ident">d</span>.<span class="ident">set_quasi_inverse</span>(<span class="ident">t</span>, <span class="prelude-val">None</span>);
+        <span class="ident">d</span>.<span class="ident">extend_by_zero</span>(<span class="ident">t</span>);
+    }
+
+    <span class="doccomment">/// Step resolution for s = 1</span>
+    <span class="kw">fn</span> <span class="ident">step1</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">t</span>: <span class="ident">i32</span>) {
+        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prime</span>();
+
+        <span class="kw">let</span> <span class="ident">source_module</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">modules</span>[<span class="number">1usize</span>];
+        <span class="kw">let</span> <span class="ident">target_module</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">modules</span>[<span class="number">0usize</span>];
+        <span class="kw">let</span> <span class="ident">cc_module</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">target</span>.<span class="ident">module</span>(<span class="number">0</span>);
+
+        <span class="kw">let</span> <span class="ident">source_dim</span> <span class="op">=</span> <span class="ident">source_module</span>.<span class="ident">dimension</span>(<span class="ident">t</span>);
+        <span class="kw">let</span> <span class="ident">target_dim</span> <span class="op">=</span> <span class="ident">target_module</span>.<span class="ident">dimension</span>(<span class="ident">t</span>);
+
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">matrix</span> <span class="op">=</span>
+            <span class="ident">AugmentedMatrix</span>::<span class="op">&lt;</span><span class="number">2</span><span class="op">&gt;</span><span class="ident">::new</span>(<span class="ident">p</span>, <span class="ident">target_dim</span>, [<span class="ident">cc_module</span>.<span class="ident">dimension</span>(<span class="ident">t</span>), <span class="ident">target_dim</span>]);
+        <span class="self">self</span>.<span class="ident">chain_maps</span>[<span class="number">0usize</span>].<span class="ident">get_matrix</span>(<span class="ident">matrix</span>.<span class="ident">segment</span>(<span class="number">0</span>, <span class="number">0</span>), <span class="ident">t</span>);
+        <span class="ident">matrix</span>.<span class="ident">segment</span>(<span class="number">1</span>, <span class="number">1</span>).<span class="ident">add_identity</span>();
+        <span class="ident">matrix</span>.<span class="ident">row_reduce</span>();
+        <span class="kw">let</span> <span class="ident">desired_image</span> <span class="op">=</span> <span class="ident">matrix</span>.<span class="ident">compute_kernel</span>();
+
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">matrix</span> <span class="op">=</span> <span class="ident">AugmentedMatrix</span>::<span class="op">&lt;</span><span class="number">2</span><span class="op">&gt;</span><span class="ident">::new_with_capacity</span>(
+            <span class="ident">p</span>,
+            <span class="ident">source_dim</span>,
+            <span class="kw-2">&amp;</span>[<span class="ident">target_dim</span>, <span class="ident">source_dim</span>],
+            <span class="ident">source_dim</span> <span class="op">+</span> <span class="ident">MAX_NEW_GENS</span>,
+            <span class="number">0</span>,
+        );
+        <span class="self">self</span>.<span class="ident">differentials</span>[<span class="number">1usize</span>].<span class="ident">get_matrix</span>(<span class="ident">matrix</span>.<span class="ident">segment</span>(<span class="number">0</span>, <span class="number">0</span>), <span class="ident">t</span>);
+        <span class="ident">matrix</span>.<span class="ident">segment</span>(<span class="number">1</span>, <span class="number">1</span>).<span class="ident">add_identity</span>();
+        <span class="ident">matrix</span>.<span class="ident">row_reduce</span>();
+
+        <span class="kw">let</span> <span class="ident">num_new_gens</span> <span class="op">=</span> <span class="ident">matrix</span>.<span class="ident">extend_image</span>(<span class="number">0</span>, <span class="ident">target_dim</span>, <span class="kw-2">&amp;</span><span class="ident">desired_image</span>, <span class="number">0</span>).<span class="ident">len</span>();
+
+        <span class="ident">source_module</span>.<span class="ident">add_generators</span>(<span class="ident">t</span>, <span class="ident">num_new_gens</span>, <span class="prelude-val">None</span>);
+
+        <span class="self">self</span>.<span class="ident">differentials</span>[<span class="number">1usize</span>].<span class="ident">add_generators_from_matrix_rows</span>(
+            <span class="ident">t</span>,
+            <span class="ident">matrix</span>
+                .<span class="ident">segment</span>(<span class="number">0</span>, <span class="number">0</span>)
+                .<span class="ident">row_slice</span>(<span class="ident">source_dim</span>, <span class="ident">source_dim</span> <span class="op">+</span> <span class="ident">num_new_gens</span>),
+        );
+    }
+
     <span class="kw">fn</span> <span class="ident">step_resolution</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">s</span>: <span class="ident">u32</span>, <span class="ident">t</span>: <span class="ident">i32</span>) {
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prime</span>();
         <span class="kw">let</span> <span class="ident">set_data</span> <span class="op">=</span> <span class="op">|</span><span class="op">|</span> {
@@ -2018,35 +2126,9 @@
         }
 
         <span class="kw">if</span> <span class="ident">s</span> <span class="op">==</span> <span class="number">0</span> {
-            <span class="self">self</span>.<span class="ident">zero_module</span>.<span class="ident">extend_by_zero</span>(<span class="ident">t</span>);
-
-            <span class="kw">if</span> <span class="ident">t</span> <span class="op">==</span> <span class="number">0</span> {
-                <span class="self">self</span>.<span class="ident">modules</span>[<span class="number">0usize</span>].<span class="ident">add_generators</span>(<span class="ident">t</span>, <span class="number">1</span>, <span class="prelude-val">None</span>);
-
-                <span class="kw">let</span> <span class="ident">chain_map</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">chain_maps</span>[<span class="number">0usize</span>];
-                <span class="ident">chain_map</span>.<span class="ident">add_generators_from_rows</span>(<span class="number">0</span>, <span class="macro">vec!</span>[<span class="ident">FpVector::from_slice</span>(<span class="ident">p</span>, <span class="kw-2">&amp;</span>[<span class="number">1</span>])]);
-                <span class="ident">chain_map</span>.<span class="ident">compute_auxiliary_data_through_degree</span>(<span class="number">0</span>);
-
-                <span class="kw">let</span> <span class="ident">d</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">differentials</span>[<span class="ident">s</span>];
-
-                <span class="ident">d</span>.<span class="ident">set_kernel</span>(<span class="ident">t</span>, <span class="prelude-val">None</span>);
-                <span class="ident">d</span>.<span class="ident">set_image</span>(<span class="ident">t</span>, <span class="prelude-val">None</span>);
-                <span class="ident">d</span>.<span class="ident">set_quasi_inverse</span>(<span class="ident">t</span>, <span class="prelude-val">None</span>);
-            } <span class="kw">else</span> {
-                <span class="self">self</span>.<span class="ident">modules</span>[<span class="number">0usize</span>].<span class="ident">extend_by_zero</span>(<span class="ident">t</span>);
-                <span class="self">self</span>.<span class="ident">chain_maps</span>[<span class="number">0usize</span>].<span class="ident">extend_by_zero</span>(<span class="ident">t</span>);
-                <span class="ident">set_data</span>();
-            }
-            <span class="self">self</span>.<span class="ident">differentials</span>[<span class="number">0usize</span>].<span class="ident">extend_by_zero</span>(<span class="ident">t</span>);
-
-            <span class="kw">return</span>;
-        }
-        <span class="kw">if</span> <span class="ident">s</span> <span class="op">==</span> <span class="number">1</span> <span class="op">&amp;&amp;</span> <span class="ident">t</span> <span class="op">==</span> <span class="number">0</span> {
-            <span class="comment">// We special case this because we don&#39;t add any new generators</span>
-            <span class="self">self</span>.<span class="ident">modules</span>[<span class="number">1usize</span>].<span class="ident">extend_by_zero</span>(<span class="number">0</span>);
-            <span class="self">self</span>.<span class="ident">differentials</span>[<span class="number">1usize</span>].<span class="ident">extend_by_zero</span>(<span class="number">0</span>);
-            <span class="self">self</span>.<span class="ident">chain_maps</span>[<span class="number">1usize</span>].<span class="ident">extend_by_zero</span>(<span class="number">0</span>);
-
+            <span class="kw">return</span> <span class="self">self</span>.<span class="ident">step0</span>(<span class="ident">t</span>);
+        } <span class="kw">else</span> <span class="kw">if</span> <span class="ident">s</span> <span class="op">==</span> <span class="number">1</span> {
+            <span class="self">self</span>.<span class="ident">step1</span>(<span class="ident">t</span>);
             <span class="ident">set_data</span>();
             <span class="kw">return</span>;
         }
@@ -2091,7 +2173,11 @@
             }
         }
 
-        <span class="self">self</span>.<span class="ident">step_resolution_with_subalgebra</span>(<span class="ident">s</span>, <span class="ident">t</span>, <span class="ident">MilnorSubalgebra::optimal_for</span>(<span class="ident">s</span>, <span class="ident">t</span>));
+        <span class="self">self</span>.<span class="ident">step_resolution_with_subalgebra</span>(
+            <span class="ident">s</span>,
+            <span class="ident">t</span>,
+            <span class="ident">MilnorSubalgebra::optimal_for</span>(<span class="ident">s</span>, <span class="ident">t</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">max_degree</span>),
+        );
         <span class="self">self</span>.<span class="ident">chain_maps</span>[<span class="ident">s</span>].<span class="ident">extend_by_zero</span>(<span class="ident">t</span>);
 
         <span class="ident">set_data</span>();
@@ -2166,7 +2252,7 @@
     }
 }
 
-<span class="kw">impl</span> <span class="ident">ChainComplex</span> <span class="kw">for</span> <span class="ident">Resolution</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">M</span>: <span class="ident">ZeroModule</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">MilnorAlgebra</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">ChainComplex</span> <span class="kw">for</span> <span class="ident">Resolution</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span> {
     <span class="kw">type</span> <span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">MilnorAlgebra</span>;
     <span class="kw">type</span> <span class="ident">Module</span> <span class="op">=</span> <span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Algebra</span><span class="op">&gt;</span>;
     <span class="kw">type</span> <span class="ident">Homomorphism</span> <span class="op">=</span> <span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Algebra</span><span class="op">&gt;</span><span class="op">&gt;</span>;
@@ -2405,9 +2491,9 @@
     }
 }
 
-<span class="kw">impl</span> <span class="ident">AugmentedChainComplex</span> <span class="kw">for</span> <span class="ident">Resolution</span> {
-    <span class="kw">type</span> <span class="ident">TargetComplex</span> <span class="op">=</span> <span class="ident">CCDZ</span><span class="op">&lt;</span><span class="ident">MilnorAlgebra</span><span class="op">&gt;</span>;
-    <span class="kw">type</span> <span class="ident">ChainMap</span> <span class="op">=</span> <span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">FDModule</span><span class="op">&lt;</span><span class="ident">MilnorAlgebra</span><span class="op">&gt;</span><span class="op">&gt;</span>;
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">M</span>: <span class="ident">ZeroModule</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">MilnorAlgebra</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">AugmentedChainComplex</span> <span class="kw">for</span> <span class="ident">Resolution</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span> {
+    <span class="kw">type</span> <span class="ident">TargetComplex</span> <span class="op">=</span> <span class="ident">FiniteChainComplex</span><span class="op">&lt;</span><span class="ident">M</span>, <span class="ident">FullModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">M</span>, <span class="ident">M</span><span class="op">&gt;</span><span class="op">&gt;</span>;
+    <span class="kw">type</span> <span class="ident">ChainMap</span> <span class="op">=</span> <span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span>;
 
     <span class="kw">fn</span> <span class="ident">target</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::TargetComplex</span><span class="op">&gt;</span> {
         <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">target</span>)
@@ -2426,7 +2512,7 @@
 
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">test_restart_stem</span>() {
-        <span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">Resolution::new</span>(<span class="prelude-val">None</span>);
+        <span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident"><span class="kw">crate</span>::utils::construct_nassau</span>(<span class="string">&quot;S_2&quot;</span>, <span class="prelude-val">None</span>).<span class="ident">unwrap</span>();
         <span class="ident">res</span>.<span class="ident">compute_through_stem</span>(<span class="number">8</span>, <span class="number">14</span>);
         <span class="ident">res</span>.<span class="ident">compute_through_bidegree</span>(<span class="number">5</span>, <span class="number">19</span>);
 
