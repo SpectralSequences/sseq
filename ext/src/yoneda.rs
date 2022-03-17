@@ -1,6 +1,6 @@
 use crate::chain_complex::{
     AugmentedChainComplex, BoundedChainComplex, ChainComplex, ChainMap,
-    FiniteAugmentedChainComplex, FiniteChainComplex,
+    FiniteAugmentedChainComplex, FiniteChainComplex, FreeChainComplex,
 };
 use algebra::module::homomorphism::{
     FreeModuleHomomorphism, FullModuleHomomorphism, ModuleHomomorphism,
@@ -88,12 +88,12 @@ fn split_mut_borrow<T>(v: &mut [T], i: usize, j: usize) -> (&mut T, &mut T) {
 
 pub fn yoneda_representative_element<CC>(cc: Arc<CC>, s: u32, t: i32, idx: usize) -> Yoneda<CC>
 where
-    CC: AugmentedChainComplex<
-        Module = FreeModule<<CC as ChainComplex>::Algebra>,
-        ChainMap = FreeModuleHomomorphism<
-            <<CC as AugmentedChainComplex>::TargetComplex as ChainComplex>::Module,
+    CC: FreeChainComplex
+        + AugmentedChainComplex<
+            ChainMap = FreeModuleHomomorphism<
+                <<CC as AugmentedChainComplex>::TargetComplex as ChainComplex>::Module,
+            >,
         >,
-    >,
     CC::TargetComplex: BoundedChainComplex,
     CC::Algebra: GeneratedAlgebra,
 {
@@ -119,12 +119,12 @@ pub fn yoneda_representative<CC>(
     map: ChainMap<FreeModuleHomomorphism<impl Module<Algebra = CC::Algebra>>>,
 ) -> Yoneda<CC>
 where
-    CC: AugmentedChainComplex<
-        Module = FreeModule<<CC as ChainComplex>::Algebra>,
-        ChainMap = FreeModuleHomomorphism<
-            <<CC as AugmentedChainComplex>::TargetComplex as ChainComplex>::Module,
+    CC: FreeChainComplex
+        + AugmentedChainComplex<
+            ChainMap = FreeModuleHomomorphism<
+                <<CC as AugmentedChainComplex>::TargetComplex as ChainComplex>::Module,
+            >,
         >,
-    >,
     CC::TargetComplex: BoundedChainComplex,
     CC::Algebra: GeneratedAlgebra,
 {
@@ -157,12 +157,12 @@ pub fn yoneda_representative_with_strategy<CC>(
     strategy: impl Fn(&CC::Module, &Subspace, i32, usize) -> i32,
 ) -> Yoneda<CC>
 where
-    CC: AugmentedChainComplex<
-        Module = FreeModule<<CC as ChainComplex>::Algebra>,
-        ChainMap = FreeModuleHomomorphism<
-            <<CC as AugmentedChainComplex>::TargetComplex as ChainComplex>::Module,
+    CC: FreeChainComplex
+        + AugmentedChainComplex<
+            ChainMap = FreeModuleHomomorphism<
+                <<CC as AugmentedChainComplex>::TargetComplex as ChainComplex>::Module,
+            >,
         >,
-    >,
     CC::TargetComplex: BoundedChainComplex,
     CC::Algebra: GeneratedAlgebra,
 {
