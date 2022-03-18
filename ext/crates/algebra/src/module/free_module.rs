@@ -181,7 +181,7 @@ impl<A: Algebra> Module for FreeModule<A> {
             gen_deg,
             start: [input_start, output_start],
             end: [input_end, output_end],
-        } in self.iter_gens([input_degree, input_degree + op_degree])
+        } in self.iter_gen_offsets([input_degree, input_degree + op_degree])
         {
             if input_start >= input.len() {
                 break;
@@ -286,16 +286,16 @@ impl<A: Algebra> FreeModule<A> {
         self.generator_to_index[degree][internal_gen_idx]
     }
 
-    /// Iterate the degrees of each generator up to degree `degree`.
-    pub fn iter_gen_degrees(&self, degree: i32) -> impl Iterator<Item = i32> + '_ {
+    /// Iterate the degrees and indices of each generator up to degree `degree`.
+    pub fn iter_gens(&self, degree: i32) -> impl Iterator<Item = (i32, usize)> + '_ {
         self.num_gens
             .iter_enum()
             .take((degree - self.min_degree + 1) as usize)
-            .flat_map(|(t, &n)| std::iter::repeat(t).take(n))
+            .flat_map(|(t, &n)| (0..n).map(move |k| (t, k)))
     }
 
     /// Iterate the degrees and offsets of each generator up to degree `degree`.
-    pub fn iter_gens<const N: usize>(
+    pub fn iter_gen_offsets<const N: usize>(
         &self,
         degree: [i32; N],
     ) -> impl Iterator<Item = GeneratorData<N>> + '_ {
@@ -303,7 +303,9 @@ impl<A: Algebra> FreeModule<A> {
             module: self,
             degree,
             offset: [0; N],
-            gen_deg: self.iter_gen_degrees(degree.into_iter().min().unwrap()),
+            gen_deg: self
+                .iter_gens(degree.into_iter().min().unwrap())
+                .map(|(t, _)| t),
         }
     }
 

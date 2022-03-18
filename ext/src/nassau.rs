@@ -113,7 +113,7 @@ impl MilnorSubalgebra {
         degree: i32,
         signature: &'a [PPartEntry],
     ) -> impl Iterator<Item = usize> + 'a {
-        module.iter_gens([degree]).flat_map(
+        module.iter_gen_offsets([degree]).flat_map(
             move |GeneratorData {
                       gen_deg,
                       start: [offset],
