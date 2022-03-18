@@ -68,6 +68,9 @@ jobs:
     - name: install esbuild
       run: cd javascript && npm i esbuild
 
+    - name: install pytest
+      run: pip install pytest
+
     - name: Build
       run: make javascript/dist/sseq_chart_node.js
 
