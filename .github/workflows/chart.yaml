@@ -65,6 +65,9 @@ jobs:
       with:
         python-version: "3.9"
 
+    - name: install esbuild
+      run: cd javascript && npm i esbuild
+
     - name: Build
       run: make javascript/dist/sseq_chart_node.js
 
