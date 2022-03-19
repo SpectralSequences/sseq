@@ -64,8 +64,11 @@ impl<M: Module> QuotientModule<M> {
         self.flush(degree);
     }
 
-    pub fn quotient_vectors(&mut self, degree: i32, vecs: Vec<FpVector>) {
-        self.subspaces[degree].add_vectors(vecs.into_iter());
+    /// # Arguments
+    ///  - `degree`: The degree to quotient in
+    ///  - `vecs`: See [`Subspace::add_vectors`]
+    pub fn quotient_vectors(&mut self, degree: i32, vecs: impl for<'a> FnMut(SliceMut<'a>) -> Option<()>) {
+        self.subspaces[degree].add_vectors(vecs);
         self.flush(degree);
     }
 

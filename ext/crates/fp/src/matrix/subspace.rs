@@ -84,25 +84,21 @@ impl Subspace {
         self.row_reduce()
     }
 
-    pub fn add_vectors(&mut self, mut rows: impl std::iter::Iterator<Item = FpVector>) {
+    /// This adds some rows to the subspace
+    ///
+    /// # Arguments
+    ///  - `rows`: A function that writes the row to be added to the given SliceMut. This returns
+    ///     `None` if it runs out of rows, `Some(())` otherwise.
+    pub fn add_vectors(&mut self, mut rows: impl for<'a> FnMut(SliceMut<'a>) -> Option<()>) {
         let num_rows = self.matrix.rows();
         'outer: loop {
-            let mut first_row = num_rows;
-            for i in 0..num_rows {
-                if self[i].is_zero() {
-                    first_row = i;
-                    break;
-                }
-            }
+            let first_row = self.dimension();
             if first_row == num_rows {
                 return;
             }
 
             for i in first_row..num_rows {
-                if let Some(v) = rows.next() {
-                    assert_eq!(v.len(), self.matrix.columns());
-                    self[i] = v;
-                } else {
+                if rows(self.row_mut(i)).is_none() {
                     break 'outer;
                 }
             }
@@ -178,6 +174,11 @@ impl Subspace {
             .find(|&&i| i >= 0)
             .map(|&i| i as usize + 1)
             .unwrap_or(0)
+    }
+
+    /// Whether the subspace is empty. This assumes the subspace is row reduced.
+    pub fn is_empty(&self) -> bool {
+        self.matrix.rows() == 0 || self.matrix[0].is_zero()
     }
 
     pub fn ambient_dimension(&self) -> usize {

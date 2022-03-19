@@ -168,6 +168,7 @@ where
 {
     let p = cc.prime();
     let target_cc = cc.target();
+    let algebra = cc.algebra();
 
     let t_shift: i32 = map.chain_maps[0].degree_shift();
     let s_shift: u32 = map.s_shift;
@@ -198,38 +199,62 @@ where
     }
 
     for s in (1..=s_max).rev() {
-        let mut differential_images: BiVec<Subspace> = BiVec::with_capacity(t_min, t_max + 1);
+        let mut differential_images: BiVec<Subspace> = {
+            let mut result = BiVec::new(t_min);
 
-        if s < s_max {
-            let prev = &modules[s as usize + 1];
-            let curr = &modules[s as usize];
-            let d = cc.differential(s + 1);
+            if s < s_max {
+                let prev = &modules[s as usize + 1];
+                let curr = &modules[s as usize];
+                let d = cc.differential(s + 1);
 
-            for t in t_min..=t_max {
-                let prev_dim = prev.dimension(t);
-                let curr_orig_dim = curr.module.dimension(t);
+                result.extend_with(t_max, |t| {
+                    let mut differentials =
+                        Matrix::new(p, prev.dimension(t), curr.module.dimension(t));
 
-                let mut differentials = Matrix::new(p, prev_dim, curr_orig_dim);
+                    for (i, row) in differentials.iter_mut().enumerate() {
+                        let j = prev.basis_list[t][i];
+                        d.apply_to_basis_element(row.as_slice_mut(), 1, t, j);
+                        curr.reduce(t, row.as_slice_mut());
+                    }
 
-                for i in 0..prev_dim {
-                    let j = prev.basis_list[t][i];
-                    d.apply_to_basis_element(differentials[i].as_slice_mut(), 1, t, j);
-                    curr.subspaces[t].reduce(differentials[i].as_slice_mut());
-                }
+                    differentials.row_reduce();
 
-                differentials.row_reduce();
-
-                differential_images.push(Subspace {
-                    matrix: differentials,
+                    let mut result = Subspace {
+                        matrix: differentials,
+                    };
+                    let dim = result.dimension();
+                    result.trim(0, dim, 0);
+                    result
                 });
             }
-        }
+            result
+        };
 
         let (target, source) = split_mut_borrow(&mut modules, s as usize - 1, s as usize);
         let d = cc.differential(s);
-        if s < s_max {
-            let degrees_with_gens = source.module.get_degrees_with_gens(t_max);
 
+        // This is used for sanity checking.
+        let dim_diff: BiVec<isize> = {
+            let mut dim_diff = BiVec::new(t_min);
+            dim_diff.extend_with(t_max, |t| {
+                source.dimension(t) as isize - target.dimension(t) as isize
+            });
+            dim_diff
+        };
+
+        macro_rules! check {
+            ($t:ident) => {
+                assert_eq!(
+                    source.dimension($t) as isize - target.dimension($t) as isize,
+                    dim_diff[$t],
+                    "Failed dimension check at (s, t) = ({s}, {t})",
+                    t = $t
+                );
+            };
+        }
+
+        // First, we try to kill off whole generators
+        if s < s_max {
             let mut prev_differentials: BiVec<Option<Subspace>> =
                 BiVec::with_capacity(t_min, t_max + 1);
             let mut prev_subspaces: BiVec<Option<Subspace>> =
@@ -237,151 +262,109 @@ where
             let mut prev_basis_list: BiVec<Option<Vec<usize>>> =
                 BiVec::with_capacity(t_min, t_max + 1);
 
-            // This is use for sanity checking.
-            let mut dim_drop: BiVec<Option<usize>> = BiVec::with_capacity(t_min, t_max + 1);
-
             for _ in t_min..=t_max {
                 prev_differentials.push(None);
                 prev_subspaces.push(None);
                 prev_basis_list.push(None);
-                dim_drop.push(None);
             }
-            'gen_loop: for (i, &gen_dim) in degrees_with_gens.iter().enumerate() {
+
+            // Collect for borrow checker purposes
+            let source_gens: Vec<_> = source.module.iter_gens(t_max).collect();
+            'gen_loop: for (gen_deg, gen_idx) in source_gens {
                 // Check if augmentation map is non-zero on the generator
-                if s < target_cc.max_s() && target_cc.module(s).dimension(gen_dim) > 0 {
+                if s < target_cc.max_s() && target_cc.module(s).dimension(gen_deg) > 0 {
                     let m = cc.chain_map(s);
-                    let num_gens = source.module.number_of_gens_in_degree(gen_dim);
-                    for i in 0..num_gens {
-                        if !m.output(gen_dim, i).is_zero() {
+                    if !m.output(gen_deg, gen_idx).is_zero() {
+                        continue 'gen_loop;
+                    }
+                }
+
+                // Check if preserve map is non-zero on the generator
+                if s >= s_shift && gen_deg >= t_shift {
+                    if let Some(m) = map.chain_maps.get((s - s_shift) as usize) {
+                        if m.target().dimension(gen_deg - t_shift) > 0
+                            && !m.output(gen_deg, gen_idx).is_zero()
+                        {
                             continue 'gen_loop;
                         }
                     }
                 }
 
-                // Check if preserve map is non-zero on the generator
-                if s >= s_shift && gen_dim >= t_shift {
-                    if let Some(m) = map.chain_maps.get((s - s_shift) as usize) {
-                        if m.target().dimension(gen_dim - t_shift) > 0 {
-                            let num_gens = source.module.number_of_gens_in_degree(gen_dim);
-                            for i in 0..num_gens {
-                                if !m.output(gen_dim, i).is_zero() {
-                                    continue 'gen_loop;
-                                }
-                            }
-                        }
-                    }
-                }
-
-                for t in gen_dim..=t_max {
-                    let orig_diff_dimension = differential_images[t].dimension();
-                    if orig_diff_dimension == 0 {
+                for t in gen_deg..=t_max {
+                    let diff_im = &mut differential_images[t];
+                    if diff_im.is_empty() {
                         continue;
                     }
 
-                    prev_differentials[t] = Some(differential_images[t].clone());
+                    prev_differentials[t] = Some(diff_im.clone());
                     prev_subspaces[t] = Some(source.subspaces[t].clone());
                     prev_basis_list[t] = Some(source.basis_list[t].clone());
 
-                    let start = source.module.generator_offset(t, gen_dim, 0);
-                    let dim = source.module.dimension(t);
+                    let start = source.module.generator_offset(t, gen_deg, gen_idx);
+                    let end = start + algebra.dimension(t - gen_deg);
 
-                    let end = if degrees_with_gens.get(i + 1).map_or(true, |&t_| t_ > t) {
-                        dim
-                    } else {
-                        source
-                            .module
-                            .generator_offset(t, degrees_with_gens[i + 1], 0)
-                    };
-
-                    let source_orig_dim = source.dimension(t);
                     source.quotient_basis_elements(t, start..end);
-                    dim_drop[t] = Some(source_orig_dim - source.dimension(t));
 
-                    for row in differential_images[t].matrix.iter_mut() {
-                        if row.is_zero() {
-                            break;
-                        }
-                        source.reduce(t, row.as_slice_mut());
-                        if row.is_zero() {
-                            for t in gen_dim..=t {
+                    macro_rules! revert {
+                        () => {
+                            for t in gen_deg..=t {
                                 if prev_differentials[t].is_none() {
                                     continue;
                                 }
                                 differential_images[t] = prev_differentials[t].take().unwrap();
                                 source.subspaces[t] = prev_subspaces[t].take().unwrap();
                                 source.basis_list[t] = prev_basis_list[t].take().unwrap();
-                                dim_drop[t] = None;
                             }
                             continue 'gen_loop;
+                        };
+                    }
+
+                    for row in diff_im.matrix.iter_mut() {
+                        source.reduce(t, row.as_slice_mut());
+                        if row.is_zero() {
+                            revert!();
                         }
                     }
 
-                    differential_images[t].row_reduce();
-                    if orig_diff_dimension != differential_images[t].dimension() {
-                        for t in gen_dim..=t {
-                            if prev_differentials[t].is_none() {
-                                continue;
-                            }
-                            differential_images[t] = prev_differentials[t].take().unwrap();
-                            source.subspaces[t] = prev_subspaces[t].take().unwrap();
-                            source.basis_list[t] = prev_basis_list[t].take().unwrap();
-                            dim_drop[t] = None;
-                        }
-                        continue 'gen_loop;
+                    diff_im.row_reduce();
+                    if diff_im.row(diff_im.rows() - 1).is_zero() {
+                        revert!();
                     }
                 }
 
                 // We are free to clear this basis element. Do it
-                for t in gen_dim..=t_max {
-                    let start = source.module.generator_offset(t, gen_dim, 0);
-
-                    let end = if degrees_with_gens.get(i + 1).map_or(true, |&t_| t_ > t) {
-                        source.module.dimension(t)
-                    } else {
-                        source
-                            .module
-                            .generator_offset(t, degrees_with_gens[i + 1], 0)
-                    };
+                for t in gen_deg..=t_max {
+                    let start = source.module.generator_offset(t, gen_deg, gen_idx);
+                    let end = start + algebra.dimension(t - gen_deg);
 
                     if prev_differentials[t].is_none() {
                         // We previously skipped this because there were no differentials to check
-
-                        let source_orig_dim = source.dimension(t);
                         source.quotient_basis_elements(t, start..end);
-                        dim_drop[t] = Some(source_orig_dim - source.dimension(t));
                     } else {
                         prev_differentials[t] = None;
                         prev_subspaces[t] = None;
                         prev_basis_list[t] = None;
                     }
 
-                    let mut target_kills: Vec<FpVector> = Vec::with_capacity(end - start);
-                    let target_dim = target.module.dimension(t);
-
-                    let target_orig_dim = target.dimension(t);
-                    for i in start..end {
-                        let mut result = FpVector::new(p, target_dim);
-                        d.apply_to_basis_element(result.as_slice_mut(), 1, t, i);
-                        target_kills.push(result);
-                    }
-                    target.quotient_vectors(t, target_kills);
-                    assert_eq!(
-                        target.dimension(t),
-                        target_orig_dim - dim_drop[t].take().unwrap()
-                    );
+                    let mut indices = start..end;
+                    target.quotient_vectors(t, |row| {
+                        d.apply_to_basis_element(row, 1, t, indices.next()?);
+                        Some(())
+                    });
+                    check!(t);
                 }
             }
         }
 
+        // Now we clean up the module degree by degree from above.
         for t in (t_min..=t_max).rev() {
             if t - (s as i32) < cc.min_degree() {
                 continue;
             }
-            if cc.module(s).dimension(t) == 0 {
+            if source.dimension(t) == 0 {
                 continue;
             }
 
-            // Now compute the image of the differentials, if any.
             let keep: Option<&Subspace> = if s < s_max {
                 Some(&differential_images[t])
             } else {
@@ -395,16 +378,13 @@ where
                 None
             };
             let preserve_map = if s >= s_shift && t >= t_shift {
-                match map.chain_maps.get((s - s_shift) as usize) {
-                    Some(m) => {
-                        if m.target().dimension(t - t_shift) > 0 {
-                            Some(m)
-                        } else {
-                            None
-                        }
+                map.chain_maps.get((s - s_shift) as usize).and_then(|m| {
+                    if m.target().dimension(t - t_shift) > 0 {
+                        Some(m)
+                    } else {
+                        None
                     }
-                    None => None,
-                }
+                })
             } else {
                 None
             };
@@ -414,7 +394,7 @@ where
             // the image of the differentials. The function computes the kernel and a list of
             // elements that span the image of the differentials.
             let (mut matrix, mut images) =
-                compute_kernel_image(source, augmentation_map, preserve_map, keep, t);
+                compute_kernel_image(source, augmentation_map.as_deref(), preserve_map, keep, t);
 
             matrix.row_reduce();
 
@@ -440,51 +420,28 @@ where
             let mut pivot_columns = pivot_columns.iter().map(|(_p, i)| i).collect::<Vec<_>>();
             pivot_columns.sort();
 
-            let mut matrix: Vec<FpVector> = matrix.into();
-            let mut source_kills: Vec<FpVector> = Vec::with_capacity(source.module.dimension(t));
-            let mut target_kills: Vec<FpVector> = Vec::with_capacity(target.module.dimension(t));
+            let mut source_iter =
+                std::iter::zip(&matrix, pivot_columns.iter().rev()).filter_map(|(row, col)| {
+                    if chosen_cols.contains(col) {
+                        None
+                    } else {
+                        Some(row.as_slice())
+                    }
+                });
 
-            for col in pivot_columns.into_iter().rev() {
-                let source_row = matrix.pop().unwrap();
-                if chosen_cols.contains(col) {
-                    continue;
-                }
+            let mut source_iter2 = source_iter.clone();
+            source.quotient_vectors(t, |mut row| {
+                row.add(source_iter.next()?, 1);
+                Some(())
+            });
 
-                let mut target_row = FpVector::new(p, target.module.dimension(t));
-                d.apply(target_row.as_slice_mut(), 1, t, source_row.as_slice());
-
-                source_kills.push(source_row);
-                target_kills.push(target_row);
-            }
-            let goal_s_dim = if s == s_max {
-                0
-            } else {
-                source.dimension(t) - source_kills.len()
-            };
-            let goal_t_dim = if s == s_max {
-                0
-            } else {
-                target.dimension(t) - target_kills.len()
-            };
-
-            source.quotient_vectors(t, source_kills);
-            target.quotient_vectors(t, target_kills);
+            target.quotient_vectors(t, |row| {
+                d.apply(row, 1, t, source_iter2.next()?);
+                Some(())
+            });
 
             if s != s_max {
-                assert_eq!(
-                    source.dimension(t),
-                    goal_s_dim,
-                    "Failed s dimension check at (s, t) = ({}, {})",
-                    s,
-                    t
-                );
-                assert_eq!(
-                    target.dimension(t),
-                    goal_t_dim,
-                    "Failed t dimension check at (s, t) = ({}, {})",
-                    s,
-                    t
-                );
+                check!(t);
             }
         }
     }
@@ -525,7 +482,7 @@ where
 
 fn compute_kernel_image<M: Module, F: ModuleHomomorphism, G: ModuleHomomorphism>(
     source: &QM<M>,
-    augmentation_map: Option<Arc<F>>,
+    augmentation_map: Option<&F>,
     preserve_map: Option<&G>,
     keep: Option<&Subspace>,
     t: i32,
