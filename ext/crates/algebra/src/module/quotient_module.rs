@@ -67,7 +67,14 @@ impl<M: Module> QuotientModule<M> {
     /// # Arguments
     ///  - `degree`: The degree to quotient in
     ///  - `vecs`: See [`Subspace::add_vectors`]
-    pub fn quotient_vectors(&mut self, degree: i32, vecs: impl for<'a> FnMut(SliceMut<'a>) -> Option<()>) {
+    pub fn quotient_vectors(
+        &mut self,
+        degree: i32,
+        vecs: impl for<'a> FnMut(SliceMut<'a>) -> Option<()>,
+    ) {
+        if degree > self.truncation {
+            return;
+        }
         self.subspaces[degree].add_vectors(vecs);
         self.flush(degree);
     }
@@ -97,6 +104,9 @@ impl<M: Module> QuotientModule<M> {
         mod_degree: i32,
         mod_index: usize,
     ) {
+        if op_degree + mod_degree > self.truncation {
+            return;
+        }
         self.module.act_on_basis(
             result.copy(),
             coeff,
@@ -108,8 +118,12 @@ impl<M: Module> QuotientModule<M> {
         self.reduce(op_degree + mod_degree, result)
     }
 
-    pub fn reduce(&self, degree: i32, vec: SliceMut) {
-        self.subspaces[degree].reduce(vec);
+    pub fn reduce(&self, degree: i32, mut vec: SliceMut) {
+        if degree > self.truncation {
+            vec.set_to_zero()
+        } else {
+            self.subspaces[degree].reduce(vec);
+        }
     }
 
     pub fn old_basis_to_new(&self, degree: i32, mut new: SliceMut, old: Slice) {
