@@ -403,25 +403,21 @@ where
                 .pivots()
                 .iter()
                 .enumerate()
-                .filter(|&(_i, &v)| v >= 0)
-                .map(|(i, _v)| (strategy(&*source.module, subspace, t, i), i))
+                .filter(|&(_, &v)| v >= 0)
+                .map(|(i, _)| (strategy(&*source.module, subspace, t, i), i))
                 .collect::<Vec<_>>();
             pivot_columns.sort_unstable();
 
-            let image_pivots =
-                images.find_pivots_permutation(pivot_columns.iter().map(|(_p, i)| *i));
+            let chosen_cols: HashSet<usize> = images
+                .find_pivots_permutation(pivot_columns.iter().map(|(_, i)| *i))
+                .into_iter()
+                .collect();
 
-            let mut chosen_cols: HashSet<usize> = HashSet::default();
-
-            for image in image_pivots {
-                chosen_cols.insert(image);
-            }
-
-            let mut pivot_columns = pivot_columns.iter().map(|(_p, i)| i).collect::<Vec<_>>();
+            let mut pivot_columns = pivot_columns.iter().map(|(_, i)| i).collect::<Vec<_>>();
             pivot_columns.sort();
 
             let mut source_iter =
-                std::iter::zip(&matrix, pivot_columns.iter().rev()).filter_map(|(row, col)| {
+                std::iter::zip(&matrix, pivot_columns.iter()).filter_map(|(row, col)| {
                     if chosen_cols.contains(col) {
                         None
                     } else {
