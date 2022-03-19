@@ -194,10 +194,6 @@ where
         .map(|s| QM::new(cc.module(s), t_max))
         .collect::<Vec<_>>();
 
-    for m in &modules {
-        m.compute_basis(t_max); // populate masks/basis
-    }
-
     for s in (1..=s_max).rev() {
         let mut differential_images: BiVec<Subspace> = {
             let mut result = BiVec::new(t_min);
@@ -403,21 +399,24 @@ where
                 .pivots()
                 .iter()
                 .enumerate()
-                .filter(|&(_, &v)| v >= 0)
-                .map(|(i, _)| (strategy(&*source.module, subspace, t, i), i))
+                .filter_map(|(i, &v)| {
+                    if v >= 0 {
+                        Some((strategy(&*source.module, subspace, t, i), i))
+                    } else {
+                        None
+                    }
+                })
                 .collect::<Vec<_>>();
+            let orig_pivot_columns: Vec<usize> = pivot_columns.iter().map(|&(_, i)| i).collect();
+
             pivot_columns.sort_unstable();
 
-            let chosen_cols: HashSet<usize> = images
-                .find_pivots_permutation(pivot_columns.iter().map(|(_, i)| *i))
-                .into_iter()
-                .collect();
-
-            let mut pivot_columns = pivot_columns.iter().map(|(_, i)| i).collect::<Vec<_>>();
-            pivot_columns.sort();
+            let chosen_cols: HashSet<usize> = HashSet::from_iter(
+                images.find_pivots_permutation(pivot_columns.iter().map(|(_, i)| *i)),
+            );
 
             let mut source_iter =
-                std::iter::zip(&matrix, pivot_columns.iter()).filter_map(|(row, col)| {
+                std::iter::zip(&matrix, orig_pivot_columns.iter()).filter_map(|(row, col)| {
                     if chosen_cols.contains(col) {
                         None
                     } else {
@@ -490,8 +489,7 @@ where
     let p = algebra.prime();
 
     let mut generators: Vec<(i32, usize)> = Vec::new();
-    let mut target_degrees = Vec::new();
-    let mut padded_target_degrees: Vec<usize> = Vec::new();
+    let mut target_dims = Vec::new();
 
     let source_orig_dimension = source.module.dimension(t);
     let source_dimension = source.dimension(t);
@@ -499,118 +497,73 @@ where
     for op_deg in 1..=source.max_degree().unwrap() - t {
         for op_idx in algebra.generators(op_deg) {
             generators.push((op_deg, op_idx));
-            target_degrees.push(source.module.dimension(t + op_deg));
-            padded_target_degrees
-                .push(FpVector::padded_len(p, source.module.dimension(t + op_deg)));
+            target_dims.push(source.module.dimension(t + op_deg));
         }
     }
 
     if let Some(m) = &augmentation_map {
-        target_degrees.push(m.target().dimension(t));
-        padded_target_degrees.push(FpVector::padded_len(p, m.target().dimension(t)));
+        target_dims.push(m.target().dimension(t));
     }
 
     if let Some(m) = &preserve_map {
         let dim = m.target().dimension(t - m.degree_shift());
-        target_degrees.push(dim);
-        padded_target_degrees.push(FpVector::padded_len(p, dim));
+        target_dims.push(dim);
     }
 
-    let total_padded_degree: usize = padded_target_degrees.iter().sum();
+    let total_dimension: usize = target_dims.iter().sum();
+    let padded_init_dim = FpVector::padded_len(p, total_dimension + source_orig_dimension);
+    let total_cols: usize = padded_init_dim + source_orig_dimension;
 
-    let padded_source_degree: usize = FpVector::padded_len(p, source_orig_dimension);
-    let total_cols: usize = total_padded_degree + padded_source_degree + source_orig_dimension;
+    let mut matrix = Matrix::new(p, source_dimension, total_cols);
 
-    let mut matrix_rows: Vec<FpVector> = Vec::with_capacity(source_dimension);
-
-    let mut projection_off_keep = FpVector::new(p, source_orig_dimension);
-
-    for i in 0..source_dimension {
-        let mut result = FpVector::new(p, total_cols);
-
-        let i = source.basis_list[t][i];
+    for (&i, row) in std::iter::zip(&source.basis_list[t], &mut matrix) {
         let mut offset = 0;
 
-        let mut target_idx = 0;
+        let mut cols = target_dims.iter().copied();
         for (op_deg, op_idx) in &generators {
+            let len = cols.next().unwrap();
             source.act_on_original_basis(
-                result.slice_mut(offset, offset + target_degrees[target_idx]),
+                row.slice_mut(offset, offset + len),
                 1,
                 *op_deg,
                 *op_idx,
                 t,
                 i,
             );
-            offset += padded_target_degrees[target_idx];
-            target_idx += 1;
+            offset += len;
         }
 
         if let Some(m) = &augmentation_map {
-            m.apply_to_basis_element(
-                result.slice_mut(offset, offset + target_degrees[target_idx]),
-                1,
-                t,
-                i,
-            );
-            offset += padded_target_degrees[target_idx];
-            target_idx += 1;
+            let len = cols.next().unwrap();
+            m.apply_to_basis_element(row.slice_mut(offset, offset + len), 1, t, i);
+            offset += len;
         }
 
         if let Some(m) = &preserve_map {
-            m.apply_to_basis_element(
-                result.slice_mut(offset, offset + target_degrees[target_idx]),
-                1,
-                t,
-                i,
-            );
-            offset += padded_target_degrees[target_idx];
+            let len = cols.next().unwrap();
+            m.apply_to_basis_element(row.slice_mut(offset, offset + len), 1, t, i);
+            offset += len;
         }
 
+        let mut slice = row.slice_mut(offset, offset + source_orig_dimension);
+        slice.set_entry(i, 1);
         if let Some(keep) = &keep {
-            projection_off_keep.set_to_zero();
-            projection_off_keep.set_entry(i, 1);
-            keep.reduce(projection_off_keep.as_slice_mut());
-            result
-                .slice_mut(offset, offset + source_orig_dimension)
-                .assign(projection_off_keep.as_slice());
-        } else {
-            result.set_entry(offset + i, 1);
+            keep.reduce(slice);
         }
 
-        result.set_entry(padded_source_degree + total_padded_degree + i, 1);
-        matrix_rows.push(result);
+        row.set_entry(padded_init_dim + i, 1);
     }
-    let mut matrix = Matrix::from_rows(p, matrix_rows, total_cols);
     matrix.row_reduce();
 
-    let first_kernel_row = match &matrix.pivots()[0..total_padded_degree]
-        .iter()
-        .rposition(|&i| i >= 0)
-    {
-        Some(n) => matrix.pivots()[*n] as usize + 1,
-        None => 0,
-    };
-    let first_image_row = match &matrix.pivots()
-        [total_padded_degree..total_padded_degree + source_orig_dimension]
-        .iter()
-        .rposition(|&i| i >= 0)
-    {
-        Some(n) => matrix.pivots()[*n + total_padded_degree] as usize + 1,
-        None => first_kernel_row,
-    };
+    let first_kernel_row = matrix.find_first_row_in_block(total_dimension);
+    let first_image_row = matrix.find_first_row_in_block(padded_init_dim);
 
-    matrix.trim(
-        first_kernel_row,
-        source_dimension,
-        total_padded_degree + padded_source_degree,
+    matrix.trim(first_kernel_row as usize, source_dimension, padded_init_dim);
+
+    let image_matrix = Matrix::from_rows(
+        p,
+        matrix[(first_image_row - first_kernel_row) as usize..matrix.rows()].to_vec(),
+        source_orig_dimension,
     );
-
-    let first_image_row = first_image_row - first_kernel_row;
-
-    let mut images = Vec::with_capacity(matrix.rows() - first_image_row);
-    for i in first_image_row..matrix.rows() {
-        images.push(matrix[i].clone());
-    }
-    let image_matrix = Matrix::from_rows(p, images, source_orig_dimension);
     (matrix, image_matrix)
 }
