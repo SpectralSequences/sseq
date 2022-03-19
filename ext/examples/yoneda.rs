@@ -2,7 +2,7 @@ use algebra::module::homomorphism::{FullModuleHomomorphism, IdentityHomomorphism
 use algebra::module::Module;
 use ext::chain_complex::{AugmentedChainComplex, ChainComplex, FreeChainComplex};
 use ext::resolution_homomorphism::ResolutionHomomorphism;
-use ext::utils::construct;
+use ext::utils;
 use ext::yoneda::yoneda_representative_element;
 use serde_json::value::Value;
 
@@ -11,9 +11,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 fn main() -> anyhow::Result<()> {
-    let resolution = Arc::new(query::with_default("Module", "S_2", |name| {
-        construct(name, None)
-    }));
+    let resolution = Arc::new(utils::query_module_only("Module", None, false)?);
 
     let module = resolution.target().module(0);
     let min_degree = resolution.min_degree();
