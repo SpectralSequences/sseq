@@ -82,7 +82,7 @@ fn main() -> anyhow::Result<()> {
         );
     }
 
-    let filename: String = match query::optional("Output file name (empty to skip)", str::parse) {
+    let filename: String = match query::optional("Output file name", str::parse) {
         None => return Ok(()),
         Some(x) => x,
     };
