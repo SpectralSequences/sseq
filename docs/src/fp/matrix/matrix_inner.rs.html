@@ -1258,6 +1258,32 @@
 <span id="1231">1231</span>
 <span id="1232">1232</span>
 <span id="1233">1233</span>
+<span id="1234">1234</span>
+<span id="1235">1235</span>
+<span id="1236">1236</span>
+<span id="1237">1237</span>
+<span id="1238">1238</span>
+<span id="1239">1239</span>
+<span id="1240">1240</span>
+<span id="1241">1241</span>
+<span id="1242">1242</span>
+<span id="1243">1243</span>
+<span id="1244">1244</span>
+<span id="1245">1245</span>
+<span id="1246">1246</span>
+<span id="1247">1247</span>
+<span id="1248">1248</span>
+<span id="1249">1249</span>
+<span id="1250">1250</span>
+<span id="1251">1251</span>
+<span id="1252">1252</span>
+<span id="1253">1253</span>
+<span id="1254">1254</span>
+<span id="1255">1255</span>
+<span id="1256">1256</span>
+<span id="1257">1257</span>
+<span id="1258">1258</span>
+<span id="1259">1259</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="kw">super</span>::{<span class="ident">QuasiInverse</span>, <span class="ident">Subspace</span>};
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::matrix::m4ri::M4riTable</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::prime</span>::{<span class="self">self</span>, <span class="ident">ValidPrime</span>};
@@ -1267,6 +1293,7 @@
 <span class="kw">use</span> <span class="ident">std::io</span>::{<span class="ident">Read</span>, <span class="ident">Write</span>};
 <span class="kw">use</span> <span class="ident">std::ops</span>::{<span class="ident">Index</span>, <span class="ident">IndexMut</span>};
 
+<span class="kw">use</span> <span class="ident">itertools::Itertools</span>;
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
 <span class="kw">use</span> <span class="ident">rayon::prelude</span>::<span class="kw-2">*</span>;
 
@@ -1588,36 +1615,39 @@
 }
 
 <span class="kw">impl</span> <span class="ident">fmt::Display</span> <span class="kw">for</span> <span class="ident">Matrix</span> {
+    <span class="doccomment">/// # Example</span>
+    <span class="doccomment">/// ```</span>
+    <span class="doccomment">/// # use fp::matrix::Matrix;</span>
+    <span class="doccomment">/// # use fp::prime::ValidPrime;</span>
+    <span class="doccomment">/// let m = Matrix::from_vec(ValidPrime::new(2),</span>
+    <span class="doccomment">///    &amp;[</span>
+    <span class="doccomment">///         vec![0, 1, 0],</span>
+    <span class="doccomment">///         vec![1, 1, 0],</span>
+    <span class="doccomment">///     ]);</span>
+    <span class="doccomment">/// assert_eq!(&amp;format!(&quot;{m}&quot;), &quot;[\n    [0, 1, 0],\n    [1, 1, 0]\n]&quot;);</span>
+    <span class="doccomment">/// assert_eq!(&amp;format!(&quot;{m:#}&quot;), &quot;010\n110&quot;);</span>
+    <span class="doccomment">/// ```</span>
     <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">fmt::Formatter</span>) -&gt; <span class="ident">fmt::Result</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">it</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">iter</span>();
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">x</span>) <span class="op">=</span> <span class="ident">it</span>.<span class="ident">next</span>() {
-            <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;[\n    {}&quot;</span>, <span class="ident">x</span>)<span class="question-mark">?</span>;
+        <span class="kw">if</span> <span class="ident">f</span>.<span class="ident">alternate</span>() {
+            <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{:#}&quot;</span>, <span class="self">self</span>.<span class="ident">iter</span>().<span class="ident">format</span>(<span class="string">&quot;\n&quot;</span>))
         } <span class="kw">else</span> {
-            <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;[]&quot;</span>)<span class="question-mark">?</span>;
-            <span class="kw">return</span> <span class="prelude-val">Ok</span>(());
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">it</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">iter</span>();
+            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">x</span>) <span class="op">=</span> <span class="ident">it</span>.<span class="ident">next</span>() {
+                <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;[\n    {x}&quot;</span>)<span class="question-mark">?</span>;
+            } <span class="kw">else</span> {
+                <span class="kw">return</span> <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;[]&quot;</span>);
+            }
+            <span class="kw">for</span> <span class="ident">x</span> <span class="kw">in</span> <span class="ident">it</span> {
+                <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;,\n    {x}&quot;</span>)<span class="question-mark">?</span>;
+            }
+            <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;\n]&quot;</span>)
         }
-        <span class="kw">for</span> <span class="ident">x</span> <span class="kw">in</span> <span class="ident">it</span> {
-            <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;,\n    {}&quot;</span>, <span class="ident">x</span>)<span class="question-mark">?</span>;
-        }
-        <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;\n]&quot;</span>)<span class="question-mark">?</span>;
-        <span class="prelude-val">Ok</span>(())
     }
 }
 
 <span class="kw">impl</span> <span class="ident">fmt::Debug</span> <span class="kw">for</span> <span class="ident">Matrix</span> {
     <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">fmt::Formatter</span>) -&gt; <span class="ident">fmt::Result</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">it</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">iter</span>();
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">x</span>) <span class="op">=</span> <span class="ident">it</span>.<span class="ident">next</span>() {
-            <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;[\n    {}&quot;</span>, <span class="ident">x</span>)<span class="question-mark">?</span>;
-        } <span class="kw">else</span> {
-            <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;[]&quot;</span>)<span class="question-mark">?</span>;
-            <span class="kw">return</span> <span class="prelude-val">Ok</span>(());
-        }
-        <span class="kw">for</span> <span class="ident">x</span> <span class="kw">in</span> <span class="ident">it</span> {
-            <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;,\n    {}&quot;</span>, <span class="ident">x</span>)<span class="question-mark">?</span>;
-        }
-        <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;\n]&quot;</span>)<span class="question-mark">?</span>;
-        <span class="prelude-val">Ok</span>(())
+        <span class="op">&lt;</span><span class="self">Self</span> <span class="kw">as</span> <span class="ident">fmt::Display</span><span class="op">&gt;</span><span class="ident">::fmt</span>(<span class="self">self</span>, <span class="ident">f</span>)
     }
 }
 
@@ -1643,7 +1673,8 @@
 }
 
 <span class="kw">impl</span> <span class="ident">Matrix</span> {
-    <span class="doccomment">/// Subtracts `coef * self[source]` from `self[target]`.</span>
+    <span class="doccomment">/// Performs a row operation using `pivot_column` as the pivot column. This assumes that the</span>
+    <span class="doccomment">/// source row is zero in all columns before the pivot column.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// # Safety</span>
     <span class="doccomment">/// `target` and `source` must be distinct and less that `vectors.len()`</span>
@@ -1654,13 +1685,33 @@
         <span class="ident">pivot_column</span>: <span class="ident">usize</span>,
         <span class="ident">prime</span>: <span class="ident">ValidPrime</span>,
     ) {
-        <span class="macro">debug_assert!</span>(<span class="ident">target</span> <span class="op">!</span><span class="op">=</span> <span class="ident">source</span>);
+        <span class="macro">debug_assert_ne!</span>(<span class="ident">target</span>, <span class="ident">source</span>);
         <span class="kw">let</span> <span class="ident">coef</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">vectors</span>[<span class="ident">target</span>].<span class="ident">entry</span>(<span class="ident">pivot_column</span>);
         <span class="kw">if</span> <span class="ident">coef</span> <span class="op">==</span> <span class="number">0</span> {
             <span class="kw">return</span>;
         }
         <span class="kw">let</span> (<span class="ident">target</span>, <span class="ident">source</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">split_borrow</span>(<span class="ident">target</span>, <span class="ident">source</span>);
         <span class="ident">target</span>.<span class="ident">add_offset</span>(<span class="ident">source</span>, <span class="kw-2">*</span><span class="ident">prime</span> <span class="op">-</span> <span class="ident">coef</span>, <span class="ident">pivot_column</span>);
+    }
+
+    <span class="doccomment">/// A version of [`Matrix::row_op`] without the zero assumption.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// # Safety</span>
+    <span class="doccomment">/// `target` and `source` must be distinct and less that `vectors.len()`</span>
+    <span class="kw">pub</span> <span class="kw">unsafe</span> <span class="kw">fn</span> <span class="ident">row_op_naive</span>(
+        <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
+        <span class="ident">target</span>: <span class="ident">usize</span>,
+        <span class="ident">source</span>: <span class="ident">usize</span>,
+        <span class="ident">pivot_column</span>: <span class="ident">usize</span>,
+        <span class="ident">prime</span>: <span class="ident">ValidPrime</span>,
+    ) {
+        <span class="macro">debug_assert_ne!</span>(<span class="ident">target</span>, <span class="ident">source</span>);
+        <span class="kw">let</span> <span class="ident">coef</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">vectors</span>[<span class="ident">target</span>].<span class="ident">entry</span>(<span class="ident">pivot_column</span>);
+        <span class="kw">if</span> <span class="ident">coef</span> <span class="op">==</span> <span class="number">0</span> {
+            <span class="kw">return</span>;
+        }
+        <span class="kw">let</span> (<span class="ident">target</span>, <span class="ident">source</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">split_borrow</span>(<span class="ident">target</span>, <span class="ident">source</span>);
+        <span class="ident">target</span>.<span class="ident">add</span>(<span class="ident">source</span>, <span class="kw-2">*</span><span class="ident">prime</span> <span class="op">-</span> <span class="ident">coef</span>);
     }
 
     <span class="doccomment">/// Mutably borrows `x[i]` and `x[j]`.</span>
@@ -1721,7 +1772,7 @@
             <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="ident">pivot_row</span> <span class="op">+</span> <span class="number">1</span>..<span class="ident">rows</span> {
                 <span class="comment">// Safety requires i != pivot, which follows from i &gt; pivot_row &gt;= pivot. They are</span>
                 <span class="comment">// both less than rows by construction</span>
-                <span class="kw">unsafe</span> { <span class="self">self</span>.<span class="ident">row_op</span>(<span class="ident">i</span>, <span class="ident">pivot</span>, <span class="ident">pivot_column</span>, <span class="ident">p</span>) };
+                <span class="kw">unsafe</span> { <span class="self">self</span>.<span class="ident">row_op_naive</span>(<span class="ident">i</span>, <span class="ident">pivot</span>, <span class="ident">pivot_column</span>, <span class="ident">p</span>) };
             }
             <span class="ident">pivot</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
         }
@@ -2137,6 +2188,7 @@
         <span class="kw">for</span> <span class="ident">v</span> <span class="kw">in</span> <span class="kw-2">&amp;mut</span> <span class="self">self</span>.<span class="ident">vectors</span> {
             <span class="ident">v</span>.<span class="ident">trim_start</span>(<span class="ident">col_start</span>);
         }
+        <span class="self">self</span>.<span class="ident">columns</span> <span class="op">-</span><span class="op">=</span> <span class="ident">col_start</span>;
     }
 }
 

@@ -1525,6 +1525,20 @@
 <span id="1498">1498</span>
 <span id="1499">1499</span>
 <span id="1500">1500</span>
+<span id="1501">1501</span>
+<span id="1502">1502</span>
+<span id="1503">1503</span>
+<span id="1504">1504</span>
+<span id="1505">1505</span>
+<span id="1506">1506</span>
+<span id="1507">1507</span>
+<span id="1508">1508</span>
+<span id="1509">1509</span>
+<span id="1510">1510</span>
+<span id="1511">1511</span>
+<span id="1512">1512</span>
+<span id="1513">1513</span>
+<span id="1514">1514</span>
 </pre><pre class="rust"><code><span class="doccomment">//! This module is provides wrappers around the contents of [`crate::vector_inner`]. The main</span>
 <span class="doccomment">//! purpose is to put [`FpVectorP`] for different `p` into a single enum. It does the same for the</span>
 <span class="doccomment">//! various slice structs.</span>
@@ -1893,9 +1907,23 @@
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> <span class="ident">std::fmt::Display</span> <span class="kw">for</span> <span class="ident">Slice</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> {
+    <span class="doccomment">/// # Example</span>
+    <span class="doccomment">/// ```</span>
+    <span class="doccomment">/// # use fp::vector::FpVector;</span>
+    <span class="doccomment">/// # use fp::prime::ValidPrime;</span>
+    <span class="doccomment">/// let v = FpVector::from_slice(ValidPrime::new(2), &amp;[0, 1, 0]);</span>
+    <span class="doccomment">/// assert_eq!(&amp;format!(&quot;{v}&quot;), &quot;[0, 1, 0]&quot;);</span>
+    <span class="doccomment">/// assert_eq!(&amp;format!(&quot;{v:#}&quot;), &quot;010&quot;);</span>
+    <span class="doccomment">/// ```</span>
     <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">std::fmt::Formatter</span>) -&gt; <span class="ident">std::fmt::Result</span> {
-        <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;[{}]&quot;</span>, <span class="self">self</span>.<span class="ident">iter</span>().<span class="ident">format</span>(<span class="string">&quot;, &quot;</span>))<span class="question-mark">?</span>;
-        <span class="prelude-val">Ok</span>(())
+        <span class="kw">if</span> <span class="ident">f</span>.<span class="ident">alternate</span>() {
+            <span class="kw">for</span> <span class="ident">v</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">iter</span>() {
+                <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{v}&quot;</span>)<span class="question-mark">?</span>;
+            }
+            <span class="prelude-val">Ok</span>(())
+        } <span class="kw">else</span> {
+            <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;[{}]&quot;</span>, <span class="self">self</span>.<span class="ident">iter</span>().<span class="ident">format</span>(<span class="string">&quot;, &quot;</span>))
+        }
     }
 }
 
