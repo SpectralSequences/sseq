@@ -193,7 +193,11 @@ impl std::fmt::Display for Subspace {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let dim = self.dimension();
         for row in self.matrix.iter().take(dim) {
-            writeln!(f, "{}", row)?;
+            if f.alternate() {
+                writeln!(f, "{row:#}")?;
+            } else {
+                writeln!(f, "{row}")?;
+            }
         }
         Ok(())
     }

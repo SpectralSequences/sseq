@@ -366,9 +366,23 @@ impl std::fmt::Display for FpVector {
 }
 
 impl<'a> std::fmt::Display for Slice<'a> {
+    /// # Example
+    /// ```
+    /// # use fp::vector::FpVector;
+    /// # use fp::prime::ValidPrime;
+    /// let v = FpVector::from_slice(ValidPrime::new(2), &[0, 1, 0]);
+    /// assert_eq!(&format!("{v}"), "[0, 1, 0]");
+    /// assert_eq!(&format!("{v:#}"), "010");
+    /// ```
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "[{}]", self.iter().format(", "))?;
-        Ok(())
+        if f.alternate() {
+            for v in self.iter() {
+                write!(f, "{v}")?;
+            }
+            Ok(())
+        } else {
+            write!(f, "[{}]", self.iter().format(", "))
+        }
     }
 }
 

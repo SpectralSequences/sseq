@@ -7,6 +7,7 @@ use std::fmt;
 use std::io::{Read, Write};
 use std::ops::{Index, IndexMut};
 
+use itertools::Itertools;
 #[cfg(feature = "concurrent")]
 use rayon::prelude::*;
 
@@ -328,36 +329,39 @@ impl<'a> IntoIterator for &'a mut Matrix {
 }
 
 impl fmt::Display for Matrix {
+    /// # Example
+    /// ```
+    /// # use fp::matrix::Matrix;
+    /// # use fp::prime::ValidPrime;
+    /// let m = Matrix::from_vec(ValidPrime::new(2),
+    ///    &[
+    ///         vec![0, 1, 0],
+    ///         vec![1, 1, 0],
+    ///     ]);
+    /// assert_eq!(&format!("{m}"), "[\n    [0, 1, 0],\n    [1, 1, 0]\n]");
+    /// assert_eq!(&format!("{m:#}"), "010\n110");
+    /// ```
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut it = self.iter();
-        if let Some(x) = it.next() {
-            write!(f, "[\n    {}", x)?;
+        if f.alternate() {
+            write!(f, "{:#}", self.iter().format("\n"))
         } else {
-            write!(f, "[]")?;
-            return Ok(());
+            let mut it = self.iter();
+            if let Some(x) = it.next() {
+                write!(f, "[\n    {x}")?;
+            } else {
+                return write!(f, "[]");
+            }
+            for x in it {
+                write!(f, ",\n    {x}")?;
+            }
+            write!(f, "\n]")
         }
-        for x in it {
-            write!(f, ",\n    {}", x)?;
-        }
-        write!(f, "\n]")?;
-        Ok(())
     }
 }
 
 impl fmt::Debug for Matrix {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut it = self.iter();
-        if let Some(x) = it.next() {
-            write!(f, "[\n    {}", x)?;
-        } else {
-            write!(f, "[]")?;
-            return Ok(());
-        }
-        for x in it {
-            write!(f, ",\n    {}", x)?;
-        }
-        write!(f, "\n]")?;
-        Ok(())
+        <Self as fmt::Display>::fmt(self, f)
     }
 }
 

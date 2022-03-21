@@ -95,8 +95,14 @@ impl std::fmt::Display for FpVector {
 
 impl<'a> std::fmt::Display for Slice<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "[{}]", self.iter().format(", "))?;
-        Ok(())
+        if f.alternate() {
+            for v in self.iter() {
+                write!(f, "{v}")?;
+            }
+            Ok(())
+        } else {
+            write!(f, "[{}]", self.iter().format(", "))
+        }
     }
 }
 
