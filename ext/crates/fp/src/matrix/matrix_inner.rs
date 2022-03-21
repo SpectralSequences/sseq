@@ -877,6 +877,7 @@ impl Matrix {
         for v in &mut self.vectors {
             v.trim_start(col_start);
         }
+        self.columns -= col_start;
     }
 }
 
