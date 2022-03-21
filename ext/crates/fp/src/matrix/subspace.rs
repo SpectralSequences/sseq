@@ -108,29 +108,10 @@ impl Subspace {
     }
 
     pub fn add_basis_elements(&mut self, mut rows: impl std::iter::Iterator<Item = usize>) {
-        let num_rows = self.matrix.rows();
-        'outer: loop {
-            let mut first_row = num_rows;
-            for i in 0..num_rows {
-                if self[i].is_zero() {
-                    first_row = i;
-                    break;
-                }
-            }
-            if first_row == num_rows {
-                return;
-            }
-
-            for i in first_row..num_rows {
-                if let Some(v) = rows.next() {
-                    self[i].set_entry(v, 1);
-                } else {
-                    break 'outer;
-                }
-            }
-            self.row_reduce();
-        }
-        self.row_reduce();
+        self.add_vectors(|mut row| {
+            row.set_entry(rows.next()?, 1);
+            Some(())
+        });
     }
 
     /// Projects a vector to a complement of the subspace. The complement is the set of vectors
