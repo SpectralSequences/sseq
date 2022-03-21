@@ -387,7 +387,8 @@ where
 }
 
 impl Matrix {
-    /// Subtracts `coef * self[source]` from `self[target]`.
+    /// Performs a row operation using `pivot_column` as the pivot column. This assumes that the
+    /// source row is zero in all columns before the pivot column.
     ///
     /// # Safety
     /// `target` and `source` must be distinct and less that `vectors.len()`
@@ -398,13 +399,33 @@ impl Matrix {
         pivot_column: usize,
         prime: ValidPrime,
     ) {
-        debug_assert!(target != source);
+        debug_assert_ne!(target, source);
         let coef = self.vectors[target].entry(pivot_column);
         if coef == 0 {
             return;
         }
         let (target, source) = self.split_borrow(target, source);
         target.add_offset(source, *prime - coef, pivot_column);
+    }
+
+    /// A version of [`Matrix::row_op`] without the zero assumption.
+    ///
+    /// # Safety
+    /// `target` and `source` must be distinct and less that `vectors.len()`
+    pub unsafe fn row_op_naive(
+        &mut self,
+        target: usize,
+        source: usize,
+        pivot_column: usize,
+        prime: ValidPrime,
+    ) {
+        debug_assert_ne!(target, source);
+        let coef = self.vectors[target].entry(pivot_column);
+        if coef == 0 {
+            return;
+        }
+        let (target, source) = self.split_borrow(target, source);
+        target.add(source, *prime - coef);
     }
 
     /// Mutably borrows `x[i]` and `x[j]`.
@@ -465,7 +486,7 @@ impl Matrix {
             for i in pivot_row + 1..rows {
                 // Safety requires i != pivot, which follows from i > pivot_row >= pivot. They are
                 // both less than rows by construction
-                unsafe { self.row_op(i, pivot, pivot_column, p) };
+                unsafe { self.row_op_naive(i, pivot, pivot_column, p) };
             }
             pivot += 1;
         }
