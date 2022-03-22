@@ -94,7 +94,7 @@ def test_history(driver):
 
     timeout = 0.1
     while True:
-        sleep(timeout)
+        time.sleep(timeout)
 
         try:
             with open(f"{driver.tempdir}/s_2.save") as f:
