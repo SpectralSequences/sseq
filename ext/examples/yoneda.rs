@@ -16,14 +16,14 @@ fn main() -> anyhow::Result<()> {
     let module = resolution.target().module(0);
     let min_degree = resolution.min_degree();
 
-    let x: i32 = query::with_default("n", "20", str::parse);
+    let n: i32 = query::with_default("n", "20", str::parse);
     let s: u32 = query::with_default("s", "4", str::parse);
     let i: usize = query::with_default("idx", "0", str::parse);
 
     let start = Instant::now();
-    let t = x + s as i32;
+    let t = n + s as i32;
 
-    resolution.compute_through_bidegree(s + 1, t + 1);
+    resolution.compute_through_stem(s, n);
 
     eprintln!("Resolving time: {:?}", start.elapsed());
 
@@ -44,7 +44,7 @@ fn main() -> anyhow::Result<()> {
         &FullModuleHomomorphism::identity_homomorphism(Arc::clone(&module)),
     );
 
-    f.extend(s, t);
+    f.extend_through_stem(s, n);
     let final_map = f.get_map(s);
     let num_gens = resolution.number_of_gens_in_bidegree(s, t);
     for i_ in 0..num_gens {

@@ -174,27 +174,50 @@ where
     let s_shift: u32 = map.s_shift;
 
     let s_max = std::cmp::max(target_cc.max_s(), map.s_shift + map.chain_maps.len() as u32) - 1;
-    let t_max = std::cmp::max(
-        (0..target_cc.max_s())
-            .map(|i| target_cc.module(i).max_degree().unwrap())
-            .max()
-            .unwrap_or_else(|| target_cc.min_degree()),
-        map.chain_maps[0].degree_shift()
-            + map
-                .chain_maps
-                .iter()
-                .map(|m| m.target().max_degree().unwrap())
-                .max()
-                .unwrap(),
-    );
+
+    let t_max = {
+        // The maximum t required by the augmentation maps
+        let t_max_aug: Vec<i32> = (0..=s_max)
+            .map(|s| {
+                let mut t_max = cc.min_degree();
+                if s < target_cc.max_s() {
+                    t_max = std::cmp::max(t_max, target_cc.module(s).max_degree().unwrap())
+                }
+                if s >= map.s_shift {
+                    if let Some(f) = map.chain_maps.get((s - map.s_shift) as usize) {
+                        t_max = std::cmp::max(
+                            t_max,
+                            f.degree_shift() + f.target().max_degree().unwrap(),
+                        );
+                    }
+                }
+                t_max
+            })
+            .collect();
+
+        let mut t_max = vec![cc.min_degree(); s_max as usize + 1];
+        for s in (0..=s_max as usize).rev() {
+            t_max[s] = t_max_aug[s];
+            if s < s_max as usize {
+                // the differential of the classes required to exist by the augmentation
+                t_max[s] = std::cmp::max(t_max[s], t_max_aug[s + 1]);
+
+                // The rest of the contents of t_max[s + 1] arise from the images of differentials,
+                // which have zero differential. So we can subtract one.
+                t_max[s] = std::cmp::max(t_max[s], t_max[s + 1] - 1);
+            }
+        }
+        t_max
+    };
 
     let t_min = cc.min_degree();
 
     let mut modules = (0..=s_max)
-        .map(|s| QM::new(cc.module(s), t_max))
+        .map(|s| QM::new(cc.module(s), t_max[s as usize]))
         .collect::<Vec<_>>();
 
     for s in (1..=s_max).rev() {
+        let t_max = t_max[s as usize];
         let mut differential_images: BiVec<Subspace> = {
             let mut result = BiVec::new(t_min);
 
@@ -240,12 +263,14 @@ where
 
         macro_rules! check {
             ($t:ident) => {
-                assert_eq!(
-                    source.dimension($t) as isize - target.dimension($t) as isize,
-                    dim_diff[$t],
-                    "Failed dimension check at (s, t) = ({s}, {t})",
-                    t = $t
-                );
+                if $t <= target.truncation {
+                    assert_eq!(
+                        source.dimension($t) as isize - target.dimension($t) as isize,
+                        dim_diff[$t],
+                        "Failed dimension check at (s, t) = ({s}, {t})",
+                        t = $t
+                    );
+                }
             };
         }
 

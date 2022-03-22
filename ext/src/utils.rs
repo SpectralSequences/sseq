@@ -227,7 +227,7 @@ where
             .expect("Can only take cofiber when module is bounded");
 
         let resolution = Resolution::new(Arc::clone(&chain_complex));
-        resolution.compute_through_bidegree(s, t + max_degree);
+        resolution.compute_through_stem(s, t + max_degree - s as i32);
 
         let map = FreeModuleHomomorphism::new(resolution.module(s), Arc::clone(&module), t);
         let mut new_output = fp::matrix::Matrix::new(

@@ -25,8 +25,6 @@ impl<M: Module> std::fmt::Display for QuotientModule<M> {
 
 impl<M: Module> QuotientModule<M> {
     pub fn new(module: Arc<M>, truncation: i32) -> Self {
-        assert!(module.max_computed_degree() >= truncation,
-                "Cannot quotient module that has not yet been fully computed up to the truncation degree");
         module.compute_basis(truncation);
 
         let p = module.prime();
