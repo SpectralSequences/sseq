@@ -9,7 +9,6 @@ use ext::resolution_homomorphism::ResolutionHomomorphism;
 use ext::utils;
 use ext::yoneda::yoneda_representative_element;
 use fp::matrix::Matrix;
-use fp::prime::ValidPrime;
 use fp::vector::FpVector;
 use itertools::Itertools;
 
@@ -19,11 +18,12 @@ use std::time::Instant;
 
 fn main() -> anyhow::Result<()> {
     let resolution = Arc::new(utils::query_module_only("Module", None, false)?);
-
     let module = resolution.target().module(0);
-    let min_degree = resolution.min_degree();
+    let p = resolution.prime();
 
-    let p = ValidPrime::new(2);
+    if resolution.target().max_s() != 1 || !module.is_unit() || *p != 2 {
+        panic!("Can only run Steenrod on the sphere");
+    }
 
     let n: i32 = query::raw("n of Ext class", str::parse);
     let s: u32 = query::raw("s of Ext class", str::parse);
@@ -60,7 +60,7 @@ fn main() -> anyhow::Result<()> {
         assert_eq!(final_map.output(t, i).entry(0), v);
     }
 
-    for t in min_degree..=t {
+    for t in 0..=t {
         assert_eq!(
             yoneda.euler_characteristic(t),
             module.dimension(t) as isize,
