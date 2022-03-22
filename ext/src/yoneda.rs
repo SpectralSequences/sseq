@@ -86,7 +86,7 @@ fn split_mut_borrow<T>(v: &mut [T], i: usize, j: usize) -> (&mut T, &mut T) {
     (&mut first[i], &mut second[0])
 }
 
-pub fn yoneda_representative_element<CC>(cc: Arc<CC>, s: u32, t: i32, idx: usize) -> Yoneda<CC>
+pub fn yoneda_representative_element<CC>(cc: Arc<CC>, s: u32, t: i32, class: &[u32]) -> Yoneda<CC>
 where
     CC: FreeChainComplex
         + AugmentedChainComplex<
@@ -101,10 +101,12 @@ where
 
     let target = FDModule::new(cc.algebra(), "".to_string(), BiVec::from_vec(0, vec![1]));
     let map = FreeModuleHomomorphism::new(cc.module(s), Arc::new(target), t);
-    let mut new_output = Matrix::new(p, cc.module(s).number_of_gens_in_degree(t), 1);
-    new_output[idx].set_entry(0, 1);
+    let mut rows = vec![FpVector::new(p, 1); cc.module(s).number_of_gens_in_degree(t)];
+    for (&i, row) in std::iter::zip(class, &mut rows) {
+        row.set_entry(0, i);
+    }
 
-    map.add_generators_from_matrix_rows(t, new_output.as_slice_mut());
+    map.add_generators_from_rows(t, rows);
 
     let cm = ChainMap {
         s_shift: s,

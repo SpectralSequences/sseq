@@ -3,7 +3,7 @@ use algebra::module::homomorphism::{
 };
 use algebra::module::Module;
 use ext::chain_complex::{
-    AugmentedChainComplex, ChainComplex, FreeChainComplex, TensorChainComplex,
+    AugmentedChainComplex, BoundedChainComplex, ChainComplex, FreeChainComplex, TensorChainComplex,
 };
 use ext::resolution_homomorphism::ResolutionHomomorphism;
 use ext::utils;
@@ -11,6 +11,7 @@ use ext::yoneda::yoneda_representative_element;
 use fp::matrix::Matrix;
 use fp::prime::ValidPrime;
 use fp::vector::FpVector;
+use itertools::Itertools;
 
 use std::io::{stderr, stdout, Write};
 use std::sync::Arc;
@@ -19,76 +20,59 @@ use std::time::Instant;
 fn main() -> anyhow::Result<()> {
     let resolution = Arc::new(utils::query_module_only("Module", None, false)?);
 
-    let complex = resolution.target();
-    let module = complex.module(0);
+    let module = resolution.target().module(0);
+    let min_degree = resolution.min_degree();
 
     let p = ValidPrime::new(2);
 
-    let x: i32 = query::with_default("t - s", "8", str::parse);
-    let s: u32 = query::with_default("s", "3", str::parse);
-    let idx: usize = query::with_default("idx", "0", str::parse);
-
-    let t = s as i32 + x;
-    eprint!("Resolving ext: ");
-    let start = Instant::now();
+    let n: i32 = query::raw("n of Ext class", str::parse);
+    let s: u32 = query::raw("s of Ext class", str::parse);
+    let t = n + s as i32;
 
     resolution.compute_through_bidegree(2 * s, 2 * t);
 
-    eprintln!("{:?}", start.elapsed());
+    let class: Vec<u32> = query::vector(
+        "Input Ext class",
+        resolution.number_of_gens_in_bidegree(s, t),
+    );
 
-    eprint!("Computing Yoneda representative: ");
     let start = Instant::now();
     let yoneda = Arc::new(yoneda_representative_element(
         Arc::clone(&resolution),
         s,
         t,
-        idx,
+        &class,
     ));
-    eprintln!("{:?}", start.elapsed());
+    utils::log_time(start.elapsed(), format_args!("Found yoneda representative"));
+
+    // Lift the identity and check that it gives the right class
+    let f = ResolutionHomomorphism::from_module_homomorphism(
+        "".to_string(),
+        Arc::clone(&resolution),
+        Arc::clone(&yoneda),
+        &FullModuleHomomorphism::identity_homomorphism(Arc::clone(&module)),
+    );
+
+    f.extend_through_stem(s, n);
+    let final_map = f.get_map(s);
+    for (i, &v) in class.iter().enumerate() {
+        assert_eq!(final_map.output(t, i).len(), 1);
+        assert_eq!(final_map.output(t, i).entry(0), v);
+    }
+
+    for t in min_degree..=t {
+        assert_eq!(
+            yoneda.euler_characteristic(t),
+            module.dimension(t) as isize,
+            "Incorrect Euler characteristic at t = {t}",
+        );
+    }
 
     print!("Dimensions of Yoneda representative: 1");
-    let mut check = vec![0; t as usize + 1];
     for s in 0..=s {
-        let module = yoneda.module(s);
-        print!(" {}", module.total_dimension());
-
-        for t in 0..=t {
-            check[t as usize] += (if s % 2 == 0 { 1 } else { -1 }) * module.dimension(t) as i32;
-        }
+        print!(" {}", yoneda.module(s).total_dimension());
     }
     println!();
-
-    // We check that lifting the identity returns the original class. Even if the
-    // algorithm in yoneda.rs is incorrect, this ensures that a posteriori we happened
-    // to have a valid Yoneda representative. (Not really --- we don't check it is exact, just
-    // that its Euler characteristic is 0 in each degree)
-    eprint!("Checking Yoneda representative: ");
-    let start = Instant::now();
-    {
-        assert_eq!(check[0], 1, "Incorrect Euler characteristic at t = 0");
-        for entry in check.into_iter().skip(1) {
-            assert_eq!(entry, 0, "Incorrect Euler characteristic at t = {}", t);
-        }
-        let f = ResolutionHomomorphism::from_module_homomorphism(
-            "".to_string(),
-            Arc::clone(&resolution),
-            Arc::clone(&yoneda),
-            &FullModuleHomomorphism::identity_homomorphism(Arc::clone(&module)),
-        );
-
-        f.extend(s, t);
-        let final_map = f.get_map(s);
-        let num_gens = resolution.number_of_gens_in_bidegree(s, t);
-        for i_ in 0..num_gens {
-            assert_eq!(final_map.output(t, i_).len(), 1);
-            if i_ == idx {
-                assert_eq!(final_map.output(t, i_).entry(0), 1);
-            } else {
-                assert_eq!(final_map.output(t, i_).entry(0), 0);
-            }
-        }
-    }
-    eprintln!("{:?}", start.elapsed());
 
     let square = Arc::new(TensorChainComplex::new(
         Arc::clone(&yoneda),
@@ -277,16 +261,14 @@ fn main() -> anyhow::Result<()> {
         {
             let final_map = &delta[i as usize][(2 * s - i) as usize];
             let num_gens = resolution.number_of_gens_in_bidegree(2 * s - i, 2 * t);
+            print!("Sq^{} ", s - i);
+            utils::print_element(FpVector::from_slice(p, &class).as_slice(), n, s);
+
             print!(
-                "Sq^{} x_({}, {}, {}) = [{}]",
-                s - i,
-                t - s as i32,
-                s,
-                idx,
+                " = [{}]",
                 (0..num_gens)
                     .map(|k| format!("{}", final_map.output(2 * t, k).entry(0)))
-                    .collect::<Vec<_>>()
-                    .join(", "),
+                    .format(", "),
             );
             stdout().flush().unwrap();
             eprint!(" ({:?})", start.elapsed());

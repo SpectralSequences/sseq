@@ -531,30 +531,35 @@ where
 mod tests {
     use super::*;
 
-    use crate::chain_complex::FreeChainComplex;
     use crate::resolution_homomorphism::ResolutionHomomorphism;
     use crate::utils::construct;
     use crate::yoneda::yoneda_representative_element;
 
-    #[test]
-    fn test_square_ccs() {
-        test_square_cc(1, 1, 0, 0);
-        test_square_cc(2, 2, 0, 0);
-        test_square_cc(1, 2, 0, 0);
-        test_square_cc(1, 4, 0, 0);
-        test_square_cc(4, 18, 0, 0);
-    }
+    use rstest::rstest;
 
-    fn test_square_cc(s: u32, t: i32, i: usize, fi: usize) {
+    #[rstest]
+    #[trace]
+    #[case(0, 1, &[1], &[1])]
+    #[case(0, 2, &[1], &[1])]
+    #[case(1, 1, &[1], &[1])]
+    #[case(3, 1, &[1], &[1])]
+    #[case(14, 4, &[1], &[1])]
+    fn test_square_cc(
+        #[case] n: i32,
+        #[case] s: u32,
+        #[case] class: &[u32],
+        #[case] output: &[u32],
+    ) {
+        let t = s as i32 + n;
         let resolution = Arc::new(construct("S_2", None).unwrap());
         let p = resolution.prime();
-        resolution.compute_through_bidegree(2 * s, 2 * t);
+        resolution.compute_through_stem(2 * s, 2 * t);
 
         let yoneda = Arc::new(yoneda_representative_element(
             Arc::clone(&resolution),
             s,
             t,
-            i,
+            class,
         ));
 
         let square = Arc::new(TensorChainComplex::new(
@@ -571,14 +576,9 @@ mod tests {
         f.extend(2 * s, 2 * t);
         let final_map = f.get_map(2 * s);
 
-        let num_gens = resolution.number_of_gens_in_bidegree(2 * s, 2 * t);
-        for i_ in 0..num_gens {
-            assert_eq!(final_map.output(2 * t, i_).len(), 1);
-            if i_ == fi {
-                assert_eq!(final_map.output(2 * t, i_).entry(0), 1);
-            } else {
-                assert_eq!(final_map.output(2 * t, i_).entry(0), 0);
-            }
+        for (i, &v) in output.iter().enumerate() {
+            assert_eq!(final_map.output(2 * t, i).len(), 1);
+            assert_eq!(final_map.output(2 * t, i).entry(0), v);
         }
     }
 }

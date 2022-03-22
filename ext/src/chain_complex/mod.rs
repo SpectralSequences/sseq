@@ -382,6 +382,12 @@ pub trait AugmentedChainComplex: ChainComplex {
 /// A bounded chain complex is a chain complex C for which C_s = 0 for all s >= max_s
 pub trait BoundedChainComplex: ChainComplex {
     fn max_s(&self) -> u32;
+
+    fn euler_characteristic(&self, t: i32) -> isize {
+        (0..self.max_s())
+            .map(|s| (if s % 2 == 0 { 1 } else { -1 }) * self.module(s).dimension(t) as isize)
+            .sum()
+    }
 }
 
 /// `chain_maps` is required to be non-empty
