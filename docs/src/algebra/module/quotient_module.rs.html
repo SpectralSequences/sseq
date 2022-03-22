@@ -225,8 +225,6 @@
 <span id="198">198</span>
 <span id="199">199</span>
 <span id="200">200</span>
-<span id="201">201</span>
-<span id="202">202</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::module</span>::{<span class="ident">Module</span>, <span class="ident">ZeroModule</span>};
 <span class="kw">use</span> <span class="ident">bivec::BiVec</span>;
 <span class="kw">use</span> <span class="ident">fp::matrix::Subspace</span>;
@@ -254,8 +252,6 @@
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">M</span>: <span class="ident">Module</span><span class="op">&gt;</span> <span class="ident">QuotientModule</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span> {
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">module</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span>, <span class="ident">truncation</span>: <span class="ident">i32</span>) -&gt; <span class="self">Self</span> {
-        <span class="macro">assert!</span>(<span class="ident">module</span>.<span class="ident">max_computed_degree</span>() <span class="op">&gt;</span><span class="op">=</span> <span class="ident">truncation</span>,
-                <span class="string">&quot;Cannot quotient module that has not yet been fully computed up to the truncation degree&quot;</span>);
         <span class="ident">module</span>.<span class="ident">compute_basis</span>(<span class="ident">truncation</span>);
 
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">module</span>.<span class="ident">prime</span>();

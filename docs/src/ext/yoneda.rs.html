@@ -594,6 +594,33 @@
 <span id="567">567</span>
 <span id="568">568</span>
 <span id="569">569</span>
+<span id="570">570</span>
+<span id="571">571</span>
+<span id="572">572</span>
+<span id="573">573</span>
+<span id="574">574</span>
+<span id="575">575</span>
+<span id="576">576</span>
+<span id="577">577</span>
+<span id="578">578</span>
+<span id="579">579</span>
+<span id="580">580</span>
+<span id="581">581</span>
+<span id="582">582</span>
+<span id="583">583</span>
+<span id="584">584</span>
+<span id="585">585</span>
+<span id="586">586</span>
+<span id="587">587</span>
+<span id="588">588</span>
+<span id="589">589</span>
+<span id="590">590</span>
+<span id="591">591</span>
+<span id="592">592</span>
+<span id="593">593</span>
+<span id="594">594</span>
+<span id="595">595</span>
+<span id="596">596</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::chain_complex</span>::{
     <span class="ident">AugmentedChainComplex</span>, <span class="ident">BoundedChainComplex</span>, <span class="ident">ChainComplex</span>, <span class="ident">ChainMap</span>,
     <span class="ident">FiniteAugmentedChainComplex</span>, <span class="ident">FiniteChainComplex</span>, <span class="ident">FreeChainComplex</span>,
@@ -682,7 +709,7 @@
     (<span class="kw-2">&amp;mut</span> <span class="ident">first</span>[<span class="ident">i</span>], <span class="kw-2">&amp;mut</span> <span class="ident">second</span>[<span class="number">0</span>])
 }
 
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">yoneda_representative_element</span><span class="op">&lt;</span><span class="ident">CC</span><span class="op">&gt;</span>(<span class="ident">cc</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">CC</span><span class="op">&gt;</span>, <span class="ident">s</span>: <span class="ident">u32</span>, <span class="ident">t</span>: <span class="ident">i32</span>, <span class="ident">idx</span>: <span class="ident">usize</span>) -&gt; <span class="ident">Yoneda</span><span class="op">&lt;</span><span class="ident">CC</span><span class="op">&gt;</span>
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">yoneda_representative_element</span><span class="op">&lt;</span><span class="ident">CC</span><span class="op">&gt;</span>(<span class="ident">cc</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">CC</span><span class="op">&gt;</span>, <span class="ident">s</span>: <span class="ident">u32</span>, <span class="ident">t</span>: <span class="ident">i32</span>, <span class="ident">class</span>: <span class="kw-2">&amp;</span>[<span class="ident">u32</span>]) -&gt; <span class="ident">Yoneda</span><span class="op">&lt;</span><span class="ident">CC</span><span class="op">&gt;</span>
 <span class="kw">where</span>
     <span class="ident">CC</span>: <span class="ident">FreeChainComplex</span>
         <span class="op">+</span> <span class="ident">AugmentedChainComplex</span><span class="op">&lt;</span>
@@ -697,10 +724,12 @@
 
     <span class="kw">let</span> <span class="ident">target</span> <span class="op">=</span> <span class="ident">FDModule::new</span>(<span class="ident">cc</span>.<span class="ident">algebra</span>(), <span class="string">&quot;&quot;</span>.<span class="ident">to_string</span>(), <span class="ident">BiVec::from_vec</span>(<span class="number">0</span>, <span class="macro">vec!</span>[<span class="number">1</span>]));
     <span class="kw">let</span> <span class="ident">map</span> <span class="op">=</span> <span class="ident">FreeModuleHomomorphism::new</span>(<span class="ident">cc</span>.<span class="ident">module</span>(<span class="ident">s</span>), <span class="ident">Arc::new</span>(<span class="ident">target</span>), <span class="ident">t</span>);
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">new_output</span> <span class="op">=</span> <span class="ident">Matrix::new</span>(<span class="ident">p</span>, <span class="ident">cc</span>.<span class="ident">module</span>(<span class="ident">s</span>).<span class="ident">number_of_gens_in_degree</span>(<span class="ident">t</span>), <span class="number">1</span>);
-    <span class="ident">new_output</span>[<span class="ident">idx</span>].<span class="ident">set_entry</span>(<span class="number">0</span>, <span class="number">1</span>);
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">rows</span> <span class="op">=</span> <span class="macro">vec!</span>[<span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="number">1</span>); <span class="ident">cc</span>.<span class="ident">module</span>(<span class="ident">s</span>).<span class="ident">number_of_gens_in_degree</span>(<span class="ident">t</span>)];
+    <span class="kw">for</span> (<span class="kw-2">&amp;</span><span class="ident">i</span>, <span class="ident">row</span>) <span class="kw">in</span> <span class="ident">std::iter::zip</span>(<span class="ident">class</span>, <span class="kw-2">&amp;mut</span> <span class="ident">rows</span>) {
+        <span class="ident">row</span>.<span class="ident">set_entry</span>(<span class="number">0</span>, <span class="ident">i</span>);
+    }
 
-    <span class="ident">map</span>.<span class="ident">add_generators_from_matrix_rows</span>(<span class="ident">t</span>, <span class="ident">new_output</span>.<span class="ident">as_slice_mut</span>());
+    <span class="ident">map</span>.<span class="ident">add_generators_from_rows</span>(<span class="ident">t</span>, <span class="ident">rows</span>);
 
     <span class="kw">let</span> <span class="ident">cm</span> <span class="op">=</span> <span class="ident">ChainMap</span> {
         <span class="ident">s_shift</span>: <span class="ident">s</span>,
@@ -770,27 +799,50 @@
     <span class="kw">let</span> <span class="ident">s_shift</span>: <span class="ident">u32</span> <span class="op">=</span> <span class="ident">map</span>.<span class="ident">s_shift</span>;
 
     <span class="kw">let</span> <span class="ident">s_max</span> <span class="op">=</span> <span class="ident">std::cmp::max</span>(<span class="ident">target_cc</span>.<span class="ident">max_s</span>(), <span class="ident">map</span>.<span class="ident">s_shift</span> <span class="op">+</span> <span class="ident">map</span>.<span class="ident">chain_maps</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">u32</span>) <span class="op">-</span> <span class="number">1</span>;
-    <span class="kw">let</span> <span class="ident">t_max</span> <span class="op">=</span> <span class="ident">std::cmp::max</span>(
-        (<span class="number">0</span>..<span class="ident">target_cc</span>.<span class="ident">max_s</span>())
-            .<span class="ident">map</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> <span class="ident">target_cc</span>.<span class="ident">module</span>(<span class="ident">i</span>).<span class="ident">max_degree</span>().<span class="ident">unwrap</span>())
-            .<span class="ident">max</span>()
-            .<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">target_cc</span>.<span class="ident">min_degree</span>()),
-        <span class="ident">map</span>.<span class="ident">chain_maps</span>[<span class="number">0</span>].<span class="ident">degree_shift</span>()
-            <span class="op">+</span> <span class="ident">map</span>
-                .<span class="ident">chain_maps</span>
-                .<span class="ident">iter</span>()
-                .<span class="ident">map</span>(<span class="op">|</span><span class="ident">m</span><span class="op">|</span> <span class="ident">m</span>.<span class="ident">target</span>().<span class="ident">max_degree</span>().<span class="ident">unwrap</span>())
-                .<span class="ident">max</span>()
-                .<span class="ident">unwrap</span>(),
-    );
+
+    <span class="kw">let</span> <span class="ident">t_max</span> <span class="op">=</span> {
+        <span class="comment">// The maximum t required by the augmentation maps</span>
+        <span class="kw">let</span> <span class="ident">t_max_aug</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">i32</span><span class="op">&gt;</span> <span class="op">=</span> (<span class="number">0</span>..<span class="op">=</span><span class="ident">s_max</span>)
+            .<span class="ident">map</span>(<span class="op">|</span><span class="ident">s</span><span class="op">|</span> {
+                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">t_max</span> <span class="op">=</span> <span class="ident">cc</span>.<span class="ident">min_degree</span>();
+                <span class="kw">if</span> <span class="ident">s</span> <span class="op">&lt;</span> <span class="ident">target_cc</span>.<span class="ident">max_s</span>() {
+                    <span class="ident">t_max</span> <span class="op">=</span> <span class="ident">std::cmp::max</span>(<span class="ident">t_max</span>, <span class="ident">target_cc</span>.<span class="ident">module</span>(<span class="ident">s</span>).<span class="ident">max_degree</span>().<span class="ident">unwrap</span>())
+                }
+                <span class="kw">if</span> <span class="ident">s</span> <span class="op">&gt;</span><span class="op">=</span> <span class="ident">map</span>.<span class="ident">s_shift</span> {
+                    <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">f</span>) <span class="op">=</span> <span class="ident">map</span>.<span class="ident">chain_maps</span>.<span class="ident">get</span>((<span class="ident">s</span> <span class="op">-</span> <span class="ident">map</span>.<span class="ident">s_shift</span>) <span class="kw">as</span> <span class="ident">usize</span>) {
+                        <span class="ident">t_max</span> <span class="op">=</span> <span class="ident">std::cmp::max</span>(
+                            <span class="ident">t_max</span>,
+                            <span class="ident">f</span>.<span class="ident">degree_shift</span>() <span class="op">+</span> <span class="ident">f</span>.<span class="ident">target</span>().<span class="ident">max_degree</span>().<span class="ident">unwrap</span>(),
+                        );
+                    }
+                }
+                <span class="ident">t_max</span>
+            })
+            .<span class="ident">collect</span>();
+
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">t_max</span> <span class="op">=</span> <span class="macro">vec!</span>[<span class="ident">cc</span>.<span class="ident">min_degree</span>(); <span class="ident">s_max</span> <span class="kw">as</span> <span class="ident">usize</span> <span class="op">+</span> <span class="number">1</span>];
+        <span class="kw">for</span> <span class="ident">s</span> <span class="kw">in</span> (<span class="number">0</span>..<span class="op">=</span><span class="ident">s_max</span> <span class="kw">as</span> <span class="ident">usize</span>).<span class="ident">rev</span>() {
+            <span class="ident">t_max</span>[<span class="ident">s</span>] <span class="op">=</span> <span class="ident">t_max_aug</span>[<span class="ident">s</span>];
+            <span class="kw">if</span> <span class="ident">s</span> <span class="op">&lt;</span> <span class="ident">s_max</span> <span class="kw">as</span> <span class="ident">usize</span> {
+                <span class="comment">// the differential of the classes required to exist by the augmentation</span>
+                <span class="ident">t_max</span>[<span class="ident">s</span>] <span class="op">=</span> <span class="ident">std::cmp::max</span>(<span class="ident">t_max</span>[<span class="ident">s</span>], <span class="ident">t_max_aug</span>[<span class="ident">s</span> <span class="op">+</span> <span class="number">1</span>]);
+
+                <span class="comment">// The rest of the contents of t_max[s + 1] arise from the images of differentials,</span>
+                <span class="comment">// which have zero differential. So we can subtract one.</span>
+                <span class="ident">t_max</span>[<span class="ident">s</span>] <span class="op">=</span> <span class="ident">std::cmp::max</span>(<span class="ident">t_max</span>[<span class="ident">s</span>], <span class="ident">t_max</span>[<span class="ident">s</span> <span class="op">+</span> <span class="number">1</span>] <span class="op">-</span> <span class="number">1</span>);
+            }
+        }
+        <span class="ident">t_max</span>
+    };
 
     <span class="kw">let</span> <span class="ident">t_min</span> <span class="op">=</span> <span class="ident">cc</span>.<span class="ident">min_degree</span>();
 
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">modules</span> <span class="op">=</span> (<span class="number">0</span>..<span class="op">=</span><span class="ident">s_max</span>)
-        .<span class="ident">map</span>(<span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="ident">QM::new</span>(<span class="ident">cc</span>.<span class="ident">module</span>(<span class="ident">s</span>), <span class="ident">t_max</span>))
+        .<span class="ident">map</span>(<span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="ident">QM::new</span>(<span class="ident">cc</span>.<span class="ident">module</span>(<span class="ident">s</span>), <span class="ident">t_max</span>[<span class="ident">s</span> <span class="kw">as</span> <span class="ident">usize</span>]))
         .<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span>();
 
     <span class="kw">for</span> <span class="ident">s</span> <span class="kw">in</span> (<span class="number">1</span>..<span class="op">=</span><span class="ident">s_max</span>).<span class="ident">rev</span>() {
+        <span class="kw">let</span> <span class="ident">t_max</span> <span class="op">=</span> <span class="ident">t_max</span>[<span class="ident">s</span> <span class="kw">as</span> <span class="ident">usize</span>];
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">differential_images</span>: <span class="ident">BiVec</span><span class="op">&lt;</span><span class="ident">Subspace</span><span class="op">&gt;</span> <span class="op">=</span> {
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">BiVec::new</span>(<span class="ident">t_min</span>);
 
@@ -836,12 +888,14 @@
 
         <span class="macro">macro_rules!</span> <span class="ident">check</span> {
             (<span class="macro-nonterminal">$</span><span class="macro-nonterminal">t</span>:<span class="ident">ident</span>) =&gt; {
-                <span class="macro">assert_eq!</span>(
-                    <span class="ident">source</span>.<span class="ident">dimension</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">t</span>) <span class="kw">as</span> <span class="ident">isize</span> <span class="op">-</span> <span class="ident">target</span>.<span class="ident">dimension</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">t</span>) <span class="kw">as</span> <span class="ident">isize</span>,
-                    <span class="ident">dim_diff</span>[<span class="macro-nonterminal">$</span><span class="macro-nonterminal">t</span>],
-                    <span class="string">&quot;Failed dimension check at (s, t) = ({s}, {t})&quot;</span>,
-                    <span class="ident">t</span> <span class="op">=</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">t</span>
-                );
+                <span class="kw">if</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">t</span> <span class="op">&lt;</span><span class="op">=</span> <span class="ident">target</span>.<span class="ident">truncation</span> {
+                    <span class="macro">assert_eq!</span>(
+                        <span class="ident">source</span>.<span class="ident">dimension</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">t</span>) <span class="kw">as</span> <span class="ident">isize</span> <span class="op">-</span> <span class="ident">target</span>.<span class="ident">dimension</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">t</span>) <span class="kw">as</span> <span class="ident">isize</span>,
+                        <span class="ident">dim_diff</span>[<span class="macro-nonterminal">$</span><span class="macro-nonterminal">t</span>],
+                        <span class="string">&quot;Failed dimension check at (s, t) = ({s}, {t})&quot;</span>,
+                        <span class="ident">t</span> <span class="op">=</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">t</span>
+                    );
+                }
             };
         }
 
