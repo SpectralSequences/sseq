@@ -29,6 +29,8 @@ benchmarks-nassau: $(wildcard examples/benchmarks/*-nassau)
 fix-benchmarks: $(patsubst examples/benchmarks/%, examples/benchmarks/%-fixed, BENCHMARKS)
 fix-benchmarks-nassau: $(patsubst examples/benchmarks/%, examples/benchmarks/%-fixed, $(wildcard examples/benchmarks/*-nassau))
 
+benchmarks-concurrent: $(patsubst examples/benchmarks/%, examples/benchmarks/%-concurrent, $(BENCHMARKS))
+
 examples/benchmarks/%-fixed: FILE = examples/benchmarks/$*
 examples/benchmarks/%-fixed: dummy
 	(head -n 1 $(FILE) && bash -c "echo '' | cargo run --example $$(head -n 1 $(FILE))") > $@
@@ -51,8 +53,6 @@ examples/benchmarks/%: dummy
 
 examples/benchmarks/%-nassau: dummy
 	(head -n 1 $@ && bash -c "echo '' | cargo run --features nassau --example $$(head -n 1 $@)") | diff --color $@ -
-
-benchmarks-concurrent: $(patsubst examples/benchmarks/%, examples/benchmarks/%-concurrent, BENCHMARKS)
 
 examples/benchmarks/%-concurrent: FILE = examples/benchmarks/$*
 examples/benchmarks/%-concurrent: dummy
