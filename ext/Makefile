@@ -21,7 +21,14 @@ docs:
 	echo "window.ALL_CRATES = [$$(ls crates/ | sed "s/.*/'&',/; s/-/_/g")'ext'];" > target/doc/crates.js
 
 
-fix-benchmarks: $(patsubst examples/benchmarks/%, examples/benchmarks/%-fixed, $(wildcard examples/benchmarks/*))
+BENCHMARKS = $(filter-out examples/benchmarks/%-nassau, $(wildcard examples/benchmarks/*))
+
+benchmarks: BENCHMARKS
+benchmarks-nassau: $(wildcard examples/benchmarks/*-nassau)
+
+fix-benchmarks: $(patsubst examples/benchmarks/%, examples/benchmarks/%-fixed, BENCHMARKS)
+fix-benchmarks-nassau: $(patsubst examples/benchmarks/%, examples/benchmarks/%-fixed, $(wildcard examples/benchmarks/*-nassau))
+
 examples/benchmarks/%-fixed: FILE = examples/benchmarks/$*
 examples/benchmarks/%-fixed: dummy
 	(head -n 1 $(FILE) && bash -c "echo '' | cargo run --example $$(head -n 1 $(FILE))") > $@
@@ -30,12 +37,22 @@ examples/benchmarks/%-fixed: dummy
 	else \
 	    mv $@ $(FILE); \
 	fi
+examples/benchmarks/%-nassau-fixed: dummy
+	(head -n 1 $(FILE)-nassau && bash -c "echo '' | cargo run --features nassau --example $$(head -n 1 $(FILE)-nassau)") > $@
+	if diff --color $(FILE)-nassau $@; then \
+	    rm $@; \
+	else \
+	    mv $@ $(FILE)-nassau; \
+	fi
 
-benchmarks: $(wildcard examples/benchmarks/*)
+
 examples/benchmarks/%: dummy
 	(head -n 1 $@ && bash -c "echo '' | cargo run --example $$(head -n 1 $@)") | diff --color $@ -
 
-benchmarks-concurrent: $(patsubst examples/benchmarks/%, examples/benchmarks/%-concurrent, $(wildcard examples/benchmarks/*))
+examples/benchmarks/%-nassau: dummy
+	(head -n 1 $@ && bash -c "echo '' | cargo run --features nassau --example $$(head -n 1 $@)") | diff --color $@ -
+
+benchmarks-concurrent: $(patsubst examples/benchmarks/%, examples/benchmarks/%-concurrent, BENCHMARKS)
 
 examples/benchmarks/%-concurrent: FILE = examples/benchmarks/$*
 examples/benchmarks/%-concurrent: dummy
