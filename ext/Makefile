@@ -23,7 +23,7 @@ docs:
 
 BENCHMARKS = $(filter-out examples/benchmarks/%-nassau, $(wildcard examples/benchmarks/*))
 
-benchmarks: BENCHMARKS
+benchmarks: $(BENCHMARKS)
 benchmarks-nassau: $(wildcard examples/benchmarks/*-nassau)
 
 fix-benchmarks: $(patsubst examples/benchmarks/%, examples/benchmarks/%-fixed, BENCHMARKS)
