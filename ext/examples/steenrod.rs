@@ -1,11 +1,8 @@
-use algebra::module::homomorphism::{
-    FreeModuleHomomorphism, FullModuleHomomorphism, IdentityHomomorphism, ModuleHomomorphism,
-};
+use algebra::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
 use algebra::module::Module;
 use ext::chain_complex::{
     AugmentedChainComplex, BoundedChainComplex, ChainComplex, FreeChainComplex, TensorChainComplex,
 };
-use ext::resolution_homomorphism::ResolutionHomomorphism;
 use ext::utils;
 use ext::yoneda::yoneda_representative_element;
 use fp::matrix::Matrix;
@@ -36,37 +33,12 @@ fn main() -> anyhow::Result<()> {
         resolution.number_of_gens_in_bidegree(s, t),
     );
 
-    let start = Instant::now();
     let yoneda = Arc::new(yoneda_representative_element(
         Arc::clone(&resolution),
         s,
         t,
         &class,
     ));
-    utils::log_time(start.elapsed(), format_args!("Found yoneda representative"));
-
-    // Lift the identity and check that it gives the right class
-    let f = ResolutionHomomorphism::from_module_homomorphism(
-        "".to_string(),
-        Arc::clone(&resolution),
-        Arc::clone(&yoneda),
-        &FullModuleHomomorphism::identity_homomorphism(Arc::clone(&module)),
-    );
-
-    f.extend_through_stem(s, n);
-    let final_map = f.get_map(s);
-    for (i, &v) in class.iter().enumerate() {
-        assert_eq!(final_map.output(t, i).len(), 1);
-        assert_eq!(final_map.output(t, i).entry(0), v);
-    }
-
-    for t in 0..=t {
-        assert_eq!(
-            yoneda.euler_characteristic(t),
-            module.dimension(t) as isize,
-            "Incorrect Euler characteristic at t = {t}",
-        );
-    }
 
     print!("Dimensions of Yoneda representative: 1");
     for s in 0..=s {
@@ -79,7 +51,6 @@ fn main() -> anyhow::Result<()> {
         Arc::clone(&yoneda),
     ));
 
-    eprint!("Computing quasi_inverses: ");
     let start = Instant::now();
     square.compute_through_bidegree(2 * s, 2 * t);
     for s in 0..=2 * s {
@@ -87,7 +58,7 @@ fn main() -> anyhow::Result<()> {
             .differential(s as u32)
             .compute_auxiliary_data_through_degree(2 * t);
     }
-    eprintln!("{:?}", start.elapsed());
+    utils::log_time(start.elapsed(), format_args!("Computed quasi-inverses"));
 
     eprintln!("Computing Steenrod operations: ");
 
@@ -303,7 +274,10 @@ fn main() -> anyhow::Result<()> {
         println!();
     }*/
 
-    eprintln!("Computing Steenrod operations: {:?}", start.elapsed());
+    utils::log_time(
+        start.elapsed(),
+        format_args!("Computed Steenrod operations"),
+    );
 
     Ok(())
 }

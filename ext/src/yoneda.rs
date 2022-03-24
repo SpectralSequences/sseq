@@ -2,8 +2,9 @@ use crate::chain_complex::{
     AugmentedChainComplex, BoundedChainComplex, ChainComplex, ChainMap,
     FiniteAugmentedChainComplex, FiniteChainComplex, FreeChainComplex,
 };
+use crate::resolution_homomorphism::ResolutionHomomorphism;
 use algebra::module::homomorphism::{
-    FreeModuleHomomorphism, FullModuleHomomorphism, ModuleHomomorphism,
+    FreeModuleHomomorphism, FullModuleHomomorphism, IdentityHomomorphism, ModuleHomomorphism,
 };
 use algebra::module::homomorphism::{QuotientHomomorphism, QuotientHomomorphismSource};
 use algebra::module::QuotientModule as QM;
@@ -112,7 +113,35 @@ where
         s_shift: s,
         chain_maps: vec![map],
     };
-    yoneda_representative(cc, cm)
+    let yoneda = Arc::new(yoneda_representative(Arc::clone(&cc), cm));
+
+    // We now do some safety checks
+    let module = cc.target().module(0);
+
+    for t in cc.min_degree()..=t {
+        assert_eq!(
+            yoneda.euler_characteristic(t),
+            module.dimension(t) as isize,
+            "Incorrect Euler characteristic at t = {t}",
+        );
+    }
+
+    let f = ResolutionHomomorphism::from_module_homomorphism(
+        "".to_string(),
+        Arc::clone(&cc),
+        Arc::clone(&yoneda),
+        &FullModuleHomomorphism::identity_homomorphism(module),
+    );
+
+    f.extend_through_stem(s, t - s as i32);
+    let final_map = f.get_map(s);
+    for (i, &v) in class.iter().enumerate() {
+        assert_eq!(final_map.output(t, i).len(), 1);
+        assert_eq!(final_map.output(t, i).entry(0), v);
+    }
+
+    drop(f);
+    Arc::try_unwrap(yoneda).unwrap_or_else(|_| unreachable!())
 }
 
 /// This function produces a quasi-isomorphic quotient of `cc` (as an augmented chain complex) that `map` factors through
@@ -219,6 +248,7 @@ where
         .collect::<Vec<_>>();
 
     for s in (1..=s_max).rev() {
+        let start = std::time::Instant::now();
         let t_max = t_max[s as usize];
         let mut differential_images: BiVec<Subspace> = {
             let mut result = BiVec::new(t_min);
@@ -466,6 +496,11 @@ where
                 check!(t);
             }
         }
+
+        crate::utils::log_time(
+            start.elapsed(),
+            format_args!("Cleaned yoneda representative for s = {s}"),
+        );
     }
 
     let modules = modules.into_iter().map(Arc::new).collect::<Vec<_>>();
