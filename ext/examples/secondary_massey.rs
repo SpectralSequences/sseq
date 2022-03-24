@@ -207,10 +207,10 @@ fn main() -> anyhow::Result<()> {
             b.underlying().extend_all();
             b.extend_all();
         });
-        if let Some(ref a_tau) = a_tau {
+        if let Some(a_tau) = &a_tau {
             s.spawn(|_| a_tau.extend_all());
         }
-        if let Some(ref b_tau) = b_tau {
+        if let Some(b_tau) = &b_tau {
             s.spawn(|_| b_tau.extend_all());
         }
     });
@@ -221,10 +221,10 @@ fn main() -> anyhow::Result<()> {
         a.extend_all();
         b.underlying().extend_all();
         b.extend_all();
-        if let Some(ref a_tau) = a_tau {
+        if let Some(a_tau) = &a_tau {
             a_tau.extend_all();
         }
-        if let Some(ref b_tau) = b_tau {
+        if let Some(b_tau) = &b_tau {
             b_tau.extend_all();
         }
     }

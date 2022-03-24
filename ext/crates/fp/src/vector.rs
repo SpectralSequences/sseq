@@ -25,10 +25,10 @@ macro_rules! dispatch_vector_inner {
     ($vis:vis fn $method:ident(&self, other: &$other:tt $(, $arg:ident: $ty:ty )* ) $(-> $ret:ty)?) => {
         $vis fn $method(&self, other: &$other, $($arg: $ty),* ) $(-> $ret)* {
             match (self, other) {
-                (Self::_2(ref x), $other::_2(ref y)) => x.$method(y, $($arg),*),
-                (Self::_3(ref x), $other::_3(ref y)) => x.$method(y, $($arg),*),
-                (Self::_5(ref x), $other::_5(ref y)) => x.$method(y, $($arg),*),
-                (Self::_7(ref x), $other::_7(ref y)) => x.$method(y, $($arg),*),
+                (Self::_2(x), $other::_2(y)) => x.$method(y, $($arg),*),
+                (Self::_3(x), $other::_3(y)) => x.$method(y, $($arg),*),
+                (Self::_5(x), $other::_5(y)) => x.$method(y, $($arg),*),
+                (Self::_7(x), $other::_7(y)) => x.$method(y, $($arg),*),
                 (l, r) => {
                     panic!("Applying {} to vectors over different primes ({} and {})", stringify!($method), l.prime(), r.prime());
                 }
@@ -39,10 +39,10 @@ macro_rules! dispatch_vector_inner {
         #[allow(unused_parens)]
         $vis fn $method(&mut self, other: &$other, $($arg: $ty),* ) $(-> $ret)* {
             match (self, other) {
-                (Self::_2(ref mut x), $other::_2(ref y)) => x.$method(y, $($arg),*),
-                (Self::_3(ref mut x), $other::_3(ref y)) => x.$method(y, $($arg),*),
-                (Self::_5(ref mut x), $other::_5(ref y)) => x.$method(y, $($arg),*),
-                (Self::_7(ref mut x), $other::_7(ref y)) => x.$method(y, $($arg),*),
+                (Self::_2(x), $other::_2(y)) => x.$method(y, $($arg),*),
+                (Self::_3(x), $other::_3(y)) => x.$method(y, $($arg),*),
+                (Self::_5(x), $other::_5(y)) => x.$method(y, $($arg),*),
+                (Self::_7(x), $other::_7(y)) => x.$method(y, $($arg),*),
                 (l, r) => {
                     panic!("Applying {} to vectors over different primes ({} and {})", stringify!($method), l.prime(), r.prime());
                 }
@@ -52,10 +52,10 @@ macro_rules! dispatch_vector_inner {
     ($vis:vis fn $method:ident(&mut self, other: $other:tt $(, $arg:ident: $ty:ty )* ) $(-> $ret:ty)?) => {
         $vis fn $method(&mut self, other: $other, $($arg: $ty),* ) $(-> $ret)* {
             match (self, other) {
-                (Self::_2(ref mut x), $other::_2(y)) => x.$method(y, $($arg),*),
-                (Self::_3(ref mut x), $other::_3(y)) => x.$method(y, $($arg),*),
-                (Self::_5(ref mut x), $other::_5(y)) => x.$method(y, $($arg),*),
-                (Self::_7(ref mut x), $other::_7(y)) => x.$method(y, $($arg),*),
+                (Self::_2(x), $other::_2(y)) => x.$method(y, $($arg),*),
+                (Self::_3(x), $other::_3(y)) => x.$method(y, $($arg),*),
+                (Self::_5(x), $other::_5(y)) => x.$method(y, $($arg),*),
+                (Self::_7(x), $other::_7(y)) => x.$method(y, $($arg),*),
                 (l, r) => {
                     panic!("Applying {} to vectors over different primes ({} and {})", stringify!($method), l.prime(), r.prime());
                 }
@@ -66,10 +66,10 @@ macro_rules! dispatch_vector_inner {
         #[must_use]
         $vis fn $method(&mut self, $($arg: $ty),* ) -> $ret {
             match self {
-                Self::_2(ref mut x) => $ret::_2(x.$method($($arg),*)),
-                Self::_3(ref mut x) => $ret::_3(x.$method($($arg),*)),
-                Self::_5(ref mut x) => $ret::_5(x.$method($($arg),*)),
-                Self::_7(ref mut x) => $ret::_7(x.$method($($arg),*)),
+                Self::_2(x) => $ret::_2(x.$method($($arg),*)),
+                Self::_3(x) => $ret::_3(x.$method($($arg),*)),
+                Self::_5(x) => $ret::_5(x.$method($($arg),*)),
+                Self::_7(x) => $ret::_7(x.$method($($arg),*)),
             }
         }
     };
@@ -77,10 +77,10 @@ macro_rules! dispatch_vector_inner {
         #[must_use]
         $vis fn $method(&self, $($arg: $ty),* ) -> $ret {
             match self {
-                Self::_2(ref x) => $ret::_2(x.$method($($arg),*)),
-                Self::_3(ref x) => $ret::_3(x.$method($($arg),*)),
-                Self::_5(ref x) => $ret::_5(x.$method($($arg),*)),
-                Self::_7(ref x) => $ret::_7(x.$method($($arg),*)),
+                Self::_2(x) => $ret::_2(x.$method($($arg),*)),
+                Self::_3(x) => $ret::_3(x.$method($($arg),*)),
+                Self::_5(x) => $ret::_5(x.$method($($arg),*)),
+                Self::_7(x) => $ret::_7(x.$method($($arg),*)),
             }
         }
     };
@@ -112,10 +112,10 @@ macro_rules! dispatch_vector_inner {
         #[allow(unused_parens)]
         $vis fn $method(&mut self, $($arg: $ty),* ) $(-> $ret)* {
             match self {
-                Self::_2(ref mut x) => x.$method($($arg),*),
-                Self::_3(ref mut x) => x.$method($($arg),*),
-                Self::_5(ref mut x) => x.$method($($arg),*),
-                Self::_7(ref mut x) => x.$method($($arg),*),
+                Self::_2(x) => x.$method($($arg),*),
+                Self::_3(x) => x.$method($($arg),*),
+                Self::_5(x) => x.$method($($arg),*),
+                Self::_7(x) => x.$method($($arg),*),
             }
         }
     };
@@ -123,10 +123,10 @@ macro_rules! dispatch_vector_inner {
         #[allow(unused_parens)]
         $vis fn $method(&self, $($arg: $ty),* ) $(-> $ret)* {
             match self {
-                Self::_2(ref x) => x.$method($($arg),*),
-                Self::_3(ref x) => x.$method($($arg),*),
-                Self::_5(ref x) => x.$method($($arg),*),
-                Self::_7(ref x) => x.$method($($arg),*),
+                Self::_2(x) => x.$method($($arg),*),
+                Self::_3(x) => x.$method($($arg),*),
+                Self::_5(x) => x.$method($($arg),*),
+                Self::_7(x) => x.$method($($arg),*),
             }
         }
     };
@@ -334,18 +334,10 @@ impl<'a> SliceMut<'a> {
 
     pub fn add_tensor(&mut self, offset: usize, coeff: u32, left: Slice, right: Slice) {
         match (self, left, right) {
-            (SliceMut::_2(ref mut x), Slice::_2(y), Slice::_2(z)) => {
-                x.add_tensor(offset, coeff, y, z)
-            }
-            (SliceMut::_3(ref mut x), Slice::_3(y), Slice::_3(z)) => {
-                x.add_tensor(offset, coeff, y, z)
-            }
-            (SliceMut::_5(ref mut x), Slice::_5(y), Slice::_5(z)) => {
-                x.add_tensor(offset, coeff, y, z)
-            }
-            (SliceMut::_7(ref mut x), Slice::_7(y), Slice::_7(z)) => {
-                x.add_tensor(offset, coeff, y, z)
-            }
+            (SliceMut::_2(x), Slice::_2(y), Slice::_2(z)) => x.add_tensor(offset, coeff, y, z),
+            (SliceMut::_3(x), Slice::_3(y), Slice::_3(z)) => x.add_tensor(offset, coeff, y, z),
+            (SliceMut::_5(x), Slice::_5(y), Slice::_5(z)) => x.add_tensor(offset, coeff, y, z),
+            (SliceMut::_7(x), Slice::_7(y), Slice::_7(z)) => x.add_tensor(offset, coeff, y, z),
             _ => {
                 panic!("Applying add_tensor to vectors over different primes");
             }
@@ -422,7 +414,7 @@ macro_rules! impl_try_into {
 
             fn try_into(self) -> Result<&'a mut FpVectorP<$p>, ()> {
                 match self {
-                    FpVector::$var(ref mut x) => Ok(x),
+                    FpVector::$var(x) => Ok(x),
                     _ => Err(()),
                 }
             }

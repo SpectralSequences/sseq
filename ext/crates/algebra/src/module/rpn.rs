@@ -113,11 +113,9 @@ where
             return;
         }
 
-        if match (&*self.algebra).try_into() {
-            Ok(SteenrodAlgebra::AdemAlgebra(ref a)) => {
-                coef_adem(a, op_degree, op_index, mod_degree)
-            }
-            Ok(SteenrodAlgebra::MilnorAlgebra(ref a)) => {
+        if match &(&*self.algebra).try_into() {
+            Ok(SteenrodAlgebra::AdemAlgebra(a)) => coef_adem(a, op_degree, op_index, mod_degree),
+            Ok(SteenrodAlgebra::MilnorAlgebra(a)) => {
                 coef_milnor(a, op_degree, op_index, mod_degree)
             }
             Err(_) => unreachable!(),
