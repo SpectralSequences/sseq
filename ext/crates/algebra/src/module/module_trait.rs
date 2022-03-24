@@ -1,3 +1,4 @@
+use auto_impl::auto_impl;
 use itertools::Itertools;
 use std::sync::Arc;
 
@@ -20,6 +21,7 @@ use crate::algebra::Algebra;
 /// specified the generators up to some degree `t`. Then `t` is the max computed degree, while
 /// `compute_basis` computes data such as the offset of existing generators in potentially higher
 /// degrees.
+#[auto_impl(Box)]
 pub trait Module: std::fmt::Display + std::any::Any + Send + Sync {
     type Algebra: Algebra;
 
@@ -96,13 +98,14 @@ pub trait Module: std::fmt::Display + std::any::Any + Send + Sync {
     /// what generators will be added in degree `t` yet.
     fn act(
         &self,
-        mut result: SliceMut,
+        result: SliceMut,
         coeff: u32,
         op_degree: i32,
         op_index: usize,
         input_degree: i32,
         input: Slice,
     ) {
+        let mut result = result;
         assert!(input.len() <= self.dimension(input_degree));
         let p = self.prime();
         for (i, v) in input.iter_nonzero() {
@@ -119,13 +122,14 @@ pub trait Module: std::fmt::Display + std::any::Any + Send + Sync {
 
     fn act_by_element(
         &self,
-        mut result: SliceMut,
+        result: SliceMut,
         coeff: u32,
         op_degree: i32,
         op: Slice,
         input_degree: i32,
         input: Slice,
     ) {
+        let mut result = result;
         assert_eq!(input.len(), self.dimension(input_degree));
         assert_eq!(op.len(), self.algebra().dimension(op_degree));
         let p = self.prime();
@@ -143,13 +147,14 @@ pub trait Module: std::fmt::Display + std::any::Any + Send + Sync {
 
     fn act_by_element_on_basis(
         &self,
-        mut result: SliceMut,
+        result: SliceMut,
         coeff: u32,
         op_degree: i32,
         op: Slice,
         input_degree: i32,
         input_index: usize,
     ) {
+        let mut result = result;
         assert_eq!(op.len(), self.algebra().dimension(op_degree));
         let p = self.prime();
         for (i, v) in op.iter_nonzero() {
@@ -184,71 +189,6 @@ pub trait Module: std::fmt::Display + std::any::Any + Send + Sync {
         } else {
             result
         }
-    }
-}
-
-macro_rules! dispatch {
-    () => {};
-    ($vis:vis fn $method:ident(&self$(, $arg:ident: $ty:ty )*$(,)?) $(-> $ret:ty)?; $($tail:tt)*) => {
-        $vis fn $method(&self, $($arg: $ty),* ) $(-> $ret)* {
-            (**self).$method($($arg),*)
-        }
-        dispatch!{$($tail)*}
-    };
-}
-
-impl<A: Algebra> Module for Box<dyn Module<Algebra = A>> {
-    type Algebra = A;
-
-    dispatch! {
-        fn algebra(&self) -> Arc<Self::Algebra>;
-        fn min_degree(&self) -> i32;
-        fn compute_basis(&self, degree: i32);
-        fn max_computed_degree(&self) -> i32;
-        fn dimension(&self, degree: i32) -> usize;
-        fn act_on_basis(
-            &self,
-            result: SliceMut,
-            coeff: u32,
-            op_degree: i32,
-            op_index: usize,
-            mod_degree: i32,
-            mod_index: usize,
-        );
-        fn basis_element_to_string(&self, degree: i32, idx: usize) -> String;
-        fn is_unit(&self) -> bool;
-        fn prime(&self) -> ValidPrime;
-        fn max_degree(&self) -> Option<i32>;
-        fn max_generator_degree(&self) -> Option<i32>;
-        fn total_dimension(&self) -> usize;
-        fn act(
-            &self,
-            result: SliceMut,
-            coeff: u32,
-            op_degree: i32,
-            op_index: usize,
-            input_degree: i32,
-            input: Slice,
-        );
-        fn act_by_element(
-            &self,
-            result: SliceMut,
-            coeff: u32,
-            op_degree: i32,
-            op: Slice,
-            input_degree: i32,
-            input: Slice,
-        );
-        fn act_by_element_on_basis(
-            &self,
-            result: SliceMut,
-            coeff: u32,
-            op_degree: i32,
-            op: Slice,
-            input_degree: i32,
-            input_index: usize,
-        );
-        fn element_to_string(&self, degree: i32, element: Slice) -> String;
     }
 }
 
