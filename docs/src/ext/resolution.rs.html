@@ -1016,17 +1016,14 @@
 <span id="989">989</span>
 <span id="990">990</span>
 <span id="991">991</span>
-<span id="992">992</span>
-<span id="993">993</span>
-<span id="994">994</span>
-<span id="995">995</span>
-<span id="996">996</span>
 </pre><pre class="rust"><code><span class="doccomment">//! This module exports the [`Resolution`] object, which is a chain complex resolving a module. In</span>
 <span class="doccomment">//! particular, this contains the core logic that compute minimal resolutions.</span>
 <span class="kw">use</span> <span class="ident">std::sync</span>::{<span class="ident">Arc</span>, <span class="ident">Mutex</span>};
 
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::chain_complex</span>::{<span class="ident">AugmentedChainComplex</span>, <span class="ident">ChainComplex</span>, <span class="ident">FreeChainComplex</span>};
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::save::SaveKind</span>;
+<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::utils::Timer</span>;
+
 <span class="kw">use</span> <span class="ident">algebra::module::homomorphism</span>::{<span class="ident">FreeModuleHomomorphism</span>, <span class="ident">ModuleHomomorphism</span>};
 <span class="kw">use</span> <span class="ident">algebra::module</span>::{<span class="ident">FreeModule</span>, <span class="ident">Module</span>};
 <span class="kw">use</span> <span class="ident">algebra::Algebra</span>;
@@ -1220,8 +1217,7 @@
             }
         }
 
-        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;logging&quot;</span>)]</span>
-        <span class="kw">let</span> <span class="ident">start</span> <span class="op">=</span> <span class="ident">std::time::Instant::now</span>();
+        <span class="kw">let</span> <span class="ident">timer</span> <span class="op">=</span> <span class="ident">Timer::start</span>();
         <span class="kw">let</span> <span class="ident">complex</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">target</span>();
         <span class="ident">complex</span>.<span class="ident">compute_through_bidegree</span>(<span class="ident">s</span>, <span class="ident">t</span>);
 
@@ -1252,11 +1248,10 @@
 
         <span class="kw">let</span> <span class="ident">kernel</span> <span class="op">=</span> <span class="ident">matrix</span>.<span class="ident">compute_kernel</span>();
 
-        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;logging&quot;</span>)]</span>
-        <span class="ident"><span class="kw">crate</span>::utils::log_time</span>(
-            <span class="ident">start</span>.<span class="ident">elapsed</span>(),
-            <span class="macro">format_args!</span>(<span class="string">&quot;Computed kernel for bidegree ({n}, {s})&quot;</span>, <span class="ident">n</span> <span class="op">=</span> <span class="ident">t</span> <span class="op">-</span> <span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span>),
-        );
+        <span class="ident">timer</span>.<span class="ident">end</span>(<span class="macro">format_args!</span>(
+            <span class="string">&quot;Computed kernel for bidegree ({n}, {s})&quot;</span>,
+            <span class="ident">n</span> <span class="op">=</span> <span class="ident">t</span> <span class="op">-</span> <span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span>
+        ));
 
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">should_save</span> {
             <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dir</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">save_dir</span>.<span class="ident">as_ref</span>() {
@@ -1475,8 +1470,7 @@
             }
         }
 
-        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;logging&quot;</span>)]</span>
-        <span class="kw">let</span> <span class="ident">start</span> <span class="op">=</span> <span class="ident">std::time::Instant::now</span>();
+        <span class="kw">let</span> <span class="ident">timer</span> <span class="op">=</span> <span class="ident">Timer::start</span>();
 
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">matrix</span> <span class="op">=</span> <span class="ident">AugmentedMatrix</span>::<span class="op">&lt;</span><span class="number">3</span><span class="op">&gt;</span><span class="ident">::new_with_capacity</span>(
             <span class="ident">p</span>,
@@ -1648,15 +1642,11 @@
         }
         <span class="kw">let</span> (<span class="ident">cm_qi</span>, <span class="ident">res_qi</span>) <span class="op">=</span> <span class="ident">matrix</span>.<span class="ident">compute_quasi_inverses</span>();
 
-        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;logging&quot;</span>)]</span>
-        <span class="ident"><span class="kw">crate</span>::utils::log_time</span>(
-            <span class="ident">start</span>.<span class="ident">elapsed</span>(),
-            <span class="macro">format_args!</span>(
-                <span class="string">&quot;Computed bidegree ({n}, {s}), num new gens = {num_new_gens}, density = {density:.2}%&quot;</span>,
-                <span class="ident">n</span> <span class="op">=</span> <span class="ident">t</span> <span class="op">-</span> <span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span>,
-                <span class="ident">density</span> <span class="op">=</span> <span class="ident">current_differential</span>.<span class="ident">differential_density</span>(<span class="ident">t</span>) <span class="op">*</span> <span class="number">100.0</span>
-            ),
-        );
+        <span class="ident">timer</span>.<span class="ident">end</span>(<span class="macro">format_args!</span>(
+            <span class="string">&quot;Computed bidegree ({n}, {s}), num new gens = {num_new_gens}, density = {density:.2}%&quot;</span>,
+            <span class="ident">n</span> <span class="op">=</span> <span class="ident">t</span> <span class="op">-</span> <span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span>,
+            <span class="ident">density</span> <span class="op">=</span> <span class="ident">current_differential</span>.<span class="ident">differential_density</span>(<span class="ident">t</span>) <span class="op">*</span> <span class="number">100.0</span>
+        ));
 
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">should_save</span> {
             <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dir</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">save_dir</span>.<span class="ident">as_ref</span>() {

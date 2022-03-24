@@ -1306,9 +1306,6 @@
 <span id="1279">1279</span>
 <span id="1280">1280</span>
 <span id="1281">1281</span>
-<span id="1282">1282</span>
-<span id="1283">1283</span>
-<span id="1284">1284</span>
 </pre><pre class="rust"><code><span class="doccomment">//! This module implements [Nassau&#39;s algorithm](https://arxiv.org/abs/1910.04063). The main export</span>
 <span class="doccomment">//! is the [`Resolution`] object, which is a resolution of the sphere at the prime 2 using Nassau&#39;s</span>
 <span class="doccomment">//! algorithm. It aims to provide an API similar to</span>
@@ -1327,12 +1324,12 @@
 <span class="kw">use</span> <span class="ident">std::io</span>::{<span class="ident">Read</span>, <span class="ident">Write</span>};
 <span class="kw">use</span> <span class="ident">std::path::PathBuf</span>;
 <span class="kw">use</span> <span class="ident">std::sync</span>::{<span class="ident">Arc</span>, <span class="ident">Mutex</span>};
-<span class="kw">use</span> <span class="ident">std::time::Instant</span>;
 
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::chain_complex</span>::{
     <span class="ident">AugmentedChainComplex</span>, <span class="ident">ChainComplex</span>, <span class="ident">FiniteChainComplex</span>, <span class="ident">FreeChainComplex</span>,
 };
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::save::SaveKind</span>;
+<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::utils::Timer</span>;
 <span class="kw">use</span> <span class="ident">algebra::combinatorics</span>;
 <span class="kw">use</span> <span class="ident">algebra::milnor_algebra</span>::{<span class="ident">MilnorAlgebra</span>, <span class="ident">PPartEntry</span>};
 <span class="kw">use</span> <span class="ident">algebra::module::homomorphism</span>::{
@@ -1838,19 +1835,16 @@
     }
 
     <span class="kw">fn</span> <span class="ident">step_resolution_with_subalgebra</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">s</span>: <span class="ident">u32</span>, <span class="ident">t</span>: <span class="ident">i32</span>, <span class="ident">subalgebra</span>: <span class="ident">MilnorSubalgebra</span>) {
-        <span class="kw">let</span> <span class="ident">start</span> <span class="op">=</span> <span class="ident">Instant::now</span>();
+        <span class="kw">let</span> <span class="ident">timer</span> <span class="op">=</span> <span class="ident">Timer::start</span>();
         <span class="kw">let</span> <span class="ident">end</span> <span class="op">=</span> <span class="op">|</span><span class="op">|</span> {
-            <span class="kw">if</span> <span class="macro">cfg!</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;logging&quot;</span>) {
-                <span class="ident"><span class="kw">crate</span>::utils::log_time</span>(
-                    <span class="ident">start</span>.<span class="ident">elapsed</span>(),
-                    <span class="macro">format_args!</span>(
-                        <span class="string">&quot;Computed bidegree ({n}, {s}) with {subalgebra}, num new gens = {num_new_gens}, density = {density:.2}%&quot;</span>,
-                        <span class="ident">n</span> <span class="op">=</span> <span class="ident">t</span> <span class="op">-</span> <span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span>,
-                        <span class="ident">num_new_gens</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">number_of_gens_in_bidegree</span>(<span class="ident">s</span>, <span class="ident">t</span>),
-                        <span class="ident">density</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">differentials</span>[<span class="ident">s</span>].<span class="ident">differential_density</span>(<span class="ident">t</span>) <span class="op">*</span> <span class="number">100.0</span>,
-                    ),
-                );
-            }
+            <span class="ident">timer</span>.<span class="ident">end</span>(
+                <span class="macro">format_args!</span>(
+                    <span class="string">&quot;Computed bidegree ({n}, {s}) with {subalgebra}, num new gens = {num_new_gens}, density = {density:.2}%&quot;</span>,
+                    <span class="ident">n</span> <span class="op">=</span> <span class="ident">t</span> <span class="op">-</span> <span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span>,
+                    <span class="ident">num_new_gens</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">number_of_gens_in_bidegree</span>(<span class="ident">s</span>, <span class="ident">t</span>),
+                    <span class="ident">density</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">differentials</span>[<span class="ident">s</span>].<span class="ident">differential_density</span>(<span class="ident">t</span>) <span class="op">*</span> <span class="number">100.0</span>,
+                ),
+            );
         };
 
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prime</span>();

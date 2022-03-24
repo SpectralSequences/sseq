@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["Timer","If the `logging` feature is enabled, this can be used to time how long an operation takes. If the `logging` features is disabled, this is a no-op."]]});
