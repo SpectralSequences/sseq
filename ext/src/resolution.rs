@@ -100,12 +100,12 @@ impl<CC: ChainComplex> Resolution<CC> {
         Self::new_with_save(complex, None).unwrap()
     }
 
-    pub fn new_with_save(complex: Arc<CC>, mut save_dir: Option<PathBuf>) -> anyhow::Result<Self> {
+    pub fn new_with_save(complex: Arc<CC>, save_dir: Option<PathBuf>) -> anyhow::Result<Self> {
         let algebra = complex.algebra();
         let min_degree = complex.min_degree();
         let zero_module = Arc::new(FreeModule::new(algebra, "F_{-1}".to_string(), min_degree));
 
-        if let Some(p) = save_dir.as_mut() {
+        if let Some(ref p) = save_dir {
             for subdir in SaveKind::resolution_data() {
                 subdir.create_dir(p)?;
             }
@@ -188,7 +188,7 @@ impl<CC: ChainComplex> Resolution<CC> {
 
         let p = self.prime();
 
-        if let Some(dir) = self.save_dir.as_ref() {
+        if let Some(ref dir) = self.save_dir {
             if let Some(mut f) = self
                 .save_file(SaveKind::Kernel, s, t)
                 .open_file(dir.clone())
@@ -236,7 +236,7 @@ impl<CC: ChainComplex> Resolution<CC> {
         ));
 
         if self.should_save {
-            if let Some(dir) = self.save_dir.as_ref() {
+            if let Some(ref dir) = self.save_dir {
                 let mut f = self
                     .save_file(SaveKind::Kernel, s, t)
                     .create_file(dir.clone());
@@ -367,7 +367,7 @@ impl<CC: ChainComplex> Resolution<CC> {
         target_res.compute_basis(t);
         let target_res_dimension = target_res.dimension(t);
 
-        if let Some(dir) = self.save_dir.as_ref() {
+        if let Some(ref dir) = self.save_dir {
             if let Some(mut f) = self
                 .save_file(SaveKind::Differential, s, t)
                 .open_file(dir.clone())
@@ -472,7 +472,7 @@ impl<CC: ChainComplex> Resolution<CC> {
         if !self.has_computed_bidegree(s + 1, t) {
             let kernel = matrix.compute_kernel();
             if self.should_save {
-                if let Some(dir) = self.save_dir.as_ref() {
+                if let Some(ref dir) = self.save_dir {
                     let mut f = self
                         .save_file(SaveKind::Kernel, s, t)
                         .create_file(dir.clone());
@@ -631,7 +631,7 @@ impl<CC: ChainComplex> Resolution<CC> {
         ));
 
         if self.should_save {
-            if let Some(dir) = self.save_dir.as_ref() {
+            if let Some(ref dir) = self.save_dir {
                 // Write differentials
                 let mut f = self
                     .save_file(SaveKind::Differential, s, t)
@@ -915,7 +915,7 @@ impl<CC: ChainComplex> ChainComplex for Resolution<CC> {
                 qi.apply(result.into(), 1, input.into());
             }
             true
-        } else if let Some(dir) = self.save_dir.as_ref() {
+        } else if let Some(ref dir) = self.save_dir {
             if let Some(mut f) = self.save_file(SaveKind::ResQi, s, t).open_file(dir.clone()) {
                 QuasiInverse::stream_quasi_inverse(self.prime(), &mut f, results, inputs).unwrap();
                 true

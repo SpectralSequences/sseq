@@ -199,7 +199,7 @@ impl<
                 .add_generators_from_rows_ooo(source_t, outputs);
         }
 
-        if let Some(dir) = self.save_dir.as_ref() {
+        if let Some(ref dir) = self.save_dir {
             if let Some(mut f) = self
                 .left
                 .source
@@ -281,7 +281,7 @@ impl<
             &scratches,
         ));
 
-        if let Some(dir) = self.save_dir.as_ref() {
+        if let Some(ref dir) = self.save_dir {
             let mut f = self
                 .left
                 .source

@@ -417,13 +417,13 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         Self::new_with_save(module, None).unwrap()
     }
 
-    pub fn new_with_save(module: Arc<M>, mut save_dir: Option<PathBuf>) -> anyhow::Result<Self> {
+    pub fn new_with_save(module: Arc<M>, save_dir: Option<PathBuf>) -> anyhow::Result<Self> {
         let max_degree = module
             .max_degree()
             .ok_or_else(|| anyhow!("Nassau's algorithm requires bounded module"))?;
         let target = Arc::new(FiniteChainComplex::ccdz(module));
 
-        if let Some(p) = save_dir.as_mut() {
+        if let Some(ref p) = save_dir {
             for subdir in SaveKind::nassau_data() {
                 subdir.create_dir(p)?;
             }
@@ -489,8 +489,8 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         full_matrix: &Matrix,
         masked_matrix: &AugmentedMatrix<2>,
     ) -> std::io::Result<()> {
-        let f = match f.as_mut() {
-            Some(f) => f,
+        let f = match f {
+            Some(ref mut f) => f,
             None => return Ok(()),
         };
 
@@ -596,7 +596,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         )
         .unwrap();
 
-        if let Some(f) = f.as_mut() {
+        if let Some(ref mut f) = f {
             if target.max_computed_degree() < t {
                 f.write_u64::<LittleEndian>(Magic::Fix as u64).unwrap();
             }
@@ -684,11 +684,11 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
 
         end();
 
-        if let Some(f) = f.as_mut() {
+        if let Some(ref mut f) = f {
             f.write_u64::<LittleEndian>(Magic::End as u64).unwrap();
         }
 
-        if let Some(dir) = self.save_dir.as_ref() {
+        if let Some(ref dir) = self.save_dir {
             let mut f = self
                 .save_file(SaveKind::NassauDifferential, s, t)
                 .create_file(dir.clone());
@@ -819,7 +819,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             return;
         }
 
-        if let Some(dir) = self.save_dir.as_ref() {
+        if let Some(ref dir) = self.save_dir {
             if let Some(mut f) = self
                 .save_file(SaveKind::NassauDifferential, s, t)
                 .open_file(dir.clone())
@@ -1012,7 +1012,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
         for<'a> &'a mut T: Into<SliceMut<'a>>,
         for<'a> &'a S: Into<Slice<'a>>,
     {
-        let mut f = if let Some(dir) = self.save_dir.as_ref() {
+        let mut f = if let Some(ref dir) = self.save_dir {
             if let Some(f) = self
                 .save_file(SaveKind::NassauQi, s, t)
                 .open_file(dir.clone())

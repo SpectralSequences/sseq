@@ -256,7 +256,7 @@ where
             );
         }
 
-        if let Some(dir) = self.save_dir.as_ref() {
+        if let Some(ref dir) = self.save_dir {
             let mut outputs = Vec::with_capacity(num_gens);
 
             if let Some(mut f) = self
@@ -297,7 +297,7 @@ where
                 }
             }
 
-            if let Some(dir) = self.save_dir.as_ref() {
+            if let Some(ref dir) = self.save_dir {
                 let mut f = self
                     .source
                     .save_file(SaveKind::ChainMap, input_s, input_t)
@@ -386,7 +386,7 @@ where
             ));
         }
 
-        if let Some(dir) = self.save_dir.as_ref() {
+        if let Some(ref dir) = self.save_dir {
             let mut f = self
                 .source
                 .save_file(SaveKind::ChainMap, input_s, input_t)

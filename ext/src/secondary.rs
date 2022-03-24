@@ -1312,7 +1312,7 @@ where
 
         // This is inefficient if both right_tau and right are non-zero, but this is not needed atm
         // and the change would not be user-facing.
-        if let Some(right_tau) = self.right_tau.as_ref() {
+        if let Some(ref right_tau) = self.right_tau {
             right_tau.get_map(s - self.left.underlying.shift_s).apply(
                 result.as_slice_mut(),
                 neg_1,
@@ -1334,7 +1334,7 @@ where
                     .as_slice(),
             );
 
-        if let Some(left_tau) = self.left_tau.as_ref() {
+        if let Some(ref left_tau) = self.left_tau {
             self.right
                 .underlying
                 .get_map(s - self.left.shift_s())
@@ -1393,7 +1393,7 @@ where
         assert!(Arc::ptr_eq(&underlying.left(), &left.underlying));
         assert!(Arc::ptr_eq(&underlying.right(), &right.underlying));
 
-        if let Some(left_tau) = left_tau.as_ref() {
+        if let Some(ref left_tau) = left_tau {
             assert!(Arc::ptr_eq(&left_tau.source, &underlying.left().source));
             assert!(Arc::ptr_eq(&left_tau.target, &underlying.left().target));
 
@@ -1401,7 +1401,7 @@ where
             assert_eq!(left_tau.shift_s, underlying.left().shift_s + 1);
         }
 
-        if let Some(right_tau) = right_tau.as_ref() {
+        if let Some(ref right_tau) = right_tau {
             assert!(Arc::ptr_eq(&right_tau.source, &underlying.right().source));
             assert!(Arc::ptr_eq(&right_tau.target, &underlying.right().target));
 
