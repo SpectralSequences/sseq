@@ -72,10 +72,9 @@ fn main() -> anyhow::Result<()> {
         return Ok(());
     }
 
-    let start = std::time::Instant::now();
+    let timer = ext::utils::Timer::start();
     lift.extend_all();
-
-    ext::utils::log_time(start.elapsed(), format_args!("Total computation time"));
+    timer.end(format_args!("Total computation time"));
 
     // Iterate through target of the d2
     for (s, n, t) in lift.underlying().iter_stem() {

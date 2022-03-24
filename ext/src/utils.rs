@@ -518,20 +518,52 @@ pub fn iter_s_t(
     });
 }
 
-/// If the `logging` feature is enabled, this prints the given duration together with some
-/// information about what this duration measures. This is useful for performance benchmarks and
-/// analysis.
-///
-/// If the `logging` features is disabled, this is a no-op.
-#[allow(unused_variables)]
-pub fn log_time(duration: std::time::Duration, info: std::fmt::Arguments) {
-    #[cfg(feature = "logging")]
-    eprintln!(
-        "[{:>6}.{:>06} s] {info}",
-        duration.as_secs(),
-        duration.subsec_micros()
-    );
+#[cfg(feature = "logging")]
+mod timer {
+    use std::time::Instant;
+
+    /// If the `logging` feature is enabled, this can be used to time how long an operation takes.
+    /// If the `logging` features is disabled, this is a no-op.
+    ///
+    /// # Example
+    /// ```
+    /// # use timer::Timer;
+    /// let timer = Timer::start();
+    /// // slow_function();
+    /// timer.end(format_args!("Ran slow_function"));
+    /// ```
+    pub struct Timer(Instant);
+
+    impl Timer {
+        pub fn start() -> Self {
+            Self(Instant::now())
+        }
+
+        pub fn end(self, msg: std::fmt::Arguments) {
+            let duration = self.0.elapsed();
+            eprintln!(
+                "[{:>6}.{:>06} s] {msg}",
+                duration.as_secs(),
+                duration.subsec_micros(),
+            );
+        }
+    }
 }
+
+#[cfg(not(feature = "logging"))]
+mod timer {
+    pub struct Timer;
+
+    impl Timer {
+        pub fn start() -> Self {
+            Self {}
+        }
+
+        pub fn end(self, _msg: std::fmt::Arguments) {}
+    }
+}
+
+pub use timer::Timer;
 
 /// The value of the SECONDARY_JOB environment variable. This is used for distributing the
 /// `secondary`. If set, only data with `s = SECONDARY_JOB` will be computed. The minimum value of

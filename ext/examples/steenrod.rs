@@ -11,7 +11,6 @@ use itertools::Itertools;
 
 use std::io::{stderr, stdout, Write};
 use std::sync::Arc;
-use std::time::Instant;
 
 fn main() -> anyhow::Result<()> {
     let resolution = Arc::new(utils::query_module_only("Module", None, false)?);
@@ -51,14 +50,14 @@ fn main() -> anyhow::Result<()> {
         Arc::clone(&yoneda),
     ));
 
-    let start = Instant::now();
+    let timer = utils::Timer::start();
     square.compute_through_bidegree(2 * s, 2 * t);
     for s in 0..=2 * s {
         square
             .differential(s as u32)
             .compute_auxiliary_data_through_degree(2 * t);
     }
-    utils::log_time(start.elapsed(), format_args!("Computed quasi-inverses"));
+    timer.end(format_args!("Computed quasi-inverses"));
 
     eprintln!("Computing Steenrod operations: ");
 
@@ -87,14 +86,14 @@ fn main() -> anyhow::Result<()> {
     #[cfg(feature = "concurrent")]
     let mut handles: Vec<Vec<JoinHandle<()>>> = Vec::with_capacity(s as usize + 1);*/
 
-    let start = Instant::now();
+    let timer = utils::Timer::start();
 
     // We use the formula d Δ_i + Δ_i d = Δ_{i-1} + τΔ_{i-1}
     for i in 0..=s {
         // Δ_i is a map C_s -> C_{s + i}. So to hit C_{2s}, we only need to compute up to 2
         // * s - i
         //        #[cfg(not(feature = "concurrent"))]
-        let start = Instant::now();
+        let start = std::time::Instant::now();
 
         /* #[cfg(feature = "concurrent")]
         let mut handles_inner: Vec<JoinHandle<()>> = Vec::with_capacity((2 * s - i + 1) as usize);
@@ -274,10 +273,6 @@ fn main() -> anyhow::Result<()> {
         println!();
     }*/
 
-    utils::log_time(
-        start.elapsed(),
-        format_args!("Computed Steenrod operations"),
-    );
-
+    timer.end(format_args!("Computed Steenrod operations"));
     Ok(())
 }

@@ -127,11 +127,11 @@ fn main() -> anyhow::Result<()> {
         return Ok(());
     }
 
-    let start = std::time::Instant::now();
+    let timer = ext::utils::Timer::start();
 
     hom_lift.extend_all();
 
-    ext::utils::log_time(start.elapsed(), format_args!("Total computation time"));
+    timer.end(format_args!("Total computation time"));
 
     // Compute E3 page
     let res_sseq = Arc::new(res_lift.e3_page());

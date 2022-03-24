@@ -248,7 +248,7 @@ where
         .collect::<Vec<_>>();
 
     for s in (1..=s_max).rev() {
-        let start = std::time::Instant::now();
+        let timer = crate::utils::Timer::start();
         let t_max = t_max[s as usize];
         let mut differential_images: BiVec<Subspace> = {
             let mut result = BiVec::new(t_min);
@@ -497,10 +497,7 @@ where
             }
         }
 
-        crate::utils::log_time(
-            start.elapsed(),
-            format_args!("Cleaned yoneda representative for s = {s}"),
-        );
+        timer.end(format_args!("Cleaned yoneda representative for s = {s}"));
     }
 
     let modules = modules.into_iter().map(Arc::new).collect::<Vec<_>>();

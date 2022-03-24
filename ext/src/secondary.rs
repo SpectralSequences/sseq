@@ -4,6 +4,7 @@ use crate::chain_complex::{
 };
 use crate::resolution_homomorphism::ResolutionHomomorphism;
 use crate::save::{SaveFile, SaveKind};
+use crate::utils::Timer;
 
 use algebra::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
 use algebra::module::{FreeModule, Module};
@@ -259,20 +260,18 @@ impl<A: PairAlgebra + Send + Sync> SecondaryHomotopy<A> {
                 t - self.shift_t,
                 self.hit_generator,
             );
-            let start = std::time::Instant::now();
+
+            let timer = Timer::start();
 
             for (coef, d1, d0) in &maps {
                 composite.add_composite(*coef, t, idx, &*d1, &*d0);
             }
             composite.finalize();
 
-            crate::utils::log_time(
-                start.elapsed(),
-                format_args!(
-                    "Computed secondary composite for x_({n}, {s}, {idx})",
-                    n = t - s as i32
-                ),
-            );
+            timer.end(format_args!(
+                "Computed secondary composite for x_({n}, {s}, {idx})",
+                n = t - s as i32
+            ));
 
             if let Some(dir) = dir {
                 let mut f = save_file.create_file(dir.to_owned());
@@ -439,16 +438,12 @@ pub trait SecondaryLift: Sync {
             }
         }
 
-        let start = std::time::Instant::now();
+        let timer = Timer::start();
         let result = self.compute_intermediate(s, t, idx);
-
-        crate::utils::log_time(
-            start.elapsed(),
-            format_args!(
-                "Computed secondary intermediate for x_({n}, {s}, {idx})",
-                n = t - s as i32
-            ),
-        );
+        timer.end(format_args!(
+            "Computed secondary intermediate for x_({n}, {s}, {idx})",
+            n = t - s as i32
+        ));
 
         if let Some(dir) = self.save_dir() {
             let mut f = save_file.create_file(dir.to_owned());

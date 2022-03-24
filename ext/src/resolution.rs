@@ -4,6 +4,8 @@ use std::sync::{Arc, Mutex};
 
 use crate::chain_complex::{AugmentedChainComplex, ChainComplex, FreeChainComplex};
 use crate::save::SaveKind;
+use crate::utils::Timer;
+
 use algebra::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
 use algebra::module::{FreeModule, Module};
 use algebra::Algebra;
@@ -197,8 +199,7 @@ impl<CC: ChainComplex> Resolution<CC> {
             }
         }
 
-        #[cfg(feature = "logging")]
-        let start = std::time::Instant::now();
+        let timer = Timer::start();
         let complex = self.target();
         complex.compute_through_bidegree(s, t);
 
@@ -229,11 +230,10 @@ impl<CC: ChainComplex> Resolution<CC> {
 
         let kernel = matrix.compute_kernel();
 
-        #[cfg(feature = "logging")]
-        crate::utils::log_time(
-            start.elapsed(),
-            format_args!("Computed kernel for bidegree ({n}, {s})", n = t - s as i32),
-        );
+        timer.end(format_args!(
+            "Computed kernel for bidegree ({n}, {s})",
+            n = t - s as i32
+        ));
 
         if self.should_save {
             if let Some(dir) = self.save_dir.as_ref() {
@@ -452,8 +452,7 @@ impl<CC: ChainComplex> Resolution<CC> {
             }
         }
 
-        #[cfg(feature = "logging")]
-        let start = std::time::Instant::now();
+        let timer = Timer::start();
 
         let mut matrix = AugmentedMatrix::<3>::new_with_capacity(
             p,
@@ -625,15 +624,11 @@ impl<CC: ChainComplex> Resolution<CC> {
         }
         let (cm_qi, res_qi) = matrix.compute_quasi_inverses();
 
-        #[cfg(feature = "logging")]
-        crate::utils::log_time(
-            start.elapsed(),
-            format_args!(
-                "Computed bidegree ({n}, {s}), num new gens = {num_new_gens}, density = {density:.2}%",
-                n = t - s as i32,
-                density = current_differential.differential_density(t) * 100.0
-            ),
-        );
+        timer.end(format_args!(
+            "Computed bidegree ({n}, {s}), num new gens = {num_new_gens}, density = {density:.2}%",
+            n = t - s as i32,
+            density = current_differential.differential_density(t) * 100.0
+        ));
 
         if self.should_save {
             if let Some(dir) = self.save_dir.as_ref() {

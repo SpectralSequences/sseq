@@ -16,12 +16,12 @@ use std::fmt::Display;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-use std::time::Instant;
 
 use crate::chain_complex::{
     AugmentedChainComplex, ChainComplex, FiniteChainComplex, FreeChainComplex,
 };
 use crate::save::SaveKind;
+use crate::utils::Timer;
 use algebra::combinatorics;
 use algebra::milnor_algebra::{MilnorAlgebra, PPartEntry};
 use algebra::module::homomorphism::{
@@ -527,19 +527,16 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
     }
 
     fn step_resolution_with_subalgebra(&self, s: u32, t: i32, subalgebra: MilnorSubalgebra) {
-        let start = Instant::now();
+        let timer = Timer::start();
         let end = || {
-            if cfg!(feature = "logging") {
-                crate::utils::log_time(
-                    start.elapsed(),
-                    format_args!(
-                        "Computed bidegree ({n}, {s}) with {subalgebra}, num new gens = {num_new_gens}, density = {density:.2}%",
-                        n = t - s as i32,
-                        num_new_gens = self.number_of_gens_in_bidegree(s, t),
-                        density = self.differentials[s].differential_density(t) * 100.0,
-                    ),
-                );
-            }
+            timer.end(
+                format_args!(
+                    "Computed bidegree ({n}, {s}) with {subalgebra}, num new gens = {num_new_gens}, density = {density:.2}%",
+                    n = t - s as i32,
+                    num_new_gens = self.number_of_gens_in_bidegree(s, t),
+                    density = self.differentials[s].differential_density(t) * 100.0,
+                ),
+            );
         };
 
         let p = self.prime();
