@@ -236,67 +236,8 @@
 <span id="209">209</span>
 <span id="210">210</span>
 <span id="211">211</span>
-<span id="212">212</span>
-<span id="213">213</span>
-<span id="214">214</span>
-<span id="215">215</span>
-<span id="216">216</span>
-<span id="217">217</span>
-<span id="218">218</span>
-<span id="219">219</span>
-<span id="220">220</span>
-<span id="221">221</span>
-<span id="222">222</span>
-<span id="223">223</span>
-<span id="224">224</span>
-<span id="225">225</span>
-<span id="226">226</span>
-<span id="227">227</span>
-<span id="228">228</span>
-<span id="229">229</span>
-<span id="230">230</span>
-<span id="231">231</span>
-<span id="232">232</span>
-<span id="233">233</span>
-<span id="234">234</span>
-<span id="235">235</span>
-<span id="236">236</span>
-<span id="237">237</span>
-<span id="238">238</span>
-<span id="239">239</span>
-<span id="240">240</span>
-<span id="241">241</span>
-<span id="242">242</span>
-<span id="243">243</span>
-<span id="244">244</span>
-<span id="245">245</span>
-<span id="246">246</span>
-<span id="247">247</span>
-<span id="248">248</span>
-<span id="249">249</span>
-<span id="250">250</span>
-<span id="251">251</span>
-<span id="252">252</span>
-<span id="253">253</span>
-<span id="254">254</span>
-<span id="255">255</span>
-<span id="256">256</span>
-<span id="257">257</span>
-<span id="258">258</span>
-<span id="259">259</span>
-<span id="260">260</span>
-<span id="261">261</span>
-<span id="262">262</span>
-<span id="263">263</span>
-<span id="264">264</span>
-<span id="265">265</span>
-<span id="266">266</span>
-<span id="267">267</span>
-<span id="268">268</span>
-<span id="269">269</span>
-<span id="270">270</span>
-<span id="271">271</span>
-</pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">itertools::Itertools</span>;
+</pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">auto_impl::auto_impl</span>;
+<span class="kw">use</span> <span class="ident">itertools::Itertools</span>;
 <span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
 
 <span class="kw">use</span> <span class="ident">fp::prime::ValidPrime</span>;
@@ -318,6 +259,7 @@
 <span class="doccomment">/// specified the generators up to some degree `t`. Then `t` is the max computed degree, while</span>
 <span class="doccomment">/// `compute_basis` computes data such as the offset of existing generators in potentially higher</span>
 <span class="doccomment">/// degrees.</span>
+<span class="attribute">#[<span class="ident">auto_impl</span>(<span class="ident">Box</span>)]</span>
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">Module</span>: <span class="ident">std::fmt::Display</span> <span class="op">+</span> <span class="ident">std::any::Any</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> {
     <span class="kw">type</span> <span class="ident">Algebra</span>: <span class="ident">Algebra</span>;
 
@@ -394,13 +336,14 @@
     <span class="doccomment">/// what generators will be added in degree `t` yet.</span>
     <span class="kw">fn</span> <span class="ident">act</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="kw-2">mut</span> <span class="ident">result</span>: <span class="ident">SliceMut</span>,
+        <span class="ident">result</span>: <span class="ident">SliceMut</span>,
         <span class="ident">coeff</span>: <span class="ident">u32</span>,
         <span class="ident">op_degree</span>: <span class="ident">i32</span>,
         <span class="ident">op_index</span>: <span class="ident">usize</span>,
         <span class="ident">input_degree</span>: <span class="ident">i32</span>,
         <span class="ident">input</span>: <span class="ident">Slice</span>,
     ) {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">result</span>;
         <span class="macro">assert!</span>(<span class="ident">input</span>.<span class="ident">len</span>() <span class="op">&lt;</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">dimension</span>(<span class="ident">input_degree</span>));
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prime</span>();
         <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">v</span>) <span class="kw">in</span> <span class="ident">input</span>.<span class="ident">iter_nonzero</span>() {
@@ -417,13 +360,14 @@
 
     <span class="kw">fn</span> <span class="ident">act_by_element</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="kw-2">mut</span> <span class="ident">result</span>: <span class="ident">SliceMut</span>,
+        <span class="ident">result</span>: <span class="ident">SliceMut</span>,
         <span class="ident">coeff</span>: <span class="ident">u32</span>,
         <span class="ident">op_degree</span>: <span class="ident">i32</span>,
         <span class="ident">op</span>: <span class="ident">Slice</span>,
         <span class="ident">input_degree</span>: <span class="ident">i32</span>,
         <span class="ident">input</span>: <span class="ident">Slice</span>,
     ) {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">result</span>;
         <span class="macro">assert_eq!</span>(<span class="ident">input</span>.<span class="ident">len</span>(), <span class="self">self</span>.<span class="ident">dimension</span>(<span class="ident">input_degree</span>));
         <span class="macro">assert_eq!</span>(<span class="ident">op</span>.<span class="ident">len</span>(), <span class="self">self</span>.<span class="ident">algebra</span>().<span class="ident">dimension</span>(<span class="ident">op_degree</span>));
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prime</span>();
@@ -441,13 +385,14 @@
 
     <span class="kw">fn</span> <span class="ident">act_by_element_on_basis</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="kw-2">mut</span> <span class="ident">result</span>: <span class="ident">SliceMut</span>,
+        <span class="ident">result</span>: <span class="ident">SliceMut</span>,
         <span class="ident">coeff</span>: <span class="ident">u32</span>,
         <span class="ident">op_degree</span>: <span class="ident">i32</span>,
         <span class="ident">op</span>: <span class="ident">Slice</span>,
         <span class="ident">input_degree</span>: <span class="ident">i32</span>,
         <span class="ident">input_index</span>: <span class="ident">usize</span>,
     ) {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">result</span>;
         <span class="macro">assert_eq!</span>(<span class="ident">op</span>.<span class="ident">len</span>(), <span class="self">self</span>.<span class="ident">algebra</span>().<span class="ident">dimension</span>(<span class="ident">op_degree</span>));
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prime</span>();
         <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">v</span>) <span class="kw">in</span> <span class="ident">op</span>.<span class="ident">iter_nonzero</span>() {
@@ -482,71 +427,6 @@
         } <span class="kw">else</span> {
             <span class="ident">result</span>
         }
-    }
-}
-
-<span class="macro">macro_rules!</span> <span class="ident">dispatch</span> {
-    () =&gt; {};
-    (<span class="macro-nonterminal">$</span><span class="macro-nonterminal">vis</span>:<span class="ident">vis</span> <span class="kw">fn</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">method</span>:<span class="ident">ident</span>(<span class="kw-2">&amp;</span><span class="self">self</span>$(, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">arg</span>:<span class="ident">ident</span>: <span class="macro-nonterminal">$</span><span class="macro-nonterminal">ty</span>:<span class="ident">ty</span> )<span class="kw-2">*</span>$(,)<span class="question-mark">?</span>) $(-&gt; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">ret</span>:<span class="ident">ty</span>)<span class="question-mark">?</span>; $(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">tail</span>:<span class="ident">tt</span>)<span class="kw-2">*</span>) =&gt; {
-        <span class="macro-nonterminal">$</span><span class="macro-nonterminal">vis</span> <span class="kw">fn</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">method</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, $(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">arg</span>: <span class="macro-nonterminal">$</span><span class="macro-nonterminal">ty</span>),<span class="op">*</span> ) $(-&gt; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">ret</span>)<span class="op">*</span> {
-            (<span class="kw-2">*</span><span class="kw-2">*</span><span class="self">self</span>).<span class="macro-nonterminal">$</span><span class="macro-nonterminal">method</span>($(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">arg</span>),<span class="kw-2">*</span>)
-        }
-        <span class="macro">dispatch!</span>{$(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">tail</span>)<span class="kw-2">*</span>}
-    };
-}
-
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">Algebra</span><span class="op">&gt;</span> <span class="ident">Module</span> <span class="kw">for</span> <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Module</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-    <span class="kw">type</span> <span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">A</span>;
-
-    <span class="macro">dispatch!</span> {
-        <span class="kw">fn</span> <span class="ident">algebra</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Algebra</span><span class="op">&gt;</span>;
-        <span class="kw">fn</span> <span class="ident">min_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">i32</span>;
-        <span class="kw">fn</span> <span class="ident">compute_basis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>);
-        <span class="kw">fn</span> <span class="ident">max_computed_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">i32</span>;
-        <span class="kw">fn</span> <span class="ident">dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) -&gt; <span class="ident">usize</span>;
-        <span class="kw">fn</span> <span class="ident">act_on_basis</span>(
-            <span class="kw-2">&amp;</span><span class="self">self</span>,
-            <span class="ident">result</span>: <span class="ident">SliceMut</span>,
-            <span class="ident">coeff</span>: <span class="ident">u32</span>,
-            <span class="ident">op_degree</span>: <span class="ident">i32</span>,
-            <span class="ident">op_index</span>: <span class="ident">usize</span>,
-            <span class="ident">mod_degree</span>: <span class="ident">i32</span>,
-            <span class="ident">mod_index</span>: <span class="ident">usize</span>,
-        );
-        <span class="kw">fn</span> <span class="ident">basis_element_to_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">idx</span>: <span class="ident">usize</span>) -&gt; <span class="ident">String</span>;
-        <span class="kw">fn</span> <span class="ident">is_unit</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">bool</span>;
-        <span class="kw">fn</span> <span class="ident">prime</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">ValidPrime</span>;
-        <span class="kw">fn</span> <span class="ident">max_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">i32</span><span class="op">&gt;</span>;
-        <span class="kw">fn</span> <span class="ident">max_generator_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">i32</span><span class="op">&gt;</span>;
-        <span class="kw">fn</span> <span class="ident">total_dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">usize</span>;
-        <span class="kw">fn</span> <span class="ident">act</span>(
-            <span class="kw-2">&amp;</span><span class="self">self</span>,
-            <span class="ident">result</span>: <span class="ident">SliceMut</span>,
-            <span class="ident">coeff</span>: <span class="ident">u32</span>,
-            <span class="ident">op_degree</span>: <span class="ident">i32</span>,
-            <span class="ident">op_index</span>: <span class="ident">usize</span>,
-            <span class="ident">input_degree</span>: <span class="ident">i32</span>,
-            <span class="ident">input</span>: <span class="ident">Slice</span>,
-        );
-        <span class="kw">fn</span> <span class="ident">act_by_element</span>(
-            <span class="kw-2">&amp;</span><span class="self">self</span>,
-            <span class="ident">result</span>: <span class="ident">SliceMut</span>,
-            <span class="ident">coeff</span>: <span class="ident">u32</span>,
-            <span class="ident">op_degree</span>: <span class="ident">i32</span>,
-            <span class="ident">op</span>: <span class="ident">Slice</span>,
-            <span class="ident">input_degree</span>: <span class="ident">i32</span>,
-            <span class="ident">input</span>: <span class="ident">Slice</span>,
-        );
-        <span class="kw">fn</span> <span class="ident">act_by_element_on_basis</span>(
-            <span class="kw-2">&amp;</span><span class="self">self</span>,
-            <span class="ident">result</span>: <span class="ident">SliceMut</span>,
-            <span class="ident">coeff</span>: <span class="ident">u32</span>,
-            <span class="ident">op_degree</span>: <span class="ident">i32</span>,
-            <span class="ident">op</span>: <span class="ident">Slice</span>,
-            <span class="ident">input_degree</span>: <span class="ident">i32</span>,
-            <span class="ident">input_index</span>: <span class="ident">usize</span>,
-        );
-        <span class="kw">fn</span> <span class="ident">element_to_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">element</span>: <span class="ident">Slice</span>) -&gt; <span class="ident">String</span>;
     }
 }
 

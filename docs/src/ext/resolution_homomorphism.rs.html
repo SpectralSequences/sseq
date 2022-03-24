@@ -797,7 +797,7 @@
             );
         }
 
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dir</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">save_dir</span>.<span class="ident">as_ref</span>() {
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">dir</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">save_dir</span> {
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">outputs</span> <span class="op">=</span> <span class="ident">Vec::with_capacity</span>(<span class="ident">num_gens</span>);
 
             <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">mut</span> <span class="ident">f</span>) <span class="op">=</span> <span class="self">self</span>
@@ -838,7 +838,7 @@
                 }
             }
 
-            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dir</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">save_dir</span>.<span class="ident">as_ref</span>() {
+            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">dir</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">save_dir</span> {
                 <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="self">self</span>
                     .<span class="ident">source</span>
                     .<span class="ident">save_file</span>(<span class="ident">SaveKind::ChainMap</span>, <span class="ident">input_s</span>, <span class="ident">input_t</span>)
@@ -927,7 +927,7 @@
             ));
         }
 
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dir</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">save_dir</span>.<span class="ident">as_ref</span>() {
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">dir</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">save_dir</span> {
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="self">self</span>
                 .<span class="ident">source</span>
                 .<span class="ident">save_file</span>(<span class="ident">SaveKind::ChainMap</span>, <span class="ident">input_s</span>, <span class="ident">input_t</span>)

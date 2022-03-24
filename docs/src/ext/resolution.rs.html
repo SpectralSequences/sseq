@@ -1118,12 +1118,12 @@
         <span class="ident"><span class="self">Self</span>::new_with_save</span>(<span class="ident">complex</span>, <span class="prelude-val">None</span>).<span class="ident">unwrap</span>()
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new_with_save</span>(<span class="ident">complex</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">CC</span><span class="op">&gt;</span>, <span class="kw-2">mut</span> <span class="ident">save_dir</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">PathBuf</span><span class="op">&gt;</span>) -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new_with_save</span>(<span class="ident">complex</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">CC</span><span class="op">&gt;</span>, <span class="ident">save_dir</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">PathBuf</span><span class="op">&gt;</span>) -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">algebra</span> <span class="op">=</span> <span class="ident">complex</span>.<span class="ident">algebra</span>();
         <span class="kw">let</span> <span class="ident">min_degree</span> <span class="op">=</span> <span class="ident">complex</span>.<span class="ident">min_degree</span>();
         <span class="kw">let</span> <span class="ident">zero_module</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">FreeModule::new</span>(<span class="ident">algebra</span>, <span class="string">&quot;F_{-1}&quot;</span>.<span class="ident">to_string</span>(), <span class="ident">min_degree</span>));
 
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">p</span>) <span class="op">=</span> <span class="ident">save_dir</span>.<span class="ident">as_mut</span>() {
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">p</span>) <span class="op">=</span> <span class="ident">save_dir</span> {
             <span class="kw">for</span> <span class="ident">subdir</span> <span class="kw">in</span> <span class="ident">SaveKind::resolution_data</span>() {
                 <span class="ident">subdir</span>.<span class="ident">create_dir</span>(<span class="ident">p</span>)<span class="question-mark">?</span>;
             }
@@ -1206,7 +1206,7 @@
 
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prime</span>();
 
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dir</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">save_dir</span>.<span class="ident">as_ref</span>() {
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">dir</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">save_dir</span> {
             <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">mut</span> <span class="ident">f</span>) <span class="op">=</span> <span class="self">self</span>
                 .<span class="ident">save_file</span>(<span class="ident">SaveKind::Kernel</span>, <span class="ident">s</span>, <span class="ident">t</span>)
                 .<span class="ident">open_file</span>(<span class="ident">dir</span>.<span class="ident">clone</span>())
@@ -1254,7 +1254,7 @@
         ));
 
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">should_save</span> {
-            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dir</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">save_dir</span>.<span class="ident">as_ref</span>() {
+            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">dir</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">save_dir</span> {
                 <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="self">self</span>
                     .<span class="ident">save_file</span>(<span class="ident">SaveKind::Kernel</span>, <span class="ident">s</span>, <span class="ident">t</span>)
                     .<span class="ident">create_file</span>(<span class="ident">dir</span>.<span class="ident">clone</span>());
@@ -1385,7 +1385,7 @@
         <span class="ident">target_res</span>.<span class="ident">compute_basis</span>(<span class="ident">t</span>);
         <span class="kw">let</span> <span class="ident">target_res_dimension</span> <span class="op">=</span> <span class="ident">target_res</span>.<span class="ident">dimension</span>(<span class="ident">t</span>);
 
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dir</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">save_dir</span>.<span class="ident">as_ref</span>() {
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">dir</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">save_dir</span> {
             <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">mut</span> <span class="ident">f</span>) <span class="op">=</span> <span class="self">self</span>
                 .<span class="ident">save_file</span>(<span class="ident">SaveKind::Differential</span>, <span class="ident">s</span>, <span class="ident">t</span>)
                 .<span class="ident">open_file</span>(<span class="ident">dir</span>.<span class="ident">clone</span>())
@@ -1490,7 +1490,7 @@
         <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">has_computed_bidegree</span>(<span class="ident">s</span> <span class="op">+</span> <span class="number">1</span>, <span class="ident">t</span>) {
             <span class="kw">let</span> <span class="ident">kernel</span> <span class="op">=</span> <span class="ident">matrix</span>.<span class="ident">compute_kernel</span>();
             <span class="kw">if</span> <span class="self">self</span>.<span class="ident">should_save</span> {
-                <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dir</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">save_dir</span>.<span class="ident">as_ref</span>() {
+                <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">dir</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">save_dir</span> {
                     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="self">self</span>
                         .<span class="ident">save_file</span>(<span class="ident">SaveKind::Kernel</span>, <span class="ident">s</span>, <span class="ident">t</span>)
                         .<span class="ident">create_file</span>(<span class="ident">dir</span>.<span class="ident">clone</span>());
@@ -1649,7 +1649,7 @@
         ));
 
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">should_save</span> {
-            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dir</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">save_dir</span>.<span class="ident">as_ref</span>() {
+            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">dir</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">save_dir</span> {
                 <span class="comment">// Write differentials</span>
                 <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="self">self</span>
                     .<span class="ident">save_file</span>(<span class="ident">SaveKind::Differential</span>, <span class="ident">s</span>, <span class="ident">t</span>)
@@ -1933,7 +1933,7 @@
                 <span class="ident">qi</span>.<span class="ident">apply</span>(<span class="ident">result</span>.<span class="ident">into</span>(), <span class="number">1</span>, <span class="ident">input</span>.<span class="ident">into</span>());
             }
             <span class="bool-val">true</span>
-        } <span class="kw">else</span> <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dir</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">save_dir</span>.<span class="ident">as_ref</span>() {
+        } <span class="kw">else</span> <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">dir</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">save_dir</span> {
             <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">mut</span> <span class="ident">f</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">save_file</span>(<span class="ident">SaveKind::ResQi</span>, <span class="ident">s</span>, <span class="ident">t</span>).<span class="ident">open_file</span>(<span class="ident">dir</span>.<span class="ident">clone</span>()) {
                 <span class="ident">QuasiInverse::stream_quasi_inverse</span>(<span class="self">self</span>.<span class="ident">prime</span>(), <span class="kw-2">&amp;mut</span> <span class="ident">f</span>, <span class="ident">results</span>, <span class="ident">inputs</span>).<span class="ident">unwrap</span>();
                 <span class="bool-val">true</span>

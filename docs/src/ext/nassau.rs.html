@@ -1725,13 +1725,13 @@
         <span class="ident"><span class="self">Self</span>::new_with_save</span>(<span class="ident">module</span>, <span class="prelude-val">None</span>).<span class="ident">unwrap</span>()
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new_with_save</span>(<span class="ident">module</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span>, <span class="kw-2">mut</span> <span class="ident">save_dir</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">PathBuf</span><span class="op">&gt;</span>) -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new_with_save</span>(<span class="ident">module</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span>, <span class="ident">save_dir</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">PathBuf</span><span class="op">&gt;</span>) -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">max_degree</span> <span class="op">=</span> <span class="ident">module</span>
             .<span class="ident">max_degree</span>()
             .<span class="ident">ok_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="macro">anyhow!</span>(<span class="string">&quot;Nassau&#39;s algorithm requires bounded module&quot;</span>))<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="ident">target</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">FiniteChainComplex::ccdz</span>(<span class="ident">module</span>));
 
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">p</span>) <span class="op">=</span> <span class="ident">save_dir</span>.<span class="ident">as_mut</span>() {
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">p</span>) <span class="op">=</span> <span class="ident">save_dir</span> {
             <span class="kw">for</span> <span class="ident">subdir</span> <span class="kw">in</span> <span class="ident">SaveKind::nassau_data</span>() {
                 <span class="ident">subdir</span>.<span class="ident">create_dir</span>(<span class="ident">p</span>)<span class="question-mark">?</span>;
             }
@@ -1797,8 +1797,8 @@
         <span class="ident">full_matrix</span>: <span class="kw-2">&amp;</span><span class="ident">Matrix</span>,
         <span class="ident">masked_matrix</span>: <span class="kw-2">&amp;</span><span class="ident">AugmentedMatrix</span><span class="op">&lt;</span><span class="number">2</span><span class="op">&gt;</span>,
     ) -&gt; <span class="ident">std::io::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">f</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">f</span>.<span class="ident">as_mut</span>() {
-            <span class="prelude-val">Some</span>(<span class="ident">f</span>) =&gt; <span class="ident">f</span>,
+        <span class="kw">let</span> <span class="ident">f</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">f</span> {
+            <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">f</span>) =&gt; <span class="ident">f</span>,
             <span class="prelude-val">None</span> =&gt; <span class="kw">return</span> <span class="prelude-val">Ok</span>(()),
         };
 
@@ -1904,7 +1904,7 @@
         )
         .<span class="ident">unwrap</span>();
 
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">f</span>) <span class="op">=</span> <span class="ident">f</span>.<span class="ident">as_mut</span>() {
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">f</span>) <span class="op">=</span> <span class="ident">f</span> {
             <span class="kw">if</span> <span class="ident">target</span>.<span class="ident">max_computed_degree</span>() <span class="op">&lt;</span> <span class="ident">t</span> {
                 <span class="ident">f</span>.<span class="ident">write_u64</span>::<span class="op">&lt;</span><span class="ident">LittleEndian</span><span class="op">&gt;</span>(<span class="ident">Magic::Fix</span> <span class="kw">as</span> <span class="ident">u64</span>).<span class="ident">unwrap</span>();
             }
@@ -1992,11 +1992,11 @@
 
         <span class="ident">end</span>();
 
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">f</span>) <span class="op">=</span> <span class="ident">f</span>.<span class="ident">as_mut</span>() {
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">f</span>) <span class="op">=</span> <span class="ident">f</span> {
             <span class="ident">f</span>.<span class="ident">write_u64</span>::<span class="op">&lt;</span><span class="ident">LittleEndian</span><span class="op">&gt;</span>(<span class="ident">Magic::End</span> <span class="kw">as</span> <span class="ident">u64</span>).<span class="ident">unwrap</span>();
         }
 
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dir</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">save_dir</span>.<span class="ident">as_ref</span>() {
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">dir</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">save_dir</span> {
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="self">self</span>
                 .<span class="ident">save_file</span>(<span class="ident">SaveKind::NassauDifferential</span>, <span class="ident">s</span>, <span class="ident">t</span>)
                 .<span class="ident">create_file</span>(<span class="ident">dir</span>.<span class="ident">clone</span>());
@@ -2127,7 +2127,7 @@
             <span class="kw">return</span>;
         }
 
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dir</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">save_dir</span>.<span class="ident">as_ref</span>() {
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">dir</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">save_dir</span> {
             <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">mut</span> <span class="ident">f</span>) <span class="op">=</span> <span class="self">self</span>
                 .<span class="ident">save_file</span>(<span class="ident">SaveKind::NassauDifferential</span>, <span class="ident">s</span>, <span class="ident">t</span>)
                 .<span class="ident">open_file</span>(<span class="ident">dir</span>.<span class="ident">clone</span>())
@@ -2320,7 +2320,7 @@
         <span class="kw">for</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="kw-2">mut</span> <span class="ident">T</span>: <span class="ident">Into</span><span class="op">&lt;</span><span class="ident">SliceMut</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="kw">for</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">S</span>: <span class="ident">Into</span><span class="op">&lt;</span><span class="ident">Slice</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dir</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">save_dir</span>.<span class="ident">as_ref</span>() {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">dir</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">save_dir</span> {
             <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">f</span>) <span class="op">=</span> <span class="self">self</span>
                 .<span class="ident">save_file</span>(<span class="ident">SaveKind::NassauQi</span>, <span class="ident">s</span>, <span class="ident">t</span>)
                 .<span class="ident">open_file</span>(<span class="ident">dir</span>.<span class="ident">clone</span>())
