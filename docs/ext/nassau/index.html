@@ -29,8 +29,8 @@
 is the <a href="struct.Resolution.html" title="Resolution"><code>Resolution</code></a> object, which is a resolution of the sphere at the prime 2 using Nassau’s
 algorithm. It aims to provide an API similar to
 <a href="../resolution/struct.Resolution.html"><code>resolution::Resolution</code></a>. From an API point of view, the main
-difference between the two is that our <code>Resolution</code> is a chain complex over <a href="../../algebra/algebra/milnor_algebra/struct.MilnorAlgebra.html" title="MilnorAlgebra"><code>MilnorAlgebra</code></a>
-over <a href="../../algebra/algebra/steenrod_algebra/enum.SteenrodAlgebra.html"><code>SteenrodAlgebra</code></a>.</p>
+difference between the two is that our <code>Resolution</code> is a chain complex over [<code>MilnorAlgebra</code>]
+over <a href="algebra::SteenrodAlgebra"><code>SteenrodAlgebra</code></a>.</p>
 <p>To make use of this resolution in the example scripts, enable the <code>nassau</code> feature. This will
 cause <a href="../utils/fn.query_module.html"><code>utils::query_module</code></a> to return the <code>Resolution</code> from this
 module instead of <a href="../resolution/index.html"><code>resolution</code></a>. There is no formal polymorphism involved;
@@ -42,8 +42,8 @@ resolutions.</p>
 is equipped with an ordering of the signature as in Lemma 2.4 of the paper.</p>
 </div></div><div class="item-row"><div class="item-left module-item"><a class="struct" href="struct.Resolution.html" title="ext::nassau::Resolution struct">Resolution</a></div><div class="item-right docblock-short"><p>A resolution of <code>S_2</code> using Nassau’s algorithm. This aims to have an API similar to that of
 <a href="../resolution/struct.Resolution.html"><code>resolution::Resolution</code></a>. From an API point of view, the main
-difference between the two is that this is a chain complex over <a href="../../algebra/algebra/milnor_algebra/struct.MilnorAlgebra.html" title="MilnorAlgebra"><code>MilnorAlgebra</code></a>
-over <a href="../../algebra/algebra/steenrod_algebra/enum.SteenrodAlgebra.html"><code>SteenrodAlgebra</code></a>.</p>
+difference between the two is that this is a chain complex over [<code>MilnorAlgebra</code>]
+over <a href="algebra::SteenrodAlgebra"><code>SteenrodAlgebra</code></a>.</p>
 </div></div><div class="item-row"><div class="item-left module-item"><a class="struct" href="struct.SenderData.html" title="ext::nassau::SenderData struct">SenderData</a></div><div class="item-right docblock-short"><p>See <a href="../resolution/struct.SenderData.html"><code>resolution::SenderData</code></a>. This differs by not having the <code>new</code> field.</p>
 </div></div><div class="item-row"><div class="item-left module-item"><a class="struct" href="struct.SignatureIterator.html" title="ext::nassau::SignatureIterator struct">SignatureIterator</a></div><div class="item-right docblock-short"><p>See <a href="struct.MilnorSubalgebra.html#method.iter_signatures" title="MilnorSubalgebra::iter_signatures"><code>MilnorSubalgebra::iter_signatures</code></a>.</p>
 </div></div><div class="item-row"><div class="item-left module-item"><a class="struct" href="struct.SubalgebraIterator.html" title="ext::nassau::SubalgebraIterator struct">SubalgebraIterator</a></div><div class="item-right docblock-short"><p>An iterator that iterates through a sequence of <a href="struct.MilnorSubalgebra.html" title="MilnorSubalgebra"><code>MilnorSubalgebra</code></a> of increasing size. This

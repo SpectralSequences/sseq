@@ -866,7 +866,7 @@
 <span class="doccomment">/// name, and return the parsed json object. The search path for this json file is described</span>
 <span class="doccomment">/// [here](../index.html#module-specification).</span>
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">load_module_json</span>(<span class="ident">name</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span><span class="ident">Value</span><span class="op">&gt;</span> {
-    <span class="kw">let</span> <span class="ident">current_dir</span> <span class="op">=</span> <span class="ident">std::env::current_dir</span>().<span class="ident">unwrap</span>();
+    <span class="kw">let</span> <span class="ident">current_dir</span> <span class="op">=</span> <span class="ident">std::env::current_dir</span>().<span class="ident">context</span>(<span class="string">&quot;Failed to read current directory&quot;</span>)<span class="question-mark">?</span>;
     <span class="kw">let</span> <span class="ident">relative_dir</span> <span class="op">=</span> <span class="ident">current_dir</span>.<span class="ident">join</span>(<span class="string">&quot;steenrod_modules&quot;</span>);
 
     <span class="kw">for</span> <span class="ident">path</span> <span class="kw">in</span> <span class="kw-2">&amp;</span>[
@@ -994,7 +994,7 @@
         <span class="kw">if</span> <span class="ident">s</span> <span class="op">&lt;</span><span class="op">=</span> <span class="ident">max_s</span> {
             <span class="ident">max_s</span> <span class="op">=</span> <span class="ident">std::cmp::min</span>(<span class="ident">s</span> <span class="op">+</span> <span class="number">1</span>, <span class="ident">max_s</span>);
         } <span class="kw">else</span> {
-            <span class="macro">panic!</span>(<span class="string">&quot;SECONDARY_JOB is larger than max_s&quot;</span>);
+            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(<span class="string">&quot;SECONDARY_JOB is larger than max_s&quot;</span>));
         }
     }
 

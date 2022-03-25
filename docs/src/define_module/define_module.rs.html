@@ -369,7 +369,6 @@
 <span id="342">342</span>
 <span id="343">343</span>
 <span id="344">344</span>
-<span id="345">345</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">rustc_hash::FxHashMap</span> <span class="kw">as</span> <span class="ident">HashMap</span>;
 <span class="kw">use</span> <span class="ident">std::io</span>::{<span class="ident">stderr</span>, <span class="ident">Write</span>};
 <span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
@@ -470,13 +469,12 @@
             <span class="kw">let</span> <span class="ident">term</span> <span class="op">=</span> <span class="ident">term</span>.<span class="ident">trim</span>();
             <span class="kw">let</span> <span class="ident">parts</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">str</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">term</span>.<span class="ident">splitn</span>(<span class="number">2</span>, <span class="string">&#39; &#39;</span>).<span class="ident">collect</span>();
             <span class="kw">if</span> <span class="ident">parts</span>.<span class="ident">len</span>() <span class="op">==</span> <span class="number">1</span> {
-                <span class="kw">match</span> <span class="ident">string_to_basis_element</span>(<span class="ident">parts</span>[<span class="number">0</span>]) {
-                    <span class="prelude-val">Some</span>(<span class="ident">i</span>) =&gt; <span class="ident">output_vec</span>.<span class="ident">add_basis_element</span>(<span class="ident">i</span>, <span class="number">1</span>),
-                    <span class="prelude-val">None</span> =&gt; {
-                        <span class="macro">eprintln!</span>(<span class="string">&quot;Invalid value. Try again&quot;</span>);
-                        <span class="kw">continue</span> <span class="lifetime">&#39;outer</span>;
-                    }
-                };
+                <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">i</span>) <span class="op">=</span> <span class="ident">string_to_basis_element</span>(<span class="ident">parts</span>[<span class="number">0</span>]) {
+                    <span class="ident">output_vec</span>.<span class="ident">add_basis_element</span>(<span class="ident">i</span>, <span class="number">1</span>);
+                } <span class="kw">else</span> {
+                    <span class="macro">eprintln!</span>(<span class="string">&quot;Invalid value. Try again&quot;</span>);
+                    <span class="kw">continue</span> <span class="lifetime">&#39;outer</span>;
+                }
             } <span class="kw">else</span> {
                 <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">rest</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">parts</span>[<span class="number">1</span>];
                 <span class="kw">let</span> <span class="ident">coef</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">parts</span>[<span class="number">0</span>].<span class="ident">parse</span>::<span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span>() {

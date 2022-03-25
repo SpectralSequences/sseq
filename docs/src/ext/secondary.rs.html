@@ -2006,7 +2006,7 @@
             <span class="kw">let</span> <span class="ident">s</span> <span class="op">=</span> <span class="ident">s</span> <span class="kw">as</span> <span class="ident">u32</span>;
             <span class="kw">for</span> <span class="ident">t</span> <span class="kw">in</span> <span class="ident">homotopy</span>.<span class="ident">composites</span>.<span class="ident">range</span>() {
                 <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">homotopy</span>.<span class="ident">source</span>.<span class="ident">number_of_gens_in_degree</span>(<span class="ident">t</span>) {
-                    <span class="ident">f</span>(<span class="ident">s</span>, <span class="ident">t</span>, <span class="ident">i</span>)
+                    <span class="ident">f</span>(<span class="ident">s</span>, <span class="ident">t</span>, <span class="ident">i</span>);
                 }
             }
         }
