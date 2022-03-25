@@ -225,7 +225,7 @@ pub fn interactive_module_define_fpmodule(
 
     let gens = get_gens()?;
     let min_degree = gens.min_degree();
-    let max_degree = 20;
+    let max_degree = gens.len();
 
     let steenrod_algebra = Arc::new(SteenrodAlgebra::AdemAlgebra(AdemAlgebra::new(
         p, generic, false, false,
@@ -247,15 +247,13 @@ pub fn interactive_module_define_fpmodule(
     for (i, deg_i_gens) in gens.iter_enum() {
         adem_module.add_generators(i, deg_i_gens.clone());
     }
-    // TODO: make relation parser automatically extend module by zero if necessary...
-    adem_module.generators().extend_by_zero(20);
+    adem_module.generators().extend_by_zero(max_degree);
 
     eprintln!("Input relations");
     match *p {
         2 => eprintln!("Write relations in the form 'Sq6 * Sq2 * x + Sq7 * y'"),
         _ => eprintln!("Write relations in the form 'Q5 * P(5) * x + 2 * P(1, 3) * Q2 * y', where P(...) and Qi are Milnor basis elements."),
     }
-    eprintln!("There is currently a hard-coded maximum degree of {} for relations (this is the maximum allowed degree of an operator acting on the generators). One can raise this number by editing the max_degree variable in the interactive_module_define_fpmodule function of src/cli_module_loaders.rs. Apologies.", max_degree);
 
     let mut basis_elt_lookup = HashMap::default();
     for (i, deg_i_gens) in gens.iter_enum() {
@@ -276,14 +274,14 @@ pub fn interactive_module_define_fpmodule(
             &basis_elt_lookup,
         ) {
             Err(x) => {
-                if x.is_empty() {
+                if !x.is_empty() {
                     eprintln!("Invalid relation: {}. Try again.", x);
                     continue;
                 }
                 eprintln!("This is the list of relations:");
                 for (i, deg_i_relns) in relations.iter_enum() {
                     for r in deg_i_relns {
-                        print!(
+                        eprint!(
                             "{}, ",
                             adem_module.generators().element_to_string(i, r.as_slice())
                         );

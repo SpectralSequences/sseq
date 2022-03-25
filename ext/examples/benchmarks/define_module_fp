@@ -1,0 +1,2 @@
+define_module -- fp "" "" 0 x0 2 x2 "" y "Sq2 * x2" "Sq6 * x2 + Sq2 * Sq6 * x0" "" y
+{"adem_relations":[[{"coeff":1,"gen":"x2","op":[2]}],[{"coeff":1,"gen":"x0","op":[7,1]},{"coeff":1,"gen":"x2","op":[6]}]],"algebra":["adem"],"generic":false,"gens":{"x0":0,"x2":2},"name":"","p":2,"type":"finitely presented module"}

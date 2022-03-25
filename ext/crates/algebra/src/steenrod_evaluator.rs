@@ -260,6 +260,8 @@ fn evaluate_module_tree_helper<M: Module>(
                 *right,
             )?;
             let degree = degree_left + degree_right;
+            module.algebra().compute_basis(degree - module.min_degree());
+            module.compute_basis(degree);
             let mut result = FpVector::new(p, module.dimension(degree));
             module.act_by_element(
                 result.as_slice_mut(),
