@@ -1607,120 +1607,123 @@ impl MilnorAlgebra {
         idx: usize,
     ) -> Vec<(u32, (i32, usize), (i32, usize))> {
         let p = self.prime();
-        let b = self.basis_element_from_index(degree, idx);
-        let len = b.p_part.len();
 
         // We define an ordering on the p parts as follows: we order each entry in reverse, and
         // then impose the reverse lexicographic ordering. Then for each non-generator P(R), `init`
         // is a partial decomposition such that the non-zero terms in the `init` product are all
         // greater than or equal to P(R) (and P(R) has non-zero coefficient in `init`). We can then
         // apply this algorithm recursively to decompose an element.
-        let mut init = if b.p_part[0..len - 1].iter().all(|&x| x == 0) {
-            // There is only one entry
-            let entry = b.p_part[len - 1];
-            let (k, m) = factor_pk(*p, entry as u32);
 
-            // This is a power of p
-            if m == 1 {
-                if len == 1 || !self.profile.is_an(self.generic()) {
-                    // This is a generator. Just return the thing itself
-                    return vec![(1, (degree, idx), (0, 0))];
+        // result is the products we have added so far
+        let mut result = Vec::new();
+        // buffer is the products we are adding in the current iteration
+        let mut buffer = Vec::new();
+
+        // out_vec is the remaining items we have to kill. We are done when this hits zero.
+        let mut out_vec = FpVector::new(p, self.dimension(degree));
+        out_vec.set_entry(idx, *p - 1);
+
+        while let Some((idx, c)) = out_vec.iter_nonzero().next() {
+            let b = self.basis_element_from_index(degree, idx);
+            let len = b.p_part.len();
+
+            if b.p_part[0..len - 1].iter().all(|&x| x == 0) {
+                // There is only one entry
+                let entry = b.p_part[len - 1];
+                let (k, m) = factor_pk(*p, entry as u32);
+
+                // This is a power of p
+                if m == 1 {
+                    if len == 1 || !self.profile.is_an(self.generic()) {
+                        buffer.extend([(*p - c, (degree, idx), (0, 0))]);
+                    } else {
+                        // Write this as [P(p^(len + k - 1)), P(0, .., 0, P^k)] plus higher order
+                        // terms.
+                        let l_entry = p.pow(len as u32 + k - 1) as PPartEntry;
+                        let r_entry = p.pow(k) as PPartEntry;
+
+                        let l_degree = l_entry as i32 * self.q();
+                        let l_index = self.basis_element_to_index(&MilnorBasisElement {
+                            q_part: 0,
+                            p_part: vec![l_entry],
+                            degree: l_degree,
+                        });
+
+                        let mut r_p_part = vec![0; len - 1];
+                        r_p_part[len - 2] = r_entry;
+                        let r_degree =
+                            r_entry as i32 * combinatorics::xi_degrees(p)[len - 2] * self.q();
+
+                        let r_index = self.basis_element_to_index(&MilnorBasisElement {
+                            q_part: 0,
+                            p_part: r_p_part,
+                            degree: r_degree,
+                        });
+                        buffer.extend(vec![
+                            (*p - c, (l_degree, l_index), (r_degree, r_index)),
+                            (c, (r_degree, r_index), (l_degree, l_index)),
+                        ])
+                    }
                 } else {
-                    // Write this as [P(p^(len + k - 1)), P(0, .., 0, P^k)] plus higher order
-                    // terms.
-                    let l_entry = p.pow(len as u32 + k - 1) as PPartEntry;
-                    let r_entry = p.pow(k) as PPartEntry;
+                    // This is not a power of p. Just subtract the lowest power of p.
+                    let pk = p.pow(k) as PPartEntry;
+                    let rem_entry = entry - pk;
 
-                    let l_degree = l_entry as i32 * self.q();
-                    let l_index = self.basis_element_to_index(&MilnorBasisElement {
+                    let entry_deg = combinatorics::xi_degrees(p)[len - 1] * self.q();
+
+                    let mut elt = MilnorBasisElement {
                         q_part: 0,
-                        p_part: vec![l_entry],
-                        degree: l_degree,
-                    });
+                        degree: 0,
+                        p_part: vec![0; len],
+                    };
 
-                    let mut r_p_part = vec![0; len - 1];
-                    r_p_part[len - 2] = r_entry;
-                    let r_degree =
-                        r_entry as i32 * combinatorics::xi_degrees(p)[len - 2] * self.q();
+                    elt.p_part[len - 1] = pk;
+                    elt.degree = entry_deg * elt.p_part[len - 1] as i32;
+                    let first = (elt.degree, self.basis_element_to_index(&elt));
 
-                    let r_index = self.basis_element_to_index(&MilnorBasisElement {
-                        q_part: 0,
-                        p_part: r_p_part,
-                        degree: r_degree,
-                    });
-                    vec![
-                        (1, (l_degree, l_index), (r_degree, r_index)),
-                        (*p - 1, (r_degree, r_index), (l_degree, l_index)),
-                    ]
+                    elt.p_part[len - 1] = rem_entry;
+                    elt.degree = entry_deg * elt.p_part[len - 1] as i32;
+                    let second = (elt.degree, self.basis_element_to_index(&elt));
+
+                    let coef = *p
+                        - fp::prime::inverse(p, PPartEntry::binomial(p, pk + rem_entry, pk) as u32);
+                    buffer.extend([(coef, first, second)])
                 }
             } else {
-                // This is not a power of p. Just subtract the lowest power of p.
-                let pk = p.pow(k) as PPartEntry;
-                let rem_entry = entry - pk;
-
-                let entry_deg = combinatorics::xi_degrees(p)[len - 1] * self.q();
-
+                // There is more than one entry. Just separate out the last entry.
+                let last_entry = b.p_part[len - 1];
+                let last_deg = combinatorics::xi_degrees(p)[len - 1] * self.q() * last_entry as i32;
                 let mut elt = MilnorBasisElement {
                     q_part: 0,
-                    degree: 0,
                     p_part: vec![0; len],
+                    degree: last_deg,
                 };
-
-                elt.p_part[len - 1] = pk;
-                elt.degree = entry_deg * elt.p_part[len - 1] as i32;
+                elt.p_part[len - 1] = last_entry;
                 let first = (elt.degree, self.basis_element_to_index(&elt));
 
-                elt.p_part[len - 1] = rem_entry;
-                elt.degree = entry_deg * elt.p_part[len - 1] as i32;
+                elt.degree = degree - last_deg;
+                elt.p_part.clear();
+                elt.p_part.extend_from_slice(&b.p_part[0..len - 1]);
+                while let Some(0) = elt.p_part.last() {
+                    elt.p_part.pop();
+                }
                 let second = (elt.degree, self.basis_element_to_index(&elt));
-
-                let coef =
-                    fp::prime::inverse(p, PPartEntry::binomial(p, pk + rem_entry, pk) as u32);
-                vec![(coef, first, second)]
-            }
-        } else {
-            // There is more than one entry. Just separate out the last entry.
-            let last_entry = b.p_part[len - 1];
-            let last_deg = combinatorics::xi_degrees(p)[len - 1] * self.q() * last_entry as i32;
-            let mut elt = MilnorBasisElement {
-                q_part: 0,
-                p_part: vec![0; len],
-                degree: last_deg,
+                buffer.extend([(*p - c, first, second)]);
             };
-            elt.p_part[len - 1] = last_entry;
-            let first = (elt.degree, self.basis_element_to_index(&elt));
-
-            elt.degree = degree - last_deg;
-            elt.p_part.clear();
-            elt.p_part.extend_from_slice(&b.p_part[0..len - 1]);
-            while let Some(0) = elt.p_part.last() {
-                elt.p_part.pop();
+            for (c, first, second) in &buffer {
+                self.multiply_basis_elements(
+                    out_vec.as_slice_mut(),
+                    *c,
+                    first.0,
+                    first.1,
+                    second.0,
+                    second.1,
+                );
             }
-            let second = (elt.degree, self.basis_element_to_index(&elt));
-            vec![(1, first, second)]
-        };
-
-        let mut out_vec = FpVector::new(p, self.dimension(degree));
-        for (c, first, second) in &init {
-            self.multiply_basis_elements(
-                out_vec.as_slice_mut(),
-                *c,
-                first.0,
-                first.1,
-                second.0,
-                second.1,
-            );
+            result.extend(&buffer);
+            buffer.clear();
         }
-        let c = out_vec.entry(idx);
-        assert_eq!(c, 1);
-
-        out_vec.set_entry(idx, 0);
-        for (i, v) in out_vec.iter_nonzero() {
-            for (c, t1, t2) in self.decompose_basis_element_ppart(degree, i) {
-                init.push((((*p - 1) * c * v) % *p, t1, t2));
-            }
-        }
-        init
+        result
     }
 }
 
