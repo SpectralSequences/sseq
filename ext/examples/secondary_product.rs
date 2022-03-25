@@ -191,8 +191,8 @@ fn main() -> anyhow::Result<()> {
             Some(&res_sseq),
             s,
             t,
-            page_data.subspace_gens().map(|x| x.as_slice()),
-            outputs.iter_mut().map(|x| x.as_slice_mut()),
+            page_data.subspace_gens().map(FpVector::as_slice),
+            outputs.iter_mut().map(FpVector::as_slice_mut),
         );
         for (gen, output) in page_data.subspace_gens().zip_eq(outputs) {
             print!("{name} [");

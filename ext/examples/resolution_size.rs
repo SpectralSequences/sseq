@@ -10,7 +10,7 @@ fn main() -> anyhow::Result<()> {
         for t in res.min_degree() + s as i32..=module.max_computed_degree() {
             print!("{}, ", module.dimension(t));
         }
-        println!()
+        println!();
     }
     Ok(())
 }

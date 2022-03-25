@@ -113,10 +113,7 @@ fn get_hom(
         None
     };
 
-    let name = match (
-        &*ext_name,
-        tau_part.as_ref().map(|x| x.name()).unwrap_or(""),
-    ) {
+    let name = match (&*ext_name, tau_part.as_ref().map_or("", |x| x.name())) {
         ("", "") => panic!("Do not compute zero Massey product"),
         ("", x) => format!("τ{x}"),
         (x, "") => format!("[{x}]"),
@@ -368,7 +365,7 @@ fn main() -> anyhow::Result<()> {
                     Some(&unit_sseq),
                     s,
                     t,
-                    e2_kernel.basis().iter().map(|x| x.as_slice()),
+                    e2_kernel.basis().iter().map(FpVector::as_slice),
                     product_matrix[0..e2_ker_dim]
                         .iter_mut()
                         .map(|x| x.slice_mut(0, prod_all_gens)),
@@ -524,7 +521,7 @@ fn main() -> anyhow::Result<()> {
                         t + b_shift_t,
                         i,
                     );
-                    scratch1.add_basis_element(gen_idx, dx.entry(idx))
+                    scratch1.add_basis_element(gen_idx, dx.entry(idx));
                 }
             }
             println!(" + τ{}", scratch1);

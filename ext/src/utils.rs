@@ -258,7 +258,7 @@ where
 /// name, and return the parsed json object. The search path for this json file is described
 /// [here](../index.html#module-specification).
 pub fn load_module_json(name: &str) -> anyhow::Result<Value> {
-    let current_dir = std::env::current_dir().unwrap();
+    let current_dir = std::env::current_dir().context("Failed to read current directory")?;
     let relative_dir = current_dir.join("steenrod_modules");
 
     for path in &[
@@ -386,7 +386,7 @@ pub fn query_module(
         if s <= max_s {
             max_s = std::cmp::min(s + 1, max_s);
         } else {
-            panic!("SECONDARY_JOB is larger than max_s");
+            return Err(anyhow!("SECONDARY_JOB is larger than max_s"));
         }
     }
 

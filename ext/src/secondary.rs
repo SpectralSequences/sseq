@@ -521,7 +521,7 @@ pub trait SecondaryLift: Sync {
             let s = s as u32;
             for t in homotopy.composites.range() {
                 for i in 0..homotopy.source.number_of_gens_in_degree(t) {
-                    f(s, t, i)
+                    f(s, t, i);
                 }
             }
         }

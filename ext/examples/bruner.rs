@@ -100,7 +100,7 @@ use fp::{matrix::Matrix, prime::ValidPrime, vector::FpVector};
 use std::{
     fs::File,
     io::{BufRead, BufReader},
-    path::{Path, PathBuf},
+    path::Path,
     str::FromStr,
     sync::Arc,
 };
@@ -201,7 +201,7 @@ fn get_element(
     Ok(Some((degree, result)))
 }
 
-/// Create a new FiniteChainComplex with `num_s` many non-zero modules.
+/// Create a new `FiniteChainComplex` with `num_s` many non-zero modules.
 fn create_chain_complex(num_s: usize) -> FiniteChainComplex {
     #[cfg(feature = "nassau")]
     let algebra: Arc<MilnorAlgebra> = Arc::new(MilnorAlgebra::new(TWO));
@@ -229,7 +229,7 @@ fn create_chain_complex(num_s: usize) -> FiniteChainComplex {
 }
 
 /// Read the Diff.$N files in `data_dir` and produce the corresponding chain complex object.
-fn read_bruner_resolution(data_dir: PathBuf, max_n: i32) -> Result<(u32, FiniteChainComplex)> {
+fn read_bruner_resolution(data_dir: &Path, max_n: i32) -> Result<(u32, FiniteChainComplex)> {
     let num_s: usize = data_dir.read_dir()?.count();
 
     let cc = create_chain_complex(num_s);
@@ -288,7 +288,7 @@ fn main() {
     let max_n: i32 = query::with_default("Max n", "20", str::parse);
 
     // Read in Bruner's resolution
-    let (max_s, cc) = read_bruner_resolution(data_dir, max_n).unwrap();
+    let (max_s, cc) = read_bruner_resolution(&data_dir, max_n).unwrap();
     let cc = Arc::new(cc);
 
     let resolution = ext::utils::construct("S_2@milnor", None).unwrap();
