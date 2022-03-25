@@ -271,8 +271,6 @@
 <span id="244">244</span>
 <span id="245">245</span>
 <span id="246">246</span>
-<span id="247">247</span>
-<span id="248">248</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::algebra</span>::{
     <span class="ident">adem_algebra::AdemBasisElement</span>,
     <span class="ident">milnor_algebra</span>::{<span class="ident">MilnorBasisElement</span>, <span class="ident">PPartEntry</span>},
@@ -388,11 +386,9 @@
             <span class="kw">return</span>;
         }
 
-        <span class="kw">if</span> <span class="kw">match</span> (<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">algebra</span>).<span class="ident">try_into</span>() {
-            <span class="prelude-val">Ok</span>(<span class="ident">SteenrodAlgebra::AdemAlgebra</span>(<span class="kw-2">ref</span> <span class="ident">a</span>)) =&gt; {
-                <span class="ident">coef_adem</span>(<span class="ident">a</span>, <span class="ident">op_degree</span>, <span class="ident">op_index</span>, <span class="ident">mod_degree</span>)
-            }
-            <span class="prelude-val">Ok</span>(<span class="ident">SteenrodAlgebra::MilnorAlgebra</span>(<span class="kw-2">ref</span> <span class="ident">a</span>)) =&gt; {
+        <span class="kw">if</span> <span class="kw">match</span> <span class="kw-2">&amp;</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">algebra</span>).<span class="ident">try_into</span>() {
+            <span class="prelude-val">Ok</span>(<span class="ident">SteenrodAlgebra::AdemAlgebra</span>(<span class="ident">a</span>)) =&gt; <span class="ident">coef_adem</span>(<span class="ident">a</span>, <span class="ident">op_degree</span>, <span class="ident">op_index</span>, <span class="ident">mod_degree</span>),
+            <span class="prelude-val">Ok</span>(<span class="ident">SteenrodAlgebra::MilnorAlgebra</span>(<span class="ident">a</span>)) =&gt; {
                 <span class="ident">coef_milnor</span>(<span class="ident">a</span>, <span class="ident">op_degree</span>, <span class="ident">op_index</span>, <span class="ident">mod_degree</span>)
             }
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="macro">unreachable!</span>(),
