@@ -213,7 +213,7 @@ pub const fn log2(n: usize) -> usize {
     std::mem::size_of::<usize>() * 8 - 1 - n.leading_zeros() as usize
 }
 
-// Discrete log base p of n.
+/// Discrete log base p of n.
 pub const fn logp(p: u32, mut n: u32) -> u32 {
     let mut result = 0u32;
     while n > 0 {
@@ -223,6 +223,18 @@ pub const fn logp(p: u32, mut n: u32) -> u32 {
     result
 }
 
+/// Factor $n$ as $p^k m$. Returns $(k, m)$.
+pub const fn factor_pk(p: u32, mut n: u32) -> (u32, u32) {
+    if n == 0 {
+        return (0, 0);
+    }
+    let mut k = 0;
+    while n % p == 0 {
+        n /= p;
+        k += 1;
+    }
+    (k, n)
+}
 /// A number satisfying the Binomial trait supports computing various binomial coefficients. This
 /// is implemented using a macro, since the implementation for all types is syntactically the same.
 pub trait Binomial: Sized {

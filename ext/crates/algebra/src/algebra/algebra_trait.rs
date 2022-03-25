@@ -224,17 +224,21 @@ pub trait GeneratedAlgebra: Algebra {
 
     /// Decomposes an element into generators.
     ///
-    /// Given a basis element $A$, this function returns a list of triples
-    /// $(c_i, A_i, B_i)$, where $A_i$ and $B_i$ are basis elements of strictly
-    /// smaller degree than $A$, such that
+    /// Given a basis element $A$, this function returns a list of triples $(c_i, A_i, B_i)$, such
+    /// that
     ///
-    /// $$ A = \sum_i c_i A_i B_i.$$
+    /// $$ A = \sum_i c_i A_i B_i,$$
+    ///
+    /// where either ($A_i$ and $B_i$ are basis elements of strictly smaller degree than $A$), or
+    /// (one of them is a generator and the other is the identity).
     ///
     /// Combined with actions for generators, this allows us to recursively compute the action
     /// of an element on a module.
     ///
     /// This method need not be fast, because they will only be performed when constructing the module,
     /// and will often only involve low dimensional elements.
+    ///
+    /// It is invalid to supply an element that is a generator.
     fn decompose_basis_element(
         &self,
         degree: i32,

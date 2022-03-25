@@ -3,7 +3,7 @@
     "name": "$C(3)$",
     "file_name": "C3",
     "algebra": ["milnor"],
-    "profile": {"q_part": 65534},
+    "profile": {"q_part": 4294967294},
     "p": 3, "generic": true,
     "gens": {"x0": 0},
     "sq_actions": [], "adem_actions": [], "milnor_actions": [],
