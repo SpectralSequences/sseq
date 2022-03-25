@@ -1673,7 +1673,10 @@ impl MilnorAlgebra {
                 elt.p_part[len - 1] = rem_entry;
                 elt.degree = entry_deg * elt.p_part[len - 1] as i32;
                 let second = (elt.degree, self.basis_element_to_index(&elt));
-                vec![(1, first, second)]
+
+                let coef =
+                    fp::prime::inverse(p, PPartEntry::binomial(p, pk + rem_entry, pk) as u32);
+                vec![(coef, first, second)]
             }
         } else {
             // There is more than one entry. Just separate out the last entry.
@@ -1709,16 +1712,12 @@ impl MilnorAlgebra {
             );
         }
         let c = out_vec.entry(idx);
-        assert!(c != 0);
-        let c_inv = fp::prime::inverse(p, *p - c);
-        for entry in init.iter_mut() {
-            entry.0 = (entry.0 * (*p - 1) * c_inv) % *p;
-        }
+        assert_eq!(c, 1);
 
         out_vec.set_entry(idx, 0);
         for (i, v) in out_vec.iter_nonzero() {
             for (c, t1, t2) in self.decompose_basis_element_ppart(degree, i) {
-                init.push(((c_inv * c * v) % *p, t1, t2));
+                init.push((((*p - 1) * c * v) % *p, t1, t2));
             }
         }
         init
