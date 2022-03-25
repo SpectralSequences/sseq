@@ -42,10 +42,15 @@ fn q_part_default() -> u32 {
 #[cfg_attr(feature = "json", derive(Deserialize, Serialize))]
 #[derive(Debug)]
 pub struct MilnorProfile {
+    /// If `true`, unspecified p_part entries will be 0. Otherwise they will be infinity. This
+    /// defaults to `false`.
     #[cfg_attr(feature = "json", serde(default))]
     pub truncated: bool,
+    /// A bitmask indicating which of the Q_k we want to include (1 = include). Defaults to `!0`.
+    /// This is only relevant at odd primes.
     #[cfg_attr(feature = "json", serde(default = "q_part_default"))]
     pub q_part: u32,
+    /// The profile function for the Q part.
     #[cfg_attr(feature = "json", serde(default))]
     pub p_part: PPart,
 }
@@ -54,8 +59,53 @@ impl MilnorProfile {
     pub fn is_trivial(&self) -> bool {
         !self.truncated && self.q_part == !0 && self.p_part.is_empty()
     }
+
+    pub fn get_p_part(&self, i: usize) -> PPartEntry {
+        self.p_part
+            .get(i)
+            .copied()
+            .unwrap_or(if self.truncated { 0 } else { PPartEntry::MAX })
+    }
+
+    /// Checks whether the profile function is valid
+    pub fn is_valid(&self) -> bool {
+        for (i, &hi) in self.p_part.iter().enumerate() {
+            for (j, &hj) in self.p_part.iter().enumerate().skip(i + 1) {
+                if hi > (j - i) as PPartEntry + hj && self.p_part[j - i] > hj {
+                    return false;
+                }
+            }
+        }
+        if self.truncated {
+            let len = self.p_part.len();
+            for (i, &hi) in self.p_part.iter().enumerate() {
+                if hi > (len - i) as PPartEntry {
+                    return false;
+                }
+            }
+        }
+        if self.q_part != !0 {
+            for i in BitflagIterator::set_bit_iterator(!self.q_part as u64) {
+                for j in 0..i {
+                    if (self.q_part >> j) & 1 == 1 && self.get_p_part(i - j - 1) > j as PPartEntry {
+                        return false;
+                    }
+                }
+            }
+        }
+        true
+    }
 }
 
+impl Default for MilnorProfile {
+    fn default() -> Self {
+        MilnorProfile {
+            truncated: false,
+            q_part: !0,
+            p_part: Vec::new(),
+        }
+    }
+}
 #[derive(Default, Clone)]
 pub struct QPart {
     degree: i32,
@@ -200,7 +250,7 @@ impl<V> MilnorHashMap<V> {
 // elements of qpart_table[d % q], and then for each element, we iterate through the appropriate
 // entry in ppart_table of the right degree.
 pub struct MilnorAlgebra {
-    pub profile: MilnorProfile,
+    profile: MilnorProfile,
     lock: Mutex<()>,
     p: ValidPrime,
     #[cfg(feature = "odd-primes")]
@@ -221,12 +271,11 @@ impl std::fmt::Display for MilnorAlgebra {
 
 impl MilnorAlgebra {
     pub fn new(p: ValidPrime) -> Self {
-        let profile = MilnorProfile {
-            truncated: false,
-            q_part: !0,
-            p_part: Vec::new(),
-        };
+        Self::new_with_profile(p, MilnorProfile::default())
+    }
 
+    pub fn new_with_profile(p: ValidPrime, profile: MilnorProfile) -> Self {
+        assert!(profile.is_valid());
         Self {
             p,
             #[cfg(feature = "odd-primes")]
@@ -263,6 +312,9 @@ impl MilnorAlgebra {
         }
     }
 
+    pub fn profile(&self) -> &MilnorProfile {
+        &self.profile
+    }
     pub fn basis_element_from_index(&self, degree: i32, idx: usize) -> &MilnorBasisElement {
         &self.basis_table[degree as usize][idx]
     }
@@ -1756,6 +1808,37 @@ mod tests {
         .assert_eq(&m.M.to_string());
 
         assert_eq!(m.next(), None);
+    }
+
+    #[test]
+    fn test_valid_profile() {
+        assert!((MilnorProfile {
+            p_part: vec![3, 2, 1],
+            q_part: !0,
+            truncated: true
+        })
+        .is_valid());
+
+        assert!(!(MilnorProfile {
+            p_part: vec![3, 2],
+            q_part: !0,
+            truncated: true
+        })
+        .is_valid());
+
+        assert!((MilnorProfile {
+            p_part: vec![3, 2, 1],
+            q_part: 0b1111,
+            truncated: true
+        })
+        .is_valid());
+
+        assert!(!(MilnorProfile {
+            p_part: vec![3, 2, 1],
+            q_part: 0b111,
+            truncated: true
+        })
+        .is_valid());
     }
 }
 

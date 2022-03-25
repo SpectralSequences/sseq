@@ -166,17 +166,6 @@ struct AlgebraSpec {
     profile: Option<crate::algebra::milnor_algebra::MilnorProfile>,
 }
 
-impl SteenrodAlgebra {
-    pub fn new(p: ValidPrime, algebra: AlgebraType) -> Self {
-        match algebra {
-            AlgebraType::Adem => {
-                SteenrodAlgebra::AdemAlgebra(AdemAlgebra::new(p, *p != 2, false, false))
-            }
-            AlgebraType::Milnor => SteenrodAlgebra::MilnorAlgebra(MilnorAlgebra::new(p)),
-        }
-    }
-}
-
 #[cfg(feature = "json")]
 impl SteenrodAlgebra {
     pub fn from_json(
@@ -194,14 +183,12 @@ impl SteenrodAlgebra {
             }
         }
 
-        let mut algebra = Self::new(spec.p, algebra_type);
-
-        if let Self::MilnorAlgebra(inner) = &mut algebra {
-            if let Some(profile) = spec.profile {
-                inner.profile = profile;
+        Ok(match algebra_type {
+            AlgebraType::Adem => AdemAlgebra::new(spec.p, *spec.p != 2, false, false).into(),
+            AlgebraType::Milnor => {
+                MilnorAlgebra::new_with_profile(spec.p, spec.profile.unwrap_or_default()).into()
             }
-        }
-        Ok(algebra)
+        })
     }
 
     pub fn to_json(&self, json: &mut Value) {
@@ -209,18 +196,19 @@ impl SteenrodAlgebra {
             SteenrodAlgebra::MilnorAlgebra(a) => {
                 json["p"] = Value::from(*a.prime());
                 json["generic"] = Value::from(a.generic());
+                let profile = a.profile();
 
-                if !a.profile.is_trivial() {
+                if !profile.is_trivial() {
                     json["algebra"] = Value::from(vec!["milnor"]);
                     json["profile"] = Value::Object(serde_json::map::Map::with_capacity(3));
-                    if a.profile.truncated {
+                    if profile.truncated {
                         json["profile"]["truncated"] = Value::Bool(true);
                     }
-                    if a.profile.q_part != !0 {
-                        json["profile"]["q_part"] = Value::from(a.profile.q_part);
+                    if profile.q_part != !0 {
+                        json["profile"]["q_part"] = Value::from(profile.q_part);
                     }
-                    if !a.profile.p_part.is_empty() {
-                        json["profile"]["p_part"] = Value::from(a.profile.p_part.clone());
+                    if !profile.p_part.is_empty() {
+                        json["profile"]["p_part"] = Value::from(profile.p_part.clone());
                     }
                 }
             }
