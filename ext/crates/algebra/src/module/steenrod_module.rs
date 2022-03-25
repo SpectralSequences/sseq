@@ -4,12 +4,10 @@ pub type SteenrodModule = Box<dyn Module<Algebra = SteenrodAlgebra>>;
 
 #[cfg(feature = "json")]
 mod json {
-
     use super::*;
 
     use crate::module::{FDModule, FPModule, RealProjectiveSpace};
     use anyhow::anyhow;
-    use std::any::Any;
     use std::sync::Arc;
 
     pub fn from_json(
@@ -25,11 +23,6 @@ mod json {
             Some(x) => Err(anyhow!("Unknown module type: {}", x)),
             None => Err(anyhow!("Missing module type")),
         }
-    }
-
-    pub fn as_fd_module(module: &SteenrodModule) -> Option<&FDModule<SteenrodAlgebra>> {
-        let module = module as &dyn Any;
-        module.downcast_ref::<FDModule<SteenrodAlgebra>>()
     }
 }
 

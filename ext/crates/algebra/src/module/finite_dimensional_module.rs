@@ -769,47 +769,7 @@ impl<A: JsonAlgebra + GeneratedAlgebra> FiniteDimensionalModule<A> {
         }
     }
 
-    pub fn minimal_actions_to_json(&self) -> Value {
-        let algebra = self.algebra();
-        let min_degree = self.min_degree();
-        let max_degree = min_degree + self.graded_dimension.len() as i32;
-        let mut actions = Vec::new();
-        for input_degree in min_degree..max_degree {
-            for output_degree in (input_degree + 1)..max_degree {
-                if self.dimension(output_degree) == 0 {
-                    continue;
-                }
-                let op_degree = output_degree - input_degree;
-                for op_idx in algebra.generators(op_degree) {
-                    for input_idx in 0..self.dimension(input_degree) {
-                        let vec = self.action(op_degree, op_idx, input_degree, input_idx);
-                        if vec.is_zero() {
-                            continue;
-                        }
-                        actions.push(json!({
-                            "op": algebra.json_from_basis(op_degree, op_idx),
-                            "input_deg": input_degree,
-                            "input_idx": input_idx,
-                            "output": vec.iter().collect::<Vec<u32>>()
-                        }));
-                    }
-                }
-            }
-        }
-        json!(actions)
-    }
-
-    pub fn to_minimal_json(&self) -> Value {
-        json!({
-            "p": *self.prime(),
-            "algebra": self.algebra().prefix(),
-            "min_degree": self.min_degree(),
-            "graded_dimension": self.graded_dimension,
-            "actions": self.minimal_actions_to_json(),
-        })
-    }
-
-    pub fn actions_to_json(&self) -> Value {
+    fn actions_to_json(&self) -> Value {
         let algebra = self.algebra();
         let min_degree = self.min_degree();
         let max_degree = self.graded_dimension.len() as i32;
@@ -837,16 +797,6 @@ impl<A: JsonAlgebra + GeneratedAlgebra> FiniteDimensionalModule<A> {
             }
         }
         json!(actions)
-    }
-
-    pub fn gens_to_json(&self) -> Value {
-        let mut gens = json!({});
-        for (i, names) in self.gen_names.iter_enum() {
-            for name in names {
-                gens[name] = Value::from(i);
-            }
-        }
-        gens
     }
 }
 
