@@ -612,6 +612,18 @@
 <span id="585">585</span>
 <span id="586">586</span>
 <span id="587">587</span>
+<span id="588">588</span>
+<span id="589">589</span>
+<span id="590">590</span>
+<span id="591">591</span>
+<span id="592">592</span>
+<span id="593">593</span>
+<span id="594">594</span>
+<span id="595">595</span>
+<span id="596">596</span>
+<span id="597">597</span>
+<span id="598">598</span>
+<span id="599">599</span>
 </pre><pre class="rust"><code><span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;json&quot;</span>)]</span>
 <span class="kw">use</span> <span class="ident">serde</span>::{<span class="ident">de::Error</span>, <span class="ident">Deserialize</span>, <span class="ident">Deserializer</span>, <span class="ident">Serialize</span>, <span class="ident">Serializer</span>};
 <span class="kw">use</span> <span class="ident">std::convert::TryFrom</span>;
@@ -827,7 +839,7 @@
     <span class="ident">std::mem::size_of</span>::<span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span>() <span class="op">*</span> <span class="number">8</span> <span class="op">-</span> <span class="number">1</span> <span class="op">-</span> <span class="ident">n</span>.<span class="ident">leading_zeros</span>() <span class="kw">as</span> <span class="ident">usize</span>
 }
 
-<span class="comment">// Discrete log base p of n.</span>
+<span class="doccomment">/// Discrete log base p of n.</span>
 <span class="kw">pub</span> <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">logp</span>(<span class="ident">p</span>: <span class="ident">u32</span>, <span class="kw-2">mut</span> <span class="ident">n</span>: <span class="ident">u32</span>) -&gt; <span class="ident">u32</span> {
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="number">0u32</span>;
     <span class="kw">while</span> <span class="ident">n</span> <span class="op">&gt;</span> <span class="number">0</span> {
@@ -837,6 +849,18 @@
     <span class="ident">result</span>
 }
 
+<span class="doccomment">/// Factor $n$ as $p^k m$. Returns $(k, m)$.</span>
+<span class="kw">pub</span> <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">factor_pk</span>(<span class="ident">p</span>: <span class="ident">u32</span>, <span class="kw-2">mut</span> <span class="ident">n</span>: <span class="ident">u32</span>) -&gt; (<span class="ident">u32</span>, <span class="ident">u32</span>) {
+    <span class="kw">if</span> <span class="ident">n</span> <span class="op">==</span> <span class="number">0</span> {
+        <span class="kw">return</span> (<span class="number">0</span>, <span class="number">0</span>);
+    }
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">k</span> <span class="op">=</span> <span class="number">0</span>;
+    <span class="kw">while</span> <span class="ident">n</span> <span class="op">%</span> <span class="ident">p</span> <span class="op">==</span> <span class="number">0</span> {
+        <span class="ident">n</span> <span class="op">/</span><span class="op">=</span> <span class="ident">p</span>;
+        <span class="ident">k</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
+    }
+    (<span class="ident">k</span>, <span class="ident">n</span>)
+}
 <span class="doccomment">/// A number satisfying the Binomial trait supports computing various binomial coefficients. This</span>
 <span class="doccomment">/// is implemented using a macro, since the implementation for all types is syntactically the same.</span>
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">Binomial</span>: <span class="ident">Sized</span> {

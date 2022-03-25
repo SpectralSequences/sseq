@@ -335,6 +335,10 @@
 <span id="308">308</span>
 <span id="309">309</span>
 <span id="310">310</span>
+<span id="311">311</span>
+<span id="312">312</span>
+<span id="313">313</span>
+<span id="314">314</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">fp::prime::ValidPrime</span>;
 <span class="kw">use</span> <span class="ident">fp::vector</span>::{<span class="ident">Slice</span>, <span class="ident">SliceMut</span>};
 
@@ -561,17 +565,21 @@
 
     <span class="doccomment">/// Decomposes an element into generators.</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// Given a basis element $A$, this function returns a list of triples</span>
-    <span class="doccomment">/// $(c_i, A_i, B_i)$, where $A_i$ and $B_i$ are basis elements of strictly</span>
-    <span class="doccomment">/// smaller degree than $A$, such that</span>
+    <span class="doccomment">/// Given a basis element $A$, this function returns a list of triples $(c_i, A_i, B_i)$, such</span>
+    <span class="doccomment">/// that</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// $$ A = \sum_i c_i A_i B_i.$$</span>
+    <span class="doccomment">/// $$ A = \sum_i c_i A_i B_i,$$</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// where either ($A_i$ and $B_i$ are basis elements of strictly smaller degree than $A$), or</span>
+    <span class="doccomment">/// (one of them is a generator and the other is the identity).</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// Combined with actions for generators, this allows us to recursively compute the action</span>
     <span class="doccomment">/// of an element on a module.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// This method need not be fast, because they will only be performed when constructing the module,</span>
     <span class="doccomment">/// and will often only involve low dimensional elements.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// It is invalid to supply an element that is a generator.</span>
     <span class="kw">fn</span> <span class="ident">decompose_basis_element</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         <span class="ident">degree</span>: <span class="ident">i32</span>,

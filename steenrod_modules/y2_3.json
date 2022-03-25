@@ -4,7 +4,7 @@
     "file_name": "y2_3",
     "algebra": ["milnor"],
     "profile": {
-        "q_part": 65532,
+        "q_part": 4294967292,
         "p_part": [0, 0],
         "truncated": false
     },

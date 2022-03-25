@@ -1,1 +1,1 @@
-initSidebarItems({"fn":[["as_fd_module",""],["from_json",""]],"mod":[["json",""]],"type":[["SteenrodModule",""]]});
+initSidebarItems({"fn":[["from_json",""]],"mod":[["json",""]],"type":[["SteenrodModule",""]]});
