@@ -193,7 +193,7 @@ async function passChartChannelToPyodide(event) {
     await repl_port.connect_chart(
         chart_name,
         source_id,
-        Synclink.transfer(port, port),
+        Synclink.transfer(port, [port]),
     );
 }
 

@@ -23,7 +23,7 @@
         "swork": "^1.5.5",
         "swork-claim-clients": "^1.0.2",
         "swork-router": "^1.3.3",
-        "synclink": "^0.1.0",
+        "synclink": "^0.1.1",
         "to-string-loader": "^1.1.6",
         "ts-loader": "^9.2.6",
         "url-loader": "^4.1.0",

@@ -101,7 +101,7 @@ class SseqDisplay:
         state = self.chart.to_json()
         for ui in self.ui_tabs:
             await ui.reset(state)
-        self.maybe_autosave()
+        await self.maybe_autosave()
 
     def update(self):
         ensure_future(self.update_a())
@@ -112,7 +112,7 @@ class SseqDisplay:
     async def send_batched_messages_a(self, messages):
         console.log("Sending batched messages:", messages)
         await self.update_charts_a(messages=messages)
-        self.maybe_autosave()
+        await self.maybe_autosave()
 
     async def maybe_autosave(self):
         if self.autosave:
