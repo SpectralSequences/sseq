@@ -23,6 +23,15 @@ $(DISPLAY): $(DISPLAY_BACKEND) $(JAVASCRIPT)
 $(JAVASCRIPT):
 	cd javascript; npm i && npm run build
 
+javascript/dist/sseq_chart_node.js : javascript/src/*.ts
+	cd javascript && \
+		./node_modules/esbuild/bin/esbuild \
+			--outfile=dist/sseq_chart_node.js \
+			--platform=node src/lib.ts \
+			--format=cjs \
+			--bundle \
+			--target=node14.4
+
 .PHONY: clean clean_sseq_chart clean_display_backend clean_display clean_javascript
 clean_sseq_chart:
 	rm -rf python/{dist,build,spectralsequence_chart.egg-info}

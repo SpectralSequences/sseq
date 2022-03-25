@@ -1,9 +1,10 @@
-import { hexStringToColor } from './Color';
+import { Color } from './Color';
 import { ChartClass } from './ChartClass';
 import {
     ChartStructline,
     ChartDifferential,
     ChartExtension,
+    ArrowTip,
 } from './ChartEdge';
 import { PageProperty } from './PageProperty';
 import { SseqChart } from './SseqChart';
@@ -76,36 +77,34 @@ export class Walker {
     }
 }
 
-function getJsonTypes() {
+export function getJsonTypes() {
     if (jsonTypes) {
         return jsonTypes;
     }
     jsonTypes = new Map();
-    for (let t of [
+    for (let [name, t] of Object.entries({
         SseqChart,
         ChartClass,
         ChartStructline,
         ChartDifferential,
         ChartExtension,
         PageProperty,
-    ]) {
-        jsonTypes.set(t.name, t);
+        Color,
+        ArrowTip,
+    })) {
+        jsonTypes.set(name, t);
     }
     let trivialDeserializer = {
-        fromJSON: (walker: Walker, obj: object) => {
-            delete obj['type'];
+        fromJSON(walker: Walker, obj: object) {
+            // delete obj['type'];
             return obj;
         },
     };
-    jsonTypes.set('ArrowTip', trivialDeserializer);
-    jsonTypes.set('Shape', trivialDeserializer);
-    jsonTypes.set('SignalDict', trivialDeserializer);
+    for(let type_name of ['Shape', 'SignalDict']){
+        jsonTypes.set(type_name, trivialDeserializer);
+    }
     jsonTypes.set('SignalList', {
         fromJSON: (walker: Walker, obj: object) => obj['list'],
-    });
-    jsonTypes.set('Color', {
-        fromJSON: (walker: Walker, obj: object) =>
-            hexStringToColor(obj['color']),
     });
     return jsonTypes;
 }

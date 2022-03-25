@@ -51,6 +51,32 @@ jobs:
     - name: Check that no files are overwritten
       run: git diff --exit-code
 
+  test:
+    if: ${{(github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository) }}
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ./chart/chart
+
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/setup-python@v3
+      with:
+        python-version: "3.9"
+
+    - name: install esbuild
+      run: cd javascript && npm i esbuild
+
+    - name: install Testing requirements
+      run: pip install -r requirements_tests.txt
+
+    - name: Build
+      run: make javascript/dist/sseq_chart_node.js
+
+    - name: test
+      run: pytest tests python/tests
+
   clean:
     if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository }}
     runs-on: ubuntu-latest

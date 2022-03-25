@@ -92,6 +92,13 @@ export class PageProperty<V> {
     }
 
     toJSON() {
+        if(this.values.length === 1){
+            let res = this.values[0][1];
+            if(res && (res as any).toJSON){
+                return (res as any).toJSON();
+            }
+            return this.values[0][1];
+        }
         return { type: 'PageProperty', values: this.values };
     }
 
@@ -133,7 +140,7 @@ export function initialPagePropertyValue<V>(
     propertyName: string,
     context: string,
 ): PageProperty<V> {
-    if (propertyValue) {
+    if (propertyValue !== undefined && propertyValue !== null) {
         return pagePropertyOrValueToPageProperty(propertyValue);
     } else if (defaultValue !== undefined) {
         return PageProperty.fromValue(defaultValue);

@@ -1,4 +1,4 @@
-import { Color } from './Color';
+import { Color, Black } from './Color';
 import { Shape } from './ChartShape';
 import {
     PageProperty,
@@ -74,7 +74,11 @@ export class ChartClass {
         }
         this.idx = kwargs.idx;
         this.uuid = kwargs.uuid || uuidv4();
-        this.max_page = kwargs.max_page || INFINITY;
+        if(kwargs.max_page !== undefined){
+            this.max_page = kwargs.max_page;
+        } else {
+            this.max_page =  INFINITY;
+        }
 
         let errorContext = ' in constructor for ChartClass.';
         this.name = initialPagePropertyValue(
@@ -91,26 +95,26 @@ export class ChartClass {
         );
         this.background_color = initialPagePropertyValue(
             kwargs.background_color,
-            [0, 0, 0, 1],
-            'shape',
+            Black,
+            'background_color',
             errorContext,
         );
         this.border_color = initialPagePropertyValue(
             kwargs.border_color,
-            [0, 0, 0, 1],
-            'shape',
+            Black,
+            'border_color',
             errorContext,
         );
         this.border_width = initialPagePropertyValue(
             kwargs.border_width,
             3,
-            'shape',
+            'border_width',
             errorContext,
         );
         this.foreground_color = initialPagePropertyValue(
             kwargs.foreground_color,
-            [0, 0, 0, 1],
-            'shape',
+            Black,
+            'foreground_color',
             errorContext,
         );
         this.scale = initialPagePropertyValue(
@@ -172,52 +176,52 @@ export class ChartClass {
                 throw TypeError(`Inconsistent values for "uuid".`);
             }
         }
-        if (kwargs.idx) {
+        if (kwargs.idx !== undefined) {
             this.idx = kwargs.idx;
         }
-        if (kwargs.name) {
+        if (kwargs.name !== undefined) {
             this.name = pagePropertyOrValueToPageProperty(kwargs.name);
         }
-        if (kwargs.max_page) {
+        if (kwargs.max_page !== undefined) {
             this.max_page = kwargs.max_page;
         }
-        if (kwargs.shape) {
+        if (kwargs.shape !== undefined) {
             this.shape = pagePropertyOrValueToPageProperty(kwargs.shape);
         }
-        if (kwargs.background_color) {
+        if (kwargs.background_color !== undefined) {
             this.background_color = pagePropertyOrValueToPageProperty(
                 kwargs.background_color,
             );
         }
-        if (kwargs.border_color) {
+        if (kwargs.border_color !== undefined) {
             this.border_color = pagePropertyOrValueToPageProperty(
                 kwargs.border_color,
             );
         }
-        if (kwargs.border_width) {
+        if (kwargs.border_width !== undefined) {
             this.border_width = pagePropertyOrValueToPageProperty(
                 kwargs.border_width,
             );
         }
-        if (kwargs.foreground_color) {
+        if (kwargs.foreground_color !== undefined) {
             this.foreground_color = pagePropertyOrValueToPageProperty(
                 kwargs.foreground_color,
             );
         }
 
-        if (kwargs.scale) {
+        if (kwargs.scale !== undefined) {
             this.scale = pagePropertyOrValueToPageProperty(kwargs.scale);
         }
-        if (kwargs.visible) {
+        if (kwargs.visible !== undefined) {
             this.visible = pagePropertyOrValueToPageProperty(kwargs.visible);
         }
-        if (kwargs.x_nudge) {
+        if (kwargs.x_nudge !== undefined) {
             this.x_nudge = pagePropertyOrValueToPageProperty(kwargs.x_nudge);
         }
-        if (kwargs.y_nudge) {
+        if (kwargs.y_nudge !== undefined) {
             this.y_nudge = pagePropertyOrValueToPageProperty(kwargs.y_nudge);
         }
-        if (kwargs.user_data) {
+        if (kwargs.user_data !== undefined) {
             this.user_data = kwargs.user_data;
         }
     }

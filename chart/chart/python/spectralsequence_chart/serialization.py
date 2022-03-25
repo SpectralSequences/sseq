@@ -9,6 +9,8 @@ def stringifier(obj: Any) -> Union[str, dict[str, Any]]:
         return obj.to_json()
     elif hasattr(obj, "__dict__"):
         return obj.__dict__
+    elif obj is None:
+        return None
     else:
         return str(obj)
 
