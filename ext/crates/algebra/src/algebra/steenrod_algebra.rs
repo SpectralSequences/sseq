@@ -160,18 +160,10 @@ impl Bialgebra for SteenrodAlgebra {
 
 #[cfg(feature = "json")]
 #[derive(Deserialize, Debug)]
-struct MilnorProfileOption {
-    truncated: Option<bool>,
-    q_part: Option<u32>,
-    p_part: Option<crate::algebra::milnor_algebra::PPart>,
-}
-
-#[cfg(feature = "json")]
-#[derive(Deserialize, Debug)]
 struct AlgebraSpec {
     p: ValidPrime,
     algebra: Option<Vec<String>>,
-    profile: Option<MilnorProfileOption>,
+    profile: Option<crate::algebra::milnor_algebra::MilnorProfile>,
 }
 
 impl SteenrodAlgebra {
@@ -206,15 +198,7 @@ impl SteenrodAlgebra {
 
         if let Self::MilnorAlgebra(inner) = &mut algebra {
             if let Some(profile) = spec.profile {
-                if let Some(truncated) = profile.truncated {
-                    inner.profile.truncated = truncated;
-                }
-                if let Some(q_part) = profile.q_part {
-                    inner.profile.q_part = q_part;
-                }
-                if let Some(p_part) = profile.p_part {
-                    inner.profile.p_part = p_part;
-                }
+                inner.profile = profile;
             }
         }
         Ok(algebra)

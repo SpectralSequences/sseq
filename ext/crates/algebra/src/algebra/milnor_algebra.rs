@@ -10,7 +10,7 @@ use fp::vector::{FpVector, Slice, SliceMut};
 use once::OnceVec;
 
 #[cfg(feature = "json")]
-use {crate::algebra::JsonAlgebra, serde::Deserialize, serde_json::value::Value};
+use {crate::algebra::JsonAlgebra, serde::Deserialize, serde::Serialize, serde_json::value::Value};
 
 use nom::{
     branch::alt,
@@ -34,9 +34,19 @@ impl MilnorAlgebraT for MilnorAlgebra {
     }
 }
 
+#[cfg(feature = "json")]
+fn q_part_default() -> u32 {
+    !0
+}
+
+#[cfg_attr(feature = "json", derive(Deserialize, Serialize))]
+#[derive(Debug)]
 pub struct MilnorProfile {
+    #[cfg_attr(feature = "json", serde(default))]
     pub truncated: bool,
+    #[cfg_attr(feature = "json", serde(default = "q_part_default"))]
     pub q_part: u32,
+    #[cfg_attr(feature = "json", serde(default))]
     pub p_part: PPart,
 }
 
