@@ -65,16 +65,16 @@ jobs:
       with:
         python-version: "3.9"
 
-    - name: install esbuild
+    - name: Install esbuild
       run: cd javascript && npm i esbuild
 
-    - name: install Testing requirements
+    - name: Install testing requirements
       run: pip install -r requirements_tests.txt
 
     - name: Build
       run: make javascript/dist/sseq_chart_node.js
 
-    - name: test
+    - name: Test
       run: pytest tests python/tests
 
   clean:
