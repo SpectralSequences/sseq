@@ -742,9 +742,9 @@ export class ChartElement extends LitElement {
                 offset,
                 glyph,
                 scale,
-                new Vec4(...background_color),
-                new Vec4(...border_color),
-                new Vec4(...foreground_color),
+                new Vec4(...background_color.color_vec),
+                new Vec4(...border_color.color_vec),
+                new Vec4(...foreground_color.color_vec),
             );
             this.class_to_glyph_instance.set(c, glyph_instance);
             this.glyph_instance_index_to_class[idx] = c;
@@ -761,7 +761,7 @@ export class ChartElement extends LitElement {
             options.set_bend_degrees(bend);
             options.set_thickness(line_width);
             options.set_dash_pattern(new Uint8Array(dash_pattern));
-            options.set_color(new Vec4(...color));
+            options.set_color(new Vec4(...color.color_vec));
             if (start_tip) {
                 let arrow = this.getArrowTip(start_tip);
                 options.set_start_tip(arrow);
