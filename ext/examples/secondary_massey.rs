@@ -341,7 +341,7 @@ fn main() -> anyhow::Result<()> {
                     .zip_eq(product_matrix.iter_mut())
                 {
                     out.slice_mut(prod_num_gens, prod_num_gens + target_num_gens)
-                        .add(gen.as_slice(), 1);
+                        .add(gen, 1);
                     for (i, v) in gen.iter_nonzero() {
                         out.slice_mut(0, prod_num_gens).add(m0[i].as_slice(), v);
                     }
@@ -479,8 +479,7 @@ fn main() -> anyhow::Result<()> {
             // Now do the -1 part of the null-homotopy of bc.
             {
                 let sign = *p * *p - 1;
-                let out =
-                    b.product_nullhomotopy(b_tau.as_deref(), &unit_sseq, s, t, gen.as_slice());
+                let out = b.product_nullhomotopy(b_tau.as_deref(), &unit_sseq, s, t, gen);
                 for (i, v) in out.iter_nonzero() {
                     scratch0
                         .iter_mut()

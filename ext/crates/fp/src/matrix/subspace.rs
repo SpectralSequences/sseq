@@ -6,30 +6,19 @@ use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::io::{Read, Write};
 
 /// A subspace of a vector space.
+///
+/// In general, a method is defined on the [`Subspace`] if it is a meaningful property of the
+/// subspace itself. Otherwise, users are expected to access the matrix object directly. When the
+/// user directly modifies the matrix, they are expected to ensure the matrix is row reduced after
+/// the operations conclude.
+///
 /// # Fields
 ///  * `matrix` - A matrix in reduced row echelon, whose number of columns is the dimension of the
 ///  ambient space and each row is a basis vector of the subspace.
-///  * `pivots` - If the column is a pivot column, the entry is the row the pivot
-///  corresponds to. If the column is not a pivot column, this is some negative number &mdash; not
-///  necessarily -1!
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[repr(transparent)]
 pub struct Subspace {
     pub matrix: Matrix,
-}
-
-impl std::ops::Deref for Subspace {
-    type Target = Matrix;
-
-    fn deref(&self) -> &Matrix {
-        &self.matrix
-    }
-}
-
-impl std::ops::DerefMut for Subspace {
-    fn deref_mut(&mut self) -> &mut Matrix {
-        &mut self.matrix
-    }
 }
 
 impl Subspace {
@@ -37,6 +26,14 @@ impl Subspace {
         let mut matrix = Matrix::new(p, rows, columns);
         matrix.initialize_pivots();
         Self { matrix }
+    }
+
+    pub fn prime(&self) -> ValidPrime {
+        self.matrix.prime()
+    }
+
+    pub fn pivots(&self) -> &[isize] {
+        self.matrix.pivots()
     }
 
     pub fn from_bytes(p: ValidPrime, data: &mut impl Read) -> std::io::Result<Self> {
@@ -51,11 +48,11 @@ impl Subspace {
     }
 
     pub fn to_bytes(&self, buffer: &mut impl Write) -> std::io::Result<()> {
-        buffer.write_u64::<LittleEndian>(self.rows() as u64)?;
+        buffer.write_u64::<LittleEndian>(self.matrix.rows() as u64)?;
         buffer.write_u64::<LittleEndian>(self.ambient_dimension() as u64)?;
 
         self.matrix.to_bytes(buffer)?;
-        Matrix::write_pivot(self.matrix.pivots(), buffer)
+        Matrix::write_pivot(self.pivots(), buffer)
     }
 
     pub fn empty_space(p: ValidPrime, dim: usize) -> Self {
@@ -65,8 +62,8 @@ impl Subspace {
     pub fn entire_space(p: ValidPrime, dim: usize) -> Self {
         let mut result = Self::new(p, dim, dim);
         for i in 0..dim {
-            result[i].set_entry(i, 1);
-            result.pivots_mut()[i] = i as isize;
+            result.matrix.row_mut(i).set_entry(i, 1);
+            result.matrix.pivots_mut()[i] = i as isize;
         }
         result
     }
@@ -80,8 +77,8 @@ impl Subspace {
     /// The new dimension of the subspace
     pub fn add_vector(&mut self, row: Slice) -> usize {
         let last_row = self.matrix.rows() - 1;
-        self[last_row].as_slice_mut().assign(row);
-        self.row_reduce()
+        self.matrix.row_mut(last_row).assign(row);
+        self.matrix.row_reduce()
     }
 
     /// This adds some rows to the subspace
@@ -98,13 +95,13 @@ impl Subspace {
             }
 
             for i in first_row..num_rows {
-                if rows(self.row_mut(i)).is_none() {
+                if rows(self.matrix.row_mut(i)).is_none() {
                     break 'outer;
                 }
             }
-            self.row_reduce();
+            self.matrix.row_reduce();
         }
-        self.row_reduce();
+        self.matrix.row_reduce();
     }
 
     pub fn add_basis_elements(&mut self, mut rows: impl std::iter::Iterator<Item = usize>) {
@@ -117,8 +114,8 @@ impl Subspace {
     /// Projects a vector to a complement of the subspace. The complement is the set of vectors
     /// that have a 0 in every column where there is a pivot in `matrix`
     pub fn reduce(&self, mut vector: SliceMut) {
-        assert_eq!(vector.as_slice().len(), self.columns());
-        if self.rows() == 0 {
+        assert_eq!(vector.as_slice().len(), self.ambient_dimension());
+        if self.matrix.rows() == 0 {
             return;
         }
         let p = self.prime();
@@ -127,18 +124,14 @@ impl Subspace {
             .iter()
             .enumerate()
             .filter(|(_, x)| **x >= 0)
-            .map(|(i, _)| i)
-            .enumerate();
-        for (row, i) in iter {
-            let c = vector.as_slice().entry(i);
+            .map(|(col, _)| col)
+            .zip(self.iter());
+        for (col, row) in iter {
+            let c = vector.as_slice().entry(col);
             if c != 0 {
-                vector.add(self[row].as_slice(), *p - c);
+                vector.add(row, *p - c);
             }
         }
-    }
-
-    pub fn row_reduce(&mut self) -> usize {
-        self.matrix.row_reduce()
     }
 
     pub fn contains(&self, vector: Slice) -> bool {
@@ -148,13 +141,11 @@ impl Subspace {
     }
 
     pub fn dimension(&self) -> usize {
-        self.matrix
-            .pivots()
+        self.pivots()
             .iter()
             .rev()
             .find(|&&i| i >= 0)
-            .map(|&i| i as usize + 1)
-            .unwrap_or(0)
+            .map_or(0, |&i| i as usize + 1)
     }
 
     /// Whether the subspace is empty. This assumes the subspace is row reduced.
@@ -183,9 +174,16 @@ impl Subspace {
     pub fn set_to_entire(&mut self) {
         self.matrix.set_to_zero();
         for i in 0..self.matrix.columns() {
-            self[i].set_entry(i, 1);
-            self.pivots_mut()[i] = i as isize;
+            self.matrix.row_mut(i).set_entry(i, 1);
+            self.matrix.pivots_mut()[i] = i as isize;
         }
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = Slice> {
+        self.matrix
+            .iter()
+            .map(FpVector::as_slice)
+            .take(self.dimension())
     }
 }
 

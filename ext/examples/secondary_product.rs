@@ -191,12 +191,12 @@ fn main() -> anyhow::Result<()> {
             Some(&res_sseq),
             s,
             t,
-            page_data.subspace_gens().map(FpVector::as_slice),
+            page_data.subspace_gens(),
             outputs.iter_mut().map(FpVector::as_slice_mut),
         );
         for (gen, output) in page_data.subspace_gens().zip_eq(outputs) {
             print!("{name} [");
-            ext::utils::print_element(gen.as_slice(), n, s);
+            ext::utils::print_element(gen, n, s);
             println!(
                 "] = {} + τ {}",
                 output.slice(0, target_num_gens),

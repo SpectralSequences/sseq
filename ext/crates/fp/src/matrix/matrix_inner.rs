@@ -735,10 +735,13 @@ impl Matrix {
         let first_kernel_row = self.find_first_row_in_block(first_source_column);
         // Every row after the first kernel row is also a kernel row, so now we know how big it is and can allocate space.
         let kernel_dimension = rows - first_kernel_row;
-        let mut kernel = Subspace::new(p, kernel_dimension, source_dimension);
+        let mut kernel = Matrix::new(p, kernel_dimension, source_dimension);
+        kernel.initialize_pivots();
+
         if kernel_dimension == 0 {
-            return kernel;
+            return Subspace { matrix: kernel };
         }
+
         // Write pivots into kernel
         for i in 0..source_dimension {
             // Turns -1 into some negative number... make sure to check <0 for no pivot in column...
@@ -746,13 +749,13 @@ impl Matrix {
                 column_to_pivot_row[i + first_source_column] - first_kernel_row as isize;
         }
         // Copy kernel matrix into kernel
-        for (i, row) in kernel.matrix.iter_mut().enumerate() {
+        for (i, row) in kernel.iter_mut().enumerate() {
             row.as_slice_mut().assign(
                 self.vectors[first_kernel_row + i]
                     .slice(first_source_column, first_source_column + source_dimension),
             );
         }
-        kernel
+        Subspace { matrix: kernel }
     }
 
     pub fn extend_column_dimension(&mut self, columns: usize) {
@@ -822,7 +825,7 @@ impl Matrix {
         extra_column_capacity: usize,
     ) -> Vec<usize> {
         let mut added_pivots = Vec::new();
-        let desired_pivots = desired_image.matrix.pivots();
+        let desired_pivots = desired_image.pivots();
         let early_end_column = std::cmp::min(end_column, desired_pivots.len() + start_column);
 
         let columns = self.columns();
@@ -839,7 +842,7 @@ impl Matrix {
             }
             // Look up the cycle that we're missing and add a generator hitting it.
             let kernel_vector_row = desired_pivots[i - start_column] as usize;
-            let new_image = desired_image.row(kernel_vector_row);
+            let new_image = desired_image.matrix.row(kernel_vector_row);
 
             let mut new_row =
                 FpVector::new_with_capacity(self.prime(), columns, columns + extra_column_capacity);

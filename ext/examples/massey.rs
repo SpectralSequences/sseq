@@ -128,7 +128,7 @@ fn main() -> anyhow::Result<()> {
 
         for row in kernel.iter() {
             print!("<a, b, ");
-            ext::utils::print_element(row.as_slice(), n, s);
+            ext::utils::print_element(row, n, s);
             print!("> = [");
 
             for i in 0..target_num_gens {

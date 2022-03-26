@@ -175,11 +175,12 @@ pub trait ChainComplex: Send + Sync {
         index: usize,
     ) {
         let row_index = self.homology_basis(homological_degree, internal_degree)[index];
-        result.add(
-            &self
-                .differential(homological_degree)
+        result.as_slice_mut().add(
+            self.differential(homological_degree)
                 .kernel(internal_degree)
-                .unwrap()[row_index],
+                .unwrap()
+                .matrix
+                .row(row_index),
             coeff,
         );
     }
@@ -343,11 +344,12 @@ pub trait CochainComplex: Send + Sync {
         index: usize,
     ) {
         let row_index = self.cohomology_basis(homological_degree, internal_degree)[index];
-        result.add(
-            &self
-                .differential(homological_degree)
+        result.as_slice_mut().add(
+            self.differential(homological_degree)
                 .kernel(internal_degree)
-                .unwrap()[row_index],
+                .unwrap()
+                .matrix
+                .row(row_index),
             coeff,
         );
     }

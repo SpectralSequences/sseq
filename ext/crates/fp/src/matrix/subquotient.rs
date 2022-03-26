@@ -44,8 +44,8 @@ impl Subquotient {
     /// If elt is nonzero afterwards, this means the vector was not in the subspace to begin with.
     pub fn reduce(&self, mut elt: SliceMut) -> Vec<u32> {
         self.quotient.reduce(elt.copy());
-        let mut result = Vec::with_capacity(self.gens.columns());
-        for i in 0..self.gens.columns() {
+        let mut result = Vec::with_capacity(self.gens.ambient_dimension());
+        for i in 0..self.gens.ambient_dimension() {
             if self.gens.pivots()[i] < 0 {
                 continue;
             }
@@ -53,7 +53,7 @@ impl Subquotient {
             result.push(c);
             if c != 0 {
                 elt.add(
-                    self.gens[self.gens.pivots()[i] as usize].as_slice(),
+                    self.gens.matrix.row(self.gens.pivots()[i] as usize),
                     ((*elt.prime() - 1) * c) % *elt.prime(),
                 );
             }
@@ -76,8 +76,8 @@ impl Subquotient {
         &self.quotient
     }
 
-    pub fn gens(&self) -> impl Iterator<Item = &FpVector> {
-        self.gens.iter().take(self.dimension)
+    pub fn gens(&self) -> impl Iterator<Item = Slice> {
+        self.gens.iter()
     }
 
     pub fn quotient_dimension(&self) -> usize {
@@ -90,25 +90,24 @@ impl Subquotient {
     }
 
     /// The generators of the subspace part of the subquotient.
-    pub fn subspace_gens(&self) -> impl Iterator<Item = &FpVector> {
-        self.gens()
-            .chain(self.quotient.iter().take(self.quotient.dimension()))
+    pub fn subspace_gens(&self) -> impl Iterator<Item = Slice> {
+        self.gens().chain(self.quotient.iter())
     }
 
     /// The pivot columns of the complement to the subspace
     pub fn complement_pivots(&self) -> impl Iterator<Item = usize> + '_ {
         (0..self.ambient_dimension()).filter(|&i| {
-            !self.quotient.pivots.contains(&(i as isize))
-                && !self.gens.pivots.contains(&(i as isize))
+            !self.quotient.pivots().contains(&(i as isize))
+                && !self.gens.pivots().contains(&(i as isize))
         })
     }
 
     pub fn quotient(&mut self, elt: Slice) {
         self.quotient.add_vector(elt);
-        for elt in self.gens.iter_mut() {
+        for elt in self.gens.matrix.iter_mut().take(self.dimension) {
             self.quotient.reduce(elt.as_slice_mut());
         }
-        self.gens.row_reduce();
+        self.gens.matrix.row_reduce();
         self.dimension = self.gens.dimension();
     }
 
@@ -134,10 +133,10 @@ impl Subquotient {
     }
 
     pub fn add_gen(&mut self, gen: Slice) {
-        let new_row = &mut self.gens[self.dimension];
-        new_row.as_slice_mut().assign(gen);
-        self.quotient.reduce(new_row.as_slice_mut());
-        self.gens.row_reduce();
+        let mut new_row = self.gens.matrix.row_mut(self.dimension);
+        new_row.assign(gen);
+        self.quotient.reduce(new_row);
+        self.gens.matrix.row_reduce();
         self.dimension = self.gens.dimension();
     }
 
@@ -145,7 +144,7 @@ impl Subquotient {
         let mut result = Vec::with_capacity(source.dimension());
         let mut temp = FpVector::new(source.prime(), target.ambient_dimension());
         for v in source.gens() {
-            matrix.apply(temp.as_slice_mut(), 1, v.as_slice());
+            matrix.apply(temp.as_slice_mut(), 1, v);
             result.push(target.reduce(temp.as_slice_mut()));
             temp.set_to_zero()
         }
@@ -162,6 +161,7 @@ impl Subquotient {
     ///  * `subspace` - If this is None, it is empty
     pub fn subquotient(space: &Subspace, subspace: &Subspace) -> Vec<usize> {
         space
+            .matrix
             .pivots()
             .iter()
             .zip_eq(subspace.pivots().iter())
@@ -174,7 +174,7 @@ impl Subquotient {
     }
 
     pub fn quotient_pivots(&self) -> &[isize] {
-        &self.quotient.matrix.pivots
+        self.quotient.pivots()
     }
 }
 

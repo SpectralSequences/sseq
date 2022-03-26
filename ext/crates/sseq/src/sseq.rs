@@ -265,7 +265,7 @@ impl<P: SseqProfile> Sseq<P> {
             if r > self.differentials[x][y].len() || self.page_data[tx][ty][r - 1].is_empty() {
                 let (prev, cur) = self.page_data[x][y].split_borrow_mut(r - 1, r);
                 for gen in prev.gens() {
-                    cur.add_gen(gen.as_slice());
+                    cur.add_gen(gen);
                 }
                 if r - 1 < self.differentials[x][y].len() {
                     differentials.push(vec![Vec::new(); self.page_data[x][y][r].dimension()]);
@@ -287,9 +287,9 @@ impl<P: SseqProfile> Sseq<P> {
                     let mut result = FpVector::new(self.p, target_dim + source_dim);
                     result
                         .slice_mut(target_dim, target_dim + source_dim)
-                        .assign(gen.as_slice());
+                        .assign(gen);
 
-                    d.evaluate(gen.as_slice(), dvec.as_slice_mut());
+                    d.evaluate(gen, dvec.as_slice_mut());
                     result.slice_mut(0, target_dim).assign(dvec.as_slice());
 
                     drawn_differentials
@@ -322,7 +322,7 @@ impl<P: SseqProfile> Sseq<P> {
             .last()
             .unwrap()
             .gens()
-            .all(|v| self.permanent_classes[x][y].contains(v.as_slice()))
+            .all(|v| self.permanent_classes[x][y].contains(v))
     }
 
     /// Whether there is an inconsistent differential involving bidegree (x, y).

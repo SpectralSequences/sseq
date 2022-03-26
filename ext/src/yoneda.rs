@@ -171,8 +171,8 @@ where
                 opgen.operation_index,
             );
 
-            for k in 0..subspace.matrix.rows() {
-                if subspace[k].entry(i) != 0 {
+            for row in subspace.iter() {
+                if row.entry(i) != 0 {
                     pref += PENALTY_UNIT;
                 }
             }
@@ -274,7 +274,7 @@ where
                         matrix: differentials,
                     };
                     let dim = result.dimension();
-                    result.trim(0, dim, 0);
+                    result.matrix.trim(0, dim, 0);
                     result
                 });
             }
@@ -379,8 +379,8 @@ where
                         }
                     }
 
-                    diff_im.row_reduce();
-                    if diff_im.row(diff_im.rows() - 1).is_zero() {
+                    diff_im.matrix.row_reduce();
+                    if diff_im.matrix.row(diff_im.matrix.rows() - 1).is_zero() {
                         revert!();
                     }
                 }
