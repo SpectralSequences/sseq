@@ -159,20 +159,6 @@ impl Matrix {
         &mut self.pivots
     }
 
-    /// Produces a matrix from a list of rows.
-    pub fn from_rows(p: ValidPrime, vectors: Vec<FpVector>, columns: usize) -> Self {
-        for row in &vectors {
-            debug_assert_eq!(row.len(), columns);
-        }
-
-        Matrix {
-            p,
-            columns,
-            vectors,
-            pivots: Vec::new(),
-        }
-    }
-
     /// Produces a Matrix from an `&[Vec<u32>]` object. If the number of rows is 0, the number
     /// of columns is also assumed to be zero.
     ///
@@ -195,7 +181,12 @@ impl Matrix {
         for row in input {
             vectors.push(FpVector::from_slice(p, row));
         }
-        Matrix::from_rows(p, vectors, columns)
+        Matrix {
+            p,
+            columns,
+            vectors,
+            pivots: Vec::new(),
+        }
     }
 
     pub fn to_vec(&self) -> Vec<Vec<u32>> {
@@ -272,12 +263,6 @@ impl Matrix {
 
     pub fn row_mut(&mut self, row: usize) -> SliceMut {
         self.vectors[row].as_slice_mut()
-    }
-}
-
-impl From<Matrix> for Vec<FpVector> {
-    fn from(matrix: Matrix) -> Vec<FpVector> {
-        matrix.vectors
     }
 }
 
@@ -1206,13 +1191,13 @@ mod tests {
         let p = ValidPrime::new(2);
         let tests = [(
             [
-                [0, 1, 1, 0, 1, 1, 0, 1, 0, 0, 0, 1, 0, 1, 1],
-                [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0],
-                [0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1],
-                [1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0],
-                [1, 1, 0, 0, 1, 1, 0, 1, 1, 0, 0, 1, 0, 1, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1],
-                [0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 1, 1, 1, 1],
+                vec![0, 1, 1, 0, 1, 1, 0, 1, 0, 0, 0, 1, 0, 1, 1],
+                vec![0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0],
+                vec![0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1],
+                vec![1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0],
+                vec![1, 1, 0, 0, 1, 1, 0, 1, 1, 0, 0, 1, 0, 1, 0],
+                vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1],
+                vec![0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 1, 1, 1, 1],
             ],
             [
                 [1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 1, 1],
@@ -1226,17 +1211,11 @@ mod tests {
             [0, 1, 2, 3, 4, 5, -1, -1, -1, -1, -1, -1, 6, -1, -1],
         )];
         for test in &tests {
-            let input = test.0;
+            let input = &test.0;
             let goal_output = test.1;
             let goal_pivots = test.2;
-            let rows = input.len();
-            let cols = input[0].len();
-            let mut rows = Vec::with_capacity(rows);
-            for x in input.iter() {
-                rows.push(FpVector::from_slice(p, &*x));
-            }
 
-            let mut m = Matrix::from_rows(p, rows, cols);
+            let mut m = Matrix::from_vec(p, input);
             println!("{}", m);
             m.row_reduce();
             for i in 0..input.len() {

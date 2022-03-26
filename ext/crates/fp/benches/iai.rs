@@ -1,23 +1,20 @@
-use fp::{matrix::Matrix, prime::ValidPrime, vector::FpVector};
+use fp::{matrix::Matrix, prime::ValidPrime};
 use rand::Rng;
 
 fn random_matrix(p: ValidPrime, dimension: usize) -> Matrix {
-    Matrix::from_rows(
+    Matrix::from_vec(
         p,
-        (0..dimension)
+        &(0..dimension)
             .map(|_| random_vector(p, dimension))
-            .collect(),
-        dimension,
+            .collect::<Vec<_>>(),
     )
 }
 
-fn random_vector(p: ValidPrime, dimension: usize) -> FpVector {
+fn random_vector(p: ValidPrime, dimension: usize) -> Vec<u32> {
     let mut result = Vec::with_capacity(dimension);
     let mut rng = rand::thread_rng();
-    for _ in 0..dimension {
-        result.push(rng.gen::<u32>() % *p);
-    }
-    FpVector::from_slice(p, &result)
+    result.resize_with(dimension, || rng.gen::<u32>() % *p);
+    result
 }
 
 fn row_reduce_p_n(p: ValidPrime, dimension: usize) {

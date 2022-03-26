@@ -151,24 +151,21 @@ impl MilnorSubalgebra {
             .signature_mask(&algebra, &target, degree - hom.degree_shift(), signature)
             .collect();
 
-        let num_cols = target_mask.len();
-
-        let mut scratch = FpVector::new(p, target.dimension(target_degree));
-
-        let rows: Vec<FpVector> = self
+        let source_mask: Vec<usize> = self
             .signature_mask(&algebra, &source, degree, signature)
-            .map(|masked_index| {
-                scratch.set_to_zero();
-                hom.apply_to_basis_element(scratch.as_slice_mut(), 1, degree, masked_index);
-
-                let mut row = FpVector::new(p, num_cols);
-                row.as_slice_mut()
-                    .add_masked(scratch.as_slice(), 1, &target_mask);
-                row
-            })
             .collect();
 
-        Matrix::from_rows(p, rows, num_cols)
+        let mut scratch = FpVector::new(p, target.dimension(target_degree));
+        let mut result = Matrix::new(p, source_mask.len(), target_mask.len());
+
+        for (row, &masked_index) in std::iter::zip(result.iter_mut(), &source_mask) {
+            scratch.set_to_zero();
+            hom.apply_to_basis_element(scratch.as_slice_mut(), 1, degree, masked_index);
+
+            row.as_slice_mut()
+                .add_masked(scratch.as_slice(), 1, &target_mask);
+        }
+        result
     }
 
     /// Iterate through all signatures of this algebra that contain elements of degree at most

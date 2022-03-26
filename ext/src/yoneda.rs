@@ -616,13 +616,16 @@ where
 
     let first_kernel_row = matrix.find_first_row_in_block(total_dimension);
     let first_image_row = matrix.find_first_row_in_block(padded_init_dim);
+    let image_rows = matrix.rows() - first_image_row;
 
     matrix.trim(first_kernel_row as usize, source_dimension, padded_init_dim);
 
-    let image_matrix = Matrix::from_rows(
-        p,
-        matrix[(first_image_row - first_kernel_row) as usize..matrix.rows()].to_vec(),
-        source_orig_dimension,
-    );
+    let mut image_matrix = Matrix::new(p, image_rows, source_orig_dimension);
+    for (target, source) in std::iter::zip(
+        image_matrix.iter_mut(),
+        matrix.iter().skip(first_image_row - first_kernel_row),
+    ) {
+        target.assign(source);
+    }
     (matrix, image_matrix)
 }

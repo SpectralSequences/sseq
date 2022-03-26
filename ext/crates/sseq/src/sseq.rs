@@ -276,30 +276,31 @@ impl<P: SseqProfile> Sseq<P> {
                 let source_dim = self.dimension(x, y);
                 let target_dim = self.dimension(tx, ty);
 
-                let mut vectors: Vec<FpVector> =
-                    Vec::with_capacity(self.page_data[x][y][r - 1].dimension());
-
                 let mut drawn_differentials: Vec<Vec<u32>> =
                     Vec::with_capacity(self.page_data[x][y][r - 1].dimension());
 
                 let mut dvec = FpVector::new(self.p, target_dim);
-                vectors.extend(self.page_data[x][y][r - 1].gens().map(|gen| {
-                    let mut result = FpVector::new(self.p, target_dim + source_dim);
-                    result
-                        .slice_mut(target_dim, target_dim + source_dim)
+                let mut matrix = Matrix::new(
+                    self.p,
+                    self.page_data[x][y][r - 1].dimension(),
+                    source_dim + target_dim,
+                );
+
+                for (row, gen) in
+                    std::iter::zip(matrix.iter_mut(), self.page_data[x][y][r - 1].gens())
+                {
+                    row.slice_mut(target_dim, target_dim + source_dim)
                         .assign(gen);
 
                     d.evaluate(gen, dvec.as_slice_mut());
-                    result.slice_mut(0, target_dim).assign(dvec.as_slice());
+                    row.slice_mut(0, target_dim).assign(dvec.as_slice());
 
                     drawn_differentials
                         .push(self.page_data[tx][ty][r - 1].reduce(dvec.as_slice_mut()));
                     dvec.set_to_zero();
-                    result
-                }));
+                }
                 differentials.push(drawn_differentials);
 
-                let mut matrix = Matrix::from_rows(self.p, vectors, source_dim + target_dim);
                 matrix.row_reduce();
 
                 let first_kernel_row = matrix.find_first_row_in_block(target_dim);
