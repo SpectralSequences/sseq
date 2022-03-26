@@ -126,7 +126,7 @@ fn main() -> anyhow::Result<()> {
         product.row_reduce();
         let kernel = product.compute_kernel();
 
-        for row in &**kernel {
+        for row in kernel.iter() {
             print!("<a, b, ");
             ext::utils::print_element(row.as_slice(), n, s);
             print!("> = [");

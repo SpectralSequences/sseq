@@ -281,20 +281,6 @@ impl From<Matrix> for Vec<FpVector> {
     }
 }
 
-impl std::ops::Deref for Matrix {
-    type Target = [FpVector];
-
-    fn deref(&self) -> &[FpVector] {
-        &*self.vectors
-    }
-}
-
-impl std::ops::DerefMut for Matrix {
-    fn deref_mut(&mut self) -> &mut [FpVector] {
-        &mut *self.vectors
-    }
-}
-
 impl Matrix {
     pub fn iter(&self) -> std::slice::Iter<FpVector> {
         self.vectors.iter()
