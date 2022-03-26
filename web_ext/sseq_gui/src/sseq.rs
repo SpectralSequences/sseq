@@ -381,7 +381,7 @@ impl<P: SseqProfile> SseqWrapper<P> {
                 continue;
             }
             if let Some(matrix) = &prod.matrices[x - prod.x][y - prod.y] {
-                for i in 0..matrix.len() {
+                for i in 0..matrix.rows() {
                     if matrix[i].is_zero() {
                         continue;
                     }
@@ -413,7 +413,7 @@ impl<P: SseqProfile> SseqWrapper<P> {
                     .inner
                     .page_data(x, y)
                     .iter()
-                    .map(|x| x.gens().cloned().collect())
+                    .map(|x| x.gens().map(Slice::to_owned).collect())
                     .collect::<Vec<Vec<FpVector>>>(),
             }),
         });
