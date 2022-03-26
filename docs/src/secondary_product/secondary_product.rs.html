@@ -225,14 +225,6 @@
 <span id="198">198</span>
 <span id="199">199</span>
 <span id="200">200</span>
-<span id="201">201</span>
-<span id="202">202</span>
-<span id="203">203</span>
-<span id="204">204</span>
-<span id="205">205</span>
-<span id="206">206</span>
-<span id="207">207</span>
-<span id="208">208</span>
 </pre><pre class="rust"><code><span class="doccomment">//! Computes products in $\Mod_{C\tau^2}$.</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! # Usage</span>
@@ -261,7 +253,7 @@
 <span class="kw">use</span> <span class="ident">fp::matrix::Matrix</span>;
 <span class="kw">use</span> <span class="ident">fp::vector::FpVector</span>;
 
-<span class="kw">use</span> <span class="ident">ext::chain_complex</span>::{<span class="ident">AugmentedChainComplex</span>, <span class="ident">ChainComplex</span>, <span class="ident">FreeChainComplex</span>};
+<span class="kw">use</span> <span class="ident">ext::chain_complex</span>::{<span class="ident">ChainComplex</span>, <span class="ident">FreeChainComplex</span>};
 <span class="kw">use</span> <span class="ident">ext::resolution_homomorphism::ResolutionHomomorphism</span>;
 <span class="kw">use</span> <span class="ident">ext::secondary</span>::<span class="kw-2">*</span>;
 <span class="kw">use</span> <span class="ident">ext::utils::query_module</span>;
@@ -275,14 +267,6 @@
     )<span class="question-mark">?</span>);
 
     <span class="kw">let</span> (<span class="ident">is_unit</span>, <span class="ident">unit</span>) <span class="op">=</span> <span class="ident">ext::utils::get_unit</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">resolution</span>))<span class="question-mark">?</span>;
-
-    <span class="kw">if</span> <span class="op">!</span><span class="ident">can_compute</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">resolution</span>) {
-        <span class="macro">eprintln!</span>(
-            <span class="string">&quot;Cannot compute d2 for the module {}&quot;</span>,
-            <span class="ident">resolution</span>.<span class="ident">target</span>().<span class="ident">module</span>(<span class="number">0</span>)
-        );
-        <span class="kw">return</span> <span class="prelude-val">Ok</span>(());
-    }
 
     <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">resolution</span>.<span class="ident">prime</span>();
 

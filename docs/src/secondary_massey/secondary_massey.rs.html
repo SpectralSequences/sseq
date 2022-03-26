@@ -547,14 +547,6 @@
 <span id="520">520</span>
 <span id="521">521</span>
 <span id="522">522</span>
-<span id="523">523</span>
-<span id="524">524</span>
-<span id="525">525</span>
-<span id="526">526</span>
-<span id="527">527</span>
-<span id="528">528</span>
-<span id="529">529</span>
-<span id="530">530</span>
 </pre><pre class="rust"><code><span class="doccomment">//! Computes massey products in $\Mod_{C\tau^2}$.</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! # Usage</span>
@@ -581,7 +573,7 @@
 <span class="kw">use</span> <span class="ident">fp::matrix</span>::{<span class="ident">Matrix</span>, <span class="ident">Subspace</span>};
 <span class="kw">use</span> <span class="ident">fp::vector::FpVector</span>;
 
-<span class="kw">use</span> <span class="ident">ext::chain_complex</span>::{<span class="ident">AugmentedChainComplex</span>, <span class="ident">ChainComplex</span>, <span class="ident">ChainHomotopy</span>, <span class="ident">FreeChainComplex</span>};
+<span class="kw">use</span> <span class="ident">ext::chain_complex</span>::{<span class="ident">ChainComplex</span>, <span class="ident">ChainHomotopy</span>, <span class="ident">FreeChainComplex</span>};
 <span class="kw">use</span> <span class="ident">ext::resolution_homomorphism::ResolutionHomomorphism</span>;
 <span class="kw">use</span> <span class="ident">ext::secondary</span>::<span class="kw-2">*</span>;
 <span class="kw">use</span> <span class="ident">ext::utils</span>::{<span class="ident">query_module</span>, <span class="ident">QueryModuleResolution</span>};
@@ -693,14 +685,6 @@
     )<span class="question-mark">?</span>);
 
     <span class="kw">let</span> (<span class="ident">is_unit</span>, <span class="ident">unit</span>) <span class="op">=</span> <span class="ident">ext::utils::get_unit</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">resolution</span>))<span class="question-mark">?</span>;
-
-    <span class="kw">if</span> <span class="op">!</span><span class="ident">can_compute</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">resolution</span>) {
-        <span class="macro">eprintln!</span>(
-            <span class="string">&quot;Cannot compute d2 for the module {}&quot;</span>,
-            <span class="ident">resolution</span>.<span class="ident">target</span>().<span class="ident">module</span>(<span class="number">0</span>)
-        );
-        <span class="kw">return</span> <span class="prelude-val">Ok</span>(());
-    }
 
     <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">resolution</span>.<span class="ident">prime</span>();
 

@@ -1,10 +1,14 @@
 {
     "type" : "finitely presented module",
     "name" : "A/(Sq^1, Sq^2, Sq^4)",
-    "algebra" : ["adem"],
     "p" : 2,
     "gens" : {"x0" : 0},
     "adem_relations" : [
+        [{"op" : [1], "gen" : "x0", "coeff" : 1}],
+        [{"op" : [2], "gen" : "x0", "coeff" : 1}],
+        [{"op" : [4], "gen" : "x0", "coeff" : 1}]
+    ],
+    "milnor_relations": [
         [{"op" : [1], "gen" : "x0", "coeff" : 1}],
         [{"op" : [2], "gen" : "x0", "coeff" : 1}],
         [{"op" : [4], "gen" : "x0", "coeff" : 1}]
