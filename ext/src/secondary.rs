@@ -1,7 +1,4 @@
-use crate::chain_complex::{
-    AugmentedChainComplex, BoundedChainComplex, ChainComplex, ChainHomotopy, FiniteChainComplex,
-    FreeChainComplex,
-};
+use crate::chain_complex::{ChainComplex, ChainHomotopy, FreeChainComplex};
 use crate::resolution_homomorphism::ResolutionHomomorphism;
 use crate::save::{SaveFile, SaveKind};
 use crate::utils::Timer;
@@ -552,11 +549,9 @@ pub trait SecondaryLift: Sync {
 
         let d = self.source().differential(s);
         let source = self.source().module(s);
+        let target = self.target();
         let num_gens = source.number_of_gens_in_degree(t);
-        let target_dim = self
-            .target()
-            .module(s as u32 - shift_s)
-            .dimension(t - shift_t - 1);
+        let target_dim = target.module(s as u32 - shift_s).dimension(t - shift_t - 1);
 
         if let Some(dir) = self.save_dir() {
             let save_file = SaveFile {
@@ -592,23 +587,35 @@ pub trait SecondaryLift: Sync {
         };
 
         #[cfg(feature = "concurrent")]
-        let intermediates: Vec<FpVector> = (0..num_gens)
+        let mut intermediates: Vec<FpVector> = (0..num_gens)
             .into_par_iter()
             .map(get_intermediate)
             .collect();
 
         #[cfg(not(feature = "concurrent"))]
-        let intermediates: Vec<FpVector> =
+        let mut intermediates: Vec<FpVector> =
             (0..num_gens).into_iter().map(get_intermediate).collect();
 
         let mut results = vec![FpVector::new(p, target_dim); num_gens];
 
-        assert!(self.target().apply_quasi_inverse(
+        assert!(target.apply_quasi_inverse(
             &mut results,
             s as u32 - shift_s,
             t - shift_t - 1,
             &intermediates,
         ));
+
+        if s == shift_s + 1 {
+            // Check that we indeed had a lift
+            let d = target.differential(s as u32 - shift_s);
+            for (src, tgt) in std::iter::zip(&results, &mut intermediates) {
+                d.apply(tgt.as_slice_mut(), *p - 1, t - shift_t - 1, src.as_slice());
+                assert!(
+                    tgt.is_zero(),
+                    "secondary: Failed to lift at (s, t) = ({s}, {t}). This likely indicates an invalid input."
+                );
+            }
+        }
 
         if let Some(dir) = self.save_dir() {
             let save_file = SaveFile {
@@ -1427,32 +1434,36 @@ where
     }
 }
 
-/// Whether picking δ₂ = 0 gives a valid secondary refinement. This requires
-///  1. The chain complex is concentrated in degree zero;
-///  2. The module is finite dimensional; and
-///  3. $\mathrm{Hom}(\mathrm{Ext}^{2, t}_A(H^*X, k), H^{t - 1} X) = 0$ for all $t$ or $\mathrm{Hom}(\mathrm{Ext}^{3, t}_A(H^*X, k), H^{t - 1} X) = 0$ for all $t$.
-pub fn can_compute<M, F, CC>(res: &CC) -> bool
-where
-    M: Module,
-    F: ModuleHomomorphism<Source = M, Target = M>,
-    CC: FreeChainComplex + AugmentedChainComplex<TargetComplex = FiniteChainComplex<M, F>>,
-{
-    let complex = res.target();
-    if *complex.prime() != 2 {
-        eprintln!("Prime is not 2");
-        return false;
-    }
-    if complex.max_s() != 1 {
-        eprintln!("Complex is not concentrated in degree 0.");
-        return false;
-    }
-    let module = complex.module(0);
-    let max_degree = module
-        .max_degree()
-        .expect("secondary requires bounded modules");
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::utils;
+    use serde_json::json;
 
-    (0..max_degree)
-        .all(|t| module.dimension(t) == 0 || res.number_of_gens_in_bidegree(2, t + 1) == 0)
-        || (0..max_degree)
-            .all(|t| module.dimension(t) == 0 || res.number_of_gens_in_bidegree(3, t + 1) == 0)
+    #[test]
+    #[should_panic(
+        expected = "secondary: Failed to lift at (s, t) = (3, 17). This likely indicates an invalid input."
+    )]
+    fn cofib_h4() {
+        let module = json!({
+            "type": "finite dimensional module",
+            "p": 2,
+            "gens": {
+                "x0": 0,
+                "x16": 16,
+            },
+            "actions": ["Sq16 x0 = x16"]
+        });
+        let resolution = utils::construct(
+            utils::Config {
+                module,
+                algebra: algebra::AlgebraType::Milnor,
+            },
+            None,
+        )
+        .unwrap();
+        resolution.compute_through_stem(5, 20);
+        let lift = SecondaryResolution::new(Arc::new(resolution));
+        lift.extend_all();
+    }
 }

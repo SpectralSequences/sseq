@@ -24,7 +24,7 @@ use algebra::pair_algebra::PairAlgebra;
 use fp::matrix::{Matrix, Subspace};
 use fp::vector::FpVector;
 
-use ext::chain_complex::{AugmentedChainComplex, ChainComplex, ChainHomotopy, FreeChainComplex};
+use ext::chain_complex::{ChainComplex, ChainHomotopy, FreeChainComplex};
 use ext::resolution_homomorphism::ResolutionHomomorphism;
 use ext::secondary::*;
 use ext::utils::{query_module, QueryModuleResolution};
@@ -136,14 +136,6 @@ fn main() -> anyhow::Result<()> {
     )?);
 
     let (is_unit, unit) = ext::utils::get_unit(Arc::clone(&resolution))?;
-
-    if !can_compute(&*resolution) {
-        eprintln!(
-            "Cannot compute d2 for the module {}",
-            resolution.target().module(0)
-        );
-        return Ok(());
-    }
 
     let p = resolution.prime();
 

@@ -48,7 +48,7 @@
 use algebra::module::Module;
 use std::sync::Arc;
 
-use ext::chain_complex::{AugmentedChainComplex, ChainComplex};
+use ext::chain_complex::ChainComplex;
 use ext::secondary::*;
 use ext::utils::query_module;
 
@@ -57,14 +57,6 @@ fn main() -> anyhow::Result<()> {
         Some(algebra::AlgebraType::Milnor),
         ext::utils::LoadQuasiInverseOption::IfNoSave,
     )?);
-
-    if !can_compute(&*resolution) {
-        eprintln!(
-            "Cannot compute d2 for the module {}",
-            resolution.target().module(0)
-        );
-        return Ok(());
-    }
 
     let lift = SecondaryResolution::new(Arc::clone(&resolution));
     if let Some(s) = ext::utils::secondary_job() {
