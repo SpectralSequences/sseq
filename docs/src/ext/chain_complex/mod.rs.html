@@ -422,6 +422,8 @@
 <span id="395">395</span>
 <span id="396">396</span>
 <span id="397">397</span>
+<span id="398">398</span>
+<span id="399">399</span>
 </pre><pre class="rust"><code><span class="kw">mod</span> <span class="ident">chain_homotopy</span>;
 <span class="kw">mod</span> <span class="ident">finite_chain_complex</span>;
 <span class="kw">mod</span> <span class="ident">tensor_product_chain_complex</span>;
@@ -599,11 +601,12 @@
         <span class="ident">index</span>: <span class="ident">usize</span>,
     ) {
         <span class="kw">let</span> <span class="ident">row_index</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">homology_basis</span>(<span class="ident">homological_degree</span>, <span class="ident">internal_degree</span>)[<span class="ident">index</span>];
-        <span class="ident">result</span>.<span class="ident">add</span>(
-            <span class="kw-2">&amp;</span><span class="self">self</span>
-                .<span class="ident">differential</span>(<span class="ident">homological_degree</span>)
+        <span class="ident">result</span>.<span class="ident">as_slice_mut</span>().<span class="ident">add</span>(
+            <span class="self">self</span>.<span class="ident">differential</span>(<span class="ident">homological_degree</span>)
                 .<span class="ident">kernel</span>(<span class="ident">internal_degree</span>)
-                .<span class="ident">unwrap</span>()[<span class="ident">row_index</span>],
+                .<span class="ident">unwrap</span>()
+                .<span class="ident">matrix</span>
+                .<span class="ident">row</span>(<span class="ident">row_index</span>),
             <span class="ident">coeff</span>,
         );
     }
@@ -767,11 +770,12 @@
         <span class="ident">index</span>: <span class="ident">usize</span>,
     ) {
         <span class="kw">let</span> <span class="ident">row_index</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">cohomology_basis</span>(<span class="ident">homological_degree</span>, <span class="ident">internal_degree</span>)[<span class="ident">index</span>];
-        <span class="ident">result</span>.<span class="ident">add</span>(
-            <span class="kw-2">&amp;</span><span class="self">self</span>
-                .<span class="ident">differential</span>(<span class="ident">homological_degree</span>)
+        <span class="ident">result</span>.<span class="ident">as_slice_mut</span>().<span class="ident">add</span>(
+            <span class="self">self</span>.<span class="ident">differential</span>(<span class="ident">homological_degree</span>)
                 .<span class="ident">kernel</span>(<span class="ident">internal_degree</span>)
-                .<span class="ident">unwrap</span>()[<span class="ident">row_index</span>],
+                .<span class="ident">unwrap</span>()
+                .<span class="ident">matrix</span>
+                .<span class="ident">row</span>(<span class="ident">row_index</span>),
             <span class="ident">coeff</span>,
         );
     }
