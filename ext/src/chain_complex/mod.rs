@@ -197,7 +197,7 @@ pub trait ChainComplex: Send + Sync {
         self.set_homology_basis(homological_degree, internal_degree, homology_basis);
     }
 
-    /// Iterate through all defind bidegrees in increasing order of stem. The return values are of
+    /// Iterate through all defined bidegrees in increasing order of stem. The return values are of
     /// the form `(s, n, t)`.
     fn iter_stem(&self) -> StemIterator<'_, Self> {
         StemIterator {
