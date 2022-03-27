@@ -13,85 +13,15 @@
 //! 4. Read off the transformation matrix we need
 //!
 //! The main extra work to put in is step (2), where we have to parse Bruner's differentials and
-//! interpret it as a chain complex.
-//!
-//! By default, Bruner's differentials are stored in files `Diff.N`, where `Diff.N` contains
-//! differentials starting at filtration 0. This employs various encodings of Milnor basis
-//! elements. We use the `i` encoding.
-//!
-//! If it comes in a different encoding, run ./seeres in the directory (after compiling the
-//! program).  This outputs the data in `hDiff.N` files, which ought to be moved back to
-//! `Diff.N`. We will read these as input, and they are stored in `bruner_data/`. The location is
-//! hardcoded, but the range of Bruner's resolution is not. The bundled version includes the
-//! resolution up to $n = 20$, but it can be replaced with farther resolutions.
-//!
-//! We should interpret Diff.N as a space-separated "CSV", where blank lines are insignificant.
-//! The first line is a header file, which includes two numbers
-//! ```text
-//! s=$s n=$num_gens
-//! ```
-//! These are the filtration and the number of generators in the filtration.
-//!
-//! After the header, we have blocks corresponding to the generators.
-//!
-//! A block looks like
-//! ```text
-//! $num_gen: $gen_t
-//!
-//! $num_lines
-//! $line1
-//! $line2
-//! $line3
-//! ...
-//! ```
-//! In the first line `$num_gen` is the number of the generator, starting at 0, and `$gen_t` is the
-//! degree of the generator added. The generators are listed in increasing `$gen_t`.
-//!
-//! The second line `$num_lines` is the number of lines in the value of the differential on this
-//! generator, and the value of the differential is the sum of the following lines.
-//!
-//! Each line encodes the product of a generator with a basis element. The format of the line is as
-//! follows:
-//!
-//! ```text
-//! $gen_idx $op_deg $alg_dim $op
-//! ```
-//! Here `$gen_idx` is the index of the generator. This is the index within the free module one
-//! filtration lower (i.e. the index in the file Diff.$(N-1)), and not the index within the whole
-//! resolution.
-//!
-//! The next entry `$op_deg` is the degree of the operation. This information is redundant, as it
-//! can be computed from either the generator index or the upcoming representation of the operation
-//! itself. Nevertheless, it is convenient to have it available upfront.
-//!
-//! The third entry is the dimension of the algebra in degree $op_deg. Again this is not needed for
-//! us.
-//!
-//! The final entry is the operation itself. This best explained by example:
-//! ```text
-//! i(7)(4,1)(0,0,1).
-//! ```
-//! denotes the operation $\Sq(7) + \Sq(4, 1) + \Sq(0, 0, 1)$.
-//!
-//! As an example, the block
-//! ```text
-//! 5 : 10
-//!
-//! 3
-//! 0 8 4 i(8)(2,2).
-//! 1 6 3 i(6)(0,2).
-//! 4 1 1 i(1).
-//! ```
-//! means the fifth generator is a generator in degree 10, whose differential is
-//!
-//! $$(\Sq(8) + \Sq(2, 2)) g_0 + (\Sq(6) + \Sq(0, 2)) g_1 + \Sq(1) g_4.$$
-//!
+//! interpret it as a chain complex. Bruner's resolution can be found at
+//! <https://archive.sigma2.no/pages/public/datasetDetail.jsf?id=10.11582/2022.00015>
+//! while the descirption of his save file is at <https://arxiv.org/abs/2109.13117>.
 
 use algebra::{
     milnor_algebra::MilnorBasisElement, module::homomorphism::FreeModuleHomomorphism as FMH,
     module::FreeModule as FM, module::Module, Algebra, MilnorAlgebra,
 };
-use anyhow::{Error, Result};
+use anyhow::{Context, Error, Result};
 use ext::{
     chain_complex::{ChainComplex, FiniteChainComplex as FCC},
     resolution_homomorphism::ResolutionHomomorphism,
@@ -183,7 +113,9 @@ fn get_element(
     if !read_line(input, &mut buf)? {
         return Ok(None);
     }
-    let degree: i32 = buf.rsplit(':').next().unwrap().trim().parse()?;
+    let degree: i32 = buf.trim().parse()?;
+    a.compute_basis(degree);
+    m.compute_basis(degree);
 
     read_line(input, &mut buf)?;
     let num_lines: usize = buf.trim().parse()?;
@@ -252,7 +184,10 @@ fn read_bruner_resolution(data_dir: &Path, max_n: i32) -> Result<(u32, FiniteCha
         let m = cc.module(s);
         let d = cc.differential(s);
 
-        let mut f = BufReader::new(File::open(data_dir.join(format!("Diff.{}", s)))?);
+        let mut f = BufReader::new(
+            File::open(data_dir.join(format!("hDiff.{s}")))
+                .with_context(|| format!("Failed to read hDiff.{s}"))?,
+        );
 
         read_line(&mut f, &mut buf)?;
 
@@ -302,7 +237,7 @@ fn main() {
 
     // We have to explicitly tell it what to do at (0, 0)
     hom.extend_step(0, 0, Some(&Matrix::from_vec(TWO, &[vec![1]])));
-    hom.extend_through_stem(max_s, max_n);
+    hom.extend_all();
 
     // Now print the results
     println!("sseq_basis | bruner_basis");
