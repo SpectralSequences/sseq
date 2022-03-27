@@ -2105,8 +2105,6 @@
 <span id="2078">2078</span>
 <span id="2079">2079</span>
 <span id="2080">2080</span>
-<span id="2081">2081</span>
-<span id="2082">2082</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">itertools::Itertools</span>;
 <span class="kw">use</span> <span class="ident">nom::sequence::tuple</span>;
 <span class="kw">use</span> <span class="ident">rustc_hash::FxHashMap</span> <span class="kw">as</span> <span class="ident">HashMap</span>;
@@ -2152,9 +2150,7 @@
 <span class="attribute">#[<span class="ident">cfg_attr</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;json&quot;</span>, <span class="ident">derive</span>(<span class="ident">Deserialize</span>, <span class="ident">Serialize</span>))]</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">MilnorProfile</span> {
-    <span class="doccomment">/// If `true`, unspecified p_part entries will be 0. Otherwise they will be infinity. This</span>
-    <span class="doccomment">/// defaults to `false`.</span>
-    <span class="attribute">#[<span class="ident">cfg_attr</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;json&quot;</span>, <span class="ident">serde</span>(<span class="ident">default</span>))]</span>
+    <span class="doccomment">/// If `true`, unspecified p_part entries will be 0. Otherwise they will be infinity.</span>
     <span class="kw">pub</span> <span class="ident">truncated</span>: <span class="ident">bool</span>,
     <span class="doccomment">/// A bitmask indicating which of the Q_k we want to include (1 = include). Defaults to `!0`.</span>
     <span class="doccomment">/// This is only relevant at odd primes.</span>

@@ -328,6 +328,25 @@
 <span id="301">301</span>
 <span id="302">302</span>
 <span id="303">303</span>
+<span id="304">304</span>
+<span id="305">305</span>
+<span id="306">306</span>
+<span id="307">307</span>
+<span id="308">308</span>
+<span id="309">309</span>
+<span id="310">310</span>
+<span id="311">311</span>
+<span id="312">312</span>
+<span id="313">313</span>
+<span id="314">314</span>
+<span id="315">315</span>
+<span id="316">316</span>
+<span id="317">317</span>
+<span id="318">318</span>
+<span id="319">319</span>
+<span id="320">320</span>
+<span id="321">321</span>
+<span id="322">322</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
 
 <span class="kw">use</span> <span class="ident">bivec::BiVec</span>;
@@ -525,9 +544,31 @@
     <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::algebra</span>::{<span class="ident">AdemAlgebra</span>, <span class="ident">SteenrodAlgebra</span>};
     <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::module::homomorphism::ModuleHomomorphism</span>;
     <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::module</span>::{<span class="ident">FDModule</span>, <span class="ident">FreeModule</span>, <span class="ident">Module</span>};
+    <span class="kw">use</span> <span class="ident">serde_json::json</span>;
 
     <span class="kw">use</span> <span class="ident">fp::prime::ValidPrime</span>;
     <span class="kw">use</span> <span class="ident">fp::vector::FpVector</span>;
+
+    <span class="kw">fn</span> <span class="ident">joker_json</span>() -&gt; <span class="ident">serde_json::Value</span> {
+        <span class="macro">json!</span>({
+            <span class="string">&quot;type&quot;</span> : <span class="string">&quot;finite dimensional module&quot;</span>,
+            <span class="string">&quot;p&quot;</span>: <span class="number">2</span>,
+            <span class="string">&quot;gens&quot;</span>: {
+                <span class="string">&quot;x0&quot;</span>: <span class="number">0</span>,
+                <span class="string">&quot;x1&quot;</span>: <span class="number">1</span>,
+                <span class="string">&quot;x2&quot;</span>: <span class="number">2</span>,
+                <span class="string">&quot;x3&quot;</span>: <span class="number">3</span>,
+                <span class="string">&quot;x4&quot;</span>: <span class="number">4</span>
+            },
+            <span class="string">&quot;actions&quot;</span>: [
+                <span class="string">&quot;Sq1 x0 = x1&quot;</span>,
+                <span class="string">&quot;Sq2 x1 = x3&quot;</span>,
+                <span class="string">&quot;Sq1 x3 = x4&quot;</span>,
+                <span class="string">&quot;Sq2 x0 = x2&quot;</span>,
+                <span class="string">&quot;Sq2 x2 = x4&quot;</span>
+            ]
+        })
+    }
 
     <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">non_snake_case</span>)]</span>
     <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">clippy::needless_range_loop</span>)]</span>
@@ -546,9 +587,7 @@
         <span class="ident">F</span>.<span class="ident">add_generators</span>(<span class="number">1</span>, <span class="number">1</span>, <span class="prelude-val">None</span>);
         <span class="ident">F</span>.<span class="ident">add_generators</span>(<span class="number">2</span>, <span class="number">1</span>, <span class="prelude-val">None</span>);
         <span class="ident">F</span>.<span class="ident">extend_by_zero</span>(<span class="number">20</span>);
-        <span class="kw">let</span> <span class="ident">joker_json_string</span> <span class="op">=</span> <span class="string">r#&quot;{&quot;type&quot; : &quot;finite dimensional module&quot;,&quot;name&quot;: &quot;Joker&quot;, &quot;file_name&quot;: &quot;Joker&quot;, &quot;p&quot;: 2, &quot;generic&quot;: false, &quot;gens&quot;: {&quot;x0&quot;: 0, &quot;x1&quot;: 1, &quot;x2&quot;: 2, &quot;x3&quot;: 3, &quot;x4&quot;: 4}, &quot;sq_actions&quot;: [{&quot;op&quot;: 2, &quot;input&quot;: &quot;x0&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x2&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: 2, &quot;input&quot;: &quot;x2&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x4&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: 1, &quot;input&quot;: &quot;x0&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x1&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: 2, &quot;input&quot;: &quot;x1&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x3&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: 1, &quot;input&quot;: &quot;x3&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x4&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: 3, &quot;input&quot;: &quot;x1&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x4&quot;, &quot;coeff&quot;: 1}]}], &quot;adem_actions&quot;: [{&quot;op&quot;: [1], &quot;input&quot;: &quot;x0&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x1&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [1], &quot;input&quot;: &quot;x3&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x4&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [2], &quot;input&quot;: &quot;x0&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x2&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [2], &quot;input&quot;: &quot;x1&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x3&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [2], &quot;input&quot;: &quot;x2&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x4&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [3], &quot;input&quot;: &quot;x1&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x4&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [2, 1], &quot;input&quot;: &quot;x0&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x3&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [3, 1], &quot;input&quot;: &quot;x0&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x4&quot;, &quot;coeff&quot;: 1}]}], &quot;milnor_actions&quot;: [{&quot;op&quot;: [1], &quot;input&quot;: &quot;x0&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x1&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [1], &quot;input&quot;: &quot;x3&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x4&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [2], &quot;input&quot;: &quot;x0&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x2&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [2], &quot;input&quot;: &quot;x1&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x3&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [2], &quot;input&quot;: &quot;x2&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x4&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [0, 1], &quot;input&quot;: &quot;x0&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x3&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [0, 1], &quot;input&quot;: &quot;x1&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x4&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [3], &quot;input&quot;: &quot;x1&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x4&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [1, 1], &quot;input&quot;: &quot;x0&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x4&quot;, &quot;coeff&quot;: 1}]}]}&quot;#</span>;
-        <span class="kw">let</span> <span class="ident">joker_json</span> <span class="op">=</span> <span class="ident">serde_json::from_str</span>(<span class="ident">joker_json_string</span>).<span class="ident">unwrap</span>();
-        <span class="kw">let</span> <span class="ident">M</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">FDModule::from_json</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">A</span>), <span class="kw-2">&amp;</span><span class="ident">joker_json</span>).<span class="ident">unwrap</span>());
+        <span class="kw">let</span> <span class="ident">M</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">FDModule::from_json</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">A</span>), <span class="kw-2">&amp;</span><span class="ident">joker_json</span>()).<span class="ident">unwrap</span>());
         <span class="kw">let</span> <span class="ident">hom</span> <span class="op">=</span> <span class="ident">HomModule::new</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">F</span>), <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">M</span>));
         <span class="ident">hom</span>.<span class="ident">compute_basis</span>(<span class="number">10</span>);
         <span class="kw">let</span> <span class="ident">dimensions</span> <span class="op">=</span> [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">3</span>, <span class="number">3</span>, <span class="number">2</span>, <span class="number">1</span>, <span class="number">0</span>];
@@ -603,9 +642,8 @@
         <span class="ident">F</span>.<span class="ident">add_generators</span>(<span class="number">1</span>, <span class="number">1</span>, <span class="prelude-val">None</span>);
         <span class="ident">F</span>.<span class="ident">add_generators</span>(<span class="number">2</span>, <span class="number">1</span>, <span class="prelude-val">None</span>);
         <span class="ident">F</span>.<span class="ident">extend_by_zero</span>(<span class="number">20</span>);
-        <span class="kw">let</span> <span class="ident">joker_json_string</span> <span class="op">=</span> <span class="string">r#&quot;{&quot;type&quot; : &quot;finite dimensional module&quot;,&quot;name&quot;: &quot;Joker&quot;, &quot;file_name&quot;: &quot;Joker&quot;, &quot;p&quot;: 2, &quot;generic&quot;: false, &quot;gens&quot;: {&quot;x0&quot;: 0, &quot;x1&quot;: 1, &quot;x2&quot;: 2, &quot;x3&quot;: 3, &quot;x4&quot;: 4}, &quot;sq_actions&quot;: [{&quot;op&quot;: 2, &quot;input&quot;: &quot;x0&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x2&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: 2, &quot;input&quot;: &quot;x2&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x4&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: 1, &quot;input&quot;: &quot;x0&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x1&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: 2, &quot;input&quot;: &quot;x1&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x3&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: 1, &quot;input&quot;: &quot;x3&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x4&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: 3, &quot;input&quot;: &quot;x1&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x4&quot;, &quot;coeff&quot;: 1}]}], &quot;adem_actions&quot;: [{&quot;op&quot;: [1], &quot;input&quot;: &quot;x0&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x1&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [1], &quot;input&quot;: &quot;x3&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x4&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [2], &quot;input&quot;: &quot;x0&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x2&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [2], &quot;input&quot;: &quot;x1&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x3&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [2], &quot;input&quot;: &quot;x2&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x4&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [3], &quot;input&quot;: &quot;x1&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x4&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [2, 1], &quot;input&quot;: &quot;x0&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x3&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [3, 1], &quot;input&quot;: &quot;x0&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x4&quot;, &quot;coeff&quot;: 1}]}], &quot;milnor_actions&quot;: [{&quot;op&quot;: [1], &quot;input&quot;: &quot;x0&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x1&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [1], &quot;input&quot;: &quot;x3&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x4&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [2], &quot;input&quot;: &quot;x0&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x2&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [2], &quot;input&quot;: &quot;x1&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x3&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [2], &quot;input&quot;: &quot;x2&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x4&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [0, 1], &quot;input&quot;: &quot;x0&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x3&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [0, 1], &quot;input&quot;: &quot;x1&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x4&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [3], &quot;input&quot;: &quot;x1&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x4&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [1, 1], &quot;input&quot;: &quot;x0&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x4&quot;, &quot;coeff&quot;: 1}]}]}&quot;#</span>;
-        <span class="kw">let</span> <span class="ident">joker_json</span> <span class="op">=</span> <span class="ident">serde_json::from_str</span>(<span class="ident">joker_json_string</span>).<span class="ident">unwrap</span>();
-        <span class="kw">let</span> <span class="ident">M</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">FDModule::from_json</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">A</span>), <span class="kw-2">&amp;</span><span class="ident">joker_json</span>).<span class="ident">unwrap</span>());
+
+        <span class="kw">let</span> <span class="ident">M</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">FDModule::from_json</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">A</span>), <span class="kw-2">&amp;</span><span class="ident">joker_json</span>()).<span class="ident">unwrap</span>());
         <span class="kw">let</span> <span class="ident">hom</span> <span class="op">=</span> <span class="ident">HomModule::new</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">F</span>), <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">M</span>));
         <span class="ident">hom</span>.<span class="ident">compute_basis</span>(<span class="number">10</span>);
 

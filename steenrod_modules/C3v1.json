@@ -1,7 +1,6 @@
-{"file_name":"C3v1","generic":true,"gens":{"x0":0,"x1":1,"x5":5,"x6":6},
-    "actions": [
-        "b x0 = x1",
-        "b x5 = x6",
-        "P1 x1 = x5"
-    ],
-"name":"$C(3, v_1)$","p":3,"type":"finite dimensional module"}
+{
+    "p": 3,
+    "type": "finite dimensional module",
+    "gens": { "x0": 0, "x1": 1, "x5": 5, "x6": 6 },
+    "actions": ["b x0 = x1", "P1 x1 = x5", "b x5 = x6"]
+}

@@ -364,11 +364,6 @@
 <span id="337">337</span>
 <span id="338">338</span>
 <span id="339">339</span>
-<span id="340">340</span>
-<span id="341">341</span>
-<span id="342">342</span>
-<span id="343">343</span>
-<span id="344">344</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">rustc_hash::FxHashMap</span> <span class="kw">as</span> <span class="ident">HashMap</span>;
 <span class="kw">use</span> <span class="ident">std::io</span>::{<span class="ident">stderr</span>, <span class="ident">Write</span>};
 <span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
@@ -502,7 +497,6 @@
     <span class="ident">output_json</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Value</span>,
     <span class="ident">p</span>: <span class="ident">ValidPrime</span>,
     <span class="ident">generic</span>: <span class="ident">bool</span>,
-    <span class="ident">name</span>: <span class="ident">String</span>,
 ) -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
     <span class="kw">let</span> <span class="ident">algebra</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">SteenrodAlgebra::AdemAlgebra</span>(<span class="ident">AdemAlgebra::new</span>(
         <span class="ident">p</span>, <span class="ident">generic</span>, <span class="bool-val">false</span>, <span class="bool-val">false</span>,
@@ -519,7 +513,7 @@
         <span class="ident">graded_dim</span>.<span class="ident">push</span>(<span class="ident">i</span>);
     }
 
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">module</span> <span class="op">=</span> <span class="ident">FDModule::new</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">algebra</span>), <span class="ident">name</span>, <span class="ident">graded_dim</span>);
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">module</span> <span class="op">=</span> <span class="ident">FDModule::new</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">algebra</span>), <span class="ident">String::new</span>(), <span class="ident">graded_dim</span>);
 
     <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">deg_i_gens</span>) <span class="kw">in</span> <span class="ident">gens</span>.<span class="ident">iter_enum</span>() {
         <span class="kw">for</span> (<span class="ident">j</span>, <span class="ident">gen</span>) <span class="kw">in</span> <span class="ident">deg_i_gens</span>.<span class="ident">iter</span>().<span class="ident">enumerate</span>() {
@@ -589,10 +583,7 @@
     <span class="ident">output_json</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Value</span>,
     <span class="ident">p</span>: <span class="ident">ValidPrime</span>,
     <span class="ident">generic</span>: <span class="ident">bool</span>,
-    <span class="ident">name</span>: <span class="ident">String</span>,
 ) -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-    <span class="ident">output_json</span>[<span class="string">&quot;type&quot;</span>] <span class="op">=</span> <span class="ident">Value::from</span>(<span class="string">&quot;finitely presented module&quot;</span>);
-
     <span class="kw">let</span> <span class="ident">gens</span> <span class="op">=</span> <span class="ident">get_gens</span>()<span class="question-mark">?</span>;
     <span class="kw">let</span> <span class="ident">min_degree</span> <span class="op">=</span> <span class="ident">gens</span>.<span class="ident">min_degree</span>();
     <span class="kw">let</span> <span class="ident">max_degree</span> <span class="op">=</span> <span class="ident">gens</span>.<span class="ident">len</span>();
@@ -612,7 +603,7 @@
         <span class="ident">graded_dim</span>.<span class="ident">push</span>(<span class="ident">i</span>);
     }
 
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">adem_module</span> <span class="op">=</span> <span class="ident">FPModule::new</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">steenrod_algebra</span>), <span class="ident">name</span>, <span class="ident">min_degree</span>);
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">adem_module</span> <span class="op">=</span> <span class="ident">FPModule::new</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">steenrod_algebra</span>), <span class="ident">String::new</span>(), <span class="ident">min_degree</span>);
 
     <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">deg_i_gens</span>) <span class="kw">in</span> <span class="ident">gens</span>.<span class="ident">iter_enum</span>() {
         <span class="ident">adem_module</span>.<span class="ident">add_generators</span>(<span class="ident">i</span>, <span class="ident">deg_i_gens</span>.<span class="ident">clone</span>());
@@ -699,15 +690,14 @@
         }
     );
 
-    <span class="kw">let</span> <span class="ident">name</span>: <span class="ident">String</span> <span class="op">=</span> <span class="ident">query::raw</span>(<span class="string">&quot;Module name (use latex between $&#39;s)&quot;</span>, <span class="ident">str::parse</span>);
     <span class="kw">let</span> <span class="ident">p</span>: <span class="ident">ValidPrime</span> <span class="op">=</span> <span class="ident">query::with_default</span>(<span class="string">&quot;p&quot;</span>, <span class="string">&quot;2&quot;</span>, <span class="ident">str::parse</span>);
     <span class="kw">let</span> <span class="ident">generic</span> <span class="op">=</span> <span class="kw-2">*</span><span class="ident">p</span> <span class="op">!</span><span class="op">=</span> <span class="number">2</span>;
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">output_json</span> <span class="op">=</span> <span class="macro">json!</span>({});
 
     <span class="macro">eprintln!</span>(<span class="string">&quot;module_type: {}&quot;</span>, <span class="ident">module_type</span>);
     <span class="kw">match</span> <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">module_type</span> {
-        <span class="string">&quot;fd&quot;</span> =&gt; <span class="ident">interactive_module_define_fdmodule</span>(<span class="kw-2">&amp;mut</span> <span class="ident">output_json</span>, <span class="ident">p</span>, <span class="ident">generic</span>, <span class="ident">name</span>)<span class="question-mark">?</span>,
-        <span class="string">&quot;fp&quot;</span> =&gt; <span class="ident">interactive_module_define_fpmodule</span>(<span class="kw-2">&amp;mut</span> <span class="ident">output_json</span>, <span class="ident">p</span>, <span class="ident">generic</span>, <span class="ident">name</span>)<span class="question-mark">?</span>,
+        <span class="string">&quot;fd&quot;</span> =&gt; <span class="ident">interactive_module_define_fdmodule</span>(<span class="kw-2">&amp;mut</span> <span class="ident">output_json</span>, <span class="ident">p</span>, <span class="ident">generic</span>)<span class="question-mark">?</span>,
+        <span class="string">&quot;fp&quot;</span> =&gt; <span class="ident">interactive_module_define_fpmodule</span>(<span class="kw-2">&amp;mut</span> <span class="ident">output_json</span>, <span class="ident">p</span>, <span class="ident">generic</span>)<span class="question-mark">?</span>,
         <span class="kw">_</span> =&gt; <span class="macro">unreachable!</span>(),
     }
     <span class="macro">println!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">output_json</span>);

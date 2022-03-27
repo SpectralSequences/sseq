@@ -360,15 +360,6 @@
 <span id="333">333</span>
 <span id="334">334</span>
 <span id="335">335</span>
-<span id="336">336</span>
-<span id="337">337</span>
-<span id="338">338</span>
-<span id="339">339</span>
-<span id="340">340</span>
-<span id="341">341</span>
-<span id="342">342</span>
-<span id="343">343</span>
-<span id="344">344</span>
 </pre><pre class="rust"><code><span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;json&quot;</span>)]</span>
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::algebra::JsonAlgebra</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::algebra</span>::{
@@ -563,29 +554,20 @@
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">to_json</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">json</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Value</span>) {
-        <span class="kw">match</span> <span class="self">self</span> {
-            <span class="ident">SteenrodAlgebra::MilnorAlgebra</span>(<span class="ident">a</span>) =&gt; {
-                <span class="ident">json</span>[<span class="string">&quot;p&quot;</span>] <span class="op">=</span> <span class="ident">Value::from</span>(<span class="kw-2">*</span><span class="ident">a</span>.<span class="ident">prime</span>());
-                <span class="ident">json</span>[<span class="string">&quot;generic&quot;</span>] <span class="op">=</span> <span class="ident">Value::from</span>(<span class="ident">a</span>.<span class="ident">generic</span>());
-                <span class="kw">let</span> <span class="ident">profile</span> <span class="op">=</span> <span class="ident">a</span>.<span class="ident">profile</span>();
+        <span class="ident">json</span>[<span class="string">&quot;p&quot;</span>] <span class="op">=</span> <span class="ident">Value::from</span>(<span class="kw-2">*</span><span class="self">self</span>.<span class="ident">prime</span>());
+        <span class="kw">if</span> <span class="kw">let</span> <span class="ident">SteenrodAlgebra::MilnorAlgebra</span>(<span class="ident">a</span>) <span class="op">=</span> <span class="self">self</span> {
+            <span class="kw">let</span> <span class="ident">profile</span> <span class="op">=</span> <span class="ident">a</span>.<span class="ident">profile</span>();
 
-                <span class="kw">if</span> <span class="op">!</span><span class="ident">profile</span>.<span class="ident">is_trivial</span>() {
-                    <span class="ident">json</span>[<span class="string">&quot;algebra&quot;</span>] <span class="op">=</span> <span class="ident">Value::from</span>(<span class="macro">vec!</span>[<span class="string">&quot;milnor&quot;</span>]);
-                    <span class="ident">json</span>[<span class="string">&quot;profile&quot;</span>] <span class="op">=</span> <span class="ident">Value::Object</span>(<span class="ident">serde_json::map::Map::with_capacity</span>(<span class="number">3</span>));
-                    <span class="kw">if</span> <span class="ident">profile</span>.<span class="ident">truncated</span> {
-                        <span class="ident">json</span>[<span class="string">&quot;profile&quot;</span>][<span class="string">&quot;truncated&quot;</span>] <span class="op">=</span> <span class="ident">Value::Bool</span>(<span class="bool-val">true</span>);
-                    }
-                    <span class="kw">if</span> <span class="ident">profile</span>.<span class="ident">q_part</span> <span class="op">!</span><span class="op">=</span> <span class="op">!</span><span class="number">0</span> {
-                        <span class="ident">json</span>[<span class="string">&quot;profile&quot;</span>][<span class="string">&quot;q_part&quot;</span>] <span class="op">=</span> <span class="ident">Value::from</span>(<span class="ident">profile</span>.<span class="ident">q_part</span>);
-                    }
-                    <span class="kw">if</span> <span class="op">!</span><span class="ident">profile</span>.<span class="ident">p_part</span>.<span class="ident">is_empty</span>() {
-                        <span class="ident">json</span>[<span class="string">&quot;profile&quot;</span>][<span class="string">&quot;p_part&quot;</span>] <span class="op">=</span> <span class="ident">Value::from</span>(<span class="ident">profile</span>.<span class="ident">p_part</span>.<span class="ident">clone</span>());
-                    }
+            <span class="kw">if</span> <span class="op">!</span><span class="ident">profile</span>.<span class="ident">is_trivial</span>() {
+                <span class="ident">json</span>[<span class="string">&quot;algebra&quot;</span>] <span class="op">=</span> <span class="ident">Value::from</span>(<span class="macro">vec!</span>[<span class="string">&quot;milnor&quot;</span>]);
+                <span class="ident">json</span>[<span class="string">&quot;profile&quot;</span>] <span class="op">=</span> <span class="ident">Value::Object</span>(<span class="ident">serde_json::map::Map::with_capacity</span>(<span class="number">3</span>));
+                <span class="ident">json</span>[<span class="string">&quot;profile&quot;</span>][<span class="string">&quot;truncated&quot;</span>] <span class="op">=</span> <span class="ident">Value::Bool</span>(<span class="ident">profile</span>.<span class="ident">truncated</span>);
+                <span class="kw">if</span> <span class="ident">profile</span>.<span class="ident">q_part</span> <span class="op">!</span><span class="op">=</span> <span class="op">!</span><span class="number">0</span> {
+                    <span class="ident">json</span>[<span class="string">&quot;profile&quot;</span>][<span class="string">&quot;q_part&quot;</span>] <span class="op">=</span> <span class="ident">Value::from</span>(<span class="ident">profile</span>.<span class="ident">q_part</span>);
                 }
-            }
-            <span class="ident">SteenrodAlgebra::AdemAlgebra</span>(<span class="ident">a</span>) =&gt; {
-                <span class="ident">json</span>[<span class="string">&quot;p&quot;</span>] <span class="op">=</span> <span class="ident">Value::from</span>(<span class="kw-2">*</span><span class="ident">a</span>.<span class="ident">prime</span>());
-                <span class="ident">json</span>[<span class="string">&quot;generic&quot;</span>] <span class="op">=</span> <span class="ident">Value::Bool</span>(<span class="ident">a</span>.<span class="ident">generic</span>);
+                <span class="kw">if</span> <span class="op">!</span><span class="ident">profile</span>.<span class="ident">p_part</span>.<span class="ident">is_empty</span>() {
+                    <span class="ident">json</span>[<span class="string">&quot;profile&quot;</span>][<span class="string">&quot;p_part&quot;</span>] <span class="op">=</span> <span class="ident">Value::from</span>(<span class="ident">profile</span>.<span class="ident">p_part</span>.<span class="ident">clone</span>());
+                }
             }
         }
     }

@@ -353,6 +353,8 @@
 <span id="326">326</span>
 <span id="327">327</span>
 <span id="328">328</span>
+<span id="329">329</span>
+<span id="330">330</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
 
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::algebra::Algebra</span>;
@@ -571,7 +573,9 @@
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">to_json</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">json</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Value</span>) {
-        <span class="ident">json</span>[<span class="string">&quot;name&quot;</span>] <span class="op">=</span> <span class="ident">Value::String</span>(<span class="self">self</span>.<span class="ident">to_string</span>());
+        <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">name</span>.<span class="ident">is_empty</span>() {
+            <span class="ident">json</span>[<span class="string">&quot;name&quot;</span>] <span class="op">=</span> <span class="ident">Value::String</span>(<span class="self">self</span>.<span class="ident">name</span>.<span class="ident">clone</span>());
+        }
         <span class="ident">json</span>[<span class="string">&quot;type&quot;</span>] <span class="op">=</span> <span class="ident">Value::from</span>(<span class="string">&quot;finitely presented module&quot;</span>);
         <span class="comment">// Because we only have one algebra, we must specify this.</span>
         <span class="ident">json</span>[<span class="string">&quot;algebra&quot;</span>] <span class="op">=</span> <span class="ident">Value::from</span>(<span class="macro">vec!</span>[<span class="self">self</span>.<span class="ident">algebra</span>().<span class="ident">prefix</span>()]);

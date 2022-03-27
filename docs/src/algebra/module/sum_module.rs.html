@@ -219,9 +219,6 @@
 <span id="192">192</span>
 <span id="193">193</span>
 <span id="194">194</span>
-<span id="195">195</span>
-<span id="196">196</span>
-<span id="197">197</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">bivec::BiVec</span>;
 <span class="kw">use</span> <span class="ident">once::OnceBiVec</span>;
 
@@ -376,16 +373,13 @@
 
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">test_sum_modules</span>() {
-        <span class="kw">let</span> <span class="ident">k</span> <span class="op">=</span> <span class="string">r#&quot;{&quot;type&quot; : &quot;finite dimensional module&quot;,&quot;name&quot;: &quot;$S_2$&quot;, &quot;file_name&quot;: &quot;S_2&quot;, &quot;p&quot;: 2, &quot;generic&quot;: false, &quot;gens&quot;: {&quot;x0&quot;: 0}, &quot;sq_actions&quot;: [], &quot;adem_actions&quot;: [], &quot;milnor_actions&quot;: []}&quot;#</span>;
-        <span class="kw">let</span> <span class="ident">k2</span> <span class="op">=</span> <span class="string">r#&quot;{&quot;type&quot; : &quot;finite dimensional module&quot;,&quot;name&quot;: &quot;$S_2$&quot;, &quot;file_name&quot;: &quot;S_2&quot;, &quot;p&quot;: 2, &quot;generic&quot;: false, &quot;gens&quot;: {&quot;x0&quot;: 0, &quot;y0&quot;:0}, &quot;sq_actions&quot;: [], &quot;adem_actions&quot;: [], &quot;milnor_actions&quot;: []}&quot;#</span>;
-
-        <span class="kw">let</span> <span class="ident">zero</span> <span class="op">=</span> <span class="string">r#&quot;{&quot;type&quot; : &quot;finite dimensional module&quot;,&quot;name&quot;: &quot;$S_2$&quot;, &quot;file_name&quot;: &quot;S_2&quot;, &quot;p&quot;: 2, &quot;generic&quot;: false, &quot;gens&quot;: {}, &quot;adem_actions&quot;: []}&quot;#</span>;
-
-        <span class="kw">let</span> <span class="ident">c2</span> <span class="op">=</span> <span class="string">r#&quot;{&quot;type&quot; : &quot;finite dimensional module&quot;, &quot;name&quot;: &quot;$C(2)$&quot;, &quot;p&quot;: 2, &quot;generic&quot;: false, &quot;gens&quot;: {&quot;x0&quot;: 0, &quot;x1&quot;: 1}, &quot;adem_actions&quot;: [{&quot;op&quot;: [1], &quot;input&quot;: &quot;x0&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x1&quot;, &quot;coeff&quot;: 1}]}]}&quot;#</span>;
-
-        <span class="kw">let</span> <span class="ident">ceta</span> <span class="op">=</span> <span class="string">r#&quot;{&quot;type&quot; : &quot;finite dimensional module&quot;,&quot;name&quot;: &quot;$C(\\eta)$&quot;, &quot;file_name&quot;: &quot;Ceta&quot;, &quot;p&quot;: 2, &quot;generic&quot;: false, &quot;gens&quot;: {&quot;x0&quot;: 0, &quot;x2&quot;: 2}, &quot;adem_actions&quot;: [{&quot;op&quot;: [2], &quot;input&quot;: &quot;x0&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x2&quot;, &quot;coeff&quot;: 1}]}]}&quot;#</span>;
-
-        <span class="kw">let</span> <span class="ident">c2sumceta</span> <span class="op">=</span> <span class="string">r#&quot;{&quot;type&quot; : &quot;finite dimensional module&quot;,&quot;name&quot;: &quot;$C(\\eta)$&quot;, &quot;file_name&quot;: &quot;Ceta&quot;, &quot;p&quot;: 2, &quot;generic&quot;: false, &quot;gens&quot;: {&quot;x0&quot;: 0, &quot;x1&quot;: 1,&quot;y0&quot;: 0, &quot;y2&quot;: 2}, &quot;adem_actions&quot;: [{&quot;op&quot;: [2], &quot;input&quot;: &quot;y0&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;y2&quot;, &quot;coeff&quot;: 1}]}, {&quot;op&quot;: [1], &quot;input&quot;: &quot;x0&quot;, &quot;output&quot;: [{&quot;gen&quot;: &quot;x1&quot;, &quot;coeff&quot;: 1}]}]}&quot;#</span>;
+        <span class="kw">let</span> <span class="ident">k</span> <span class="op">=</span>
+            <span class="string">r#&quot;{&quot;type&quot; : &quot;finite dimensional module&quot;, &quot;p&quot;: 2,  &quot;gens&quot;: {&quot;x0&quot;: 0}, &quot;actions&quot;: []}&quot;#</span>;
+        <span class="kw">let</span> <span class="ident">k2</span> <span class="op">=</span> <span class="string">r#&quot;{&quot;type&quot; : &quot;finite dimensional module&quot;, &quot;p&quot;: 2, &quot;gens&quot;: {&quot;x0&quot;: 0, &quot;y0&quot;:0}, &quot;actions&quot;: []}&quot;#</span>;
+        <span class="kw">let</span> <span class="ident">zero</span> <span class="op">=</span> <span class="string">r#&quot;{&quot;type&quot; : &quot;finite dimensional module&quot;, &quot;p&quot;: 2, &quot;gens&quot;: {}, &quot;actions&quot;: []}&quot;#</span>;
+        <span class="kw">let</span> <span class="ident">c2</span> <span class="op">=</span> <span class="string">r#&quot;{&quot;type&quot; : &quot;finite dimensional module&quot;,  &quot;p&quot;: 2, &quot;gens&quot;: {&quot;x0&quot;: 0, &quot;x1&quot;: 1}, &quot;actions&quot;: [&quot;Sq1 x0 = x1&quot;]}&quot;#</span>;
+        <span class="kw">let</span> <span class="ident">ceta</span> <span class="op">=</span> <span class="string">r#&quot;{&quot;type&quot; : &quot;finite dimensional module&quot;, &quot;p&quot;: 2, &quot;gens&quot;: {&quot;x0&quot;: 0, &quot;x2&quot;: 2}, &quot;actions&quot;: [&quot;Sq2 x0 = x2&quot;]}&quot;#</span>;
+        <span class="kw">let</span> <span class="ident">c2sumceta</span> <span class="op">=</span> <span class="string">r#&quot;{&quot;type&quot; : &quot;finite dimensional module&quot;, &quot;p&quot;: 2, &quot;gens&quot;: {&quot;x0&quot;: 0, &quot;x1&quot;: 1,&quot;y0&quot;: 0, &quot;y2&quot;: 2}, &quot;actions&quot;: [&quot;Sq1 x0 =x1&quot;, &quot;Sq2 y0 = y2&quot;]}&quot;#</span>;
 
         <span class="ident">test_sum_module</span>(<span class="macro">vec!</span>[], <span class="ident">zero</span>);
         <span class="ident">test_sum_module</span>(<span class="macro">vec!</span>[<span class="ident">k</span>, <span class="ident">k</span>], <span class="ident">k2</span>);
