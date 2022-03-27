@@ -1,2 +1,2 @@
 tensor -- Ceta C2
-{"actions":["Sq1 x0.x0 = x0.x1","Sq2 x0.x0 = x2.x0","Sq2 x0.x1 = x2.x1","Sq1 x2.x0 = x2.x1"],"generic":false,"gens":{"x0.x0":0,"x0.x1":1,"x2.x0":2,"x2.x1":3},"name":"$C(\\eta)$ (x) $C(2)$","p":2,"type":"finite dimensional module"}
+{"p":2,"type":"finite dimensional module","gens":{"x0.x0":0,"x0.x1":1,"x2.x0":2,"x2.x1":3},"actions":["Sq1 x0.x0 = x0.x1","Sq2 x0.x0 = x2.x0","Sq2 x0.x1 = x2.x1","Sq1 x2.x0 = x2.x1"]}

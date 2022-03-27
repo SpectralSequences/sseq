@@ -25,14 +25,14 @@ fn main() -> anyhow::Result<()> {
     let left_module = FDModule::from_json(Arc::clone(&algebra), &left)?;
     let right_module = FDModule::from_json(Arc::clone(&algebra), &right)?;
 
-    let tensor = FDModule::from(&TensorModule::new(
+    let mut tensor = FDModule::from(&TensorModule::new(
         Arc::new(left_module),
         Arc::new(right_module),
     ));
+    tensor.name = String::new();
 
     let mut output = json!({
         "p": *p,
-        "generic": *p != 2
     });
     tensor.to_json(&mut output);
 
