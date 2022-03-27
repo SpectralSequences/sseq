@@ -1,20 +1,13 @@
 {
-    "type" : "finite dimensional module",
-    "name": "$y(2)_{(3)}",
-    "file_name": "y2_3",
+    "p": 3,
     "algebra": ["milnor"],
-    "profile": {
-        "q_part": 4294967292,
-        "p_part": [0, 0],
-        "truncated": false
-    },
-    "p": 3, "generic": true,
-    "gens": {"x0": 0},
+    "profile": { "truncated": false, "q_part": 4294967292, "p_part": [0, 0] },
+    "type": "finite dimensional module",
+    "gens": { "x0": 0 },
     "actions": [],
-    "products" : [
-        { "hom_deg" : 1, "int_deg" : 17, "class" : [1], "name" : "v_2" },
-        { "hom_deg" : 1, "int_deg" : 53, "class" : [1], "name" : "v_3" },
-        { "hom_deg" : 1, "int_deg" : 161, "class" : [1], "name" : "v_4" }
+    "products": [
+        { "class": [1], "hom_deg": 1, "int_deg": 17, "name": "v_2" },
+        { "class": [1], "hom_deg": 1, "int_deg": 53, "name": "v_3" },
+        { "class": [1], "hom_deg": 1, "int_deg": 161, "name": "v_4" }
     ]
-
 }

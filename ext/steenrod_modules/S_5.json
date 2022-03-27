@@ -1,5 +1,9 @@
-{"type" : "finite dimensional module","name": "$S_5$", "file_name": "S_5", "p": 5, "generic": true, "gens": {"x0": 0}, "sq_actions": [], "adem_actions": [], "milnor_actions": [],
-    "products" : [
-        { "hom_deg" : 2, "int_deg" : 40, "class" : [1], "name" : "\\beta" }
+{
+    "p": 5,
+    "type": "finite dimensional module",
+    "gens": { "x0": 0 },
+    "actions": [],
+    "products": [
+        { "class": [1], "hom_deg": 2, "int_deg": 40, "name": "\\beta" }
     ]
 }

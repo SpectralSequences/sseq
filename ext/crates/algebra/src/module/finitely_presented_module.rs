@@ -216,7 +216,9 @@ impl<A: JsonAlgebra> FinitelyPresentedModule<A> {
     }
 
     pub fn to_json(&self, json: &mut Value) {
-        json["name"] = Value::String(self.to_string());
+        if !self.name.is_empty() {
+            json["name"] = Value::String(self.name.clone());
+        }
         json["type"] = Value::from("finitely presented module");
         // Because we only have one algebra, we must specify this.
         json["algebra"] = Value::from(vec![self.algebra().prefix()]);

@@ -131,7 +131,6 @@ pub fn interactive_module_define_fdmodule(
     output_json: &mut Value,
     p: ValidPrime,
     generic: bool,
-    name: String,
 ) -> anyhow::Result<()> {
     let algebra = Arc::new(SteenrodAlgebra::AdemAlgebra(AdemAlgebra::new(
         p, generic, false, false,
@@ -148,7 +147,7 @@ pub fn interactive_module_define_fdmodule(
         graded_dim.push(i);
     }
 
-    let mut module = FDModule::new(Arc::clone(&algebra), name, graded_dim);
+    let mut module = FDModule::new(Arc::clone(&algebra), String::new(), graded_dim);
 
     for (i, deg_i_gens) in gens.iter_enum() {
         for (j, gen) in deg_i_gens.iter().enumerate() {
@@ -218,10 +217,7 @@ pub fn interactive_module_define_fpmodule(
     output_json: &mut Value,
     p: ValidPrime,
     generic: bool,
-    name: String,
 ) -> anyhow::Result<()> {
-    output_json["type"] = Value::from("finitely presented module");
-
     let gens = get_gens()?;
     let min_degree = gens.min_degree();
     let max_degree = gens.len();
@@ -241,7 +237,7 @@ pub fn interactive_module_define_fpmodule(
         graded_dim.push(i);
     }
 
-    let mut adem_module = FPModule::new(Arc::clone(&steenrod_algebra), name, min_degree);
+    let mut adem_module = FPModule::new(Arc::clone(&steenrod_algebra), String::new(), min_degree);
 
     for (i, deg_i_gens) in gens.iter_enum() {
         adem_module.add_generators(i, deg_i_gens.clone());
@@ -328,15 +324,14 @@ fn main() -> anyhow::Result<()> {
         }
     );
 
-    let name: String = query::raw("Module name (use latex between $'s)", str::parse);
     let p: ValidPrime = query::with_default("p", "2", str::parse);
     let generic = *p != 2;
     let mut output_json = json!({});
 
     eprintln!("module_type: {}", module_type);
     match &*module_type {
-        "fd" => interactive_module_define_fdmodule(&mut output_json, p, generic, name)?,
-        "fp" => interactive_module_define_fpmodule(&mut output_json, p, generic, name)?,
+        "fd" => interactive_module_define_fdmodule(&mut output_json, p, generic)?,
+        "fp" => interactive_module_define_fpmodule(&mut output_json, p, generic)?,
         _ => unreachable!(),
     }
     println!("{}", output_json);

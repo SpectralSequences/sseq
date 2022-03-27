@@ -43,9 +43,7 @@ fn q_part_default() -> u32 {
 #[cfg_attr(feature = "json", derive(Deserialize, Serialize))]
 #[derive(Debug, PartialEq, Eq)]
 pub struct MilnorProfile {
-    /// If `true`, unspecified p_part entries will be 0. Otherwise they will be infinity. This
-    /// defaults to `false`.
-    #[cfg_attr(feature = "json", serde(default))]
+    /// If `true`, unspecified p_part entries will be 0. Otherwise they will be infinity.
     pub truncated: bool,
     /// A bitmask indicating which of the Q_k we want to include (1 = include). Defaults to `!0`.
     /// This is only relevant at odd primes.

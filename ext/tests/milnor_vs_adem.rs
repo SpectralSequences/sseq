@@ -13,6 +13,9 @@ use rstest::rstest;
 #[case("Csigma", 30)]
 #[case("S_3", 30)]
 #[case("Calpha", 30)]
+#[case("j", 30)]
+#[case("j_mod_2", 30)]
+#[case("ksp", 30)]
 fn compare(#[case] module_name: &str, #[case] max_degree: i32) {
     let a = construct((module_name, "adem"), None).unwrap();
     let b = construct((module_name, "milnor"), None).unwrap();

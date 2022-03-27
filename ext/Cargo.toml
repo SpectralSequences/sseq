@@ -20,7 +20,7 @@ adler = "1"
 anyhow = "1.0.0"
 rayon = { version = "1.5", optional = true }
 rustc-hash = "1.1.0"
-serde_json = "1.0.0"
+serde_json = { version = "1.0.0", features = ["preserve_order"] }
 itertools = { version = "0.10.0", default-features = false, features = ["use_alloc"] }
 chart = { path = "crates/chart" }
 dashmap = "4.0.0"

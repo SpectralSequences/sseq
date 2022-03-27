@@ -152,16 +152,13 @@ mod tests {
 
     #[test]
     fn test_sum_modules() {
-        let k = r#"{"type" : "finite dimensional module","name": "$S_2$", "file_name": "S_2", "p": 2, "generic": false, "gens": {"x0": 0}, "sq_actions": [], "adem_actions": [], "milnor_actions": []}"#;
-        let k2 = r#"{"type" : "finite dimensional module","name": "$S_2$", "file_name": "S_2", "p": 2, "generic": false, "gens": {"x0": 0, "y0":0}, "sq_actions": [], "adem_actions": [], "milnor_actions": []}"#;
-
-        let zero = r#"{"type" : "finite dimensional module","name": "$S_2$", "file_name": "S_2", "p": 2, "generic": false, "gens": {}, "adem_actions": []}"#;
-
-        let c2 = r#"{"type" : "finite dimensional module", "name": "$C(2)$", "p": 2, "generic": false, "gens": {"x0": 0, "x1": 1}, "adem_actions": [{"op": [1], "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}]}"#;
-
-        let ceta = r#"{"type" : "finite dimensional module","name": "$C(\\eta)$", "file_name": "Ceta", "p": 2, "generic": false, "gens": {"x0": 0, "x2": 2}, "adem_actions": [{"op": [2], "input": "x0", "output": [{"gen": "x2", "coeff": 1}]}]}"#;
-
-        let c2sumceta = r#"{"type" : "finite dimensional module","name": "$C(\\eta)$", "file_name": "Ceta", "p": 2, "generic": false, "gens": {"x0": 0, "x1": 1,"y0": 0, "y2": 2}, "adem_actions": [{"op": [2], "input": "y0", "output": [{"gen": "y2", "coeff": 1}]}, {"op": [1], "input": "x0", "output": [{"gen": "x1", "coeff": 1}]}]}"#;
+        let k =
+            r#"{"type" : "finite dimensional module", "p": 2,  "gens": {"x0": 0}, "actions": []}"#;
+        let k2 = r#"{"type" : "finite dimensional module", "p": 2, "gens": {"x0": 0, "y0":0}, "actions": []}"#;
+        let zero = r#"{"type" : "finite dimensional module", "p": 2, "gens": {}, "actions": []}"#;
+        let c2 = r#"{"type" : "finite dimensional module",  "p": 2, "gens": {"x0": 0, "x1": 1}, "actions": ["Sq1 x0 = x1"]}"#;
+        let ceta = r#"{"type" : "finite dimensional module", "p": 2, "gens": {"x0": 0, "x2": 2}, "actions": ["Sq2 x0 = x2"]}"#;
+        let c2sumceta = r#"{"type" : "finite dimensional module", "p": 2, "gens": {"x0": 0, "x1": 1,"y0": 0, "y2": 2}, "actions": ["Sq1 x0 =x1", "Sq2 y0 = y2"]}"#;
 
         test_sum_module(vec![], zero);
         test_sum_module(vec![k, k], k2);

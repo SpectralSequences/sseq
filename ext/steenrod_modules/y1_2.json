@@ -1,6 +1,12 @@
-{"type" : "finite dimensional module","name": "$y(1)_{(2)}$", "file_name": "y1_2", "algebra": ["milnor"], "profile": {"truncated": false, "p_part": [0]}, "p": 2, "generic": false, "gens": {"x0": 0}, "actions": [],
-    "products" : [
-        { "hom_deg" : 1, "int_deg" : 3, "class" : [1], "name" : "v_1" },
-        { "hom_deg" : 1, "int_deg" : 7, "class" : [1], "name" : "v_2" }
+{
+    "p": 2,
+    "algebra": ["milnor"],
+    "profile": { "truncated": false, "p_part": [0] },
+    "type": "finite dimensional module",
+    "gens": { "x0": 0 },
+    "actions": [],
+    "products": [
+        { "class": [1], "hom_deg": 1, "int_deg": 3, "name": "v_1" },
+        { "class": [1], "hom_deg": 1, "int_deg": 7, "name": "v_2" }
     ]
 }
