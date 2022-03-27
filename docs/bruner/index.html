@@ -25,7 +25,7 @@
 </script>
 
 </head><body class="rustdoc mod crate"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu" role="button">&#9776;</div><a class="sidebar-logo" href="../bruner/index.html"><div class="logo-container"><img class="rust-logo" src="../rust-logo.png" alt="logo"></div>
-        </a><h2 class="location">Crate bruner</h2><div class="block version"><div class="narrow-helper"></div><p>Version 0.1.0</p></div><div class="sidebar-elems"><a id="all-types" href="all.html"><p>See all bruner's items</p></a><div id="sidebar-vars" data-name="bruner" data-ty="mod" data-relpath=""></div><script defer src="sidebar-items.js"></script></div></nav><main><div class="width-limiter"><div class="sub-container"><a class="sub-logo-container" href="../bruner/index.html"><img class="rust-logo" src="../rust-logo.png" alt="logo"></a><nav class="sub"><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu" title="themes"><img width="18" height="18" alt="Pick another theme!" src="../brush.svg"></button><div id="theme-choices" role="menu"></div></div><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><button type="button" id="help-button" title="help">?</button><a id="settings-menu" href="../settings.html" title="settings"><img width="18" height="18" alt="Change settings" src="../wheel.svg"></a></div></form></nav></div><section id="main-content" class="content"><h1 class="fqn"><span class="in-band">Crate <a class="mod" href="#">bruner</a><button id="copy-path" onclick="copy_path(this)" title="Copy item path to clipboard"><img src="../clipboard.svg" width="19" height="18" alt="Copy item path"></button></span><span class="out-of-band"><span id="render-detail"><a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">[<span class="inner">&#x2212;</span>]</a></span><a class="srclink" href="../src/bruner/bruner.rs.html#1-316" title="goto source code">[src]</a></span></h1><details class="rustdoc-toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>This script converts between our basis and Bruner’s basis. At the moment, most inputs are
+        </a><h2 class="location">Crate bruner</h2><div class="block version"><div class="narrow-helper"></div><p>Version 0.1.0</p></div><div class="sidebar-elems"><a id="all-types" href="all.html"><p>See all bruner's items</p></a><div id="sidebar-vars" data-name="bruner" data-ty="mod" data-relpath=""></div><script defer src="sidebar-items.js"></script></div></nav><main><div class="width-limiter"><div class="sub-container"><a class="sub-logo-container" href="../bruner/index.html"><img class="rust-logo" src="../rust-logo.png" alt="logo"></a><nav class="sub"><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu" title="themes"><img width="18" height="18" alt="Pick another theme!" src="../brush.svg"></button><div id="theme-choices" role="menu"></div></div><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><button type="button" id="help-button" title="help">?</button><a id="settings-menu" href="../settings.html" title="settings"><img width="18" height="18" alt="Change settings" src="../wheel.svg"></a></div></form></nav></div><section id="main-content" class="content"><h1 class="fqn"><span class="in-band">Crate <a class="mod" href="#">bruner</a><button id="copy-path" onclick="copy_path(this)" title="Copy item path to clipboard"><img src="../clipboard.svg" width="19" height="18" alt="Copy item path"></button></span><span class="out-of-band"><span id="render-detail"><a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">[<span class="inner">&#x2212;</span>]</a></span><a class="srclink" href="../src/bruner/bruner.rs.html#1-251" title="goto source code">[src]</a></span></h1><details class="rustdoc-toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>This script converts between our basis and Bruner’s basis. At the moment, most inputs are
 hardcoded, and this only works for the sphere.</p>
 <p>The script performs the following procedure:</p>
 <ol>
@@ -39,54 +39,8 @@ quasi-inverses for our resolution, but not Bruner’s.</li>
 <li>Read off the transformation matrix we need</li>
 </ol>
 <p>The main extra work to put in is step (2), where we have to parse Bruner’s differentials and
-interpret it as a chain complex.</p>
-<p>By default, Bruner’s differentials are stored in files <code>Diff.N</code>, where <code>Diff.N</code> contains
-differentials starting at filtration 0. This employs various encodings of Milnor basis
-elements. We use the <code>i</code> encoding.</p>
-<p>If it comes in a different encoding, run ./seeres in the directory (after compiling the
-program).  This outputs the data in <code>hDiff.N</code> files, which ought to be moved back to
-<code>Diff.N</code>. We will read these as input, and they are stored in <code>bruner_data/</code>. The location is
-hardcoded, but the range of Bruner’s resolution is not. The bundled version includes the
-resolution up to $n = 20$, but it can be replaced with farther resolutions.</p>
-<p>We should interpret Diff.N as a space-separated “CSV”, where blank lines are insignificant.
-The first line is a header file, which includes two numbers</p>
-<div class="example-wrap"><pre class="language-text"><code>s=$s n=$num_gens</code></pre></div>
-<p>These are the filtration and the number of generators in the filtration.</p>
-<p>After the header, we have blocks corresponding to the generators.</p>
-<p>A block looks like</p>
-<div class="example-wrap"><pre class="language-text"><code>$num_gen: $gen_t
-
-$num_lines
-$line1
-$line2
-$line3
-...</code></pre></div>
-<p>In the first line <code>$num_gen</code> is the number of the generator, starting at 0, and <code>$gen_t</code> is the
-degree of the generator added. The generators are listed in increasing <code>$gen_t</code>.</p>
-<p>The second line <code>$num_lines</code> is the number of lines in the value of the differential on this
-generator, and the value of the differential is the sum of the following lines.</p>
-<p>Each line encodes the product of a generator with a basis element. The format of the line is as
-follows:</p>
-<div class="example-wrap"><pre class="language-text"><code>$gen_idx $op_deg $alg_dim $op</code></pre></div>
-<p>Here <code>$gen_idx</code> is the index of the generator. This is the index within the free module one
-filtration lower (i.e. the index in the file Diff.$(N-1)), and not the index within the whole
-resolution.</p>
-<p>The next entry <code>$op_deg</code> is the degree of the operation. This information is redundant, as it
-can be computed from either the generator index or the upcoming representation of the operation
-itself. Nevertheless, it is convenient to have it available upfront.</p>
-<p>The third entry is the dimension of the algebra in degree $op_deg. Again this is not needed for
-us.</p>
-<p>The final entry is the operation itself. This best explained by example:</p>
-<div class="example-wrap"><pre class="language-text"><code>i(7)(4,1)(0,0,1).</code></pre></div>
-<p>denotes the operation $\Sq(7) + \Sq(4, 1) + \Sq(0, 0, 1)$.</p>
-<p>As an example, the block</p>
-<div class="example-wrap"><pre class="language-text"><code>5 : 10
-
-3
-0 8 4 i(8)(2,2).
-1 6 3 i(6)(0,2).
-4 1 1 i(1).</code></pre></div>
-<p>means the fifth generator is a generator in degree 10, whose differential is</p>
-<p>$$(\Sq(8) + \Sq(2, 2)) g_0 + (\Sq(6) + \Sq(0, 2)) g_1 + \Sq(1) g_4.$$</p>
+interpret it as a chain complex. Bruner’s resolution can be found at
+<a href="https://archive.sigma2.no/pages/public/datasetDetail.jsf?id=10.11582/2022.00015">https://archive.sigma2.no/pages/public/datasetDetail.jsf?id=10.11582/2022.00015</a>
+while the descirption of his save file is at <a href="https://arxiv.org/abs/2109.13117">https://arxiv.org/abs/2109.13117</a>.</p>
 </div></details></section><section id="search" class="content hidden"></section></div></main><div id="rustdoc-vars" data-root-path="../" data-current-crate="bruner" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.59.0 (9d1b2106e 2022-02-23)" ></div>
 </body></html>

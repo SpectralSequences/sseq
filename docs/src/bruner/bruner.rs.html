@@ -276,71 +276,6 @@
 <span id="249">249</span>
 <span id="250">250</span>
 <span id="251">251</span>
-<span id="252">252</span>
-<span id="253">253</span>
-<span id="254">254</span>
-<span id="255">255</span>
-<span id="256">256</span>
-<span id="257">257</span>
-<span id="258">258</span>
-<span id="259">259</span>
-<span id="260">260</span>
-<span id="261">261</span>
-<span id="262">262</span>
-<span id="263">263</span>
-<span id="264">264</span>
-<span id="265">265</span>
-<span id="266">266</span>
-<span id="267">267</span>
-<span id="268">268</span>
-<span id="269">269</span>
-<span id="270">270</span>
-<span id="271">271</span>
-<span id="272">272</span>
-<span id="273">273</span>
-<span id="274">274</span>
-<span id="275">275</span>
-<span id="276">276</span>
-<span id="277">277</span>
-<span id="278">278</span>
-<span id="279">279</span>
-<span id="280">280</span>
-<span id="281">281</span>
-<span id="282">282</span>
-<span id="283">283</span>
-<span id="284">284</span>
-<span id="285">285</span>
-<span id="286">286</span>
-<span id="287">287</span>
-<span id="288">288</span>
-<span id="289">289</span>
-<span id="290">290</span>
-<span id="291">291</span>
-<span id="292">292</span>
-<span id="293">293</span>
-<span id="294">294</span>
-<span id="295">295</span>
-<span id="296">296</span>
-<span id="297">297</span>
-<span id="298">298</span>
-<span id="299">299</span>
-<span id="300">300</span>
-<span id="301">301</span>
-<span id="302">302</span>
-<span id="303">303</span>
-<span id="304">304</span>
-<span id="305">305</span>
-<span id="306">306</span>
-<span id="307">307</span>
-<span id="308">308</span>
-<span id="309">309</span>
-<span id="310">310</span>
-<span id="311">311</span>
-<span id="312">312</span>
-<span id="313">313</span>
-<span id="314">314</span>
-<span id="315">315</span>
-<span id="316">316</span>
 </pre><pre class="rust"><code><span class="doccomment">//! This script converts between our basis and Bruner&#39;s basis. At the moment, most inputs are</span>
 <span class="doccomment">//! hardcoded, and this only works for the sphere.</span>
 <span class="doccomment">//!</span>
@@ -356,85 +291,15 @@
 <span class="doccomment">//! 4. Read off the transformation matrix we need</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! The main extra work to put in is step (2), where we have to parse Bruner&#39;s differentials and</span>
-<span class="doccomment">//! interpret it as a chain complex.</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! By default, Bruner&#39;s differentials are stored in files `Diff.N`, where `Diff.N` contains</span>
-<span class="doccomment">//! differentials starting at filtration 0. This employs various encodings of Milnor basis</span>
-<span class="doccomment">//! elements. We use the `i` encoding.</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! If it comes in a different encoding, run ./seeres in the directory (after compiling the</span>
-<span class="doccomment">//! program).  This outputs the data in `hDiff.N` files, which ought to be moved back to</span>
-<span class="doccomment">//! `Diff.N`. We will read these as input, and they are stored in `bruner_data/`. The location is</span>
-<span class="doccomment">//! hardcoded, but the range of Bruner&#39;s resolution is not. The bundled version includes the</span>
-<span class="doccomment">//! resolution up to $n = 20$, but it can be replaced with farther resolutions.</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! We should interpret Diff.N as a space-separated &quot;CSV&quot;, where blank lines are insignificant.</span>
-<span class="doccomment">//! The first line is a header file, which includes two numbers</span>
-<span class="doccomment">//! ```text</span>
-<span class="doccomment">//! s=$s n=$num_gens</span>
-<span class="doccomment">//! ```</span>
-<span class="doccomment">//! These are the filtration and the number of generators in the filtration.</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! After the header, we have blocks corresponding to the generators.</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! A block looks like</span>
-<span class="doccomment">//! ```text</span>
-<span class="doccomment">//! $num_gen: $gen_t</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! $num_lines</span>
-<span class="doccomment">//! $line1</span>
-<span class="doccomment">//! $line2</span>
-<span class="doccomment">//! $line3</span>
-<span class="doccomment">//! ...</span>
-<span class="doccomment">//! ```</span>
-<span class="doccomment">//! In the first line `$num_gen` is the number of the generator, starting at 0, and `$gen_t` is the</span>
-<span class="doccomment">//! degree of the generator added. The generators are listed in increasing `$gen_t`.</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! The second line `$num_lines` is the number of lines in the value of the differential on this</span>
-<span class="doccomment">//! generator, and the value of the differential is the sum of the following lines.</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! Each line encodes the product of a generator with a basis element. The format of the line is as</span>
-<span class="doccomment">//! follows:</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! ```text</span>
-<span class="doccomment">//! $gen_idx $op_deg $alg_dim $op</span>
-<span class="doccomment">//! ```</span>
-<span class="doccomment">//! Here `$gen_idx` is the index of the generator. This is the index within the free module one</span>
-<span class="doccomment">//! filtration lower (i.e. the index in the file Diff.$(N-1)), and not the index within the whole</span>
-<span class="doccomment">//! resolution.</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! The next entry `$op_deg` is the degree of the operation. This information is redundant, as it</span>
-<span class="doccomment">//! can be computed from either the generator index or the upcoming representation of the operation</span>
-<span class="doccomment">//! itself. Nevertheless, it is convenient to have it available upfront.</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! The third entry is the dimension of the algebra in degree $op_deg. Again this is not needed for</span>
-<span class="doccomment">//! us.</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! The final entry is the operation itself. This best explained by example:</span>
-<span class="doccomment">//! ```text</span>
-<span class="doccomment">//! i(7)(4,1)(0,0,1).</span>
-<span class="doccomment">//! ```</span>
-<span class="doccomment">//! denotes the operation $\Sq(7) + \Sq(4, 1) + \Sq(0, 0, 1)$.</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! As an example, the block</span>
-<span class="doccomment">//! ```text</span>
-<span class="doccomment">//! 5 : 10</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! 3</span>
-<span class="doccomment">//! 0 8 4 i(8)(2,2).</span>
-<span class="doccomment">//! 1 6 3 i(6)(0,2).</span>
-<span class="doccomment">//! 4 1 1 i(1).</span>
-<span class="doccomment">//! ```</span>
-<span class="doccomment">//! means the fifth generator is a generator in degree 10, whose differential is</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! $$(\Sq(8) + \Sq(2, 2)) g_0 + (\Sq(6) + \Sq(0, 2)) g_1 + \Sq(1) g_4.$$</span>
-<span class="doccomment">//!</span>
+<span class="doccomment">//! interpret it as a chain complex. Bruner&#39;s resolution can be found at</span>
+<span class="doccomment">//! &lt;https://archive.sigma2.no/pages/public/datasetDetail.jsf?id=10.11582/2022.00015&gt;</span>
+<span class="doccomment">//! while the descirption of his save file is at &lt;https://arxiv.org/abs/2109.13117&gt;.</span>
 
 <span class="kw">use</span> <span class="ident">algebra</span>::{
     <span class="ident">milnor_algebra::MilnorBasisElement</span>, <span class="ident">module::homomorphism::FreeModuleHomomorphism</span> <span class="kw">as</span> <span class="ident">FMH</span>,
     <span class="ident">module::FreeModule</span> <span class="kw">as</span> <span class="ident">FM</span>, <span class="ident">module::Module</span>, <span class="ident">Algebra</span>, <span class="ident">MilnorAlgebra</span>,
 };
-<span class="kw">use</span> <span class="ident">anyhow</span>::{<span class="ident">Error</span>, <span class="prelude-ty">Result</span>};
+<span class="kw">use</span> <span class="ident">anyhow</span>::{<span class="ident">Context</span>, <span class="ident">Error</span>, <span class="prelude-ty">Result</span>};
 <span class="kw">use</span> <span class="ident">ext</span>::{
     <span class="ident">chain_complex</span>::{<span class="ident">ChainComplex</span>, <span class="ident">FiniteChainComplex</span> <span class="kw">as</span> <span class="ident">FCC</span>},
     <span class="ident">resolution_homomorphism::ResolutionHomomorphism</span>,
@@ -526,7 +391,9 @@
     <span class="kw">if</span> <span class="op">!</span><span class="ident">read_line</span>(<span class="ident">input</span>, <span class="kw-2">&amp;mut</span> <span class="ident">buf</span>)<span class="question-mark">?</span> {
         <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);
     }
-    <span class="kw">let</span> <span class="ident">degree</span>: <span class="ident">i32</span> <span class="op">=</span> <span class="ident">buf</span>.<span class="ident">rsplit</span>(<span class="string">&#39;:&#39;</span>).<span class="ident">next</span>().<span class="ident">unwrap</span>().<span class="ident">trim</span>().<span class="ident">parse</span>()<span class="question-mark">?</span>;
+    <span class="kw">let</span> <span class="ident">degree</span>: <span class="ident">i32</span> <span class="op">=</span> <span class="ident">buf</span>.<span class="ident">trim</span>().<span class="ident">parse</span>()<span class="question-mark">?</span>;
+    <span class="ident">a</span>.<span class="ident">compute_basis</span>(<span class="ident">degree</span>);
+    <span class="ident">m</span>.<span class="ident">compute_basis</span>(<span class="ident">degree</span>);
 
     <span class="ident">read_line</span>(<span class="ident">input</span>, <span class="kw-2">&amp;mut</span> <span class="ident">buf</span>)<span class="question-mark">?</span>;
     <span class="kw">let</span> <span class="ident">num_lines</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="ident">buf</span>.<span class="ident">trim</span>().<span class="ident">parse</span>()<span class="question-mark">?</span>;
@@ -595,7 +462,10 @@
         <span class="kw">let</span> <span class="ident">m</span> <span class="op">=</span> <span class="ident">cc</span>.<span class="ident">module</span>(<span class="ident">s</span>);
         <span class="kw">let</span> <span class="ident">d</span> <span class="op">=</span> <span class="ident">cc</span>.<span class="ident">differential</span>(<span class="ident">s</span>);
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">BufReader::new</span>(<span class="ident">File::open</span>(<span class="ident">data_dir</span>.<span class="ident">join</span>(<span class="macro">format!</span>(<span class="string">&quot;Diff.{}&quot;</span>, <span class="ident">s</span>)))<span class="question-mark">?</span>);
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">BufReader::new</span>(
+            <span class="ident">File::open</span>(<span class="ident">data_dir</span>.<span class="ident">join</span>(<span class="macro">format!</span>(<span class="string">&quot;hDiff.{s}&quot;</span>)))
+                .<span class="ident">with_context</span>(<span class="op">|</span><span class="op">|</span> <span class="macro">format!</span>(<span class="string">&quot;Failed to read hDiff.{s}&quot;</span>))<span class="question-mark">?</span>,
+        );
 
         <span class="ident">read_line</span>(<span class="kw-2">&amp;mut</span> <span class="ident">f</span>, <span class="kw-2">&amp;mut</span> <span class="ident">buf</span>)<span class="question-mark">?</span>;
 
@@ -645,7 +515,7 @@
 
     <span class="comment">// We have to explicitly tell it what to do at (0, 0)</span>
     <span class="ident">hom</span>.<span class="ident">extend_step</span>(<span class="number">0</span>, <span class="number">0</span>, <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="ident">Matrix::from_vec</span>(<span class="ident">TWO</span>, <span class="kw-2">&amp;</span>[<span class="macro">vec!</span>[<span class="number">1</span>]])));
-    <span class="ident">hom</span>.<span class="ident">extend_through_stem</span>(<span class="ident">max_s</span>, <span class="ident">max_n</span>);
+    <span class="ident">hom</span>.<span class="ident">extend_all</span>();
 
     <span class="comment">// Now print the results</span>
     <span class="macro">println!</span>(<span class="string">&quot;sseq_basis | bruner_basis&quot;</span>);
