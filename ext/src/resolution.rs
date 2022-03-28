@@ -239,7 +239,7 @@ impl<CC: ChainComplex> Resolution<CC> {
             if let Some(dir) = &self.save_dir {
                 let mut f = self
                     .save_file(SaveKind::Kernel, s, t)
-                    .create_file(dir.clone());
+                    .create_file(dir.clone(), true);
                 kernel
                     .to_bytes(&mut f)
                     .with_context(|| format!("Failed to write kernel at ({s}, {t})"))
@@ -475,7 +475,7 @@ impl<CC: ChainComplex> Resolution<CC> {
                 if let Some(dir) = &self.save_dir {
                     let mut f = self
                         .save_file(SaveKind::Kernel, s, t)
-                        .create_file(dir.clone());
+                        .create_file(dir.clone(), true);
 
                     kernel
                         .to_bytes(&mut f)
@@ -632,11 +632,34 @@ impl<CC: ChainComplex> Resolution<CC> {
 
         if self.should_save {
             if let Some(dir) = &self.save_dir {
-                // Write differentials
+                // Write differentials last, because if we were terminated halfway, we want the
+                // differentials to exist iff everything has been written. However, we start by
+                // opening the differentials first to make sure we are not overwriting anything.
+
+                // Open differentials file
                 let mut f = self
                     .save_file(SaveKind::Differential, s, t)
-                    .create_file(dir.clone());
+                    .create_file(dir.clone(), false);
 
+                // Write resolution qi
+                res_qi
+                    .to_bytes(
+                        &mut self
+                            .save_file(SaveKind::ResQi, s, t)
+                            .create_file(dir.clone(), true),
+                    )
+                    .unwrap();
+
+                // Write augmentation qi
+                cm_qi
+                    .to_bytes(
+                        &mut self
+                            .save_file(SaveKind::AugmentationQi, s, t)
+                            .create_file(dir.clone(), true),
+                    )
+                    .unwrap();
+
+                // Write differentials
                 f.write_u64::<LittleEndian>(num_new_gens as u64).unwrap();
                 f.write_u64::<LittleEndian>(target_res_dimension as u64)
                     .unwrap();
@@ -650,24 +673,6 @@ impl<CC: ChainComplex> Resolution<CC> {
                     current_chain_map.output(t, n).to_bytes(&mut f).unwrap();
                 }
                 drop(f);
-
-                // Write resolution qi
-                res_qi
-                    .to_bytes(
-                        &mut self
-                            .save_file(SaveKind::ResQi, s, t)
-                            .create_file(dir.clone()),
-                    )
-                    .unwrap();
-
-                // Write augmentation qi
-                cm_qi
-                    .to_bytes(
-                        &mut self
-                            .save_file(SaveKind::AugmentationQi, s, t)
-                            .create_file(dir.clone()),
-                    )
-                    .unwrap();
 
                 // Delete kernel
                 if s > 0 {

@@ -301,7 +301,7 @@ where
                 let mut f = self
                     .source
                     .save_file(SaveKind::ChainMap, input_s, input_t)
-                    .create_file(dir.clone());
+                    .create_file(dir.clone(), false);
                 f.write_u64::<LittleEndian>(fx_dimension as u64).unwrap();
                 for row in &outputs {
                     row.to_bytes(&mut f).unwrap();
@@ -390,7 +390,7 @@ where
             let mut f = self
                 .source
                 .save_file(SaveKind::ChainMap, input_s, input_t)
-                .create_file(dir.clone());
+                .create_file(dir.clone(), false);
             f.write_u64::<LittleEndian>(fx_dimension as u64).unwrap();
             for row in &outputs {
                 row.to_bytes(&mut f).unwrap();

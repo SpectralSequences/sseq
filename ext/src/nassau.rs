@@ -556,7 +556,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         let mut f = if let Some(dir) = self.save_dir() {
             let mut f = self
                 .save_file(SaveKind::NassauQi, s - 1, t)
-                .create_file(dir.to_owned());
+                .create_file(dir.to_owned(), true);
             f.write_u64::<LittleEndian>(next.dimension(t) as u64)
                 .unwrap();
             f.write_u64::<LittleEndian>(target_masked_dim as u64)
@@ -688,7 +688,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         if let Some(dir) = &self.save_dir {
             let mut f = self
                 .save_file(SaveKind::NassauDifferential, s, t)
-                .create_file(dir.clone());
+                .create_file(dir.clone(), false);
             f.write_u64::<LittleEndian>(num_new_gens as u64).unwrap();
             f.write_u64::<LittleEndian>(target_dim as u64).unwrap();
 
@@ -842,17 +842,6 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
                 set_data();
 
                 return;
-            } else {
-                // The differential file does not exist. If the qi file exists, the program was
-                // killed halfway through computing this stem. Delete the qi file.
-                self.save_file(SaveKind::NassauQi, s - 1, t)
-                    .delete_file(dir.clone())
-                    .unwrap_or_else(|e| {
-                        panic!(
-                            "Error when deleting partial save file at ({n}, {s}): {e:?}",
-                            n = t - s as i32
-                        )
-                    });
             }
         }
 
