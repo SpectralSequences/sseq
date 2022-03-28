@@ -3,8 +3,9 @@ use crate::algebra::milnor_algebra::{MilnorBasisElement, PPart, PPartEntry};
 use crate::algebra::{AdemAlgebra, Algebra, MilnorAlgebra};
 use fp::vector::FpVector;
 
-// use std::sync::Arc;
-
+/// Translate from the adem basis to the milnor basis, adding `coeff` times the result to `result`.
+/// This uses the fact that that $P^n = P(n)$ and $Q_1 = \beta$ and multiplies out the admissible
+/// monomial.
 pub fn adem_to_milnor_on_basis(
     adem_algebra: &AdemAlgebra,
     milnor_algebra: &MilnorAlgebra,
@@ -15,48 +16,34 @@ pub fn adem_to_milnor_on_basis(
 ) {
     let elt = adem_algebra.basis_element_from_index(degree, idx);
     let p = milnor_algebra.prime();
-    let q = milnor_algebra.q() as u32;
     let dim = milnor_algebra.dimension(elt.degree);
     if dim == 1 {
         result.set_entry(0, coeff);
         return;
     }
-    let mut bocksteins = elt.bocksteins;
-    let mbe = MilnorBasisElement {
-        degree: (q * elt.ps[0] + (bocksteins & 1)) as i32,
-        q_part: bocksteins & 1,
-        p_part: vec![elt.ps[0] as PPartEntry],
-    };
-    bocksteins >>= 1;
-    let idx = milnor_algebra.basis_element_to_index(&mbe);
-    let mut total_degree = mbe.degree;
-    let cur_dim = milnor_algebra.dimension(total_degree);
-
-    let mut tmp_vector_a = FpVector::new(p, cur_dim);
+    let mut tmp_vector_a = FpVector::new(p, 1);
     let mut tmp_vector_b = FpVector::new(p, 0);
-    tmp_vector_a.set_entry(idx, 1);
 
-    for i in 1..elt.ps.len() {
-        let mbe = MilnorBasisElement {
-            degree: (q * elt.ps[i] + (bocksteins & 1)) as i32,
-            q_part: bocksteins & 1,
-            p_part: vec![elt.ps[i] as PPartEntry],
-        };
-        let idx = milnor_algebra.basis_element_to_index(&mbe);
+    tmp_vector_a.set_entry(0, 1);
+
+    let mut bocksteins = elt.bocksteins;
+    let mut total_degree = 0;
+
+    for &sqn in &elt.ps {
+        let (deg, idx) = milnor_algebra.beps_pn(bocksteins & 1, sqn as PPartEntry);
         bocksteins >>= 1;
-        let cur_dim = milnor_algebra.dimension(total_degree + mbe.degree);
-        tmp_vector_b.set_scratch_vector_size(cur_dim);
+
+        tmp_vector_b.set_scratch_vector_size(milnor_algebra.dimension(total_degree + deg));
         milnor_algebra.multiply_element_by_basis_element(
             tmp_vector_b.as_slice_mut(),
             1,
             total_degree,
             tmp_vector_a.as_slice(),
-            mbe.degree,
+            deg,
             idx,
         );
-        total_degree += mbe.degree;
+        total_degree += deg;
         std::mem::swap(&mut tmp_vector_a, &mut tmp_vector_b);
-        tmp_vector_b.set_to_zero();
     }
     if bocksteins & 1 == 0 {
         result.add(&tmp_vector_a, coeff);
@@ -81,10 +68,7 @@ pub fn adem_to_milnor(
     input: &FpVector,
 ) {
     let p = milnor_algebra.prime();
-    for (i, v) in input.iter().enumerate() {
-        if v == 0 {
-            continue;
-        }
+    for (i, v) in input.iter_nonzero() {
         adem_to_milnor_on_basis(
             adem_algebra,
             milnor_algebra,
@@ -235,10 +219,7 @@ pub fn milnor_to_adem(
     input: &FpVector,
 ) {
     let p = milnor_algebra.prime();
-    for (i, v) in input.iter().enumerate() {
-        if v == 0 {
-            continue;
-        }
+    for (i, v) in input.iter_nonzero() {
         milnor_to_adem_on_basis(
             adem_algebra,
             milnor_algebra,

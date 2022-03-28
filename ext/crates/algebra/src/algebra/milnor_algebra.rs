@@ -1004,7 +1004,8 @@ impl MilnorAlgebra {
         .map(|index| (degree, index))
     }
 
-    fn beps_pn(&self, e: u32, x: PPartEntry) -> (i32, usize) {
+    /// Return the degree and index of $Q_1^e P(x)$.
+    pub fn beps_pn(&self, e: u32, x: PPartEntry) -> (i32, usize) {
         self.try_beps_pn(e, x).unwrap()
     }
 
