@@ -271,7 +271,7 @@ impl<A: PairAlgebra + Send + Sync> SecondaryHomotopy<A> {
             ));
 
             if let Some(dir) = dir {
-                let mut f = save_file.create_file(dir.to_owned());
+                let mut f = save_file.create_file(dir.to_owned(), false);
                 composite.to_bytes(&mut f).unwrap();
             }
 
@@ -443,7 +443,7 @@ pub trait SecondaryLift: Sync {
         ));
 
         if let Some(dir) = self.save_dir() {
-            let mut f = save_file.create_file(dir.to_owned());
+            let mut f = save_file.create_file(dir.to_owned(), false);
             f.write_u64::<LittleEndian>(result.len() as u64).unwrap();
             result.to_bytes(&mut f).unwrap();
         }
@@ -626,7 +626,7 @@ pub trait SecondaryLift: Sync {
                 idx: None,
             };
 
-            let mut f = save_file.create_file(dir.to_owned());
+            let mut f = save_file.create_file(dir.to_owned(), false);
             for row in &results {
                 row.to_bytes(&mut f).unwrap();
             }

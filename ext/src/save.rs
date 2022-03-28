@@ -1,11 +1,39 @@
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+use std::collections::HashSet;
 use std::fs::File;
 use std::io::{BufRead, BufReader, BufWriter, Error, ErrorKind, Read, Write};
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use algebra::Algebra;
 use anyhow::Context;
+
+/// A DashSet<PathBuf>> of files that are currently opened and being written to. When calling this
+/// function for the first time, we set the ctrlc handler to delete currently opened files, then
+/// exit.
+fn open_files() -> &'static Mutex<HashSet<PathBuf>> {
+    use std::mem::MaybeUninit;
+    use std::sync::Once;
+
+    static mut OPEN_FILES: MaybeUninit<Mutex<HashSet<PathBuf>>> = MaybeUninit::uninit();
+    static ONCE: Once = Once::new();
+    unsafe {
+        ONCE.call_once(|| {
+            OPEN_FILES.write(Default::default());
+            #[cfg(unix)]
+            ctrlc::set_handler(move || {
+                let files = open_files().lock().unwrap();
+                for file in &*files {
+                    std::fs::remove_file(file)
+                        .unwrap_or_else(|_| panic!("Error when deleting {file:?}"));
+                }
+                std::process::exit(130);
+            })
+            .expect("Error setting Ctrl-C handler");
+        });
+        OPEN_FILES.assume_init_ref()
+    }
+}
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 #[non_exhaustive]
@@ -111,14 +139,18 @@ impl SaveKind {
     }
 }
 
+/// In addition to checking the checksum, we also keep track of which files are open, and we delete
+/// the open files if the program is terminated halfway.
 pub struct ChecksumWriter<T: Write> {
     writer: T,
+    path: PathBuf,
     adler: adler::Adler32,
 }
 
 impl<T: Write> ChecksumWriter<T> {
-    pub fn new(writer: T) -> Self {
+    pub fn new(path: PathBuf, writer: T) -> Self {
         Self {
+            path,
             writer,
             adler: adler::Adler32::new(),
         }
@@ -152,6 +184,12 @@ impl<T: Write> std::ops::Drop for ChecksumWriter<T> {
             self.writer
                 .write_u32::<LittleEndian>(self.adler.checksum())
                 .unwrap();
+            self.writer.flush().unwrap();
+            assert!(
+                open_files().lock().unwrap().remove(&self.path),
+                "File {:?} already dropped",
+                self.path
+            );
         }
     }
 }
@@ -204,7 +242,7 @@ impl<T: Read> std::ops::Drop for ChecksumReader<T> {
 
 /// Open the file pointed to by `path` as a `Box<dyn Read>`. If the file does not exist, look for
 /// compressed versions.
-// When compiling to wasm we don't mutate path
+// When zstd is disabled, we don't mutate path
 #[allow(unused_mut)]
 fn open_file(mut path: PathBuf) -> Option<Box<dyn Read>> {
     // We should try in decreasing order of access speed.
@@ -355,16 +393,27 @@ impl<A: Algebra> SaveFile<A> {
         }
     }
 
-    pub fn create_file(&self, dir: PathBuf) -> impl Write {
+    /// # Arguments
+    ///  - `overwrite`: Whether to overwrite a file if it already exists.
+    pub fn create_file(&self, dir: PathBuf, overwrite: bool) -> impl Write {
         let p = self.get_save_path(dir);
+
+        // We need to do this before creating any file. The ctrlc handler does not block other threads
+        // from running, but it does lock [`open_files()`]. So this ensures we do not open new files
+        // while handling ctrlc.
+        assert!(
+            open_files().lock().unwrap().insert(p.clone()),
+            "File {p:?} is already opened"
+        );
 
         let f = std::fs::OpenOptions::new()
             .write(true)
-            .create_new(true)
+            .create_new(!overwrite)
+            .create(true)
             .open(&p)
             .with_context(|| format!("Failed to create save file {p:?}"))
             .unwrap();
-        let mut f = ChecksumWriter::new(BufWriter::new(f));
+        let mut f = ChecksumWriter::new(p, BufWriter::new(f));
         self.write_header(&mut f).unwrap();
         f
     }

@@ -286,7 +286,7 @@ impl<
                 .left
                 .source
                 .save_file(SaveKind::ChainHomotopy, source_s, source_t)
-                .create_file(dir.to_owned());
+                .create_file(dir.to_owned(), false);
             for row in &outputs {
                 row.to_bytes(&mut f).unwrap();
             }
