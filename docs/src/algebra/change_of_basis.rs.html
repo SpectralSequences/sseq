@@ -382,6 +382,8 @@
 <span id="355">355</span>
 <span id="356">356</span>
 <span id="357">357</span>
+<span id="358">358</span>
+<span id="359">359</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::algebra::adem_algebra::AdemBasisElement</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::algebra::milnor_algebra</span>::{<span class="ident">MilnorBasisElement</span>, <span class="ident">PPart</span>, <span class="ident">PPartEntry</span>};
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::algebra</span>::{<span class="ident">AdemAlgebra</span>, <span class="ident">Algebra</span>, <span class="ident">MilnorAlgebra</span>};
@@ -615,6 +617,7 @@
     }
 }
 
+<span class="doccomment">/// Express $Q_{qi}$ in the adem basis.</span>
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">adem_q</span>(
     <span class="ident">adem_algebra</span>: <span class="kw-2">&amp;</span><span class="ident">AdemAlgebra</span>,
     <span class="ident">milnor_algebra</span>: <span class="kw-2">&amp;</span><span class="ident">MilnorAlgebra</span>,
@@ -643,6 +646,7 @@
     <span class="ident">milnor_to_adem_on_basis</span>(<span class="ident">adem_algebra</span>, <span class="ident">milnor_algebra</span>, <span class="ident">result</span>, <span class="ident">coeff</span>, <span class="ident">degree</span>, <span class="ident">idx</span>);
 }
 
+<span class="doccomment">/// Express P(...) in the Adem basis.</span>
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">adem_plist</span>(
     <span class="ident">adem_algebra</span>: <span class="kw-2">&amp;</span><span class="ident">AdemAlgebra</span>,
     <span class="ident">milnor_algebra</span>: <span class="kw-2">&amp;</span><span class="ident">MilnorAlgebra</span>,
