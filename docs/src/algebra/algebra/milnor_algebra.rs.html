@@ -2105,6 +2105,7 @@
 <span id="2078">2078</span>
 <span id="2079">2079</span>
 <span id="2080">2080</span>
+<span id="2081">2081</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">itertools::Itertools</span>;
 <span class="kw">use</span> <span class="ident">nom::sequence::tuple</span>;
 <span class="kw">use</span> <span class="ident">rustc_hash::FxHashMap</span> <span class="kw">as</span> <span class="ident">HashMap</span>;
@@ -3111,7 +3112,8 @@
         .<span class="ident">map</span>(<span class="op">|</span><span class="ident">index</span><span class="op">|</span> (<span class="ident">degree</span>, <span class="ident">index</span>))
     }
 
-    <span class="kw">fn</span> <span class="ident">beps_pn</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">e</span>: <span class="ident">u32</span>, <span class="ident">x</span>: <span class="ident">PPartEntry</span>) -&gt; (<span class="ident">i32</span>, <span class="ident">usize</span>) {
+    <span class="doccomment">/// Return the degree and index of $Q_1^e P(x)$.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">beps_pn</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">e</span>: <span class="ident">u32</span>, <span class="ident">x</span>: <span class="ident">PPartEntry</span>) -&gt; (<span class="ident">i32</span>, <span class="ident">usize</span>) {
         <span class="self">self</span>.<span class="ident">try_beps_pn</span>(<span class="ident">e</span>, <span class="ident">x</span>).<span class="ident">unwrap</span>()
     }
 
