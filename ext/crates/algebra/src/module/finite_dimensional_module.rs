@@ -355,30 +355,13 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
         None
     }
 
-    pub fn set_action_vector(
-        &mut self,
-        operation_degree: i32,
-        operation_idx: usize,
-        input_degree: i32,
-        input_idx: usize,
-        output: &FpVector,
-    ) {
-        assert!(operation_idx < self.algebra.dimension(operation_degree));
-        assert!(input_idx < self.dimension(input_degree));
-        let output_degree = input_degree + operation_degree;
-        // (in_deg) -> (out_deg) -> (op_index) -> (in_index) -> Vector
-        let output_vector =
-            &mut self.actions[input_degree][output_degree][operation_idx][input_idx];
-        output_vector.assign(output);
-    }
-
     pub fn set_action(
         &mut self,
         operation_degree: i32,
         operation_idx: usize,
         input_degree: i32,
         input_idx: usize,
-        output: Vec<u32>,
+        output: &[u32],
     ) {
         assert!(operation_idx < self.algebra.dimension(operation_degree));
         assert!(input_idx < self.dimension(input_degree));
@@ -386,7 +369,7 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
         // (in_deg) -> (out_deg) -> (op_index) -> (in_index) -> Vector
         let output_vector =
             &mut self.actions[input_degree][output_degree][operation_idx][input_idx];
-        output_vector.copy_from_slice(&output);
+        output_vector.copy_from_slice(output);
     }
 
     /// This function will panic if you call it with input such that `module.dimension(input_degree +
@@ -628,12 +611,15 @@ impl<A: GeneratedAlgebra> FiniteDimensionalModule<A> {
             return;
         }
 
-        let mut output_vec = FpVector::new(p, self.dimension(output_deg));
         let mut tmp_output = FpVector::new(p, self.dimension(output_deg));
         let generators = algebra.generators(op_deg);
         for idx in 0..self.dimension(input_deg) {
             for op_idx in 0..algebra.dimension(op_deg) {
                 if !generators.contains(&op_idx) {
+                    let mut output_vec = std::mem::replace(
+                        &mut self.actions[input_deg][output_deg][op_idx][idx],
+                        FpVector::new(p, 0),
+                    );
                     let decomposition = algebra.decompose_basis_element(op_deg, op_idx);
                     for (coef, (deg_1, idx_1), (deg_2, idx_2)) in decomposition {
                         let intermediate_dim = self.dimension(input_deg + deg_2);
@@ -658,9 +644,11 @@ impl<A: GeneratedAlgebra> FiniteDimensionalModule<A> {
                         );
                         tmp_output.set_to_zero();
                     }
-                    self.set_action_vector(op_deg, op_idx, input_deg, idx, &output_vec);
+                    let _ = std::mem::replace(
+                        &mut self.actions[input_deg][output_deg][op_idx][idx],
+                        output_vec,
+                    );
                 }
-                output_vec.set_to_zero();
             }
         }
     }
@@ -721,10 +709,10 @@ mod tests {
         adem_module.set_basis_element_name(1, 0, "x10".to_string());
         adem_module.set_basis_element_name(1, 1, "x11".to_string());
         adem_module.set_basis_element_name(2, 0, "x2".to_string());
-        adem_module.set_action_vector(1, 0, 0, 0, &FpVector::from_slice(p, &[1, 1]));
-        adem_module.set_action_vector(1, 0, 1, 0, &FpVector::from_slice(p, &[1]));
-        adem_module.set_action_vector(1, 0, 1, 1, &FpVector::from_slice(p, &[1]));
-        adem_module.set_action_vector(2, 0, 0, 0, &FpVector::from_slice(p, &[1]));
+        adem_module.set_action(1, 0, 0, 0, &[1, 1]);
+        adem_module.set_action(1, 0, 1, 0, &[1]);
+        adem_module.set_action(1, 0, 1, 1, &[1]);
+        adem_module.set_action(2, 0, 0, 0, &[1]);
         adem_module.check_validity(0, 2).unwrap();
     }
 }
