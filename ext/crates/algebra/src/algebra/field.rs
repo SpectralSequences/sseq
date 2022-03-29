@@ -66,6 +66,10 @@ impl Algebra for Field {
         assert!(degree == 0);
         format!("{}", element.entry(0))
     }
+
+    fn basis_element_from_string(&self, _elt: &str) -> Option<(i32, usize)> {
+        Some((0, 0))
+    }
 }
 
 impl Bialgebra for Field {

@@ -7,15 +7,6 @@ use std::sync::Mutex;
 use itertools::Itertools;
 use rustc_hash::FxHashMap as HashMap;
 
-use nom::{
-    branch::alt,
-    bytes::complete::tag,
-    character::complete::{char, digit1, space1},
-    combinator::map,
-    sequence::{delimited, pair},
-    IResult,
-};
-
 use fp::prime::{BinomialIterator, BitflagIterator, ValidPrime};
 use fp::vector::{FpVector, SliceMut};
 use once::OnceVec;
@@ -315,6 +306,46 @@ impl Algebra for AdemAlgebra {
     fn basis_element_to_string(&self, degree: i32, idx: usize) -> String {
         format!("{}", self.basis_element_from_index(degree, idx))
     }
+
+    fn basis_element_from_string(&self, mut elt: &str) -> Option<(i32, usize)> {
+        use crate::steenrod_parser::{digits, p_or_sq};
+        use nom::sequence::preceded;
+
+        let q = self.q();
+
+        let mut bocksteins = 0;
+        let mut ps = Vec::new();
+        let mut degree = 0;
+        let mut bockstein_count = 0;
+
+        loop {
+            if elt.starts_with('b') {
+                elt = &elt[std::cmp::min(2, elt.len())..];
+                degree += 1;
+                bocksteins += 1 << bockstein_count;
+            }
+            if elt.is_empty() {
+                break;
+            }
+            let (rem, sqn) = preceded(p_or_sq, digits)(elt).ok()?;
+            elt = rem;
+
+            ps.push(sqn);
+            degree += sqn as i32 * q;
+
+            bockstein_count += 1;
+        }
+        Some((
+            degree,
+            self.basis_element_to_index(&AdemBasisElement {
+                ps,
+                bocksteins,
+                excess: 0,
+                degree,
+                p_or_sq: self.generic,
+            }),
+        ))
+    }
 }
 
 #[cfg(feature = "json")]
@@ -376,23 +407,6 @@ impl JsonAlgebra for AdemAlgebra {
 }
 
 impl GeneratedAlgebra for AdemAlgebra {
-    fn string_to_generator<'a, 'b>(&'a self, input: &'b str) -> IResult<&'b str, (i32, usize)> {
-        let first = map(
-            alt((
-                delimited(char('P'), digit1, space1),
-                delimited(tag("Sq"), digit1, space1),
-            )),
-            |elt| {
-                let i: u32 = std::str::FromStr::from_str(elt).unwrap();
-                self.beps_pn(0, i)
-            },
-        );
-
-        let second = map(pair(char('b'), space1), |_| (1, 0));
-
-        alt((first, second))(input)
-    }
-
     fn generator_to_string(&self, degree: i32, _idx: usize) -> String {
         if self.generic {
             if degree == 1 {
@@ -1748,6 +1762,34 @@ mod tests {
                         }
                     );
                 }
+            }
+        }
+    }
+
+    #[rstest]
+    #[trace]
+    #[case(2, 32)]
+    #[case(3, 106)]
+    fn test_adem_string(#[case] p: u32, #[case] max_degree: i32) {
+        let p = ValidPrime::new(p);
+        let algebra = AdemAlgebra::new(p, *p != 2, false, false);
+        algebra.compute_basis(max_degree);
+        for t in 0..max_degree {
+            for i in 0..algebra.dimension(t) {
+                let elt = algebra.basis_element_to_string(t, i);
+                assert_eq!(
+                    Some((t, i)),
+                    algebra.basis_element_from_string(&elt),
+                    "Error parsing {elt}"
+                );
+            }
+            for i in algebra.generators(t) {
+                let elt = algebra.generator_to_string(t, i);
+                assert_eq!(
+                    Some((t, i)),
+                    algebra.basis_element_from_string(&elt),
+                    "Error parsing {elt}"
+                );
             }
         }
     }

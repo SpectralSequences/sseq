@@ -9,16 +9,6 @@ use {
     crate::algebra::GeneratedAlgebra,
     crate::module::ModuleFailedRelationError,
     anyhow::{anyhow, Context},
-    nom::{
-        branch::alt,
-        bytes::complete::{is_not, take},
-        character::complete::{char, digit1, space0, space1},
-        combinator::map,
-        multi::separated_list0,
-        sequence::delimited,
-        sequence::tuple,
-        IResult,
-    },
     rustc_hash::FxHashMap as HashMap,
     serde::Deserialize,
     serde_json::{json, value::Value},
@@ -556,18 +546,22 @@ impl<A: GeneratedAlgebra> FiniteDimensionalModule<A> {
     pub fn parse_action(
         &mut self,
         gen_to_idx: &HashMap<String, (i32, usize)>,
-        entry_: &str,
+        entry: &str,
         overwrite: bool,
     ) -> anyhow::Result<()> {
         let algebra = self.algebra();
-        let mut lhs = tuple((
-            |e| algebra.string_to_generator(e),
-            is_not("="),
-            take(1usize),
-        ));
 
-        let (entry, ((op_deg, op_idx), gen, _)) =
-            lhs(entry_).map_err(|_| anyhow!("Invalid action: {}", entry_))?;
+        let (lhs, rhs) = entry
+            .split_once(" = ")
+            .ok_or_else(|| anyhow!("Invalid action: {entry}"))?;
+
+        let (action, gen) = lhs
+            .rsplit_once(' ')
+            .ok_or_else(|| anyhow!("Invalid action: {entry}"))?;
+
+        let (op_deg, op_idx) = algebra
+            .basis_element_from_string(action)
+            .ok_or_else(|| anyhow!("Invalid algebra element: {action}"))?;
 
         let (input_deg, input_idx) = *gen_to_idx
             .get(gen.trim())
@@ -579,66 +573,32 @@ impl<A: GeneratedAlgebra> FiniteDimensionalModule<A> {
             row.set_to_zero();
         }
 
-        if let IResult::<_, _>::Ok(("", _)) = delimited(space0, char('0'), space0)(entry) {
+        if rhs == "0" {
             return Ok(());
         }
 
-        // Need explicit type here
-        let (_, values) =
-            <IResult<_, _>>::unwrap(separated_list0(take(1usize), is_not("+"))(entry));
-
-        for value in values {
-            let (_, (coef, gen)) =
-                Self::take_element(value).map_err(|_| anyhow!("Invalid action: {}", entry_))?;
-
+        for item in rhs.split(" + ") {
+            let (coef, gen) = match item.split_once(' ') {
+                Some((coef, gen)) => (
+                    str::parse(coef)
+                        .map_err(|_| anyhow!("Invalid item on right-hand side: {item}"))?,
+                    gen,
+                ),
+                None => (1, item),
+            };
             let (deg, idx) = *gen_to_idx
                 .get(gen)
-                .with_context(|| format!("Invalid generator: {}", gen.trim()))?;
+                .ok_or_else(|| anyhow!("Invalid generator: {}", gen.trim()))?;
+
             if deg != input_deg + op_deg {
                 return Err(anyhow!(
-                    "Degree of {} is {} but degree of LHS is {}",
-                    gen,
-                    deg,
+                    "Degree of {gen} is {deg} but degree of LHS is {}",
                     input_deg + op_deg
                 ));
             }
-
             row.add_basis_element(idx, coef);
         }
         Ok(())
-    }
-
-    pub fn parse_element(
-        &self,
-        entry: &str,
-        degree: i32,
-        mut result: SliceMut,
-    ) -> anyhow::Result<()> {
-        if let IResult::<_, _>::Ok(("", _)) = delimited(space0, char('0'), space0)(entry) {
-            return Ok(());
-        }
-        for elt in entry.split('+') {
-            if let Ok(("", (coef, gen))) = Self::take_element(elt.trim_end()) {
-                if let Some(idx) = self.gen_names[degree].iter().position(|x| x == gen) {
-                    result.add_basis_element(idx, coef);
-                } else {
-                    return Err(anyhow!("Invalid generator: {}", elt));
-                }
-            } else {
-                return Err(anyhow!("Invalid term: {}", elt));
-            }
-        }
-        Ok(())
-    }
-
-    fn take_element(i: &str) -> IResult<&str, (u32, &str)> {
-        // coefficient, name
-        let coef_gen = map(
-            tuple((space0, digit1, space1, is_not(" "))),
-            |(_, coef, _, gen): (_, &str, _, &str)| (coef.parse().unwrap(), gen),
-        );
-        let o_gen = map(tuple((space0, is_not(" "))), |(_, gen)| (1, gen));
-        alt((coef_gen, o_gen))(i)
     }
 
     pub fn check_validity(

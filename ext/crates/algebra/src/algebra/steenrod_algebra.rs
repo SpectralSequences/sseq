@@ -241,7 +241,6 @@ impl GeneratedAlgebra for SteenrodAlgebra {
     dispatch_steenrod! {
         fn generators(&self, degree: i32) -> Vec<usize>;
         fn generator_to_string(&self, degree: i32, idx: usize) -> String;
-        fn string_to_generator<'a, 'b>(&'a self, input: &'b str) -> nom::IResult<&'b str, (i32, usize)>;
 
         fn decompose_basis_element(
             &self,

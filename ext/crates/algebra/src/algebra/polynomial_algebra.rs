@@ -309,6 +309,10 @@ impl<A: PolynomialAlgebra> Algebra for A {
         }
     }
 
+    fn basis_element_from_string(&self, _elt: &str) -> Option<(i32, usize)> {
+        todo!()
+    }
+
     fn multiply_basis_elements(
         &self,
         mut result: SliceMut,

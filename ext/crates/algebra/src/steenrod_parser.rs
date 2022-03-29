@@ -41,21 +41,25 @@ pub enum ModuleParseNode {
 }
 
 /// Pad both ends with whitespace
-fn space<'a, O, E: ParseError<&'a str>, F: Parser<&'a str, O, E>>(
+pub(crate) fn space<'a, O, E: ParseError<&'a str>, F: Parser<&'a str, O, E>>(
     f: F,
 ) -> impl FnMut(&'a str) -> IResultBase<&'a str, O, E> {
     delimited(space0, f, space0)
 }
 
 /// Surround with brackets
-fn brackets<'a, O, E: ParseError<&'a str>, F: Parser<&'a str, O, E>>(
+pub(crate) fn brackets<'a, O, E: ParseError<&'a str>, F: Parser<&'a str, O, E>>(
     f: F,
 ) -> impl FnMut(&'a str) -> IResultBase<&'a str, O, E> {
     delimited(char('('), f, char(')'))
 }
 
-fn digits<T: FromStr + Copy>(i: &str) -> IResult<&str, T> {
+pub(crate) fn digits<T: FromStr + Copy>(i: &str) -> IResult<&str, T> {
     map_res(space(digit), FromStr::from_str)(i)
+}
+
+pub(crate) fn p_or_sq(i: &str) -> IResult<&str, &str> {
+    alt((tag("P"), tag("Sq")))(i)
 }
 
 fn fold_separated<I: Clone, OS, O, E>(
@@ -89,13 +93,12 @@ pub enum BocksteinOrSq {
 }
 
 fn algebra_generator(i: &str) -> IResult<&str, AlgebraBasisElt> {
-    let p_or_sq = || alt((tag("P"), tag("Sq")));
     alt((
         map(preceded(char('Q'), digits), AlgebraBasisElt::Q),
-        map(preceded(p_or_sq(), digits), AlgebraBasisElt::P),
+        map(preceded(p_or_sq, digits), AlgebraBasisElt::P),
         map(
             alt((
-                preceded(p_or_sq(), brackets(separated_list1(char(','), digits))),
+                preceded(p_or_sq, brackets(separated_list1(char(','), digits))),
                 preceded(char('M'), brackets(many0(digits))),
             )),
             AlgebraBasisElt::PList,

@@ -150,6 +150,14 @@ pub trait Algebra: std::fmt::Display + Send + Sync + 'static {
     /// Converts a basis element into a string for display.
     fn basis_element_to_string(&self, degree: i32, idx: usize) -> String;
 
+    /// Converts a string to a basis element. This must be a one-sided inverse inverse to
+    /// both basis_element_to_string and generator_to_string (if [`GeneratedAlgebra`] is
+    /// implemented).
+    ///
+    /// If the input is invalid, the function is allowed to return None or nonsense (since it is
+    /// only required to be a one-sided inverse).
+    fn basis_element_from_string(&self, elt: &str) -> Option<(i32, usize)>;
+
     /// Converts a general element into a string for display.
     fn element_to_string(&self, degree: i32, element: Slice) -> String {
         let mut result = String::new();
@@ -214,13 +222,6 @@ pub trait GeneratedAlgebra: Algebra {
     fn generator_to_string(&self, degree: i32, idx: usize) -> String {
         self.basis_element_to_string(degree, idx)
     }
-
-    /// Parse `input` into a generator.
-    ///
-    /// This function is a `nom` combinator.
-    ///
-    /// This function MUST be inverse to `string_to_generator` (and not `basis_element_to_string`).
-    fn string_to_generator<'a>(&self, input: &'a str) -> nom::IResult<&'a str, (i32, usize)>;
 
     /// Decomposes an element into generators.
     ///
@@ -306,6 +307,7 @@ macro_rules! dispatch_algebra {
                 fn default_filtration_one_products(&self) -> Vec<(String, i32, usize)>;
 
                 fn basis_element_to_string(&self, degree: i32, idx: usize) -> String;
+                fn basis_element_from_string(&self, elt: &str) -> Option<(i32, usize)>;
 
                 fn element_to_string(&self, degree: i32, element: Slice) -> String;
             }

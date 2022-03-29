@@ -1,5 +1,4 @@
 use itertools::Itertools;
-use nom::sequence::tuple;
 use rustc_hash::FxHashMap as HashMap;
 use std::cell::Cell;
 use std::sync::Mutex;
@@ -12,15 +11,6 @@ use once::OnceVec;
 
 #[cfg(feature = "json")]
 use {crate::algebra::JsonAlgebra, serde::Deserialize, serde::Serialize, serde_json::value::Value};
-
-use nom::{
-    branch::alt,
-    bytes::complete::tag,
-    character::complete::{char, digit1, space1},
-    combinator::map,
-    sequence::{delimited, pair},
-    IResult,
-};
 
 // This is here so that the Python bindings can use modules defined for AdemAlgebraT with their own algebra enum.
 // In order for things to work AdemAlgebraT cannot implement Algebra.
@@ -145,11 +135,11 @@ pub struct MilnorBasisElement {
 }
 
 impl MilnorBasisElement {
-    fn from_p(p: PPart, dim: i32) -> Self {
+    fn from_p(p_part: PPart, degree: i32) -> Self {
         Self {
-            p_part: p,
             q_part: 0,
-            degree: dim,
+            p_part,
+            degree,
         }
     }
 
@@ -158,6 +148,20 @@ impl MilnorBasisElement {
         other.degree = self.degree;
         other.p_part.clear();
         other.p_part.extend_from_slice(&self.p_part);
+    }
+
+    /// Update the degree component to the correct degree
+    pub fn compute_degree(&mut self, p: ValidPrime) {
+        let q = if *p == 2 { 1 } else { 2 * (*p as i32 - 1) };
+        let xi_degrees = combinatorics::xi_degrees(p);
+        let tau_degrees = combinatorics::tau_degrees(p);
+
+        self.degree = q * std::iter::zip(xi_degrees, &self.p_part)
+            .map(|(&a, &b)| a * b as i32)
+            .sum::<i32>()
+            + BitflagIterator::set_bit_iterator(self.q_part as u64)
+                .map(|k| tau_degrees[k])
+                .sum::<i32>();
     }
 }
 
@@ -572,6 +576,68 @@ impl Algebra for MilnorAlgebra {
     fn basis_element_to_string(&self, degree: i32, idx: usize) -> String {
         format!("{}", self.basis_element_from_index(degree, idx))
     }
+
+    fn basis_element_from_string(&self, elt: &str) -> Option<(i32, usize)> {
+        use crate::steenrod_parser::{brackets, digits, p_or_sq};
+        use nom::{
+            branch::alt,
+            bytes::complete::tag,
+            character::complete::char,
+            combinator::{map, opt},
+            multi::{many0, separated_list1},
+            sequence::{preceded, tuple},
+        };
+
+        let p = self.prime();
+
+        let mut parser = alt((
+            map(char('1'), |_| (0, 0)),
+            map(char('b'), |_| (1, 0)),
+            map(preceded(p_or_sq, digits), |i| self.beps_pn(0, i)),
+            map(
+                tuple((tag("P^"), digits, char('_'), digits)),
+                |(_, s, _, t)| {
+                    let entry = p.pow(s);
+                    let degree = entry as i32 * self.q() * combinatorics::xi_degrees(p)[t];
+                    let mut elt = MilnorBasisElement {
+                        degree,
+                        q_part: 0,
+                        p_part: vec![0; t],
+                    };
+                    elt.p_part[t - 1] = entry as PPartEntry;
+                    self.compute_basis(degree);
+                    (degree, self.basis_element_to_index(&elt))
+                },
+            ),
+            map(
+                tuple((
+                    many0(preceded(tag("Q_"), digits::<u32>)),
+                    opt(preceded(
+                        char('P'),
+                        brackets(separated_list1(char(','), digits)),
+                    )),
+                )),
+                |(q_list, p_list)| {
+                    let q_part = q_list.into_iter().fold(0, |acc, q| acc + (1 << q));
+                    let mut elt = MilnorBasisElement {
+                        degree: 0,
+                        q_part,
+                        p_part: p_list.unwrap_or_default(),
+                    };
+                    elt.compute_degree(p);
+                    self.compute_basis(elt.degree);
+
+                    (elt.degree, self.basis_element_to_index(&elt))
+                },
+            ),
+        ));
+
+        if let Ok(("", res)) = parser(elt) {
+            Some(res)
+        } else {
+            None
+        }
+    }
 }
 
 #[cfg(feature = "json")]
@@ -633,41 +699,6 @@ impl JsonAlgebra for MilnorAlgebra {
 }
 
 impl GeneratedAlgebra for MilnorAlgebra {
-    fn string_to_generator<'a, 'b>(&'a self, input: &'b str) -> IResult<&'b str, (i32, usize)> {
-        let first = map(
-            alt((
-                delimited(char('P'), digit1, space1),
-                delimited(tag("Sq"), digit1, space1),
-            )),
-            |elt| {
-                let i = std::str::FromStr::from_str(elt).unwrap();
-                self.beps_pn(0, i)
-            },
-        );
-
-        let second = map(pair(char('b'), space1), |_| (1, 0));
-        let third = map(
-            tuple((tag("P^"), digit1, char('_'), digit1, space1)),
-            |(_, s, _, t, _)| {
-                let p = self.prime();
-
-                let s: u32 = str::parse(s).unwrap();
-                let t: usize = str::parse(t).unwrap();
-                let entry = p.pow(s);
-                let degree = entry as i32 * self.q() * combinatorics::xi_degrees(p)[t];
-                let mut elt = MilnorBasisElement {
-                    degree,
-                    q_part: 0,
-                    p_part: vec![0; t],
-                };
-                elt.p_part[t - 1] = entry as PPartEntry;
-                (degree, self.basis_element_to_index(&elt))
-            },
-        );
-
-        alt((first, second, third))(input)
-    }
-
     fn generator_to_string(&self, degree: i32, idx: usize) -> String {
         if self.generic() {
             if degree == 1 {
@@ -996,6 +1027,7 @@ impl MilnorAlgebra {
     fn try_beps_pn(&self, e: u32, x: PPartEntry) -> Option<(i32, usize)> {
         let q = self.q() as u32;
         let degree = (q * x as u32 + e) as i32;
+        self.compute_basis(degree);
         self.try_basis_element_to_index(&MilnorBasisElement {
             degree,
             q_part: e,
@@ -1807,12 +1839,40 @@ mod tests {
         }
     }
 
+    #[rstest]
+    #[trace]
+    #[case(2, 32)]
+    #[case(3, 106)]
+    fn test_milnor_string(#[case] p: u32, #[case] max_degree: i32) {
+        let p = ValidPrime::new(p);
+        let algebra = MilnorAlgebra::new(p);
+        algebra.compute_basis(max_degree);
+        for t in 0..max_degree {
+            for i in 0..algebra.dimension(t) {
+                let elt = algebra.basis_element_to_string(t, i);
+                assert_eq!(
+                    Some((t, i)),
+                    algebra.basis_element_from_string(&elt),
+                    "Error parsing {elt}"
+                );
+            }
+            for i in algebra.generators(t) {
+                let elt = algebra.generator_to_string(t, i);
+                assert_eq!(
+                    Some((t, i)),
+                    algebra.basis_element_from_string(&elt),
+                    "Error parsing {elt}"
+                );
+            }
+        }
+    }
+
     use crate::module::ModuleFailedRelationError;
     #[rstest(p, max_degree, case(2, 32), case(3, 106))]
     #[trace]
     fn test_adem_relations(p: u32, max_degree: i32) {
         let p = ValidPrime::new(p);
-        let algebra = MilnorAlgebra::new(p); // , p != 2
+        let algebra = MilnorAlgebra::new(p);
         algebra.compute_basis(max_degree + 2);
         let mut output_vec = FpVector::new(p, 0);
         for i in 1..max_degree {

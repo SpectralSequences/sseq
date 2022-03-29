@@ -158,7 +158,7 @@ mod tests {
         let zero = r#"{"type" : "finite dimensional module", "p": 2, "gens": {}, "actions": []}"#;
         let c2 = r#"{"type" : "finite dimensional module",  "p": 2, "gens": {"x0": 0, "x1": 1}, "actions": ["Sq1 x0 = x1"]}"#;
         let ceta = r#"{"type" : "finite dimensional module", "p": 2, "gens": {"x0": 0, "x2": 2}, "actions": ["Sq2 x0 = x2"]}"#;
-        let c2sumceta = r#"{"type" : "finite dimensional module", "p": 2, "gens": {"x0": 0, "x1": 1,"y0": 0, "y2": 2}, "actions": ["Sq1 x0 =x1", "Sq2 y0 = y2"]}"#;
+        let c2sumceta = r#"{"type" : "finite dimensional module", "p": 2, "gens": {"x0": 0, "x1": 1,"y0": 0, "y2": 2}, "actions": ["Sq1 x0 = x1", "Sq2 y0 = y2"]}"#;
 
         test_sum_module(vec![], zero);
         test_sum_module(vec![k, k], k2);
