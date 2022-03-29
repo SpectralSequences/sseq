@@ -359,7 +359,6 @@
 <span id="332">332</span>
 <span id="333">333</span>
 <span id="334">334</span>
-<span id="335">335</span>
 </pre><pre class="rust"><code><span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;json&quot;</span>)]</span>
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::algebra::JsonAlgebra</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::algebra</span>::{
@@ -603,7 +602,6 @@
     <span class="macro">dispatch_steenrod!</span> {
         <span class="kw">fn</span> <span class="ident">generators</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span>;
         <span class="kw">fn</span> <span class="ident">generator_to_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">idx</span>: <span class="ident">usize</span>) -&gt; <span class="ident">String</span>;
-        <span class="kw">fn</span> <span class="ident">string_to_generator</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="lifetime">&#39;b</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="self">self</span>, <span class="ident">input</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;b</span> <span class="ident">str</span>) -&gt; <span class="ident">nom::IResult</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="lifetime">&#39;b</span> <span class="ident">str</span>, (<span class="ident">i32</span>, <span class="ident">usize</span>)<span class="op">&gt;</span>;
 
         <span class="kw">fn</span> <span class="ident">decompose_basis_element</span>(
             <span class="kw-2">&amp;</span><span class="self">self</span>,
