@@ -5,10 +5,9 @@ use nom::{
     character::complete::{alpha1, alphanumeric0, char},
     character::complete::{digit1 as digit, space0},
     combinator::{map, map_res, opt, peek},
-    error::{ParseError, VerboseError, VerboseErrorKind},
-    multi::many0,
-    multi::{fold_many0, separated_list1},
-    sequence::{delimited, pair, preceded, tuple},
+    error::{context, ParseError, VerboseError, VerboseErrorKind},
+    multi::{many0, separated_list1},
+    sequence::{delimited, pair, preceded},
     IResult as IResultBase, Parser,
 };
 
@@ -33,12 +32,7 @@ pub enum AlgebraNode {
     Scalar(i32),
 }
 
-#[derive(Debug, Clone)]
-pub enum ModuleParseNode {
-    Act(Box<AlgebraNode>, Box<ModuleParseNode>),
-    Sum(Box<ModuleParseNode>, Box<ModuleParseNode>),
-    ModuleBasisElt(String),
-}
+pub type ModuleNode = Vec<(AlgebraNode, String)>;
 
 /// Pad both ends with whitespace
 pub(crate) fn space<'a, O, E: ParseError<&'a str>, F: Parser<&'a str, O, E>>(
@@ -153,7 +147,7 @@ fn algebra_expr(i: &str) -> IResult<&str, AlgebraNode> {
     )(i)
 }
 
-fn module_generator(i: &str) -> IResult<&str, ModuleParseNode> {
+fn module_generator(i: &str) -> IResult<&str, String> {
     let (rest, (a, more_str)) = pair(alpha1, alphanumeric0)(i)?;
     if a.starts_with("Sq") || a.starts_with('P') || a.starts_with('Q') {
         return Err(nom::Err::Failure(VerboseError {
@@ -165,45 +159,47 @@ fn module_generator(i: &str) -> IResult<&str, ModuleParseNode> {
             )],
         }));
     }
+    Ok((rest, a.to_string() + more_str))
+}
+
+fn module_term(i: &str) -> IResult<&str, ModuleNode> {
+    use AlgebraNode::*;
+
+    let (i, prefix) = opt(alt((
+        map(pair(space(algebra_term), char('*')), |(a, _)| a),
+        map(char('-'), |_| Scalar(-1)),
+        map(char('+'), |_| Scalar(1)),
+    )))(i)
+    .unwrap();
+
+    match space(module_generator)(i) {
+        Ok((i, gen)) => return Ok((i, vec![(prefix.unwrap_or(Scalar(1)), gen)])),
+        Err(nom::Err::Error(_)) => (),
+        Err(e) => return Err(e),
+    }
+
+    let (i, expr) = context("Parsing bracketed expression", space(brackets(module_expr)))(i)?;
     Ok((
-        rest,
-        ModuleParseNode::ModuleBasisElt(a.to_string() + more_str),
+        i,
+        match prefix {
+            Some(a) => expr
+                .into_iter()
+                .map(|(b, v)| (Product(Box::new(a.clone()), Box::new(b)), v))
+                .collect(),
+            None => expr,
+        },
     ))
 }
 
-fn module_factor(i: &str) -> IResult<&str, ModuleParseNode> {
-    space(alt((module_generator, brackets(module_expr))))(i)
-}
-
-fn module_term(i: &str) -> IResult<&str, ModuleParseNode> {
-    // println!("hi");
-    let (rest, (opt_pm, opt_algebra, mut result)) = tuple((
-        opt(alt((char('+'), char('-')))),
-        opt(pair(algebra_expr, char('*'))),
-        module_factor,
-    ))(i)?;
-    // println!("{:?}, {:?}, {:?}", opt_pm, opt_algebra, result);
-    if let Some((algebra_term, _)) = opt_algebra {
-        result = ModuleParseNode::Act(Box::new(algebra_term), Box::new(result));
-    }
-    if let Some('-') = opt_pm {
-        result = ModuleParseNode::Act(Box::new(AlgebraNode::Scalar(-1)), Box::new(result));
-    }
-    Ok((rest, result))
-}
-
-fn module_expr(i: &str) -> IResult<&str, ModuleParseNode> {
-    let (i, init) = module_term(i)?;
-    // This is necessary for lifetime reasons.
-    #[allow(clippy::let_and_return)]
-    let result = fold_many0(
-        pair(alt((char('+'), char('-'))), module_term),
-        || init.clone(),
-        |acc, (_op, val): (char, ModuleParseNode)| {
-            ModuleParseNode::Sum(Box::new(acc), Box::new(val))
+fn module_expr(i: &str) -> IResult<&str, ModuleNode> {
+    fold_separated(
+        peek(alt((char('+'), char('-')))),
+        module_term,
+        |mut a, b| {
+            a.extend_from_slice(&b);
+            a
         },
-    )(i);
-    result
+    )(i)
 }
 
 fn convert_error(i: &str) -> impl FnOnce(nom::Err<VerboseError<&str>>) -> anyhow::Error + '_ {
@@ -228,7 +224,7 @@ pub fn parse_algebra(i: &str) -> anyhow::Result<AlgebraNode> {
     }
 }
 
-pub fn parse_module(i: &str) -> anyhow::Result<ModuleParseNode> {
+pub fn parse_module(i: &str) -> anyhow::Result<ModuleNode> {
     let (rest, parse_tree) = module_expr(i)
         .map_err(convert_error(i))
         .with_context(|| format!("Error when parsing module string {i}"))?;
@@ -244,13 +240,57 @@ pub fn parse_module(i: &str) -> anyhow::Result<ModuleParseNode> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use expect_test::{expect, Expect};
 
     #[test]
-    fn test_parser() {
-        println!();
+    fn test_parse_module() {
+        let check = |input, output: Expect| {
+            output.assert_eq(&format!("{:?}", parse_module(input).unwrap()));
+        };
 
-        println!("{:?}", parse_algebra("Sq(1,2)+Sq2 + A(2 b 2 3)").unwrap());
+        check("x0", expect![[r#"[(Scalar(1), "x0")]"#]]);
 
-        println!();
+        check("Sq2 * x0", expect![[r#"[(BasisElt(P(2)), "x0")]"#]]);
+
+        check(
+            "Sq1 * x0 + x1",
+            expect![[r#"[(BasisElt(P(1)), "x0"), (Scalar(1), "x1")]"#]],
+        );
+
+        check(
+            "(Sq3 + Sq2 * Sq1) * x0",
+            expect![[r#"[(Sum(BasisElt(P(3)), Product(BasisElt(P(2)), BasisElt(P(1)))), "x0")]"#]],
+        );
+
+        check(
+            "Sq3 * x0 + Sq2 * x1",
+            expect![[r#"[(BasisElt(P(3)), "x0"), (BasisElt(P(2)), "x1")]"#]],
+        );
+
+        check(
+            "(Sq3 - Sq2 * Sq1) * (Sq1 * x0 + x1)",
+            expect![[
+                r#"[(Product(Sum(BasisElt(P(3)), Product(Scalar(-1), Product(BasisElt(P(2)), BasisElt(P(1))))), BasisElt(P(1))), "x0"), (Product(Sum(BasisElt(P(3)), Product(Scalar(-1), Product(BasisElt(P(2)), BasisElt(P(1))))), Scalar(1)), "x1")]"#
+            ]],
+        );
+
+        check(
+            "x3 - (Sq3 * x0 + Sq1 * x2)",
+            expect![[
+                r#"[(Scalar(1), "x3"), (Product(Scalar(-1), BasisElt(P(3))), "x0"), (Product(Scalar(-1), BasisElt(P(1))), "x2")]"#
+            ]],
+        );
+    }
+
+    #[test]
+    fn test_parse_module_errors() {
+        // Checking the error output breaks because it depends on whether backtraces are available.
+        let check = |input| {
+            assert!(parse_module(input).is_err());
+        };
+
+        check("x0 + ");
+        check("2 * (x1 + Sq1 * x0");
+        check("Sqx");
     }
 }
