@@ -5,9 +5,9 @@ use std::sync::Arc;
 use serde_json::json;
 use serde_json::Value;
 
-use algebra::module::{FDModule, FPModule, FreeModule, Module};
-use algebra::steenrod_evaluator::evaluate_module;
-use algebra::{AdemAlgebra, Algebra, GeneratedAlgebra, MilnorAlgebra, SteenrodAlgebra};
+use algebra::module::FDModule;
+use algebra::steenrod_evaluator::SteenrodEvaluator;
+use algebra::{AdemAlgebra, Algebra, GeneratedAlgebra, SteenrodAlgebra};
 use bivec::BiVec;
 use fp::prime::ValidPrime;
 use fp::vector::FpVector;
@@ -86,10 +86,12 @@ pub fn gens_to_json(gens: &BiVec<Vec<String>>) -> serde_json::Value {
 pub fn interactive_module_define_fdmodule(
     output_json: &mut Value,
     p: ValidPrime,
-    generic: bool,
 ) -> anyhow::Result<()> {
     let algebra = Arc::new(SteenrodAlgebra::AdemAlgebra(AdemAlgebra::new(
-        p, generic, false, false,
+        p,
+        *p != 2,
+        false,
+        false,
     )));
 
     let gens = get_gens()?;
@@ -168,56 +170,26 @@ pub fn interactive_module_define_fdmodule(
     Ok(())
 }
 
-fn get_relation(
-    adem_algebra: &AdemAlgebra,
-    milnor_algebra: &MilnorAlgebra,
-    module: &FreeModule<SteenrodAlgebra>,
-    basis_elt_lookup: &HashMap<String, (i32, usize)>,
-) -> Result<(i32, FpVector), String> {
-    let relation: String = query::raw("Relation", str::parse);
-    if relation.is_empty() {
-        return Err("".to_string());
-    }
-    evaluate_module(
-        adem_algebra,
-        milnor_algebra,
-        module,
-        basis_elt_lookup,
-        &relation,
-    )
-    .map_err(|err| err.to_string())
+/// Given a string representation of an element in an algebra together with a generator, multiply
+/// each term on the right with the generator.
+fn replace(algebra_elt: &str, gen: &str) -> String {
+    algebra_elt.replace('+', &format!("{gen} +")) + " " + gen
 }
 
 pub fn interactive_module_define_fpmodule(
     output_json: &mut Value,
     p: ValidPrime,
-    generic: bool,
 ) -> anyhow::Result<()> {
     let gens = get_gens()?;
     let min_degree = gens.min_degree();
     let max_degree = gens.len();
 
-    let steenrod_algebra = Arc::new(SteenrodAlgebra::AdemAlgebra(AdemAlgebra::new(
-        p, generic, false, false,
-    )));
-    let adem_algebra = AdemAlgebra::new(p, generic, false, false);
-    let milnor_algebra = MilnorAlgebra::new(p);
-
-    steenrod_algebra.compute_basis(max_degree - min_degree);
-    adem_algebra.compute_basis(max_degree - min_degree);
-    milnor_algebra.compute_basis(max_degree - min_degree);
+    let ev = SteenrodEvaluator::new(p);
 
     let mut graded_dim = BiVec::with_capacity(min_degree, max_degree);
     for i in gens.iter().map(Vec::len) {
         graded_dim.push(i);
     }
-
-    let mut adem_module = FPModule::new(Arc::clone(&steenrod_algebra), String::new(), min_degree);
-
-    for (i, deg_i_gens) in gens.iter_enum() {
-        adem_module.add_generators(i, deg_i_gens.clone());
-    }
-    adem_module.generators().extend_by_zero(max_degree);
 
     eprintln!("Input relations");
     match *p {
@@ -225,67 +197,84 @@ pub fn interactive_module_define_fpmodule(
         _ => eprintln!("Write relations in the form 'Q5 * P(5) * x + 2 * P(1, 3) * Q2 * y', where P(...) and Qi are Milnor basis elements."),
     }
 
-    let mut basis_elt_lookup = HashMap::default();
+    let mut degree_lookup = HashMap::default();
     for (i, deg_i_gens) in gens.iter_enum() {
-        for (j, gen) in deg_i_gens.iter().enumerate() {
-            let k = adem_module
-                .generators()
-                .operation_generator_to_index(0, 0, i, j);
-            basis_elt_lookup.insert(gen.clone(), (i, k));
+        for gen in deg_i_gens.iter() {
+            degree_lookup.insert(gen.clone(), i);
         }
     }
 
-    let mut relations: BiVec<Vec<FpVector>> = BiVec::new(min_degree);
+    let mut adem_relations = Vec::new();
+    let mut milnor_relations = Vec::new();
+
     loop {
-        match get_relation(
-            &adem_algebra,
-            &milnor_algebra,
-            &adem_module.generators(),
-            &basis_elt_lookup,
-        ) {
-            Err(x) => {
-                if !x.is_empty() {
-                    eprintln!("Invalid relation: {}. Try again.", x);
-                    continue;
-                }
-                eprintln!("This is the list of relations:");
-                for (i, deg_i_relns) in relations.iter_enum() {
-                    for r in deg_i_relns {
-                        eprint!(
-                            "{}, ",
-                            adem_module.generators().element_to_string(i, r.as_slice())
-                        );
-                    }
-                }
-                eprintln!();
-                if query::yes_no("Is it okay?") {
-                    break;
-                } else {
-                    if query::yes_no("Start over?") {
-                        relations = BiVec::new(min_degree);
-                    }
-                    continue;
+        let relation = query::raw("Enter relation", |rel| {
+            let result = ev.evaluate_module(rel)?;
+
+            if result.is_empty() {
+                return Ok(result);
+            }
+
+            // Check that the generators exist and the terms all have the same degree
+            let mut deg = None;
+            for (gen, (op_deg, _)) in result.iter() {
+                let cur_deg = op_deg
+                    + degree_lookup
+                        .get(gen)
+                        .ok_or_else(|| anyhow!("Unknown generator: {gen}"))?;
+                if deg.is_none() {
+                    deg = Some(cur_deg);
+                } else if deg != Some(cur_deg) {
+                    return Err(anyhow!(
+                        "Relation terms have different degrees: {} and {cur_deg}",
+                        deg.unwrap()
+                    ));
                 }
             }
-            Ok((degree, vector)) => {
-                while relations.len() <= degree {
-                    relations.push(Vec::new());
-                }
-                relations[degree].push(vector);
+
+            Ok(result)
+        });
+
+        if relation.is_empty() {
+            break;
+        }
+
+        let mut adem_relation = String::new();
+        let mut milnor_relation = String::new();
+
+        let mut milnor_op = FpVector::new(p, 0);
+        for (gen, (op_deg, adem_op)) in relation.iter() {
+            if adem_op.is_zero() {
+                continue;
             }
+            if !adem_relation.is_empty() {
+                adem_relation += " + ";
+                milnor_relation += " + ";
+            }
+            milnor_op.set_scratch_vector_size(adem_op.len());
+            ev.adem_to_milnor(&mut milnor_op, 1, *op_deg, adem_op);
+
+            adem_relation += &replace(&ev.adem.element_to_string(*op_deg, adem_op.as_slice()), gen);
+            milnor_relation += &replace(
+                &ev.milnor.element_to_string(*op_deg, milnor_op.as_slice()),
+                gen,
+            );
+        }
+        if !adem_relation.is_empty() {
+            adem_relations.push(Value::String(adem_relation));
+            milnor_relations.push(Value::String(milnor_relation));
         }
     }
 
-    for (i, relns) in relations.iter_enum() {
-        let dim = adem_module.generators().dimension(i);
-        let mut matrix = fp::matrix::Matrix::new(p, relns.len(), dim);
-        for (j, r) in relns.iter().enumerate() {
-            matrix[j].assign(r);
+    output_json["p"] = Value::from(*p);
+    output_json["type"] = Value::String("finitely presented module".to_owned());
+    for (i, deg_i_gens) in gens.iter_enum() {
+        for gen in deg_i_gens {
+            output_json["gens"][gen] = Value::from(i);
         }
-        adem_module.add_relations(i, &mut matrix);
     }
-    steenrod_algebra.to_json(output_json);
-    adem_module.to_json(output_json);
+    output_json["adem_relations"] = Value::Array(adem_relations);
+    output_json["milnor_relations"] = Value::Array(milnor_relations);
     Ok(())
 }
 
@@ -300,13 +289,12 @@ fn main() -> anyhow::Result<()> {
     );
 
     let p: ValidPrime = query::with_default("p", "2", str::parse);
-    let generic = *p != 2;
     let mut output_json = json!({});
 
     eprintln!("module_type: {}", module_type);
     match &*module_type {
-        "fd" => interactive_module_define_fdmodule(&mut output_json, p, generic)?,
-        "fp" => interactive_module_define_fpmodule(&mut output_json, p, generic)?,
+        "fd" => interactive_module_define_fdmodule(&mut output_json, p)?,
+        "fp" => interactive_module_define_fpmodule(&mut output_json, p)?,
         _ => unreachable!(),
     }
     println!("{}", output_json);

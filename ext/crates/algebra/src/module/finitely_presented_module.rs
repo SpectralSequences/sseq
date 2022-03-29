@@ -167,35 +167,6 @@ impl<A: Algebra> FinitelyPresentedModule<A> {
         }
         Ok(result)
     }
-
-    pub fn to_json(&self, json: &mut Value) {
-        if !self.name.is_empty() {
-            json["name"] = Value::String(self.name.clone());
-        }
-        json["type"] = Value::from("finitely presented module");
-        // Because we only have one algebra, we must specify this.
-        json["algebra"] = Value::from(vec![self.algebra().prefix()]);
-        for (i, deg_i_gens) in self.generators.gen_names().iter_enum() {
-            for gen in deg_i_gens {
-                json["gens"][gen] = Value::from(i);
-            }
-        }
-        json[format!("{}_relations", self.algebra().prefix())] = self.relations_to_json();
-    }
-
-    pub fn relations_to_json(&self) -> Value {
-        let mut relations = Vec::new();
-        for i in self.min_degree..=self.relations.max_computed_degree() {
-            let num_relns = self.relations.number_of_gens_in_degree(i);
-            for j in 0..num_relns {
-                relations.push(Value::String(
-                    self.generators
-                        .element_to_string(i, self.map.output(i, j).as_slice()),
-                ));
-            }
-        }
-        Value::Array(relations)
-    }
 }
 
 impl<A: Algebra> Module for FinitelyPresentedModule<A> {

@@ -1,12 +1,12 @@
 use crate::algebra::adem_algebra::AdemBasisElement;
 use crate::algebra::{AdemAlgebra, Algebra, MilnorAlgebra};
 use crate::milnor_algebra::{MilnorBasisElement, PPartEntry};
-use crate::steenrod_parser::BocksteinOrSq;
 use crate::steenrod_parser::*;
 use fp::prime::ValidPrime;
 use fp::vector::FpVector;
 
 use anyhow::anyhow;
+use std::collections::BTreeMap;
 
 pub struct SteenrodEvaluator {
     pub adem: AdemAlgebra,
@@ -348,6 +348,28 @@ impl SteenrodEvaluator {
         };
         let idx = self.milnor.basis_element_to_index(&mbe);
         self.milnor_to_adem_on_basis(result, coeff, degree, idx);
+    }
+
+    /// # Returns
+    /// This returns a [`BTreeMap`] so that we get deterministic outputs for testing purposes
+    pub fn evaluate_module(
+        &self,
+        items: &str,
+    ) -> anyhow::Result<BTreeMap<String, (i32, FpVector)>> {
+        let mut result: BTreeMap<String, (i32, FpVector)> = BTreeMap::new();
+        if items.is_empty() {
+            return Ok(result);
+        }
+        for (op, gen) in parse_module(items)? {
+            if let Some((deg, vec)) = result.get_mut(&gen) {
+                let (_, adem_v) = self.evaluate_algebra_tree_helper(Some(*deg), op)?;
+                vec.add(&adem_v, 1);
+            } else {
+                let (deg, adem_v) = self.evaluate_algebra_tree_helper(None, op)?;
+                result.insert(gen, (deg, adem_v));
+            }
+        }
+        Ok(result)
     }
 }
 
