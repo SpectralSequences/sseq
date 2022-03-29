@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 #[cfg(feature = "json")]
 use {
-    crate::algebra::{GeneratedAlgebra, JsonAlgebra},
+    crate::algebra::GeneratedAlgebra,
     crate::module::ModuleFailedRelationError,
     anyhow::{anyhow, Context},
     nom::{
@@ -476,7 +476,7 @@ impl<M: Module> From<&M> for FiniteDimensionalModule<M::Algebra> {
 }
 
 #[cfg(feature = "json")]
-impl<A: JsonAlgebra + GeneratedAlgebra> FiniteDimensionalModule<A> {
+impl<A: GeneratedAlgebra> FiniteDimensionalModule<A> {
     fn module_gens_from_json(
         gens: &Value,
     ) -> (
@@ -523,47 +523,16 @@ impl<A: JsonAlgebra + GeneratedAlgebra> FiniteDimensionalModule<A> {
             }
         }
 
-        if let Ok(actions) = Vec::<String>::deserialize(&json["actions"]) {
-            for action in actions {
-                result
-                    .parse_action(&gen_to_idx, &action, false)
-                    .with_context(|| format!("Failed to parse action: {}", action))?;
-            }
-            for input_degree in (result.min_degree()..=result.max_degree().unwrap()).rev() {
-                for output_degree in input_degree + 1..=result.max_degree().unwrap() {
-                    result.extend_actions(input_degree, output_degree);
-                    result.check_validity(input_degree, output_degree)?;
-                }
-            }
-        } else {
-            #[derive(Deserialize)]
-            struct OutputStruct {
-                gen: String,
-                coeff: u32,
-            }
-            #[derive(Deserialize)]
-            struct ActionStruct {
-                op: Value,
-                input: String,
-                output: Vec<OutputStruct>,
-            }
-
-            let actions_value = &json[format!("{}_actions", algebra.prefix())];
-            let actions: Vec<ActionStruct> = <_>::deserialize(actions_value)?;
-            for action in actions {
-                let (degree, idx) = algebra.json_to_basis(&action.op)?;
-                let input = action.input;
-                let (input_degree, input_idx) = *gen_to_idx
-                    .get(&input)
-                    .ok_or_else(|| anyhow!("Invalid generator: {}", input))?;
-                let output_vec = result.action_mut(degree, idx, input_degree, input_idx);
-                for basis_elt in action.output {
-                    let gen = basis_elt.gen;
-                    let (_, output_idx) = *gen_to_idx
-                        .get(&gen)
-                        .ok_or_else(move || anyhow!("Invalid generator: {}", gen))?;
-                    output_vec.add_basis_element(output_idx, basis_elt.coeff);
-                }
+        let actions = Vec::<String>::deserialize(&json["actions"]).unwrap();
+        for action in actions {
+            result
+                .parse_action(&gen_to_idx, &action, false)
+                .with_context(|| format!("Failed to parse action: {}", action))?;
+        }
+        for input_degree in (result.min_degree()..=result.max_degree().unwrap()).rev() {
+            for output_degree in input_degree + 1..=result.max_degree().unwrap() {
+                result.extend_actions(input_degree, output_degree);
+                result.check_validity(input_degree, output_degree)?;
             }
         }
         Ok(result)

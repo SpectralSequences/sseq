@@ -23,8 +23,8 @@ fn extend_identity() {
             json!({
                 "type":"finite dimensional module",
                 "p":2,
-                "actions": ["Sq2 x1 = x3"],
                 "gens":{ "x0":0, "x1":1, "x3":3, "x4":4 },
+                "actions": ["Sq2 x1 = x3"]
             }),
             "adem",
         ),
@@ -37,8 +37,7 @@ fn extend_identity() {
                 "type":"finite dimensional module",
                 "p":5,
                 "gens":{"x0":0,"x1":1,"x5":5,"x9":9},
-                "adem_actions":[{"input":"x1","op":[0,1,0],"output":[{"coeff":1,"gen":"x9"}]}],
-                "milnor_actions":[{"input":"x1","op":[[],[1]],"output":[{"coeff":1,"gen":"x9"}]}],
+                "actions": ["P1 x1 = x9"]
             }),
             "milnor",
         ),
