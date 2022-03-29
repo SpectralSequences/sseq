@@ -1,11 +1,9 @@
 use crate::algebra::adem_algebra::AdemBasisElement;
 use crate::algebra::{AdemAlgebra, Algebra, MilnorAlgebra};
 use crate::change_of_basis;
-use crate::module::Module;
 use crate::steenrod_parser::BocksteinOrSq;
 use crate::steenrod_parser::*;
 use fp::vector::FpVector;
-use rustc_hash::FxHashMap as HashMap;
 
 // Outputs in the Adem basis.
 pub fn evaluate_algebra_adem(
@@ -176,141 +174,6 @@ fn evaluate_basis_element(
             return Err(DegreeError {}.into());
         }
     }
-    Ok((degree, result))
-}
-
-pub fn evaluate_module<M: Module>(
-    adem_algebra: &AdemAlgebra,
-    milnor_algebra: &MilnorAlgebra,
-    module: &M,
-    basis_elt_lookup: &HashMap<String, (i32, usize)>,
-    input: &str,
-) -> anyhow::Result<(i32, FpVector)> {
-    evaluate_module_tree(
-        adem_algebra,
-        milnor_algebra,
-        module,
-        basis_elt_lookup,
-        parse_module(input)?,
-    )
-}
-
-fn evaluate_module_tree<M: Module>(
-    adem_algebra: &AdemAlgebra,
-    milnor_algebra: &MilnorAlgebra,
-    module: &M,
-    basis_elt_lookup: &HashMap<String, (i32, usize)>,
-    tree: ModuleParseNode,
-) -> anyhow::Result<(i32, FpVector)> {
-    evaluate_module_tree_helper(
-        adem_algebra,
-        milnor_algebra,
-        module,
-        basis_elt_lookup,
-        None,
-        tree,
-    )
-}
-
-fn evaluate_module_tree_helper<M: Module>(
-    adem_algebra: &AdemAlgebra,
-    milnor_algebra: &MilnorAlgebra,
-    module: &M,
-    basis_elt_lookup: &HashMap<String, (i32, usize)>,
-    mut output_degree: Option<i32>,
-    tree: ModuleParseNode,
-) -> anyhow::Result<(i32, FpVector)> {
-    let p = adem_algebra.prime();
-    match tree {
-        ModuleParseNode::Sum(left, right) => {
-            let (degree_left, mut output_left) = evaluate_module_tree_helper(
-                adem_algebra,
-                milnor_algebra,
-                module,
-                basis_elt_lookup,
-                output_degree,
-                *left,
-            )?;
-            let (_degree_right, output_right) = evaluate_module_tree_helper(
-                adem_algebra,
-                milnor_algebra,
-                module,
-                basis_elt_lookup,
-                Some(degree_left),
-                *right,
-            )?;
-            output_left += &output_right;
-            Ok((degree_left, output_left))
-        }
-        ModuleParseNode::Act(left, right) => {
-            let (degree_left, output_left) =
-                evaluate_algebra_tree_helper(adem_algebra, milnor_algebra, None, *left)?;
-            if let Some(degree) = output_degree {
-                if degree < degree_left {
-                    return Err(DegreeError {}.into());
-                }
-                output_degree = Some(degree - degree_left);
-            }
-            let (degree_right, output_right) = evaluate_module_tree_helper(
-                adem_algebra,
-                milnor_algebra,
-                module,
-                basis_elt_lookup,
-                output_degree,
-                *right,
-            )?;
-            let degree = degree_left + degree_right;
-            module.algebra().compute_basis(degree - module.min_degree());
-            module.compute_basis(degree);
-            let mut result = FpVector::new(p, module.dimension(degree));
-            module.act_by_element(
-                result.as_slice_mut(),
-                1,
-                degree_left,
-                output_left.as_slice(),
-                degree_right,
-                output_right.as_slice(),
-            );
-            Ok((degree, result))
-        }
-        ModuleParseNode::ModuleBasisElt(basis_elt) => evaluate_module_basis_element(
-            adem_algebra,
-            milnor_algebra,
-            module,
-            basis_elt_lookup,
-            output_degree,
-            basis_elt,
-        ),
-    }
-}
-
-fn evaluate_module_basis_element<M: Module>(
-    adem_algebra: &AdemAlgebra,
-    _milnor_algebra: &MilnorAlgebra,
-    module: &M,
-    basis_elt_lookup: &HashMap<String, (i32, usize)>,
-    output_degree: Option<i32>,
-    basis_elt: String,
-) -> anyhow::Result<(i32, FpVector)> {
-    let p = adem_algebra.prime();
-    let entry = basis_elt_lookup.get(&basis_elt);
-    let degree;
-    let idx;
-    match entry {
-        Some(tuple) => {
-            degree = tuple.0;
-            idx = tuple.1;
-        }
-        None => return Err(UnknownBasisElementError { name: basis_elt }.into()), // Should be basis element not found error or something.
-    }
-
-    if let Some(requested_degree) = output_degree {
-        if degree != requested_degree {
-            return Err(DegreeError {}.into());
-        }
-    }
-    let mut result = FpVector::new(p, module.dimension(degree));
-    result.set_entry(idx, 1);
     Ok((degree, result))
 }
 
