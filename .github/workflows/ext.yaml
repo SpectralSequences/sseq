@@ -107,7 +107,7 @@ jobs:
 
       # Install black from pip3 to ensure latest version
       - name: Install python dependencies
-        run: sudo apt-get install flake8 && pip3 install click==8.0.4 black
+        run: sudo apt-get install flake8 && pip3 install black
 
       - name: Cache files
         uses: actions/cache@v2
