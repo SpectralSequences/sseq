@@ -10,8 +10,6 @@ describing the simplest version here.
 ```json
 {
     "p": 2,
-    "generic": false,
-
     "type": "finite dimensional module",
     "gens": {"x0.x0": 0, "x0.x1": 1, "x1.x0": 1, "x1.x1": 2},
     "actions": [
@@ -27,8 +25,6 @@ describing the simplest version here.
 ```json
 {
     "p": 3,
-    "generic": true,
-
     "type": "finite dimensional module",
     "gens": {"x0": 0, "x1": 1},
     "actions": ["b x0 = x1"]
@@ -39,13 +35,11 @@ describing the simplest version here.
 ```json
 {
     "p": 2,
-    "generic": false,
     "algebra": ["milnor"],
     "profile": {
         "truncated": true,
         "p_part": [3, 2, 1]
     },
-
     "type": "finite dimensional module",
     "gens": {"x0": 0},
     "actions": []
@@ -58,14 +52,12 @@ y(2) is a spectrum whose homology is `F_p[ξ₁, ξ₂][τ₁, τ₂]`.
 ```json
 {
     "p": 3,
-    "generic": true,
     "algebra": ["milnor"],
     "profile": {
-        "q_part": 65532,
+        "q_part": 4294967292,
         "p_part": [0, 0],
         "truncated": false
     },
-
     "type" : "finite dimensional module",
     "gens": {"x0": 0},
     "actions": []
@@ -80,10 +72,6 @@ is perfectly acceptable to interleave the algebra and module parts.
 
  * `p`: The prime we are working at. Currently, we only support primes up to
    19. This cap can be easily lifted if necessary.
- * `generic`: Whether we are at a generic (odd) prime or not. Currently, one
-   must specify `true` when `p` is odd and `false` otherwise. In the future, we
-   intend to support `"generic": true` at `p = 2`, which is relevant to the
-   motivic Steenrod algebra.
 
 ## Optional parameters
  * `algebra`: There are two standard bases for the Steenrod algebra --- the

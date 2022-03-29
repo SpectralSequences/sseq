@@ -12,6 +12,8 @@ use bivec::BiVec;
 use fp::prime::ValidPrime;
 use fp::vector::FpVector;
 
+use anyhow::anyhow;
+
 pub fn get_gens() -> anyhow::Result<BiVec<Vec<String>>> {
     // Query for generators
     eprintln!("Input generators. Press return to finish.");
@@ -81,52 +83,6 @@ pub fn gens_to_json(gens: &BiVec<Vec<String>>) -> serde_json::Value {
     gens_json
 }
 
-pub fn get_expression_to_vector<F>(
-    prompt: &str,
-    output_vec: &mut FpVector,
-    string_to_basis_element: F,
-) where
-    F: for<'a> Fn(&'a str) -> Option<usize>,
-{
-    'outer: loop {
-        let result: String = query::raw(prompt, str::parse);
-        if result == "0" {
-            output_vec.set_to_zero();
-            break;
-        }
-        for term in result.split('+') {
-            let term = term.trim();
-            let parts: Vec<&str> = term.splitn(2, ' ').collect();
-            if parts.len() == 1 {
-                if let Some(i) = string_to_basis_element(parts[0]) {
-                    output_vec.add_basis_element(i, 1);
-                } else {
-                    eprintln!("Invalid value. Try again");
-                    continue 'outer;
-                }
-            } else {
-                let mut rest = &parts[1];
-                let coef = match parts[0].parse::<u32>() {
-                    Ok(c) => c,
-                    _ => {
-                        rest = &term;
-                        1
-                    }
-                };
-                let gen_idx = match string_to_basis_element(rest) {
-                    Some(i) => i,
-                    None => {
-                        eprintln!("Invalid value. Try again");
-                        continue 'outer;
-                    }
-                };
-                output_vec.add_basis_element(gen_idx, coef);
-            }
-        }
-        return;
-    }
-}
-
 pub fn interactive_module_define_fdmodule(
     output_json: &mut Value,
     p: ValidPrime,
@@ -161,26 +117,45 @@ pub fn interactive_module_define_fdmodule(
     for input_deg in gens.range().rev() {
         for output_deg in (input_deg + 1)..len as i32 {
             let op_deg = output_deg - input_deg;
-            let input_deg_idx = input_deg;
-            let output_deg_idx = output_deg;
-            if gens[output_deg_idx].is_empty() {
+            if gens[output_deg].is_empty() {
                 continue;
             }
             for op_idx in algebra.generators(op_deg) {
-                let mut output_vec = FpVector::new(p, gens[output_deg_idx].len());
-                let callback = |string: &str| gens[output_deg_idx].iter().position(|d| d == string);
-                for input_idx in 0..gens[input_deg_idx].len() {
-                    get_expression_to_vector(
+                for input_idx in 0..gens[input_deg].len() {
+                    let output = query::raw(
                         &format!(
                             "{} {}",
                             algebra.basis_element_to_string(op_deg, op_idx),
-                            gens[input_deg_idx][input_idx]
+                            gens[input_deg][input_idx]
                         ),
-                        &mut output_vec,
-                        callback,
+                        |expr| {
+                            let mut result = vec![0; gens[output_deg].len()];
+                            if expr == "0" {
+                                return Ok(result);
+                            }
+                            for term in expr.split('+') {
+                                let term = term.trim();
+                                let (coef, gen) = match term.split_once(' ') {
+                                    Some((coef, gen)) => (str::parse::<u32>(coef)?, gen),
+                                    None => (1, term),
+                                };
+
+                                if let Some(gen_idx) =
+                                    gens[output_deg].iter().position(|d| d == gen)
+                                {
+                                    result[gen_idx] += coef;
+                                } else {
+                                    return Err(anyhow!(
+                                        "No generator {gen} in degree {output_deg}"
+                                    ));
+                                }
+                            }
+
+                            Ok(result)
+                        },
                     );
-                    module.set_action_vector(op_deg, op_idx, input_deg, input_idx, &output_vec);
-                    output_vec.set_to_zero();
+
+                    module.set_action(op_deg, op_idx, input_deg, input_idx, &output);
                 }
             }
             module.extend_actions(input_deg, output_deg);
