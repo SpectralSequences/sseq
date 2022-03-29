@@ -3,7 +3,6 @@
 
 // TODO: Write descriptions of each module therein.
 
-pub mod change_of_basis;
 pub mod module;
 pub mod steenrod_evaluator;
 pub mod steenrod_parser;

@@ -11,7 +11,7 @@ use nom::{
     IResult as IResultBase, Parser,
 };
 
-use crate::algebra::milnor_algebra::PPart;
+use crate::{adem_algebra::AdemBasisElement, algebra::milnor_algebra::PPart};
 use std::str::FromStr;
 
 type IResult<I, O> = IResultBase<I, O, VerboseError<I>>;
@@ -80,10 +80,43 @@ fn fold_separated<I: Clone, OS, O, E>(
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Copy)]
 pub enum BocksteinOrSq {
     Bockstein,
     Sq(u32),
+}
+
+impl BocksteinOrSq {
+    pub(crate) fn to_adem_basis_elt(self, q: i32) -> AdemBasisElement {
+        match self {
+            BocksteinOrSq::Bockstein => {
+                if q == 1 {
+                    AdemBasisElement {
+                        degree: 1,
+                        excess: 1,
+                        bocksteins: 0,
+                        ps: vec![1],
+                        p_or_sq: false,
+                    }
+                } else {
+                    AdemBasisElement {
+                        degree: 1,
+                        excess: 1,
+                        bocksteins: 1,
+                        ps: vec![],
+                        p_or_sq: true,
+                    }
+                }
+            }
+            BocksteinOrSq::Sq(x) => AdemBasisElement {
+                degree: x as i32 * q,
+                excess: 2 * x as i32,
+                bocksteins: 0,
+                ps: vec![x],
+                p_or_sq: q != 1,
+            },
+        }
+    }
 }
 
 fn algebra_generator(i: &str) -> IResult<&str, AlgebraBasisElt> {
