@@ -3,14 +3,11 @@ use std::sync::Arc;
 use crate::algebra::Algebra;
 use crate::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
 use crate::module::{FreeModule, Module, ZeroModule};
-use fp::matrix::Matrix;
 use fp::vector::{FpVector, SliceMut};
 use once::OnceBiVec;
 
 #[cfg(feature = "json")]
-use {
-    crate::algebra::JsonAlgebra, bivec::BiVec, rustc_hash::FxHashMap as HashMap, serde_json::Value,
-};
+use {itertools::Itertools, serde_json::Value};
 
 struct FPMIndexTable {
     gen_idx_to_fp_idx: Vec<isize>,
@@ -82,11 +79,9 @@ impl<A: Algebra> FinitelyPresentedModule<A> {
             .add_generators(degree, num_gens, Some(gen_names));
     }
 
-    pub fn add_relations(&mut self, degree: i32, relations_matrix: &mut Matrix) {
-        let num_relns = relations_matrix.rows();
-        self.relations.add_generators(degree, num_relns, None);
-        self.map
-            .add_generators_from_matrix_rows(degree, relations_matrix.as_slice_mut());
+    pub fn add_relations(&mut self, degree: i32, relations: Vec<FpVector>) {
+        self.relations.add_generators(degree, relations.len(), None);
+        self.map.add_generators_from_rows(degree, relations);
     }
 
     pub fn gen_idx_to_fp_idx(&self, degree: i32, idx: usize) -> isize {
@@ -101,116 +96,74 @@ impl<A: Algebra> FinitelyPresentedModule<A> {
 }
 
 #[cfg(feature = "json")]
-impl<A: JsonAlgebra> FinitelyPresentedModule<A> {
-    // Exact duplicate of function in fdmodule.rs...
-    fn module_gens_from_json(
-        gens: &Value,
-    ) -> (
-        BiVec<usize>,
-        BiVec<Vec<String>>,
-        HashMap<String, (i32, usize)>,
-    ) {
-        let gens = gens.as_object().unwrap();
-        assert!(!gens.is_empty());
-        let mut min_degree = 10000;
-        let mut max_degree = -10000;
-        for (_name, degree_value) in gens.iter() {
-            let degree = degree_value.as_i64().unwrap() as i32;
-            if degree < min_degree {
-                min_degree = degree;
-            }
-            if degree + 1 > max_degree {
-                max_degree = degree + 1;
-            }
-        }
-        let mut gen_to_idx = HashMap::default();
-        let mut graded_dimension = BiVec::with_capacity(min_degree, max_degree);
-        let mut gen_names = BiVec::with_capacity(min_degree, max_degree);
-
-        for _ in min_degree..max_degree {
-            graded_dimension.push(0);
-            gen_names.push(vec![]);
-        }
-
-        for (name, degree_value) in gens {
-            let degree = degree_value.as_i64().unwrap() as i32;
-            gen_names[degree].push(name.clone());
-            gen_to_idx.insert(name.clone(), (degree, graded_dimension[degree]));
-            graded_dimension[degree] += 1;
-        }
-        (graded_dimension, gen_names, gen_to_idx)
-    }
-
+impl<A: Algebra> FinitelyPresentedModule<A> {
     pub fn from_json(algebra: Arc<A>, json: &Value) -> anyhow::Result<Self> {
+        use crate::module::free_module::OperationGeneratorPair;
+        use crate::steenrod_parser::digits;
+        use anyhow::anyhow;
+        use nom::combinator::opt;
+
         let p = algebra.prime();
         let name = json["name"].as_str().unwrap_or("").to_string();
         let gens = &json["gens"];
-        let (num_gens_in_degree, gen_names, gen_to_deg_idx) = Self::module_gens_from_json(gens);
-        let relations_value = &json[algebra.prefix().to_string() + "_relations"];
-        let relations_values = relations_value.as_array().unwrap();
+        let (num_gens_in_degree, gen_names, gen_to_deg_idx) = crate::module_gens_from_json(gens);
+
         let min_degree = num_gens_in_degree.min_degree();
-        let max_gen_degree = num_gens_in_degree.len();
-        algebra.compute_basis(20);
-        let relations: Vec<Vec<_>> = relations_values
+        let mut result = Self::new(Arc::clone(&algebra), name, min_degree);
+
+        for (i, gen_names) in gen_names.into_iter_enum() {
+            result.add_generators(i, gen_names);
+        }
+
+        // A list of relations, specified by the degree then the element to be killed
+        let mut relations: Vec<(i32, FpVector)> = json[algebra.prefix().to_string() + "_relations"]
+            .as_array()
+            .unwrap()
             .iter()
             .map(|reln| {
-                reln.as_array()
-                    .unwrap()
-                    .iter()
-                    .map(|term| {
-                        let op = &term["op"];
-                        let (op_deg, op_idx) = algebra.json_to_basis(op).unwrap();
-                        let gen_name = term["gen"].as_str().unwrap();
-                        let (gen_deg, gen_idx) = gen_to_deg_idx[gen_name];
-                        let coeff = term["coeff"].as_u64().unwrap() as u32;
-                        let op_gen = crate::module::free_module::OperationGeneratorPair {
+                let mut deg = 0;
+                let mut v = FpVector::new(p, 0);
+
+                for term in reln.as_str().unwrap().split(" + ") {
+                    let (term, coef) = opt(digits)(term).unwrap();
+                    let coef: u32 = coef.unwrap_or(1);
+
+                    let (op, gen) = term.rsplit_once(' ').unwrap_or(("1", term));
+                    let (op_deg, op_idx) = algebra
+                        .basis_element_from_string(op)
+                        .ok_or_else(|| anyhow!("Invalid term in relation: {term}"))?;
+                    let (gen_deg, gen_idx) = gen_to_deg_idx[gen];
+
+                    if v.is_empty() {
+                        deg = op_deg + gen_deg;
+                        algebra.compute_basis(deg - min_degree);
+                        result.generators.compute_basis(deg);
+                        v.set_scratch_vector_size(result.generators.dimension(deg));
+                    } else if op_deg + gen_deg != deg {
+                        return Err(anyhow!("Relation has inconsistent degree. Expected {deg} but {term} has degree {}", op_deg + gen_deg));
+                    }
+
+                    let idx = result.generators.operation_generator_pair_to_idx(
+                        &OperationGeneratorPair {
                             operation_degree: op_deg,
                             operation_index: op_idx,
                             generator_degree: gen_deg,
                             generator_index: gen_idx,
-                        };
-                        (coeff, op_gen)
-                    })
-                    .collect()
-            })
-            .collect();
-        let max_relation_degree = relations
-            .iter()
-            .map(|reln| {
-                let op_gen = &reln[0].1;
-                op_gen.operation_degree + op_gen.generator_degree
-            })
-            .max()
-            .unwrap_or(min_degree - 1);
-        let mut relations_by_degree = BiVec::with_capacity(min_degree, max_relation_degree + 1);
-        for _ in min_degree..=max_relation_degree {
-            relations_by_degree.push(Vec::new());
-        }
-        for r in relations {
-            let op_gen = &r[0].1;
-            let degree = op_gen.operation_degree + op_gen.generator_degree;
-            relations_by_degree[degree].push(r);
-        }
-        let max_degree = std::cmp::max(max_gen_degree, max_relation_degree);
-        algebra.compute_basis(max_degree);
-        let mut result = Self::new(Arc::clone(&algebra), name, min_degree);
-        for i in min_degree..max_gen_degree {
-            result.add_generators(i, gen_names[i].clone());
-        }
-        result.generators.extend_by_zero(max_degree);
-        for i in min_degree..=max_relation_degree {
-            let num_relns = relations_by_degree[i].len();
-            let gens_dim = result.generators.dimension(i);
-            let mut relations_matrix = Matrix::new(p, num_relns, gens_dim);
-            for (j, relation) in relations_by_degree[i].iter().enumerate() {
-                for term in relation {
-                    let coeff = &term.0;
-                    let op_gen = &term.1;
-                    let basis_idx = result.generators.operation_generator_pair_to_idx(op_gen);
-                    relations_matrix[j].set_entry(basis_idx, *coeff);
+                        },
+                    );
+
+                    v.add_basis_element(idx, coef);
                 }
+                Ok((deg, v))
+            })
+            .collect::<anyhow::Result<Vec<_>>>()?;
+
+        relations.sort_unstable_by_key(|x| x.0);
+        for (degree, rels) in &relations.into_iter().group_by(|x| x.0) {
+            for deg in result.relations.max_computed_degree() + 1..degree {
+                result.add_relations(deg, vec![]);
             }
-            result.add_relations(i, &mut relations_matrix);
+            result.add_relations(degree, rels.map(|x| x.1).collect());
         }
         Ok(result)
     }
@@ -235,13 +188,13 @@ impl<A: JsonAlgebra> FinitelyPresentedModule<A> {
         for i in self.min_degree..=self.relations.max_computed_degree() {
             let num_relns = self.relations.number_of_gens_in_degree(i);
             for j in 0..num_relns {
-                relations.push(
+                relations.push(Value::String(
                     self.generators
-                        .element_to_json(i, self.map.output(i, j).as_slice()),
-                );
+                        .element_to_string(i, self.map.output(i, j).as_slice()),
+                ));
             }
         }
-        Value::from(relations)
+        Value::Array(relations)
     }
 }
 

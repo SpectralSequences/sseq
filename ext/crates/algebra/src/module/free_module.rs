@@ -5,12 +5,6 @@ use crate::module::{Module, ZeroModule};
 use fp::vector::{Slice, SliceMut};
 use once::{OnceBiVec, OnceVec};
 
-#[cfg(feature = "json")]
-use {
-    crate::algebra::JsonAlgebra,
-    serde_json::{json, Value},
-};
-
 #[derive(Clone, Debug)]
 pub struct OperationGeneratorPair {
     pub operation_degree: i32,
@@ -441,23 +435,6 @@ impl<A: Algebra> FreeModule<A> {
             .flat_map(|t| (0..self.num_gens.get(t).copied().unwrap_or(0)).map(move |n| (t, n)))
             .map(move |(t, n)| (t, n, degree - t, self.slice_vector(degree, t, n, slice)))
             .filter(|(_, _, _, v)| !v.is_empty())
-    }
-}
-
-#[cfg(feature = "json")]
-impl<A: JsonAlgebra> FreeModule<A> {
-    pub fn element_to_json(&self, degree: i32, elt: Slice) -> Value {
-        let mut result = Vec::new();
-        let algebra = self.algebra();
-        for (i, v) in elt.iter_nonzero() {
-            let opgen = self.index_to_op_gen(degree, i);
-            result.push(json!({
-                "op" : algebra.json_from_basis(opgen.operation_degree, opgen.operation_index),
-                "gen" : self.gen_names[opgen.generator_degree][opgen.generator_index],
-                "coeff" : v
-            }));
-        }
-        Value::from(result)
     }
 }
 

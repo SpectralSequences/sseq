@@ -5,8 +5,6 @@ pub mod adem_algebra;
 pub use adem_algebra::{AdemAlgebra, AdemAlgebraT};
 
 mod algebra_trait;
-#[cfg(feature = "json")]
-pub use algebra_trait::JsonAlgebra;
 pub use algebra_trait::{Algebra, GeneratedAlgebra};
 
 mod bialgebra_trait;

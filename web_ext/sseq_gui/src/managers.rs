@@ -2,7 +2,8 @@ use crate::actions::*;
 use crate::sseq::SseqWrapper;
 
 use crate::resolution_wrapper::Resolution;
-use algebra::{module::Module, JsonAlgebra};
+use algebra::module::Module;
+use algebra::Algebra;
 use ext::chain_complex::{BoundedChainComplex, ChainComplex};
 use ext::utils::load_module_json;
 use ext::CCC;

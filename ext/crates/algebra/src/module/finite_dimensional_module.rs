@@ -467,43 +467,8 @@ impl<M: Module> From<&M> for FiniteDimensionalModule<M::Algebra> {
 
 #[cfg(feature = "json")]
 impl<A: GeneratedAlgebra> FiniteDimensionalModule<A> {
-    fn module_gens_from_json(
-        gens: &Value,
-    ) -> (
-        BiVec<usize>,
-        BiVec<Vec<String>>,
-        HashMap<String, (i32, usize)>,
-    ) {
-        let gens = gens.as_object().unwrap();
-
-        let degrees = gens
-            .iter()
-            .map(|(_, x)| x.as_i64().unwrap() as i32)
-            .collect::<Vec<_>>();
-
-        let min_degree = degrees.iter().copied().min().unwrap_or(0);
-        let max_degree = degrees.iter().copied().max().unwrap_or(-1) + 1;
-
-        let mut gen_to_idx = HashMap::default();
-        let mut graded_dimension = BiVec::with_capacity(min_degree, max_degree);
-        let mut gen_names = BiVec::with_capacity(min_degree, max_degree);
-
-        for _ in min_degree..max_degree {
-            graded_dimension.push(0);
-            gen_names.push(vec![]);
-        }
-
-        for (name, degree) in gens {
-            let degree = degree.as_i64().unwrap() as i32;
-            gen_names[degree].push(name.clone());
-            gen_to_idx.insert(name.clone(), (degree, graded_dimension[degree]));
-            graded_dimension[degree] += 1;
-        }
-        (graded_dimension, gen_names, gen_to_idx)
-    }
-
     pub fn from_json(algebra: Arc<A>, json: &Value) -> anyhow::Result<Self> {
-        let (graded_dimension, gen_names, gen_to_idx) = Self::module_gens_from_json(&json["gens"]);
+        let (graded_dimension, gen_names, gen_to_idx) = crate::module_gens_from_json(&json["gens"]);
         let name = json["name"].as_str().unwrap_or("").to_string();
 
         let mut result = Self::new(Arc::clone(&algebra), name, graded_dimension.clone());
