@@ -10,7 +10,7 @@ use fp::vector::{FpVector, Slice, SliceMut};
 use once::OnceVec;
 
 #[cfg(feature = "json")]
-use {crate::algebra::JsonAlgebra, serde::Deserialize, serde::Serialize, serde_json::value::Value};
+use {serde::Deserialize, serde::Serialize};
 
 // This is here so that the Python bindings can use modules defined for AdemAlgebraT with their own algebra enum.
 // In order for things to work AdemAlgebraT cannot implement Algebra.
@@ -353,6 +353,10 @@ impl MilnorAlgebra {
 }
 
 impl Algebra for MilnorAlgebra {
+    fn prefix(&self) -> &str {
+        "milnor"
+    }
+
     fn magic(&self) -> u32 {
         ((*self.p as u32) << 16)
             + if self.profile.is_trivial() {
@@ -636,64 +640,6 @@ impl Algebra for MilnorAlgebra {
             Some(res)
         } else {
             None
-        }
-    }
-}
-
-#[cfg(feature = "json")]
-impl JsonAlgebra for MilnorAlgebra {
-    fn prefix(&self) -> &str {
-        "milnor"
-    }
-
-    fn json_to_basis(&self, json: &Value) -> anyhow::Result<(i32, usize)> {
-        let xi_degrees = combinatorics::xi_degrees(self.prime());
-        let tau_degrees = combinatorics::tau_degrees(self.prime());
-
-        let p_part: PPart;
-        let mut q_part = 0;
-        let mut degree = 0;
-
-        if self.generic() {
-            let (q_list, p_list): (Vec<u8>, PPart) = <_>::deserialize(json)?;
-            let q = self.q();
-
-            p_part = p_list;
-            for (i, &val) in p_part.iter().enumerate() {
-                degree += (val as i32) * xi_degrees[i] * q;
-            }
-
-            for k in q_list {
-                q_part |= 1 << k;
-                degree += tau_degrees[k as usize];
-            }
-        } else {
-            p_part = <_>::deserialize(json)?;
-            for (i, &val) in p_part.iter().enumerate() {
-                degree += (val as i32) * xi_degrees[i];
-            }
-        }
-        let m = MilnorBasisElement {
-            q_part,
-            p_part,
-            degree,
-        };
-        Ok((degree, self.basis_element_to_index(&m)))
-    }
-
-    fn json_from_basis(&self, degree: i32, index: usize) -> Value {
-        let b = self.basis_element_from_index(degree, index);
-        if self.generic() {
-            let mut q_part = b.q_part;
-            let mut q_list = Vec::with_capacity(q_part.count_ones() as usize);
-            while q_part != 0 {
-                let tz = q_part.trailing_zeros();
-                q_part ^= 1 << tz;
-                q_list.push(tz);
-            }
-            serde_json::to_value((q_list, &b.p_part)).unwrap()
-        } else {
-            serde_json::to_value(&b.p_part).unwrap()
         }
     }
 }
@@ -1764,24 +1710,6 @@ mod tests {
 
     use expect_test::expect;
     use rstest::rstest;
-
-    #[rstest(p, max_degree, case(2, 32), case(3, 106))]
-    #[trace]
-    fn test_milnor_basis(p: u32, max_degree: i32) {
-        let p = ValidPrime::new(p);
-        let algebra = MilnorAlgebra::new(p); //p != 2
-        algebra.compute_basis(max_degree);
-        for i in 1..max_degree {
-            let dim = algebra.dimension(i);
-            for j in 0..dim {
-                let b = algebra.basis_element_from_index(i, j);
-                assert_eq!(algebra.basis_element_to_index(b), j);
-                let json = algebra.json_from_basis(i, j);
-                let new_b = algebra.json_to_basis(&json).unwrap();
-                assert_eq!(new_b, (i, j));
-            }
-        }
-    }
 
     #[rstest]
     #[trace]

@@ -1,5 +1,3 @@
-#[cfg(feature = "json")]
-use crate::algebra::JsonAlgebra;
 use crate::algebra::{
     AdemAlgebra, AdemAlgebraT, Algebra, Bialgebra, GeneratedAlgebra, MilnorAlgebra, MilnorAlgebraT,
 };
@@ -225,15 +223,6 @@ macro_rules! dispatch_steenrod {
 }
 
 dispatch_algebra!(SteenrodAlgebra, dispatch_steenrod);
-
-#[cfg(feature = "json")]
-impl JsonAlgebra for SteenrodAlgebra {
-    dispatch_steenrod! {
-        fn prefix(&self) -> &str;
-        fn json_to_basis(&self, json: &serde_json::Value) -> anyhow::Result<(i32, usize)>;
-        fn json_from_basis(&self, degree: i32, idx: usize) -> serde_json::Value;
-    }
-}
 
 /// An algebra with a specified list of generators and generating relations. This data can be used
 /// to specify modules by specifying the actions of the generators.

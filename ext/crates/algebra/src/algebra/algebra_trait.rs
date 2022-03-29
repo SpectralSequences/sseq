@@ -18,6 +18,12 @@ use fp::vector::FpVector;
 ///
 /// Algebras may have a distinguished set of generators; see [`GeneratedAlgebra`].
 pub trait Algebra: std::fmt::Display + Send + Sync + 'static {
+    /// A name for the algebra to use in serialization operations. This defaults to "" for algebras
+    /// that don't care about this problem.
+    fn prefix(&self) -> &str {
+        ""
+    }
+
     /// A magic constant used to identify the algebra in save files. When working with the
     /// Milnor algebra, it is easy to forget to specify the algebra and load Milnor save files
     /// with the Adem basis. If we somehow manage to resume computation, this can have
@@ -182,21 +188,6 @@ pub trait Algebra: std::fmt::Display + Send + Sync + 'static {
     }
 }
 
-#[cfg(feature = "json")]
-pub trait JsonAlgebra: Algebra {
-    /// A name for the algebra to use in serialization operations.
-    fn prefix(&self) -> &str;
-
-    /// Parses a basis element from JSON.
-    ///
-    /// The representation is defined by the algebra itself, and is used by by
-    /// module specifications to specify basis elements.
-    fn json_to_basis(&self, json: &serde_json::Value) -> anyhow::Result<(i32, usize)>;
-
-    /// Converts a basis element into JSON.
-    fn json_from_basis(&self, degree: i32, idx: usize) -> serde_json::Value;
-}
-
 /// An [`Algebra`] equipped with a distinguished presentation.
 ///
 /// These data can be used to specify finite modules as the actions of the distinguished generators.
@@ -260,6 +251,7 @@ macro_rules! dispatch_algebra {
     ($struct:ty, $dispatch_macro: ident) => {
         impl Algebra for $struct {
             $dispatch_macro! {
+                fn prefix(&self) -> &str;
                 fn magic(&self) -> u32;
                 fn prime(&self) -> ValidPrime;
                 fn compute_basis(&self, degree: i32);

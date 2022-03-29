@@ -14,9 +14,6 @@ use once::OnceVec;
 use crate::algebra::combinatorics::{self, MAX_XI_TAU};
 use crate::algebra::{Algebra, Bialgebra, GeneratedAlgebra};
 
-#[cfg(feature = "json")]
-use {crate::algebra::JsonAlgebra, serde::Deserialize, serde_json::value::Value};
-
 #[cfg(doc)]
 use crate::algebra::SteenrodAlgebra;
 
@@ -90,13 +87,6 @@ impl AdemBasisElement {
             .map(PorBockstein::Bockstein)
             .interleave(self.ps.iter().map(|b| PorBockstein::P(*b)))
             .filter(|b| !matches!(b, PorBockstein::Bockstein(false)))
-    }
-
-    #[cfg(feature = "json")]
-    fn iter_full(&self) -> impl Iterator<Item = PorBockstein> + '_ {
-        BitflagIterator::new_fixed_length(self.bocksteins as u64, self.ps.len() + 1)
-            .map(PorBockstein::Bockstein)
-            .interleave(self.ps.iter().map(|b| PorBockstein::P(*b)))
     }
 }
 
@@ -194,6 +184,10 @@ impl fmt::Display for AdemAlgebra {
 }
 
 impl Algebra for AdemAlgebra {
+    fn prefix(&self) -> &str {
+        "adem"
+    }
+
     fn magic(&self) -> u32 {
         (*self.prime() as u32) << 16
     }
@@ -335,6 +329,8 @@ impl Algebra for AdemAlgebra {
 
             bockstein_count += 1;
         }
+
+        self.compute_basis(degree);
         Some((
             degree,
             self.basis_element_to_index(&AdemBasisElement {
@@ -345,64 +341,6 @@ impl Algebra for AdemAlgebra {
                 p_or_sq: self.generic,
             }),
         ))
-    }
-}
-
-#[cfg(feature = "json")]
-impl JsonAlgebra for AdemAlgebra {
-    fn prefix(&self) -> &str {
-        "adem"
-    }
-
-    fn json_to_basis(&self, json: &Value) -> anyhow::Result<(i32, usize)> {
-        let op: Vec<u32> = <_>::deserialize(json)?;
-        let p = *self.prime();
-
-        let b = if self.generic {
-            let q = 2 * p - 2;
-
-            // The P^i are in the odd entries and the bocksteins are in the even ones.
-            let sqs = op.iter().copied().skip(1).step_by(2).collect::<Vec<_>>();
-
-            let mut degree: u32 = q * sqs.iter().sum::<u32>();
-            let mut bocksteins = 0;
-
-            for (i, sq) in op.into_iter().step_by(2).enumerate() {
-                degree += sq;
-                bocksteins |= sq << i;
-            }
-            AdemBasisElement {
-                degree: degree as i32,
-                excess: 0,
-                bocksteins,
-                ps: sqs,
-                p_or_sq: *self.prime() != 2,
-            }
-        } else {
-            AdemBasisElement {
-                degree: op.iter().sum::<u32>() as i32,
-                excess: 0,
-                bocksteins: 0,
-                ps: op,
-                p_or_sq: *self.prime() != 2,
-            }
-        };
-        Ok((b.degree, self.basis_element_to_index(&b)))
-    }
-
-    fn json_from_basis(&self, degree: i32, index: usize) -> Value {
-        let b = self.basis_element_from_index(degree, index);
-        let out_sqs = if self.generic {
-            b.iter_full()
-                .map(|e| match e {
-                    PorBockstein::P(v) => v,
-                    PorBockstein::Bockstein(x) => x as u32,
-                })
-                .collect::<Vec<_>>()
-        } else {
-            b.ps.clone()
-        };
-        serde_json::to_value(out_sqs).unwrap()
     }
 }
 
@@ -1646,24 +1584,6 @@ mod tests {
     }
 
     use rstest::rstest;
-
-    #[rstest(p, max_degree, case(2, 32), case(3, 120))]
-    #[trace]
-    fn test_adem_basis(p: u32, max_degree: i32) {
-        let p = ValidPrime::new(p);
-        let algebra = AdemAlgebra::new(p, *p != 2, false, false);
-        algebra.compute_basis(max_degree);
-        for i in 1..=max_degree {
-            let dim = algebra.dimension(i);
-            for j in 0..dim {
-                let b = algebra.basis_element_from_index(i, j);
-                assert_eq!(algebra.basis_element_to_index(b), j);
-                let json = algebra.json_from_basis(i, j);
-                let new_b = algebra.json_to_basis(&json).unwrap();
-                assert_eq!(new_b, (i, j));
-            }
-        }
-    }
 
     #[rstest(p, max_degree, case(2, 32), case(3, 120))]
     #[trace]
