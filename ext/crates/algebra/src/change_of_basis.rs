@@ -231,6 +231,7 @@ pub fn milnor_to_adem(
     }
 }
 
+/// Express $Q_{qi}$ in the adem basis.
 pub fn adem_q(
     adem_algebra: &AdemAlgebra,
     milnor_algebra: &MilnorAlgebra,
@@ -259,6 +260,7 @@ pub fn adem_q(
     milnor_to_adem_on_basis(adem_algebra, milnor_algebra, result, coeff, degree, idx);
 }
 
+/// Express P(...) in the Adem basis.
 pub fn adem_plist(
     adem_algebra: &AdemAlgebra,
     milnor_algebra: &MilnorAlgebra,

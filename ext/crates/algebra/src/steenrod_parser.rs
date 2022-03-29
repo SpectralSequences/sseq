@@ -1,18 +1,21 @@
+use anyhow::{anyhow, Context};
 use nom::{
     branch::alt,
     bytes::complete::tag,
     character::complete::{alpha1, alphanumeric0, char},
-    character::complete::{digit1 as digit, space0 as space},
-    combinator::{map_res, opt},
-    error::ErrorKind::Char,
-    multi::fold_many0,
+    character::complete::{digit1 as digit, space0},
+    combinator::{map, map_res, opt, peek},
+    error::{ParseError, VerboseError, VerboseErrorKind},
     multi::many0,
-    sequence::{delimited, pair, tuple},
-    IResult,
+    multi::{fold_many0, separated_list1},
+    sequence::{delimited, pair, preceded, tuple},
+    IResult as IResultBase, Parser,
 };
 
 use crate::algebra::milnor_algebra::PPart;
 use std::str::FromStr;
+
+type IResult<I, O> = IResultBase<I, O, VerboseError<I>>;
 
 #[derive(Debug, Clone)]
 pub enum AlgebraBasisElt {
@@ -23,42 +26,60 @@ pub enum AlgebraBasisElt {
 }
 
 #[derive(Debug, Clone)]
-pub enum AlgebraParseNode {
-    Product(Box<AlgebraParseNode>, Box<AlgebraParseNode>),
-    Sum(Box<AlgebraParseNode>, Box<AlgebraParseNode>),
+pub enum AlgebraNode {
+    Product(Box<AlgebraNode>, Box<AlgebraNode>),
+    Sum(Box<AlgebraNode>, Box<AlgebraNode>),
     BasisElt(AlgebraBasisElt),
     Scalar(i32),
 }
 
 #[derive(Debug, Clone)]
 pub enum ModuleParseNode {
-    Act(Box<AlgebraParseNode>, Box<ModuleParseNode>),
+    Act(Box<AlgebraNode>, Box<ModuleParseNode>),
     Sum(Box<ModuleParseNode>, Box<ModuleParseNode>),
     ModuleBasisElt(String),
 }
 
+/// Pad both ends with whitespace
+fn space<'a, O, E: ParseError<&'a str>, F: Parser<&'a str, O, E>>(
+    f: F,
+) -> impl FnMut(&'a str) -> IResultBase<&'a str, O, E> {
+    delimited(space0, f, space0)
+}
+
+/// Surround with brackets
+fn brackets<'a, O, E: ParseError<&'a str>, F: Parser<&'a str, O, E>>(
+    f: F,
+) -> impl FnMut(&'a str) -> IResultBase<&'a str, O, E> {
+    delimited(char('('), f, char(')'))
+}
+
 fn digits<T: FromStr + Copy>(i: &str) -> IResult<&str, T> {
-    map_res(delimited(space, digit, space), FromStr::from_str)(i)
+    map_res(space(digit), FromStr::from_str)(i)
 }
 
-fn comma_separated_integer_list<T: FromStr + Copy>(i: &str) -> IResult<&str, Vec<T>> {
-    let (i, init) = digits(i)?;
-    let mut result = vec![init];
-    let (rest, list) = many0(pair(char(','), digits))(i)?;
-    result.extend(list.iter().map(|t: &(char, T)| t.1));
-    Ok((rest, result))
-}
-
-fn comma_separated_sequence<T: FromStr + Copy>(i: &str) -> IResult<&str, Vec<T>> {
-    delimited(tag("("), comma_separated_integer_list, tag(")"))(i)
-}
-
-fn space_separated_integer_list<T: FromStr + Copy>(i: &str) -> IResult<&str, Vec<T>> {
-    many0(digits)(i)
-}
-
-fn space_separated_sequence<T: FromStr + Copy>(i: &str) -> IResult<&str, Vec<T>> {
-    delimited(tag("("), space_separated_integer_list, tag(")"))(i)
+fn fold_separated<I: Clone, OS, O, E>(
+    mut sep: impl Parser<I, OS, E>,
+    mut f: impl Parser<I, O, E>,
+    mut acc: impl FnMut(O, O) -> O,
+) -> impl FnMut(I) -> IResultBase<I, O, E> {
+    move |i: I| {
+        let (mut i, mut res) = f.parse(i)?;
+        loop {
+            match sep.parse(i.clone()) {
+                Err(nom::Err::Error(_)) => return Ok((i, res)),
+                Err(e) => return Err(e),
+                Ok((i1, _)) => match f.parse(i1.clone()) {
+                    Err(nom::Err::Error(_)) => return Ok((i, res)),
+                    Err(e) => return Err(e),
+                    Ok((i2, o)) => {
+                        i = i2;
+                        res = acc(res, o);
+                    }
+                },
+            }
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -67,130 +88,79 @@ pub enum BocksteinOrSq {
     Sq(u32),
 }
 
-fn bockstein_b(i: &str) -> IResult<&str, BocksteinOrSq> {
-    let (rest, _c) = char('b')(i)?;
-    Ok((rest, BocksteinOrSq::Bockstein))
-}
-
-fn sq_digits(i: &str) -> IResult<&str, BocksteinOrSq> {
-    let (rest, c) = digits(i)?;
-    Ok((rest, BocksteinOrSq::Sq(c)))
-}
-
-fn space_separated_bockstein_or_sq_list(i: &str) -> IResult<&str, Vec<BocksteinOrSq>> {
-    many0(alt((bockstein_b, sq_digits)))(i)
-}
-
-fn space_separated_bockstein_or_sq_sequence(i: &str) -> IResult<&str, Vec<BocksteinOrSq>> {
-    delimited(tag("("), space_separated_bockstein_or_sq_list, tag(")"))(i)
-}
-
-fn algebra_generator(i: &str) -> IResult<&str, AlgebraParseNode> {
-    let (rest, opt_elt) = opt(alt((
-        pair(tag("Q"), digits),
-        pair(tag("P"), digits),
-        pair(tag("Sq"), digits),
-    )))(i)?;
-
-    if let Some(elt) = opt_elt {
-        let result = match elt {
-            ("Q", x) => AlgebraBasisElt::Q(x),
-            ("P", x) | ("Sq", x) => AlgebraBasisElt::P(x),
-            _ => unreachable!(),
-        };
-        return Ok((rest, AlgebraParseNode::BasisElt(result)));
-    }
-    if let Ok((rest, elt)) = alt((
-        pair(tag("P"), comma_separated_sequence),
-        pair(tag("Sq"), comma_separated_sequence),
-        pair(tag("M"), space_separated_sequence),
-    ))(i)
-    {
-        let result = match elt {
-            ("P", x) | ("Sq", x) | ("M", x) => AlgebraBasisElt::PList(x),
-            _ => unreachable!(),
-        };
-        return Ok((rest, AlgebraParseNode::BasisElt(result)));
-    }
-    let (rest, elt) = pair(tag("A"), space_separated_bockstein_or_sq_sequence)(i)?;
-    {
-        let result = match elt {
-            ("A", x) => AlgebraBasisElt::AList(x),
-            _ => unreachable!(),
-        };
-        Ok((rest, AlgebraParseNode::BasisElt(result)))
-    }
-}
-
-fn scalar(i: &str) -> IResult<&str, AlgebraParseNode> {
-    let (rest, c) = pair(opt(alt((char('-'), char('+')))), digits)(i)?;
-    let result: i32 = match c {
-        (Some('+'), coeff) | (None, coeff) => coeff,
-        (Some('-'), coeff) => -coeff,
-        _ => unreachable!(),
-    };
-    Ok((rest, AlgebraParseNode::Scalar(result)))
-}
-
-fn algebra_parens(i: &str) -> IResult<&str, AlgebraParseNode> {
-    delimited(space, delimited(tag("("), algebra_expr, tag(")")), space)(i)
-}
-
-fn algebra_factor(i: &str) -> IResult<&str, AlgebraParseNode> {
+fn algebra_generator(i: &str) -> IResult<&str, AlgebraBasisElt> {
+    let p_or_sq = || alt((tag("P"), tag("Sq")));
     alt((
-        delimited(space, algebra_generator, space),
-        scalar,
-        algebra_parens,
+        map(preceded(char('Q'), digits), AlgebraBasisElt::Q),
+        map(preceded(p_or_sq(), digits), AlgebraBasisElt::P),
+        map(
+            alt((
+                preceded(p_or_sq(), brackets(separated_list1(char(','), digits))),
+                preceded(char('M'), brackets(many0(digits))),
+            )),
+            AlgebraBasisElt::PList,
+        ),
+        map(
+            preceded(
+                char('A'),
+                brackets(many0(alt((
+                    map(char('b'), |_| BocksteinOrSq::Bockstein),
+                    map(digits, BocksteinOrSq::Sq),
+                )))),
+            ),
+            AlgebraBasisElt::AList,
+        ),
     ))(i)
 }
 
-// We read an initial factor and for each time we find
-// a * or / operator followed by another factor, we do
-// the math by folding everything
-fn algebra_term(i: &str) -> IResult<&str, AlgebraParseNode> {
-    let (i, init) = pair(opt(alt((char('+'), char('-')))), algebra_factor)(i)?;
-    let first_factor = || match &init {
-        (Some('+'), fact) | (None, fact) => fact.clone(),
-        (Some('-'), fact) => AlgebraParseNode::Product(
-            Box::new(AlgebraParseNode::Scalar(-1)),
-            Box::new(fact.clone()),
-        ),
-        _ => unreachable!(),
-    };
-    // This is necessary for lifetime reasons.
-    #[allow(clippy::let_and_return)]
-    let result = fold_many0(
-        pair(alt((char('*'), char(' '))), algebra_factor),
-        first_factor,
-        |acc, (_op, val): (char, AlgebraParseNode)| {
-            AlgebraParseNode::Product(Box::new(acc), Box::new(val))
-        },
-    )(i);
-    result
+fn scalar(i: &str) -> IResult<&str, i32> {
+    alt((
+        digits,
+        preceded(char('+'), digits),
+        map(preceded(char('-'), digits), |x: i32| -x),
+    ))(i)
 }
 
-fn algebra_expr(i: &str) -> IResult<&str, AlgebraParseNode> {
-    let (i, init) = algebra_term(i)?;
+fn algebra_factor(i: &str) -> IResult<&str, AlgebraNode> {
+    space(alt((
+        map(algebra_generator, AlgebraNode::BasisElt),
+        map(scalar, AlgebraNode::Scalar),
+        brackets(algebra_expr),
+    )))(i)
+}
 
-    // This is necessary for lifetime reasons.
-    #[allow(clippy::let_and_return)]
-    let result = fold_many0(
-        pair(alt((char('+'), char('-'))), algebra_term),
-        || init.clone(),
-        |acc, (_op, val): (char, AlgebraParseNode)| {
-            AlgebraParseNode::Sum(Box::new(acc), Box::new(val))
-        },
-    )(i);
-    result
+fn algebra_term(i: &str) -> IResult<&str, AlgebraNode> {
+    let (i, sign) = opt(alt((char('+'), char('-'))))(i)?;
+
+    let (i, mut res) = fold_separated(char('*'), algebra_factor, |acc, val| {
+        AlgebraNode::Product(Box::new(acc), Box::new(val))
+    })(i)?;
+
+    if let Some('-') = sign {
+        res = AlgebraNode::Product(Box::new(AlgebraNode::Scalar(-1)), Box::new(res));
+    }
+    Ok((i, res))
+}
+
+fn algebra_expr(i: &str) -> IResult<&str, AlgebraNode> {
+    fold_separated(
+        peek(alt((char('+'), char('-')))),
+        space(algebra_term),
+        |acc, val| AlgebraNode::Sum(Box::new(acc), Box::new(val)),
+    )(i)
 }
 
 fn module_generator(i: &str) -> IResult<&str, ModuleParseNode> {
     let (rest, (a, more_str)) = pair(alpha1, alphanumeric0)(i)?;
     if a.starts_with("Sq") || a.starts_with('P') || a.starts_with('Q') {
-        return Err(nom::Err::Error(nom::error::Error::new(
-            "Module generators are not allowed to start with P, Q, or Sq",
-            Char,
-        )));
+        return Err(nom::Err::Failure(VerboseError {
+            errors: vec![(
+                &i[0..a.len()],
+                VerboseErrorKind::Context(
+                    "Module generators are not allowed to start with P, Q, or Sq",
+                ),
+            )],
+        }));
     }
     Ok((
         rest,
@@ -198,12 +168,8 @@ fn module_generator(i: &str) -> IResult<&str, ModuleParseNode> {
     ))
 }
 
-fn module_parens(i: &str) -> IResult<&str, ModuleParseNode> {
-    delimited(space, delimited(tag("("), module_expr, tag(")")), space)(i)
-}
-
 fn module_factor(i: &str) -> IResult<&str, ModuleParseNode> {
-    alt((delimited(space, module_generator, space), module_parens))(i)
+    space(alt((module_generator, brackets(module_expr))))(i)
 }
 
 fn module_term(i: &str) -> IResult<&str, ModuleParseNode> {
@@ -218,7 +184,7 @@ fn module_term(i: &str) -> IResult<&str, ModuleParseNode> {
         result = ModuleParseNode::Act(Box::new(algebra_term), Box::new(result));
     }
     if let Some('-') = opt_pm {
-        result = ModuleParseNode::Act(Box::new(AlgebraParseNode::Scalar(-1)), Box::new(result));
+        result = ModuleParseNode::Act(Box::new(AlgebraNode::Scalar(-1)), Box::new(result));
     }
     Ok((rest, result))
 }
@@ -237,46 +203,38 @@ fn module_expr(i: &str) -> IResult<&str, ModuleParseNode> {
     result
 }
 
-pub fn parse_algebra(i: &str) -> Result<AlgebraParseNode, ParseError> {
-    let (rest, parse_tree) = algebra_expr(i).map_err(|err| ParseError {
-        info: format!("{:#?}", err),
-    })?;
-    if rest.is_empty() {
-        Ok(parse_tree)
-    } else {
-        Err(ParseError {
-            info: "Failed to consume all of input".to_string(),
+fn convert_error(i: &str) -> impl FnOnce(nom::Err<VerboseError<&str>>) -> anyhow::Error + '_ {
+    move |err| {
+        anyhow!(match err {
+            nom::Err::Error(e) | nom::Err::Failure(e) => nom::error::convert_error(i, e),
+            _ => format!("{err:#}"),
         })
     }
 }
 
-pub fn parse_module(i: &str) -> Result<ModuleParseNode, ParseError> {
-    let (rest, parse_tree) = module_expr(i).map_err(|err| ParseError {
-        info: format!("{:#?}", err),
-    })?;
+pub fn parse_algebra(i: &str) -> anyhow::Result<AlgebraNode> {
+    let (rest, parse_tree) = algebra_expr(i)
+        .map_err(convert_error(i))
+        .with_context(|| format!("Error when parsing algebra string {i}"))?;
     if rest.is_empty() {
         Ok(parse_tree)
     } else {
-        Err(ParseError {
-            info: "Failed to consume all of input".to_string(),
-        })
+        Err(anyhow!(
+            "Failed to consume all of input. Remaining: '{rest}'"
+        ))
     }
 }
 
-#[derive(Debug)]
-pub struct ParseError {
-    pub info: String,
-}
-
-impl std::fmt::Display for ParseError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Parse error:\n    {}\n", &self.info)
-    }
-}
-
-impl std::error::Error for ParseError {
-    fn description(&self) -> &str {
-        "Parse error"
+pub fn parse_module(i: &str) -> anyhow::Result<ModuleParseNode> {
+    let (rest, parse_tree) = module_expr(i)
+        .map_err(convert_error(i))
+        .with_context(|| format!("Error when parsing module string {i}"))?;
+    if rest.is_empty() {
+        Ok(parse_tree)
+    } else {
+        Err(anyhow!(
+            "Failed to consume all of input. Remaining: '{rest}'"
+        ))
     }
 }
 

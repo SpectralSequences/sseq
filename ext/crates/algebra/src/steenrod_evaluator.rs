@@ -42,7 +42,7 @@ pub fn evaluate_algebra_milnor(
 fn evaluate_algebra_tree(
     adem_algebra: &AdemAlgebra,
     milnor_algebra: &MilnorAlgebra,
-    tree: AlgebraParseNode,
+    tree: AlgebraNode,
 ) -> anyhow::Result<(i32, FpVector)> {
     evaluate_algebra_tree_helper(adem_algebra, milnor_algebra, None, tree)
 }
@@ -51,11 +51,11 @@ fn evaluate_algebra_tree_helper(
     adem_algebra: &AdemAlgebra,
     milnor_algebra: &MilnorAlgebra,
     mut output_degree: Option<i32>,
-    tree: AlgebraParseNode,
+    tree: AlgebraNode,
 ) -> anyhow::Result<(i32, FpVector)> {
     let p = adem_algebra.prime();
     match tree {
-        AlgebraParseNode::Sum(left, right) => {
+        AlgebraNode::Sum(left, right) => {
             let (degree_left, mut output_left) =
                 evaluate_algebra_tree_helper(adem_algebra, milnor_algebra, output_degree, *left)?;
             let (_degree_right, output_right) = evaluate_algebra_tree_helper(
@@ -67,7 +67,7 @@ fn evaluate_algebra_tree_helper(
             output_left += &output_right;
             Ok((degree_left, output_left))
         }
-        AlgebraParseNode::Product(left, right) => {
+        AlgebraNode::Product(left, right) => {
             let (degree_left, output_left) =
                 evaluate_algebra_tree_helper(adem_algebra, milnor_algebra, None, *left)?;
             if let Some(degree) = output_degree {
@@ -92,10 +92,10 @@ fn evaluate_algebra_tree_helper(
             );
             Ok((degree, result))
         }
-        AlgebraParseNode::BasisElt(basis_elt) => {
+        AlgebraNode::BasisElt(basis_elt) => {
             evaluate_basis_element(adem_algebra, milnor_algebra, output_degree, basis_elt)
         }
-        AlgebraParseNode::Scalar(x) => {
+        AlgebraNode::Scalar(x) => {
             if let Some(degree) = output_degree {
                 if degree != 0 {
                     return Err(DegreeError {}.into());
