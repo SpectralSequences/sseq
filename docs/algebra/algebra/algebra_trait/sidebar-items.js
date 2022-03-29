@@ -1,1 +1,1 @@
-initSidebarItems({"trait":[["Algebra","A graded algebra over $\\mathbb{F}_p$."],["GeneratedAlgebra","An [`Algebra`] equipped with a distinguished presentation."],["JsonAlgebra",""]]});
+initSidebarItems({"trait":[["Algebra","A graded algebra over $\\mathbb{F}_p$."],["GeneratedAlgebra","An [`Algebra`] equipped with a distinguished presentation."]]});

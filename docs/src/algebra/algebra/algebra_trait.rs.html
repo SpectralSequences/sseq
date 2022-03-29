@@ -333,14 +333,6 @@
 <span id="306">306</span>
 <span id="307">307</span>
 <span id="308">308</span>
-<span id="309">309</span>
-<span id="310">310</span>
-<span id="311">311</span>
-<span id="312">312</span>
-<span id="313">313</span>
-<span id="314">314</span>
-<span id="315">315</span>
-<span id="316">316</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">fp::prime::ValidPrime</span>;
 <span class="kw">use</span> <span class="ident">fp::vector</span>::{<span class="ident">Slice</span>, <span class="ident">SliceMut</span>};
 
@@ -361,6 +353,12 @@
 <span class="doccomment">///</span>
 <span class="doccomment">/// Algebras may have a distinguished set of generators; see [`GeneratedAlgebra`].</span>
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">Algebra</span>: <span class="ident">std::fmt::Display</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span> {
+    <span class="doccomment">/// A name for the algebra to use in serialization operations. This defaults to &quot;&quot; for algebras</span>
+    <span class="doccomment">/// that don&#39;t care about this problem.</span>
+    <span class="kw">fn</span> <span class="ident">prefix</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">str</span> {
+        <span class="string">&quot;&quot;</span>
+    }
+
     <span class="doccomment">/// A magic constant used to identify the algebra in save files. When working with the</span>
     <span class="doccomment">/// Milnor algebra, it is easy to forget to specify the algebra and load Milnor save files</span>
     <span class="doccomment">/// with the Adem basis. If we somehow manage to resume computation, this can have</span>
@@ -525,21 +523,6 @@
     }
 }
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;json&quot;</span>)]</span>
-<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">JsonAlgebra</span>: <span class="ident">Algebra</span> {
-    <span class="doccomment">/// A name for the algebra to use in serialization operations.</span>
-    <span class="kw">fn</span> <span class="ident">prefix</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">str</span>;
-
-    <span class="doccomment">/// Parses a basis element from JSON.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// The representation is defined by the algebra itself, and is used by by</span>
-    <span class="doccomment">/// module specifications to specify basis elements.</span>
-    <span class="kw">fn</span> <span class="ident">json_to_basis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">json</span>: <span class="kw-2">&amp;</span><span class="ident">serde_json::Value</span>) -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span>(<span class="ident">i32</span>, <span class="ident">usize</span>)<span class="op">&gt;</span>;
-
-    <span class="doccomment">/// Converts a basis element into JSON.</span>
-    <span class="kw">fn</span> <span class="ident">json_from_basis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">idx</span>: <span class="ident">usize</span>) -&gt; <span class="ident">serde_json::Value</span>;
-}
-
 <span class="doccomment">/// An [`Algebra`] equipped with a distinguished presentation.</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// These data can be used to specify finite modules as the actions of the distinguished generators.</span>
@@ -603,7 +586,8 @@
     (<span class="macro-nonterminal">$</span><span class="kw">struct</span>:<span class="macro-nonterminal">ty</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">dispatch_macro</span>: <span class="ident">ident</span>) =&gt; {
         <span class="kw">impl</span> <span class="ident">Algebra</span> <span class="kw">for</span> <span class="macro-nonterminal">$</span><span class="kw">struct</span> {
             <span class="macro-nonterminal">$</span><span class="macro">dispatch_macro!</span> {
-                <span class="kw">fn</span> <span class="macro-nonterminal">magic</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">u32</span>;
+                <span class="kw">fn</span> <span class="macro-nonterminal">prefix</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">str</span>;
+                <span class="kw">fn</span> <span class="ident">magic</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">u32</span>;
                 <span class="kw">fn</span> <span class="ident">prime</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">ValidPrime</span>;
                 <span class="kw">fn</span> <span class="ident">compute_basis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>);
                 <span class="kw">fn</span> <span class="ident">dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) -&gt; <span class="ident">usize</span>;

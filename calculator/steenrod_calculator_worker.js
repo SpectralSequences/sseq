@@ -38,7 +38,6 @@ function to_input_form(p, str) {
 message_handlers.calculate = function calculate(m) {
     if(!(m.prime in self.calculators)){
         self.calculators[m.prime] = SteenrodCalculator.new(m.prime);
-        self.calculators[m.prime].compute_basis(20);
     }
     let result;
     try {

@@ -1,1 +1,1 @@
-initSidebarItems({"fn":[["gens_to_json",""],["get_expression_to_vector",""],["get_gens",""],["interactive_module_define_fdmodule",""],["interactive_module_define_fpmodule",""]]});
+initSidebarItems({"fn":[["gens_to_json",""],["get_gens",""],["interactive_module_define_fdmodule",""],["interactive_module_define_fpmodule",""]]});

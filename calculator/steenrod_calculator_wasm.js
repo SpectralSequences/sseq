@@ -141,12 +141,6 @@ class SteenrodCalculator {
         return ret === 0 ? undefined : SteenrodCalculator.__wrap(ret);
     }
     /**
-    * @param {number} degree
-    */
-    compute_basis(degree) {
-        wasm.steenrodcalculator_compute_basis(this.ptr, degree);
-    }
-    /**
     * @param {string} input
     * @returns {string}
     */

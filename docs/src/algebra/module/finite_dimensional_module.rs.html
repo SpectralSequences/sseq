@@ -743,53 +743,6 @@
 <span id="716">716</span>
 <span id="717">717</span>
 <span id="718">718</span>
-<span id="719">719</span>
-<span id="720">720</span>
-<span id="721">721</span>
-<span id="722">722</span>
-<span id="723">723</span>
-<span id="724">724</span>
-<span id="725">725</span>
-<span id="726">726</span>
-<span id="727">727</span>
-<span id="728">728</span>
-<span id="729">729</span>
-<span id="730">730</span>
-<span id="731">731</span>
-<span id="732">732</span>
-<span id="733">733</span>
-<span id="734">734</span>
-<span id="735">735</span>
-<span id="736">736</span>
-<span id="737">737</span>
-<span id="738">738</span>
-<span id="739">739</span>
-<span id="740">740</span>
-<span id="741">741</span>
-<span id="742">742</span>
-<span id="743">743</span>
-<span id="744">744</span>
-<span id="745">745</span>
-<span id="746">746</span>
-<span id="747">747</span>
-<span id="748">748</span>
-<span id="749">749</span>
-<span id="750">750</span>
-<span id="751">751</span>
-<span id="752">752</span>
-<span id="753">753</span>
-<span id="754">754</span>
-<span id="755">755</span>
-<span id="756">756</span>
-<span id="757">757</span>
-<span id="758">758</span>
-<span id="759">759</span>
-<span id="760">760</span>
-<span id="761">761</span>
-<span id="762">762</span>
-<span id="763">763</span>
-<span id="764">764</span>
-<span id="765">765</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::algebra::Algebra</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::module</span>::{<span class="ident">Module</span>, <span class="ident">ZeroModule</span>};
 <span class="kw">use</span> <span class="ident">bivec::BiVec</span>;
@@ -1147,30 +1100,13 @@
         <span class="prelude-val">None</span>
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">set_action_vector</span>(
-        <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
-        <span class="ident">operation_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">operation_idx</span>: <span class="ident">usize</span>,
-        <span class="ident">input_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">input_idx</span>: <span class="ident">usize</span>,
-        <span class="ident">output</span>: <span class="kw-2">&amp;</span><span class="ident">FpVector</span>,
-    ) {
-        <span class="macro">assert!</span>(<span class="ident">operation_idx</span> <span class="op">&lt;</span> <span class="self">self</span>.<span class="ident">algebra</span>.<span class="ident">dimension</span>(<span class="ident">operation_degree</span>));
-        <span class="macro">assert!</span>(<span class="ident">input_idx</span> <span class="op">&lt;</span> <span class="self">self</span>.<span class="ident">dimension</span>(<span class="ident">input_degree</span>));
-        <span class="kw">let</span> <span class="ident">output_degree</span> <span class="op">=</span> <span class="ident">input_degree</span> <span class="op">+</span> <span class="ident">operation_degree</span>;
-        <span class="comment">// (in_deg) -&gt; (out_deg) -&gt; (op_index) -&gt; (in_index) -&gt; Vector</span>
-        <span class="kw">let</span> <span class="ident">output_vector</span> <span class="op">=</span>
-            <span class="kw-2">&amp;mut</span> <span class="self">self</span>.<span class="ident">actions</span>[<span class="ident">input_degree</span>][<span class="ident">output_degree</span>][<span class="ident">operation_idx</span>][<span class="ident">input_idx</span>];
-        <span class="ident">output_vector</span>.<span class="ident">assign</span>(<span class="ident">output</span>);
-    }
-
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">set_action</span>(
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
         <span class="ident">operation_degree</span>: <span class="ident">i32</span>,
         <span class="ident">operation_idx</span>: <span class="ident">usize</span>,
         <span class="ident">input_degree</span>: <span class="ident">i32</span>,
         <span class="ident">input_idx</span>: <span class="ident">usize</span>,
-        <span class="ident">output</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span>,
+        <span class="ident">output</span>: <span class="kw-2">&amp;</span>[<span class="ident">u32</span>],
     ) {
         <span class="macro">assert!</span>(<span class="ident">operation_idx</span> <span class="op">&lt;</span> <span class="self">self</span>.<span class="ident">algebra</span>.<span class="ident">dimension</span>(<span class="ident">operation_degree</span>));
         <span class="macro">assert!</span>(<span class="ident">input_idx</span> <span class="op">&lt;</span> <span class="self">self</span>.<span class="ident">dimension</span>(<span class="ident">input_degree</span>));
@@ -1178,7 +1114,7 @@
         <span class="comment">// (in_deg) -&gt; (out_deg) -&gt; (op_index) -&gt; (in_index) -&gt; Vector</span>
         <span class="kw">let</span> <span class="ident">output_vector</span> <span class="op">=</span>
             <span class="kw-2">&amp;mut</span> <span class="self">self</span>.<span class="ident">actions</span>[<span class="ident">input_degree</span>][<span class="ident">output_degree</span>][<span class="ident">operation_idx</span>][<span class="ident">input_idx</span>];
-        <span class="ident">output_vector</span>.<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">output</span>);
+        <span class="ident">output_vector</span>.<span class="ident">copy_from_slice</span>(<span class="ident">output</span>);
     }
 
     <span class="doccomment">/// This function will panic if you call it with input such that `module.dimension(input_degree +</span>
@@ -1259,43 +1195,8 @@
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;json&quot;</span>)]</span>
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">GeneratedAlgebra</span><span class="op">&gt;</span> <span class="ident">FiniteDimensionalModule</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">module_gens_from_json</span>(
-        <span class="ident">gens</span>: <span class="kw-2">&amp;</span><span class="ident">Value</span>,
-    ) -&gt; (
-        <span class="ident">BiVec</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span>,
-        <span class="ident">BiVec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-        <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">String</span>, (<span class="ident">i32</span>, <span class="ident">usize</span>)<span class="op">&gt;</span>,
-    ) {
-        <span class="kw">let</span> <span class="ident">gens</span> <span class="op">=</span> <span class="ident">gens</span>.<span class="ident">as_object</span>().<span class="ident">unwrap</span>();
-
-        <span class="kw">let</span> <span class="ident">degrees</span> <span class="op">=</span> <span class="ident">gens</span>
-            .<span class="ident">iter</span>()
-            .<span class="ident">map</span>(<span class="op">|</span>(<span class="kw">_</span>, <span class="ident">x</span>)<span class="op">|</span> <span class="ident">x</span>.<span class="ident">as_i64</span>().<span class="ident">unwrap</span>() <span class="kw">as</span> <span class="ident">i32</span>)
-            .<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span>();
-
-        <span class="kw">let</span> <span class="ident">min_degree</span> <span class="op">=</span> <span class="ident">degrees</span>.<span class="ident">iter</span>().<span class="ident">copied</span>().<span class="ident">min</span>().<span class="ident">unwrap_or</span>(<span class="number">0</span>);
-        <span class="kw">let</span> <span class="ident">max_degree</span> <span class="op">=</span> <span class="ident">degrees</span>.<span class="ident">iter</span>().<span class="ident">copied</span>().<span class="ident">max</span>().<span class="ident">unwrap_or</span>(<span class="op">-</span><span class="number">1</span>) <span class="op">+</span> <span class="number">1</span>;
-
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">gen_to_idx</span> <span class="op">=</span> <span class="ident">HashMap::default</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">graded_dimension</span> <span class="op">=</span> <span class="ident">BiVec::with_capacity</span>(<span class="ident">min_degree</span>, <span class="ident">max_degree</span>);
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">gen_names</span> <span class="op">=</span> <span class="ident">BiVec::with_capacity</span>(<span class="ident">min_degree</span>, <span class="ident">max_degree</span>);
-
-        <span class="kw">for</span> <span class="kw">_</span> <span class="kw">in</span> <span class="ident">min_degree</span>..<span class="ident">max_degree</span> {
-            <span class="ident">graded_dimension</span>.<span class="ident">push</span>(<span class="number">0</span>);
-            <span class="ident">gen_names</span>.<span class="ident">push</span>(<span class="macro">vec!</span>[]);
-        }
-
-        <span class="kw">for</span> (<span class="ident">name</span>, <span class="ident">degree</span>) <span class="kw">in</span> <span class="ident">gens</span> {
-            <span class="kw">let</span> <span class="ident">degree</span> <span class="op">=</span> <span class="ident">degree</span>.<span class="ident">as_i64</span>().<span class="ident">unwrap</span>() <span class="kw">as</span> <span class="ident">i32</span>;
-            <span class="ident">gen_names</span>[<span class="ident">degree</span>].<span class="ident">push</span>(<span class="ident">name</span>.<span class="ident">clone</span>());
-            <span class="ident">gen_to_idx</span>.<span class="ident">insert</span>(<span class="ident">name</span>.<span class="ident">clone</span>(), (<span class="ident">degree</span>, <span class="ident">graded_dimension</span>[<span class="ident">degree</span>]));
-            <span class="ident">graded_dimension</span>[<span class="ident">degree</span>] <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
-        }
-        (<span class="ident">graded_dimension</span>, <span class="ident">gen_names</span>, <span class="ident">gen_to_idx</span>)
-    }
-
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_json</span>(<span class="ident">algebra</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>, <span class="ident">json</span>: <span class="kw-2">&amp;</span><span class="ident">Value</span>) -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> (<span class="ident">graded_dimension</span>, <span class="ident">gen_names</span>, <span class="ident">gen_to_idx</span>) <span class="op">=</span> <span class="ident"><span class="self">Self</span>::module_gens_from_json</span>(<span class="kw-2">&amp;</span><span class="ident">json</span>[<span class="string">&quot;gens&quot;</span>]);
+        <span class="kw">let</span> (<span class="ident">graded_dimension</span>, <span class="ident">gen_names</span>, <span class="ident">gen_to_idx</span>) <span class="op">=</span> <span class="ident"><span class="kw">crate</span>::module_gens_from_json</span>(<span class="kw-2">&amp;</span><span class="ident">json</span>[<span class="string">&quot;gens&quot;</span>]);
         <span class="kw">let</span> <span class="ident">name</span> <span class="op">=</span> <span class="ident">json</span>[<span class="string">&quot;name&quot;</span>].<span class="ident">as_str</span>().<span class="ident">unwrap_or</span>(<span class="string">&quot;&quot;</span>).<span class="ident">to_string</span>();
 
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident"><span class="self">Self</span>::new</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">algebra</span>), <span class="ident">name</span>, <span class="ident">graded_dimension</span>.<span class="ident">clone</span>());
@@ -1455,12 +1356,15 @@
             <span class="kw">return</span>;
         }
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">output_vec</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="self">self</span>.<span class="ident">dimension</span>(<span class="ident">output_deg</span>));
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">tmp_output</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="self">self</span>.<span class="ident">dimension</span>(<span class="ident">output_deg</span>));
         <span class="kw">let</span> <span class="ident">generators</span> <span class="op">=</span> <span class="ident">algebra</span>.<span class="ident">generators</span>(<span class="ident">op_deg</span>);
         <span class="kw">for</span> <span class="ident">idx</span> <span class="kw">in</span> <span class="number">0</span>..<span class="self">self</span>.<span class="ident">dimension</span>(<span class="ident">input_deg</span>) {
             <span class="kw">for</span> <span class="ident">op_idx</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">algebra</span>.<span class="ident">dimension</span>(<span class="ident">op_deg</span>) {
                 <span class="kw">if</span> <span class="op">!</span><span class="ident">generators</span>.<span class="ident">contains</span>(<span class="kw-2">&amp;</span><span class="ident">op_idx</span>) {
+                    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">output_vec</span> <span class="op">=</span> <span class="ident">std::mem::replace</span>(
+                        <span class="kw-2">&amp;mut</span> <span class="self">self</span>.<span class="ident">actions</span>[<span class="ident">input_deg</span>][<span class="ident">output_deg</span>][<span class="ident">op_idx</span>][<span class="ident">idx</span>],
+                        <span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="number">0</span>),
+                    );
                     <span class="kw">let</span> <span class="ident">decomposition</span> <span class="op">=</span> <span class="ident">algebra</span>.<span class="ident">decompose_basis_element</span>(<span class="ident">op_deg</span>, <span class="ident">op_idx</span>);
                     <span class="kw">for</span> (<span class="ident">coef</span>, (<span class="ident">deg_1</span>, <span class="ident">idx_1</span>), (<span class="ident">deg_2</span>, <span class="ident">idx_2</span>)) <span class="kw">in</span> <span class="ident">decomposition</span> {
                         <span class="kw">let</span> <span class="ident">intermediate_dim</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">dimension</span>(<span class="ident">input_deg</span> <span class="op">+</span> <span class="ident">deg_2</span>);
@@ -1485,9 +1389,11 @@
                         );
                         <span class="ident">tmp_output</span>.<span class="ident">set_to_zero</span>();
                     }
-                    <span class="self">self</span>.<span class="ident">set_action_vector</span>(<span class="ident">op_deg</span>, <span class="ident">op_idx</span>, <span class="ident">input_deg</span>, <span class="ident">idx</span>, <span class="kw-2">&amp;</span><span class="ident">output_vec</span>);
+                    <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">std::mem::replace</span>(
+                        <span class="kw-2">&amp;mut</span> <span class="self">self</span>.<span class="ident">actions</span>[<span class="ident">input_deg</span>][<span class="ident">output_deg</span>][<span class="ident">op_idx</span>][<span class="ident">idx</span>],
+                        <span class="ident">output_vec</span>,
+                    );
                 }
-                <span class="ident">output_vec</span>.<span class="ident">set_to_zero</span>();
             }
         }
     }
@@ -1548,10 +1454,10 @@
         <span class="ident">adem_module</span>.<span class="ident">set_basis_element_name</span>(<span class="number">1</span>, <span class="number">0</span>, <span class="string">&quot;x10&quot;</span>.<span class="ident">to_string</span>());
         <span class="ident">adem_module</span>.<span class="ident">set_basis_element_name</span>(<span class="number">1</span>, <span class="number">1</span>, <span class="string">&quot;x11&quot;</span>.<span class="ident">to_string</span>());
         <span class="ident">adem_module</span>.<span class="ident">set_basis_element_name</span>(<span class="number">2</span>, <span class="number">0</span>, <span class="string">&quot;x2&quot;</span>.<span class="ident">to_string</span>());
-        <span class="ident">adem_module</span>.<span class="ident">set_action_vector</span>(<span class="number">1</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="kw-2">&amp;</span><span class="ident">FpVector::from_slice</span>(<span class="ident">p</span>, <span class="kw-2">&amp;</span>[<span class="number">1</span>, <span class="number">1</span>]));
-        <span class="ident">adem_module</span>.<span class="ident">set_action_vector</span>(<span class="number">1</span>, <span class="number">0</span>, <span class="number">1</span>, <span class="number">0</span>, <span class="kw-2">&amp;</span><span class="ident">FpVector::from_slice</span>(<span class="ident">p</span>, <span class="kw-2">&amp;</span>[<span class="number">1</span>]));
-        <span class="ident">adem_module</span>.<span class="ident">set_action_vector</span>(<span class="number">1</span>, <span class="number">0</span>, <span class="number">1</span>, <span class="number">1</span>, <span class="kw-2">&amp;</span><span class="ident">FpVector::from_slice</span>(<span class="ident">p</span>, <span class="kw-2">&amp;</span>[<span class="number">1</span>]));
-        <span class="ident">adem_module</span>.<span class="ident">set_action_vector</span>(<span class="number">2</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="kw-2">&amp;</span><span class="ident">FpVector::from_slice</span>(<span class="ident">p</span>, <span class="kw-2">&amp;</span>[<span class="number">1</span>]));
+        <span class="ident">adem_module</span>.<span class="ident">set_action</span>(<span class="number">1</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="kw-2">&amp;</span>[<span class="number">1</span>, <span class="number">1</span>]);
+        <span class="ident">adem_module</span>.<span class="ident">set_action</span>(<span class="number">1</span>, <span class="number">0</span>, <span class="number">1</span>, <span class="number">0</span>, <span class="kw-2">&amp;</span>[<span class="number">1</span>]);
+        <span class="ident">adem_module</span>.<span class="ident">set_action</span>(<span class="number">1</span>, <span class="number">0</span>, <span class="number">1</span>, <span class="number">1</span>, <span class="kw-2">&amp;</span>[<span class="number">1</span>]);
+        <span class="ident">adem_module</span>.<span class="ident">set_action</span>(<span class="number">2</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="kw-2">&amp;</span>[<span class="number">1</span>]);
         <span class="ident">adem_module</span>.<span class="ident">check_validity</span>(<span class="number">0</span>, <span class="number">2</span>).<span class="ident">unwrap</span>();
     }
 }

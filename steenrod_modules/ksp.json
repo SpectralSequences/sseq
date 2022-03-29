@@ -2,15 +2,6 @@
     "p": 2,
     "type": "finitely presented module",
     "gens": { "x0": 0 },
-    "adem_relations": [
-        [{ "op": [1], "gen": "x0", "coeff": 1 }],
-        [
-            { "op": [5], "gen": "x0", "coeff": 1 },
-            { "op": [4, 1], "gen": "x0", "coeff": 1 }
-        ]
-    ],
-    "milnor_relations": [
-        [{ "op": [1], "gen": "x0", "coeff": 1 }],
-        [{ "op": [2, 1], "gen": "x0", "coeff": 1 }]
-    ]
+    "adem_relations": ["Sq1 x0", "Sq5 x0 + Sq4 Sq1 x0"],
+    "milnor_relations": ["P(1) x0", "P(2, 1) x0"]
 }
