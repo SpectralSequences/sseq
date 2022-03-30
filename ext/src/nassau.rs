@@ -119,7 +119,8 @@ impl MilnorSubalgebra {
                       start: [offset],
                       end: _,
                   }| {
-                algebra.ppart_table[(degree - gen_deg) as usize]
+                algebra
+                    .ppart_table(degree - gen_deg)
                     .iter()
                     .enumerate()
                     .filter_map(move |(n, op)| {

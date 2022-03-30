@@ -162,8 +162,8 @@ unsafe fn shift_vec<T>(v: &mut Vec<T>, offset: isize) {
 /// An [`Algebra`] implementing the Steenrod algebra, using the Adem basis.
 pub struct AdemAlgebra {
     p: ValidPrime,
-    pub generic: bool,
-    pub unstable_enabled: bool,
+    generic: bool,
+    unstable_enabled: bool,
     lock: Mutex<()>,
 
     even_basis_table: OnceVec<Vec<AdemBasisElement>>,
@@ -495,6 +495,10 @@ impl AdemAlgebra {
             excess_table,
             sort_order,
         }
+    }
+
+    pub fn generic(&self) -> bool {
+        self.generic
     }
 
     pub fn q(&self) -> i32 {

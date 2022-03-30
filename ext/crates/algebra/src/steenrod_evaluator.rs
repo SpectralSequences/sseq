@@ -338,7 +338,7 @@ impl SteenrodEvaluator {
     fn adem_q(&self, result: &mut FpVector, coeff: u32, qi: u32) {
         let p = self.prime();
         let degree = crate::algebra::combinatorics::tau_degrees(p)[qi as usize];
-        let mbe = if self.adem.generic {
+        let mbe = if self.adem.generic() {
             MilnorBasisElement {
                 degree,
                 q_part: 1 << qi,

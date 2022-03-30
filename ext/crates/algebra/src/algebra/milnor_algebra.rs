@@ -276,9 +276,9 @@ pub struct MilnorAlgebra {
     p: ValidPrime,
     #[cfg(feature = "odd-primes")]
     generic: bool,
-    pub ppart_table: OnceVec<Vec<PPart>>,
+    ppart_table: OnceVec<Vec<PPart>>,
     qpart_table: Vec<OnceVec<QPart>>,
-    pub basis_table: OnceVec<Vec<MilnorBasisElement>>,
+    basis_table: OnceVec<Vec<MilnorBasisElement>>,
     basis_element_to_index_map: OnceVec<MilnorHashMap<usize>>, // degree -> MilnorBasisElement -> index
     #[cfg(feature = "cache-multiplication")]
     multiplication_table: OnceVec<OnceVec<Vec<Vec<FpVector>>>>, // source_deg -> target_deg -> source_op -> target_op
@@ -336,6 +336,7 @@ impl MilnorAlgebra {
     pub fn profile(&self) -> &MilnorProfile {
         &self.profile
     }
+
     pub fn basis_element_from_index(&self, degree: i32, idx: usize) -> &MilnorBasisElement {
         &self.basis_table[degree as usize][idx]
     }
@@ -349,6 +350,11 @@ impl MilnorAlgebra {
     pub fn basis_element_to_index(&self, elt: &MilnorBasisElement) -> usize {
         self.try_basis_element_to_index(elt)
             .unwrap_or_else(|| panic!("Didn't find element: {:?}", elt))
+    }
+
+    /// Gives a list of PPart's in degree `t`.
+    pub fn ppart_table(&self, t: i32) -> &[PPart] {
+        &self.ppart_table[t as usize]
     }
 }
 
