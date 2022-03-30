@@ -209,7 +209,7 @@ pub fn interactive_module_define_fpmodule(
 
     loop {
         let relation = query::raw("Enter relation", |rel| {
-            let result = ev.evaluate_module(rel)?;
+            let result = ev.evaluate_module_adem(rel)?;
 
             if result.is_empty() {
                 return Ok(result);

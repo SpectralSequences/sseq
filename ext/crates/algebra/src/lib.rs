@@ -5,7 +5,7 @@
 
 pub mod module;
 pub mod steenrod_evaluator;
-pub mod steenrod_parser;
+pub(crate) mod steenrod_parser;
 
 //pub mod dense_bigraded_algebra;
 

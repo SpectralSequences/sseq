@@ -21,6 +21,57 @@ impl SteenrodEvaluator {
         }
     }
 
+    pub fn milnor_to_adem(&self, result: &mut FpVector, coeff: u32, degree: i32, input: &FpVector) {
+        let p = self.prime();
+        for (i, v) in input.iter_nonzero() {
+            self.milnor_to_adem_on_basis(result, (coeff * v) % *p, degree, i);
+        }
+    }
+
+    pub fn adem_to_milnor(&self, result: &mut FpVector, coeff: u32, degree: i32, input: &FpVector) {
+        let p = self.prime();
+        for (i, v) in input.iter_nonzero() {
+            self.adem_to_milnor_on_basis(result, (coeff * v) % *p, degree, i);
+        }
+    }
+
+    pub fn evaluate_algebra_adem(&self, input: &str) -> anyhow::Result<(i32, FpVector)> {
+        self.evaluate_algebra_node(None, parse_algebra(input)?)
+    }
+
+    pub fn evaluate_algebra_milnor(&self, input: &str) -> anyhow::Result<(i32, FpVector)> {
+        let adem_result = self.evaluate_algebra_adem(input);
+        if let Ok((degree, adem_vector)) = adem_result {
+            let mut milnor_vector = FpVector::new(adem_vector.prime(), adem_vector.len());
+            self.adem_to_milnor(&mut milnor_vector, 1, degree, &adem_vector);
+            Ok((degree, milnor_vector))
+        } else {
+            adem_result
+        }
+    }
+
+    /// # Returns
+    /// This returns a [`BTreeMap`] so that we get deterministic outputs for testing purposes
+    pub fn evaluate_module_adem(
+        &self,
+        items: &str,
+    ) -> anyhow::Result<BTreeMap<String, (i32, FpVector)>> {
+        let mut result: BTreeMap<String, (i32, FpVector)> = BTreeMap::new();
+        if items.is_empty() {
+            return Ok(result);
+        }
+        for (op, gen) in parse_module(items)? {
+            if let Some((deg, vec)) = result.get_mut(&gen) {
+                let (_, adem_v) = self.evaluate_algebra_node(Some(*deg), op)?;
+                vec.add(&adem_v, 1);
+            } else {
+                let (deg, adem_v) = self.evaluate_algebra_node(None, op)?;
+                result.insert(gen, (deg, adem_v));
+            }
+        }
+        Ok(result)
+    }
+
     fn prime(&self) -> ValidPrime {
         self.adem.prime()
     }
@@ -34,7 +85,7 @@ impl SteenrodEvaluator {
         self.adem.dimension(degree)
     }
 
-    fn evaluate_algebra_tree_helper(
+    fn evaluate_algebra_node(
         &self,
         mut output_degree: Option<i32>,
         tree: AlgebraNode,
@@ -42,15 +93,13 @@ impl SteenrodEvaluator {
         let p = self.prime();
         match tree {
             AlgebraNode::Sum(left, right) => {
-                let (degree_left, mut output_left) =
-                    self.evaluate_algebra_tree_helper(output_degree, *left)?;
-                let (_degree_right, output_right) =
-                    self.evaluate_algebra_tree_helper(Some(degree_left), *right)?;
+                let (degree, mut output_left) = self.evaluate_algebra_node(output_degree, *left)?;
+                let (_, output_right) = self.evaluate_algebra_node(Some(degree), *right)?;
                 output_left += &output_right;
-                Ok((degree_left, output_left))
+                Ok((degree, output_left))
             }
             AlgebraNode::Product(left, right) => {
-                let (degree_left, output_left) = self.evaluate_algebra_tree_helper(None, *left)?;
+                let (degree_left, output_left) = self.evaluate_algebra_node(None, *left)?;
                 if let Some(degree) = output_degree {
                     if degree < degree_left {
                         return Err(anyhow!("Mismatched degree"));
@@ -58,7 +107,7 @@ impl SteenrodEvaluator {
                     output_degree = Some(degree - degree_left);
                 }
                 let (degree_right, output_right) =
-                    self.evaluate_algebra_tree_helper(output_degree, *right)?;
+                    self.evaluate_algebra_node(output_degree, *right)?;
                 let degree = degree_left + degree_right;
                 self.compute_basis(degree);
                 let mut result = FpVector::new(p, self.adem.dimension(degree));
@@ -82,8 +131,7 @@ impl SteenrodEvaluator {
                     }
                 }
                 let mut result = FpVector::new(p, 1);
-                let p = *p as i32;
-                result.set_entry(0, (((x % p) + p) % p) as u32);
+                result.set_entry(0, x.rem_euclid(*p as i32) as u32);
                 Ok((0, result))
             }
         }
@@ -97,7 +145,7 @@ impl SteenrodEvaluator {
         let p = self.prime();
         let q = self.adem.q();
         let (degree, result) = match basis_elt {
-            AlgebraBasisElt::AList(p_or_b_list) => evaluate_p_or_b_list(&self.adem, &p_or_b_list),
+            AlgebraBasisElt::AList(p_or_b_list) => self.evaluate_p_or_b_list(&p_or_b_list),
             AlgebraBasisElt::PList(p_list) => {
                 let degree = std::iter::zip(crate::algebra::combinatorics::xi_degrees(p), &p_list)
                     .map(|(&a, &b)| a * b as i32)
@@ -143,31 +191,10 @@ impl SteenrodEvaluator {
         Ok((degree, result))
     }
 
-    pub fn evaluate_algebra_adem(&self, input: &str) -> anyhow::Result<(i32, FpVector)> {
-        self.evaluate_algebra_tree_helper(None, parse_algebra(input)?)
-    }
-
-    pub fn evaluate_algebra_milnor(&self, input: &str) -> anyhow::Result<(i32, FpVector)> {
-        let adem_result = self.evaluate_algebra_adem(input);
-        if let Ok((degree, adem_vector)) = adem_result {
-            let mut milnor_vector = FpVector::new(adem_vector.prime(), adem_vector.len());
-            self.adem_to_milnor(&mut milnor_vector, 1, degree, &adem_vector);
-            Ok((degree, milnor_vector))
-        } else {
-            adem_result
-        }
-    }
-
     /// Translate from the adem basis to the milnor basis, adding `coeff` times the result to `result`.
     /// This uses the fact that that $P^n = P(n)$ and $Q_1 = \beta$ and multiplies out the admissible
     /// monomial.
-    pub fn adem_to_milnor_on_basis(
-        &self,
-        result: &mut FpVector,
-        coeff: u32,
-        degree: i32,
-        idx: usize,
-    ) {
+    fn adem_to_milnor_on_basis(&self, result: &mut FpVector, coeff: u32, degree: i32, idx: usize) {
         let elt = self.adem.basis_element_from_index(degree, idx);
         let p = self.prime();
         let dim = self.dimension(elt.degree);
@@ -214,22 +241,9 @@ impl SteenrodEvaluator {
         }
     }
 
-    pub fn adem_to_milnor(&self, result: &mut FpVector, coeff: u32, degree: i32, input: &FpVector) {
-        let p = self.prime();
-        for (i, v) in input.iter_nonzero() {
-            self.adem_to_milnor_on_basis(result, (coeff * v) % *p, degree, i);
-        }
-    }
-
     // This is currently pretty inefficient... We should memoize results so that we don't repeatedly
     // recompute the same inverse.
-    pub fn milnor_to_adem_on_basis(
-        &self,
-        result: &mut FpVector,
-        coeff: u32,
-        degree: i32,
-        idx: usize,
-    ) {
+    fn milnor_to_adem_on_basis(&self, result: &mut FpVector, coeff: u32, degree: i32, idx: usize) {
         if self.milnor.generic() {
             self.milnor_to_adem_on_basis_generic(result, coeff, degree, idx);
         } else {
@@ -320,15 +334,8 @@ impl SteenrodEvaluator {
         result.add_basis_element(t_idx, coeff);
     }
 
-    pub fn milnor_to_adem(&self, result: &mut FpVector, coeff: u32, degree: i32, input: &FpVector) {
-        let p = self.prime();
-        for (i, v) in input.iter_nonzero() {
-            self.milnor_to_adem_on_basis(result, (coeff * v) % *p, degree, i);
-        }
-    }
-
     /// Express $Q_{qi}$ in the adem basis.
-    pub fn adem_q(&self, result: &mut FpVector, coeff: u32, qi: u32) {
+    fn adem_q(&self, result: &mut FpVector, coeff: u32, qi: u32) {
         let p = self.prime();
         let degree = crate::algebra::combinatorics::tau_degrees(p)[qi as usize];
         let mbe = if self.adem.generic {
@@ -350,57 +357,35 @@ impl SteenrodEvaluator {
         self.milnor_to_adem_on_basis(result, coeff, degree, idx);
     }
 
-    /// # Returns
-    /// This returns a [`BTreeMap`] so that we get deterministic outputs for testing purposes
-    pub fn evaluate_module(
-        &self,
-        items: &str,
-    ) -> anyhow::Result<BTreeMap<String, (i32, FpVector)>> {
-        let mut result: BTreeMap<String, (i32, FpVector)> = BTreeMap::new();
-        if items.is_empty() {
-            return Ok(result);
+    fn evaluate_p_or_b_list(&self, list: &[BocksteinOrSq]) -> (i32, FpVector) {
+        let p = self.prime();
+        let q = self.adem.q();
+
+        let mut total_degree = 0;
+
+        let mut tmp_vector_a = FpVector::new(p, 1);
+        let mut tmp_vector_b = FpVector::new(p, 0);
+
+        tmp_vector_a.set_entry(0, 1);
+
+        for item in list {
+            let cur_elt = item.to_adem_basis_elt(q);
+
+            self.compute_basis(total_degree + cur_elt.degree);
+            tmp_vector_b.set_scratch_vector_size(self.dimension(total_degree + cur_elt.degree));
+            self.adem.multiply_element_by_basis_element(
+                tmp_vector_b.as_slice_mut(),
+                1,
+                total_degree,
+                tmp_vector_a.as_slice(),
+                cur_elt.degree,
+                self.adem.basis_element_to_index(&cur_elt),
+            );
+            total_degree += cur_elt.degree;
+            std::mem::swap(&mut tmp_vector_a, &mut tmp_vector_b);
         }
-        for (op, gen) in parse_module(items)? {
-            if let Some((deg, vec)) = result.get_mut(&gen) {
-                let (_, adem_v) = self.evaluate_algebra_tree_helper(Some(*deg), op)?;
-                vec.add(&adem_v, 1);
-            } else {
-                let (deg, adem_v) = self.evaluate_algebra_tree_helper(None, op)?;
-                result.insert(gen, (deg, adem_v));
-            }
-        }
-        Ok(result)
+        (total_degree, tmp_vector_a)
     }
-}
-
-fn evaluate_p_or_b_list(adem_algebra: &AdemAlgebra, list: &[BocksteinOrSq]) -> (i32, FpVector) {
-    let p = adem_algebra.prime();
-    let q = adem_algebra.q();
-
-    let mut total_degree = 0;
-
-    let mut tmp_vector_a = FpVector::new(p, 1);
-    let mut tmp_vector_b = FpVector::new(p, 0);
-
-    tmp_vector_a.set_entry(0, 1);
-
-    for item in list {
-        let cur_elt = item.to_adem_basis_elt(q);
-
-        adem_algebra.compute_basis(total_degree + cur_elt.degree);
-        tmp_vector_b.set_scratch_vector_size(adem_algebra.dimension(total_degree + cur_elt.degree));
-        adem_algebra.multiply_element_by_basis_element(
-            tmp_vector_b.as_slice_mut(),
-            1,
-            total_degree,
-            tmp_vector_a.as_slice(),
-            cur_elt.degree,
-            adem_algebra.basis_element_to_index(&cur_elt),
-        );
-        total_degree += cur_elt.degree;
-        std::mem::swap(&mut tmp_vector_a, &mut tmp_vector_b);
-    }
-    (total_degree, tmp_vector_a)
 }
 
 #[cfg(test)]

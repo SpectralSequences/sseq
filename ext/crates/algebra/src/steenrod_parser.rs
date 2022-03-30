@@ -1,3 +1,6 @@
+//! This module includes code for parsing an expression in the Steenrod algebra into an abstract
+//! syntax tree.
+
 use anyhow::{anyhow, Context};
 use nom::{
     branch::alt,
