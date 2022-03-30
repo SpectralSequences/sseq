@@ -9,7 +9,6 @@ use {
     crate::algebra::GeneratedAlgebra,
     crate::module::ModuleFailedRelationError,
     anyhow::{anyhow, Context},
-    rustc_hash::FxHashMap as HashMap,
     serde::Deserialize,
     serde_json::{json, value::Value},
 };
@@ -493,7 +492,7 @@ impl<A: GeneratedAlgebra> FiniteDimensionalModule<A> {
 
     pub fn parse_action(
         &mut self,
-        gen_to_idx: &HashMap<String, (i32, usize)>,
+        gen_to_idx: impl for<'a> Fn(&'a str) -> anyhow::Result<(i32, usize)>,
         entry: &str,
         overwrite: bool,
     ) -> anyhow::Result<()> {
@@ -511,9 +510,7 @@ impl<A: GeneratedAlgebra> FiniteDimensionalModule<A> {
             .basis_element_from_string(action)
             .ok_or_else(|| anyhow!("Invalid algebra element: {action}"))?;
 
-        let (input_deg, input_idx) = *gen_to_idx
-            .get(gen.trim())
-            .with_context(|| format!("Invalid generator: {}", gen.trim()))?;
+        let (input_deg, input_idx) = gen_to_idx(gen.trim())?;
 
         let row = self.action_mut(op_deg, op_idx, input_deg, input_idx);
 
@@ -534,10 +531,7 @@ impl<A: GeneratedAlgebra> FiniteDimensionalModule<A> {
                 ),
                 None => (1, item),
             };
-            let (deg, idx) = *gen_to_idx
-                .get(gen)
-                .ok_or_else(|| anyhow!("Invalid generator: {}", gen.trim()))?;
-
+            let (deg, idx) = gen_to_idx(gen.trim())?;
             if deg != input_deg + op_deg {
                 return Err(anyhow!(
                     "Degree of {gen} is {deg} but degree of LHS is {}",

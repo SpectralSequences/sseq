@@ -105,10 +105,9 @@ impl<A: Algebra> FinitelyPresentedModule<A> {
 
         let p = algebra.prime();
         let name = json["name"].as_str().unwrap_or("").to_string();
-        let gens = &json["gens"];
-        let (num_gens_in_degree, gen_names, gen_to_deg_idx) = crate::module_gens_from_json(gens);
+        let (_, gen_names, gen_to_deg_idx) = crate::module_gens_from_json(&json["gens"]);
 
-        let min_degree = num_gens_in_degree.min_degree();
+        let min_degree = gen_names.min_degree();
         let mut result = Self::new(Arc::clone(&algebra), name, min_degree);
 
         for (i, gen_names) in gen_names.into_iter_enum() {
@@ -132,7 +131,7 @@ impl<A: Algebra> FinitelyPresentedModule<A> {
                     let (op_deg, op_idx) = algebra
                         .basis_element_from_string(op)
                         .ok_or_else(|| anyhow!("Invalid term in relation: {term}"))?;
-                    let (gen_deg, gen_idx) = gen_to_deg_idx[gen];
+                    let (gen_deg, gen_idx) = gen_to_deg_idx(gen)?;
 
                     if v.is_empty() {
                         deg = op_deg + gen_deg;

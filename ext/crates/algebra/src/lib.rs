@@ -19,8 +19,9 @@ pub(crate) fn module_gens_from_json(
 ) -> (
     bivec::BiVec<usize>,
     bivec::BiVec<Vec<String>>,
-    rustc_hash::FxHashMap<String, (i32, usize)>,
+    impl for<'a> Fn(&'a str) -> anyhow::Result<(i32, usize)> + '_,
 ) {
+    use anyhow::anyhow;
     let gens = gens.as_object().unwrap();
 
     let degrees = gens
@@ -46,5 +47,10 @@ pub(crate) fn module_gens_from_json(
         gen_to_idx.insert(name.clone(), (degree, graded_dimension[degree]));
         graded_dimension[degree] += 1;
     }
-    (graded_dimension, gen_names, gen_to_idx)
+    (graded_dimension, gen_names, move |gen| {
+        gen_to_idx
+            .get(gen)
+            .copied()
+            .ok_or_else(|| anyhow!("Invalid generator: {gen}"))
+    })
 }
