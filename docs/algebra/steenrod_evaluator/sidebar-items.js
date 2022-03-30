@@ -1,1 +1,1 @@
-initSidebarItems({"fn":[["evaluate_p_or_b_list",""]],"struct":[["SteenrodEvaluator",""]]});
+initSidebarItems({"struct":[["SteenrodEvaluator",""]]});

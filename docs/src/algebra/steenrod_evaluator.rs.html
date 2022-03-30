@@ -534,21 +534,6 @@
 <span id="507">507</span>
 <span id="508">508</span>
 <span id="509">509</span>
-<span id="510">510</span>
-<span id="511">511</span>
-<span id="512">512</span>
-<span id="513">513</span>
-<span id="514">514</span>
-<span id="515">515</span>
-<span id="516">516</span>
-<span id="517">517</span>
-<span id="518">518</span>
-<span id="519">519</span>
-<span id="520">520</span>
-<span id="521">521</span>
-<span id="522">522</span>
-<span id="523">523</span>
-<span id="524">524</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::algebra::adem_algebra::AdemBasisElement</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::algebra</span>::{<span class="ident">AdemAlgebra</span>, <span class="ident">Algebra</span>, <span class="ident">MilnorAlgebra</span>};
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::milnor_algebra</span>::{<span class="ident">MilnorBasisElement</span>, <span class="ident">PPartEntry</span>};
@@ -572,6 +557,57 @@
         }
     }
 
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">milnor_to_adem</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">result</span>: <span class="kw-2">&amp;mut</span> <span class="ident">FpVector</span>, <span class="ident">coeff</span>: <span class="ident">u32</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">input</span>: <span class="kw-2">&amp;</span><span class="ident">FpVector</span>) {
+        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prime</span>();
+        <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">v</span>) <span class="kw">in</span> <span class="ident">input</span>.<span class="ident">iter_nonzero</span>() {
+            <span class="self">self</span>.<span class="ident">milnor_to_adem_on_basis</span>(<span class="ident">result</span>, (<span class="ident">coeff</span> <span class="op">*</span> <span class="ident">v</span>) <span class="op">%</span> <span class="kw-2">*</span><span class="ident">p</span>, <span class="ident">degree</span>, <span class="ident">i</span>);
+        }
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">adem_to_milnor</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">result</span>: <span class="kw-2">&amp;mut</span> <span class="ident">FpVector</span>, <span class="ident">coeff</span>: <span class="ident">u32</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">input</span>: <span class="kw-2">&amp;</span><span class="ident">FpVector</span>) {
+        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prime</span>();
+        <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">v</span>) <span class="kw">in</span> <span class="ident">input</span>.<span class="ident">iter_nonzero</span>() {
+            <span class="self">self</span>.<span class="ident">adem_to_milnor_on_basis</span>(<span class="ident">result</span>, (<span class="ident">coeff</span> <span class="op">*</span> <span class="ident">v</span>) <span class="op">%</span> <span class="kw-2">*</span><span class="ident">p</span>, <span class="ident">degree</span>, <span class="ident">i</span>);
+        }
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">evaluate_algebra_adem</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">input</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span>(<span class="ident">i32</span>, <span class="ident">FpVector</span>)<span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">evaluate_algebra_node</span>(<span class="prelude-val">None</span>, <span class="ident">parse_algebra</span>(<span class="ident">input</span>)<span class="question-mark">?</span>)
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">evaluate_algebra_milnor</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">input</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span>(<span class="ident">i32</span>, <span class="ident">FpVector</span>)<span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">adem_result</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">evaluate_algebra_adem</span>(<span class="ident">input</span>);
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Ok</span>((<span class="ident">degree</span>, <span class="ident">adem_vector</span>)) <span class="op">=</span> <span class="ident">adem_result</span> {
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">milnor_vector</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="ident">adem_vector</span>.<span class="ident">prime</span>(), <span class="ident">adem_vector</span>.<span class="ident">len</span>());
+            <span class="self">self</span>.<span class="ident">adem_to_milnor</span>(<span class="kw-2">&amp;mut</span> <span class="ident">milnor_vector</span>, <span class="number">1</span>, <span class="ident">degree</span>, <span class="kw-2">&amp;</span><span class="ident">adem_vector</span>);
+            <span class="prelude-val">Ok</span>((<span class="ident">degree</span>, <span class="ident">milnor_vector</span>))
+        } <span class="kw">else</span> {
+            <span class="ident">adem_result</span>
+        }
+    }
+
+    <span class="doccomment">/// # Returns</span>
+    <span class="doccomment">/// This returns a [`BTreeMap`] so that we get deterministic outputs for testing purposes</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">evaluate_module_adem</span>(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        <span class="ident">items</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>,
+    ) -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span><span class="ident">BTreeMap</span><span class="op">&lt;</span><span class="ident">String</span>, (<span class="ident">i32</span>, <span class="ident">FpVector</span>)<span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span>: <span class="ident">BTreeMap</span><span class="op">&lt;</span><span class="ident">String</span>, (<span class="ident">i32</span>, <span class="ident">FpVector</span>)<span class="op">&gt;</span> <span class="op">=</span> <span class="ident">BTreeMap::new</span>();
+        <span class="kw">if</span> <span class="ident">items</span>.<span class="ident">is_empty</span>() {
+            <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">result</span>);
+        }
+        <span class="kw">for</span> (<span class="ident">op</span>, <span class="ident">gen</span>) <span class="kw">in</span> <span class="ident">parse_module</span>(<span class="ident">items</span>)<span class="question-mark">?</span> {
+            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>((<span class="ident">deg</span>, <span class="ident">vec</span>)) <span class="op">=</span> <span class="ident">result</span>.<span class="ident">get_mut</span>(<span class="kw-2">&amp;</span><span class="ident">gen</span>) {
+                <span class="kw">let</span> (<span class="kw">_</span>, <span class="ident">adem_v</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">evaluate_algebra_node</span>(<span class="prelude-val">Some</span>(<span class="kw-2">*</span><span class="ident">deg</span>), <span class="ident">op</span>)<span class="question-mark">?</span>;
+                <span class="ident">vec</span>.<span class="ident">add</span>(<span class="kw-2">&amp;</span><span class="ident">adem_v</span>, <span class="number">1</span>);
+            } <span class="kw">else</span> {
+                <span class="kw">let</span> (<span class="ident">deg</span>, <span class="ident">adem_v</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">evaluate_algebra_node</span>(<span class="prelude-val">None</span>, <span class="ident">op</span>)<span class="question-mark">?</span>;
+                <span class="ident">result</span>.<span class="ident">insert</span>(<span class="ident">gen</span>, (<span class="ident">deg</span>, <span class="ident">adem_v</span>));
+            }
+        }
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>)
+    }
+
     <span class="kw">fn</span> <span class="ident">prime</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">ValidPrime</span> {
         <span class="self">self</span>.<span class="ident">adem</span>.<span class="ident">prime</span>()
     }
@@ -585,7 +621,7 @@
         <span class="self">self</span>.<span class="ident">adem</span>.<span class="ident">dimension</span>(<span class="ident">degree</span>)
     }
 
-    <span class="kw">fn</span> <span class="ident">evaluate_algebra_tree_helper</span>(
+    <span class="kw">fn</span> <span class="ident">evaluate_algebra_node</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         <span class="kw-2">mut</span> <span class="ident">output_degree</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">i32</span><span class="op">&gt;</span>,
         <span class="ident">tree</span>: <span class="ident">AlgebraNode</span>,
@@ -593,15 +629,13 @@
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prime</span>();
         <span class="kw">match</span> <span class="ident">tree</span> {
             <span class="ident">AlgebraNode::Sum</span>(<span class="ident">left</span>, <span class="ident">right</span>) =&gt; {
-                <span class="kw">let</span> (<span class="ident">degree_left</span>, <span class="kw-2">mut</span> <span class="ident">output_left</span>) <span class="op">=</span>
-                    <span class="self">self</span>.<span class="ident">evaluate_algebra_tree_helper</span>(<span class="ident">output_degree</span>, <span class="kw-2">*</span><span class="ident">left</span>)<span class="question-mark">?</span>;
-                <span class="kw">let</span> (<span class="ident">_degree_right</span>, <span class="ident">output_right</span>) <span class="op">=</span>
-                    <span class="self">self</span>.<span class="ident">evaluate_algebra_tree_helper</span>(<span class="prelude-val">Some</span>(<span class="ident">degree_left</span>), <span class="kw-2">*</span><span class="ident">right</span>)<span class="question-mark">?</span>;
+                <span class="kw">let</span> (<span class="ident">degree</span>, <span class="kw-2">mut</span> <span class="ident">output_left</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">evaluate_algebra_node</span>(<span class="ident">output_degree</span>, <span class="kw-2">*</span><span class="ident">left</span>)<span class="question-mark">?</span>;
+                <span class="kw">let</span> (<span class="kw">_</span>, <span class="ident">output_right</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">evaluate_algebra_node</span>(<span class="prelude-val">Some</span>(<span class="ident">degree</span>), <span class="kw-2">*</span><span class="ident">right</span>)<span class="question-mark">?</span>;
                 <span class="ident">output_left</span> <span class="op">+</span><span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">output_right</span>;
-                <span class="prelude-val">Ok</span>((<span class="ident">degree_left</span>, <span class="ident">output_left</span>))
+                <span class="prelude-val">Ok</span>((<span class="ident">degree</span>, <span class="ident">output_left</span>))
             }
             <span class="ident">AlgebraNode::Product</span>(<span class="ident">left</span>, <span class="ident">right</span>) =&gt; {
-                <span class="kw">let</span> (<span class="ident">degree_left</span>, <span class="ident">output_left</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">evaluate_algebra_tree_helper</span>(<span class="prelude-val">None</span>, <span class="kw-2">*</span><span class="ident">left</span>)<span class="question-mark">?</span>;
+                <span class="kw">let</span> (<span class="ident">degree_left</span>, <span class="ident">output_left</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">evaluate_algebra_node</span>(<span class="prelude-val">None</span>, <span class="kw-2">*</span><span class="ident">left</span>)<span class="question-mark">?</span>;
                 <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">degree</span>) <span class="op">=</span> <span class="ident">output_degree</span> {
                     <span class="kw">if</span> <span class="ident">degree</span> <span class="op">&lt;</span> <span class="ident">degree_left</span> {
                         <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(<span class="string">&quot;Mismatched degree&quot;</span>));
@@ -609,7 +643,7 @@
                     <span class="ident">output_degree</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">degree</span> <span class="op">-</span> <span class="ident">degree_left</span>);
                 }
                 <span class="kw">let</span> (<span class="ident">degree_right</span>, <span class="ident">output_right</span>) <span class="op">=</span>
-                    <span class="self">self</span>.<span class="ident">evaluate_algebra_tree_helper</span>(<span class="ident">output_degree</span>, <span class="kw-2">*</span><span class="ident">right</span>)<span class="question-mark">?</span>;
+                    <span class="self">self</span>.<span class="ident">evaluate_algebra_node</span>(<span class="ident">output_degree</span>, <span class="kw-2">*</span><span class="ident">right</span>)<span class="question-mark">?</span>;
                 <span class="kw">let</span> <span class="ident">degree</span> <span class="op">=</span> <span class="ident">degree_left</span> <span class="op">+</span> <span class="ident">degree_right</span>;
                 <span class="self">self</span>.<span class="ident">compute_basis</span>(<span class="ident">degree</span>);
                 <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="self">self</span>.<span class="ident">adem</span>.<span class="ident">dimension</span>(<span class="ident">degree</span>));
@@ -633,8 +667,7 @@
                     }
                 }
                 <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="number">1</span>);
-                <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="kw-2">*</span><span class="ident">p</span> <span class="kw">as</span> <span class="ident">i32</span>;
-                <span class="ident">result</span>.<span class="ident">set_entry</span>(<span class="number">0</span>, (((<span class="ident">x</span> <span class="op">%</span> <span class="ident">p</span>) <span class="op">+</span> <span class="ident">p</span>) <span class="op">%</span> <span class="ident">p</span>) <span class="kw">as</span> <span class="ident">u32</span>);
+                <span class="ident">result</span>.<span class="ident">set_entry</span>(<span class="number">0</span>, <span class="ident">x</span>.<span class="ident">rem_euclid</span>(<span class="kw-2">*</span><span class="ident">p</span> <span class="kw">as</span> <span class="ident">i32</span>) <span class="kw">as</span> <span class="ident">u32</span>);
                 <span class="prelude-val">Ok</span>((<span class="number">0</span>, <span class="ident">result</span>))
             }
         }
@@ -648,7 +681,7 @@
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prime</span>();
         <span class="kw">let</span> <span class="ident">q</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">adem</span>.<span class="ident">q</span>();
         <span class="kw">let</span> (<span class="ident">degree</span>, <span class="ident">result</span>) <span class="op">=</span> <span class="kw">match</span> <span class="ident">basis_elt</span> {
-            <span class="ident">AlgebraBasisElt::AList</span>(<span class="ident">p_or_b_list</span>) =&gt; <span class="ident">evaluate_p_or_b_list</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">adem</span>, <span class="kw-2">&amp;</span><span class="ident">p_or_b_list</span>),
+            <span class="ident">AlgebraBasisElt::AList</span>(<span class="ident">p_or_b_list</span>) =&gt; <span class="self">self</span>.<span class="ident">evaluate_p_or_b_list</span>(<span class="kw-2">&amp;</span><span class="ident">p_or_b_list</span>),
             <span class="ident">AlgebraBasisElt::PList</span>(<span class="ident">p_list</span>) =&gt; {
                 <span class="kw">let</span> <span class="ident">degree</span> <span class="op">=</span> <span class="ident">std::iter::zip</span>(<span class="ident"><span class="kw">crate</span>::algebra::combinatorics::xi_degrees</span>(<span class="ident">p</span>), <span class="kw-2">&amp;</span><span class="ident">p_list</span>)
                     .<span class="ident">map</span>(<span class="op">|</span>(<span class="kw-2">&amp;</span><span class="ident">a</span>, <span class="kw-2">&amp;</span><span class="ident">b</span>)<span class="op">|</span> <span class="ident">a</span> <span class="op">*</span> <span class="ident">b</span> <span class="kw">as</span> <span class="ident">i32</span>)
@@ -694,31 +727,10 @@
         <span class="prelude-val">Ok</span>((<span class="ident">degree</span>, <span class="ident">result</span>))
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">evaluate_algebra_adem</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">input</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span>(<span class="ident">i32</span>, <span class="ident">FpVector</span>)<span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">evaluate_algebra_tree_helper</span>(<span class="prelude-val">None</span>, <span class="ident">parse_algebra</span>(<span class="ident">input</span>)<span class="question-mark">?</span>)
-    }
-
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">evaluate_algebra_milnor</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">input</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span>(<span class="ident">i32</span>, <span class="ident">FpVector</span>)<span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">adem_result</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">evaluate_algebra_adem</span>(<span class="ident">input</span>);
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Ok</span>((<span class="ident">degree</span>, <span class="ident">adem_vector</span>)) <span class="op">=</span> <span class="ident">adem_result</span> {
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">milnor_vector</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="ident">adem_vector</span>.<span class="ident">prime</span>(), <span class="ident">adem_vector</span>.<span class="ident">len</span>());
-            <span class="self">self</span>.<span class="ident">adem_to_milnor</span>(<span class="kw-2">&amp;mut</span> <span class="ident">milnor_vector</span>, <span class="number">1</span>, <span class="ident">degree</span>, <span class="kw-2">&amp;</span><span class="ident">adem_vector</span>);
-            <span class="prelude-val">Ok</span>((<span class="ident">degree</span>, <span class="ident">milnor_vector</span>))
-        } <span class="kw">else</span> {
-            <span class="ident">adem_result</span>
-        }
-    }
-
     <span class="doccomment">/// Translate from the adem basis to the milnor basis, adding `coeff` times the result to `result`.</span>
     <span class="doccomment">/// This uses the fact that that $P^n = P(n)$ and $Q_1 = \beta$ and multiplies out the admissible</span>
     <span class="doccomment">/// monomial.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">adem_to_milnor_on_basis</span>(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">result</span>: <span class="kw-2">&amp;mut</span> <span class="ident">FpVector</span>,
-        <span class="ident">coeff</span>: <span class="ident">u32</span>,
-        <span class="ident">degree</span>: <span class="ident">i32</span>,
-        <span class="ident">idx</span>: <span class="ident">usize</span>,
-    ) {
+    <span class="kw">fn</span> <span class="ident">adem_to_milnor_on_basis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">result</span>: <span class="kw-2">&amp;mut</span> <span class="ident">FpVector</span>, <span class="ident">coeff</span>: <span class="ident">u32</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">idx</span>: <span class="ident">usize</span>) {
         <span class="kw">let</span> <span class="ident">elt</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">adem</span>.<span class="ident">basis_element_from_index</span>(<span class="ident">degree</span>, <span class="ident">idx</span>);
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prime</span>();
         <span class="kw">let</span> <span class="ident">dim</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">dimension</span>(<span class="ident">elt</span>.<span class="ident">degree</span>);
@@ -765,22 +777,9 @@
         }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">adem_to_milnor</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">result</span>: <span class="kw-2">&amp;mut</span> <span class="ident">FpVector</span>, <span class="ident">coeff</span>: <span class="ident">u32</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">input</span>: <span class="kw-2">&amp;</span><span class="ident">FpVector</span>) {
-        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prime</span>();
-        <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">v</span>) <span class="kw">in</span> <span class="ident">input</span>.<span class="ident">iter_nonzero</span>() {
-            <span class="self">self</span>.<span class="ident">adem_to_milnor_on_basis</span>(<span class="ident">result</span>, (<span class="ident">coeff</span> <span class="op">*</span> <span class="ident">v</span>) <span class="op">%</span> <span class="kw-2">*</span><span class="ident">p</span>, <span class="ident">degree</span>, <span class="ident">i</span>);
-        }
-    }
-
     <span class="comment">// This is currently pretty inefficient... We should memoize results so that we don&#39;t repeatedly</span>
     <span class="comment">// recompute the same inverse.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">milnor_to_adem_on_basis</span>(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">result</span>: <span class="kw-2">&amp;mut</span> <span class="ident">FpVector</span>,
-        <span class="ident">coeff</span>: <span class="ident">u32</span>,
-        <span class="ident">degree</span>: <span class="ident">i32</span>,
-        <span class="ident">idx</span>: <span class="ident">usize</span>,
-    ) {
+    <span class="kw">fn</span> <span class="ident">milnor_to_adem_on_basis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">result</span>: <span class="kw-2">&amp;mut</span> <span class="ident">FpVector</span>, <span class="ident">coeff</span>: <span class="ident">u32</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">idx</span>: <span class="ident">usize</span>) {
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">milnor</span>.<span class="ident">generic</span>() {
             <span class="self">self</span>.<span class="ident">milnor_to_adem_on_basis_generic</span>(<span class="ident">result</span>, <span class="ident">coeff</span>, <span class="ident">degree</span>, <span class="ident">idx</span>);
         } <span class="kw">else</span> {
@@ -871,18 +870,11 @@
         <span class="ident">result</span>.<span class="ident">add_basis_element</span>(<span class="ident">t_idx</span>, <span class="ident">coeff</span>);
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">milnor_to_adem</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">result</span>: <span class="kw-2">&amp;mut</span> <span class="ident">FpVector</span>, <span class="ident">coeff</span>: <span class="ident">u32</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">input</span>: <span class="kw-2">&amp;</span><span class="ident">FpVector</span>) {
-        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prime</span>();
-        <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">v</span>) <span class="kw">in</span> <span class="ident">input</span>.<span class="ident">iter_nonzero</span>() {
-            <span class="self">self</span>.<span class="ident">milnor_to_adem_on_basis</span>(<span class="ident">result</span>, (<span class="ident">coeff</span> <span class="op">*</span> <span class="ident">v</span>) <span class="op">%</span> <span class="kw-2">*</span><span class="ident">p</span>, <span class="ident">degree</span>, <span class="ident">i</span>);
-        }
-    }
-
     <span class="doccomment">/// Express $Q_{qi}$ in the adem basis.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">adem_q</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">result</span>: <span class="kw-2">&amp;mut</span> <span class="ident">FpVector</span>, <span class="ident">coeff</span>: <span class="ident">u32</span>, <span class="ident">qi</span>: <span class="ident">u32</span>) {
+    <span class="kw">fn</span> <span class="ident">adem_q</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">result</span>: <span class="kw-2">&amp;mut</span> <span class="ident">FpVector</span>, <span class="ident">coeff</span>: <span class="ident">u32</span>, <span class="ident">qi</span>: <span class="ident">u32</span>) {
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prime</span>();
         <span class="kw">let</span> <span class="ident">degree</span> <span class="op">=</span> <span class="ident"><span class="kw">crate</span>::algebra::combinatorics::tau_degrees</span>(<span class="ident">p</span>)[<span class="ident">qi</span> <span class="kw">as</span> <span class="ident">usize</span>];
-        <span class="kw">let</span> <span class="ident">mbe</span> <span class="op">=</span> <span class="kw">if</span> <span class="self">self</span>.<span class="ident">adem</span>.<span class="ident">generic</span> {
+        <span class="kw">let</span> <span class="ident">mbe</span> <span class="op">=</span> <span class="kw">if</span> <span class="self">self</span>.<span class="ident">adem</span>.<span class="ident">generic</span>() {
             <span class="ident">MilnorBasisElement</span> {
                 <span class="ident">degree</span>,
                 <span class="ident">q_part</span>: <span class="number">1</span> <span class="op">&lt;</span><span class="op">&lt;</span> <span class="ident">qi</span>,
@@ -901,57 +893,35 @@
         <span class="self">self</span>.<span class="ident">milnor_to_adem_on_basis</span>(<span class="ident">result</span>, <span class="ident">coeff</span>, <span class="ident">degree</span>, <span class="ident">idx</span>);
     }
 
-    <span class="doccomment">/// # Returns</span>
-    <span class="doccomment">/// This returns a [`BTreeMap`] so that we get deterministic outputs for testing purposes</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">evaluate_module</span>(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">items</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>,
-    ) -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span><span class="ident">BTreeMap</span><span class="op">&lt;</span><span class="ident">String</span>, (<span class="ident">i32</span>, <span class="ident">FpVector</span>)<span class="op">&gt;</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span>: <span class="ident">BTreeMap</span><span class="op">&lt;</span><span class="ident">String</span>, (<span class="ident">i32</span>, <span class="ident">FpVector</span>)<span class="op">&gt;</span> <span class="op">=</span> <span class="ident">BTreeMap::new</span>();
-        <span class="kw">if</span> <span class="ident">items</span>.<span class="ident">is_empty</span>() {
-            <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">result</span>);
+    <span class="kw">fn</span> <span class="ident">evaluate_p_or_b_list</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">list</span>: <span class="kw-2">&amp;</span>[<span class="ident">BocksteinOrSq</span>]) -&gt; (<span class="ident">i32</span>, <span class="ident">FpVector</span>) {
+        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prime</span>();
+        <span class="kw">let</span> <span class="ident">q</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">adem</span>.<span class="ident">q</span>();
+
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">total_degree</span> <span class="op">=</span> <span class="number">0</span>;
+
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">tmp_vector_a</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="number">1</span>);
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">tmp_vector_b</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="number">0</span>);
+
+        <span class="ident">tmp_vector_a</span>.<span class="ident">set_entry</span>(<span class="number">0</span>, <span class="number">1</span>);
+
+        <span class="kw">for</span> <span class="ident">item</span> <span class="kw">in</span> <span class="ident">list</span> {
+            <span class="kw">let</span> <span class="ident">cur_elt</span> <span class="op">=</span> <span class="ident">item</span>.<span class="ident">to_adem_basis_elt</span>(<span class="ident">q</span>);
+
+            <span class="self">self</span>.<span class="ident">compute_basis</span>(<span class="ident">total_degree</span> <span class="op">+</span> <span class="ident">cur_elt</span>.<span class="ident">degree</span>);
+            <span class="ident">tmp_vector_b</span>.<span class="ident">set_scratch_vector_size</span>(<span class="self">self</span>.<span class="ident">dimension</span>(<span class="ident">total_degree</span> <span class="op">+</span> <span class="ident">cur_elt</span>.<span class="ident">degree</span>));
+            <span class="self">self</span>.<span class="ident">adem</span>.<span class="ident">multiply_element_by_basis_element</span>(
+                <span class="ident">tmp_vector_b</span>.<span class="ident">as_slice_mut</span>(),
+                <span class="number">1</span>,
+                <span class="ident">total_degree</span>,
+                <span class="ident">tmp_vector_a</span>.<span class="ident">as_slice</span>(),
+                <span class="ident">cur_elt</span>.<span class="ident">degree</span>,
+                <span class="self">self</span>.<span class="ident">adem</span>.<span class="ident">basis_element_to_index</span>(<span class="kw-2">&amp;</span><span class="ident">cur_elt</span>),
+            );
+            <span class="ident">total_degree</span> <span class="op">+</span><span class="op">=</span> <span class="ident">cur_elt</span>.<span class="ident">degree</span>;
+            <span class="ident">std::mem::swap</span>(<span class="kw-2">&amp;mut</span> <span class="ident">tmp_vector_a</span>, <span class="kw-2">&amp;mut</span> <span class="ident">tmp_vector_b</span>);
         }
-        <span class="kw">for</span> (<span class="ident">op</span>, <span class="ident">gen</span>) <span class="kw">in</span> <span class="ident">parse_module</span>(<span class="ident">items</span>)<span class="question-mark">?</span> {
-            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>((<span class="ident">deg</span>, <span class="ident">vec</span>)) <span class="op">=</span> <span class="ident">result</span>.<span class="ident">get_mut</span>(<span class="kw-2">&amp;</span><span class="ident">gen</span>) {
-                <span class="kw">let</span> (<span class="kw">_</span>, <span class="ident">adem_v</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">evaluate_algebra_tree_helper</span>(<span class="prelude-val">Some</span>(<span class="kw-2">*</span><span class="ident">deg</span>), <span class="ident">op</span>)<span class="question-mark">?</span>;
-                <span class="ident">vec</span>.<span class="ident">add</span>(<span class="kw-2">&amp;</span><span class="ident">adem_v</span>, <span class="number">1</span>);
-            } <span class="kw">else</span> {
-                <span class="kw">let</span> (<span class="ident">deg</span>, <span class="ident">adem_v</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">evaluate_algebra_tree_helper</span>(<span class="prelude-val">None</span>, <span class="ident">op</span>)<span class="question-mark">?</span>;
-                <span class="ident">result</span>.<span class="ident">insert</span>(<span class="ident">gen</span>, (<span class="ident">deg</span>, <span class="ident">adem_v</span>));
-            }
-        }
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>)
+        (<span class="ident">total_degree</span>, <span class="ident">tmp_vector_a</span>)
     }
-}
-
-<span class="kw">fn</span> <span class="ident">evaluate_p_or_b_list</span>(<span class="ident">adem_algebra</span>: <span class="kw-2">&amp;</span><span class="ident">AdemAlgebra</span>, <span class="ident">list</span>: <span class="kw-2">&amp;</span>[<span class="ident">BocksteinOrSq</span>]) -&gt; (<span class="ident">i32</span>, <span class="ident">FpVector</span>) {
-    <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">adem_algebra</span>.<span class="ident">prime</span>();
-    <span class="kw">let</span> <span class="ident">q</span> <span class="op">=</span> <span class="ident">adem_algebra</span>.<span class="ident">q</span>();
-
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">total_degree</span> <span class="op">=</span> <span class="number">0</span>;
-
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">tmp_vector_a</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="number">1</span>);
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">tmp_vector_b</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="number">0</span>);
-
-    <span class="ident">tmp_vector_a</span>.<span class="ident">set_entry</span>(<span class="number">0</span>, <span class="number">1</span>);
-
-    <span class="kw">for</span> <span class="ident">item</span> <span class="kw">in</span> <span class="ident">list</span> {
-        <span class="kw">let</span> <span class="ident">cur_elt</span> <span class="op">=</span> <span class="ident">item</span>.<span class="ident">to_adem_basis_elt</span>(<span class="ident">q</span>);
-
-        <span class="ident">adem_algebra</span>.<span class="ident">compute_basis</span>(<span class="ident">total_degree</span> <span class="op">+</span> <span class="ident">cur_elt</span>.<span class="ident">degree</span>);
-        <span class="ident">tmp_vector_b</span>.<span class="ident">set_scratch_vector_size</span>(<span class="ident">adem_algebra</span>.<span class="ident">dimension</span>(<span class="ident">total_degree</span> <span class="op">+</span> <span class="ident">cur_elt</span>.<span class="ident">degree</span>));
-        <span class="ident">adem_algebra</span>.<span class="ident">multiply_element_by_basis_element</span>(
-            <span class="ident">tmp_vector_b</span>.<span class="ident">as_slice_mut</span>(),
-            <span class="number">1</span>,
-            <span class="ident">total_degree</span>,
-            <span class="ident">tmp_vector_a</span>.<span class="ident">as_slice</span>(),
-            <span class="ident">cur_elt</span>.<span class="ident">degree</span>,
-            <span class="ident">adem_algebra</span>.<span class="ident">basis_element_to_index</span>(<span class="kw-2">&amp;</span><span class="ident">cur_elt</span>),
-        );
-        <span class="ident">total_degree</span> <span class="op">+</span><span class="op">=</span> <span class="ident">cur_elt</span>.<span class="ident">degree</span>;
-        <span class="ident">std::mem::swap</span>(<span class="kw-2">&amp;mut</span> <span class="ident">tmp_vector_a</span>, <span class="kw-2">&amp;mut</span> <span class="ident">tmp_vector_b</span>);
-    }
-    (<span class="ident">total_degree</span>, <span class="ident">tmp_vector_a</span>)
 }
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>

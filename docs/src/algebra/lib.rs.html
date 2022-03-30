@@ -75,6 +75,12 @@
 <span id="48">48</span>
 <span id="49">49</span>
 <span id="50">50</span>
+<span id="51">51</span>
+<span id="52">52</span>
+<span id="53">53</span>
+<span id="54">54</span>
+<span id="55">55</span>
+<span id="56">56</span>
 </pre><pre class="rust"><code><span class="doccomment">//! Types and traits for working with various algebras and modules, with</span>
 <span class="doccomment">//! a focus on the Steenrod algebra and its modules.</span>
 
@@ -82,7 +88,7 @@
 
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">module</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">steenrod_evaluator</span>;
-<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">steenrod_parser</span>;
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod</span> <span class="ident">steenrod_parser</span>;
 
 <span class="comment">//pub mod dense_bigraded_algebra;</span>
 
@@ -96,8 +102,9 @@
 ) -&gt; (
     <span class="ident">bivec::BiVec</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span>,
     <span class="ident">bivec::BiVec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    <span class="ident">rustc_hash::FxHashMap</span><span class="op">&lt;</span><span class="ident">String</span>, (<span class="ident">i32</span>, <span class="ident">usize</span>)<span class="op">&gt;</span>,
+    <span class="kw">impl</span> <span class="kw">for</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> <span class="ident">Fn</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">str</span>) -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span>(<span class="ident">i32</span>, <span class="ident">usize</span>)<span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;_</span>,
 ) {
+    <span class="kw">use</span> <span class="ident">anyhow::anyhow</span>;
     <span class="kw">let</span> <span class="ident">gens</span> <span class="op">=</span> <span class="ident">gens</span>.<span class="ident">as_object</span>().<span class="ident">unwrap</span>();
 
     <span class="kw">let</span> <span class="ident">degrees</span> <span class="op">=</span> <span class="ident">gens</span>
@@ -123,7 +130,12 @@
         <span class="ident">gen_to_idx</span>.<span class="ident">insert</span>(<span class="ident">name</span>.<span class="ident">clone</span>(), (<span class="ident">degree</span>, <span class="ident">graded_dimension</span>[<span class="ident">degree</span>]));
         <span class="ident">graded_dimension</span>[<span class="ident">degree</span>] <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
     }
-    (<span class="ident">graded_dimension</span>, <span class="ident">gen_names</span>, <span class="ident">gen_to_idx</span>)
+    (<span class="ident">graded_dimension</span>, <span class="ident">gen_names</span>, <span class="kw">move</span> <span class="op">|</span><span class="ident">gen</span><span class="op">|</span> {
+        <span class="ident">gen_to_idx</span>
+            .<span class="ident">get</span>(<span class="ident">gen</span>)
+            .<span class="ident">copied</span>()
+            .<span class="ident">ok_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="macro">anyhow!</span>(<span class="string">&quot;Invalid generator: {gen}&quot;</span>))
+    })
 }
 </code></pre></div>
 </section><section id="search" class="content hidden"></section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="algebra" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.59.0 (9d1b2106e 2022-02-23)" ></div>

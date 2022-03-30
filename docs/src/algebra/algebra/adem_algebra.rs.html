@@ -1741,6 +1741,10 @@
 <span id="1714">1714</span>
 <span id="1715">1715</span>
 <span id="1716">1716</span>
+<span id="1717">1717</span>
+<span id="1718">1718</span>
+<span id="1719">1719</span>
+<span id="1720">1720</span>
 </pre><pre class="rust"><code><span class="doccomment">//! The Steenrod algebra using the Adem basis.</span>
 
 <span class="kw">use</span> <span class="ident">std::cmp::Ordering</span>;
@@ -1905,8 +1909,8 @@
 <span class="doccomment">/// An [`Algebra`] implementing the Steenrod algebra, using the Adem basis.</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">AdemAlgebra</span> {
     <span class="ident">p</span>: <span class="ident">ValidPrime</span>,
-    <span class="kw">pub</span> <span class="ident">generic</span>: <span class="ident">bool</span>,
-    <span class="kw">pub</span> <span class="ident">unstable_enabled</span>: <span class="ident">bool</span>,
+    <span class="ident">generic</span>: <span class="ident">bool</span>,
+    <span class="ident">unstable_enabled</span>: <span class="ident">bool</span>,
     <span class="ident">lock</span>: <span class="ident">Mutex</span><span class="op">&lt;</span>()<span class="op">&gt;</span>,
 
     <span class="ident">even_basis_table</span>: <span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">AdemBasisElement</span><span class="op">&gt;</span><span class="op">&gt;</span>,
@@ -2238,6 +2242,10 @@
             <span class="ident">excess_table</span>,
             <span class="ident">sort_order</span>,
         }
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">generic</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">bool</span> {
+        <span class="self">self</span>.<span class="ident">generic</span>
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">q</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">i32</span> {

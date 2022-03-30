@@ -1303,6 +1303,7 @@
 <span id="1276">1276</span>
 <span id="1277">1277</span>
 <span id="1278">1278</span>
+<span id="1279">1279</span>
 </pre><pre class="rust"><code><span class="doccomment">//! This module implements [Nassau&#39;s algorithm](https://arxiv.org/abs/1910.04063). The main export</span>
 <span class="doccomment">//! is the [`Resolution`] object, which is a resolution of the sphere at the prime 2 using Nassau&#39;s</span>
 <span class="doccomment">//! algorithm. It aims to provide an API similar to</span>
@@ -1424,7 +1425,8 @@
                       <span class="ident">start</span>: [<span class="ident">offset</span>],
                       <span class="ident">end</span>: <span class="kw">_</span>,
                   }<span class="op">|</span> {
-                <span class="ident">algebra</span>.<span class="ident">ppart_table</span>[(<span class="ident">degree</span> <span class="op">-</span> <span class="ident">gen_deg</span>) <span class="kw">as</span> <span class="ident">usize</span>]
+                <span class="ident">algebra</span>
+                    .<span class="ident">ppart_table</span>(<span class="ident">degree</span> <span class="op">-</span> <span class="ident">gen_deg</span>)
                     .<span class="ident">iter</span>()
                     .<span class="ident">enumerate</span>()
                     .<span class="ident">filter_map</span>(<span class="kw">move</span> <span class="op">|</span>(<span class="ident">n</span>, <span class="ident">op</span>)<span class="op">|</span> {
