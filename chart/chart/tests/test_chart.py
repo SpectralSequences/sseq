@@ -113,7 +113,7 @@ class StateMachinePythonToJavascript(HypothesisStateMachine):
             )
         chart._clear_batched_messages()
 
-    @rule()
+#    @rule()
     def update_1(self):
         self.chart.update()
         s1 = JSON.stringify(self.chart)
