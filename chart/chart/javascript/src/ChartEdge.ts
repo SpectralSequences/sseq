@@ -297,11 +297,11 @@ abstract class SinglePageChartEdge extends ChartEdge {
         super(kwargs);
         this.start_tip = kwargs.start_tip;
         this.end_tip = kwargs.end_tip;
-        this.bend = kwargs.bend || 0;
+        this.bend = kwargs.bend !== undefined ? kwargs.bend : 0;
         this.color = kwargs.color || Black;
         this.dash_pattern = kwargs.dash_pattern || [];
-        this.line_width = kwargs.line_width || DefaultLineWidth;
-        this.visible = kwargs.visible || true;
+        this.line_width = kwargs.line_width !== undefined ? kwargs.line_width : DefaultLineWidth;
+        this.visible = kwargs.visible !== undefined ? kwargs.visible : true;
         this.action = kwargs.action || "";
     }
 

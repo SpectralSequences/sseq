@@ -89,11 +89,6 @@ class StateMachinePythonToJavascript(HypothesisStateMachine):
         self.chart.update = partial(self.update_patch, self.chart)
         self._driver_gen = node_driver()
         self.driver = next(self._driver_gen)
-        # print(self.driver(
-        #     """
-        #     return Array.from(getJsonTypes().keys());
-        #     """
-        # ))
         self.driver(
             f"""
             globalThis.chart = parse(JSON.parse({JSON.stringify(self.chart)!r}));
@@ -102,9 +97,7 @@ class StateMachinePythonToJavascript(HypothesisStateMachine):
 
     def update_patch(state_machine, chart):
         messages = chart._batched_messages
-        # print(state_machine.driver("return typeof globalThis.chart;"))
-        # print(state_machine.driver("return Reflect.ownKeys(globalThis.chart);"))
-        print("msgs:", JSON.stringify(messages))
+        # print("msgs:", JSON.stringify(messages))
         for msg in messages:
             state_machine.driver(
                 f"""
@@ -113,7 +106,7 @@ class StateMachinePythonToJavascript(HypothesisStateMachine):
             )
         chart._clear_batched_messages()
 
-#    @rule()
+    @rule()
     def update_1(self):
         self.chart.update()
         s1 = JSON.stringify(self.chart)
@@ -155,9 +148,9 @@ examples_list = {
 @pytest.mark.parametrize("c", examples_list.values(), ids=examples_list.keys())
 def test_js_python_serialization_agree(run_js, c):
     json1 = JSON.stringify(c)
-    print("json1:", json1)        
+    # print("json1:", json1)        
     json2 = run_js(f"return JSON.stringify(parse({json1}))")
-    print("json2:", json2)
+    # print("json2:", json2)
     o1 = json.loads(json1)
     o2 = json.loads(json2)
     o2.pop("color_vec", None)
