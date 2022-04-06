@@ -1,6 +1,5 @@
 mod chain_homotopy;
 mod finite_chain_complex;
-mod tensor_product_chain_complex;
 
 use crate::utils::unicode_num;
 use algebra::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
@@ -16,7 +15,6 @@ use itertools::Itertools;
 // pub use hom_complex::HomComplex;
 pub use chain_homotopy::ChainHomotopy;
 pub use finite_chain_complex::{FiniteAugmentedChainComplex, FiniteChainComplex};
-pub use tensor_product_chain_complex::TensorChainComplex;
 
 pub enum ChainComplexGrading {
     Homological,
