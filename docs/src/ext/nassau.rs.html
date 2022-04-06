@@ -1293,17 +1293,6 @@
 <span id="1266">1266</span>
 <span id="1267">1267</span>
 <span id="1268">1268</span>
-<span id="1269">1269</span>
-<span id="1270">1270</span>
-<span id="1271">1271</span>
-<span id="1272">1272</span>
-<span id="1273">1273</span>
-<span id="1274">1274</span>
-<span id="1275">1275</span>
-<span id="1276">1276</span>
-<span id="1277">1277</span>
-<span id="1278">1278</span>
-<span id="1279">1279</span>
 </pre><pre class="rust"><code><span class="doccomment">//! This module implements [Nassau&#39;s algorithm](https://arxiv.org/abs/1910.04063). The main export</span>
 <span class="doccomment">//! is the [`Resolution`] object, which is a resolution of the sphere at the prime 2 using Nassau&#39;s</span>
 <span class="doccomment">//! algorithm. It aims to provide an API similar to</span>
@@ -1863,7 +1852,7 @@
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dir</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">save_dir</span>() {
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="self">self</span>
                 .<span class="ident">save_file</span>(<span class="ident">SaveKind::NassauQi</span>, <span class="ident">s</span> <span class="op">-</span> <span class="number">1</span>, <span class="ident">t</span>)
-                .<span class="ident">create_file</span>(<span class="ident">dir</span>.<span class="ident">to_owned</span>());
+                .<span class="ident">create_file</span>(<span class="ident">dir</span>.<span class="ident">to_owned</span>(), <span class="bool-val">true</span>);
             <span class="ident">f</span>.<span class="ident">write_u64</span>::<span class="op">&lt;</span><span class="ident">LittleEndian</span><span class="op">&gt;</span>(<span class="ident">next</span>.<span class="ident">dimension</span>(<span class="ident">t</span>) <span class="kw">as</span> <span class="ident">u64</span>)
                 .<span class="ident">unwrap</span>();
             <span class="ident">f</span>.<span class="ident">write_u64</span>::<span class="op">&lt;</span><span class="ident">LittleEndian</span><span class="op">&gt;</span>(<span class="ident">target_masked_dim</span> <span class="kw">as</span> <span class="ident">u64</span>)
@@ -1995,7 +1984,7 @@
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dir</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">save_dir</span> {
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="self">self</span>
                 .<span class="ident">save_file</span>(<span class="ident">SaveKind::NassauDifferential</span>, <span class="ident">s</span>, <span class="ident">t</span>)
-                .<span class="ident">create_file</span>(<span class="ident">dir</span>.<span class="ident">clone</span>());
+                .<span class="ident">create_file</span>(<span class="ident">dir</span>.<span class="ident">clone</span>(), <span class="bool-val">false</span>);
             <span class="ident">f</span>.<span class="ident">write_u64</span>::<span class="op">&lt;</span><span class="ident">LittleEndian</span><span class="op">&gt;</span>(<span class="ident">num_new_gens</span> <span class="kw">as</span> <span class="ident">u64</span>).<span class="ident">unwrap</span>();
             <span class="ident">f</span>.<span class="ident">write_u64</span>::<span class="op">&lt;</span><span class="ident">LittleEndian</span><span class="op">&gt;</span>(<span class="ident">target_dim</span> <span class="kw">as</span> <span class="ident">u64</span>).<span class="ident">unwrap</span>();
 
@@ -2149,17 +2138,6 @@
                 <span class="ident">set_data</span>();
 
                 <span class="kw">return</span>;
-            } <span class="kw">else</span> {
-                <span class="comment">// The differential file does not exist. If the qi file exists, the program was</span>
-                <span class="comment">// killed halfway through computing this stem. Delete the qi file.</span>
-                <span class="self">self</span>.<span class="ident">save_file</span>(<span class="ident">SaveKind::NassauQi</span>, <span class="ident">s</span> <span class="op">-</span> <span class="number">1</span>, <span class="ident">t</span>)
-                    .<span class="ident">delete_file</span>(<span class="ident">dir</span>.<span class="ident">clone</span>())
-                    .<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> {
-                        <span class="macro">panic!</span>(
-                            <span class="string">&quot;Error when deleting partial save file at ({n}, {s}): {e:?}&quot;</span>,
-                            <span class="ident">n</span> <span class="op">=</span> <span class="ident">t</span> <span class="op">-</span> <span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span>
-                        )
-                    });
             }
         }
 
