@@ -428,8 +428,8 @@ mod sum_module {
 
         use super::*;
 
-        use algebra::{AdemAlgebra, SteenrodAlgebra};
         use algebra::module::FDModule;
+        use algebra::{AdemAlgebra, SteenrodAlgebra};
 
         #[test]
         fn test_sum_modules() {
