@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["TensorChainComplex",""],["TensorChainMap",""]],"type":[["STM",""],["TensorSquareCC",""]]});

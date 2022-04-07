@@ -422,8 +422,11 @@
 <span id="395">395</span>
 <span id="396">396</span>
 <span id="397">397</span>
+<span id="398">398</span>
+<span id="399">399</span>
 </pre><pre class="rust"><code><span class="kw">mod</span> <span class="ident">chain_homotopy</span>;
 <span class="kw">mod</span> <span class="ident">finite_chain_complex</span>;
+<span class="kw">mod</span> <span class="ident">tensor_product_chain_complex</span>;
 
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::utils::unicode_num</span>;
 <span class="kw">use</span> <span class="ident">algebra::module::homomorphism</span>::{<span class="ident">FreeModuleHomomorphism</span>, <span class="ident">ModuleHomomorphism</span>};
@@ -439,6 +442,7 @@
 <span class="comment">// pub use hom_complex::HomComplex;</span>
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">chain_homotopy::ChainHomotopy</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">finite_chain_complex</span>::{<span class="ident">FiniteAugmentedChainComplex</span>, <span class="ident">FiniteChainComplex</span>};
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">tensor_product_chain_complex::TensorChainComplex</span>;
 
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">ChainComplexGrading</span> {
     <span class="ident">Homological</span>,
