@@ -477,20 +477,17 @@ mod sum_module {
 
 mod tensor_product_chain_complex {
     use super::sum_module::SumModule;
-    use algebra::module::homomorphism::{FullModuleHomomorphism, ModuleHomomorphism};
+    use algebra::module::homomorphism::ModuleHomomorphism;
     use algebra::module::{Module, TensorModule, ZeroModule};
     use algebra::{Algebra, Bialgebra};
-    use ext::chain_complex::{AugmentedChainComplex, ChainComplex};
+    use ext::chain_complex::ChainComplex;
     use fp::matrix::Matrix;
     use fp::vector::{FpVector, Slice, SliceMut};
     use std::sync::Arc;
 
-    use bivec::BiVec;
     use once::{OnceBiVec, OnceVec};
 
     pub type Stm<M, N> = SumModule<TensorModule<M, N>>;
-
-    pub type TensorSquareCC<A, C> = TensorChainComplex<A, C, C>;
 
     pub struct TensorChainComplex<A, CC1, CC2>
     where
@@ -979,36 +976,6 @@ mod tensor_product_chain_complex {
         }
     }
 
-    /// This implementation assumes the target of the augmentation is k, which is the only case we need
-    /// for Steenrod operations.
-    impl<A, CC> AugmentedChainComplex for TensorSquareCC<A, CC>
-    where
-        A: Algebra + Bialgebra,
-        CC: AugmentedChainComplex<Algebra = A>,
-    {
-        type TargetComplex = CC::TargetComplex;
-        type ChainMap = FullModuleHomomorphism<
-            Stm<CC::Module, CC::Module>,
-            <CC::TargetComplex as ChainComplex>::Module,
-        >;
-
-        fn target(&self) -> Arc<Self::TargetComplex> {
-            self.left_cc.target()
-        }
-
-        fn chain_map(&self, s: u32) -> Arc<Self::ChainMap> {
-            assert_eq!(s, 0);
-            let target_module = self.left_cc.target().module(0);
-            assert!(target_module.is_unit());
-            Arc::new(FullModuleHomomorphism::from_matrices(
-                self.module(0),
-                target_module,
-                0,
-                BiVec::from_vec(0, vec![Matrix::from_vec(self.prime(), &[vec![1]])]),
-            ))
-        }
-    }
-
     #[cfg(test)]
     mod tests {
         use super::*;
@@ -1052,9 +1019,7 @@ mod tensor_product_chain_complex {
 
             let f =
                 ResolutionHomomorphism::new("".to_string(), Arc::clone(&resolution), square, 0, 0);
-            let mut mat = Matrix::new(p, 1, 1);
-            mat[0].set_entry(0, 1);
-            f.extend_step(0, 0, Some(&mat));
+            f.extend_step_raw(0, 0, Some(vec![FpVector::from_slice(p, &[1])]));
 
             f.extend(2 * s, 2 * t);
             let final_map = f.get_map(2 * s);
