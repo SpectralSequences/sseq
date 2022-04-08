@@ -7,7 +7,7 @@ use serde_json::Value;
 
 use algebra::module::FDModule;
 use algebra::steenrod_evaluator::SteenrodEvaluator;
-use algebra::{AdemAlgebra, Algebra, GeneratedAlgebra, SteenrodAlgebra};
+use algebra::{AdemAlgebra, Algebra, GeneratedAlgebra};
 use bivec::BiVec;
 use fp::prime::ValidPrime;
 use fp::vector::FpVector;
@@ -87,11 +87,8 @@ pub fn interactive_module_define_fdmodule(
     output_json: &mut Value,
     p: ValidPrime,
 ) -> anyhow::Result<()> {
-    let algebra = Arc::new(SteenrodAlgebra::AdemAlgebra(AdemAlgebra::new(
-        p,
-        *p != 2,
-        false,
-    )));
+    output_json["p"] = Value::from(*p);
+    let algebra = Arc::new(AdemAlgebra::new(p, *p != 2, false));
 
     let gens = get_gens()?;
     let min_degree = gens.min_degree();
@@ -164,7 +161,6 @@ pub fn interactive_module_define_fdmodule(
         }
     }
 
-    algebra.to_json(output_json);
     module.to_json(output_json);
     Ok(())
 }

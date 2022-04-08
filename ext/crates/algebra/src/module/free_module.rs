@@ -695,14 +695,14 @@ mod tests {
 
     use super::*;
 
-    use crate::algebra::{AdemAlgebra, SteenrodAlgebra};
+    use crate::algebra::AdemAlgebra;
     use fp::prime::ValidPrime;
     use fp::vector::FpVector;
 
     #[test]
     fn test_free_mod() {
         let p = ValidPrime::new(2);
-        let A = Arc::new(SteenrodAlgebra::from(AdemAlgebra::new(p, *p != 2, false)));
+        let A = Arc::new(AdemAlgebra::new(p, *p != 2, false));
         A.compute_basis(10);
         let M = FreeModule::new(Arc::clone(&A), "".to_string(), 0);
         M.compute_basis(10);

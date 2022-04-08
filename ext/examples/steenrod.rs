@@ -429,7 +429,7 @@ mod sum_module {
         use super::*;
 
         use algebra::module::FDModule;
-        use algebra::{AdemAlgebra, SteenrodAlgebra};
+        use algebra::AdemAlgebra;
 
         #[test]
         fn test_sum_modules() {
@@ -448,9 +448,9 @@ mod sum_module {
 
         fn test_sum_module(M: Vec<&str>, S: &str) {
             let p = fp::prime::ValidPrime::new(2);
-            let A = Arc::new(SteenrodAlgebra::from(AdemAlgebra::new(p, *p != 2, false)));
+            let A = Arc::new(AdemAlgebra::new(p, *p != 2, false));
 
-            let M: Vec<Arc<FDModule<SteenrodAlgebra>>> = M
+            let M: Vec<Arc<FDModule<AdemAlgebra>>> = M
                 .into_iter()
                 .map(|s| {
                     let m = serde_json::from_str(s).unwrap();

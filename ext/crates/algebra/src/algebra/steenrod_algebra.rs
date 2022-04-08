@@ -68,18 +68,6 @@ pub enum SteenrodAlgebra {
     MilnorAlgebra(MilnorAlgebra),
 }
 
-impl From<AdemAlgebra> for SteenrodAlgebra {
-    fn from(adem: AdemAlgebra) -> SteenrodAlgebra {
-        SteenrodAlgebra::AdemAlgebra(adem)
-    }
-}
-
-impl From<MilnorAlgebra> for SteenrodAlgebra {
-    fn from(milnor: MilnorAlgebra) -> SteenrodAlgebra {
-        SteenrodAlgebra::MilnorAlgebra(milnor)
-    }
-}
-
 impl std::fmt::Display for SteenrodAlgebra {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
@@ -182,30 +170,12 @@ impl SteenrodAlgebra {
         }
 
         Ok(match algebra_type {
-            AlgebraType::Adem => AdemAlgebra::new(spec.p, *spec.p != 2, false).into(),
-            AlgebraType::Milnor => {
-                MilnorAlgebra::new_with_profile(spec.p, spec.profile.unwrap_or_default()).into()
-            }
+            AlgebraType::Adem => Self::AdemAlgebra(AdemAlgebra::new(spec.p, *spec.p != 2, false)),
+            AlgebraType::Milnor => Self::MilnorAlgebra(MilnorAlgebra::new_with_profile(
+                spec.p,
+                spec.profile.unwrap_or_default(),
+            )),
         })
-    }
-
-    pub fn to_json(&self, json: &mut Value) {
-        json["p"] = Value::from(*self.prime());
-        if let SteenrodAlgebra::MilnorAlgebra(a) = self {
-            let profile = a.profile();
-
-            if !profile.is_trivial() {
-                json["algebra"] = Value::from(vec!["milnor"]);
-                json["profile"] = Value::Object(serde_json::map::Map::with_capacity(3));
-                json["profile"]["truncated"] = Value::Bool(profile.truncated);
-                if profile.q_part != !0 {
-                    json["profile"]["q_part"] = Value::from(profile.q_part);
-                }
-                if !profile.p_part.is_empty() {
-                    json["profile"]["p_part"] = Value::from(profile.p_part.clone());
-                }
-            }
-        }
     }
 }
 

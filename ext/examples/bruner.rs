@@ -139,7 +139,9 @@ fn create_chain_complex(num_s: usize) -> FiniteChainComplex {
     let algebra: Arc<MilnorAlgebra> = Arc::new(MilnorAlgebra::new(TWO));
 
     #[cfg(not(feature = "nassau"))]
-    let algebra: Arc<algebra::SteenrodAlgebra> = Arc::new(MilnorAlgebra::new(TWO).into());
+    let algebra: Arc<algebra::SteenrodAlgebra> = Arc::new(algebra::SteenrodAlgebra::MilnorAlgebra(
+        MilnorAlgebra::new(TWO),
+    ));
 
     let mut modules: Vec<Arc<FreeModule>> = Vec::with_capacity(num_s);
     let mut differentials: Vec<Arc<FreeModuleHomomorphism>> = Vec::with_capacity(num_s - 1);
