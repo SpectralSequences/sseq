@@ -104,39 +104,14 @@ where
 impl<CC1, CC2> ResolutionHomomorphism<CC1, CC2>
 where
     CC1: FreeChainComplex,
-    CC2: AugmentedChainComplex<Algebra = CC1::Algebra>,
+    CC2: ChainComplex<Algebra = CC1::Algebra>,
 {
-    pub fn from_class(
-        name: String,
-        source: Arc<CC1>,
-        target: Arc<CC2>,
-        shift_s: u32,
-        shift_t: i32,
-        class: &[u32],
-    ) -> Self {
-        let result = Self::new(name, source, target, shift_s, shift_t);
-
-        let num_gens = result
-            .source
-            .module(shift_s)
-            .number_of_gens_in_degree(shift_t);
-        assert_eq!(num_gens, class.len());
-
-        let mut matrix = Matrix::new(result.source.prime(), num_gens, 1);
-        for (k, &v) in class.iter().enumerate() {
-            matrix[k].set_entry(0, v);
-        }
-
-        result.extend_step(shift_s, shift_t, Some(&matrix));
-        result
-    }
-
     /// Extend the resolution homomorphism such that it is defined on degrees
     /// (`max_s`, `max_t`).
     ///
     /// This assumes in yet-uncomputed bidegrees, the homology of the source consists only of
     /// decomposables (e.g. it is trivial). More precisely, we assume
-    /// [`ResolutionHomomorphism::extend_step`] can be called with `extra_images = None`.
+    /// [`ResolutionHomomorphism::extend_step_raw`] can be called with `extra_images = None`.
     pub fn extend(&self, max_s: u32, max_t: i32) {
         self.extend_profile(max_s + 1, |_s| max_t + 1)
     }
@@ -146,7 +121,7 @@ where
     ///
     /// This assumes in yet-uncomputed bidegrees, the homology of the source consists only of
     /// decomposables (e.g. it is trivial). More precisely, we assume
-    /// [`ResolutionHomomorphism::extend_step`] can be called with `extra_images = None`.
+    /// [`ResolutionHomomorphism::extend_step_raw`] can be called with `extra_images = None`.
     pub fn extend_through_stem(&self, max_s: u32, max_n: i32) {
         self.extend_profile(max_s + 1, |s| max_n + s as i32 + 1)
     }
@@ -156,7 +131,7 @@ where
     ///
     /// This assumes in yet-uncomputed bidegrees, the homology of the source consists only of
     /// decomposables (e.g. it is trivial). More precisely, we assume
-    /// [`ResolutionHomomorphism::extend_step`] can be called with `extra_images = None`.
+    /// [`ResolutionHomomorphism::extend_step_raw`] can be called with `extra_images = None`.
     pub fn extend_all(&self) {
         self.extend_profile(
             std::cmp::min(
@@ -179,7 +154,7 @@ where
         for s in self.shift_s..max_s {
             let f_cur = self.get_map_ensure_length(s);
             for t in f_cur.next_degree()..max_t(s) {
-                self.extend_step(s, t, None);
+                self.extend_step_raw(s, t, None);
             }
         }
     }
@@ -195,13 +170,13 @@ where
     ///
     /// This assumes in yet-uncomputed bidegrees, the homology of the source consists only of
     /// decomposables (e.g. it is trivial). More precisely, we assume
-    /// [`ResolutionHomomorphism::extend_step`] can be called with `extra_images = None`.
+    /// [`ResolutionHomomorphism::extend_step_raw`] can be called with `extra_images = None`.
     #[cfg(feature = "concurrent")]
     pub fn extend_profile(&self, max_s: u32, max_t: impl Fn(u32) -> i32 + Sync) {
         self.get_map_ensure_length(max_s - 1);
 
         crate::utils::iter_s_t(
-            &|s, t| self.extend_step(s, t, None),
+            &|s, t| self.extend_step_raw(s, t, None),
             self.shift_s,
             self.get_map_ensure_length(self.shift_s).min_degree(),
             max_s,
@@ -219,17 +194,16 @@ where
 
     /// Extend the [`ResolutionHomomorphism`] to be defined on `(input_s, input_t)`. The resulting
     /// homomorphism `f` is a chain map such that if `g` is the `k`th generator in the source such
-    /// that `d(g) = 0`, then the image of `f(g)` in the augmentation of the target is the `k`th
-    /// row of `extra_images`.
+    /// that `d(g) = 0`, then `f(g)` is the `k`th row of `extra_images`.
     ///
     /// The user should call this function explicitly to manually define the chain map where the
     /// chain complex is not exact, and then call [`ResolutionHomomorphism::extend_all`] to extend
     /// the rest by exactness.
-    pub fn extend_step(
+    pub fn extend_step_raw(
         &self,
         input_s: u32,
         input_t: i32,
-        extra_images: Option<&Matrix>,
+        extra_images: Option<Vec<FpVector>>,
     ) -> Range<i32> {
         let output_s = input_s - self.shift_s;
         let output_t = input_t - self.shift_t;
@@ -272,30 +246,9 @@ where
             }
         }
 
-        let mut outputs = vec![FpVector::new(p, fx_dimension); num_gens];
         if output_s == 0 {
-            if let Some(extra_images_matrix) = extra_images {
-                let target_chain_map = self.target.chain_map(output_s);
-                let target_cc_dimension = target_chain_map.target().dimension(output_t);
-                assert!(target_cc_dimension == extra_images_matrix.columns());
-
-                target_chain_map.compute_auxiliary_data_through_degree(output_t);
-                assert!(
-                    num_gens == extra_images_matrix.rows(),
-                    "num_gens : {} greater than rows : {} hom_deg : {}, int_deg : {}",
-                    num_gens,
-                    extra_images_matrix.rows(),
-                    input_s,
-                    input_t
-                );
-                for k in 0..num_gens {
-                    assert!(target_chain_map.apply_quasi_inverse(
-                        outputs[k].as_slice_mut(),
-                        output_t,
-                        extra_images_matrix[k].as_slice(),
-                    ));
-                }
-            }
+            let outputs =
+                extra_images.unwrap_or_else(|| vec![FpVector::new(p, fx_dimension); num_gens]);
 
             if let Some(dir) = &self.save_dir {
                 let mut f = self
@@ -310,6 +263,7 @@ where
 
             return f_cur.add_generators_from_rows_ooo(input_t, outputs);
         }
+        let mut outputs = vec![FpVector::new(p, fx_dimension); num_gens];
         let d_source = self.source.differential(input_s);
         let d_target = self.target.differential(output_s);
         let f_prev = self.get_map(input_s - 1);
@@ -323,18 +277,8 @@ where
         let mut extra_image_row = 0;
         for (k, output_row) in outputs.iter_mut().enumerate() {
             if d_source.output(input_t, k).is_zero() {
-                let target_chain_map = self.target.chain_map(output_s);
-                let target_cc_dimension = target_chain_map.target().dimension(output_t);
-
                 let extra_image_matrix = extra_images.as_ref().expect("Missing extra image rows");
-                assert!(target_cc_dimension == extra_image_matrix.columns());
-
-                target_chain_map.compute_auxiliary_data_through_degree(output_t);
-                assert!(target_chain_map.apply_quasi_inverse(
-                    output_row.as_slice_mut(),
-                    output_t,
-                    extra_image_matrix[extra_image_row].as_slice(),
-                ));
+                output_row.assign(&extra_image_matrix[extra_image_row]);
                 extra_image_row += 1;
             }
         }
@@ -397,6 +341,78 @@ where
             }
         }
         f_cur.add_generators_from_rows_ooo(input_t, outputs)
+    }
+}
+
+impl<CC1, CC2> ResolutionHomomorphism<CC1, CC2>
+where
+    CC1: FreeChainComplex,
+    CC2: AugmentedChainComplex<Algebra = CC1::Algebra>,
+{
+    pub fn from_class(
+        name: String,
+        source: Arc<CC1>,
+        target: Arc<CC2>,
+        shift_s: u32,
+        shift_t: i32,
+        class: &[u32],
+    ) -> Self {
+        let result = Self::new(name, source, target, shift_s, shift_t);
+
+        let num_gens = result
+            .source
+            .module(shift_s)
+            .number_of_gens_in_degree(shift_t);
+        assert_eq!(num_gens, class.len());
+
+        let mut matrix = Matrix::new(result.source.prime(), num_gens, 1);
+        for (k, &v) in class.iter().enumerate() {
+            matrix[k].set_entry(0, v);
+        }
+
+        result.extend_step(shift_s, shift_t, Some(&matrix));
+        result
+    }
+
+    /// Extend the [`ResolutionHomomorphism`] to be defined on `(input_s, input_t)`. The resulting
+    /// homomorphism `f` is a chain map such that if `g` is the `k`th generator in the source such
+    /// that `d(g) = 0`, then the image of `f(g)` in the augmentation of the target is the `k`th
+    /// row of `extra_images`.
+    ///
+    /// The user should call this function explicitly to manually define the chain map where the
+    /// chain complex is not exact, and then call [`ResolutionHomomorphism::extend_all`] to extend
+    /// the rest by exactness.
+    pub fn extend_step(
+        &self,
+        input_s: u32,
+        input_t: i32,
+        extra_images: Option<&Matrix>,
+    ) -> Range<i32> {
+        self.extend_step_raw(
+            input_s,
+            input_t,
+            extra_images.map(|m| {
+                let p = self.target.prime();
+                let output_s = input_s - self.shift_s;
+                let output_t = input_t - self.shift_t;
+
+                let mut outputs =
+                    vec![
+                        FpVector::new(p, self.target.module(output_s).dimension(output_t));
+                        m.rows()
+                    ];
+                let chain_map = self.target.chain_map(output_s);
+                chain_map.compute_auxiliary_data_through_degree(output_t);
+                for (output, input) in std::iter::zip(&mut outputs, m.iter()) {
+                    assert!(chain_map.apply_quasi_inverse(
+                        output.as_slice_mut(),
+                        output_t,
+                        input.as_slice(),
+                    ));
+                }
+                outputs
+            }),
+        )
     }
 }
 
