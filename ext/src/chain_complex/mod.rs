@@ -40,7 +40,7 @@ pub trait FreeChainComplex:
             result.push('\n');
             // If it is empty so far, don't print anything
             if result.trim_start().is_empty() {
-                result = String::new();
+                result.clear()
             }
         }
         result
