@@ -468,8 +468,7 @@ impl GeneratedAlgebra for AdemAlgebra {
 impl AdemAlgebra {
     /// Constructs a new [`AdemAlgebra`].
     // TODO: what do these argument names mean?
-    pub fn new(p: ValidPrime, generic: bool, unstable: bool, unstable_enabled: bool) -> Self {
-        assert!(unstable_enabled || !unstable);
+    pub fn new(p: ValidPrime, generic: bool, unstable_enabled: bool) -> Self {
         let even_basis_table = OnceVec::new();
         let basis_table = OnceVec::new();
         let basis_element_to_index_map = OnceVec::new();
@@ -1562,7 +1561,7 @@ mod tests {
     #[allow(non_snake_case)]
     fn test_adem() {
         let p = ValidPrime::new(2);
-        let A = AdemAlgebra::new(p, *p != 2, false, false);
+        let A = AdemAlgebra::new(p, *p != 2, false);
         A.compute_basis(10);
         let r_deg = 4;
         let r_idx = 0;
@@ -1593,7 +1592,7 @@ mod tests {
     #[trace]
     fn test_adem_decompose(p: u32, max_degree: i32) {
         let p = ValidPrime::new(p);
-        let algebra = AdemAlgebra::new(p, *p != 2, false, false);
+        let algebra = AdemAlgebra::new(p, *p != 2, false);
         algebra.compute_basis(max_degree);
         for i in 1..=max_degree {
             let dim = algebra.dimension(i);
@@ -1644,7 +1643,7 @@ mod tests {
     #[trace]
     fn test_adem_relations(p: u32, max_degree: i32) {
         let p = ValidPrime::new(p);
-        let algebra = AdemAlgebra::new(p, *p != 2, false, false);
+        let algebra = AdemAlgebra::new(p, *p != 2, false);
         algebra.compute_basis(max_degree);
         let mut output_vec = FpVector::new(p, 0);
         for i in 1..=max_degree {
@@ -1696,7 +1695,7 @@ mod tests {
     #[case(3, 106)]
     fn test_adem_string(#[case] p: u32, #[case] max_degree: i32) {
         let p = ValidPrime::new(p);
-        let algebra = AdemAlgebra::new(p, *p != 2, false, false);
+        let algebra = AdemAlgebra::new(p, *p != 2, false);
         algebra.compute_basis(max_degree);
         for t in 0..max_degree {
             for i in 0..algebra.dimension(t) {

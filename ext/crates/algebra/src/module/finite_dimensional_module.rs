@@ -687,12 +687,7 @@ mod tests {
     #[test]
     fn test_module_check_validity() {
         let p = fp::prime::ValidPrime::new(2);
-        let adem_algebra = Arc::new(SteenrodAlgebra::from(AdemAlgebra::new(
-            p,
-            *p != 2,
-            false,
-            false,
-        )));
+        let adem_algebra = Arc::new(SteenrodAlgebra::from(AdemAlgebra::new(p, *p != 2, false)));
         adem_algebra.compute_basis(10);
         let mut adem_module = FiniteDimensionalModule::new(
             Arc::clone(&adem_algebra),

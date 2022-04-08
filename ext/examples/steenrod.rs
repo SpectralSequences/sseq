@@ -448,12 +448,7 @@ mod sum_module {
 
         fn test_sum_module(M: Vec<&str>, S: &str) {
             let p = fp::prime::ValidPrime::new(2);
-            let A = Arc::new(SteenrodAlgebra::from(AdemAlgebra::new(
-                p,
-                *p != 2,
-                false,
-                false,
-            )));
+            let A = Arc::new(SteenrodAlgebra::from(AdemAlgebra::new(p, *p != 2, false)));
 
             let M: Vec<Arc<FDModule<SteenrodAlgebra>>> = M
                 .into_iter()

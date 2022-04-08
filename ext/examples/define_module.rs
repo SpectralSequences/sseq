@@ -91,7 +91,6 @@ pub fn interactive_module_define_fdmodule(
         p,
         *p != 2,
         false,
-        false,
     )));
 
     let gens = get_gens()?;

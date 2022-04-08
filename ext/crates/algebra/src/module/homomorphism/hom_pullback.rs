@@ -125,12 +125,7 @@ mod tests {
     #[test]
     fn test_pullback() {
         let p = ValidPrime::new(2);
-        let A = Arc::new(SteenrodAlgebra::from(AdemAlgebra::new(
-            p,
-            *p != 2,
-            false,
-            false,
-        )));
+        let A = Arc::new(SteenrodAlgebra::from(AdemAlgebra::new(p, *p != 2, false)));
         A.compute_basis(20);
         let F0 = Arc::new(FreeModule::new(Arc::clone(&A), "F0".to_string(), 0));
         F0.add_generators(0, 1, None);

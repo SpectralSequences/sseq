@@ -21,7 +21,7 @@ fn main() -> anyhow::Result<()> {
     });
 
     let p = ValidPrime::new(p as u32);
-    let algebra = Arc::new(AdemAlgebra::new(p, *p != 2, false, false));
+    let algebra = Arc::new(AdemAlgebra::new(p, *p != 2, false));
     let left_module = FDModule::from_json(Arc::clone(&algebra), &left)?;
     let right_module = FDModule::from_json(Arc::clone(&algebra), &right)?;
 
