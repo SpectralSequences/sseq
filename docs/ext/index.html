@@ -24,15 +24,19 @@
     });
 </script>
 
-</head><body class="rustdoc mod crate"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu" role="button">&#9776;</div><a class="sidebar-logo" href="../ext/index.html"><div class="logo-container"><img class="rust-logo" src="../rust-logo.png" alt="logo"></div>
-        </a><h2 class="location">Crate ext</h2><div class="block version"><div class="narrow-helper"></div><p>Version 0.1.0</p></div><div class="sidebar-elems"><a id="all-types" href="all.html"><p>See all ext's items</p></a><div class="block items"><ul><li><a href="#modules">Modules</a></li><li><a href="#types">Type Definitions</a></li></ul></div><div id="sidebar-vars" data-name="ext" data-ty="mod" data-relpath=""></div><script defer src="sidebar-items.js"></script></div></nav><main><div class="width-limiter"><div class="sub-container"><a class="sub-logo-container" href="../ext/index.html"><img class="rust-logo" src="../rust-logo.png" alt="logo"></a><nav class="sub"><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu" title="themes"><img width="18" height="18" alt="Pick another theme!" src="../brush.svg"></button><div id="theme-choices" role="menu"></div></div><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><button type="button" id="help-button" title="help">?</button><a id="settings-menu" href="../settings.html" title="settings"><img width="18" height="18" alt="Change settings" src="../wheel.svg"></a></div></form></nav></div><section id="main-content" class="content"><h1 class="fqn"><span class="in-band">Crate <a class="mod" href="#">ext</a><button id="copy-path" onclick="copy_path(this)" title="Copy item path to clipboard"><img src="../clipboard.svg" width="19" height="18" alt="Copy item path"></button></span><span class="out-of-band"><span id="render-detail"><a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">[<span class="inner">&#x2212;</span>]</a></span><a class="srclink" href="../src/ext/lib.rs.html#1-189" title="goto source code">[src]</a></span></h1><details class="rustdoc-toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p><code>ext-rs</code> is a collection of libraries for doing homological algebra over $\F_p$. The
+</head><body class="rustdoc mod crate"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle">&#9776;</button><a class="sidebar-logo" href="../ext/index.html"><div class="logo-container"><img class="rust-logo" src="../rust-logo.svg" alt="logo"></div>
+        </a><h2 class="location"></h2>
+    </nav>
+    <nav class="sidebar"><a class="sidebar-logo" href="../ext/index.html"><div class="logo-container"><img class="rust-logo" src="../rust-logo.svg" alt="logo"></div>
+        </a><h2 class="location"><a href="#">Crate ext</a></h2><div class="sidebar-elems"><div class="block"><ul><li class="version">Version 0.1.0</li><li><a id="all-types" href="all.html">All Items</a></li></div></ul><section><div class="block"><ul><li><a href="#modules">Modules</a></li><li><a href="#types">Type Definitions</a></li></ul></div></section><div id="sidebar-vars" data-name="ext" data-ty="mod" data-relpath=""></div><script defer src="sidebar-items.js"></script></div></nav><main><div class="width-limiter"><div class="sub-container"><a class="sub-logo-container" href="../ext/index.html"><img class="rust-logo" src="../rust-logo.svg" alt="logo"></a><nav class="sub"><div class="theme-picker hidden"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu" title="themes"><img width="22" height="22" alt="Pick another theme!" src="../brush.svg"></button><div id="theme-choices" role="menu"></div></div><form class="search-form"><div class="search-container"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><button type="button" id="help-button" title="help">?</button><a id="settings-menu" href="../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../wheel.svg"></a></div></form></nav></div><section id="main-content" class="content"><div class="main-heading">
+    <h1 class="fqn"><span class="in-band">Crate <a class="mod" href="#">ext</a><button id="copy-path" onclick="copy_path(this)" title="Copy item path to clipboard"><img src="../clipboard.svg" width="19" height="18" alt="Copy item path"></button></span></h1><span class="out-of-band"><a class="srclink" href="../src/ext/lib.rs.html#1-189">source</a> · <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">[<span class="inner">&#x2212;</span>]</a></span></div><details class="rustdoc-toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p><code>ext-rs</code> is a collection of libraries for doing homological algebra over $\F_p$. The
 main and original purpose is to compute Ext of a Steenrod module, but the library is written to
 be sufficiently generic to deal with more general applications.</p>
-<h2 id="examples" class="section-header"><a href="#examples">Examples</a></h2>
+<h2 id="examples"><a href="#examples">Examples</a></h2>
 <p>The library comes with a number of “example” binaries that use the library for various
 purposes. These can be used directly to perform specific computations, or act as actual
 examples for how to use the library.</p>
-<h3 id="running-an-example" class="section-header"><a href="#running-an-example">Running an example</a></h3>
+<h3 id="running-an-example"><a href="#running-an-example">Running an example</a></h3>
 <p>An example can be run by executing the command</p>
 <div class="example-wrap"><pre class="language-sh"><code> $ cargo run --example EXAMPLE_NAME</code></pre></div>
 <p>There are various flags that can be useful to supply:</p>
@@ -58,7 +62,7 @@ Max s (default: 7): 20</code></pre></div>
 <p>In each line, the text after the final <code>:</code> is input by the user.</p>
 <p>In general, we write the output to <code>stdout</code> and the prompts to <code>stderr</code>. This
 allows the user to redirect the output to another file or program.</p>
-<h3 id="prompts-and-arguments" class="section-header"><a href="#prompts-and-arguments">Prompts and arguments</a></h3>
+<h3 id="prompts-and-arguments"><a href="#prompts-and-arguments">Prompts and arguments</a></h3>
 <p>Each prompt asks the user for an input, which is submitted by pressing the
 Enter/Return key. If the input is invalid, an error message is produced and the
 user is queried for the same input again. To exit the program early, one sends
@@ -68,7 +72,7 @@ default option, simply supply an empty input.</p>
 <p>To facilitate batch processing, answers to the prompt can be supplied as
 command line arguments instead; the nth command line argument is treated as the
 answer to the nth prompt. For example, the previous interaction can be called by</p>
-<div class="example-wrap"><pre class="language-sh"><code> $ cargo run --features concurrent --example filtration_one -- C2 &quot;&quot; 2 40 20</code></pre></div><h3 id="conventions" class="section-header"><a href="#conventions">Conventions</a></h3><h4 id="module-specification" class="section-header"><a href="#module-specification">Module specification</a></h4>
+<div class="example-wrap"><pre class="language-sh"><code> $ cargo run --features concurrent --example filtration_one -- C2 &quot;&quot; 2 40 20</code></pre></div><h3 id="conventions"><a href="#conventions">Conventions</a></h3><h4 id="module-specification"><a href="#module-specification">Module specification</a></h4>
 <p>Each Steenrod module is defined in a <code>json</code> file, and a collection of such
 modules are available in the <code>steenrod_modules/</code> subdirectory. New modules can
 be defined using the <a href="../define_module/index.html"><code>define_module</code></a> example.</p>
@@ -87,12 +91,12 @@ we supply <code>Ceta[1]</code>.</p>
 is either the Adem basis or the Milnor basis. The default choice is the Milnor
 basis. We can specify the basis by appending <code>@basis_name</code>. For example, if we
 want to resolve <code>Ceta[1]</code> with the Adem basis, we can specify it as <code>Ceta[1]@adem</code>.</p>
-<h4 id="ext-elements" class="section-header"><a href="#ext-elements">Ext elements</a></h4>
+<h4 id="ext-elements"><a href="#ext-elements">Ext elements</a></h4>
 <p>Each Ext group comes with a basis. The ith basis element of $\Ext^{s, n + s}$ is
 denoted <code>x_(n, s, i)</code>. If we want to specify an element in a particular Ext
 group, we either write it as a linear combination of the <code>x_(n, s, i)</code>, or
 written as a vector of the form e.g. <code>[0, 1, 0]</code>. In the latter case, the bidegree is implicit.</p>
-<h4 id="save-directory" class="section-header"><a href="#save-directory">Save directory</a></h4>
+<h4 id="save-directory"><a href="#save-directory">Save directory</a></h4>
 <p>For most scripts, one can specify a save directory for each module. All save data relating to
 the module will be saved in this directory, including resolution data, products, secondary
 Steenrod algebra computations etc. For products, the data is saved in the save directory of the
@@ -111,7 +115,7 @@ name but with a <code>.zst</code> extension.</p>
 <p>Note that any new save file will still be written uncompressed. To compress the files, one must
 run the <code>zstd</code> program on each file in the save directory. It is safe to remove the original
 file after compression (i.e. run with the <code>--rm</code> option).</p>
-<h2 id="list-of-examples" class="section-header"><a href="#list-of-examples">List of examples</a></h2>
+<h2 id="list-of-examples"><a href="#list-of-examples">List of examples</a></h2>
 <p>Click on the individual examples for further information.</p>
 <div><table><thead><tr><th>Name</th><th>Description</th></tr></thead><tbody>
 <tr><td><a href="../algebra_dim/index.html">algebra_dim</a></td><td>Print the dimension of the Steenrod algebra in each degree.</td></tr>
@@ -133,18 +137,18 @@ file after compression (i.e. run with the <code>--rm</code> option).</p>
 <tr><td><a href="../tensor/index.html">tensor</a></td><td>Compute the tensor product of two modules.</td></tr>
 <tr><td><a href="../yoneda/index.html">yoneda</a></td><td>Compute a Yoneda representative of an Ext class.</td></tr>
 </tbody></table>
-</div><h2 id="subcrates" class="section-header"><a href="#subcrates">Subcrates</a></h2>
+</div><h2 id="subcrates"><a href="#subcrates">Subcrates</a></h2>
 <p>This contains a number of sub-crates, which each have their own documentation. A brief overview
 is as follows:</p>
 <div><table><thead><tr><th>Name</th><th>Description</th></tr></thead><tbody>
 <tr><td><a href="../algebra/index.html" title="algebra">algebra</a></td><td>This defines algebras, modules and module homomorphisms</td></tr>
-<tr><td><a href="../bivec/index.html" title="bivec">bivec</a></td><td>This is a small crate that provides <a href="../bivec/struct.BiVec.html"><code>BiVec</code></a> - a variant of <a href="https://doc.rust-lang.org/1.59.0/alloc/vec/struct.Vec.html" title="Vec"><code>Vec</code></a> indexed by an <code>i32</code> whose starting index may be non-zero.</td></tr>
+<tr><td><a href="../bivec/index.html" title="bivec">bivec</a></td><td>This is a small crate that provides <a href="../bivec/struct.BiVec.html"><code>BiVec</code></a> - a variant of <a href="https://doc.rust-lang.org/1.60.0/alloc/vec/struct.Vec.html" title="Vec"><code>Vec</code></a> indexed by an <code>i32</code> whose starting index may be non-zero.</td></tr>
 <tr><td><a href="../chart/index.html" title="chart">chart</a></td><td>This provides some APIs for generating charts</td></tr>
 <tr><td><a href="../fp/index.html" title="fp">fp</a></td><td>This implements linear algebra over $\mathbb{F}_p$, as well as general helper functions about primes.</td></tr>
 <tr><td><a href="../once/index.html" title="once">once</a></td><td>This provides <code>OnceVec</code> and <code>OnceBiVec</code>, a push-only vector with non-blocking reads. This models some partially computed infinite data structure, and we think of pushing as simply finding out more of this infinite data structure instead of genuinely mutating it.</td></tr>
 <tr><td><a href="../query/index.html" title="query">query</a></td><td>This contains some helper functions for a command line interface.</td></tr>
 </tbody></table>
-</div><h2 id="features" class="section-header"><a href="#features">Features</a></h2>
+</div><h2 id="features"><a href="#features">Features</a></h2>
 <ul>
 <li><code>odd-primes</code>: This enables support for odd primes, and is enabled by default. Disabling this
 feature offers significant improvements at the prime 2.</li>
@@ -172,5 +176,5 @@ particular, this contains the core logic that compute minimal resolutions.</p>
 <a href="chain_complex/trait.FreeChainComplex.html" title="FreeChainComplex"><code>FreeChainComplex</code></a>.</p>
 </div></div><div class="item-row"><div class="item-left module-item"><a class="mod" href="save/index.html" title="ext::save mod">save</a></div><div class="item-right docblock-short"></div></div><div class="item-row"><div class="item-left module-item"><a class="mod" href="secondary/index.html" title="ext::secondary mod">secondary</a></div><div class="item-right docblock-short"></div></div><div class="item-row"><div class="item-left module-item"><a class="mod" href="utils/index.html" title="ext::utils mod">utils</a></div><div class="item-right docblock-short"><p>A module containing various utility functions related to user interaction in some way.</p>
 </div></div><div class="item-row"><div class="item-left module-item"><a class="mod" href="yoneda/index.html" title="ext::yoneda mod">yoneda</a></div><div class="item-right docblock-short"></div></div></div><h2 id="types" class="small-section-header"><a href="#types">Type Definitions</a></h2>
-<div class="item-table"><div class="item-row"><div class="item-left module-item"><a class="type" href="type.CCC.html" title="ext::CCC type">CCC</a></div><div class="item-right docblock-short"></div></div></div></section><section id="search" class="content hidden"></section></div></main><div id="rustdoc-vars" data-root-path="../" data-current-crate="ext" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.59.0 (9d1b2106e 2022-02-23)" ></div>
+<div class="item-table"><div class="item-row"><div class="item-left module-item"><a class="type" href="type.CCC.html" title="ext::CCC type">CCC</a></div><div class="item-right docblock-short"></div></div></div></section><section id="search" class="content hidden"></section></div></main><div id="rustdoc-vars" data-root-path="../" data-current-crate="ext" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.60.0 (7737e0b5c 2022-04-04)" ></div>
 </body></html>
