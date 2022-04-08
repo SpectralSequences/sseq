@@ -1,4 +1,4 @@
-//! This module defines [`ResolutionHomomorphism`], which is a chain map from a
+//! This module defines [`MuResolutionHomomorphism`], which is a chain map from a
 //! [`FreeChainComplex`].
 use std::ops::Range;
 use std::path::PathBuf;
@@ -8,8 +8,9 @@ use crate::chain_complex::{
     AugmentedChainComplex, BoundedChainComplex, ChainComplex, FreeChainComplex,
 };
 use crate::save::SaveKind;
-use algebra::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
+use algebra::module::homomorphism::{ModuleHomomorphism, MuFreeModuleHomomorphism};
 use algebra::module::Module;
+use algebra::MuAlgebra;
 use fp::matrix::Matrix;
 use fp::vector::{FpVector, SliceMut};
 use once::OnceBiVec;
@@ -19,25 +20,30 @@ use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 #[cfg(feature = "concurrent")]
 use rayon::prelude::*;
 
+pub type ResolutionHomomorphism<CC1, CC2> = MuResolutionHomomorphism<false, CC1, CC2>;
+pub type UnstableResolutionHomomorphism<CC1, CC2> = MuResolutionHomomorphism<true, CC1, CC2>;
+
 /// A chain complex homomorphims from a [`FreeChainComplex`]. This contains logic to lift chain
 /// maps using the freeness.
-pub struct ResolutionHomomorphism<CC1, CC2>
+pub struct MuResolutionHomomorphism<const U: bool, CC1, CC2>
 where
-    CC1: FreeChainComplex,
+    CC1: FreeChainComplex<U>,
+    CC1::Algebra: MuAlgebra<U>,
     CC2: ChainComplex<Algebra = CC1::Algebra>,
 {
     name: String,
     pub source: Arc<CC1>,
     pub target: Arc<CC2>,
-    maps: OnceBiVec<Arc<FreeModuleHomomorphism<CC2::Module>>>,
+    maps: OnceBiVec<Arc<MuFreeModuleHomomorphism<U, CC2::Module>>>,
     pub shift_s: u32,
     pub shift_t: i32,
     save_dir: Option<PathBuf>,
 }
 
-impl<CC1, CC2> ResolutionHomomorphism<CC1, CC2>
+impl<const U: bool, CC1, CC2> MuResolutionHomomorphism<U, CC1, CC2>
 where
-    CC1: FreeChainComplex,
+    CC1: FreeChainComplex<U>,
+    CC1::Algebra: MuAlgebra<U>,
     CC2: ChainComplex<Algebra = CC1::Algebra>,
 {
     pub fn new(
@@ -79,10 +85,10 @@ where
         self.maps.len()
     }
 
-    fn get_map_ensure_length(&self, input_s: u32) -> &FreeModuleHomomorphism<CC2::Module> {
+    fn get_map_ensure_length(&self, input_s: u32) -> &MuFreeModuleHomomorphism<U, CC2::Module> {
         self.maps.extend(input_s as i32, |input_s| {
             let output_s = input_s as u32 - self.shift_s;
-            Arc::new(FreeModuleHomomorphism::new(
+            Arc::new(MuFreeModuleHomomorphism::new(
                 self.source.module(input_s as u32),
                 self.target.module(output_s),
                 self.shift_t,
@@ -92,7 +98,7 @@ where
     }
 
     /// Returns the chain map on the `s`th source module.
-    pub fn get_map(&self, input_s: u32) -> Arc<FreeModuleHomomorphism<CC2::Module>> {
+    pub fn get_map(&self, input_s: u32) -> Arc<MuFreeModuleHomomorphism<U, CC2::Module>> {
         Arc::clone(&self.maps[input_s as i32])
     }
 
@@ -101,9 +107,10 @@ where
     }
 }
 
-impl<CC1, CC2> ResolutionHomomorphism<CC1, CC2>
+impl<const U: bool, CC1, CC2> MuResolutionHomomorphism<U, CC1, CC2>
 where
-    CC1: FreeChainComplex,
+    CC1: FreeChainComplex<U>,
+    CC1::Algebra: MuAlgebra<U>,
     CC2: ChainComplex<Algebra = CC1::Algebra>,
 {
     /// Extend the resolution homomorphism such that it is defined on degrees
@@ -111,7 +118,7 @@ where
     ///
     /// This assumes in yet-uncomputed bidegrees, the homology of the source consists only of
     /// decomposables (e.g. it is trivial). More precisely, we assume
-    /// [`ResolutionHomomorphism::extend_step_raw`] can be called with `extra_images = None`.
+    /// [`MuResolutionHomomorphism::extend_step_raw`] can be called with `extra_images = None`.
     pub fn extend(&self, max_s: u32, max_t: i32) {
         self.extend_profile(max_s + 1, |_s| max_t + 1)
     }
@@ -121,7 +128,7 @@ where
     ///
     /// This assumes in yet-uncomputed bidegrees, the homology of the source consists only of
     /// decomposables (e.g. it is trivial). More precisely, we assume
-    /// [`ResolutionHomomorphism::extend_step_raw`] can be called with `extra_images = None`.
+    /// [`MuResolutionHomomorphism::extend_step_raw`] can be called with `extra_images = None`.
     pub fn extend_through_stem(&self, max_s: u32, max_n: i32) {
         self.extend_profile(max_s + 1, |s| max_n + s as i32 + 1)
     }
@@ -131,7 +138,7 @@ where
     ///
     /// This assumes in yet-uncomputed bidegrees, the homology of the source consists only of
     /// decomposables (e.g. it is trivial). More precisely, we assume
-    /// [`ResolutionHomomorphism::extend_step_raw`] can be called with `extra_images = None`.
+    /// [`MuResolutionHomomorphism::extend_step_raw`] can be called with `extra_images = None`.
     pub fn extend_all(&self) {
         self.extend_profile(
             std::cmp::min(
@@ -161,8 +168,8 @@ where
 
     /// Extends the resolution homomorphism up to a given range. This range is first specified by
     /// the maximum `s`, then the maximum `t` for each `s`. This should rarely be used directly;
-    /// instead one should use [`ResolutionHomomorphism::extend`],
-    /// [`ResolutionHomomorphism::extend_through_stem`] and [`ResolutionHomomorphism::extend_all`]
+    /// instead one should use [`MuResolutionHomomorphism::extend`],
+    /// [`MuResolutionHomomorphism::extend_through_stem`] and [`ResolutionHomomorphism::extend_all`]
     /// as appropriate.
     ///
     /// Note that unlike the more specific versions of this function, the bounds `max_s` and
@@ -170,7 +177,7 @@ where
     ///
     /// This assumes in yet-uncomputed bidegrees, the homology of the source consists only of
     /// decomposables (e.g. it is trivial). More precisely, we assume
-    /// [`ResolutionHomomorphism::extend_step_raw`] can be called with `extra_images = None`.
+    /// [`MuResolutionHomomorphism::extend_step_raw`] can be called with `extra_images = None`.
     #[cfg(feature = "concurrent")]
     pub fn extend_profile(&self, max_s: u32, max_t: impl Fn(u32) -> i32 + Sync) {
         self.get_map_ensure_length(max_s - 1);
@@ -192,12 +199,12 @@ where
         }
     }
 
-    /// Extend the [`ResolutionHomomorphism`] to be defined on `(input_s, input_t)`. The resulting
+    /// Extend the [`MuResolutionHomomorphism`] to be defined on `(input_s, input_t)`. The resulting
     /// homomorphism `f` is a chain map such that if `g` is the `k`th generator in the source such
     /// that `d(g) = 0`, then `f(g)` is the `k`th row of `extra_images`.
     ///
     /// The user should call this function explicitly to manually define the chain map where the
-    /// chain complex is not exact, and then call [`ResolutionHomomorphism::extend_all`] to extend
+    /// chain complex is not exact, and then call [`MuResolutionHomomorphism::extend_all`] to extend
     /// the rest by exactness.
     pub fn extend_step_raw(
         &self,
@@ -344,9 +351,10 @@ where
     }
 }
 
-impl<CC1, CC2> ResolutionHomomorphism<CC1, CC2>
+impl<const U: bool, CC1, CC2> MuResolutionHomomorphism<U, CC1, CC2>
 where
-    CC1: FreeChainComplex,
+    CC1: FreeChainComplex<U>,
+    CC1::Algebra: MuAlgebra<U>,
     CC2: AugmentedChainComplex<Algebra = CC1::Algebra>,
 {
     pub fn from_class(
@@ -374,13 +382,13 @@ where
         result
     }
 
-    /// Extend the [`ResolutionHomomorphism`] to be defined on `(input_s, input_t)`. The resulting
+    /// Extend the [`MuResolutionHomomorphism`] to be defined on `(input_s, input_t)`. The resulting
     /// homomorphism `f` is a chain map such that if `g` is the `k`th generator in the source such
     /// that `d(g) = 0`, then the image of `f(g)` in the augmentation of the target is the `k`th
     /// row of `extra_images`.
     ///
     /// The user should call this function explicitly to manually define the chain map where the
-    /// chain complex is not exact, and then call [`ResolutionHomomorphism::extend_all`] to extend
+    /// chain complex is not exact, and then call [`MuResolutionHomomorphism::extend_all`] to extend
     /// the rest by exactness.
     pub fn extend_step(
         &self,
@@ -416,9 +424,10 @@ where
     }
 }
 
-impl<CC1, CC2> ResolutionHomomorphism<CC1, CC2>
+impl<const U: bool, CC1, CC2> MuResolutionHomomorphism<U, CC1, CC2>
 where
-    CC1: AugmentedChainComplex + FreeChainComplex,
+    CC1: AugmentedChainComplex + FreeChainComplex<U>,
+    CC1::Algebra: MuAlgebra<U>,
     CC2: AugmentedChainComplex<Algebra = CC1::Algebra>,
     CC1::TargetComplex: BoundedChainComplex,
     CC2::TargetComplex: BoundedChainComplex,
@@ -445,7 +454,7 @@ where
         let degree_shift = f.degree_shift();
 
         let max_degree = source_module.max_generator_degree().expect(
-            "ResolutionHomomorphism::from_module_homomorphism requires finite max_generator_degree",
+            "MuResolutionHomomorphism::from_module_homomorphism requires finite max_generator_degree",
         );
 
         let hom = Self::new(name, source, target, 0, degree_shift);
@@ -471,10 +480,11 @@ where
     }
 }
 
-impl<CC1, CC2> ResolutionHomomorphism<CC1, CC2>
+impl<const U: bool, CC1, CC2> MuResolutionHomomorphism<U, CC1, CC2>
 where
-    CC1: FreeChainComplex,
-    CC2: FreeChainComplex<Algebra = CC1::Algebra>,
+    CC1: FreeChainComplex<U>,
+    CC1::Algebra: MuAlgebra<U>,
+    CC2: FreeChainComplex<U, Algebra = CC1::Algebra>,
 {
     /// Given a chain map $f: C \to C'$ between free chain complexes, apply
     /// $$ \Hom(f, k): \Hom(C', k) \to \Hom(C, k) $$

@@ -2,9 +2,9 @@ mod chain_homotopy;
 mod finite_chain_complex;
 
 use crate::utils::unicode_num;
-use algebra::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
-use algebra::module::{FreeModule, Module};
-use algebra::Algebra;
+use algebra::module::homomorphism::{ModuleHomomorphism, MuFreeModuleHomomorphism};
+use algebra::module::{Module, MuFreeModule};
+use algebra::{Algebra, MuAlgebra};
 use fp::matrix::Subquotient;
 use fp::prime::ValidPrime;
 use fp::vector::{FpVector, Slice, SliceMut};
@@ -21,11 +21,13 @@ pub enum ChainComplexGrading {
     Cohomological,
 }
 
-pub trait FreeChainComplex:
+pub trait FreeChainComplex<const U: bool = false>:
     ChainComplex<
-    Module = FreeModule<<Self as ChainComplex>::Algebra>,
-    Homomorphism = FreeModuleHomomorphism<FreeModule<<Self as ChainComplex>::Algebra>>,
+    Module = MuFreeModule<U, <Self as ChainComplex>::Algebra>,
+    Homomorphism = MuFreeModuleHomomorphism<U, MuFreeModule<U, <Self as ChainComplex>::Algebra>>,
 >
+where
+    <Self as ChainComplex>::Algebra: MuAlgebra<U>,
 {
     fn graded_dimension_string(&self) -> String {
         let mut result = String::new();
@@ -102,11 +104,13 @@ pub trait FreeChainComplex:
     }
 }
 
-impl<CC> FreeChainComplex for CC where
+impl<const U: bool, CC> FreeChainComplex<U> for CC
+where
     CC: ChainComplex<
-        Module = FreeModule<Self::Algebra>,
-        Homomorphism = FreeModuleHomomorphism<FreeModule<Self::Algebra>>,
-    >
+        Module = MuFreeModule<U, Self::Algebra>,
+        Homomorphism = MuFreeModuleHomomorphism<U, MuFreeModule<U, Self::Algebra>>,
+    >,
+    Self::Algebra: MuAlgebra<U>,
 {
 }
 

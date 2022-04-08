@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::algebra::Algebra;
+use crate::algebra::MuAlgebra;
 use crate::module::{Module, ZeroModule};
 use fp::vector::{Slice, SliceMut};
 use once::{OnceBiVec, OnceVec};
@@ -13,11 +13,14 @@ pub struct OperationGeneratorPair {
     pub generator_index: usize,
 }
 
+pub type FreeModule<A> = MuFreeModule<false, A>;
+pub type UnstableFreeModule<A> = MuFreeModule<true, A>;
+
 /// A free module.
 ///
 /// A free module is uniquely determined by its list of generators. The generators are listed in
 /// increasing degrees, and the index in this list is the internal index.
-pub struct FreeModule<A: Algebra> {
+pub struct MuFreeModule<const U: bool, A: MuAlgebra<U>> {
     algebra: Arc<A>,
     name: String,
     min_degree: i32,
@@ -30,13 +33,13 @@ pub struct FreeModule<A: Algebra> {
     generator_to_index: OnceBiVec<OnceVec<usize>>,
 }
 
-impl<A: Algebra> std::fmt::Display for FreeModule<A> {
+impl<const U: bool, A: MuAlgebra<U>> std::fmt::Display for MuFreeModule<U, A> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self.name)
     }
 }
 
-impl<A: Algebra> FreeModule<A> {
+impl<const U: bool, A: MuAlgebra<U>> MuFreeModule<U, A> {
     pub fn new(algebra: Arc<A>, name: String, min_degree: i32) -> Self {
         let gen_deg_idx_to_internal_idx = OnceBiVec::new(min_degree);
         gen_deg_idx_to_internal_idx.push(0);
@@ -53,7 +56,7 @@ impl<A: Algebra> FreeModule<A> {
     }
 }
 
-impl<A: Algebra> Module for FreeModule<A> {
+impl<const U: bool, A: MuAlgebra<U>> Module for MuFreeModule<U, A> {
     type Algebra = A;
 
     fn algebra(&self) -> Arc<A> {
@@ -69,6 +72,7 @@ impl<A: Algebra> Module for FreeModule<A> {
     }
 
     fn compute_basis(&self, max_degree: i32) {
+        let algebra = self.algebra();
         self.basis_element_to_opgen.extend(max_degree, |degree| {
             let new_row = OnceVec::new();
             self.generator_to_index.push_checked(OnceVec::new(), degree);
@@ -76,7 +80,7 @@ impl<A: Algebra> Module for FreeModule<A> {
             let mut offset = 0;
             for (gen_deg, &num_gens) in self.num_gens.iter_enum() {
                 let op_deg = degree - gen_deg;
-                let num_ops = self.algebra().dimension(op_deg);
+                let num_ops = algebra.dimension_unstable(op_deg, gen_deg);
                 for gen_idx in 0..num_gens {
                     self.generator_to_index[degree].push(offset);
                     offset += num_ops;
@@ -152,13 +156,14 @@ impl<A: Algebra> Module for FreeModule<A> {
         let output_block_max = output_block_min + num_ops;
 
         // Now we multiply s * r and write the result to the appropriate position.
-        self.algebra().multiply_basis_elements(
+        self.algebra().multiply_basis_elements_unstable(
             result.slice_mut(output_block_min, output_block_max),
             coeff,
             op_degree,
             op_index,
             module_operation_degree,
             module_operation_index,
+            generator_degree,
         );
     }
 
@@ -181,13 +186,14 @@ impl<A: Algebra> Module for FreeModule<A> {
                 break;
             }
             let input_slice = input.slice(input_start, input_end);
-            self.algebra.multiply_basis_element_by_element(
+            self.algebra.multiply_basis_element_by_element_unstable(
                 result.slice_mut(output_start, output_end),
                 coeff,
                 op_degree,
                 op_index,
                 input_degree - gen_deg,
                 input_slice,
+                gen_deg,
             );
         }
     }
@@ -207,7 +213,7 @@ impl<A: Algebra> Module for FreeModule<A> {
     }*/
 }
 
-impl<A: Algebra> ZeroModule for FreeModule<A> {
+impl<const U: bool, A: MuAlgebra<U>> ZeroModule for MuFreeModule<U, A> {
     fn zero_module(algebra: Arc<A>, min_degree: i32) -> Self {
         let m = Self::new(algebra, String::from("0"), min_degree);
         m.add_generators(0, 0, None);
@@ -215,7 +221,7 @@ impl<A: Algebra> ZeroModule for FreeModule<A> {
     }
 }
 
-impl<A: Algebra> FreeModule<A> {
+impl<const U: bool, A: MuAlgebra<U>> MuFreeModule<U, A> {
     pub fn gen_names(&self) -> &OnceBiVec<Vec<String>> {
         &self.gen_names
     }
@@ -250,11 +256,12 @@ impl<A: Algebra> FreeModule<A> {
         self.gen_deg_idx_to_internal_idx
             .push_checked(internal_gen_idx + num_gens, degree + 1);
 
+        let algebra = self.algebra();
         let gen_deg = degree;
         for total_degree in degree..self.basis_element_to_opgen.len() {
             let op_deg = total_degree - gen_deg;
             let mut offset = self.basis_element_to_opgen[total_degree].len();
-            let num_ops = self.algebra().dimension(op_deg);
+            let num_ops = algebra.dimension_unstable(op_deg, gen_deg);
             for gen_idx in 0..num_gens {
                 self.generator_to_index[total_degree].push(offset);
                 offset += num_ops;
@@ -416,7 +423,9 @@ impl<A: Algebra> FreeModule<A> {
         v: Slice<'a>,
     ) -> Slice<'a> {
         let start = self.generator_offset(degree, gen_degree, gen_index);
-        let len = self.algebra().dimension(degree - gen_degree);
+        let len = self
+            .algebra()
+            .dimension_unstable(degree - gen_degree, gen_degree);
         v.slice(
             std::cmp::min(v.len(), start),
             std::cmp::min(v.len(), start + len),
@@ -444,15 +453,21 @@ pub struct GeneratorData<const N: usize> {
     pub end: [usize; N],
 }
 
-struct OffsetIterator<'a, A: Algebra, T: Iterator<Item = i32> + 'a, const N: usize> {
-    module: &'a FreeModule<A>,
+struct OffsetIterator<
+    'a,
+    const U: bool,
+    A: MuAlgebra<U>,
+    T: Iterator<Item = i32> + 'a,
+    const N: usize,
+> {
+    module: &'a MuFreeModule<U, A>,
     degree: [i32; N],
     offset: [usize; N],
     gen_deg: T,
 }
 
-impl<'a, A: Algebra, T: Iterator<Item = i32> + 'a, const N: usize> Iterator
-    for OffsetIterator<'a, A, T, N>
+impl<'a, const U: bool, A: MuAlgebra<U>, T: Iterator<Item = i32> + 'a, const N: usize> Iterator
+    for OffsetIterator<'a, U, A, T, N>
 {
     type Item = GeneratorData<N>;
 
@@ -469,7 +484,7 @@ impl<'a, A: Algebra, T: Iterator<Item = i32> + 'a, const N: usize> Iterator
                 + self
                     .module
                     .algebra
-                    .dimension(self.degree[i] - retval.gen_deg);
+                    .dimension_unstable(self.degree[i] - retval.gen_deg, retval.gen_deg);
             self.offset[i] = retval.end[i];
         }
         Some(retval)
@@ -478,7 +493,7 @@ impl<'a, A: Algebra, T: Iterator<Item = i32> + 'a, const N: usize> Iterator
 
 /*
 #[cfg(not(feature = "cache-multiplication"))]
-impl<A: Algebra> FreeModule<A> {
+impl<A: Algebra> MuFreeModule<A> {
     fn standard_act(&self, result : SliceMut, coeff : u32, op_degree : i32, op_index : usize, input_degree : i32, input : Slice) {
         assert!(input.dimension() == self.dimension(input_degree));
         let p = *self.prime();
@@ -695,7 +710,7 @@ mod tests {
 
     use super::*;
 
-    use crate::algebra::AdemAlgebra;
+    use crate::algebra::{AdemAlgebra, Algebra};
     use fp::prime::ValidPrime;
     use fp::vector::FpVector;
 

@@ -6,9 +6,9 @@ use crate::chain_complex::{AugmentedChainComplex, ChainComplex};
 use crate::save::SaveKind;
 use crate::utils::Timer;
 
-use algebra::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
-use algebra::module::{FreeModule, Module};
-use algebra::Algebra;
+use algebra::module::homomorphism::{ModuleHomomorphism, MuFreeModuleHomomorphism};
+use algebra::module::{Module, MuFreeModule};
+use algebra::{Algebra, MuAlgebra};
 use fp::matrix::{AugmentedMatrix, QuasiInverse, Subspace};
 use fp::vector::{FpVector, Slice, SliceMut};
 use once::OnceVec;
@@ -24,7 +24,7 @@ use itertools::Itertools;
 #[cfg(feature = "concurrent")]
 use std::sync::mpsc;
 
-/// In [`Resolution::compute_through_stem`] and [`Resolution::compute_through_bidegree`], we pass
+/// In [`MuResolution::compute_through_stem`] and [`MuResolution::compute_through_bidegree`], we pass
 /// this struct around to inform the supervisor what bidegrees have been computed. We use an
 /// explicit struct instead of a tuple to avoid an infinite type problem.
 #[cfg(feature = "concurrent")]
@@ -60,16 +60,22 @@ impl SenderData {
 /// number if needs be, but up to the 140th stem we only see at most 8 new generators.
 const MAX_NEW_GENS: usize = 10;
 
-/// A minimal resolution of a chain complex. The functions [`Resolution::compute_through_stem`] and
-/// [`Resolution::compute_through_bidegree`] extends the minimal resolution to the given bidegree.
-pub struct Resolution<CC: ChainComplex> {
+pub type Resolution<CC> = MuResolution<false, CC>;
+pub type UnstableResolution<CC> = MuResolution<true, CC>;
+
+/// A minimal resolution of a chain complex. The functions [`MuResolution::compute_through_stem`] and
+/// [`MuResolution::compute_through_bidegree`] extends the minimal resolution to the given bidegree.
+pub struct MuResolution<const U: bool, CC: ChainComplex>
+where
+    CC::Algebra: MuAlgebra<U>,
+{
     name: String,
     lock: Mutex<()>,
     complex: Arc<CC>,
-    modules: OnceVec<Arc<FreeModule<CC::Algebra>>>,
-    zero_module: Arc<FreeModule<CC::Algebra>>,
-    chain_maps: OnceVec<Arc<FreeModuleHomomorphism<CC::Module>>>,
-    differentials: OnceVec<Arc<FreeModuleHomomorphism<FreeModule<CC::Algebra>>>>,
+    modules: OnceVec<Arc<MuFreeModule<U, CC::Algebra>>>,
+    zero_module: Arc<MuFreeModule<U, CC::Algebra>>,
+    chain_maps: OnceVec<Arc<MuFreeModuleHomomorphism<U, CC::Module>>>,
+    differentials: OnceVec<Arc<MuFreeModuleHomomorphism<U, MuFreeModule<U, CC::Algebra>>>>,
 
     ///  For each *internal* degree, store the kernel of the most recently calculated chain map as
     ///  returned by `generate_old_kernel_and_compute_new_kernel`, to be used if we run
@@ -94,7 +100,10 @@ pub struct Resolution<CC: ChainComplex> {
     pub load_quasi_inverse: bool,
 }
 
-impl<CC: ChainComplex> Resolution<CC> {
+impl<const U: bool, CC: ChainComplex> MuResolution<U, CC>
+where
+    CC::Algebra: MuAlgebra<U>,
+{
     pub fn new(complex: Arc<CC>) -> Self {
         // It doesn't error if the save file is None
         Self::new_with_save(complex, None).unwrap()
@@ -103,7 +112,7 @@ impl<CC: ChainComplex> Resolution<CC> {
     pub fn new_with_save(complex: Arc<CC>, save_dir: Option<PathBuf>) -> anyhow::Result<Self> {
         let algebra = complex.algebra();
         let min_degree = complex.min_degree();
-        let zero_module = Arc::new(FreeModule::new(algebra, "F_{-1}".to_string(), min_degree));
+        let zero_module = Arc::new(MuFreeModule::new(algebra, "F_{-1}".to_string(), min_degree));
 
         if let Some(p) = &save_dir {
             for subdir in SaveKind::resolution_data() {
@@ -142,12 +151,12 @@ impl<CC: ChainComplex> Resolution<CC> {
         let min_degree = self.min_degree();
 
         for i in self.modules.len() as u32..=max_s {
-            self.modules.push(Arc::new(FreeModule::new(
+            self.modules.push(Arc::new(MuFreeModule::new(
                 Arc::clone(&self.algebra()),
                 format!("F{}", i),
                 min_degree,
             )));
-            self.chain_maps.push(Arc::new(FreeModuleHomomorphism::new(
+            self.chain_maps.push(Arc::new(MuFreeModuleHomomorphism::new(
                 Arc::clone(&self.modules[i]),
                 Arc::clone(&self.complex.module(i)),
                 0,
@@ -156,7 +165,7 @@ impl<CC: ChainComplex> Resolution<CC> {
 
         if self.differentials.is_empty() {
             self.differentials
-                .push(Arc::new(FreeModuleHomomorphism::new(
+                .push(Arc::new(MuFreeModuleHomomorphism::new(
                     Arc::clone(&self.modules[0u32]),
                     Arc::clone(&self.zero_module),
                     0,
@@ -165,7 +174,7 @@ impl<CC: ChainComplex> Resolution<CC> {
 
         for i in self.differentials.len() as u32..=max_s {
             self.differentials
-                .push(Arc::new(FreeModuleHomomorphism::new(
+                .push(Arc::new(MuFreeModuleHomomorphism::new(
                     Arc::clone(&self.modules[i]),
                     Arc::clone(&self.modules[i - 1]),
                     0,
@@ -855,10 +864,13 @@ impl<CC: ChainComplex> Resolution<CC> {
     }
 }
 
-impl<CC: ChainComplex> ChainComplex for Resolution<CC> {
+impl<const U: bool, CC: ChainComplex> ChainComplex for MuResolution<U, CC>
+where
+    CC::Algebra: MuAlgebra<U>,
+{
     type Algebra = CC::Algebra;
-    type Module = FreeModule<Self::Algebra>;
-    type Homomorphism = FreeModuleHomomorphism<FreeModule<Self::Algebra>>;
+    type Module = MuFreeModule<U, Self::Algebra>;
+    type Homomorphism = MuFreeModuleHomomorphism<U, MuFreeModule<U, Self::Algebra>>;
 
     fn algebra(&self) -> Arc<Self::Algebra> {
         self.target().algebra()
@@ -921,9 +933,12 @@ impl<CC: ChainComplex> ChainComplex for Resolution<CC> {
     }
 }
 
-impl<CC: ChainComplex> AugmentedChainComplex for Resolution<CC> {
+impl<const U: bool, CC: ChainComplex> AugmentedChainComplex for MuResolution<U, CC>
+where
+    CC::Algebra: MuAlgebra<U>,
+{
     type TargetComplex = CC;
-    type ChainMap = FreeModuleHomomorphism<CC::Module>;
+    type ChainMap = MuFreeModuleHomomorphism<U, CC::Module>;
 
     fn target(&self) -> Arc<Self::TargetComplex> {
         Arc::clone(&self.complex)

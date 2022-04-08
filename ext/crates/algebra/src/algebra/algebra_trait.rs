@@ -286,6 +286,190 @@ pub trait UnstableAlgebra: Algebra {
         }
     }
 }
+
+/// An algebra that is maybe unstable. Every Algebra implements MuAlgebra<false> by ignoring the
+/// excess parameter, and every UnstableAlgebra implements MuAlgebra<true>. This makes it possible
+/// to write code that is generic over stable and unstable algebras.
+pub trait MuAlgebra<const U: bool>: Algebra {
+    fn dimension_unstable(&self, degree: i32, excess: i32) -> usize;
+
+    fn multiply_basis_elements_unstable(
+        &self,
+        result: SliceMut,
+        coeff: u32,
+        r_degree: i32,
+        r_index: usize,
+        s_degree: i32,
+        s_index: usize,
+        excess: i32,
+    );
+
+    fn multiply_basis_element_by_element_unstable(
+        &self,
+        result: SliceMut,
+        coeff: u32,
+        r_degree: i32,
+        r_idx: usize,
+        s_degree: i32,
+        s: Slice,
+        excess: i32,
+    );
+
+    /// Computes the product `r * s` of a general element `r` and a basis element `s`, and adds the
+    /// result to `result`.
+    ///
+    /// Neither `result` nor `r` must be aligned.
+    fn multiply_element_by_basis_element_unstable(
+        &self,
+        result: SliceMut,
+        coeff: u32,
+        r_degree: i32,
+        r: Slice,
+        s_degree: i32,
+        s_idx: usize,
+        excess: i32,
+    );
+
+    /// Computes the product `r * s` of two general elements, and adds the
+    /// result to `result`.
+    ///
+    /// Neither `result`, `s`, nor `r` must be aligned.
+    fn multiply_element_by_element_unstable(
+        &self,
+        result: SliceMut,
+        coeff: u32,
+        r_degree: i32,
+        r: Slice,
+        s_degree: i32,
+        s: Slice,
+        excess: i32,
+    );
+}
+
+impl<A: Algebra> MuAlgebra<false> for A {
+    fn dimension_unstable(&self, degree: i32, _excess: i32) -> usize {
+        self.dimension(degree)
+    }
+
+    fn multiply_basis_elements_unstable(
+        &self,
+        result: SliceMut,
+        coeff: u32,
+        r_degree: i32,
+        r_index: usize,
+        s_degree: i32,
+        s_index: usize,
+        _excess: i32,
+    ) {
+        self.multiply_basis_elements(result, coeff, r_degree, r_index, s_degree, s_index)
+    }
+
+    fn multiply_basis_element_by_element_unstable(
+        &self,
+        result: SliceMut,
+        coeff: u32,
+        r_degree: i32,
+        r_idx: usize,
+        s_degree: i32,
+        s: Slice,
+        _excess: i32,
+    ) {
+        self.multiply_basis_element_by_element(result, coeff, r_degree, r_idx, s_degree, s)
+    }
+
+    fn multiply_element_by_basis_element_unstable(
+        &self,
+        result: SliceMut,
+        coeff: u32,
+        r_degree: i32,
+        r: Slice,
+        s_degree: i32,
+        s_idx: usize,
+        _excess: i32,
+    ) {
+        self.multiply_element_by_basis_element(result, coeff, r_degree, r, s_degree, s_idx)
+    }
+
+    fn multiply_element_by_element_unstable(
+        &self,
+        result: SliceMut,
+        coeff: u32,
+        r_degree: i32,
+        r: Slice,
+        s_degree: i32,
+        s: Slice,
+        _excess: i32,
+    ) {
+        self.multiply_element_by_element(result, coeff, r_degree, r, s_degree, s)
+    }
+}
+
+impl<A: UnstableAlgebra> MuAlgebra<true> for A {
+    fn dimension_unstable(&self, degree: i32, excess: i32) -> usize {
+        UnstableAlgebra::dimension_unstable(self, degree, excess)
+    }
+
+    fn multiply_basis_elements_unstable(
+        &self,
+        result: SliceMut,
+        coeff: u32,
+        r_degree: i32,
+        r_index: usize,
+        s_degree: i32,
+        s_index: usize,
+        excess: i32,
+    ) {
+        UnstableAlgebra::multiply_basis_elements_unstable(
+            self, result, coeff, r_degree, r_index, s_degree, s_index, excess,
+        )
+    }
+
+    fn multiply_basis_element_by_element_unstable(
+        &self,
+        result: SliceMut,
+        coeff: u32,
+        r_degree: i32,
+        r_idx: usize,
+        s_degree: i32,
+        s: Slice,
+        excess: i32,
+    ) {
+        UnstableAlgebra::multiply_basis_element_by_element_unstable(
+            self, result, coeff, r_degree, r_idx, s_degree, s, excess,
+        )
+    }
+
+    fn multiply_element_by_basis_element_unstable(
+        &self,
+        result: SliceMut,
+        coeff: u32,
+        r_degree: i32,
+        r: Slice,
+        s_degree: i32,
+        s_idx: usize,
+        excess: i32,
+    ) {
+        UnstableAlgebra::multiply_element_by_basis_element_unstable(
+            self, result, coeff, r_degree, r, s_degree, s_idx, excess,
+        )
+    }
+
+    fn multiply_element_by_element_unstable(
+        &self,
+        result: SliceMut,
+        coeff: u32,
+        r_degree: i32,
+        r: Slice,
+        s_degree: i32,
+        s: Slice,
+        excess: i32,
+    ) {
+        UnstableAlgebra::multiply_element_by_element_unstable(
+            self, result, coeff, r_degree, r, s_degree, s, excess,
+        )
+    }
+}
+
 /// An [`Algebra`] equipped with a distinguished presentation.
 ///
 /// These data can be used to specify finite modules as the actions of the distinguished generators.

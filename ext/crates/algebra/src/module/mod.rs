@@ -16,7 +16,9 @@ pub mod homomorphism;
 
 pub use finite_dimensional_module::FiniteDimensionalModule as FDModule;
 pub use finitely_presented_module::FinitelyPresentedModule as FPModule;
-pub use free_module::{FreeModule, GeneratorData, OperationGeneratorPair};
+pub use free_module::{
+    FreeModule, GeneratorData, MuFreeModule, OperationGeneratorPair, UnstableFreeModule,
+};
 pub use module_trait::{Module, ModuleFailedRelationError};
 pub use rpn::RealProjectiveSpace;
 pub use steenrod_module::SteenrodModule;

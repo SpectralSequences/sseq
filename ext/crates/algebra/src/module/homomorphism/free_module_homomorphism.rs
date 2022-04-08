@@ -1,15 +1,21 @@
 use std::sync::Arc;
 
-use crate::algebra::Algebra;
+use crate::algebra::MuAlgebra;
 use crate::module::free_module::OperationGeneratorPair;
 use crate::module::homomorphism::{ModuleHomomorphism, ZeroHomomorphism};
-use crate::module::{FreeModule, Module};
+use crate::module::{Module, MuFreeModule};
 use fp::matrix::{MatrixSliceMut, QuasiInverse, Subspace};
 use fp::vector::{FpVector, Slice, SliceMut};
 use once::OnceBiVec;
 
-pub struct FreeModuleHomomorphism<M: Module> {
-    source: Arc<FreeModule<M::Algebra>>,
+pub type FreeModuleHomomorphism<M> = MuFreeModuleHomomorphism<false, M>;
+pub type UnstableFreeModuleHomomorphism<M> = MuFreeModuleHomomorphism<true, M>;
+
+pub struct MuFreeModuleHomomorphism<const U: bool, M: Module>
+where
+    M::Algebra: MuAlgebra<U>,
+{
+    source: Arc<MuFreeModule<U, M::Algebra>>,
     target: Arc<M>,
     outputs: OnceBiVec<Vec<FpVector>>, // degree --> input_idx --> output
     pub images: OnceBiVec<Option<Subspace>>,
@@ -20,8 +26,11 @@ pub struct FreeModuleHomomorphism<M: Module> {
     degree_shift: i32,
 }
 
-impl<M: Module> ModuleHomomorphism for FreeModuleHomomorphism<M> {
-    type Source = FreeModule<M::Algebra>;
+impl<const U: bool, M: Module> ModuleHomomorphism for MuFreeModuleHomomorphism<U, M>
+where
+    M::Algebra: MuAlgebra<U>,
+{
+    type Source = MuFreeModule<U, M::Algebra>;
     type Target = M;
 
     fn source(&self) -> Arc<Self::Source> {
@@ -92,8 +101,15 @@ impl<M: Module> ModuleHomomorphism for FreeModuleHomomorphism<M> {
     }
 }
 
-impl<M: Module> FreeModuleHomomorphism<M> {
-    pub fn new(source: Arc<FreeModule<M::Algebra>>, target: Arc<M>, degree_shift: i32) -> Self {
+impl<const U: bool, M: Module> MuFreeModuleHomomorphism<U, M>
+where
+    M::Algebra: MuAlgebra<U>,
+{
+    pub fn new(
+        source: Arc<MuFreeModule<U, M::Algebra>>,
+        target: Arc<M>,
+        degree_shift: i32,
+    ) -> Self {
         let min_degree = std::cmp::max(source.min_degree(), target.min_degree() + degree_shift);
         let outputs = OnceBiVec::new(min_degree);
         let kernels = OnceBiVec::new(min_degree);
@@ -239,9 +255,13 @@ impl<M: Module> FreeModuleHomomorphism<M> {
     }
 }
 
-impl<M: Module> ZeroHomomorphism<FreeModule<M::Algebra>, M> for FreeModuleHomomorphism<M> {
+impl<const U: bool, M: Module> ZeroHomomorphism<MuFreeModule<U, M::Algebra>, M>
+    for MuFreeModuleHomomorphism<U, M>
+where
+    M::Algebra: MuAlgebra<U>,
+{
     fn zero_homomorphism(
-        source: Arc<FreeModule<M::Algebra>>,
+        source: Arc<MuFreeModule<U, M::Algebra>>,
         target: Arc<M>,
         degree_shift: i32,
     ) -> Self {
@@ -249,7 +269,7 @@ impl<M: Module> ZeroHomomorphism<FreeModule<M::Algebra>, M> for FreeModuleHomomo
     }
 }
 
-impl<A: Algebra> FreeModuleHomomorphism<FreeModule<A>> {
+impl<const U: bool, A: MuAlgebra<U>> MuFreeModuleHomomorphism<U, MuFreeModule<U, A>> {
     /// Given f: M -> N, compute the dual f*: Hom(N, k) -> Hom(M, k) in source (N) degree t.
     pub fn hom_k(&self, t: i32) -> Vec<Vec<u32>> {
         let source_dim = self.source.number_of_gens_in_degree(t + self.degree_shift);

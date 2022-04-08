@@ -14,7 +14,9 @@ mod generic_zero_homomorphism;
 mod hom_pullback;
 mod quotient_homomorphism;
 
-pub use free_module_homomorphism::FreeModuleHomomorphism;
+pub use free_module_homomorphism::{
+    FreeModuleHomomorphism, MuFreeModuleHomomorphism, UnstableFreeModuleHomomorphism,
+};
 pub use full_module_homomorphism::FullModuleHomomorphism;
 pub use generic_zero_homomorphism::GenericZeroHomomorphism;
 pub use hom_pullback::HomPullback;
