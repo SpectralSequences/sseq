@@ -995,14 +995,6 @@ impl AdemAlgebra {
             excess,
             true,
         );
-        // Zeroing the rest of the result is a little unexpected, but I don't think it causes trouble?
-        // Can't avoid this unexpected behavior without sacrificing some speed.
-        result
-            .slice_mut(
-                self.dimension_unstable(r_degree + s_degree, excess),
-                self.dimension_unstable(r_degree + s_degree, i32::max_value()),
-            )
-            .set_to_zero();
     }
 
     pub fn multiply_unstable(
@@ -1023,8 +1015,6 @@ impl AdemAlgebra {
         assert!(s_index < self.dimension_unstable(s_degree, excess));
 
         if s_degree == 0 {
-            // If s is of length 0 then max_idx "r->P_length" is off the edge of the list and it segfaults.
-            // Avoid this by returning early in this case.
             result.add_basis_element(r_index, coeff);
             return;
         }
