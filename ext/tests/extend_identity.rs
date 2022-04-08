@@ -8,46 +8,37 @@ use serde_json::json;
 use std::convert::TryInto;
 use std::sync::Arc;
 
-#[test]
-fn extend_identity() {
-    check(("S_2", "adem"), 30);
-    check(("S_3", "adem"), 50);
-    check(("Calpha", "adem"), 50);
-    check(("S_2", "milnor"), 30);
-    check(("S_3", "milnor"), 50);
-    check(("Calpha", "milnor"), 50);
-    check(("tmf2", "milnor"), 40);
+use rstest::rstest;
 
-    check(
-        (
-            json!({
-                "type":"finite dimensional module",
-                "p":2,
-                "gens":{ "x0":0, "x1":1, "x3":3, "x4":4 },
-                "actions": ["Sq2 x1 = x3"]
-            }),
-            "adem",
-        ),
-        30,
-    );
-
-    check(
-        (
-            json!({
-                "type":"finite dimensional module",
-                "p":5,
-                "gens":{"x0":0,"x1":1,"x5":5,"x9":9},
-                "actions": ["P1 x1 = x9"]
-            }),
-            "milnor",
-        ),
-        50,
-    );
-}
-
-fn check<T: TryInto<Config>>(config: T, max_degree: i32) {
+#[rstest]
+#[trace]
+#[case(("S_2", "adem"), 30)]
+#[case(("S_3", "adem"), 50)]
+#[case(("Calpha", "adem"), 50)]
+#[case(("S_2", "milnor"), 30)]
+#[case(("S_3", "milnor"), 50)]
+#[case(("Calpha", "milnor"), 50)]
+#[case(("tmf2", "milnor"), 40)]
+#[case((json!({
+    "type":"finite dimensional module",
+        "p":2,
+        "gens":{ "x0":0, "x1":1, "x3":3, "x4":4 },
+        "actions": ["Sq2 x1 = x3"]
+    }),
+    "adem"),
+    30,
+)]
+#[case((json!({
+    "type":"finite dimensional module",
+        "p":5,
+        "gens":{"x0":0,"x1":1,"x5":5,"x9":9},
+        "actions": ["P1 x1 = x9"]
+    }),
+    "milnor"),
+    50,
+)]
+fn extend_identity<T: TryInto<Config>>(#[case] config: T, #[case] max_degree: i32) {
     let config: Config = config.try_into().ok().unwrap();
-    println!("Module: {:?}", config);
     let resolution = Arc::new(construct(config, None).unwrap());
     resolution.compute_through_bidegree(max_degree as u32, max_degree);
 
