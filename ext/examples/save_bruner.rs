@@ -19,7 +19,7 @@ fn main() -> anyhow::Result<()> {
     let mut buffer = String::new();
 
     for s in 0..resolution.next_homological_degree() {
-        let f = File::create(format!("Diff.{}", s))?;
+        let f = File::create(format!("hDiff.{s}"))?;
         let mut f = BufWriter::new(f);
         let module = resolution.module(s);
         // We don't use this when s = 0
@@ -30,14 +30,12 @@ fn main() -> anyhow::Result<()> {
             .map(|t| module.number_of_gens_in_degree(t))
             .sum();
 
-        writeln!(f, "s={}  n={}\n", s, num_gens)?;
+        writeln!(f, "        {num_gens}        {max_degree}\n")?;
 
         let d = resolution.differential(s);
-        let mut gen_count = 0;
         for t in min_degree..=max_degree {
             for idx in 0..module.number_of_gens_in_degree(t) {
-                writeln!(f, "{} : {}\n", gen_count, t)?;
-                gen_count += 1;
+                writeln!(f, "{t}\n")?;
 
                 if s == 0 {
                     writeln!(f, "1\n0 0 1 i(0).\n\n\n")?;
@@ -47,7 +45,7 @@ fn main() -> anyhow::Result<()> {
                 buffer.clear();
                 let dx = d.output(t, idx);
 
-                let mut inner_gen_count = 0;
+                let mut gen_count = 0;
                 for gen_deg in min_degree..t {
                     for gen_idx in 0..dmodule.number_of_gens_in_degree(gen_deg) {
                         let op_deg = t - gen_deg;
@@ -55,21 +53,21 @@ fn main() -> anyhow::Result<()> {
                         let start = dmodule.generator_offset(t, gen_deg, gen_idx);
                         let slice = dx.slice(start, start + algebra_dim);
                         if slice.is_zero() {
-                            inner_gen_count += 1;
+                            gen_count += 1;
                             continue;
                         }
                         row_count += 1;
-                        write!(buffer, "{} {} {} i", inner_gen_count, op_deg, algebra_dim)?;
+                        write!(buffer, "{gen_count} {op_deg} {algebra_dim} i").unwrap();
                         for (op_idx, _) in slice.iter_nonzero() {
                             let elt = algebra.basis_element_from_index(op_deg, op_idx);
-                            write!(buffer, "({:?})", elt.p_part.iter().format(","))?;
+                            write!(buffer, "({:?})", elt.p_part.iter().format(",")).unwrap();
                         }
-                        writeln!(buffer, ".")?;
-                        inner_gen_count += 1;
+                        writeln!(buffer, ".").unwrap();
+                        gen_count += 1;
                     }
                 }
-                writeln!(f, "{}", row_count)?;
-                writeln!(f, "{}\n", buffer)?; // buffer has one new line, writeln has one new line, add another one.
+                writeln!(f, "{row_count}")?;
+                writeln!(f, "{buffer}")?; // buffer has one new line, writeln has one new line, add another one.
             }
         }
     }
