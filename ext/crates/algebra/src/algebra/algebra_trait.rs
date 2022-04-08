@@ -188,6 +188,104 @@ pub trait Algebra: std::fmt::Display + Send + Sync + 'static {
     }
 }
 
+pub trait UnstableAlgebra: Algebra {
+    fn dimension_unstable(&self, degree: i32, excess: i32) -> usize;
+
+    fn multiply_basis_elements_unstable(
+        &self,
+        result: SliceMut,
+        coeff: u32,
+        r_degree: i32,
+        r_index: usize,
+        s_degree: i32,
+        s_index: usize,
+        excess: i32,
+    );
+
+    /// Computes the product `r * s` of a basis element `r` and a general element `s`, and adds the
+    /// result to `result`.
+    ///
+    /// Neither `result` nor `s` must be aligned.
+    fn multiply_basis_element_by_element_unstable(
+        &self,
+        mut result: SliceMut,
+        coeff: u32,
+        r_degree: i32,
+        r_idx: usize,
+        s_degree: i32,
+        s: Slice,
+        excess: i32,
+    ) {
+        let p = self.prime();
+        for (i, v) in s.iter_nonzero() {
+            self.multiply_basis_elements_unstable(
+                result.copy(),
+                (coeff * v) % *p,
+                r_degree,
+                r_idx,
+                s_degree,
+                i,
+                excess,
+            );
+        }
+    }
+
+    /// Computes the product `r * s` of a general element `r` and a basis element `s`, and adds the
+    /// result to `result`.
+    ///
+    /// Neither `result` nor `r` must be aligned.
+    fn multiply_element_by_basis_element_unstable(
+        &self,
+        mut result: SliceMut,
+        coeff: u32,
+        r_degree: i32,
+        r: Slice,
+        s_degree: i32,
+        s_idx: usize,
+        excess: i32,
+    ) {
+        let p = self.prime();
+        for (i, v) in r.iter_nonzero() {
+            self.multiply_basis_elements_unstable(
+                result.copy(),
+                (coeff * v) % *p,
+                r_degree,
+                i,
+                s_degree,
+                s_idx,
+                excess,
+            );
+        }
+    }
+
+    /// Computes the product `r * s` of two general elements, and adds the
+    /// result to `result`.
+    ///
+    /// Neither `result`, `s`, nor `r` must be aligned.
+    fn multiply_element_by_element_unstable(
+        &self,
+        mut result: SliceMut,
+        coeff: u32,
+        r_degree: i32,
+        r: Slice,
+        s_degree: i32,
+        s: Slice,
+        excess: i32,
+    ) {
+        let p = self.prime();
+        for (i, v) in s.iter_nonzero() {
+            self.multiply_element_by_basis_element_unstable(
+                result.copy(),
+                (coeff * v) % *p,
+                r_degree,
+                r,
+                s_degree,
+                i,
+                excess,
+            );
+        }
+    }
+}
 /// An [`Algebra`] equipped with a distinguished presentation.
 ///
 /// These data can be used to specify finite modules as the actions of the distinguished generators.

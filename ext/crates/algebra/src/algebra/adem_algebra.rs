@@ -12,7 +12,7 @@ use fp::vector::{FpVector, SliceMut};
 use once::OnceVec;
 
 use crate::algebra::combinatorics::{self, MAX_XI_TAU};
-use crate::algebra::{Algebra, Bialgebra, GeneratedAlgebra};
+use crate::algebra::{Algebra, Bialgebra, GeneratedAlgebra, UnstableAlgebra};
 
 #[cfg(doc)]
 use crate::algebra::SteenrodAlgebra;
@@ -290,7 +290,7 @@ impl Algebra for AdemAlgebra {
         s_degree: i32,
         s_index: usize,
     ) {
-        self.multiply_unstable(
+        self.multiply_inner(
             result,
             coeff,
             r_degree,
@@ -468,6 +468,39 @@ impl GeneratedAlgebra for AdemAlgebra {
     }
 }
 
+impl UnstableAlgebra for AdemAlgebra {
+    fn dimension_unstable(&self, degree: i32, excess: i32) -> usize {
+        if degree < 0 || excess < 0 {
+            0
+        } else if excess < degree {
+            self.excess_table[degree as usize][excess as usize]
+        } else {
+            self.basis_table[degree as usize].len()
+        }
+    }
+
+    fn multiply_basis_elements_unstable(
+        &self,
+        mut result: SliceMut,
+        coeff: u32,
+        r_degree: i32,
+        r_index: usize,
+        s_degree: i32,
+        s_index: usize,
+        excess: i32,
+    ) {
+        self.multiply_inner(
+            result.copy(),
+            coeff,
+            r_degree,
+            r_index,
+            s_degree,
+            s_index,
+            excess,
+            true,
+        );
+    }
+}
 // static void AdemAlgebra__initializeFields(AdemAlgebraInternal *algebra, uint p, bool generic, bool unstable);
 // uint AdemAlgebra__generateName(AdemAlgebra *algebra); // defined in adem_io
 impl AdemAlgebra {
@@ -969,39 +1002,7 @@ impl AdemAlgebra {
         result
     }
 
-    pub fn dimension_unstable(&self, degree: i32, excess: i32) -> usize {
-        if degree < 0 || excess < 0 {
-            0
-        } else if excess < degree {
-            self.excess_table[degree as usize][excess as usize]
-        } else {
-            self.basis_table[degree as usize].len()
-        }
-    }
-
-    pub fn multiply_basis_elements_unstable(
-        &self,
-        mut result: SliceMut,
-        coeff: u32,
-        r_degree: i32,
-        r_index: usize,
-        s_degree: i32,
-        s_index: usize,
-        excess: i32,
-    ) {
-        self.multiply_unstable(
-            result.copy(),
-            coeff,
-            r_degree,
-            r_index,
-            s_degree,
-            s_index,
-            excess,
-            true,
-        );
-    }
-
-    pub fn multiply_unstable(
+    pub fn multiply_inner(
         &self,
         mut result: SliceMut,
         coeff: u32,
