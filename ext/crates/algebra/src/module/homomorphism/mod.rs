@@ -32,7 +32,6 @@ pub use quotient_homomorphism::{QuotientHomomorphism, QuotientHomomorphismSource
 pub trait ModuleHomomorphism: Send + Sync {
     type Source: Module;
     type Target: Module<Algebra = <Self::Source as Module>::Algebra>;
-    const CUSTOM_QI: bool = false;
 
     fn source(&self) -> Arc<Self::Source>;
     fn target(&self) -> Arc<Self::Target>;
