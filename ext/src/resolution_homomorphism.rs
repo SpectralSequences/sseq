@@ -457,44 +457,15 @@ where
         hom.target
             .compute_through_bidegree(0, degree_shift + max_degree);
 
-        let source_chain_map = hom.source.chain_map(0);
-        let target_chain_map = hom.target.chain_map(0);
-        target_chain_map.compute_auxiliary_data_through_degree(degree_shift + max_degree);
-
-        let g = hom.get_map_ensure_length(0);
-        let mut scratch = FpVector::new(hom.source.prime(), 0);
-
         for t in source_module.min_degree()..=max_degree {
-            let num_gens = hom.source.module(0).number_of_gens_in_degree(t);
-
-            let mut fx = FpVector::new(p, target_module.dimension(t + degree_shift));
-
-            let mut outputs_matrix = Matrix::new(
+            let mut m = Matrix::new(
                 p,
-                num_gens,
-                hom.target.module(0).dimension(t + degree_shift),
+                source_module.dimension(t),
+                target_module.dimension(t + degree_shift),
             );
-            if num_gens == 0 || fx.is_empty() {
-                g.add_generators_from_matrix_rows(t, outputs_matrix.as_slice_mut());
-                continue;
-            }
-            for j in 0..num_gens {
-                scratch.set_scratch_vector_size(target_module.dimension(t + degree_shift));
-                source_chain_map.apply_to_basis_element(
-                    scratch.as_slice_mut(),
-                    1,
-                    t,
-                    hom.source.module(0).generator_offset(t, t, j),
-                );
-                f.apply(fx.as_slice_mut(), 1, t, scratch.as_slice());
-                assert!(target_chain_map.apply_quasi_inverse(
-                    outputs_matrix[j].as_slice_mut(),
-                    t + degree_shift,
-                    fx.as_slice(),
-                ));
-                fx.set_to_zero();
-            }
-            g.add_generators_from_matrix_rows(t, outputs_matrix.as_slice_mut());
+
+            f.get_matrix(m.as_slice_mut(), t);
+            hom.extend_step(0, t, Some(&m));
         }
         hom
     }
