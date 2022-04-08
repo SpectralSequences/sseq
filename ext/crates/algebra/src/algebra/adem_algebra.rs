@@ -1015,6 +1015,9 @@ impl AdemAlgebra {
         assert!(s_index < self.dimension_unstable(s_degree, excess));
 
         if s_degree == 0 {
+            if unstable && r_index >= self.dimension_unstable(r_degree, excess) {
+                return;
+            }
             result.add_basis_element(r_index, coeff);
             return;
         }
