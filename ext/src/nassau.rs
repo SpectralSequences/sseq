@@ -950,22 +950,6 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
         self.differentials.len() > s as usize && self.differential(s).next_degree() > t
     }
 
-    fn set_homology_basis(&self, _s: u32, _t: i32, _homology_basis: Vec<usize>) {
-        unimplemented!()
-    }
-
-    fn homology_basis(&self, _s: u32, _t: i32) -> &Vec<usize> {
-        unimplemented!()
-    }
-
-    fn homology_dimension(&self, s: u32, t: i32) -> usize {
-        self.number_of_gens_in_bidegree(s, t)
-    }
-
-    fn max_homology_degree(&self, _s: u32) -> i32 {
-        unimplemented!()
-    }
-
     fn differential(&self, s: u32) -> Arc<Self::Homomorphism> {
         Arc::clone(&self.differentials[s as usize])
     }

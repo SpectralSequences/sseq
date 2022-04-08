@@ -143,12 +143,18 @@ pub trait ChainComplex: Send + Sync {
 
     fn set_homology_basis(
         &self,
-        homological_degree: u32,
-        internal_degree: i32,
-        homology_basis: Vec<usize>,
-    );
-    fn homology_basis(&self, homological_degree: u32, internal_degree: i32) -> &Vec<usize>;
-    fn max_homology_degree(&self, homological_degree: u32) -> i32;
+        _homological_degree: u32,
+        _internal_degree: i32,
+        _homology_basis: Vec<usize>,
+    ) {
+        unimplemented!()
+    }
+    fn homology_basis(&self, _homological_degree: u32, _internal_degree: i32) -> &Vec<usize> {
+        unimplemented!()
+    }
+    fn max_homology_degree(&self, _homological_degree: u32) -> i32 {
+        unimplemented!()
+    }
 
     fn compute_homology_through_bidegree(&self, homological_degree: u32, internal_degree: i32) {
         self.compute_through_bidegree(homological_degree + 1, internal_degree);

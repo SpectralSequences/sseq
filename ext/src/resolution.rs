@@ -2,7 +2,7 @@
 //! particular, this contains the core logic that compute minimal resolutions.
 use std::sync::{Arc, Mutex};
 
-use crate::chain_complex::{AugmentedChainComplex, ChainComplex, FreeChainComplex};
+use crate::chain_complex::{AugmentedChainComplex, ChainComplex};
 use crate::save::SaveKind;
 use crate::utils::Timer;
 
@@ -878,22 +878,6 @@ impl<CC: ChainComplex> ChainComplex for Resolution<CC> {
 
     fn has_computed_bidegree(&self, s: u32, t: i32) -> bool {
         self.differentials.len() > s as usize && self.differential(s).next_degree() > t
-    }
-
-    fn set_homology_basis(&self, _s: u32, _t: i32, _homology_basis: Vec<usize>) {
-        unimplemented!()
-    }
-
-    fn homology_basis(&self, _s: u32, _t: i32) -> &Vec<usize> {
-        unimplemented!()
-    }
-
-    fn homology_dimension(&self, s: u32, t: i32) -> usize {
-        self.number_of_gens_in_bidegree(s, t)
-    }
-
-    fn max_homology_degree(&self, _s: u32) -> i32 {
-        unimplemented!()
     }
 
     fn differential(&self, s: u32) -> Arc<Self::Homomorphism> {
