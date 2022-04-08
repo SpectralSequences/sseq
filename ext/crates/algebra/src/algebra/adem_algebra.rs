@@ -121,14 +121,16 @@ impl fmt::Display for AdemBasisElement {
     }
 }
 
-fn adem_basis_element_excess_sort_order(a: &AdemBasisElement, b: &AdemBasisElement) -> Ordering {
-    a.excess.cmp(&b.excess)
+impl PartialOrd for AdemBasisElement {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.excess.partial_cmp(&other.excess)
+    }
 }
 
-// We need this for generic basis generation.
-#[allow(dead_code)]
-fn adem_basis_element_length_sort_order(a: &AdemBasisElement, b: &AdemBasisElement) -> Ordering {
-    a.ps.len().cmp(&b.ps.len())
+impl Ord for AdemBasisElement {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.excess.cmp(&other.excess)
+    }
 }
 
 /// Shifts a `Vec`'s elements back by `offset`.
@@ -174,7 +176,6 @@ pub struct AdemAlgebra {
     /// degree -> first square -> admissible sequence idx -> result
     multiplication_table: OnceVec<Vec<Vec<FpVector>>>,
     excess_table: OnceVec<Vec<usize>>,
-    sort_order: Option<fn(&AdemBasisElement, &AdemBasisElement) -> Ordering>,
 }
 
 impl fmt::Display for AdemAlgebra {
@@ -474,14 +475,6 @@ impl AdemAlgebra {
         let basis_element_to_index_map = OnceVec::new();
         let multiplication_table = OnceVec::new();
         let excess_table = OnceVec::new();
-        let sort_order = if unstable_enabled {
-            Some(
-                adem_basis_element_excess_sort_order
-                    as fn(&AdemBasisElement, &AdemBasisElement) -> Ordering,
-            )
-        } else {
-            None
-        };
         Self {
             p,
             generic,
@@ -492,7 +485,6 @@ impl AdemAlgebra {
             basis_element_to_index_map,
             multiplication_table,
             excess_table,
-            sort_order,
         }
     }
 
@@ -592,8 +584,8 @@ impl AdemAlgebra {
             let table = &self.even_basis_table[n as usize];
             // Sorting breaks the algorithm above.
             let mut new_table = table.clone();
-            if let Some(f) = self.sort_order {
-                new_table.sort_by(f);
+            if self.unstable_enabled {
+                new_table.sort();
             }
             self.basis_table.push(new_table);
         }
@@ -662,8 +654,8 @@ impl AdemAlgebra {
                 }
             }
         }
-        if let Some(f) = self.sort_order {
-            basis.sort_by(f);
+        if self.unstable_enabled {
+            basis.sort();
         }
         self.basis_table.push(basis);
     }
@@ -1450,55 +1442,23 @@ impl AdemAlgebra {
 
 impl AdemAlgebra {
     fn generate_excess_table(&self, max_degree: i32) {
-        for n in self.excess_table.len() as i32..=max_degree {
-            let dim = self.dimension(n);
-            let mut new_entry = Vec::with_capacity(n as usize);
+        self.excess_table.extend(max_degree as usize, |n| {
+            let mut new_entry = Vec::with_capacity(n);
             let mut cur_excess = 0;
-            for i in 0..dim {
-                let elt = self.basis_element_from_index(n, i);
+            for (i, elt) in self.basis_table[n].iter().enumerate() {
                 for _ in cur_excess..elt.excess {
                     new_entry.push(i);
                 }
                 cur_excess = elt.excess;
             }
-            for _ in cur_excess..n {
+            let dim = self.dimension(n as i32);
+            for _ in cur_excess..n as i32 {
                 new_entry.push(dim);
             }
-            self.excess_table.push(new_entry);
-        }
+            new_entry
+        });
     }
 }
-
-// void AdemAlgebra__generateExcessTable(AdemAlgebraInternal *algebra, int old_max_degree, int max_degree){
-//     algebra->excess_table = realloc(algebra->excess_table, sizeof(uint*)*max_degree);
-//     for(int n=old_max_degree; n<max_degree; n++){
-//         uint dim = AdemAlgebra_getDimension((Algebra*)algebra, n, -1);
-//         algebra->excess_table[n] = malloc(n * sizeof(uint));
-//         uint cur_excess = 0;
-//         for(uint i=0; i < dim; i++){
-//             AdemBasisElement *elt = AdemAlgebra_basisElement_fromIndex((AdemAlgebra*)algebra, n, i);
-//             for(int j=cur_excess; j<elt->excess; j++){
-//                 algebra->excess_table[n][j] = i;
-//             }
-//             cur_excess = elt->excess;
-//         }
-//         for(int j=cur_excess; j<n; j++){
-//             algebra->excess_table[n][j] = dim;
-//         }
-//     }
-// }
-
-// uint AdemAlgebra_getDimension_unstable(Algebra *this, int degree, int excess){
-//     assert(degree < this->max_degree);
-//     if(degree < 0){
-//         return 0;
-//     }
-//     AdemAlgebraInternal *algebra = (AdemAlgebraInternal*) this;
-//     if(excess >= degree){
-//         return algebra->basis_table[degree].length;
-//     }
-//     return algebra->excess_table[degree][excess];
-// }
 
 impl Bialgebra for AdemAlgebra {
     fn decompose(&self, op_deg: i32, op_idx: usize) -> Vec<(i32, usize)> {
