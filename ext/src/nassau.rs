@@ -393,7 +393,7 @@ pub struct Resolution<M: ZeroModule<Algebra = MilnorAlgebra>> {
     modules: OnceVec<Arc<FreeModule<MilnorAlgebra>>>,
     zero_module: Arc<FreeModule<MilnorAlgebra>>,
     differentials: OnceVec<Arc<FreeModuleHomomorphism<FreeModule<MilnorAlgebra>>>>,
-    target: Arc<FiniteChainComplex<M, FullModuleHomomorphism<M, M>>>,
+    target: Arc<FiniteChainComplex<M>>,
     chain_maps: OnceVec<Arc<FreeModuleHomomorphism<M>>>,
     save_dir: Option<PathBuf>,
 }

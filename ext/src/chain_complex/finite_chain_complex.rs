@@ -3,7 +3,7 @@ use algebra::module::homomorphism::{FullModuleHomomorphism, ModuleHomomorphism, 
 use algebra::module::{Module, ZeroModule};
 use std::sync::Arc;
 
-pub struct FiniteChainComplex<M, F>
+pub struct FiniteChainComplex<M, F = FullModuleHomomorphism<M>>
 where
     M: Module,
     F: ModuleHomomorphism<Source = M, Target = M>,
