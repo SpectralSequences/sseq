@@ -3,10 +3,10 @@ use crate::chain_complex::{
     AugmentedChainComplex, BoundedChainComplex, ChainComplex, FiniteChainComplex,
 };
 
-use crate::resolution::Resolution;
+use crate::resolution::{Resolution, UnstableResolution};
 use crate::CCC;
 use algebra::module::{steenrod_module, FDModule, Module, SteenrodModule};
-use algebra::{AlgebraType, MilnorAlgebra, SteenrodAlgebra};
+use algebra::{AdemAlgebra, AlgebraType, MilnorAlgebra, SteenrodAlgebra};
 
 use anyhow::{anyhow, Context};
 use fp::prime::ValidPrime;
@@ -391,6 +391,29 @@ pub fn query_module(
     }
 
     resolution.compute_through_stem(max_s, max_n);
+
+    Ok(resolution)
+}
+
+pub fn query_unstable_module(
+    load_quasi_inverse: impl Into<LoadQuasiInverseOption>,
+) -> anyhow::Result<UnstableResolution<FiniteChainComplex<FDModule<AdemAlgebra>>>> {
+    let spec = query::raw("Module", parse_module_name);
+    let p = ValidPrime::new(spec["p"].as_u64().unwrap() as u32);
+    let algebra = Arc::new(AdemAlgebra::new(p, *p != 2, true));
+    let module = Arc::new(FDModule::from_json(algebra, &spec)?);
+    let cc = Arc::new(FiniteChainComplex::ccdz(module));
+
+    let save_dir = query::optional("Module save directory", |x| {
+        core::result::Result::<PathBuf, std::convert::Infallible>::Ok(PathBuf::from(x))
+    });
+
+    let mut resolution = UnstableResolution::new_with_save(cc, save_dir)?;
+    resolution.load_quasi_inverse = match load_quasi_inverse.into() {
+        LoadQuasiInverseOption::Yes => true,
+        LoadQuasiInverseOption::No => false,
+        LoadQuasiInverseOption::IfNoSave => resolution.save_dir().is_none(),
+    };
 
     Ok(resolution)
 }
