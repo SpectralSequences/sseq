@@ -75,15 +75,15 @@ fn main() -> anyhow::Result<()> {
             if s == 0 {
                 continue;
             }
-            for &(_, op_deg, op_idx) in &products {
-                if let Some(matrix) = res.filtration_one_product(op_deg, op_idx, s, t) {
+            for (name, op_deg, op_idx) in &products {
+                if let Some(matrix) = res.filtration_one_product(*op_deg, *op_idx, s, t) {
                     for (source_idx, row) in matrix.iter().enumerate() {
                         for (target_idx, &entry) in row.iter().enumerate() {
                             if entry != 0 {
                                 g.structline(
                                     (n - min_degree, s as i32, target_idx),
-                                    (n - min_degree - op_deg + 1, s as i32 - 1, source_idx),
-                                    None,
+                                    (n - min_degree - *op_deg + 1, s as i32 - 1, source_idx),
+                                    Some(name),
                                 )?;
                             }
                         }
