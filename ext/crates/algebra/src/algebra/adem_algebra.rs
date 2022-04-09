@@ -190,7 +190,11 @@ impl Algebra for AdemAlgebra {
     }
 
     fn magic(&self) -> u32 {
-        (*self.prime() as u32) << 16
+        if self.unstable_enabled {
+            1 + ((*self.prime() as u32) << 16)
+        } else {
+            (*self.prime() as u32) << 16
+        }
     }
 
     fn prime(&self) -> ValidPrime {

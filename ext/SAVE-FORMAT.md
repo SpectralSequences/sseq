@@ -66,6 +66,8 @@ algebra to use, we have a 4-byte magic number for each algebra. The two least
 significant bytes are given as follows:
 ```
 adem algebra: 0x0000
+unstable adem algebra: 0x0001
+milnor algebra without profile: 0x8000
 milnor algebra without profile: 0x8000
 milnor algebra with profile: 0x8001
 ```
