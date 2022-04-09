@@ -395,13 +395,17 @@ pub fn query_module(
     Ok(resolution)
 }
 
-pub fn query_unstable_module(
-    load_quasi_inverse: impl Into<LoadQuasiInverseOption>,
-) -> anyhow::Result<UnstableResolution<FiniteChainComplex<FDModule<AdemAlgebra>>>> {
+pub fn query_unstable_module_only() -> anyhow::Result<FDModule<AdemAlgebra>> {
     let spec = query::raw("Module", parse_module_name);
     let p = ValidPrime::new(spec["p"].as_u64().unwrap() as u32);
     let algebra = Arc::new(AdemAlgebra::new(p, *p != 2, true));
-    let module = Arc::new(FDModule::from_json(algebra, &spec)?);
+    FDModule::from_json(algebra, &spec)
+}
+
+pub fn query_unstable_module(
+    load_quasi_inverse: impl Into<LoadQuasiInverseOption>,
+) -> anyhow::Result<UnstableResolution<FiniteChainComplex<FDModule<AdemAlgebra>>>> {
+    let module = Arc::new(query_unstable_module_only()?);
     let cc = Arc::new(FiniteChainComplex::ccdz(module));
 
     let save_dir = query::optional("Module save directory", |x| {
