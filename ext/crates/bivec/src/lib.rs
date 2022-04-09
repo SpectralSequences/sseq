@@ -202,6 +202,19 @@ impl<T> BiVec<T> {
     pub fn range(&self) -> std::ops::Range<i32> {
         self.min_degree..self.len()
     }
+
+    pub fn shift(&mut self, k: i32) {
+        self.min_degree += k
+    }
+}
+
+impl<T> IntoIterator for BiVec<T> {
+    type Item = T;
+    type IntoIter = std::vec::IntoIter<T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.data.into_iter()
+    }
 }
 
 impl<'a, T> IntoIterator for &'a BiVec<T> {
