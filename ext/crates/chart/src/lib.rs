@@ -166,7 +166,6 @@ impl<T: Write> SvgBackend<T> {
                     r#"<text x="{x}" y="{y}" text-anchor="middle" dominant-baseline="middle">{k}</text>"#,
                     x = 50.0 + n as f32 * 100.0 + offset.0 * 6.0,
                     y = 50.0 + offset.1 * 6.0,
-                    k = k
                 )?;
             }
         }
@@ -213,8 +212,6 @@ impl<T: Write> Backend for SvgBackend<T> {
         writeln!(
             self.out,
             r#"<svg version = "1.1" width="{width}" height="{height}" xmlns="http://www.w3.org/2000/svg">"#,
-            width = width,
-            height = height
         )?;
         writeln!(self.out, "<style>{}</style>", Self::STYLES)
     }
@@ -231,8 +228,7 @@ impl<T: Write> Backend for SvgBackend<T> {
 
         writeln!(
             self.out,
-            r#"<line class="{class}" x1="{start_x}" x2="{end_x}" y1="{start_y}" y2="{end_y}" />"#,
-            class = style,
+            r#"<line class="{style}" x1="{start_x}" x2="{end_x}" y1="{start_y}" y2="{end_y}" />"#,
             start_x = Self::MARGIN + start_x * Self::GRID_WIDTH,
             end_x = Self::MARGIN + end_x * Self::GRID_WIDTH,
             start_y = height - Self::MARGIN - start_y * Self::GRID_WIDTH,
@@ -256,11 +252,9 @@ impl<T: Write> Backend for SvgBackend<T> {
 
         writeln!(
             self.out,
-            r#"<text class="{class}" x="{x}" y="{y}">{text}</text>"#,
+            r#"<text class="{class}" x="{x}" y="{y}">{content}</text>"#,
             x = Self::MARGIN + x * Self::GRID_WIDTH + offset.0,
             y = Self::MARGIN + (self.max_y - y) * Self::GRID_WIDTH + offset.1,
-            text = content,
-            class = class,
         )
     }
 
@@ -272,13 +266,7 @@ impl<T: Write> Backend for SvgBackend<T> {
 
         for k in 0..n {
             let (r, x, y) = self.get_coords(x, y, k);
-            writeln!(
-                self.out,
-                r#"<circle cx="{x}" cy="{y}" r="{r}"/>"#,
-                x = x,
-                y = y,
-                r = r
-            )?;
+            writeln!(self.out, r#"<circle cx="{x}" cy="{y}" r="{r}"/>"#,)?;
         }
         Ok(())
     }
@@ -304,10 +292,6 @@ impl<T: Write> Backend for SvgBackend<T> {
             self.out,
             r#"<line class="{style}" x1="{source_x}" x2="{target_x}" y1="{source_y}" y2="{target_y}" />"#,
             style = style.unwrap_or("structline"),
-            source_x = source_x,
-            source_y = source_y,
-            target_x = target_x,
-            target_y = target_y,
         )?;
 
         Ok(())
@@ -380,8 +364,7 @@ impl<T: Write> Backend for TikzBackend<T> {
     ) -> Result<(), Self::Error> {
         writeln!(
             self.out,
-            r#"\draw [{}] ({}, {}) -- ({}, {});"#,
-            style, start_x, start_y, end_x, end_y,
+            r#"\draw [{style}] ({start_x}, {start_y}) -- ({end_x}, {end_y});"#,
         )
     }
 
@@ -399,14 +382,7 @@ impl<T: Write> Backend for TikzBackend<T> {
             Orientation::Above => "above",
         };
 
-        writeln!(
-            self.out,
-            r#"\node [{offset}] at ({x}, {y}) {{{text}}};"#,
-            x = x,
-            y = y,
-            text = content,
-            offset = offset,
-        )
+        writeln!(self.out, r#"\node [{offset}] at ({x}, {y}) {{{content}}};"#,)
     }
 
     fn node(&mut self, x: i32, y: i32, n: usize) -> Result<(), Self::Error> {
@@ -417,13 +393,7 @@ impl<T: Write> Backend for TikzBackend<T> {
 
         for k in 0..n {
             let (r, x, y) = self.get_coords(x, y, k);
-            writeln!(
-                self.out,
-                r#"\draw [fill] ({x}, {y}) circle ({r});"#,
-                x = x,
-                y = y,
-                r = r,
-            )?;
+            writeln!(self.out, r#"\draw [fill] ({x}, {y}) circle ({r});"#,)?;
         }
         Ok(())
     }
@@ -449,10 +419,6 @@ impl<T: Write> Backend for TikzBackend<T> {
             self.out,
             r#"\draw [{style}] ({source_x}, {source_y}) -- ({target_x}, {target_y});"#,
             style = style.unwrap_or(""),
-            source_x = source_x,
-            source_y = source_y,
-            target_x = target_x,
-            target_y = target_y,
         )?;
 
         Ok(())
