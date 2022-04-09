@@ -1,4 +1,4 @@
-<svg version = "1.1" width="800" height="100" xmlns="http://www.w3.org/2000/svg">
+<svg version = "1.1" width="1200" height="100" xmlns="http://www.w3.org/2000/svg">
 <rect fill="none" stroke="black" width="80" height="80" y="10" x="10"/>
 <text x="50" y="50" text-anchor="middle" dominant-baseline="middle">0</text>
 <rect fill="none" stroke="black" width="80" height="80" y="10" x="110"/>
@@ -43,4 +43,50 @@
 <text x="774" y="50" text-anchor="middle" dominant-baseline="middle">5</text>
 <text x="738" y="26" text-anchor="middle" dominant-baseline="middle">6</text>
 <text x="762" y="26" text-anchor="middle" dominant-baseline="middle">7</text>
+<rect fill="none" stroke="black" width="80" height="80" y="10" x="810"/>
+<text x="826" y="74" text-anchor="middle" dominant-baseline="middle">0</text>
+<text x="850" y="74" text-anchor="middle" dominant-baseline="middle">1</text>
+<text x="874" y="74" text-anchor="middle" dominant-baseline="middle">2</text>
+<text x="826" y="50" text-anchor="middle" dominant-baseline="middle">3</text>
+<text x="850" y="50" text-anchor="middle" dominant-baseline="middle">4</text>
+<text x="874" y="50" text-anchor="middle" dominant-baseline="middle">5</text>
+<text x="826" y="26" text-anchor="middle" dominant-baseline="middle">6</text>
+<text x="850" y="26" text-anchor="middle" dominant-baseline="middle">7</text>
+<text x="874" y="26" text-anchor="middle" dominant-baseline="middle">8</text>
+<rect fill="none" stroke="black" width="80" height="80" y="10" x="910"/>
+<text x="926" y="74" text-anchor="middle" dominant-baseline="middle">0</text>
+<text x="950" y="74" text-anchor="middle" dominant-baseline="middle">1</text>
+<text x="974" y="74" text-anchor="middle" dominant-baseline="middle">2</text>
+<text x="926" y="50" text-anchor="middle" dominant-baseline="middle">3</text>
+<text x="942.2" y="50" text-anchor="middle" dominant-baseline="middle">4</text>
+<text x="957.8" y="50" text-anchor="middle" dominant-baseline="middle">5</text>
+<text x="974" y="50" text-anchor="middle" dominant-baseline="middle">6</text>
+<text x="926" y="26" text-anchor="middle" dominant-baseline="middle">7</text>
+<text x="950" y="26" text-anchor="middle" dominant-baseline="middle">8</text>
+<text x="974" y="26" text-anchor="middle" dominant-baseline="middle">9</text>
+<rect fill="none" stroke="black" width="80" height="80" y="10" x="1010"/>
+<text x="1026" y="74" text-anchor="middle" dominant-baseline="middle">0</text>
+<text x="1042.2" y="74" text-anchor="middle" dominant-baseline="middle">1</text>
+<text x="1057.8" y="74" text-anchor="middle" dominant-baseline="middle">2</text>
+<text x="1074" y="74" text-anchor="middle" dominant-baseline="middle">3</text>
+<text x="1026" y="50" text-anchor="middle" dominant-baseline="middle">4</text>
+<text x="1042.2" y="50" text-anchor="middle" dominant-baseline="middle">5</text>
+<text x="1057.8" y="50" text-anchor="middle" dominant-baseline="middle">6</text>
+<text x="1074" y="50" text-anchor="middle" dominant-baseline="middle">7</text>
+<text x="1026" y="26" text-anchor="middle" dominant-baseline="middle">8</text>
+<text x="1050" y="26" text-anchor="middle" dominant-baseline="middle">9</text>
+<text x="1074" y="26" text-anchor="middle" dominant-baseline="middle">10</text>
+<rect fill="none" stroke="black" width="80" height="80" y="10" x="1110"/>
+<text x="1126" y="74" text-anchor="middle" dominant-baseline="middle">0</text>
+<text x="1142.2" y="74" text-anchor="middle" dominant-baseline="middle">1</text>
+<text x="1157.8" y="74" text-anchor="middle" dominant-baseline="middle">2</text>
+<text x="1174" y="74" text-anchor="middle" dominant-baseline="middle">3</text>
+<text x="1126" y="50" text-anchor="middle" dominant-baseline="middle">4</text>
+<text x="1142.2" y="50" text-anchor="middle" dominant-baseline="middle">5</text>
+<text x="1157.8" y="50" text-anchor="middle" dominant-baseline="middle">6</text>
+<text x="1174" y="50" text-anchor="middle" dominant-baseline="middle">7</text>
+<text x="1126" y="26" text-anchor="middle" dominant-baseline="middle">8</text>
+<text x="1142.2" y="26" text-anchor="middle" dominant-baseline="middle">9</text>
+<text x="1157.8" y="26" text-anchor="middle" dominant-baseline="middle">10</text>
+<text x="1174" y="26" text-anchor="middle" dominant-baseline="middle">11</text>
 </svg>
