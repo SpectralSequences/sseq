@@ -300,18 +300,44 @@
 <span id="270">270</span>
 <span id="271">271</span>
 <span id="272">272</span>
+<span id="273">273</span>
+<span id="274">274</span>
+<span id="275">275</span>
+<span id="276">276</span>
+<span id="277">277</span>
+<span id="278">278</span>
+<span id="279">279</span>
+<span id="280">280</span>
+<span id="281">281</span>
+<span id="282">282</span>
+<span id="283">283</span>
+<span id="284">284</span>
+<span id="285">285</span>
+<span id="286">286</span>
+<span id="287">287</span>
+<span id="288">288</span>
+<span id="289">289</span>
+<span id="290">290</span>
+<span id="291">291</span>
+<span id="292">292</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
 
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::algebra::Algebra</span>;
+<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::algebra::MuAlgebra</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::module::free_module::OperationGeneratorPair</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::module::homomorphism</span>::{<span class="ident">ModuleHomomorphism</span>, <span class="ident">ZeroHomomorphism</span>};
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::module</span>::{<span class="ident">FreeModule</span>, <span class="ident">Module</span>};
+<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::module</span>::{<span class="ident">Module</span>, <span class="ident">MuFreeModule</span>};
 <span class="kw">use</span> <span class="ident">fp::matrix</span>::{<span class="ident">MatrixSliceMut</span>, <span class="ident">QuasiInverse</span>, <span class="ident">Subspace</span>};
 <span class="kw">use</span> <span class="ident">fp::vector</span>::{<span class="ident">FpVector</span>, <span class="ident">Slice</span>, <span class="ident">SliceMut</span>};
 <span class="kw">use</span> <span class="ident">once::OnceBiVec</span>;
 
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">M</span>: <span class="ident">Module</span><span class="op">&gt;</span> {
-    <span class="ident">source</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident">M::Algebra</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">MuFreeModuleHomomorphism</span><span class="op">&lt;</span><span class="bool-val">false</span>, <span class="ident">M</span><span class="op">&gt;</span>;
+<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">UnstableFreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">MuFreeModuleHomomorphism</span><span class="op">&lt;</span><span class="bool-val">true</span>, <span class="ident">M</span><span class="op">&gt;</span>;
+
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">MuFreeModuleHomomorphism</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">U</span>: <span class="ident">bool</span>, <span class="ident">M</span>: <span class="ident">Module</span><span class="op">&gt;</span>
+<span class="kw">where</span>
+    <span class="ident">M::Algebra</span>: <span class="ident">MuAlgebra</span><span class="op">&lt;</span><span class="ident">U</span><span class="op">&gt;</span>,
+{
+    <span class="ident">source</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">MuFreeModule</span><span class="op">&lt;</span><span class="ident">U</span>, <span class="ident">M::Algebra</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="ident">target</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span>,
     <span class="ident">outputs</span>: <span class="ident">OnceBiVec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">FpVector</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="comment">// degree --&gt; input_idx --&gt; output</span>
     <span class="kw">pub</span> <span class="ident">images</span>: <span class="ident">OnceBiVec</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Subspace</span><span class="op">&gt;</span><span class="op">&gt;</span>,
@@ -322,8 +348,11 @@
     <span class="ident">degree_shift</span>: <span class="ident">i32</span>,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">M</span>: <span class="ident">Module</span><span class="op">&gt;</span> <span class="ident">ModuleHomomorphism</span> <span class="kw">for</span> <span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span> {
-    <span class="kw">type</span> <span class="ident">Source</span> <span class="op">=</span> <span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident">M::Algebra</span><span class="op">&gt;</span>;
+<span class="kw">impl</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">U</span>: <span class="ident">bool</span>, <span class="ident">M</span>: <span class="ident">Module</span><span class="op">&gt;</span> <span class="ident">ModuleHomomorphism</span> <span class="kw">for</span> <span class="ident">MuFreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">U</span>, <span class="ident">M</span><span class="op">&gt;</span>
+<span class="kw">where</span>
+    <span class="ident">M::Algebra</span>: <span class="ident">MuAlgebra</span><span class="op">&lt;</span><span class="ident">U</span><span class="op">&gt;</span>,
+{
+    <span class="kw">type</span> <span class="ident">Source</span> <span class="op">=</span> <span class="ident">MuFreeModule</span><span class="op">&lt;</span><span class="ident">U</span>, <span class="ident">M::Algebra</span><span class="op">&gt;</span>;
     <span class="kw">type</span> <span class="ident">Target</span> <span class="op">=</span> <span class="ident">M</span>;
 
     <span class="kw">fn</span> <span class="ident">source</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Source</span><span class="op">&gt;</span> {
@@ -394,8 +423,15 @@
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">M</span>: <span class="ident">Module</span><span class="op">&gt;</span> <span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">source</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident">M::Algebra</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="ident">target</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span>, <span class="ident">degree_shift</span>: <span class="ident">i32</span>) -&gt; <span class="self">Self</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">U</span>: <span class="ident">bool</span>, <span class="ident">M</span>: <span class="ident">Module</span><span class="op">&gt;</span> <span class="ident">MuFreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">U</span>, <span class="ident">M</span><span class="op">&gt;</span>
+<span class="kw">where</span>
+    <span class="ident">M::Algebra</span>: <span class="ident">MuAlgebra</span><span class="op">&lt;</span><span class="ident">U</span><span class="op">&gt;</span>,
+{
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(
+        <span class="ident">source</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">MuFreeModule</span><span class="op">&lt;</span><span class="ident">U</span>, <span class="ident">M::Algebra</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">target</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span>,
+        <span class="ident">degree_shift</span>: <span class="ident">i32</span>,
+    ) -&gt; <span class="self">Self</span> {
         <span class="kw">let</span> <span class="ident">min_degree</span> <span class="op">=</span> <span class="ident">std::cmp::max</span>(<span class="ident">source</span>.<span class="ident">min_degree</span>(), <span class="ident">target</span>.<span class="ident">min_degree</span>() <span class="op">+</span> <span class="ident">degree_shift</span>);
         <span class="kw">let</span> <span class="ident">outputs</span> <span class="op">=</span> <span class="ident">OnceBiVec::new</span>(<span class="ident">min_degree</span>);
         <span class="kw">let</span> <span class="ident">kernels</span> <span class="op">=</span> <span class="ident">OnceBiVec::new</span>(<span class="ident">min_degree</span>);
@@ -541,9 +577,13 @@
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">M</span>: <span class="ident">Module</span><span class="op">&gt;</span> <span class="ident">ZeroHomomorphism</span><span class="op">&lt;</span><span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident">M::Algebra</span><span class="op">&gt;</span>, <span class="ident">M</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">U</span>: <span class="ident">bool</span>, <span class="ident">M</span>: <span class="ident">Module</span><span class="op">&gt;</span> <span class="ident">ZeroHomomorphism</span><span class="op">&lt;</span><span class="ident">MuFreeModule</span><span class="op">&lt;</span><span class="ident">U</span>, <span class="ident">M::Algebra</span><span class="op">&gt;</span>, <span class="ident">M</span><span class="op">&gt;</span>
+    <span class="kw">for</span> <span class="ident">MuFreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">U</span>, <span class="ident">M</span><span class="op">&gt;</span>
+<span class="kw">where</span>
+    <span class="ident">M::Algebra</span>: <span class="ident">MuAlgebra</span><span class="op">&lt;</span><span class="ident">U</span><span class="op">&gt;</span>,
+{
     <span class="kw">fn</span> <span class="ident">zero_homomorphism</span>(
-        <span class="ident">source</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident">M::Algebra</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">source</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">MuFreeModule</span><span class="op">&lt;</span><span class="ident">U</span>, <span class="ident">M::Algebra</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">target</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span>,
         <span class="ident">degree_shift</span>: <span class="ident">i32</span>,
     ) -&gt; <span class="self">Self</span> {
@@ -551,7 +591,7 @@
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">Algebra</span><span class="op">&gt;</span> <span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">U</span>: <span class="ident">bool</span>, <span class="ident">A</span>: <span class="ident">MuAlgebra</span><span class="op">&lt;</span><span class="ident">U</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">MuFreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">U</span>, <span class="ident">MuFreeModule</span><span class="op">&lt;</span><span class="ident">U</span>, <span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span> {
     <span class="doccomment">/// Given f: M -&gt; N, compute the dual f*: Hom(N, k) -&gt; Hom(M, k) in source (N) degree t.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">hom_k</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">t</span>: <span class="ident">i32</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">source_dim</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">source</span>.<span class="ident">number_of_gens_in_degree</span>(<span class="ident">t</span> <span class="op">+</span> <span class="self">self</span>.<span class="ident">degree_shift</span>);

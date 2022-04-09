@@ -53,6 +53,8 @@
 <span id="23">23</span>
 <span id="24">24</span>
 <span id="25">25</span>
+<span id="26">26</span>
+<span id="27">27</span>
 </pre><pre class="rust"><code><span class="kw">mod</span> <span class="ident">finite_dimensional_module</span>;
 <span class="kw">mod</span> <span class="ident">finitely_presented_module</span>;
 <span class="kw">mod</span> <span class="ident">free_module</span>;
@@ -71,7 +73,9 @@
 
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">finite_dimensional_module::FiniteDimensionalModule</span> <span class="kw">as</span> <span class="ident">FDModule</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">finitely_presented_module::FinitelyPresentedModule</span> <span class="kw">as</span> <span class="ident">FPModule</span>;
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">free_module</span>::{<span class="ident">FreeModule</span>, <span class="ident">GeneratorData</span>, <span class="ident">OperationGeneratorPair</span>};
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">free_module</span>::{
+    <span class="ident">FreeModule</span>, <span class="ident">GeneratorData</span>, <span class="ident">MuFreeModule</span>, <span class="ident">OperationGeneratorPair</span>, <span class="ident">UnstableFreeModule</span>,
+};
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">module_trait</span>::{<span class="ident">Module</span>, <span class="ident">ModuleFailedRelationError</span>};
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">rpn::RealProjectiveSpace</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">steenrod_module::SteenrodModule</span>;

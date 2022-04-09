@@ -279,6 +279,8 @@
 <span id="249">249</span>
 <span id="250">250</span>
 <span id="251">251</span>
+<span id="252">252</span>
+<span id="253">253</span>
 </pre><pre class="rust"><code><span class="doccomment">//! This script converts between our basis and Bruner&#39;s basis. At the moment, most inputs are</span>
 <span class="doccomment">//! hardcoded, and this only works for the sphere.</span>
 <span class="doccomment">//!</span>
@@ -420,7 +422,9 @@
     <span class="kw">let</span> <span class="ident">algebra</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">MilnorAlgebra</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">MilnorAlgebra::new</span>(<span class="ident">TWO</span>));
 
     <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;nassau&quot;</span>))]</span>
-    <span class="kw">let</span> <span class="ident">algebra</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">algebra::SteenrodAlgebra</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">MilnorAlgebra::new</span>(<span class="ident">TWO</span>).<span class="ident">into</span>());
+    <span class="kw">let</span> <span class="ident">algebra</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">algebra::SteenrodAlgebra</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">algebra::SteenrodAlgebra::MilnorAlgebra</span>(
+        <span class="ident">MilnorAlgebra::new</span>(<span class="ident">TWO</span>),
+    ));
 
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">modules</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">FreeModule</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Vec::with_capacity</span>(<span class="ident">num_s</span>);
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">differentials</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">FreeModuleHomomorphism</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Vec::with_capacity</span>(<span class="ident">num_s</span> <span class="op">-</span> <span class="number">1</span>);

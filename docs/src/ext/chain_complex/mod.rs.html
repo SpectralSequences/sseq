@@ -431,13 +431,17 @@
 <span id="401">401</span>
 <span id="402">402</span>
 <span id="403">403</span>
+<span id="404">404</span>
+<span id="405">405</span>
+<span id="406">406</span>
+<span id="407">407</span>
 </pre><pre class="rust"><code><span class="kw">mod</span> <span class="ident">chain_homotopy</span>;
 <span class="kw">mod</span> <span class="ident">finite_chain_complex</span>;
 
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::utils::unicode_num</span>;
-<span class="kw">use</span> <span class="ident">algebra::module::homomorphism</span>::{<span class="ident">FreeModuleHomomorphism</span>, <span class="ident">ModuleHomomorphism</span>};
-<span class="kw">use</span> <span class="ident">algebra::module</span>::{<span class="ident">FreeModule</span>, <span class="ident">Module</span>};
-<span class="kw">use</span> <span class="ident">algebra::Algebra</span>;
+<span class="kw">use</span> <span class="ident">algebra::module::homomorphism</span>::{<span class="ident">ModuleHomomorphism</span>, <span class="ident">MuFreeModuleHomomorphism</span>};
+<span class="kw">use</span> <span class="ident">algebra::module</span>::{<span class="ident">Module</span>, <span class="ident">MuFreeModule</span>};
+<span class="kw">use</span> <span class="ident">algebra</span>::{<span class="ident">Algebra</span>, <span class="ident">MuAlgebra</span>};
 <span class="kw">use</span> <span class="ident">fp::matrix::Subquotient</span>;
 <span class="kw">use</span> <span class="ident">fp::prime::ValidPrime</span>;
 <span class="kw">use</span> <span class="ident">fp::vector</span>::{<span class="ident">FpVector</span>, <span class="ident">Slice</span>, <span class="ident">SliceMut</span>};
@@ -454,11 +458,13 @@
     <span class="ident">Cohomological</span>,
 }
 
-<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">FreeChainComplex</span>:
+<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">FreeChainComplex</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">U</span>: <span class="ident">bool</span> <span class="op">=</span> <span class="bool-val">false</span><span class="op">&gt;</span>:
     <span class="ident">ChainComplex</span><span class="op">&lt;</span>
-    <span class="ident">Module</span> <span class="op">=</span> <span class="ident">FreeModule</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="self">Self</span> <span class="kw">as</span> <span class="ident">ChainComplex</span><span class="op">&gt;</span><span class="ident">::Algebra</span><span class="op">&gt;</span>,
-    <span class="ident">Homomorphism</span> <span class="op">=</span> <span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">FreeModule</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="self">Self</span> <span class="kw">as</span> <span class="ident">ChainComplex</span><span class="op">&gt;</span><span class="ident">::Algebra</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">Module</span> <span class="op">=</span> <span class="ident">MuFreeModule</span><span class="op">&lt;</span><span class="ident">U</span>, <span class="op">&lt;</span><span class="self">Self</span> <span class="kw">as</span> <span class="ident">ChainComplex</span><span class="op">&gt;</span><span class="ident">::Algebra</span><span class="op">&gt;</span>,
+    <span class="ident">Homomorphism</span> <span class="op">=</span> <span class="ident">MuFreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">U</span>, <span class="ident">MuFreeModule</span><span class="op">&lt;</span><span class="ident">U</span>, <span class="op">&lt;</span><span class="self">Self</span> <span class="kw">as</span> <span class="ident">ChainComplex</span><span class="op">&gt;</span><span class="ident">::Algebra</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 <span class="op">&gt;</span>
+<span class="kw">where</span>
+    <span class="op">&lt;</span><span class="self">Self</span> <span class="kw">as</span> <span class="ident">ChainComplex</span><span class="op">&gt;</span><span class="ident">::Algebra</span>: <span class="ident">MuAlgebra</span><span class="op">&lt;</span><span class="ident">U</span><span class="op">&gt;</span>,
 {
     <span class="kw">fn</span> <span class="ident">graded_dimension_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">String</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">String::new</span>();
@@ -473,7 +479,7 @@
             <span class="ident">result</span>.<span class="ident">push</span>(<span class="string">&#39;\n&#39;</span>);
             <span class="comment">// If it is empty so far, don&#39;t print anything</span>
             <span class="kw">if</span> <span class="ident">result</span>.<span class="ident">trim_start</span>().<span class="ident">is_empty</span>() {
-                <span class="ident">result</span> <span class="op">=</span> <span class="ident">String::new</span>();
+                <span class="ident">result</span>.<span class="ident">clear</span>()
             }
         }
         <span class="ident">result</span>
@@ -535,11 +541,13 @@
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">CC</span><span class="op">&gt;</span> <span class="ident">FreeChainComplex</span> <span class="kw">for</span> <span class="ident">CC</span> <span class="kw">where</span>
+<span class="kw">impl</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">U</span>: <span class="ident">bool</span>, <span class="ident">CC</span><span class="op">&gt;</span> <span class="ident">FreeChainComplex</span><span class="op">&lt;</span><span class="ident">U</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">CC</span>
+<span class="kw">where</span>
     <span class="ident">CC</span>: <span class="ident">ChainComplex</span><span class="op">&lt;</span>
-        <span class="ident">Module</span> <span class="op">=</span> <span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Algebra</span><span class="op">&gt;</span>,
-        <span class="ident">Homomorphism</span> <span class="op">=</span> <span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Algebra</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    <span class="op">&gt;</span>
+        <span class="ident">Module</span> <span class="op">=</span> <span class="ident">MuFreeModule</span><span class="op">&lt;</span><span class="ident">U</span>, <span class="ident"><span class="self">Self</span>::Algebra</span><span class="op">&gt;</span>,
+        <span class="ident">Homomorphism</span> <span class="op">=</span> <span class="ident">MuFreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">U</span>, <span class="ident">MuFreeModule</span><span class="op">&lt;</span><span class="ident">U</span>, <span class="ident"><span class="self">Self</span>::Algebra</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="op">&gt;</span>,
+    <span class="ident"><span class="self">Self</span>::Algebra</span>: <span class="ident">MuAlgebra</span><span class="op">&lt;</span><span class="ident">U</span><span class="op">&gt;</span>,
 {
 }
 

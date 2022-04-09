@@ -1,1 +1,1 @@
-initSidebarItems({"struct":[["FreeModuleHomomorphism",""]]});
+initSidebarItems({"struct":[["MuFreeModuleHomomorphism",""]],"type":[["FreeModuleHomomorphism",""],["UnstableFreeModuleHomomorphism",""]]});

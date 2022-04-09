@@ -205,6 +205,8 @@
 <span id="175">175</span>
 <span id="176">176</span>
 <span id="177">177</span>
+<span id="178">178</span>
+<span id="179">179</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
 
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::module::Module</span>;
@@ -221,7 +223,9 @@
 <span class="kw">mod</span> <span class="ident">hom_pullback</span>;
 <span class="kw">mod</span> <span class="ident">quotient_homomorphism</span>;
 
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">free_module_homomorphism::FreeModuleHomomorphism</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">free_module_homomorphism</span>::{
+    <span class="ident">FreeModuleHomomorphism</span>, <span class="ident">MuFreeModuleHomomorphism</span>, <span class="ident">UnstableFreeModuleHomomorphism</span>,
+};
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">full_module_homomorphism::FullModuleHomomorphism</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">generic_zero_homomorphism::GenericZeroHomomorphism</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">hom_pullback::HomPullback</span>;

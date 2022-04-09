@@ -251,11 +251,6 @@
 <span id="221">221</span>
 <span id="222">222</span>
 <span id="223">223</span>
-<span id="224">224</span>
-<span id="225">225</span>
-<span id="226">226</span>
-<span id="227">227</span>
-<span id="228">228</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
 
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::module::block_structure::BlockStart</span>;
@@ -372,7 +367,7 @@
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
 <span class="kw">mod</span> <span class="ident">tests</span> {
     <span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
-    <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::algebra</span>::{<span class="ident">AdemAlgebra</span>, <span class="ident">Algebra</span>, <span class="ident">SteenrodAlgebra</span>};
+    <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::algebra</span>::{<span class="ident">AdemAlgebra</span>, <span class="ident">Algebra</span>};
     <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::module::FDModule</span>;
     <span class="kw">use</span> <span class="ident">fp::matrix::Matrix</span>;
     <span class="kw">use</span> <span class="ident">fp::prime::ValidPrime</span>;
@@ -383,12 +378,7 @@
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">test_pullback</span>() {
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">ValidPrime::new</span>(<span class="number">2</span>);
-        <span class="kw">let</span> <span class="ident">A</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">SteenrodAlgebra::from</span>(<span class="ident">AdemAlgebra::new</span>(
-            <span class="ident">p</span>,
-            <span class="kw-2">*</span><span class="ident">p</span> <span class="op">!</span><span class="op">=</span> <span class="number">2</span>,
-            <span class="bool-val">false</span>,
-            <span class="bool-val">false</span>,
-        )));
+        <span class="kw">let</span> <span class="ident">A</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">AdemAlgebra::new</span>(<span class="ident">p</span>, <span class="kw-2">*</span><span class="ident">p</span> <span class="op">!</span><span class="op">=</span> <span class="number">2</span>, <span class="bool-val">false</span>));
         <span class="ident">A</span>.<span class="ident">compute_basis</span>(<span class="number">20</span>);
         <span class="kw">let</span> <span class="ident">F0</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">FreeModule::new</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">A</span>), <span class="string">&quot;F0&quot;</span>.<span class="ident">to_string</span>(), <span class="number">0</span>));
         <span class="ident">F0</span>.<span class="ident">add_generators</span>(<span class="number">0</span>, <span class="number">1</span>, <span class="prelude-val">None</span>);

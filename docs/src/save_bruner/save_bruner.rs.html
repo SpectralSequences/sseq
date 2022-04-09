@@ -104,8 +104,6 @@
 <span id="74">74</span>
 <span id="75">75</span>
 <span id="76">76</span>
-<span id="77">77</span>
-<span id="78">78</span>
 </pre><pre class="rust"><code><span class="doccomment">//! This saves a resolution to Bruner&#39;s format. This saves the resulting files to the current</span>
 <span class="doccomment">//! working directory. It is recommended that you run this in a dedicated subdirectory.</span>
 
@@ -127,7 +125,7 @@
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">buffer</span> <span class="op">=</span> <span class="ident">String::new</span>();
 
     <span class="kw">for</span> <span class="ident">s</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">resolution</span>.<span class="ident">next_homological_degree</span>() {
-        <span class="kw">let</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">File::create</span>(<span class="macro">format!</span>(<span class="string">&quot;Diff.{}&quot;</span>, <span class="ident">s</span>))<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">File::create</span>(<span class="macro">format!</span>(<span class="string">&quot;hDiff.{s}&quot;</span>))<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">BufWriter::new</span>(<span class="ident">f</span>);
         <span class="kw">let</span> <span class="ident">module</span> <span class="op">=</span> <span class="ident">resolution</span>.<span class="ident">module</span>(<span class="ident">s</span>);
         <span class="comment">// We don&#39;t use this when s = 0</span>
@@ -138,14 +136,12 @@
             .<span class="ident">map</span>(<span class="op">|</span><span class="ident">t</span><span class="op">|</span> <span class="ident">module</span>.<span class="ident">number_of_gens_in_degree</span>(<span class="ident">t</span>))
             .<span class="ident">sum</span>();
 
-        <span class="macro">writeln!</span>(<span class="ident">f</span>, <span class="string">&quot;s={}  n={}\n&quot;</span>, <span class="ident">s</span>, <span class="ident">num_gens</span>)<span class="question-mark">?</span>;
+        <span class="macro">writeln!</span>(<span class="ident">f</span>, <span class="string">&quot;        {num_gens}        {max_degree}\n&quot;</span>)<span class="question-mark">?</span>;
 
         <span class="kw">let</span> <span class="ident">d</span> <span class="op">=</span> <span class="ident">resolution</span>.<span class="ident">differential</span>(<span class="ident">s</span>);
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">gen_count</span> <span class="op">=</span> <span class="number">0</span>;
         <span class="kw">for</span> <span class="ident">t</span> <span class="kw">in</span> <span class="ident">min_degree</span>..<span class="op">=</span><span class="ident">max_degree</span> {
             <span class="kw">for</span> <span class="ident">idx</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">module</span>.<span class="ident">number_of_gens_in_degree</span>(<span class="ident">t</span>) {
-                <span class="macro">writeln!</span>(<span class="ident">f</span>, <span class="string">&quot;{} : {}\n&quot;</span>, <span class="ident">gen_count</span>, <span class="ident">t</span>)<span class="question-mark">?</span>;
-                <span class="ident">gen_count</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
+                <span class="macro">writeln!</span>(<span class="ident">f</span>, <span class="string">&quot;{t}\n&quot;</span>)<span class="question-mark">?</span>;
 
                 <span class="kw">if</span> <span class="ident">s</span> <span class="op">==</span> <span class="number">0</span> {
                     <span class="macro">writeln!</span>(<span class="ident">f</span>, <span class="string">&quot;1\n0 0 1 i(0).\n\n\n&quot;</span>)<span class="question-mark">?</span>;
@@ -155,7 +151,7 @@
                 <span class="ident">buffer</span>.<span class="ident">clear</span>();
                 <span class="kw">let</span> <span class="ident">dx</span> <span class="op">=</span> <span class="ident">d</span>.<span class="ident">output</span>(<span class="ident">t</span>, <span class="ident">idx</span>);
 
-                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">inner_gen_count</span> <span class="op">=</span> <span class="number">0</span>;
+                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">gen_count</span> <span class="op">=</span> <span class="number">0</span>;
                 <span class="kw">for</span> <span class="ident">gen_deg</span> <span class="kw">in</span> <span class="ident">min_degree</span>..<span class="ident">t</span> {
                     <span class="kw">for</span> <span class="ident">gen_idx</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">dmodule</span>.<span class="ident">number_of_gens_in_degree</span>(<span class="ident">gen_deg</span>) {
                         <span class="kw">let</span> <span class="ident">op_deg</span> <span class="op">=</span> <span class="ident">t</span> <span class="op">-</span> <span class="ident">gen_deg</span>;
@@ -163,21 +159,21 @@
                         <span class="kw">let</span> <span class="ident">start</span> <span class="op">=</span> <span class="ident">dmodule</span>.<span class="ident">generator_offset</span>(<span class="ident">t</span>, <span class="ident">gen_deg</span>, <span class="ident">gen_idx</span>);
                         <span class="kw">let</span> <span class="ident">slice</span> <span class="op">=</span> <span class="ident">dx</span>.<span class="ident">slice</span>(<span class="ident">start</span>, <span class="ident">start</span> <span class="op">+</span> <span class="ident">algebra_dim</span>);
                         <span class="kw">if</span> <span class="ident">slice</span>.<span class="ident">is_zero</span>() {
-                            <span class="ident">inner_gen_count</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
+                            <span class="ident">gen_count</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
                             <span class="kw">continue</span>;
                         }
                         <span class="ident">row_count</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
-                        <span class="macro">write!</span>(<span class="ident">buffer</span>, <span class="string">&quot;{} {} {} i&quot;</span>, <span class="ident">inner_gen_count</span>, <span class="ident">op_deg</span>, <span class="ident">algebra_dim</span>)<span class="question-mark">?</span>;
+                        <span class="macro">write!</span>(<span class="ident">buffer</span>, <span class="string">&quot;{gen_count} {op_deg} {algebra_dim} i&quot;</span>).<span class="ident">unwrap</span>();
                         <span class="kw">for</span> (<span class="ident">op_idx</span>, <span class="kw">_</span>) <span class="kw">in</span> <span class="ident">slice</span>.<span class="ident">iter_nonzero</span>() {
                             <span class="kw">let</span> <span class="ident">elt</span> <span class="op">=</span> <span class="ident">algebra</span>.<span class="ident">basis_element_from_index</span>(<span class="ident">op_deg</span>, <span class="ident">op_idx</span>);
-                            <span class="macro">write!</span>(<span class="ident">buffer</span>, <span class="string">&quot;({:?})&quot;</span>, <span class="ident">elt</span>.<span class="ident">p_part</span>.<span class="ident">iter</span>().<span class="ident">format</span>(<span class="string">&quot;,&quot;</span>))<span class="question-mark">?</span>;
+                            <span class="macro">write!</span>(<span class="ident">buffer</span>, <span class="string">&quot;({:?})&quot;</span>, <span class="ident">elt</span>.<span class="ident">p_part</span>.<span class="ident">iter</span>().<span class="ident">format</span>(<span class="string">&quot;,&quot;</span>)).<span class="ident">unwrap</span>();
                         }
-                        <span class="macro">writeln!</span>(<span class="ident">buffer</span>, <span class="string">&quot;.&quot;</span>)<span class="question-mark">?</span>;
-                        <span class="ident">inner_gen_count</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
+                        <span class="macro">writeln!</span>(<span class="ident">buffer</span>, <span class="string">&quot;.&quot;</span>).<span class="ident">unwrap</span>();
+                        <span class="ident">gen_count</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
                     }
                 }
-                <span class="macro">writeln!</span>(<span class="ident">f</span>, <span class="string">&quot;{}&quot;</span>, <span class="ident">row_count</span>)<span class="question-mark">?</span>;
-                <span class="macro">writeln!</span>(<span class="ident">f</span>, <span class="string">&quot;{}\n&quot;</span>, <span class="ident">buffer</span>)<span class="question-mark">?</span>; <span class="comment">// buffer has one new line, writeln has one new line, add another one.</span>
+                <span class="macro">writeln!</span>(<span class="ident">f</span>, <span class="string">&quot;{row_count}&quot;</span>)<span class="question-mark">?</span>;
+                <span class="macro">writeln!</span>(<span class="ident">f</span>, <span class="string">&quot;{buffer}&quot;</span>)<span class="question-mark">?</span>; <span class="comment">// buffer has one new line, writeln has one new line, add another one.</span>
             }
         }
     }

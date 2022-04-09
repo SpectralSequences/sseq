@@ -555,7 +555,7 @@
 <span class="kw">impl</span> <span class="ident">SteenrodEvaluator</span> {
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>) -&gt; <span class="self">Self</span> {
         <span class="self">Self</span> {
-            <span class="ident">adem</span>: <span class="ident">AdemAlgebra::new</span>(<span class="ident">p</span>, <span class="kw-2">*</span><span class="ident">p</span> <span class="op">!</span><span class="op">=</span> <span class="number">2</span>, <span class="bool-val">false</span>, <span class="bool-val">false</span>),
+            <span class="ident">adem</span>: <span class="ident">AdemAlgebra::new</span>(<span class="ident">p</span>, <span class="kw-2">*</span><span class="ident">p</span> <span class="op">!</span><span class="op">=</span> <span class="number">2</span>, <span class="bool-val">false</span>),
             <span class="ident">milnor</span>: <span class="ident">MilnorAlgebra::new</span>(<span class="ident">p</span>),
         }
     }

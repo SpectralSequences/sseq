@@ -1,1 +1,1 @@
-initSidebarItems({"struct":[["FreeModule","A free module."],["GeneratorData",""],["OffsetIterator",""],["OperationGeneratorPair",""]]});
+initSidebarItems({"struct":[["GeneratorData",""],["MuFreeModule","A free module."],["OffsetIterator",""],["OperationGeneratorPair",""]],"type":[["FreeModule",""],["UnstableFreeModule",""]]});

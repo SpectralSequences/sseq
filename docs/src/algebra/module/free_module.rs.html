@@ -780,9 +780,19 @@
 <span id="750">750</span>
 <span id="751">751</span>
 <span id="752">752</span>
+<span id="753">753</span>
+<span id="754">754</span>
+<span id="755">755</span>
+<span id="756">756</span>
+<span id="757">757</span>
+<span id="758">758</span>
+<span id="759">759</span>
+<span id="760">760</span>
+<span id="761">761</span>
+<span id="762">762</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
 
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::algebra::Algebra</span>;
+<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::algebra::MuAlgebra</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::module</span>::{<span class="ident">Module</span>, <span class="ident">ZeroModule</span>};
 <span class="kw">use</span> <span class="ident">fp::vector</span>::{<span class="ident">Slice</span>, <span class="ident">SliceMut</span>};
 <span class="kw">use</span> <span class="ident">once</span>::{<span class="ident">OnceBiVec</span>, <span class="ident">OnceVec</span>};
@@ -795,11 +805,14 @@
     <span class="kw">pub</span> <span class="ident">generator_index</span>: <span class="ident">usize</span>,
 }
 
+<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">MuFreeModule</span><span class="op">&lt;</span><span class="bool-val">false</span>, <span class="ident">A</span><span class="op">&gt;</span>;
+<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">UnstableFreeModule</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">MuFreeModule</span><span class="op">&lt;</span><span class="bool-val">true</span>, <span class="ident">A</span><span class="op">&gt;</span>;
+
 <span class="doccomment">/// A free module.</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// A free module is uniquely determined by its list of generators. The generators are listed in</span>
 <span class="doccomment">/// increasing degrees, and the index in this list is the internal index.</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">Algebra</span><span class="op">&gt;</span> {
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">MuFreeModule</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">U</span>: <span class="ident">bool</span>, <span class="ident">A</span>: <span class="ident">MuAlgebra</span><span class="op">&lt;</span><span class="ident">U</span><span class="op">&gt;</span><span class="op">&gt;</span> {
     <span class="ident">algebra</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>,
     <span class="ident">name</span>: <span class="ident">String</span>,
     <span class="ident">min_degree</span>: <span class="ident">i32</span>,
@@ -812,13 +825,13 @@
     <span class="ident">generator_to_index</span>: <span class="ident">OnceBiVec</span><span class="op">&lt;</span><span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">Algebra</span><span class="op">&gt;</span> <span class="ident">std::fmt::Display</span> <span class="kw">for</span> <span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">U</span>: <span class="ident">bool</span>, <span class="ident">A</span>: <span class="ident">MuAlgebra</span><span class="op">&lt;</span><span class="ident">U</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">std::fmt::Display</span> <span class="kw">for</span> <span class="ident">MuFreeModule</span><span class="op">&lt;</span><span class="ident">U</span>, <span class="ident">A</span><span class="op">&gt;</span> {
     <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">std::fmt::Formatter</span>) -&gt; <span class="ident">std::fmt::Result</span> {
         <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{}&quot;</span>, <span class="self">self</span>.<span class="ident">name</span>)
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">Algebra</span><span class="op">&gt;</span> <span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">U</span>: <span class="ident">bool</span>, <span class="ident">A</span>: <span class="ident">MuAlgebra</span><span class="op">&lt;</span><span class="ident">U</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">MuFreeModule</span><span class="op">&lt;</span><span class="ident">U</span>, <span class="ident">A</span><span class="op">&gt;</span> {
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">algebra</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>, <span class="ident">name</span>: <span class="ident">String</span>, <span class="ident">min_degree</span>: <span class="ident">i32</span>) -&gt; <span class="self">Self</span> {
         <span class="kw">let</span> <span class="ident">gen_deg_idx_to_internal_idx</span> <span class="op">=</span> <span class="ident">OnceBiVec::new</span>(<span class="ident">min_degree</span>);
         <span class="ident">gen_deg_idx_to_internal_idx</span>.<span class="ident">push</span>(<span class="number">0</span>);
@@ -835,7 +848,7 @@
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">Algebra</span><span class="op">&gt;</span> <span class="ident">Module</span> <span class="kw">for</span> <span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">U</span>: <span class="ident">bool</span>, <span class="ident">A</span>: <span class="ident">MuAlgebra</span><span class="op">&lt;</span><span class="ident">U</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">Module</span> <span class="kw">for</span> <span class="ident">MuFreeModule</span><span class="op">&lt;</span><span class="ident">U</span>, <span class="ident">A</span><span class="op">&gt;</span> {
     <span class="kw">type</span> <span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">A</span>;
 
     <span class="kw">fn</span> <span class="ident">algebra</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
@@ -851,6 +864,7 @@
     }
 
     <span class="kw">fn</span> <span class="ident">compute_basis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">max_degree</span>: <span class="ident">i32</span>) {
+        <span class="kw">let</span> <span class="ident">algebra</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">algebra</span>();
         <span class="self">self</span>.<span class="ident">basis_element_to_opgen</span>.<span class="ident">extend</span>(<span class="ident">max_degree</span>, <span class="op">|</span><span class="ident">degree</span><span class="op">|</span> {
             <span class="kw">let</span> <span class="ident">new_row</span> <span class="op">=</span> <span class="ident">OnceVec::new</span>();
             <span class="self">self</span>.<span class="ident">generator_to_index</span>.<span class="ident">push_checked</span>(<span class="ident">OnceVec::new</span>(), <span class="ident">degree</span>);
@@ -858,7 +872,7 @@
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">offset</span> <span class="op">=</span> <span class="number">0</span>;
             <span class="kw">for</span> (<span class="ident">gen_deg</span>, <span class="kw-2">&amp;</span><span class="ident">num_gens</span>) <span class="kw">in</span> <span class="self">self</span>.<span class="ident">num_gens</span>.<span class="ident">iter_enum</span>() {
                 <span class="kw">let</span> <span class="ident">op_deg</span> <span class="op">=</span> <span class="ident">degree</span> <span class="op">-</span> <span class="ident">gen_deg</span>;
-                <span class="kw">let</span> <span class="ident">num_ops</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">algebra</span>().<span class="ident">dimension</span>(<span class="ident">op_deg</span>);
+                <span class="kw">let</span> <span class="ident">num_ops</span> <span class="op">=</span> <span class="ident">algebra</span>.<span class="ident">dimension_unstable</span>(<span class="ident">op_deg</span>, <span class="ident">gen_deg</span>);
                 <span class="kw">for</span> <span class="ident">gen_idx</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">num_gens</span> {
                     <span class="self">self</span>.<span class="ident">generator_to_index</span>[<span class="ident">degree</span>].<span class="ident">push</span>(<span class="ident">offset</span>);
                     <span class="ident">offset</span> <span class="op">+</span><span class="op">=</span> <span class="ident">num_ops</span>;
@@ -934,13 +948,14 @@
         <span class="kw">let</span> <span class="ident">output_block_max</span> <span class="op">=</span> <span class="ident">output_block_min</span> <span class="op">+</span> <span class="ident">num_ops</span>;
 
         <span class="comment">// Now we multiply s * r and write the result to the appropriate position.</span>
-        <span class="self">self</span>.<span class="ident">algebra</span>().<span class="ident">multiply_basis_elements</span>(
+        <span class="self">self</span>.<span class="ident">algebra</span>().<span class="ident">multiply_basis_elements_unstable</span>(
             <span class="ident">result</span>.<span class="ident">slice_mut</span>(<span class="ident">output_block_min</span>, <span class="ident">output_block_max</span>),
             <span class="ident">coeff</span>,
             <span class="ident">op_degree</span>,
             <span class="ident">op_index</span>,
             <span class="ident">module_operation_degree</span>,
             <span class="ident">module_operation_index</span>,
+            <span class="ident">generator_degree</span>,
         );
     }
 
@@ -963,13 +978,14 @@
                 <span class="kw">break</span>;
             }
             <span class="kw">let</span> <span class="ident">input_slice</span> <span class="op">=</span> <span class="ident">input</span>.<span class="ident">slice</span>(<span class="ident">input_start</span>, <span class="ident">input_end</span>);
-            <span class="self">self</span>.<span class="ident">algebra</span>.<span class="ident">multiply_basis_element_by_element</span>(
+            <span class="self">self</span>.<span class="ident">algebra</span>.<span class="ident">multiply_basis_element_by_element_unstable</span>(
                 <span class="ident">result</span>.<span class="ident">slice_mut</span>(<span class="ident">output_start</span>, <span class="ident">output_end</span>),
                 <span class="ident">coeff</span>,
                 <span class="ident">op_degree</span>,
                 <span class="ident">op_index</span>,
                 <span class="ident">input_degree</span> <span class="op">-</span> <span class="ident">gen_deg</span>,
                 <span class="ident">input_slice</span>,
+                <span class="ident">gen_deg</span>,
             );
         }
     }
@@ -989,7 +1005,7 @@
     }*/</span>
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">Algebra</span><span class="op">&gt;</span> <span class="ident">ZeroModule</span> <span class="kw">for</span> <span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">U</span>: <span class="ident">bool</span>, <span class="ident">A</span>: <span class="ident">MuAlgebra</span><span class="op">&lt;</span><span class="ident">U</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">ZeroModule</span> <span class="kw">for</span> <span class="ident">MuFreeModule</span><span class="op">&lt;</span><span class="ident">U</span>, <span class="ident">A</span><span class="op">&gt;</span> {
     <span class="kw">fn</span> <span class="ident">zero_module</span>(<span class="ident">algebra</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>, <span class="ident">min_degree</span>: <span class="ident">i32</span>) -&gt; <span class="self">Self</span> {
         <span class="kw">let</span> <span class="ident">m</span> <span class="op">=</span> <span class="ident"><span class="self">Self</span>::new</span>(<span class="ident">algebra</span>, <span class="ident">String::from</span>(<span class="string">&quot;0&quot;</span>), <span class="ident">min_degree</span>);
         <span class="ident">m</span>.<span class="ident">add_generators</span>(<span class="number">0</span>, <span class="number">0</span>, <span class="prelude-val">None</span>);
@@ -997,7 +1013,7 @@
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">Algebra</span><span class="op">&gt;</span> <span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">U</span>: <span class="ident">bool</span>, <span class="ident">A</span>: <span class="ident">MuAlgebra</span><span class="op">&lt;</span><span class="ident">U</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">MuFreeModule</span><span class="op">&lt;</span><span class="ident">U</span>, <span class="ident">A</span><span class="op">&gt;</span> {
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">gen_names</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">OnceBiVec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">gen_names</span>
     }
@@ -1032,11 +1048,12 @@
         <span class="self">self</span>.<span class="ident">gen_deg_idx_to_internal_idx</span>
             .<span class="ident">push_checked</span>(<span class="ident">internal_gen_idx</span> <span class="op">+</span> <span class="ident">num_gens</span>, <span class="ident">degree</span> <span class="op">+</span> <span class="number">1</span>);
 
+        <span class="kw">let</span> <span class="ident">algebra</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">algebra</span>();
         <span class="kw">let</span> <span class="ident">gen_deg</span> <span class="op">=</span> <span class="ident">degree</span>;
         <span class="kw">for</span> <span class="ident">total_degree</span> <span class="kw">in</span> <span class="ident">degree</span>..<span class="self">self</span>.<span class="ident">basis_element_to_opgen</span>.<span class="ident">len</span>() {
             <span class="kw">let</span> <span class="ident">op_deg</span> <span class="op">=</span> <span class="ident">total_degree</span> <span class="op">-</span> <span class="ident">gen_deg</span>;
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">offset</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">basis_element_to_opgen</span>[<span class="ident">total_degree</span>].<span class="ident">len</span>();
-            <span class="kw">let</span> <span class="ident">num_ops</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">algebra</span>().<span class="ident">dimension</span>(<span class="ident">op_deg</span>);
+            <span class="kw">let</span> <span class="ident">num_ops</span> <span class="op">=</span> <span class="ident">algebra</span>.<span class="ident">dimension_unstable</span>(<span class="ident">op_deg</span>, <span class="ident">gen_deg</span>);
             <span class="kw">for</span> <span class="ident">gen_idx</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">num_gens</span> {
                 <span class="self">self</span>.<span class="ident">generator_to_index</span>[<span class="ident">total_degree</span>].<span class="ident">push</span>(<span class="ident">offset</span>);
                 <span class="ident">offset</span> <span class="op">+</span><span class="op">=</span> <span class="ident">num_ops</span>;
@@ -1198,7 +1215,9 @@
         <span class="ident">v</span>: <span class="ident">Slice</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>,
     ) -&gt; <span class="ident">Slice</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">start</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">generator_offset</span>(<span class="ident">degree</span>, <span class="ident">gen_degree</span>, <span class="ident">gen_index</span>);
-        <span class="kw">let</span> <span class="ident">len</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">algebra</span>().<span class="ident">dimension</span>(<span class="ident">degree</span> <span class="op">-</span> <span class="ident">gen_degree</span>);
+        <span class="kw">let</span> <span class="ident">len</span> <span class="op">=</span> <span class="self">self</span>
+            .<span class="ident">algebra</span>()
+            .<span class="ident">dimension_unstable</span>(<span class="ident">degree</span> <span class="op">-</span> <span class="ident">gen_degree</span>, <span class="ident">gen_degree</span>);
         <span class="ident">v</span>.<span class="ident">slice</span>(
             <span class="ident">std::cmp::min</span>(<span class="ident">v</span>.<span class="ident">len</span>(), <span class="ident">start</span>),
             <span class="ident">std::cmp::min</span>(<span class="ident">v</span>.<span class="ident">len</span>(), <span class="ident">start</span> <span class="op">+</span> <span class="ident">len</span>),
@@ -1226,15 +1245,21 @@
     <span class="kw">pub</span> <span class="ident">end</span>: [<span class="ident">usize</span>; <span class="ident">N</span>],
 }
 
-<span class="kw">struct</span> <span class="ident">OffsetIterator</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">A</span>: <span class="ident">Algebra</span>, <span class="ident">T</span>: <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">i32</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;a</span>, <span class="kw">const</span> <span class="ident">N</span>: <span class="ident">usize</span><span class="op">&gt;</span> {
-    <span class="ident">module</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>,
+<span class="kw">struct</span> <span class="ident">OffsetIterator</span><span class="op">&lt;</span>
+    <span class="lifetime">&#39;a</span>,
+    <span class="kw">const</span> <span class="ident">U</span>: <span class="ident">bool</span>,
+    <span class="ident">A</span>: <span class="ident">MuAlgebra</span><span class="op">&lt;</span><span class="ident">U</span><span class="op">&gt;</span>,
+    <span class="ident">T</span>: <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">i32</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;a</span>,
+    <span class="kw">const</span> <span class="ident">N</span>: <span class="ident">usize</span>,
+<span class="op">&gt;</span> {
+    <span class="ident">module</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">MuFreeModule</span><span class="op">&lt;</span><span class="ident">U</span>, <span class="ident">A</span><span class="op">&gt;</span>,
     <span class="ident">degree</span>: [<span class="ident">i32</span>; <span class="ident">N</span>],
     <span class="ident">offset</span>: [<span class="ident">usize</span>; <span class="ident">N</span>],
     <span class="ident">gen_deg</span>: <span class="ident">T</span>,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">A</span>: <span class="ident">Algebra</span>, <span class="ident">T</span>: <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">i32</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;a</span>, <span class="kw">const</span> <span class="ident">N</span>: <span class="ident">usize</span><span class="op">&gt;</span> <span class="ident">Iterator</span>
-    <span class="kw">for</span> <span class="ident">OffsetIterator</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">A</span>, <span class="ident">T</span>, <span class="ident">N</span><span class="op">&gt;</span>
+<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="kw">const</span> <span class="ident">U</span>: <span class="ident">bool</span>, <span class="ident">A</span>: <span class="ident">MuAlgebra</span><span class="op">&lt;</span><span class="ident">U</span><span class="op">&gt;</span>, <span class="ident">T</span>: <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">i32</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;a</span>, <span class="kw">const</span> <span class="ident">N</span>: <span class="ident">usize</span><span class="op">&gt;</span> <span class="ident">Iterator</span>
+    <span class="kw">for</span> <span class="ident">OffsetIterator</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">U</span>, <span class="ident">A</span>, <span class="ident">T</span>, <span class="ident">N</span><span class="op">&gt;</span>
 {
     <span class="kw">type</span> <span class="ident">Item</span> <span class="op">=</span> <span class="ident">GeneratorData</span><span class="op">&lt;</span><span class="ident">N</span><span class="op">&gt;</span>;
 
@@ -1251,7 +1276,7 @@
                 <span class="op">+</span> <span class="self">self</span>
                     .<span class="ident">module</span>
                     .<span class="ident">algebra</span>
-                    .<span class="ident">dimension</span>(<span class="self">self</span>.<span class="ident">degree</span>[<span class="ident">i</span>] <span class="op">-</span> <span class="ident">retval</span>.<span class="ident">gen_deg</span>);
+                    .<span class="ident">dimension_unstable</span>(<span class="self">self</span>.<span class="ident">degree</span>[<span class="ident">i</span>] <span class="op">-</span> <span class="ident">retval</span>.<span class="ident">gen_deg</span>, <span class="ident">retval</span>.<span class="ident">gen_deg</span>);
             <span class="self">self</span>.<span class="ident">offset</span>[<span class="ident">i</span>] <span class="op">=</span> <span class="ident">retval</span>.<span class="ident">end</span>[<span class="ident">i</span>];
         }
         <span class="prelude-val">Some</span>(<span class="ident">retval</span>)
@@ -1260,7 +1285,7 @@
 
 <span class="comment">/*
 #[cfg(not(feature = &quot;cache-multiplication&quot;))]
-impl&lt;A: Algebra&gt; FreeModule&lt;A&gt; {
+impl&lt;A: Algebra&gt; MuFreeModule&lt;A&gt; {
     fn standard_act(&amp;self, result : SliceMut, coeff : u32, op_degree : i32, op_index : usize, input_degree : i32, input : Slice) {
         assert!(input.dimension() == self.dimension(input_degree));
         let p = *self.prime();
@@ -1477,19 +1502,14 @@ impl std::ops::IndexMut&lt;usize&gt; for AdmissibleMatrix {
 
     <span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
 
-    <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::algebra</span>::{<span class="ident">AdemAlgebra</span>, <span class="ident">SteenrodAlgebra</span>};
+    <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::algebra</span>::{<span class="ident">AdemAlgebra</span>, <span class="ident">Algebra</span>};
     <span class="kw">use</span> <span class="ident">fp::prime::ValidPrime</span>;
     <span class="kw">use</span> <span class="ident">fp::vector::FpVector</span>;
 
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">test_free_mod</span>() {
         <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">ValidPrime::new</span>(<span class="number">2</span>);
-        <span class="kw">let</span> <span class="ident">A</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">SteenrodAlgebra::from</span>(<span class="ident">AdemAlgebra::new</span>(
-            <span class="ident">p</span>,
-            <span class="kw-2">*</span><span class="ident">p</span> <span class="op">!</span><span class="op">=</span> <span class="number">2</span>,
-            <span class="bool-val">false</span>,
-            <span class="bool-val">false</span>,
-        )));
+        <span class="kw">let</span> <span class="ident">A</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">AdemAlgebra::new</span>(<span class="ident">p</span>, <span class="kw-2">*</span><span class="ident">p</span> <span class="op">!</span><span class="op">=</span> <span class="number">2</span>, <span class="bool-val">false</span>));
         <span class="ident">A</span>.<span class="ident">compute_basis</span>(<span class="number">10</span>);
         <span class="kw">let</span> <span class="ident">M</span> <span class="op">=</span> <span class="ident">FreeModule::new</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">A</span>), <span class="string">&quot;&quot;</span>.<span class="ident">to_string</span>(), <span class="number">0</span>);
         <span class="ident">M</span>.<span class="ident">compute_basis</span>(<span class="number">10</span>);
