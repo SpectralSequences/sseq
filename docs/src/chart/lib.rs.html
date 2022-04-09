@@ -474,40 +474,6 @@
 <span id="444">444</span>
 <span id="445">445</span>
 <span id="446">446</span>
-<span id="447">447</span>
-<span id="448">448</span>
-<span id="449">449</span>
-<span id="450">450</span>
-<span id="451">451</span>
-<span id="452">452</span>
-<span id="453">453</span>
-<span id="454">454</span>
-<span id="455">455</span>
-<span id="456">456</span>
-<span id="457">457</span>
-<span id="458">458</span>
-<span id="459">459</span>
-<span id="460">460</span>
-<span id="461">461</span>
-<span id="462">462</span>
-<span id="463">463</span>
-<span id="464">464</span>
-<span id="465">465</span>
-<span id="466">466</span>
-<span id="467">467</span>
-<span id="468">468</span>
-<span id="469">469</span>
-<span id="470">470</span>
-<span id="471">471</span>
-<span id="472">472</span>
-<span id="473">473</span>
-<span id="474">474</span>
-<span id="475">475</span>
-<span id="476">476</span>
-<span id="477">477</span>
-<span id="478">478</span>
-<span id="479">479</span>
-<span id="480">480</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::collections::HashMap</span>;
 <span class="kw">use</span> <span class="ident">std::fmt::Display</span>;
 <span class="kw">use</span> <span class="ident">std::io::Write</span>;
@@ -676,7 +642,6 @@
                     <span class="string">r#&quot;&lt;text x=&quot;{x}&quot; y=&quot;{y}&quot; text-anchor=&quot;middle&quot; dominant-baseline=&quot;middle&quot;&gt;{k}&lt;/text&gt;&quot;#</span>,
                     <span class="ident">x</span> <span class="op">=</span> <span class="number">50.0</span> <span class="op">+</span> <span class="ident">n</span> <span class="kw">as</span> <span class="ident">f32</span> <span class="op">*</span> <span class="number">100.0</span> <span class="op">+</span> <span class="ident">offset</span>.<span class="number">0</span> <span class="op">*</span> <span class="number">6.0</span>,
                     <span class="ident">y</span> <span class="op">=</span> <span class="number">50.0</span> <span class="op">+</span> <span class="ident">offset</span>.<span class="number">1</span> <span class="op">*</span> <span class="number">6.0</span>,
-                    <span class="ident">k</span> <span class="op">=</span> <span class="ident">k</span>
                 )<span class="question-mark">?</span>;
             }
         }
@@ -723,8 +688,6 @@
         <span class="macro">writeln!</span>(
             <span class="self">self</span>.<span class="ident">out</span>,
             <span class="string">r#&quot;&lt;svg version = &quot;1.1&quot; width=&quot;{width}&quot; height=&quot;{height}&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot;&gt;&quot;#</span>,
-            <span class="ident">width</span> <span class="op">=</span> <span class="ident">width</span>,
-            <span class="ident">height</span> <span class="op">=</span> <span class="ident">height</span>
         )<span class="question-mark">?</span>;
         <span class="macro">writeln!</span>(<span class="self">self</span>.<span class="ident">out</span>, <span class="string">&quot;&lt;style&gt;{}&lt;/style&gt;&quot;</span>, <span class="ident"><span class="self">Self</span>::STYLES</span>)
     }
@@ -741,8 +704,7 @@
 
         <span class="macro">writeln!</span>(
             <span class="self">self</span>.<span class="ident">out</span>,
-            <span class="string">r#&quot;&lt;line class=&quot;{class}&quot; x1=&quot;{start_x}&quot; x2=&quot;{end_x}&quot; y1=&quot;{start_y}&quot; y2=&quot;{end_y}&quot; /&gt;&quot;#</span>,
-            <span class="ident">class</span> <span class="op">=</span> <span class="ident">style</span>,
+            <span class="string">r#&quot;&lt;line class=&quot;{style}&quot; x1=&quot;{start_x}&quot; x2=&quot;{end_x}&quot; y1=&quot;{start_y}&quot; y2=&quot;{end_y}&quot; /&gt;&quot;#</span>,
             <span class="ident">start_x</span> <span class="op">=</span> <span class="ident"><span class="self">Self</span>::MARGIN</span> <span class="op">+</span> <span class="ident">start_x</span> <span class="op">*</span> <span class="ident"><span class="self">Self</span>::GRID_WIDTH</span>,
             <span class="ident">end_x</span> <span class="op">=</span> <span class="ident"><span class="self">Self</span>::MARGIN</span> <span class="op">+</span> <span class="ident">end_x</span> <span class="op">*</span> <span class="ident"><span class="self">Self</span>::GRID_WIDTH</span>,
             <span class="ident">start_y</span> <span class="op">=</span> <span class="ident">height</span> <span class="op">-</span> <span class="ident"><span class="self">Self</span>::MARGIN</span> <span class="op">-</span> <span class="ident">start_y</span> <span class="op">*</span> <span class="ident"><span class="self">Self</span>::GRID_WIDTH</span>,
@@ -766,11 +728,9 @@
 
         <span class="macro">writeln!</span>(
             <span class="self">self</span>.<span class="ident">out</span>,
-            <span class="string">r#&quot;&lt;text class=&quot;{class}&quot; x=&quot;{x}&quot; y=&quot;{y}&quot;&gt;{text}&lt;/text&gt;&quot;#</span>,
+            <span class="string">r#&quot;&lt;text class=&quot;{class}&quot; x=&quot;{x}&quot; y=&quot;{y}&quot;&gt;{content}&lt;/text&gt;&quot;#</span>,
             <span class="ident">x</span> <span class="op">=</span> <span class="ident"><span class="self">Self</span>::MARGIN</span> <span class="op">+</span> <span class="ident">x</span> <span class="op">*</span> <span class="ident"><span class="self">Self</span>::GRID_WIDTH</span> <span class="op">+</span> <span class="ident">offset</span>.<span class="number">0</span>,
             <span class="ident">y</span> <span class="op">=</span> <span class="ident"><span class="self">Self</span>::MARGIN</span> <span class="op">+</span> (<span class="self">self</span>.<span class="ident">max_y</span> <span class="op">-</span> <span class="ident">y</span>) <span class="op">*</span> <span class="ident"><span class="self">Self</span>::GRID_WIDTH</span> <span class="op">+</span> <span class="ident">offset</span>.<span class="number">1</span>,
-            <span class="ident">text</span> <span class="op">=</span> <span class="ident">content</span>,
-            <span class="ident">class</span> <span class="op">=</span> <span class="ident">class</span>,
         )
     }
 
@@ -782,13 +742,7 @@
 
         <span class="kw">for</span> <span class="ident">k</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">n</span> {
             <span class="kw">let</span> (<span class="ident">r</span>, <span class="ident">x</span>, <span class="ident">y</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">get_coords</span>(<span class="ident">x</span>, <span class="ident">y</span>, <span class="ident">k</span>);
-            <span class="macro">writeln!</span>(
-                <span class="self">self</span>.<span class="ident">out</span>,
-                <span class="string">r#&quot;&lt;circle cx=&quot;{x}&quot; cy=&quot;{y}&quot; r=&quot;{r}&quot;/&gt;&quot;#</span>,
-                <span class="ident">x</span> <span class="op">=</span> <span class="ident">x</span>,
-                <span class="ident">y</span> <span class="op">=</span> <span class="ident">y</span>,
-                <span class="ident">r</span> <span class="op">=</span> <span class="ident">r</span>
-            )<span class="question-mark">?</span>;
+            <span class="macro">writeln!</span>(<span class="self">self</span>.<span class="ident">out</span>, <span class="string">r#&quot;&lt;circle cx=&quot;{x}&quot; cy=&quot;{y}&quot; r=&quot;{r}&quot;/&gt;&quot;#</span>,)<span class="question-mark">?</span>;
         }
         <span class="prelude-val">Ok</span>(())
     }
@@ -814,10 +768,6 @@
             <span class="self">self</span>.<span class="ident">out</span>,
             <span class="string">r#&quot;&lt;line class=&quot;{style}&quot; x1=&quot;{source_x}&quot; x2=&quot;{target_x}&quot; y1=&quot;{source_y}&quot; y2=&quot;{target_y}&quot; /&gt;&quot;#</span>,
             <span class="ident">style</span> <span class="op">=</span> <span class="ident">style</span>.<span class="ident">unwrap_or</span>(<span class="string">&quot;structline&quot;</span>),
-            <span class="ident">source_x</span> <span class="op">=</span> <span class="ident">source_x</span>,
-            <span class="ident">source_y</span> <span class="op">=</span> <span class="ident">source_y</span>,
-            <span class="ident">target_x</span> <span class="op">=</span> <span class="ident">target_x</span>,
-            <span class="ident">target_y</span> <span class="op">=</span> <span class="ident">target_y</span>,
         )<span class="question-mark">?</span>;
 
         <span class="prelude-val">Ok</span>(())
@@ -890,8 +840,7 @@
     ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident"><span class="self">Self</span>::Error</span><span class="op">&gt;</span> {
         <span class="macro">writeln!</span>(
             <span class="self">self</span>.<span class="ident">out</span>,
-            <span class="string">r#&quot;\draw [{}] ({}, {}) -- ({}, {});&quot;#</span>,
-            <span class="ident">style</span>, <span class="ident">start_x</span>, <span class="ident">start_y</span>, <span class="ident">end_x</span>, <span class="ident">end_y</span>,
+            <span class="string">r#&quot;\draw [{style}] ({start_x}, {start_y}) -- ({end_x}, {end_y});&quot;#</span>,
         )
     }
 
@@ -909,14 +858,7 @@
             <span class="ident">Orientation::Above</span> =&gt; <span class="string">&quot;above&quot;</span>,
         };
 
-        <span class="macro">writeln!</span>(
-            <span class="self">self</span>.<span class="ident">out</span>,
-            <span class="string">r#&quot;\node [{offset}] at ({x}, {y}) {{{text}}};&quot;#</span>,
-            <span class="ident">x</span> <span class="op">=</span> <span class="ident">x</span>,
-            <span class="ident">y</span> <span class="op">=</span> <span class="ident">y</span>,
-            <span class="ident">text</span> <span class="op">=</span> <span class="ident">content</span>,
-            <span class="ident">offset</span> <span class="op">=</span> <span class="ident">offset</span>,
-        )
+        <span class="macro">writeln!</span>(<span class="self">self</span>.<span class="ident">out</span>, <span class="string">r#&quot;\node [{offset}] at ({x}, {y}) {{{content}}};&quot;#</span>,)
     }
 
     <span class="kw">fn</span> <span class="ident">node</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">x</span>: <span class="ident">i32</span>, <span class="ident">y</span>: <span class="ident">i32</span>, <span class="ident">n</span>: <span class="ident">usize</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident"><span class="self">Self</span>::Error</span><span class="op">&gt;</span> {
@@ -927,13 +869,7 @@
 
         <span class="kw">for</span> <span class="ident">k</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">n</span> {
             <span class="kw">let</span> (<span class="ident">r</span>, <span class="ident">x</span>, <span class="ident">y</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">get_coords</span>(<span class="ident">x</span>, <span class="ident">y</span>, <span class="ident">k</span>);
-            <span class="macro">writeln!</span>(
-                <span class="self">self</span>.<span class="ident">out</span>,
-                <span class="string">r#&quot;\draw [fill] ({x}, {y}) circle ({r});&quot;#</span>,
-                <span class="ident">x</span> <span class="op">=</span> <span class="ident">x</span>,
-                <span class="ident">y</span> <span class="op">=</span> <span class="ident">y</span>,
-                <span class="ident">r</span> <span class="op">=</span> <span class="ident">r</span>,
-            )<span class="question-mark">?</span>;
+            <span class="macro">writeln!</span>(<span class="self">self</span>.<span class="ident">out</span>, <span class="string">r#&quot;\draw [fill] ({x}, {y}) circle ({r});&quot;#</span>,)<span class="question-mark">?</span>;
         }
         <span class="prelude-val">Ok</span>(())
     }
@@ -959,10 +895,6 @@
             <span class="self">self</span>.<span class="ident">out</span>,
             <span class="string">r#&quot;\draw [{style}] ({source_x}, {source_y}) -- ({target_x}, {target_y});&quot;#</span>,
             <span class="ident">style</span> <span class="op">=</span> <span class="ident">style</span>.<span class="ident">unwrap_or</span>(<span class="string">&quot;&quot;</span>),
-            <span class="ident">source_x</span> <span class="op">=</span> <span class="ident">source_x</span>,
-            <span class="ident">source_y</span> <span class="op">=</span> <span class="ident">source_y</span>,
-            <span class="ident">target_x</span> <span class="op">=</span> <span class="ident">target_x</span>,
-            <span class="ident">target_y</span> <span class="op">=</span> <span class="ident">target_y</span>,
         )<span class="question-mark">?</span>;
 
         <span class="prelude-val">Ok</span>(())

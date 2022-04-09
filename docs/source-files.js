@@ -26,5 +26,7 @@ sourcesIndex["sq0"] = {"name":"","files":["sq0.rs"]};
 sourcesIndex["sseq"] = {"name":"","files":["bigraded.rs","differential.rs","lib.rs","sseq.rs"]};
 sourcesIndex["steenrod"] = {"name":"","files":["steenrod.rs"]};
 sourcesIndex["tensor"] = {"name":"","files":["tensor.rs"]};
+sourcesIndex["unstable_chart"] = {"name":"","files":["unstable_chart.rs"]};
+sourcesIndex["unstable_suspension"] = {"name":"","files":["unstable_suspension.rs"]};
 sourcesIndex["yoneda"] = {"name":"","files":["yoneda.rs"]};
 createSourceSidebar();

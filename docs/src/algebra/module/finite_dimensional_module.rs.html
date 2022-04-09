@@ -735,6 +735,15 @@
 <span id="705">705</span>
 <span id="706">706</span>
 <span id="707">707</span>
+<span id="708">708</span>
+<span id="709">709</span>
+<span id="710">710</span>
+<span id="711">711</span>
+<span id="712">712</span>
+<span id="713">713</span>
+<span id="714">714</span>
+<span id="715">715</span>
+<span id="716">716</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::algebra::Algebra</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::module</span>::{<span class="ident">Module</span>, <span class="ident">ZeroModule</span>};
 <span class="kw">use</span> <span class="ident">bivec::BiVec</span>;
@@ -947,6 +956,15 @@
             <span class="ident">graded_dimension</span>,
             <span class="ident">gen_names</span>,
             <span class="ident">actions</span>,
+        }
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">suspend</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">k</span>: <span class="ident">i32</span>) {
+        <span class="self">self</span>.<span class="ident">graded_dimension</span>.<span class="ident">shift</span>(<span class="ident">k</span>);
+        <span class="self">self</span>.<span class="ident">gen_names</span>.<span class="ident">shift</span>(<span class="ident">k</span>);
+        <span class="self">self</span>.<span class="ident">actions</span>.<span class="ident">shift</span>(<span class="ident">k</span>);
+        <span class="kw">for</span> <span class="ident">action</span> <span class="kw">in</span> <span class="kw-2">&amp;mut</span> <span class="self">self</span>.<span class="ident">actions</span> {
+            <span class="ident">action</span>.<span class="ident">shift</span>(<span class="ident">k</span>);
         }
     }
 
