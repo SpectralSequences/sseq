@@ -73,6 +73,10 @@ where
             return None;
         }
 
+        if U && op_idx >= self.algebra().dimension_unstable(op_deg, source_t) {
+            return None;
+        }
+
         let source_dim = source.number_of_gens_in_degree(source_t);
         let target_dim = target.number_of_gens_in_degree(target_t);
 
