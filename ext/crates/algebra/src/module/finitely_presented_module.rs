@@ -98,7 +98,6 @@ impl<A: Algebra> FinitelyPresentedModule<A> {
 #[cfg(feature = "json")]
 impl<A: Algebra> FinitelyPresentedModule<A> {
     pub fn from_json(algebra: Arc<A>, json: &Value) -> anyhow::Result<Self> {
-        use crate::module::free_module::OperationGeneratorPair;
         use crate::steenrod_parser::digits;
         use anyhow::anyhow;
         use nom::combinator::opt;
@@ -142,13 +141,11 @@ impl<A: Algebra> FinitelyPresentedModule<A> {
                         return Err(anyhow!("Relation has inconsistent degree. Expected {deg} but {term} has degree {}", op_deg + gen_deg));
                     }
 
-                    let idx = result.generators.operation_generator_pair_to_idx(
-                        &OperationGeneratorPair {
-                            operation_degree: op_deg,
-                            operation_index: op_idx,
-                            generator_degree: gen_deg,
-                            generator_index: gen_idx,
-                        },
+                    let idx = result.generators.operation_generator_to_index(
+                         op_deg,
+                         op_idx,
+                         gen_deg,
+                         gen_idx,
                     );
 
                     v.add_basis_element(idx, coef);
@@ -248,6 +245,6 @@ impl<A: Algebra> Module for FinitelyPresentedModule<A> {
     }
 
     fn max_generator_degree(&self) -> Option<i32> {
-        Some(self.generators.get_max_generator_degree())
+        self.generators.max_generator_degree()
     }
 }

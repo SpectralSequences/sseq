@@ -71,6 +71,15 @@ impl<const U: bool, A: MuAlgebra<U>> Module for MuFreeModule<U, A> {
         self.num_gens.max_degree()
     }
 
+    fn max_generator_degree(&self) -> Option<i32> {
+        for i in (0..self.num_gens.len()).rev() {
+            if self.num_gens[i] > 0 {
+                return Some(i);
+            }
+        }
+        Some(self.min_degree)
+    }
+
     fn compute_basis(&self, max_degree: i32) {
         let algebra = self.algebra();
         self.basis_element_to_opgen.extend(max_degree, |degree| {
@@ -277,10 +286,6 @@ impl<const U: bool, A: MuAlgebra<U>> MuFreeModule<U, A> {
         }
     }
 
-    pub fn generator_to_internal_index(&self, degree: i32, index: usize) -> usize {
-        self.gen_deg_idx_to_internal_idx[degree] + index
-    }
-
     /// Given a generator `(gen_deg, gen_idx)`, find the first index in degree `degree` with
     /// elements from the generator.
     pub fn internal_generator_offset(&self, degree: i32, internal_gen_idx: usize) -> usize {
@@ -332,15 +337,6 @@ impl<const U: bool, A: MuAlgebra<U>> MuFreeModule<U, A> {
         self.generator_to_index[op_deg + gen_deg][internal_gen_idx] + op_idx
     }
 
-    pub fn operation_generator_pair_to_idx(&self, op_gen: &OperationGeneratorPair) -> usize {
-        self.operation_generator_to_index(
-            op_gen.operation_degree,
-            op_gen.operation_index,
-            op_gen.generator_degree,
-            op_gen.generator_index,
-        )
-    }
-
     pub fn index_to_op_gen(&self, degree: i32, index: usize) -> &OperationGeneratorPair {
         assert!(degree >= self.min_degree);
         &self.basis_element_to_opgen[degree][index]
@@ -352,32 +348,6 @@ impl<const U: bool, A: MuAlgebra<U>> MuFreeModule<U, A> {
         for i in self.num_gens.len()..=degree {
             self.add_generators(i, 0, None)
         }
-    }
-
-    // Used by Yoneda. Gets nonempty dimensions.
-    pub fn get_degrees_with_gens(&self, max_degree: i32) -> Vec<i32> {
-        assert!(max_degree < self.gen_deg_idx_to_internal_idx.len() - 1);
-        let mut result = Vec::new();
-        for i in self.gen_deg_idx_to_internal_idx.min_degree()..max_degree {
-            if self.gen_deg_idx_to_internal_idx[i + 1] > self.gen_deg_idx_to_internal_idx[i] {
-                result.push(i);
-            }
-        }
-        result
-    }
-
-    pub fn get_max_generator_degree(&self) -> i32 {
-        let mut max = self.min_degree;
-        // Ideally, we should use rev() here. However, the iterator involves a
-        // flatten().take(), and Flatten doesn't implement ExactSizeIterator (since the sum
-        // of lengths can overflow) and Take<T> doesn't implement DoubleEndedIterator
-        // unless T implements ExactSizeIterator.
-        for (i, num_gens) in self.num_gens.iter_enum() {
-            if *num_gens > 0 {
-                max = i;
-            }
-        }
-        max
     }
 
     /// A version of element_to_string that names the generator as x_(t - s, s, idx). The input s
