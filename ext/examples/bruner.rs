@@ -26,7 +26,7 @@ use ext::{
     chain_complex::{ChainComplex, FiniteChainComplex as FCC},
     resolution_homomorphism::ResolutionHomomorphism,
 };
-use fp::{matrix::Matrix, prime::ValidPrime, vector::FpVector};
+use fp::{matrix::Matrix, prime::TWO, vector::FpVector};
 use std::{
     fs::File,
     io::{BufRead, BufReader},
@@ -42,8 +42,6 @@ type FreeModule = FM<algebra::SteenrodAlgebra>;
 
 type FreeModuleHomomorphism = FMH<FreeModule>;
 type FiniteChainComplex = FCC<FreeModule, FreeModuleHomomorphism>;
-
-const TWO: ValidPrime = ValidPrime::new(2);
 
 /// Read the first non-empty line of `data` into `buf`. Returns whether a line is read
 fn read_line(data: &mut impl BufRead, buf: &mut String) -> Result<bool> {

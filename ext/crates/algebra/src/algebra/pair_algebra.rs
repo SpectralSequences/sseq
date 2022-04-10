@@ -8,15 +8,13 @@
 
 use crate::combinatorics;
 use crate::Algebra;
-use fp::prime::ValidPrime;
+use fp::prime::TWO;
 use fp::vector::{FpVector, Slice, SliceMut};
 use rustc_hash::FxHasher;
 
 type HashMap<K, V> = hashbrown::HashMap<K, V, std::hash::BuildHasherDefault<FxHasher>>;
 
 use std::io::{Read, Write};
-
-const TWO: ValidPrime = ValidPrime::new(2);
 
 /// A lift of an algebra to a split pair algebra. See module introduction for more.
 pub trait PairAlgebra: Algebra {

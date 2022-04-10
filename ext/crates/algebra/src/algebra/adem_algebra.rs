@@ -802,7 +802,7 @@ impl AdemAlgebra {
         let tail_idx = self.tail_of_basis_element_to_index(&mut working_elt, 1, 1);
 
         for j in 0..=x / 2 {
-            if combinatorics::adem_relation_coefficient(ValidPrime::new(2), x, y, j, 0, 0) == 0 {
+            if combinatorics::adem_relation_coefficient(fp::prime::TWO, x, y, j, 0, 0) == 0 {
                 continue;
             }
             if j == 0 {
@@ -1304,7 +1304,7 @@ impl AdemAlgebra {
             ps: vec![second_sq],
             p_or_sq: *self.prime() != 2,
         });
-        let mut out_vec = FpVector::new(ValidPrime::new(2), self.dimension(degree));
+        let mut out_vec = FpVector::new(fp::prime::TWO, self.dimension(degree));
         self.multiply_basis_elements(
             out_vec.as_slice_mut(),
             1,
@@ -1514,36 +1514,6 @@ impl Bialgebra for AdemAlgebra {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    #[allow(non_snake_case)]
-    fn test_adem() {
-        let p = ValidPrime::new(2);
-        let A = AdemAlgebra::new(p, *p != 2, false);
-        A.compute_basis(10);
-        let r_deg = 4;
-        let r_idx = 0;
-        let s_deg = 5;
-        let s_idx = 0;
-        let out_deg = r_deg + s_deg;
-        let mut result1 = FpVector::new(p, A.dimension(out_deg));
-        let mut result2 = FpVector::new(p, A.dimension(out_deg) + 3);
-
-        let mut result1 = result1.as_slice_mut();
-        let mut result2 = result2.slice_mut(3, 3 + result1.as_slice().len());
-
-        A.multiply_basis_elements(result1.copy(), 1, r_deg, r_idx, s_deg, s_idx);
-        A.multiply_basis_elements(result2.copy(), 1, r_deg, r_idx, s_deg, s_idx);
-        println!(
-            "result : {}",
-            A.element_to_string(out_deg, result1.as_slice())
-        );
-        println!(
-            "result : {}",
-            A.element_to_string(out_deg, result2.as_slice())
-        );
-    }
-
     use rstest::rstest;
 
     #[rstest(p, max_degree, case(2, 32), case(3, 120))]

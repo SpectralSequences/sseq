@@ -1889,7 +1889,7 @@ mod tests {
         let r = vec![1, 4];
         let s = vec![2, 4];
         let mut m = PPartMultiplier::<false>::new_from_allocation(
-            ValidPrime::new(2),
+            fp::prime::TWO,
             &r,
             &s,
             PPartAllocation::default(),

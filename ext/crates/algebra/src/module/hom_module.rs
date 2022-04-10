@@ -197,7 +197,6 @@ mod tests {
     use crate::module::{FDModule, FreeModule, Module};
     use serde_json::json;
 
-    use fp::prime::ValidPrime;
     use fp::vector::FpVector;
 
     fn joker_json() -> serde_json::Value {
@@ -225,7 +224,7 @@ mod tests {
     #[allow(clippy::needless_range_loop)]
     #[test]
     fn test_hom_space() {
-        let p = ValidPrime::new(2);
+        let p = fp::prime::TWO;
         let A = Arc::new(AdemAlgebra::new(p, *p != 2, false));
         A.compute_basis(20);
         let F = Arc::new(FreeModule::new(Arc::clone(&A), "".to_string(), 0));
@@ -275,7 +274,7 @@ mod tests {
     #[allow(non_snake_case)]
     #[test]
     fn test_hom_space_elt_to_map() {
-        let p = ValidPrime::new(2);
+        let p = fp::prime::TWO;
         let A = Arc::new(AdemAlgebra::new(p, *p != 2, false));
         A.compute_basis(20);
         let F = Arc::new(FreeModule::new(Arc::clone(&A), "".to_string(), 0));

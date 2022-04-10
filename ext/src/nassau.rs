@@ -32,7 +32,7 @@ use algebra::Algebra;
 use anyhow::anyhow;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use fp::matrix::{AugmentedMatrix, Matrix};
-use fp::prime::ValidPrime;
+use fp::prime::{ValidPrime, TWO};
 use fp::vector::{FpVector, Slice, SliceMut};
 use itertools::Itertools;
 use once::OnceVec;
@@ -353,7 +353,7 @@ impl<'a> Iterator for SignatureIterator<'a> {
     type Item = Vec<PPartEntry>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let xi_degrees = combinatorics::xi_degrees(ValidPrime::new(2));
+        let xi_degrees = combinatorics::xi_degrees(TWO);
         let len = self.current.len();
         for (i, current) in self.current.iter_mut().enumerate() {
             *current += 1;
@@ -400,7 +400,7 @@ pub struct Resolution<M: ZeroModule<Algebra = MilnorAlgebra>> {
 
 impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
     pub fn prime(&self) -> ValidPrime {
-        ValidPrime::new(2)
+        TWO
     }
 
     pub fn name(&self) -> &str {

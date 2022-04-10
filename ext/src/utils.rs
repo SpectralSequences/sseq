@@ -185,7 +185,7 @@ where
         ));
     }
 
-    let algebra = Arc::new(MilnorAlgebra::new(ValidPrime::new(2)));
+    let algebra = Arc::new(MilnorAlgebra::new(fp::prime::TWO));
     let module = Arc::new(FDModule::from_json(Arc::clone(&algebra), &json)?);
 
     if !json["confiber"].is_null() {

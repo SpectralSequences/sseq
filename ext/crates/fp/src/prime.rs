@@ -8,6 +8,8 @@ use crate::constants::{
 #[allow(unused_imports)]
 use crate::constants::{MAX_PRIME, NOT_A_PRIME, NUM_PRIMES};
 
+pub const TWO: ValidPrime = ValidPrime::new(2);
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct ValidPrime {
     #[cfg(feature = "odd-primes")]

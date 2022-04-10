@@ -4,7 +4,7 @@ use crate::algebra::{
     AdemAlgebra, Algebra, MilnorAlgebra, SteenrodAlgebra,
 };
 use crate::module::{Module, ZeroModule};
-use fp::prime::{Binomial, ValidPrime};
+use fp::prime::{Binomial, TWO};
 use fp::vector::SliceMut;
 
 use std::sync::Arc;
@@ -135,9 +135,9 @@ fn coef_adem(algebra: &AdemAlgebra, op_deg: i32, op_idx: usize, mut j: i32) -> b
     // Apply Sq^i to x^j and see if it is zero
     for i in elt.ps.iter().rev() {
         let c = if j >= 0 {
-            i32::binomial(ValidPrime::new(2), j, *i as i32)
+            i32::binomial(TWO, j, *i as i32)
         } else {
-            i32::binomial(ValidPrime::new(2), -j + (*i as i32) - 1, *i as i32)
+            i32::binomial(TWO, -j + (*i as i32) - 1, *i as i32)
         };
         if c == 0 {
             return false;
