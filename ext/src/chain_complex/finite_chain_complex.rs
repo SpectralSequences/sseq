@@ -160,21 +160,6 @@ where
         s > self.modules.len() as u32 || t < self.module(s).max_computed_degree()
     }
 
-    fn set_homology_basis(
-        &self,
-        _homological_degree: u32,
-        _internal_degree: i32,
-        _homology_basis: Vec<usize>,
-    ) {
-        unimplemented!()
-    }
-    fn homology_basis(&self, _homological_degree: u32, _internal_degree: i32) -> &Vec<usize> {
-        unimplemented!()
-    }
-    fn max_homology_degree(&self, _homological_degree: u32) -> i32 {
-        std::i32::MAX
-    }
-
     fn next_homological_degree(&self) -> u32 {
         u32::MAX
     }
@@ -239,18 +224,6 @@ where
 
     fn compute_through_bidegree(&self, s: u32, t: i32) {
         self.cc.compute_through_bidegree(s, t)
-    }
-
-    fn set_homology_basis(&self, s: u32, t: i32, homology_basis: Vec<usize>) {
-        self.cc.set_homology_basis(s, t, homology_basis)
-    }
-
-    fn homology_basis(&self, s: u32, t: i32) -> &Vec<usize> {
-        self.cc.homology_basis(s, t)
-    }
-
-    fn max_homology_degree(&self, s: u32) -> i32 {
-        self.cc.max_homology_degree(s)
     }
 
     fn next_homological_degree(&self) -> u32 {

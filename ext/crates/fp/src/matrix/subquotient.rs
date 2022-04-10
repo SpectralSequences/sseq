@@ -3,8 +3,6 @@ use crate::matrix::Matrix;
 use crate::prime::ValidPrime;
 use crate::vector::{FpVector, Slice, SliceMut};
 
-use itertools::Itertools;
-
 #[derive(Clone)]
 pub struct Subquotient {
     gens: Subspace,
@@ -159,18 +157,17 @@ impl Subquotient {
     /// # Arguments
     ///  * `space` - If this is None, it is the whole space k^`ambient_dimension`
     ///  * `subspace` - If this is None, it is empty
-    pub fn subquotient(space: &Subspace, subspace: &Subspace) -> Vec<usize> {
-        space
-            .matrix
-            .pivots()
-            .iter()
-            .zip_eq(subspace.pivots().iter())
-            .filter(|(x, y)| {
-                debug_assert!(**x >= 0 || **y < 0);
-                **x >= 0 && **y < 0
-            })
-            .map(|(x, _)| *x as usize)
-            .collect()
+    pub fn from_parts(mut sub: Subspace, quotient: Subspace) -> Self {
+        let dim = sub.dimension();
+        for row in sub.matrix.iter_mut().take(dim) {
+            quotient.reduce(row.as_slice_mut());
+        }
+        sub.matrix.row_reduce();
+        Self {
+            dimension: sub.dimension(),
+            gens: sub,
+            quotient,
+        }
     }
 
     pub fn quotient_pivots(&self) -> &[isize] {

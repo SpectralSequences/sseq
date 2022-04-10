@@ -5,9 +5,8 @@ use crate::utils::unicode_num;
 use algebra::module::homomorphism::{ModuleHomomorphism, MuFreeModuleHomomorphism};
 use algebra::module::{Module, MuFreeModule};
 use algebra::{Algebra, MuAlgebra};
-use fp::matrix::Subquotient;
 use fp::prime::ValidPrime;
-use fp::vector::{FpVector, Slice, SliceMut};
+use fp::vector::{Slice, SliceMut};
 use std::sync::Arc;
 
 use itertools::Itertools;
@@ -149,66 +148,6 @@ pub trait ChainComplex: Send + Sync {
     /// The first s such that `self.module(s)` is not defined.
     fn next_homological_degree(&self) -> u32;
 
-    fn set_homology_basis(
-        &self,
-        _homological_degree: u32,
-        _internal_degree: i32,
-        _homology_basis: Vec<usize>,
-    ) {
-        unimplemented!()
-    }
-    fn homology_basis(&self, _homological_degree: u32, _internal_degree: i32) -> &Vec<usize> {
-        unimplemented!()
-    }
-    fn max_homology_degree(&self, _homological_degree: u32) -> i32 {
-        unimplemented!()
-    }
-
-    fn compute_homology_through_bidegree(&self, homological_degree: u32, internal_degree: i32) {
-        self.compute_through_bidegree(homological_degree + 1, internal_degree);
-        for i in 0..=homological_degree {
-            for j in self.max_homology_degree(i) + 1..=internal_degree {
-                self.compute_homology(i, j);
-            }
-        }
-    }
-
-    fn homology_dimension(&self, homological_degree: u32, internal_degree: i32) -> usize {
-        self.homology_basis(homological_degree, internal_degree)
-            .len()
-    }
-
-    fn homology_gen_to_cocyle(
-        &self,
-        result: &mut FpVector,
-        coeff: u32,
-        homological_degree: u32,
-        internal_degree: i32,
-        index: usize,
-    ) {
-        let row_index = self.homology_basis(homological_degree, internal_degree)[index];
-        result.as_slice_mut().add(
-            self.differential(homological_degree)
-                .kernel(internal_degree)
-                .unwrap()
-                .matrix
-                .row(row_index),
-            coeff,
-        );
-    }
-
-    fn compute_homology(&self, homological_degree: u32, internal_degree: i32) {
-        self.compute_through_bidegree(homological_degree + 1, internal_degree);
-        let d_prev = self.differential(homological_degree);
-        let d_cur = self.differential(homological_degree + 1);
-        d_prev.compute_auxiliary_data_through_degree(internal_degree);
-        d_cur.compute_auxiliary_data_through_degree(internal_degree);
-        let kernel = d_prev.kernel(internal_degree).unwrap();
-        let image = d_cur.image(internal_degree).unwrap();
-        let homology_basis = Subquotient::subquotient(kernel, image);
-        self.set_homology_basis(homological_degree, internal_degree, homology_basis);
-    }
-
     /// Iterate through all defined bidegrees in increasing order of stem. The return values are of
     /// the form `(s, n, t)`.
     fn iter_stem(&self) -> StemIterator<'_, Self> {
@@ -306,77 +245,6 @@ impl<'a, CC: ChainComplex> Iterator for StemIterator<'a, CC> {
         }
         self.s += 1;
         Some((s, n, t))
-    }
-}
-
-pub trait CochainComplex: Send + Sync {
-    type Algebra: Algebra;
-    type Module: Module<Algebra = Self::Algebra>;
-    type Homomorphism: ModuleHomomorphism<Source = Self::Module, Target = Self::Module>;
-
-    fn prime(&self) -> ValidPrime {
-        self.algebra().prime()
-    }
-    fn algebra(&self) -> Arc<<Self::Module as Module>::Algebra>;
-    fn min_degree(&self) -> i32;
-    fn zero_module(&self) -> Arc<Self::Module>;
-    fn module(&self, homological_degree: u32) -> Arc<Self::Module>;
-    fn differential(&self, homological_degree: u32) -> Arc<Self::Homomorphism>;
-    fn compute_through_bidegree(&self, homological_degree: u32, degree: i32);
-
-    fn set_cohomology_basis(
-        &self,
-        homological_degree: u32,
-        internal_degree: i32,
-        homology_basis: Vec<usize>,
-    );
-    fn cohomology_basis(&self, homological_degree: u32, internal_degree: i32) -> &Vec<usize>;
-    fn max_cohomology_degree(&self, homological_degree: u32) -> i32;
-
-    fn compute_cohomology_through_bidegree(&self, homological_degree: u32, internal_degree: i32) {
-        self.compute_through_bidegree(homological_degree + 1, internal_degree);
-        for i in 0..=homological_degree {
-            for j in self.max_cohomology_degree(i) + 1..=internal_degree {
-                self.compute_cohomology(i, j);
-            }
-        }
-    }
-
-    fn cohomology_dimension(&self, homological_degree: u32, internal_degree: i32) -> usize {
-        self.cohomology_basis(homological_degree, internal_degree)
-            .len()
-    }
-
-    fn homology_gen_to_cocyle(
-        &self,
-        result: &mut FpVector,
-        coeff: u32,
-        homological_degree: u32,
-        internal_degree: i32,
-        index: usize,
-    ) {
-        let row_index = self.cohomology_basis(homological_degree, internal_degree)[index];
-        result.as_slice_mut().add(
-            self.differential(homological_degree)
-                .kernel(internal_degree)
-                .unwrap()
-                .matrix
-                .row(row_index),
-            coeff,
-        );
-    }
-
-    fn compute_cohomology(&self, homological_degree: u32, internal_degree: i32) {
-        println!("==== {}, {}", homological_degree, internal_degree);
-        self.compute_through_bidegree(homological_degree + 1, internal_degree);
-        let d_cur = self.differential(homological_degree);
-        let d_prev = self.differential(homological_degree + 1);
-        d_prev.compute_auxiliary_data_through_degree(internal_degree);
-        d_cur.compute_auxiliary_data_through_degree(internal_degree);
-        let kernel = d_prev.kernel(internal_degree).unwrap();
-        let image = d_cur.image(internal_degree).unwrap();
-        let cohomology_basis = Subquotient::subquotient(kernel, image);
-        self.set_cohomology_basis(homological_degree, internal_degree, cohomology_basis);
     }
 }
 

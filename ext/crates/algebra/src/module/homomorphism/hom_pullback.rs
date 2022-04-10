@@ -98,6 +98,10 @@ impl<M: Module> ModuleHomomorphism for HomPullback<M> {
                 self.map.output(target_gen_deg, target_gen_idx).as_slice(),
             );
 
+            // Needed if the output is shorter due to resolve_through_stem
+            if slice.is_empty() {
+                continue;
+            }
             target_module.act_by_element_on_basis(
                 result.slice_mut(target_range.start, target_range.end),
                 coeff,

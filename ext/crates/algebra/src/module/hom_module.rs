@@ -65,12 +65,18 @@ impl<M: Module> Module for HomModule<M> {
     }
 
     fn compute_basis(&self, degree: i32) {
+        self.source
+            .compute_basis(degree + self.target.max_degree().unwrap());
         self.block_structures.extend(degree, |d| {
             let mut block_sizes = BiVec::new(self.target.min_degree() + d);
             block_sizes.extend_with(self.target.max_degree().unwrap() + d, |gen_deg| {
                 vec![
                     self.target.dimension(gen_deg - d);
-                    self.source.number_of_gens_in_degree(gen_deg)
+                    if self.source.max_computed_degree() >= gen_deg {
+                        self.source.number_of_gens_in_degree(gen_deg)
+                    } else {
+                        0
+                    }
                 ]
             });
             BlockStructure::new(&block_sizes)

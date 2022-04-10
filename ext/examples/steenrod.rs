@@ -660,21 +660,6 @@ mod tensor_product_chain_complex {
             });
         }
 
-        fn set_homology_basis(
-            &self,
-            _homological_degree: u32,
-            _internal_degree: i32,
-            _homology_basis: Vec<usize>,
-        ) {
-            unimplemented!()
-        }
-        fn homology_basis(&self, _homological_degree: u32, _internal_degree: i32) -> &Vec<usize> {
-            unimplemented!()
-        }
-        fn max_homology_degree(&self, _homological_degree: u32) -> i32 {
-            unimplemented!()
-        }
-
         fn next_homological_degree(&self) -> u32 {
             self.modules.len() as u32
         }
