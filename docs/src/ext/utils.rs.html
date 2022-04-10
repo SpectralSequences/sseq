@@ -823,7 +823,7 @@
         ));
     }
 
-    <span class="kw">let</span> <span class="ident">algebra</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">MilnorAlgebra::new</span>(<span class="ident">ValidPrime::new</span>(<span class="number">2</span>)));
+    <span class="kw">let</span> <span class="ident">algebra</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">MilnorAlgebra::new</span>(<span class="ident">fp::prime::TWO</span>));
     <span class="kw">let</span> <span class="ident">module</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">FDModule::from_json</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">algebra</span>), <span class="kw-2">&amp;</span><span class="ident">json</span>)<span class="question-mark">?</span>);
 
     <span class="kw">if</span> <span class="op">!</span><span class="ident">json</span>[<span class="string">&quot;confiber&quot;</span>].<span class="ident">is_null</span>() {

@@ -1039,23 +1039,6 @@
 <span id="1009">1009</span>
 <span id="1010">1010</span>
 <span id="1011">1011</span>
-<span id="1012">1012</span>
-<span id="1013">1013</span>
-<span id="1014">1014</span>
-<span id="1015">1015</span>
-<span id="1016">1016</span>
-<span id="1017">1017</span>
-<span id="1018">1018</span>
-<span id="1019">1019</span>
-<span id="1020">1020</span>
-<span id="1021">1021</span>
-<span id="1022">1022</span>
-<span id="1023">1023</span>
-<span id="1024">1024</span>
-<span id="1025">1025</span>
-<span id="1026">1026</span>
-<span id="1027">1027</span>
-<span id="1028">1028</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">algebra::module::homomorphism</span>::{<span class="ident">FreeModuleHomomorphism</span>, <span class="ident">ModuleHomomorphism</span>};
 <span class="kw">use</span> <span class="ident">algebra::module::Module</span>;
 <span class="kw">use</span> <span class="ident">ext::chain_complex</span>::{
@@ -1340,7 +1323,7 @@
     <span class="kw">use</span> <span class="ident">bivec::BiVec</span>;
     <span class="kw">use</span> <span class="ident">once::OnceBiVec</span>;
 
-    <span class="kw">use</span> <span class="ident">algebra::module::block_structure</span>::{<span class="ident">BlockStart</span>, <span class="ident">BlockStructure</span>, <span class="ident">GeneratorBasisEltPair</span>};
+    <span class="kw">use</span> <span class="ident">algebra::module::block_structure</span>::{<span class="ident">BlockStructure</span>, <span class="ident">GeneratorBasisEltPair</span>};
     <span class="kw">use</span> <span class="ident">algebra::module</span>::{<span class="ident">Module</span>, <span class="ident">ZeroModule</span>};
     <span class="kw">use</span> <span class="ident">fp::vector::SliceMut</span>;
 
@@ -1387,7 +1370,7 @@
         <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">offset</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">module_num</span>: <span class="ident">usize</span>) -&gt; <span class="ident">usize</span> {
             <span class="self">self</span>.<span class="ident">block_structures</span>[<span class="ident">degree</span>]
                 .<span class="ident">generator_to_block</span>(<span class="ident">degree</span>, <span class="ident">module_num</span>)
-                .<span class="ident">block_start_index</span>
+                .<span class="ident">start</span>
         }
     }
 
@@ -1419,10 +1402,10 @@
         }
 
         <span class="kw">fn</span> <span class="ident">dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) -&gt; <span class="ident">usize</span> {
-            <span class="kw">match</span> <span class="self">self</span>.<span class="ident">block_structures</span>.<span class="ident">get</span>(<span class="ident">degree</span>) {
-                <span class="prelude-val">Some</span>(<span class="ident">x</span>) =&gt; <span class="ident">x</span>.<span class="ident">total_dimension</span>,
-                <span class="prelude-val">None</span> =&gt; <span class="number">0</span>,
-            }
+            <span class="self">self</span>.<span class="ident">block_structures</span>
+                .<span class="ident">get</span>(<span class="ident">degree</span>)
+                .<span class="ident">map</span>(<span class="ident">BlockStructure::total_dimension</span>)
+                .<span class="ident">unwrap_or</span>(<span class="number">0</span>)
         }
 
         <span class="kw">fn</span> <span class="ident">act_on_basis</span>(
@@ -1440,14 +1423,12 @@
                 <span class="ident">basis_index</span>,
                 ..
             } <span class="op">=</span> <span class="self">self</span>.<span class="ident">block_structures</span>[<span class="ident">mod_degree</span>].<span class="ident">index_to_generator_basis_elt</span>(<span class="ident">mod_index</span>);
-            <span class="kw">let</span> <span class="ident">BlockStart</span> {
-                <span class="ident">block_start_index</span>: <span class="ident">target_offset</span>,
-                <span class="ident">block_size</span>: <span class="ident">target_module_dimension</span>,
-            } <span class="op">=</span> <span class="self">self</span>.<span class="ident">block_structures</span>[<span class="ident">target_degree</span>].<span class="ident">generator_to_block</span>(<span class="ident">target_degree</span>, <span class="kw-2">*</span><span class="ident">module_num</span>);
+            <span class="kw">let</span> <span class="ident">range</span> <span class="op">=</span>
+                <span class="self">self</span>.<span class="ident">block_structures</span>[<span class="ident">target_degree</span>].<span class="ident">generator_to_block</span>(<span class="ident">target_degree</span>, <span class="kw-2">*</span><span class="ident">module_num</span>);
             <span class="kw">let</span> <span class="ident">module</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">modules</span>[<span class="kw-2">*</span><span class="ident">module_num</span>];
 
             <span class="ident">module</span>.<span class="ident">act_on_basis</span>(
-                <span class="ident">result</span>.<span class="ident">slice_mut</span>(<span class="kw-2">*</span><span class="ident">target_offset</span>, <span class="ident">target_offset</span> <span class="op">+</span> <span class="ident">target_module_dimension</span>),
+                <span class="ident">result</span>.<span class="ident">slice_mut</span>(<span class="ident">range</span>.<span class="ident">start</span>, <span class="ident">range</span>.<span class="ident">end</span>),
                 <span class="ident">coeff</span>,
                 <span class="ident">op_degree</span>,
                 <span class="ident">op_index</span>,
@@ -1718,21 +1699,6 @@
                     })
                 }
             });
-        }
-
-        <span class="kw">fn</span> <span class="ident">set_homology_basis</span>(
-            <span class="kw-2">&amp;</span><span class="self">self</span>,
-            <span class="ident">_homological_degree</span>: <span class="ident">u32</span>,
-            <span class="ident">_internal_degree</span>: <span class="ident">i32</span>,
-            <span class="ident">_homology_basis</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span>,
-        ) {
-            <span class="macro">unimplemented!</span>()
-        }
-        <span class="kw">fn</span> <span class="ident">homology_basis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">_homological_degree</span>: <span class="ident">u32</span>, <span class="ident">_internal_degree</span>: <span class="ident">i32</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span> {
-            <span class="macro">unimplemented!</span>()
-        }
-        <span class="kw">fn</span> <span class="ident">max_homology_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">_homological_degree</span>: <span class="ident">u32</span>) -&gt; <span class="ident">i32</span> {
-            <span class="macro">unimplemented!</span>()
         }
 
         <span class="kw">fn</span> <span class="ident">next_homological_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">u32</span> {

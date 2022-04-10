@@ -499,8 +499,6 @@
 <span id="469">469</span>
 <span id="470">470</span>
 <span id="471">471</span>
-<span id="472">472</span>
-<span id="473">473</span>
 </pre><pre class="rust"><code><span class="doccomment">//! This implements the notion of a split pair algebra in the sense of</span>
 <span class="doccomment">//! &lt;https://arxiv.org/abs/2105.07628&gt;, whose notation we will use throughout. The Steenrod algebra</span>
 <span class="doccomment">//! admits a lift to a split pair algebra, which can be used to compute d2 differentials</span>
@@ -511,15 +509,13 @@
 
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::combinatorics</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::Algebra</span>;
-<span class="kw">use</span> <span class="ident">fp::prime::ValidPrime</span>;
+<span class="kw">use</span> <span class="ident">fp::prime::TWO</span>;
 <span class="kw">use</span> <span class="ident">fp::vector</span>::{<span class="ident">FpVector</span>, <span class="ident">Slice</span>, <span class="ident">SliceMut</span>};
 <span class="kw">use</span> <span class="ident">rustc_hash::FxHasher</span>;
 
 <span class="kw">type</span> <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">K</span>, <span class="ident">V</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">hashbrown::HashMap</span><span class="op">&lt;</span><span class="ident">K</span>, <span class="ident">V</span>, <span class="ident">std::hash::BuildHasherDefault</span><span class="op">&lt;</span><span class="ident">FxHasher</span><span class="op">&gt;</span><span class="op">&gt;</span>;
 
 <span class="kw">use</span> <span class="ident">std::io</span>::{<span class="ident">Read</span>, <span class="ident">Write</span>};
-
-<span class="kw">const</span> <span class="ident">TWO</span>: <span class="ident">ValidPrime</span> <span class="op">=</span> <span class="ident">ValidPrime::new</span>(<span class="number">2</span>);
 
 <span class="doccomment">/// A lift of an algebra to a split pair algebra. See module introduction for more.</span>
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">PairAlgebra</span>: <span class="ident">Algebra</span> {

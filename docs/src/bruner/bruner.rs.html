@@ -279,8 +279,6 @@
 <span id="249">249</span>
 <span id="250">250</span>
 <span id="251">251</span>
-<span id="252">252</span>
-<span id="253">253</span>
 </pre><pre class="rust"><code><span class="doccomment">//! This script converts between our basis and Bruner&#39;s basis. At the moment, most inputs are</span>
 <span class="doccomment">//! hardcoded, and this only works for the sphere.</span>
 <span class="doccomment">//!</span>
@@ -309,7 +307,7 @@
     <span class="ident">chain_complex</span>::{<span class="ident">ChainComplex</span>, <span class="ident">FiniteChainComplex</span> <span class="kw">as</span> <span class="ident">FCC</span>},
     <span class="ident">resolution_homomorphism::ResolutionHomomorphism</span>,
 };
-<span class="kw">use</span> <span class="ident">fp</span>::{<span class="ident">matrix::Matrix</span>, <span class="ident">prime::ValidPrime</span>, <span class="ident">vector::FpVector</span>};
+<span class="kw">use</span> <span class="ident">fp</span>::{<span class="ident">matrix::Matrix</span>, <span class="ident">prime::TWO</span>, <span class="ident">vector::FpVector</span>};
 <span class="kw">use</span> <span class="ident">std</span>::{
     <span class="ident">fs::File</span>,
     <span class="ident">io</span>::{<span class="ident">BufRead</span>, <span class="ident">BufReader</span>},
@@ -325,8 +323,6 @@
 
 <span class="kw">type</span> <span class="ident">FreeModuleHomomorphism</span> <span class="op">=</span> <span class="ident">FMH</span><span class="op">&lt;</span><span class="ident">FreeModule</span><span class="op">&gt;</span>;
 <span class="kw">type</span> <span class="ident">FiniteChainComplex</span> <span class="op">=</span> <span class="ident">FCC</span><span class="op">&lt;</span><span class="ident">FreeModule</span>, <span class="ident">FreeModuleHomomorphism</span><span class="op">&gt;</span>;
-
-<span class="kw">const</span> <span class="ident">TWO</span>: <span class="ident">ValidPrime</span> <span class="op">=</span> <span class="ident">ValidPrime::new</span>(<span class="number">2</span>);
 
 <span class="doccomment">/// Read the first non-empty line of `data` into `buf`. Returns whether a line is read</span>
 <span class="kw">fn</span> <span class="ident">read_line</span>(<span class="ident">data</span>: <span class="kw-2">&amp;mut</span> <span class="kw">impl</span> <span class="ident">BufRead</span>, <span class="ident">buf</span>: <span class="kw-2">&amp;mut</span> <span class="ident">String</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">bool</span><span class="op">&gt;</span> {

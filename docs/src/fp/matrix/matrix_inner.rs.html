@@ -1255,6 +1255,12 @@
 <span id="1225">1225</span>
 <span id="1226">1226</span>
 <span id="1227">1227</span>
+<span id="1228">1228</span>
+<span id="1229">1229</span>
+<span id="1230">1230</span>
+<span id="1231">1231</span>
+<span id="1232">1232</span>
+<span id="1233">1233</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="kw">super</span>::{<span class="ident">QuasiInverse</span>, <span class="ident">Subspace</span>};
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::matrix::m4ri::M4riTable</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::prime</span>::{<span class="self">self</span>, <span class="ident">ValidPrime</span>};
@@ -1323,6 +1329,12 @@
             <span class="ident">vectors</span>,
             <span class="ident">pivots</span>: <span class="ident">Vec::new</span>(),
         }
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">identity</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>, <span class="ident">dim</span>: <span class="ident">usize</span>) -&gt; <span class="self">Self</span> {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">matrix</span> <span class="op">=</span> <span class="ident"><span class="self">Self</span>::new</span>(<span class="ident">p</span>, <span class="ident">dim</span>, <span class="ident">dim</span>);
+        <span class="ident">matrix</span>.<span class="ident">as_slice_mut</span>().<span class="ident">add_identity</span>();
+        <span class="ident">matrix</span>
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_bytes</span>(
