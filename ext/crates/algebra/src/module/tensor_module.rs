@@ -47,7 +47,7 @@ where
     pub fn offset(&self, degree: i32, left_degree: i32) -> usize {
         self.block_structures[degree]
             .generator_to_block(left_degree, 0)
-            .block_start_index
+            .start
     }
 
     fn act_helper(
@@ -184,11 +184,7 @@ where
     }
 
     fn dimension(&self, degree: i32) -> usize {
-        self.compute_basis(degree);
-        match self.block_structures.get(degree) {
-            Some(x) => x.total_dimension,
-            None => panic!("Hi!"),
-        }
+        self.block_structures[degree].total_dimension()
     }
 
     fn act_on_basis(

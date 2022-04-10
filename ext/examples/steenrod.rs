@@ -282,7 +282,7 @@ mod sum_module {
     use bivec::BiVec;
     use once::OnceBiVec;
 
-    use algebra::module::block_structure::{BlockStart, BlockStructure, GeneratorBasisEltPair};
+    use algebra::module::block_structure::{BlockStructure, GeneratorBasisEltPair};
     use algebra::module::{Module, ZeroModule};
     use fp::vector::SliceMut;
 
@@ -329,7 +329,7 @@ mod sum_module {
         pub fn offset(&self, degree: i32, module_num: usize) -> usize {
             self.block_structures[degree]
                 .generator_to_block(degree, module_num)
-                .block_start_index
+                .start
         }
     }
 
@@ -361,10 +361,10 @@ mod sum_module {
         }
 
         fn dimension(&self, degree: i32) -> usize {
-            match self.block_structures.get(degree) {
-                Some(x) => x.total_dimension,
-                None => 0,
-            }
+            self.block_structures
+                .get(degree)
+                .map(BlockStructure::total_dimension)
+                .unwrap_or(0)
         }
 
         fn act_on_basis(
@@ -382,14 +382,12 @@ mod sum_module {
                 basis_index,
                 ..
             } = self.block_structures[mod_degree].index_to_generator_basis_elt(mod_index);
-            let BlockStart {
-                block_start_index: target_offset,
-                block_size: target_module_dimension,
-            } = self.block_structures[target_degree].generator_to_block(target_degree, *module_num);
+            let range =
+                self.block_structures[target_degree].generator_to_block(target_degree, *module_num);
             let module = &self.modules[*module_num];
 
             module.act_on_basis(
-                result.slice_mut(*target_offset, target_offset + target_module_dimension),
+                result.slice_mut(range.start, range.end),
                 coeff,
                 op_degree,
                 op_index,

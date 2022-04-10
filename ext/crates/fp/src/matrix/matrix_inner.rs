@@ -68,6 +68,12 @@ impl Matrix {
         }
     }
 
+    pub fn identity(p: ValidPrime, dim: usize) -> Self {
+        let mut matrix = Self::new(p, dim, dim);
+        matrix.as_slice_mut().add_identity();
+        matrix
+    }
+
     pub fn from_bytes(
         p: ValidPrime,
         rows: usize,

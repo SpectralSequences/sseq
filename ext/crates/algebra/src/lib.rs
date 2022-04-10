@@ -54,3 +54,29 @@ pub(crate) fn module_gens_from_json(
             .ok_or_else(|| anyhow!("Invalid generator: {gen}"))
     })
 }
+
+#[cfg(test)]
+pub mod test {
+    pub fn joker_json() -> serde_json::Value {
+        use serde_json::json;
+
+        json!({
+            "type" : "finite dimensional module",
+            "p": 2,
+            "gens": {
+                "x0": 0,
+                "x1": 1,
+                "x2": 2,
+                "x3": 3,
+                "x4": 4
+            },
+            "actions": [
+                "Sq1 x0 = x1",
+                "Sq2 x1 = x3",
+                "Sq1 x3 = x4",
+                "Sq2 x0 = x2",
+                "Sq2 x2 = x4"
+            ]
+        })
+    }
+}

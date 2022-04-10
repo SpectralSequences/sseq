@@ -1,17 +1,14 @@
 use std::sync::Arc;
 
-use crate::module::block_structure::BlockStart;
-use fp::matrix::{QuasiInverse, Subspace};
-use fp::vector::SliceMut;
-use once::OnceBiVec;
-// use crate::algebra::SteenrodAlgebra;
-// use crate::field::Field;
+use crate::module::block_structure::GeneratorBasisEltPair;
 use crate::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
 use crate::module::HomModule;
 use crate::module::{FreeModule, Module};
+use fp::matrix::{QuasiInverse, Subspace};
+use fp::vector::SliceMut;
+use once::OnceBiVec;
 
-/// Given a map `map`: A -> B and `source` = Hom(B, X), `target` = Hom(A, X), produce the induced
-/// map `map`^* Hom(B, X) -> Hom(A, X).
+/// Given a map $\mathtt{map}: A \to B$ and hom modules $\mathtt{source} = \Hom(B, X)$, $\mathtt{target} = \Hom(A, X)$, produce the induced pullback map $\Hom(B, X) \to \Hom(A, X)$.
 pub struct HomPullback<M: Module> {
     source: Arc<HomModule<M>>,
     target: Arc<HomModule<M>>,
@@ -27,6 +24,10 @@ impl<M: Module> HomPullback<M> {
         target: Arc<HomModule<M>>,
         map: Arc<FreeModuleHomomorphism<FreeModule<M::Algebra>>>,
     ) -> Self {
+        assert!(Arc::ptr_eq(&source.source(), &map.target()));
+        assert!(Arc::ptr_eq(&target.source(), &map.source()));
+        assert!(Arc::ptr_eq(&source.target(), &target.target()));
+
         let min_degree = source.min_degree();
         Self {
             source,
@@ -52,7 +53,7 @@ impl<M: Module> ModuleHomomorphism for HomPullback<M> {
     }
 
     fn degree_shift(&self) -> i32 {
-        self.map.degree_shift()
+        -self.map.degree_shift()
     }
 
     fn min_degree(&self) -> i32 {
@@ -66,26 +67,45 @@ impl<M: Module> ModuleHomomorphism for HomPullback<M> {
         fn_degree: i32,
         fn_idx: usize,
     ) {
-        println!("fn_deg : {}, fn_idx : {}", fn_degree, fn_idx);
-        let target_module = self.target.target();
-        for out_deg in target_module.min_degree()..=target_module.max_degree().unwrap() {
-            let x_degree = fn_degree + out_deg;
-            let num_gens = self.map.source().number_of_gens_in_degree(x_degree);
-            for i in 0..num_gens {
-                let x_elt = self.map.output(x_degree, i);
-                let BlockStart {
-                    block_start_index,
-                    block_size,
-                } = self.source.block_structures[fn_degree].generator_to_block(x_degree, i);
-                self.target.evaluate_basis_map_on_element(
-                    result.slice_mut(*block_start_index, *block_start_index + block_size),
-                    coeff,
-                    fn_degree,
-                    fn_idx,
-                    x_degree,
-                    x_elt.as_slice(),
-                );
-            }
+        let GeneratorBasisEltPair {
+            generator_degree,
+            generator_index,
+            basis_index,
+        } = self.source.block_structures[fn_degree].index_to_generator_basis_elt(fn_idx);
+
+        let target_module = self.target.target(); // == self.source.target()
+        let source_free_module = self.source.source();
+        let target_free_module = self.target.source();
+        let degree_shift = self.map.degree_shift();
+
+        let max_degree = fn_degree + degree_shift + target_module.max_degree().unwrap();
+        let min_degree = std::cmp::max(
+            *generator_degree + degree_shift,
+            fn_degree + degree_shift + target_module.min_degree(),
+        );
+
+        for (target_gen_deg, target_gen_idx) in target_free_module
+            .iter_gens(max_degree)
+            .filter(|(t, _)| *t >= min_degree)
+        {
+            let target_range = self.target.block_structures[fn_degree + degree_shift]
+                .generator_to_block(target_gen_deg, target_gen_idx);
+
+            let slice = source_free_module.slice_vector(
+                target_gen_deg - degree_shift,
+                *generator_degree,
+                *generator_index,
+                self.map.output(target_gen_deg, target_gen_idx).as_slice(),
+            );
+
+            target_module.act_by_element_on_basis(
+                result.slice_mut(target_range.start, target_range.end),
+                coeff,
+                target_gen_deg - degree_shift - *generator_degree,
+                slice,
+                *generator_degree - fn_degree,
+                *basis_index,
+            );
         }
     }
 
@@ -114,110 +134,125 @@ impl<M: Module> ModuleHomomorphism for HomPullback<M> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::algebra::{AdemAlgebra, Algebra};
     use crate::module::FDModule;
+    use crate::MilnorAlgebra;
+    use bivec::BiVec;
     use fp::matrix::Matrix;
-    use fp::prime::ValidPrime;
     use fp::vector::FpVector;
-    use serde_json::json;
 
-    #[allow(non_snake_case)]
+    #[test]
+    fn test_pullback_id() {
+        const SHIFT: i32 = 2;
+        const NUM_GENS: [usize; 3] = [1, 2, 1];
+
+        let p = fp::prime::TWO;
+
+        let algebra = Arc::new(MilnorAlgebra::new(p));
+        let f0 = Arc::new(FreeModule::new(Arc::clone(&algebra), "F0".to_string(), 0));
+        let f1 = Arc::new(FreeModule::new(
+            Arc::clone(&algebra),
+            "F1".to_string(),
+            SHIFT,
+        ));
+        let m = Arc::new(
+            FDModule::from_json(Arc::clone(&algebra), &crate::test::joker_json()).unwrap(),
+        );
+
+        let d = Arc::new(FreeModuleHomomorphism::new(
+            Arc::clone(&f1),
+            Arc::clone(&f0),
+            SHIFT,
+        ));
+
+        f0.compute_basis(NUM_GENS.len() as i32);
+        f1.compute_basis(NUM_GENS.len() as i32 + SHIFT);
+
+        for (deg, num_gens) in NUM_GENS.into_iter().enumerate() {
+            f0.add_generators(deg as i32, num_gens, None);
+            f1.add_generators(deg as i32 + SHIFT, num_gens, None);
+            let mut rows = vec![FpVector::new(p, f0.dimension(deg as i32)); num_gens];
+            for (i, row) in rows.iter_mut().enumerate() {
+                row.add_basis_element(row.len() - num_gens + i, 1);
+            }
+            d.add_generators_from_rows(deg as i32 + SHIFT, rows);
+        }
+
+        let pb = HomPullback::new(
+            Arc::new(HomModule::new(f0, Arc::clone(&m))),
+            Arc::new(HomModule::new(f1, Arc::clone(&m))),
+            d,
+        );
+
+        pb.source.compute_basis(-2);
+        pb.target.compute_basis(-2 + SHIFT);
+
+        for deg in pb.source.min_degree()..=pb.source.max_computed_degree() {
+            let dim = pb.source.dimension(deg);
+            let mut matrix = Matrix::new(p, dim, dim);
+            pb.get_matrix(matrix.as_slice_mut(), deg);
+            assert_eq!(matrix, Matrix::identity(p, dim));
+        }
+    }
+
     #[test]
     fn test_pullback() {
-        let p = ValidPrime::new(2);
-        let A = Arc::new(AdemAlgebra::new(p, *p != 2, false));
-        A.compute_basis(20);
-        let F0 = Arc::new(FreeModule::new(Arc::clone(&A), "F0".to_string(), 0));
-        F0.add_generators(0, 1, None);
-        F0.add_generators(1, 1, None);
-        F0.add_generators(2, 1, None);
-        F0.extend_by_zero(20);
-        let F1 = Arc::new(FreeModule::new(Arc::clone(&A), "F1".to_string(), 0));
-        F1.add_generators(0, 1, None);
-        F1.add_generators(1, 1, None);
-        F1.add_generators(2, 1, None);
-        F1.extend_by_zero(20);
-        let d = Arc::new(FreeModuleHomomorphism::new(
-            Arc::clone(&F1),
-            Arc::clone(&F0),
-            0,
+        const SHIFT: i32 = 3;
+        const NUM_GENS: [usize; 3] = [1, 1, 1];
+
+        let p = fp::prime::TWO;
+
+        let algebra = Arc::new(MilnorAlgebra::new(p));
+        let f0 = Arc::new(FreeModule::new(Arc::clone(&algebra), "F0".to_string(), 0));
+        let f1 = Arc::new(FreeModule::new(
+            Arc::clone(&algebra),
+            "F1".to_string(),
+            SHIFT,
         ));
-        for i in 0..=1 {
-            let mut matrix = Matrix::new(p, 1, F0.dimension(i));
-            d.add_generators_from_matrix_rows(i, matrix.as_slice_mut());
+        let m = Arc::new(
+            FDModule::from_json(Arc::clone(&algebra), &crate::test::joker_json()).unwrap(),
+        );
+
+        let d = Arc::new(FreeModuleHomomorphism::new(
+            Arc::clone(&f1),
+            Arc::clone(&f0),
+            SHIFT,
+        ));
+
+        f0.compute_basis(NUM_GENS.len() as i32);
+        f1.compute_basis(NUM_GENS.len() as i32 + SHIFT);
+
+        for (deg, num_gens) in NUM_GENS.into_iter().enumerate() {
+            f0.add_generators(deg as i32, num_gens, None);
+            f1.add_generators(deg as i32 + SHIFT, num_gens, None);
         }
 
-        let i = 2;
-        let mut matrix = Matrix::from_vec(p, &[vec![1, 1, 1]]);
-        d.add_generators_from_matrix_rows(i, matrix.as_slice_mut());
+        d.add_generators_from_rows(SHIFT, vec![FpVector::from_slice(p, &[1])]);
+        d.add_generators_from_rows(SHIFT + 1, vec![FpVector::from_slice(p, &[0, 1])]);
+        d.add_generators_from_rows(SHIFT + 2, vec![FpVector::from_slice(p, &[1, 1, 1])]);
 
-        let joker_json = json!({
-            "type" : "finite dimensional module",
-            "p": 2,
-            "gens": {
-                "x0": 0,
-                "x1": 1,
-                "x2": 2,
-                "x3": 3,
-                "x4": 4
-            },
-            "actions": [
-                "Sq1 x0 = x1",
-                "Sq2 x1 = x3",
-                "Sq1 x3 = x4",
-                "Sq2 x0 = x2",
-                "Sq2 x2 = x4"
-            ]
-        });
+        let pb = HomPullback::new(
+            Arc::new(HomModule::new(f0, Arc::clone(&m))),
+            Arc::new(HomModule::new(f1, Arc::clone(&m))),
+            d,
+        );
 
-        let M = Arc::new(FDModule::from_json(Arc::clone(&A), &joker_json).unwrap());
+        pb.source.compute_basis(-2);
+        pb.target.compute_basis(-2 + SHIFT);
 
-        let hom0 = Arc::new(HomModule::new(Arc::clone(&F0), Arc::clone(&M)));
-        let hom1 = Arc::new(HomModule::new(Arc::clone(&F1), Arc::clone(&M)));
+        let outputs = BiVec::from_vec(
+            -4,
+            vec![
+                Matrix::from_vec(p, &[vec![1]]),
+                Matrix::from_vec(p, &[vec![1, 0], vec![0, 1]]),
+                Matrix::from_vec(p, &[vec![1, 0, 1], vec![0, 1, 1], vec![0, 0, 1]]),
+            ],
+        );
 
-        hom0.compute_basis(10);
-        hom1.compute_basis(10);
-
-        for i in 0..3 {
-            let mut result = FpVector::new(p, 3);
-            d.apply_to_basis_element(result.as_slice_mut(), 1, 2, i);
-            println!(
-                "d({}) = {}",
-                F1.basis_element_to_string(2, i),
-                F0.element_to_string(2, result.as_slice())
-            );
-            result.set_to_zero();
-        }
-        println!();
-
-        let outputs = [
-            [[0, 0, 0], [0, 0, 0], [0, 0, 0]],
-            [[0, 0, 0], [0, 0, 0], [0, 0, 0]],
-            [[0, 0, 1], [0, 0, 1], [0, 0, 1]],
-            [[0, 0, 1], [0, 0, 0], [0, 0, 1]],
-            [[0, 0, 1], [0, 0, 0], [0, 0, 1]],
-            [[0, 1, 0], [0, 1, 0], [0, 0, 0]],
-            [[1, 0, 0], [0, 0, 0], [0, 0, 0]],
-        ];
-
-        let pb = HomPullback::new(Arc::clone(&hom0), Arc::clone(&hom1), Arc::clone(&d));
-        // let mut result = FpVector::new(p, hom1.dimension(deg));
-        // pb.apply_to_basis_element(&mut result, 1, deg, idx);
-        for deg in -4..3 {
-            let mut result = FpVector::new(p, hom1.dimension(deg));
-            let mut desired_result = FpVector::new(p, hom1.dimension(deg));
-            // println!("deg : {}, dim : {}", deg, hom0.dimension(deg));
-            for idx in 0..hom0.dimension(deg) {
-                // println!("deg = {}, idx = {}, f = {}", deg, idx, hom1.basis_element_to_string(deg, idx));
-                pb.apply_to_basis_element(result.as_slice_mut(), 1, deg, idx);
-                // println!("d^* {} = {}\n", hom1.basis_element_to_string(deg, idx), hom0.element_to_string(deg, &result));
-                let desired_output = outputs[(deg + 4) as usize][idx];
-                desired_result.copy_from_slice(&desired_output[0..desired_result.len()]);
-                assert_eq!(result, desired_result);
-                println!("{}", result);
-                result.set_to_zero();
-            }
-            println!("\n");
+        for deg in pb.source.min_degree()..=pb.source.max_computed_degree() {
+            let dim = pb.source.dimension(deg);
+            let mut matrix = Matrix::new(p, dim, dim);
+            pb.get_matrix(matrix.as_slice_mut(), deg);
+            assert_eq!(matrix, outputs[deg]);
         }
     }
 }
