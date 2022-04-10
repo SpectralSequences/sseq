@@ -295,7 +295,10 @@ impl<T: Write> Backend for SvgBackend<T> {
         writeln!(
             self.out,
             r#"<line class="{style}" x1="{source_x}" x2="{target_x}" y1="{source_y}" y2="{target_y}" />"#,
-            style = style.unwrap_or("structline"),
+            style = match &style {
+                Some(x) => format!("structline {x}"),
+                None => String::from("structline"),
+            },
         )?;
 
         Ok(())
