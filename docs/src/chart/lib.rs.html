@@ -478,6 +478,9 @@
 <span id="448">448</span>
 <span id="449">449</span>
 <span id="450">450</span>
+<span id="451">451</span>
+<span id="452">452</span>
+<span id="453">453</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::collections::HashMap</span>;
 <span class="kw">use</span> <span class="ident">std::fmt::Display</span>;
 <span class="kw">use</span> <span class="ident">std::io::Write</span>;
@@ -775,7 +778,10 @@
         <span class="macro">writeln!</span>(
             <span class="self">self</span>.<span class="ident">out</span>,
             <span class="string">r#&quot;&lt;line class=&quot;{style}&quot; x1=&quot;{source_x}&quot; x2=&quot;{target_x}&quot; y1=&quot;{source_y}&quot; y2=&quot;{target_y}&quot; /&gt;&quot;#</span>,
-            <span class="ident">style</span> <span class="op">=</span> <span class="ident">style</span>.<span class="ident">unwrap_or</span>(<span class="string">&quot;structline&quot;</span>),
+            <span class="ident">style</span> <span class="op">=</span> <span class="kw">match</span> <span class="kw-2">&amp;</span><span class="ident">style</span> {
+                <span class="prelude-val">Some</span>(<span class="ident">x</span>) =&gt; <span class="macro">format!</span>(<span class="string">&quot;structline {x}&quot;</span>),
+                <span class="prelude-val">None</span> =&gt; <span class="ident">String::from</span>(<span class="string">&quot;structline&quot;</span>),
+            },
         )<span class="question-mark">?</span>;
 
         <span class="prelude-val">Ok</span>(())
