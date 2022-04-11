@@ -209,34 +209,34 @@ export class ChartStructline extends ChartEdge {
     update(msg: MessageUpdate<ChartStructline>) {
         super._baseUpdate(msg);
         let kwargs = msg.update_fields;
-        if (kwargs.visible) {
+        if (kwargs.visible !== undefined) {
             this.visible = pagePropertyOrValueToPageProperty(kwargs.visible);
         }
 
-        if (kwargs.start_tip) {
+        if (kwargs.start_tip !== undefined) {
             this.start_tip = pagePropertyOrValueToPageProperty(
                 kwargs.start_tip,
             );
         }
 
-        if (kwargs.end_tip) {
+        if (kwargs.end_tip !== undefined) {
             this.end_tip = pagePropertyOrValueToPageProperty(kwargs.end_tip);
         }
 
-        if (kwargs.color) {
+        if (kwargs.color !== undefined) {
             this.color = pagePropertyOrValueToPageProperty(kwargs.color);
         }
-        if (kwargs.dash_pattern) {
+        if (kwargs.dash_pattern !== undefined) {
             this.dash_pattern = pagePropertyOrValueToPageProperty(
                 kwargs.dash_pattern,
             );
         }
-        if (kwargs.line_width) {
+        if (kwargs.line_width !== undefined) {
             this.line_width = pagePropertyOrValueToPageProperty(
                 kwargs.line_width,
             );
         }
-        if (kwargs.bend) {
+        if (kwargs.bend !== undefined) {
             this.bend = pagePropertyOrValueToPageProperty(kwargs.bend);
         }
     }
@@ -295,8 +295,8 @@ abstract class SinglePageChartEdge extends ChartEdge {
     action: string;
     constructor(kwargs: ChartEdgeConstructorArgs & Partial<EdgeStyle>) {
         super(kwargs);
-        this.start_tip = kwargs.start_tip;
-        this.end_tip = kwargs.end_tip;
+        this.start_tip = kwargs.start_tip || NoTip;
+        this.end_tip = kwargs.end_tip || NoTip;
         this.bend = kwargs.bend !== undefined ? kwargs.bend : 0;
         this.color = kwargs.color || Black;
         this.dash_pattern = kwargs.dash_pattern || [];
@@ -307,26 +307,26 @@ abstract class SinglePageChartEdge extends ChartEdge {
 
     _baseUpdate(msg: MessageUpdate<SinglePageChartEdge>) {
         let kwargs = msg.update_fields;
-        if (kwargs.visible) {
+        if (kwargs.visible !== undefined) {
             this.visible = kwargs.visible;
         }
-        if (kwargs.color) {
+        if (kwargs.color !== undefined) {
             this.color = kwargs.color;
         }
-        if (kwargs.dash_pattern) {
+        if (kwargs.dash_pattern !== undefined) {
             this.dash_pattern = kwargs.dash_pattern;
         }
-        if (kwargs.line_width) {
+        if (kwargs.line_width !== undefined) {
             this.line_width = kwargs.line_width;
         }
-        if (kwargs.bend) {
+        if (kwargs.bend !== undefined) {
             this.bend = kwargs.bend;
         }
-        if (kwargs.start_tip) {
+        if (kwargs.start_tip !== undefined) {
             this.start_tip = kwargs.start_tip;
         }
 
-        if (kwargs.end_tip) {
+        if (kwargs.end_tip !== undefined) {
             this.end_tip = kwargs.end_tip;
         }
     }
