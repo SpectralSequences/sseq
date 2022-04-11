@@ -113,15 +113,12 @@ pub struct AddDifferential {
 
 impl ActionT for AddDifferential {
     fn act_sseq(&self, sseq: &mut SseqWrapper) -> Option<Message> {
-        sseq.add_differential_propagate(
-            self.r,
-            self.x,
-            self.y,
-            FpVector::from_slice(sseq.p, &self.source).as_slice(),
-            Some(FpVector::from_slice(sseq.p, &self.target).as_slice()),
-            0,
-            false,
-        );
+        let source = FpVector::from_slice(sseq.p, &self.source);
+        let target = FpVector::from_slice(sseq.p, &self.target);
+
+        sseq.inner
+            .add_differential(self.r, self.x, self.y, source.as_slice(), target.as_slice());
+        sseq.add_differential_propagate(self.r, self.x, self.y, source.as_slice(), 0);
         None
     }
 }
@@ -159,15 +156,12 @@ pub struct AddPermanentClass {
 
 impl ActionT for AddPermanentClass {
     fn act_sseq(&self, sseq: &mut SseqWrapper) -> Option<Message> {
-        sseq.add_differential_propagate(
-            INFINITY,
-            self.x,
-            self.y,
-            FpVector::from_slice(sseq.p, &self.class).as_slice(),
-            None,
-            0,
-            false,
-        );
+        let class = FpVector::from_slice(sseq.p, &self.class);
+
+        sseq.inner
+            .add_permanent_class(self.x, self.y, class.as_slice());
+        sseq.add_differential_propagate(INFINITY, self.x, self.y, class.as_slice(), 0);
+
         None
     }
 }

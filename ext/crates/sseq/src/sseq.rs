@@ -27,6 +27,14 @@ impl SseqProfile for Adams {
     }
 }
 
+pub struct Product {
+    pub x: i32,
+    pub y: i32,
+    /// Whether the product acts on the left or not. This affects the sign in the Leibniz rule.
+    pub left: bool,
+    pub matrices: BiVec<BiVec<Option<Matrix>>>,
+}
+
 pub struct Sseq<P: SseqProfile = Adams> {
     p: ValidPrime,
 
@@ -358,6 +366,107 @@ impl<P: SseqProfile> Sseq<P> {
 
     pub fn page_data(&self, x: i32, y: i32) -> &BiVec<Subquotient> {
         &self.page_data[x][y]
+    }
+
+    /// Compute the product between `product` and the class `class` at `(x, y)`. Returns `None` if
+    /// the product is not yet computed.
+    pub fn multiply(
+        &self,
+        x: i32,
+        y: i32,
+        class: Slice,
+        prod: &Product,
+    ) -> Option<(i32, i32, FpVector)> {
+        let mut result = FpVector::new(self.p, self.classes.get_dimension(x + prod.x, y + prod.y)?);
+        if let Some(matrix) = &prod.matrices.get(x)?.get(y)? {
+            matrix.apply(result.as_slice_mut(), 1, class);
+        }
+        Some((x + prod.x, y + prod.y, result))
+    }
+
+    /// Apply the Leibniz rule to obtain new differentials. The differential we start with is a d_r
+    /// differential from (x, y) with source `s` and target `t`. If the source is permanent, then r
+    /// should be set to [`i32::MAX`].
+    ///
+    /// # Arguments
+    ///  - `source_product` the product to multiply the class with
+    ///  - `target_product` the differential on `source_product`. If `source_product` is permanent,
+    ///    then this is None.
+    ///
+    /// # Return
+    ///
+    /// We return a tuple `(r, x, y, class)` recording the (source of) the new differential.
+    /// If the function returns None, this means no differential was added. This can either be
+    /// because the differential was trivial, or the data needed to compute the product is not yet
+    /// available.
+    pub fn leibniz(
+        &mut self,
+        r: i32,
+        x: i32,
+        y: i32,
+        class: Slice,
+        source_product: &Product,
+        target_product: Option<&Product>,
+    ) -> Option<(i32, i32, i32, FpVector)> {
+        let (source_x, source_y, source_class) = self.multiply(x, y, class, source_product)?;
+
+        // The class and the product are both permanent.
+        if r == i32::MAX && target_product.is_none() {
+            if self.add_permanent_class(source_x, source_y, source_class.as_slice()) {
+                return Some((i32::MAX, source_x, source_y, source_class));
+            } else {
+                return None;
+            }
+        }
+
+        let neg_1 = *self.p - 1;
+
+        // TODO: use profile
+        let target_r = target_product
+            .map(|prod| y + prod.y - source_y)
+            .unwrap_or(i32::MAX);
+
+        let result_r = std::cmp::min(r, target_r);
+
+        let (result_x, result_y) = P::profile(result_r, source_x, source_y);
+        let mut result = FpVector::new(self.p, self.classes.get_dimension(result_x, result_y)?);
+
+        if r == result_r {
+            let diffs = &self.differentials[x][y][r];
+            let (d_x, d_y) = P::profile(r, x, y);
+            let mut dx = FpVector::new(self.p, self.classes.dimension(d_x, d_y));
+            diffs.evaluate(class, dx.as_slice_mut());
+            let (_, _, target_class) = self.multiply(d_x, d_y, dx.as_slice(), source_product)?;
+
+            if source_product.left && source_product.x % 2 != 0 {
+                result.add(&target_class, neg_1);
+            } else {
+                result.add(&target_class, 1);
+            }
+        }
+
+        if target_r == result_r {
+            let (_, _, target) = self.multiply(x, y, class, target_product.unwrap())?;
+            // why is this x - 1 but not x? This is what the original code does and came from trial
+            // and error(?)
+            if !source_product.left && (x - 1) % 2 != 0 {
+                result.add(&target, neg_1);
+            } else {
+                result.add(&target, 1);
+            }
+        }
+
+        if self.add_differential(
+            result_r,
+            source_x,
+            source_y,
+            source_class.as_slice(),
+            result.as_slice(),
+        ) {
+            Some((result_r, source_x, source_y, source_class))
+        } else {
+            None
+        }
     }
 }
 

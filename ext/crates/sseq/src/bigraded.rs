@@ -68,7 +68,12 @@ impl DenseBigradedModule {
         }
     }
 
+    /// The dimension in a bidegree, None if not yet defined
+    pub fn get_dimension(&self, x: i32, y: i32) -> Option<usize> {
+        Some(*self.dimensions.get(x)?.get(y)?)
+    }
+
     pub fn dimension(&self, x: i32, y: i32) -> usize {
-        self.dimensions[x][y]
+        self.get_dimension(x, y).unwrap()
     }
 }
