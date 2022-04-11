@@ -1,4 +1,5 @@
 import time
+from selenium.webdriver.common.by import By
 
 
 def test_differential(driver):
@@ -64,13 +65,13 @@ def test_multiplication(driver):
 def test_propagate_differential(driver):
     driver.click_class(17, 4)
     driver.select_panel("Diff")
-    driver.panel().find_element_by_css_selector("div.panel-line").click()
+    driver.panel().find_element(By.CSS_SELECTOR, "div.panel-line").click()
     driver.reply("e_0")
     time.sleep(0.1)
     driver.reply("h_1^2 d_0")
 
     driver.click_class(18, 4)
-    driver.panel().find_elements_by_css_selector("div.panel-line")[3].click()
+    driver.panel().find_elements(By.CSS_SELECTOR, "div.panel-line")[3].click()
     driver.reply("f_0")
     time.sleep(0.1)
     driver.reply("h_0^2 e_0")
@@ -106,7 +107,7 @@ def test_history(driver):
                 raise TimeoutError
 
     driver.go("/")
-    driver.driver.find_element_by_id("history-upload").send_keys(
+    driver.driver.find_element(By.ID, "history-upload").send_keys(
         f"{driver.tempdir}/s_2.save"
     )
     driver.wait_complete()

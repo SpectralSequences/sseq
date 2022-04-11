@@ -8,6 +8,7 @@ from typing import Union
 from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.by import By
 
 PATH: str = "http://localhost:8080"
 SVGNS: str = "http://www.w3.org/2000/svg"
@@ -76,18 +77,18 @@ class DriverWrapper:
         self.driver.get(PATH + path)
 
     def click_class(self, x: int, y: int):
-        self.main_svg().find_element_by_css_selector(
-            f"g [data-x='{x}'][data-y='{y}'] > circle"
+        self.main_svg().find_element(
+            By.CSS_SELECTOR, f"g [data-x='{x}'][data-y='{y}'] > circle"
         ).click()
 
     def send_keys(self, key: str):
-        self.driver.find_element_by_tag_name("body").send_keys(key)
+        self.driver.find_element(By.TAG_NAME, "body").send_keys(key)
 
     def select_panel(self, name: str):
         head = self.driver.execute_script("return window.display.currentPanel.head")
 
         found = False
-        for child in head.find_elements_by_css_selector("a"):
+        for child in head.find_elements(By.CSS_SELECTOR, "a"):
             if child.text == name:
                 child.click()
                 found = True
@@ -104,7 +105,7 @@ class DriverWrapper:
 
     def click_button(self, text: str):
         """Click the button in the side bar with the given text"""
-        for elt in self.sidebar().find_elements_by_tag_name("button"):
+        for elt in self.sidebar().find_elements(By.TAG_NAME, "button"):
             if elt.text == text:
                 elt.click()
                 return
