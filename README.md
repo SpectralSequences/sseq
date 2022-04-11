@@ -25,12 +25,11 @@ Web interfaces to `ext`. There are two subprojects at the moment:
    or Milnor basis.
 
    This is available at
-   https://spectralsequences.github.io/steenrod_calculator/ .
+   https://spectralsequences.github.io/sseq/calculator/ .
 
 3. `python_ext`
 WIP python bindings for the `ext` library.
 
 4. `chart`
-
 A general spectral sequence web interface, with a python-based repl for
 programmatic interaction.
