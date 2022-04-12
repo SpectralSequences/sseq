@@ -115,39 +115,32 @@
         <script src="katex.js"></script>
         <script src="d3-combined.js"></script>
         <script src="index.js" type="module"></script>
-        <div id="overlay" style="display: none"></div>
-        <div id="unitsseq-dialog" class="modal-dialog">
-            <div class="modal-header">
-                <h5 class="modal-title" id="modal-title">
-                    Select element to multiply with
-                </h5>
-                <span style="flex-grow: 1"></span>
-                <button
-                    type="button"
-                    class="close close-modal"
-                    aria-label="Close"
-                >
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <div class="modal-body" id="unitsseq-body"></div>
-            <div class="modal-footer">
-                <button type="button" id="modal-more" class="button">
-                    Show more
-                </button>
-                <span style="flex-grow: 1"></span>
-                <button
-                    type="button"
-                    class="button close-modal"
-                    data-dismiss="modal"
-                >
-                    Close
-                </button>
-                <button type="button" id="modal-diff" class="button">
-                    Add differential
-                </button>
-                <button type="button" id="modal-ok" class="button">OK</button>
-            </div>
-        </div>
+        <dialog id="unitsseq-dialog">
+            <form method="dialog">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modal-title">
+                        Select element to multiply with
+                    </h5>
+                    <span style="flex-grow: 1"></span>
+                    <button type="submit" class="close" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body" id="unitsseq-body"></div>
+                <div class="modal-footer">
+                    <button type="button" id="modal-more" class="button">
+                        Show more
+                    </button>
+                    <span style="flex-grow: 1"></span>
+                    <button type="submit" class="button">Close</button>
+                    <button type="button" id="modal-diff" class="button">
+                        Add differential
+                    </button>
+                    <button type="button" id="modal-ok" class="button">
+                        OK
+                    </button>
+                </div>
+            </form>
+        </dialog>
     </body>
 </html>
