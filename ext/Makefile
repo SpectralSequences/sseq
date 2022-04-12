@@ -10,9 +10,9 @@ test:
 
 lint:
 	cargo fmt --all -- --check
-	cargo clippy --workspace --all-targets
-	cargo check --workspace --no-default-features
-	cargo check --workspace --all-targets --all-features
+	cargo clippy --workspace --all-targets --profile test
+	cargo check --workspace --no-default-features --profile test
+	cargo check --workspace --all-targets --all-features --profile test
 
 docs:
 	RUSTDOCFLAGS="--html-in-header gh-pages/katex-header.html" cargo rustdoc --examples --all-features
