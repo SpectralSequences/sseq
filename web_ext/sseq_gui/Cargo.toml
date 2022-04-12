@@ -9,7 +9,6 @@ edition = "2021"
 [dependencies]
 algebra = { path = "../../ext/crates/algebra", default-features = false }
 bivec = { path = "../../ext/crates/bivec", features = ["json"] }
-chart = { path = "../../ext/crates/chart" }
 ext = { path = "../../ext", default-features = false }
 fp = { path = "../../ext/crates/fp", features = ["json"], default-features = false }
 once = { path = "../../ext/crates/once" }

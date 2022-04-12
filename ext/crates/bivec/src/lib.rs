@@ -119,6 +119,11 @@ impl<T> BiVec<T> {
         self.data.get((idx - self.min_degree) as usize)
     }
 
+    /// Get the `idx`th element if it exists; the last element otherwise
+    pub fn get_max(&self, idx: i32) -> &T {
+        self.get(idx).unwrap_or_else(|| self.data.last().unwrap())
+    }
+
     pub fn last(&self) -> Option<&T> {
         self.data.last()
     }

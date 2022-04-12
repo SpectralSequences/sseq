@@ -1,7 +1,6 @@
 use crate::actions::*;
 use crate::Sender;
 use bivec::BiVec;
-use chart::Backend;
 use fp::prime::ValidPrime;
 use fp::vector::FpVector;
 use fp::{
@@ -206,9 +205,8 @@ impl<P: SseqProfile> SseqWrapper<P> {
 
                 // Compute the ones where something changes.
                 for r in P::MIN_R + 1..max_page {
-                    let source_data = Self::get_page(r, self.inner.page_data(x, y));
-                    let target_data =
-                        Self::get_page(r, self.inner.page_data(x + prod_x, y + prod_y));
+                    let source_data = self.inner.page_data(x, y).get_max(r);
+                    let target_data = self.inner.page_data(x + prod_x, y + prod_y).get_max(r);
 
                     matrices.push(Subquotient::reduce_matrix(matrix, source_data, target_data));
 
@@ -304,14 +302,6 @@ impl<P: SseqProfile> SseqWrapper<P> {
         self.inner.defined(x, y)
             && product.inner.matrices.max_degree() >= x
             && product.inner.matrices[x].max_degree() >= y
-    }
-
-    fn get_page<T>(r: i32, bivec: &BiVec<T>) -> &T {
-        if r >= bivec.len() {
-            &bivec[bivec.max_degree()]
-        } else {
-            &bivec[r]
-        }
     }
 }
 
@@ -542,94 +532,5 @@ impl<P: SseqProfile> SseqWrapper<P> {
                 }
             }
         }
-    }
-}
-
-impl<P: SseqProfile> SseqWrapper<P> {
-    pub fn write_to_graph<T: Backend>(
-        &self,
-        mut g: T,
-        r: i32,
-        differentials: bool,
-        products: &[&str],
-    ) -> std::result::Result<(), T::Error> {
-        assert_eq!(self.inner.min_x(), 0);
-        assert_eq!(self.inner.min_y(), 0);
-
-        let max_x = self.inner.max_x();
-        let max_y = self.inner.max_y();
-
-        g.init(max_x as i32, max_y as i32)?;
-
-        for x in self.inner.min_x()..=self.inner.max_x() {
-            for y in self.inner.range(x) {
-                let data = Self::get_page(r, self.inner.page_data(x, y));
-                if data.is_empty() {
-                    continue;
-                }
-
-                g.node(x, y, data.dimension())?;
-
-                // Now add the products hitting this bidegree
-                for &prod_name in products {
-                    let prod = &self.products[prod_name];
-                    let source_x = x - prod.inner.x;
-                    let source_y = y - prod.inner.y;
-
-                    if !self.inner.defined(source_x, source_y) {
-                        continue;
-                    }
-
-                    let source_data = Self::get_page(r, self.inner.page_data(source_x, source_y));
-                    if source_data.is_empty() {
-                        continue;
-                    }
-
-                    let matrix = prod.inner.matrices[source_x][source_y].as_ref().unwrap();
-                    let matrix = Subquotient::reduce_matrix(matrix, source_data, data);
-                    g.structline_matrix((source_x, source_y), (x, y), matrix, None)?;
-                }
-
-                // Finally add the differentials
-                if differentials {
-                    let (tx, ty) = P::profile(r, x, y);
-                    if tx < 0 {
-                        continue;
-                    }
-                    let d = self.inner.differentials(x, y);
-                    if d.len() <= r {
-                        continue;
-                    }
-                    let d = &d[r];
-                    let target_data = Self::get_page(r, self.inner.page_data(tx, ty));
-
-                    let pairs = d
-                        .get_source_target_pairs()
-                        .into_iter()
-                        .map(|(mut s, mut t)| {
-                            (
-                                data.reduce(s.as_slice_mut()),
-                                target_data.reduce(t.as_slice_mut()),
-                            )
-                        });
-
-                    for (source, target) in pairs {
-                        for (i, v) in source.into_iter().enumerate() {
-                            if v == 0 {
-                                continue;
-                            }
-                            for (j, &v) in target.iter().enumerate() {
-                                if v == 0 {
-                                    continue;
-                                }
-                                g.structline((x, y, i), (tx, ty, j), Some(&format!("d{}", r)))?;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        Ok(())
     }
 }

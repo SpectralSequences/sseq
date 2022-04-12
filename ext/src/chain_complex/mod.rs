@@ -5,6 +5,8 @@ use crate::utils::unicode_num;
 use algebra::module::homomorphism::{ModuleHomomorphism, MuFreeModuleHomomorphism};
 use algebra::module::{Module, MuFreeModule};
 use algebra::{Algebra, MuAlgebra};
+use bivec::BiVec;
+use fp::matrix::Matrix;
 use fp::prime::ValidPrime;
 use fp::vector::{Slice, SliceMut};
 use std::sync::Arc;
@@ -47,30 +49,60 @@ where
         result
     }
 
-    /// Computes the filtration one product. This returns None if the source or target is out of
-    /// range.
+    fn to_sseq(&self) -> sseq::Sseq<sseq::Adams> {
+        let p = self.prime();
+        let mut sseq = sseq::Sseq::new(p, self.min_degree(), 0);
+        for (s, n, t) in self.iter_stem() {
+            sseq.set_dimension(n, s as i32, self.number_of_gens_in_bidegree(s, t));
+        }
+        sseq
+    }
+
+    fn filtration_one_products(&self, op_deg: i32, op_idx: usize) -> sseq::Product {
+        let p = self.prime();
+        let mut matrices = BiVec::new(self.min_degree());
+        let max_y = self.next_homological_degree() as i32 - 1;
+        matrices.extend_with(self.module(0).max_computed_degree() - op_deg + 2, |x| {
+            let mut entries = BiVec::with_capacity(0, max_y);
+            let mut y = 0;
+            while self.has_computed_bidegree(y as u32 + 1, x + y + op_deg) {
+                entries.push(
+                    self.filtration_one_product(op_deg, op_idx, y as u32, x + y)
+                        .map(|m| Matrix::from_vec(p, &m)),
+                );
+                y += 1;
+            }
+            entries
+        });
+
+        sseq::Product {
+            left: true,
+            x: op_deg - 1,
+            y: 1,
+            matrices,
+        }
+    }
+
+    /// Computes the filtration one product.
+    ///
+    /// # Returns
+    /// If the chain complex is stable, this always returns `Some`. If it is unstable, this returns
+    /// `None` if the product is not defined.
     fn filtration_one_product(
         &self,
         op_deg: i32,
         op_idx: usize,
-        target_s: u32,
-        target_t: i32,
+        source_s: u32,
+        source_t: i32,
     ) -> Option<Vec<Vec<u32>>> {
-        let source_t = target_t - op_deg;
-        let source_s = target_s.overflowing_sub(1).0;
-        if target_s == 0
-            || target_s >= self.next_homological_degree()
-            || source_t - (source_s as i32) < self.min_degree()
-        {
+        let target_t = source_t + op_deg;
+        let target_s = source_s + 1;
+        if !self.has_computed_bidegree(target_s, target_t) {
             return None;
         }
 
         let source = self.module(target_s - 1);
         let target = self.module(target_s);
-
-        if target_t > target.max_computed_degree() {
-            return None;
-        }
 
         if U && op_idx >= self.algebra().dimension_unstable(op_deg, source_t) {
             return None;
@@ -218,7 +250,7 @@ pub struct StemIterator<'a, CC: ?Sized> {
     max_s: u32,
 }
 
-impl<'a, CC: ChainComplex> Iterator for StemIterator<'a, CC> {
+impl<'a, CC: ChainComplex + ?Sized> Iterator for StemIterator<'a, CC> {
     // (s, n, t)
     type Item = (u32, i32, i32);
     fn next(&mut self) -> Option<Self::Item> {

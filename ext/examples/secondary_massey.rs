@@ -405,7 +405,7 @@ fn main() -> anyhow::Result<()> {
         let mp = Matrix::from_vec(
             p,
             &resolution
-                .filtration_one_product(1, h_0, source_s + 1, t + shift_t + 1)
+                .filtration_one_product(1, h_0, source_s, t + shift_t)
                 .unwrap(),
         );
         let ma = a.underlying().get_map(source_s).hom_k(t + b_shift_t);

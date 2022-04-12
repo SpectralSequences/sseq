@@ -468,6 +468,106 @@ impl<P: SseqProfile> Sseq<P> {
             None
         }
     }
+
+    /// This shifts the sseq horizontally so that the minimum x is 0.
+    pub fn write_to_graph<'a, T: chart::Backend>(
+        &self,
+        mut g: T,
+        r: i32,
+        differentials: bool,
+        products: impl Iterator<Item = &'a (String, Product)> + Clone,
+        header: impl FnOnce(&mut T) -> Result<(), T::Error>,
+    ) -> Result<(), T::Error> {
+        let min_x = self.min_x();
+        assert_eq!(self.min_y(), 0);
+
+        let max_x = self.max_x();
+        let max_y = self.max_y();
+
+        g.init(max_x - min_x, max_y)?;
+        header(&mut g)?;
+
+        for x in min_x..=max_x {
+            for y in self.range(x) {
+                let data = self.page_data(x, y).get_max(r);
+                if data.is_empty() {
+                    continue;
+                }
+
+                g.node(x - min_x, y, data.dimension())?;
+
+                // Now add the products hitting this bidegree
+                for (name, prod) in products.clone() {
+                    let source_x = x - prod.x;
+                    let source_y = y - prod.y;
+
+                    if !self.defined(source_x, source_y) {
+                        continue;
+                    }
+
+                    let source_data = self.page_data(source_x, source_y).get_max(r);
+                    if source_data.is_empty() {
+                        continue;
+                    }
+
+                    // For unstable charts this is None in low degrees.
+                    if let Some(matrix) = &prod.matrices[source_x][source_y] {
+                        let matrix = Subquotient::reduce_matrix(matrix, source_data, data);
+                        g.structline_matrix(
+                            (source_x - min_x, source_y),
+                            (x - min_x, y),
+                            matrix,
+                            Some(name),
+                        )?;
+                    }
+                }
+
+                // Finally add the differentials
+                if differentials {
+                    let (tx, ty) = P::profile(r, x, y);
+                    if tx < 0 {
+                        continue;
+                    }
+                    let d = self.differentials(x, y);
+                    if d.len() <= r {
+                        continue;
+                    }
+                    let d = &d[r];
+                    let target_data = self.page_data(tx, ty).get_max(r);
+
+                    let pairs = d
+                        .get_source_target_pairs()
+                        .into_iter()
+                        .map(|(mut s, mut t)| {
+                            (
+                                data.reduce(s.as_slice_mut()),
+                                target_data.reduce(t.as_slice_mut()),
+                            )
+                        });
+
+                    for (source, target) in pairs {
+                        for (i, v) in source.into_iter().enumerate() {
+                            if v == 0 {
+                                continue;
+                            }
+                            for (j, &v) in target.iter().enumerate() {
+                                if v == 0 {
+                                    continue;
+                                }
+                                g.structline(
+                                    (x - min_x, y, i),
+                                    (tx - min_x, ty, j),
+                                    Some(&format!("d{}", r)),
+                                )?;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]

@@ -9,7 +9,6 @@ jobs:
       RUST_BACKTRACE: 1
       RUSTFLAGS: "-D warnings"
       RUSTUP_TOOLCHAIN: ${{ matrix.toolchain }}
-      CARGO_TARGET_DIR: /home/runner/.cargo/target
 
     strategy:
       matrix:
@@ -31,10 +30,8 @@ jobs:
           path: |
             ~/.cargo
             /usr/share/rust/.cargo
+            **/target
           key: test-${{ steps.rustup.outputs.rustc_hash }}-${{ hashFiles('**/Cargo.*') }}
-
-      - name: Run sseq_gui examples
-        run: make -C web_ext/sseq_gui run_examples
 
       - name: Run ext tests
         run: make -C ext test
@@ -59,7 +56,6 @@ jobs:
       RUST_BACKTRACE: 1
       RUSTFLAGS: "-D warnings -A stable-features"
       RUSTUP_TOOLCHAIN: nightly
-      CARGO_TARGET_DIR: /home/runner/.cargo/target
 
     steps:
       - uses: actions/checkout@v2
@@ -77,6 +73,7 @@ jobs:
           path: |
             ~/.cargo
             /usr/share/rust/.cargo
+            **/target
           key: miri-${{ steps.rustup.outputs.rustc_hash }}-${{ hashFiles('**/Cargo.*') }}
 
       - name: Run miri

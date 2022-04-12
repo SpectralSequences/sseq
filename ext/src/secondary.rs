@@ -803,15 +803,12 @@ where
     pub fn e3_page(&self) -> sseq::Sseq<sseq::Adams> {
         let p = self.prime();
 
-        let mut sseq = sseq::Sseq::<sseq::Adams>::new(p, 0, 0);
+        let mut sseq = self.underlying.to_sseq();
 
         let mut source_vec = FpVector::new(p, 0);
         let mut target_vec = FpVector::new(p, 0);
 
         for (s, n, t) in self.underlying.iter_stem() {
-            let num_gens = self.underlying.module(s).number_of_gens_in_degree(t);
-            sseq.set_dimension(n, s as i32, num_gens);
-
             if t > 0 && self.underlying.has_computed_bidegree(s + 2, t + 1) {
                 let m = self.homotopy(s + 2).homotopies.hom_k(t);
                 if m.is_empty() || m[0].is_empty() {
@@ -1057,7 +1054,7 @@ where
             p,
             &self
                 .source()
-                .filtration_one_product(1, h_0, source_s + 1, source_t + 1)
+                .filtration_one_product(1, h_0, source_s, source_t)
                 .unwrap(),
         );
 

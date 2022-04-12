@@ -21,7 +21,7 @@ use std::{path::PathBuf, sync::Arc};
 use algebra::module::{FDModule, Module};
 use algebra::Algebra;
 use chart::{Backend, Orientation, TikzBackend};
-use ext::chain_complex::{ChainComplex, FiniteChainComplex, FreeChainComplex};
+use ext::chain_complex::{FiniteChainComplex, FreeChainComplex};
 use ext::resolution::UnstableResolution;
 
 fn main() -> anyhow::Result<()> {
@@ -60,38 +60,30 @@ fn main() -> anyhow::Result<()> {
         let min_degree = module.min_degree();
 
         println!("\\begin{{figure}}[p]\\centering");
-        let mut g = TikzBackend::new(std::io::stdout());
-        g.init(max_n, max_s as i32)?;
-        g.text(
-            1,
-            max_s as i32 - 1,
-            disp_template.replace('%', &format!("{}", min_degree)),
-            Orientation::Right,
+
+        let sseq = res.to_sseq();
+        let products = products
+            .iter()
+            .map(|(name, op_deg, op_idx)| {
+                (name.clone(), res.filtration_one_products(*op_deg, *op_idx))
+            })
+            .collect::<Vec<_>>();
+
+        sseq.write_to_graph(
+            TikzBackend::new(std::io::stdout()),
+            2,
+            false,
+            products.iter(),
+            |g| {
+                g.text(
+                    1,
+                    max_s as i32 - 1,
+                    disp_template.replace('%', &format!("{}", min_degree)),
+                    Orientation::Right,
+                )
+            },
         )?;
 
-        for (s, n, t) in res.iter_stem() {
-            let num_gens = res.number_of_gens_in_bidegree(s, t);
-            g.node(n - min_degree, s as i32, num_gens)?;
-            if s == 0 {
-                continue;
-            }
-            for (name, op_deg, op_idx) in &products {
-                if let Some(matrix) = res.filtration_one_product(*op_deg, *op_idx, s, t) {
-                    for (source_idx, row) in matrix.iter().enumerate() {
-                        for (target_idx, &entry) in row.iter().enumerate() {
-                            if entry != 0 {
-                                g.structline(
-                                    (n - min_degree, s as i32, target_idx),
-                                    (n - min_degree - *op_deg + 1, s as i32 - 1, source_idx),
-                                    Some(name),
-                                )?;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        drop(g);
         println!("\\end{{figure}}");
 
         module.suspend(1);

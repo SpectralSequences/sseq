@@ -10,6 +10,7 @@ edition = "2021"
 fp = { path = "../fp/", default-features = false }
 bivec = { path = "../bivec/" }
 once = { path = "../once/" }
+chart = { path = "../chart/" }
 
 [dev-dependencies]
 expect-test = "1.1.0"

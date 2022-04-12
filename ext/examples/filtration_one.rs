@@ -12,8 +12,9 @@ fn main() -> anyhow::Result<()> {
 
     for (s, n, t) in resolution.iter_stem() {
         let mut i = 0;
-        while let Some(products) = resolution.filtration_one_product(1 << i, 0, s + 1, t + (1 << i))
-        {
+        while resolution.has_computed_bidegree(s + 1, t + (1 << i)) {
+            // TODO: This doesn't work with the reordered Adams basis
+            let products = resolution.filtration_one_product(1 << i, 0, s, t).unwrap();
             for (idx, row) in products.into_iter().enumerate() {
                 if !row.is_empty() {
                     println!("h_{} x_({}, {}, {}) = {:?}", i, n, s, idx, row);
