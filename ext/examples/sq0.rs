@@ -100,7 +100,6 @@ mod double {
                     degree: degree / 2,
                     ps,
                     bocksteins: 0,
-                    excess: 0,
                     p_or_sq: false,
                 }))
             }

@@ -1,6 +1,5 @@
 //! The Steenrod algebra using the Adem basis.
 
-use std::cmp::Ordering;
 use std::fmt;
 use std::sync::Mutex;
 
@@ -54,13 +53,6 @@ impl AdemAlgebraT for AdemAlgebra {
 pub struct AdemBasisElement {
     /// The degree of the element.
     pub degree: i32,
-    /// The excess (i.e., distance from this element being minimally admissible)
-    /// of this basis element.
-    ///
-    /// See <https://doc.sagemath.org/html/en/reference/algebras/sage/algebras/steenrod/steenrod_algebra.html#sage.algebras.steenrod.steenrod_algebra.SteenrodAlgebra_generic.Element.excess>.
-    ///
-    /// This field is only used in `unstable_enabled` mode.
-    pub excess: i32,
     /// A bitset of which $\beta$ Bocksteins are in the element's decomposition.
     pub bocksteins: u32,
     /// A list of which Steenrod powers are in the element's decompositions.
@@ -87,6 +79,18 @@ impl AdemBasisElement {
             .map(PorBockstein::Bockstein)
             .interleave(self.ps.iter().map(|b| PorBockstein::P(*b)))
             .filter(|b| !matches!(b, PorBockstein::Bockstein(false)))
+    }
+
+    fn excess(&self, p: ValidPrime) -> u32 {
+        if self.degree < 2 {
+            self.degree as u32 // special case these so that self.ps[0] is defined
+        } else if *p == 2 {
+            2 * self.ps[0] - self.ps.iter().sum::<u32>()
+        } else {
+            2 * ((1 + *p) * self.ps[0] - *p * self.ps.iter().sum::<u32>())
+                - self.bocksteins.count_ones()
+                - (self.bocksteins & 1)
+        }
     }
 }
 
@@ -118,18 +122,6 @@ impl fmt::Display for AdemBasisElement {
 
         write!(f, "{}", result)?;
         Ok(())
-    }
-}
-
-impl PartialOrd for AdemBasisElement {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.excess.partial_cmp(&other.excess)
-    }
-}
-
-impl Ord for AdemBasisElement {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.excess.cmp(&other.excess)
     }
 }
 
@@ -209,7 +201,6 @@ impl Algebra for AdemAlgebra {
                 AdemBasisElement {
                     degree: 1,
                     bocksteins: 1,
-                    excess: 0,
                     ps: vec![],
                     p_or_sq: *self.prime() != 2,
                 },
@@ -219,7 +210,6 @@ impl Algebra for AdemAlgebra {
                 AdemBasisElement {
                     degree: (2 * (*self.prime()) - 2) as i32,
                     bocksteins: 0,
-                    excess: 0,
                     ps: vec![1],
                     p_or_sq: *self.prime() != 2,
                 },
@@ -234,7 +224,6 @@ impl Algebra for AdemAlgebra {
                     AdemBasisElement {
                         degree,
                         bocksteins: 0,
-                        excess: 0,
                         ps,
                         p_or_sq: *self.prime() != 2,
                     },
@@ -341,7 +330,6 @@ impl Algebra for AdemAlgebra {
             self.basis_element_to_index(&AdemBasisElement {
                 ps,
                 bocksteins,
-                excess: 0,
                 degree,
                 p_or_sq: self.generic,
             }),
@@ -385,7 +373,6 @@ impl GeneratedAlgebra for AdemAlgebra {
             }
             let idx = self.basis_element_to_index(&AdemBasisElement {
                 degree,
-                excess: 0,
                 bocksteins: 0,
                 ps: vec![degree as u32 / (2 * p - 2)],
                 p_or_sq: *self.prime() != 2,
@@ -398,7 +385,6 @@ impl GeneratedAlgebra for AdemAlgebra {
             }
             let idx = self.basis_element_to_index(&AdemBasisElement {
                 degree,
-                excess: 0,
                 bocksteins: 0,
                 ps: vec![degree as u32],
                 p_or_sq: *self.prime() != 2,
@@ -450,7 +436,6 @@ impl GeneratedAlgebra for AdemAlgebra {
                     }
                     let idx = self.basis_element_to_index(&AdemBasisElement {
                         degree,
-                        excess: 0,
                         ps: if j == 0 {
                             vec![(x + y) as u32]
                         } else {
@@ -540,7 +525,6 @@ impl AdemAlgebra {
         if next_degree == 0 {
             self.even_basis_table.push(vec![AdemBasisElement {
                 degree: 0,
-                excess: 0,
                 bocksteins: 0,
                 ps: vec![],
                 p_or_sq: *self.prime() != 2,
@@ -559,7 +543,6 @@ impl AdemAlgebra {
         // Put Sqn into the list.
         basis.push(AdemBasisElement {
             degree: n,
-            excess: n,
             bocksteins: if self.generic {
                 u32::max_value() << 2
             } else {
@@ -587,7 +570,6 @@ impl AdemAlgebra {
                 // Write new basis element to basis element buffer
 
                 let degree = prev_elt.degree + last;
-                let excess = prev_elt.excess - (p - 1) * last;
                 // We're using bocksteins as a bit mask:
                 // A bit in bocksteins shall be set if it's illegal for a bockstein to occur there.
                 let mut bocksteins = prev_elt.bocksteins;
@@ -604,7 +586,6 @@ impl AdemAlgebra {
                 ps.push(last as u32);
                 basis.push(AdemBasisElement {
                     degree,
-                    excess,
                     bocksteins,
                     ps,
                     p_or_sq: *self.prime() != 2,
@@ -621,7 +602,7 @@ impl AdemAlgebra {
             // Sorting breaks the algorithm above.
             let mut new_table = table.clone();
             if self.unstable_enabled {
-                new_table.sort();
+                new_table.sort_by_cached_key(|e| e.excess(fp::prime::TWO));
             }
             self.basis_table.push(new_table);
         }
@@ -640,8 +621,8 @@ impl AdemAlgebra {
     // a bit flag that indicates where bocksteins are allowed to go.
     #[allow(non_snake_case)]
     fn generate_basis_generic_degreen(&self, n: i32) {
-        let p = *self.prime() as i32;
-        let q = 2 * (p - 1);
+        let p = self.prime();
+        let q = 2 * (*p as i32 - 1);
         let residue = n % q;
         let mut basis: Vec<AdemBasisElement> = Vec::new();
         // First we need to know how many bocksteins we'll use so we know how much degree
@@ -672,17 +653,12 @@ impl AdemAlgebra {
                     // Okay, everything's good with this bocksteins, P pair so let's add it to our basis.
                     // Write new basis element to basis element buffer
                     let degree = n;
-                    let mut excess = 2 * P.excess; // Ps contribute 2 to excess
-                    excess += (bocksteins & 1) as i32; // leading bockstein increases excess by 1
-                    let nonleading_bocksteins = bocksteins & !1;
-                    excess -= nonleading_bocksteins.count_ones() as i32; // remaining bocksteins reduce excess by 1
                     let ps = P.ps.clone();
                     basis.push(AdemBasisElement {
                         degree,
-                        excess,
                         bocksteins,
                         ps,
-                        p_or_sq: *self.prime() != 2,
+                        p_or_sq: *p != 2,
                     });
                     if num_bs == 0 {
                         break;
@@ -691,7 +667,7 @@ impl AdemAlgebra {
             }
         }
         if self.unstable_enabled {
-            basis.sort();
+            basis.sort_by_cached_key(|e| e.excess(p));
         }
         self.basis_table.push(basis);
     }
@@ -1029,7 +1005,6 @@ impl AdemAlgebra {
         let s = self.basis_element_from_index(s_degree, s_index);
         let mut monomial = AdemBasisElement {
             degree: r.degree + s.degree,
-            excess: 0,
             bocksteins: 0,
             ps: Vec::with_capacity(r.ps.len() + s.ps.len()),
             p_or_sq: *self.prime() != 2,
@@ -1163,7 +1138,6 @@ impl AdemAlgebra {
 
         let mut new_monomial = AdemBasisElement {
             degree: monomial.degree,
-            excess: -1,
             bocksteins: 0,
             ps: monomial.ps[0..idx].to_vec(),
             p_or_sq: *self.prime() != 2,
@@ -1231,7 +1205,6 @@ impl AdemAlgebra {
         let reduced_tail = &self.multiplication_table[tail_degree as usize][bx as usize][adm_idx];
         let mut new_monomial = AdemBasisElement {
             degree: monomial.degree,
-            excess: -1,
             bocksteins: 0,
             ps: monomial.ps[0..idx].to_vec(),
             p_or_sq: *self.prime() != 2,
@@ -1269,14 +1242,12 @@ impl AdemAlgebra {
             let ps_rest = b.ps[1..].to_vec();
             let idx_first = self.basis_element_to_index(&AdemBasisElement {
                 degree: degree_first,
-                excess: 0,
                 bocksteins: 0,
                 ps: vec![b.ps[0]],
                 p_or_sq: *self.prime() != 2,
             });
             let idx_rest = self.basis_element_to_index(&AdemBasisElement {
                 degree: degree_rest,
-                excess: 0,
                 bocksteins: 0,
                 ps: ps_rest,
                 p_or_sq: *self.prime() != 2,
@@ -1291,14 +1262,12 @@ impl AdemAlgebra {
         let second_degree = second_sq as i32;
         let first_idx = self.basis_element_to_index(&AdemBasisElement {
             degree: first_degree,
-            excess: 0,
             bocksteins: 0,
             ps: vec![first_sq],
             p_or_sq: *self.prime() != 2,
         });
         let second_idx = self.basis_element_to_index(&AdemBasisElement {
             degree: second_degree,
-            excess: 0,
             bocksteins: 0,
             ps: vec![second_sq],
             p_or_sq: *self.prime() != 2,
@@ -1346,14 +1315,12 @@ impl AdemAlgebra {
             let first = AdemBasisElement {
                 degree: first_degree,
                 bocksteins: 0,
-                excess: 0,
                 ps: ps_first,
                 p_or_sq: *self.prime() != 2,
             };
             let rest = AdemBasisElement {
                 degree: rest_degree,
                 bocksteins: b.bocksteins >> 1,
-                excess: 0,
                 ps: ps_rest,
                 p_or_sq: *self.prime() != 2,
             };
@@ -1378,14 +1345,12 @@ impl AdemAlgebra {
         let second_degree = (second_sq * 2 * (*p - 1)) as i32;
         let first_idx = self.basis_element_to_index(&AdemBasisElement {
             degree: first_degree,
-            excess: 0,
             bocksteins: 0,
             ps: vec![first_sq],
             p_or_sq: *self.prime() != 2,
         });
         let second_idx = self.basis_element_to_index(&AdemBasisElement {
             degree: second_degree,
-            excess: 0,
             bocksteins: 0,
             ps: vec![second_sq],
             p_or_sq: *self.prime() != 2,
@@ -1428,7 +1393,6 @@ impl AdemAlgebra {
         let degree = (x * q + e) as i32;
         let index = self.basis_element_to_index(&AdemBasisElement {
             degree,
-            excess: 0,
             bocksteins: e,
             ps: vec![x],
             p_or_sq: *self.prime() != 2,
@@ -1439,17 +1403,19 @@ impl AdemAlgebra {
 
 impl AdemAlgebra {
     fn generate_excess_table(&self, max_degree: i32) {
+        let p = self.prime();
         self.excess_table.extend(max_degree as usize, |n| {
             let mut new_entry = Vec::with_capacity(n);
             let mut cur_excess = 0;
             for (i, elt) in self.basis_table[n].iter().enumerate() {
-                for _ in cur_excess..elt.excess {
+                let excess = elt.excess(p);
+                for _ in cur_excess..excess {
                     new_entry.push(i);
                 }
-                cur_excess = elt.excess;
+                cur_excess = excess;
             }
             let dim = self.dimension(n as i32);
-            for _ in cur_excess..n as i32 {
+            for _ in cur_excess..n as u32 {
                 new_entry.push(dim);
             }
             new_entry

@@ -96,7 +96,6 @@ impl BocksteinOrSq {
                 if q == 1 {
                     AdemBasisElement {
                         degree: 1,
-                        excess: 1,
                         bocksteins: 0,
                         ps: vec![1],
                         p_or_sq: false,
@@ -104,7 +103,6 @@ impl BocksteinOrSq {
                 } else {
                     AdemBasisElement {
                         degree: 1,
-                        excess: 1,
                         bocksteins: 1,
                         ps: vec![],
                         p_or_sq: true,
@@ -113,7 +111,6 @@ impl BocksteinOrSq {
             }
             BocksteinOrSq::Sq(x) => AdemBasisElement {
                 degree: x as i32 * q,
-                excess: 2 * x as i32,
                 bocksteins: 0,
                 ps: vec![x],
                 p_or_sq: q != 1,

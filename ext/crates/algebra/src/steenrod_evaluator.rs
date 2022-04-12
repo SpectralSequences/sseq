@@ -272,7 +272,6 @@ impl SteenrodEvaluator {
         }
         let t_idx = self.adem.basis_element_to_index(&AdemBasisElement {
             degree,
-            excess: 0,
             bocksteins: 0,
             ps: t,
             p_or_sq: *p != 2,
@@ -320,7 +319,6 @@ impl SteenrodEvaluator {
         }
         let t_idx = self.adem.basis_element_to_index(&AdemBasisElement {
             degree,
-            excess: 0,
             bocksteins: elt.q_part,
             ps: t,
             p_or_sq: *p != 2,
