@@ -193,11 +193,9 @@ export class MainDisplay {
 export class UnitDisplay {
     constructor(container, sseq) {
         this.sseq = sseq;
-        document.getElementById(container).appendChild(sseq.chart);
+        this.modal = document.querySelector('#unitsseq-dialog');
 
-        document.querySelectorAll('.close-modal').forEach(c => {
-            c.addEventListener('click', this.closeModal.bind(this));
-        });
+        document.getElementById(container).appendChild(sseq.chart);
 
         document.querySelector('#modal-diff').addEventListener('click', () => {
             document.querySelector('#modal-title').innerHTML =
@@ -209,7 +207,7 @@ export class UnitDisplay {
             const [x, y] = this.sseq.selected;
             const num = this.sseq.getClasses(x, y, MIN_PAGE).length;
             window.mainSseq.addProductInteractive(x, y, num);
-            this.closeModal();
+            this.modal.close();
         });
 
         document
@@ -226,18 +224,12 @@ export class UnitDisplay {
 
     openModal() {
         this.sseq.resolveFurther(10);
-        this.sseq.chart.onResize();
-        document.querySelector('#overlay').style.removeProperty('display');
+
         document.querySelector('#modal-ok').disabled = true;
         document.querySelector('#modal-diff').disabled = true;
-        const dialog = document.querySelector('#unitsseq-dialog');
-        dialog.classList.add('modal-shown');
-    }
+        this.modal.showModal();
 
-    closeModal() {
-        document.querySelector('#overlay').style.display = 'none';
-        const dialog = document.querySelector('#unitsseq-dialog');
-        dialog.classList.remove('modal-shown');
+        this.sseq.chart.onResize();
     }
 
     _onClick(oldSelected) {
@@ -266,7 +258,7 @@ export class UnitDisplay {
                         this.sseq.selected[1] - oldSelected[1],
                     );
                     this.state = null;
-                    this.closeModal();
+                    this.modal.close();
                 }
             } else {
                 alert('Invalid target for differential');

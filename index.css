@@ -235,26 +235,20 @@ input:focus {
     box-shadow: 0px 0px 2px #67a1f8;
 }
 
-.modal-dialog {
+#unitsseq-dialog {
+    border-radius: 0.6rem;
+    border: none;
+    padding: 0px;
+    height: calc(100% - 100px);
+    width: calc(100% - 100px);
+}
+
+#unitsseq-dialog > form {
     display: flex;
     flex-direction: column;
-    background-color: white;
-    position: absolute;
-    top: 50px;
-    bottom: 50px;
-    right: 50px;
-    left: 50px;
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.1s;
-    border-radius: 0.6rem;
+    width: 100%;
+    height: 100%;
 }
-
-.modal-dialog.modal-shown {
-    opacity: 1;
-    visibility: visible;
-}
-
 .modal-header {
     display: flex;
     padding: 0.8rem 1.2rem;
@@ -264,9 +258,10 @@ input:focus {
 .modal-footer {
     display: flex;
     padding: 1.2rem;
+    gap: 0.6em;
 }
 .modal-body {
-    padding: 1.2rem 12rem 0 1.2rem;
+    padding: 1.2rem 1.2rem 0rem 0rem;
     flex-grow: 1;
     flex-basis: 0;
     min-height: 0;
@@ -282,6 +277,8 @@ input:focus {
     border: none;
     cursor: pointer;
     color: #dc3545;
+    line-height: 0;
+    font-size: 150%;
 }
 
 a {
@@ -328,15 +325,6 @@ a:hover {
     margin-top: 2rem;
     font-weight: 400;
     margin-bottom: 0.5rem;
-}
-
-#overlay {
-    position: absolute;
-    background: rgba(200, 200, 200, 0.3);
-    top: 0;
-    bottom: 0;
-    left: 0;
-    right: 0;
 }
 
 .history-item .katex {
