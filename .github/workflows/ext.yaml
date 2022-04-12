@@ -47,7 +47,7 @@ jobs:
 
       - name: Benchmark executable size
         run: |
-          ls -l $HOME/.cargo/target/debug/examples | grep -v ' .*-\|\.d$'
+          ls -l target/debug/examples | grep -v ' .*-\|\.d$'
 
   miri:
     if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository }}
