@@ -157,7 +157,9 @@ impl<CC: ChainComplex> Resolution<CC> {
         if let Some(f) = &self.add_class {
             f(s, t, num_gens);
         }
-        self.compute_filtration_one_products(s, t);
+        if s > 0 {
+            self.compute_filtration_one_products(s, t);
+        }
         self.construct_maps_to_unit(s, t);
         self.compute_products(s, t, &self.product_list);
         self.compute_self_maps(s, t);
@@ -166,16 +168,19 @@ impl<CC: ChainComplex> Resolution<CC> {
     #[allow(clippy::needless_range_loop)]
     fn compute_filtration_one_products(&self, target_s: u32, target_t: i32) {
         for (op_name, op_degree, op_index) in &self.filtration_one_products {
-            if let Some(products) = self
-                .inner
-                .filtration_one_product(*op_degree, *op_index, target_s, target_t)
-            {
-                let source_s = target_s - 1;
-                let source_t = target_t - *op_degree;
-                self.add_structline(
-                    op_name, source_s, source_t, target_s, target_t, true, products,
-                );
+            let source_s = target_s - 1;
+            let source_t = target_t - *op_degree;
+            if source_t - (source_s as i32) < self.min_degree() {
+                continue;
             }
+
+            let products = self
+                .inner
+                .filtration_one_product(*op_degree, *op_index, source_s, source_t)
+                .unwrap();
+            self.add_structline(
+                op_name, source_s, source_t, target_s, target_t, true, products,
+            );
         }
     }
 
