@@ -181,6 +181,7 @@ jobs:
   selenium:
     if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository }}
     runs-on: ubuntu-20.04
+    timeout-minutes: 10
     needs: [webserver]
     env:
       RUST_BACKTRACE: 1
@@ -194,6 +195,7 @@ jobs:
     defaults:
       run:
         working-directory: web_ext/sseq_gui
+
 
     continue-on-error: ${{ matrix.toolchain != 'stable' }}
     steps:
