@@ -13,6 +13,7 @@ pub trait SseqProfile {
     const MIN_R: i32;
     fn profile(r: i32, x: i32, y: i32) -> (i32, i32);
     fn profile_inverse(r: i32, x: i32, y: i32) -> (i32, i32);
+    fn differential_length(diff_x: i32, diff_y: i32) -> i32;
 }
 
 pub struct Adams;
@@ -24,6 +25,9 @@ impl SseqProfile for Adams {
     }
     fn profile_inverse(r: i32, x: i32, y: i32) -> (i32, i32) {
         (x + 1, y - r)
+    }
+    fn differential_length(_diff_x: i32, diff_y: i32) -> i32 {
+        diff_y
     }
 }
 
@@ -421,9 +425,8 @@ impl<P: SseqProfile> Sseq<P> {
 
         let neg_1 = *self.p - 1;
 
-        // TODO: use profile
         let target_r = target_product
-            .map(|prod| y + prod.y - source_y)
+            .map(|prod| P::differential_length(x + prod.x - source_x, y + prod.y - source_y))
             .unwrap_or(i32::MAX);
 
         let result_r = std::cmp::min(r, target_r);

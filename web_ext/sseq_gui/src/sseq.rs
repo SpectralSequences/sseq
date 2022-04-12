@@ -410,8 +410,10 @@ impl<P: SseqProfile> SseqWrapper<P> {
     }
 
     pub fn add_product_differential(&mut self, source: &str, target: &str) {
-        // TODO: this should use the profile somehow
-        let r = self.products[target].inner.y - self.products[source].inner.y;
+        let r = P::differential_length(
+            self.products[target].inner.x - self.products[source].inner.x,
+            self.products[target].inner.y - self.products[source].inner.y,
+        );
 
         self.products.get_mut(source).unwrap().differential = Some((r, true, target.to_owned()));
         self.products.get_mut(target).unwrap().differential = Some((r, false, source.to_owned()));
