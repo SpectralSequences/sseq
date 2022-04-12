@@ -12,8 +12,6 @@ use sseq::{Adams, Sseq, SseqProfile};
 use std::cmp::max;
 use std::collections::BTreeMap;
 
-pub const INFINITY: i32 = std::i32::MAX;
-
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub enum ClassState {
     Error,
@@ -251,10 +249,12 @@ impl<P: SseqProfile> SseqWrapper<P> {
             let prod_x = prod.inner.x;
             let prod_y = prod.inner.y;
 
-            if !self.product_defined(x - prod_x, y - prod_y, prod) {
-                continue;
-            }
-            if let Some(matrix) = &prod.inner.matrices[x - prod_x][y - prod_y] {
+            if let Some(Some(Some(matrix))) = &prod
+                .inner
+                .matrices
+                .get(x - prod_x)
+                .map(|m| m.get(y - prod_y))
+            {
                 for i in 0..matrix.rows() {
                     if matrix[i].is_zero() {
                         continue;
@@ -293,15 +293,6 @@ impl<P: SseqProfile> SseqWrapper<P> {
         if let Some(sender) = &self.sender {
             sender.send(msg).unwrap();
         }
-    }
-}
-
-// Wrapper functions
-impl<P: SseqProfile> SseqWrapper<P> {
-    fn product_defined(&self, x: i32, y: i32, product: &Product) -> bool {
-        self.inner.defined(x, y)
-            && product.inner.matrices.max_degree() >= x
-            && product.inner.matrices[x].max_degree() >= y
     }
 }
 

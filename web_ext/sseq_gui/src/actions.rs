@@ -1,5 +1,5 @@
 use crate::resolution_wrapper::Resolution;
-use crate::sseq::{ClassState, ProductItem, SseqWrapper, INFINITY};
+use crate::sseq::{ClassState, ProductItem, SseqWrapper};
 use algebra::module::Module;
 use bivec::BiVec;
 use enum_dispatch::enum_dispatch;
@@ -160,7 +160,7 @@ impl ActionT for AddPermanentClass {
 
         sseq.inner
             .add_permanent_class(self.x, self.y, class.as_slice());
-        sseq.add_differential_propagate(INFINITY, self.x, self.y, class.as_slice(), 0);
+        sseq.add_differential_propagate(i32::MAX, self.x, self.y, class.as_slice(), 0);
 
         None
     }
