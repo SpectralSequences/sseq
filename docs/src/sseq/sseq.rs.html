@@ -981,6 +981,9 @@
 <span id="951">951</span>
 <span id="952">952</span>
 <span id="953">953</span>
+<span id="954">954</span>
+<span id="955">955</span>
+<span id="956">956</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::bigraded::DenseBigradedModule</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::differential::Differential</span>;
 <span class="kw">use</span> <span class="ident">bivec::BiVec</span>;
@@ -996,6 +999,7 @@
     <span class="kw">const</span> <span class="ident">MIN_R</span>: <span class="ident">i32</span>;
     <span class="kw">fn</span> <span class="ident">profile</span>(<span class="ident">r</span>: <span class="ident">i32</span>, <span class="ident">x</span>: <span class="ident">i32</span>, <span class="ident">y</span>: <span class="ident">i32</span>) -&gt; (<span class="ident">i32</span>, <span class="ident">i32</span>);
     <span class="kw">fn</span> <span class="ident">profile_inverse</span>(<span class="ident">r</span>: <span class="ident">i32</span>, <span class="ident">x</span>: <span class="ident">i32</span>, <span class="ident">y</span>: <span class="ident">i32</span>) -&gt; (<span class="ident">i32</span>, <span class="ident">i32</span>);
+    <span class="kw">fn</span> <span class="ident">differential_length</span>(<span class="ident">diff_x</span>: <span class="ident">i32</span>, <span class="ident">diff_y</span>: <span class="ident">i32</span>) -&gt; <span class="ident">i32</span>;
 }
 
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Adams</span>;
@@ -1007,6 +1011,9 @@
     }
     <span class="kw">fn</span> <span class="ident">profile_inverse</span>(<span class="ident">r</span>: <span class="ident">i32</span>, <span class="ident">x</span>: <span class="ident">i32</span>, <span class="ident">y</span>: <span class="ident">i32</span>) -&gt; (<span class="ident">i32</span>, <span class="ident">i32</span>) {
         (<span class="ident">x</span> <span class="op">+</span> <span class="number">1</span>, <span class="ident">y</span> <span class="op">-</span> <span class="ident">r</span>)
+    }
+    <span class="kw">fn</span> <span class="ident">differential_length</span>(<span class="ident">_diff_x</span>: <span class="ident">i32</span>, <span class="ident">diff_y</span>: <span class="ident">i32</span>) -&gt; <span class="ident">i32</span> {
+        <span class="ident">diff_y</span>
     }
 }
 
@@ -1404,9 +1411,8 @@
 
         <span class="kw">let</span> <span class="ident">neg_1</span> <span class="op">=</span> <span class="kw-2">*</span><span class="self">self</span>.<span class="ident">p</span> <span class="op">-</span> <span class="number">1</span>;
 
-        <span class="comment">// TODO: use profile</span>
         <span class="kw">let</span> <span class="ident">target_r</span> <span class="op">=</span> <span class="ident">target_product</span>
-            .<span class="ident">map</span>(<span class="op">|</span><span class="ident">prod</span><span class="op">|</span> <span class="ident">y</span> <span class="op">+</span> <span class="ident">prod</span>.<span class="ident">y</span> <span class="op">-</span> <span class="ident">source_y</span>)
+            .<span class="ident">map</span>(<span class="op">|</span><span class="ident">prod</span><span class="op">|</span> <span class="ident">P::differential_length</span>(<span class="ident">x</span> <span class="op">+</span> <span class="ident">prod</span>.<span class="ident">x</span> <span class="op">-</span> <span class="ident">source_x</span>, <span class="ident">y</span> <span class="op">+</span> <span class="ident">prod</span>.<span class="ident">y</span> <span class="op">-</span> <span class="ident">source_y</span>))
             .<span class="ident">unwrap_or</span>(<span class="ident">i32::MAX</span>);
 
         <span class="kw">let</span> <span class="ident">result_r</span> <span class="op">=</span> <span class="ident">std::cmp::min</span>(<span class="ident">r</span>, <span class="ident">target_r</span>);
