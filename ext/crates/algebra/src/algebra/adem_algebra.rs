@@ -505,8 +505,7 @@ impl UnstableAlgebra for AdemAlgebra {
 // uint AdemAlgebra__generateName(AdemAlgebra *algebra); // defined in adem_io
 impl AdemAlgebra {
     /// Constructs a new [`AdemAlgebra`].
-    // TODO: what do these argument names mean?
-    pub fn new(p: ValidPrime, generic: bool, unstable_enabled: bool) -> Self {
+    pub fn new(p: ValidPrime, unstable_enabled: bool) -> Self {
         let even_basis_table = OnceVec::new();
         let basis_table = OnceVec::new();
         let basis_element_to_index_map = OnceVec::new();
@@ -514,7 +513,7 @@ impl AdemAlgebra {
         let excess_table = OnceVec::new();
         Self {
             p,
-            generic,
+            generic: *p != 2,
             lock: Mutex::new(()),
             unstable_enabled,
             even_basis_table,
@@ -1520,7 +1519,7 @@ mod tests {
     #[trace]
     fn test_adem_decompose(p: u32, max_degree: i32) {
         let p = ValidPrime::new(p);
-        let algebra = AdemAlgebra::new(p, *p != 2, false);
+        let algebra = AdemAlgebra::new(p, false);
         algebra.compute_basis(max_degree);
         for i in 1..=max_degree {
             let dim = algebra.dimension(i);
@@ -1571,7 +1570,7 @@ mod tests {
     #[trace]
     fn test_adem_relations(p: u32, max_degree: i32) {
         let p = ValidPrime::new(p);
-        let algebra = AdemAlgebra::new(p, *p != 2, false);
+        let algebra = AdemAlgebra::new(p, false);
         algebra.compute_basis(max_degree);
         let mut output_vec = FpVector::new(p, 0);
         for i in 1..=max_degree {
@@ -1623,7 +1622,7 @@ mod tests {
     #[case(3, 106)]
     fn test_adem_string(#[case] p: u32, #[case] max_degree: i32) {
         let p = ValidPrime::new(p);
-        let algebra = AdemAlgebra::new(p, *p != 2, false);
+        let algebra = AdemAlgebra::new(p, false);
         algebra.compute_basis(max_degree);
         for t in 0..max_degree {
             for i in 0..algebra.dimension(t) {

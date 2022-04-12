@@ -446,7 +446,7 @@ mod sum_module {
 
         fn test_sum_module(M: Vec<&str>, S: &str) {
             let p = fp::prime::ValidPrime::new(2);
-            let A = Arc::new(AdemAlgebra::new(p, *p != 2, false));
+            let A = Arc::new(AdemAlgebra::new(p, false));
 
             let M: Vec<Arc<FDModule<AdemAlgebra>>> = M
                 .into_iter()

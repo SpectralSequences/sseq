@@ -398,7 +398,7 @@ pub fn query_module(
 pub fn query_unstable_module_only() -> anyhow::Result<FDModule<AdemAlgebra>> {
     let spec = query::raw("Module", parse_module_name);
     let p = ValidPrime::new(spec["p"].as_u64().unwrap() as u32);
-    let algebra = Arc::new(AdemAlgebra::new(p, *p != 2, true));
+    let algebra = Arc::new(AdemAlgebra::new(p, true));
     FDModule::from_json(algebra, &spec)
 }
 

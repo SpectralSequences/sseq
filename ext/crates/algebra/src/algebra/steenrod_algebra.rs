@@ -170,7 +170,7 @@ impl SteenrodAlgebra {
         }
 
         Ok(match algebra_type {
-            AlgebraType::Adem => Self::AdemAlgebra(AdemAlgebra::new(spec.p, *spec.p != 2, false)),
+            AlgebraType::Adem => Self::AdemAlgebra(AdemAlgebra::new(spec.p, false)),
             AlgebraType::Milnor => Self::MilnorAlgebra(MilnorAlgebra::new_with_profile(
                 spec.p,
                 spec.profile.unwrap_or_default(),

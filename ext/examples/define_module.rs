@@ -88,7 +88,7 @@ pub fn interactive_module_define_fdmodule(
     p: ValidPrime,
 ) -> anyhow::Result<()> {
     output_json["p"] = Value::from(*p);
-    let algebra = Arc::new(AdemAlgebra::new(p, *p != 2, false));
+    let algebra = Arc::new(AdemAlgebra::new(p, false));
 
     let gens = get_gens()?;
     let min_degree = gens.min_degree();
