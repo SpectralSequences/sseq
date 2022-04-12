@@ -1,1 +1,1 @@
-initSidebarItems({"struct":[["Adams",""],["Sseq",""]],"trait":[["SseqProfile","The direction of the differentials"]]});
+initSidebarItems({"struct":[["Adams",""],["Product",""],["Sseq",""]],"trait":[["SseqProfile","The direction of the differentials"]]});

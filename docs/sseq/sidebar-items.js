@@ -1,1 +1,1 @@
-initSidebarItems({"mod":[["bigraded",""],["differential",""],["sseq",""]],"struct":[["Adams",""],["DenseBigradedModule",""],["Differential",""],["Sseq",""]],"trait":[["SseqProfile","The direction of the differentials"]]});
+initSidebarItems({"mod":[["bigraded",""],["differential",""],["sseq",""]],"struct":[["Adams",""],["DenseBigradedModule",""],["Differential",""],["Product",""],["Sseq",""]],"trait":[["SseqProfile","The direction of the differentials"]]});
