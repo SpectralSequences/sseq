@@ -54,6 +54,7 @@
 <span id="24">24</span>
 <span id="25">25</span>
 <span id="26">26</span>
+<span id="27">27</span>
 </pre><pre class="rust"><code><span class="doccomment">//! This computes all available filtration one products for a module. This only works at the prime</span>
 <span class="doccomment">//! 2 for the moment.</span>
 <span class="doccomment">//!</span>
@@ -68,8 +69,9 @@
 
     <span class="kw">for</span> (<span class="ident">s</span>, <span class="ident">n</span>, <span class="ident">t</span>) <span class="kw">in</span> <span class="ident">resolution</span>.<span class="ident">iter_stem</span>() {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">i</span> <span class="op">=</span> <span class="number">0</span>;
-        <span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">products</span>) <span class="op">=</span> <span class="ident">resolution</span>.<span class="ident">filtration_one_product</span>(<span class="number">1</span> <span class="op">&lt;</span><span class="op">&lt;</span> <span class="ident">i</span>, <span class="number">0</span>, <span class="ident">s</span> <span class="op">+</span> <span class="number">1</span>, <span class="ident">t</span> <span class="op">+</span> (<span class="number">1</span> <span class="op">&lt;</span><span class="op">&lt;</span> <span class="ident">i</span>))
-        {
+        <span class="kw">while</span> <span class="ident">resolution</span>.<span class="ident">has_computed_bidegree</span>(<span class="ident">s</span> <span class="op">+</span> <span class="number">1</span>, <span class="ident">t</span> <span class="op">+</span> (<span class="number">1</span> <span class="op">&lt;</span><span class="op">&lt;</span> <span class="ident">i</span>)) {
+            <span class="comment">// TODO: This doesn&#39;t work with the reordered Adams basis</span>
+            <span class="kw">let</span> <span class="ident">products</span> <span class="op">=</span> <span class="ident">resolution</span>.<span class="ident">filtration_one_product</span>(<span class="number">1</span> <span class="op">&lt;</span><span class="op">&lt;</span> <span class="ident">i</span>, <span class="number">0</span>, <span class="ident">s</span>, <span class="ident">t</span>).<span class="ident">unwrap</span>();
             <span class="kw">for</span> (<span class="ident">idx</span>, <span class="ident">row</span>) <span class="kw">in</span> <span class="ident">products</span>.<span class="ident">into_iter</span>().<span class="ident">enumerate</span>() {
                 <span class="kw">if</span> <span class="op">!</span><span class="ident">row</span>.<span class="ident">is_empty</span>() {
                     <span class="macro">println!</span>(<span class="string">&quot;h_{} x_({}, {}, {}) = {:?}&quot;</span>, <span class="ident">i</span>, <span class="ident">n</span>, <span class="ident">s</span>, <span class="ident">idx</span>, <span class="ident">row</span>);

@@ -4,6 +4,7 @@ sourcesIndex["algebra_dim"] = {"name":"","files":["algebra_dim.rs"]};
 sourcesIndex["bivec"] = {"name":"","files":["lib.rs"]};
 sourcesIndex["bruner"] = {"name":"","files":["bruner.rs"]};
 sourcesIndex["chart"] = {"name":"","files":["lib.rs"]};
+sourcesIndex["d2_charts"] = {"name":"","files":["d2_charts.rs"]};
 sourcesIndex["define_module"] = {"name":"","files":["define_module.rs"]};
 sourcesIndex["differentials"] = {"name":"","files":["differentials.rs"]};
 sourcesIndex["ext"] = {"name":"","dirs":[{"name":"chain_complex","files":["chain_homotopy.rs","finite_chain_complex.rs","mod.rs"]}],"files":["lib.rs","nassau.rs","resolution.rs","resolution_homomorphism.rs","save.rs","secondary.rs","utils.rs","yoneda.rs"]};
