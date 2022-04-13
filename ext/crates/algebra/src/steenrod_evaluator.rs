@@ -17,7 +17,7 @@ impl SteenrodEvaluator {
     pub fn new(p: ValidPrime) -> Self {
         Self {
             adem: AdemAlgebra::new(p, false),
-            milnor: MilnorAlgebra::new(p),
+            milnor: MilnorAlgebra::new(p, false),
         }
     }
 

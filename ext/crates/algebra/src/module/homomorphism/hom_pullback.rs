@@ -151,7 +151,7 @@ mod tests {
 
         let p = fp::prime::TWO;
 
-        let algebra = Arc::new(MilnorAlgebra::new(p));
+        let algebra = Arc::new(MilnorAlgebra::new(p, false));
         let f0 = Arc::new(FreeModule::new(Arc::clone(&algebra), "F0".to_string(), 0));
         let f1 = Arc::new(FreeModule::new(
             Arc::clone(&algebra),
@@ -205,7 +205,7 @@ mod tests {
 
         let p = fp::prime::TWO;
 
-        let algebra = Arc::new(MilnorAlgebra::new(p));
+        let algebra = Arc::new(MilnorAlgebra::new(p, false));
         let f0 = Arc::new(FreeModule::new(Arc::clone(&algebra), "F0".to_string(), 0));
         let f1 = Arc::new(FreeModule::new(
             Arc::clone(&algebra),

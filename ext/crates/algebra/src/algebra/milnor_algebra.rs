@@ -3,7 +3,7 @@ use rustc_hash::FxHashMap as HashMap;
 use std::cell::Cell;
 
 use crate::algebra::combinatorics;
-use crate::algebra::{Algebra, Bialgebra, GeneratedAlgebra};
+use crate::algebra::{Algebra, Bialgebra, GeneratedAlgebra, UnstableAlgebra};
 use fp::prime::{factor_pk, integer_power, Binomial, BitflagIterator, ValidPrime};
 use fp::vector::{FpVector, Slice, SliceMut};
 use once::OnceVec;
@@ -137,6 +137,14 @@ impl MilnorBasisElement {
         }
     }
 
+    fn excess(&self, p: ValidPrime) -> u32 {
+        if *p == 2 {
+            self.p_part.iter().sum::<PPartEntry>() as u32
+        } else {
+            self.q_part.count_ones() + 2 * self.p_part.iter().sum::<PPartEntry>() as u32
+        }
+    }
+
     pub fn clone_into(&self, other: &mut Self) {
         other.q_part = self.q_part;
         other.degree = self.degree;
@@ -263,12 +271,16 @@ pub struct MilnorAlgebra {
     #[cfg(feature = "odd-primes")]
     generic: bool,
 
+    unstable_enabled: bool,
+
     /// This is a list of possible P(R) of each degree, where `ppart_table[i]` contains elements of
     /// degree `q * i`.
     ppart_table: OnceVec<Vec<PPart>>,
 
     /// A list of all basis elements of each degree, constructed from [`Self::ppart_table`]
     basis_table: OnceVec<Vec<MilnorBasisElement>>,
+
+    excess_table: OnceVec<Vec<usize>>,
 
     /// degree -> MilnorBasisElement -> index
     basis_element_to_index_map: OnceVec<MilnorHashMap<usize>>,
@@ -285,19 +297,21 @@ impl std::fmt::Display for MilnorAlgebra {
 }
 
 impl MilnorAlgebra {
-    pub fn new(p: ValidPrime) -> Self {
-        Self::new_with_profile(p, MilnorProfile::default())
+    pub fn new(p: ValidPrime, unstable_enabled: bool) -> Self {
+        Self::new_with_profile(p, MilnorProfile::default(), unstable_enabled)
     }
 
-    pub fn new_with_profile(p: ValidPrime, profile: MilnorProfile) -> Self {
+    pub fn new_with_profile(p: ValidPrime, profile: MilnorProfile, unstable_enabled: bool) -> Self {
         assert!(profile.is_valid());
         Self {
             p,
             #[cfg(feature = "odd-primes")]
             generic: *p != 2,
+            unstable_enabled,
             profile,
             ppart_table: OnceVec::new(),
             basis_table: OnceVec::new(),
+            excess_table: OnceVec::new(),
             basis_element_to_index_map: OnceVec::new(),
             #[cfg(feature = "cache-multiplication")]
             multiplication_table: OnceVec::new(),
@@ -471,6 +485,10 @@ impl Algebra for MilnorAlgebra {
                 });
             }
         }
+
+        if self.unstable_enabled {
+            self.generate_excess_table(max_degree);
+        }
     }
 
     fn dimension(&self, degree: i32) -> usize {
@@ -533,6 +551,7 @@ impl Algebra for MilnorAlgebra {
                     (coeff * v) % *p,
                     r,
                     self.basis_element_from_index(s_degree, i),
+                    i32::MAX,
                     allocation,
                 );
             }
@@ -628,6 +647,35 @@ impl Algebra for MilnorAlgebra {
         } else {
             None
         }
+    }
+}
+
+impl UnstableAlgebra for MilnorAlgebra {
+    fn dimension_unstable(&self, degree: i32, excess: i32) -> usize {
+        if degree < 0 || excess < 0 {
+            0
+        } else if excess < degree {
+            self.excess_table[degree as usize][excess as usize]
+        } else {
+            self.basis_table[degree as usize].len()
+        }
+    }
+
+    fn multiply_basis_elements_unstable(
+        &self,
+        result: SliceMut,
+        coeff: u32,
+        r_degree: i32,
+        r_index: usize,
+        s_degree: i32,
+        s_index: usize,
+        excess: i32,
+    ) {
+        let m1 = self.basis_element_from_index(r_degree, r_index);
+        let m2 = self.basis_element_from_index(s_degree, s_index);
+        PPartAllocation::with_local(|allocation| {
+            self.multiply_with_allocation(result, coeff, m1, m2, excess, allocation)
+        });
     }
 }
 
@@ -863,7 +911,7 @@ impl MilnorAlgebra {
         let tau_degrees = combinatorics::tau_degrees(self.prime());
 
         self.basis_table.extend(max_degree as usize, |d| {
-            let mut new_table = Vec::new();
+            let mut table = Vec::new();
             let residue = d as u32 % q;
 
             for q_part in 0u32.. {
@@ -889,7 +937,7 @@ impl MilnorAlgebra {
                     continue;
                 }
 
-                new_table.extend(
+                table.extend(
                     self.ppart_table[(d - q_degree as usize) / q as usize]
                         .iter()
                         .map(|p_part| MilnorBasisElement {
@@ -899,16 +947,43 @@ impl MilnorAlgebra {
                         }),
                 );
             }
-            new_table
+            if self.unstable_enabled {
+                table.sort_by_cached_key(|e| e.excess(self.p));
+            }
+            table
         });
     }
 
     fn generate_basis_2(&self, max_degree: i32) {
         self.basis_table.extend(max_degree as usize, |d| {
-            self.ppart_table[d]
+            let mut table: Vec<_> = self.ppart_table[d]
                 .iter()
                 .map(|p| MilnorBasisElement::from_p(p.clone(), d as i32))
-                .collect()
+                .collect();
+            if self.unstable_enabled {
+                table.sort_by_cached_key(|e| e.excess(fp::prime::TWO));
+            }
+            table
+        });
+    }
+
+    fn generate_excess_table(&self, max_degree: i32) {
+        let p = self.prime();
+        self.excess_table.extend(max_degree as usize, |n| {
+            let mut new_entry = Vec::with_capacity(n);
+            let mut cur_excess = 0;
+            for (i, elt) in self.basis_table[n].iter().enumerate() {
+                let excess = elt.excess(p);
+                for _ in cur_excess..excess {
+                    new_entry.push(i);
+                }
+                cur_excess = excess;
+            }
+            let dim = self.dimension(n as i32);
+            for _ in cur_excess..n as u32 {
+                new_entry.push(dim);
+            }
+            new_entry
         });
     }
 }
@@ -1000,7 +1075,7 @@ impl MilnorAlgebra {
         m2: &MilnorBasisElement,
     ) {
         PPartAllocation::with_local(|allocation| {
-            self.multiply_with_allocation(res, coef, m1, m2, allocation)
+            self.multiply_with_allocation(res, coef, m1, m2, i32::MAX, allocation)
         });
     }
 
@@ -1010,6 +1085,7 @@ impl MilnorAlgebra {
         coef: u32,
         m1: &MilnorBasisElement,
         m2: &MilnorBasisElement,
+        excess: i32,
         mut allocation: PPartAllocation,
     ) -> PPartAllocation {
         let target_deg = m1.degree + m2.degree;
@@ -1027,7 +1103,9 @@ impl MilnorAlgebra {
 
                 while let Some(c) = multiplier.next() {
                     let idx = self.basis_element_to_index(&multiplier.ans);
-                    res.add_basis_element(idx, c * cc * coef);
+                    if idx < self.dimension_unstable(target_deg, excess) {
+                        res.add_basis_element(idx, c * cc * coef);
+                    }
                 }
                 allocation = multiplier.into_allocation()
             }
@@ -1043,7 +1121,9 @@ impl MilnorAlgebra {
 
             while let Some(c) = multiplier.next() {
                 let idx = self.basis_element_to_index(&multiplier.ans);
-                res.add_basis_element(idx, c * coef);
+                if idx < self.dimension_unstable(target_deg, excess) {
+                    res.add_basis_element(idx, c * coef);
+                }
             }
             allocation = multiplier.into_allocation()
         }
@@ -1078,6 +1158,7 @@ impl MilnorAlgebra {
                 coef * c,
                 m1,
                 self.basis_element_from_index(s_deg, i),
+                i32::MAX,
                 allocation,
             );
         }
@@ -1671,7 +1752,7 @@ mod tests {
         #[case] profile: Option<MilnorProfile>,
     ) {
         let p = ValidPrime::new(p);
-        let algebra = MilnorAlgebra::new_with_profile(p, profile.unwrap_or_default());
+        let algebra = MilnorAlgebra::new_with_profile(p, profile.unwrap_or_default(), false);
         algebra.compute_basis(max_degree);
         for i in 1..max_degree {
             let dim = algebra.dimension(i);
@@ -1718,7 +1799,7 @@ mod tests {
     #[case(3, 106)]
     fn test_milnor_string(#[case] p: u32, #[case] max_degree: i32) {
         let p = ValidPrime::new(p);
-        let algebra = MilnorAlgebra::new(p);
+        let algebra = MilnorAlgebra::new(p, false);
         algebra.compute_basis(max_degree);
         for t in 0..max_degree {
             for i in 0..algebra.dimension(t) {
@@ -1745,7 +1826,7 @@ mod tests {
     #[trace]
     fn test_adem_relations(p: u32, max_degree: i32) {
         let p = ValidPrime::new(p);
-        let algebra = MilnorAlgebra::new(p);
+        let algebra = MilnorAlgebra::new(p, false);
         algebra.compute_basis(max_degree + 2);
         let mut output_vec = FpVector::new(p, 0);
         for i in 1..max_degree {

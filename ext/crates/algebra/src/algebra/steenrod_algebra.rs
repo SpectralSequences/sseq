@@ -157,6 +157,7 @@ impl SteenrodAlgebra {
     pub fn from_json(
         json: &Value,
         mut algebra_type: AlgebraType,
+        unstable: bool,
     ) -> anyhow::Result<SteenrodAlgebra> {
         let spec: AlgebraSpec = AlgebraSpec::deserialize(json)?;
 
@@ -170,10 +171,11 @@ impl SteenrodAlgebra {
         }
 
         Ok(match algebra_type {
-            AlgebraType::Adem => Self::AdemAlgebra(AdemAlgebra::new(spec.p, false)),
+            AlgebraType::Adem => Self::AdemAlgebra(AdemAlgebra::new(spec.p, unstable)),
             AlgebraType::Milnor => Self::MilnorAlgebra(MilnorAlgebra::new_with_profile(
                 spec.p,
                 spec.profile.unwrap_or_default(),
+                unstable,
             )),
         })
     }
@@ -289,5 +291,15 @@ impl crate::pair_algebra::PairAlgebra for SteenrodAlgebra {
         fn a_multiply(&self, result: SliceMut, coeff: u32, r_degree: i32, r: Slice, s_degree: i32, s: &Self::Element);
         fn element_to_bytes(&self, elt: &Self::Element, buffer: &mut impl Write) -> std::io::Result<()>;
         fn element_from_bytes(&self, degree: i32, buffer: &mut impl Read) -> std::io::Result<Self::Element>;
+    }
+}
+
+impl crate::UnstableAlgebra for SteenrodAlgebra {
+    dispatch_steenrod! {
+        fn dimension_unstable(&self, degree: i32, excess: i32) -> usize;
+        fn multiply_basis_elements_unstable(&self, result: SliceMut, coeff: u32, r_degree: i32, r_index: usize, s_degree: i32, s_index: usize, excess: i32);
+        fn multiply_basis_element_by_element_unstable(&self, result: SliceMut, coeff: u32, r_degree: i32, r_idx: usize, s_degree: i32, s: Slice, excess: i32);
+        fn multiply_element_by_basis_element_unstable(&self, result: SliceMut, coeff: u32, r_degree: i32, r: Slice, s_degree: i32, s_idx: usize, excess: i32);
+        fn multiply_element_by_element_unstable(&self, result: SliceMut, coeff: u32, r_degree: i32, r: Slice, s_degree: i32, s: Slice, excess: i32);
     }
 }

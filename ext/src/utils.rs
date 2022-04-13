@@ -6,10 +6,9 @@ use crate::chain_complex::{
 use crate::resolution::{Resolution, UnstableResolution};
 use crate::CCC;
 use algebra::module::{steenrod_module, FDModule, Module, SteenrodModule};
-use algebra::{AdemAlgebra, AlgebraType, MilnorAlgebra, SteenrodAlgebra};
+use algebra::{AlgebraType, MilnorAlgebra, SteenrodAlgebra};
 
 use anyhow::{anyhow, Context};
-use fp::prime::ValidPrime;
 use serde_json::Value;
 
 use std::convert::{TryFrom, TryInto};
@@ -185,7 +184,7 @@ where
         ));
     }
 
-    let algebra = Arc::new(MilnorAlgebra::new(fp::prime::TWO));
+    let algebra = Arc::new(MilnorAlgebra::new(fp::prime::TWO, false));
     let module = Arc::new(FDModule::from_json(Arc::clone(&algebra), &json)?);
 
     if !json["confiber"].is_null() {
@@ -208,7 +207,7 @@ where
         algebra,
     } = module_spec.try_into()?;
 
-    let algebra = Arc::new(SteenrodAlgebra::from_json(&json, algebra)?);
+    let algebra = Arc::new(SteenrodAlgebra::from_json(&json, algebra, false)?);
     let module = Arc::new(steenrod_module::from_json(Arc::clone(&algebra), &json)?);
     let mut chain_complex = Arc::new(FiniteChainComplex::ccdz(Arc::clone(&module)));
 
@@ -395,16 +394,19 @@ pub fn query_module(
     Ok(resolution)
 }
 
-pub fn query_unstable_module_only() -> anyhow::Result<FDModule<AdemAlgebra>> {
-    let spec = query::raw("Module", parse_module_name);
-    let p = ValidPrime::new(spec["p"].as_u64().unwrap() as u32);
-    let algebra = Arc::new(AdemAlgebra::new(p, true));
-    FDModule::from_json(algebra, &spec)
+pub fn query_unstable_module_only() -> anyhow::Result<FDModule<SteenrodAlgebra>> {
+    let spec: Config = query::raw("Module", |x| x.try_into());
+    let algebra = Arc::new(SteenrodAlgebra::from_json(
+        &spec.module,
+        spec.algebra,
+        true,
+    )?);
+    FDModule::from_json(algebra, &spec.module)
 }
 
 pub fn query_unstable_module(
     load_quasi_inverse: impl Into<LoadQuasiInverseOption>,
-) -> anyhow::Result<UnstableResolution<FiniteChainComplex<FDModule<AdemAlgebra>>>> {
+) -> anyhow::Result<UnstableResolution<FiniteChainComplex<FDModule<SteenrodAlgebra>>>> {
     let module = Arc::new(query_unstable_module_only()?);
     let cc = Arc::new(FiniteChainComplex::ccdz(module));
 

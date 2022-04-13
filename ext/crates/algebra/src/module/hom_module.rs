@@ -129,7 +129,7 @@ mod tests {
         const NUM_GENS: [usize; 3] = [1, 2, 1];
         const TARGET_DIM: [usize; 3] = [1, 3, 4];
 
-        let algebra = Arc::new(MilnorAlgebra::new(fp::prime::TWO));
+        let algebra = Arc::new(MilnorAlgebra::new(fp::prime::TWO, false));
         let f = Arc::new(FreeModule::new(Arc::clone(&algebra), "F0".to_string(), 0));
         let m = Arc::new(
             FDModule::from_json(Arc::clone(&algebra), &crate::test::joker_json()).unwrap(),

@@ -200,6 +200,7 @@ impl PairAlgebra for MilnorAlgebra {
                             coeff,
                             &r,
                             &s,
+                            i32::MAX,
                             allocation,
                         );
                         unsub!(r, m, k);
@@ -448,7 +449,7 @@ mod test {
 
     #[test]
     fn test_a_y() {
-        let algebra = MilnorAlgebra::new(TWO);
+        let algebra = MilnorAlgebra::new(TWO, false);
 
         let mut result = FpVector::new(TWO, 0);
 

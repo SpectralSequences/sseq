@@ -134,11 +134,11 @@ fn get_element(
 /// Create a new `FiniteChainComplex` with `num_s` many non-zero modules.
 fn create_chain_complex(num_s: usize) -> FiniteChainComplex {
     #[cfg(feature = "nassau")]
-    let algebra: Arc<MilnorAlgebra> = Arc::new(MilnorAlgebra::new(TWO));
+    let algebra: Arc<MilnorAlgebra> = Arc::new(MilnorAlgebra::new(TWO, false));
 
     #[cfg(not(feature = "nassau"))]
     let algebra: Arc<algebra::SteenrodAlgebra> = Arc::new(algebra::SteenrodAlgebra::MilnorAlgebra(
-        MilnorAlgebra::new(TWO),
+        MilnorAlgebra::new(TWO, false),
     ));
 
     let mut modules: Vec<Arc<FreeModule>> = Vec::with_capacity(num_s);
