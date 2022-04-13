@@ -32,9 +32,9 @@ const STATIC_MODULES_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../ext/s
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Config {
     /// The json specification of the module
-    pub module: Value,
+    module: Value,
     /// The basis for the Steenrod algebra
-    pub algebra: AlgebraType,
+    algebra: AlgebraType,
 }
 
 /// Given a module specification string, load a json description of the module as described

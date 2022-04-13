@@ -1451,14 +1451,7 @@ mod test {
             },
             "actions": ["Sq16 x0 = x16"]
         });
-        let resolution = utils::construct(
-            utils::Config {
-                module,
-                algebra: algebra::AlgebraType::Milnor,
-            },
-            None,
-        )
-        .unwrap();
+        let resolution = utils::construct((module, algebra::AlgebraType::Milnor), None).unwrap();
         resolution.compute_through_stem(5, 20);
         let lift = SecondaryResolution::new(Arc::new(resolution));
         lift.extend_all();
