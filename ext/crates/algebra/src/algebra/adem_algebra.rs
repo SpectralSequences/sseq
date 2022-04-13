@@ -86,9 +86,9 @@ impl AdemBasisElement {
         } else if *p == 2 {
             2 * self.ps[0] - self.ps.iter().sum::<u32>()
         } else {
-            2 * ((1 + *p) * self.ps[0] - *p * self.ps.iter().sum::<u32>())
+            2 * (*p * self.ps[0] - (*p - 1) * self.ps.iter().sum::<u32>())
+                + 2 * (self.bocksteins & 1)
                 - self.bocksteins.count_ones()
-                - (self.bocksteins & 1)
         }
     }
 }
