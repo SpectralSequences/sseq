@@ -278,7 +278,6 @@ impl Algebra for AdemAlgebra {
             s_degree,
             s_index,
             i32::MAX,
-            false,
         );
     }
 
@@ -473,7 +472,6 @@ impl UnstableAlgebra for AdemAlgebra {
             s_degree,
             s_index,
             excess,
-            true,
         );
     }
 }
@@ -957,7 +955,6 @@ impl AdemAlgebra {
         s_degree: i32,
         s_index: usize,
         excess: i32,
-        unstable: bool,
     ) {
         if coeff == 0 {
             return;
@@ -966,7 +963,7 @@ impl AdemAlgebra {
         assert!(s_index < self.dimension_unstable(s_degree, excess));
 
         if s_degree == 0 {
-            if unstable && r_index >= self.dimension_unstable(r_degree, excess) {
+            if r_index >= self.dimension_unstable(r_degree, excess) {
                 return;
             }
             result.add_basis_element(r_index, coeff);
@@ -1007,7 +1004,6 @@ impl AdemAlgebra {
                 leading_degree,
                 excess,
                 stop_early,
-                unstable,
             );
         } else {
             let leading_degree = r.degree;
@@ -1018,7 +1014,6 @@ impl AdemAlgebra {
                 leading_degree,
                 excess,
                 stop_early,
-                unstable,
             );
         }
     }
@@ -1029,7 +1024,6 @@ impl AdemAlgebra {
         coeff: u32,
         monomial: &mut AdemBasisElement,
         excess: i32,
-        unstable: bool,
     ) {
         let q = if self.generic {
             2 * (*self.prime()) - 2
@@ -1049,18 +1043,9 @@ impl AdemAlgebra {
                 leading_degree,
                 excess,
                 stop_early,
-                unstable,
             );
         } else {
-            self.make_mono_admissible_2(
-                result,
-                monomial,
-                idx,
-                leading_degree,
-                excess,
-                stop_early,
-                unstable,
-            );
+            self.make_mono_admissible_2(result, monomial, idx, leading_degree, excess, stop_early);
         }
     }
 
@@ -1081,7 +1066,6 @@ impl AdemAlgebra {
         mut leading_degree: i32,
         excess: i32,
         stop_early: bool,
-        unstable: bool,
     ) {
         while idx < 0
             || idx as usize == monomial.ps.len() - 1
@@ -1092,7 +1076,7 @@ impl AdemAlgebra {
                 let idx = self.basis_element_to_index(monomial);
                 // If excess is too large, quit. It's faster to check this by comparing idx to dimension
                 // than to use fromIndex because fromIndex dereferences a hash map.
-                if unstable && idx >= self.dimension_unstable(monomial.degree, excess) {
+                if idx >= self.dimension_unstable(monomial.degree, excess) {
                     return;
                 }
                 result.add_basis_element(idx, 1);
@@ -1125,7 +1109,6 @@ impl AdemAlgebra {
                 leading_degree - x,
                 excess,
                 stop_early,
-                unstable,
             );
         }
     }
@@ -1139,7 +1122,6 @@ impl AdemAlgebra {
         mut leading_degree: i32,
         excess: i32,
         stop_early: bool,
-        unstable: bool,
     ) {
         let p = *self.prime();
         let q = 2 * p - 2;
@@ -1157,7 +1139,7 @@ impl AdemAlgebra {
             if idx < 0 || stop_early {
                 // Admissible so write monomial to result.
                 let idx = self.basis_element_to_index(monomial);
-                if unstable && idx >= self.dimension_unstable(monomial.degree, excess) {
+                if idx >= self.dimension_unstable(monomial.degree, excess) {
                     return;
                 }
                 result.add_basis_element(idx, coeff);
@@ -1196,7 +1178,6 @@ impl AdemAlgebra {
                 new_leading_degree,
                 excess,
                 stop_early,
-                unstable,
             );
         }
     }
