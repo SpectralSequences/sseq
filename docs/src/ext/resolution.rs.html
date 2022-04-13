@@ -1023,6 +1023,7 @@
 <span id="993">993</span>
 <span id="994">994</span>
 <span id="995">995</span>
+<span id="996">996</span>
 </pre><pre class="rust"><code><span class="doccomment">//! This module exports the [`Resolution`] object, which is a chain complex resolving a module. In</span>
 <span class="doccomment">//! particular, this contains the core logic that compute minimal resolutions.</span>
 <span class="kw">use</span> <span class="ident">std::sync</span>::{<span class="ident">Arc</span>, <span class="ident">Mutex</span>};
@@ -1982,7 +1983,7 @@
 
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">test_restart_stem</span>() {
-        <span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">construct_standard</span>(<span class="string">&quot;S_2&quot;</span>, <span class="prelude-val">None</span>).<span class="ident">unwrap</span>();
+        <span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">construct_standard</span>::<span class="op">&lt;</span><span class="bool-val">false</span>, <span class="kw">_</span>, <span class="kw">_</span><span class="op">&gt;</span>(<span class="string">&quot;S_2&quot;</span>, <span class="prelude-val">None</span>).<span class="ident">unwrap</span>();
         <span class="ident">res</span>.<span class="ident">compute_through_stem</span>(<span class="number">8</span>, <span class="number">14</span>);
         <span class="ident">res</span>.<span class="ident">compute_through_bidegree</span>(<span class="number">5</span>, <span class="number">19</span>);
 
@@ -2004,7 +2005,8 @@
     <span class="kw">fn</span> <span class="ident">test_apply_quasi_inverse</span>() {
         <span class="kw">let</span> <span class="ident">tempdir</span> <span class="op">=</span> <span class="ident">tempfile::TempDir::new</span>().<span class="ident">unwrap</span>();
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">construct_standard</span>(<span class="string">&quot;S_2&quot;</span>, <span class="prelude-val">Some</span>(<span class="ident">tempdir</span>.<span class="ident">path</span>().<span class="ident">into</span>())).<span class="ident">unwrap</span>();
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">res</span> <span class="op">=</span>
+            <span class="ident">construct_standard</span>::<span class="op">&lt;</span><span class="bool-val">false</span>, <span class="kw">_</span>, <span class="kw">_</span><span class="op">&gt;</span>(<span class="string">&quot;S_2&quot;</span>, <span class="prelude-val">Some</span>(<span class="ident">tempdir</span>.<span class="ident">path</span>().<span class="ident">into</span>())).<span class="ident">unwrap</span>();
         <span class="ident">res</span>.<span class="ident">load_quasi_inverse</span> <span class="op">=</span> <span class="bool-val">false</span>;
 
         <span class="ident">res</span>.<span class="ident">compute_through_bidegree</span>(<span class="number">8</span>, <span class="number">8</span>);
