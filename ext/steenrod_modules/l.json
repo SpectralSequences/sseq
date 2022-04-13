@@ -4,5 +4,9 @@
     "profile": { "truncated": false, "q_part": 4294967292, "p_part": [0] },
     "type": "finite dimensional module",
     "gens": { "x0": 0 },
-    "actions": []
+    "actions": [],
+    "self_maps": [
+        { "hom_deg": 1, "int_deg": 49, "map_data": [[1]], "name": "v_2" },
+        { "hom_deg": 1, "int_deg": 249, "map_data": [[1]], "name": "v_3" }
+    ]
 }

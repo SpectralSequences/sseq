@@ -2,5 +2,9 @@
     "p": 5,
     "type": "finite dimensional module",
     "gens": { "x0": 0, "x1": 1, "x9": 9, "x10": 10 },
-    "actions": ["b x0 = x1", "P1 x1 = x9", "b x9 = x10"]
+    "actions": ["b x0 = x1", "P1 x1 = x9", "b x9 = x10"],
+    "self_maps": [
+        { "hom_deg": 1, "int_deg": 49, "map_data": [[1]], "name": "v_2" },
+        { "hom_deg": 2, "int_deg": 40, "map_data": [[1]], "name": "b" }
+    ]
 }

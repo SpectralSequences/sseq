@@ -8,5 +8,8 @@
     "products": [
         { "class": [1], "hom_deg": 2, "int_deg": 12, "name": "\\beta" },
         { "class": [1], "hom_deg": 2, "int_deg": 9, "name": "\\alpha_{2}" }
+    ],
+    "self_maps": [
+        { "hom_deg": 1, "int_deg": 5, "map_data": [[1]], "name": "v_1" }
     ]
 }

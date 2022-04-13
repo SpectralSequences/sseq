@@ -110,5 +110,8 @@
         "Sq2 x28 = x30",
         "Sq2 x29 = x31",
         "Sq1 x30 = x31"
+    ],
+    "self_maps": [
+        { "hom_deg": 1, "int_deg": 7, "map_data": [[1]], "name": "v_2" }
     ]
 }
