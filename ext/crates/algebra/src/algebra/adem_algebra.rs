@@ -1,7 +1,6 @@
 //! The Steenrod algebra using the Adem basis.
 
 use std::fmt;
-use std::sync::Mutex;
 
 use itertools::Itertools;
 use rustc_hash::FxHashMap as HashMap;
@@ -158,7 +157,6 @@ pub struct AdemAlgebra {
     p: ValidPrime,
     generic: bool,
     unstable_enabled: bool,
-    lock: Mutex<()>,
 
     even_basis_table: OnceVec<Vec<AdemBasisElement>>,
     /// degree -> index -> AdemBasisElement
@@ -240,21 +238,14 @@ impl Algebra for AdemAlgebra {
     }
 
     fn compute_basis(&self, max_degree: i32) {
-        let _lock = self.lock.lock().unwrap();
-
-        let next_degree = self.basis_table.len() as i32;
-        if max_degree < next_degree {
-            return;
-        }
-
         if self.generic {
-            self.generate_basis_generic(next_degree, max_degree);
-            self.generate_basis_element_to_index_map(next_degree, max_degree);
-            self.generate_multiplication_table_generic(next_degree, max_degree);
+            self.generate_basis_generic(max_degree);
+            self.generate_basis_element_to_index_map(max_degree);
+            self.generate_multiplication_table_generic(max_degree);
         } else {
-            self.generate_basis2(next_degree, max_degree);
-            self.generate_basis_element_to_index_map(next_degree, max_degree);
-            self.generate_multiplication_table_2(next_degree, max_degree);
+            self.generate_basis2(max_degree);
+            self.generate_basis_element_to_index_map(max_degree);
+            self.generate_multiplication_table_2(max_degree);
         }
 
         if self.unstable_enabled {
@@ -499,7 +490,6 @@ impl AdemAlgebra {
         Self {
             p,
             generic: *p != 2,
-            lock: Mutex::new(()),
             unstable_enabled,
             even_basis_table,
             basis_table,
@@ -521,167 +511,151 @@ impl AdemAlgebra {
         }
     }
 
-    fn generate_basis_even(&self, mut next_degree: i32, max_degree: i32) {
-        if next_degree == 0 {
-            self.even_basis_table.push(vec![AdemBasisElement {
+    fn generate_basis_even(&self, max_degree: i32) {
+        let p = self.prime();
+
+        self.even_basis_table.extend(0, |_| {
+            vec![AdemBasisElement {
                 degree: 0,
-                bocksteins: 0,
+                bocksteins: if self.generic { u32::MAX << 1 } else { 0 },
                 ps: vec![],
-                p_or_sq: *self.prime() != 2,
-            }]);
-            next_degree += 1;
-        }
-
-        for n in next_degree..=max_degree {
-            self.generate_basis_even_degreen(n);
-        }
-    }
-
-    fn generate_basis_even_degreen(&self, n: i32) {
-        let p = *self.prime() as i32;
-        let mut basis = Vec::new();
-        // Put Sqn into the list.
-        basis.push(AdemBasisElement {
-            degree: n,
-            bocksteins: if self.generic {
-                u32::max_value() << 2
-            } else {
-                0
-            },
-            ps: vec![n as u32],
-            p_or_sq: *self.prime() != 2,
+                p_or_sq: *p != 2,
+            }]
         });
 
-        // last = last term. We append (last,) to the end of
-        // elements of degree n - last whose own last square is
-        // at least p * last.
-        // In order for this to be possible, this means that p last <= n - last,
-        // or (p+1) * last <= n or last <= n/(p+1). We order the squares in decreasing
-        // order of their last element so that as we walk over the previous basis
-        // when we find a square whose end is too small, we can break.
-        for last in (1..=n / (p + 1)).rev() {
-            let previous_basis = &self.even_basis_table[(n - last) as usize];
-            for prev_elt in previous_basis {
-                let prev_elt_p_len = prev_elt.ps.len();
-                let old_last_sq = prev_elt.ps[prev_elt_p_len - 1] as i32;
-                if old_last_sq < p * last {
-                    break;
-                }
-                // Write new basis element to basis element buffer
+        self.even_basis_table.extend(max_degree as usize, |n| {
+            let n = n as i32;
 
-                let degree = prev_elt.degree + last;
-                // We're using bocksteins as a bit mask:
-                // A bit in bocksteins shall be set if it's illegal for a bockstein to occur there.
-                let mut bocksteins = prev_elt.bocksteins;
-                if self.generic {
-                    bocksteins |= if old_last_sq == p * last {
-                        1 << prev_elt_p_len
-                    } else {
-                        0
-                    };
-                    bocksteins &= !(1 << (prev_elt_p_len + 1));
-                }
-                let mut ps: Vec<u32> = Vec::with_capacity(prev_elt_p_len + 1);
-                ps.extend_from_slice(&prev_elt.ps);
-                ps.push(last as u32);
-                basis.push(AdemBasisElement {
-                    degree,
-                    bocksteins,
-                    ps,
-                    p_or_sq: *self.prime() != 2,
-                });
-            }
-        }
-        self.even_basis_table.push(basis);
-    }
+            let mut basis = Vec::new();
+            // Put Sqn into the list.
+            basis.push(AdemBasisElement {
+                degree: n,
+                bocksteins: if self.generic { u32::MAX << 2 } else { 0 },
+                ps: vec![n as u32],
+                p_or_sq: *self.prime() != 2,
+            });
 
-    fn generate_basis2(&self, next_degree: i32, max_degree: i32) {
-        self.generate_basis_even(next_degree, max_degree);
-        for n in next_degree..=max_degree {
-            let table = &self.even_basis_table[n as usize];
-            // Sorting breaks the algorithm above.
-            let mut new_table = table.clone();
-            if self.unstable_enabled {
-                new_table.sort_by_cached_key(|e| e.excess(fp::prime::TWO));
-            }
-            self.basis_table.push(new_table);
-        }
-    }
-
-    // Our approach is to pick the bocksteins and the P's separately and merge.
-    fn generate_basis_generic(&self, next_degree: i32, max_degree: i32) {
-        self.generate_basis_even(next_degree, max_degree);
-        for n in next_degree..=max_degree {
-            self.generate_basis_generic_degreen(n);
-        }
-    }
-
-    // Now handle the bocksteins.
-    // We have our Ps in even_basis_table and they contain in their bockstein field
-    // a bit flag that indicates where bocksteins are allowed to go.
-    #[allow(non_snake_case)]
-    fn generate_basis_generic_degreen(&self, n: i32) {
-        let p = self.prime();
-        let q = 2 * (*p as i32 - 1);
-        let residue = n % q;
-        let mut basis: Vec<AdemBasisElement> = Vec::new();
-        // First we need to know how many bocksteins we'll use so we know how much degree
-        // to assign to the Ps. The Ps all have degree divisible by q=2p-2, so num_bs needs to
-        // be congruent to degree mod q.
-        let num_bs_bound = std::cmp::min(MAX_XI_TAU, (n + 1) as usize);
-        for num_bs in (residue as usize..num_bs_bound).step_by(q as usize) {
-            let P_deg = (n as usize - num_bs) / q as usize;
-            // AdemBasisElement_list P_list
-            let even_basis = &self.even_basis_table[P_deg];
-            for i in (0..even_basis.len()).rev() {
-                let P = &even_basis[i];
-                // We pick our P first.
-                if P.ps.len() + 1 < num_bs {
-                    // Not enough space to fit the bs.
-                    continue; // Ps ordered in descending length, so none of the later ones will have space either
-                }
-                for bocksteins in BinomialIterator::new(num_bs) {
-                    if 32 - bocksteins.leading_zeros() > P.ps.len() as u32 + 1 {
-                        // Too large of a b. We sorted the Ps in descending length order so we can break now.
+            // last = last term. We append (last,) to the end of
+            // elements of degree n - last whose own last square is
+            // at least p * last.
+            // In order for this to be possible, this means that p last <= n - last,
+            // or (p+1) * last <= n or last <= n/(p+1). We order the squares in decreasing
+            // order of their last element so that as we walk over the previous basis
+            // when we find a square whose end is too small, we can break.
+            for last in (1..=n / (*p as i32 + 1)).rev() {
+                let previous_basis = &self.even_basis_table[(n - last) as usize];
+                for prev_elt in previous_basis {
+                    let prev_elt_p_len = prev_elt.ps.len();
+                    let old_last_sq = prev_elt.ps[prev_elt_p_len - 1] as i32;
+                    if old_last_sq < *p as i32 * last {
                         break;
                     }
-                    // P->bocksteins contains 1 in locations where the sequence is "just barely admissible" and so
-                    // adding a bockstein would make it inadmissible.
-                    if bocksteins & P.bocksteins != 0 {
-                        continue;
-                    }
-                    // Okay, everything's good with this bocksteins, P pair so let's add it to our basis.
                     // Write new basis element to basis element buffer
-                    let degree = n;
-                    let ps = P.ps.clone();
+
+                    let degree = prev_elt.degree + last;
+                    // We're using bocksteins as a bit mask:
+                    // A bit in bocksteins shall be set if it's illegal for a bockstein to occur there.
+                    let mut bocksteins = prev_elt.bocksteins;
+                    if self.generic {
+                        bocksteins |= if old_last_sq == *p as i32 * last {
+                            1 << prev_elt_p_len
+                        } else {
+                            0
+                        };
+                        bocksteins &= !(1 << (prev_elt_p_len + 1));
+                    }
+                    let mut ps: Vec<u32> = Vec::with_capacity(prev_elt_p_len + 1);
+                    ps.extend_from_slice(&prev_elt.ps);
+                    ps.push(last as u32);
                     basis.push(AdemBasisElement {
                         degree,
                         bocksteins,
                         ps,
                         p_or_sq: *p != 2,
                     });
-                    if num_bs == 0 {
-                        break;
+                }
+            }
+            basis
+        });
+    }
+
+    fn generate_basis2(&self, max_degree: i32) {
+        self.generate_basis_even(max_degree);
+        self.basis_table.extend(max_degree as usize, |n| {
+            let mut table = self.even_basis_table[n as usize].clone();
+            if self.unstable_enabled {
+                table.sort_by_cached_key(|e| e.excess(fp::prime::TWO));
+            }
+            table
+        });
+    }
+
+    // Our approach is to pick the bocksteins and the P's separately and merge.
+    fn generate_basis_generic(&self, max_degree: i32) {
+        self.generate_basis_even(max_degree);
+
+        let p = self.prime();
+        let q = 2 * (*p as i32 - 1);
+        self.basis_table.extend(max_degree as usize, |n| {
+            let n = n as i32;
+            let residue = n % q;
+
+            let mut basis: Vec<AdemBasisElement> = Vec::new();
+            // First we need to know how many bocksteins we'll use so we know how much degree
+            // to assign to the Ps. The Ps all have degree divisible by q=2p-2, so num_bs needs to
+            // be congruent to degree mod q.
+            let num_bs_bound = std::cmp::min(MAX_XI_TAU, (n + 1) as usize);
+            for num_bs in (residue as usize..num_bs_bound).step_by(q as usize) {
+                let even_basis = &self.even_basis_table[(n as usize - num_bs) / q as usize];
+
+                for elt in even_basis.iter().rev() {
+                    if elt.ps.len() + 1 < num_bs {
+                        // Not enough space to fit the bs.
+                        // Ps ordered in descending length, so none of the later ones will have space either
+                        continue;
+                    }
+                    for bocksteins in BinomialIterator::new(num_bs) {
+                        if 32 - bocksteins.leading_zeros() > elt.ps.len() as u32 + 1 {
+                            // Too large of a bockstein.
+                            break;
+                        }
+                        // elt.bocksteins contains 1 in locations where the sequence is "just
+                        // barely admissible" and so adding a bockstein would make it inadmissible.
+                        if bocksteins & elt.bocksteins != 0 {
+                            continue;
+                        }
+                        basis.push(AdemBasisElement {
+                            degree: n,
+                            bocksteins,
+                            ps: elt.ps.clone(),
+                            p_or_sq: *p != 2,
+                        });
+                        // BinomialIterator does not have a stopping condition, so we need to stop
+                        // manually here
+                        if num_bs == 0 {
+                            break;
+                        }
                     }
                 }
             }
-        }
-        if self.unstable_enabled {
-            basis.sort_by_cached_key(|e| e.excess(p));
-        }
-        self.basis_table.push(basis);
+            if self.unstable_enabled {
+                basis.sort_by_cached_key(|e| e.excess(p));
+            }
+            basis
+        });
     }
 
-    fn generate_basis_element_to_index_map(&self, next_degree: i32, max_degree: i32) {
-        for n in next_degree..=max_degree {
-            let basis = &self.basis_table[n as usize];
-            let mut map = HashMap::default();
-            map.reserve(basis.len());
-            for (i, basis) in basis.iter().enumerate() {
-                map.insert(basis.clone(), i);
-            }
-            self.basis_element_to_index_map.push(map);
-        }
+    fn generate_basis_element_to_index_map(&self, max_degree: i32) {
+        self.basis_element_to_index_map
+            .extend(max_degree as usize, |n| {
+                let basis = &self.basis_table[n as usize];
+                let mut map = HashMap::default();
+                map.reserve(basis.len());
+                for (i, basis) in basis.iter().enumerate() {
+                    map.insert(basis.clone(), i);
+                }
+                map
+            });
     }
 
     pub fn basis_element_from_index(&self, degree: i32, idx: usize) -> &AdemBasisElement {
@@ -723,15 +697,14 @@ impl AdemAlgebra {
         result
     }
 
-    fn generate_multiplication_table_2(&self, mut next_degree: i32, max_degree: i32) {
-        // degree -> first_square -> admissibile sequence idx -> result vector
-        if next_degree == 0 {
-            self.multiplication_table.push(Vec::new());
-            next_degree += 1;
-        }
+    fn generate_multiplication_table_2(&self, max_degree: i32) {
+        self.multiplication_table.extend(0, |_| Vec::new());
 
-        for n in next_degree..=max_degree {
+        // degree -> first_square -> admissibile sequence idx -> result vector
+        self.multiplication_table.extend(max_degree as usize, |n| {
             let mut table: Vec<Vec<FpVector>> = Vec::with_capacity((n + 1) as usize);
+            let n = n as i32;
+
             table.push(Vec::with_capacity(0));
             for x in 1..=n {
                 let dimension = self.dimension(n - x);
@@ -743,8 +716,8 @@ impl AdemAlgebra {
                     table[x as usize].push(res);
                 }
             }
-            self.multiplication_table.push(table);
-        }
+            table
+        });
     }
 
     fn generate_multiplication_table_2_step(
@@ -804,14 +777,12 @@ impl AdemAlgebra {
         result
     }
 
-    fn generate_multiplication_table_generic(&self, mut next_degree: i32, max_degree: i32) {
-        // degree -> first_square -> admissibile sequence idx -> result vector
-        if next_degree == 0 {
-            self.multiplication_table.push(Vec::new());
-            next_degree += 1;
-        }
+    fn generate_multiplication_table_generic(&self, max_degree: i32) {
+        self.multiplication_table.extend(0, |_| Vec::new());
+
         let q = 2 * (*self.prime()) as i32 - 2;
-        for n in next_degree..=max_degree {
+        self.multiplication_table.extend(max_degree as usize, |n| {
+            let n = n as i32;
             let mut table: Vec<Vec<FpVector>> = Vec::with_capacity(2 * (n / q + 1) as usize);
             for i in 0..=n / q {
                 for b in 0..=1 {
@@ -834,8 +805,8 @@ impl AdemAlgebra {
                     }
                 }
             }
-            self.multiplication_table.push(table);
-        }
+            table
+        });
     }
 
     /// This function expresses $Sq^x$ (current) in terms of the admissible basis and returns
