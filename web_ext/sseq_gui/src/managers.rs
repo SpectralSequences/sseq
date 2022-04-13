@@ -93,47 +93,69 @@ impl ResolutionManager {
     fn construct_json(&mut self, action: ConstructJson) -> anyhow::Result<()> {
         let json_data = serde_json::from_str(&action.data)
             .with_context(|| format!("Failed to parse json {}", action.data))?;
-        let resolution = Resolution::new_from_json(&json_data, &action.algebra_name)
-            .ok_or_else(|| anyhow!("Invalid json encountered when parsing module file"))?;
-        self.process_bundle(resolution);
-
-        Ok(())
+        let resolution = Resolution::new_from_json(
+            json_data,
+            &action.algebra_name,
+            SseqChoice::Main,
+            self.sender.clone(),
+        )
+        .ok_or_else(|| anyhow!("Invalid json encountered when parsing module file"))?;
+        self.process_bundle(resolution)
     }
 
     /// Resolves a module specified by `json`. The result is stored in `self.bundle`.
     fn construct(&mut self, action: Construct) -> anyhow::Result<()> {
         let json = load_module_json(&action.module_name)?;
-        let resolution = Resolution::new_from_json(&json, &action.algebra_name)
-            .ok_or_else(|| anyhow!("Invalid json encountered when parsing module file"))?;
-        self.process_bundle(resolution);
-
-        Ok(())
+        let resolution = Resolution::new_from_json(
+            json,
+            &action.algebra_name,
+            SseqChoice::Main,
+            self.sender.clone(),
+        )
+        .ok_or_else(|| anyhow!("Invalid json encountered when parsing module file"))?;
+        self.process_bundle(resolution)
     }
 
-    fn process_bundle(&mut self, mut resolution: Resolution<CCC>) {
+    fn process_bundle(&mut self, mut resolution: Resolution<CCC>) -> anyhow::Result<()> {
         self.is_unit =
             resolution.complex().max_s() == 1 && resolution.complex().module(0).is_unit();
 
         if self.is_unit {
             resolution.set_unit_resolution_self();
         } else {
-            let mut unit_resolution = Resolution::new_from_json(
-                &json!({
+            let unit_resolution = Resolution::new_from_json(
+                json!({
                     "type": "finite dimensional module",
                     "p": *resolution.prime(),
                     "gens": {"x0": 0},
                     "actions": [],
                 }),
                 resolution.algebra().prefix(),
+                SseqChoice::Unit,
+                self.sender.clone(),
             )
             .unwrap();
-            self.setup_callback(&mut unit_resolution, SseqChoice::Unit);
+
+            // Setting the unit resolution also resolves it enough to compute the product. So send
+            // the Resolving message now.
+            let msg = Message {
+                recipients: vec![],
+                sseq: SseqChoice::Unit,
+                action: Action::from(Resolving {
+                    p: resolution.prime(),
+                    min_degree: 0,
+                    // Dummy value that doesn't really matter
+                    max_degree: 1,
+                    is_unit: self.is_unit,
+                }),
+            };
+            self.sender.send(msg)?;
 
             resolution.set_unit_resolution(unit_resolution);
         }
-        self.setup_callback(&mut resolution, SseqChoice::Main);
 
         self.resolution = Some(resolution);
+        Ok(())
     }
 
     fn resolve(&self, action: Resolve, sseq: SseqChoice) -> anyhow::Result<()> {
@@ -160,7 +182,7 @@ impl ResolutionManager {
         };
         self.sender.send(msg)?;
 
-        resolution.compute_through_degree(action.max_degree);
+        resolution.compute_through_stem(action.max_degree as u32 / 2 + 5, action.max_degree);
 
         Ok(())
     }
@@ -173,76 +195,6 @@ impl ResolutionManager {
                 action: Action::from(Error { message }),
             })
             .unwrap()
-    }
-}
-
-impl ResolutionManager {
-    fn setup_callback(&self, resolution: &mut Resolution<CCC>, sseq: SseqChoice) {
-        let p = resolution.prime();
-
-        let sender = self.sender.clone();
-        let add_class = move |s: u32, t: i32, num_gen: usize| {
-            let msg = Message {
-                recipients: vec![],
-                sseq,
-                action: Action::from(AddClass {
-                    x: t - s as i32,
-                    y: s as i32,
-                    num: num_gen,
-                }),
-            };
-            match sender.send(msg) {
-                Ok(_) => (),
-                Err(e) => {
-                    eprintln!("Failed to send class: {}", e);
-                    panic!("")
-                }
-            };
-        };
-
-        let sender = self.sender.clone();
-        let add_structline = move |name: &str,
-                                   source_s: u32,
-                                   source_t: i32,
-                                   target_s: u32,
-                                   target_t: i32,
-                                   left: bool,
-                                   mut product: Vec<Vec<u32>>| {
-            let mult_s = (target_s - source_s) as i32;
-            let mult_t = target_t - source_t;
-            let source_s = source_s as i32;
-
-            // Product in Ext is not product in E_2
-            if (left && mult_s * source_t % 2 != 0) || (!left && mult_t * source_s % 2 != 0) {
-                for prod_row in &mut product {
-                    for prod_entry in prod_row {
-                        *prod_entry = ((*p - 1) * *prod_entry) % *p;
-                    }
-                }
-            }
-
-            let msg = Message {
-                recipients: vec![],
-                sseq,
-                action: Action::from(AddProduct {
-                    mult_x: mult_t - mult_s,
-                    mult_y: mult_s,
-                    source_x: source_t - source_s,
-                    source_y: source_s,
-                    name: name.to_string(),
-                    product,
-                    left,
-                }),
-            };
-
-            match sender.send(msg) {
-                Ok(_) => (),
-                Err(e) => eprintln!("Failed to send product: {}", e),
-            };
-        };
-
-        resolution.add_class = Some(Box::new(add_class));
-        resolution.add_structline = Some(Box::new(add_structline));
     }
 }
 
@@ -335,18 +287,18 @@ impl SseqManager {
 
     fn resolving(&mut self, msg: Message) -> anyhow::Result<()> {
         if let Action::Resolving(m) = &msg.action {
-            if self.sseq.is_none() {
-                let sender = self.sender.clone();
-                self.sseq = Some(SseqWrapper::new(
+            let target = match msg.sseq {
+                SseqChoice::Main => &mut self.sseq,
+                SseqChoice::Unit => &mut self.unit_sseq,
+            };
+            if target.is_none() {
+                *target = Some(SseqWrapper::new(
                     m.p,
-                    SseqChoice::Main,
+                    msg.sseq,
                     m.min_degree,
                     0,
-                    Some(sender),
+                    Some(self.sender.clone()),
                 ));
-
-                let sender = self.sender.clone();
-                self.unit_sseq = Some(SseqWrapper::new(m.p, SseqChoice::Unit, 0, 0, Some(sender)));
             }
         }
         self.relay(msg)

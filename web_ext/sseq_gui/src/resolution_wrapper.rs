@@ -13,6 +13,8 @@ use fp::prime::ValidPrime;
 use once::{OnceBiVec, OnceVec};
 
 use ext::resolution_homomorphism::ResolutionHomomorphism as ResolutionHomomorphism_;
+
+use crate::actions::{Action, Message};
 pub type ResolutionHomomorphism<CC> =
     ResolutionHomomorphism_<ResolutionInner<CC>, ResolutionInner<CC>>;
 
@@ -38,39 +40,57 @@ enum UnitResolution<CC: ChainComplex> {
     Some(Box<Resolution<CC>>),
 }
 
-pub type AddClassFn = Box<dyn Fn(u32, i32, usize)>;
-pub type AddStructlineFn = Box<dyn Fn(&str, u32, i32, u32, i32, bool, Vec<Vec<u32>>)>;
-
 pub struct Resolution<CC: ChainComplex> {
     pub inner: Arc<ResolutionInner<CC>>,
+    sender: crate::Sender,
+    sseq: crate::actions::SseqChoice,
 
-    pub add_class: Option<AddClassFn>,
-    pub add_structline: Option<AddStructlineFn>,
+    /// The set of names of all products and self maps
+    product_names: HashSet<String>,
 
+    /// A list of all products
+    product_list: Vec<Cocycle>,
+
+    unit_resolution: UnitResolution<CC>,
+
+    /// List of filtration one products
     filtration_one_products: Vec<(String, i32, usize)>,
 
-    /// Products
-    unit_resolution: UnitResolution<CC>,
-    product_names: HashSet<String>,
-    product_list: Vec<Cocycle>,
     /// s -> t -> idx -> resolution homomorphism to unit resolution. We don't populate this
     /// until we actually have a unit resolution, of course.
     chain_maps_to_unit_resolution: OnceVec<OnceBiVec<Vec<ResolutionHomomorphism<CC>>>>,
-    max_product_s: u32,
-    max_product_t: i32,
 
-    // Self maps
-    pub self_maps: Vec<SelfMap<CC>>,
+    /// A list of all self maps
+    self_maps: Vec<SelfMap<CC>>,
 }
 
 impl Resolution<ext::CCC> {
-    pub fn new_from_json(json: &Value, algebra_name: &str) -> Option<Self> {
-        let inner = ext::utils::construct((json.clone(), algebra_name), None).ok()?;
-        let mut result = Self::new_with_inner(inner);
-        let products_value = &json["products"];
-        if !products_value.is_null() {
-            let products = products_value.as_array()?;
-            for prod in products {
+    pub fn new_from_json(
+        json: Value,
+        algebra_name: &str,
+        sseq: crate::actions::SseqChoice,
+        sender: crate::Sender,
+    ) -> Option<Self> {
+        let inner = Arc::new(ext::utils::construct((json.clone(), algebra_name), None).ok()?);
+        let algebra = inner.algebra();
+
+        let mut result = Self {
+            inner,
+            sender,
+            sseq,
+
+            product_names: HashSet::default(),
+            product_list: Vec::new(),
+            unit_resolution: UnitResolution::None,
+
+            filtration_one_products: algebra.default_filtration_one_products(),
+            self_maps: Vec::new(),
+            chain_maps_to_unit_resolution: OnceVec::new(),
+        };
+
+        // Add products
+        if !json["products"].is_null() {
+            for prod in json["products"].as_array()? {
                 let hom_deg = prod["hom_deg"].as_u64()? as u32;
                 let int_deg = prod["int_deg"].as_i64()? as i32;
                 let class: Vec<u32> = Vec::<u32>::deserialize(&prod["class"]).ok()?;
@@ -80,26 +100,21 @@ impl Resolution<ext::CCC> {
             }
         }
 
-        let self_maps = &json["self_maps"];
-
-        if !self_maps.is_null() {
-            for self_map in self_maps.as_array()? {
+        if !json["self_maps"].is_null() {
+            for self_map in json["self_maps"].as_array()? {
                 let s = self_map["hom_deg"].as_u64()? as u32;
                 let t = self_map["int_deg"].as_i64()? as i32;
                 let name = self_map["name"].as_str()?;
 
-                let json_map_data = self_map["map_data"].as_array()?;
-                let json_map_data: Vec<&Vec<Value>> = json_map_data
-                    .iter()
-                    .map(|x| x.as_array())
-                    .collect::<Option<Vec<_>>>()?;
+                let json_map_data: Vec<Vec<u32>> =
+                    <Vec<Vec<u32>>>::deserialize(&self_map["map_data"]).ok()?;
 
                 let rows = json_map_data.len();
                 let cols = json_map_data[0].len();
                 let mut map_data = Matrix::new(result.prime(), rows, cols);
                 for r in 0..rows {
                     for c in 0..cols {
-                        map_data[r].set_entry(c, json_map_data[r][c].as_u64()? as u32);
+                        map_data[r].set_entry(c, json_map_data[r][c]);
                     }
                 }
                 result.add_self_map(s, t, name, map_data);
@@ -111,61 +126,36 @@ impl Resolution<ext::CCC> {
 }
 
 impl<CC: ChainComplex> Resolution<CC> {
-    pub fn new_with_inner(inner: ResolutionInner<CC>) -> Self {
-        let inner = Arc::new(inner);
-        let algebra = inner.algebra();
-
-        Self {
-            inner,
-
-            add_class: None,
-            add_structline: None,
-
-            filtration_one_products: algebra.default_filtration_one_products(),
-
-            chain_maps_to_unit_resolution: OnceVec::new(),
-            max_product_s: 0,
-            max_product_t: 0,
-            product_names: HashSet::default(),
-            product_list: Vec::new(),
-            unit_resolution: UnitResolution::None,
-
-            self_maps: Vec::new(),
-        }
-    }
-
     pub fn compute_through_stem(&self, s: u32, n: i32) {
-        // If products were defined through the module specification, the unit resolution might not
-        // have been resolved yet
-        if let UnitResolution::Some(r) = &self.unit_resolution {
-            r.compute_through_stem(self.max_product_s, self.max_product_t);
-        }
         self.inner
             .compute_through_stem_with_callback(s, n, |s, t| self.step_after(s, t));
-    }
-
-    pub fn compute_through_degree(&self, degree: i32) {
-        self.compute_through_stem(degree as u32 / 2 + 5, degree);
     }
 
     pub fn step_after(&self, s: u32, t: i32) {
         if t - (s as i32) < self.min_degree() {
             return;
         }
-        let module = self.module(s);
-        let num_gens = module.number_of_gens_in_degree(t);
-        if let Some(f) = &self.add_class {
-            f(s, t, num_gens);
-        }
+        self.sender
+            .send(Message {
+                recipients: vec![],
+                sseq: self.sseq,
+                action: Action::from(crate::actions::AddClass {
+                    x: t - s as i32,
+                    y: s as i32,
+                    num: self.inner.number_of_gens_in_bidegree(s, t),
+                }),
+            })
+            .unwrap();
         if s > 0 {
             self.compute_filtration_one_products(s, t);
         }
         self.construct_maps_to_unit(s, t);
-        self.compute_products(s, t, &self.product_list);
+        for product in &self.product_list {
+            self.compute_product(s, t, product);
+        }
         self.compute_self_maps(s, t);
     }
 
-    #[allow(clippy::needless_range_loop)]
     fn compute_filtration_one_products(&self, target_s: u32, target_t: i32) {
         for (op_name, op_degree, op_index) in &self.filtration_one_products {
             let source_s = target_s - 1;
@@ -178,9 +168,7 @@ impl<CC: ChainComplex> Resolution<CC> {
                 .inner
                 .filtration_one_product(*op_degree, *op_index, source_s, source_t)
                 .unwrap();
-            self.add_structline(
-                op_name, source_s, source_t, target_s, target_t, true, products,
-            );
+            self.add_structline(op_name, source_s, source_t, 1, *op_degree, true, products);
         }
     }
 
@@ -189,14 +177,37 @@ impl<CC: ChainComplex> Resolution<CC> {
         name: &str,
         source_s: u32,
         source_t: i32,
-        target_s: u32,
-        target_t: i32,
+        mult_s: u32,
+        mult_t: i32,
         left: bool,
-        products: Vec<Vec<u32>>,
+        mut product: Vec<Vec<u32>>,
     ) {
-        if let Some(add_structline) = &self.add_structline {
-            add_structline(name, source_s, source_t, target_s, target_t, left, products);
+        let p = self.prime();
+        let source_s = source_s as i32;
+        let mult_s = mult_s as i32;
+
+        // Product in Ext is not product in E_2
+        if (left && mult_s * source_t % 2 != 0) || (!left && mult_t * source_s % 2 != 0) {
+            for entry in product.iter_mut().flatten() {
+                *entry = ((*p - 1) * *entry) % *p;
+            }
         }
+
+        self.sender
+            .send(Message {
+                recipients: vec![],
+                sseq: self.sseq,
+                action: Action::from(crate::actions::AddProduct {
+                    mult_x: mult_t - mult_s,
+                    mult_y: mult_s,
+                    source_x: source_t - source_s,
+                    source_y: source_s,
+                    name: name.to_owned(),
+                    product,
+                    left,
+                }),
+            })
+            .unwrap();
     }
 
     pub fn complex(&self) -> Arc<CC> {
@@ -213,12 +224,13 @@ impl<CC: ChainComplex> Resolution<CC> {
 
         let name = name.to_string();
         self.product_names.insert(name.clone());
-        self.max_product_s = std::cmp::max(self.max_product_s, s);
-        self.max_product_t = std::cmp::max(self.max_product_t, t);
 
-        let new_product = [Cocycle { s, t, class, name }];
+        if let UnitResolution::Some(r) = &self.unit_resolution {
+            r.compute_through_stem(s, t - s as i32);
+        }
+        let new_product = Cocycle { s, t, class, name };
 
-        self.product_list.push(new_product[0].clone());
+        self.product_list.push(new_product.clone());
 
         if self.product_list.len() == 1 {
             for (s, _, t) in self.inner.iter_stem() {
@@ -226,10 +238,9 @@ impl<CC: ChainComplex> Resolution<CC> {
             }
         }
 
-        // This is only run on the main sseq, and we always resolve a square
         if self.inner.has_computed_bidegree(0, 0) {
             for (s, _, t) in self.inner.iter_stem() {
-                self.compute_products(s, t, &new_product);
+                self.compute_product(s, t, &new_product);
             }
         }
     }
@@ -260,6 +271,9 @@ impl<CC: ChainComplex> Resolution<CC> {
             self.chain_maps_to_unit_resolution.is_empty(),
             "Cannot change unit resolution after you start computing products"
         );
+        for product in &self.product_list {
+            unit_res.compute_through_stem(product.s, product.t - product.s as i32);
+        }
         self.unit_resolution = UnitResolution::Some(Box::new(unit_res));
     }
 
@@ -267,16 +281,9 @@ impl<CC: ChainComplex> Resolution<CC> {
         self.unit_resolution = UnitResolution::Own;
     }
 
-    /// Compute products whose result lie in degree (s, t)
-    fn compute_products(&self, s: u32, t: i32, products: &[Cocycle]) {
-        for elt in products {
-            self.compute_product_step(elt, s, t);
-        }
-    }
-
     /// Target = result of the product
     /// Source = multiplicand
-    fn compute_product_step(&self, elt: &Cocycle, target_s: u32, target_t: i32) {
+    fn compute_product(&self, target_s: u32, target_t: i32, elt: &Cocycle) {
         if target_s < elt.s {
             return;
         }
@@ -313,9 +320,7 @@ impl<CC: ChainComplex> Resolution<CC> {
                 products[k].push(val % *self.prime());
             }
         }
-        self.add_structline(
-            &elt.name, source_s, source_t, target_s, target_t, true, products,
-        );
+        self.add_structline(&elt.name, source_s, source_t, elt.s, elt.t, true, products);
     }
 
     fn construct_maps_to_unit(&self, s: u32, t: i32) {
@@ -363,15 +368,14 @@ impl<CC: ChainComplex> Resolution<CC> {
     /// The return value is whether the self map was actually added. If the self map is already
     /// present, we do nothing.
     pub fn add_self_map(&mut self, s: u32, t: i32, name: &str, map_data: Matrix) -> bool {
-        let name = name.to_string();
-        if self.product_names.contains(&name) {
+        if self.product_names.contains(name) {
             false
         } else {
-            self.product_names.insert(name.clone());
+            self.product_names.insert(name.to_owned());
             self.self_maps.push(SelfMap {
                 s,
                 t,
-                name,
+                name: name.to_owned(),
                 map_data,
                 map: ResolutionHomomorphism::new(
                     "".to_string(),
@@ -386,7 +390,6 @@ impl<CC: ChainComplex> Resolution<CC> {
     }
 
     /// We compute the products by self maps where the result has degree (s, t).
-    #[allow(clippy::needless_range_loop)]
     fn compute_self_maps(&self, target_s: u32, target_t: i32) {
         for f in &self.self_maps {
             if target_s < f.s {
@@ -416,14 +419,13 @@ impl<CC: ChainComplex> Resolution<CC> {
                 let map = f.map.get_map(target_s);
                 let result = map.output(target_t, j);
 
+                #[allow(clippy::needless_range_loop)]
                 for k in 0..source_dim {
                     let vector_idx = source.operation_generator_to_index(0, 0, source_t, k);
                     products[k].push(result.entry(vector_idx));
                 }
             }
-            self.add_structline(
-                &f.name, source_s, source_t, target_s, target_t, false, products,
-            );
+            self.add_structline(&f.name, source_s, source_t, f.s, f.t, false, products);
         }
     }
 }
