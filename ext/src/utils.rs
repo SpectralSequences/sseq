@@ -194,25 +194,27 @@ where
 }
 
 /// See [`construct`]
-pub fn construct_standard<T, E>(
+pub fn construct_standard<const U: bool, T, E>(
     module_spec: T,
     save_dir: Option<PathBuf>,
-) -> anyhow::Result<Resolution<CCC>>
+) -> anyhow::Result<crate::resolution::MuResolution<U, CCC>>
 where
     anyhow::Error: From<E>,
     T: TryInto<Config, Error = E>,
+    SteenrodAlgebra: algebra::MuAlgebra<U>,
 {
     let Config {
         module: json,
         algebra,
     } = module_spec.try_into()?;
 
-    let algebra = Arc::new(SteenrodAlgebra::from_json(&json, algebra, false)?);
+    let algebra = Arc::new(SteenrodAlgebra::from_json(&json, algebra, U)?);
     let module = Arc::new(steenrod_module::from_json(Arc::clone(&algebra), &json)?);
     let mut chain_complex = Arc::new(FiniteChainComplex::ccdz(Arc::clone(&module)));
 
     let cofiber = &json["cofiber"];
     if !cofiber.is_null() {
+        assert!(!U, "Cofiber not supported for unstable resolution");
         use crate::chain_complex::ChainMap;
         use crate::yoneda::yoneda_representative;
         use algebra::module::homomorphism::FreeModuleHomomorphism;
@@ -252,7 +254,7 @@ where
         chain_complex = Arc::new(yoneda.map(|m| Box::new(m.clone()) as SteenrodModule));
     }
 
-    Resolution::new_with_save(chain_complex, save_dir)
+    crate::resolution::MuResolution::new_with_save(chain_complex, save_dir)
 }
 
 /// Given the name of a module file (without the `.json` extension), find a json file with this

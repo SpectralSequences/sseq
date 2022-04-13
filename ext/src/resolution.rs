@@ -957,7 +957,7 @@ mod test {
 
     #[test]
     fn test_restart_stem() {
-        let res = construct_standard("S_2", None).unwrap();
+        let res = construct_standard::<false, _, _>("S_2", None).unwrap();
         res.compute_through_stem(8, 14);
         res.compute_through_bidegree(5, 19);
 
@@ -979,7 +979,8 @@ mod test {
     fn test_apply_quasi_inverse() {
         let tempdir = tempfile::TempDir::new().unwrap();
 
-        let mut res = construct_standard("S_2", Some(tempdir.path().into())).unwrap();
+        let mut res =
+            construct_standard::<false, _, _>("S_2", Some(tempdir.path().into())).unwrap();
         res.load_quasi_inverse = false;
 
         res.compute_through_bidegree(8, 8);

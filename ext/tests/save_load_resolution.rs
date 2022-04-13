@@ -39,7 +39,8 @@ fn unlock_tempdir(dir: &Path) {
 #[should_panic]
 fn test_tempdir_lock() {
     let tempdir = tempfile::TempDir::new().unwrap();
-    let resolution1 = construct_standard("S_2", Some(tempdir.path().into())).unwrap();
+    let resolution1 =
+        construct_standard::<false, _, _>("S_2", Some(tempdir.path().into())).unwrap();
     resolution1.compute_through_bidegree(5, 5);
 
     lock_tempdir(tempdir.path());
@@ -49,7 +50,8 @@ fn test_tempdir_lock() {
 #[test]
 fn test_tempdir_unlock() {
     let tempdir = tempfile::TempDir::new().unwrap();
-    let resolution1 = construct_standard("S_2", Some(tempdir.path().into())).unwrap();
+    let resolution1 =
+        construct_standard::<false, _, _>("S_2", Some(tempdir.path().into())).unwrap();
     resolution1.compute_through_bidegree(5, 5);
 
     lock_tempdir(tempdir.path());
@@ -60,13 +62,15 @@ fn test_tempdir_unlock() {
 #[test]
 fn test_save_load() {
     let tempdir = tempfile::TempDir::new().unwrap();
-    let mut resolution1 = construct_standard("S_2", Some(tempdir.path().into())).unwrap();
+    let mut resolution1 =
+        construct_standard::<false, _, _>("S_2", Some(tempdir.path().into())).unwrap();
 
     resolution1.compute_through_bidegree(10, 6);
     resolution1.compute_through_bidegree(6, 10);
     resolution1.should_save = false;
 
-    let mut resolution2 = construct_standard("S_2", Some(tempdir.path().into())).unwrap();
+    let mut resolution2 =
+        construct_standard::<false, _, _>("S_2", Some(tempdir.path().into())).unwrap();
 
     // Check that we are not writing anything new.
     lock_tempdir(tempdir.path());
@@ -94,10 +98,12 @@ fn test_save_load() {
 #[should_panic]
 fn wrong_algebra() {
     let tempdir = tempfile::TempDir::new().unwrap();
-    let resolution1 = construct_standard("S_2@adem", Some(tempdir.path().into())).unwrap();
+    let resolution1 =
+        construct_standard::<false, _, _>("S_2@adem", Some(tempdir.path().into())).unwrap();
     resolution1.compute_through_bidegree(2, 2);
 
-    let resolution2 = construct_standard("S_2@milnor", Some(tempdir.path().into())).unwrap();
+    let resolution2 =
+        construct_standard::<false, _, _>("S_2@milnor", Some(tempdir.path().into())).unwrap();
     resolution2.compute_through_bidegree(2, 2);
 }
 
@@ -105,11 +111,13 @@ fn wrong_algebra() {
 fn test_save_load_stem() {
     let tempdir = tempfile::TempDir::new().unwrap();
 
-    let resolution1 = construct_standard("S_2", Some(tempdir.path().into())).unwrap();
+    let resolution1 =
+        construct_standard::<false, _, _>("S_2", Some(tempdir.path().into())).unwrap();
 
     resolution1.compute_through_stem(10, 10);
 
-    let resolution2 = construct_standard("S_2", Some(tempdir.path().into())).unwrap();
+    let resolution2 =
+        construct_standard::<false, _, _>("S_2", Some(tempdir.path().into())).unwrap();
     lock_tempdir(tempdir.path());
 
     resolution2.compute_through_stem(10, 10);
@@ -130,10 +138,12 @@ fn test_save_load_stem() {
 fn test_save_load_resume() {
     let tempdir = tempfile::TempDir::new().unwrap();
 
-    let resolution1 = construct_standard("S_2", Some(tempdir.path().into())).unwrap();
+    let resolution1 =
+        construct_standard::<false, _, _>("S_2", Some(tempdir.path().into())).unwrap();
     resolution1.compute_through_stem(8, 14);
 
-    let resolution2 = construct_standard("S_2", Some(tempdir.path().into())).unwrap();
+    let resolution2 =
+        construct_standard::<false, _, _>("S_2", Some(tempdir.path().into())).unwrap();
     lock_tempdir(tempdir.path());
     resolution2.compute_through_stem(8, 14);
     unlock_tempdir(tempdir.path());
@@ -153,10 +163,12 @@ fn test_save_load_resume() {
 fn test_load_smaller() {
     let tempdir = tempfile::TempDir::new().unwrap();
 
-    let resolution1 = construct_standard("S_2", Some(tempdir.path().into())).unwrap();
+    let resolution1 =
+        construct_standard::<false, _, _>("S_2", Some(tempdir.path().into())).unwrap();
     resolution1.compute_through_stem(8, 14);
 
-    let resolution2 = construct_standard("S_2", Some(tempdir.path().into())).unwrap();
+    let resolution2 =
+        construct_standard::<false, _, _>("S_2", Some(tempdir.path().into())).unwrap();
     resolution2.compute_through_stem(5, 8);
 }
 
@@ -164,7 +176,8 @@ fn test_load_smaller() {
 fn test_load_secondary() {
     let tempdir = tempfile::TempDir::new().unwrap();
 
-    let mut resolution1 = construct_standard("S_2", Some(tempdir.path().into())).unwrap();
+    let mut resolution1 =
+        construct_standard::<false, _, _>("S_2", Some(tempdir.path().into())).unwrap();
     resolution1.load_quasi_inverse = false;
     resolution1.compute_through_stem(4, 10);
 
@@ -191,7 +204,8 @@ fn test_load_secondary() {
     assert!(!is_empty("secondary_composites"));
 
     // Load the resolution and extend further
-    let mut resolution2 = construct_standard("S_2", Some(tempdir.path().into())).unwrap();
+    let mut resolution2 =
+        construct_standard::<false, _, _>("S_2", Some(tempdir.path().into())).unwrap();
     resolution2.load_quasi_inverse = false;
     resolution2.compute_through_stem(8, 15);
 
@@ -207,7 +221,8 @@ fn test_load_secondary() {
     assert_eq!(lift2.homotopy(3).homotopies.hom_k(16), vec![vec![1]]);
 
     // Now try to load a smaller resolution
-    let mut resolution3 = construct_standard("S_2", Some(tempdir.path().into())).unwrap();
+    let mut resolution3 =
+        construct_standard::<false, _, _>("S_2", Some(tempdir.path().into())).unwrap();
     resolution3.load_quasi_inverse = false;
     resolution3.compute_through_stem(5, 12);
 
@@ -225,7 +240,7 @@ fn test_checksum() {
 
     let tempdir = tempfile::TempDir::new().unwrap();
 
-    construct_standard("S_2", Some(tempdir.path().into()))
+    construct_standard::<false, _, _>("S_2", Some(tempdir.path().into()))
         .unwrap()
         .compute_through_bidegree(2, 2);
 
@@ -241,7 +256,7 @@ fn test_checksum() {
     file.seek(SeekFrom::Start(41)).unwrap();
     file.write_all(&[1]).unwrap();
 
-    construct_standard("S_2", Some(tempdir.path().into()))
+    construct_standard::<false, _, _>("S_2", Some(tempdir.path().into()))
         .unwrap()
         .compute_through_bidegree(2, 2);
 }

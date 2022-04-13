@@ -9,7 +9,7 @@ use rstest::rstest;
 #[case("Joker", 30)]
 #[case("Csigma", 30)]
 fn compare(#[case] module_name: &str, #[case] max_degree: i32) {
-    let a = construct_standard(module_name, None).unwrap();
+    let a = construct_standard::<false, _, _>(module_name, None).unwrap();
     let b = construct_nassau(module_name, None).unwrap();
 
     a.compute_through_bidegree(max_degree as u32, max_degree);
