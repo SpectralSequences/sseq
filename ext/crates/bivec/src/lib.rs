@@ -207,10 +207,6 @@ impl<T> BiVec<T> {
     pub fn range(&self) -> std::ops::Range<i32> {
         self.min_degree..self.len()
     }
-
-    pub fn shift(&mut self, k: i32) {
-        self.min_degree += k
-    }
 }
 
 impl<T> IntoIterator for BiVec<T> {

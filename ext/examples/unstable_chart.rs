@@ -18,21 +18,21 @@
 
 use std::{path::PathBuf, sync::Arc};
 
-use algebra::module::{FDModule, Module};
+use algebra::module::{Module, SuspensionModule};
 use algebra::Algebra;
 use chart::{Backend, Orientation, TikzBackend};
 use ext::chain_complex::{FiniteChainComplex, FreeChainComplex};
 use ext::resolution::UnstableResolution;
 
 fn main() -> anyhow::Result<()> {
-    let mut module = ext::utils::query_unstable_module_only()?;
+    let module = Arc::new(ext::utils::query_unstable_module_only()?);
     let save_dir = {
         let base = query::optional("Module save directory", |x| {
             core::result::Result::<PathBuf, std::convert::Infallible>::Ok(PathBuf::from(x))
         });
-        move |module: &FDModule<_>| {
+        move |shift| {
             base.as_ref().cloned().map(|mut x| {
-                x.push(format!("suspension{}", module.min_degree()));
+                x.push(format!("suspension{shift}"));
                 x
             })
         }
@@ -48,16 +48,17 @@ fn main() -> anyhow::Result<()> {
 
     let products = module.algebra().default_filtration_one_products();
 
-    while module.min_degree() - 2 <= max_n {
+    for shift in 0..max_n - module.min_degree() + 3 {
         let res: Arc<UnstableResolution<FiniteChainComplex<_>>> =
             Arc::new(UnstableResolution::new_with_save(
-                Arc::new(FiniteChainComplex::ccdz(Arc::new(module.clone()))),
-                save_dir(&module),
+                Arc::new(FiniteChainComplex::ccdz(Arc::new(SuspensionModule::new(
+                    Arc::clone(&module),
+                    shift,
+                )))),
+                save_dir(shift),
             )?);
 
-        res.compute_through_stem(max_s, max_n + module.min_degree());
-
-        let min_degree = module.min_degree();
+        res.compute_through_stem(max_s, max_n + shift);
 
         println!("\\begin{{figure}}[p]\\centering");
 
@@ -78,15 +79,13 @@ fn main() -> anyhow::Result<()> {
                 g.text(
                     1,
                     max_s as i32 - 1,
-                    disp_template.replace('%', &format!("{}", min_degree)),
+                    disp_template.replace('%', &format!("{}", shift)),
                     Orientation::Right,
                 )
             },
         )?;
 
         println!("\\end{{figure}}");
-
-        module.suspend(1);
     }
     Ok(())
 }

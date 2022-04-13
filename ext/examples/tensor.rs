@@ -1,5 +1,5 @@
-use algebra::module::{FDModule, TensorModule};
-use algebra::AdemAlgebra;
+use algebra::module::{steenrod_module, FDModule, TensorModule};
+use algebra::{AdemAlgebra, SteenrodAlgebra};
 use ext::utils::parse_module_name;
 use fp::prime::ValidPrime;
 
@@ -21,9 +21,9 @@ fn main() -> anyhow::Result<()> {
     });
 
     let p = ValidPrime::new(p as u32);
-    let algebra = Arc::new(AdemAlgebra::new(p, false));
-    let left_module = FDModule::from_json(Arc::clone(&algebra), &left)?;
-    let right_module = FDModule::from_json(Arc::clone(&algebra), &right)?;
+    let algebra = Arc::new(SteenrodAlgebra::AdemAlgebra(AdemAlgebra::new(p, false)));
+    let left_module = steenrod_module::from_json(Arc::clone(&algebra), &left)?;
+    let right_module = steenrod_module::from_json(Arc::clone(&algebra), &right)?;
 
     let mut tensor = FDModule::from(&TensorModule::new(
         Arc::new(left_module),

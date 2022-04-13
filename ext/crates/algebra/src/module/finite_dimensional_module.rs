@@ -213,15 +213,6 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
         }
     }
 
-    pub fn suspend(&mut self, k: i32) {
-        self.graded_dimension.shift(k);
-        self.gen_names.shift(k);
-        self.actions.shift(k);
-        for action in &mut self.actions {
-            action.shift(k);
-        }
-    }
-
     pub fn set_basis_element_name(&mut self, degree: i32, idx: usize, name: String) {
         self.gen_names[degree][idx] = name;
     }

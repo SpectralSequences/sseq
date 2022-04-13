@@ -51,10 +51,10 @@ pub fn parse_module_name(module_name: &str) -> anyhow::Result<Value> {
                 .parse()
                 .with_context(|| format!("Cannot parse shift value ({}) as an integer", x))?,
         };
-        if let Some(gens) = module["gens"].as_object_mut() {
-            for entry in gens.into_iter() {
-                *entry.1 = (entry.1.as_i64().unwrap() + shift).into()
-            }
+        if let Some(spec_shift) = module.get_mut("shift") {
+            *spec_shift = Value::from(spec_shift.as_i64().unwrap() + shift);
+        } else {
+            module["shift"] = Value::from(shift);
         }
     }
     Ok(module)
@@ -217,8 +217,10 @@ where
         use crate::yoneda::yoneda_representative;
         use algebra::module::homomorphism::FreeModuleHomomorphism;
 
+        let shift = json["shift"].as_i64().unwrap_or(0) as i32;
+
         let s = cofiber["s"].as_u64().unwrap() as u32;
-        let t = cofiber["t"].as_i64().unwrap() as i32;
+        let t = cofiber["t"].as_i64().unwrap() as i32 + shift;
         let idx = cofiber["idx"].as_u64().unwrap() as usize;
 
         let max_degree = module
@@ -394,19 +396,19 @@ pub fn query_module(
     Ok(resolution)
 }
 
-pub fn query_unstable_module_only() -> anyhow::Result<FDModule<SteenrodAlgebra>> {
+pub fn query_unstable_module_only() -> anyhow::Result<SteenrodModule> {
     let spec: Config = query::raw("Module", |x| x.try_into());
     let algebra = Arc::new(SteenrodAlgebra::from_json(
         &spec.module,
         spec.algebra,
         true,
     )?);
-    FDModule::from_json(algebra, &spec.module)
+    steenrod_module::from_json(algebra, &spec.module)
 }
 
 pub fn query_unstable_module(
     load_quasi_inverse: impl Into<LoadQuasiInverseOption>,
-) -> anyhow::Result<UnstableResolution<FiniteChainComplex<FDModule<SteenrodAlgebra>>>> {
+) -> anyhow::Result<UnstableResolution<CCC>> {
     let module = Arc::new(query_unstable_module_only()?);
     let cc = Arc::new(FiniteChainComplex::ccdz(module));
 
