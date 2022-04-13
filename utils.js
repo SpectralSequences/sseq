@@ -2,6 +2,13 @@ export const KATEX_ARGS = {
     throwOnError: false,
 };
 
+// Parses HTML string into a DOM object
+export function html(s) {
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = s.trim();
+    return wrapper.firstChild;
+}
+
 export function vecToName(v, names) {
     const items = [];
     for (let i = 0; i < v.length; i++) {

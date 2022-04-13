@@ -499,6 +499,7 @@
 <span id="469">469</span>
 <span id="470">470</span>
 <span id="471">471</span>
+<span id="472">472</span>
 </pre><pre class="rust"><code><span class="doccomment">//! This implements the notion of a split pair algebra in the sense of</span>
 <span class="doccomment">//! &lt;https://arxiv.org/abs/2105.07628&gt;, whose notation we will use throughout. The Steenrod algebra</span>
 <span class="doccomment">//! admits a lift to a split pair algebra, which can be used to compute d2 differentials</span>
@@ -701,6 +702,7 @@
                             <span class="ident">coeff</span>,
                             <span class="kw-2">&amp;</span><span class="ident">r</span>,
                             <span class="kw-2">&amp;</span><span class="ident">s</span>,
+                            <span class="ident">i32::MAX</span>,
                             <span class="ident">allocation</span>,
                         );
                         <span class="macro">unsub!</span>(<span class="ident">r</span>, <span class="ident">m</span>, <span class="ident">k</span>);
@@ -949,7 +951,7 @@
 
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">test_a_y</span>() {
-        <span class="kw">let</span> <span class="ident">algebra</span> <span class="op">=</span> <span class="ident">MilnorAlgebra::new</span>(<span class="ident">TWO</span>);
+        <span class="kw">let</span> <span class="ident">algebra</span> <span class="op">=</span> <span class="ident">MilnorAlgebra::new</span>(<span class="ident">TWO</span>, <span class="bool-val">false</span>);
 
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="ident">TWO</span>, <span class="number">0</span>);
 

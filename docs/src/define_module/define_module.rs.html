@@ -415,7 +415,7 @@
     <span class="ident">p</span>: <span class="ident">ValidPrime</span>,
 ) -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
     <span class="ident">output_json</span>[<span class="string">&quot;p&quot;</span>] <span class="op">=</span> <span class="ident">Value::from</span>(<span class="kw-2">*</span><span class="ident">p</span>);
-    <span class="kw">let</span> <span class="ident">algebra</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">AdemAlgebra::new</span>(<span class="ident">p</span>, <span class="kw-2">*</span><span class="ident">p</span> <span class="op">!</span><span class="op">=</span> <span class="number">2</span>, <span class="bool-val">false</span>));
+    <span class="kw">let</span> <span class="ident">algebra</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">AdemAlgebra::new</span>(<span class="ident">p</span>, <span class="bool-val">false</span>));
 
     <span class="kw">let</span> <span class="ident">gens</span> <span class="op">=</span> <span class="ident">get_gens</span>()<span class="question-mark">?</span>;
     <span class="kw">let</span> <span class="ident">min_degree</span> <span class="op">=</span> <span class="ident">gens</span>.<span class="ident">min_degree</span>();

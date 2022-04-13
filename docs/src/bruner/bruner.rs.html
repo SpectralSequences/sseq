@@ -415,11 +415,11 @@
 <span class="doccomment">/// Create a new `FiniteChainComplex` with `num_s` many non-zero modules.</span>
 <span class="kw">fn</span> <span class="ident">create_chain_complex</span>(<span class="ident">num_s</span>: <span class="ident">usize</span>) -&gt; <span class="ident">FiniteChainComplex</span> {
     <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;nassau&quot;</span>)]</span>
-    <span class="kw">let</span> <span class="ident">algebra</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">MilnorAlgebra</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">MilnorAlgebra::new</span>(<span class="ident">TWO</span>));
+    <span class="kw">let</span> <span class="ident">algebra</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">MilnorAlgebra</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">MilnorAlgebra::new</span>(<span class="ident">TWO</span>, <span class="bool-val">false</span>));
 
     <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;nassau&quot;</span>))]</span>
     <span class="kw">let</span> <span class="ident">algebra</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">algebra::SteenrodAlgebra</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">algebra::SteenrodAlgebra::MilnorAlgebra</span>(
-        <span class="ident">MilnorAlgebra::new</span>(<span class="ident">TWO</span>),
+        <span class="ident">MilnorAlgebra::new</span>(<span class="ident">TWO</span>, <span class="bool-val">false</span>),
     ));
 
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">modules</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">FreeModule</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Vec::with_capacity</span>(<span class="ident">num_s</span>);

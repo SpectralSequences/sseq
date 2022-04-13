@@ -148,22 +148,17 @@
 <span id="118">118</span>
 <span id="119">119</span>
 <span id="120">120</span>
-<span id="121">121</span>
-<span id="122">122</span>
-<span id="123">123</span>
-<span id="124">124</span>
-<span id="125">125</span>
 </pre><pre class="rust"><code><span class="doccomment">//! Computes the suspension map between different unstable Ext groups.</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! Given an unstable Steenrod module $M$, compute the unstable Ext groups of $\Sigma^k M$ for all</span>
 <span class="doccomment">//! $k$ up till the stable range. Each result is printed in the form</span>
 <span class="doccomment">//! ```</span>
-<span class="doccomment">//! n s min_degree: num_gens - matrix</span>
+<span class="doccomment">//! n s k: num_gens - matrix</span>
 <span class="doccomment">//! ```</span>
 <span class="doccomment">//! The entries are to be interpreted as follows:</span>
 <span class="doccomment">//!  - `n` is the stem, which is defined to be `t - s - min_degree`</span>
 <span class="doccomment">//!  - `s` is the Adams filtration</span>
-<span class="doccomment">//!  - `min_degree` is the minimum degre of $\Sigma^k M$.</span>
+<span class="doccomment">//!  - `k` is the shift</span>
 <span class="doccomment">//!  - `num_gens` is the number of generators in this Ext group</span>
 <span class="doccomment">//!  - `matrix` is the matrix representing the suspension map from $\Sigma^k M$. This is omitted if</span>
 <span class="doccomment">//!    the source or target of the suspension map is trivial, or if they have the same dimension</span>
@@ -173,7 +168,7 @@
 
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">path::PathBuf</span>, <span class="ident">sync::Arc</span>};
 
-<span class="kw">use</span> <span class="ident">algebra::module</span>::{<span class="ident">FDModule</span>, <span class="ident">Module</span>};
+<span class="kw">use</span> <span class="ident">algebra::module</span>::{<span class="ident">Module</span>, <span class="ident">SuspensionModule</span>};
 <span class="kw">use</span> <span class="ident">ext::chain_complex</span>::{<span class="ident">FiniteChainComplex</span>, <span class="ident">FreeChainComplex</span>};
 <span class="kw">use</span> <span class="ident">ext</span>::{
     <span class="ident">resolution::UnstableResolution</span>, <span class="ident">resolution_homomorphism::UnstableResolutionHomomorphism</span>,
@@ -181,52 +176,52 @@
 <span class="kw">use</span> <span class="ident">fp::vector::FpVector</span>;
 
 <span class="kw">fn</span> <span class="ident">main</span>() -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">module</span> <span class="op">=</span> <span class="ident">ext::utils::query_unstable_module_only</span>()<span class="question-mark">?</span>;
+    <span class="kw">let</span> <span class="ident">module</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">ext::utils::query_unstable_module_only</span>()<span class="question-mark">?</span>);
     <span class="kw">let</span> <span class="ident">save_dir</span> <span class="op">=</span> {
         <span class="kw">let</span> <span class="ident">base</span> <span class="op">=</span> <span class="ident">query::optional</span>(<span class="string">&quot;Module save directory&quot;</span>, <span class="op">|</span><span class="ident">x</span><span class="op">|</span> {
             <span class="ident">core::result::Result</span>::<span class="op">&lt;</span><span class="ident">PathBuf</span>, <span class="ident">std::convert::Infallible</span><span class="op">&gt;</span><span class="ident">::Ok</span>(<span class="ident">PathBuf::from</span>(<span class="ident">x</span>))
         });
-        <span class="kw">move</span> <span class="op">|</span><span class="ident">module</span>: <span class="kw-2">&amp;</span><span class="ident">FDModule</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">|</span> {
+        <span class="kw">move</span> <span class="op">|</span><span class="ident">shift</span><span class="op">|</span> {
             <span class="ident">base</span>.<span class="ident">as_ref</span>().<span class="ident">cloned</span>().<span class="ident">map</span>(<span class="op">|</span><span class="kw-2">mut</span> <span class="ident">x</span><span class="op">|</span> {
-                <span class="ident">x</span>.<span class="ident">push</span>(<span class="macro">format!</span>(<span class="string">&quot;suspension{}&quot;</span>, <span class="ident">module</span>.<span class="ident">min_degree</span>()));
+                <span class="ident">x</span>.<span class="ident">push</span>(<span class="macro">format!</span>(<span class="string">&quot;suspension{shift}&quot;</span>));
                 <span class="ident">x</span>
             })
         }
     };
 
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">max_n</span>: <span class="ident">i32</span> <span class="op">=</span> <span class="ident">query::raw</span>(<span class="string">&quot;Max n&quot;</span>, <span class="ident">str::parse</span>);
+    <span class="kw">let</span> <span class="ident">max_n</span>: <span class="ident">i32</span> <span class="op">=</span> <span class="ident">query::raw</span>(<span class="string">&quot;Max n&quot;</span>, <span class="ident">str::parse</span>);
     <span class="kw">let</span> <span class="ident">max_s</span>: <span class="ident">u32</span> <span class="op">=</span> <span class="ident">query::raw</span>(<span class="string">&quot;Max s&quot;</span>, <span class="ident">str::parse</span>);
+    <span class="kw">let</span> <span class="ident">min_degree</span> <span class="op">=</span> <span class="ident">module</span>.<span class="ident">min_degree</span>();
 
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">res_a</span>;
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">res_b</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">UnstableResolution</span><span class="op">&lt;</span><span class="ident">FiniteChainComplex</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span>
         <span class="ident">Arc::new</span>(<span class="ident">UnstableResolution::new_with_save</span>(
-            <span class="ident">Arc::new</span>(<span class="ident">FiniteChainComplex::ccdz</span>(<span class="ident">Arc::new</span>(<span class="ident">module</span>.<span class="ident">clone</span>()))),
-            <span class="ident">save_dir</span>(<span class="kw-2">&amp;</span><span class="ident">module</span>),
+            <span class="ident">Arc::new</span>(<span class="ident">FiniteChainComplex::ccdz</span>(<span class="ident">Arc::new</span>(<span class="ident">SuspensionModule::new</span>(
+                <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">module</span>),
+                <span class="number">0</span>,
+            )))),
+            <span class="ident">save_dir</span>(<span class="number">0</span>),
         )<span class="question-mark">?</span>);
     <span class="ident">res_b</span>.<span class="ident">compute_through_stem</span>(<span class="ident">max_s</span>, <span class="ident">max_n</span>);
 
-    <span class="kw">for</span> <span class="ident">n</span> <span class="kw">in</span> <span class="ident">module</span>.<span class="ident">min_degree</span>()..<span class="op">=</span><span class="ident">max_n</span> {
-        <span class="kw">let</span> <span class="ident">min_degree</span> <span class="op">=</span> <span class="ident">module</span>.<span class="ident">min_degree</span>();
+    <span class="kw">for</span> <span class="ident">n</span> <span class="kw">in</span> <span class="ident">min_degree</span>..<span class="op">=</span><span class="ident">max_n</span> {
         <span class="kw">for</span> <span class="ident">s</span> <span class="kw">in</span> <span class="number">0</span>..<span class="op">=</span><span class="ident">max_s</span> {
             <span class="kw">let</span> <span class="ident">source_num_gens</span> <span class="op">=</span> <span class="ident">res_b</span>.<span class="ident">number_of_gens_in_bidegree</span>(<span class="ident">s</span>, <span class="ident">n</span> <span class="op">+</span> <span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span>);
-            <span class="macro">println!</span>(
-                <span class="string">&quot;{n} {s} {min_degree}: {source_num_gens}&quot;</span>,
-                <span class="ident">n</span> <span class="op">=</span> <span class="ident">n</span> <span class="op">-</span> <span class="ident">min_degree</span>
-            );
+            <span class="macro">println!</span>(<span class="string">&quot;{n} {s} 0: {source_num_gens}&quot;</span>,);
         }
     }
 
-    <span class="kw">while</span> <span class="number">2</span> <span class="op">*</span> <span class="ident">module</span>.<span class="ident">min_degree</span>() <span class="op">-</span> <span class="number">2</span> <span class="op">&lt;</span> <span class="ident">max_n</span> {
-        <span class="ident">module</span>.<span class="ident">suspend</span>(<span class="number">1</span>);
-        <span class="ident">max_n</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
-
+    <span class="kw">for</span> <span class="ident">shift</span> <span class="kw">in</span> <span class="number">1</span>..<span class="ident">max_n</span> <span class="op">-</span> <span class="ident">module</span>.<span class="ident">min_degree</span>() <span class="op">+</span> <span class="number">3</span> {
         <span class="ident">res_a</span> <span class="op">=</span> <span class="ident">res_b</span>;
         <span class="ident">res_b</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">UnstableResolution::new_with_save</span>(
-            <span class="ident">Arc::new</span>(<span class="ident">FiniteChainComplex::ccdz</span>(<span class="ident">Arc::new</span>(<span class="ident">module</span>.<span class="ident">clone</span>()))),
-            <span class="ident">save_dir</span>(<span class="kw-2">&amp;</span><span class="ident">module</span>),
+            <span class="ident">Arc::new</span>(<span class="ident">FiniteChainComplex::ccdz</span>(<span class="ident">Arc::new</span>(<span class="ident">SuspensionModule::new</span>(
+                <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">module</span>),
+                <span class="ident">shift</span>,
+            )))),
+            <span class="ident">save_dir</span>(<span class="ident">shift</span>),
         )<span class="question-mark">?</span>);
 
-        <span class="ident">res_b</span>.<span class="ident">compute_through_stem</span>(<span class="ident">max_s</span>, <span class="ident">max_n</span>);
+        <span class="ident">res_b</span>.<span class="ident">compute_through_stem</span>(<span class="ident">max_s</span>, <span class="ident">max_n</span> <span class="op">+</span> <span class="ident">shift</span>);
 
         <span class="kw">let</span> <span class="ident">hom</span> <span class="op">=</span> <span class="ident">UnstableResolutionHomomorphism::new</span>(
             <span class="ident">String::from</span>(<span class="string">&quot;suspension&quot;</span>),
@@ -236,17 +231,15 @@
             <span class="number">1</span>,
         );
 
-        <span class="kw">let</span> <span class="ident">min_degree</span> <span class="op">=</span> <span class="ident">module</span>.<span class="ident">min_degree</span>();
-
         <span class="ident">hom</span>.<span class="ident">extend_step_raw</span>(
             <span class="number">0</span>,
-            <span class="ident">min_degree</span>,
+            <span class="ident">min_degree</span> <span class="op">+</span> <span class="ident">shift</span>,
             <span class="prelude-val">Some</span>(<span class="macro">vec!</span>[<span class="ident">FpVector::from_slice</span>(<span class="ident">module</span>.<span class="ident">prime</span>(), <span class="kw-2">&amp;</span>[<span class="number">1</span>])]),
         );
         <span class="ident">hom</span>.<span class="ident">extend_all</span>();
 
-        <span class="kw">for</span> <span class="ident">n</span> <span class="kw">in</span> (<span class="number">2</span> <span class="op">*</span> <span class="ident">min_degree</span>) <span class="op">-</span> <span class="number">2</span>..<span class="op">=</span><span class="ident">max_n</span> {
-            <span class="kw">if</span> <span class="ident">n</span> <span class="op">&lt;</span> <span class="ident">min_degree</span> {
+        <span class="kw">for</span> <span class="ident">n</span> <span class="kw">in</span> <span class="number">2</span> <span class="op">*</span> (<span class="ident">min_degree</span> <span class="op">+</span> <span class="ident">shift</span> <span class="op">-</span> <span class="number">1</span>)..<span class="op">=</span><span class="ident">max_n</span> <span class="op">+</span> <span class="ident">shift</span> {
+            <span class="kw">if</span> <span class="ident">n</span> <span class="op">&lt;</span> <span class="ident">min_degree</span> <span class="op">+</span> <span class="ident">shift</span> {
                 <span class="kw">continue</span>;
             }
             <span class="kw">for</span> <span class="ident">s</span> <span class="kw">in</span> <span class="number">0</span>..<span class="op">=</span><span class="ident">max_s</span> {
@@ -268,10 +261,7 @@
                         <span class="macro">format!</span>(<span class="string">&quot; - {m:?}&quot;</span>)
                     }
                 };
-                <span class="macro">println!</span>(
-                    <span class="string">&quot;{n} {s} {min_degree}: {source_num_gens}{m}&quot;</span>,
-                    <span class="ident">n</span> <span class="op">=</span> <span class="ident">n</span> <span class="op">-</span> <span class="ident">min_degree</span>
-                );
+                <span class="macro">println!</span>(<span class="string">&quot;{n} {s} {shift}: {source_num_gens}{m}&quot;</span>, <span class="ident">n</span> <span class="op">=</span> <span class="ident">n</span> <span class="op">-</span> <span class="ident">shift</span>);
             }
         }
     }

@@ -357,9 +357,6 @@
 <span id="327">327</span>
 <span id="328">328</span>
 <span id="329">329</span>
-<span id="330">330</span>
-<span id="331">331</span>
-<span id="332">332</span>
 </pre><pre class="rust"><code><span class="doccomment">//! This module includes code for parsing an expression in the Steenrod algebra into an abstract</span>
 <span class="doccomment">//! syntax tree.</span>
 
@@ -458,7 +455,6 @@
                 <span class="kw">if</span> <span class="ident">q</span> <span class="op">==</span> <span class="number">1</span> {
                     <span class="ident">AdemBasisElement</span> {
                         <span class="ident">degree</span>: <span class="number">1</span>,
-                        <span class="ident">excess</span>: <span class="number">1</span>,
                         <span class="ident">bocksteins</span>: <span class="number">0</span>,
                         <span class="ident">ps</span>: <span class="macro">vec!</span>[<span class="number">1</span>],
                         <span class="ident">p_or_sq</span>: <span class="bool-val">false</span>,
@@ -466,7 +462,6 @@
                 } <span class="kw">else</span> {
                     <span class="ident">AdemBasisElement</span> {
                         <span class="ident">degree</span>: <span class="number">1</span>,
-                        <span class="ident">excess</span>: <span class="number">1</span>,
                         <span class="ident">bocksteins</span>: <span class="number">1</span>,
                         <span class="ident">ps</span>: <span class="macro">vec!</span>[],
                         <span class="ident">p_or_sq</span>: <span class="bool-val">true</span>,
@@ -475,7 +470,6 @@
             }
             <span class="ident">BocksteinOrSq::Sq</span>(<span class="ident">x</span>) =&gt; <span class="ident">AdemBasisElement</span> {
                 <span class="ident">degree</span>: <span class="ident">x</span> <span class="kw">as</span> <span class="ident">i32</span> <span class="op">*</span> <span class="ident">q</span>,
-                <span class="ident">excess</span>: <span class="number">2</span> <span class="op">*</span> <span class="ident">x</span> <span class="kw">as</span> <span class="ident">i32</span>,
                 <span class="ident">bocksteins</span>: <span class="number">0</span>,
                 <span class="ident">ps</span>: <span class="macro">vec!</span>[<span class="ident">x</span>],
                 <span class="ident">p_or_sq</span>: <span class="ident">q</span> <span class="op">!</span><span class="op">=</span> <span class="number">1</span>,

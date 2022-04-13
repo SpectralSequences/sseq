@@ -5,6 +5,7 @@ import {
     matrixToKaTeX,
     vecToName,
     KATEX_ARGS,
+    html,
 } from './utils.js';
 import { MIN_PAGE } from './sseq.js';
 
@@ -23,16 +24,6 @@ class InputRow extends HTMLElement {
 
     static get observedAttributes() {
         return ['label', 'type', 'value', 'title'];
-    }
-
-    static new(label, value, type) {
-        const ret = new InputRow();
-        ret.setAttribute('label', label);
-        ret.setAttribute('value', value);
-        if (type !== undefined) {
-            ret.setAttribute('type', type);
-        }
-        return ret;
     }
 
     constructor() {
@@ -185,18 +176,6 @@ function msgToDisplay(msg, sseq) {
     return ACTION_TO_DISPLAY[actionName](actionInfo, sseq);
 }
 
-function createHeader(title) {
-    const header = document.createElement('h2');
-    header.innerHTML = title;
-    return header;
-}
-
-function createSpacer() {
-    const div = document.createElement('div');
-    div.classList.add('panel-spacer');
-    return div;
-}
-
 function createPanelLine(sseq, html, callback, highlights) {
     const node = document.createElement('div');
     node.className = 'panel-line';
@@ -344,7 +323,10 @@ export class TabbedPanel extends HTMLElement {
         while (this.inner.firstChild)
             this.inner.removeChild(this.inner.firstChild);
 
-        for (const group of tab[0](this.sseq)) {
+        for (let group of tab[0](this.sseq)) {
+            if (typeof group === 'string') {
+                group = html(group);
+            }
             this.inner.appendChild(group);
         }
     }
@@ -365,39 +347,28 @@ function* historyPanel(sseq) {
     for (const data of sseq.history) {
         const [titleText, highlightClasses, content] = msgToDisplay(data, sseq);
 
-        const remove = document.createElement('a');
-        remove.style.float = 'right';
-        remove.style.color = '#dc3545';
-        remove.innerHTML = '&times;';
-        remove.href = '#';
-
-        remove.addEventListener('click', () => {
+        let div;
+        if (content !== undefined) {
+            div = html(`
+            <details>
+                <summary>
+                    <span>${titleText}</span>
+                    <a style="float: right; color: #dc3545" href="#">&times;</a>
+                </summary>
+                <div style="text-align: center">${content}</div>
+            </details>`);
+        } else {
+            div = html(`
+                <div>
+                    <span>${titleText}</span>
+                    <a style="float: right; color: #dc3545" href="#">&times;</a>
+                </div>`);
+        }
+        div.querySelector('a').addEventListener('click', () => {
             sseq.clearHighlight();
             sseq.removeHistoryItem(data);
         });
 
-        const title = document.createElement('span');
-        title.innerHTML = titleText;
-
-        let div;
-        if (content !== undefined) {
-            div = document.createElement('details');
-
-            const summary = document.createElement('summary');
-            div.appendChild(summary);
-
-            const inner = document.createElement('div');
-            inner.style.textAlign = 'center';
-            inner.innerHTML = content;
-            div.appendChild(inner);
-
-            summary.appendChild(title);
-            summary.appendChild(remove);
-        } else {
-            div = document.createElement('div');
-            div.appendChild(title);
-            div.appendChild(remove);
-        }
         div.addEventListener('mouseover', () => {
             div.style.color = 'blue';
             for (const pair of highlightClasses) {
@@ -413,9 +384,11 @@ function* historyPanel(sseq) {
 }
 
 function* overviewPanel(sseq) {
-    yield createHeader('Vanishing line');
+    yield '<h2>Vanishing line</h2>';
 
-    const slope = InputRow.new('Slope', sseq.vanishingSlope);
+    const slope = html(
+        `<input-row label="Slope" value="${sseq.vanishingSlope}"></input-row>"`,
+    );
 
     slope.addEventListener('change', e => {
         sseq.vanishingSlope = e.target.value;
@@ -423,7 +396,9 @@ function* overviewPanel(sseq) {
     });
     yield slope;
 
-    const intercept = InputRow.new('Intercept', sseq.vanishingIntercept);
+    const intercept = html(
+        `<input-row label="Intercept" value="${sseq.vanishingIntercept}"></input-row>`,
+    );
 
     intercept.addEventListener('change', e => {
         sseq.vanishingIntercept = e.target.value;
@@ -437,50 +412,42 @@ function* overviewPanel(sseq) {
 function* structlinePanel(sseq) {
     const prod = Array.from(sseq.products.entries()).sort();
     for (const [name, mult] of prod) {
-        const div = document.createElement('div');
-        div.style.position = 'relative';
+        const div = html(`
+<div style="position: relative">
+    <details class="product-item">
+        <summary class="product-summary" style="width: 100%" onmouseup="event.target.blur()">
+            <label>${katex.renderToString(name, KATEX_ARGS)}</label>
+            <span style="flex-grow: 1"></span>
+        </summary>
+        <div class="structline-style">
+            <input-row label="Color" value="${mult.style.color}"></input-row>
+            <input-row label="Bend" value="${mult.style.bend}"></input-row>
+            <input-row label="Dash" value="${mult.style.dash}"
+             title="A dash pattern, in the format of SVG's stroke-dasharray. Note that each grid square has side length 1."></input-row>
+        </div>
+    </details>
+    <label class="switch" style="position: absolute; right: 0px">
+        <input type="checkbox"${
+            sseq.visibleStructlines.has(name) ? ' checked' : ''
+        }></input>
+        <span class="slider"></span>
+    </label>
+</div>`);
 
-        const topElement = document.createElement('details');
-        topElement.className = 'product-item';
-        div.appendChild(topElement);
+        const i = div.querySelector('label.switch');
+        i.style.top =
+            div.querySelector('summary').clientHeight - i.clientHeight + 'px';
 
-        const summary = document.createElement('summary');
-        summary.className = 'product-summary';
-        summary.style.width = '100%';
-        summary.addEventListener('mouseup', () => summary.blur());
-        topElement.appendChild(summary);
-
-        const l = document.createElement('label');
-        l.innerHTML = katex.renderToString(name, KATEX_ARGS);
-        summary.appendChild(l);
-
-        const s = document.createElement('span');
-        s.style.flexGrow = 1;
-        summary.appendChild(s);
-
-        const i = document.createElement('label');
-        i.className = 'switch';
-
-        const checkbox = document.createElement('input');
-        checkbox.setAttribute('type', 'checkbox');
-        checkbox.checked = sseq.visibleStructlines.has(name);
-
-        i.appendChild(checkbox);
-
-        const spn = document.createElement('span');
-        spn.className = 'slider';
-        i.appendChild(spn);
-
-        div.appendChild(i);
-
-        i.style.position = 'absolute';
-        i.style.right = '0px';
-        i.style.top = summary.clientHeight - i.clientHeight + 'px';
-
-        /// Styling
-        const styleDiv = document.createElement('div');
-        styleDiv.className = 'structline-style';
-        topElement.appendChild(styleDiv);
+        div.querySelector('label.switch > input').addEventListener(
+            'change',
+            e => {
+                if (e.target.checked) {
+                    sseq.showStructlines(name);
+                } else {
+                    sseq.hideStructlines(name);
+                }
+            },
+        );
 
         const updateStyleObject = () => {
             if (mult.style.styleObject === null) {
@@ -498,44 +465,31 @@ function* structlinePanel(sseq) {
             mult.style.styleObject.textContent = styleText;
         };
 
-        // Color
-        const color = InputRow.new('Color', mult.style.color);
-        color.addEventListener('change', e => {
-            mult.style.color = e.target.value;
-            updateStyleObject();
-        });
-
-        styleDiv.appendChild(color);
-
-        // Bend
-        const bend = InputRow.new('Bend', mult.style.bend);
-        bend.addEventListener('change', e => {
-            mult.style.bend = parseInt(e.target.value);
-            sseq.hideStructlines(name);
-            sseq.showStructlines(name);
-        });
-        styleDiv.appendChild(bend);
-
-        // Dash
-        const dash = InputRow.new('Dash', mult.style.dash);
-        dash.setAttribute(
-            'title',
-            "A dash pattern, in the format of SVG's stroke-dasharray. Note that each grid square has side length 1.",
+        div.querySelector('input-row[label="Color"]').addEventListener(
+            'change',
+            e => {
+                mult.style.color = e.target.value;
+                updateStyleObject();
+            },
         );
-        dash.addEventListener('change', e => {
-            mult.style.dash = e.target.value;
-            updateStyleObject();
-        });
 
-        styleDiv.appendChild(dash);
-
-        checkbox.addEventListener('change', () => {
-            if (checkbox.checked) {
-                sseq.showStructlines(name);
-            } else {
+        div.querySelector('input-row[label="Bend"]').addEventListener(
+            'change',
+            e => {
+                mult.style.bend = parseInt(e.target.value);
                 sseq.hideStructlines(name);
-            }
-        });
+                sseq.showStructlines(name);
+            },
+        );
+
+        div.querySelector('input-row[label="Dash"]').addEventListener(
+            'change',
+            e => {
+                mult.style.dash = e.target.value;
+                updateStyleObject();
+            },
+        );
+
         yield div;
     }
 
@@ -557,7 +511,7 @@ export function classPanel(sseq) {
 function* mainPanel(sseq) {
     if (!sseq.selected) return;
 
-    yield createHeader('Classes');
+    yield '<h2>Classes</h2>';
 
     const [x, y] = sseq.selected;
 
@@ -567,9 +521,9 @@ function* mainPanel(sseq) {
     const div = document.createElement('div');
     div.style.textAlign = 'center';
     for (const c of classes) {
-        const n = document.createElement('span');
-        n.style.padding = '0 0.6em';
-        n.innerHTML = katex.renderToString(vecToName(c, names), KATEX_ARGS);
+        const n = html(`<span style="padding: 0 0.6em">
+            ${katex.renderToString(vecToName(c, names), KATEX_ARGS)}
+        </span>`);
 
         if (classes.length == sseq.classes.get(x, y)[0].length) {
             n.addEventListener('click', () => {
@@ -585,7 +539,7 @@ function* mainPanel(sseq) {
 
     const decompositions = sseq.decompositions.get(x, y);
     if (decompositions && decompositions.length > 0) {
-        yield createHeader('Decompositions');
+        yield '<h2>Decompositions</h2>';
         for (const d of decompositions) {
             const single = d[0].reduce((a, b) => a + b, 0) == 1;
 
@@ -630,7 +584,7 @@ function* mainPanel(sseq) {
     }
 
     if (sseq.isUnit) {
-        yield createSpacer();
+        yield '<div class="panel-spacer"></div>';
         yield createButton('Add Product', () => {
             const [x, y] = sseq.selected;
             const num = sseq.getClasses(x, y, MIN_PAGE).length;
@@ -647,11 +601,9 @@ function* differentialPanel(sseq) {
 
     // We don't use display.selected because this would refer to the wrong object after we add a differential.
     if (sseq.classState.get(x, y) == 'InProgress') {
-        yield createHeader('Possible Differentials');
+        yield '<h2>Possible Differentials</h2>';
 
-        const div = document.createElement('div');
-        div.style.textAlign = 'center';
-
+        const div = html('<div style="text-align: center"></div>');
         const maxR =
             Math.ceil(
                 eval(sseq.vanishingSlope) * x + eval(sseq.vanishingIntercept),
@@ -683,7 +635,7 @@ function* differentialPanel(sseq) {
         yield div;
     }
 
-    yield createHeader('Differentials');
+    yield '<h2>Differentials</h2>';
     let hasDifferential = false;
     const trueDifferentials = sseq.trueDifferentials.get(x, y);
     if (trueDifferentials && trueDifferentials.length > page - MIN_PAGE) {
@@ -725,14 +677,14 @@ function* differentialPanel(sseq) {
         );
     }
     if (sseq.classState.get(x, y) === 'InProgress') {
-        yield createSpacer();
+        yield '<div class="panel-spacer"></div>';
         yield createButton(
             'Add Differential',
             () => (sseq.display.state = STATE_ADD_DIFFERENTIAL),
         );
     }
 
-    yield createHeader('Permanent Classes');
+    yield '<h2>Permanent Classes</h2>';
     const permanentClasses = sseq.permanentClasses.get(x, y);
     if (permanentClasses.length > 0) {
         yield createPanelLine(
@@ -741,7 +693,7 @@ function* differentialPanel(sseq) {
         );
     }
     if (sseq.classState.get(x, y) === 'InProgress') {
-        yield createSpacer();
+        yield '<div class="panel-spacer"></div>';
         yield createButton('Add Permanent Class', () => {
             sseq.addPermanentClassInteractive(x, y);
         });

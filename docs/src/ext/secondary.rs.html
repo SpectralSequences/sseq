@@ -1487,13 +1487,6 @@
 <span id="1457">1457</span>
 <span id="1458">1458</span>
 <span id="1459">1459</span>
-<span id="1460">1460</span>
-<span id="1461">1461</span>
-<span id="1462">1462</span>
-<span id="1463">1463</span>
-<span id="1464">1464</span>
-<span id="1465">1465</span>
-<span id="1466">1466</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::chain_complex</span>::{<span class="ident">ChainComplex</span>, <span class="ident">ChainHomotopy</span>, <span class="ident">FreeChainComplex</span>};
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::resolution_homomorphism::ResolutionHomomorphism</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::save</span>::{<span class="ident">SaveFile</span>, <span class="ident">SaveKind</span>};
@@ -2947,14 +2940,7 @@
             },
             <span class="string">&quot;actions&quot;</span>: [<span class="string">&quot;Sq16 x0 = x16&quot;</span>]
         });
-        <span class="kw">let</span> <span class="ident">resolution</span> <span class="op">=</span> <span class="ident">utils::construct</span>(
-            <span class="ident">utils::Config</span> {
-                <span class="ident">module</span>,
-                <span class="ident">algebra</span>: <span class="ident">algebra::AlgebraType::Milnor</span>,
-            },
-            <span class="prelude-val">None</span>,
-        )
-        .<span class="ident">unwrap</span>();
+        <span class="kw">let</span> <span class="ident">resolution</span> <span class="op">=</span> <span class="ident">utils::construct</span>((<span class="ident">module</span>, <span class="ident">algebra::AlgebraType::Milnor</span>), <span class="prelude-val">None</span>).<span class="ident">unwrap</span>();
         <span class="ident">resolution</span>.<span class="ident">compute_through_stem</span>(<span class="number">5</span>, <span class="number">20</span>);
         <span class="kw">let</span> <span class="ident">lift</span> <span class="op">=</span> <span class="ident">SecondaryResolution::new</span>(<span class="ident">Arc::new</span>(<span class="ident">resolution</span>));
         <span class="ident">lift</span>.<span class="ident">extend_all</span>();

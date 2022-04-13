@@ -55,6 +55,10 @@
 <span id="25">25</span>
 <span id="26">26</span>
 <span id="27">27</span>
+<span id="28">28</span>
+<span id="29">29</span>
+<span id="30">30</span>
+<span id="31">31</span>
 </pre><pre class="rust"><code><span class="kw">mod</span> <span class="ident">finite_dimensional_module</span>;
 <span class="kw">mod</span> <span class="ident">finitely_presented_module</span>;
 <span class="kw">mod</span> <span class="ident">free_module</span>;
@@ -65,6 +69,7 @@
 
 <span class="kw">mod</span> <span class="ident">hom_module</span>;
 <span class="kw">mod</span> <span class="ident">quotient_module</span>;
+<span class="kw">mod</span> <span class="ident">suspension_module</span>;
 <span class="kw">mod</span> <span class="ident">tensor_module</span>;
 
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">block_structure</span>;
@@ -81,7 +86,10 @@
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">steenrod_module::SteenrodModule</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">zero_module::ZeroModule</span>;
 
-<span class="kw">pub</span> <span class="kw">use</span> {<span class="ident">hom_module::HomModule</span>, <span class="ident">quotient_module::QuotientModule</span>, <span class="ident">tensor_module::TensorModule</span>};
+<span class="kw">pub</span> <span class="kw">use</span> {
+    <span class="ident">hom_module::HomModule</span>, <span class="ident">quotient_module::QuotientModule</span>, <span class="ident">suspension_module::SuspensionModule</span>,
+    <span class="ident">tensor_module::TensorModule</span>,
+};
 </code></pre></div>
 </section><section id="search" class="content hidden"></section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="algebra" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.60.0 (7737e0b5c 2022-04-04)" ></div>
 </body></html>
