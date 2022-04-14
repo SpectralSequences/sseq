@@ -48,6 +48,9 @@ class DriverWrapper:
             )
         )
 
+    def unit_svg(self):
+        return self.driver.execute_script("return window.unitSseq.chart.svg")
+
     def main_svg(self):
         return self.driver.execute_script("return window.mainSseq.chart.svg")
 
@@ -76,8 +79,9 @@ class DriverWrapper:
     def go(self, path: str):
         self.driver.get(PATH + path)
 
-    def click_class(self, x: int, y: int):
-        self.main_svg().find_element(
+    def click_class(self, x: int, y: int, main: bool = True):
+        svg = self.main_svg() if main else self.unit_svg()
+        svg.find_element(
             By.CSS_SELECTOR, f"g [data-x='{x}'][data-y='{y}'] > circle"
         ).click()
 
@@ -104,8 +108,8 @@ class DriverWrapper:
         return self.driver.execute_script("return window.display.sidebar")
 
     def click_button(self, text: str):
-        """Click the button in the side bar with the given text"""
-        for elt in self.sidebar().find_elements(By.TAG_NAME, "button"):
+        """Click the button with the given text"""
+        for elt in self.driver.find_elements(By.TAG_NAME, "button"):
             if elt.text == text:
                 elt.click()
                 return
