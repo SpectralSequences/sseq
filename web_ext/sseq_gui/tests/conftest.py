@@ -127,6 +127,21 @@ class DriverWrapper:
         else:
             alert.reject()
 
+    def zoom_out(self):
+        self.driver.execute_script(
+            """
+window.mainSseq.chart.svg.dispatchEvent(
+    new WheelEvent("wheel", {
+        view: window,
+        bubbles: true,
+        cancelable: true,
+        clientX: 200,
+        clientY: 200,
+        deltaY: 10000,
+    })
+);"""
+        )
+
 
 def pytest_addoption(parser):
     parser.addoption(

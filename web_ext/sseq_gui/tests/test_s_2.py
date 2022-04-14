@@ -3,7 +3,7 @@ from selenium.webdriver.common.by import By
 
 
 def test_differential(driver):
-    driver.go("/?module=S_2&degree=36")
+    driver.go("/?module=S_2&degree=20")
     driver.wait_complete()
 
     driver.click_class(15, 1)
@@ -22,7 +22,8 @@ def test_differential(driver):
     driver.reply("[1]")
 
     driver.click_class(18, 4)
-    driver.send_keys("d")
+    driver.select_panel("Diff")
+    driver.click_button("Add Differential")
     driver.click_class(17, 6)
     driver.reply("[0, 1]")
     time.sleep(0.1)
@@ -31,10 +32,29 @@ def test_differential(driver):
     driver.check_pages("S_2_differential", 4)
 
 
-def test_multiplication(driver):
+def test_permanent(driver):
     driver.click_class(0, 0)
     driver.send_keys("p")
 
+    driver.click_class(8, 3)
+    driver.select_panel("Diff")
+    driver.click_button("Add Permanent Class")
+
+    driver.check_pages("S_2_permanent", 4)
+
+
+def test_further(driver):
+    driver.main_svg().click()
+    driver.click_button("Resolve further")
+    driver.reply("36")
+
+    driver.wait_complete()
+    driver.zoom_out()
+
+    driver.check_pages("S_2_further", 4)
+
+
+def test_multiplication(driver):
     driver.click_class(8, 3)
     driver.send_keys("m")
     driver.reply("c_0")
@@ -54,7 +74,8 @@ def test_multiplication(driver):
     driver.reply(True)
 
     driver.click_class(20, 4)
-    driver.send_keys("m")
+    driver.select_panel("Main")
+    driver.click_button("Add Product")
     driver.reply("g")
     time.sleep(0.1)
     driver.reply(True)

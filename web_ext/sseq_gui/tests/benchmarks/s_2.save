@@ -5,6 +5,7 @@
 {"recipients":["Sseq"],"action":{"AddDifferential":{"r":2,"x":17,"y":4,"source":[1],"target":[1]}},"sseq":"Main"}
 {"recipients":["Sseq"],"action":{"AddDifferential":{"r":2,"x":18,"y":4,"source":[0,1],"target":[1]}},"sseq":"Main"}
 {"recipients":["Sseq"],"action":{"AddPermanentClass":{"x":0,"y":0,"class":[1]}},"sseq":"Main"}
+{"recipients":["Sseq"],"action":{"AddPermanentClass":{"x":8,"y":3,"class":[1]}},"sseq":"Main"}
 {"recipients":["Sseq","Resolver"],"action":{"AddProductType":{"permanent":true,"x":8,"y":3,"class":[1],"name":"c_0"}},"sseq":"Main"}
 {"recipients":["Sseq","Resolver"],"action":{"AddProductType":{"permanent":true,"x":9,"y":5,"class":[1],"name":"Ph_1"}},"sseq":"Main"}
 {"recipients":["Sseq","Resolver"],"action":{"AddProductType":{"permanent":true,"x":14,"y":4,"class":[1],"name":"d_0"}},"sseq":"Main"}
