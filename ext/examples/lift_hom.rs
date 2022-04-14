@@ -50,11 +50,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 fn main() -> anyhow::Result<()> {
-    let source = Arc::new(utils::query_module_only(
-        "Source module",
-        None,
-        utils::LoadQuasiInverseOption::IfNoSave,
-    )?);
+    let source = Arc::new(utils::query_module_only("Source module", None, true)?);
     let n: i32 = query::with_default("Max source n", "30", str::parse);
     let s: u32 = query::with_default("Max source s", "7", str::parse);
 

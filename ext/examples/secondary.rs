@@ -53,10 +53,7 @@ use ext::secondary::*;
 use ext::utils::query_module;
 
 fn main() -> anyhow::Result<()> {
-    let resolution = Arc::new(query_module(
-        Some(algebra::AlgebraType::Milnor),
-        ext::utils::LoadQuasiInverseOption::IfNoSave,
-    )?);
+    let resolution = Arc::new(query_module(Some(algebra::AlgebraType::Milnor), true)?);
 
     let lift = SecondaryResolution::new(Arc::clone(&resolution));
     if let Some(s) = ext::utils::secondary_job() {

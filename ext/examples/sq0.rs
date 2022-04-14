@@ -11,7 +11,7 @@ use fp::vector::FpVector;
 use itertools::Itertools;
 
 fn main() -> anyhow::Result<()> {
-    let res = utils::query_module(None, utils::LoadQuasiInverseOption::IfNoSave)?;
+    let res = utils::query_module(None, true)?;
     assert!(
         *res.prime() == 2 && res.target().max_s() == 1 && res.target().module(0).is_unit(),
         "Sq^0 can only be computed for the sphere at the prime 2"

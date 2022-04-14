@@ -34,10 +34,7 @@ use ext::utils::query_module;
 use itertools::Itertools;
 
 fn main() -> anyhow::Result<()> {
-    let resolution = Arc::new(query_module(
-        Some(algebra::AlgebraType::Milnor),
-        ext::utils::LoadQuasiInverseOption::IfNoSave,
-    )?);
+    let resolution = Arc::new(query_module(Some(algebra::AlgebraType::Milnor), true)?);
 
     let (is_unit, unit) = ext::utils::get_unit(Arc::clone(&resolution))?;
 

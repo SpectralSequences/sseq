@@ -299,25 +299,6 @@ pub fn unicode_num(n: usize) -> char {
     }
 }
 
-/// Options for whether to load a quasi-inverse in a resolution.
-pub enum LoadQuasiInverseOption {
-    /// Always load quasi-inverses
-    Yes,
-    /// Load quasi-inverses if there is no save file (so that `apply_quasi_inverse` always works)
-    IfNoSave,
-    /// Never load quasi-inverses
-    No,
-}
-
-impl From<bool> for LoadQuasiInverseOption {
-    fn from(x: bool) -> LoadQuasiInverseOption {
-        match x {
-            true => LoadQuasiInverseOption::Yes,
-            false => LoadQuasiInverseOption::No,
-        }
-    }
-}
-
 /// Query the user for a module and its save directory. See
 /// [here](../index.html#module-specification) for details on the propmt format.
 ///
@@ -329,9 +310,8 @@ impl From<bool> for LoadQuasiInverseOption {
 ///   the two basis, and specifying this parameter forbids the user from specifying the other
 ///   basis.
 /// - `load_quasi_inverse`: Whether or not the quasi-inverses of the resolution should be stored.
-///   This should be a [`LoadQuasiInverseOption`]. However, the options
-///   `LoadQuasiInverseOption::Yes` and `LoadQuasiInverseOption::No` can be specified via the
-///   booleans `true` and `false` instead for brevity.
+///   Note that if there is a save directory, then quasi-inverses will never be stored in memory;
+///   they must be accessed via `apply_quasi_inverse`.
 ///
 /// # Returns
 /// A [`QueryModuleResolution`]. Note that this type depends on whether the `nassau` feature is
@@ -339,7 +319,7 @@ impl From<bool> for LoadQuasiInverseOption {
 pub fn query_module_only(
     prompt: &str,
     algebra: Option<AlgebraType>,
-    #[allow(unused_variables)] load_quasi_inverse: impl Into<LoadQuasiInverseOption>,
+    load_quasi_inverse: bool,
 ) -> anyhow::Result<QueryModuleResolution> {
     let (name, module): (String, Config) = query::with_default(prompt, "S_2", |s| {
         Result::<_, anyhow::Error>::Ok((
@@ -358,14 +338,18 @@ pub fn query_module_only(
     let mut resolution =
         construct(module, save_dir).context("Failed to load module from save file")?;
 
+    let load_quasi_inverse = load_quasi_inverse && resolution.save_dir().is_none();
+
     #[cfg(not(feature = "nassau"))]
     {
-        resolution.load_quasi_inverse = match load_quasi_inverse.into() {
-            LoadQuasiInverseOption::Yes => true,
-            LoadQuasiInverseOption::No => false,
-            LoadQuasiInverseOption::IfNoSave => resolution.save_dir().is_none(),
-        };
+        resolution.load_quasi_inverse = load_quasi_inverse;
     }
+
+    #[cfg(feature = "nassau")]
+    assert!(
+        !load_quasi_inverse,
+        "Quasi inverse loading not support with Nassau. Please use a save directory instead"
+    );
 
     resolution.set_name(name);
 
@@ -378,7 +362,7 @@ pub fn query_module_only(
 /// invoked through this function.
 pub fn query_module(
     algebra: Option<AlgebraType>,
-    load_quasi_inverse: impl Into<LoadQuasiInverseOption>,
+    load_quasi_inverse: bool,
 ) -> anyhow::Result<QueryModuleResolution> {
     let resolution = query_module_only("Module", algebra, load_quasi_inverse)?;
 
@@ -408,9 +392,7 @@ pub fn query_unstable_module_only() -> anyhow::Result<SteenrodModule> {
     steenrod_module::from_json(algebra, &spec.module)
 }
 
-pub fn query_unstable_module(
-    load_quasi_inverse: impl Into<LoadQuasiInverseOption>,
-) -> anyhow::Result<UnstableResolution<CCC>> {
+pub fn query_unstable_module(load_quasi_inverse: bool) -> anyhow::Result<UnstableResolution<CCC>> {
     let module = Arc::new(query_unstable_module_only()?);
     let cc = Arc::new(FiniteChainComplex::ccdz(module));
 
@@ -419,11 +401,7 @@ pub fn query_unstable_module(
     });
 
     let mut resolution = UnstableResolution::new_with_save(cc, save_dir)?;
-    resolution.load_quasi_inverse = match load_quasi_inverse.into() {
-        LoadQuasiInverseOption::Yes => true,
-        LoadQuasiInverseOption::No => false,
-        LoadQuasiInverseOption::IfNoSave => resolution.save_dir().is_none(),
-    };
+    resolution.load_quasi_inverse = load_quasi_inverse && resolution.save_dir().is_none();
 
     Ok(resolution)
 }

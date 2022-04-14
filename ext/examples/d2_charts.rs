@@ -9,7 +9,7 @@ use std::{fs::File, sync::Arc};
 fn main() -> anyhow::Result<()> {
     let resolution = Arc::new(ext::utils::query_module(
         Some(algebra::AlgebraType::Milnor),
-        ext::utils::LoadQuasiInverseOption::IfNoSave,
+        true,
     )?);
 
     let lift = SecondaryResolution::new(Arc::clone(&resolution));

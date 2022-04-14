@@ -130,10 +130,7 @@ fn get_hom(
 fn main() -> anyhow::Result<()> {
     eprintln!("We are going to compute <-, b, a> for all (-), where a is an element in Ext(M, k) and b and (-) are elements in Ext(k, k).");
 
-    let resolution = Arc::new(query_module(
-        Some(algebra::AlgebraType::Milnor),
-        ext::utils::LoadQuasiInverseOption::IfNoSave,
-    )?);
+    let resolution = Arc::new(query_module(Some(algebra::AlgebraType::Milnor), true)?);
 
     let (is_unit, unit) = ext::utils::get_unit(Arc::clone(&resolution))?;
 
