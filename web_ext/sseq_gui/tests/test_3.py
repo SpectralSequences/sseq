@@ -35,6 +35,7 @@ def test_calpha(driver):
     driver.reply("20")
     driver.wait_complete()
 
+    driver.zoom_out("unit")
     driver.click_class(18, 2, False)
     driver.click_button("Add differential")
     driver.click_class(17, 4, False)

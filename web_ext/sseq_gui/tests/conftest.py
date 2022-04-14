@@ -127,18 +127,18 @@ class DriverWrapper:
         else:
             alert.reject()
 
-    def zoom_out(self):
+    def zoom_out(self, sseq="main"):
         self.driver.execute_script(
-            """
-window.mainSseq.chart.svg.dispatchEvent(
-    new WheelEvent("wheel", {
+            f"""
+window.{sseq}Sseq.chart.svg.dispatchEvent(
+    new WheelEvent("wheel", {{
         view: window,
         bubbles: true,
         cancelable: true,
-        clientX: 200,
-        clientY: 200,
+        clientX: 300,
+        clientY: 300,
         deltaY: 10000,
-    })
+    }})
 );"""
         )
 
