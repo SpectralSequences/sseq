@@ -5,8 +5,8 @@
         <title>Steenrod Calculator</title>
         <link
             rel="stylesheet"
-            href="https://cdn.jsdelivr.net/npm/katex@0.10.2/dist/katex.min.css"
-            integrity="sha384-yFRtMMDnQtDRO8rLpMIKrtPCD5jdktao2TV19YiZYWMDkUR5GQZR/NOVTdquEx1j"
+            href="https://cdn.jsdelivr.net/npm/katex@0.15.3/dist/katex.min.css"
+            integrity="sha384-KiWOvVjnN8qwAZbuQyWDIbfCLFhLXNETzBQjA/92pIowpC0d2O3nppDGQVgwd2nB"
             crossorigin="anonymous"
         />
         <link
@@ -15,6 +15,13 @@
             integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC"
             crossorigin="anonymous"
         />
+        <script
+            defer
+            src="https://cdn.jsdelivr.net/npm/katex@0.15.3/dist/katex.min.js"
+            integrity="sha384-0fdwu/T/EQMsQlrHCCHoH10pkPLlKA1jL5dFyUOvB3lfeT2540/2g6YgSi2BL14p"
+            crossorigin="anonymous"
+        ></script>
+        <script defer src="./steenrod_calculator.js"></script>
     </head>
     <body class="p-4">
         <details class="mb-4">
@@ -23,12 +30,12 @@
                     Steenrod Calculator
                 </h1>
                 <span
-                    class="btn btn-outline-dark"
+                    class="btn btn-outline-dark ms-4"
                     style="vertical-align: bottom"
                     >help</span
                 >
             </summary>
-            <div id="description-div" class="p-4 text-muted">
+            <div id="description-div" class="m-4 text-muted">
                 <p>
                     This is a Steenrod calculator. A Steenrod square is input
                     like "Sq5" or "P5". The Milnor primitives are written like
@@ -71,6 +78,7 @@
                             name="prime"
                             id="prime2"
                             value="2"
+                            onclick="compute()"
                             autocomplete="off"
                             checked
                         />
@@ -84,6 +92,7 @@
                             name="prime"
                             id="prime3"
                             value="3"
+                            onclick="compute()"
                             autocomplete="off"
                         />
                         <label class="btn btn-outline-primary" for="prime3"
@@ -96,6 +105,7 @@
                             name="prime"
                             id="prime5"
                             value="5"
+                            onclick="compute()"
                             autocomplete="off"
                         />
                         <label class="btn btn-outline-primary" for="prime5"
@@ -108,6 +118,7 @@
                             name="prime"
                             id="prime7"
                             value="7"
+                            onclick="compute()"
                             autocomplete="off"
                         />
                         <label class="btn btn-outline-primary" for="prime7"
@@ -124,6 +135,7 @@
                             name="basis"
                             id="adem"
                             value="adem"
+                            onclick="compute()"
                             autocomplete="off"
                             checked
                         />
@@ -137,6 +149,7 @@
                             name="basis"
                             id="milnor"
                             value="milnor"
+                            onclick="compute()"
                             autocomplete="off"
                         />
                         <label class="btn btn-outline-primary" for="milnor"
@@ -166,12 +179,6 @@
                 />
                 <div class="mb-3" id="adem-result"></div>
             </form>
-            <script
-                src="https://cdn.jsdelivr.net/npm/katex@0.11.1/dist/katex.min.js"
-                integrity="sha384-y23I5Q6l+B6vatafAwxRu/0oK/79VlbSz7Q9aiSZUvyWYIYsd+qj+o24G5ZU2zJz"
-                crossorigin="anonymous"
-            ></script>
-            <script src="./steenrod_calculator.js"></script>
         </div>
     </body>
 </html>

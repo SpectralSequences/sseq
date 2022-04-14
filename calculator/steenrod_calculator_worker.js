@@ -13,6 +13,9 @@ self.onmessage = async ev => {
     await promise;
 
     const m = ev.data;
+    if (ev.data.input.trim() === '') {
+        return;
+    }
 
     if (!(m.prime in self.calculators)) {
         self.calculators[m.prime] = SteenrodCalculator.new(m.prime);
