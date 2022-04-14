@@ -110,10 +110,12 @@ export const ACTION_TO_DISPLAY = {
         }) = ${details.target.name}`;
         return [
             `Propagate ${katex.renderToString(diffString, KATEX_ARGS)}`,
-            [
-                [details.source.x, details.source.y],
-                [details.target.x, details.target.y],
-            ],
+            sseq.isUnit
+                ? [
+                      [details.source.x, details.source.y],
+                      [details.target.x, details.target.y],
+                  ]
+                : [],
             sseq.isUnit ? undefined : content,
         ];
     },
@@ -123,7 +125,7 @@ export const ACTION_TO_DISPLAY = {
             `<span>${
                 details.permanent ? 'Permanent p' : 'P'
             }roduct ${katex.renderToString(details.name, KATEX_ARGS)}</span>`,
-            [[details.x, details.y]],
+            sseq.isUnit ? [[details.x, details.y]] : [],
             sseq.isUnit
                 ? undefined
                 : `(${details.x}, ${details.y}): ${katex.renderToString(
