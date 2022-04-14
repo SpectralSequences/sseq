@@ -620,28 +620,6 @@
 <span id="590">590</span>
 <span id="591">591</span>
 <span id="592">592</span>
-<span id="593">593</span>
-<span id="594">594</span>
-<span id="595">595</span>
-<span id="596">596</span>
-<span id="597">597</span>
-<span id="598">598</span>
-<span id="599">599</span>
-<span id="600">600</span>
-<span id="601">601</span>
-<span id="602">602</span>
-<span id="603">603</span>
-<span id="604">604</span>
-<span id="605">605</span>
-<span id="606">606</span>
-<span id="607">607</span>
-<span id="608">608</span>
-<span id="609">609</span>
-<span id="610">610</span>
-<span id="611">611</span>
-<span id="612">612</span>
-<span id="613">613</span>
-<span id="614">614</span>
 </pre><pre class="rust"><code><span class="doccomment">//! A module containing various utility functions related to user interaction in some way.</span>
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::chain_complex</span>::{
     <span class="ident">AugmentedChainComplex</span>, <span class="ident">BoundedChainComplex</span>, <span class="ident">ChainComplex</span>, <span class="ident">FiniteChainComplex</span>,
@@ -943,25 +921,6 @@
     }
 }
 
-<span class="doccomment">/// Options for whether to load a quasi-inverse in a resolution.</span>
-<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">LoadQuasiInverseOption</span> {
-    <span class="doccomment">/// Always load quasi-inverses</span>
-    <span class="ident">Yes</span>,
-    <span class="doccomment">/// Load quasi-inverses if there is no save file (so that `apply_quasi_inverse` always works)</span>
-    <span class="ident">IfNoSave</span>,
-    <span class="doccomment">/// Never load quasi-inverses</span>
-    <span class="ident">No</span>,
-}
-
-<span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">bool</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">LoadQuasiInverseOption</span> {
-    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">x</span>: <span class="ident">bool</span>) -&gt; <span class="ident">LoadQuasiInverseOption</span> {
-        <span class="kw">match</span> <span class="ident">x</span> {
-            <span class="bool-val">true</span> =&gt; <span class="ident">LoadQuasiInverseOption::Yes</span>,
-            <span class="bool-val">false</span> =&gt; <span class="ident">LoadQuasiInverseOption::No</span>,
-        }
-    }
-}
-
 <span class="doccomment">/// Query the user for a module and its save directory. See</span>
 <span class="doccomment">/// [here](../index.html#module-specification) for details on the propmt format.</span>
 <span class="doccomment">///</span>
@@ -973,9 +932,8 @@
 <span class="doccomment">///   the two basis, and specifying this parameter forbids the user from specifying the other</span>
 <span class="doccomment">///   basis.</span>
 <span class="doccomment">/// - `load_quasi_inverse`: Whether or not the quasi-inverses of the resolution should be stored.</span>
-<span class="doccomment">///   This should be a [`LoadQuasiInverseOption`]. However, the options</span>
-<span class="doccomment">///   `LoadQuasiInverseOption::Yes` and `LoadQuasiInverseOption::No` can be specified via the</span>
-<span class="doccomment">///   booleans `true` and `false` instead for brevity.</span>
+<span class="doccomment">///   Note that if there is a save directory, then quasi-inverses will never be stored in memory;</span>
+<span class="doccomment">///   they must be accessed via `apply_quasi_inverse`.</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// # Returns</span>
 <span class="doccomment">/// A [`QueryModuleResolution`]. Note that this type depends on whether the `nassau` feature is</span>
@@ -983,7 +941,7 @@
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">query_module_only</span>(
     <span class="ident">prompt</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>,
     <span class="ident">algebra</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">AlgebraType</span><span class="op">&gt;</span>,
-    <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">unused_variables</span>)]</span> <span class="ident">load_quasi_inverse</span>: <span class="kw">impl</span> <span class="ident">Into</span><span class="op">&lt;</span><span class="ident">LoadQuasiInverseOption</span><span class="op">&gt;</span>,
+    <span class="ident">load_quasi_inverse</span>: <span class="ident">bool</span>,
 ) -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span><span class="ident">QueryModuleResolution</span><span class="op">&gt;</span> {
     <span class="kw">let</span> (<span class="ident">name</span>, <span class="ident">module</span>): (<span class="ident">String</span>, <span class="ident">Config</span>) <span class="op">=</span> <span class="ident">query::with_default</span>(<span class="ident">prompt</span>, <span class="string">&quot;S_2&quot;</span>, <span class="op">|</span><span class="ident">s</span><span class="op">|</span> {
         <span class="prelude-ty">Result</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="ident">anyhow::Error</span><span class="op">&gt;</span><span class="ident">::Ok</span>((
@@ -1002,14 +960,18 @@
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">resolution</span> <span class="op">=</span>
         <span class="ident">construct</span>(<span class="ident">module</span>, <span class="ident">save_dir</span>).<span class="ident">context</span>(<span class="string">&quot;Failed to load module from save file&quot;</span>)<span class="question-mark">?</span>;
 
+    <span class="kw">let</span> <span class="ident">load_quasi_inverse</span> <span class="op">=</span> <span class="ident">load_quasi_inverse</span> <span class="op">&amp;&amp;</span> <span class="ident">resolution</span>.<span class="ident">save_dir</span>().<span class="ident">is_none</span>();
+
     <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;nassau&quot;</span>))]</span>
     {
-        <span class="ident">resolution</span>.<span class="ident">load_quasi_inverse</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">load_quasi_inverse</span>.<span class="ident">into</span>() {
-            <span class="ident">LoadQuasiInverseOption::Yes</span> =&gt; <span class="bool-val">true</span>,
-            <span class="ident">LoadQuasiInverseOption::No</span> =&gt; <span class="bool-val">false</span>,
-            <span class="ident">LoadQuasiInverseOption::IfNoSave</span> =&gt; <span class="ident">resolution</span>.<span class="ident">save_dir</span>().<span class="ident">is_none</span>(),
-        };
+        <span class="ident">resolution</span>.<span class="ident">load_quasi_inverse</span> <span class="op">=</span> <span class="ident">load_quasi_inverse</span>;
     }
+
+    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;nassau&quot;</span>)]</span>
+    <span class="macro">assert!</span>(
+        <span class="op">!</span><span class="ident">load_quasi_inverse</span>,
+        <span class="string">&quot;Quasi inverse loading not support with Nassau. Please use a save directory instead&quot;</span>
+    );
 
     <span class="ident">resolution</span>.<span class="ident">set_name</span>(<span class="ident">name</span>);
 
@@ -1022,7 +984,7 @@
 <span class="doccomment">/// invoked through this function.</span>
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">query_module</span>(
     <span class="ident">algebra</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">AlgebraType</span><span class="op">&gt;</span>,
-    <span class="ident">load_quasi_inverse</span>: <span class="kw">impl</span> <span class="ident">Into</span><span class="op">&lt;</span><span class="ident">LoadQuasiInverseOption</span><span class="op">&gt;</span>,
+    <span class="ident">load_quasi_inverse</span>: <span class="ident">bool</span>,
 ) -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span><span class="ident">QueryModuleResolution</span><span class="op">&gt;</span> {
     <span class="kw">let</span> <span class="ident">resolution</span> <span class="op">=</span> <span class="ident">query_module_only</span>(<span class="string">&quot;Module&quot;</span>, <span class="ident">algebra</span>, <span class="ident">load_quasi_inverse</span>)<span class="question-mark">?</span>;
 
@@ -1052,9 +1014,7 @@
     <span class="ident">steenrod_module::from_json</span>(<span class="ident">algebra</span>, <span class="kw-2">&amp;</span><span class="ident">spec</span>.<span class="ident">module</span>)
 }
 
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">query_unstable_module</span>(
-    <span class="ident">load_quasi_inverse</span>: <span class="kw">impl</span> <span class="ident">Into</span><span class="op">&lt;</span><span class="ident">LoadQuasiInverseOption</span><span class="op">&gt;</span>,
-) -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span><span class="ident">UnstableResolution</span><span class="op">&lt;</span><span class="ident">CCC</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">query_unstable_module</span>(<span class="ident">load_quasi_inverse</span>: <span class="ident">bool</span>) -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span><span class="ident">UnstableResolution</span><span class="op">&lt;</span><span class="ident">CCC</span><span class="op">&gt;</span><span class="op">&gt;</span> {
     <span class="kw">let</span> <span class="ident">module</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">query_unstable_module_only</span>()<span class="question-mark">?</span>);
     <span class="kw">let</span> <span class="ident">cc</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">FiniteChainComplex::ccdz</span>(<span class="ident">module</span>));
 
@@ -1063,11 +1023,7 @@
     });
 
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">resolution</span> <span class="op">=</span> <span class="ident">UnstableResolution::new_with_save</span>(<span class="ident">cc</span>, <span class="ident">save_dir</span>)<span class="question-mark">?</span>;
-    <span class="ident">resolution</span>.<span class="ident">load_quasi_inverse</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">load_quasi_inverse</span>.<span class="ident">into</span>() {
-        <span class="ident">LoadQuasiInverseOption::Yes</span> =&gt; <span class="bool-val">true</span>,
-        <span class="ident">LoadQuasiInverseOption::No</span> =&gt; <span class="bool-val">false</span>,
-        <span class="ident">LoadQuasiInverseOption::IfNoSave</span> =&gt; <span class="ident">resolution</span>.<span class="ident">save_dir</span>().<span class="ident">is_none</span>(),
-    };
+    <span class="ident">resolution</span>.<span class="ident">load_quasi_inverse</span> <span class="op">=</span> <span class="ident">load_quasi_inverse</span> <span class="op">&amp;&amp;</span> <span class="ident">resolution</span>.<span class="ident">save_dir</span>().<span class="ident">is_none</span>();
 
     <span class="prelude-val">Ok</span>(<span class="ident">resolution</span>)
 }

@@ -534,7 +534,6 @@
 <span id="504">504</span>
 <span id="505">505</span>
 <span id="506">506</span>
-<span id="507">507</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::algebra::adem_algebra::AdemBasisElement</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::algebra</span>::{<span class="ident">AdemAlgebra</span>, <span class="ident">Algebra</span>, <span class="ident">MilnorAlgebra</span>};
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::milnor_algebra</span>::{<span class="ident">MilnorBasisElement</span>, <span class="ident">PPartEntry</span>};
@@ -1002,7 +1001,6 @@
         );
     }
 
-    <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">non_snake_case</span>)]</span>
     <span class="attribute">#[<span class="ident">rstest</span>(<span class="ident">p</span>, <span class="ident">max_degree</span>, <span class="ident">case</span>(<span class="number">2</span>, <span class="number">32</span>), <span class="ident">case</span>(<span class="number">3</span>, <span class="number">60</span>))]</span>
     <span class="attribute">#[<span class="ident">trace</span>]</span>
     <span class="kw">fn</span> <span class="ident">test_cob_adem_to_milnor</span>(<span class="ident">p</span>: <span class="ident">u32</span>, <span class="ident">max_degree</span>: <span class="ident">i32</span>) {

@@ -194,30 +194,35 @@ function loadHistory(hist) {
 const messageHandler = {};
 messageHandler.Resolving = (data, msg) => {
     if (msg.sseq == 'Unit') {
-        window.unitSseq.processResolving(data);
-        return;
-    }
-    if (!window.mainSseq) {
-        window.mainSseq = new ExtSseq('Main', data.min_degree);
-        window.mainSseq.isUnit = data.is_unit;
-        if (data.is_unit) {
-            window.unitSseq = window.mainSseq;
-        } else {
+        if (!window.unitSseq) {
             window.unitSseq = new ExtSseq('Unit', 0);
         }
-    }
-
-    window.mainSseq.processResolving(data);
-
-    if (!window.display) {
-        window.display = new MainDisplay('main', window.mainSseq, data.is_unit);
-        if (!data.is_unit) {
+        window.unitSseq.processResolving(data);
+        if (!window.unitDisplay) {
             window.unitDisplay = new UnitDisplay(
                 'unitsseq-body',
                 window.unitSseq,
             );
         }
-        window.display.runningSign.style.removeProperty('display');
+        return;
+    } else {
+        if (!window.mainSseq) {
+            window.mainSseq = new ExtSseq('Main', data.min_degree);
+            window.mainSseq.isUnit = data.is_unit;
+            if (data.is_unit) {
+                window.unitSseq = window.mainSseq;
+            }
+        }
+        window.mainSseq.processResolving(data);
+
+        if (!window.display) {
+            window.display = new MainDisplay(
+                'main',
+                window.mainSseq,
+                data.is_unit,
+            );
+            window.display.runningSign.style.removeProperty('display');
+        }
     }
 };
 

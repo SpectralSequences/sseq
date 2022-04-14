@@ -166,10 +166,6 @@
 <span id="136">136</span>
 <span id="137">137</span>
 <span id="138">138</span>
-<span id="139">139</span>
-<span id="140">140</span>
-<span id="141">141</span>
-<span id="142">142</span>
 </pre><pre class="rust"><code><span class="doccomment">//! Given an element in $\Ext(M, N)$, this computes the induced map $\Ext(N, k) \to \Ext(M, k)$</span>
 <span class="doccomment">//! given by composition.</span>
 <span class="doccomment">//!</span>
@@ -222,11 +218,7 @@
 <span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
 
 <span class="kw">fn</span> <span class="ident">main</span>() -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-    <span class="kw">let</span> <span class="ident">source</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">utils::query_module_only</span>(
-        <span class="string">&quot;Source module&quot;</span>,
-        <span class="prelude-val">None</span>,
-        <span class="ident">utils::LoadQuasiInverseOption::IfNoSave</span>,
-    )<span class="question-mark">?</span>);
+    <span class="kw">let</span> <span class="ident">source</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">utils::query_module_only</span>(<span class="string">&quot;Source module&quot;</span>, <span class="prelude-val">None</span>, <span class="bool-val">true</span>)<span class="question-mark">?</span>);
     <span class="kw">let</span> <span class="ident">n</span>: <span class="ident">i32</span> <span class="op">=</span> <span class="ident">query::with_default</span>(<span class="string">&quot;Max source n&quot;</span>, <span class="string">&quot;30&quot;</span>, <span class="ident">str::parse</span>);
     <span class="kw">let</span> <span class="ident">s</span>: <span class="ident">u32</span> <span class="op">=</span> <span class="ident">query::with_default</span>(<span class="string">&quot;Max source s&quot;</span>, <span class="string">&quot;7&quot;</span>, <span class="ident">str::parse</span>);
 
