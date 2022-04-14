@@ -342,7 +342,6 @@ mod double {
                 }
             }
 
-            #[allow(unused_variables)]
             fn compute_auxiliary_data_through_degree(&self, degree: i32) {
                 // trick to round towards -infty
                 self.inner

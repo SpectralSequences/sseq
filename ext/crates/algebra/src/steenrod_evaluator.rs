@@ -465,7 +465,6 @@ mod tests {
         );
     }
 
-    #[allow(non_snake_case)]
     #[rstest(p, max_degree, case(2, 32), case(3, 60))]
     #[trace]
     fn test_cob_adem_to_milnor(p: u32, max_degree: i32) {
