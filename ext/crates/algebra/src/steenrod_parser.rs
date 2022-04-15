@@ -121,6 +121,7 @@ impl BocksteinOrSq {
 
 fn algebra_generator(i: &str) -> IResult<&str, AlgebraBasisElt> {
     alt((
+        map(char('b'), |_| AlgebraBasisElt::Q(0)),
         map(preceded(char('Q'), digits), AlgebraBasisElt::Q),
         map(preceded(p_or_sq, digits), AlgebraBasisElt::P),
         map(
@@ -274,6 +275,20 @@ pub fn parse_module(i: &str) -> anyhow::Result<ModuleNode> {
 mod tests {
     use super::*;
     use expect_test::{expect, Expect};
+
+    #[test]
+    fn test_parse_algebra() {
+        let check = |input, output: Expect| {
+            output.assert_eq(&format!("{:?}", parse_algebra(input).unwrap()));
+        };
+
+        check(
+            "b * Q3 * (Sq1 * A(2 b 5) + M(0 0 2) * P(0, 1) * Sq(1, 0))",
+            expect![[
+                r#"Product(Product(BasisElt(Q(0)), BasisElt(Q(3))), Sum(Product(BasisElt(P(1)), BasisElt(AList([Sq(2), Bockstein, Sq(5)]))), Product(Product(BasisElt(PList([0, 0, 2])), BasisElt(PList([0, 1]))), BasisElt(PList([1, 0])))))"#
+            ]],
+        );
+    }
 
     #[test]
     fn test_parse_module() {
