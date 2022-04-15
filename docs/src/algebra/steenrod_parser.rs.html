@@ -357,6 +357,21 @@
 <span id="327">327</span>
 <span id="328">328</span>
 <span id="329">329</span>
+<span id="330">330</span>
+<span id="331">331</span>
+<span id="332">332</span>
+<span id="333">333</span>
+<span id="334">334</span>
+<span id="335">335</span>
+<span id="336">336</span>
+<span id="337">337</span>
+<span id="338">338</span>
+<span id="339">339</span>
+<span id="340">340</span>
+<span id="341">341</span>
+<span id="342">342</span>
+<span id="343">343</span>
+<span id="344">344</span>
 </pre><pre class="rust"><code><span class="doccomment">//! This module includes code for parsing an expression in the Steenrod algebra into an abstract</span>
 <span class="doccomment">//! syntax tree.</span>
 
@@ -480,6 +495,7 @@
 
 <span class="kw">fn</span> <span class="ident">algebra_generator</span>(<span class="ident">i</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) -&gt; <span class="ident">IResult</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">str</span>, <span class="ident">AlgebraBasisElt</span><span class="op">&gt;</span> {
     <span class="ident">alt</span>((
+        <span class="ident">map</span>(<span class="ident">char</span>(<span class="string">&#39;b&#39;</span>), <span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">AlgebraBasisElt::Q</span>(<span class="number">0</span>)),
         <span class="ident">map</span>(<span class="ident">preceded</span>(<span class="ident">char</span>(<span class="string">&#39;Q&#39;</span>), <span class="ident">digits</span>), <span class="ident">AlgebraBasisElt::Q</span>),
         <span class="ident">map</span>(<span class="ident">preceded</span>(<span class="ident">p_or_sq</span>, <span class="ident">digits</span>), <span class="ident">AlgebraBasisElt::P</span>),
         <span class="ident">map</span>(
@@ -633,6 +649,20 @@
 <span class="kw">mod</span> <span class="ident">tests</span> {
     <span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
     <span class="kw">use</span> <span class="ident">expect_test</span>::{<span class="ident">expect</span>, <span class="ident">Expect</span>};
+
+    <span class="attribute">#[<span class="ident">test</span>]</span>
+    <span class="kw">fn</span> <span class="ident">test_parse_algebra</span>() {
+        <span class="kw">let</span> <span class="ident">check</span> <span class="op">=</span> <span class="op">|</span><span class="ident">input</span>, <span class="ident">output</span>: <span class="ident">Expect</span><span class="op">|</span> {
+            <span class="ident">output</span>.<span class="ident">assert_eq</span>(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;{:?}&quot;</span>, <span class="ident">parse_algebra</span>(<span class="ident">input</span>).<span class="ident">unwrap</span>()));
+        };
+
+        <span class="ident">check</span>(
+            <span class="string">&quot;b * Q3 * (Sq1 * A(2 b 5) + M(0 0 2) * P(0, 1) * Sq(1, 0))&quot;</span>,
+            <span class="macro">expect!</span>[[
+                <span class="string">r#&quot;Product(Product(BasisElt(Q(0)), BasisElt(Q(3))), Sum(Product(BasisElt(P(1)), BasisElt(AList([Sq(2), Bockstein, Sq(5)]))), Product(Product(BasisElt(PList([0, 0, 2])), BasisElt(PList([0, 1]))), BasisElt(PList([1, 0])))))&quot;#</span>
+            ]],
+        );
+    }
 
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">test_parse_module</span>() {
