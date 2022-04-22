@@ -56,20 +56,29 @@ for (const [k, v] of url.searchParams.entries()) {
     params[k] = v;
 }
 
-if (params.module) {
+if (params.module || params.module_json) {
     const maxDegree = parseInt(params.degree ? params.degree : 40);
     const algebra = params.algebra ? params.algebra : 'milnor';
+
+    const action = params.module
+        ? {
+              Construct: {
+                  algebra_name: algebra,
+                  module_name: params.module,
+              },
+          }
+        : {
+              ConstructJson: {
+                  algebra_name: 'milnor',
+                  data: params.module_json,
+              },
+          };
 
     // Record this for the save functionality, since the wasm version modifies it
     window.constructCommand = {
         recipients: ['Resolver'],
         sseq: 'Main',
-        action: {
-            Construct: {
-                algebra_name: algebra,
-                module_name: params.module,
-            },
-        },
+        action: action,
     };
 
     window.sendSocket = openSocket(
@@ -253,40 +262,14 @@ messageHandler.Error = m => {
 
 // Set up upload button
 document.getElementById('json-upload').addEventListener('change', () => {
-    const maxDegree = parseInt(prompt('Maximum degree', 30).trim());
-
     const file = document.getElementById('json-upload').files[0];
     const fileReader = new FileReader();
     fileReader.onload = e => {
-        window.constructCommand = {
-            recipients: ['Resolver'],
-            sseq: 'Main',
-            action: {
-                ConstructJson: {
-                    algebra_name: 'milnor',
-                    data: e.target.result,
-                },
-            },
-        };
-
-        window.sendSocket = openSocket(
-            [
-                window.constructCommand,
-                {
-                    recipients: ['Resolver'],
-                    sseq: 'Main',
-                    action: {
-                        Resolve: {
-                            max_degree: maxDegree,
-                        },
-                    },
-                },
-            ],
-            onMessage,
-        );
+        // Remove whitespace to shorten URL
+        const json = JSON.stringify(JSON.parse(e.target.result));
+        window.location = `?module_json=${encodeURIComponent(json)}`;
     };
     fileReader.readAsText(file, 'UTF-8');
-    document.querySelector('#home').style.display = 'none';
 });
 
 document.getElementById('history-upload').addEventListener('change', () => {

@@ -19,6 +19,5 @@ def test_load_json(driver, module: str):
 
     driver.go("/")
     driver.driver.find_element(By.ID, "json-upload").send_keys(str(path))
-    driver.reply("40")
     driver.wait_complete()
     driver.check_svg(f"{module}_load.svg")
