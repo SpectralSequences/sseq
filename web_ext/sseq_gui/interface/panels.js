@@ -7,6 +7,7 @@ import {
     KATEX_ARGS,
     html,
 } from './utils.js';
+import './katex-input.js';
 import { MIN_PAGE } from './sseq.js';
 
 class InputRow extends HTMLElement {
@@ -523,17 +524,21 @@ function* mainPanel(sseq) {
     const div = document.createElement('div');
     div.style.textAlign = 'center';
     for (const c of classes) {
-        const n = html(`<span style="padding: 0 0.6em">
-            ${katex.renderToString(vecToName(c, names), KATEX_ARGS)}
-        </span>`);
-
-        if (classes.length == sseq.classes.get(x, y)[0].length) {
-            n.addEventListener('click', () => {
-                const name = prompt('New class name');
-                if (name !== null) {
-                    sseq.setClassName(x, y, c.indexOf(1), name);
-                }
+        let n;
+        if (c.reduce((a, b) => a + b, 0) == 1) {
+            const i = c.indexOf(1);
+            n = html('<katex-input></katex-input>');
+            n.input.style.width = '100%';
+            n.input.style.margin = '0.3em 0';
+            n.display.style.margin = '0 0.6em';
+            n.value = names[i];
+            n.addEventListener('change', () => {
+                sseq.setClassName(x, y, i, n.value);
             });
+            div.appendChild(n);
+        } else {
+            n = html("<span style='margin: 0 0.6em'>");
+            katex.render(vecToName(c, names), h, KATEX_ARGS);
         }
         div.appendChild(n);
     }
