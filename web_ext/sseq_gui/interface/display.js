@@ -6,6 +6,7 @@ import {
 } from './panels.js';
 import { MIN_PAGE } from './sseq.js';
 import { Sidebar } from './chart.js';
+import './dialog.js';
 
 export const STATE_ADD_DIFFERENTIAL = 1;
 export const STATE_QUERY_TABLE = 2;
@@ -198,8 +199,7 @@ export class UnitDisplay {
         document.getElementById(container).appendChild(sseq.chart);
 
         document.querySelector('#modal-diff').addEventListener('click', () => {
-            document.querySelector('#modal-title').innerHTML =
-                'Select target element';
+            this.modal.title = 'Select target element';
             this.state = STATE_ADD_DIFFERENTIAL;
         });
 
@@ -236,8 +236,7 @@ export class UnitDisplay {
         if (!this.sseq.selected) {
             this.state = null;
 
-            document.querySelector('#modal-title').innerHTML =
-                'Select element to multiply with';
+            this.modal.title = 'Select element to multiply with';
             document.querySelector('#modal-ok').disabled = true;
             document.querySelector('#modal-diff').disabled = true;
             return;

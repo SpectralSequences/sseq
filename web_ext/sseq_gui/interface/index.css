@@ -265,7 +265,6 @@ dialog > form > footer {
 dialog > form > section {
     padding: 1.2rem 1.2rem 0rem 1.2rem;
     flex-grow: 1;
-    flex-basis: 0;
     min-height: 0;
 }
 
