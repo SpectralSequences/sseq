@@ -57,28 +57,24 @@ def test_further(driver):
 def test_multiplication(driver):
     driver.click_class(8, 3)
     driver.send_keys("m")
-    driver.reply("c_0")
-    time.sleep(0.1)
-    driver.reply(True)
+    driver.send_keys("c_0")
+    driver.send_keys(Keys.ENTER)
 
     driver.click_class(9, 5)
     driver.send_keys("m")
-    driver.reply("Ph_1")
-    time.sleep(0.1)
-    driver.reply(True)
+    driver.send_keys("Ph_1")
+    driver.send_keys(Keys.ENTER)
 
     driver.click_class(14, 4)
     driver.send_keys("m")
-    driver.reply("d_0")
-    time.sleep(0.1)
-    driver.reply(True)
+    driver.send_keys("d_0")
+    driver.send_keys(Keys.ENTER)
 
     driver.click_class(20, 4)
     driver.select_panel("Main")
     driver.click_button("Add Product")
-    driver.reply("g")
-    time.sleep(0.1)
-    driver.reply(True)
+    driver.send_keys("g")
+    driver.send_keys(Keys.ENTER)
 
     driver.check_pages("S_2_multiplication", 4)
 

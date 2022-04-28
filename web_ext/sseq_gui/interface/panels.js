@@ -46,6 +46,103 @@ class InputRow extends HTMLElement {
 }
 customElements.define('input-row', InputRow);
 
+class CheckboxSwitch extends HTMLElement {
+    static get observedAttributes() {
+        return ['checked'];
+    }
+
+    attributeChangedCallback(name, _oldValue, newValue) {
+        this.checkbox.setAttribute(name, newValue);
+    }
+
+    static STYLE = `
+/**
+ * Adapted from https://www.w3schools.com/howto/howto_css_switch.asp
+ * There are three parameters one can control - the width (w), the height (h)
+ * and the margin (m).
+ * */
+label {
+    position: relative;
+    display: inline-block;
+    width: 32px; /* w */
+    height: 20px; /* h */
+}
+
+input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+span {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 20px; /* h */
+    background-color: #ccc;
+    transition: 0.4s;
+}
+
+span:before {
+    position: absolute;
+    content: '';
+    height: 14px; /* h - 2m */
+    width: 14px; /* h - 2m */
+    left: 3px; /* m */
+    bottom: 3px; /* m */
+    background-color: white;
+    border-radius: 50%;
+    transition: 0.4s;
+}
+
+input:checked + span {
+    background-color: #67a1f8;
+}
+
+input:focus + span {
+    box-shadow: 0 0 3px #67a1f8;
+}
+
+input:checked + span:before {
+    transform: translateX(12px); /* w - h */
+}
+`;
+
+    constructor() {
+        super();
+
+        const shadow = this.attachShadow({ mode: 'open' });
+
+        const style = document.createElement('style');
+        style.innerHTML = CheckboxSwitch.STYLE;
+
+        const label = document.createElement('label');
+
+        this.checkbox = document.createElement('input');
+        this.checkbox.setAttribute('type', 'checkbox');
+
+        const slider = document.createElement('span');
+
+        shadow.appendChild(style);
+
+        label.appendChild(this.checkbox);
+        label.appendChild(slider);
+        shadow.appendChild(label);
+    }
+
+    get checked() {
+        return this.checkbox.checked;
+    }
+
+    set checked(checked) {
+        this.checkbox.checked = checked;
+    }
+}
+customElements.define('checkbox-switch', CheckboxSwitch);
+
 export const ACTION_TO_DISPLAY = {
     AddDifferential: (details, sseq) => {
         const x = details.x;
@@ -429,28 +526,22 @@ function* structlinePanel(sseq) {
              title="A dash pattern, in the format of SVG's stroke-dasharray. Note that each grid square has side length 1."></input-row>
         </div>
     </details>
-    <label class="switch" style="position: absolute; right: 0px">
-        <input type="checkbox"${
-            sseq.visibleStructlines.has(name) ? ' checked' : ''
-        }></input>
-        <span class="slider"></span>
-    </label>
+    <checkbox-switch style="position: absolute; right: 0px"${
+        sseq.visibleStructlines.has(name) ? ' checked' : ''
+    }></checkbox-switch>
 </div>`);
 
-        const i = div.querySelector('label.switch');
+        const i = div.querySelector('checkbox-switch');
         i.style.top =
             div.querySelector('summary').clientHeight - i.clientHeight + 'px';
 
-        div.querySelector('label.switch > input').addEventListener(
-            'change',
-            e => {
-                if (e.target.checked) {
-                    sseq.showStructlines(name);
-                } else {
-                    sseq.hideStructlines(name);
-                }
-            },
-        );
+        i.checkbox.addEventListener('change', e => {
+            if (e.target.checked) {
+                sseq.showStructlines(name);
+            } else {
+                sseq.hideStructlines(name);
+            }
+        });
 
         const updateStyleObject = () => {
             if (mult.style.styleObject === null) {

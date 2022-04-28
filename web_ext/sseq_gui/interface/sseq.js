@@ -1,5 +1,6 @@
 import { promptClass, inputClass, vecToName, html } from './utils.js';
 import { svgNS } from './chart.js';
+import './panels.js';
 
 export const MIN_PAGE = 2;
 const CHART_STYLE = `
@@ -212,7 +213,7 @@ export class ExtSseq {
                     ${katex.renderToString(`d_{${page}}`)}
                 </section>
                 <footer>
-                    <span style="flex-grow: 1"></span><button class="button" value="submit">Add</button>
+                    <button class="button" value="submit">Add</button>
                 </footer>
             </dialog>`);
 
@@ -268,35 +269,48 @@ export class ExtSseq {
 
     // addProductInteractive takes in the number of classes in bidegree (x, y), because this should be the number of classes in the *unit* spectral sequence, not the main spectral sequence
     addProductInteractive(x, y, num) {
-        let c;
-        if (num == 1 && this.p == 2) c = [1];
-        else
-            c = promptClass(
-                'Input class',
-                `Invalid class. Express in terms of basis on E_2 page`,
-                num,
-            );
+        const dialog =
+            html(`<dialog is="my-dialog" title="Add product at (${x}, ${y})">
+            <section style="display: flex; justify-content: center; align-items: center; gap: 1em"></section>
+            <section style="display: flex; justify-content: center; align-items: center; gap: 1em">
+                Permanent <checkbox-switch checked></checkbox-switch>
+            </section>
+            <footer><button value="submit" class="button">Add</button></footer>
+        </dialog>`);
+        const section = dialog.querySelector('section');
 
-        const name = prompt(
-            'Name for product',
-            this.isUnit ? vecToName(c, this.classNames.get(x, y)) : undefined,
+        const nameInput = html(
+            "<katex-input placeholder='name' title='Name of product'></katex-input>",
         );
-        if (name === null) {
-            return;
-        }
+        nameInput.display.classList.add('input');
+        nameInput.display.style.width = '5em';
+        nameInput.display.style.textAlign = 'right';
+        nameInput.input.style.width = '5em';
 
-        const permanent = confirm('Permanent class?');
-        this.send({
-            recipients: ['Sseq', 'Resolver'],
-            action: {
-                AddProductType: {
-                    permanent: permanent,
-                    x: x,
-                    y: y,
-                    class: c,
-                    name: name,
+        const classInput = inputClass('Class in E2 page basis', num, this.p);
+        section.append(nameInput, ' = ', classInput);
+
+        document.body.appendChild(dialog);
+        dialog.showModal();
+
+        dialog.addEventListener('close', () => {
+            if (dialog.returnValue !== 'submit') {
+                return;
+            }
+            this.send({
+                recipients: ['Sseq', 'Resolver'],
+                action: {
+                    AddProductType: {
+                        permanent:
+                            dialog.querySelector('checkbox-switch').checked ===
+                            true,
+                        x: x,
+                        y: y,
+                        class: eval(classInput.value),
+                        name: nameInput.value,
+                    },
                 },
-            },
+            });
         });
     }
 

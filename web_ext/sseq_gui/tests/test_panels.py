@@ -44,8 +44,6 @@ def test_structline_style(driver):
             input_.clear()
             input_.send_keys("0.05,0.05")
 
-    driver.panel().find_elements(By.CSS_SELECTOR, "div > label > span.slider")[
-        2
-    ].click()
+    driver.panel().find_elements(By.CSS_SELECTOR, "div > checkbox-switch")[2].click()
 
     driver.check_svg("tmf_structline_style.svg")

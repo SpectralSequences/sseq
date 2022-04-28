@@ -26,7 +26,7 @@ class KaTeXInput extends HTMLElement {
     }
 
     static get observedAttributes() {
-        return ['value', 'readonly', 'required'];
+        return ['value', 'readonly', 'required', 'placeholder'];
     }
 
     get value() {
@@ -41,15 +41,18 @@ class KaTeXInput extends HTMLElement {
         katex.render(this.value, this.display, {
             throwOnError: false,
         });
+        if (this.value !== '') {
+            this.display.style.removeProperty('display');
+            this.input.style.display = 'none';
+        }
     }
 
     constructor() {
         super();
 
         this.input = document.createElement('input');
-        this.input.style.display = 'none';
-
         this.display = document.createElement('span');
+        this.display.style.display = 'none';
 
         this.display.addEventListener('click', () => {
             this.display.style.display = 'none';
@@ -63,8 +66,6 @@ class KaTeXInput extends HTMLElement {
         });
         this.input.addEventListener('focusout', () => {
             this.update();
-            this.display.style.removeProperty('display');
-            this.input.style.display = 'none';
         });
     }
 
