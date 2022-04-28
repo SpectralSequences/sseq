@@ -18,6 +18,7 @@ const FILE_LIST: &[(&str, &str, &[u8])] = &[
     ("/sseq.js", "sseq.js", b"text/javascript"),
     ("/socket.js", "socket.js", b"text/javascript"),
     ("/chart.js", "chart.js", b"text/javascript"),
+    ("/components.js", "components.js", b"text/javascript"),
     ("/index.css", "index.css", b"text/css"),
     ("/katex.js", "../vendor/katex.js", b"text/javascript"),
     (

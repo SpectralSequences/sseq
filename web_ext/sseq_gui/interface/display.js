@@ -6,7 +6,7 @@ import {
 } from './panels.js';
 import { MIN_PAGE } from './sseq.js';
 import { Sidebar } from './chart.js';
-import { dialogOpen } from './dialog.js';
+import { dialogOpen } from './components.js';
 
 export const STATE_ADD_DIFFERENTIAL = 1;
 export const STATE_QUERY_TABLE = 2;
