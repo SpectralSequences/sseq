@@ -237,8 +237,12 @@ input:focus {
 
 dialog {
     border-radius: 0.6rem;
-    border: 1px solid black;
+    border: none;
     padding: 0px;
+}
+
+dialog::backdrop {
+    background: rgba(0, 0, 0, 0.5);
 }
 
 dialog > form {
@@ -253,7 +257,7 @@ dialog > form > h5 {
     font-weight: 400;
     margin: 0;
     padding: 0.8rem 1.2rem;
-    border-bottom: 2px solid #ccc;
+    background-color: #eee;
 }
 
 dialog > form > footer {
@@ -269,7 +273,6 @@ dialog > form > section {
 }
 
 #unitsseq-dialog {
-    border: none;
     height: calc(100% - 100px);
     width: calc(100% - 100px);
 }
