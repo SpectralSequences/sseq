@@ -1,3 +1,5 @@
+export let dialogOpen = 0;
+
 class MyDialog extends HTMLDialogElement {
     attributeChangedCallback(name, _oldValue, newValue) {
         if (name === 'title') {
@@ -28,7 +30,13 @@ class MyDialog extends HTMLDialogElement {
                     this.parentNode.removeChild(this);
                 });
             }
+            this.addEventListener('close', () => (dialogOpen -= 1));
         }
+    }
+
+    showModal() {
+        dialogOpen += 1;
+        super.showModal();
     }
 }
 customElements.define('my-dialog', MyDialog, { extends: 'dialog' });

@@ -6,7 +6,7 @@ import {
 } from './panels.js';
 import { MIN_PAGE } from './sseq.js';
 import { Sidebar } from './chart.js';
-import './dialog.js';
+import { dialogOpen } from './dialog.js';
 
 export const STATE_ADD_DIFFERENTIAL = 1;
 export const STATE_QUERY_TABLE = 2;
@@ -84,6 +84,9 @@ export class MainDisplay {
     }
 
     _onKeyDown(e) {
+        if (dialogOpen > 0 || e.target !== document.body) {
+            return;
+        }
         switch (e.key) {
             case 'J':
                 this.currentPanel.prevTab();
@@ -143,6 +146,10 @@ export class MainDisplay {
                     this.sseq.addProductInteractive(x, y, num);
                 }
                 break;
+        }
+        if (dialogOpen > 0) {
+            // If we opened a dialog while processing the keydown, don't type the key into the dialog
+            e.preventDefault();
         }
     }
 

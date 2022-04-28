@@ -86,7 +86,7 @@ class DriverWrapper:
         ).click()
 
     def send_keys(self, key: str):
-        self.driver.find_element(By.TAG_NAME, "body").send_keys(key)
+        self.driver.switch_to.active_element.send_keys(key)
 
     def select_panel(self, name: str):
         head = self.driver.execute_script("return window.display.currentPanel.head")

@@ -1,4 +1,4 @@
-import { promptClass, vecToName } from './utils.js';
+import { promptClass, inputClass, vecToName, html } from './utils.js';
 import { svgNS } from './chart.js';
 
 export const MIN_PAGE = 2;
@@ -204,42 +204,59 @@ export class ExtSseq {
         const sourceDim = this.getClasses(source[0], source[1], page).length;
         const targetDim = this.getClasses(target[0], target[1], page).length;
 
-        let sourceVec;
-        if (sourceDim == 1) {
-            sourceVec = [1];
-        } else {
-            sourceVec = promptClass(
-                'Input source',
-                `Invalid source. Express in terms of basis on page ${page}`,
-                sourceDim,
-            );
-            if (sourceVec === null) {
+        const dialog = html(`
+            <dialog is="my-dialog" title="Input differential at (${
+                source[0]
+            }, ${source[1]})">
+                <section style="text-align: center">
+                    ${katex.renderToString(`d_{${page}}`)}
+                </section>
+                <footer>
+                    <span style="flex-grow: 1"></span><button class="button" value="submit">Add</button>
+                </footer>
+            </dialog>`);
+
+        const sourceInput = inputClass(
+            `Express source in E${page} page basis`,
+            sourceDim,
+            this.p,
+        );
+        const targetInput = inputClass(
+            `Express target in E${page} page basis`,
+            targetDim,
+            this.p,
+        );
+        const section = dialog.querySelector('section');
+        section.append(sourceInput, ' = ', targetInput);
+
+        document.body.appendChild(dialog);
+        dialog.showModal();
+
+        dialog.addEventListener('close', () => {
+            if (dialog.returnValue !== 'submit') {
                 return;
             }
-        }
-        let targetVec = promptClass(
-            'Input target',
-            `Invalid target. Express in terms of basis on page ${page}`,
-            targetDim,
-        );
-        if (targetVec === null) {
-            return;
-        }
+            const sourceVec = this.pageBasisToE2Basis(
+                page,
+                source[0],
+                source[1],
+                eval(sourceInput.value),
+            );
+            const targetVec = this.pageBasisToE2Basis(
+                page,
+                source[0] - 1,
+                source[1] + page,
+                eval(targetInput.value),
+            );
 
-        sourceVec = this.pageBasisToE2Basis(
-            page,
-            source[0],
-            source[1],
-            sourceVec,
-        );
-        targetVec = this.pageBasisToE2Basis(
-            page,
-            source[0] - 1,
-            source[1] + page,
-            targetVec,
-        );
-
-        this.addDifferential(page, source[0], source[1], sourceVec, targetVec);
+            this.addDifferential(
+                page,
+                source[0],
+                source[1],
+                sourceVec,
+                targetVec,
+            );
+        });
     }
 
     setClassName(x, y, idx, name) {

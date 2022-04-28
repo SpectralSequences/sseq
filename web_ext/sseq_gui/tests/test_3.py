@@ -1,4 +1,5 @@
 import time
+from selenium.webdriver.common.keys import Keys
 
 
 def test_c3(driver):
@@ -8,12 +9,14 @@ def test_c3(driver):
     driver.click_class(18, 2)
     driver.send_keys("d")
     driver.click_class(17, 4)
-    driver.reply("[1]")
+    driver.send_keys(Keys.ENTER)
 
     driver.click_class(19, 2)
     driver.send_keys("d")
     driver.click_class(18, 4)
-    driver.reply("[2]")
+    driver.send_keys(Keys.TAB)
+    driver.send_keys("[2]")
+    driver.send_keys(Keys.ENTER)
 
     # Differential propagation checks that v₁ and β products are working
     driver.check_pages("C3_differential", 3)

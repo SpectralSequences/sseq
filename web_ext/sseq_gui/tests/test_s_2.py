@@ -1,5 +1,6 @@
 import time
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
 
 
 def test_differential(driver):
@@ -9,25 +10,24 @@ def test_differential(driver):
     driver.click_class(15, 1)
     driver.send_keys("d")
     driver.click_class(14, 3)
-    driver.reply("[1]")
+    driver.send_keys(Keys.ENTER)
 
     driver.click_class(15, 2)
     driver.send_keys("d")
     driver.click_class(14, 5)
-    driver.reply("[1]")
+    driver.send_keys(Keys.ENTER)
 
     driver.click_class(17, 4)
     driver.send_keys("d")
     driver.click_class(16, 6)
-    driver.reply("[1]")
+    driver.send_keys(Keys.ENTER)
 
     driver.click_class(18, 4)
     driver.select_panel("Diff")
     driver.click_button("Add Differential")
     driver.click_class(17, 6)
-    driver.reply("[0, 1]")
-    time.sleep(0.1)
-    driver.reply("[1]")
+    driver.send_keys("[0, 1]")
+    driver.send_keys(Keys.ENTER)
 
     driver.check_pages("S_2_differential", 4)
 
