@@ -184,6 +184,11 @@ input:focus,
     box-shadow: 0px 0px 2px #67a1f8;
 }
 
+input[is='class-input'] {
+    display: inline;
+    text-align: center;
+}
+
 dialog {
     border-radius: 0.6rem;
     border: none;

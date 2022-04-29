@@ -19,14 +19,31 @@
  */
 class KaTeXInput extends HTMLElement {
     attributeChangedCallback(name, _oldValue, newValue) {
+        if (name === 'width') {
+            this.display.style.width = newValue;
+            this.input.style.width = newValue;
+            return;
+        }
+        if (name === 'input') {
+            if (newValue !== null) {
+                this.display.classList.add('input');
+            }
+        }
         this.input.setAttribute(name, newValue);
-        if (name == 'value') {
+        if (name === 'value') {
             this.update();
         }
     }
 
     static get observedAttributes() {
-        return ['value', 'readonly', 'required', 'placeholder'];
+        return [
+            'value',
+            'readonly',
+            'required',
+            'placeholder',
+            'width',
+            'input',
+        ];
     }
 
     get value() {
@@ -221,3 +238,42 @@ input:checked + span:before {
     }
 }
 customElements.define('checkbox-switch', CheckboxSwitch);
+
+class ClassInput extends HTMLInputElement {
+    attributeChangedCallback(name, _oldValue, newValue) {
+        if (name === 'length') {
+            this.setAttribute(
+                'placeholder',
+                '[1' +
+                    Array(newValue - 1)
+                        .fill(', 0')
+                        .join() +
+                    ']',
+            );
+            if (newValue === '1' && this.value === '') {
+                this.value = '[1]';
+            }
+            this.style.width = `${1.5 + 1.2 * newValue}rem`;
+        }
+        const getAttribute = attr =>
+            name === attr
+                ? parseInt(newValue)
+                : parseInt(this.getAttribute(attr));
+
+        this.setAttribute(
+            'pattern',
+            `\\[${Array(getAttribute('length'))
+                .fill(`[0-${getAttribute('p') - 1}]`)
+                .join(', *')}\\]`,
+        );
+    }
+
+    static get observedAttributes() {
+        return ['length', 'p'];
+    }
+
+    constructor() {
+        super();
+    }
+}
+customElements.define('class-input', ClassInput, { extends: 'input' });

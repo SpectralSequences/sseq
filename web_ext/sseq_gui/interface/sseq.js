@@ -1,6 +1,6 @@
-import { promptClass, inputClass, vecToName, html } from './utils.js';
+import { promptClass, vecToName, html } from './utils.js';
 import { svgNS } from './chart.js';
-import './panels.js';
+import './components.js';
 
 export const MIN_PAGE = 2;
 const CHART_STYLE = `
@@ -211,24 +211,18 @@ export class ExtSseq {
             }, ${source[1]})">
                 <section style="text-align: center">
                     ${katex.renderToString(`d_{${page}}`)}
+                    <input name="source" is="class-input"
+                        title="Express source in E${page} page basis"
+                        length="${sourceDim}" p=${this.p}></input>
+                    =
+                    <input name="target" is="class-input"
+                        title="Express target in E${page} page basis"
+                        length="${targetDim}" p=${this.p}></input>
                 </section>
                 <footer>
                     <button class="button" value="submit">Add</button>
                 </footer>
             </dialog>`);
-
-        const sourceInput = inputClass(
-            `Express source in E${page} page basis`,
-            sourceDim,
-            this.p,
-        );
-        const targetInput = inputClass(
-            `Express target in E${page} page basis`,
-            targetDim,
-            this.p,
-        );
-        const section = dialog.querySelector('section');
-        section.append(sourceInput, ' = ', targetInput);
 
         document.body.appendChild(dialog);
         dialog.showModal();
@@ -241,13 +235,13 @@ export class ExtSseq {
                 page,
                 source[0],
                 source[1],
-                eval(sourceInput.value),
+                eval(dialog.querySelector("input[name='source']").value),
             );
             const targetVec = this.pageBasisToE2Basis(
                 page,
                 source[0] - 1,
                 source[1] + page,
-                eval(targetInput.value),
+                eval(dialog.querySelector("input[name='target']").value),
             );
 
             this.addDifferential(
@@ -271,24 +265,16 @@ export class ExtSseq {
     addProductInteractive(x, y, num) {
         const dialog =
             html(`<dialog is="my-dialog" title="Add product at (${x}, ${y})">
-            <section style="display: flex; justify-content: center; align-items: center; gap: 1em"></section>
+            <section style="display: flex; justify-content: center; align-items: center; gap: 1em">
+                <katex-input style='text-align: right' width='5em' input placeholder='name' title='Name of product'></katex-input>
+                =
+                <input name='class' is='class-input' title='Class in E2 page basis' length='${num}' p=${this.p}></input>
+            </section>
             <section style="display: flex; justify-content: center; align-items: center; gap: 1em">
                 Permanent <checkbox-switch checked></checkbox-switch>
             </section>
             <footer><button value="submit" class="button">Add</button></footer>
         </dialog>`);
-        const section = dialog.querySelector('section');
-
-        const nameInput = html(
-            "<katex-input placeholder='name' title='Name of product'></katex-input>",
-        );
-        nameInput.display.classList.add('input');
-        nameInput.display.style.width = '5em';
-        nameInput.display.style.textAlign = 'right';
-        nameInput.input.style.width = '5em';
-
-        const classInput = inputClass('Class in E2 page basis', num, this.p);
-        section.append(nameInput, ' = ', classInput);
 
         document.body.appendChild(dialog);
         dialog.showModal();
@@ -306,8 +292,10 @@ export class ExtSseq {
                             true,
                         x: x,
                         y: y,
-                        class: eval(classInput.value),
-                        name: nameInput.value,
+                        class: eval(
+                            dialog.querySelector("input[name='class']").value,
+                        ),
+                        name: dialog.querySelector('katex-input').value,
                     },
                 },
             });

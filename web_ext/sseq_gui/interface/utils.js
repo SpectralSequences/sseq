@@ -66,35 +66,6 @@ export function promptClass(text, error, length) {
     }
 }
 
-export function inputClass(description, length, p) {
-    const input = document.createElement('input');
-    input.setAttribute('type', 'text');
-    input.setAttribute('title', description);
-
-    input.setAttribute(
-        'placeholder',
-        '[1' +
-            Array(length - 1)
-                .fill(', 0')
-                .join() +
-            ']',
-    );
-    input.setAttribute(
-        'pattern',
-        `\\[${Array(length)
-            .fill(`[0-${p - 1}]`)
-            .join(', *')}\\]`,
-    );
-    if (length === 1) {
-        input.value = '[1]';
-    }
-    input.style.width = `${1.5 + 1.2 * length}rem`;
-    input.style.display = 'inline';
-    input.style.textAlign = 'center';
-
-    return input;
-}
-
 export function parseIntegerArray(text) {
     try {
         const vec = JSON.parse(text.trim());
