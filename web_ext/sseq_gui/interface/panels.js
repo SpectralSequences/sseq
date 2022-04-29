@@ -564,7 +564,7 @@ function* mainPanel(sseq) {
                         () => {
                             if (confirm(`Rename ${names[idx]} as ${d[1]}?`)) {
                                 sseq.setClassName(x, y, idx, d[1]);
-                                this.display.clearHighlight();
+                                sseq.clearHighlight();
                             }
                         },
                         highlights,
