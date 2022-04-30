@@ -61,6 +61,7 @@ class KaTeXInput extends HTMLElement {
         if (this.value !== '') {
             this.display.style.removeProperty('display');
             this.input.style.display = 'none';
+            this.setAttribute('tabindex', '0');
         }
     }
 
@@ -71,11 +72,14 @@ class KaTeXInput extends HTMLElement {
         this.display = document.createElement('span');
         this.display.style.display = 'none';
 
-        this.display.addEventListener('click', () => {
+        const showInput = () => {
             this.display.style.display = 'none';
             this.input.style.removeProperty('display');
             this.input.focus();
-        });
+            this.removeAttribute('tabindex');
+        };
+        this.display.addEventListener('click', showInput);
+        this.addEventListener('focusin', showInput);
         this.input.addEventListener('keyup', e => {
             if (e.key === 'Enter') {
                 this.input.blur();
