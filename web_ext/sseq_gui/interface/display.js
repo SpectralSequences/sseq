@@ -230,18 +230,11 @@ export class UnitDisplay {
                 this.sseq.selected[0] == oldSelected[0] - 1 &&
                 this.sseq.selected[1] - oldSelected[1] >= MIN_PAGE
             ) {
-                const check = confirm(
-                    `Add differential from (${oldSelected[0]}, ${oldSelected[1]}) to (${this.sseq.selected[0]}, ${this.sseq.selected[1]})?`,
+                this.sseq.addProductDifferentialInteractive(
+                    oldSelected[0],
+                    oldSelected[1],
+                    this.sseq.selected[1] - oldSelected[1],
                 );
-                if (check) {
-                    this.sseq.addProductDifferentialInteractive(
-                        oldSelected[0],
-                        oldSelected[1],
-                        this.sseq.selected[1] - oldSelected[1],
-                    );
-                    this.state = null;
-                    this.modal.close();
-                }
             } else {
                 alert('Invalid target for differential');
             }

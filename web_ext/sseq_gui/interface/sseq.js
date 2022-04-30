@@ -1,4 +1,4 @@
-import { promptClass, vecToName, html } from './utils.js';
+import { promptClass, html } from './utils.js';
 import { svgNS } from './chart.js';
 import './components.js';
 
@@ -309,77 +309,85 @@ export class ExtSseq {
         sourceClass,
         targetClass,
     ) {
-        if (!sourceClass) {
-            const num = this.getClasses(sourceX, sourceY, MIN_PAGE).length;
-            if (num == 1 && this.p == 2) {
-                sourceClass = [1];
-            } else {
-                sourceClass = promptClass(
-                    'Enter source class',
-                    'Invalid class. Express in terms of basis on E2',
-                    num,
-                );
-            }
-        }
-        if (!targetClass) {
-            const num = this.getClasses(
-                sourceX - 1,
-                sourceY + page,
-                MIN_PAGE,
-            ).length;
-            if (num == 1 && this.p == 2) {
-                targetClass = [1];
-            } else {
-                targetClass = promptClass(
-                    'Enter target class',
-                    'Invalid class. Express in terms of basis on E2',
-                    num,
-                );
-            }
-        }
+        const sourceDim = this.getClasses(sourceX, sourceY, MIN_PAGE).length;
+        const targetDim = this.getClasses(
+            sourceX - 1,
+            sourceY + page,
+            MIN_PAGE,
+        ).length;
+        const dialog =
+            html(`<dialog is="my-dialog" title="Add product differential at (${sourceX}, ${sourceY})">
+        <section style="text-align: center">
+            ${katex.renderToString(`d_{${page}}`)}
+            <input name="source" is="class-input"
+                title="Express source in E${page} page basis"
+                length="${sourceDim}" p=${this.p}
+                value="${sourceClass ? '[' + sourceClass.join(', ') + ']' : ''}"
+            ></input>
+            =
+            <input name="target" is="class-input"
+                title="Express target in E${page} page basis"
+                length="${targetDim}" p=${this.p}
+                value="${targetClass ? '[' + targetClass.join(', ') + ']' : ''}"
+            ></input>
+        </section>
+        <section>
+            <div class="input-row">
+                <label style="width: 6em">Source name</label>
+                <katex-input width="10em" input title='Name of source' placeholder='source name' name='source-name'></katex-input>
+            </div>
+            <div class="input-row">
+                <label style="width: 6em">Target name</label>
+                <katex-input width="10em" input title='Name of target' placeholder='target name' name='target-name'></katex-input>
+            </div>
+        </section>
+        <footer>
+            <button class="button" value="submit">Add</button>
+        </footer>
+    </dialog>`);
 
-        if (!(sourceClass && targetClass)) {
-            return;
-        }
-        window.mainSseq.send({
-            recipients: ['Sseq', 'Resolver'],
-            action: {
-                AddProductDifferential: {
-                    source: {
-                        permanent: false,
-                        x: sourceX,
-                        y: sourceY,
-                        class: sourceClass,
-                        name: prompt(
-                            'Name of source',
-                            this.isUnit
-                                ? vecToName(
-                                      sourceClass,
-                                      this.classNames.get(sourceX, sourceY),
-                                  )
-                                : undefined,
-                        ).trim(),
-                    },
-                    target: {
-                        permanent: false,
-                        x: sourceX - 1,
-                        y: sourceY + page,
-                        class: targetClass,
-                        name: prompt(
-                            'Name of target',
-                            this.isUnit
-                                ? vecToName(
-                                      targetClass,
-                                      this.classNames.get(
-                                          sourceX - 1,
-                                          sourceY + page,
-                                      ),
-                                  )
-                                : undefined,
-                        ).trim(),
+        document.body.appendChild(dialog);
+        dialog.showModal();
+
+        dialog.addEventListener('close', () => {
+            if (dialog.returnValue !== 'submit') {
+                return;
+            }
+            window.mainSseq.send({
+                recipients: ['Sseq', 'Resolver'],
+                action: {
+                    AddProductDifferential: {
+                        source: {
+                            permanent: false,
+                            x: sourceX,
+                            y: sourceY,
+                            class: eval(
+                                dialog.querySelector("input[name='source']")
+                                    .value,
+                            ),
+                            name: dialog
+                                .querySelector(
+                                    "katex-input[name='source-name']",
+                                )
+                                .value.trim(),
+                        },
+                        target: {
+                            permanent: false,
+                            x: sourceX - 1,
+                            y: sourceY + page,
+                            class: eval(
+                                dialog.querySelector("input[name='target']")
+                                    .value,
+                            ),
+                            name: dialog
+                                .querySelector(
+                                    "katex-input[name='target-name']",
+                                )
+                                .value.trim(),
+                        },
                     },
                 },
-            },
+            });
         });
     }
 

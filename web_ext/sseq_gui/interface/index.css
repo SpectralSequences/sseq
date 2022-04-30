@@ -147,19 +147,22 @@ details summary::-webkit-details-marker {
     display: none;
 }
 
-input-row {
+input-row,
+.input-row {
     margin-top: 0.4rem;
     margin-bottom: 0.4rem;
     display: flex;
     align-items: center;
 }
 
-input-row input {
+input-row > input,
+.input-row > input {
     flex-grow: 1;
     width: 1px; /* This forces it to take the width given by flex-grow */
 }
 
-input-row label {
+input-row > label,
+.input-row > label {
     margin-right: 0.6rem;
     text-align: right; /* The user should set the width of the label by hand */
 }
