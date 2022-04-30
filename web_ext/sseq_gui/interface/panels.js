@@ -1,5 +1,6 @@
 import { STATE_ADD_DIFFERENTIAL } from './display.js';
 import {
+    dialog,
     rowToKaTeX,
     rowToLaTeX,
     matrixToKaTeX,
@@ -567,10 +568,18 @@ function* mainPanel(sseq) {
                             KATEX_ARGS,
                         ),
                         () => {
-                            if (confirm(`Rename ${names[idx]} as ${d[1]}?`)) {
-                                sseq.setClassName(x, y, idx, d[1]);
-                                sseq.clearHighlight();
-                            }
+                            dialog(
+                                'Rename element',
+                                `<section>
+                                Rename ${katex.renderToString(names[idx])}
+                                as ${katex.renderToString(d[1])}?
+                                </section>`,
+                                () => {
+                                    sseq.setClassName(x, y, idx, d[1]);
+                                    sseq.clearHighlight();
+                                },
+                                'Rename',
+                            );
                         },
                         highlights,
                     );

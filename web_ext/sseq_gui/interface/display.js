@@ -7,6 +7,7 @@ import {
 import { MIN_PAGE } from './sseq.js';
 import { Sidebar } from './chart.js';
 import { dialogOpen } from './components.js';
+import { dialog } from './utils.js';
 
 export const STATE_ADD_DIFFERENTIAL = 1;
 export const STATE_QUERY_TABLE = 2;
@@ -182,7 +183,7 @@ export class UnitDisplay {
         document.getElementById(container).appendChild(sseq.chart);
 
         document.querySelector('#modal-diff').addEventListener('click', () => {
-            this.modal.title = 'Select target element';
+            this.modal.setAttribute('header', 'Select target element');
             this.state = STATE_ADD_DIFFERENTIAL;
         });
 
@@ -219,7 +220,10 @@ export class UnitDisplay {
         if (!this.sseq.selected) {
             this.state = null;
 
-            this.modal.title = 'Select element to multiply with';
+            this.modal.setAttribute(
+                'header',
+                'Select element to multiply with',
+            );
             document.querySelector('#modal-ok').disabled = true;
             document.querySelector('#modal-diff').disabled = true;
             return;
@@ -236,7 +240,12 @@ export class UnitDisplay {
                     this.sseq.selected[1] - oldSelected[1],
                 );
             } else {
-                alert('Invalid target for differential');
+                dialog(
+                    `Add differential at (${oldSelected[0]}, ${oldSelected[1]})`,
+                    '<section>Invalid target for differential</section>',
+                    () => {},
+                    'OK',
+                );
             }
         } else {
             this.state = null;

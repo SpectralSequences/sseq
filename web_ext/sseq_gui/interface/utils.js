@@ -52,35 +52,6 @@ export function renderLaTeX(html) {
     return html_list.join('\n');
 }
 
-// Prompts for an array of length `length`
-export function promptClass(text, error, length) {
-    while (true) {
-        const response = prompt(text);
-        if (!response) {
-            return null;
-        }
-        const vec = parseIntegerArray(response);
-        if (vec === null || vec.length != length) {
-            alert(error);
-        } else {
-            return vec;
-        }
-    }
-}
-
-export function parseIntegerArray(text) {
-    try {
-        const vec = JSON.parse(text.trim());
-        if (
-            Array.isArray(vec) &&
-            vec.reduce((b, x) => b && Number.isInteger(x), true)
-        ) {
-            return vec;
-        }
-    } catch (e) {}
-    return null;
-}
-
 export function download(filename, data, mime = 'text/plain') {
     if (!Array.isArray(data)) {
         data = [data];
@@ -96,7 +67,7 @@ export function download(filename, data, mime = 'text/plain') {
 
 export function dialog(title, contents, callback, submitText) {
     const dialog = html(`
-    <dialog is="my-dialog" title="${title}">
+    <dialog is="my-dialog">
         ${contents}
         <footer>
             <button class="button" value="submit">${
@@ -104,6 +75,7 @@ export function dialog(title, contents, callback, submitText) {
             }</button>
         </footer>
     </dialog>`);
+    dialog.setAttribute('header', title);
 
     document.body.appendChild(dialog);
     dialog.showModal();

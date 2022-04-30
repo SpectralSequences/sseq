@@ -105,13 +105,13 @@ export let dialogOpen = 0;
 
 class MyDialog extends HTMLDialogElement {
     attributeChangedCallback(name, _oldValue, newValue) {
-        if (name === 'title') {
+        if (name === 'header') {
             this.header.innerHTML = newValue;
         }
     }
 
     static get observedAttributes() {
-        return ['title'];
+        return ['header'];
     }
 
     constructor() {
@@ -135,6 +135,7 @@ class MyDialog extends HTMLDialogElement {
     showModal() {
         dialogOpen += 1;
         super.showModal();
+        document.activeElement?.select?.();
     }
 }
 customElements.define('my-dialog', MyDialog, { extends: 'dialog' });

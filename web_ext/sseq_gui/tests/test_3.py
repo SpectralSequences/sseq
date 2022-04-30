@@ -1,4 +1,3 @@
-import time
 from selenium.webdriver.common.keys import Keys
 
 
@@ -35,7 +34,8 @@ def test_calpha(driver):
     driver.click_button("Add")
     driver.click_button("Show more")
 
-    driver.reply("20")
+    driver.send_keys("20")
+    driver.send_keys(Keys.ENTER)
     driver.wait_complete()
 
     driver.zoom_out("unit")

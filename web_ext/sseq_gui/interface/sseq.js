@@ -1,4 +1,4 @@
-import { promptClass, dialog } from './utils.js';
+import { dialog } from './utils.js';
 import { svgNS } from './chart.js';
 import './components.js';
 
@@ -122,22 +122,36 @@ export class ExtSseq {
     }
 
     removeHistoryItem(msg) {
-        msg = JSON.stringify(msg);
-        if (confirm(`Are you sure you want to remove ${msg}?`)) {
-            this.history = this.history.filter(m => JSON.stringify(m) != msg);
+        const actionKey = Object.keys(msg['action'])[0];
+        dialog(
+            'Undo action',
+            `<section>Undoing action:
+            <pre>${actionKey}: ${JSON.stringify(
+                msg['action'][actionKey],
+                null,
+                4,
+            )}</pre>
+            </section>`,
+            () => {
+                msg = JSON.stringify(msg);
+                this.history = this.history.filter(
+                    m => JSON.stringify(m) != msg,
+                );
 
-            this.block();
-            this.send({
-                recipients: ['Sseq'],
-                action: { Clear: {} },
-            });
+                this.block();
+                this.send({
+                    recipients: ['Sseq'],
+                    action: { Clear: {} },
+                });
 
-            for (const msg of this.history) {
-                this.send(msg, false);
-            }
-            this.refreshPanel?.();
-            this.block(false);
-        }
+                for (const msg of this.history) {
+                    this.send(msg, false);
+                }
+                this.refreshPanel?.();
+                this.block(false);
+            },
+            'Undo',
+        );
     }
 
     block(block = true) {
@@ -371,18 +385,27 @@ export class ExtSseq {
 
         const last = classes[classes.length - 1];
         if (last.length == 0) {
-            alert('There are no surviving classes. Action ignored');
+            dialog(
+                `Add permanent class at (${x}, ${y})`,
+                '<section>There are no surviving classes</section>',
+                () => {},
+                'OK',
+            );
         } else if (classes[0].length == 1) {
             this.addPermanentClass(x, y, classes[0][0]);
         } else {
-            const target = promptClass(
-                'Input new permanent class',
-                'Invalid class. Express in terms of basis on E_2 page',
-                classes[0].length,
+            dialog(
+                `Add permanent class at (${x}, ${y})`,
+                `<section class="input-row">
+                    <label>Class</label><input is="class-input" p="${this.p}" length="${classes[0].length}"></input>
+                </section>`,
+                dialog =>
+                    this.addPermanentClass(
+                        x,
+                        y,
+                        eval(dialog.querySelector('input').value),
+                    ),
             );
-            if (target !== null) {
-                this.addPermanentClass(x, y, target);
-            }
         }
     }
 
@@ -402,28 +425,48 @@ export class ExtSseq {
     }
 
     resolveFurther(newmax) {
-        // This is usually an event callback and the argument could be any random thing.
-        if (!Number.isInteger(newmax)) {
-            newmax = prompt('New maximum degree', this.maxDegree + 10);
-            if (newmax === null) return;
-            newmax = parseInt(newmax.trim());
-        }
-
-        if (newmax <= this.maxDegree) {
+        if (Number.isInteger(newmax)) {
+            this.maxDegree = newmax;
+            this.send({
+                recipients: ['Resolver'],
+                action: {
+                    Resolve: {
+                        max_degree: newmax,
+                    },
+                },
+            });
             return;
         }
-        this.maxDegree = newmax;
 
-        this.block();
-        this.send({
-            recipients: ['Resolver'],
-            action: {
-                Resolve: {
-                    max_degree: newmax,
-                },
+        dialog(
+            'Resolve further',
+            `<section style="input-row">
+                <label>New maximum degree</label>
+                <input style="width: 5em" type="number" value="${
+                    this.maxDegree + 10
+                }">
+            </section>`,
+            dialog => {
+                newmax = parseInt(dialog.querySelector('input').value);
+                if (newmax <= this.maxDegree) {
+                    return;
+                }
+                this.maxDegree = newmax;
+
+                this.block();
+                this.send({
+                    recipients: ['Resolver'],
+                    action: {
+                        Resolve: {
+                            max_degree: newmax,
+                        },
+                    },
+                });
+
+                this.block(false);
             },
-        });
-        this.block(false);
+            'Resolve',
+        );
     }
 
     queryCocycleString(x, y) {

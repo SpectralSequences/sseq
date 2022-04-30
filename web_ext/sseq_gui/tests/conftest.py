@@ -3,8 +3,6 @@ from pathlib import Path
 
 import xml.etree.ElementTree as ET
 
-from typing import Union
-
 from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.keys import Keys
@@ -115,17 +113,6 @@ class DriverWrapper:
                 return
 
         raise ValueError(f"Button {text} not found")
-
-    def reply(self, text: Union[str, bool]):
-        alert = self.driver.switch_to.alert
-        if isinstance(text, str):
-            alert.send_keys(text)
-            alert.accept()
-
-        elif text:
-            alert.accept()
-        else:
-            alert.reject()
 
     def zoom_out(self, sseq="main"):
         self.driver.execute_script(
