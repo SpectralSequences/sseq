@@ -279,6 +279,7 @@ class ClassInput extends HTMLInputElement {
 
     constructor() {
         super();
+        this.setAttribute('required', '');
     }
 }
 customElements.define('class-input', ClassInput, { extends: 'input' });
