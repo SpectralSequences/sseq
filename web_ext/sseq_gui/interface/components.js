@@ -76,6 +76,7 @@ class KaTeXInput extends HTMLElement {
             this.display.style.display = 'none';
             this.input.style.removeProperty('display');
             this.input.focus();
+            this.input.select();
             this.removeAttribute('tabindex');
         };
         this.display.addEventListener('click', showInput);
