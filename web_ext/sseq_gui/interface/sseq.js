@@ -1,4 +1,4 @@
-import { promptClass, html } from './utils.js';
+import { promptClass, dialog } from './utils.js';
 import { svgNS } from './chart.js';
 import './components.js';
 
@@ -205,53 +205,41 @@ export class ExtSseq {
         const sourceDim = this.getClasses(source[0], source[1], page).length;
         const targetDim = this.getClasses(target[0], target[1], page).length;
 
-        const dialog = html(`
-            <dialog is="my-dialog" title="Input differential at (${
-                source[0]
-            }, ${source[1]})">
-                <section style="text-align: center">
-                    ${katex.renderToString(`d_{${page}}`)}
-                    <input name="source" is="class-input"
-                        title="Express source in E${page} page basis"
-                        length="${sourceDim}" p=${this.p}></input>
-                    =
-                    <input name="target" is="class-input"
-                        title="Express target in E${page} page basis"
-                        length="${targetDim}" p=${this.p}></input>
-                </section>
-                <footer>
-                    <button class="button" value="submit">Add</button>
-                </footer>
-            </dialog>`);
+        dialog(
+            `Input differential at (${source[0]}, ${source[1]})`,
+            `<section style="text-align: center">
+                ${katex.renderToString(`d_{${page}}`)}
+                <input name="source" is="class-input"
+                    title="Express source in E${page} page basis"
+                    length="${sourceDim}" p=${this.p}></input>
+                =
+                <input name="target" is="class-input"
+                    title="Express target in E${page} page basis"
+                    length="${targetDim}" p=${this.p}></input>
+            </section>`,
+            dialog => {
+                const sourceVec = this.pageBasisToE2Basis(
+                    page,
+                    source[0],
+                    source[1],
+                    eval(dialog.querySelector("input[name='source']").value),
+                );
+                const targetVec = this.pageBasisToE2Basis(
+                    page,
+                    source[0] - 1,
+                    source[1] + page,
+                    eval(dialog.querySelector("input[name='target']").value),
+                );
 
-        document.body.appendChild(dialog);
-        dialog.showModal();
-
-        dialog.addEventListener('close', () => {
-            if (dialog.returnValue !== 'submit') {
-                return;
-            }
-            const sourceVec = this.pageBasisToE2Basis(
-                page,
-                source[0],
-                source[1],
-                eval(dialog.querySelector("input[name='source']").value),
-            );
-            const targetVec = this.pageBasisToE2Basis(
-                page,
-                source[0] - 1,
-                source[1] + page,
-                eval(dialog.querySelector("input[name='target']").value),
-            );
-
-            this.addDifferential(
-                page,
-                source[0],
-                source[1],
-                sourceVec,
-                targetVec,
-            );
-        });
+                this.addDifferential(
+                    page,
+                    source[0],
+                    source[1],
+                    sourceVec,
+                    targetVec,
+                );
+            },
+        );
     }
 
     setClassName(x, y, idx, name) {
@@ -263,43 +251,36 @@ export class ExtSseq {
 
     // addProductInteractive takes in the number of classes in bidegree (x, y), because this should be the number of classes in the *unit* spectral sequence, not the main spectral sequence
     addProductInteractive(x, y, num) {
-        const dialog =
-            html(`<dialog is="my-dialog" title="Add product at (${x}, ${y})">
-            <section style="display: flex; justify-content: center; align-items: center; gap: 1em">
+        dialog(
+            `Add product at (${x}, ${y})`,
+            `<section style="display: flex; justify-content: center; align-items: center; gap: 1em">
                 <katex-input style='text-align: right' width='5em' input placeholder='name' title='Name of product'></katex-input>
                 =
                 <input name='class' is='class-input' title='Class in E2 page basis' length='${num}' p=${this.p}></input>
             </section>
             <section style="display: flex; justify-content: center; align-items: center; gap: 1em">
                 Permanent <checkbox-switch checked></checkbox-switch>
-            </section>
-            <footer><button value="submit" class="button">Add</button></footer>
-        </dialog>`);
-
-        document.body.appendChild(dialog);
-        dialog.showModal();
-
-        dialog.addEventListener('close', () => {
-            if (dialog.returnValue !== 'submit') {
-                return;
-            }
-            this.send({
-                recipients: ['Sseq', 'Resolver'],
-                action: {
-                    AddProductType: {
-                        permanent:
-                            dialog.querySelector('checkbox-switch').checked ===
-                            true,
-                        x: x,
-                        y: y,
-                        class: eval(
-                            dialog.querySelector("input[name='class']").value,
-                        ),
-                        name: dialog.querySelector('katex-input').value,
+            </section>`,
+            dialog => {
+                this.send({
+                    recipients: ['Sseq', 'Resolver'],
+                    action: {
+                        AddProductType: {
+                            permanent:
+                                dialog.querySelector('checkbox-switch')
+                                    .checked === true,
+                            x: x,
+                            y: y,
+                            class: eval(
+                                dialog.querySelector("input[name='class']")
+                                    .value,
+                            ),
+                            name: dialog.querySelector('katex-input').value,
+                        },
                     },
-                },
-            });
-        });
+                });
+            },
+        );
     }
 
     addProductDifferentialInteractive(
@@ -315,80 +296,74 @@ export class ExtSseq {
             sourceY + page,
             MIN_PAGE,
         ).length;
-        const dialog =
-            html(`<dialog is="my-dialog" title="Add product differential at (${sourceX}, ${sourceY})">
-        <section style="text-align: center">
-            ${katex.renderToString(`d_{${page}}`)}
-            <input name="source" is="class-input"
-                title="Express source in E${page} page basis"
-                length="${sourceDim}" p=${this.p}
-                value="${sourceClass ? '[' + sourceClass.join(', ') + ']' : ''}"
-            ></input>
-            =
-            <input name="target" is="class-input"
-                title="Express target in E${page} page basis"
-                length="${targetDim}" p=${this.p}
-                value="${targetClass ? '[' + targetClass.join(', ') + ']' : ''}"
-            ></input>
-        </section>
-        <section>
-            <div class="input-row">
-                <label style="width: 6em">Source name</label>
-                <katex-input width="10em" input title='Name of source' placeholder='source name' name='source-name'></katex-input>
-            </div>
-            <div class="input-row">
-                <label style="width: 6em">Target name</label>
-                <katex-input width="10em" input title='Name of target' placeholder='target name' name='target-name'></katex-input>
-            </div>
-        </section>
-        <footer>
-            <button class="button" value="submit">Add</button>
-        </footer>
-    </dialog>`);
-
-        document.body.appendChild(dialog);
-        dialog.showModal();
-
-        dialog.addEventListener('close', () => {
-            if (dialog.returnValue !== 'submit') {
-                return;
-            }
-            window.mainSseq.send({
-                recipients: ['Sseq', 'Resolver'],
-                action: {
-                    AddProductDifferential: {
-                        source: {
-                            permanent: false,
-                            x: sourceX,
-                            y: sourceY,
-                            class: eval(
-                                dialog.querySelector("input[name='source']")
-                                    .value,
-                            ),
-                            name: dialog
-                                .querySelector(
-                                    "katex-input[name='source-name']",
-                                )
-                                .value.trim(),
-                        },
-                        target: {
-                            permanent: false,
-                            x: sourceX - 1,
-                            y: sourceY + page,
-                            class: eval(
-                                dialog.querySelector("input[name='target']")
-                                    .value,
-                            ),
-                            name: dialog
-                                .querySelector(
-                                    "katex-input[name='target-name']",
-                                )
-                                .value.trim(),
+        dialog(
+            `Add product differential at (${sourceX}, ${sourceY})`,
+            `<section style="text-align: center">
+                ${katex.renderToString(`d_{${page}}`)}
+                <input name="source" is="class-input"
+                    title="Express source in E${page} page basis"
+                    length="${sourceDim}" p=${this.p}
+                    value="${
+                        sourceClass ? '[' + sourceClass.join(', ') + ']' : ''
+                    }"
+                ></input>
+                =
+                <input name="target" is="class-input"
+                    title="Express target in E${page} page basis"
+                    length="${targetDim}" p=${this.p}
+                    value="${
+                        targetClass ? '[' + targetClass.join(', ') + ']' : ''
+                    }"
+                ></input>
+            </section>
+            <section>
+                <div class="input-row">
+                    <label style="width: 6em">Source name</label>
+                    <katex-input width="10em" input title='Name of source' placeholder='source name' name='source-name'></katex-input>
+                </div>
+                <div class="input-row">
+                    <label style="width: 6em">Target name</label>
+                    <katex-input width="10em" input title='Name of target' placeholder='target name' name='target-name'></katex-input>
+                </div>
+            </section>`,
+            dialog => {
+                window.mainSseq.send({
+                    recipients: ['Sseq', 'Resolver'],
+                    action: {
+                        AddProductDifferential: {
+                            source: {
+                                permanent: false,
+                                x: sourceX,
+                                y: sourceY,
+                                class: eval(
+                                    dialog.querySelector("input[name='source']")
+                                        .value,
+                                ),
+                                name: dialog
+                                    .querySelector(
+                                        "katex-input[name='source-name']",
+                                    )
+                                    .value.trim(),
+                            },
+                            target: {
+                                permanent: false,
+                                x: sourceX - 1,
+                                y: sourceY + page,
+                                class: eval(
+                                    dialog.querySelector("input[name='target']")
+                                        .value,
+                                ),
+                                name: dialog
+                                    .querySelector(
+                                        "katex-input[name='target-name']",
+                                    )
+                                    .value.trim(),
+                            },
                         },
                     },
-                },
-            });
-        });
+                });
+            },
+        );
     }
 
     addPermanentClassInteractive(x, y) {

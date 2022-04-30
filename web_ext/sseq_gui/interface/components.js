@@ -128,11 +128,6 @@ class MyDialog extends HTMLDialogElement {
                 this.form.appendChild(this.firstChild);
             }
             this.appendChild(this.form);
-            if (this.getAttribute('permanent') === null) {
-                this.addEventListener('close', () => {
-                    this.parentNode.removeChild(this);
-                });
-            }
             this.addEventListener('close', () => (dialogOpen -= 1));
         }
     }

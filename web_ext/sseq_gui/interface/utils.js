@@ -1,3 +1,5 @@
+import './components.js';
+
 export const KATEX_ARGS = {
     throwOnError: false,
 };
@@ -90,4 +92,27 @@ export function download(filename, data, mime = 'text/plain') {
     element.rel = 'noopener';
     element.dispatchEvent(new MouseEvent('click'));
     setTimeout(() => URL.revokeObjectURL(element.href), 6e4);
+}
+
+export function dialog(title, contents, callback, submitText) {
+    const dialog = html(`
+    <dialog is="my-dialog" title="${title}">
+        ${contents}
+        <footer>
+            <button class="button" value="submit">${
+                submitText || 'Add'
+            }</button>
+        </footer>
+    </dialog>`);
+
+    document.body.appendChild(dialog);
+    dialog.showModal();
+
+    dialog.addEventListener('close', () => {
+        document.body.removeChild(dialog);
+        if (dialog.returnValue !== 'submit') {
+            return;
+        }
+        callback(dialog);
+    });
 }
