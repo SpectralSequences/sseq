@@ -301,6 +301,11 @@ export class TabbedPanel extends HTMLElement {
         this.update();
     }
 
+    gotoTab(idx) {
+        this.currentIndex = idx;
+        this.update();
+    }
+
     nextTab() {
         this.currentIndex += 1;
         this.currentIndex %= this.tabs.length;

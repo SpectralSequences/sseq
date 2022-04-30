@@ -111,33 +111,9 @@ export class MainDisplay {
                 break;
             case 'n':
                 if (!this.sseq.selected) break;
-                {
-                    // Keep the variable declarations within the block
-                    const [x, y] = this.sseq.selected;
-                    const num = this.sseq.getClasses(x, y, MIN_PAGE).length;
-
-                    let idx = 0;
-                    if (num != 1) {
-                        while (true) {
-                            idx = prompt('Class index');
-                            if (idx === null) return;
-
-                            idx = parseInt(idx);
-                            if (Number.isNaN(idx) || idx >= num || idx < 0) {
-                                alert(
-                                    `Invalid index. Enter integer between 0 and ${num} (inclusive)`,
-                                );
-                            } else {
-                                break;
-                            }
-                        }
-                    }
-
-                    const name = prompt('New class name');
-                    if (name !== null) {
-                        this.sseq.setClassName(x, y, idx, name);
-                    }
-                }
+                this.classPanel.gotoTab(0);
+                this.classPanel.querySelector('katex-input').focus();
+                e.preventDefault();
                 break;
             case 'm':
                 if (this.isUnit && this.sseq.selected) {
