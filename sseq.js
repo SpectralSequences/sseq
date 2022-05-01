@@ -1,5 +1,6 @@
-import { promptClass, vecToName } from './utils.js';
+import { dialog } from './utils.js';
 import { svgNS } from './chart.js';
+import './components.js';
 
 export const MIN_PAGE = 2;
 const CHART_STYLE = `
@@ -121,22 +122,36 @@ export class ExtSseq {
     }
 
     removeHistoryItem(msg) {
-        msg = JSON.stringify(msg);
-        if (confirm(`Are you sure you want to remove ${msg}?`)) {
-            this.history = this.history.filter(m => JSON.stringify(m) != msg);
+        const actionKey = Object.keys(msg['action'])[0];
+        dialog(
+            'Undo action',
+            `<section>Undoing action:
+            <pre>${actionKey}: ${JSON.stringify(
+                msg['action'][actionKey],
+                null,
+                4,
+            )}</pre>
+            </section>`,
+            () => {
+                msg = JSON.stringify(msg);
+                this.history = this.history.filter(
+                    m => JSON.stringify(m) != msg,
+                );
 
-            this.block();
-            this.send({
-                recipients: ['Sseq'],
-                action: { Clear: {} },
-            });
+                this.block();
+                this.send({
+                    recipients: ['Sseq'],
+                    action: { Clear: {} },
+                });
 
-            for (const msg of this.history) {
-                this.send(msg, false);
-            }
-            this.refreshPanel?.();
-            this.block(false);
-        }
+                for (const msg of this.history) {
+                    this.send(msg, false);
+                }
+                this.refreshPanel?.();
+                this.block(false);
+            },
+            'Undo',
+        );
     }
 
     block(block = true) {
@@ -204,42 +219,41 @@ export class ExtSseq {
         const sourceDim = this.getClasses(source[0], source[1], page).length;
         const targetDim = this.getClasses(target[0], target[1], page).length;
 
-        let sourceVec;
-        if (sourceDim == 1) {
-            sourceVec = [1];
-        } else {
-            sourceVec = promptClass(
-                'Input source',
-                `Invalid source. Express in terms of basis on page ${page}`,
-                sourceDim,
-            );
-            if (sourceVec === null) {
-                return;
-            }
-        }
-        let targetVec = promptClass(
-            'Input target',
-            `Invalid target. Express in terms of basis on page ${page}`,
-            targetDim,
-        );
-        if (targetVec === null) {
-            return;
-        }
+        dialog(
+            `Input differential at (${source[0]}, ${source[1]})`,
+            `<section style="text-align: center">
+                ${katex.renderToString(`d_{${page}}`)}
+                <input name="source" is="class-input"
+                    title="Express source in E${page} page basis"
+                    length="${sourceDim}" p=${this.p}></input>
+                =
+                <input name="target" is="class-input"
+                    title="Express target in E${page} page basis"
+                    length="${targetDim}" p=${this.p}></input>
+            </section>`,
+            dialog => {
+                const sourceVec = this.pageBasisToE2Basis(
+                    page,
+                    source[0],
+                    source[1],
+                    eval(dialog.querySelector("input[name='source']").value),
+                );
+                const targetVec = this.pageBasisToE2Basis(
+                    page,
+                    source[0] - 1,
+                    source[1] + page,
+                    eval(dialog.querySelector("input[name='target']").value),
+                );
 
-        sourceVec = this.pageBasisToE2Basis(
-            page,
-            source[0],
-            source[1],
-            sourceVec,
+                this.addDifferential(
+                    page,
+                    source[0],
+                    source[1],
+                    sourceVec,
+                    targetVec,
+                );
+            },
         );
-        targetVec = this.pageBasisToE2Basis(
-            page,
-            source[0] - 1,
-            source[1] + page,
-            targetVec,
-        );
-
-        this.addDifferential(page, source[0], source[1], sourceVec, targetVec);
     }
 
     setClassName(x, y, idx, name) {
@@ -251,36 +265,36 @@ export class ExtSseq {
 
     // addProductInteractive takes in the number of classes in bidegree (x, y), because this should be the number of classes in the *unit* spectral sequence, not the main spectral sequence
     addProductInteractive(x, y, num) {
-        let c;
-        if (num == 1 && this.p == 2) c = [1];
-        else
-            c = promptClass(
-                'Input class',
-                `Invalid class. Express in terms of basis on E_2 page`,
-                num,
-            );
-
-        const name = prompt(
-            'Name for product',
-            this.isUnit ? vecToName(c, this.classNames.get(x, y)) : undefined,
-        );
-        if (name === null) {
-            return;
-        }
-
-        const permanent = confirm('Permanent class?');
-        this.send({
-            recipients: ['Sseq', 'Resolver'],
-            action: {
-                AddProductType: {
-                    permanent: permanent,
-                    x: x,
-                    y: y,
-                    class: c,
-                    name: name,
-                },
+        dialog(
+            `Add product at (${x}, ${y})`,
+            `<section style="display: flex; justify-content: center; align-items: center; gap: 1em">
+                <katex-input style='text-align: right' width='5em' input placeholder='name' title='Name of product'></katex-input>
+                =
+                <input name='class' is='class-input' title='Class in E2 page basis' length='${num}' p=${this.p}></input>
+            </section>
+            <section style="display: flex; justify-content: center; align-items: center; gap: 1em">
+                Permanent <checkbox-switch checked></checkbox-switch>
+            </section>`,
+            dialog => {
+                this.send({
+                    recipients: ['Sseq', 'Resolver'],
+                    action: {
+                        AddProductType: {
+                            permanent:
+                                dialog.querySelector('checkbox-switch')
+                                    .checked === true,
+                            x: x,
+                            y: y,
+                            class: eval(
+                                dialog.querySelector("input[name='class']")
+                                    .value,
+                            ),
+                            name: dialog.querySelector('katex-input').value,
+                        },
+                    },
+                });
             },
-        });
+        );
     }
 
     addProductDifferentialInteractive(
@@ -290,78 +304,80 @@ export class ExtSseq {
         sourceClass,
         targetClass,
     ) {
-        if (!sourceClass) {
-            const num = this.getClasses(sourceX, sourceY, MIN_PAGE).length;
-            if (num == 1 && this.p == 2) {
-                sourceClass = [1];
-            } else {
-                sourceClass = promptClass(
-                    'Enter source class',
-                    'Invalid class. Express in terms of basis on E2',
-                    num,
-                );
-            }
-        }
-        if (!targetClass) {
-            const num = this.getClasses(
-                sourceX - 1,
-                sourceY + page,
-                MIN_PAGE,
-            ).length;
-            if (num == 1 && this.p == 2) {
-                targetClass = [1];
-            } else {
-                targetClass = promptClass(
-                    'Enter target class',
-                    'Invalid class. Express in terms of basis on E2',
-                    num,
-                );
-            }
-        }
-
-        if (!(sourceClass && targetClass)) {
-            return;
-        }
-        window.mainSseq.send({
-            recipients: ['Sseq', 'Resolver'],
-            action: {
-                AddProductDifferential: {
-                    source: {
-                        permanent: false,
-                        x: sourceX,
-                        y: sourceY,
-                        class: sourceClass,
-                        name: prompt(
-                            'Name of source',
-                            this.isUnit
-                                ? vecToName(
-                                      sourceClass,
-                                      this.classNames.get(sourceX, sourceY),
-                                  )
-                                : undefined,
-                        ).trim(),
+        const sourceDim = this.getClasses(sourceX, sourceY, MIN_PAGE).length;
+        const targetDim = this.getClasses(
+            sourceX - 1,
+            sourceY + page,
+            MIN_PAGE,
+        ).length;
+        dialog(
+            `Add product differential at (${sourceX}, ${sourceY})`,
+            `<section style="text-align: center">
+                ${katex.renderToString(`d_{${page}}`)}
+                <input name="source" is="class-input"
+                    title="Express source in E${page} page basis"
+                    length="${sourceDim}" p=${this.p}
+                    value="${
+                        sourceClass ? '[' + sourceClass.join(', ') + ']' : ''
+                    }"
+                ></input>
+                =
+                <input name="target" is="class-input"
+                    title="Express target in E${page} page basis"
+                    length="${targetDim}" p=${this.p}
+                    value="${
+                        targetClass ? '[' + targetClass.join(', ') + ']' : ''
+                    }"
+                ></input>
+            </section>
+            <section>
+                <div class="input-row">
+                    <label style="width: 6em">Source name</label>
+                    <katex-input width="10em" input title='Name of source' placeholder='source name' name='source-name'></katex-input>
+                </div>
+                <div class="input-row">
+                    <label style="width: 6em">Target name</label>
+                    <katex-input width="10em" input title='Name of target' placeholder='target name' name='target-name'></katex-input>
+                </div>
+            </section>`,
+            dialog => {
+                window.mainSseq.send({
+                    recipients: ['Sseq', 'Resolver'],
+                    action: {
+                        AddProductDifferential: {
+                            source: {
+                                permanent: false,
+                                x: sourceX,
+                                y: sourceY,
+                                class: eval(
+                                    dialog.querySelector("input[name='source']")
+                                        .value,
+                                ),
+                                name: dialog
+                                    .querySelector(
+                                        "katex-input[name='source-name']",
+                                    )
+                                    .value.trim(),
+                            },
+                            target: {
+                                permanent: false,
+                                x: sourceX - 1,
+                                y: sourceY + page,
+                                class: eval(
+                                    dialog.querySelector("input[name='target']")
+                                        .value,
+                                ),
+                                name: dialog
+                                    .querySelector(
+                                        "katex-input[name='target-name']",
+                                    )
+                                    .value.trim(),
+                            },
+                        },
                     },
-                    target: {
-                        permanent: false,
-                        x: sourceX - 1,
-                        y: sourceY + page,
-                        class: targetClass,
-                        name: prompt(
-                            'Name of target',
-                            this.isUnit
-                                ? vecToName(
-                                      targetClass,
-                                      this.classNames.get(
-                                          sourceX - 1,
-                                          sourceY + page,
-                                      ),
-                                  )
-                                : undefined,
-                        ).trim(),
-                    },
-                },
+                });
             },
-        });
+        );
     }
 
     addPermanentClassInteractive(x, y) {
@@ -369,18 +385,27 @@ export class ExtSseq {
 
         const last = classes[classes.length - 1];
         if (last.length == 0) {
-            alert('There are no surviving classes. Action ignored');
+            dialog(
+                `Add permanent class at (${x}, ${y})`,
+                '<section>There are no surviving classes</section>',
+                () => {},
+                'OK',
+            );
         } else if (classes[0].length == 1) {
             this.addPermanentClass(x, y, classes[0][0]);
         } else {
-            const target = promptClass(
-                'Input new permanent class',
-                'Invalid class. Express in terms of basis on E_2 page',
-                classes[0].length,
+            dialog(
+                `Add permanent class at (${x}, ${y})`,
+                `<section class="input-row">
+                    <label>Class</label><input is="class-input" p="${this.p}" length="${classes[0].length}"></input>
+                </section>`,
+                dialog =>
+                    this.addPermanentClass(
+                        x,
+                        y,
+                        eval(dialog.querySelector('input').value),
+                    ),
             );
-            if (target !== null) {
-                this.addPermanentClass(x, y, target);
-            }
         }
     }
 
@@ -400,28 +425,48 @@ export class ExtSseq {
     }
 
     resolveFurther(newmax) {
-        // This is usually an event callback and the argument could be any random thing.
-        if (!Number.isInteger(newmax)) {
-            newmax = prompt('New maximum degree', this.maxDegree + 10);
-            if (newmax === null) return;
-            newmax = parseInt(newmax.trim());
-        }
-
-        if (newmax <= this.maxDegree) {
+        if (Number.isInteger(newmax)) {
+            this.maxDegree = newmax;
+            this.send({
+                recipients: ['Resolver'],
+                action: {
+                    Resolve: {
+                        max_degree: newmax,
+                    },
+                },
+            });
             return;
         }
-        this.maxDegree = newmax;
 
-        this.block();
-        this.send({
-            recipients: ['Resolver'],
-            action: {
-                Resolve: {
-                    max_degree: newmax,
-                },
+        dialog(
+            'Resolve further',
+            `<section style="input-row">
+                <label>New maximum degree</label>
+                <input style="width: 5em" type="number" value="${
+                    this.maxDegree + 10
+                }">
+            </section>`,
+            dialog => {
+                newmax = parseInt(dialog.querySelector('input').value);
+                if (newmax <= this.maxDegree) {
+                    return;
+                }
+                this.maxDegree = newmax;
+
+                this.block();
+                this.send({
+                    recipients: ['Resolver'],
+                    action: {
+                        Resolve: {
+                            max_degree: newmax,
+                        },
+                    },
+                });
+
+                this.block(false);
             },
-        });
-        this.block(false);
+            'Resolve',
+        );
     }
 
     queryCocycleString(x, y) {

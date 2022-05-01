@@ -115,24 +115,23 @@
         <script src="katex.js"></script>
         <script src="d3-combined.js"></script>
         <script src="index.js" type="module"></script>
-        <dialog id="unitsseq-dialog">
-            <form method="dialog">
-                <h5 id="modal-title">Select element to multiply with</h5>
-                <section id="unitsseq-body"></section>
-                <footer>
-                    <button type="button" id="modal-more" class="button">
-                        Show more
-                    </button>
-                    <span style="flex-grow: 1"></span>
-                    <button type="submit" class="button">Close</button>
-                    <button type="button" id="modal-diff" class="button">
-                        Add differential
-                    </button>
-                    <button type="button" id="modal-ok" class="button">
-                        OK
-                    </button>
-                </footer>
-            </form>
+        <dialog
+            is="my-dialog"
+            id="unitsseq-dialog"
+            header="Select element to multiply with"
+        >
+            <section id="unitsseq-body"></section>
+            <footer>
+                <button type="button" id="modal-more" class="button">
+                    Show more
+                </button>
+                <span style="flex-grow: 1"></span>
+                <button type="submit" class="button">Close</button>
+                <button type="button" id="modal-diff" class="button">
+                    Add differential
+                </button>
+                <button type="button" id="modal-ok" class="button">OK</button>
+            </footer>
         </dialog>
     </body>
 </html>

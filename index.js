@@ -1,6 +1,6 @@
 import { MainDisplay, UnitDisplay } from './display.js';
 import { ExtSseq } from './sseq.js';
-import { renderLaTeX, download } from './utils.js';
+import { dialog, renderLaTeX, download } from './utils.js';
 import { openSocket } from './socket.js';
 
 window.commandCounter = 0;
@@ -175,8 +175,17 @@ function generateHistory() {
 }
 
 function save() {
-    const filename = prompt('Input filename');
-    download(filename, generateHistory(), 'text/plain');
+    dialog(
+        'Save history',
+        "<section class='input-row'><label>File name</label><input style='width: auto' required></input></section>",
+        dialog =>
+            download(
+                dialog.querySelector('input').value,
+                generateHistory(),
+                'text/plain',
+            ),
+        'Save',
+    );
 }
 window.save = save;
 
@@ -257,7 +266,12 @@ messageHandler.QueryTableResult = m => {
 
 messageHandler.Error = m => {
     console.error(m.message);
-    alert(`Fatal error encountered: ${m.message}`);
+    dialog(
+        'Fatal error encountered',
+        `<section><pre>${m.message}</pre></section>`,
+        () => {},
+        'OK',
+    );
 };
 
 // Set up upload button

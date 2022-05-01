@@ -6,6 +6,8 @@ import {
 } from './panels.js';
 import { MIN_PAGE } from './sseq.js';
 import { Sidebar } from './chart.js';
+import { dialogOpen } from './components.js';
+import { dialog } from './utils.js';
 
 export const STATE_ADD_DIFFERENTIAL = 1;
 export const STATE_QUERY_TABLE = 2;
@@ -83,6 +85,9 @@ export class MainDisplay {
     }
 
     _onKeyDown(e) {
+        if (dialogOpen > 0 || e.target !== document.body) {
+            return;
+        }
         switch (e.key) {
             case 'J':
                 this.currentPanel.prevTab();
@@ -107,33 +112,9 @@ export class MainDisplay {
                 break;
             case 'n':
                 if (!this.sseq.selected) break;
-                {
-                    // Keep the variable declarations within the block
-                    const [x, y] = this.sseq.selected;
-                    const num = this.sseq.getClasses(x, y, MIN_PAGE).length;
-
-                    let idx = 0;
-                    if (num != 1) {
-                        while (true) {
-                            idx = prompt('Class index');
-                            if (idx === null) return;
-
-                            idx = parseInt(idx);
-                            if (Number.isNaN(idx) || idx >= num || idx < 0) {
-                                alert(
-                                    `Invalid index. Enter integer between 0 and ${num} (inclusive)`,
-                                );
-                            } else {
-                                break;
-                            }
-                        }
-                    }
-
-                    const name = prompt('New class name');
-                    if (name !== null) {
-                        this.sseq.setClassName(x, y, idx, name);
-                    }
-                }
+                this.classPanel.gotoTab(0);
+                this.classPanel.querySelector('katex-input').focus();
+                e.preventDefault();
                 break;
             case 'm':
                 if (this.isUnit && this.sseq.selected) {
@@ -142,6 +123,10 @@ export class MainDisplay {
                     this.sseq.addProductInteractive(x, y, num);
                 }
                 break;
+        }
+        if (dialogOpen > 0) {
+            // If we opened a dialog while processing the keydown, don't type the key into the dialog
+            e.preventDefault();
         }
     }
 
@@ -198,8 +183,7 @@ export class UnitDisplay {
         document.getElementById(container).appendChild(sseq.chart);
 
         document.querySelector('#modal-diff').addEventListener('click', () => {
-            document.querySelector('#modal-title').innerHTML =
-                'Select target element';
+            this.modal.setAttribute('header', 'Select target element');
             this.state = STATE_ADD_DIFFERENTIAL;
         });
 
@@ -236,8 +220,10 @@ export class UnitDisplay {
         if (!this.sseq.selected) {
             this.state = null;
 
-            document.querySelector('#modal-title').innerHTML =
-                'Select element to multiply with';
+            this.modal.setAttribute(
+                'header',
+                'Select element to multiply with',
+            );
             document.querySelector('#modal-ok').disabled = true;
             document.querySelector('#modal-diff').disabled = true;
             return;
@@ -248,20 +234,18 @@ export class UnitDisplay {
                 this.sseq.selected[0] == oldSelected[0] - 1 &&
                 this.sseq.selected[1] - oldSelected[1] >= MIN_PAGE
             ) {
-                const check = confirm(
-                    `Add differential from (${oldSelected[0]}, ${oldSelected[1]}) to (${this.sseq.selected[0]}, ${this.sseq.selected[1]})?`,
+                this.sseq.addProductDifferentialInteractive(
+                    oldSelected[0],
+                    oldSelected[1],
+                    this.sseq.selected[1] - oldSelected[1],
                 );
-                if (check) {
-                    this.sseq.addProductDifferentialInteractive(
-                        oldSelected[0],
-                        oldSelected[1],
-                        this.sseq.selected[1] - oldSelected[1],
-                    );
-                    this.state = null;
-                    this.modal.close();
-                }
             } else {
-                alert('Invalid target for differential');
+                dialog(
+                    `Add differential at (${oldSelected[0]}, ${oldSelected[1]})`,
+                    '<section>Invalid target for differential</section>',
+                    () => {},
+                    'OK',
+                );
             }
         } else {
             this.state = null;

@@ -1,5 +1,6 @@
 import { STATE_ADD_DIFFERENTIAL } from './display.js';
 import {
+    dialog,
     rowToKaTeX,
     rowToLaTeX,
     matrixToKaTeX,
@@ -7,6 +8,7 @@ import {
     KATEX_ARGS,
     html,
 } from './utils.js';
+import './components.js';
 import { MIN_PAGE } from './sseq.js';
 
 class InputRow extends HTMLElement {
@@ -300,6 +302,11 @@ export class TabbedPanel extends HTMLElement {
         this.update();
     }
 
+    gotoTab(idx) {
+        this.currentIndex = idx;
+        this.update();
+    }
+
     nextTab() {
         this.currentIndex += 1;
         this.currentIndex %= this.tabs.length;
@@ -428,28 +435,22 @@ function* structlinePanel(sseq) {
              title="A dash pattern, in the format of SVG's stroke-dasharray. Note that each grid square has side length 1."></input-row>
         </div>
     </details>
-    <label class="switch" style="position: absolute; right: 0px">
-        <input type="checkbox"${
-            sseq.visibleStructlines.has(name) ? ' checked' : ''
-        }></input>
-        <span class="slider"></span>
-    </label>
+    <checkbox-switch style="position: absolute; right: 0px"${
+        sseq.visibleStructlines.has(name) ? ' checked' : ''
+    }></checkbox-switch>
 </div>`);
 
-        const i = div.querySelector('label.switch');
+        const i = div.querySelector('checkbox-switch');
         i.style.top =
             div.querySelector('summary').clientHeight - i.clientHeight + 'px';
 
-        div.querySelector('label.switch > input').addEventListener(
-            'change',
-            e => {
-                if (e.target.checked) {
-                    sseq.showStructlines(name);
-                } else {
-                    sseq.hideStructlines(name);
-                }
-            },
-        );
+        i.checkbox.addEventListener('change', e => {
+            if (e.target.checked) {
+                sseq.showStructlines(name);
+            } else {
+                sseq.hideStructlines(name);
+            }
+        });
 
         const updateStyleObject = () => {
             if (mult.style.styleObject === null) {
@@ -523,17 +524,21 @@ function* mainPanel(sseq) {
     const div = document.createElement('div');
     div.style.textAlign = 'center';
     for (const c of classes) {
-        const n = html(`<span style="padding: 0 0.6em">
-            ${katex.renderToString(vecToName(c, names), KATEX_ARGS)}
-        </span>`);
-
-        if (classes.length == sseq.classes.get(x, y)[0].length) {
-            n.addEventListener('click', () => {
-                const name = prompt('New class name');
-                if (name !== null) {
-                    sseq.setClassName(x, y, c.indexOf(1), name);
-                }
+        let n;
+        if (c.reduce((a, b) => a + b, 0) == 1) {
+            const i = c.indexOf(1);
+            n = html('<katex-input></katex-input>');
+            n.input.style.width = '100%';
+            n.input.style.margin = '0.3em 0';
+            n.display.style.margin = '0 0.6em';
+            n.value = names[i];
+            n.addEventListener('change', () => {
+                sseq.setClassName(x, y, i, n.value);
             });
+            div.appendChild(n);
+        } else {
+            n = html("<span style='margin: 0 0.6em'>");
+            katex.render(vecToName(c, names), h, KATEX_ARGS);
         }
         div.appendChild(n);
     }
@@ -563,10 +568,18 @@ function* mainPanel(sseq) {
                             KATEX_ARGS,
                         ),
                         () => {
-                            if (confirm(`Rename ${names[idx]} as ${d[1]}?`)) {
-                                sseq.setClassName(x, y, idx, d[1]);
-                                this.display.clearHighlight();
-                            }
+                            dialog(
+                                'Rename element',
+                                `<section>
+                                Rename ${katex.renderToString(names[idx])}
+                                as ${katex.renderToString(d[1])}?
+                                </section>`,
+                                () => {
+                                    sseq.setClassName(x, y, idx, d[1]);
+                                    sseq.clearHighlight();
+                                },
+                                'Rename',
+                            );
                         },
                         highlights,
                     );

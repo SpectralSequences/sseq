@@ -1,3 +1,5 @@
+import './components.js';
+
 export const KATEX_ARGS = {
     throwOnError: false,
 };
@@ -50,35 +52,6 @@ export function renderLaTeX(html) {
     return html_list.join('\n');
 }
 
-// Prompts for an array of length `length`
-export function promptClass(text, error, length) {
-    while (true) {
-        const response = prompt(text);
-        if (!response) {
-            return null;
-        }
-        const vec = parseIntegerArray(response);
-        if (vec === null || vec.length != length) {
-            alert(error);
-        } else {
-            return vec;
-        }
-    }
-}
-
-export function parseIntegerArray(text) {
-    try {
-        const vec = JSON.parse(text.trim());
-        if (
-            Array.isArray(vec) &&
-            vec.reduce((b, x) => b && Number.isInteger(x), true)
-        ) {
-            return vec;
-        }
-    } catch (e) {}
-    return null;
-}
-
 export function download(filename, data, mime = 'text/plain') {
     if (!Array.isArray(data)) {
         data = [data];
@@ -90,4 +63,28 @@ export function download(filename, data, mime = 'text/plain') {
     element.rel = 'noopener';
     element.dispatchEvent(new MouseEvent('click'));
     setTimeout(() => URL.revokeObjectURL(element.href), 6e4);
+}
+
+export function dialog(title, contents, callback, submitText) {
+    const dialog = html(`
+    <dialog is="my-dialog">
+        ${contents}
+        <footer>
+            <button class="button" value="submit">${
+                submitText || 'Add'
+            }</button>
+        </footer>
+    </dialog>`);
+    dialog.setAttribute('header', title);
+
+    document.body.appendChild(dialog);
+    dialog.showModal();
+
+    dialog.addEventListener('close', () => {
+        document.body.removeChild(dialog);
+        if (dialog.returnValue !== 'submit') {
+            return;
+        }
+        callback(dialog);
+    });
 }
