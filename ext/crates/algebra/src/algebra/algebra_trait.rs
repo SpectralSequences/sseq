@@ -1,7 +1,6 @@
 use fp::prime::ValidPrime;
 use fp::vector::{Slice, SliceMut};
 
-#[allow(unused_imports)]
 use std::fmt::Write as _; // Needed for write! macro for String
 
 #[cfg(doc)]

@@ -8,9 +8,6 @@ use fp::prime::{factor_pk, integer_power, Binomial, BitflagIterator, ValidPrime}
 use fp::vector::{FpVector, Slice, SliceMut};
 use once::OnceVec;
 
-#[allow(unused_imports)]
-use std::fmt::Write as _; // Needed for write! macro for String
-
 #[cfg(feature = "json")]
 use {serde::Deserialize, serde::Serialize};
 
@@ -1739,6 +1736,7 @@ mod tests {
 
     use expect_test::expect;
     use rstest::rstest;
+    use std::fmt::Write as _; // Needed for write! macro for String
 
     #[rstest]
     #[trace]

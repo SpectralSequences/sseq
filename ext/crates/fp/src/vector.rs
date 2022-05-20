@@ -20,9 +20,6 @@ use std::convert::TryInto;
 use std::io::{Read, Write};
 use std::mem::size_of;
 
-#[allow(unused_imports)]
-use std::fmt::Write as _; // Needed for write! macro for String
-
 macro_rules! dispatch_vector_inner {
     // other is a type, but marking it as a :ty instead of :tt means we cannot use it to access its
     // enum variants.
@@ -488,6 +485,7 @@ mod test {
     use crate::limb;
     use rand::Rng;
     use rstest::rstest;
+    use std::fmt::Write as _; // Needed for write! macro for String
 
     pub struct VectorDiffEntry {
         pub index: usize,

@@ -2,9 +2,6 @@
 
 use std::fmt;
 
-#[allow(unused_imports)]
-use std::fmt::Write as _; // Needed for write! macro for String
-
 use itertools::Itertools;
 use rustc_hash::FxHashMap as HashMap;
 
@@ -1435,6 +1432,7 @@ impl Bialgebra for AdemAlgebra {
 mod tests {
     use super::*;
     use rstest::rstest;
+    use std::fmt::Write as _; // Needed for write! macro for String
 
     #[rstest(p, max_degree, case(2, 32), case(3, 120))]
     #[trace]
