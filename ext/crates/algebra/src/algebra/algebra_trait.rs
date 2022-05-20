@@ -1,6 +1,9 @@
 use fp::prime::ValidPrime;
 use fp::vector::{Slice, SliceMut};
 
+#[allow(unused_imports)]
+use std::fmt::Write as _; // Needed for write! macro for String
+
 #[cfg(doc)]
 use fp::vector::FpVector;
 
@@ -171,10 +174,10 @@ pub trait Algebra: std::fmt::Display + Send + Sync + 'static {
         for (idx, value) in element.iter_nonzero() {
             zero = false;
             if value != 1 {
-                result.push_str(&format!("{} * ", value));
+                let _ = write!(result, "{} * ", value);
             }
             let b = self.basis_element_to_string(degree, idx);
-            result.push_str(&format!("{} + ", b));
+            let _ = write!(result, "{} + ", b);
         }
         if zero {
             result.push('0');

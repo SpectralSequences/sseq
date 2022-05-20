@@ -2,6 +2,9 @@
 
 use std::fmt;
 
+#[allow(unused_imports)]
+use std::fmt::Write as _; // Needed for write! macro for String
+
 use itertools::Itertools;
 use rustc_hash::FxHashMap as HashMap;
 
@@ -1509,12 +1512,13 @@ mod tests {
                 if !output_vec.is_zero() {
                     let mut relation_string = String::new();
                     for (coeff, (deg_1, idx_1), (deg_2, idx_2)) in &relation {
-                        relation_string.push_str(&format!(
+                        let _ = write!(
+                            relation_string,
                             "{} * {} * {}  +  ",
                             *coeff,
                             &algebra.basis_element_to_string(*deg_1, *idx_1),
                             &algebra.basis_element_to_string(*deg_2, *idx_2)
-                        ));
+                        );
                     }
                     relation_string.pop();
                     relation_string.pop();

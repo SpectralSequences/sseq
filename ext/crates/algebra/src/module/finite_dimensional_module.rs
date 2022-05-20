@@ -2,6 +2,8 @@ use crate::algebra::Algebra;
 use crate::module::{Module, ZeroModule};
 use bivec::BiVec;
 use fp::vector::{FpVector, SliceMut};
+
+use std::fmt::Write as _;
 use std::sync::Arc;
 
 #[cfg(feature = "json")]
@@ -108,13 +110,14 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
             if !disagreements.is_empty() {
                 let mut err_string = "Actions disagree.\n".to_string();
                 for x in disagreements {
-                    err_string.push_str(&format!(
+                    let _ = write!(
+                        err_string,
                         "  {} * {} disagreement.\n    Left: {}\n    Right: {}\n",
                         self.algebra.basis_element_to_string(x.1 - x.0, x.2),
                         self.basis_element_to_string(x.0, x.3),
                         self.element_to_string(x.1, x.4.as_slice()),
                         self.element_to_string(x.1, x.5.as_slice())
-                    ))
+                    );
                 }
                 return Err(err_string);
             }
@@ -574,12 +577,13 @@ impl<A: GeneratedAlgebra> FiniteDimensionalModule<A> {
                 if !output_vec.is_zero() {
                     let mut relation_string = String::new();
                     for (coef, (deg_1, idx_1), (deg_2, idx_2)) in &relation {
-                        relation_string.push_str(&format!(
+                        let _ = write!(
+                            relation_string,
                             "{} * {} * {}  +  ",
                             *coef,
                             &algebra.basis_element_to_string(*deg_1, *idx_1),
                             &algebra.basis_element_to_string(*deg_2, *idx_2)
-                        ));
+                        );
                     }
                     for _ in 0..5 {
                         relation_string.pop();
