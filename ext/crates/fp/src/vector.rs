@@ -15,6 +15,7 @@ use crate::vector_inner::{
 use itertools::Itertools;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
 use std::convert::TryInto;
 use std::io::{Read, Write};
 use std::mem::size_of;
@@ -484,6 +485,7 @@ mod test {
     use crate::limb;
     use rand::Rng;
     use rstest::rstest;
+    use std::fmt::Write as _; // Needed for write! macro for String
 
     pub struct VectorDiffEntry {
         pub index: usize,
@@ -956,16 +958,18 @@ mod test {
             while i < result.len() && j < comparison_result.len() {
                 if result[i] != comparison_result[j] {
                     if result[i].0 < comparison_result[j].0 {
-                        diffs_str.push_str(&format!(
-                                "\n({:?}) present in result, missing from comparison_result",
-                                result[i]
-                                ));
+                        let _ = write!(
+                            diffs_str,
+                            "\n({:?}) present in result, missing from comparison_result",
+                            result[i]
+                        );
                         i += 1;
                     } else {
-                        diffs_str.push_str(&format!(
-                                "\n({:?}) present in comparison_result, missing from result",
-                                comparison_result[j]
-                                ));
+                        let _ = write!(
+                            diffs_str,
+                            "\n({:?}) present in comparison_result, missing from result",
+                            comparison_result[j]
+                        );
                         j += 1;
                     }
                 } else {
@@ -1046,10 +1050,11 @@ mod test {
         for i in 0..dim {
             if vec_result[i] != comparison_result[i] {
                 diffs.push((i, comparison_result[i], vec_result[i]));
-                diffs_str.push_str(&format!(
+                let _ = write!(
+                    diffs_str,
                     "\nIn position {} expected {} got {}. v[i] = {}, w[i] = {}.",
                     i, comparison_result[i], vec_result[i], v_arr[i], w_arr[i]
-                ));
+                );
             }
         }
         assert!(diffs.is_empty(), "{}", diffs_str);

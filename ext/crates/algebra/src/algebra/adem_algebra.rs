@@ -1432,6 +1432,7 @@ impl Bialgebra for AdemAlgebra {
 mod tests {
     use super::*;
     use rstest::rstest;
+    use std::fmt::Write as _; // Needed for write! macro for String
 
     #[rstest(p, max_degree, case(2, 32), case(3, 120))]
     #[trace]
@@ -1509,12 +1510,13 @@ mod tests {
                 if !output_vec.is_zero() {
                     let mut relation_string = String::new();
                     for (coeff, (deg_1, idx_1), (deg_2, idx_2)) in &relation {
-                        relation_string.push_str(&format!(
+                        let _ = write!(
+                            relation_string,
                             "{} * {} * {}  +  ",
                             *coeff,
                             &algebra.basis_element_to_string(*deg_1, *idx_1),
                             &algebra.basis_element_to_string(*deg_2, *idx_2)
-                        ));
+                        );
                     }
                     relation_string.pop();
                     relation_string.pop();
