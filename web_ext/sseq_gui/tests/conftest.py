@@ -1,5 +1,6 @@
 import pytest
 from pathlib import Path
+import time
 
 import xml.etree.ElementTree as ET
 
@@ -40,6 +41,11 @@ class DriverWrapper:
         self.driver.set_window_size(1280, 720)
 
     def wait_complete(self, timeout=10):
+        # If the commands we send out are done via a callback, then they might
+        # not have been sent out yet when we call wait_complete. Sleep for a
+        # very small amount of time to ensure these callbacks have been
+        # handled.
+        time.sleep(0.01)
         WebDriverWait(self.driver, timeout).until(
             lambda driver: driver.execute_script(
                 "return window.display !== undefined && window.display.runningSign.style.display == 'none'"
