@@ -453,7 +453,6 @@ export class ExtSseq {
                 }
                 this.maxDegree = newmax;
 
-                this.block();
                 this.send({
                     recipients: ['Resolver'],
                     action: {
@@ -462,8 +461,6 @@ export class ExtSseq {
                         },
                     },
                 });
-
-                this.block(false);
             },
             'Resolve',
         );
