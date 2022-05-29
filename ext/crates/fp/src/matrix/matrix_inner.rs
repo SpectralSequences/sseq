@@ -212,7 +212,7 @@ impl Matrix {
     ///               vec![0, 3, 4]];
     ///
     /// let (n, m) = Matrix::augmented_from_vec(p, &input);
-    /// assert_eq!(n, FpVector::padded_len(p, input[0].len()));
+    /// assert!(n >= input[0].len());
     pub fn augmented_from_vec(p: ValidPrime, input: &[Vec<u32>]) -> (usize, Matrix) {
         let rows = input.len();
         let cols = input[0].len();

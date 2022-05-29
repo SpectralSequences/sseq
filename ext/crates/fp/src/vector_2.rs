@@ -34,6 +34,11 @@ impl FpVector {
         (len + entries_per_limb - 1) / entries_per_limb
     }
 
+    #[allow(dead_code)]
+    pub(crate) fn padded_len(p: ValidPrime, len: usize) -> usize {
+        Self::num_limbs(p, len) * entries_per_limb_const::<2>()
+    }
+
     pub fn update_from_bytes(&mut self, data: &mut impl Read) -> std::io::Result<()> {
         let limbs = self.limbs_mut();
         let num_limbs = limbs.len();

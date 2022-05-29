@@ -474,7 +474,7 @@ mod tensor_product_chain_complex {
     use algebra::module::{Module, TensorModule, ZeroModule};
     use algebra::{Algebra, Bialgebra};
     use ext::chain_complex::ChainComplex;
-    use fp::matrix::Matrix;
+    use fp::matrix::AugmentedMatrix;
     use fp::vector::{FpVector, Slice, SliceMut};
     use std::sync::Arc;
 
@@ -821,9 +821,7 @@ mod tensor_product_chain_complex {
                     continue;
                 }
 
-                let padded_target_dim = FpVector::padded_len(p, target_dim);
-
-                let mut matrix = Matrix::new(p, source_dim, padded_target_dim + source_dim);
+                let mut matrix = AugmentedMatrix::new(p, source_dim, [target_dim, source_dim]);
 
                 // Compute 1 (x) d
                 let mut target_offset = 0;
@@ -893,10 +891,7 @@ mod tensor_product_chain_complex {
                     target_offset += target_right_dim * target_left_dim;
                 }
 
-                for i in 0..source_dim {
-                    matrix[i].set_entry(padded_target_dim + i, 1);
-                }
-
+                matrix.segment(1, 1).add_identity();
                 matrix.row_reduce();
 
                 let mut index = 0;
@@ -926,10 +921,9 @@ mod tensor_product_chain_complex {
                                     }
 
                                     let mut entry = FpVector::new(p, dim);
-                                    entry.as_slice_mut().assign(matrix[row].slice(
-                                        padded_target_dim + offset,
-                                        padded_target_dim + offset + dim,
-                                    ));
+                                    entry.as_slice_mut().assign(
+                                        matrix.row_segment(row, 1, 1).slice(offset, offset + dim),
+                                    );
 
                                     if !entry.is_zero() {
                                         let true_slice_start = self.source.offset(degree, s_)
