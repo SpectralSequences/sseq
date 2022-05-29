@@ -11,7 +11,7 @@ use algebra::module::QuotientModule as QM;
 use algebra::module::{FDModule, FreeModule, Module};
 use algebra::{AdemAlgebra, Algebra, GeneratedAlgebra, MilnorAlgebra, SteenrodAlgebra};
 
-use fp::matrix::{Matrix, Subspace};
+use fp::matrix::{AugmentedMatrix, Matrix, Subspace};
 use fp::vector::FpVector;
 
 use bivec::BiVec;
@@ -570,13 +570,18 @@ where
     }
 
     let total_dimension: usize = target_dims.iter().sum();
-    let padded_init_dim = FpVector::padded_len(p, total_dimension + source_orig_dimension);
-    let total_cols: usize = padded_init_dim + source_orig_dimension;
+    let mut matrix = AugmentedMatrix::new(
+        p,
+        source_dimension,
+        [
+            total_dimension + source_orig_dimension,
+            source_orig_dimension,
+        ],
+    );
 
-    let mut matrix = Matrix::new(p, source_dimension, total_cols);
-
-    for (&i, row) in std::iter::zip(&source.basis_list[t], &mut matrix) {
+    for (row_idx, &i) in source.basis_list[t].iter().enumerate() {
         let mut offset = 0;
+        let mut row = matrix.row_segment_mut(row_idx, 0, 0);
 
         let mut cols = target_dims.iter().copied();
         for (op_deg, op_idx) in &generators {
@@ -610,15 +615,16 @@ where
             keep.reduce(slice);
         }
 
-        row.set_entry(padded_init_dim + i, 1);
+        let mut row = matrix.row_segment_mut(row_idx, 1, 1);
+        row.set_entry(i, 1);
     }
     matrix.row_reduce();
 
     let first_kernel_row = matrix.find_first_row_in_block(total_dimension);
-    let first_image_row = matrix.find_first_row_in_block(padded_init_dim);
+    let first_image_row = matrix.find_first_row_in_block(matrix.start[1]);
     let image_rows = matrix.rows() - first_image_row;
 
-    matrix.trim(first_kernel_row as usize, source_dimension, padded_init_dim);
+    let matrix = matrix.into_tail_segment(first_kernel_row as usize, source_dimension, 1);
 
     let mut image_matrix = Matrix::new(p, image_rows, source_orig_dimension);
     for (target, source) in std::iter::zip(

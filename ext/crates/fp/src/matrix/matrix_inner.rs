@@ -1017,6 +1017,17 @@ impl<const N: usize> AugmentedMatrix<N> {
         self.inner
     }
 
+    pub fn into_tail_segment(
+        mut self,
+        row_start: usize,
+        row_end: usize,
+        segment_start: usize,
+    ) -> Matrix {
+        self.inner
+            .trim(row_start, row_end, self.start[segment_start]);
+        self.inner
+    }
+
     pub fn compute_kernel(&self) -> Subspace {
         self.inner.compute_kernel(self.start[N - 1])
     }
