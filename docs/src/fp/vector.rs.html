@@ -1755,7 +1755,7 @@
         <span class="kw">let</span> <span class="ident">entries_per_limb</span> <span class="op">=</span> <span class="ident">entries_per_limb</span>(<span class="ident">p</span>);
         (<span class="ident">len</span> <span class="op">+</span> <span class="ident">entries_per_limb</span> <span class="op">-</span> <span class="number">1</span>) <span class="op">/</span> <span class="ident">entries_per_limb</span>
     }
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">padded_len</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>, <span class="ident">len</span>: <span class="ident">usize</span>) -&gt; <span class="ident">usize</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">padded_len</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>, <span class="ident">len</span>: <span class="ident">usize</span>) -&gt; <span class="ident">usize</span> {
         <span class="ident"><span class="self">Self</span>::num_limbs</span>(<span class="ident">p</span>, <span class="ident">len</span>) <span class="op">*</span> <span class="ident">entries_per_limb</span>(<span class="ident">p</span>)
     }
 

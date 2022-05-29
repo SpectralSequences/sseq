@@ -189,6 +189,7 @@
 <span id="159">159</span>
 <span id="160">160</span>
 <span id="161">161</span>
+<span id="162">162</span>
 </pre><pre class="rust"><code><span class="doccomment">//! This module replaces `vector` when `odd-primes` is disabled. Instead of producing enum</span>
 <span class="doccomment">//! wrappers, it simply rexports `FooP&lt;2&gt;` as `Foo`.</span>
 
@@ -225,7 +226,8 @@
         (<span class="ident">len</span> <span class="op">+</span> <span class="ident">entries_per_limb</span> <span class="op">-</span> <span class="number">1</span>) <span class="op">/</span> <span class="ident">entries_per_limb</span>
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">padded_len</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>, <span class="ident">len</span>: <span class="ident">usize</span>) -&gt; <span class="ident">usize</span> {
+    <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">dead_code</span>)]</span>
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">padded_len</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>, <span class="ident">len</span>: <span class="ident">usize</span>) -&gt; <span class="ident">usize</span> {
         <span class="ident"><span class="self">Self</span>::num_limbs</span>(<span class="ident">p</span>, <span class="ident">len</span>) <span class="op">*</span> <span class="ident">entries_per_limb_const</span>::<span class="op">&lt;</span><span class="number">2</span><span class="op">&gt;</span>()
     }
 
