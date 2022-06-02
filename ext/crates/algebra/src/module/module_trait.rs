@@ -98,14 +98,13 @@ pub trait Module: std::fmt::Display + std::any::Any + Send + Sync {
     /// what generators will be added in degree `t` yet.
     fn act(
         &self,
-        result: SliceMut,
+        mut result: SliceMut,
         coeff: u32,
         op_degree: i32,
         op_index: usize,
         input_degree: i32,
         input: Slice,
     ) {
-        let mut result = result;
         assert!(input.len() <= self.dimension(input_degree));
         let p = self.prime();
         for (i, v) in input.iter_nonzero() {
@@ -122,14 +121,13 @@ pub trait Module: std::fmt::Display + std::any::Any + Send + Sync {
 
     fn act_by_element(
         &self,
-        result: SliceMut,
+        mut result: SliceMut,
         coeff: u32,
         op_degree: i32,
         op: Slice,
         input_degree: i32,
         input: Slice,
     ) {
-        let mut result = result;
         assert_eq!(input.len(), self.dimension(input_degree));
         assert_eq!(op.len(), self.algebra().dimension(op_degree));
         let p = self.prime();
@@ -147,14 +145,13 @@ pub trait Module: std::fmt::Display + std::any::Any + Send + Sync {
 
     fn act_by_element_on_basis(
         &self,
-        result: SliceMut,
+        mut result: SliceMut,
         coeff: u32,
         op_degree: i32,
         op: Slice,
         input_degree: i32,
         input_index: usize,
     ) {
-        let mut result = result;
         assert_eq!(op.len(), self.algebra().dimension(op_degree));
         let p = self.prime();
         for (i, v) in op.iter_nonzero() {
