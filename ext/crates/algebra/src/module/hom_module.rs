@@ -110,11 +110,11 @@ impl<M: Module> Module for HomModule<M> {
             .operation_generator_to_index(0, 0, gen_deg, gen_idx);
         let basis_deg = gen_deg - degree;
         let basis_idx = gen_basis_elt.basis_index;
-        return format!(
+        format!(
             "{}*⊗{}",
             self.source.basis_element_to_string(gen_deg, gen_mod_idx),
             self.target.basis_element_to_string(basis_deg, basis_idx),
-        );
+        )
     }
 }
 

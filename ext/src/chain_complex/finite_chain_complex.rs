@@ -83,7 +83,7 @@ impl<M: Module> FiniteChainComplex<M, FullModuleHomomorphism<M>> {
         &self,
         mut f: impl FnMut(&M) -> N,
     ) -> FiniteChainComplex<N, FullModuleHomomorphism<N>> {
-        let modules: Vec<Arc<N>> = self.modules.iter().map(|m| Arc::new(f(&*m))).collect();
+        let modules: Vec<Arc<N>> = self.modules.iter().map(|m| Arc::new(f(m))).collect();
         let zero_module = Arc::new(f(&*self.zero_module));
         let differentials: Vec<_> = self
             .differentials

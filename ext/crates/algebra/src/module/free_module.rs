@@ -130,10 +130,10 @@ impl<const U: bool, A: MuAlgebra<U>> Module for MuFreeModule<U, A> {
         } else {
             op_str.push(' ');
         }
-        return format!(
+        format!(
             "{}{}",
             op_str, self.gen_names[opgen.generator_degree][opgen.generator_index]
-        );
+        )
     }
 
     fn act_on_basis(
