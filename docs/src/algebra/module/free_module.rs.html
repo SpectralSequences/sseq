@@ -835,10 +835,10 @@
         } <span class="kw">else</span> {
             <span class="ident">op_str</span>.<span class="ident">push</span>(<span class="string">&#39; &#39;</span>);
         }
-        <span class="kw">return</span> <span class="macro">format!</span>(
+        <span class="macro">format!</span>(
             <span class="string">&quot;{}{}&quot;</span>,
             <span class="ident">op_str</span>, <span class="self">self</span>.<span class="ident">gen_names</span>[<span class="ident">opgen</span>.<span class="ident">generator_degree</span>][<span class="ident">opgen</span>.<span class="ident">generator_index</span>]
-        );
+        )
     }
 
     <span class="kw">fn</span> <span class="ident">act_on_basis</span>(

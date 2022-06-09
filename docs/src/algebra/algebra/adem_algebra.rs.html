@@ -1624,7 +1624,7 @@
 
 <span class="kw">impl</span> <span class="ident">AdemAlgebraT</span> <span class="kw">for</span> <span class="ident">AdemAlgebra</span> {
     <span class="kw">fn</span> <span class="ident">adem_algebra</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">AdemAlgebra</span> {
-        <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>
+        <span class="self">self</span>
     }
 }
 
@@ -1963,7 +1963,7 @@
                 <span class="ident">ps</span>: <span class="macro">vec!</span>[<span class="ident">degree</span> <span class="kw">as</span> <span class="ident">u32</span> <span class="op">/</span> (<span class="number">2</span> <span class="op">*</span> <span class="ident">p</span> <span class="op">-</span> <span class="number">2</span>)],
                 <span class="ident">p_or_sq</span>: <span class="kw-2">*</span><span class="self">self</span>.<span class="ident">prime</span>() <span class="op">!</span><span class="op">=</span> <span class="number">2</span>,
             });
-            <span class="kw">return</span> <span class="macro">vec!</span>[<span class="ident">idx</span>];
+            <span class="macro">vec!</span>[<span class="ident">idx</span>]
         } <span class="kw">else</span> {
             <span class="comment">// I guess we&#39;re assuming here that not generic ==&gt; p == 2. There&#39;s probably tons of places we assume that though.</span>
             <span class="kw">if</span> <span class="ident">degree</span>.<span class="ident">count_ones</span>() <span class="op">!</span><span class="op">=</span> <span class="number">1</span> {
@@ -1975,7 +1975,7 @@
                 <span class="ident">ps</span>: <span class="macro">vec!</span>[<span class="ident">degree</span> <span class="kw">as</span> <span class="ident">u32</span>],
                 <span class="ident">p_or_sq</span>: <span class="kw-2">*</span><span class="self">self</span>.<span class="ident">prime</span>() <span class="op">!</span><span class="op">=</span> <span class="number">2</span>,
             });
-            <span class="kw">return</span> <span class="macro">vec!</span>[<span class="ident">idx</span>];
+            <span class="macro">vec!</span>[<span class="ident">idx</span>]
         }
     }
 

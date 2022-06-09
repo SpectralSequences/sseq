@@ -937,6 +937,7 @@
 <span id="907">907</span>
 <span id="908">908</span>
 <span id="909">909</span>
+<span id="910">910</span>
 </pre><pre class="rust"><code><span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">alloc</span>;
 
 <span class="kw">use</span> <span class="ident">core::ops</span>::{<span class="ident">Index</span>, <span class="ident">IndexMut</span>};
@@ -1108,7 +1109,8 @@
             <span class="comment">// but if we can acquire the lock we want to drop the elements inside. If the lock is</span>
             <span class="comment">// poisoned, then we are probably panicking so we don&#39;t care about memory leakage.</span>
             <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Ok</span>(<span class="ident">ooo</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">ooo</span>.<span class="ident">lock</span>() {
-                <span class="kw">for</span> <span class="ident">entry</span> <span class="kw">in</span> <span class="ident">ooo</span>.<span class="number">0</span>.<span class="ident">iter</span>() {
+                <span class="kw">let</span> <span class="ident">ooo_iter</span> <span class="op">=</span> <span class="ident">ooo</span>.<span class="number">0</span>.<span class="ident">iter</span>();
+                <span class="kw">for</span> <span class="ident">entry</span> <span class="kw">in</span> <span class="ident">ooo_iter</span> {
                     <span class="ident">std::ptr::drop_in_place</span>(<span class="self">self</span>.<span class="ident">entry_ptr</span>(<span class="kw-2">*</span><span class="ident">entry</span>));
                 }
             }
