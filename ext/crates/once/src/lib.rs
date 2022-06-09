@@ -169,7 +169,8 @@ impl<T> Drop for OnceVec<T> {
             // but if we can acquire the lock we want to drop the elements inside. If the lock is
             // poisoned, then we are probably panicking so we don't care about memory leakage.
             if let Ok(ooo) = self.ooo.lock() {
-                for entry in ooo.0.iter() {
+                let ooo_iter = ooo.0.iter();
+                for entry in ooo_iter {
                     std::ptr::drop_in_place(self.entry_ptr(*entry));
                 }
             }

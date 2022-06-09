@@ -28,7 +28,7 @@ pub trait AdemAlgebraT: Send + Sync + Algebra {
 
 impl AdemAlgebraT for AdemAlgebra {
     fn adem_algebra(&self) -> &AdemAlgebra {
-        &*self
+        self
     }
 }
 
@@ -367,7 +367,7 @@ impl GeneratedAlgebra for AdemAlgebra {
                 ps: vec![degree as u32 / (2 * p - 2)],
                 p_or_sq: *self.prime() != 2,
             });
-            return vec![idx];
+            vec![idx]
         } else {
             // I guess we're assuming here that not generic ==> p == 2. There's probably tons of places we assume that though.
             if degree.count_ones() != 1 {
@@ -379,7 +379,7 @@ impl GeneratedAlgebra for AdemAlgebra {
                 ps: vec![degree as u32],
                 p_or_sq: *self.prime() != 2,
             });
-            return vec![idx];
+            vec![idx]
         }
     }
 

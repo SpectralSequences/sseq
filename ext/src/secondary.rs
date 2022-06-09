@@ -261,7 +261,7 @@ impl<A: PairAlgebra + Send + Sync> SecondaryHomotopy<A> {
             let timer = Timer::start();
 
             for (coef, d1, d0) in &maps {
-                composite.add_composite(*coef, t, idx, &*d1, &*d0);
+                composite.add_composite(*coef, t, idx, d1, d0);
             }
             composite.finalize();
 
