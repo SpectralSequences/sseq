@@ -218,6 +218,18 @@ mod test {
             v.assert_vec_eq(&w);
         }
 
+        fn test_is_zero(p: ValidPrime, dim: usize) {
+            let zero_vec = FpVector::from_slice(p, &vec![0; dim]);
+            let nonzero_vec = {
+                let mut v = random_vector(p, dim);
+                v[0] = 1;
+                FpVector::from_slice(p, &v)
+            };
+
+            assert!(zero_vec.is_zero());
+            assert!(!nonzero_vec.is_zero());
+        }
+
         fn test_add(p: ValidPrime, dim: usize) {
             let mut v_arr = random_vector(p, dim);
             let w_arr = random_vector(p, dim);

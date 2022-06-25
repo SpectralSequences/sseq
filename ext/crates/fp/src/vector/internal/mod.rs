@@ -46,7 +46,7 @@ pub trait InternalBaseVectorP<const P: u32>: Sized {
         }
 
         let inner_range = self._len().limb_range_inner();
-        if !inner_range.is_empty() && self._limbs()[inner_range].iter().any(|&x| x != 0) {
+        if self._limbs()[inner_range].iter().any(|&x| x != 0) {
             return false;
         }
         if self._limbs()[limb_range.end - 1] & max_mask != 0 {
