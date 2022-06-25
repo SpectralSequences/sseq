@@ -5,10 +5,10 @@ pub(crate) mod internal;
 #[cfg(feature = "odd-primes")]
 pub mod specialized;
 pub mod specialized_2;
-
-pub use specialized::{FpVector, FpVectorNonZeroIterator, Slice, SliceMut};
 #[cfg(not(feature = "odd-primes"))]
 pub use specialized_2 as specialized;
+
+pub use specialized::{FpVector, FpVectorNonZeroIterator, Slice, SliceMut};
 
 // If odd-primes is disabled, the marker trait `BaseVector` cannot be meaningfully used without also
 // having `BaseVectorP` in scope. Instead of requiring several imports all over the codebase,
