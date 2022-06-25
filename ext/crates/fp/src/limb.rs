@@ -10,16 +10,14 @@ pub(crate) struct LimbBitIndexPair {
     pub(crate) bit_index: usize,
 }
 
-/// A struct that defines a range of entries in a slice of limbs. We number limbs starting from some
-/// other limb that might not be in the range. This is because we must be able to index a struct
-/// using indices for another ambient struct. For example, accessing a `Slice` using coordinates
-/// from an ambient `FpVector`.
+/// A struct that defines a range of entries in a slice of limbs.
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
 pub struct LimbLength<const P: u32> {
-    /// The index of the first entry relative to some other base limb.
+    /// The index of the first entry. We do not assume that this value is less than
+    /// `entries_per_limb_const::<P>()` in general, but some functions require it. See [`apply_shift`].
     pub(crate) start: usize,
 
-    /// The index of the last entry relative to some other base limb.
+    /// The index of the last entry.
     pub(crate) end: usize,
 
     /// The total number of limbs in the range.
