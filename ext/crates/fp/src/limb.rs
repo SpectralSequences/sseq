@@ -259,7 +259,11 @@ pub(crate) fn reduce<const P: u32>(limb: Limb) -> Limb {
 
 /// Check whether or not a limb is reduced, i.e. whether every entry is a value in the range `0..P`.
 /// This is currently **not** faster than calling [`reduce`] directly.
-pub(crate) fn _is_reduced<const P: u32>(limb: Limb) -> bool {
+///
+/// This function is currently only called in [`truncate`], which is itself never called. See there
+/// for more details.
+#[allow(dead_code)]
+pub(crate) fn is_reduced<const P: u32>(limb: Limb) -> bool {
     limb == reduce::<P>(limb)
 }
 
@@ -330,8 +334,13 @@ pub(crate) const fn sign_rule(mut target: Limb, mut source: Limb) -> u32 {
 }
 
 /// Return either `Some(sum)` if no carries happen in the limb, or `None` if some carry does happen.
-pub(crate) fn _truncate<const P: u32>(sum: Limb) -> Option<Limb> {
-    if _is_reduced::<P>(sum) {
+///
+/// This function is currently never used. We will presumably use it when we implement
+/// [`InternalBaseVectorMutP::_add_truncate`](crate::vector::internal::InternalBaseVectorMutP::_add_truncate).
+/// See there for more details.
+#[allow(dead_code)]
+pub(crate) fn truncate<const P: u32>(sum: Limb) -> Option<Limb> {
+    if is_reduced::<P>(sum) {
         Some(sum)
     } else {
         None
