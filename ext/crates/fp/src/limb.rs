@@ -32,16 +32,7 @@ pub struct LimbLength<const P: u32> {
 }
 
 impl<const P: u32> LimbLength<P> {
-    pub const fn from_limbs(limbs: usize) -> Self {
-        let logical = entries_per_limb_const::<P>() * limbs;
-        Self {
-            start: 0,
-            end: logical,
-            limbs,
-        }
-    }
-
-    pub const fn from_logical(logical: usize) -> Self {
+    pub(crate) const fn from_logical(logical: usize) -> Self {
         let limbs = number::<P>(logical);
         Self {
             start: 0,
@@ -53,7 +44,7 @@ impl<const P: u32> LimbLength<P> {
     /// Returns a `LimbLength` describing a vector starting at entry `start` and ending at entry
     /// `end`. Most methods assume that `self.start < entries_per_limb_const::<P>()`, so it advised
     /// to call `apply_shift` before using the return value.
-    pub fn from_start_end(start: usize, end: usize) -> Self {
+    pub(crate) const fn from_start_end(start: usize, end: usize) -> Self {
         let limb_range = range::<P>(start, end);
         Self {
             start,
@@ -63,35 +54,36 @@ impl<const P: u32> LimbLength<P> {
     }
 
     #[inline]
-    pub const fn limbs(&self) -> usize {
+    pub(crate) const fn limbs(&self) -> usize {
         self.limbs
     }
 
     #[inline]
-    pub const fn logical(&self) -> usize {
+    pub(crate) const fn logical(&self) -> usize {
         self.end - self.start
     }
 
-    pub const fn contains(&self, other: &Self) -> bool {
-        self.start <= other.start && self.end >= other.end
+    pub(crate) const fn contains(&self, other: &Self) -> bool {
+        self.start + other.end <= self.end
     }
 
     /// Shift the entire `LimbLength` backwards so that the start of the range belongs to the first
     /// limb, and return the number of limbs shifted.
-    pub fn apply_shift(&mut self) -> usize {
+    pub(crate) const fn apply_shift(&self) -> (Self, usize) {
         let entries_per = entries_per_limb_const::<P>();
         let offset = self.start / entries_per;
-        self.start -= offset * entries_per;
-        self.end -= offset * entries_per;
-        offset
+        let start = self.start - offset * entries_per;
+        let end = self.end - offset * entries_per;
+        (LimbLength::from_start_end(start, end), offset)
     }
 
-    pub fn restrict_to(&self, other: Self) -> Self {
-        debug_assert!(self.start + other.end <= self.end);
+    pub(crate) const fn restrict_to(&self, other: Self) -> Self {
+        debug_assert!(self.contains(&other));
         Self::from_start_end(other.start + self.start, other.end + self.start)
     }
 
-    pub fn trim_start(&self, offset: usize) -> Self {
+    /// This function panics if `self.start != 0`.
+    pub(crate) fn trim_start(&self, offset: usize) -> Self {
         debug_assert_eq!(self.start, 0);
         assert_eq!(offset % entries_per_limb_const::<P>(), 0);
         let limb_shift = offset / entries_per_limb_const::<P>();
@@ -102,41 +94,53 @@ impl<const P: u32> LimbLength<P> {
         }
     }
 
+    /// This function assumes that `self.start < entries_per_limb_const::<P>()`. A `LimbLength`
+    /// equivalent to `self` that does satisfy this condition can be obtained by calling
+    /// [`apply_shift`].
     #[inline]
-    pub fn bit_offset(&self) -> usize {
+    pub(crate) const fn bit_offset(&self) -> usize {
         self.start * bit_length_const::<P>()
     }
 
     #[inline]
-    pub fn limb_range(&self) -> Range<usize> {
+    pub(crate) const fn limb_range(&self) -> Range<usize> {
         range::<P>(self.start, self.end)
     }
 
+    /// # Panics
+    ///
     /// This function underflows if `self.start + self.logical() == 0`, which happens if and only if
-    /// we are taking a slice of width 0 at the start of an `FpVector`. This should be a very rare
-    /// edge case. Dealing with the underflow properly would probably require using `saturating_sub`
-    /// or something of that nature, and that has a nontrivial (10%) performance hit.
+    /// we are taking a slice of width 0 at the start of a limb. This should be a very rare edge
+    /// case. Dealing with the underflow properly would probably require using `saturating_sub` or
+    /// something of that nature, and that has a nontrivial (10%) performance hit.
     #[inline]
-    pub fn limb_range_inner(&self) -> Range<usize> {
+    pub(crate) fn limb_range_inner(&self) -> Range<usize> {
         let range = self.limb_range();
+        debug_assert!(range.end > 0, "Underflow");
         (range.start + 1)..(usize::max(range.start + 1, range.end - 1))
     }
 
+    /// This function assumes that `self.start < entries_per_limb_const::<P>()`. A `LimbLength`
+    /// equivalent to `self` that does satisfy this condition can be obtained by calling
+    /// [`apply_shift`].
     #[inline(always)]
-    pub fn min_limb_mask(&self) -> Limb {
+    pub(crate) const fn min_limb_mask(&self) -> Limb {
         !0 << self.bit_offset()
     }
 
     #[inline(always)]
-    pub fn max_limb_mask(&self) -> Limb {
+    pub(crate) const fn max_limb_mask(&self) -> Limb {
         let num_entries = 1 + (self.end - 1) % entries_per_limb_const::<P>();
         let bit_max = num_entries * bit_length_const::<P>();
 
         (!0) >> (BITS_PER_LIMB - bit_max)
     }
 
+    /// This function assumes that `self.start < entries_per_limb_const::<P>()`. A `LimbLength`
+    /// equivalent to `self` that does satisfy this condition can be obtained by calling
+    /// [`apply_shift`].
     #[inline(always)]
-    pub fn limb_masks(&self) -> (Limb, Limb) {
+    pub(crate) fn limb_masks(&self) -> (Limb, Limb) {
         if self.limb_range().len() == 1 {
             (
                 self.min_limb_mask() & self.max_limb_mask(),
@@ -145,10 +149,6 @@ impl<const P: u32> LimbLength<P> {
         } else {
             (self.min_limb_mask(), self.max_limb_mask())
         }
-    }
-
-    pub const fn is_on_limb_boundary(start: usize, end: usize) -> bool {
-        start % entries_per_limb_const::<P>() == 0 && end % entries_per_limb_const::<P>() == 0
     }
 }
 
@@ -189,12 +189,12 @@ pub(crate) const fn entries_per_limb_const<const P: u32>() -> usize {
 
 /// This is identical to [`limb::number`], except that it's not const. Hopefully almost every method
 /// in the limb crate can be const once the matrix rewrite is in place.
-pub(crate) fn num_limbs(p: ValidPrime, len: usize) -> usize {
+pub(crate) const fn num_limbs(p: ValidPrime, len: usize) -> usize {
     let entries_per_limb = entries_per_limb(p);
     (len + entries_per_limb - 1) / entries_per_limb
 }
 
-pub(crate) fn padded_len(p: ValidPrime, len: usize) -> usize {
+pub(crate) const fn padded_len(p: ValidPrime, len: usize) -> usize {
     num_limbs(p, len) * entries_per_limb(p)
 }
 
@@ -295,13 +295,12 @@ pub(crate) fn unpack<const P: u32>(mut limb: Limb) -> impl Iterator<Item = u32> 
     })
 }
 
-/// Return the number of limbs required to hold `dim` entries.
+/// Return the number of limbs required to hold `dim` entries. This is identical to
+/// [`limb::num_limbs`], except the latter is not const. Hopefully almost every method in the limb
+/// crate can be const once the matrix rewrite is in place.
 pub(crate) const fn number<const P: u32>(dim: usize) -> usize {
-    if dim == 0 {
-        0
-    } else {
-        limb_bit_index_pair::<P>(dim - 1).limb + 1
-    }
+    let entries_per_limb = entries_per_limb_const::<P>();
+    (dim + entries_per_limb - 1) / entries_per_limb
 }
 
 /// Return the `Range<usize>` starting at the index of the limb containing the `start`th entry, and
@@ -316,7 +315,7 @@ pub(crate) const fn range<const P: u32>(start: usize, end: usize) -> Range<usize
     min..max
 }
 
-pub(crate) fn sign_rule(mut target: Limb, mut source: Limb) -> u32 {
+pub(crate) const fn sign_rule(mut target: Limb, mut source: Limb) -> u32 {
     let mut result = 0;
     let mut n = 1;
     // Empirically, the compiler unrolls this loop because BITS_PER_LIMB is a constant.

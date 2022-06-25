@@ -59,8 +59,7 @@ pub trait InternalBaseVectorP<const P: u32>: Sized {
     where
         Self: 'a,
     {
-        let mut new_len = self._len().restrict_to(range);
-        let offset = new_len.apply_shift();
+        let (new_len, offset) = self._len().restrict_to(range).apply_shift();
         let limbs_ptr = unsafe { self._as_ptr().add(offset) };
         let limbs = unsafe { std::slice::from_raw_parts(limbs_ptr, new_len.limbs()) };
         SliceP {
@@ -148,8 +147,7 @@ pub trait InternalBaseVectorMutP<const P: u32>: InternalBaseVectorP<P> {
     }
 
     fn _slice_mut(&mut self, range: LimbLength<P>) -> SliceMutP<P> {
-        let mut new_len = self._len().restrict_to(range);
-        let offset = new_len.apply_shift();
+        let (new_len, offset) = self._len().restrict_to(range).apply_shift();
         let limbs_ptr = unsafe { self._as_mut_ptr().add(offset) };
         let limbs = unsafe { std::slice::from_raw_parts_mut(limbs_ptr, new_len.limbs()) };
         SliceMutP {
