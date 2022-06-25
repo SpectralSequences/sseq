@@ -507,18 +507,12 @@ impl Iterator for BinomialIterator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[cfg(feature = "odd-primes")]
+    // // #[cfg(feature = "odd-primes")]
     use crate::constants::PRIMES;
 
     #[test]
     fn inverse_test() {
-        #[cfg(feature = "odd-primes")]
-        let primes = PRIMES;
-
-        #[cfg(not(feature = "odd-primes"))]
-        let primes = [2];
-
-        for &p in primes.iter() {
+        for p in PRIMES {
             let p = ValidPrime::new(p);
             for k in 1..*p {
                 assert_eq!((inverse(p, k) * k) % *p, 1);
@@ -544,13 +538,7 @@ mod tests {
 
     #[test]
     fn binomial_vs_monomial() {
-        #[cfg(feature = "odd-primes")]
-        let primes = &[2, 3, 5, 7, 11];
-
-        #[cfg(not(feature = "odd-primes"))]
-        let primes = &[2];
-
-        for &p in primes {
+        for p in PRIMES {
             let p = ValidPrime::new(p);
             for l in 0..20 {
                 for m in 0..20 {
@@ -576,14 +564,7 @@ mod tests {
         for n in 0..12 {
             for j in 0..=n {
                 let ans = binomial_full(n, j);
-
-                #[cfg(feature = "odd-primes")]
-                let primes = &[2, 3, 5, 7, 11];
-
-                #[cfg(not(feature = "odd-primes"))]
-                let primes = &[2];
-
-                for &p in primes {
+                for p in PRIMES {
                     assert_eq!(
                         u32::binomial(ValidPrime::new(p), n, j),
                         ans % p,

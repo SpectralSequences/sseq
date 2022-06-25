@@ -5,8 +5,13 @@ use build_const::ConstWriter;
 type Limb = u64;
 
 fn main() -> Result<(), Error> {
+    #[cfg(feature = "odd-primes")]
     let num_primes = 8;
+    #[cfg(not(feature = "odd-primes"))]
+    let num_primes = 1;
+
     let primes = first_n_primes(num_primes);
+
     let max_prime = *primes.last().unwrap();
     let not_a_prime: usize = u32::MAX as usize; // Hack for 32-bit architectures
     let max_multinomial_len = 10;
