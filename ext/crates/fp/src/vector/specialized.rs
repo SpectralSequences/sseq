@@ -1,6 +1,3 @@
-//! This module replaces `specialized` when `odd-primes` is disabled. Instead of producing enum
-//! wrappers, it simply rexports `FooP<2>` as `Foo`.
-
 use std::io::{Read, Write};
 
 use itertools::Itertools;

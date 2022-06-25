@@ -1,3 +1,6 @@
+//! This module replaces `specialized` when `odd-primes` is disabled. Instead of producing enum
+//! wrappers, it simply rexports `FooP<2>` as `Foo`.
+
 use super::{
     base_generic::{BaseVectorMutP, BaseVectorP},
     generic::{FpVectorIterator, FpVectorNonZeroIteratorP, FpVectorP, SliceMutP, SliceP},
