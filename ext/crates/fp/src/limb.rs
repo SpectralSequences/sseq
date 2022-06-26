@@ -14,7 +14,8 @@ pub(crate) struct LimbBitIndexPair {
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
 pub struct LimbLength<const P: u32> {
     /// The index of the first entry. We do not assume that this value is less than
-    /// `entries_per_limb_const::<P>()` in general, but some functions require it. See [`apply_shift`].
+    /// `entries_per_limb_const::<P>()` in general, but some functions require it. See
+    /// [`apply_shift`].
     pub(crate) start: usize,
 
     /// The index of the last entry.
@@ -40,8 +41,7 @@ impl<const P: u32> LimbLength<P> {
     }
 
     /// Returns a `LimbLength` describing a vector starting at entry `start` and ending at entry
-    /// `end`. Most methods assume that `self.start < entries_per_limb_const::<P>()`, so it advised
-    /// to call `apply_shift` before using the return value.
+    /// `end`.
     pub(crate) const fn from_start_end(start: usize, end: usize) -> Self {
         let limb_range = range::<P>(start, end);
         Self {
@@ -66,7 +66,7 @@ impl<const P: u32> LimbLength<P> {
     }
 
     /// Shift the entire `LimbLength` backwards so that the start of the range belongs to the first
-    /// limb, and return the number of limbs shifted.
+    /// limb, and return it together with the number of limbs shifted.
     pub(crate) const fn apply_shift(&self) -> (Self, usize) {
         let entries_per = entries_per_limb_const::<P>();
         let offset = self.start / entries_per;
@@ -80,7 +80,14 @@ impl<const P: u32> LimbLength<P> {
         Self::from_start_end(other.start + self.start, other.end + self.start)
     }
 
-    /// This function panics if `self.start != 0`.
+    /// This function panics if `self.start != 0`. The `LimbLength` that is returned also satisfies
+    /// `self.start == 0`.
+    ///
+    /// It would be possible to make it work if we only assume `self.start %
+    /// entries_per_limb_const::<P>() == 0`, but this introduces slight complications, e.g.
+    /// depending on which of self.start or offset is bigger. While this can be solved by a
+    /// `saturating_sub`, the reason we leave it that way is because we only use it when trimming
+    /// the front of an `FpVector`, where the start is 0 by definition.
     pub(crate) fn trim_start(&self, offset: usize) -> Self {
         debug_assert_eq!(self.start, 0);
         assert_eq!(offset % entries_per_limb_const::<P>(), 0);
@@ -114,7 +121,6 @@ impl<const P: u32> LimbLength<P> {
     #[inline]
     pub(crate) fn limb_range_inner(&self) -> Range<usize> {
         let range = self.limb_range();
-        debug_assert!(range.end > 0, "Underflow");
         (range.start + 1)..(usize::max(range.start + 1, range.end - 1))
     }
 
@@ -267,8 +273,7 @@ pub(crate) fn is_reduced<const P: u32>(limb: Limb) -> bool {
     limb == reduce::<P>(limb)
 }
 
-/// Given an interator of `u32`'s, pack all of them into a single limb in order.
-/// It is assumed that
+/// Given an interator of `u32`'s, pack all of them into a single limb in order. It is assumed that
 ///  - The values of the iterator are less than P
 ///  - The values of the iterator fit into a single limb
 ///
