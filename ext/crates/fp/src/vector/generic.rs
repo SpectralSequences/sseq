@@ -84,19 +84,6 @@ impl<const P: u32> FpVectorP<P> {
         self.limbs.resize(self.len.limbs(), 0);
     }
 
-    /// This replaces the contents of the vector with the contents of the slice. The two must have
-    /// the same length.
-    pub fn copy_from_slice(&mut self, slice: &[u32]) {
-        assert_eq!(self.len(), slice.len());
-
-        self.limbs.clear();
-        self.limbs.extend(
-            slice
-                .chunks(limb::entries_per_limb_const::<P>())
-                .map(|x| limb::pack::<_, P>(x.iter().copied())),
-        );
-    }
-
     /// Permanently remove the first `n` elements in the vector. `n` must be a multiple of
     /// the number of entries per limb
     pub(crate) fn trim_start(&mut self, n: usize) {

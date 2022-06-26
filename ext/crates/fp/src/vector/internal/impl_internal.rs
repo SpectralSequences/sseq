@@ -1,3 +1,5 @@
+use itertools::Itertools;
+
 use super::{InternalBaseVectorMutP, InternalBaseVectorP};
 use crate::{
     limb::{self, Limb, LimbLength},
@@ -137,6 +139,28 @@ impl<const P: u32> InternalBaseVectorMutP<P> for FpVectorP<P> {
 
     fn _limbs_mut(&mut self) -> &mut [Limb] {
         &mut self.limbs
+    }
+
+    fn _copy_from_slice(&mut self, slice: &[u32]) {
+        assert_eq!(self._len().logical(), slice.len());
+
+        self.limbs.clear();
+        self.limbs.extend(
+            slice
+                .chunks(limb::entries_per_limb_const::<P>())
+                .map(|x| limb::pack::<_, P>(x.iter().copied())),
+        );
+    }
+
+    fn _add_truncate<T: InternalBaseVectorP<P>>(&mut self, other: T, c: u32) -> Option<()> {
+        // We require `other` to start on a limb boundary. In practice we only ever call this
+        // function with `other: FpVectorP`, which satisfies this condition by definition.
+        debug_assert_eq!(other._len().start, 0);
+        for (left, right) in self.limbs.iter_mut().zip_eq(other._limbs()) {
+            *left = limb::add::<P>(*left, *right, c);
+            *left = limb::truncate::<P>(*left)?;
+        }
+        Some(())
     }
 }
 

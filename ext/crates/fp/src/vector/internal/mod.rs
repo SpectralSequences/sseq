@@ -671,15 +671,17 @@ pub trait InternalBaseVectorMutP<const P: u32>: InternalBaseVectorP<P> {
         self._limbs_mut()[target_range.end - 1] |= result;
     }
 
+    /// This replaces the contents of the vector with the contents of the slice. The two must have
+    /// the same length.
+    ///
     /// This method is only implemented on `FpVectorP` right now. This is the only use case so far,
-    /// so I don't feel too bad about marking them as unimplemented.
+    /// so I don't feel too bad about marking it as unimplemented in the general case.
     fn _copy_from_slice(&mut self, _slice: &[u32]) {
         unimplemented!();
     }
 
-    /// This function is currently only used in [`algebra::PolynomialAlgebra::multiply_monomials`],
-    /// on [`FpVectorP`]. We mostly care about the Steenrod algebra, which doesn't use this code, so
-    /// I'm marking it as unimplemented for now.
+    /// This method is only implemented on `FpVectorP` right now. This is the only use case so far,
+    /// so I don't feel too bad about marking it as unimplemented in the general case.
     fn _add_truncate<T: InternalBaseVectorP<P>>(&mut self, _other: T, _c: u32) -> Option<()> {
         unimplemented!();
     }
