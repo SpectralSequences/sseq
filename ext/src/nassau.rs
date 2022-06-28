@@ -20,8 +20,8 @@ use std::sync::{Arc, Mutex};
 use crate::chain_complex::{
     AugmentedChainComplex, ChainComplex, FiniteChainComplex, FreeChainComplex,
 };
-use crate::save::SaveKind;
 use crate::utils::Timer;
+use crate::{save::SaveKind, utils::LogWriter};
 use algebra::combinatorics;
 use algebra::milnor_algebra::{MilnorAlgebra, PPartEntry};
 use algebra::module::homomorphism::{
@@ -481,6 +481,9 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
 
     fn write_qi(
         f: &mut Option<impl Write>,
+        s: u32,
+        t: i32,
+        subalgebra: &MilnorSubalgebra,
         scratch: &mut FpVector,
         signature: &[PPartEntry],
         next_mask: &[usize],
@@ -491,6 +494,9 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             Some(f) => f,
             None => return Ok(()),
         };
+
+        let mut own_f = LogWriter::new(f);
+        let f = &mut own_f;
 
         let pivots = &masked_matrix.pivots()[0..masked_matrix.end[0]];
         if !pivots.iter().any(|&x| x >= 0) {
@@ -521,6 +527,10 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             scratch.to_bytes(f)?;
         }
 
+        own_f.finalize(format_args!(
+            "Written quasi-inverse for bidegree ({n}, {s}) and signature {signature:?}, with {subalgebra}",
+            n = t - s as i32,
+        ));
         Ok(())
     }
 
@@ -600,6 +610,9 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
 
         Self::write_qi(
             &mut f,
+            s,
+            t,
+            &subalgebra,
             &mut scratch,
             &zero_sig,
             &next_mask,
@@ -681,6 +694,9 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             }
             Self::write_qi(
                 &mut f,
+                s,
+                t,
+                &subalgebra,
                 &mut scratch,
                 &signature,
                 &next_mask,
