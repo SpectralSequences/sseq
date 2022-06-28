@@ -26,6 +26,7 @@ chart = { path = "crates/chart" }
 dashmap = "4.0.0"
 byteorder = "1.4.3"
 
+count-write = { version = "0.1.0", optional = true }
 zstd = { version = "0.9.0", optional = true }
 
 [target.'cfg(unix)'.dependencies]
@@ -45,7 +46,7 @@ default = ["odd-primes"]
 cache-multiplication = ["algebra/cache-multiplication"]
 concurrent = ["rayon", "once/concurrent", "fp/concurrent", "algebra/concurrent"]
 odd-primes = ["fp/odd-primes", "algebra/odd-primes", "sseq/odd-primes"]
-logging = []
+logging = ["count-write"]
 nassau = []
 
 [workspace]

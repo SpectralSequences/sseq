@@ -530,15 +530,18 @@ pub fn iter_s_t(
 }
 
 #[cfg(feature = "logging")]
-mod timer {
+mod logging {
+    use std::io::Write;
     use std::time::Instant;
+
+    use count_write::CountWrite;
 
     /// If the `logging` feature is enabled, this can be used to time how long an operation takes.
     /// If the `logging` features is disabled, this is a no-op.
     ///
     /// # Example
     /// ```
-    /// # use timer::Timer;
+    /// # use logging::Timer;
     /// let timer = Timer::start();
     /// // slow_function();
     /// timer.end(format_args!("Ran slow_function"));
@@ -559,10 +562,48 @@ mod timer {
             );
         }
     }
+
+    pub struct LogWriter<T> {
+        writer: CountWrite<T>,
+        timer: Timer,
+    }
+
+    impl<T: Write> Write for LogWriter<T> {
+        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+            self.writer.write(buf)
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            self.writer.flush()
+        }
+    }
+
+    impl<T> LogWriter<T> {
+        pub fn new(writer: T) -> Self {
+            LogWriter {
+                writer: writer.into(),
+                timer: Timer::start(),
+            }
+        }
+    }
+
+    impl<T: Write> LogWriter<T> {
+        pub fn finalize(mut self, msg: std::fmt::Arguments) {
+            self.writer.flush().unwrap();
+            let duration = self.timer.0.elapsed();
+            let bytes = self.writer.count();
+            let mib = bytes as f64 / (1024 * 1024) as f64;
+            let mib_per_second = mib / duration.as_secs_f64();
+            self.timer
+                .end(format_args!("[{mib_per_second:>9.3} MiB/s] {msg}"));
+        }
+    }
 }
 
 #[cfg(not(feature = "logging"))]
-mod timer {
+mod logging {
+    use std::io::Write;
+
     pub struct Timer;
 
     impl Timer {
@@ -572,9 +613,31 @@ mod timer {
 
         pub fn end(self, _msg: std::fmt::Arguments) {}
     }
+
+    #[repr(transparent)]
+    pub struct LogWriter<T>(T);
+
+    impl<T: Write> Write for LogWriter<T> {
+        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+            self.0.write(buf)
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            self.0.flush()
+        }
+    }
+
+    impl<T> LogWriter<T> {
+        pub fn new(writer: T) -> Self {
+            LogWriter(writer)
+        }
+
+        pub fn finalize(self, _msg: std::fmt::Arguments) {}
+    }
 }
 
-pub use timer::Timer;
+pub use logging::LogWriter;
+pub use logging::Timer;
 
 /// The value of the SECONDARY_JOB environment variable. This is used for distributing the
 /// `secondary`. If set, only data with `s = SECONDARY_JOB` will be computed. The minimum value of
