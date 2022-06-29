@@ -205,13 +205,11 @@ pub trait InternalBaseVectorMutP<const P: u32>: InternalBaseVectorP<P> {
         let target_inner_range = self._len().limb_range_inner();
         let source_inner_range = other._len().limb_range_inner();
         if !source_inner_range.is_empty() {
-            for (left, right) in self._limbs_mut()[target_inner_range]
-                .iter_mut()
-                .zip(&other_limbs[source_inner_range])
-            {
-                *left = limb::add::<P>(*left, *right, c);
-                *left = limb::reduce::<P>(*left);
-            }
+            limb::add_all::<P>(
+                &mut self._limbs_mut()[target_inner_range],
+                &other_limbs[source_inner_range],
+                c,
+            );
         }
         if source_range.len() > 1 {
             // The first and last limbs are distinct, so we process the last.

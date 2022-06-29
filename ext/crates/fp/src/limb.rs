@@ -1,7 +1,7 @@
 use std::ops::Range;
 
 pub(crate) use crate::constants::Limb;
-use crate::{constants::BITS_PER_LIMB, prime::ValidPrime};
+use crate::{constants::BITS_PER_LIMB, prime::ValidPrime, simd};
 
 /// A struct containing the information required to access a specific entry in an array of `Limb`s.
 #[derive(Copy, Clone)]
@@ -228,6 +228,19 @@ pub(crate) const fn add<const P: u32>(limb_a: Limb, limb_b: Limb, coeff: u32) ->
         limb_a ^ (coeff as Limb * limb_b)
     } else {
         limb_a + (coeff as Limb) * limb_b
+    }
+}
+
+/// Add (`c` times) all of the limbs in `rhs` to the limbs in `lhs`. This is optimized to use SIMD
+/// when `P == 2`.
+pub(crate) fn add_all<const P: u32>(lhs: &mut [Limb], rhs: &[Limb], c: u32) {
+    if P == 2 {
+        simd::add_simd(lhs, rhs, 0);
+    } else {
+        for (left, right) in lhs.iter_mut().zip(rhs) {
+            *left = add::<P>(*left, *right, c);
+            *left = reduce::<P>(*left);
+        }
     }
 }
 
