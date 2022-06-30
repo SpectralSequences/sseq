@@ -235,7 +235,9 @@ pub(crate) const fn add<const P: u32>(limb_a: Limb, limb_b: Limb, coeff: u32) ->
 /// when `P == 2`.
 pub(crate) fn add_all<const P: u32>(lhs: &mut [Limb], rhs: &[Limb], c: u32) {
     if P == 2 {
-        simd::add_simd(lhs, rhs, 0);
+        if c != 0 {
+            simd::add_simd(lhs, rhs, 0);
+        }
     } else {
         for (left, right) in lhs.iter_mut().zip(rhs) {
             *left = add::<P>(*left, *right, c);
