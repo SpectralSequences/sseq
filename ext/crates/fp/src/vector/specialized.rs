@@ -123,37 +123,71 @@ macro_rules! dispatch_basevectormut {
 
 /// Trait for common methods on vector-type structs.
 pub trait BaseVector {
+    /// The characteristic of the underlying field.
     fn prime(&self) -> ValidPrime;
+    /// The length of the vector.
     fn len(&self) -> usize;
+    /// Whether the vector is empty.
     fn is_empty(&self) -> bool;
+    /// The entry at index `index`.
     fn entry(&self, index: usize) -> u32;
+    /// A slice of the vector starting at entry `start` (inclusive) and ending at entry `end`
+    /// (exclusive). This means that `v.slice(start, end).len() == end - start`.
     fn slice<'a>(&self, start: usize, end: usize) -> Slice<'a>
     where
         Self: 'a;
+    /// The vector itself as a slice.
     fn as_slice(&self) -> Slice;
-    fn into_owned(self) -> FpVector;
+    /// Whether the vector is zero.
     fn is_zero(&self) -> bool;
+    /// An iterator over the entries in the vector.
     fn iter(&self) -> FpVectorIterator;
+    /// An iterator over the *nonzero* entries in the vector.
     fn iter_nonzero(&self) -> FpVectorNonZeroIterator;
+    /// The position of the first nonzero entry in the vector, together with its value. This returns
+    /// `None` if and only if the vector is zero.
     fn first_nonzero(&self) -> Option<(usize, u32)>;
+    /// ???
     fn sign_rule(&self, other: &Self) -> bool;
+    /// Copy the contents of the vector into an owned `FpVector`. If the vector is already an
+    /// `FpVector`, this is a no-op.
+    fn into_owned(self) -> FpVector;
+    /// The proportion of non-zero entries.
     fn density(&self) -> f32;
 }
 
 /// Trait for common methods on mutable vector-type structs.
 pub trait BaseVectorMut: BaseVector {
+    /// Scale all entries by a factor of `c`. It is assumed that `c < P`.
     fn scale(&mut self, c: u32);
+    /// Set the vector to the zero vector.
     fn set_to_zero(&mut self);
+    /// Set the entry at index `index` to the value `value`. It is assumed that `value < P`.
     fn set_entry(&mut self, index: usize, value: u32);
+    /// Copy the contents of `other` into `self`. Both vectors must have the same length.
     fn assign<'a, T: Into<Slice<'a>>>(&mut self, other: T);
+    /// Add `c` times `other` to `self`. Both `other` and `self` must have the same length, and we
+    /// must have `c < P`.
     fn add<'a, T: Into<Slice<'a>>>(&mut self, other: T, c: u32);
+    /// Add `c` times `other` to `self`, assuming that all entries of `self` with index less than
+    /// `offset` are zero. Violating this assumption does not lead to a panic or UB, but is very
+    /// likely to produce nonsensical results.
     fn add_offset<'a, T: Into<Slice<'a>>>(&mut self, other: T, c: u32, offset: usize);
+    /// A mutable slice of the vector starting at entry `start` (inclusive) and ending at entry
+    /// `end` (exclusive). This means that `v.slice_mut(start, end).len() == end - start`.
     fn slice_mut(&mut self, start: usize, end: usize) -> SliceMut;
+    /// The vector itself as a mutable slice.
     fn as_slice_mut(&mut self) -> SliceMut;
+    /// Add `value` to the entry at index `index`.
     fn add_basis_element(&mut self, index: usize, value: u32);
+    /// Replace the contents of the vector with the contents of the slice. The two must have the
+    /// same length.
     fn copy_from_slice(&mut self, slice: &[u32]);
+    /// Given a mask v, add the `v[i]`th entry of `other` to the `i`th entry of `self`.
     fn add_masked<'a, T: Into<Slice<'a>>>(&mut self, other: T, c: u32, mask: &[usize]);
+    /// Given a mask v, add the `i`th entry of `other` to the `v[i]`th entry of `self`.
     fn add_unmasked<'a, T: Into<Slice<'a>>>(&mut self, other: T, c: u32, mask: &[usize]);
+    /// ???
     fn add_truncate<'a, T: Into<Slice<'a>>>(&mut self, other: T, c: u32) -> Option<()>;
 }
 
