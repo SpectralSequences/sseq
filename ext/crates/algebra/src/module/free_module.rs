@@ -353,6 +353,8 @@ impl<const U: bool, A: MuAlgebra<U>> MuFreeModule<U, A> {
     /// A version of element_to_string that names the generator as x_(t - s, s, idx). The input s
     /// only affects how the output is displayed.
     pub fn element_to_string_pretty(&self, s: u32, t: i32, vec: Slice) -> String {
+        use std::fmt::Write as _;
+
         let mut first = true;
 
         let mut result = String::new();
@@ -363,22 +365,23 @@ impl<const U: bool, A: MuAlgebra<U>> MuFreeModule<U, A> {
             first = false;
 
             if c != 1 {
-                result.push_str(&*format!("{} ", c));
+                let _ = write!(result, "{} ", c);
             }
             let opgen = self.index_to_op_gen(t, i);
             let op_str = self
                 .algebra()
                 .basis_element_to_string(opgen.operation_degree, opgen.operation_index);
             if op_str != "1" {
-                result.push_str(&*op_str);
+                result.push_str(&op_str);
                 result.push(' ');
             }
-            result.push_str(&*format!(
+            let _ = write!(
+                result,
                 "x_({},{},{})",
                 opgen.generator_degree - s as i32 + 1,
                 s - 1,
                 opgen.generator_index
-            ));
+            );
         }
         result
     }
