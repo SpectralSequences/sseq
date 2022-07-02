@@ -534,8 +534,6 @@ mod logging {
     use std::io::Write;
     use std::time::Instant;
 
-    use count_write::CountWrite;
-
     /// If the `logging` feature is enabled, this can be used to time how long an operation takes.
     /// If the `logging` features is disabled, this is a no-op.
     ///
@@ -564,13 +562,16 @@ mod logging {
     }
 
     pub struct LogWriter<T> {
-        writer: CountWrite<T>,
+        writer: T,
+        bytes: u64,
         timer: Timer,
     }
 
     impl<T: Write> Write for LogWriter<T> {
         fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-            self.writer.write(buf)
+            let written = self.writer.write(buf)?;
+            self.bytes += written as u64;
+            Ok(written)
         }
 
         fn flush(&mut self) -> std::io::Result<()> {
@@ -581,7 +582,8 @@ mod logging {
     impl<T> LogWriter<T> {
         pub fn new(writer: T) -> Self {
             LogWriter {
-                writer: writer.into(),
+                writer,
+                bytes: 0,
                 timer: Timer::start(),
             }
         }
@@ -591,8 +593,7 @@ mod logging {
         pub fn finalize(mut self, msg: std::fmt::Arguments) {
             self.writer.flush().unwrap();
             let duration = self.timer.0.elapsed();
-            let bytes = self.writer.count();
-            let mib = bytes as f64 / (1024 * 1024) as f64;
+            let mib = self.bytes as f64 / (1024 * 1024) as f64;
             let mib_per_second = mib / duration.as_secs_f64();
             self.timer
                 .end(format_args!("[{mib_per_second:>9.3} MiB/s] {msg}"));
