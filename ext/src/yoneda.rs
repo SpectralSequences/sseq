@@ -458,7 +458,7 @@ where
                 .enumerate()
                 .filter_map(|(i, &v)| {
                     if v >= 0 {
-                        Some((strategy(&*source.module, subspace, t, i), i))
+                        Some((strategy(&source.module, subspace, t, i), i))
                     } else {
                         None
                     }

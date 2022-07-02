@@ -14,7 +14,7 @@ fn main() -> anyhow::Result<()> {
 
     assert_eq!(*resolution.prime(), 2);
     let algebra = resolution.algebra();
-    let algebra: &MilnorAlgebra = (&*algebra).try_into()?;
+    let algebra: &MilnorAlgebra = algebra.as_ref().try_into()?;
 
     let mut buffer = String::new();
 

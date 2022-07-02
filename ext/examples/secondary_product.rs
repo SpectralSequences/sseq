@@ -151,7 +151,7 @@ fn main() -> anyhow::Result<()> {
             continue;
         }
 
-        let page_data = get_page_data(&*unit_sseq, n, s);
+        let page_data = get_page_data(unit_sseq.as_ref(), n, s);
 
         let target_num_gens = resolution.number_of_gens_in_bidegree(s + shift_s, t + shift_t);
         let tau_num_gens = resolution.number_of_gens_in_bidegree(s + shift_s + 1, t + shift_t + 1);

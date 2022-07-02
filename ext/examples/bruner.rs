@@ -166,7 +166,8 @@ fn read_bruner_resolution(data_dir: &Path, max_n: i32) -> Result<(u32, FiniteCha
 
     let cc = create_chain_complex(num_s);
     let algebra = cc.algebra();
-    let algebra: &MilnorAlgebra = (&*algebra).try_into()?;
+
+    let algebra: &MilnorAlgebra = algebra.as_ref().try_into()?;
 
     let mut buf = String::new();
     let s = num_s as u32 - 1;
@@ -194,7 +195,7 @@ fn read_bruner_resolution(data_dir: &Path, max_n: i32) -> Result<(u32, FiniteCha
         let mut entries: Vec<FpVector> = Vec::new();
         let mut cur_degree: i32 = 0;
 
-        while let Some((t, gen)) = get_element(algebra, &*cc.module(s - 1), &mut f)? {
+        while let Some((t, gen)) = get_element(algebra, cc.module(s - 1).as_ref(), &mut f)? {
             if t == cur_degree {
                 entries.push(gen);
             } else {
