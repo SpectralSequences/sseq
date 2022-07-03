@@ -615,7 +615,6 @@ mod logging {
         pub fn end(self, _msg: std::fmt::Arguments) {}
     }
 
-    #[repr(transparent)]
     pub struct LogWriter<T>(T);
 
     impl<T: Write> Write for LogWriter<T> {
