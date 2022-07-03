@@ -378,7 +378,7 @@
             <span class="kw">continue</span>;
         }
 
-        <span class="kw">let</span> <span class="ident">page_data</span> <span class="op">=</span> <span class="ident">get_page_data</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">unit_sseq</span>, <span class="ident">n</span>, <span class="ident">s</span>);
+        <span class="kw">let</span> <span class="ident">page_data</span> <span class="op">=</span> <span class="ident">get_page_data</span>(<span class="ident">unit_sseq</span>.<span class="ident">as_ref</span>(), <span class="ident">n</span>, <span class="ident">s</span>);
 
         <span class="kw">let</span> <span class="ident">target_num_gens</span> <span class="op">=</span> <span class="ident">resolution</span>.<span class="ident">number_of_gens_in_bidegree</span>(<span class="ident">s</span> <span class="op">+</span> <span class="ident">shift_s</span>, <span class="ident">t</span> <span class="op">+</span> <span class="ident">shift_t</span>);
         <span class="kw">let</span> <span class="ident">tau_num_gens</span> <span class="op">=</span> <span class="ident">resolution</span>.<span class="ident">number_of_gens_in_bidegree</span>(<span class="ident">s</span> <span class="op">+</span> <span class="ident">shift_s</span> <span class="op">+</span> <span class="number">1</span>, <span class="ident">t</span> <span class="op">+</span> <span class="ident">shift_t</span> <span class="op">+</span> <span class="number">1</span>);
@@ -423,5 +423,5 @@
     <span class="prelude-val">Ok</span>(())
 }
 </code></pre></div>
-</section><section id="search" class="content hidden"></section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="secondary_product" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.61.0 (fe5b13d68 2022-05-18)" ></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="secondary_product" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.62.0 (a8314ef7d 2022-06-27)" ></div>
 </body></html>

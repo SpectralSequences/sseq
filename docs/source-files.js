@@ -1,4 +1,4 @@
-var N = null;var sourcesIndex = {};
+var sourcesIndex = {};
 sourcesIndex["algebra"] = {"name":"","dirs":[{"name":"algebra","files":["adem_algebra.rs","algebra_trait.rs","bialgebra_trait.rs","combinatorics.rs","field.rs","milnor_algebra.rs","mod.rs","pair_algebra.rs","polynomial_algebra.rs","steenrod_algebra.rs"]},{"name":"module","dirs":[{"name":"homomorphism","files":["free_module_homomorphism.rs","full_module_homomorphism.rs","generic_zero_homomorphism.rs","hom_pullback.rs","mod.rs","quotient_homomorphism.rs"]}],"files":["block_structure.rs","finite_dimensional_module.rs","finitely_presented_module.rs","free_module.rs","hom_module.rs","mod.rs","module_trait.rs","quotient_module.rs","rpn.rs","steenrod_module.rs","suspension_module.rs","tensor_module.rs","zero_module.rs"]}],"files":["lib.rs","steenrod_evaluator.rs","steenrod_parser.rs"]};
 sourcesIndex["algebra_dim"] = {"name":"","files":["algebra_dim.rs"]};
 sourcesIndex["bivec"] = {"name":"","files":["lib.rs"]};
