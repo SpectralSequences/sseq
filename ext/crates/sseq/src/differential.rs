@@ -1,7 +1,7 @@
 use fp::{
     matrix::{Matrix, Subspace},
     prime::ValidPrime,
-    vector::{FpVector, Slice, SliceMut},
+    vector::{prelude::*, FpVector, Slice, SliceMut},
 };
 
 pub struct Differential {
@@ -74,8 +74,8 @@ impl Differential {
             .filter(|d| !d.is_zero())
             .map(move |d| {
                 (
-                    d.slice(0, source_dim).to_owned(),
-                    d.slice(source_dim, source_dim + target_dim).to_owned(),
+                    d.slice(0, source_dim).into_owned(),
+                    d.slice(source_dim, source_dim + target_dim).into_owned(),
                 )
             })
             .collect()

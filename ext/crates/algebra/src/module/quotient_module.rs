@@ -1,7 +1,7 @@
 use crate::module::{Module, ZeroModule};
 use bivec::BiVec;
 use fp::matrix::Subspace;
-use fp::vector::{FpVector, Slice, SliceMut};
+use fp::vector::{prelude::*, FpVector, Slice, SliceMut};
 use std::sync::Arc;
 
 /// A quotient of a module truncated below a fix degree.

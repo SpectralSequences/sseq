@@ -5,7 +5,7 @@ use bivec::BiVec;
 use crate::algebra::Field;
 use crate::module::block_structure::BlockStructure;
 use crate::module::{FreeModule, Module};
-use fp::vector::SliceMut;
+use fp::vector::{prelude::*, SliceMut};
 use once::OnceBiVec;
 
 /// Given a module N and a free module M, this is the module Hom(M, N) as a module over the ground

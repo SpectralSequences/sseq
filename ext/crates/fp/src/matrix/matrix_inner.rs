@@ -1,7 +1,8 @@
 use super::{QuasiInverse, Subspace};
+use crate::limb;
 use crate::matrix::m4ri::M4riTable;
 use crate::prime::{self, ValidPrime};
-use crate::vector::{FpVector, Slice, SliceMut};
+use crate::vector::{prelude::*, FpVector, Slice, SliceMut};
 
 use std::fmt;
 use std::io::{Read, Write};
@@ -170,6 +171,7 @@ impl Matrix {
     ///
     /// # Example
     /// ```
+    /// # #[cfg(feature="odd-primes")] {
     /// # use fp::prime::ValidPrime;
     /// let p = ValidPrime::new(7);
     /// # use fp::matrix::Matrix;
@@ -177,6 +179,8 @@ impl Matrix {
     ///               vec![0, 3, 4]];
     ///
     /// let m = Matrix::from_vec(p, &input);
+    /// # }
+    /// ```
     pub fn from_vec(p: ValidPrime, input: &[Vec<u32>]) -> Matrix {
         let rows = input.len();
         if rows == 0 {
@@ -204,6 +208,7 @@ impl Matrix {
     ///
     /// # Example
     /// ```
+    /// # #[cfg(feature="odd-primes")] {
     /// # use fp::prime::ValidPrime;
     /// let p = ValidPrime::new(7);
     /// # use fp::matrix::Matrix;
@@ -213,10 +218,12 @@ impl Matrix {
     ///
     /// let (n, m) = Matrix::augmented_from_vec(p, &input);
     /// assert!(n >= input[0].len());
+    /// # }
+    /// ```
     pub fn augmented_from_vec(p: ValidPrime, input: &[Vec<u32>]) -> (usize, Matrix) {
         let rows = input.len();
         let cols = input[0].len();
-        let padded_cols = FpVector::padded_len(p, cols);
+        let padded_cols = limb::padded_len(p, cols);
         let mut m = Matrix::new(p, rows, padded_cols + rows);
 
         for i in 0..rows {
@@ -484,6 +491,7 @@ impl Matrix {
     ///
     /// # Example
     /// ```
+    /// # #[cfg(feature="odd-primes")] {
     /// # use fp::prime::ValidPrime;
     /// let p = ValidPrime::new(7);
     /// # use fp::matrix::Matrix;
@@ -498,6 +506,7 @@ impl Matrix {
     /// m.row_reduce();
     ///
     /// assert_eq!(m, Matrix::from_vec(p, &result));
+    /// # }
     /// ```
     pub fn row_reduce(&mut self) -> usize {
         let p = self.p;
@@ -606,6 +615,7 @@ impl Matrix {
     ///
     /// # Example
     /// ```
+    /// # #[cfg(feature="odd-primes")] {
     /// # use fp::prime::ValidPrime;
     /// let p = ValidPrime::new(3);
     /// # use fp::matrix::Matrix;
@@ -621,6 +631,7 @@ impl Matrix {
     /// let preimage = [vec![0, 1, 0],
     ///                 vec![0, 2, 2]];
     /// assert_eq!(qi.preimage(), &Matrix::from_vec(p, &preimage));
+    /// # }
     /// ```
     pub fn compute_quasi_inverse(
         &self,
@@ -649,6 +660,7 @@ impl Matrix {
     ///
     /// # Example
     /// ```
+    /// # #[cfg(feature="odd-primes")] {
     /// # use fp::prime::ValidPrime;
     /// let p = ValidPrime::new(3);
     /// # use fp::matrix::Matrix;
@@ -666,6 +678,7 @@ impl Matrix {
     ///              vec![0, 1, 1, 0, 1]];
     /// assert_eq!(computed_image.matrix, Matrix::from_vec(p, &image));
     /// assert_eq!(computed_image.pivots(), &vec![0, 1, -1, -1, -1]);
+    /// # }
     /// ```
     pub fn compute_image(&self, last_target_col: usize, first_source_col: usize) -> Subspace {
         let p = self.prime();
@@ -700,6 +713,7 @@ impl Matrix {
     ///
     /// # Example
     /// ```
+    /// # #[cfg(feature="odd-primes")] {
     /// # use fp::prime::ValidPrime;
     /// let p = ValidPrime::new(3);
     /// # use fp::matrix::Matrix;
@@ -714,6 +728,7 @@ impl Matrix {
     ///
     /// let mut target = vec![0; 3];
     /// assert_eq!(Vec::<u32>::from(&ker.matrix[0]), vec![1, 1, 2]);
+    /// # }
     /// ```
     pub fn compute_kernel(&self, first_source_column: usize) -> Subspace {
         let p = self.p;
@@ -840,7 +855,6 @@ impl Matrix {
             new_row
                 .slice_mut(start_column, start_column + desired_image.matrix.columns)
                 .assign(new_image);
-
             self.vectors.push(new_row);
 
             added_pivots.push(i);
@@ -852,10 +866,11 @@ impl Matrix {
     ///
     /// # Example
     /// ```
+    /// # #[cfg(feature="odd-primes")] {
     /// # use fp::prime::ValidPrime;
     /// let p = ValidPrime::new(7);
     /// # use fp::matrix::Matrix;
-    /// # use fp::vector::FpVector;
+    /// # use fp::vector::{prelude::*, FpVector};
     /// let input  = [vec![1, 3, 6],
     ///               vec![0, 3, 4]];
     ///
@@ -865,14 +880,12 @@ impl Matrix {
     /// let desired_result = FpVector::from_slice(p, &vec![3, 5, 1]);
     /// m.apply(result.as_slice_mut(), 1, v.as_slice());
     /// assert_eq!(result, desired_result);
+    /// # }
     /// ```
     pub fn apply(&self, mut result: SliceMut, coeff: u32, input: Slice) {
         debug_assert_eq!(input.len(), self.rows());
         for i in 0..input.len() {
-            result.add(
-                self.vectors[i].as_slice(),
-                (coeff * input.entry(i)) % *self.p,
-            );
+            result.add(&self.vectors[i], (coeff * input.entry(i)) % *self.p);
         }
     }
 
@@ -952,7 +965,7 @@ impl<const N: usize> AugmentedMatrix<N> {
         let mut start = [0; N];
         let mut end = [0; N];
         for i in 1..N {
-            start[i] = start[i - 1] + FpVector::padded_len(p, columns[i - 1]);
+            start[i] = start[i - 1] + limb::padded_len(p, columns[i - 1]);
         }
         for i in 0..N {
             end[i] = start[i] + columns[i];
@@ -975,7 +988,7 @@ impl<const N: usize> AugmentedMatrix<N> {
         let mut start = [0; N];
         let mut end = [0; N];
         for i in 1..N {
-            start[i] = start[i - 1] + FpVector::padded_len(p, columns[i - 1]);
+            start[i] = start[i - 1] + limb::padded_len(p, columns[i - 1]);
         }
         for i in 0..N {
             end[i] = start[i] + columns[i];

@@ -5,7 +5,7 @@ use crate::module::homomorphism::{IdentityHomomorphism, ModuleHomomorphism, Zero
 use crate::module::Module;
 use bivec::BiVec;
 use fp::matrix::{Matrix, QuasiInverse, Subspace};
-use fp::vector::SliceMut;
+use fp::vector::{prelude::*, SliceMut};
 use once::OnceBiVec;
 
 /// A ModuleHomomorphism that simply records the matrix of the homomorphism in every degree.
@@ -62,7 +62,7 @@ impl<S: Module, T: Module<Algebra = S::Algebra>> ModuleHomomorphism
     ) {
         let output_degree = input_degree - self.degree_shift;
         if let Some(matrix) = self.matrices.get(output_degree) {
-            result.add(matrix[input_idx].as_slice(), coeff);
+            result.add(&matrix[input_idx], coeff);
         }
     }
 

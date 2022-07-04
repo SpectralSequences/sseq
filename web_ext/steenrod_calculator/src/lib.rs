@@ -1,5 +1,6 @@
 use algebra::steenrod_evaluator::SteenrodEvaluator;
 use algebra::Algebra;
+use fp::vector::prelude::*;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]

@@ -1,7 +1,7 @@
 use super::Subspace;
 use crate::matrix::Matrix;
 use crate::prime::ValidPrime;
-use crate::vector::{FpVector, Slice, SliceMut};
+use crate::vector::{prelude::*, FpVector, Slice, SliceMut};
 
 #[derive(Clone)]
 pub struct Subquotient {
@@ -47,7 +47,7 @@ impl Subquotient {
             if self.gens.pivots()[i] < 0 {
                 continue;
             }
-            let c = elt.as_slice().entry(i);
+            let c = elt.entry(i);
             result.push(c);
             if c != 0 {
                 elt.add(
@@ -175,6 +175,7 @@ impl Subquotient {
     }
 }
 
+#[cfg(feature = "odd-primes")]
 #[cfg(test)]
 mod test {
     use super::*;

@@ -5,7 +5,7 @@ use fp::prime::ValidPrime;
 use fp::vector::FpVector;
 use fp::{
     matrix::{Matrix, Subquotient},
-    vector::Slice,
+    vector::{prelude::*, Slice},
 };
 use serde::{Deserialize, Serialize};
 use sseq::{Adams, Sseq, SseqProfile};
@@ -283,7 +283,7 @@ impl<P: SseqProfile> SseqWrapper<P> {
                     .inner
                     .page_data(x, y)
                     .iter()
-                    .map(|x| x.gens().map(Slice::to_owned).collect())
+                    .map(|x| x.gens().map(Slice::into_owned).collect())
                     .collect::<Vec<Vec<FpVector>>>(),
             }),
         });

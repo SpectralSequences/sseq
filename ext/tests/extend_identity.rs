@@ -3,7 +3,7 @@ use algebra::module::Module;
 use ext::chain_complex::{AugmentedChainComplex, ChainComplex};
 use ext::resolution_homomorphism::ResolutionHomomorphism;
 use ext::utils::{construct, Config};
-use fp::vector::FpVector;
+use fp::vector::{prelude::*, FpVector};
 use serde_json::json;
 use std::convert::TryInto;
 use std::sync::Arc;

@@ -1,4 +1,4 @@
-use fp::vector::FpVector;
+use fp::vector::{prelude::*, FpVector};
 use once::OnceVec;
 
 use fp::prime::{minus_one_to_the_n, Binomial, ValidPrime};
@@ -9,7 +9,7 @@ pub const MAX_XI_TAU: usize = MAX_MULTINOMIAL_LEN;
 /// If p is the nth prime, then `XI_DEGREES[n][i - 1]` is the degree of $ξ_i$ at the prime p divided by
 /// q, where q = 2p - 2 if p != 2 and 1 if p = 2.
 const XI_DEGREES: [[i32; MAX_XI_TAU]; NUM_PRIMES] = {
-    let mut res = [[0; 10]; 8];
+    let mut res = [[0; 10]; NUM_PRIMES];
     const_for! { p_idx in 0 .. NUM_PRIMES {
         let p = PRIMES[p_idx];
         let mut p_to_the_i = p;
@@ -26,7 +26,7 @@ const XI_DEGREES: [[i32; MAX_XI_TAU]; NUM_PRIMES] = {
 /// If p is the nth prime, then `TAU_DEGREES[n][i]` is the degree of $τ_i$ at the prime p. Its value is
 /// nonsense at the prime 2
 const TAU_DEGREES: [[i32; MAX_XI_TAU]; NUM_PRIMES] = {
-    let mut res = [[0; 10]; 8];
+    let mut res = [[0; 10]; NUM_PRIMES];
     const_for! { p_idx in 0 .. NUM_PRIMES {
         let p = PRIMES[p_idx];
         let mut p_to_the_i: u32 = 1;

@@ -1,5 +1,5 @@
 use fp::prime::ValidPrime;
-use fp::vector::{Slice, SliceMut};
+use fp::vector::{prelude::*, Slice, SliceMut};
 
 use std::fmt::Write as _; // Needed for write! macro for String
 

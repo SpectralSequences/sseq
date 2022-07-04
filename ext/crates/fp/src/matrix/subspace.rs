@@ -1,6 +1,6 @@
 use super::Matrix;
 use crate::prime::ValidPrime;
-use crate::vector::{FpVector, Slice, SliceMut};
+use crate::vector::{prelude::*, FpVector, Slice, SliceMut};
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::io::{Read, Write};
@@ -113,8 +113,8 @@ impl Subspace {
 
     /// Projects a vector to a complement of the subspace. The complement is the set of vectors
     /// that have a 0 in every column where there is a pivot in `matrix`
-    pub fn reduce(&self, mut vector: SliceMut) {
-        assert_eq!(vector.as_slice().len(), self.ambient_dimension());
+    pub fn reduce<T: BaseVectorMut>(&self, mut vector: T) {
+        assert_eq!(vector.len(), self.ambient_dimension());
         if self.matrix.rows() == 0 {
             return;
         }
@@ -127,7 +127,7 @@ impl Subspace {
             .map(|(col, _)| col)
             .zip(self.iter());
         for (col, row) in iter {
-            let c = vector.as_slice().entry(col);
+            let c = vector.entry(col);
             if c != 0 {
                 vector.add(row, *p - c);
             }
@@ -135,7 +135,7 @@ impl Subspace {
     }
 
     pub fn contains(&self, vector: Slice) -> bool {
-        let mut vector: FpVector = vector.to_owned();
+        let mut vector: FpVector = vector.into_owned();
         self.reduce(vector.as_slice_mut());
         vector.is_zero()
     }

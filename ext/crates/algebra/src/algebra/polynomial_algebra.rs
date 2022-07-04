@@ -3,7 +3,7 @@ use rustc_hash::FxHashMap as HashMap;
 use std::fmt;
 
 use fp::prime::ValidPrime;
-use fp::vector::{FpVector, SliceMut};
+use fp::vector::{prelude::*, FpVector, SliceMut};
 use once::OnceVec;
 
 use crate::algebra::combinatorics::TruncatedPolynomialMonomialBasis;

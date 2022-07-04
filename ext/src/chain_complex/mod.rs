@@ -8,7 +8,7 @@ use algebra::{Algebra, MuAlgebra};
 use bivec::BiVec;
 use fp::matrix::Matrix;
 use fp::prime::ValidPrime;
-use fp::vector::{Slice, SliceMut};
+use fp::vector::{prelude::*, Slice, SliceMut};
 use std::sync::Arc;
 
 use itertools::Itertools;

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::module::Module;
 use fp::matrix::{AugmentedMatrix, Matrix, MatrixSliceMut, QuasiInverse, Subspace};
 use fp::prime::ValidPrime;
-use fp::vector::{Slice, SliceMut};
+use fp::vector::{prelude::*, Slice, SliceMut};
 
 #[cfg(feature = "concurrent")]
 use rayon::prelude::*;

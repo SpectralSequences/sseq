@@ -5,7 +5,7 @@ use crate::module::free_module::OperationGeneratorPair;
 use crate::module::homomorphism::{ModuleHomomorphism, ZeroHomomorphism};
 use crate::module::{Module, MuFreeModule};
 use fp::matrix::{MatrixSliceMut, QuasiInverse, Subspace};
-use fp::vector::{FpVector, Slice, SliceMut};
+use fp::vector::{prelude::*, FpVector, Slice, SliceMut};
 use once::OnceBiVec;
 
 pub type FreeModuleHomomorphism<M> = MuFreeModuleHomomorphism<false, M>;
@@ -55,10 +55,7 @@ where
         assert!(input_degree >= self.source.min_degree());
         assert!(input_index < self.source.dimension(input_degree));
         let output_degree = input_degree - self.degree_shift;
-        assert_eq!(
-            self.target.dimension(output_degree),
-            result.as_slice().len()
-        );
+        assert_eq!(self.target.dimension(output_degree), result.len());
         let OperationGeneratorPair {
             operation_degree,
             generator_degree,
@@ -191,7 +188,6 @@ where
         }
         for (i, new_output) in new_outputs.iter_mut().enumerate() {
             new_output
-                .as_slice_mut()
                 .assign(outputs_vectors.slice(target_dimension * i, target_dimension * (i + 1)));
         }
         self.outputs.push_checked(new_outputs, degree);
@@ -213,7 +209,7 @@ where
             return;
         }
         for (i, new_output) in new_outputs.iter_mut().enumerate() {
-            new_output.as_slice_mut().assign(matrix.row(i));
+            new_output.assign(matrix.row(i));
         }
         self.outputs.push_checked(new_outputs, degree);
     }

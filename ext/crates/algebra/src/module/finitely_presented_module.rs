@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::algebra::Algebra;
 use crate::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
 use crate::module::{FreeModule, Module, ZeroModule};
-use fp::vector::{FpVector, SliceMut};
+use fp::vector::{prelude::*, FpVector, SliceMut};
 use once::OnceBiVec;
 
 #[cfg(feature = "json")]
@@ -233,7 +233,7 @@ impl<A: Algebra> Module for FinitelyPresentedModule<A> {
         );
         let image = self.map.image(out_deg).unwrap();
         image.reduce(temp_vec.as_slice_mut());
-        for i in 0..result.as_slice().len() {
+        for i in 0..result.len() {
             let value = temp_vec.entry(self.fp_idx_to_gen_idx(out_deg, i));
             result.add_basis_element(i, value);
         }

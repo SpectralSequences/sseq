@@ -4,7 +4,7 @@ use algebra::module::Module;
 use bivec::BiVec;
 use enum_dispatch::enum_dispatch;
 use ext::{chain_complex::FreeChainComplex, CCC};
-use fp::vector::FpVector;
+use fp::vector::{prelude::*, FpVector};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 

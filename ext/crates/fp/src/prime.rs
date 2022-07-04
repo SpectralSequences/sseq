@@ -1,6 +1,7 @@
+use std::convert::TryFrom;
+
 #[cfg(feature = "json")]
 use serde::{de::Error, Deserialize, Deserializer, Serialize, Serializer};
-use std::convert::TryFrom;
 
 use crate::constants::{
     BINOMIAL4_TABLE, BINOMIAL4_TABLE_SIZE, BINOMIAL_TABLE, INVERSE_TABLE, PRIME_TO_INDEX_MAP,
@@ -506,11 +507,12 @@ impl Iterator for BinomialIterator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    // // #[cfg(feature = "odd-primes")]
     use crate::constants::PRIMES;
 
     #[test]
     fn inverse_test() {
-        for &p in PRIMES.iter() {
+        for p in PRIMES {
             let p = ValidPrime::new(p);
             for k in 1..*p {
                 assert_eq!((inverse(p, k) * k) % *p, 1);
@@ -520,7 +522,11 @@ mod tests {
 
     #[test]
     fn binomial_test() {
+        #[cfg(feature = "odd-primes")]
         let entries = [[2, 2, 1, 0], [2, 3, 1, 1], [3, 1090, 730, 1], [7, 3, 2, 3]];
+
+        #[cfg(not(feature = "odd-primes"))]
+        let entries = [[2, 2, 1, 0], [2, 3, 1, 1]];
 
         for entry in &entries {
             assert_eq!(
@@ -532,7 +538,7 @@ mod tests {
 
     #[test]
     fn binomial_vs_monomial() {
-        for &p in &[2, 3, 5, 7, 11] {
+        for p in PRIMES {
             let p = ValidPrime::new(p);
             for l in 0..20 {
                 for m in 0..20 {
@@ -558,7 +564,7 @@ mod tests {
         for n in 0..12 {
             for j in 0..=n {
                 let ans = binomial_full(n, j);
-                for &p in &[2, 3, 5, 7, 11] {
+                for p in PRIMES {
                     assert_eq!(
                         u32::binomial(ValidPrime::new(p), n, j),
                         ans % p,

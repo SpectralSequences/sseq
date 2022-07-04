@@ -1,17 +1,16 @@
+#![allow(unused_macros)] // For when odd-primes is disabled
+
 mod constants;
 mod limb;
 
 pub use constants::{MAX_MULTINOMIAL_LEN, NUM_PRIMES, PRIMES, PRIME_TO_INDEX_MAP};
 
+#[macro_use]
+pub(crate) mod macros;
+
 pub mod matrix;
 pub mod prime;
-#[cfg(feature = "odd-primes")]
 pub mod vector;
-pub mod vector_2;
-#[cfg(not(feature = "odd-primes"))]
-pub use vector_2 as vector;
-
-pub mod vector_inner;
 
 pub(crate) mod simd;
 

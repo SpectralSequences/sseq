@@ -45,6 +45,7 @@ use ext::chain_complex::{AugmentedChainComplex, ChainComplex, FreeChainComplex};
 use ext::resolution_homomorphism::ResolutionHomomorphism;
 use ext::utils;
 use fp::matrix::Matrix;
+use fp::vector::prelude::*;
 
 use std::path::PathBuf;
 use std::sync::Arc;

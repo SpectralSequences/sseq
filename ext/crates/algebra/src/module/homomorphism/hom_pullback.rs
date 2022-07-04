@@ -5,7 +5,7 @@ use crate::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
 use crate::module::HomModule;
 use crate::module::{FreeModule, Module};
 use fp::matrix::{QuasiInverse, Subspace};
-use fp::vector::SliceMut;
+use fp::vector::{prelude::*, SliceMut};
 use once::OnceBiVec;
 
 /// Given a map $\mathtt{map}: A \to B$ and hom modules $\mathtt{source} = \Hom(B, X)$, $\mathtt{target} = \Hom(A, X)$, produce the induced pullback map $\Hom(B, X) \to \Hom(A, X)$.

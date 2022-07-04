@@ -1,6 +1,6 @@
 use super::Matrix;
 use crate::prime::ValidPrime;
-use crate::vector::{FpVector, Slice, SliceMut};
+use crate::vector::{prelude::*, FpVector, Slice, SliceMut};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::io::{Read, Write};
 
@@ -138,7 +138,7 @@ impl QuasiInverse {
                 }
             }
             if c != 0 {
-                target.add(self.preimage[row].as_slice(), (coeff * c) % *p);
+                target.add(&self.preimage[row], (coeff * c) % *p);
             }
             row += 1;
         }

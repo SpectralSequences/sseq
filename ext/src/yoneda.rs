@@ -12,7 +12,7 @@ use algebra::module::{FDModule, FreeModule, Module};
 use algebra::{AdemAlgebra, Algebra, GeneratedAlgebra, MilnorAlgebra, SteenrodAlgebra};
 
 use fp::matrix::{AugmentedMatrix, Matrix, Subspace};
-use fp::vector::FpVector;
+use fp::vector::{prelude::*, FpVector};
 
 use bivec::BiVec;
 

@@ -1,5 +1,5 @@
 use bivec::BiVec;
-use fp::vector::{Slice, SliceMut};
+use fp::vector::{prelude::*, Slice, SliceMut};
 use std::ops::Range;
 
 #[derive(Debug)]

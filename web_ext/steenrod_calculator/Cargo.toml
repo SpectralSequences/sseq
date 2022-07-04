@@ -6,6 +6,7 @@ edition = "2021"
 
 [dependencies]
 algebra = { path = "../../ext/crates/algebra", default-features = false, features = ["odd-primes"] }
+fp = { path = "../../ext/crates/fp", default-features = false, features = ["odd-primes"] }
 wasm-bindgen = "=0.2.78"
 
 [lib]

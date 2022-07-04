@@ -117,6 +117,7 @@ fn row_reduce_7_420() {
     row_reduce_p_n(ValidPrime::new(7), 420);
 }
 
+#[cfg(feature = "odd-primes")]
 iai::main!(
     row_reduce_2_10,
     row_reduce_2_20,
@@ -142,4 +143,14 @@ iai::main!(
     row_reduce_7_100,
     row_reduce_7_420,
     row_reduce_7_1000,
+);
+
+#[cfg(not(feature = "odd-primes"))]
+iai::main!(
+    row_reduce_2_10,
+    row_reduce_2_20,
+    row_reduce_2_69,
+    row_reduce_2_100,
+    row_reduce_2_420,
+    row_reduce_2_1000,
 );
