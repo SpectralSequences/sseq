@@ -524,6 +524,20 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         Ok(())
     }
 
+    fn write_differential(&self, s: u32, t: i32, num_new_gens: usize, target_dim: usize) {
+        if let Some(dir) = &self.save_dir {
+            let mut f = self
+                .save_file(SaveKind::NassauDifferential, s, t)
+                .create_file(dir.clone(), false);
+            f.write_u64::<LittleEndian>(num_new_gens as u64).unwrap();
+            f.write_u64::<LittleEndian>(target_dim as u64).unwrap();
+
+            for n in 0..num_new_gens {
+                self.differential(s).output(t, n).to_bytes(&mut f).unwrap();
+            }
+        }
+    }
+
     fn step_resolution_with_subalgebra(&self, s: u32, t: i32, subalgebra: MilnorSubalgebra) {
         let timer = Timer::start();
         let end = || {
@@ -686,17 +700,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             f.write_u64::<LittleEndian>(Magic::End as u64).unwrap();
         }
 
-        if let Some(dir) = &self.save_dir {
-            let mut f = self
-                .save_file(SaveKind::NassauDifferential, s, t)
-                .create_file(dir.clone(), false);
-            f.write_u64::<LittleEndian>(num_new_gens as u64).unwrap();
-            f.write_u64::<LittleEndian>(target_dim as u64).unwrap();
-
-            for n in 0..num_new_gens {
-                self.differential(s).output(t, n).to_bytes(&mut f).unwrap();
-            }
-        }
+        self.write_differential(s, t, num_new_gens, target_dim);
     }
 
     /// Step resolution for s = 0
@@ -788,6 +792,8 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
                 .segment(0, 0)
                 .row_slice(source_dim, source_dim + num_new_gens),
         );
+
+        self.write_differential(1, t, num_new_gens, target_dim);
     }
 
     fn step_resolution(&self, s: u32, t: i32) {
@@ -811,10 +817,6 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
 
         if s == 0 {
             return self.step0(t);
-        } else if s == 1 {
-            self.step1(t);
-            set_data();
-            return;
         }
 
         if let Some(dir) = &self.save_dir {
@@ -844,6 +846,12 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
 
                 return;
             }
+        }
+
+        if s == 1 {
+            self.step1(t);
+            set_data();
+            return;
         }
 
         self.step_resolution_with_subalgebra(
