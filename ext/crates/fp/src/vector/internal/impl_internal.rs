@@ -88,12 +88,13 @@ impl<const P: u32> InternalBaseVectorMutP<P> for FpVectorP<P> {
         }
     }
 
-    fn _add<T: InternalBaseVectorP<P>>(&mut self, other: T, c: u32) {
-        self._add_offset(other._into_owned(), c, 0);
-    }
-
     fn _add_offset<T: InternalBaseVectorP<P>>(&mut self, other: T, c: u32, offset: usize) {
-        assert_eq!(self._len().logical(), other._len().logical());
+        debug_assert_eq!(
+            other._len().start,
+            0,
+            "`FpVector::add_offset` only supports limb-aligned arguments"
+        );
+        debug_assert_eq!(self._len().logical(), other._len().logical());
         let min_limb = offset / limb::entries_per_limb_const::<P>();
         if P == 2 {
             if c != 0 {
