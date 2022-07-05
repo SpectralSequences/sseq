@@ -354,6 +354,7 @@ impl<'a> FpVectorIterator<'a> {
 
 impl<'a> Iterator for FpVectorIterator<'a> {
     type Item = u32;
+
     fn next(&mut self) -> Option<Self::Item> {
         if self.counter == 0 {
             return None;
@@ -424,6 +425,7 @@ impl<'a, const P: u32> FpVectorNonZeroIteratorP<'a, P> {
 
 impl<'a, const P: u32> Iterator for FpVectorNonZeroIteratorP<'a, P> {
     type Item = (usize, u32);
+
     fn next(&mut self) -> Option<Self::Item> {
         let bit_length: usize = limb::bit_length_const::<P>();
         let bitmask: Limb = limb::bitmask::<P>();

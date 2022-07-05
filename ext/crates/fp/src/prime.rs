@@ -255,7 +255,6 @@ pub trait Binomial: Sized {
     /// This is easy to verify using the fact that
     ///
     ///    (x + y)^{2^k} = x^{2^k} + 2 x^{2^{k - 1}} y^{2^{k - 1}} + y^{2^k}
-    ///
     fn binomial4(n: Self, k: Self) -> Self;
 
     /// Compute binomial coefficients mod 4 using the recursion relation in the documentation of
@@ -322,6 +321,7 @@ macro_rules! impl_binomial {
                     0
                 }
             }
+
             #[inline]
             fn multinomial_odd(p_: ValidPrime, l: &mut [Self]) -> Self {
                 let p = *p_ as Self;
@@ -399,6 +399,7 @@ macro_rules! impl_binomial {
                 }
                 false
             }
+
             fn binomial4(n: Self, j: Self) -> Self {
                 if (n as usize) < BINOMIAL4_TABLE_SIZE {
                     return BINOMIAL4_TABLE[n as usize][j as usize] as Self;
@@ -466,6 +467,7 @@ impl BitflagIterator {
 
 impl Iterator for BitflagIterator {
     type Item = bool;
+
     fn next(&mut self) -> Option<Self::Item> {
         if self.remaining > 64 && self.flag == 0 || self.remaining == 0 {
             None
@@ -494,6 +496,7 @@ impl BinomialIterator {
 
 impl Iterator for BinomialIterator {
     type Item = u32;
+
     fn next(&mut self) -> Option<Self::Item> {
         let v = self.value;
         let c = v & v.wrapping_neg();
