@@ -1288,6 +1288,22 @@
 <span id="1258">1258</span>
 <span id="1259">1259</span>
 <span id="1260">1260</span>
+<span id="1261">1261</span>
+<span id="1262">1262</span>
+<span id="1263">1263</span>
+<span id="1264">1264</span>
+<span id="1265">1265</span>
+<span id="1266">1266</span>
+<span id="1267">1267</span>
+<span id="1268">1268</span>
+<span id="1269">1269</span>
+<span id="1270">1270</span>
+<span id="1271">1271</span>
+<span id="1272">1272</span>
+<span id="1273">1273</span>
+<span id="1274">1274</span>
+<span id="1275">1275</span>
+<span id="1276">1276</span>
 </pre><pre class="rust"><code><span class="doccomment">//! This module implements [Nassau&#39;s algorithm](https://arxiv.org/abs/1910.04063). The main export</span>
 <span class="doccomment">//! is the [`Resolution`] object, which is a resolution of the sphere at the prime 2 using Nassau&#39;s</span>
 <span class="doccomment">//! algorithm. It aims to provide an API similar to</span>
@@ -1310,8 +1326,8 @@
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::chain_complex</span>::{
     <span class="ident">AugmentedChainComplex</span>, <span class="ident">ChainComplex</span>, <span class="ident">FiniteChainComplex</span>, <span class="ident">FreeChainComplex</span>,
 };
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::save::SaveKind</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::utils::Timer</span>;
+<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">save::SaveKind</span>, <span class="ident">utils::LogWriter</span>};
 <span class="kw">use</span> <span class="ident">algebra::combinatorics</span>;
 <span class="kw">use</span> <span class="ident">algebra::milnor_algebra</span>::{<span class="ident">MilnorAlgebra</span>, <span class="ident">PPartEntry</span>};
 <span class="kw">use</span> <span class="ident">algebra::module::homomorphism</span>::{
@@ -1771,6 +1787,9 @@
 
     <span class="kw">fn</span> <span class="ident">write_qi</span>(
         <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw">impl</span> <span class="ident">Write</span><span class="op">&gt;</span>,
+        <span class="ident">s</span>: <span class="ident">u32</span>,
+        <span class="ident">t</span>: <span class="ident">i32</span>,
+        <span class="ident">subalgebra</span>: <span class="kw-2">&amp;</span><span class="ident">MilnorSubalgebra</span>,
         <span class="ident">scratch</span>: <span class="kw-2">&amp;mut</span> <span class="ident">FpVector</span>,
         <span class="ident">signature</span>: <span class="kw-2">&amp;</span>[<span class="ident">PPartEntry</span>],
         <span class="ident">next_mask</span>: <span class="kw-2">&amp;</span>[<span class="ident">usize</span>],
@@ -1781,6 +1800,9 @@
             <span class="prelude-val">Some</span>(<span class="ident">f</span>) =&gt; <span class="ident">f</span>,
             <span class="prelude-val">None</span> =&gt; <span class="kw">return</span> <span class="prelude-val">Ok</span>(()),
         };
+
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">own_f</span> <span class="op">=</span> <span class="ident">LogWriter::new</span>(<span class="ident">f</span>);
+        <span class="kw">let</span> <span class="ident">f</span> <span class="op">=</span> <span class="kw-2">&amp;mut</span> <span class="ident">own_f</span>;
 
         <span class="kw">let</span> <span class="ident">pivots</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">masked_matrix</span>.<span class="ident">pivots</span>()[<span class="number">0</span>..<span class="ident">masked_matrix</span>.<span class="ident">end</span>[<span class="number">0</span>]];
         <span class="kw">if</span> <span class="op">!</span><span class="ident">pivots</span>.<span class="ident">iter</span>().<span class="ident">any</span>(<span class="op">|</span><span class="kw-2">&amp;</span><span class="ident">x</span><span class="op">|</span> <span class="ident">x</span> <span class="op">&gt;</span><span class="op">=</span> <span class="number">0</span>) {
@@ -1811,6 +1833,10 @@
             <span class="ident">scratch</span>.<span class="ident">to_bytes</span>(<span class="ident">f</span>)<span class="question-mark">?</span>;
         }
 
+        <span class="ident">own_f</span>.<span class="ident">finalize</span>(<span class="macro">format_args!</span>(
+            <span class="string">&quot;Written quasi-inverse for bidegree ({n}, {s}) and signature {signature:?}, with {subalgebra}&quot;</span>,
+            <span class="ident">n</span> <span class="op">=</span> <span class="ident">t</span> <span class="op">-</span> <span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span>,
+        ));
         <span class="prelude-val">Ok</span>(())
     }
 
@@ -1890,6 +1916,9 @@
 
         <span class="ident"><span class="self">Self</span>::write_qi</span>(
             <span class="kw-2">&amp;mut</span> <span class="ident">f</span>,
+            <span class="ident">s</span>,
+            <span class="ident">t</span>,
+            <span class="kw-2">&amp;</span><span class="ident">subalgebra</span>,
             <span class="kw-2">&amp;mut</span> <span class="ident">scratch</span>,
             <span class="kw-2">&amp;</span><span class="ident">zero_sig</span>,
             <span class="kw-2">&amp;</span><span class="ident">next_mask</span>,
@@ -1971,6 +2000,9 @@
             }
             <span class="ident"><span class="self">Self</span>::write_qi</span>(
                 <span class="kw-2">&amp;mut</span> <span class="ident">f</span>,
+                <span class="ident">s</span>,
+                <span class="ident">t</span>,
+                <span class="kw-2">&amp;</span><span class="ident">subalgebra</span>,
                 <span class="kw-2">&amp;mut</span> <span class="ident">scratch</span>,
                 <span class="kw-2">&amp;</span><span class="ident">signature</span>,
                 <span class="kw-2">&amp;</span><span class="ident">next_mask</span>,
