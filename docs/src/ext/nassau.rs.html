@@ -1280,6 +1280,14 @@
 <span id="1250">1250</span>
 <span id="1251">1251</span>
 <span id="1252">1252</span>
+<span id="1253">1253</span>
+<span id="1254">1254</span>
+<span id="1255">1255</span>
+<span id="1256">1256</span>
+<span id="1257">1257</span>
+<span id="1258">1258</span>
+<span id="1259">1259</span>
+<span id="1260">1260</span>
 </pre><pre class="rust"><code><span class="doccomment">//! This module implements [Nassau&#39;s algorithm](https://arxiv.org/abs/1910.04063). The main export</span>
 <span class="doccomment">//! is the [`Resolution`] object, which is a resolution of the sphere at the prime 2 using Nassau&#39;s</span>
 <span class="doccomment">//! algorithm. It aims to provide an API similar to</span>
@@ -1806,6 +1814,20 @@
         <span class="prelude-val">Ok</span>(())
     }
 
+    <span class="kw">fn</span> <span class="ident">write_differential</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">s</span>: <span class="ident">u32</span>, <span class="ident">t</span>: <span class="ident">i32</span>, <span class="ident">num_new_gens</span>: <span class="ident">usize</span>, <span class="ident">target_dim</span>: <span class="ident">usize</span>) {
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dir</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">save_dir</span> {
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="self">self</span>
+                .<span class="ident">save_file</span>(<span class="ident">SaveKind::NassauDifferential</span>, <span class="ident">s</span>, <span class="ident">t</span>)
+                .<span class="ident">create_file</span>(<span class="ident">dir</span>.<span class="ident">clone</span>(), <span class="bool-val">false</span>);
+            <span class="ident">f</span>.<span class="ident">write_u64</span>::<span class="op">&lt;</span><span class="ident">LittleEndian</span><span class="op">&gt;</span>(<span class="ident">num_new_gens</span> <span class="kw">as</span> <span class="ident">u64</span>).<span class="ident">unwrap</span>();
+            <span class="ident">f</span>.<span class="ident">write_u64</span>::<span class="op">&lt;</span><span class="ident">LittleEndian</span><span class="op">&gt;</span>(<span class="ident">target_dim</span> <span class="kw">as</span> <span class="ident">u64</span>).<span class="ident">unwrap</span>();
+
+            <span class="kw">for</span> <span class="ident">n</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">num_new_gens</span> {
+                <span class="self">self</span>.<span class="ident">differential</span>(<span class="ident">s</span>).<span class="ident">output</span>(<span class="ident">t</span>, <span class="ident">n</span>).<span class="ident">to_bytes</span>(<span class="kw-2">&amp;mut</span> <span class="ident">f</span>).<span class="ident">unwrap</span>();
+            }
+        }
+    }
+
     <span class="kw">fn</span> <span class="ident">step_resolution_with_subalgebra</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">s</span>: <span class="ident">u32</span>, <span class="ident">t</span>: <span class="ident">i32</span>, <span class="ident">subalgebra</span>: <span class="ident">MilnorSubalgebra</span>) {
         <span class="kw">let</span> <span class="ident">timer</span> <span class="op">=</span> <span class="ident">Timer::start</span>();
         <span class="kw">let</span> <span class="ident">end</span> <span class="op">=</span> <span class="op">|</span><span class="op">|</span> {
@@ -1968,17 +1990,7 @@
             <span class="ident">f</span>.<span class="ident">write_u64</span>::<span class="op">&lt;</span><span class="ident">LittleEndian</span><span class="op">&gt;</span>(<span class="ident">Magic::End</span> <span class="kw">as</span> <span class="ident">u64</span>).<span class="ident">unwrap</span>();
         }
 
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dir</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">save_dir</span> {
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="self">self</span>
-                .<span class="ident">save_file</span>(<span class="ident">SaveKind::NassauDifferential</span>, <span class="ident">s</span>, <span class="ident">t</span>)
-                .<span class="ident">create_file</span>(<span class="ident">dir</span>.<span class="ident">clone</span>(), <span class="bool-val">false</span>);
-            <span class="ident">f</span>.<span class="ident">write_u64</span>::<span class="op">&lt;</span><span class="ident">LittleEndian</span><span class="op">&gt;</span>(<span class="ident">num_new_gens</span> <span class="kw">as</span> <span class="ident">u64</span>).<span class="ident">unwrap</span>();
-            <span class="ident">f</span>.<span class="ident">write_u64</span>::<span class="op">&lt;</span><span class="ident">LittleEndian</span><span class="op">&gt;</span>(<span class="ident">target_dim</span> <span class="kw">as</span> <span class="ident">u64</span>).<span class="ident">unwrap</span>();
-
-            <span class="kw">for</span> <span class="ident">n</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">num_new_gens</span> {
-                <span class="self">self</span>.<span class="ident">differential</span>(<span class="ident">s</span>).<span class="ident">output</span>(<span class="ident">t</span>, <span class="ident">n</span>).<span class="ident">to_bytes</span>(<span class="kw-2">&amp;mut</span> <span class="ident">f</span>).<span class="ident">unwrap</span>();
-            }
-        }
+        <span class="self">self</span>.<span class="ident">write_differential</span>(<span class="ident">s</span>, <span class="ident">t</span>, <span class="ident">num_new_gens</span>, <span class="ident">target_dim</span>);
     }
 
     <span class="doccomment">/// Step resolution for s = 0</span>
@@ -2070,6 +2082,8 @@
                 .<span class="ident">segment</span>(<span class="number">0</span>, <span class="number">0</span>)
                 .<span class="ident">row_slice</span>(<span class="ident">source_dim</span>, <span class="ident">source_dim</span> <span class="op">+</span> <span class="ident">num_new_gens</span>),
         );
+
+        <span class="self">self</span>.<span class="ident">write_differential</span>(<span class="number">1</span>, <span class="ident">t</span>, <span class="ident">num_new_gens</span>, <span class="ident">target_dim</span>);
     }
 
     <span class="kw">fn</span> <span class="ident">step_resolution</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">s</span>: <span class="ident">u32</span>, <span class="ident">t</span>: <span class="ident">i32</span>) {
@@ -2093,10 +2107,6 @@
 
         <span class="kw">if</span> <span class="ident">s</span> <span class="op">==</span> <span class="number">0</span> {
             <span class="kw">return</span> <span class="self">self</span>.<span class="ident">step0</span>(<span class="ident">t</span>);
-        } <span class="kw">else</span> <span class="kw">if</span> <span class="ident">s</span> <span class="op">==</span> <span class="number">1</span> {
-            <span class="self">self</span>.<span class="ident">step1</span>(<span class="ident">t</span>);
-            <span class="ident">set_data</span>();
-            <span class="kw">return</span>;
         }
 
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dir</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">save_dir</span> {
@@ -2126,6 +2136,12 @@
 
                 <span class="kw">return</span>;
             }
+        }
+
+        <span class="kw">if</span> <span class="ident">s</span> <span class="op">==</span> <span class="number">1</span> {
+            <span class="self">self</span>.<span class="ident">step1</span>(<span class="ident">t</span>);
+            <span class="ident">set_data</span>();
+            <span class="kw">return</span>;
         }
 
         <span class="self">self</span>.<span class="ident">step_resolution_with_subalgebra</span>(
