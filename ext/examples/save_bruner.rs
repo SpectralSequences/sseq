@@ -4,6 +4,7 @@
 use algebra::module::Module;
 use algebra::{Algebra, AlgebraType, MilnorAlgebra};
 use ext::{chain_complex::ChainComplex, utils::query_module};
+use fp::vector::prelude::*;
 use itertools::Itertools;
 use std::fmt::Write as _;
 use std::fs::File;

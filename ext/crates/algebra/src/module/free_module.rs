@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::algebra::MuAlgebra;
 use crate::module::{Module, ZeroModule};
-use fp::vector::{Slice, SliceMut};
+use fp::vector::{prelude::*, Slice, SliceMut};
 use once::{OnceBiVec, OnceVec};
 
 #[derive(Clone, Debug)]

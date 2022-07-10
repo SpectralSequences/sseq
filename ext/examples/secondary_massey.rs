@@ -22,7 +22,7 @@ use std::sync::Arc;
 use algebra::module::Module;
 use algebra::pair_algebra::PairAlgebra;
 use fp::matrix::{Matrix, Subspace};
-use fp::vector::FpVector;
+use fp::vector::{prelude::*, FpVector};
 
 use ext::chain_complex::{ChainComplex, ChainHomotopy, FreeChainComplex};
 use ext::resolution_homomorphism::ResolutionHomomorphism;

@@ -5,7 +5,7 @@ use crate::algebra::{
 };
 use crate::module::{Module, ZeroModule};
 use fp::prime::{Binomial, TWO};
-use fp::vector::SliceMut;
+use fp::vector::{prelude::*, SliceMut};
 
 use std::sync::Arc;
 

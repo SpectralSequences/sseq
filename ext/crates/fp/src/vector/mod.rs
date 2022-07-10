@@ -1,491 +1,39 @@
-//! This module is provides wrappers around the contents of [`crate::vector_inner`]. The main
-//! purpose is to put [`FpVectorP`] for different `p` into a single enum. It does the same for the
-//! various slice structs.
-//!
-//! The main magic occurs in the macro `dispatch_vector_inner`, which we use to provide wrapper
-//! functions around the `FpVectorP` functions.
-//!
-//! This module is only used when the `odd-primes` feature is enabled.
+pub mod base_generic;
+pub mod generic;
+pub(crate) mod internal;
 
-use crate::limb::{entries_per_limb, Limb};
-use crate::prime::ValidPrime;
-use crate::vector_inner::{
-    FpVectorIterator, FpVectorNonZeroIteratorP, FpVectorP, SliceMutP, SliceP,
-};
-use itertools::Itertools;
-#[cfg(feature = "json")]
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+#[cfg(feature = "odd-primes")]
+pub mod specialized;
+pub mod specialized_2;
+#[cfg(not(feature = "odd-primes"))]
+pub use specialized_2 as specialized;
 
-use std::convert::TryInto;
-use std::io::{Read, Write};
-use std::mem::size_of;
+pub use specialized::{FpVector, FpVectorNonZeroIterator, Slice, SliceMut};
 
-macro_rules! dispatch_vector_inner {
-    // other is a type, but marking it as a :ty instead of :tt means we cannot use it to access its
-    // enum variants.
-    ($vis:vis fn $method:ident(&self, other: &$other:tt $(, $arg:ident: $ty:ty )* ) $(-> $ret:ty)?) => {
-        $vis fn $method(&self, other: &$other, $($arg: $ty),* ) $(-> $ret)* {
-            match (self, other) {
-                (Self::_2(x), $other::_2(y)) => x.$method(y, $($arg),*),
-                (Self::_3(x), $other::_3(y)) => x.$method(y, $($arg),*),
-                (Self::_5(x), $other::_5(y)) => x.$method(y, $($arg),*),
-                (Self::_7(x), $other::_7(y)) => x.$method(y, $($arg),*),
-                (l, r) => {
-                    panic!("Applying {} to vectors over different primes ({} and {})", stringify!($method), l.prime(), r.prime());
-                }
-            }
-        }
+// If odd-primes is disabled, the marker trait `BaseVector` cannot be meaningfully used without also
+// having `BaseVectorP` in scope. Instead of requiring several imports all over the codebase,
+// depending conditionally on feature flags, the prelude streamlines the process.
+
+pub mod prelude {
+    #[cfg(feature = "odd-primes")]
+    pub use super::specialized::{BaseVector, BaseVectorMut};
+    #[cfg(not(feature = "odd-primes"))]
+    pub use super::{
+        base_generic::{BaseVectorMutP, BaseVectorP},
+        specialized_2::{BaseVector, BaseVectorMut},
     };
-    ($vis:vis fn $method:ident(&mut self, other: &$other:tt $(, $arg:ident: $ty:ty )* ) $(-> $ret:ty)?) => {
-        #[allow(unused_parens)]
-        $vis fn $method(&mut self, other: &$other, $($arg: $ty),* ) $(-> $ret)* {
-            match (self, other) {
-                (Self::_2(x), $other::_2(y)) => x.$method(y, $($arg),*),
-                (Self::_3(x), $other::_3(y)) => x.$method(y, $($arg),*),
-                (Self::_5(x), $other::_5(y)) => x.$method(y, $($arg),*),
-                (Self::_7(x), $other::_7(y)) => x.$method(y, $($arg),*),
-                (l, r) => {
-                    panic!("Applying {} to vectors over different primes ({} and {})", stringify!($method), l.prime(), r.prime());
-                }
-            }
-        }
-    };
-    ($vis:vis fn $method:ident(&mut self, other: $other:tt $(, $arg:ident: $ty:ty )* ) $(-> $ret:ty)?) => {
-        $vis fn $method(&mut self, other: $other, $($arg: $ty),* ) $(-> $ret)* {
-            match (self, other) {
-                (Self::_2(x), $other::_2(y)) => x.$method(y, $($arg),*),
-                (Self::_3(x), $other::_3(y)) => x.$method(y, $($arg),*),
-                (Self::_5(x), $other::_5(y)) => x.$method(y, $($arg),*),
-                (Self::_7(x), $other::_7(y)) => x.$method(y, $($arg),*),
-                (l, r) => {
-                    panic!("Applying {} to vectors over different primes ({} and {})", stringify!($method), l.prime(), r.prime());
-                }
-            }
-        }
-    };
-    ($vis:vis fn $method:ident(&mut self $(, $arg:ident: $ty:ty )* ) -> (dispatch $ret:tt)) => {
-        #[must_use]
-        $vis fn $method(&mut self, $($arg: $ty),* ) -> $ret {
-            match self {
-                Self::_2(x) => $ret::_2(x.$method($($arg),*)),
-                Self::_3(x) => $ret::_3(x.$method($($arg),*)),
-                Self::_5(x) => $ret::_5(x.$method($($arg),*)),
-                Self::_7(x) => $ret::_7(x.$method($($arg),*)),
-            }
-        }
-    };
-    ($vis:vis fn $method:ident(&self $(, $arg:ident: $ty:ty )* ) -> (dispatch $ret:tt)) => {
-        #[must_use]
-        $vis fn $method(&self, $($arg: $ty),* ) -> $ret {
-            match self {
-                Self::_2(x) => $ret::_2(x.$method($($arg),*)),
-                Self::_3(x) => $ret::_3(x.$method($($arg),*)),
-                Self::_5(x) => $ret::_5(x.$method($($arg),*)),
-                Self::_7(x) => $ret::_7(x.$method($($arg),*)),
-            }
-        }
-    };
-    ($vis:vis fn $method:ident(self $(, $arg:ident: $ty:ty )* ) -> (dispatch $ret:tt)) => {
-        #[must_use]
-        $vis fn $method(self, $($arg: $ty),* ) -> $ret {
-            match self {
-                Self::_2(x) => $ret::_2(x.$method($($arg),*)),
-                Self::_3(x) => $ret::_3(x.$method($($arg),*)),
-                Self::_5(x) => $ret::_5(x.$method($($arg),*)),
-                Self::_7(x) => $ret::_7(x.$method($($arg),*)),
-            }
-        }
-    };
-
-    ($vis:vis fn $method:ident(self $(, $arg:ident: $ty:ty )* ) -> (dispatch $ret:tt $lifetime:tt)) => {
-        #[must_use]
-        $vis fn $method(self, $($arg: $ty),* ) -> $ret<$lifetime> {
-            match self {
-                Self::_2(x) => $ret::_2(x.$method($($arg),*)),
-                Self::_3(x) => $ret::_3(x.$method($($arg),*)),
-                Self::_5(x) => $ret::_5(x.$method($($arg),*)),
-                Self::_7(x) => $ret::_7(x.$method($($arg),*)),
-            }
-        }
-    };
-
-    ($vis:vis fn $method:ident(&mut self $(, $arg:ident: $ty:ty )* ) $(-> $ret:ty)?) => {
-        #[allow(unused_parens)]
-        $vis fn $method(&mut self, $($arg: $ty),* ) $(-> $ret)* {
-            match self {
-                Self::_2(x) => x.$method($($arg),*),
-                Self::_3(x) => x.$method($($arg),*),
-                Self::_5(x) => x.$method($($arg),*),
-                Self::_7(x) => x.$method($($arg),*),
-            }
-        }
-    };
-    ($vis:vis fn $method:ident(&self $(, $arg:ident: $ty:ty )* ) $(-> $ret:ty)?) => {
-        #[allow(unused_parens)]
-        $vis fn $method(&self, $($arg: $ty),* ) $(-> $ret)* {
-            match self {
-                Self::_2(x) => x.$method($($arg),*),
-                Self::_3(x) => x.$method($($arg),*),
-                Self::_5(x) => x.$method($($arg),*),
-                Self::_7(x) => x.$method($($arg),*),
-            }
-        }
-    };
-    ($vis:vis fn $method:ident(self $(, $arg:ident: $ty:ty )* ) $(-> $ret:ty)?) => {
-        #[allow(unused_parens)]
-        $vis fn $method(self, $($arg: $ty),* ) $(-> $ret)* {
-            match self {
-                Self::_2(x) => x.$method($($arg),*),
-                Self::_3(x) => x.$method($($arg),*),
-                Self::_5(x) => x.$method($($arg),*),
-                Self::_7(x) => x.$method($($arg),*),
-            }
-        }
-    }
-}
-
-macro_rules! dispatch_vector {
-    () => {};
-    ($vis:vis fn $method:ident $tt:tt $(-> $ret:tt)?; $($tail:tt)*) => {
-        dispatch_vector_inner! {
-            $vis fn $method $tt $(-> $ret)*
-        }
-        dispatch_vector!{$($tail)*}
-    }
-}
-
-macro_rules! match_p {
-    ($p:ident, $($val:tt)*) => {
-        match *$p {
-            2 => Self::_2($($val)*),
-            3 => Self::_3($($val)*),
-            5 => Self::_5($($val)*),
-            7 => Self::_7($($val)*),
-            _ => panic!("Prime not supported: {}", *$p)
-        }
-    }
-}
-
-#[derive(Debug, Hash, Eq, PartialEq, Clone)]
-pub enum FpVector {
-    _2(FpVectorP<2>),
-    _3(FpVectorP<3>),
-    _5(FpVectorP<5>),
-    _7(FpVectorP<7>),
-}
-
-#[derive(Debug, Copy, Clone)]
-pub enum Slice<'a> {
-    _2(SliceP<'a, 2>),
-    _3(SliceP<'a, 3>),
-    _5(SliceP<'a, 5>),
-    _7(SliceP<'a, 7>),
-}
-
-#[derive(Debug)]
-pub enum SliceMut<'a> {
-    _2(SliceMutP<'a, 2>),
-    _3(SliceMutP<'a, 3>),
-    _5(SliceMutP<'a, 5>),
-    _7(SliceMutP<'a, 7>),
-}
-
-pub enum FpVectorNonZeroIterator<'a> {
-    _2(FpVectorNonZeroIteratorP<'a, 2>),
-    _3(FpVectorNonZeroIteratorP<'a, 3>),
-    _5(FpVectorNonZeroIteratorP<'a, 5>),
-    _7(FpVectorNonZeroIteratorP<'a, 7>),
-}
-
-impl FpVector {
-    pub fn new(p: ValidPrime, len: usize) -> FpVector {
-        match_p!(p, FpVectorP::new_(len))
-    }
-
-    pub fn new_with_capacity(p: ValidPrime, len: usize, capacity: usize) -> FpVector {
-        match_p!(p, FpVectorP::new_with_capacity_(len, capacity))
-    }
-
-    pub fn from_slice(p: ValidPrime, slice: &[u32]) -> Self {
-        match_p!(p, FpVectorP::from(&slice))
-    }
-
-    pub fn num_limbs(p: ValidPrime, len: usize) -> usize {
-        let entries_per_limb = entries_per_limb(p);
-        (len + entries_per_limb - 1) / entries_per_limb
-    }
-    pub(crate) fn padded_len(p: ValidPrime, len: usize) -> usize {
-        Self::num_limbs(p, len) * entries_per_limb(p)
-    }
-
-    pub fn update_from_bytes(&mut self, data: &mut impl Read) -> std::io::Result<()> {
-        let limbs = self.limbs_mut();
-        let num_limbs = limbs.len();
-
-        if cfg!(target_endian = "little") {
-            let num_bytes = num_limbs * size_of::<Limb>();
-            unsafe {
-                let buf: &mut [u8] =
-                    std::slice::from_raw_parts_mut(limbs.as_mut_ptr() as *mut u8, num_bytes);
-                data.read_exact(buf).unwrap();
-            }
-        } else {
-            for entry in limbs {
-                let mut bytes: [u8; size_of::<Limb>()] = [0; size_of::<Limb>()];
-                data.read_exact(&mut bytes)?;
-                *entry = Limb::from_le_bytes(bytes);
-            }
-        };
-        Ok(())
-    }
-
-    pub fn from_bytes(p: ValidPrime, len: usize, data: &mut impl Read) -> std::io::Result<Self> {
-        let mut v = Self::new(p, len);
-        v.update_from_bytes(data)?;
-        Ok(v)
-    }
-
-    pub fn to_bytes(&self, buffer: &mut impl Write) -> std::io::Result<()> {
-        // self.limbs is allowed to have more limbs than necessary, but we only save the
-        // necessary ones.
-        let num_limbs = Self::num_limbs(self.prime(), self.len());
-
-        if cfg!(target_endian = "little") {
-            let num_bytes = num_limbs * size_of::<Limb>();
-            unsafe {
-                let buf: &[u8] =
-                    std::slice::from_raw_parts_mut(self.limbs().as_ptr() as *mut u8, num_bytes);
-                buffer.write_all(buf)?;
-            }
-        } else {
-            for limb in &self.limbs()[0..num_limbs] {
-                let bytes = limb.to_le_bytes();
-                buffer.write_all(&bytes)?;
-            }
-        }
-        Ok(())
-    }
-
-    dispatch_vector! {
-        pub fn prime(&self) -> ValidPrime;
-        pub fn len(&self) -> usize;
-        pub fn is_empty(&self) -> bool;
-        pub fn scale(&mut self, c: u32);
-        pub fn set_to_zero(&mut self);
-        pub fn entry(&self, index: usize) -> u32;
-        pub fn set_entry(&mut self, index: usize, value: u32);
-        pub fn assign(&mut self, other: &Self);
-        pub fn assign_partial(&mut self, other: &Self);
-        pub fn add(&mut self, other: &Self, c: u32);
-        pub fn add_nosimd(&mut self, other: &Self, c: u32);
-        pub fn add_offset(&mut self, other: &Self, c: u32, offset: usize);
-        pub fn add_offset_nosimd(&mut self, other: &Self, c: u32, offset: usize);
-        pub fn slice(&self, start: usize, end: usize) -> (dispatch Slice);
-        pub fn as_slice(&self) -> (dispatch Slice);
-        pub fn slice_mut(&mut self, start: usize, end: usize) -> (dispatch SliceMut);
-        pub fn as_slice_mut(&mut self) -> (dispatch SliceMut);
-        pub fn is_zero(&self) -> bool;
-        pub fn iter(&self) -> FpVectorIterator;
-        pub fn iter_nonzero(&self) -> (dispatch FpVectorNonZeroIterator);
-        pub fn extend_len(&mut self, dim: usize);
-        pub fn set_scratch_vector_size(&mut self, dim: usize);
-        pub fn add_basis_element(&mut self, index: usize, value: u32);
-        pub fn copy_from_slice(&mut self, slice: &[u32]);
-        pub(crate) fn trim_start(&mut self, n: usize);
-        pub fn add_truncate(&mut self, other: &Self, c: u32) -> (Option<()>);
-        pub fn sign_rule(&self, other: &Self) -> bool;
-        pub fn add_carry(&mut self, other: &Self, c: u32, rest: &mut [FpVector]) -> bool;
-        pub fn first_nonzero(&self) -> (Option<(usize, u32)>);
-        pub fn density(&self) -> f32;
-
-        pub(crate) fn limbs(&self) -> (&[Limb]);
-        pub(crate) fn limbs_mut(&mut self) -> (&mut [Limb]);
-    }
-}
-
-impl<'a> Slice<'a> {
-    dispatch_vector! {
-        pub fn prime(&self) -> ValidPrime;
-        pub fn len(&self) -> usize;
-        pub fn is_empty(&self) -> bool;
-        pub fn entry(&self, index: usize) -> u32;
-        pub fn iter(self) -> (FpVectorIterator<'a>);
-        pub fn iter_nonzero(self) -> (dispatch FpVectorNonZeroIterator 'a);
-        pub fn is_zero(&self) -> bool;
-        pub fn slice(self, start: usize, end: usize) -> (dispatch Slice 'a);
-        pub fn to_owned(self) -> (dispatch FpVector);
-    }
-}
-
-impl<'a> SliceMut<'a> {
-    dispatch_vector! {
-        pub fn prime(&self) -> ValidPrime;
-        pub fn scale(&mut self, c: u32);
-        pub fn set_to_zero(&mut self);
-        pub fn add(&mut self, other: Slice, c: u32);
-        pub fn assign(&mut self, other: Slice);
-        pub fn set_entry(&mut self, index: usize, value: u32);
-        pub fn as_slice(&self) -> (dispatch Slice);
-        pub fn slice_mut(&mut self, start: usize, end: usize) -> (dispatch SliceMut);
-        pub fn add_basis_element(&mut self, index: usize, value: u32);
-        pub fn copy(&mut self) -> (dispatch SliceMut);
-        pub fn add_masked(&mut self, other: Slice, c: u32, mask: &[usize]);
-        pub fn add_unmasked(&mut self, other: Slice, c: u32, mask: &[usize]);
-    }
-
-    pub fn add_tensor(&mut self, offset: usize, coeff: u32, left: Slice, right: Slice) {
-        match (self, left, right) {
-            (SliceMut::_2(x), Slice::_2(y), Slice::_2(z)) => x.add_tensor(offset, coeff, y, z),
-            (SliceMut::_3(x), Slice::_3(y), Slice::_3(z)) => x.add_tensor(offset, coeff, y, z),
-            (SliceMut::_5(x), Slice::_5(y), Slice::_5(z)) => x.add_tensor(offset, coeff, y, z),
-            (SliceMut::_7(x), Slice::_7(y), Slice::_7(z)) => x.add_tensor(offset, coeff, y, z),
-            _ => {
-                panic!("Applying add_tensor to vectors over different primes");
-            }
-        }
-    }
-}
-
-impl<'a> FpVectorNonZeroIterator<'a> {
-    dispatch_vector! {
-        fn next(&mut self) -> (Option<(usize, u32)>);
-    }
-}
-
-impl std::fmt::Display for FpVector {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        self.as_slice().fmt(f)
-    }
-}
-
-impl<'a> std::fmt::Display for Slice<'a> {
-    /// # Example
-    /// ```
-    /// # use fp::vector::FpVector;
-    /// # use fp::prime::ValidPrime;
-    /// let v = FpVector::from_slice(ValidPrime::new(2), &[0, 1, 0]);
-    /// assert_eq!(&format!("{v}"), "[0, 1, 0]");
-    /// assert_eq!(&format!("{v:#}"), "010");
-    /// ```
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        if f.alternate() {
-            for v in self.iter() {
-                write!(f, "{v}")?;
-            }
-            Ok(())
-        } else {
-            write!(f, "[{}]", self.iter().format(", "))
-        }
-    }
-}
-
-impl From<&FpVector> for Vec<u32> {
-    fn from(v: &FpVector) -> Vec<u32> {
-        v.iter().collect()
-    }
-}
-
-impl std::ops::AddAssign<&FpVector> for FpVector {
-    fn add_assign(&mut self, other: &FpVector) {
-        self.add(other, 1);
-    }
-}
-
-impl<'a> Iterator for FpVectorNonZeroIterator<'a> {
-    type Item = (usize, u32);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.next()
-    }
-}
-
-impl<'a> IntoIterator for &'a FpVector {
-    type IntoIter = FpVectorIterator<'a>;
-    type Item = u32;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.iter()
-    }
-}
-
-macro_rules! impl_try_into {
-    ($var:tt, $p:literal) => {
-        impl<'a> TryInto<&'a mut FpVectorP<$p>> for &'a mut FpVector {
-            type Error = ();
-
-            fn try_into(self) -> Result<&'a mut FpVectorP<$p>, ()> {
-                match self {
-                    FpVector::$var(x) => Ok(x),
-                    _ => Err(()),
-                }
-            }
-        }
-    };
-}
-
-impl_try_into!(_2, 2);
-impl_try_into!(_3, 3);
-impl_try_into!(_5, 5);
-impl_try_into!(_7, 7);
-
-#[cfg(feature = "json")]
-impl Serialize for FpVector {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        Vec::<u32>::from(self).serialize(serializer)
-    }
-}
-
-#[cfg(feature = "json")]
-impl<'de> Deserialize<'de> for FpVector {
-    fn deserialize<D>(_deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        panic!("Deserializing FpVector not supported");
-        // This is needed for ext-websocket/actions to be happy
-    }
-}
-
-impl<'a, 'b> From<&'a mut SliceMut<'b>> for SliceMut<'a> {
-    fn from(slice: &'a mut SliceMut<'b>) -> SliceMut<'a> {
-        slice.copy()
-    }
-}
-
-impl<'a, 'b> From<&'a Slice<'b>> for Slice<'a> {
-    fn from(slice: &'a Slice<'b>) -> Slice<'a> {
-        *slice
-    }
-}
-
-impl<'a, 'b> From<&'a SliceMut<'b>> for Slice<'a> {
-    fn from(slice: &'a SliceMut<'b>) -> Slice<'a> {
-        slice.as_slice()
-    }
-}
-
-impl<'a> From<&'a FpVector> for Slice<'a> {
-    fn from(v: &'a FpVector) -> Slice<'a> {
-        v.as_slice()
-    }
-}
-
-impl<'a> From<&'a mut FpVector> for SliceMut<'a> {
-    fn from(v: &'a mut FpVector) -> SliceMut<'a> {
-        v.as_slice_mut()
-    }
 }
 
 #[cfg(test)]
 mod test {
-    use super::*;
-    use crate::limb;
+    use std::fmt::Write as _; // Needed for write! macro for String
+
+    use itertools::Itertools;
     use rand::Rng;
     use rstest::rstest;
-    use std::fmt::Write as _; // Needed for write! macro for String
+
+    use super::{prelude::*, FpVector};
+    use crate::{limb, prime::ValidPrime};
 
     pub struct VectorDiffEntry {
         pub index: usize,
@@ -567,6 +115,7 @@ mod test {
         result
     }
 
+    #[cfg(feature = "odd-primes")]
     macro_rules! test_dim {
         () => {};
         (fn $name:ident($p:ident: ValidPrime) $body:tt $($rest:tt)*) => {
@@ -610,6 +159,50 @@ mod test {
         };
     }
 
+    #[cfg(not(feature = "odd-primes"))]
+    macro_rules! test_dim {
+        () => {};
+        (fn $name:ident($p:ident: ValidPrime) $body:tt $($rest:tt)*) => {
+            #[rstest]
+            #[trace]
+            fn $name(#[values(2)] p: u32) {
+                let $p = ValidPrime::new(p);
+
+                $body
+            }
+            test_dim! { $($rest)* }
+        };
+        (fn $name:ident($p:ident: ValidPrime, $dim:ident: usize) $body:tt $($rest:tt)*) => {
+            #[rstest]
+            #[trace]
+            fn $name(#[values(2)] p: u32, #[values(10, 20, 70, 100, 1000)] $dim: usize) {
+                let $p = ValidPrime::new(p);
+
+                $body
+            }
+            test_dim! { $($rest)* }
+        };
+        (fn $name:ident($p:ident: ValidPrime, $dim:ident: usize, $slice_start:ident: usize, $slice_end:ident: usize) $body:tt $($rest:tt)*) => {
+            #[rstest]
+            #[trace]
+            fn $name(#[values(2)] p: u32, #[values(10, 20, 70, 100, 1000)] $dim: usize) {
+                let $p = ValidPrime::new(p);
+
+                let $slice_start = match $dim {
+                    10 => 5,
+                    20 => 10,
+                    70 => 20,
+                    100 => 30,
+                    1000 => 290,
+                    _ => unreachable!(),
+                };
+                let $slice_end = ($dim + $slice_start) / 2;
+                $body
+            }
+            test_dim! { $($rest)* }
+        };
+    }
+
     test_dim! {
         fn test_serialize(p: ValidPrime, dim: usize) {
             use std::io::{Seek, Cursor, SeekFrom};
@@ -625,6 +218,18 @@ mod test {
             v.assert_vec_eq(&w);
         }
 
+        fn test_is_zero(p: ValidPrime, dim: usize) {
+            let zero_vec = FpVector::from_slice(p, &vec![0; dim]);
+            let nonzero_vec = {
+                let mut v = random_vector(p, dim);
+                v[0] = 1;
+                FpVector::from_slice(p, &v)
+            };
+
+            assert!(zero_vec.is_zero());
+            assert!(!nonzero_vec.is_zero());
+        }
+
         fn test_add(p: ValidPrime, dim: usize) {
             let mut v_arr = random_vector(p, dim);
             let w_arr = random_vector(p, dim);
@@ -636,6 +241,51 @@ mod test {
                 v_arr[i] = (v_arr[i] + w_arr[i]) % *p;
             }
             v.assert_list_eq(&v_arr);
+        }
+
+        fn test_add_basis_element(p: ValidPrime, dim: usize, slice_start: usize, slice_end: usize) {
+            let mut v_arr = random_vector(p, dim);
+            let mut v = FpVector::from_slice(p, &v_arr);
+            let mut slice = v.slice_mut(slice_start, slice_end);
+
+            slice.add_basis_element(1, 1);
+            v_arr[slice_start + 1] += 1;
+            v_arr[slice_start + 1] %= *p;
+
+            v.assert_list_eq(&v_arr);
+        }
+
+        fn test_add_vector(p: ValidPrime, dim: usize, slice_start: usize, slice_end: usize) {
+            let slice_dim = slice_end - slice_start;
+            let mut v_arr = random_vector(p, slice_dim);
+            let w_arr = random_vector(p, dim);
+            let mut v = FpVector::from_slice(p, &v_arr);
+            let w = FpVector::from_slice(p, &w_arr);
+            let w_slice = w.slice(slice_start, slice_end);
+
+            v.add(&w_slice, 1);
+            for i in 0..slice_dim {
+                v_arr[i] = (v_arr[i] + w_arr[i + slice_start]) % *p;
+            }
+            v.assert_list_eq(&v_arr);
+        }
+
+        fn test_slice_of_slice(p: ValidPrime, dim: usize, slice_start: usize, slice_end: usize) {
+            let v_arr = random_vector(p, dim);
+            let v = FpVector::from_slice(p, &v_arr);
+            let slice = v.slice(slice_start, slice_end);
+
+            let half_length = (slice_end - slice_start) / 2;
+            let smaller_slice = slice.slice(0, half_length);
+
+            let mut diffs = Vec::new();
+            for (i, val) in smaller_slice.iter().enumerate() {
+                if v_arr[i + slice_start] != val {
+                    diffs.push((i, val, v.entry(i)));
+                }
+            }
+            assert_eq!(diffs, []);
+            assert_eq!(smaller_slice.len(), half_length);
         }
 
         fn test_scale(p: ValidPrime, dim: usize) {
@@ -672,24 +322,6 @@ mod test {
             for (i, val) in v.iter().enumerate() {
                 if v.entry(i) != val {
                     diffs.push((i, val, v.entry(i)));
-                }
-            }
-            assert_eq!(diffs, []);
-        }
-
-        fn test_entry_slice(p: ValidPrime, dim: usize, slice_start: usize, slice_end: usize) {
-            let v_arr = random_vector(p, dim);
-            let v = FpVector::from_slice(p, &v_arr);
-            let v = v.slice(slice_start, slice_end);
-            println!(
-                "slice_start: {}, slice_end: {}, slice: {}",
-                slice_start, slice_end, v
-                );
-
-            let mut diffs = Vec::new();
-            for i in 0..v.len() {
-                if v.entry(i) != v_arr[i + slice_start] {
-                    diffs.push((i, v_arr[i + slice_start], v.entry(i)));
                 }
             }
             assert_eq!(diffs, []);
@@ -778,7 +410,7 @@ mod test {
             v.assign_partial(&w);
             assert!(v.slice(dim / 2, dim).is_zero());
             assert_eq!(v.len(), dim);
-            v.slice(0, dim / 2).to_owned().assert_vec_eq(&w);
+            v.slice(0, dim / 2).into_owned().assert_vec_eq(&w);
         }
 
         fn test_assign_slice_to_slice(p: ValidPrime, dim: usize, slice_start: usize, slice_end: usize) {
@@ -797,6 +429,21 @@ mod test {
             v.assert_list_eq(&v_arr);
         }
 
+        fn test_add_shift_left(p: ValidPrime, dim: usize, slice_start: usize, slice_end: usize) {
+            let mut v_arr = random_vector(p, dim);
+            let w_arr = random_vector(p, dim);
+
+            let mut v = FpVector::from_slice(p, &v_arr);
+            let w = FpVector::from_slice(p, &w_arr);
+
+            v.slice_mut(slice_start - 2, slice_end - 2)
+                .add(w.slice(slice_start, slice_end), 1);
+            for i in slice_start - 2..slice_end - 2 {
+                v_arr[i] = (v_arr[i] + w_arr[i + 2]) % *p;
+            }
+            v.assert_list_eq(&v_arr);
+        }
+
         fn test_add_shift_right(p: ValidPrime, dim: usize, slice_start: usize, slice_end: usize) {
             let mut v_arr = random_vector(p, dim);
             let w_arr = random_vector(p, dim);
@@ -810,21 +457,6 @@ mod test {
             println!("v : {}", v);
             for i in slice_start + 2..slice_end + 2 {
                 v_arr[i] = (v_arr[i] + w_arr[i - 2]) % *p;
-            }
-            v.assert_list_eq(&v_arr);
-        }
-
-        fn test_add_shift_left(p: ValidPrime, dim: usize, slice_start: usize, slice_end: usize) {
-            let mut v_arr = random_vector(p, dim);
-            let w_arr = random_vector(p, dim);
-
-            let mut v = FpVector::from_slice(p, &v_arr);
-            let w = FpVector::from_slice(p, &w_arr);
-
-            v.slice_mut(slice_start - 2, slice_end - 2)
-                .add(w.slice(slice_start, slice_end), 1);
-            for i in slice_start - 2..slice_end - 2 {
-                v_arr[i] = (v_arr[i] + w_arr[i + 2]) % *p;
             }
             v.assert_list_eq(&v_arr);
         }
@@ -864,7 +496,7 @@ mod test {
         }
 
         fn test_iterator_slice(p: ValidPrime) {
-            let ep = entries_per_limb(p);
+            let ep = limb::entries_per_limb(p);
             for &dim in &[5, 10, ep, ep - 1, ep + 1, 3 * ep, 3 * ep - 1, 3 * ep + 1] {
                 let v_arr = random_vector(p, dim);
                 let v = FpVector::from_slice(p, &v_arr);
@@ -884,7 +516,7 @@ mod test {
         }
 
         fn test_iterator_skip(p: ValidPrime) {
-            let ep = entries_per_limb(p);
+            let ep = limb::entries_per_limb(p);
             let dim = 5 * ep;
             for &num_skip in &[ep, ep - 1, ep + 1, 3 * ep, 3 * ep - 1, 3 * ep + 1, 6 * ep] {
                 let v_arr = random_vector(p, dim);
@@ -906,7 +538,7 @@ mod test {
         }
 
         fn test_iterator(p: ValidPrime) {
-            let ep = entries_per_limb(p);
+            let ep = limb::entries_per_limb(p);
             for &dim in &[0, 5, 10, ep, ep - 1, ep + 1, 3 * ep, 3 * ep - 1, 3 * ep + 1] {
                 let v_arr = random_vector(p, dim);
                 let v = FpVector::from_slice(p, &v_arr);
@@ -1071,6 +703,10 @@ mod test {
     #[test]
     #[ignore]
     fn test_sign_rule() {
+        use super::{
+            base_generic::BaseVectorP, generic::FpVectorP, internal::InternalBaseVectorMutP,
+        };
+
         let mut in1 = FpVectorP::<2>::new_(128);
         let mut in2 = FpVectorP::<2>::new_(128);
         let tests = [
@@ -1477,10 +1113,10 @@ mod test {
         ];
         let mut diffs = Vec::new();
         for &(in1_limb1, in1_limb2, in2_limb1, in2_limb2, res1, res2) in tests.iter() {
-            in1.limbs_mut()[1] = in1_limb1;
-            in1.limbs_mut()[0] = in1_limb2;
-            in2.limbs_mut()[1] = in2_limb1;
-            in2.limbs_mut()[0] = in2_limb2;
+            in1._limbs_mut()[1] = in1_limb1;
+            in1._limbs_mut()[0] = in1_limb2;
+            in2._limbs_mut()[1] = in2_limb1;
+            in2._limbs_mut()[0] = in2_limb2;
             let test_res1 = in1.sign_rule(&in2);
             let test_res2 = in2.sign_rule(&in1);
             let res = (res1, res2);

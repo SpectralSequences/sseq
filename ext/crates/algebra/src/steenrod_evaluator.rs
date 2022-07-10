@@ -3,7 +3,7 @@ use crate::algebra::{AdemAlgebra, Algebra, MilnorAlgebra};
 use crate::milnor_algebra::{MilnorBasisElement, PPartEntry};
 use crate::steenrod_parser::*;
 use fp::prime::ValidPrime;
-use fp::vector::FpVector;
+use fp::vector::{prelude::*, FpVector};
 
 use anyhow::anyhow;
 use std::collections::BTreeMap;

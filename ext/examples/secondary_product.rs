@@ -24,7 +24,7 @@ use std::sync::Arc;
 
 use algebra::module::Module;
 use fp::matrix::Matrix;
-use fp::vector::FpVector;
+use fp::vector::{prelude::*, FpVector};
 
 use ext::chain_complex::{ChainComplex, FreeChainComplex};
 use ext::resolution_homomorphism::ResolutionHomomorphism;

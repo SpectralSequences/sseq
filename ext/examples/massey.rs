@@ -6,6 +6,7 @@
 use ext::chain_complex::{ChainComplex, ChainHomotopy, FreeChainComplex};
 use ext::resolution_homomorphism::ResolutionHomomorphism;
 use fp::matrix::{AugmentedMatrix, Matrix};
+use fp::vector::prelude::*;
 use std::sync::Arc;
 
 fn main() -> anyhow::Result<()> {

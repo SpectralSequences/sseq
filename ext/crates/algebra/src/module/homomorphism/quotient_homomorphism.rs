@@ -1,5 +1,5 @@
 use crate::module::{Module, QuotientModule};
-use fp::vector::{FpVector, SliceMut};
+use fp::vector::{prelude::*, FpVector, SliceMut};
 use std::sync::Arc;
 
 use crate::module::homomorphism::ModuleHomomorphism;

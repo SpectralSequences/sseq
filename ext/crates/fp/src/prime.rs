@@ -1,6 +1,7 @@
+use std::convert::TryFrom;
+
 #[cfg(feature = "json")]
 use serde::{de::Error, Deserialize, Deserializer, Serialize, Serializer};
-use std::convert::TryFrom;
 
 use crate::constants::{
     BINOMIAL4_TABLE, BINOMIAL4_TABLE_SIZE, BINOMIAL_TABLE, INVERSE_TABLE, PRIME_TO_INDEX_MAP,
@@ -254,7 +255,6 @@ pub trait Binomial: Sized {
     /// This is easy to verify using the fact that
     ///
     ///    (x + y)^{2^k} = x^{2^k} + 2 x^{2^{k - 1}} y^{2^{k - 1}} + y^{2^k}
-    ///
     fn binomial4(n: Self, k: Self) -> Self;
 
     /// Compute binomial coefficients mod 4 using the recursion relation in the documentation of
@@ -321,6 +321,7 @@ macro_rules! impl_binomial {
                     0
                 }
             }
+
             #[inline]
             fn multinomial_odd(p_: ValidPrime, l: &mut [Self]) -> Self {
                 let p = *p_ as Self;
@@ -398,6 +399,7 @@ macro_rules! impl_binomial {
                 }
                 false
             }
+
             fn binomial4(n: Self, j: Self) -> Self {
                 if (n as usize) < BINOMIAL4_TABLE_SIZE {
                     return BINOMIAL4_TABLE[n as usize][j as usize] as Self;
@@ -465,6 +467,7 @@ impl BitflagIterator {
 
 impl Iterator for BitflagIterator {
     type Item = bool;
+
     fn next(&mut self) -> Option<Self::Item> {
         if self.remaining > 64 && self.flag == 0 || self.remaining == 0 {
             None
@@ -493,6 +496,7 @@ impl BinomialIterator {
 
 impl Iterator for BinomialIterator {
     type Item = u32;
+
     fn next(&mut self) -> Option<Self::Item> {
         let v = self.value;
         let c = v & v.wrapping_neg();
@@ -506,11 +510,12 @@ impl Iterator for BinomialIterator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    // // #[cfg(feature = "odd-primes")]
     use crate::constants::PRIMES;
 
     #[test]
     fn inverse_test() {
-        for &p in PRIMES.iter() {
+        for p in PRIMES {
             let p = ValidPrime::new(p);
             for k in 1..*p {
                 assert_eq!((inverse(p, k) * k) % *p, 1);
@@ -520,7 +525,11 @@ mod tests {
 
     #[test]
     fn binomial_test() {
+        #[cfg(feature = "odd-primes")]
         let entries = [[2, 2, 1, 0], [2, 3, 1, 1], [3, 1090, 730, 1], [7, 3, 2, 3]];
+
+        #[cfg(not(feature = "odd-primes"))]
+        let entries = [[2, 2, 1, 0], [2, 3, 1, 1]];
 
         for entry in &entries {
             assert_eq!(
@@ -532,7 +541,7 @@ mod tests {
 
     #[test]
     fn binomial_vs_monomial() {
-        for &p in &[2, 3, 5, 7, 11] {
+        for p in PRIMES {
             let p = ValidPrime::new(p);
             for l in 0..20 {
                 for m in 0..20 {
@@ -558,7 +567,7 @@ mod tests {
         for n in 0..12 {
             for j in 0..=n {
                 let ans = binomial_full(n, j);
-                for &p in &[2, 3, 5, 7, 11] {
+                for p in PRIMES {
                     assert_eq!(
                         u32::binomial(ValidPrime::new(p), n, j),
                         ans % p,

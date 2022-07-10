@@ -10,6 +10,7 @@ use ext::chain_complex::{AugmentedChainComplex, ChainComplex, FreeChainComplex};
 use ext::resolution::Resolution as ResolutionInner;
 use fp::matrix::Matrix;
 use fp::prime::ValidPrime;
+use fp::vector::prelude::*;
 use once::{OnceBiVec, OnceVec};
 
 use ext::resolution_homomorphism::ResolutionHomomorphism as ResolutionHomomorphism_;

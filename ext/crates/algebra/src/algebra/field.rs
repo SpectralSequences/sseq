@@ -2,7 +2,7 @@
 
 use crate::algebra::{Algebra, Bialgebra};
 use fp::prime::ValidPrime;
-use fp::vector::{Slice, SliceMut};
+use fp::vector::{prelude::*, Slice, SliceMut};
 
 /// $\mathbb{F}_p$, viewed as an [`Algebra`] over itself.
 ///
