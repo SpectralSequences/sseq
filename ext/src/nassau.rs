@@ -534,21 +534,33 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         Ok(())
     }
 
-    fn write_differential(&self, s: u32, t: i32, num_new_gens: usize, target_dim: usize) {
+    fn write_differential(
+        &self,
+        s: u32,
+        t: i32,
+        num_new_gens: usize,
+        target_dim: usize,
+    ) -> anyhow::Result<()> {
         if let Some(dir) = &self.save_dir {
             let mut f = self
                 .save_file(SaveKind::NassauDifferential, s, t)
                 .create_file(dir.clone(), false);
-            f.write_u64::<LittleEndian>(num_new_gens as u64).unwrap();
-            f.write_u64::<LittleEndian>(target_dim as u64).unwrap();
+            f.write_u64::<LittleEndian>(num_new_gens as u64)?;
+            f.write_u64::<LittleEndian>(target_dim as u64)?;
 
             for n in 0..num_new_gens {
-                self.differential(s).output(t, n).to_bytes(&mut f).unwrap();
+                self.differential(s).output(t, n).to_bytes(&mut f)?;
             }
         }
+        Ok(())
     }
 
-    fn step_resolution_with_subalgebra(&self, s: u32, t: i32, subalgebra: MilnorSubalgebra) {
+    fn step_resolution_with_subalgebra(
+        &self,
+        s: u32,
+        t: i32,
+        subalgebra: MilnorSubalgebra,
+    ) -> anyhow::Result<()> {
         let timer = Timer::start();
         let end = || {
             timer.end(
@@ -582,11 +594,9 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             let mut f = self
                 .save_file(SaveKind::NassauQi, s - 1, t)
                 .create_file(dir.to_owned(), true);
-            f.write_u64::<LittleEndian>(next.dimension(t) as u64)
-                .unwrap();
-            f.write_u64::<LittleEndian>(target_masked_dim as u64)
-                .unwrap();
-            subalgebra.to_bytes(&mut f).unwrap();
+            f.write_u64::<LittleEndian>(next.dimension(t) as u64)?;
+            f.write_u64::<LittleEndian>(target_masked_dim as u64)?;
+            subalgebra.to_bytes(&mut f)?;
             Some(f)
         } else {
             None
@@ -618,12 +628,11 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             &next_mask,
             &full_matrix,
             &masked_matrix,
-        )
-        .unwrap();
+        )?;
 
         if let Some(f) = &mut f {
             if target.max_computed_degree() < t {
-                f.write_u64::<LittleEndian>(Magic::Fix as u64).unwrap();
+                f.write_u64::<LittleEndian>(Magic::Fix as u64)?;
             }
         }
 
@@ -702,8 +711,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
                 &next_mask,
                 &full_matrix,
                 &masked_matrix,
-            )
-            .unwrap();
+            )?;
         }
         for dx in &dxs {
             assert!(dx.is_zero(), "dx non-zero at t = {t}, s = {s}");
@@ -713,10 +721,11 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         end();
 
         if let Some(f) = &mut f {
-            f.write_u64::<LittleEndian>(Magic::End as u64).unwrap();
+            f.write_u64::<LittleEndian>(Magic::End as u64)?;
         }
 
-        self.write_differential(s, t, num_new_gens, target_dim);
+        self.write_differential(s, t, num_new_gens, target_dim)?;
+        Ok(())
     }
 
     /// Step resolution for s = 0
@@ -770,7 +779,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
     }
 
     /// Step resolution for s = 1
-    fn step1(&self, t: i32) {
+    fn step1(&self, t: i32) -> anyhow::Result<()> {
         let p = self.prime();
 
         let source_module = &self.modules[1usize];
@@ -809,10 +818,11 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
                 .row_slice(source_dim, source_dim + num_new_gens),
         );
 
-        self.write_differential(1, t, num_new_gens, target_dim);
+        self.write_differential(1, t, num_new_gens, target_dim)?;
+        Ok(())
     }
 
-    fn step_resolution(&self, s: u32, t: i32) {
+    fn step_resolution_with_result(&self, s: u32, t: i32) -> anyhow::Result<()> {
         let p = self.prime();
         let set_data = || {
             let d = &self.differentials[s];
@@ -832,7 +842,8 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         }
 
         if s == 0 {
-            return self.step0(t);
+            self.step0(t);
+            return Ok(());
         }
 
         if let Some(dir) = &self.save_dir {
@@ -840,44 +851,50 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
                 .save_file(SaveKind::NassauDifferential, s, t)
                 .open_file(dir.clone())
             {
-                let num_new_gens = f.read_u64::<LittleEndian>().unwrap() as usize;
+                let num_new_gens = f.read_u64::<LittleEndian>()? as usize;
                 // This need not be equal to `target_res_dimension`. If we saved a big resolution
                 // and now only want to load up to a small stem, then `target_res_dimension` will
                 // be smaller. If we have previously saved a small resolution up to a stem and now
                 // want to resolve further, it will be bigger.
-                let saved_target_res_dimension = f.read_u64::<LittleEndian>().unwrap() as usize;
+                let saved_target_res_dimension = f.read_u64::<LittleEndian>()? as usize;
 
                 self.modules[s].add_generators(t, num_new_gens, None);
 
                 let mut d_targets = Vec::with_capacity(num_new_gens);
 
                 for _ in 0..num_new_gens {
-                    d_targets
-                        .push(FpVector::from_bytes(p, saved_target_res_dimension, &mut f).unwrap());
+                    d_targets.push(FpVector::from_bytes(p, saved_target_res_dimension, &mut f)?);
                 }
 
                 self.differentials[s].add_generators_from_rows(t, d_targets);
 
                 set_data();
 
-                return;
+                return Ok(());
             }
         }
 
         if s == 1 {
-            self.step1(t);
+            self.step1(t)?;
             set_data();
-            return;
+            return Ok(());
         }
 
         self.step_resolution_with_subalgebra(
             s,
             t,
             MilnorSubalgebra::optimal_for(s, t - self.max_degree),
-        );
+        )?;
         self.chain_maps[s].extend_by_zero(t);
 
         set_data();
+        Ok(())
+    }
+
+    fn step_resolution(&self, s: u32, t: i32) {
+        self.step_resolution_with_result(s, t).unwrap_or_else(|e| {
+            panic!("Error computing bidegree ({n}, {s}): {e}", n = t - s as i32)
+        });
     }
 
     /// This function resolves up till a fixed stem instead of a fixed t.
