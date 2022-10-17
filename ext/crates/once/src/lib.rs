@@ -19,10 +19,10 @@ const USIZE_LEN: u32 = 0usize.count_zeros();
 /// MAX_OUTER_LENGTH is relatively small, so we picked an arbitrary number.
 const MAX_OUTER_LENGTH: usize = 32;
 
-/// This is a wrapper around our out-of-order push tracker. We put it in a box to make it smaller
-/// in size. See [`OnceVec`] documentation for more details.
+/// This is a wrapper around our out-of-order push tracker. See [`OnceVec`] documentation for
+/// more details.
 #[derive(Clone, Default)]
-pub struct OooTracker(Box<BTreeSet<usize>>);
+pub struct OooTracker(BTreeSet<usize>);
 
 const fn inner_index(index: usize) -> (usize, usize) {
     let page = (USIZE_LEN - 1 - (index + 1).leading_zeros()) as usize;
