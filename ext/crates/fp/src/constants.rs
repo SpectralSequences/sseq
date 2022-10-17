@@ -18,7 +18,7 @@ pub(crate) const INVERSE_TABLE: [[u32; MAX_PRIME]; NUM_PRIMES] = {
     const_for! { i in 0 .. NUM_PRIMES {
         let p = PRIMES[i];
         const_for! { k in 1 .. p {
-            result[i as usize][k as usize] = crate::prime::power_mod(p, k, p - 2);
+            result[i][k as usize] = crate::prime::power_mod(p, k, p - 2);
         }}
     }};
     result
