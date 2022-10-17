@@ -34,11 +34,7 @@ impl Algebra for Field {
     fn compute_basis(&self, _degree: i32) {}
 
     fn dimension(&self, degree: i32) -> usize {
-        if degree == 0 {
-            1
-        } else {
-            0
-        }
+        usize::from(degree == 0)
     }
 
     fn multiply_basis_elements(
