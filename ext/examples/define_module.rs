@@ -105,7 +105,7 @@ pub fn interactive_module_define_fdmodule(
 
     for (i, deg_i_gens) in gens.iter_enum() {
         for (j, gen) in deg_i_gens.iter().enumerate() {
-            module.set_basis_element_name(i as i32, j, gen.to_string());
+            module.set_basis_element_name(i, j, gen.to_string());
         }
     }
 
@@ -113,7 +113,7 @@ pub fn interactive_module_define_fdmodule(
 
     let len = gens.len();
     for input_deg in gens.range().rev() {
-        for output_deg in (input_deg + 1)..len as i32 {
+        for output_deg in (input_deg + 1)..len {
             let op_deg = output_deg - input_deg;
             if gens[output_deg].is_empty() {
                 continue;

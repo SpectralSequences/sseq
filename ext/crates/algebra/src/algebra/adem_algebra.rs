@@ -181,9 +181,9 @@ impl Algebra for AdemAlgebra {
 
     fn magic(&self) -> u32 {
         if self.unstable_enabled {
-            1 + ((*self.prime() as u32) << 16)
+            1 + (*self.prime() << 16)
         } else {
-            (*self.prime() as u32) << 16
+            *self.prime() << 16
         }
     }
 
@@ -427,14 +427,14 @@ impl GeneratedAlgebra for AdemAlgebra {
                     let idx = self.basis_element_to_index(&AdemBasisElement {
                         degree,
                         ps: if j == 0 {
-                            vec![(x + y) as u32]
+                            vec![x + y]
                         } else {
-                            vec![(x + y - j) as u32, j as u32]
+                            vec![x + y - j, j]
                         },
-                        bocksteins: e1 as u32 | ((e2 as u32) << 1),
+                        bocksteins: e1 | (e2 << 1),
                         p_or_sq: *self.prime() != 2,
                     });
-                    relation.push((c as u32, (degree, idx), (0, 0)));
+                    relation.push((c, (degree, idx), (0, 0)));
                 }
             }
             result.push(relation);
@@ -580,7 +580,7 @@ impl AdemAlgebra {
     fn generate_basis2(&self, max_degree: i32) {
         self.generate_basis_even(max_degree);
         self.basis_table.extend(max_degree as usize, |n| {
-            let mut table = self.even_basis_table[n as usize].clone();
+            let mut table = self.even_basis_table[n].clone();
             if self.unstable_enabled {
                 table.sort_by_cached_key(|e| e.excess(fp::prime::TWO));
             }
@@ -646,7 +646,7 @@ impl AdemAlgebra {
     fn generate_basis_element_to_index_map(&self, max_degree: i32) {
         self.basis_element_to_index_map
             .extend(max_degree as usize, |n| {
-                let basis = &self.basis_table[n as usize];
+                let basis = &self.basis_table[n];
                 let mut map = HashMap::default();
                 map.reserve(basis.len());
                 for (i, basis) in basis.iter().enumerate() {
@@ -700,7 +700,7 @@ impl AdemAlgebra {
 
         // degree -> first_square -> admissibile sequence idx -> result vector
         self.multiplication_table.extend(max_degree as usize, |n| {
-            let mut table: Vec<Vec<FpVector>> = Vec::with_capacity((n + 1) as usize);
+            let mut table: Vec<Vec<FpVector>> = Vec::with_capacity(n + 1);
             let n = n as i32;
 
             table.push(Vec::with_capacity(0));
@@ -1523,7 +1523,7 @@ mod tests {
                     relation_string.pop();
                     relation_string.pop();
                     relation_string.pop();
-                    let value_string = algebra.element_to_string(i as i32, output_vec.as_slice());
+                    let value_string = algebra.element_to_string(i, output_vec.as_slice());
                     panic!(
                         "{}",
                         ModuleFailedRelationError {

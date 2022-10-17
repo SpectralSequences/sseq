@@ -551,7 +551,7 @@ pub trait SecondaryLift: Sync {
         let source = self.source().module(s);
         let target = self.target();
         let num_gens = source.number_of_gens_in_degree(t);
-        let target_dim = target.module(s as u32 - shift_s).dimension(t - shift_t - 1);
+        let target_dim = target.module(s - shift_s).dimension(t - shift_t - 1);
 
         if let Some(dir) = self.save_dir() {
             let save_file = SaveFile {
@@ -600,14 +600,14 @@ pub trait SecondaryLift: Sync {
 
         assert!(target.apply_quasi_inverse(
             &mut results,
-            s as u32 - shift_s,
+            s - shift_s,
             t - shift_t - 1,
             &intermediates,
         ));
 
         if s == shift_s + 1 {
             // Check that we indeed had a lift
-            let d = target.differential(s as u32 - shift_s);
+            let d = target.differential(s - shift_s);
             for (src, tgt) in std::iter::zip(&results, &mut intermediates) {
                 d.apply(tgt.as_slice_mut(), *p - 1, t - shift_t - 1, src.as_slice());
                 assert!(
@@ -734,7 +734,7 @@ where
     }
 
     fn max_s(&self) -> u32 {
-        self.underlying.next_homological_degree() as u32
+        self.underlying.next_homological_degree()
     }
 
     fn max_t(&self, s: u32) -> i32 {
@@ -1063,7 +1063,7 @@ where
         } else {
             1
         };
-        let filtration_one_sign = if (t as i32 % 2) == 1 { *p - 1 } else { 1 };
+        let filtration_one_sign = if (t % 2) == 1 { *p - 1 } else { 1 };
 
         let page_data = sseq.map(|sseq| {
             let d = sseq.page_data(source_t - source_s as i32, source_s as i32 + 1);

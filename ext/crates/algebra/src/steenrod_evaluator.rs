@@ -266,9 +266,9 @@ impl SteenrodEvaluator {
             return;
         }
         let mut t: Vec<u32> = vec![0; elt.p_part.len()];
-        t[elt.p_part.len() - 1] = elt.p_part[elt.p_part.len() - 1] as u32;
+        t[elt.p_part.len() - 1] = elt.p_part[elt.p_part.len() - 1];
         for i in (0..elt.p_part.len() - 1).rev() {
-            t[i] = elt.p_part[i] as u32 + 2 * t[i + 1];
+            t[i] = elt.p_part[i] + 2 * t[i + 1];
         }
         let t_idx = self.adem.basis_element_to_index(&AdemBasisElement {
             degree,
@@ -304,14 +304,14 @@ impl SteenrodEvaluator {
         );
         let mut t = vec![0; t_len];
         let last_p_part = if t_len <= elt.p_part.len() {
-            elt.p_part[t_len - 1] as u32
+            elt.p_part[t_len - 1]
         } else {
             0
         };
         t[t_len - 1] = last_p_part + ((elt.q_part >> (t_len)) & 1);
         for i in (0..t_len - 1).rev() {
             let p_part = if i < elt.p_part.len() {
-                elt.p_part[i] as u32
+                elt.p_part[i]
             } else {
                 0
             };

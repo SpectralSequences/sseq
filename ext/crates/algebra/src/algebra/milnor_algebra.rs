@@ -113,12 +113,7 @@ impl Default for MilnorProfile {
     }
 }
 
-#[cfg(feature = "odd-primes")]
 pub type PPartEntry = u32;
-
-#[cfg(not(feature = "odd-primes"))]
-pub type PPartEntry = u16;
-
 pub type PPart = Vec<PPartEntry>;
 
 #[derive(Debug, Clone, Default)]
@@ -139,9 +134,9 @@ impl MilnorBasisElement {
 
     fn excess(&self, p: ValidPrime) -> u32 {
         if *p == 2 {
-            self.p_part.iter().sum::<PPartEntry>() as u32
+            self.p_part.iter().sum::<PPartEntry>()
         } else {
-            self.q_part.count_ones() + 2 * self.p_part.iter().sum::<PPartEntry>() as u32
+            self.q_part.count_ones() + 2 * self.p_part.iter().sum::<PPartEntry>()
         }
     }
 
@@ -370,7 +365,7 @@ impl Algebra for MilnorAlgebra {
     }
 
     fn magic(&self) -> u32 {
-        ((*self.p as u32) << 16)
+        (*self.p << 16)
             + if self.profile.is_trivial() {
                 0x8000
             } else {
@@ -863,9 +858,8 @@ impl MilnorAlgebra {
         let mut profile_list = Vec::with_capacity(xi_degrees.len());
         for i in 0..xi_degrees.len() {
             if i < self.profile.p_part.len() {
-                profile_list.push(
-                    (integer_power(*self.prime(), self.profile.p_part[i] as u32) - 1) as PPartEntry,
-                );
+                profile_list
+                    .push((integer_power(*self.prime(), self.profile.p_part[i]) - 1) as PPartEntry);
             } else if self.profile.truncated {
                 profile_list.push(0);
             } else {
@@ -907,7 +901,7 @@ impl MilnorAlgebra {
     }
 
     fn generate_basis_generic(&self, max_degree: i32) {
-        let q = (2 * (*self.prime()) - 2) as u32;
+        let q = 2 * (*self.prime()) - 2;
         let tau_degrees = combinatorics::tau_degrees(self.prime());
 
         self.basis_table.extend(max_degree as usize, |d| {
@@ -992,7 +986,7 @@ impl MilnorAlgebra {
 impl MilnorAlgebra {
     fn try_beps_pn(&self, e: u32, x: PPartEntry) -> Option<(i32, usize)> {
         let q = self.q() as u32;
-        let degree = (q * x as u32 + e) as i32;
+        let degree = (q * x + e) as i32;
         self.compute_basis(degree);
         self.try_basis_element_to_index(&MilnorBasisElement {
             degree,
@@ -1480,7 +1474,7 @@ impl<'a, const MOD4: bool> Iterator for PPartMultiplier<'a, MOD4> {
                 while let Some(0) = self.ans.p_part.last() {
                     self.ans.p_part.pop();
                 }
-                return Some(coef as u32);
+                return Some(coef);
             } else if self.update() {
                 self.ans.p_part.reserve(self.diag_num);
                 for diag_idx in 1..=self.diag_num {
@@ -1540,7 +1534,7 @@ impl<'a, const MOD4: bool> Iterator for PPartMultiplier<'a, MOD4> {
                     self.ans.p_part.pop();
                 }
 
-                return Some(coef as u32);
+                return Some(coef);
             } else {
                 return None;
             }
@@ -1633,7 +1627,7 @@ impl MilnorAlgebra {
             if b.p_part[0..len - 1].iter().all(|&x| x == 0) {
                 // There is only one entry
                 let entry = b.p_part[len - 1];
-                let (k, m) = factor_pk(*p, entry as u32);
+                let (k, m) = factor_pk(*p, entry);
 
                 // This is a power of p
                 if m == 1 {
@@ -1688,8 +1682,8 @@ impl MilnorAlgebra {
                     elt.degree = entry_deg * elt.p_part[len - 1] as i32;
                     let second = (elt.degree, self.basis_element_to_index(&elt));
 
-                    let coef = *p
-                        - fp::prime::inverse(p, PPartEntry::binomial(p, pk + rem_entry, pk) as u32);
+                    let coef =
+                        *p - fp::prime::inverse(p, PPartEntry::binomial(p, pk + rem_entry, pk));
                     buffer.extend([(coef, first, second)])
                 }
             } else {
@@ -1862,7 +1856,7 @@ mod tests {
                     relation_string.pop();
                     relation_string.pop();
                     relation_string.pop();
-                    let value_string = algebra.element_to_string(i as i32, output_vec.as_slice());
+                    let value_string = algebra.element_to_string(i, output_vec.as_slice());
                     panic!(
                         "{}",
                         ModuleFailedRelationError {

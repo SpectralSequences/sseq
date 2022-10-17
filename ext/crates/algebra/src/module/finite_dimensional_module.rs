@@ -350,7 +350,7 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
         for (i, v) in self.gen_names.iter_enum() {
             for (j, n) in v.iter().enumerate() {
                 if n == string {
-                    return Some((i as i32, j));
+                    return Some((i, j));
                 }
             }
         }
@@ -589,8 +589,7 @@ impl<A: GeneratedAlgebra> FiniteDimensionalModule<A> {
                         relation_string.pop();
                     }
 
-                    let value_string =
-                        self.element_to_string(output_deg as i32, output_vec.as_slice());
+                    let value_string = self.element_to_string(output_deg, output_vec.as_slice());
                     return Err(ModuleFailedRelationError {
                         relation: relation_string,
                         value: value_string,
@@ -654,7 +653,7 @@ impl<A: GeneratedAlgebra> FiniteDimensionalModule<A> {
     fn actions_to_json(&self) -> Value {
         let algebra = self.algebra();
         let min_degree = self.min_degree();
-        let max_degree = self.graded_dimension.len() as i32;
+        let max_degree = self.graded_dimension.len();
         let mut actions = Vec::new();
         for input_degree in min_degree..max_degree {
             for output_degree in (input_degree + 1)..max_degree {

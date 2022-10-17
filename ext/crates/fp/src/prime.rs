@@ -524,8 +524,8 @@ mod tests {
 
         for entry in &entries {
             assert_eq!(
-                entry[3] as u32,
-                u32::binomial(ValidPrime::new(entry[0] as u32), entry[1], entry[2])
+                entry[3],
+                u32::binomial(ValidPrime::new(entry[0]), entry[1], entry[2])
             );
         }
     }
