@@ -223,6 +223,7 @@ impl Server {
         }
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn serve_files(&self, request_path: &str) -> WsResult<Response> {
         println!("Request path: {}", request_path);
         let request_path = request_path.split('?').collect::<Vec<&str>>()[0]; // Ignore ?...
