@@ -207,6 +207,7 @@ fn module_term(i: &str) -> IResult<&str, ModuleNode> {
     .unwrap();
 
     match space(module_generator)(i) {
+        #[allow(clippy::or_fun_call)] // Otherwise it triggers clippy::unnecessary_lazy_evaluations
         Ok((i, gen)) => return Ok((i, vec![(prefix.unwrap_or(Scalar(1)), gen)])),
         Err(nom::Err::Error(_)) => (),
         Err(e) => return Err(e),
