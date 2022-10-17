@@ -22,7 +22,7 @@ fn benchmark(module_name: &str, max_degree: i32, algebra: &str, n_times: u128) {
     }
     let dur = start.elapsed();
 
-    println!("{} ms / iter", dur.as_millis() / n_times as u128);
+    println!("{} ms / iter", dur.as_millis() / n_times);
 }
 
 fn benchmark_pair(module_name: &str, max_degree: i32, n_times: u128) {

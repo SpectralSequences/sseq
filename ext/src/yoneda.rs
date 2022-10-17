@@ -624,7 +624,7 @@ where
     let first_image_row = matrix.find_first_row_in_block(matrix.start[1]);
     let image_rows = matrix.rows() - first_image_row;
 
-    let matrix = matrix.into_tail_segment(first_kernel_row as usize, source_dimension, 1);
+    let matrix = matrix.into_tail_segment(first_kernel_row, source_dimension, 1);
 
     let mut image_matrix = Matrix::new(p, image_rows, source_orig_dimension);
     for (target, source) in std::iter::zip(

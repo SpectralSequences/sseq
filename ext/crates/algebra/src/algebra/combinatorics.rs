@@ -228,8 +228,8 @@ impl<'a> PartitionIterator<'a> {
             };
         }
 
-        let idx = if parts.len() == 1 { 0 } else { 1 };
-        partition[idx] = num_parts as u32;
+        let idx = (parts.len() != 1) as usize;
+        partition[idx] = num_parts;
         remaining -= num_parts as i32 * parts[idx];
         Self {
             remaining,

@@ -55,7 +55,7 @@ fn main() -> anyhow::Result<()> {
     square.compute_through_bidegree(2 * s, 2 * t);
     for s in 0..=2 * s {
         square
-            .differential(s as u32)
+            .differential(s)
             .compute_auxiliary_data_through_degree(2 * t);
     }
     timer.end(format_args!("Computed quasi-inverses"));
@@ -124,7 +124,7 @@ fn main() -> anyhow::Result<()> {
             let dtarget_module = square.module(s + i - 1);
 
             let d_res = resolution.differential(s);
-            let d_target = square.differential(s + i as u32);
+            let d_target = square.differential(s + i);
 
             let map = Arc::clone(&delta[i as usize][s as usize]);
             let prev_map = match s {
@@ -186,7 +186,7 @@ fn main() -> anyhow::Result<()> {
                             let prevd = m.output(t, j);
 
                             // τ Δ_{i-1}x
-                            square.swap(&mut result, prevd, s + i as u32 - 1, t);
+                            square.swap(&mut result, prevd, s + i - 1, t);
                             result += prevd;
                         }
 
@@ -897,7 +897,7 @@ mod tensor_product_chain_complex {
                 let mut index = 0;
                 let mut row = 0;
                 for s in 0..self.source_s as usize {
-                    let target_module = &self.target.modules[s as usize]; // C_s (x) D_{source_s - s - 1}
+                    let target_module = &self.target.modules[s]; // C_s (x) D_{source_s - s - 1}
 
                     let target_right_dim = target_module.right.dimension(right_t);
                     let target_left_dim = target_module.left.dimension(left_t);

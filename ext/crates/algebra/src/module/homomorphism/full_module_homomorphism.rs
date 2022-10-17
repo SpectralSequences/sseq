@@ -79,7 +79,7 @@ impl<S: Module, T: Module<Algebra = S::Algebra>> ModuleHomomorphism
     }
 
     fn compute_auxiliary_data_through_degree(&self, degree: i32) {
-        let degree = std::cmp::min(degree, self.matrices.len() as i32 - 1);
+        let degree = std::cmp::min(degree, self.matrices.len() - 1);
         self.kernels.extend(degree, |i| {
             let (image, kernel, qi) = self.auxiliary_data(i);
             self.images.push_checked(image, i);
