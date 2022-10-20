@@ -584,7 +584,8 @@ impl<T: Send + Sync> OnceVec<T> {
     /// simultaneously using [`rayon`].
     ///
     /// # Example
-    /// ```
+    #[cfg_attr(miri, doc = "```ignore")]
+    #[cfg_attr(not(miri), doc = "```")]
     /// # use once::OnceVec;
     /// let v: OnceVec<usize> = OnceVec::new();
     /// v.par_extend(5, |i| i + 5);
