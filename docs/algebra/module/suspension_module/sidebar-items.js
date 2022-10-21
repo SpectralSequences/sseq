@@ -1,1 +1,1 @@
-initSidebarItems({"struct":[["SuspensionModule",""]]});
+window.SIDEBAR_ITEMS = {"struct":[["SuspensionModule",""]]};

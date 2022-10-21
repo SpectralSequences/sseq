@@ -1,1 +1,1 @@
-initSidebarItems({"struct":[["DenseBigradedModule",""]]});
+window.SIDEBAR_ITEMS = {"struct":[["DenseBigradedModule",""]]};

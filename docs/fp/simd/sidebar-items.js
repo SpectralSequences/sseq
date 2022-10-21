@@ -1,1 +1,1 @@
-initSidebarItems({"constant":[["LIMBS_PER_SIMD",""]],"fn":[["add_simd",""]],"mod":[["x86_64",""]]});
+window.SIDEBAR_ITEMS = {"constant":[["LIMBS_PER_SIMD",""]],"fn":[["add_simd",""]],"mod":[["x86_64",""]]};

@@ -1,1 +1,1 @@
-initSidebarItems({"struct":[["PolynomialAlgebraMonomial",""],["PolynomialAlgebraTableEntry",""]],"trait":[["PolynomialAlgebra",""]]});
+window.SIDEBAR_ITEMS = {"struct":[["PolynomialAlgebraMonomial",""],["PolynomialAlgebraTableEntry",""]],"trait":[["PolynomialAlgebra",""]]};

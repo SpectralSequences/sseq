@@ -1,1 +1,1 @@
-initSidebarItems({"fn":[["gens_to_json",""],["get_gens",""],["interactive_module_define_fdmodule",""],["interactive_module_define_fpmodule",""]]});
+window.SIDEBAR_ITEMS = {"fn":[["gens_to_json",""],["get_gens",""],["interactive_module_define_fdmodule",""],["interactive_module_define_fpmodule",""]]};

@@ -1,1 +1,1 @@
-initSidebarItems({"trait":[["Bialgebra","An [`Algebra`] equipped with a coproduct operation that makes it into a bialgebra."]]});
+window.SIDEBAR_ITEMS = {"trait":[["Bialgebra","An [`Algebra`] equipped with a coproduct operation that makes it into a bialgebra."]]};

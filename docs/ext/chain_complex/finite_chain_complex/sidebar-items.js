@@ -1,1 +1,1 @@
-initSidebarItems({"struct":[["FiniteAugmentedChainComplex",""],["FiniteChainComplex",""]]});
+window.SIDEBAR_ITEMS = {"struct":[["FiniteAugmentedChainComplex",""],["FiniteChainComplex",""]]};

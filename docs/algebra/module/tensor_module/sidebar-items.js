@@ -1,1 +1,1 @@
-initSidebarItems({"struct":[["TensorModule",""]]});
+window.SIDEBAR_ITEMS = {"struct":[["TensorModule",""]]};

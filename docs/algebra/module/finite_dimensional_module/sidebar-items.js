@@ -1,1 +1,1 @@
-initSidebarItems({"struct":[["FiniteDimensionalModule",""]]});
+window.SIDEBAR_ITEMS = {"struct":[["FiniteDimensionalModule",""]]};

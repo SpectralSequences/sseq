@@ -1,1 +1,1 @@
-initSidebarItems({"struct":[["Subspace","A subspace of a vector space."]]});
+window.SIDEBAR_ITEMS = {"struct":[["Subspace","A subspace of a vector space."]]};

@@ -1,1 +1,1 @@
-initSidebarItems({"struct":[["MuFreeModuleHomomorphism",""]],"type":[["FreeModuleHomomorphism",""],["UnstableFreeModuleHomomorphism",""]]});
+window.SIDEBAR_ITEMS = {"struct":[["MuFreeModuleHomomorphism",""]],"type":[["FreeModuleHomomorphism",""],["UnstableFreeModuleHomomorphism",""]]};

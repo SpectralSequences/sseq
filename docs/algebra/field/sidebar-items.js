@@ -1,1 +1,1 @@
-initSidebarItems({"struct":[["Field","$\\mathbb{F}_p$, viewed as an [`Algebra`] over itself."]]});
+window.SIDEBAR_ITEMS = {"struct":[["Field","$\\mathbb{F}_p$, viewed as an [`Algebra`] over itself."]]};

@@ -1,1 +1,1 @@
-initSidebarItems({"struct":[["FullModuleHomomorphism","A ModuleHomomorphism that simply records the matrix of the homomorphism in every degree. This is currently rather bare bones."]]});
+window.SIDEBAR_ITEMS = {"struct":[["FullModuleHomomorphism","A ModuleHomomorphism that simply records the matrix of the homomorphism in every degree. This is currently rather bare bones."]]};

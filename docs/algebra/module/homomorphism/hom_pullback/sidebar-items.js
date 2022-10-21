@@ -1,1 +1,1 @@
-initSidebarItems({"struct":[["HomPullback","Given a map $\\mathtt{map}: A \\to B$ and hom modules $\\mathtt{source} = \\Hom(B, X)$, $\\mathtt{target} = \\Hom(A, X)$, produce the induced pullback map $\\Hom(B, X) \\to \\Hom(A, X)$."]]});
+window.SIDEBAR_ITEMS = {"struct":[["HomPullback","Given a map $\\mathtt{map}: A \\to B$ and hom modules $\\mathtt{source} = \\Hom(B, X)$, $\\mathtt{target} = \\Hom(A, X)$, produce the induced pullback map $\\Hom(B, X) \\to \\Hom(A, X)$."]]};

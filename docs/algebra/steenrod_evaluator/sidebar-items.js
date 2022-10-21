@@ -1,1 +1,1 @@
-initSidebarItems({"struct":[["SteenrodEvaluator",""]]});
+window.SIDEBAR_ITEMS = {"struct":[["SteenrodEvaluator",""]]};

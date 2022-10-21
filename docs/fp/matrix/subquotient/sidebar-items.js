@@ -1,1 +1,1 @@
-initSidebarItems({"struct":[["Subquotient",""]]});
+window.SIDEBAR_ITEMS = {"struct":[["Subquotient",""]]};
