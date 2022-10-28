@@ -230,6 +230,14 @@ fn main() {
     let save_dir = query::optional("Save directory", |x| {
         core::result::Result::<PathBuf, std::convert::Infallible>::Ok(PathBuf::from(x))
     });
+
+    #[cfg(feature = "nassau")]
+    if save_dir.is_none() {
+        panic!(
+            "A save directory is required for comparison between Bruner and Nassau resolutions."
+        );
+    }
+
     let resolution = ext::utils::construct("S_2@milnor", save_dir).unwrap();
 
     resolution.compute_through_stem(max_s, max_n);
