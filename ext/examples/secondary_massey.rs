@@ -512,7 +512,7 @@ fn main() -> anyhow::Result<()> {
                     scratch1.add_basis_element(gen_idx, dx.entry(idx));
                 }
             }
-            println!(" + τ{}", scratch1);
+            println!(" + τ{scratch1}");
         }
     }
     Ok(())

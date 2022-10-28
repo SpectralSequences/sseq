@@ -347,7 +347,7 @@ impl<CC: ChainComplex> Resolution<CC> {
             let mut unit_vector = Matrix::new(p, num_gens, 1);
             for j in 0..num_gens {
                 let f = ResolutionHomomorphism::new(
-                    format!("(hom_deg : {}, int_deg : {}, idx : {})", s, t, j),
+                    format!("(hom_deg : {s}, int_deg : {t}, idx : {j})"),
                     Arc::clone(&self.inner),
                     Arc::clone(&self.unit_resolution().inner),
                     s,

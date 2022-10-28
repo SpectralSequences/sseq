@@ -331,9 +331,9 @@ mod tests {
         tp.add_gens_and_calculate_parts(8, 0);
         println!("\n\n");
         for d in 0..tp.parts.len() {
-            println!("Partitions of {}", d);
+            println!("Partitions of {d}");
             for i in &tp.parts[d] {
-                println!("      {}", i);
+                println!("      {i}");
             }
         }
     }
@@ -421,15 +421,15 @@ mod tests {
             ],
         ];
         for d in 0..tp.parts.len() {
-            println!("Partitions of {}", d);
+            println!("Partitions of {d}");
             for part in &tp.parts[d] {
-                println!("      {}", part);
+                println!("      {part}");
             }
         }
         for (d, parts) in tp.parts.iter().enumerate() {
             for (idx, part) in parts.iter().enumerate() {
                 assert!(
-                    expected[d][idx] == format!("{}", part),
+                    expected[d][idx] == format!("{part}"),
                     "Discrepancy : degree : {}, idx : {} expected : {}, got : {}",
                     d,
                     idx,

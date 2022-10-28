@@ -28,7 +28,7 @@ pub fn optional<S, E: Display>(
     prompt: &str,
     mut parser: impl for<'a> FnMut(&'a str) -> Result<S, E>,
 ) -> Option<S> {
-    raw(&format!("{} (optional)", prompt), |x| {
+    raw(&format!("{prompt} (optional)"), |x| {
         if x.is_empty() {
             Ok(None)
         } else {
@@ -42,7 +42,7 @@ pub fn with_default<S, E: Display>(
     default: &str,
     mut parser: impl for<'a> FnMut(&'a str) -> Result<S, E>,
 ) -> S {
-    raw(&format!("{} (default: {})", prompt, default), |x| {
+    raw(&format!("{prompt} (default: {default})"), |x| {
         if x.is_empty() {
             parser(default)
         } else {
@@ -76,31 +76,31 @@ pub fn raw<S, E: Display>(
 
     match cli {
         Some((arg, Ok(res))) => {
-            eprintln!("{}: {}", prompt, arg);
+            eprintln!("{prompt}: {arg}");
             return res;
         }
         Some((arg, Err(e))) => {
-            eprintln!("{}: {}", prompt, arg);
-            eprintln!("{:#}", e);
+            eprintln!("{prompt}: {arg}");
+            eprintln!("{e:#}");
             std::process::exit(1);
         }
         None => (),
     }
 
     loop {
-        eprint!("{}: ", prompt);
+        eprint!("{prompt}: ");
         stderr().flush().unwrap();
         let mut input = String::new();
         stdin()
             .read_line(&mut input)
-            .unwrap_or_else(|_| panic!("Error reading for prompt: {}", prompt));
+            .unwrap_or_else(|_| panic!("Error reading for prompt: {prompt}"));
         let trimmed = input.trim();
         match parser(trimmed) {
             Ok(res) => {
                 return res;
             }
             Err(e) => {
-                eprintln!("{:#}\n\nTry again", e);
+                eprintln!("{e:#}\n\nTry again");
             }
         }
     }

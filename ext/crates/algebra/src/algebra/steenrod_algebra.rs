@@ -164,7 +164,7 @@ impl SteenrodAlgebra {
         if let Some(list) = spec.algebra {
             let algebra_name = &algebra_type.to_string();
             if !list.iter().any(|x| x == algebra_name) {
-                println!("Module does not support algebra {}", algebra_name);
+                println!("Module does not support algebra {algebra_name}");
                 println!("Using {} instead", list[0]);
                 algebra_type = list[0].parse()?;
             }

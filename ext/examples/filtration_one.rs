@@ -17,7 +17,7 @@ fn main() -> anyhow::Result<()> {
             let products = resolution.filtration_one_product(1 << i, 0, s, t).unwrap();
             for (idx, row) in products.into_iter().enumerate() {
                 if !row.is_empty() {
-                    println!("h_{} x_({}, {}, {}) = {:?}", i, n, s, idx, row);
+                    println!("h_{i} x_({n}, {s}, {idx}) = {row:?}");
                 }
             }
             i += 1;

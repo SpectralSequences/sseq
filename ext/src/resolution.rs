@@ -153,7 +153,7 @@ where
         for i in self.modules.len() as u32..=max_s {
             self.modules.push(Arc::new(MuFreeModule::new(
                 Arc::clone(&self.algebra()),
-                format!("F{}", i),
+                format!("F{i}"),
                 min_degree,
             )));
             self.chain_maps.push(Arc::new(MuFreeModuleHomomorphism::new(

@@ -16,9 +16,9 @@ fn random_matrix(p: ValidPrime, dimension: usize) -> Matrix {
 fn row_reductions(c: &mut Criterion) {
     for p in [2, 3, 5, 7].iter() {
         let p = ValidPrime::new(*p);
-        let mut group = c.benchmark_group(&format!("row_reduce_{}", p));
+        let mut group = c.benchmark_group(&format!("row_reduce_{p}"));
         for dimension in [10, 20, 69, 100, 420, 1000] {
-            group.bench_function(&format!("row_reduce_{}_{}", p, dimension), move |b| {
+            group.bench_function(&format!("row_reduce_{p}_{dimension}"), move |b| {
                 b.iter_batched_ref(
                     || random_matrix(p, dimension),
                     |matrix| {

@@ -43,13 +43,13 @@ pub fn parse_module_name(module_name: &str) -> anyhow::Result<Value> {
     let mut args = module_name.split('[');
     let module_file = args.next().unwrap();
     let mut module = load_module_json(module_file)
-        .with_context(|| format!("Failed to load module file {}", module_file))?;
+        .with_context(|| format!("Failed to load module file {module_file}"))?;
     if let Some(shift) = args.next() {
         let shift: i64 = match shift.strip_suffix(']') {
             None => return Err(anyhow!("Unterminated shift [")),
             Some(x) => x
                 .parse()
-                .with_context(|| format!("Cannot parse shift value ({}) as an integer", x))?,
+                .with_context(|| format!("Cannot parse shift value ({x}) as an integer"))?,
         };
         if let Some(spec_shift) = module.get_mut("shift") {
             *spec_shift = Value::from(spec_shift.as_i64().unwrap() + shift);
@@ -69,13 +69,13 @@ impl TryFrom<&str> for Config {
         let algebra = match args.next() {
             Some(x) => x
                 .parse()
-                .with_context(|| format!("Invalid algebra type: {}", x))?,
+                .with_context(|| format!("Invalid algebra type: {x}"))?,
             None => AlgebraType::Milnor,
         };
 
         Ok(Config {
             module: parse_module_name(module_name)
-                .with_context(|| format!("Failed to load module: {}", module_name))?,
+                .with_context(|| format!("Failed to load module: {module_name}"))?,
             algebra,
         })
     }
@@ -274,7 +274,7 @@ pub fn load_module_json(name: &str) -> anyhow::Result<Value> {
         path.set_extension("json");
         if let Ok(s) = std::fs::read_to_string(&path) {
             return serde_json::from_str(&s)
-                .with_context(|| format!("Failed to load module json at {:?}", path));
+                .with_context(|| format!("Failed to load module json at {path:?}"));
         }
     }
     Err(anyhow!("Module file '{}' not found", name))
@@ -415,9 +415,9 @@ pub fn print_element(v: fp::vector::Slice, n: i32, s: u32) {
             print!(" + ");
         }
         if v != 1 {
-            print!("{} ", v);
+            print!("{v} ");
         }
-        print!("x_({}, {}, {})", n, s, i);
+        print!("x_({n}, {s}, {i})");
         first = false;
     }
 }

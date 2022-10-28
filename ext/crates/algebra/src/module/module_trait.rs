@@ -175,10 +175,10 @@ pub trait Module: std::fmt::Display + std::any::Any + Send + Sync {
                 let coeff = if value == 1 {
                     "".to_string()
                 } else {
-                    format!("{} ", value)
+                    format!("{value} ")
                 };
                 let basis_elt = self.basis_element_to_string(degree, idx);
-                format!("{}{}", coeff, basis_elt)
+                format!("{coeff}{basis_elt}")
             })
             .join(" + ");
         if result.is_empty() {

@@ -47,12 +47,12 @@ impl<A: Algebra> FinitelyPresentedModule<A> {
     pub fn new(algebra: Arc<A>, name: String, min_degree: i32) -> Self {
         let generators = Arc::new(FreeModule::new(
             Arc::clone(&algebra),
-            format!("{}-gens", name),
+            format!("{name}-gens"),
             min_degree,
         ));
         let relations = Arc::new(FreeModule::new(
             Arc::clone(&algebra),
-            format!("{}-gens", name),
+            format!("{name}-gens"),
             min_degree,
         ));
         Self {

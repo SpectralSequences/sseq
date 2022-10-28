@@ -173,10 +173,10 @@ pub trait Algebra: std::fmt::Display + Send + Sync + 'static {
         for (idx, value) in element.iter_nonzero() {
             zero = false;
             if value != 1 {
-                let _ = write!(result, "{} * ", value);
+                let _ = write!(result, "{value} * ");
             }
             let b = self.basis_element_to_string(degree, idx);
-            let _ = write!(result, "{} + ", b);
+            let _ = write!(result, "{b} + ");
         }
         if zero {
             result.push('0');

@@ -26,7 +26,7 @@ pub fn get_gens() -> anyhow::Result<BiVec<Vec<String>>> {
             eprintln!("This is the list of generators and degrees:");
             for (i, deg_i_gens) in gens.iter_enum() {
                 for gen in deg_i_gens.iter() {
-                    eprint!("({}, {}) ", i, gen);
+                    eprint!("({i}, {gen}) ");
                 }
             }
             eprintln!();
@@ -47,7 +47,7 @@ pub fn get_gens() -> anyhow::Result<BiVec<Vec<String>>> {
 
         let gen_name = query::with_default(
             "Generator name",
-            &format!("x{}{}", gen_deg, gens[gen_deg].len()).replace('-', "_"),
+            &format!("x{gen_deg}{}", gens[gen_deg].len()).replace('-', "_"),
             |x| {
                 match x.chars().next() {
                     Some(a) => {
@@ -279,19 +279,19 @@ fn main() -> anyhow::Result<()> {
         "fd",
         |x| match x {
             "fd" | "fp" => Ok(x.to_string()),
-            _ => Err(format!("Invalid type '{}'. Type must be 'fd' or 'fp'", x))
+            _ => Err(format!("Invalid type '{x}'. Type must be 'fd' or 'fp'"))
         }
     );
 
     let p: ValidPrime = query::with_default("p", "2", str::parse);
     let mut output_json = json!({});
 
-    eprintln!("module_type: {}", module_type);
+    eprintln!("module_type: {module_type}");
     match &*module_type {
         "fd" => interactive_module_define_fdmodule(&mut output_json, p)?,
         "fp" => interactive_module_define_fpmodule(&mut output_json, p)?,
         _ => unreachable!(),
     }
-    println!("{}", output_json);
+    println!("{output_json}");
     Ok(())
 }

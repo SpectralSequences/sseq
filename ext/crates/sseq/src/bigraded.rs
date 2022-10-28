@@ -56,7 +56,7 @@ impl DenseBigradedModule {
                 .push_checked(OnceBiVec::new(self.min_y()), x);
         }
         match y.cmp(&self.dimensions[x].len()) {
-            Less => panic!("Already set dimension at ({}, {})", x, y),
+            Less => panic!("Already set dimension at ({x}, {y})"),
             Equal => self.dimensions[x].push_checked(dim, y),
             Greater => panic!(
                 "Cannot set dimension at ({}, {}) before ({}, {})",
