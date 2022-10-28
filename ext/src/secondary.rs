@@ -1014,7 +1014,7 @@ where
         if name.starts_with('[') || name.starts_with('τ') {
             name.to_owned()
         } else {
-            format!("[{}]", name)
+            format!("[{name}]")
         }
     }
 

@@ -98,7 +98,7 @@ pub trait ActionT: std::fmt::Debug {
         unimplemented!();
     }
     fn to_string(&self) -> String {
-        format!("{:?}", self)
+        format!("{self:?}")
     }
 }
 
@@ -276,7 +276,7 @@ impl ActionT for AddProductDifferential {
     }
 
     fn to_string(&self) -> String {
-        format!("{:?}", self).replace("AddProductType ", "")
+        format!("{self:?}").replace("AddProductType ", "")
     }
 }
 

@@ -308,9 +308,9 @@ impl<P: SseqProfile> SseqWrapper<P> {
         }
         let mut names = Vec::with_capacity(dim);
         if dim == 1 {
-            names.push(format!("x_{{{},{}}}", x, y));
+            names.push(format!("x_{{{x},{y}}}"));
         } else {
-            names.extend((0..dim).map(|i| format!("x_{{{}, {}}}^{{({})}}", x, y, i)));
+            names.extend((0..dim).map(|i| format!("x_{{{x}, {y}}}^{{({i})}}")));
         }
         self.class_names[x].push(names);
         self.stale[x].push(CLASS_FLAG);

@@ -303,7 +303,7 @@ mod sum_module {
             } else {
                 write!(f, "{}", self.modules[0])?;
                 for m in &self.modules[1..] {
-                    write!(f, " (+) {}", m)?;
+                    write!(f, " (+) {m}")?;
                 }
                 Ok(())
             }
@@ -462,7 +462,7 @@ mod sum_module {
             let S = FDModule::from_json(Arc::clone(&A), &S).unwrap();
 
             if let Err(msg) = sum.test_equal(&S) {
-                panic!("Test case failed. {}", msg);
+                panic!("Test case failed. {msg}");
             }
         }
     }

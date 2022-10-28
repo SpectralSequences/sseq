@@ -560,7 +560,7 @@ impl<P: SseqProfile> Sseq<P> {
                                 g.structline(
                                     (x - min_x, y, i),
                                     (tx - min_x, ty, j),
-                                    Some(&format!("d{}", r)),
+                                    Some(&format!("d{r}")),
                                 )?;
                             }
                         }

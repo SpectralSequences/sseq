@@ -36,6 +36,6 @@ fn main() -> anyhow::Result<()> {
     });
     tensor.to_json(&mut output);
 
-    println!("{}", output);
+    println!("{output}");
     Ok(())
 }

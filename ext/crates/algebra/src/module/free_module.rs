@@ -252,7 +252,7 @@ impl<const U: bool, A: MuAlgebra<U>> MuFreeModule<U, A> {
         // self.ensure_next_table_entry(degree);
         let gen_names = names.unwrap_or_else(|| {
             (0..num_gens)
-                .map(|i| format!("x_{{{},{}}}", degree, i))
+                .map(|i| format!("x_{{{degree},{i}}}"))
                 .collect()
         });
 
@@ -365,7 +365,7 @@ impl<const U: bool, A: MuAlgebra<U>> MuFreeModule<U, A> {
             first = false;
 
             if c != 1 {
-                let _ = write!(result, "{} ", c);
+                let _ = write!(result, "{c} ");
             }
             let opgen = self.index_to_op_gen(t, i);
             let op_str = self

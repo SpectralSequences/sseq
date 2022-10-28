@@ -38,7 +38,7 @@ fn main() -> anyhow::Result<()> {
             result.clear()
         }
     }
-    print!("{}", result);
+    print!("{result}");
 
     Ok(())
 }

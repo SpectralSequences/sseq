@@ -35,9 +35,9 @@ impl<A: Algebra> std::fmt::Display for RealProjectiveSpace<A> {
         };
 
         if let Some(max) = self.max {
-            write!(f, "RP^{}_{}{}", max, self.min, clear)
+            write!(f, "RP^{max}_{}{clear}", self.min)
         } else {
-            write!(f, "RP_{}{}", self.min, clear)
+            write!(f, "RP_{}{clear}", self.min)
         }
     }
 }
@@ -92,7 +92,7 @@ where
 
     fn basis_element_to_string(&self, degree: i32, _idx: usize) -> String {
         // It is an error to call the function if self.dimension(degree) == 0
-        format!("x^{{{}}}", degree)
+        format!("x^{{{degree}}}")
     }
 
     fn act_on_basis(

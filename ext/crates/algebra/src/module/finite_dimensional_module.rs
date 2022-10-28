@@ -202,7 +202,7 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
         for (i, dim) in graded_dimension.iter_enum() {
             let mut names = Vec::with_capacity(*dim);
             for j in 0..*dim {
-                names.push(format!("x{}_{}", i, j));
+                names.push(format!("x{i}_{j}"));
             }
             gen_names.push(names);
         }
@@ -467,7 +467,7 @@ impl<A: GeneratedAlgebra> FiniteDimensionalModule<A> {
         for action in actions {
             result
                 .parse_action(&gen_to_idx, &action, false)
-                .with_context(|| format!("Failed to parse action: {}", action))?;
+                .with_context(|| format!("Failed to parse action: {action}"))?;
         }
         for input_degree in (result.min_degree()..=result.max_degree().unwrap()).rev() {
             for output_degree in input_degree + 1..=result.max_degree().unwrap() {

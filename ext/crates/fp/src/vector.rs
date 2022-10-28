@@ -525,9 +525,9 @@ mod test {
             let data_formatter =
                 diff.iter()
                     .format_with("\n ", |VectorDiffEntry { index, left, right }, f| {
-                        f(&format_args!("  At index {}: {}!={}", index, left, right))
+                        f(&format_args!("  At index {index}: {left}!={right}"))
                     });
-            format!("{}", data_formatter)
+            format!("{data_formatter}")
         }
 
         pub fn assert_list_eq(&self, other: &[u32]) {
@@ -726,7 +726,7 @@ mod test {
         }
 
         fn test_set_to_zero_slice(p: ValidPrime, dim: usize, slice_start: usize, slice_end: usize) {
-            println!("slice_start : {}, slice_end : {}", slice_start, slice_end);
+            println!("slice_start : {slice_start}, slice_end : {slice_end}");
             let mut v_arr = random_vector(p, dim);
             v_arr[0] = 1; // make sure that v isn't zero
             let mut v = FpVector::from_slice(p, &v_arr);
@@ -807,7 +807,7 @@ mod test {
             v.slice_mut(slice_start + 2, slice_end + 2)
                 .add(w.slice(slice_start, slice_end), 1);
 
-            println!("v : {}", v);
+            println!("v : {v}");
             for i in slice_start + 2..slice_end + 2 {
                 v_arr[i] = (v_arr[i] + w_arr[i - 2]) % *p;
             }
@@ -870,12 +870,12 @@ mod test {
                 let v = FpVector::from_slice(p, &v_arr);
                 let v = v.slice(3, dim - 1);
 
-                println!("v: {:?}", v_arr);
+                println!("v: {v_arr:?}");
 
                 let w = v.iter();
                 let mut counter = 0;
                 for (i, x) in w.enumerate() {
-                    println!("i: {}, dim : {}", i, dim);
+                    println!("i: {i}, dim : {dim}");
                     assert_eq!(v.entry(i), x);
                     counter += 1;
                 }
@@ -942,8 +942,8 @@ mod test {
             let v_arr = random_vector(p, dim);
             let v = FpVector::from_slice(p, &v_arr);
 
-            println!("v: {}", v);
-            println!("v_arr: {:?}", v_arr);
+            println!("v: {v}");
+            println!("v_arr: {v_arr:?}");
             let result: Vec<_> = v.slice(slice_start, slice_end).iter_nonzero().collect();
             let comparison_result: Vec<_> = v_arr[slice_start..slice_end]
                 .iter()
@@ -1009,15 +1009,15 @@ mod test {
             }
         }
 
-        println!("in  : {:?}", v_arr);
+        println!("in  : {v_arr:?}");
         for (e, val) in v.iter().enumerate() {
-            println!("in {}: {}", e, val);
+            println!("in {e}: {val}");
         }
         println!();
 
-        println!("in  : {:?}", w_arr);
+        println!("in  : {w_arr:?}");
         for (e, val) in w.iter().enumerate() {
-            println!("in {}: {}", e, val);
+            println!("in {e}: {val}");
         }
         println!();
 
@@ -1035,7 +1035,7 @@ mod test {
         }
 
         for (e, val) in v.iter().enumerate() {
-            println!("out{}: {}", e, val);
+            println!("out{e}: {val}");
         }
         println!();
 
@@ -1043,7 +1043,7 @@ mod test {
         for i in 0..dim {
             comparison_result[i] = (v_arr[i] + w_arr[i]) % pto_the_e_max;
         }
-        println!("out : {:?}", comparison_result);
+        println!("out : {comparison_result:?}");
 
         let mut diffs = Vec::new();
         let mut diffs_str = String::new();
@@ -1505,7 +1505,7 @@ mod test {
                         tuple, res, test_res, popcnts
                     ))
                 });
-            panic!("\nFailed test cases:\n {}", formatter);
+            panic!("\nFailed test cases:\n {formatter}");
         }
     }
 }

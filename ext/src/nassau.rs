@@ -449,7 +449,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         self.modules.extend(max_s as usize, |i| {
             Arc::new(FreeModule::new(
                 Arc::clone(&self.algebra()),
-                format!("F{}", i),
+                format!("F{i}"),
                 min_degree,
             ))
         });

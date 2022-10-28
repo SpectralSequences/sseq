@@ -115,7 +115,7 @@ pub trait PolynomialAlgebra: std::fmt::Display + Sized + Send + Sync + 'static {
             .monomial_to_index
             .get(monomial)
             .copied()
-            .unwrap_or_else(|| panic!("Didn't find monomial: {}", monomial))
+            .unwrap_or_else(|| panic!("Didn't find monomial: {monomial}"))
     }
 
     fn index_to_monomial(&self, degree: i32, index: usize) -> &PolynomialAlgebraMonomial {
@@ -285,11 +285,11 @@ impl<A: PolynomialAlgebra> Algebra for A {
             .sorted_by_key(|(_, &(_, gen_deg))| gen_deg)
             .map(|(var, &(var_exp, gen_deg))| {
                 let pow = if var_exp > 1 {
-                    format!("^{{{}}}", var_exp)
+                    format!("^{{{var_exp}}}")
                 } else {
                     "".to_string()
                 };
-                let s = format!("{}{}", var, pow);
+                let s = format!("{var}{pow}");
                 (s, gen_deg)
             })
             .merge_by(

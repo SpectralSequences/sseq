@@ -114,12 +114,12 @@ impl fmt::Display for AdemBasisElement {
         let result = self
             .iter_filtered()
             .map(|e| match e {
-                PorBockstein::P(exp) => format!("{}{}", p_or_sq, exp),
+                PorBockstein::P(exp) => format!("{p_or_sq}{exp}"),
                 PorBockstein::Bockstein(_) => "b".to_string(),
             })
             .format(" ");
 
-        write!(f, "{}", result)?;
+        write!(f, "{result}")?;
         Ok(())
     }
 }
@@ -218,7 +218,7 @@ impl Algebra for AdemAlgebra {
                 let degree = 1 << i; // degree is 2^hi
                 let ps = vec![degree as u32];
                 products.push((
-                    format!("h_{}", i),
+                    format!("h_{i}"),
                     AdemBasisElement {
                         degree,
                         bocksteins: 0,
@@ -336,7 +336,7 @@ impl GeneratedAlgebra for AdemAlgebra {
                 format!("P{}", degree as u32 / (2 * (*self.prime()) - 2))
             }
         } else {
-            format!("Sq{}", degree)
+            format!("Sq{degree}")
         }
     }
 
@@ -668,7 +668,7 @@ impl AdemAlgebra {
 
     pub fn basis_element_to_index(&self, elt: &AdemBasisElement) -> usize {
         self.try_basis_element_to_index(elt)
-            .unwrap_or_else(|| panic!("Didn't find element: {:?}", elt))
+            .unwrap_or_else(|| panic!("Didn't find element: {elt:?}"))
     }
 
     fn tail_of_basis_element_to_index(
@@ -1443,7 +1443,7 @@ mod tests {
         for i in 1..=max_degree {
             let dim = algebra.dimension(i);
             let gens = algebra.generators(i);
-            println!("i : {}, gens : {:?}", i, gens);
+            println!("i : {i}, gens : {gens:?}");
             let mut out_vec = FpVector::new(p, dim);
             for j in 0..dim {
                 if gens.contains(&j) {

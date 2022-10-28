@@ -205,13 +205,13 @@ impl<T: fmt::Debug> fmt::Debug for OnceVec<T> {
         write!(f, "[")?;
         let mut it = self.iter();
         match it.next() {
-            Some(x) => write!(f, "{:?}", x)?,
+            Some(x) => write!(f, "{x:?}")?,
             None => {
                 return write!(f, "]");
             }
         }
         for x in it {
-            write!(f, ", {:?}", x)?;
+            write!(f, ", {x:?}")?;
         }
         write!(f, "]")
     }
@@ -895,7 +895,7 @@ mod tests {
         let v = OnceVec::new();
         for i in 0u32..1000u32 {
             v.push(i);
-            println!("i : {}", i);
+            println!("i : {i}");
             assert_eq!(v[i], i);
         }
     }

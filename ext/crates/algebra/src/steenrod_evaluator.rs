@@ -473,7 +473,7 @@ mod tests {
         ev.compute_basis(max_degree);
 
         for degree in 0..max_degree {
-            println!("degree : {}", degree);
+            println!("degree : {degree}");
             let dim = ev.dimension(degree);
             let mut milnor_result = FpVector::new(p, dim);
             let mut adem_result = FpVector::new(p, dim);

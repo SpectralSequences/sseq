@@ -79,7 +79,7 @@ fn main() -> anyhow::Result<()> {
                 g.text(
                     1,
                     max_s as i32 - 1,
-                    disp_template.replace('%', &format!("{}", shift)),
+                    disp_template.replace('%', &format!("{shift}")),
                     Orientation::Right,
                 )
             },

@@ -1233,7 +1233,7 @@ mod tests {
             let goal_pivots = test.2;
 
             let mut m = Matrix::from_vec(p, input);
-            println!("{}", m);
+            println!("{m}");
             m.row_reduce();
             for i in 0..input.len() {
                 assert_eq!(Vec::<u32>::from(&m[i]), goal_output[i]);

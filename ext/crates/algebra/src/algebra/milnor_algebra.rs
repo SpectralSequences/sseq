@@ -190,9 +190,9 @@ impl std::fmt::Display for MilnorBasisElement {
         }
         if self.q_part != 0 {
             let q_part = BitflagIterator::set_bit_iterator(self.q_part as u64)
-                .map(|idx| format!("Q_{}", idx))
+                .map(|idx| format!("Q_{idx}"))
                 .format(" ");
-            write!(f, "{}", q_part)?;
+            write!(f, "{q_part}")?;
         }
         if !self.p_part.is_empty() {
             if self.q_part != 0 {
@@ -350,7 +350,7 @@ impl MilnorAlgebra {
 
     pub fn basis_element_to_index(&self, elt: &MilnorBasisElement) -> usize {
         self.try_basis_element_to_index(elt)
-            .unwrap_or_else(|| panic!("Didn't find element: {:?}", elt))
+            .unwrap_or_else(|| panic!("Didn't find element: {elt:?}"))
     }
 
     /// Gives a list of PPart's in degree `t`.
@@ -414,7 +414,7 @@ impl Algebra for MilnorAlgebra {
             for i in 0..max {
                 let degree = 1 << i; // degree is 2^hi
                 products.push((
-                    format!("h_{}", i),
+                    format!("h_{i}"),
                     MilnorBasisElement {
                         degree,
                         q_part: 0,
@@ -1828,7 +1828,7 @@ mod tests {
             let output_dim = algebra.dimension(i);
             output_vec.set_scratch_vector_size(output_dim);
             let relations = algebra.generating_relations(i);
-            println!("{:?}", relations);
+            println!("{relations:?}");
             for relation in relations {
                 for (coeff, (deg_1, idx_1), (deg_2, idx_2)) in &relation {
                     algebra.multiply_basis_elements(

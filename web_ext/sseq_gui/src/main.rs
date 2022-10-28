@@ -30,7 +30,7 @@ const FILE_LIST: &[(&str, &str, &[u8])] = &[
 
 fn ms_to_string(time: i128) -> String {
     if time < 1000 {
-        format!("{}ms", time)
+        format!("{time}ms")
     } else if time < 10000 {
         format!("{}.{}s", time / 1000, time % 1000)
     } else {
@@ -71,7 +71,7 @@ impl Manager {
             let wrapper = Wrapper::with_termwidth().subsequent_indent("                    ");
 
             for msg in res_receiver {
-                let action_string = format!("{}", msg);
+                let action_string = format!("{msg}");
                 let start = OffsetDateTime::now_utc();
                 println!(
                     "{}\n",
@@ -105,7 +105,7 @@ impl Manager {
             let wrapper = Wrapper::with_termwidth().subsequent_indent("                    ");
 
             for msg in sseq_receiver {
-                let action_string = format!("{}", msg);
+                let action_string = format!("{msg}");
                 let user = SseqManager::is_user(&msg.action);
                 let start = OffsetDateTime::now_utc();
 
@@ -168,13 +168,13 @@ impl Manager {
                         Recipient::Sseq => match self.sseq_sender.send(msg.clone()) {
                             Ok(_) => (),
                             Err(e) => {
-                                eprintln!("Failed to send message to ResolutionManager: {}", e)
+                                eprintln!("Failed to send message to ResolutionManager: {e}")
                             }
                         },
                         Recipient::Resolver => match self.res_sender.send(msg.clone()) {
                             Ok(_) => (),
                             Err(e) => {
-                                eprintln!("Failed to send message to ResolutionManager: {}", e)
+                                eprintln!("Failed to send message to ResolutionManager: {e}")
                             }
                         },
                     }
@@ -226,7 +226,7 @@ impl Server {
     #[allow(unknown_lints)] // `result_large_err` only introduced in 1.64
     #[allow(clippy::result_large_err)]
     pub fn serve_files(&self, request_path: &str) -> WsResult<Response> {
-        println!("Request path: {}", request_path);
+        println!("Request path: {request_path}");
         let request_path = request_path.split('?').collect::<Vec<&str>>()[0]; // Ignore ?...
         let mut dir = std::env::current_exe().unwrap();
         dir.pop();
@@ -261,9 +261,9 @@ fn main() {
         }
     };
 
-    println!("Opening websocket on 127.0.0.1:{}", port);
-    match listen(&format!("127.0.0.1:{}", port), Server::new) {
+    println!("Opening websocket on 127.0.0.1:{port}");
+    match listen(&format!("127.0.0.1:{port}"), Server::new) {
         Ok(_) => (),
-        Err(e) => eprintln!("Unable to open websocket: {}", e),
+        Err(e) => eprintln!("Unable to open websocket: {e}"),
     }
 }
