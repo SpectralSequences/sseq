@@ -30,7 +30,7 @@ use fp::{matrix::Matrix, prime::TWO, vector::FpVector};
 use std::{
     fs::File,
     io::{BufRead, BufReader},
-    path::Path,
+    path::{Path, PathBuf},
     str::FromStr,
     sync::Arc,
 };
@@ -227,7 +227,10 @@ fn main() {
     let (max_s, cc) = read_bruner_resolution(&data_dir, max_n).unwrap();
     let cc = Arc::new(cc);
 
-    let resolution = ext::utils::construct("S_2@milnor", None).unwrap();
+    let save_dir = query::optional("Save directory", |x| {
+        core::result::Result::<PathBuf, std::convert::Infallible>::Ok(PathBuf::from(x))
+    });
+    let resolution = ext::utils::construct("S_2@milnor", save_dir).unwrap();
 
     resolution.compute_through_stem(max_s, max_n);
 
