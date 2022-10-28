@@ -262,7 +262,7 @@ fn main() {
     };
 
     println!("Opening websocket on 127.0.0.1:{port}");
-    match listen(&format!("127.0.0.1:{port}"), Server::new) {
+    match listen(format!("127.0.0.1:{port}"), Server::new) {
         Ok(_) => (),
         Err(e) => eprintln!("Unable to open websocket: {e}"),
     }
