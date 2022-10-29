@@ -50,7 +50,7 @@
     <span class="kw">for</span> (<span class="ident">s</span>, <span class="ident">n</span>, <span class="ident">t</span>) <span class="kw">in</span> <span class="ident">resolution</span>.<span class="ident">iter_stem</span>() {
         <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">resolution</span>.<span class="ident">module</span>(<span class="ident">s</span>).<span class="ident">number_of_gens_in_degree</span>(<span class="ident">t</span>) {
             <span class="kw">let</span> <span class="ident">cocycle</span> <span class="op">=</span> <span class="ident">resolution</span>.<span class="ident">cocycle_string</span>(<span class="ident">s</span>, <span class="ident">t</span>, <span class="ident">i</span>);
-            <span class="macro">println!</span>(<span class="string">&quot;d x_({},{},{}) = {}&quot;</span>, <span class="ident">n</span>, <span class="ident">s</span>, <span class="ident">i</span>, <span class="ident">cocycle</span>);
+            <span class="macro">println!</span>(<span class="string">&quot;d x_({n},{s},{i}) = {cocycle}&quot;</span>);
         }
     }
     <span class="prelude-val">Ok</span>(())

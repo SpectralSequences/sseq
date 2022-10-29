@@ -2498,7 +2498,7 @@
         <span class="kw">if</span> <span class="ident">name</span>.<span class="ident">starts_with</span>(<span class="string">&#39;[&#39;</span>) <span class="op">|</span><span class="op">|</span> <span class="ident">name</span>.<span class="ident">starts_with</span>(<span class="string">&#39;τ&#39;</span>) {
             <span class="ident">name</span>.<span class="ident">to_owned</span>()
         } <span class="kw">else</span> {
-            <span class="macro">format!</span>(<span class="string">&quot;[{}]&quot;</span>, <span class="ident">name</span>)
+            <span class="macro">format!</span>(<span class="string">&quot;[{name}]&quot;</span>)
         }
     }
 

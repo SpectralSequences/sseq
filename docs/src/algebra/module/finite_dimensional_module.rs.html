@@ -937,7 +937,7 @@
         <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">dim</span>) <span class="kw">in</span> <span class="ident">graded_dimension</span>.<span class="ident">iter_enum</span>() {
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">names</span> <span class="op">=</span> <span class="ident">Vec::with_capacity</span>(<span class="kw-2">*</span><span class="ident">dim</span>);
             <span class="kw">for</span> <span class="ident">j</span> <span class="kw">in</span> <span class="number">0</span>..<span class="kw-2">*</span><span class="ident">dim</span> {
-                <span class="ident">names</span>.<span class="ident">push</span>(<span class="macro">format!</span>(<span class="string">&quot;x{}_{}&quot;</span>, <span class="ident">i</span>, <span class="ident">j</span>));
+                <span class="ident">names</span>.<span class="ident">push</span>(<span class="macro">format!</span>(<span class="string">&quot;x{i}_{j}&quot;</span>));
             }
             <span class="ident">gen_names</span>.<span class="ident">push</span>(<span class="ident">names</span>);
         }
@@ -1202,7 +1202,7 @@
         <span class="kw">for</span> <span class="ident">action</span> <span class="kw">in</span> <span class="ident">actions</span> {
             <span class="ident">result</span>
                 .<span class="ident">parse_action</span>(<span class="kw-2">&amp;</span><span class="ident">gen_to_idx</span>, <span class="kw-2">&amp;</span><span class="ident">action</span>, <span class="bool-val">false</span>)
-                .<span class="ident">with_context</span>(<span class="op">|</span><span class="op">|</span> <span class="macro">format!</span>(<span class="string">&quot;Failed to parse action: {}&quot;</span>, <span class="ident">action</span>))<span class="question-mark">?</span>;
+                .<span class="ident">with_context</span>(<span class="op">|</span><span class="op">|</span> <span class="macro">format!</span>(<span class="string">&quot;Failed to parse action: {action}&quot;</span>))<span class="question-mark">?</span>;
         }
         <span class="kw">for</span> <span class="ident">input_degree</span> <span class="kw">in</span> (<span class="ident">result</span>.<span class="ident">min_degree</span>()..<span class="op">=</span><span class="ident">result</span>.<span class="ident">max_degree</span>().<span class="ident">unwrap</span>()).<span class="ident">rev</span>() {
             <span class="kw">for</span> <span class="ident">output_degree</span> <span class="kw">in</span> <span class="ident">input_degree</span> <span class="op">+</span> <span class="number">1</span>..<span class="op">=</span><span class="ident">result</span>.<span class="ident">max_degree</span>().<span class="ident">unwrap</span>() {

@@ -69,7 +69,7 @@
             <span class="kw">let</span> <span class="ident">products</span> <span class="op">=</span> <span class="ident">resolution</span>.<span class="ident">filtration_one_product</span>(<span class="number">1</span> <span class="op">&lt;</span><span class="op">&lt;</span> <span class="ident">i</span>, <span class="number">0</span>, <span class="ident">s</span>, <span class="ident">t</span>).<span class="ident">unwrap</span>();
             <span class="kw">for</span> (<span class="ident">idx</span>, <span class="ident">row</span>) <span class="kw">in</span> <span class="ident">products</span>.<span class="ident">into_iter</span>().<span class="ident">enumerate</span>() {
                 <span class="kw">if</span> <span class="op">!</span><span class="ident">row</span>.<span class="ident">is_empty</span>() {
-                    <span class="macro">println!</span>(<span class="string">&quot;h_{} x_({}, {}, {}) = {:?}&quot;</span>, <span class="ident">i</span>, <span class="ident">n</span>, <span class="ident">s</span>, <span class="ident">idx</span>, <span class="ident">row</span>);
+                    <span class="macro">println!</span>(<span class="string">&quot;h_{i} x_({n}, {s}, {idx}) = {row:?}&quot;</span>);
                 }
             }
             <span class="ident">i</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;

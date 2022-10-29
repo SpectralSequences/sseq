@@ -348,7 +348,7 @@
             <span class="macro">eprintln!</span>(<span class="string">&quot;This is the list of generators and degrees:&quot;</span>);
             <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">deg_i_gens</span>) <span class="kw">in</span> <span class="ident">gens</span>.<span class="ident">iter_enum</span>() {
                 <span class="kw">for</span> <span class="ident">gen</span> <span class="kw">in</span> <span class="ident">deg_i_gens</span>.<span class="ident">iter</span>() {
-                    <span class="macro">eprint!</span>(<span class="string">&quot;({}, {}) &quot;</span>, <span class="ident">i</span>, <span class="ident">gen</span>);
+                    <span class="macro">eprint!</span>(<span class="string">&quot;({i}, {gen}) &quot;</span>);
                 }
             }
             <span class="macro">eprintln!</span>();
@@ -369,7 +369,7 @@
 
         <span class="kw">let</span> <span class="ident">gen_name</span> <span class="op">=</span> <span class="ident">query::with_default</span>(
             <span class="string">&quot;Generator name&quot;</span>,
-            <span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;x{}{}&quot;</span>, <span class="ident">gen_deg</span>, <span class="ident">gens</span>[<span class="ident">gen_deg</span>].<span class="ident">len</span>()).<span class="ident">replace</span>(<span class="string">&#39;-&#39;</span>, <span class="string">&quot;_&quot;</span>),
+            <span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;x{gen_deg}{}&quot;</span>, <span class="ident">gens</span>[<span class="ident">gen_deg</span>].<span class="ident">len</span>()).<span class="ident">replace</span>(<span class="string">&#39;-&#39;</span>, <span class="string">&quot;_&quot;</span>),
             <span class="op">|</span><span class="ident">x</span><span class="op">|</span> {
                 <span class="kw">match</span> <span class="ident">x</span>.<span class="ident">chars</span>().<span class="ident">next</span>() {
                     <span class="prelude-val">Some</span>(<span class="ident">a</span>) =&gt; {
@@ -601,20 +601,20 @@
         <span class="string">&quot;fd&quot;</span>,
         <span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">x</span> {
             <span class="string">&quot;fd&quot;</span> <span class="op">|</span> <span class="string">&quot;fp&quot;</span> =&gt; <span class="prelude-val">Ok</span>(<span class="ident">x</span>.<span class="ident">to_string</span>()),
-            <span class="kw">_</span> =&gt; <span class="prelude-val">Err</span>(<span class="macro">format!</span>(<span class="string">&quot;Invalid type &#39;{}&#39;. Type must be &#39;fd&#39; or &#39;fp&#39;&quot;</span>, <span class="ident">x</span>))
+            <span class="kw">_</span> =&gt; <span class="prelude-val">Err</span>(<span class="macro">format!</span>(<span class="string">&quot;Invalid type &#39;{x}&#39;. Type must be &#39;fd&#39; or &#39;fp&#39;&quot;</span>))
         }
     );
 
     <span class="kw">let</span> <span class="ident">p</span>: <span class="ident">ValidPrime</span> <span class="op">=</span> <span class="ident">query::with_default</span>(<span class="string">&quot;p&quot;</span>, <span class="string">&quot;2&quot;</span>, <span class="ident">str::parse</span>);
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">output_json</span> <span class="op">=</span> <span class="macro">json!</span>({});
 
-    <span class="macro">eprintln!</span>(<span class="string">&quot;module_type: {}&quot;</span>, <span class="ident">module_type</span>);
+    <span class="macro">eprintln!</span>(<span class="string">&quot;module_type: {module_type}&quot;</span>);
     <span class="kw">match</span> <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">module_type</span> {
         <span class="string">&quot;fd&quot;</span> =&gt; <span class="ident">interactive_module_define_fdmodule</span>(<span class="kw-2">&amp;mut</span> <span class="ident">output_json</span>, <span class="ident">p</span>)<span class="question-mark">?</span>,
         <span class="string">&quot;fp&quot;</span> =&gt; <span class="ident">interactive_module_define_fpmodule</span>(<span class="kw-2">&amp;mut</span> <span class="ident">output_json</span>, <span class="ident">p</span>)<span class="question-mark">?</span>,
         <span class="kw">_</span> =&gt; <span class="macro">unreachable!</span>(),
     }
-    <span class="macro">println!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">output_json</span>);
+    <span class="macro">println!</span>(<span class="string">&quot;{output_json}&quot;</span>);
     <span class="prelude-val">Ok</span>(())
 }
 </code></pre></div>

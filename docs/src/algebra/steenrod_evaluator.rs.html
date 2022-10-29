@@ -1004,7 +1004,7 @@
         <span class="ident">ev</span>.<span class="ident">compute_basis</span>(<span class="ident">max_degree</span>);
 
         <span class="kw">for</span> <span class="ident">degree</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">max_degree</span> {
-            <span class="macro">println!</span>(<span class="string">&quot;degree : {}&quot;</span>, <span class="ident">degree</span>);
+            <span class="macro">println!</span>(<span class="string">&quot;degree : {degree}&quot;</span>);
             <span class="kw">let</span> <span class="ident">dim</span> <span class="op">=</span> <span class="ident">ev</span>.<span class="ident">dimension</span>(<span class="ident">degree</span>);
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">milnor_result</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="ident">dim</span>);
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">adem_result</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="ident">dim</span>);

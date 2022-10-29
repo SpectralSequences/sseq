@@ -1194,7 +1194,7 @@
                         <span class="ident">p</span>
                     );
                 }
-                <span class="macro">assert_eq!</span>(<span class="ident">u32::binomial4</span>(<span class="ident">n</span>, <span class="ident">j</span>), <span class="ident">ans</span> <span class="op">%</span> <span class="number">4</span>, <span class="string">&quot;{} choose {} mod 4&quot;</span>, <span class="ident">n</span>, <span class="ident">j</span>);
+                <span class="macro">assert_eq!</span>(<span class="ident">u32::binomial4</span>(<span class="ident">n</span>, <span class="ident">j</span>), <span class="ident">ans</span> <span class="op">%</span> <span class="number">4</span>, <span class="string">&quot;{n} choose {j} mod 4&quot;</span>);
                 <span class="comment">// binomial4_rec is only called on large n. It does not handle the n = 0, 1 cases</span>
                 <span class="comment">// correctly.</span>
                 <span class="kw">if</span> <span class="ident">n</span> <span class="op">&gt;</span> <span class="number">1</span> {

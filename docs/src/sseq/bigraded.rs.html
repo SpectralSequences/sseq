@@ -160,7 +160,7 @@
                 .<span class="ident">push_checked</span>(<span class="ident">OnceBiVec::new</span>(<span class="self">self</span>.<span class="ident">min_y</span>()), <span class="ident">x</span>);
         }
         <span class="kw">match</span> <span class="ident">y</span>.<span class="ident">cmp</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">dimensions</span>[<span class="ident">x</span>].<span class="ident">len</span>()) {
-            <span class="ident">Less</span> =&gt; <span class="macro">panic!</span>(<span class="string">&quot;Already set dimension at ({}, {})&quot;</span>, <span class="ident">x</span>, <span class="ident">y</span>),
+            <span class="ident">Less</span> =&gt; <span class="macro">panic!</span>(<span class="string">&quot;Already set dimension at ({x}, {y})&quot;</span>),
             <span class="ident">Equal</span> =&gt; <span class="self">self</span>.<span class="ident">dimensions</span>[<span class="ident">x</span>].<span class="ident">push_checked</span>(<span class="ident">dim</span>, <span class="ident">y</span>),
             <span class="ident">Greater</span> =&gt; <span class="macro">panic!</span>(
                 <span class="string">&quot;Cannot set dimension at ({}, {}) before ({}, {})&quot;</span>,

@@ -322,12 +322,12 @@
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">algebra</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>, <span class="ident">name</span>: <span class="ident">String</span>, <span class="ident">min_degree</span>: <span class="ident">i32</span>) -&gt; <span class="self">Self</span> {
         <span class="kw">let</span> <span class="ident">generators</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">FreeModule::new</span>(
             <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">algebra</span>),
-            <span class="macro">format!</span>(<span class="string">&quot;{}-gens&quot;</span>, <span class="ident">name</span>),
+            <span class="macro">format!</span>(<span class="string">&quot;{name}-gens&quot;</span>),
             <span class="ident">min_degree</span>,
         ));
         <span class="kw">let</span> <span class="ident">relations</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">FreeModule::new</span>(
             <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">algebra</span>),
-            <span class="macro">format!</span>(<span class="string">&quot;{}-gens&quot;</span>, <span class="ident">name</span>),
+            <span class="macro">format!</span>(<span class="string">&quot;{name}-gens&quot;</span>),
             <span class="ident">min_degree</span>,
         ));
         <span class="self">Self</span> {

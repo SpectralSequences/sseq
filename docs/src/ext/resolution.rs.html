@@ -1174,7 +1174,7 @@
         <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">modules</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">u32</span>..<span class="op">=</span><span class="ident">max_s</span> {
             <span class="self">self</span>.<span class="ident">modules</span>.<span class="ident">push</span>(<span class="ident">Arc::new</span>(<span class="ident">MuFreeModule::new</span>(
                 <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">algebra</span>()),
-                <span class="macro">format!</span>(<span class="string">&quot;F{}&quot;</span>, <span class="ident">i</span>),
+                <span class="macro">format!</span>(<span class="string">&quot;F{i}&quot;</span>),
                 <span class="ident">min_degree</span>,
             )));
             <span class="self">self</span>.<span class="ident">chain_maps</span>.<span class="ident">push</span>(<span class="ident">Arc::new</span>(<span class="ident">MuFreeModuleHomomorphism::new</span>(

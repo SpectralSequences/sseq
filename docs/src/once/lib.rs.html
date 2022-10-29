@@ -1141,13 +1141,13 @@
         <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;[&quot;</span>)<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">it</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">iter</span>();
         <span class="kw">match</span> <span class="ident">it</span>.<span class="ident">next</span>() {
-            <span class="prelude-val">Some</span>(<span class="ident">x</span>) =&gt; <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{:?}&quot;</span>, <span class="ident">x</span>)<span class="question-mark">?</span>,
+            <span class="prelude-val">Some</span>(<span class="ident">x</span>) =&gt; <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{x:?}&quot;</span>)<span class="question-mark">?</span>,
             <span class="prelude-val">None</span> =&gt; {
                 <span class="kw">return</span> <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;]&quot;</span>);
             }
         }
         <span class="kw">for</span> <span class="ident">x</span> <span class="kw">in</span> <span class="ident">it</span> {
-            <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;, {:?}&quot;</span>, <span class="ident">x</span>)<span class="question-mark">?</span>;
+            <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;, {x:?}&quot;</span>)<span class="question-mark">?</span>;
         }
         <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;]&quot;</span>)
     }
@@ -1831,7 +1831,7 @@
         <span class="kw">let</span> <span class="ident">v</span> <span class="op">=</span> <span class="ident">OnceVec::new</span>();
         <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0u32</span>..<span class="number">1000u32</span> {
             <span class="ident">v</span>.<span class="ident">push</span>(<span class="ident">i</span>);
-            <span class="macro">println!</span>(<span class="string">&quot;i : {}&quot;</span>, <span class="ident">i</span>);
+            <span class="macro">println!</span>(<span class="string">&quot;i : {i}&quot;</span>);
             <span class="macro">assert_eq!</span>(<span class="ident">v</span>[<span class="ident">i</span>], <span class="ident">i</span>);
         }
     }
