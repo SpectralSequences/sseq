@@ -125,6 +125,7 @@
 //! | [differentials](../differentials/index.html) | Print all differentials in the minimal resolution. |
 //! | [filtration_one](../filtration_one/index.html) | Print all filtration one products. |
 //! | [lift_hom](../lift_hom/index.html) | Compute the map $\Ext(N, k) \to \Ext(M, k)$ induced by an element in $\Ext(M, N)$. |
+//! | [mahowald_invariant](../mahowald_invariant/index.html) | Compute (algebraic) Mahowald invariants. |
 //! | [massey](../massey/index.html) | Compute Massey products. |
 //! | [num_gens](../num_gens/index.html) | Compute the dimension of Ext in each bidegree. |
 //! | [resolution_size](../resolution_size/index.html) | Compute the size of the minimal resolution in each bidegree |
