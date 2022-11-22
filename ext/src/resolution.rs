@@ -818,7 +818,6 @@ where
                 if self.has_computed_bidegree(s, t) {
                     SenderData::send(s, t, false, sender);
                 } else {
-                    let sender = sender.clone();
                     scope.spawn(move |_| {
                         self.step_resolution(s, t);
                         SenderData::send(s, t, true, sender);
