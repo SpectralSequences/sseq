@@ -43,7 +43,16 @@ impl<
         left: Arc<ResolutionHomomorphism<S, T>>,
         right: Arc<ResolutionHomomorphism<T, U>>,
     ) -> Self {
-        let save_dir = if left.source.save_dir().is_some()
+        Self::new_with_save(left, right, true)
+    }
+
+    pub fn new_with_save(
+        left: Arc<ResolutionHomomorphism<S, T>>,
+        right: Arc<ResolutionHomomorphism<T, U>>,
+        save: bool,
+    ) -> Self {
+        let save_dir = if save
+            && left.source.save_dir().is_some()
             && !left.name().is_empty()
             && !right.name().is_empty()
         {

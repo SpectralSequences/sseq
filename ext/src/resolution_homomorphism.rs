@@ -53,7 +53,18 @@ where
         shift_s: u32,
         shift_t: i32,
     ) -> Self {
-        let save_dir = if source.save_dir().is_some() && !name.is_empty() {
+        Self::new_with_save(name, source, target, shift_s, shift_t, true)
+    }
+
+    pub fn new_with_save(
+        name: String,
+        source: Arc<CC1>,
+        target: Arc<CC2>,
+        shift_s: u32,
+        shift_t: i32,
+        save: bool,
+    ) -> Self {
+        let save_dir = if save && source.save_dir().is_some() && !name.is_empty() {
             let mut path = source.save_dir().unwrap().to_owned();
             path.push(format!("products/{name}"));
             SaveKind::ChainMap.create_dir(&path).unwrap();
