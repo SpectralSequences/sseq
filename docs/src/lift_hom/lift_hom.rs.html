@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `examples/lift_hom.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>lift_hom.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled><link rel="stylesheet" type="text/css" href="../../dark.css" disabled><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script><script defer src="../../main.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `examples/lift_hom.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>lift_hom.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" href="../../normalize.css"><link rel="stylesheet" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" href="../../ayu.css" disabled><link rel="stylesheet" href="../../dark.css" disabled><link rel="stylesheet" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script><script defer src="../../main.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
 <!-- The loading of KaTeX is deferred to speed up page rendering -->
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.js" integrity="sha384-Bi8OWqMXO1ta+a4EPkZv7bYGIes7C3krGSZoTGNTAnAn5eYQc7IIXrJ/7ck1drAi" crossorigin="anonymous"></script>
 <!-- To automatically render math in text elements, include the auto-render extension: -->
@@ -161,143 +161,143 @@
 <span id="136">136</span>
 <span id="137">137</span>
 <span id="138">138</span>
-</pre><pre class="rust"><code><span class="doccomment">//! Given an element in $\Ext(M, N)$, this computes the induced map $\Ext(N, k) \to \Ext(M, k)$</span>
-<span class="doccomment">//! given by composition.</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! It begins by asking for the two modules $M$, $N$ and the $\Ext$ class. Afterwards, you may</span>
-<span class="doccomment">//! either supply save files for the two modules, or a range to compute the map for.</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! Afterwards, the user is prompted for the Ext class. If $R_s$ is the $s$th term of the minimal</span>
-<span class="doccomment">//! resolution of $M$, the Ext class is given as an element of $\Hom_A(R_s, \Sigma^t N) =</span>
-<span class="doccomment">//! \Hom(\Ext^{s, *}(M, k)^\vee, \Sigma^t N)$.</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! In other words, for every basis element in $\Ext^{s, *}(M, k)$, one has to specify its image in</span>
-<span class="doccomment">//! $\Sigma^t N$. In the special case where $s = 0$, this is specifying the map between the</span>
-<span class="doccomment">//! underlying modules on module generators under the Steenrod action.</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! Our notation is as follows:</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//!  - `f` is the map in $\Hom_A(R_s, \Sigma^t N)$.</span>
-<span class="doccomment">//!  - `F` is the induced map on Ext.</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! Each prompt will be of the form `f(x_(s, n, i)) = ` and the user has to input the value of the</span>
-<span class="doccomment">//! homomorphism on this basis element. For example, the following session computes the map induced</span>
-<span class="doccomment">//! by the projection of spectra $C2 \to S^1$</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! ```text</span>
-<span class="doccomment">//!  $ cargo run --example lift_hom</span>
-<span class="doccomment">//! Target module (default: S_2): C2</span>
-<span class="doccomment">//! Source module (default: Cnu): S_2</span>
-<span class="doccomment">//! s of Ext class (default: 0): 0</span>
-<span class="doccomment">//! n of Ext class (default: 0): -1</span>
-<span class="doccomment">//! Target save file (optional):</span>
-<span class="doccomment">//! Max target s (default: 10): 10</span>
-<span class="doccomment">//! Max target n (default: 10): 20</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! Input module homomorphism to lift:</span>
-<span class="doccomment">//! f(x_(0, 0, 0)): [1]</span>
-<span class="doccomment">//! ```</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! It is important to keep track of varaince when using this example; Both $\Ext(-, k)$ and</span>
-<span class="doccomment">//! $H^*(-)$ are contravariant functors. The words &quot;source&quot; and &quot;target&quot; refer to the map between</span>
-<span class="doccomment">//! Steenrod modules.</span>
+</pre><pre class="rust"><code><span class="doccomment">//! Given an element in $\Ext(M, N)$, this computes the induced map $\Ext(N, k) \to \Ext(M, k)$
+//! given by composition.
+//!
+//! It begins by asking for the two modules $M$, $N$ and the $\Ext$ class. Afterwards, you may
+//! either supply save files for the two modules, or a range to compute the map for.
+//!
+//! Afterwards, the user is prompted for the Ext class. If $R_s$ is the $s$th term of the minimal
+//! resolution of $M$, the Ext class is given as an element of $\Hom_A(R_s, \Sigma^t N) =
+//! \Hom(\Ext^{s, *}(M, k)^\vee, \Sigma^t N)$.
+//!
+//! In other words, for every basis element in $\Ext^{s, *}(M, k)$, one has to specify its image in
+//! $\Sigma^t N$. In the special case where $s = 0$, this is specifying the map between the
+//! underlying modules on module generators under the Steenrod action.
+//!
+//! Our notation is as follows:
+//!
+//!  - `f` is the map in $\Hom_A(R_s, \Sigma^t N)$.
+//!  - `F` is the induced map on Ext.
+//!
+//! Each prompt will be of the form `f(x_(s, n, i)) = ` and the user has to input the value of the
+//! homomorphism on this basis element. For example, the following session computes the map induced
+//! by the projection of spectra $C2 \to S^1$
+//!
+//! ```text
+//!  $ cargo run --example lift_hom
+//! Target module (default: S_2): C2
+//! Source module (default: Cnu): S_2
+//! s of Ext class (default: 0): 0
+//! n of Ext class (default: 0): -1
+//! Target save file (optional):
+//! Max target s (default: 10): 10
+//! Max target n (default: 10): 20
+//!
+//! Input module homomorphism to lift:
+//! f(x_(0, 0, 0)): [1]
+//! ```
+//!
+//! It is important to keep track of varaince when using this example; Both $\Ext(-, k)$ and
+//! $H^*(-)$ are contravariant functors. The words &quot;source&quot; and &quot;target&quot; refer to the map between
+//! Steenrod modules.
 
-<span class="kw">use</span> <span class="ident">algebra::module::Module</span>;
-<span class="kw">use</span> <span class="ident">anyhow</span>::{<span class="ident">anyhow</span>, <span class="ident">Context</span>};
-<span class="kw">use</span> <span class="ident">ext::chain_complex</span>::{<span class="ident">AugmentedChainComplex</span>, <span class="ident">ChainComplex</span>, <span class="ident">FreeChainComplex</span>};
-<span class="kw">use</span> <span class="ident">ext::resolution_homomorphism::ResolutionHomomorphism</span>;
-<span class="kw">use</span> <span class="ident">ext::utils</span>;
-<span class="kw">use</span> <span class="ident">fp::matrix::Matrix</span>;
+</span><span class="kw">use </span>algebra::module::Module;
+<span class="kw">use </span>anyhow::{anyhow, Context};
+<span class="kw">use </span>ext::chain_complex::{AugmentedChainComplex, ChainComplex, FreeChainComplex};
+<span class="kw">use </span>ext::resolution_homomorphism::ResolutionHomomorphism;
+<span class="kw">use </span>ext::utils;
+<span class="kw">use </span>fp::matrix::Matrix;
 
-<span class="kw">use</span> <span class="ident">std::path::PathBuf</span>;
-<span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
+<span class="kw">use </span>std::path::PathBuf;
+<span class="kw">use </span>std::sync::Arc;
 
-<span class="kw">fn</span> <span class="ident">main</span>() -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-    <span class="kw">let</span> <span class="ident">source</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">utils::query_module_only</span>(<span class="string">&quot;Source module&quot;</span>, <span class="prelude-val">None</span>, <span class="bool-val">true</span>)<span class="question-mark">?</span>);
-    <span class="kw">let</span> <span class="ident">n</span>: <span class="ident">i32</span> <span class="op">=</span> <span class="ident">query::with_default</span>(<span class="string">&quot;Max source n&quot;</span>, <span class="string">&quot;30&quot;</span>, <span class="ident">str::parse</span>);
-    <span class="kw">let</span> <span class="ident">s</span>: <span class="ident">u32</span> <span class="op">=</span> <span class="ident">query::with_default</span>(<span class="string">&quot;Max source s&quot;</span>, <span class="string">&quot;7&quot;</span>, <span class="ident">str::parse</span>);
+<span class="kw">fn </span>main() -&gt; anyhow::Result&lt;()&gt; {
+    <span class="kw">let </span>source = Arc::new(utils::query_module_only(<span class="string">&quot;Source module&quot;</span>, <span class="prelude-val">None</span>, <span class="bool-val">true</span>)<span class="question-mark">?</span>);
+    <span class="kw">let </span>n: i32 = query::with_default(<span class="string">&quot;Max source n&quot;</span>, <span class="string">&quot;30&quot;</span>, str::parse);
+    <span class="kw">let </span>s: u32 = query::with_default(<span class="string">&quot;Max source s&quot;</span>, <span class="string">&quot;7&quot;</span>, str::parse);
 
-    <span class="kw">let</span> <span class="ident">source_name</span> <span class="op">=</span> <span class="ident">source</span>.<span class="ident">name</span>();
-    <span class="kw">let</span> <span class="ident">target</span> <span class="op">=</span> <span class="ident">query::with_default</span>(<span class="string">&quot;Target module&quot;</span>, <span class="ident">source_name</span>, <span class="op">|</span><span class="ident">s</span><span class="op">|</span> {
-        <span class="kw">if</span> <span class="ident">s</span> <span class="op">==</span> <span class="ident">source_name</span> {
-            <span class="prelude-val">Ok</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">source</span>))
-        } <span class="kw">else</span> <span class="kw">if</span> <span class="macro">cfg!</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;nassau&quot;</span>) {
+    <span class="kw">let </span>source_name = source.name();
+    <span class="kw">let </span>target = query::with_default(<span class="string">&quot;Target module&quot;</span>, source_name, |s| {
+        <span class="kw">if </span>s == source_name {
+            <span class="prelude-val">Ok</span>(Arc::clone(<span class="kw-2">&amp;</span>source))
+        } <span class="kw">else if </span><span class="macro">cfg!</span>(feature = <span class="string">&quot;nassau&quot;</span>) {
             <span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(<span class="string">&quot;Can only resolve S_2 with nassau&quot;</span>))
-        } <span class="kw">else</span> {
-            <span class="kw">let</span> <span class="ident">config</span>: <span class="ident">utils::Config</span> <span class="op">=</span> <span class="ident">s</span>.<span class="ident">try_into</span>()<span class="question-mark">?</span>;
-            <span class="kw">let</span> <span class="ident">save_dir</span> <span class="op">=</span> <span class="ident">query::optional</span>(<span class="string">&quot;Target save directory&quot;</span>, <span class="op">|</span><span class="ident">x</span><span class="op">|</span> {
-                <span class="prelude-ty">Result</span>::<span class="op">&lt;</span><span class="ident">PathBuf</span>, <span class="ident">std::convert::Infallible</span><span class="op">&gt;</span><span class="ident">::Ok</span>(<span class="ident">PathBuf::from</span>(<span class="ident">x</span>))
+        } <span class="kw">else </span>{
+            <span class="kw">let </span>config: utils::Config = s.try_into()<span class="question-mark">?</span>;
+            <span class="kw">let </span>save_dir = query::optional(<span class="string">&quot;Target save directory&quot;</span>, |x| {
+                <span class="prelude-ty">Result</span>::&lt;PathBuf, std::convert::Infallible&gt;::Ok(PathBuf::from(x))
             });
 
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">target</span> <span class="op">=</span> <span class="ident">utils::construct</span>(<span class="ident">config</span>, <span class="ident">save_dir</span>)
-                .<span class="ident">context</span>(<span class="string">&quot;Failed to load module from save file&quot;</span>)
-                .<span class="ident">unwrap</span>();
+            <span class="kw">let </span><span class="kw-2">mut </span>target = utils::construct(config, save_dir)
+                .context(<span class="string">&quot;Failed to load module from save file&quot;</span>)
+                .unwrap();
 
-            <span class="ident">target</span>.<span class="ident">set_name</span>(<span class="ident">s</span>.<span class="ident">to_owned</span>());
+            target.set_name(s.to_owned());
 
-            <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;nassau&quot;</span>)]</span>
-            <span class="macro">unreachable!</span>();
+            <span class="attribute">#[cfg(feature = <span class="string">&quot;nassau&quot;</span>)]
+            </span><span class="macro">unreachable!</span>();
 
-            <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;nassau&quot;</span>))]</span>
-            <span class="prelude-val">Ok</span>(<span class="ident">Arc::new</span>(<span class="ident">target</span>))
+            <span class="attribute">#[cfg(not(feature = <span class="string">&quot;nassau&quot;</span>))]
+            </span><span class="prelude-val">Ok</span>(Arc::new(target))
         }
     });
 
-    <span class="macro">assert_eq!</span>(<span class="ident">source</span>.<span class="ident">prime</span>(), <span class="ident">target</span>.<span class="ident">prime</span>());
-    <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">source</span>.<span class="ident">prime</span>();
+    <span class="macro">assert_eq!</span>(source.prime(), target.prime());
+    <span class="kw">let </span>p = source.prime();
 
-    <span class="kw">let</span> <span class="ident">name</span>: <span class="ident">String</span> <span class="op">=</span> <span class="ident">query::raw</span>(<span class="string">&quot;Name of product&quot;</span>, <span class="ident">str::parse</span>);
+    <span class="kw">let </span>name: String = query::raw(<span class="string">&quot;Name of product&quot;</span>, str::parse);
 
-    <span class="kw">let</span> <span class="ident">shift_n</span>: <span class="ident">i32</span> <span class="op">=</span> <span class="ident">query::with_default</span>(<span class="string">&quot;n of product&quot;</span>, <span class="string">&quot;0&quot;</span>, <span class="ident">str::parse</span>);
-    <span class="kw">let</span> <span class="ident">shift_s</span>: <span class="ident">u32</span> <span class="op">=</span> <span class="ident">query::with_default</span>(<span class="string">&quot;s of product&quot;</span>, <span class="string">&quot;0&quot;</span>, <span class="ident">str::parse</span>);
-    <span class="kw">let</span> <span class="ident">shift_t</span> <span class="op">=</span> <span class="ident">shift_n</span> <span class="op">+</span> <span class="ident">shift_s</span> <span class="kw">as</span> <span class="ident">i32</span>;
+    <span class="kw">let </span>shift_n: i32 = query::with_default(<span class="string">&quot;n of product&quot;</span>, <span class="string">&quot;0&quot;</span>, str::parse);
+    <span class="kw">let </span>shift_s: u32 = query::with_default(<span class="string">&quot;s of product&quot;</span>, <span class="string">&quot;0&quot;</span>, str::parse);
+    <span class="kw">let </span>shift_t = shift_n + shift_s <span class="kw">as </span>i32;
 
-    <span class="ident">source</span>.<span class="ident">compute_through_stem</span>(<span class="ident">s</span>, <span class="ident">n</span>);
-    <span class="ident">target</span>.<span class="ident">compute_through_stem</span>(<span class="ident">s</span> <span class="op">-</span> <span class="ident">shift_s</span>, <span class="ident">n</span> <span class="op">-</span> <span class="ident">shift_n</span>);
+    source.compute_through_stem(s, n);
+    target.compute_through_stem(s - shift_s, n - shift_n);
 
-    <span class="kw">let</span> <span class="ident">target_module</span> <span class="op">=</span> <span class="ident">target</span>.<span class="ident">target</span>().<span class="ident">module</span>(<span class="number">0</span>);
-    <span class="kw">let</span> <span class="ident">hom</span> <span class="op">=</span> <span class="ident">ResolutionHomomorphism::new</span>(<span class="ident">name</span>.<span class="ident">clone</span>(), <span class="ident">source</span>, <span class="ident">target</span>, <span class="ident">shift_s</span>, <span class="ident">shift_t</span>);
+    <span class="kw">let </span>target_module = target.target().module(<span class="number">0</span>);
+    <span class="kw">let </span>hom = ResolutionHomomorphism::new(name.clone(), source, target, shift_s, shift_t);
 
     <span class="macro">eprintln!</span>(<span class="string">&quot;\nInput Ext class to lift:&quot;</span>);
-    <span class="kw">for</span> <span class="ident">output_t</span> <span class="kw">in</span> <span class="number">0</span>..<span class="op">=</span><span class="ident">target_module</span>
-        .<span class="ident">max_degree</span>()
-        .<span class="ident">expect</span>(<span class="string">&quot;lift_hom requires target to be bounded&quot;</span>)
+    <span class="kw">for </span>output_t <span class="kw">in </span><span class="number">0</span>..=target_module
+        .max_degree()
+        .expect(<span class="string">&quot;lift_hom requires target to be bounded&quot;</span>)
     {
-        <span class="kw">let</span> <span class="ident">input_t</span> <span class="op">=</span> <span class="ident">output_t</span> <span class="op">+</span> <span class="ident">shift_t</span>;
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">matrix</span> <span class="op">=</span> <span class="ident">Matrix::new</span>(
-            <span class="ident">p</span>,
-            <span class="ident">hom</span>.<span class="ident">source</span>.<span class="ident">number_of_gens_in_bidegree</span>(<span class="ident">shift_s</span>, <span class="ident">input_t</span>),
-            <span class="ident">target_module</span>.<span class="ident">dimension</span>(<span class="ident">output_t</span>),
+        <span class="kw">let </span>input_t = output_t + shift_t;
+        <span class="kw">let </span><span class="kw-2">mut </span>matrix = Matrix::new(
+            p,
+            hom.source.number_of_gens_in_bidegree(shift_s, input_t),
+            target_module.dimension(output_t),
         );
 
-        <span class="kw">if</span> <span class="ident">matrix</span>.<span class="ident">rows</span>() <span class="op">==</span> <span class="number">0</span> <span class="op">|</span><span class="op">|</span> <span class="ident">matrix</span>.<span class="ident">columns</span>() <span class="op">==</span> <span class="number">0</span> {
-            <span class="ident">hom</span>.<span class="ident">extend_step</span>(<span class="ident">shift_s</span>, <span class="ident">input_t</span>, <span class="prelude-val">None</span>);
-        } <span class="kw">else</span> {
-            <span class="kw">for</span> (<span class="ident">idx</span>, <span class="ident">row</span>) <span class="kw">in</span> <span class="ident">matrix</span>.<span class="ident">iter_mut</span>().<span class="ident">enumerate</span>() {
-                <span class="kw">let</span> <span class="ident">v</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span> <span class="op">=</span>
-                    <span class="ident">query::vector</span>(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;f(x_({shift_s}, {input_t}, {idx}))&quot;</span>), <span class="ident">row</span>.<span class="ident">len</span>());
-                <span class="kw">for</span> (<span class="ident">i</span>, <span class="kw-2">&amp;</span><span class="ident">x</span>) <span class="kw">in</span> <span class="ident">v</span>.<span class="ident">iter</span>().<span class="ident">enumerate</span>() {
-                    <span class="ident">row</span>.<span class="ident">set_entry</span>(<span class="ident">i</span>, <span class="ident">x</span>);
+        <span class="kw">if </span>matrix.rows() == <span class="number">0 </span>|| matrix.columns() == <span class="number">0 </span>{
+            hom.extend_step(shift_s, input_t, <span class="prelude-val">None</span>);
+        } <span class="kw">else </span>{
+            <span class="kw">for </span>(idx, row) <span class="kw">in </span>matrix.iter_mut().enumerate() {
+                <span class="kw">let </span>v: Vec&lt;u32&gt; =
+                    query::vector(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;f(x_({shift_s}, {input_t}, {idx}))&quot;</span>), row.len());
+                <span class="kw">for </span>(i, <span class="kw-2">&amp;</span>x) <span class="kw">in </span>v.iter().enumerate() {
+                    row.set_entry(i, x);
                 }
             }
-            <span class="ident">hom</span>.<span class="ident">extend_step</span>(<span class="ident">shift_s</span>, <span class="ident">input_t</span>, <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="ident">matrix</span>));
+            hom.extend_step(shift_s, input_t, <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>matrix));
         }
     }
 
-    <span class="ident">hom</span>.<span class="ident">extend_all</span>();
+    hom.extend_all();
 
-    <span class="kw">for</span> (<span class="ident">s</span>, <span class="ident">n</span>, <span class="ident">t</span>) <span class="kw">in</span> <span class="ident">hom</span>.<span class="ident">target</span>.<span class="ident">iter_stem</span>() {
-        <span class="kw">if</span> <span class="ident">s</span> <span class="op">+</span> <span class="ident">shift_s</span> <span class="op">&gt;</span><span class="op">=</span> <span class="ident">hom</span>.<span class="ident">source</span>.<span class="ident">next_homological_degree</span>()
-            <span class="op">|</span><span class="op">|</span> <span class="ident">t</span> <span class="op">+</span> <span class="ident">shift_t</span> <span class="op">&gt;</span> <span class="ident">hom</span>.<span class="ident">source</span>.<span class="ident">module</span>(<span class="ident">s</span> <span class="op">+</span> <span class="ident">shift_s</span>).<span class="ident">max_computed_degree</span>()
+    <span class="kw">for </span>(s, n, t) <span class="kw">in </span>hom.target.iter_stem() {
+        <span class="kw">if </span>s + shift_s &gt;= hom.source.next_homological_degree()
+            || t + shift_t &gt; hom.source.module(s + shift_s).max_computed_degree()
         {
             <span class="kw">continue</span>;
         }
-        <span class="kw">let</span> <span class="ident">matrix</span> <span class="op">=</span> <span class="ident">hom</span>.<span class="ident">get_map</span>(<span class="ident">s</span> <span class="op">+</span> <span class="ident">shift_s</span>).<span class="ident">hom_k</span>(<span class="ident">t</span>);
-        <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">r</span>) <span class="kw">in</span> <span class="ident">matrix</span>.<span class="ident">iter</span>().<span class="ident">enumerate</span>() {
+        <span class="kw">let </span>matrix = hom.get_map(s + shift_s).hom_k(t);
+        <span class="kw">for </span>(i, r) <span class="kw">in </span>matrix.iter().enumerate() {
             <span class="macro">println!</span>(<span class="string">&quot;{name} x_({n}, {s}, {i}) = {r:?}&quot;</span>);
         }
     }
     <span class="prelude-val">Ok</span>(())
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="lift_hom" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0 (a55dd71d5 2022-09-19)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="lift_hom" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0 (897e37553 2022-11-02)" ></div></body></html>

@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `examples/unstable_suspension.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>unstable_suspension.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled><link rel="stylesheet" type="text/css" href="../../dark.css" disabled><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script><script defer src="../../main.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `examples/unstable_suspension.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>unstable_suspension.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" href="../../normalize.css"><link rel="stylesheet" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" href="../../ayu.css" disabled><link rel="stylesheet" href="../../dark.css" disabled><link rel="stylesheet" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script><script defer src="../../main.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
 <!-- The loading of KaTeX is deferred to speed up page rendering -->
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.js" integrity="sha384-Bi8OWqMXO1ta+a4EPkZv7bYGIes7C3krGSZoTGNTAnAn5eYQc7IIXrJ/7ck1drAi" crossorigin="anonymous"></script>
 <!-- To automatically render math in text elements, include the auto-render extension: -->
@@ -143,120 +143,120 @@
 <span id="118">118</span>
 <span id="119">119</span>
 <span id="120">120</span>
-</pre><pre class="rust"><code><span class="doccomment">//! Computes the suspension map between different unstable Ext groups.</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! Given an unstable Steenrod module $M$, compute the unstable Ext groups of $\Sigma^k M$ for all</span>
-<span class="doccomment">//! $k$ up till the stable range. Each result is printed in the form</span>
-<span class="doccomment">//! ```</span>
-<span class="doccomment">//! n s k: num_gens - matrix</span>
-<span class="doccomment">//! ```</span>
-<span class="doccomment">//! The entries are to be interpreted as follows:</span>
-<span class="doccomment">//!  - `n` is the stem, which is defined to be `t - s - min_degree`</span>
-<span class="doccomment">//!  - `s` is the Adams filtration</span>
-<span class="doccomment">//!  - `k` is the shift</span>
-<span class="doccomment">//!  - `num_gens` is the number of generators in this Ext group</span>
-<span class="doccomment">//!  - `matrix` is the matrix representing the suspension map from $\Sigma^k M$. This is omitted if</span>
-<span class="doccomment">//!    the source or target of the suspension map is trivial, or if they have the same dimension</span>
-<span class="doccomment">//!    and the matrix is the identity matrix.</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! The output is best read after sorting with `sort -n -k 1 -k 2 -k 3`.</span>
+</pre><pre class="rust"><code><span class="doccomment">//! Computes the suspension map between different unstable Ext groups.
+//!
+//! Given an unstable Steenrod module $M$, compute the unstable Ext groups of $\Sigma^k M$ for all
+//! $k$ up till the stable range. Each result is printed in the form
+//! ```
+//! n s k: num_gens - matrix
+//! ```
+//! The entries are to be interpreted as follows:
+//!  - `n` is the stem, which is defined to be `t - s - min_degree`
+//!  - `s` is the Adams filtration
+//!  - `k` is the shift
+//!  - `num_gens` is the number of generators in this Ext group
+//!  - `matrix` is the matrix representing the suspension map from $\Sigma^k M$. This is omitted if
+//!    the source or target of the suspension map is trivial, or if they have the same dimension
+//!    and the matrix is the identity matrix.
+//!
+//! The output is best read after sorting with `sort -n -k 1 -k 2 -k 3`.
 
-<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">path::PathBuf</span>, <span class="ident">sync::Arc</span>};
+</span><span class="kw">use </span>std::{path::PathBuf, sync::Arc};
 
-<span class="kw">use</span> <span class="ident">algebra::module</span>::{<span class="ident">Module</span>, <span class="ident">SuspensionModule</span>};
-<span class="kw">use</span> <span class="ident">ext::chain_complex</span>::{<span class="ident">FiniteChainComplex</span>, <span class="ident">FreeChainComplex</span>};
-<span class="kw">use</span> <span class="ident">ext</span>::{
-    <span class="ident">resolution::UnstableResolution</span>, <span class="ident">resolution_homomorphism::UnstableResolutionHomomorphism</span>,
+<span class="kw">use </span>algebra::module::{Module, SuspensionModule};
+<span class="kw">use </span>ext::chain_complex::{FiniteChainComplex, FreeChainComplex};
+<span class="kw">use </span>ext::{
+    resolution::UnstableResolution, resolution_homomorphism::UnstableResolutionHomomorphism,
 };
-<span class="kw">use</span> <span class="ident">fp::vector::FpVector</span>;
+<span class="kw">use </span>fp::vector::FpVector;
 
-<span class="kw">fn</span> <span class="ident">main</span>() -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-    <span class="kw">let</span> <span class="ident">module</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">ext::utils::query_unstable_module_only</span>()<span class="question-mark">?</span>);
-    <span class="kw">let</span> <span class="ident">save_dir</span> <span class="op">=</span> {
-        <span class="kw">let</span> <span class="ident">base</span> <span class="op">=</span> <span class="ident">query::optional</span>(<span class="string">&quot;Module save directory&quot;</span>, <span class="op">|</span><span class="ident">x</span><span class="op">|</span> {
-            <span class="ident">core::result::Result</span>::<span class="op">&lt;</span><span class="ident">PathBuf</span>, <span class="ident">std::convert::Infallible</span><span class="op">&gt;</span><span class="ident">::Ok</span>(<span class="ident">PathBuf::from</span>(<span class="ident">x</span>))
+<span class="kw">fn </span>main() -&gt; anyhow::Result&lt;()&gt; {
+    <span class="kw">let </span>module = Arc::new(ext::utils::query_unstable_module_only()<span class="question-mark">?</span>);
+    <span class="kw">let </span>save_dir = {
+        <span class="kw">let </span>base = query::optional(<span class="string">&quot;Module save directory&quot;</span>, |x| {
+            core::result::Result::&lt;PathBuf, std::convert::Infallible&gt;::Ok(PathBuf::from(x))
         });
-        <span class="kw">move</span> <span class="op">|</span><span class="ident">shift</span><span class="op">|</span> {
-            <span class="ident">base</span>.<span class="ident">as_ref</span>().<span class="ident">cloned</span>().<span class="ident">map</span>(<span class="op">|</span><span class="kw-2">mut</span> <span class="ident">x</span><span class="op">|</span> {
-                <span class="ident">x</span>.<span class="ident">push</span>(<span class="macro">format!</span>(<span class="string">&quot;suspension{shift}&quot;</span>));
-                <span class="ident">x</span>
+        <span class="kw">move </span>|shift| {
+            base.as_ref().cloned().map(|<span class="kw-2">mut </span>x| {
+                x.push(<span class="macro">format!</span>(<span class="string">&quot;suspension{shift}&quot;</span>));
+                x
             })
         }
     };
 
-    <span class="kw">let</span> <span class="ident">max_n</span>: <span class="ident">i32</span> <span class="op">=</span> <span class="ident">query::raw</span>(<span class="string">&quot;Max n&quot;</span>, <span class="ident">str::parse</span>);
-    <span class="kw">let</span> <span class="ident">max_s</span>: <span class="ident">u32</span> <span class="op">=</span> <span class="ident">query::raw</span>(<span class="string">&quot;Max s&quot;</span>, <span class="ident">str::parse</span>);
-    <span class="kw">let</span> <span class="ident">min_degree</span> <span class="op">=</span> <span class="ident">module</span>.<span class="ident">min_degree</span>();
+    <span class="kw">let </span>max_n: i32 = query::raw(<span class="string">&quot;Max n&quot;</span>, str::parse);
+    <span class="kw">let </span>max_s: u32 = query::raw(<span class="string">&quot;Max s&quot;</span>, str::parse);
+    <span class="kw">let </span>min_degree = module.min_degree();
 
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">res_a</span>;
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">res_b</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">UnstableResolution</span><span class="op">&lt;</span><span class="ident">FiniteChainComplex</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span>
-        <span class="ident">Arc::new</span>(<span class="ident">UnstableResolution::new_with_save</span>(
-            <span class="ident">Arc::new</span>(<span class="ident">FiniteChainComplex::ccdz</span>(<span class="ident">Arc::new</span>(<span class="ident">SuspensionModule::new</span>(
-                <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">module</span>),
+    <span class="kw">let </span><span class="kw-2">mut </span>res_a;
+    <span class="kw">let </span><span class="kw-2">mut </span>res_b: Arc&lt;UnstableResolution&lt;FiniteChainComplex&lt;<span class="kw">_</span>&gt;&gt;&gt; =
+        Arc::new(UnstableResolution::new_with_save(
+            Arc::new(FiniteChainComplex::ccdz(Arc::new(SuspensionModule::new(
+                Arc::clone(<span class="kw-2">&amp;</span>module),
                 <span class="number">0</span>,
             )))),
-            <span class="ident">save_dir</span>(<span class="number">0</span>),
+            save_dir(<span class="number">0</span>),
         )<span class="question-mark">?</span>);
-    <span class="ident">res_b</span>.<span class="ident">compute_through_stem</span>(<span class="ident">max_s</span>, <span class="ident">max_n</span>);
+    res_b.compute_through_stem(max_s, max_n);
 
-    <span class="kw">for</span> <span class="ident">n</span> <span class="kw">in</span> <span class="ident">min_degree</span>..<span class="op">=</span><span class="ident">max_n</span> {
-        <span class="kw">for</span> <span class="ident">s</span> <span class="kw">in</span> <span class="number">0</span>..<span class="op">=</span><span class="ident">max_s</span> {
-            <span class="kw">let</span> <span class="ident">source_num_gens</span> <span class="op">=</span> <span class="ident">res_b</span>.<span class="ident">number_of_gens_in_bidegree</span>(<span class="ident">s</span>, <span class="ident">n</span> <span class="op">+</span> <span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span>);
+    <span class="kw">for </span>n <span class="kw">in </span>min_degree..=max_n {
+        <span class="kw">for </span>s <span class="kw">in </span><span class="number">0</span>..=max_s {
+            <span class="kw">let </span>source_num_gens = res_b.number_of_gens_in_bidegree(s, n + s <span class="kw">as </span>i32);
             <span class="macro">println!</span>(<span class="string">&quot;{n} {s} 0: {source_num_gens}&quot;</span>,);
         }
     }
 
-    <span class="kw">for</span> <span class="ident">shift</span> <span class="kw">in</span> <span class="number">1</span>..<span class="ident">max_n</span> <span class="op">-</span> <span class="ident">module</span>.<span class="ident">min_degree</span>() <span class="op">+</span> <span class="number">3</span> {
-        <span class="ident">res_a</span> <span class="op">=</span> <span class="ident">res_b</span>;
-        <span class="ident">res_b</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">UnstableResolution::new_with_save</span>(
-            <span class="ident">Arc::new</span>(<span class="ident">FiniteChainComplex::ccdz</span>(<span class="ident">Arc::new</span>(<span class="ident">SuspensionModule::new</span>(
-                <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">module</span>),
-                <span class="ident">shift</span>,
+    <span class="kw">for </span>shift <span class="kw">in </span><span class="number">1</span>..max_n - module.min_degree() + <span class="number">3 </span>{
+        res_a = res_b;
+        res_b = Arc::new(UnstableResolution::new_with_save(
+            Arc::new(FiniteChainComplex::ccdz(Arc::new(SuspensionModule::new(
+                Arc::clone(<span class="kw-2">&amp;</span>module),
+                shift,
             )))),
-            <span class="ident">save_dir</span>(<span class="ident">shift</span>),
+            save_dir(shift),
         )<span class="question-mark">?</span>);
 
-        <span class="ident">res_b</span>.<span class="ident">compute_through_stem</span>(<span class="ident">max_s</span>, <span class="ident">max_n</span> <span class="op">+</span> <span class="ident">shift</span>);
+        res_b.compute_through_stem(max_s, max_n + shift);
 
-        <span class="kw">let</span> <span class="ident">hom</span> <span class="op">=</span> <span class="ident">UnstableResolutionHomomorphism::new</span>(
-            <span class="ident">String::from</span>(<span class="string">&quot;suspension&quot;</span>),
-            <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">res_b</span>),
-            <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">res_a</span>),
+        <span class="kw">let </span>hom = UnstableResolutionHomomorphism::new(
+            String::from(<span class="string">&quot;suspension&quot;</span>),
+            Arc::clone(<span class="kw-2">&amp;</span>res_b),
+            Arc::clone(<span class="kw-2">&amp;</span>res_a),
             <span class="number">0</span>,
             <span class="number">1</span>,
         );
 
-        <span class="ident">hom</span>.<span class="ident">extend_step_raw</span>(
+        hom.extend_step_raw(
             <span class="number">0</span>,
-            <span class="ident">min_degree</span> <span class="op">+</span> <span class="ident">shift</span>,
-            <span class="prelude-val">Some</span>(<span class="macro">vec!</span>[<span class="ident">FpVector::from_slice</span>(<span class="ident">module</span>.<span class="ident">prime</span>(), <span class="kw-2">&amp;</span>[<span class="number">1</span>])]),
+            min_degree + shift,
+            <span class="prelude-val">Some</span>(<span class="macro">vec!</span>[FpVector::from_slice(module.prime(), <span class="kw-2">&amp;</span>[<span class="number">1</span>])]),
         );
-        <span class="ident">hom</span>.<span class="ident">extend_all</span>();
+        hom.extend_all();
 
-        <span class="kw">for</span> <span class="ident">n</span> <span class="kw">in</span> <span class="number">2</span> <span class="op">*</span> (<span class="ident">min_degree</span> <span class="op">+</span> <span class="ident">shift</span> <span class="op">-</span> <span class="number">1</span>)..<span class="op">=</span><span class="ident">max_n</span> <span class="op">+</span> <span class="ident">shift</span> {
-            <span class="kw">if</span> <span class="ident">n</span> <span class="op">&lt;</span> <span class="ident">min_degree</span> <span class="op">+</span> <span class="ident">shift</span> {
+        <span class="kw">for </span>n <span class="kw">in </span><span class="number">2 </span>* (min_degree + shift - <span class="number">1</span>)..=max_n + shift {
+            <span class="kw">if </span>n &lt; min_degree + shift {
                 <span class="kw">continue</span>;
             }
-            <span class="kw">for</span> <span class="ident">s</span> <span class="kw">in</span> <span class="number">0</span>..<span class="op">=</span><span class="ident">max_s</span> {
-                <span class="kw">let</span> <span class="ident">source_num_gens</span> <span class="op">=</span> <span class="ident">res_b</span>.<span class="ident">number_of_gens_in_bidegree</span>(<span class="ident">s</span>, <span class="ident">n</span> <span class="op">+</span> <span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span>);
-                <span class="kw">let</span> <span class="ident">target_num_gens</span> <span class="op">=</span> <span class="ident">res_a</span>.<span class="ident">number_of_gens_in_bidegree</span>(<span class="ident">s</span>, <span class="ident">n</span> <span class="op">+</span> <span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span> <span class="op">-</span> <span class="number">1</span>);
-                <span class="kw">let</span> <span class="ident">m</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">source_num_gens</span> <span class="op">==</span> <span class="number">0</span> <span class="op">|</span><span class="op">|</span> <span class="ident">target_num_gens</span> <span class="op">==</span> <span class="number">0</span> {
-                    <span class="ident">String::new</span>()
-                } <span class="kw">else</span> {
-                    <span class="kw">let</span> <span class="ident">m</span> <span class="op">=</span> <span class="ident">hom</span>.<span class="ident">get_map</span>(<span class="ident">s</span>).<span class="ident">hom_k</span>(<span class="ident">n</span> <span class="op">+</span> <span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span> <span class="op">-</span> <span class="number">1</span>);
-                    <span class="kw">if</span> <span class="ident">source_num_gens</span> <span class="op">==</span> <span class="ident">target_num_gens</span>
-                        <span class="op">&amp;&amp;</span> <span class="ident">m</span>.<span class="ident">iter</span>().<span class="ident">enumerate</span>().<span class="ident">all</span>(<span class="op">|</span>(<span class="ident">n</span>, <span class="ident">x</span>)<span class="op">|</span> {
-                            <span class="ident">x</span>.<span class="ident">iter</span>()
-                                .<span class="ident">enumerate</span>()
-                                .<span class="ident">all</span>(<span class="op">|</span>(<span class="ident">m</span>, <span class="kw-2">&amp;</span><span class="ident">z</span>)<span class="op">|</span> <span class="kw">if</span> <span class="ident">m</span> <span class="op">==</span> <span class="ident">n</span> { <span class="ident">z</span> <span class="op">==</span> <span class="number">1</span> } <span class="kw">else</span> { <span class="ident">z</span> <span class="op">==</span> <span class="number">0</span> })
+            <span class="kw">for </span>s <span class="kw">in </span><span class="number">0</span>..=max_s {
+                <span class="kw">let </span>source_num_gens = res_b.number_of_gens_in_bidegree(s, n + s <span class="kw">as </span>i32);
+                <span class="kw">let </span>target_num_gens = res_a.number_of_gens_in_bidegree(s, n + s <span class="kw">as </span>i32 - <span class="number">1</span>);
+                <span class="kw">let </span>m = <span class="kw">if </span>source_num_gens == <span class="number">0 </span>|| target_num_gens == <span class="number">0 </span>{
+                    String::new()
+                } <span class="kw">else </span>{
+                    <span class="kw">let </span>m = hom.get_map(s).hom_k(n + s <span class="kw">as </span>i32 - <span class="number">1</span>);
+                    <span class="kw">if </span>source_num_gens == target_num_gens
+                        &amp;&amp; m.iter().enumerate().all(|(n, x)| {
+                            x.iter()
+                                .enumerate()
+                                .all(|(m, <span class="kw-2">&amp;</span>z)| <span class="kw">if </span>m == n { z == <span class="number">1 </span>} <span class="kw">else </span>{ z == <span class="number">0 </span>})
                         })
                     {
-                        <span class="ident">String::new</span>()
-                    } <span class="kw">else</span> {
+                        String::new()
+                    } <span class="kw">else </span>{
                         <span class="macro">format!</span>(<span class="string">&quot; - {m:?}&quot;</span>)
                     }
                 };
-                <span class="macro">println!</span>(<span class="string">&quot;{n} {s} {shift}: {source_num_gens}{m}&quot;</span>, <span class="ident">n</span> <span class="op">=</span> <span class="ident">n</span> <span class="op">-</span> <span class="ident">shift</span>);
+                <span class="macro">println!</span>(<span class="string">&quot;{n} {s} {shift}: {source_num_gens}{m}&quot;</span>, n = n - shift);
             }
         }
     }
@@ -264,4 +264,4 @@
     <span class="prelude-val">Ok</span>(())
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="unstable_suspension" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0 (a55dd71d5 2022-09-19)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="unstable_suspension" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0 (897e37553 2022-11-02)" ></div></body></html>

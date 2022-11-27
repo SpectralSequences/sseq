@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/algebra/src/module/homomorphism/full_module_homomorphism.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>full_module_homomorphism.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" type="text/css" href="../../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../../ayu.css" disabled><link rel="stylesheet" type="text/css" href="../../../../dark.css" disabled><link rel="stylesheet" type="text/css" href="../../../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../../../storage.js"></script><script defer src="../../../../source-script.js"></script><script defer src="../../../../source-files.js"></script><script defer src="../../../../main.js"></script><noscript><link rel="stylesheet" href="../../../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../../../favicon.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/algebra/src/module/homomorphism/full_module_homomorphism.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>full_module_homomorphism.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" href="../../../../normalize.css"><link rel="stylesheet" href="../../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" href="../../../../ayu.css" disabled><link rel="stylesheet" href="../../../../dark.css" disabled><link rel="stylesheet" href="../../../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../../../storage.js"></script><script defer src="../../../../source-script.js"></script><script defer src="../../../../source-files.js"></script><script defer src="../../../../main.js"></script><noscript><link rel="stylesheet" href="../../../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../../../favicon.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
 <!-- The loading of KaTeX is deferred to speed up page rendering -->
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.js" integrity="sha384-Bi8OWqMXO1ta+a4EPkZv7bYGIes7C3krGSZoTGNTAnAn5eYQc7IIXrJ/7ck1drAi" crossorigin="anonymous"></script>
 <!-- To automatically render math in text elements, include the auto-render extension: -->
@@ -250,232 +250,232 @@
 <span id="225">225</span>
 <span id="226">226</span>
 <span id="227">227</span>
-</pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
+</pre><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
 
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::algebra::Algebra</span>;
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::module::homomorphism</span>::{<span class="ident">IdentityHomomorphism</span>, <span class="ident">ModuleHomomorphism</span>, <span class="ident">ZeroHomomorphism</span>};
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::module::Module</span>;
-<span class="kw">use</span> <span class="ident">bivec::BiVec</span>;
-<span class="kw">use</span> <span class="ident">fp::matrix</span>::{<span class="ident">Matrix</span>, <span class="ident">QuasiInverse</span>, <span class="ident">Subspace</span>};
-<span class="kw">use</span> <span class="ident">fp::vector::SliceMut</span>;
-<span class="kw">use</span> <span class="ident">once::OnceBiVec</span>;
+<span class="kw">use </span><span class="kw">crate</span>::algebra::Algebra;
+<span class="kw">use </span><span class="kw">crate</span>::module::homomorphism::{IdentityHomomorphism, ModuleHomomorphism, ZeroHomomorphism};
+<span class="kw">use </span><span class="kw">crate</span>::module::Module;
+<span class="kw">use </span>bivec::BiVec;
+<span class="kw">use </span>fp::matrix::{Matrix, QuasiInverse, Subspace};
+<span class="kw">use </span>fp::vector::SliceMut;
+<span class="kw">use </span>once::OnceBiVec;
 
-<span class="doccomment">/// A ModuleHomomorphism that simply records the matrix of the homomorphism in every degree.</span>
-<span class="doccomment">/// This is currently rather bare bones.</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">FullModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">S</span>: <span class="ident">Module</span>, <span class="ident">T</span>: <span class="ident">Module</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">S::Algebra</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">S</span><span class="op">&gt;</span> {
-    <span class="ident">source</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span>,
-    <span class="ident">target</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>,
-    <span class="ident">degree_shift</span>: <span class="ident">i32</span>,
-    <span class="doccomment">/// The matrices of the module homomorphism. Unspecified matrices are assumed to be zero</span>
-    <span class="ident">matrices</span>: <span class="ident">OnceBiVec</span><span class="op">&lt;</span><span class="ident">Matrix</span><span class="op">&gt;</span>,
-    <span class="ident">quasi_inverses</span>: <span class="ident">OnceBiVec</span><span class="op">&lt;</span><span class="ident">QuasiInverse</span><span class="op">&gt;</span>,
-    <span class="ident">kernels</span>: <span class="ident">OnceBiVec</span><span class="op">&lt;</span><span class="ident">Subspace</span><span class="op">&gt;</span>,
-    <span class="ident">images</span>: <span class="ident">OnceBiVec</span><span class="op">&lt;</span><span class="ident">Subspace</span><span class="op">&gt;</span>,
+<span class="doccomment">/// A ModuleHomomorphism that simply records the matrix of the homomorphism in every degree.
+/// This is currently rather bare bones.
+</span><span class="kw">pub struct </span>FullModuleHomomorphism&lt;S: Module, T: Module&lt;Algebra = S::Algebra&gt; = S&gt; {
+    source: Arc&lt;S&gt;,
+    target: Arc&lt;T&gt;,
+    degree_shift: i32,
+    <span class="doccomment">/// The matrices of the module homomorphism. Unspecified matrices are assumed to be zero
+    </span>matrices: OnceBiVec&lt;Matrix&gt;,
+    quasi_inverses: OnceBiVec&lt;QuasiInverse&gt;,
+    kernels: OnceBiVec&lt;Subspace&gt;,
+    images: OnceBiVec&lt;Subspace&gt;,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">S</span>: <span class="ident">Module</span>, <span class="ident">T</span>: <span class="ident">Module</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">S::Algebra</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">Clone</span> <span class="kw">for</span> <span class="ident">FullModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">T</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="self">Self</span> {
-        <span class="self">Self</span> {
-            <span class="ident">source</span>: <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">source</span>),
-            <span class="ident">target</span>: <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">target</span>),
-            <span class="ident">degree_shift</span>: <span class="self">self</span>.<span class="ident">degree_shift</span>,
-            <span class="ident">matrices</span>: <span class="self">self</span>.<span class="ident">matrices</span>.<span class="ident">clone</span>(),
-            <span class="ident">quasi_inverses</span>: <span class="self">self</span>.<span class="ident">quasi_inverses</span>.<span class="ident">clone</span>(),
-            <span class="ident">kernels</span>: <span class="self">self</span>.<span class="ident">kernels</span>.<span class="ident">clone</span>(),
-            <span class="ident">images</span>: <span class="self">self</span>.<span class="ident">images</span>.<span class="ident">clone</span>(),
+<span class="kw">impl</span>&lt;S: Module, T: Module&lt;Algebra = S::Algebra&gt;&gt; Clone <span class="kw">for </span>FullModuleHomomorphism&lt;S, T&gt; {
+    <span class="kw">fn </span>clone(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{
+            source: Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.source),
+            target: Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.target),
+            degree_shift: <span class="self">self</span>.degree_shift,
+            matrices: <span class="self">self</span>.matrices.clone(),
+            quasi_inverses: <span class="self">self</span>.quasi_inverses.clone(),
+            kernels: <span class="self">self</span>.kernels.clone(),
+            images: <span class="self">self</span>.images.clone(),
         }
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">S</span>: <span class="ident">Module</span>, <span class="ident">T</span>: <span class="ident">Module</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">S::Algebra</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">ModuleHomomorphism</span>
-    <span class="kw">for</span> <span class="ident">FullModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">T</span><span class="op">&gt;</span>
+<span class="kw">impl</span>&lt;S: Module, T: Module&lt;Algebra = S::Algebra&gt;&gt; ModuleHomomorphism
+    <span class="kw">for </span>FullModuleHomomorphism&lt;S, T&gt;
 {
-    <span class="kw">type</span> <span class="ident">Source</span> <span class="op">=</span> <span class="ident">S</span>;
-    <span class="kw">type</span> <span class="ident">Target</span> <span class="op">=</span> <span class="ident">T</span>;
+    <span class="kw">type </span>Source = S;
+    <span class="kw">type </span>Target = T;
 
-    <span class="kw">fn</span> <span class="ident">source</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Source</span><span class="op">&gt;</span> {
-        <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">source</span>)
+    <span class="kw">fn </span>source(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Arc&lt;<span class="self">Self</span>::Source&gt; {
+        Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.source)
     }
 
-    <span class="kw">fn</span> <span class="ident">target</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Target</span><span class="op">&gt;</span> {
-        <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">target</span>)
+    <span class="kw">fn </span>target(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Arc&lt;<span class="self">Self</span>::Target&gt; {
+        Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.target)
     }
 
-    <span class="kw">fn</span> <span class="ident">degree_shift</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">i32</span> {
-        <span class="self">self</span>.<span class="ident">degree_shift</span>
+    <span class="kw">fn </span>degree_shift(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; i32 {
+        <span class="self">self</span>.degree_shift
     }
 
-    <span class="kw">fn</span> <span class="ident">apply_to_basis_element</span>(
+    <span class="kw">fn </span>apply_to_basis_element(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="kw-2">mut</span> <span class="ident">result</span>: <span class="ident">SliceMut</span>,
-        <span class="ident">coeff</span>: <span class="ident">u32</span>,
-        <span class="ident">input_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">input_idx</span>: <span class="ident">usize</span>,
+        <span class="kw-2">mut </span>result: SliceMut,
+        coeff: u32,
+        input_degree: i32,
+        input_idx: usize,
     ) {
-        <span class="kw">let</span> <span class="ident">output_degree</span> <span class="op">=</span> <span class="ident">input_degree</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">degree_shift</span>;
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">matrix</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">matrices</span>.<span class="ident">get</span>(<span class="ident">output_degree</span>) {
-            <span class="ident">result</span>.<span class="ident">add</span>(<span class="ident">matrix</span>[<span class="ident">input_idx</span>].<span class="ident">as_slice</span>(), <span class="ident">coeff</span>);
+        <span class="kw">let </span>output_degree = input_degree - <span class="self">self</span>.degree_shift;
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(matrix) = <span class="self">self</span>.matrices.get(output_degree) {
+            result.add(matrix[input_idx].as_slice(), coeff);
         }
     }
 
-    <span class="kw">fn</span> <span class="ident">image</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">Subspace</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">images</span>.<span class="ident">get</span>(<span class="ident">degree</span>)
+    <span class="kw">fn </span>image(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Subspace&gt; {
+        <span class="self">self</span>.images.get(degree)
     }
 
-    <span class="kw">fn</span> <span class="ident">quasi_inverse</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">QuasiInverse</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">quasi_inverses</span>.<span class="ident">get</span>(<span class="ident">degree</span>)
+    <span class="kw">fn </span>quasi_inverse(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>QuasiInverse&gt; {
+        <span class="self">self</span>.quasi_inverses.get(degree)
     }
 
-    <span class="kw">fn</span> <span class="ident">kernel</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">Subspace</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">kernels</span>.<span class="ident">get</span>(<span class="ident">degree</span>)
+    <span class="kw">fn </span>kernel(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Subspace&gt; {
+        <span class="self">self</span>.kernels.get(degree)
     }
 
-    <span class="kw">fn</span> <span class="ident">compute_auxiliary_data_through_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) {
-        <span class="kw">let</span> <span class="ident">degree</span> <span class="op">=</span> <span class="ident">std::cmp::min</span>(<span class="ident">degree</span>, <span class="self">self</span>.<span class="ident">matrices</span>.<span class="ident">len</span>() <span class="op">-</span> <span class="number">1</span>);
-        <span class="self">self</span>.<span class="ident">kernels</span>.<span class="ident">extend</span>(<span class="ident">degree</span>, <span class="op">|</span><span class="ident">i</span><span class="op">|</span> {
-            <span class="kw">let</span> (<span class="ident">image</span>, <span class="ident">kernel</span>, <span class="ident">qi</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">auxiliary_data</span>(<span class="ident">i</span>);
-            <span class="self">self</span>.<span class="ident">images</span>.<span class="ident">push_checked</span>(<span class="ident">image</span>, <span class="ident">i</span>);
-            <span class="self">self</span>.<span class="ident">quasi_inverses</span>.<span class="ident">push_checked</span>(<span class="ident">qi</span>, <span class="ident">i</span>);
-            <span class="ident">kernel</span>
+    <span class="kw">fn </span>compute_auxiliary_data_through_degree(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32) {
+        <span class="kw">let </span>degree = std::cmp::min(degree, <span class="self">self</span>.matrices.len() - <span class="number">1</span>);
+        <span class="self">self</span>.kernels.extend(degree, |i| {
+            <span class="kw">let </span>(image, kernel, qi) = <span class="self">self</span>.auxiliary_data(i);
+            <span class="self">self</span>.images.push_checked(image, i);
+            <span class="self">self</span>.quasi_inverses.push_checked(qi, i);
+            kernel
         });
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>, <span class="ident">S</span>, <span class="ident">T</span><span class="op">&gt;</span> <span class="ident">FullModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">T</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">A</span>: <span class="ident">Algebra</span>,
-    <span class="ident">S</span>: <span class="ident">Module</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">A</span><span class="op">&gt;</span>,
-    <span class="ident">T</span>: <span class="ident">Module</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">A</span><span class="op">&gt;</span>,
+<span class="kw">impl</span>&lt;A, S, T&gt; FullModuleHomomorphism&lt;S, T&gt;
+<span class="kw">where
+    </span>A: Algebra,
+    S: Module&lt;Algebra = A&gt;,
+    T: Module&lt;Algebra = A&gt;,
 {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">source</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span>, <span class="ident">target</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, <span class="ident">degree_shift</span>: <span class="ident">i32</span>) -&gt; <span class="self">Self</span> {
-        <span class="kw">let</span> <span class="ident">min_degree</span> <span class="op">=</span> <span class="ident">source</span>.<span class="ident">min_degree</span>();
-        <span class="ident"><span class="self">Self</span>::from_matrices</span>(<span class="ident">source</span>, <span class="ident">target</span>, <span class="ident">degree_shift</span>, <span class="ident">BiVec::new</span>(<span class="ident">min_degree</span>))
+    <span class="kw">pub fn </span>new(source: Arc&lt;S&gt;, target: Arc&lt;T&gt;, degree_shift: i32) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>min_degree = source.min_degree();
+        <span class="self">Self</span>::from_matrices(source, target, degree_shift, BiVec::new(min_degree))
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_matrices</span>(
-        <span class="ident">source</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span>,
-        <span class="ident">target</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>,
-        <span class="ident">degree_shift</span>: <span class="ident">i32</span>,
-        <span class="ident">matrices</span>: <span class="ident">BiVec</span><span class="op">&lt;</span><span class="ident">Matrix</span><span class="op">&gt;</span>,
-    ) -&gt; <span class="self">Self</span> {
-        <span class="kw">let</span> <span class="ident">min_degree</span> <span class="op">=</span> <span class="ident">target</span>.<span class="ident">min_degree</span>();
-        <span class="ident">FullModuleHomomorphism</span> {
-            <span class="ident">source</span>,
-            <span class="ident">target</span>,
-            <span class="ident">degree_shift</span>,
-            <span class="ident">matrices</span>: <span class="ident">OnceBiVec::from_bivec</span>(<span class="ident">matrices</span>),
-            <span class="ident">quasi_inverses</span>: <span class="ident">OnceBiVec::new</span>(<span class="ident">min_degree</span>),
-            <span class="ident">kernels</span>: <span class="ident">OnceBiVec::new</span>(<span class="ident">min_degree</span>),
-            <span class="ident">images</span>: <span class="ident">OnceBiVec::new</span>(<span class="ident">min_degree</span>),
+    <span class="kw">pub fn </span>from_matrices(
+        source: Arc&lt;S&gt;,
+        target: Arc&lt;T&gt;,
+        degree_shift: i32,
+        matrices: BiVec&lt;Matrix&gt;,
+    ) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>min_degree = target.min_degree();
+        FullModuleHomomorphism {
+            source,
+            target,
+            degree_shift,
+            matrices: OnceBiVec::from_bivec(matrices),
+            quasi_inverses: OnceBiVec::new(min_degree),
+            kernels: OnceBiVec::new(min_degree),
+            images: OnceBiVec::new(min_degree),
         }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from</span><span class="op">&lt;</span><span class="ident">F</span>: <span class="ident">ModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">Source</span> <span class="op">=</span> <span class="ident">S</span>, <span class="ident">Target</span> <span class="op">=</span> <span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>(<span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="ident">F</span>) -&gt; <span class="self">Self</span> {
-        <span class="kw">let</span> <span class="ident">source</span> <span class="op">=</span> <span class="ident">f</span>.<span class="ident">source</span>();
-        <span class="kw">let</span> <span class="ident">target</span> <span class="op">=</span> <span class="ident">f</span>.<span class="ident">target</span>();
-        <span class="kw">let</span> <span class="ident">degree_shift</span> <span class="op">=</span> <span class="ident">f</span>.<span class="ident">degree_shift</span>();
-        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">f</span>.<span class="ident">prime</span>();
+    <span class="kw">pub fn </span>from&lt;F: ModuleHomomorphism&lt;Source = S, Target = T&gt;&gt;(f: <span class="kw-2">&amp;</span>F) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>source = f.source();
+        <span class="kw">let </span>target = f.target();
+        <span class="kw">let </span>degree_shift = f.degree_shift();
+        <span class="kw">let </span>p = f.prime();
 
-        <span class="kw">let</span> <span class="ident">min_degree</span> <span class="op">=</span> <span class="ident">f</span>.<span class="ident">target</span>().<span class="ident">min_degree</span>();
-        <span class="kw">let</span> <span class="ident">max_degree</span> <span class="op">=</span> <span class="ident">f</span>
-            .<span class="ident">source</span>()
-            .<span class="ident">max_degree</span>()
-            .<span class="ident">expect</span>(<span class="string">&quot;FullModuleHomomorphism::from requires source to be bonuded&quot;</span>)
-            <span class="op">-</span> <span class="ident">degree_shift</span>;
+        <span class="kw">let </span>min_degree = f.target().min_degree();
+        <span class="kw">let </span>max_degree = f
+            .source()
+            .max_degree()
+            .expect(<span class="string">&quot;FullModuleHomomorphism::from requires source to be bonuded&quot;</span>)
+            - degree_shift;
 
-        <span class="ident">source</span>.<span class="ident">compute_basis</span>(<span class="ident">max_degree</span>);
-        <span class="ident">target</span>.<span class="ident">compute_basis</span>(<span class="ident">max_degree</span>);
+        source.compute_basis(max_degree);
+        target.compute_basis(max_degree);
 
-        <span class="kw">let</span> <span class="ident">matrices</span> <span class="op">=</span> <span class="ident">OnceBiVec::new</span>(<span class="ident">min_degree</span>);
+        <span class="kw">let </span>matrices = OnceBiVec::new(min_degree);
 
-        <span class="kw">for</span> <span class="ident">target_deg</span> <span class="kw">in</span> <span class="ident">min_degree</span>..<span class="op">=</span><span class="ident">max_degree</span> {
-            <span class="kw">let</span> <span class="ident">source_deg</span> <span class="op">=</span> <span class="ident">target_deg</span> <span class="op">+</span> <span class="ident">degree_shift</span>;
-            <span class="comment">// Here we use `Module::dimension(&amp;*m, i)` instead of `m.dimension(i)` because there are</span>
-            <span class="comment">// multiple `dimension` methods in scope and rust-analyzer gets confused if we&#39;re not</span>
-            <span class="comment">// explicit enough.</span>
-            <span class="kw">let</span> <span class="ident">source_dim</span> <span class="op">=</span> <span class="ident">Module::dimension</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">source</span>, <span class="ident">source_deg</span>);
-            <span class="kw">let</span> <span class="ident">target_dim</span> <span class="op">=</span> <span class="ident">Module::dimension</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">target</span>, <span class="ident">target_deg</span>);
+        <span class="kw">for </span>target_deg <span class="kw">in </span>min_degree..=max_degree {
+            <span class="kw">let </span>source_deg = target_deg + degree_shift;
+            <span class="comment">// Here we use `Module::dimension(&amp;*m, i)` instead of `m.dimension(i)` because there are
+            // multiple `dimension` methods in scope and rust-analyzer gets confused if we&#39;re not
+            // explicit enough.
+            </span><span class="kw">let </span>source_dim = Module::dimension(<span class="kw-2">&amp;*</span>source, source_deg);
+            <span class="kw">let </span>target_dim = Module::dimension(<span class="kw-2">&amp;*</span>target, target_deg);
 
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">matrix</span> <span class="op">=</span> <span class="ident">Matrix::new</span>(<span class="ident">p</span>, <span class="ident">source_dim</span>, <span class="ident">target_dim</span>);
-            <span class="ident">f</span>.<span class="ident">get_matrix</span>(<span class="ident">matrix</span>.<span class="ident">as_slice_mut</span>(), <span class="ident">source_deg</span>);
-            <span class="ident">matrices</span>.<span class="ident">push_checked</span>(<span class="ident">matrix</span>, <span class="ident">target_deg</span>);
+            <span class="kw">let </span><span class="kw-2">mut </span>matrix = Matrix::new(p, source_dim, target_dim);
+            f.get_matrix(matrix.as_slice_mut(), source_deg);
+            matrices.push_checked(matrix, target_deg);
         }
 
-        <span class="ident">FullModuleHomomorphism</span> {
-            <span class="ident">source</span>,
-            <span class="ident">target</span>,
-            <span class="ident">degree_shift</span>,
-            <span class="ident">matrices</span>,
-            <span class="ident">quasi_inverses</span>: <span class="ident">OnceBiVec::new</span>(<span class="ident">min_degree</span>),
-            <span class="ident">kernels</span>: <span class="ident">OnceBiVec::new</span>(<span class="ident">min_degree</span>),
-            <span class="ident">images</span>: <span class="ident">OnceBiVec::new</span>(<span class="ident">min_degree</span>),
+        FullModuleHomomorphism {
+            source,
+            target,
+            degree_shift,
+            matrices,
+            quasi_inverses: OnceBiVec::new(min_degree),
+            kernels: OnceBiVec::new(min_degree),
+            images: OnceBiVec::new(min_degree),
         }
     }
 
-    <span class="doccomment">/// This function replaces the source of the ModuleHomomorphism and does nothing else.</span>
-    <span class="doccomment">/// This is useful for changing the type of the source (but not the mathematical module</span>
-    <span class="doccomment">/// itself).</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">replace_source</span><span class="op">&lt;</span><span class="ident">S_</span>: <span class="ident">Module</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span>(
+    <span class="doccomment">/// This function replaces the source of the ModuleHomomorphism and does nothing else.
+    /// This is useful for changing the type of the source (but not the mathematical module
+    /// itself).
+    </span><span class="kw">pub fn </span>replace_source&lt;S_: Module&lt;Algebra = A&gt;&gt;(
         <span class="self">self</span>,
-        <span class="ident">source</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">S_</span><span class="op">&gt;</span>,
-    ) -&gt; <span class="ident">FullModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">S_</span>, <span class="ident">T</span><span class="op">&gt;</span> {
-        <span class="ident">FullModuleHomomorphism</span> {
-            <span class="ident">source</span>,
-            <span class="ident">target</span>: <span class="self">self</span>.<span class="ident">target</span>,
-            <span class="ident">degree_shift</span>: <span class="self">self</span>.<span class="ident">degree_shift</span>,
-            <span class="ident">matrices</span>: <span class="self">self</span>.<span class="ident">matrices</span>,
-            <span class="ident">quasi_inverses</span>: <span class="self">self</span>.<span class="ident">quasi_inverses</span>,
-            <span class="ident">kernels</span>: <span class="self">self</span>.<span class="ident">kernels</span>,
-            <span class="ident">images</span>: <span class="self">self</span>.<span class="ident">images</span>,
+        source: Arc&lt;S_&gt;,
+    ) -&gt; FullModuleHomomorphism&lt;S_, T&gt; {
+        FullModuleHomomorphism {
+            source,
+            target: <span class="self">self</span>.target,
+            degree_shift: <span class="self">self</span>.degree_shift,
+            matrices: <span class="self">self</span>.matrices,
+            quasi_inverses: <span class="self">self</span>.quasi_inverses,
+            kernels: <span class="self">self</span>.kernels,
+            images: <span class="self">self</span>.images,
         }
     }
 
-    <span class="doccomment">/// See `replace_source`</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">replace_target</span><span class="op">&lt;</span><span class="ident">T_</span>: <span class="ident">Module</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span>(
+    <span class="doccomment">/// See `replace_source`
+    </span><span class="kw">pub fn </span>replace_target&lt;T_: Module&lt;Algebra = A&gt;&gt;(
         <span class="self">self</span>,
-        <span class="ident">target</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">T_</span><span class="op">&gt;</span>,
-    ) -&gt; <span class="ident">FullModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">T_</span><span class="op">&gt;</span> {
-        <span class="ident">FullModuleHomomorphism</span> {
-            <span class="ident">source</span>: <span class="self">self</span>.<span class="ident">source</span>,
-            <span class="ident">target</span>,
-            <span class="ident">degree_shift</span>: <span class="self">self</span>.<span class="ident">degree_shift</span>,
-            <span class="ident">matrices</span>: <span class="self">self</span>.<span class="ident">matrices</span>,
-            <span class="ident">quasi_inverses</span>: <span class="self">self</span>.<span class="ident">quasi_inverses</span>,
-            <span class="ident">kernels</span>: <span class="self">self</span>.<span class="ident">kernels</span>,
-            <span class="ident">images</span>: <span class="self">self</span>.<span class="ident">images</span>,
+        target: Arc&lt;T_&gt;,
+    ) -&gt; FullModuleHomomorphism&lt;S, T_&gt; {
+        FullModuleHomomorphism {
+            source: <span class="self">self</span>.source,
+            target,
+            degree_shift: <span class="self">self</span>.degree_shift,
+            matrices: <span class="self">self</span>.matrices,
+            quasi_inverses: <span class="self">self</span>.quasi_inverses,
+            kernels: <span class="self">self</span>.kernels,
+            images: <span class="self">self</span>.images,
         }
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">S</span>: <span class="ident">Module</span>, <span class="ident">T</span>: <span class="ident">Module</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">S::Algebra</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">ZeroHomomorphism</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">T</span><span class="op">&gt;</span>
-    <span class="kw">for</span> <span class="ident">FullModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">T</span><span class="op">&gt;</span>
+<span class="kw">impl</span>&lt;S: Module, T: Module&lt;Algebra = S::Algebra&gt;&gt; ZeroHomomorphism&lt;S, T&gt;
+    <span class="kw">for </span>FullModuleHomomorphism&lt;S, T&gt;
 {
-    <span class="kw">fn</span> <span class="ident">zero_homomorphism</span>(<span class="ident">source</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span>, <span class="ident">target</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, <span class="ident">degree_shift</span>: <span class="ident">i32</span>) -&gt; <span class="self">Self</span> {
-        <span class="ident"><span class="self">Self</span>::new</span>(<span class="ident">source</span>, <span class="ident">target</span>, <span class="ident">degree_shift</span>)
+    <span class="kw">fn </span>zero_homomorphism(source: Arc&lt;S&gt;, target: Arc&lt;T&gt;, degree_shift: i32) -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>::new(source, target, degree_shift)
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">S</span>: <span class="ident">Module</span><span class="op">&gt;</span> <span class="ident">IdentityHomomorphism</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">FullModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">S</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">identity_homomorphism</span>(<span class="ident">source</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span>) -&gt; <span class="self">Self</span> {
-        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">source</span>.<span class="ident">prime</span>();
-        <span class="kw">let</span> <span class="ident">min_degree</span> <span class="op">=</span> <span class="ident">source</span>.<span class="ident">min_degree</span>();
-        <span class="kw">let</span> <span class="ident">max_degree</span> <span class="op">=</span> <span class="ident">source</span>
-            .<span class="ident">max_degree</span>()
-            .<span class="ident">expect</span>(<span class="string">&quot;FullModuleHomomorphism::identity_homomorphism requires a bounded module&quot;</span>);
+<span class="kw">impl</span>&lt;S: Module&gt; IdentityHomomorphism&lt;S&gt; <span class="kw">for </span>FullModuleHomomorphism&lt;S, S&gt; {
+    <span class="kw">fn </span>identity_homomorphism(source: Arc&lt;S&gt;) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>p = source.prime();
+        <span class="kw">let </span>min_degree = source.min_degree();
+        <span class="kw">let </span>max_degree = source
+            .max_degree()
+            .expect(<span class="string">&quot;FullModuleHomomorphism::identity_homomorphism requires a bounded module&quot;</span>);
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">matrices</span> <span class="op">=</span> <span class="ident">BiVec::with_capacity</span>(<span class="ident">min_degree</span>, <span class="ident">max_degree</span> <span class="op">+</span> <span class="number">1</span>);
+        <span class="kw">let </span><span class="kw-2">mut </span>matrices = BiVec::with_capacity(min_degree, max_degree + <span class="number">1</span>);
 
-        <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="ident">min_degree</span>..<span class="op">=</span><span class="ident">max_degree</span> {
-            <span class="kw">let</span> <span class="ident">dim</span> <span class="op">=</span> <span class="ident">source</span>.<span class="ident">dimension</span>(<span class="ident">i</span>);
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">matrix</span> <span class="op">=</span> <span class="ident">Matrix::new</span>(<span class="ident">p</span>, <span class="ident">dim</span>, <span class="ident">dim</span>);
-            <span class="kw">for</span> <span class="ident">k</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">dim</span> {
-                <span class="ident">matrix</span>[<span class="ident">k</span>].<span class="ident">set_entry</span>(<span class="ident">k</span>, <span class="number">1</span>);
+        <span class="kw">for </span>i <span class="kw">in </span>min_degree..=max_degree {
+            <span class="kw">let </span>dim = source.dimension(i);
+            <span class="kw">let </span><span class="kw-2">mut </span>matrix = Matrix::new(p, dim, dim);
+            <span class="kw">for </span>k <span class="kw">in </span><span class="number">0</span>..dim {
+                matrix[k].set_entry(k, <span class="number">1</span>);
             }
-            <span class="ident">matrices</span>.<span class="ident">push</span>(<span class="ident">matrix</span>);
+            matrices.push(matrix);
         }
 
-        <span class="ident"><span class="self">Self</span>::from_matrices</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">source</span>), <span class="ident">source</span>, <span class="number">0</span>, <span class="ident">matrices</span>)
+        <span class="self">Self</span>::from_matrices(Arc::clone(<span class="kw-2">&amp;</span>source), source, <span class="number">0</span>, matrices)
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../../" data-current-crate="algebra" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0 (a55dd71d5 2022-09-19)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../../" data-current-crate="algebra" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0 (897e37553 2022-11-02)" ></div></body></html>

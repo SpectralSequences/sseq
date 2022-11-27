@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/algebra/src/module/homomorphism/mod.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>mod.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" type="text/css" href="../../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../../ayu.css" disabled><link rel="stylesheet" type="text/css" href="../../../../dark.css" disabled><link rel="stylesheet" type="text/css" href="../../../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../../../storage.js"></script><script defer src="../../../../source-script.js"></script><script defer src="../../../../source-files.js"></script><script defer src="../../../../main.js"></script><noscript><link rel="stylesheet" href="../../../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../../../favicon.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/algebra/src/module/homomorphism/mod.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>mod.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" href="../../../../normalize.css"><link rel="stylesheet" href="../../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" href="../../../../ayu.css" disabled><link rel="stylesheet" href="../../../../dark.css" disabled><link rel="stylesheet" href="../../../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../../../storage.js"></script><script defer src="../../../../source-script.js"></script><script defer src="../../../../source-files.js"></script><script defer src="../../../../main.js"></script><noscript><link rel="stylesheet" href="../../../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../../../favicon.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
 <!-- The loading of KaTeX is deferred to speed up page rendering -->
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.js" integrity="sha384-Bi8OWqMXO1ta+a4EPkZv7bYGIes7C3krGSZoTGNTAnAn5eYQc7IIXrJ/7ck1drAi" crossorigin="anonymous"></script>
 <!-- To automatically render math in text elements, include the auto-render extension: -->
@@ -202,184 +202,184 @@
 <span id="177">177</span>
 <span id="178">178</span>
 <span id="179">179</span>
-</pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
+</pre><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
 
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::module::Module</span>;
-<span class="kw">use</span> <span class="ident">fp::matrix</span>::{<span class="ident">AugmentedMatrix</span>, <span class="ident">Matrix</span>, <span class="ident">MatrixSliceMut</span>, <span class="ident">QuasiInverse</span>, <span class="ident">Subspace</span>};
-<span class="kw">use</span> <span class="ident">fp::prime::ValidPrime</span>;
-<span class="kw">use</span> <span class="ident">fp::vector</span>::{<span class="ident">Slice</span>, <span class="ident">SliceMut</span>};
+<span class="kw">use </span><span class="kw">crate</span>::module::Module;
+<span class="kw">use </span>fp::matrix::{AugmentedMatrix, Matrix, MatrixSliceMut, QuasiInverse, Subspace};
+<span class="kw">use </span>fp::prime::ValidPrime;
+<span class="kw">use </span>fp::vector::{Slice, SliceMut};
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
-<span class="kw">use</span> <span class="ident">rayon::prelude</span>::<span class="kw-2">*</span>;
+<span class="attribute">#[cfg(feature = <span class="string">&quot;concurrent&quot;</span>)]
+</span><span class="kw">use </span>rayon::prelude::<span class="kw-2">*</span>;
 
-<span class="kw">mod</span> <span class="ident">free_module_homomorphism</span>;
-<span class="kw">mod</span> <span class="ident">full_module_homomorphism</span>;
-<span class="kw">mod</span> <span class="ident">generic_zero_homomorphism</span>;
-<span class="kw">mod</span> <span class="ident">hom_pullback</span>;
-<span class="kw">mod</span> <span class="ident">quotient_homomorphism</span>;
+<span class="kw">mod </span>free_module_homomorphism;
+<span class="kw">mod </span>full_module_homomorphism;
+<span class="kw">mod </span>generic_zero_homomorphism;
+<span class="kw">mod </span>hom_pullback;
+<span class="kw">mod </span>quotient_homomorphism;
 
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">free_module_homomorphism</span>::{
-    <span class="ident">FreeModuleHomomorphism</span>, <span class="ident">MuFreeModuleHomomorphism</span>, <span class="ident">UnstableFreeModuleHomomorphism</span>,
+<span class="kw">pub use </span>free_module_homomorphism::{
+    FreeModuleHomomorphism, MuFreeModuleHomomorphism, UnstableFreeModuleHomomorphism,
 };
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">full_module_homomorphism::FullModuleHomomorphism</span>;
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">generic_zero_homomorphism::GenericZeroHomomorphism</span>;
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">hom_pullback::HomPullback</span>;
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">quotient_homomorphism</span>::{<span class="ident">QuotientHomomorphism</span>, <span class="ident">QuotientHomomorphismSource</span>};
+<span class="kw">pub use </span>full_module_homomorphism::FullModuleHomomorphism;
+<span class="kw">pub use </span>generic_zero_homomorphism::GenericZeroHomomorphism;
+<span class="kw">pub use </span>hom_pullback::HomPullback;
+<span class="kw">pub use </span>quotient_homomorphism::{QuotientHomomorphism, QuotientHomomorphismSource};
 
-<span class="doccomment">/// Each `ModuleHomomorphism` may come with auxiliary data, namely the kernel, image and</span>
-<span class="doccomment">/// quasi_inverse at each degree (the quasi-inverse is a map that is a right inverse when</span>
-<span class="doccomment">/// restricted to the image). These are computed via</span>
-<span class="doccomment">/// [`ModuleHomomorphism::compute_auxiliary_data_through_degree`] and retrieved through</span>
-<span class="doccomment">/// [`ModuleHomomorphism::kernel`], [`ModuleHomomorphism::quasi_inverse`] and</span>
-<span class="doccomment">/// [`ModuleHomomorphism::image`].</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// Note that an instance of a `ModuleHomomorphism` need not have the data available, even after</span>
-<span class="doccomment">/// `compute_auxiliary_data_through_degree` is invoked.</span>
-<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">ModuleHomomorphism</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> {
-    <span class="kw">type</span> <span class="ident">Source</span>: <span class="ident">Module</span>;
-    <span class="kw">type</span> <span class="ident">Target</span>: <span class="ident">Module</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Source</span> <span class="kw">as</span> <span class="ident">Module</span><span class="op">&gt;</span><span class="ident">::Algebra</span><span class="op">&gt;</span>;
+<span class="doccomment">/// Each `ModuleHomomorphism` may come with auxiliary data, namely the kernel, image and
+/// quasi_inverse at each degree (the quasi-inverse is a map that is a right inverse when
+/// restricted to the image). These are computed via
+/// [`ModuleHomomorphism::compute_auxiliary_data_through_degree`] and retrieved through
+/// [`ModuleHomomorphism::kernel`], [`ModuleHomomorphism::quasi_inverse`] and
+/// [`ModuleHomomorphism::image`].
+///
+/// Note that an instance of a `ModuleHomomorphism` need not have the data available, even after
+/// `compute_auxiliary_data_through_degree` is invoked.
+</span><span class="kw">pub trait </span>ModuleHomomorphism: Send + Sync {
+    <span class="kw">type </span>Source: Module;
+    <span class="kw">type </span>Target: Module&lt;Algebra = &lt;<span class="self">Self</span>::Source <span class="kw">as </span>Module&gt;::Algebra&gt;;
 
-    <span class="kw">fn</span> <span class="ident">source</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Source</span><span class="op">&gt;</span>;
-    <span class="kw">fn</span> <span class="ident">target</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Target</span><span class="op">&gt;</span>;
-    <span class="kw">fn</span> <span class="ident">degree_shift</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">i32</span>;
+    <span class="kw">fn </span>source(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Arc&lt;<span class="self">Self</span>::Source&gt;;
+    <span class="kw">fn </span>target(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Arc&lt;<span class="self">Self</span>::Target&gt;;
+    <span class="kw">fn </span>degree_shift(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; i32;
 
-    <span class="doccomment">/// Calling this function when `input_idx &lt; source().dimension(input_degree)` results in</span>
-    <span class="doccomment">/// undefined behaviour. Implementations are encouraged to panic when this happens (this is</span>
-    <span class="doccomment">/// usually the case because of out-of-bounds errors.</span>
-    <span class="kw">fn</span> <span class="ident">apply_to_basis_element</span>(
+    <span class="doccomment">/// Calling this function when `input_idx &lt; source().dimension(input_degree)` results in
+    /// undefined behaviour. Implementations are encouraged to panic when this happens (this is
+    /// usually the case because of out-of-bounds errors.
+    </span><span class="kw">fn </span>apply_to_basis_element(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">result</span>: <span class="ident">SliceMut</span>,
-        <span class="ident">coeff</span>: <span class="ident">u32</span>,
-        <span class="ident">input_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">input_idx</span>: <span class="ident">usize</span>,
+        result: SliceMut,
+        coeff: u32,
+        input_degree: i32,
+        input_idx: usize,
     );
 
-    <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">unused_variables</span>)]</span>
-    <span class="kw">fn</span> <span class="ident">kernel</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">Subspace</span><span class="op">&gt;</span> {
-        <span class="prelude-val">None</span>
-    }
+    <span class="attribute">#[allow(unused_variables)]
+    </span><span class="kw">fn </span>kernel(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Subspace&gt; {
+        <span class="prelude-val">None
+    </span>}
 
-    <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">unused_variables</span>)]</span>
-    <span class="kw">fn</span> <span class="ident">quasi_inverse</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">QuasiInverse</span><span class="op">&gt;</span> {
-        <span class="prelude-val">None</span>
-    }
+    <span class="attribute">#[allow(unused_variables)]
+    </span><span class="kw">fn </span>quasi_inverse(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>QuasiInverse&gt; {
+        <span class="prelude-val">None
+    </span>}
 
-    <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">unused_variables</span>)]</span>
-    <span class="kw">fn</span> <span class="ident">image</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">Subspace</span><span class="op">&gt;</span> {
-        <span class="prelude-val">None</span>
-    }
+    <span class="attribute">#[allow(unused_variables)]
+    </span><span class="kw">fn </span>image(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Subspace&gt; {
+        <span class="prelude-val">None
+    </span>}
 
-    <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">unused_variables</span>)]</span>
-    <span class="kw">fn</span> <span class="ident">compute_auxiliary_data_through_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) {}
+    <span class="attribute">#[allow(unused_variables)]
+    </span><span class="kw">fn </span>compute_auxiliary_data_through_degree(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32) {}
 
-    <span class="kw">fn</span> <span class="ident">apply</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut</span> <span class="ident">result</span>: <span class="ident">SliceMut</span>, <span class="ident">coeff</span>: <span class="ident">u32</span>, <span class="ident">input_degree</span>: <span class="ident">i32</span>, <span class="ident">input</span>: <span class="ident">Slice</span>) {
-        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prime</span>();
-        <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">v</span>) <span class="kw">in</span> <span class="ident">input</span>.<span class="ident">iter_nonzero</span>() {
-            <span class="self">self</span>.<span class="ident">apply_to_basis_element</span>(<span class="ident">result</span>.<span class="ident">copy</span>(), (<span class="ident">coeff</span> <span class="op">*</span> <span class="ident">v</span>) <span class="op">%</span> <span class="kw-2">*</span><span class="ident">p</span>, <span class="ident">input_degree</span>, <span class="ident">i</span>);
+    <span class="kw">fn </span>apply(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut </span>result: SliceMut, coeff: u32, input_degree: i32, input: Slice) {
+        <span class="kw">let </span>p = <span class="self">self</span>.prime();
+        <span class="kw">for </span>(i, v) <span class="kw">in </span>input.iter_nonzero() {
+            <span class="self">self</span>.apply_to_basis_element(result.copy(), (coeff * v) % <span class="kw-2">*</span>p, input_degree, i);
         }
     }
 
-    <span class="kw">fn</span> <span class="ident">prime</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">ValidPrime</span> {
-        <span class="self">self</span>.<span class="ident">source</span>().<span class="ident">prime</span>()
+    <span class="kw">fn </span>prime(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ValidPrime {
+        <span class="self">self</span>.source().prime()
     }
 
-    <span class="kw">fn</span> <span class="ident">min_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">i32</span> {
-        <span class="self">self</span>.<span class="ident">source</span>().<span class="ident">min_degree</span>()
+    <span class="kw">fn </span>min_degree(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; i32 {
+        <span class="self">self</span>.source().min_degree()
     }
 
-    <span class="doccomment">/// Compute the auxiliary data associated to the homomorphism at input degree `degree`. Returns</span>
-    <span class="doccomment">/// it in the order image, kernel, quasi_inverse</span>
-    <span class="kw">fn</span> <span class="ident">auxiliary_data</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) -&gt; (<span class="ident">Subspace</span>, <span class="ident">Subspace</span>, <span class="ident">QuasiInverse</span>) {
-        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prime</span>();
-        <span class="kw">let</span> <span class="ident">output_degree</span> <span class="op">=</span> <span class="ident">degree</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">degree_shift</span>();
-        <span class="self">self</span>.<span class="ident">source</span>().<span class="ident">compute_basis</span>(<span class="ident">degree</span>);
-        <span class="self">self</span>.<span class="ident">target</span>().<span class="ident">compute_basis</span>(<span class="ident">output_degree</span>);
-        <span class="kw">let</span> <span class="ident">source_dimension</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">source</span>().<span class="ident">dimension</span>(<span class="ident">degree</span>);
-        <span class="kw">let</span> <span class="ident">target_dimension</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">target</span>().<span class="ident">dimension</span>(<span class="ident">output_degree</span>);
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">matrix</span> <span class="op">=</span>
-            <span class="ident">AugmentedMatrix</span>::<span class="op">&lt;</span><span class="number">2</span><span class="op">&gt;</span><span class="ident">::new</span>(<span class="ident">p</span>, <span class="ident">source_dimension</span>, [<span class="ident">target_dimension</span>, <span class="ident">source_dimension</span>]);
+    <span class="doccomment">/// Compute the auxiliary data associated to the homomorphism at input degree `degree`. Returns
+    /// it in the order image, kernel, quasi_inverse
+    </span><span class="kw">fn </span>auxiliary_data(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32) -&gt; (Subspace, Subspace, QuasiInverse) {
+        <span class="kw">let </span>p = <span class="self">self</span>.prime();
+        <span class="kw">let </span>output_degree = degree - <span class="self">self</span>.degree_shift();
+        <span class="self">self</span>.source().compute_basis(degree);
+        <span class="self">self</span>.target().compute_basis(output_degree);
+        <span class="kw">let </span>source_dimension = <span class="self">self</span>.source().dimension(degree);
+        <span class="kw">let </span>target_dimension = <span class="self">self</span>.target().dimension(output_degree);
+        <span class="kw">let </span><span class="kw-2">mut </span>matrix =
+            AugmentedMatrix::&lt;<span class="number">2</span>&gt;::new(p, source_dimension, [target_dimension, source_dimension]);
 
-        <span class="self">self</span>.<span class="ident">get_matrix</span>(<span class="ident">matrix</span>.<span class="ident">segment</span>(<span class="number">0</span>, <span class="number">0</span>), <span class="ident">degree</span>);
-        <span class="ident">matrix</span>.<span class="ident">segment</span>(<span class="number">1</span>, <span class="number">1</span>).<span class="ident">add_identity</span>();
+        <span class="self">self</span>.get_matrix(matrix.segment(<span class="number">0</span>, <span class="number">0</span>), degree);
+        matrix.segment(<span class="number">1</span>, <span class="number">1</span>).add_identity();
 
-        <span class="ident">matrix</span>.<span class="ident">row_reduce</span>();
+        matrix.row_reduce();
 
         (
-            <span class="ident">matrix</span>.<span class="ident">compute_image</span>(),
-            <span class="ident">matrix</span>.<span class="ident">compute_kernel</span>(),
-            <span class="ident">matrix</span>.<span class="ident">compute_quasi_inverse</span>(),
+            matrix.compute_image(),
+            matrix.compute_kernel(),
+            matrix.compute_quasi_inverse(),
         )
     }
 
-    <span class="doccomment">/// Write the matrix of the homomorphism at input degree `degree` to `matrix`.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// The (sliced) dimensions of `matrix` must be equal to source_dimension x</span>
-    <span class="doccomment">/// target_dimension</span>
-    <span class="kw">fn</span> <span class="ident">get_matrix</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut</span> <span class="ident">matrix</span>: <span class="ident">MatrixSliceMut</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) {
-        <span class="macro">assert_eq!</span>(<span class="self">self</span>.<span class="ident">source</span>().<span class="ident">dimension</span>(<span class="ident">degree</span>), <span class="ident">matrix</span>.<span class="ident">rows</span>());
+    <span class="doccomment">/// Write the matrix of the homomorphism at input degree `degree` to `matrix`.
+    ///
+    /// The (sliced) dimensions of `matrix` must be equal to source_dimension x
+    /// target_dimension
+    </span><span class="kw">fn </span>get_matrix(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut </span>matrix: MatrixSliceMut, degree: i32) {
+        <span class="macro">assert_eq!</span>(<span class="self">self</span>.source().dimension(degree), matrix.rows());
         <span class="macro">assert_eq!</span>(
-            <span class="self">self</span>.<span class="ident">target</span>().<span class="ident">dimension</span>(<span class="ident">degree</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">degree_shift</span>()),
-            <span class="ident">matrix</span>.<span class="ident">columns</span>()
+            <span class="self">self</span>.target().dimension(degree - <span class="self">self</span>.degree_shift()),
+            matrix.columns()
         );
 
-        <span class="kw">if</span> <span class="ident">matrix</span>.<span class="ident">columns</span>() <span class="op">==</span> <span class="number">0</span> {
+        <span class="kw">if </span>matrix.columns() == <span class="number">0 </span>{
             <span class="kw">return</span>;
         }
 
-        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>))]</span>
-        <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">row</span>) <span class="kw">in</span> <span class="ident">matrix</span>.<span class="ident">iter_mut</span>().<span class="ident">enumerate</span>() {
-            <span class="self">self</span>.<span class="ident">apply_to_basis_element</span>(<span class="ident">row</span>, <span class="number">1</span>, <span class="ident">degree</span>, <span class="ident">i</span>);
+        <span class="attribute">#[cfg(not(feature = <span class="string">&quot;concurrent&quot;</span>))]
+        </span><span class="kw">for </span>(i, row) <span class="kw">in </span>matrix.iter_mut().enumerate() {
+            <span class="self">self</span>.apply_to_basis_element(row, <span class="number">1</span>, degree, i);
         }
 
-        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
-        <span class="ident">matrix</span>
-            .<span class="ident">par_iter_mut</span>()
-            .<span class="ident">enumerate</span>()
-            .<span class="ident">for_each</span>(<span class="op">|</span>(<span class="ident">i</span>, <span class="ident">row</span>)<span class="op">|</span> <span class="self">self</span>.<span class="ident">apply_to_basis_element</span>(<span class="ident">row</span>, <span class="number">1</span>, <span class="ident">degree</span>, <span class="ident">i</span>));
+        <span class="attribute">#[cfg(feature = <span class="string">&quot;concurrent&quot;</span>)]
+        </span>matrix
+            .par_iter_mut()
+            .enumerate()
+            .for_each(|(i, row)| <span class="self">self</span>.apply_to_basis_element(row, <span class="number">1</span>, degree, i));
     }
 
-    <span class="doccomment">/// Get the values of the homomorphism on the specified inputs to `matrix`.</span>
-    <span class="kw">fn</span> <span class="ident">get_partial_matrix</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">inputs</span>: <span class="kw-2">&amp;</span>[<span class="ident">usize</span>]) -&gt; <span class="ident">Matrix</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">matrix</span> <span class="op">=</span> <span class="ident">Matrix::new</span>(<span class="self">self</span>.<span class="ident">prime</span>(), <span class="ident">inputs</span>.<span class="ident">len</span>(), <span class="self">self</span>.<span class="ident">target</span>().<span class="ident">dimension</span>(<span class="ident">degree</span>));
+    <span class="doccomment">/// Get the values of the homomorphism on the specified inputs to `matrix`.
+    </span><span class="kw">fn </span>get_partial_matrix(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32, inputs: <span class="kw-2">&amp;</span>[usize]) -&gt; Matrix {
+        <span class="kw">let </span><span class="kw-2">mut </span>matrix = Matrix::new(<span class="self">self</span>.prime(), inputs.len(), <span class="self">self</span>.target().dimension(degree));
 
-        <span class="kw">if</span> <span class="ident">matrix</span>.<span class="ident">columns</span>() <span class="op">==</span> <span class="number">0</span> {
-            <span class="kw">return</span> <span class="ident">matrix</span>;
+        <span class="kw">if </span>matrix.columns() == <span class="number">0 </span>{
+            <span class="kw">return </span>matrix;
         }
 
-        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>))]</span>
-        <span class="kw">for</span> (<span class="ident">row</span>, <span class="kw-2">&amp;</span><span class="ident">v</span>) <span class="kw">in</span> <span class="ident">matrix</span>.<span class="ident">iter_mut</span>().<span class="ident">zip</span>(<span class="ident">inputs</span>) {
-            <span class="self">self</span>.<span class="ident">apply_to_basis_element</span>(<span class="ident">row</span>.<span class="ident">as_slice_mut</span>(), <span class="number">1</span>, <span class="ident">degree</span>, <span class="ident">v</span>);
+        <span class="attribute">#[cfg(not(feature = <span class="string">&quot;concurrent&quot;</span>))]
+        </span><span class="kw">for </span>(row, <span class="kw-2">&amp;</span>v) <span class="kw">in </span>matrix.iter_mut().zip(inputs) {
+            <span class="self">self</span>.apply_to_basis_element(row.as_slice_mut(), <span class="number">1</span>, degree, v);
         }
 
-        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
-        <span class="ident">matrix</span>.<span class="ident">par_iter_mut</span>().<span class="ident">enumerate</span>().<span class="ident">for_each</span>(<span class="op">|</span>(<span class="ident">i</span>, <span class="ident">row</span>)<span class="op">|</span> {
-            <span class="self">self</span>.<span class="ident">apply_to_basis_element</span>(<span class="ident">row</span>.<span class="ident">as_slice_mut</span>(), <span class="number">1</span>, <span class="ident">degree</span>, <span class="ident">inputs</span>[<span class="ident">i</span>])
+        <span class="attribute">#[cfg(feature = <span class="string">&quot;concurrent&quot;</span>)]
+        </span>matrix.par_iter_mut().enumerate().for_each(|(i, row)| {
+            <span class="self">self</span>.apply_to_basis_element(row.as_slice_mut(), <span class="number">1</span>, degree, inputs[i])
         });
 
-        <span class="ident">matrix</span>
+        matrix
     }
 
-    <span class="doccomment">/// Attempt to apply quasi inverse to the input. Returns whether the operation was</span>
-    <span class="doccomment">/// successful. This is required to either always succeed or always fail for each degree.</span>
-    <span class="attribute">#[<span class="ident">must_use</span>]</span>
-    <span class="kw">fn</span> <span class="ident">apply_quasi_inverse</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">result</span>: <span class="ident">SliceMut</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">input</span>: <span class="ident">Slice</span>) -&gt; <span class="ident">bool</span> {
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">qi</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">quasi_inverse</span>(<span class="ident">degree</span>) {
-            <span class="ident">qi</span>.<span class="ident">apply</span>(<span class="ident">result</span>, <span class="number">1</span>, <span class="ident">input</span>);
-            <span class="bool-val">true</span>
-        } <span class="kw">else</span> {
-            <span class="bool-val">false</span>
-        }
+    <span class="doccomment">/// Attempt to apply quasi inverse to the input. Returns whether the operation was
+    /// successful. This is required to either always succeed or always fail for each degree.
+    </span><span class="attribute">#[must_use]
+    </span><span class="kw">fn </span>apply_quasi_inverse(<span class="kw-2">&amp;</span><span class="self">self</span>, result: SliceMut, degree: i32, input: Slice) -&gt; bool {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(qi) = <span class="self">self</span>.quasi_inverse(degree) {
+            qi.apply(result, <span class="number">1</span>, input);
+            <span class="bool-val">true
+        </span>} <span class="kw">else </span>{
+            <span class="bool-val">false
+        </span>}
     }
 }
 
-<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">ZeroHomomorphism</span><span class="op">&lt;</span><span class="ident">S</span>: <span class="ident">Module</span>, <span class="ident">T</span>: <span class="ident">Module</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">S::Algebra</span><span class="op">&gt;</span><span class="op">&gt;</span>:
-    <span class="ident">ModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">Source</span> <span class="op">=</span> <span class="ident">S</span>, <span class="ident">Target</span> <span class="op">=</span> <span class="ident">T</span><span class="op">&gt;</span>
+<span class="kw">pub trait </span>ZeroHomomorphism&lt;S: Module, T: Module&lt;Algebra = S::Algebra&gt;&gt;:
+    ModuleHomomorphism&lt;Source = S, Target = T&gt;
 {
-    <span class="kw">fn</span> <span class="ident">zero_homomorphism</span>(<span class="ident">s</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span>, <span class="ident">t</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, <span class="ident">degree_shift</span>: <span class="ident">i32</span>) -&gt; <span class="self">Self</span>;
+    <span class="kw">fn </span>zero_homomorphism(s: Arc&lt;S&gt;, t: Arc&lt;T&gt;, degree_shift: i32) -&gt; <span class="self">Self</span>;
 }
 
-<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">IdentityHomomorphism</span><span class="op">&lt;</span><span class="ident">S</span>: <span class="ident">Module</span><span class="op">&gt;</span>: <span class="ident">ModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">Source</span> <span class="op">=</span> <span class="ident">S</span>, <span class="ident">Target</span> <span class="op">=</span> <span class="ident">S</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">identity_homomorphism</span>(<span class="ident">s</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span>) -&gt; <span class="self">Self</span>;
+<span class="kw">pub trait </span>IdentityHomomorphism&lt;S: Module&gt;: ModuleHomomorphism&lt;Source = S, Target = S&gt; {
+    <span class="kw">fn </span>identity_homomorphism(s: Arc&lt;S&gt;) -&gt; <span class="self">Self</span>;
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../../" data-current-crate="algebra" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0 (a55dd71d5 2022-09-19)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../../" data-current-crate="algebra" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0 (897e37553 2022-11-02)" ></div></body></html>

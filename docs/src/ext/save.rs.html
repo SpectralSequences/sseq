@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/save.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>save.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled><link rel="stylesheet" type="text/css" href="../../dark.css" disabled><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script><script defer src="../../main.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/save.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>save.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" href="../../normalize.css"><link rel="stylesheet" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" href="../../ayu.css" disabled><link rel="stylesheet" href="../../dark.css" disabled><link rel="stylesheet" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script><script defer src="../../main.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
 <!-- The loading of KaTeX is deferred to speed up page rendering -->
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.js" integrity="sha384-Bi8OWqMXO1ta+a4EPkZv7bYGIes7C3krGSZoTGNTAnAn5eYQc7IIXrJ/7ck1drAi" crossorigin="anonymous"></script>
 <!-- To automatically render math in text elements, include the auto-render extension: -->
@@ -443,425 +443,425 @@
 <span id="418">418</span>
 <span id="419">419</span>
 <span id="420">420</span>
-</pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">byteorder</span>::{<span class="ident">LittleEndian</span>, <span class="ident">ReadBytesExt</span>, <span class="ident">WriteBytesExt</span>};
-<span class="kw">use</span> <span class="ident">std::collections::HashSet</span>;
-<span class="kw">use</span> <span class="ident">std::fs::File</span>;
-<span class="kw">use</span> <span class="ident">std::io</span>::{<span class="ident">BufRead</span>, <span class="ident">BufReader</span>, <span class="ident">BufWriter</span>, <span class="ident">Error</span>, <span class="ident">ErrorKind</span>, <span class="ident">Read</span>, <span class="ident">Write</span>};
-<span class="kw">use</span> <span class="ident">std::path::PathBuf</span>;
-<span class="kw">use</span> <span class="ident">std::sync</span>::{<span class="ident">Arc</span>, <span class="ident">Mutex</span>};
+</pre><pre class="rust"><code><span class="kw">use </span>byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+<span class="kw">use </span>std::collections::HashSet;
+<span class="kw">use </span>std::fs::File;
+<span class="kw">use </span>std::io::{BufRead, BufReader, BufWriter, Error, ErrorKind, Read, Write};
+<span class="kw">use </span>std::path::PathBuf;
+<span class="kw">use </span>std::sync::{Arc, Mutex};
 
-<span class="kw">use</span> <span class="ident">algebra::Algebra</span>;
-<span class="kw">use</span> <span class="ident">anyhow::Context</span>;
+<span class="kw">use </span>algebra::Algebra;
+<span class="kw">use </span>anyhow::Context;
 
-<span class="doccomment">/// A DashSet&lt;PathBuf&gt;&gt; of files that are currently opened and being written to. When calling this</span>
-<span class="doccomment">/// function for the first time, we set the ctrlc handler to delete currently opened files, then</span>
-<span class="doccomment">/// exit.</span>
-<span class="kw">fn</span> <span class="ident">open_files</span>() -&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">HashSet</span><span class="op">&lt;</span><span class="ident">PathBuf</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-    <span class="kw">use</span> <span class="ident">std::mem::MaybeUninit</span>;
-    <span class="kw">use</span> <span class="ident">std::sync::Once</span>;
+<span class="doccomment">/// A DashSet&lt;PathBuf&gt;&gt; of files that are currently opened and being written to. When calling this
+/// function for the first time, we set the ctrlc handler to delete currently opened files, then
+/// exit.
+</span><span class="kw">fn </span>open_files() -&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>Mutex&lt;HashSet&lt;PathBuf&gt;&gt; {
+    <span class="kw">use </span>std::mem::MaybeUninit;
+    <span class="kw">use </span>std::sync::Once;
 
-    <span class="kw">static</span> <span class="kw-2">mut</span> <span class="ident">OPEN_FILES</span>: <span class="ident">MaybeUninit</span><span class="op">&lt;</span><span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">HashSet</span><span class="op">&lt;</span><span class="ident">PathBuf</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">MaybeUninit::uninit</span>();
-    <span class="kw">static</span> <span class="ident">ONCE</span>: <span class="ident">Once</span> <span class="op">=</span> <span class="ident">Once::new</span>();
-    <span class="kw">unsafe</span> {
-        <span class="ident">ONCE</span>.<span class="ident">call_once</span>(<span class="op">|</span><span class="op">|</span> {
-            <span class="ident">OPEN_FILES</span>.<span class="ident">write</span>(<span class="ident">Default::default</span>());
-            <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">unix</span>)]</span>
-            <span class="ident">ctrlc::set_handler</span>(<span class="kw">move</span> <span class="op">|</span><span class="op">|</span> {
-                <span class="kw">let</span> <span class="ident">files</span> <span class="op">=</span> <span class="ident">open_files</span>().<span class="ident">lock</span>().<span class="ident">unwrap</span>();
-                <span class="kw">for</span> <span class="ident">file</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">files</span> {
-                    <span class="ident">std::fs::remove_file</span>(<span class="ident">file</span>)
-                        .<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="macro">panic!</span>(<span class="string">&quot;Error when deleting {file:?}&quot;</span>));
+    <span class="kw">static </span><span class="kw-2">mut </span>OPEN_FILES: MaybeUninit&lt;Mutex&lt;HashSet&lt;PathBuf&gt;&gt;&gt; = MaybeUninit::uninit();
+    <span class="kw">static </span>ONCE: Once = Once::new();
+    <span class="kw">unsafe </span>{
+        ONCE.call_once(|| {
+            OPEN_FILES.write(Default::default());
+            <span class="attribute">#[cfg(unix)]
+            </span>ctrlc::set_handler(<span class="kw">move </span>|| {
+                <span class="kw">let </span>files = open_files().lock().unwrap();
+                <span class="kw">for </span>file <span class="kw">in </span><span class="kw-2">&amp;*</span>files {
+                    std::fs::remove_file(file)
+                        .unwrap_or_else(|<span class="kw">_</span>| <span class="macro">panic!</span>(<span class="string">&quot;Error when deleting {file:?}&quot;</span>));
                 }
-                <span class="ident">std::process::exit</span>(<span class="number">130</span>);
+                std::process::exit(<span class="number">130</span>);
             })
-            .<span class="ident">expect</span>(<span class="string">&quot;Error setting Ctrl-C handler&quot;</span>);
+            .expect(<span class="string">&quot;Error setting Ctrl-C handler&quot;</span>);
         });
-        <span class="ident">OPEN_FILES</span>.<span class="ident">assume_init_ref</span>()
+        OPEN_FILES.assume_init_ref()
     }
 }
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Copy</span>, <span class="ident">Clone</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>)]</span>
-<span class="attribute">#[<span class="ident">non_exhaustive</span>]</span>
-<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">SaveKind</span> {
-    <span class="doccomment">/// The kernel of a resolution differential</span>
-    <span class="ident">Kernel</span>,
+<span class="attribute">#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[non_exhaustive]
+</span><span class="kw">pub enum </span>SaveKind {
+    <span class="doccomment">/// The kernel of a resolution differential
+    </span>Kernel,
 
-    <span class="doccomment">/// The differential and augmentation map in a resolution</span>
-    <span class="ident">Differential</span>,
+    <span class="doccomment">/// The differential and augmentation map in a resolution
+    </span>Differential,
 
-    <span class="doccomment">/// The quasi-inverse of the resolution differential</span>
-    <span class="ident">ResQi</span>,
+    <span class="doccomment">/// The quasi-inverse of the resolution differential
+    </span>ResQi,
 
-    <span class="doccomment">/// The quasi-inverse of the augmentation map</span>
-    <span class="ident">AugmentationQi</span>,
+    <span class="doccomment">/// The quasi-inverse of the augmentation map
+    </span>AugmentationQi,
 
-    <span class="doccomment">/// Secondary composite</span>
-    <span class="ident">SecondaryComposite</span>,
+    <span class="doccomment">/// Secondary composite
+    </span>SecondaryComposite,
 
-    <span class="doccomment">/// Intermediate data used by secondary code</span>
-    <span class="ident">SecondaryIntermediate</span>,
+    <span class="doccomment">/// Intermediate data used by secondary code
+    </span>SecondaryIntermediate,
 
-    <span class="doccomment">/// A secondary homotopy</span>
-    <span class="ident">SecondaryHomotopy</span>,
+    <span class="doccomment">/// A secondary homotopy
+    </span>SecondaryHomotopy,
 
-    <span class="doccomment">/// A chain map</span>
-    <span class="ident">ChainMap</span>,
+    <span class="doccomment">/// A chain map
+    </span>ChainMap,
 
-    <span class="doccomment">/// A chain homotopy</span>
-    <span class="ident">ChainHomotopy</span>,
+    <span class="doccomment">/// A chain homotopy
+    </span>ChainHomotopy,
 
-    <span class="doccomment">/// The differential with Nassau&#39;s algorithm. This does not store the chain map data because we</span>
-    <span class="doccomment">/// always only resolve the sphere</span>
-    <span class="ident">NassauDifferential</span>,
+    <span class="doccomment">/// The differential with Nassau&#39;s algorithm. This does not store the chain map data because we
+    /// always only resolve the sphere
+    </span>NassauDifferential,
 
-    <span class="doccomment">/// The quasi-inverse data in Nassau&#39;s algorithm</span>
-    <span class="ident">NassauQi</span>,
+    <span class="doccomment">/// The quasi-inverse data in Nassau&#39;s algorithm
+    </span>NassauQi,
 }
 
-<span class="kw">impl</span> <span class="ident">SaveKind</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">magic</span>(<span class="self">self</span>) -&gt; <span class="ident">u32</span> {
-        <span class="kw">match</span> <span class="self">self</span> {
-            <span class="ident"><span class="self">Self</span>::Kernel</span> =&gt; <span class="number">0x0000D1FF</span>,
-            <span class="ident"><span class="self">Self</span>::Differential</span> =&gt; <span class="number">0xD1FF0000</span>,
-            <span class="ident"><span class="self">Self</span>::ResQi</span> =&gt; <span class="number">0x0100D1FF</span>,
-            <span class="ident"><span class="self">Self</span>::AugmentationQi</span> =&gt; <span class="number">0x0100A000</span>,
-            <span class="ident"><span class="self">Self</span>::SecondaryComposite</span> =&gt; <span class="number">0x00020000</span>,
-            <span class="ident"><span class="self">Self</span>::SecondaryIntermediate</span> =&gt; <span class="number">0x00020001</span>,
-            <span class="ident"><span class="self">Self</span>::SecondaryHomotopy</span> =&gt; <span class="number">0x00020002</span>,
-            <span class="ident"><span class="self">Self</span>::ChainMap</span> =&gt; <span class="number">0x10100000</span>,
-            <span class="ident"><span class="self">Self</span>::ChainHomotopy</span> =&gt; <span class="number">0x11110000</span>,
-            <span class="ident"><span class="self">Self</span>::NassauDifferential</span> =&gt; <span class="number">0xD1FF0001</span>,
-            <span class="ident"><span class="self">Self</span>::NassauQi</span> =&gt; <span class="number">0x0100D1FE</span>,
+<span class="kw">impl </span>SaveKind {
+    <span class="kw">pub fn </span>magic(<span class="self">self</span>) -&gt; u32 {
+        <span class="kw">match </span><span class="self">self </span>{
+            <span class="self">Self</span>::Kernel =&gt; <span class="number">0x0000D1FF</span>,
+            <span class="self">Self</span>::Differential =&gt; <span class="number">0xD1FF0000</span>,
+            <span class="self">Self</span>::ResQi =&gt; <span class="number">0x0100D1FF</span>,
+            <span class="self">Self</span>::AugmentationQi =&gt; <span class="number">0x0100A000</span>,
+            <span class="self">Self</span>::SecondaryComposite =&gt; <span class="number">0x00020000</span>,
+            <span class="self">Self</span>::SecondaryIntermediate =&gt; <span class="number">0x00020001</span>,
+            <span class="self">Self</span>::SecondaryHomotopy =&gt; <span class="number">0x00020002</span>,
+            <span class="self">Self</span>::ChainMap =&gt; <span class="number">0x10100000</span>,
+            <span class="self">Self</span>::ChainHomotopy =&gt; <span class="number">0x11110000</span>,
+            <span class="self">Self</span>::NassauDifferential =&gt; <span class="number">0xD1FF0001</span>,
+            <span class="self">Self</span>::NassauQi =&gt; <span class="number">0x0100D1FE</span>,
         }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">name</span>(<span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span> {
-        <span class="kw">match</span> <span class="self">self</span> {
-            <span class="ident"><span class="self">Self</span>::Kernel</span> =&gt; <span class="string">&quot;kernel&quot;</span>,
-            <span class="ident"><span class="self">Self</span>::Differential</span> =&gt; <span class="string">&quot;differential&quot;</span>,
-            <span class="ident"><span class="self">Self</span>::ResQi</span> =&gt; <span class="string">&quot;res_qi&quot;</span>,
-            <span class="ident"><span class="self">Self</span>::AugmentationQi</span> =&gt; <span class="string">&quot;augmentation_qi&quot;</span>,
-            <span class="ident"><span class="self">Self</span>::SecondaryComposite</span> =&gt; <span class="string">&quot;secondary_composite&quot;</span>,
-            <span class="ident"><span class="self">Self</span>::SecondaryIntermediate</span> =&gt; <span class="string">&quot;secondary_intermediate&quot;</span>,
-            <span class="ident"><span class="self">Self</span>::SecondaryHomotopy</span> =&gt; <span class="string">&quot;secondary_homotopy&quot;</span>,
-            <span class="ident"><span class="self">Self</span>::ChainMap</span> =&gt; <span class="string">&quot;chain_map&quot;</span>,
-            <span class="ident"><span class="self">Self</span>::ChainHomotopy</span> =&gt; <span class="string">&quot;chain_homotopy&quot;</span>,
-            <span class="ident"><span class="self">Self</span>::NassauDifferential</span> =&gt; <span class="string">&quot;nassau_differential&quot;</span>,
-            <span class="ident"><span class="self">Self</span>::NassauQi</span> =&gt; <span class="string">&quot;nassau_qi&quot;</span>,
+    <span class="kw">pub fn </span>name(<span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str {
+        <span class="kw">match </span><span class="self">self </span>{
+            <span class="self">Self</span>::Kernel =&gt; <span class="string">&quot;kernel&quot;</span>,
+            <span class="self">Self</span>::Differential =&gt; <span class="string">&quot;differential&quot;</span>,
+            <span class="self">Self</span>::ResQi =&gt; <span class="string">&quot;res_qi&quot;</span>,
+            <span class="self">Self</span>::AugmentationQi =&gt; <span class="string">&quot;augmentation_qi&quot;</span>,
+            <span class="self">Self</span>::SecondaryComposite =&gt; <span class="string">&quot;secondary_composite&quot;</span>,
+            <span class="self">Self</span>::SecondaryIntermediate =&gt; <span class="string">&quot;secondary_intermediate&quot;</span>,
+            <span class="self">Self</span>::SecondaryHomotopy =&gt; <span class="string">&quot;secondary_homotopy&quot;</span>,
+            <span class="self">Self</span>::ChainMap =&gt; <span class="string">&quot;chain_map&quot;</span>,
+            <span class="self">Self</span>::ChainHomotopy =&gt; <span class="string">&quot;chain_homotopy&quot;</span>,
+            <span class="self">Self</span>::NassauDifferential =&gt; <span class="string">&quot;nassau_differential&quot;</span>,
+            <span class="self">Self</span>::NassauQi =&gt; <span class="string">&quot;nassau_qi&quot;</span>,
         }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">resolution_data</span>() -&gt; <span class="kw">impl</span> <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">SaveKind</span><span class="op">&gt;</span> {
-        <span class="kw">use</span> <span class="ident">SaveKind</span>::<span class="kw-2">*</span>;
-        <span class="kw">static</span> <span class="ident">KINDS</span>: [<span class="ident">SaveKind</span>; <span class="number">4</span>] <span class="op">=</span> [<span class="ident">Kernel</span>, <span class="ident">Differential</span>, <span class="ident">ResQi</span>, <span class="ident">AugmentationQi</span>];
-        <span class="ident">KINDS</span>.<span class="ident">iter</span>().<span class="ident">copied</span>()
+    <span class="kw">pub fn </span>resolution_data() -&gt; <span class="kw">impl </span>Iterator&lt;Item = SaveKind&gt; {
+        <span class="kw">use </span>SaveKind::<span class="kw-2">*</span>;
+        <span class="kw">static </span>KINDS: [SaveKind; <span class="number">4</span>] = [Kernel, Differential, ResQi, AugmentationQi];
+        KINDS.iter().copied()
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">nassau_data</span>() -&gt; <span class="kw">impl</span> <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">SaveKind</span><span class="op">&gt;</span> {
-        <span class="kw">use</span> <span class="ident">SaveKind</span>::<span class="kw-2">*</span>;
-        <span class="kw">static</span> <span class="ident">KINDS</span>: [<span class="ident">SaveKind</span>; <span class="number">2</span>] <span class="op">=</span> [<span class="ident">NassauDifferential</span>, <span class="ident">NassauQi</span>];
-        <span class="ident">KINDS</span>.<span class="ident">iter</span>().<span class="ident">copied</span>()
+    <span class="kw">pub fn </span>nassau_data() -&gt; <span class="kw">impl </span>Iterator&lt;Item = SaveKind&gt; {
+        <span class="kw">use </span>SaveKind::<span class="kw-2">*</span>;
+        <span class="kw">static </span>KINDS: [SaveKind; <span class="number">2</span>] = [NassauDifferential, NassauQi];
+        KINDS.iter().copied()
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">secondary_data</span>() -&gt; <span class="kw">impl</span> <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">SaveKind</span><span class="op">&gt;</span> {
-        <span class="kw">use</span> <span class="ident">SaveKind</span>::<span class="kw-2">*</span>;
-        <span class="kw">static</span> <span class="ident">KINDS</span>: [<span class="ident">SaveKind</span>; <span class="number">3</span>] <span class="op">=</span>
-            [<span class="ident">SecondaryComposite</span>, <span class="ident">SecondaryIntermediate</span>, <span class="ident">SecondaryHomotopy</span>];
-        <span class="ident">KINDS</span>.<span class="ident">iter</span>().<span class="ident">copied</span>()
+    <span class="kw">pub fn </span>secondary_data() -&gt; <span class="kw">impl </span>Iterator&lt;Item = SaveKind&gt; {
+        <span class="kw">use </span>SaveKind::<span class="kw-2">*</span>;
+        <span class="kw">static </span>KINDS: [SaveKind; <span class="number">3</span>] =
+            [SecondaryComposite, SecondaryIntermediate, SecondaryHomotopy];
+        KINDS.iter().copied()
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">create_dir</span>(<span class="self">self</span>, <span class="ident">p</span>: <span class="kw-2">&amp;</span><span class="ident">std::path::Path</span>) -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">p</span>.<span class="ident">to_owned</span>();
+    <span class="kw">pub fn </span>create_dir(<span class="self">self</span>, p: <span class="kw-2">&amp;</span>std::path::Path) -&gt; anyhow::Result&lt;()&gt; {
+        <span class="kw">let </span><span class="kw-2">mut </span>p = p.to_owned();
 
-        <span class="ident">p</span>.<span class="ident">push</span>(<span class="macro">format!</span>(<span class="string">&quot;{}s&quot;</span>, <span class="self">self</span>.<span class="ident">name</span>()));
-        <span class="kw">if</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">exists</span>() {
-            <span class="ident">std::fs::create_dir_all</span>(<span class="kw-2">&amp;</span><span class="ident">p</span>)
-                .<span class="ident">with_context</span>(<span class="op">|</span><span class="op">|</span> <span class="macro">format!</span>(<span class="string">&quot;Failed to create directory {p:?}&quot;</span>))<span class="question-mark">?</span>;
-        } <span class="kw">else</span> <span class="kw">if</span> <span class="op">!</span><span class="ident">p</span>.<span class="ident">is_dir</span>() {
-            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="macro">anyhow::anyhow!</span>(<span class="string">&quot;{p:?} is not a directory&quot;</span>));
+        p.push(<span class="macro">format!</span>(<span class="string">&quot;{}s&quot;</span>, <span class="self">self</span>.name()));
+        <span class="kw">if </span>!p.exists() {
+            std::fs::create_dir_all(<span class="kw-2">&amp;</span>p)
+                .with_context(|| <span class="macro">format!</span>(<span class="string">&quot;Failed to create directory {p:?}&quot;</span>))<span class="question-mark">?</span>;
+        } <span class="kw">else if </span>!p.is_dir() {
+            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">anyhow::anyhow!</span>(<span class="string">&quot;{p:?} is not a directory&quot;</span>));
         }
         <span class="prelude-val">Ok</span>(())
     }
 }
 
-<span class="doccomment">/// In addition to checking the checksum, we also keep track of which files are open, and we delete</span>
-<span class="doccomment">/// the open files if the program is terminated halfway.</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ChecksumWriter</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Write</span><span class="op">&gt;</span> {
-    <span class="ident">writer</span>: <span class="ident">T</span>,
-    <span class="ident">path</span>: <span class="ident">PathBuf</span>,
-    <span class="ident">adler</span>: <span class="ident">adler::Adler32</span>,
+<span class="doccomment">/// In addition to checking the checksum, we also keep track of which files are open, and we delete
+/// the open files if the program is terminated halfway.
+</span><span class="kw">pub struct </span>ChecksumWriter&lt;T: Write&gt; {
+    writer: T,
+    path: PathBuf,
+    adler: adler::Adler32,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Write</span><span class="op">&gt;</span> <span class="ident">ChecksumWriter</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">path</span>: <span class="ident">PathBuf</span>, <span class="ident">writer</span>: <span class="ident">T</span>) -&gt; <span class="self">Self</span> {
-        <span class="self">Self</span> {
-            <span class="ident">path</span>,
-            <span class="ident">writer</span>,
-            <span class="ident">adler</span>: <span class="ident">adler::Adler32::new</span>(),
+<span class="kw">impl</span>&lt;T: Write&gt; ChecksumWriter&lt;T&gt; {
+    <span class="kw">pub fn </span>new(path: PathBuf, writer: T) -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{
+            path,
+            writer,
+            adler: adler::Adler32::new(),
         }
     }
 }
 
-<span class="doccomment">/// We only implement the functions required and the ones we actually use.</span>
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Write</span><span class="op">&gt;</span> <span class="ident">Write</span> <span class="kw">for</span> <span class="ident">ChecksumWriter</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">write</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">buf</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) -&gt; <span class="ident">std::io::Result</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">bytes_written</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">writer</span>.<span class="ident">write</span>(<span class="ident">buf</span>)<span class="question-mark">?</span>;
-        <span class="self">self</span>.<span class="ident">adler</span>.<span class="ident">write_slice</span>(<span class="kw-2">&amp;</span><span class="ident">buf</span>[<span class="number">0</span>..<span class="ident">bytes_written</span>]);
-        <span class="prelude-val">Ok</span>(<span class="ident">bytes_written</span>)
+<span class="doccomment">/// We only implement the functions required and the ones we actually use.
+</span><span class="kw">impl</span>&lt;T: Write&gt; Write <span class="kw">for </span>ChecksumWriter&lt;T&gt; {
+    <span class="kw">fn </span>write(<span class="kw-2">&amp;mut </span><span class="self">self</span>, buf: <span class="kw-2">&amp;</span>[u8]) -&gt; std::io::Result&lt;usize&gt; {
+        <span class="kw">let </span>bytes_written = <span class="self">self</span>.writer.write(buf)<span class="question-mark">?</span>;
+        <span class="self">self</span>.adler.write_slice(<span class="kw-2">&amp;</span>buf[<span class="number">0</span>..bytes_written]);
+        <span class="prelude-val">Ok</span>(bytes_written)
     }
 
-    <span class="kw">fn</span> <span class="ident">flush</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) -&gt; <span class="ident">std::io::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">writer</span>.<span class="ident">flush</span>()
+    <span class="kw">fn </span>flush(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; std::io::Result&lt;()&gt; {
+        <span class="self">self</span>.writer.flush()
     }
 
-    <span class="kw">fn</span> <span class="ident">write_all</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">buf</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) -&gt; <span class="ident">std::io::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">writer</span>.<span class="ident">write_all</span>(<span class="ident">buf</span>)<span class="question-mark">?</span>;
-        <span class="self">self</span>.<span class="ident">adler</span>.<span class="ident">write_slice</span>(<span class="ident">buf</span>);
+    <span class="kw">fn </span>write_all(<span class="kw-2">&amp;mut </span><span class="self">self</span>, buf: <span class="kw-2">&amp;</span>[u8]) -&gt; std::io::Result&lt;()&gt; {
+        <span class="self">self</span>.writer.write_all(buf)<span class="question-mark">?</span>;
+        <span class="self">self</span>.adler.write_slice(buf);
         <span class="prelude-val">Ok</span>(())
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Write</span><span class="op">&gt;</span> <span class="ident">std::ops::Drop</span> <span class="kw">for</span> <span class="ident">ChecksumWriter</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">drop</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) {
-        <span class="kw">if</span> <span class="op">!</span><span class="ident">std::thread::panicking</span>() {
-            <span class="comment">// We may not have finished writing, so the data is wrong. It should not be given a</span>
-            <span class="comment">// valid checksum</span>
-            <span class="self">self</span>.<span class="ident">writer</span>
-                .<span class="ident">write_u32</span>::<span class="op">&lt;</span><span class="ident">LittleEndian</span><span class="op">&gt;</span>(<span class="self">self</span>.<span class="ident">adler</span>.<span class="ident">checksum</span>())
-                .<span class="ident">unwrap</span>();
-            <span class="self">self</span>.<span class="ident">writer</span>.<span class="ident">flush</span>().<span class="ident">unwrap</span>();
+<span class="kw">impl</span>&lt;T: Write&gt; std::ops::Drop <span class="kw">for </span>ChecksumWriter&lt;T&gt; {
+    <span class="kw">fn </span>drop(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+        <span class="kw">if </span>!std::thread::panicking() {
+            <span class="comment">// We may not have finished writing, so the data is wrong. It should not be given a
+            // valid checksum
+            </span><span class="self">self</span>.writer
+                .write_u32::&lt;LittleEndian&gt;(<span class="self">self</span>.adler.checksum())
+                .unwrap();
+            <span class="self">self</span>.writer.flush().unwrap();
             <span class="macro">assert!</span>(
-                <span class="ident">open_files</span>().<span class="ident">lock</span>().<span class="ident">unwrap</span>().<span class="ident">remove</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">path</span>),
+                open_files().lock().unwrap().remove(<span class="kw-2">&amp;</span><span class="self">self</span>.path),
                 <span class="string">&quot;File {:?} already dropped&quot;</span>,
-                <span class="self">self</span>.<span class="ident">path</span>
+                <span class="self">self</span>.path
             );
         }
     }
 }
 
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ChecksumReader</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Read</span><span class="op">&gt;</span> {
-    <span class="ident">reader</span>: <span class="ident">T</span>,
-    <span class="ident">adler</span>: <span class="ident">adler::Adler32</span>,
+<span class="kw">pub struct </span>ChecksumReader&lt;T: Read&gt; {
+    reader: T,
+    adler: adler::Adler32,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Read</span><span class="op">&gt;</span> <span class="ident">ChecksumReader</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">reader</span>: <span class="ident">T</span>) -&gt; <span class="self">Self</span> {
-        <span class="self">Self</span> {
-            <span class="ident">reader</span>,
-            <span class="ident">adler</span>: <span class="ident">adler::Adler32::new</span>(),
+<span class="kw">impl</span>&lt;T: Read&gt; ChecksumReader&lt;T&gt; {
+    <span class="kw">pub fn </span>new(reader: T) -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{
+            reader,
+            adler: adler::Adler32::new(),
         }
     }
 }
 
-<span class="doccomment">/// We only implement the functions required and the ones we actually use.</span>
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Read</span><span class="op">&gt;</span> <span class="ident">Read</span> <span class="kw">for</span> <span class="ident">ChecksumReader</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">read</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">buf</span>: <span class="kw-2">&amp;mut</span> [<span class="ident">u8</span>]) -&gt; <span class="ident">std::io::Result</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">bytes_read</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">reader</span>.<span class="ident">read</span>(<span class="ident">buf</span>)<span class="question-mark">?</span>;
-        <span class="self">self</span>.<span class="ident">adler</span>.<span class="ident">write_slice</span>(<span class="kw-2">&amp;</span><span class="ident">buf</span>[<span class="number">0</span>..<span class="ident">bytes_read</span>]);
-        <span class="prelude-val">Ok</span>(<span class="ident">bytes_read</span>)
+<span class="doccomment">/// We only implement the functions required and the ones we actually use.
+</span><span class="kw">impl</span>&lt;T: Read&gt; Read <span class="kw">for </span>ChecksumReader&lt;T&gt; {
+    <span class="kw">fn </span>read(<span class="kw-2">&amp;mut </span><span class="self">self</span>, buf: <span class="kw-2">&amp;mut </span>[u8]) -&gt; std::io::Result&lt;usize&gt; {
+        <span class="kw">let </span>bytes_read = <span class="self">self</span>.reader.read(buf)<span class="question-mark">?</span>;
+        <span class="self">self</span>.adler.write_slice(<span class="kw-2">&amp;</span>buf[<span class="number">0</span>..bytes_read]);
+        <span class="prelude-val">Ok</span>(bytes_read)
     }
 
-    <span class="kw">fn</span> <span class="ident">read_exact</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">buf</span>: <span class="kw-2">&amp;mut</span> [<span class="ident">u8</span>]) -&gt; <span class="ident">std::io::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">reader</span>.<span class="ident">read_exact</span>(<span class="ident">buf</span>)<span class="question-mark">?</span>;
-        <span class="self">self</span>.<span class="ident">adler</span>.<span class="ident">write_slice</span>(<span class="ident">buf</span>);
+    <span class="kw">fn </span>read_exact(<span class="kw-2">&amp;mut </span><span class="self">self</span>, buf: <span class="kw-2">&amp;mut </span>[u8]) -&gt; std::io::Result&lt;()&gt; {
+        <span class="self">self</span>.reader.read_exact(buf)<span class="question-mark">?</span>;
+        <span class="self">self</span>.adler.write_slice(buf);
         <span class="prelude-val">Ok</span>(())
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Read</span><span class="op">&gt;</span> <span class="ident">std::ops::Drop</span> <span class="kw">for</span> <span class="ident">ChecksumReader</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">drop</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) {
-        <span class="kw">if</span> <span class="op">!</span><span class="ident">std::thread::panicking</span>() {
-            <span class="comment">// If we are panicking, we may not have read everything, and panic in panic</span>
-            <span class="comment">// is bad.</span>
-            <span class="macro">assert_eq!</span>(
-                <span class="self">self</span>.<span class="ident">adler</span>.<span class="ident">checksum</span>(),
-                <span class="self">self</span>.<span class="ident">reader</span>.<span class="ident">read_u32</span>::<span class="op">&lt;</span><span class="ident">LittleEndian</span><span class="op">&gt;</span>().<span class="ident">unwrap</span>(),
-                <span class="string">&quot;Invalid file checksum&quot;</span>
-            );
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">buf</span> <span class="op">=</span> [<span class="number">0</span>];
-            <span class="comment">// Check EOF</span>
-            <span class="macro">assert_eq!</span>(<span class="self">self</span>.<span class="ident">reader</span>.<span class="ident">read</span>(<span class="kw-2">&amp;mut</span> <span class="ident">buf</span>).<span class="ident">unwrap</span>(), <span class="number">0</span>, <span class="string">&quot;EOF not reached&quot;</span>);
+<span class="kw">impl</span>&lt;T: Read&gt; std::ops::Drop <span class="kw">for </span>ChecksumReader&lt;T&gt; {
+    <span class="kw">fn </span>drop(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+        <span class="kw">if </span>!std::thread::panicking() {
+            <span class="comment">// If we are panicking, we may not have read everything, and panic in panic
+            // is bad.
+            </span><span class="macro">assert_eq!</span>(
+                <span class="self">self</span>.adler.checksum(),
+                <span class="self">self</span>.reader.read_u32::&lt;LittleEndian&gt;().unwrap(),
+                <span class="string">&quot;Invalid file checksum&quot;
+            </span>);
+            <span class="kw">let </span><span class="kw-2">mut </span>buf = [<span class="number">0</span>];
+            <span class="comment">// Check EOF
+            </span><span class="macro">assert_eq!</span>(<span class="self">self</span>.reader.read(<span class="kw-2">&amp;mut </span>buf).unwrap(), <span class="number">0</span>, <span class="string">&quot;EOF not reached&quot;</span>);
         }
     }
 }
 
-<span class="doccomment">/// Open the file pointed to by `path` as a `Box&lt;dyn Read&gt;`. If the file does not exist, look for</span>
-<span class="doccomment">/// compressed versions.</span>
-<span class="comment">// When zstd is disabled, we don&#39;t mutate path</span>
-<span class="attribute">#[<span class="ident">allow</span>(<span class="ident">unused_mut</span>)]</span>
-<span class="kw">fn</span> <span class="ident">open_file</span>(<span class="kw-2">mut</span> <span class="ident">path</span>: <span class="ident">PathBuf</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Read</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-    <span class="comment">// We should try in decreasing order of access speed.</span>
-    <span class="kw">match</span> <span class="ident">File::open</span>(<span class="kw-2">&amp;</span><span class="ident">path</span>) {
-        <span class="prelude-val">Ok</span>(<span class="ident">f</span>) =&gt; {
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">reader</span> <span class="op">=</span> <span class="ident">BufReader::new</span>(<span class="ident">f</span>);
-            <span class="kw">if</span> <span class="ident">reader</span>
-                .<span class="ident">fill_buf</span>()
-                .<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="macro">panic!</span>(<span class="string">&quot;Error when reading from {path:?}: {e}&quot;</span>))
-                .<span class="ident">is_empty</span>()
+<span class="doccomment">/// Open the file pointed to by `path` as a `Box&lt;dyn Read&gt;`. If the file does not exist, look for
+/// compressed versions.
+</span><span class="comment">// When zstd is disabled, we don&#39;t mutate path
+</span><span class="attribute">#[allow(unused_mut)]
+</span><span class="kw">fn </span>open_file(<span class="kw-2">mut </span>path: PathBuf) -&gt; <span class="prelude-ty">Option</span>&lt;Box&lt;<span class="kw">dyn </span>Read&gt;&gt; {
+    <span class="comment">// We should try in decreasing order of access speed.
+    </span><span class="kw">match </span>File::open(<span class="kw-2">&amp;</span>path) {
+        <span class="prelude-val">Ok</span>(f) =&gt; {
+            <span class="kw">let </span><span class="kw-2">mut </span>reader = BufReader::new(f);
+            <span class="kw">if </span>reader
+                .fill_buf()
+                .unwrap_or_else(|e| <span class="macro">panic!</span>(<span class="string">&quot;Error when reading from {path:?}: {e}&quot;</span>))
+                .is_empty()
             {
-                <span class="comment">// The file is empty. Delete the file and proceed as if it didn&#39;t exist</span>
-                <span class="ident">std::fs::remove_file</span>(<span class="kw-2">&amp;</span><span class="ident">path</span>)
-                    .<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="macro">panic!</span>(<span class="string">&quot;Error when deleting empty file {path:?}: {e}&quot;</span>));
-                <span class="kw">return</span> <span class="prelude-val">None</span>;
+                <span class="comment">// The file is empty. Delete the file and proceed as if it didn&#39;t exist
+                </span>std::fs::remove_file(<span class="kw-2">&amp;</span>path)
+                    .unwrap_or_else(|e| <span class="macro">panic!</span>(<span class="string">&quot;Error when deleting empty file {path:?}: {e}&quot;</span>));
+                <span class="kw">return </span><span class="prelude-val">None</span>;
             }
-            <span class="kw">return</span> <span class="prelude-val">Some</span>(<span class="ident">Box::new</span>(<span class="ident">ChecksumReader::new</span>(<span class="ident">reader</span>)));
+            <span class="kw">return </span><span class="prelude-val">Some</span>(Box::new(ChecksumReader::new(reader)));
         }
-        <span class="prelude-val">Err</span>(<span class="ident">e</span>) =&gt; {
-            <span class="kw">if</span> <span class="ident">e</span>.<span class="ident">kind</span>() <span class="op">!</span><span class="op">=</span> <span class="ident">ErrorKind::NotFound</span> {
+        <span class="prelude-val">Err</span>(e) =&gt; {
+            <span class="kw">if </span>e.kind() != ErrorKind::NotFound {
                 <span class="macro">panic!</span>(<span class="string">&quot;Error when opening {path:?}: {e}&quot;</span>);
             }
         }
     }
 
-    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;zstd&quot;</span>)]</span>
-    {
-        <span class="ident">path</span>.<span class="ident">set_extension</span>(<span class="string">&quot;zst&quot;</span>);
-        <span class="kw">match</span> <span class="ident">File::open</span>(<span class="kw-2">&amp;</span><span class="ident">path</span>) {
-            <span class="prelude-val">Ok</span>(<span class="ident">f</span>) =&gt; {
-                <span class="kw">return</span> <span class="prelude-val">Some</span>(<span class="ident">Box::new</span>(<span class="ident">ChecksumReader::new</span>(
-                    <span class="ident">zstd::stream::Decoder::new</span>(<span class="ident">f</span>).<span class="ident">unwrap</span>(),
+    <span class="attribute">#[cfg(feature = <span class="string">&quot;zstd&quot;</span>)]
+    </span>{
+        path.set_extension(<span class="string">&quot;zst&quot;</span>);
+        <span class="kw">match </span>File::open(<span class="kw-2">&amp;</span>path) {
+            <span class="prelude-val">Ok</span>(f) =&gt; {
+                <span class="kw">return </span><span class="prelude-val">Some</span>(Box::new(ChecksumReader::new(
+                    zstd::stream::Decoder::new(f).unwrap(),
                 )))
             }
-            <span class="prelude-val">Err</span>(<span class="ident">e</span>) =&gt; {
-                <span class="kw">if</span> <span class="ident">e</span>.<span class="ident">kind</span>() <span class="op">!</span><span class="op">=</span> <span class="ident">ErrorKind::NotFound</span> {
+            <span class="prelude-val">Err</span>(e) =&gt; {
+                <span class="kw">if </span>e.kind() != ErrorKind::NotFound {
                     <span class="macro">panic!</span>(<span class="string">&quot;Error when opening {path:?}&quot;</span>);
                 }
             }
         }
     }
 
-    <span class="prelude-val">None</span>
+    <span class="prelude-val">None
+</span>}
+
+<span class="kw">pub struct </span>SaveFile&lt;A: Algebra&gt; {
+    <span class="kw">pub </span>kind: SaveKind,
+    <span class="kw">pub </span>algebra: Arc&lt;A&gt;,
+    <span class="kw">pub </span>s: u32,
+    <span class="kw">pub </span>t: i32,
+    <span class="kw">pub </span>idx: <span class="prelude-ty">Option</span>&lt;usize&gt;,
 }
 
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">SaveFile</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">Algebra</span><span class="op">&gt;</span> {
-    <span class="kw">pub</span> <span class="ident">kind</span>: <span class="ident">SaveKind</span>,
-    <span class="kw">pub</span> <span class="ident">algebra</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>,
-    <span class="kw">pub</span> <span class="ident">s</span>: <span class="ident">u32</span>,
-    <span class="kw">pub</span> <span class="ident">t</span>: <span class="ident">i32</span>,
-    <span class="kw">pub</span> <span class="ident">idx</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span>,
-}
-
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">Algebra</span><span class="op">&gt;</span> <span class="ident">SaveFile</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">write_header</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">buffer</span>: <span class="kw-2">&amp;mut</span> <span class="kw">impl</span> <span class="ident">Write</span>) -&gt; <span class="ident">std::io::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-        <span class="ident">buffer</span>.<span class="ident">write_u32</span>::<span class="op">&lt;</span><span class="ident">LittleEndian</span><span class="op">&gt;</span>(<span class="self">self</span>.<span class="ident">kind</span>.<span class="ident">magic</span>())<span class="question-mark">?</span>;
-        <span class="ident">buffer</span>.<span class="ident">write_u32</span>::<span class="op">&lt;</span><span class="ident">LittleEndian</span><span class="op">&gt;</span>(<span class="self">self</span>.<span class="ident">algebra</span>.<span class="ident">magic</span>())<span class="question-mark">?</span>;
-        <span class="ident">buffer</span>.<span class="ident">write_u32</span>::<span class="op">&lt;</span><span class="ident">LittleEndian</span><span class="op">&gt;</span>(<span class="self">self</span>.<span class="ident">s</span>)<span class="question-mark">?</span>;
-        <span class="ident">buffer</span>.<span class="ident">write_i32</span>::<span class="op">&lt;</span><span class="ident">LittleEndian</span><span class="op">&gt;</span>(<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">i</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">idx</span> {
-            <span class="self">self</span>.<span class="ident">t</span> <span class="op">+</span> ((<span class="ident">i</span> <span class="kw">as</span> <span class="ident">i32</span>) <span class="op">&lt;</span><span class="op">&lt;</span> <span class="number">16</span>)
-        } <span class="kw">else</span> {
-            <span class="self">self</span>.<span class="ident">t</span>
+<span class="kw">impl</span>&lt;A: Algebra&gt; SaveFile&lt;A&gt; {
+    <span class="kw">fn </span>write_header(<span class="kw-2">&amp;</span><span class="self">self</span>, buffer: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Write) -&gt; std::io::Result&lt;()&gt; {
+        buffer.write_u32::&lt;LittleEndian&gt;(<span class="self">self</span>.kind.magic())<span class="question-mark">?</span>;
+        buffer.write_u32::&lt;LittleEndian&gt;(<span class="self">self</span>.algebra.magic())<span class="question-mark">?</span>;
+        buffer.write_u32::&lt;LittleEndian&gt;(<span class="self">self</span>.s)<span class="question-mark">?</span>;
+        buffer.write_i32::&lt;LittleEndian&gt;(<span class="kw">if let </span><span class="prelude-val">Some</span>(i) = <span class="self">self</span>.idx {
+            <span class="self">self</span>.t + ((i <span class="kw">as </span>i32) &lt;&lt; <span class="number">16</span>)
+        } <span class="kw">else </span>{
+            <span class="self">self</span>.t
         })
     }
 
-    <span class="kw">fn</span> <span class="ident">validate_header</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">buffer</span>: <span class="kw-2">&amp;mut</span> <span class="kw">impl</span> <span class="ident">Read</span>) -&gt; <span class="ident">std::io::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-        <span class="macro">macro_rules!</span> <span class="ident">check_header</span> {
-            (<span class="macro-nonterminal">$</span><span class="macro-nonterminal">name</span>:<span class="ident">literal</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">value</span>:<span class="ident">expr</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">format</span>:<span class="ident">literal</span>) =&gt; {
-                <span class="kw">let</span> <span class="ident">data</span> <span class="op">=</span> <span class="ident">buffer</span>.<span class="ident">read_u32</span>::<span class="op">&lt;</span><span class="ident">LittleEndian</span><span class="op">&gt;</span>()<span class="question-mark">?</span>;
-                <span class="kw">if</span> <span class="ident">data</span> <span class="op">!</span><span class="op">=</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">value</span> {
-                    <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">Error::new</span>(
-                        <span class="ident">ErrorKind::InvalidData</span>,
+    <span class="kw">fn </span>validate_header(<span class="kw-2">&amp;</span><span class="self">self</span>, buffer: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Read) -&gt; std::io::Result&lt;()&gt; {
+        <span class="macro">macro_rules! </span>check_header {
+            (<span class="macro-nonterminal">$name</span>:literal, <span class="macro-nonterminal">$value</span>:expr, <span class="macro-nonterminal">$format</span>:literal) =&gt; {
+                <span class="kw">let </span>data = buffer.read_u32::&lt;LittleEndian&gt;()<span class="question-mark">?</span>;
+                <span class="kw">if </span>data != <span class="macro-nonterminal">$value </span>{
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
+                        ErrorKind::InvalidData,
                         <span class="macro">format!</span>(
                             <span class="string">&quot;Invalid header: {} was {} but expected {}&quot;</span>,
-                            <span class="macro-nonterminal">$</span><span class="macro-nonterminal">name</span>,
-                            <span class="macro">format_args!</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">format</span>, <span class="ident">data</span>),
-                            <span class="macro">format_args!</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">format</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">value</span>)
+                            <span class="macro-nonterminal">$name</span>,
+                            <span class="macro">format_args!</span>(<span class="macro-nonterminal">$format</span>, data),
+                            <span class="macro">format_args!</span>(<span class="macro-nonterminal">$format</span>, <span class="macro-nonterminal">$value</span>)
                         ),
                     ));
                 }
             };
         }
 
-        <span class="macro">check_header!</span>(<span class="string">&quot;magic&quot;</span>, <span class="self">self</span>.<span class="ident">kind</span>.<span class="ident">magic</span>(), <span class="string">&quot;{:#010x}&quot;</span>);
-        <span class="macro">check_header!</span>(<span class="string">&quot;algebra&quot;</span>, <span class="self">self</span>.<span class="ident">algebra</span>.<span class="ident">magic</span>(), <span class="string">&quot;{:#06x}&quot;</span>);
-        <span class="macro">check_header!</span>(<span class="string">&quot;s&quot;</span>, <span class="self">self</span>.<span class="ident">s</span>, <span class="string">&quot;{}&quot;</span>);
+        <span class="macro">check_header!</span>(<span class="string">&quot;magic&quot;</span>, <span class="self">self</span>.kind.magic(), <span class="string">&quot;{:#010x}&quot;</span>);
+        <span class="macro">check_header!</span>(<span class="string">&quot;algebra&quot;</span>, <span class="self">self</span>.algebra.magic(), <span class="string">&quot;{:#06x}&quot;</span>);
+        <span class="macro">check_header!</span>(<span class="string">&quot;s&quot;</span>, <span class="self">self</span>.s, <span class="string">&quot;{}&quot;</span>);
         <span class="macro">check_header!</span>(
             <span class="string">&quot;t&quot;</span>,
-            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">i</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">idx</span> {
-                <span class="self">self</span>.<span class="ident">t</span> <span class="kw">as</span> <span class="ident">u32</span> <span class="op">+</span> ((<span class="ident">i</span> <span class="kw">as</span> <span class="ident">u32</span>) <span class="op">&lt;</span><span class="op">&lt;</span> <span class="number">16</span>)
-            } <span class="kw">else</span> {
-                <span class="self">self</span>.<span class="ident">t</span> <span class="kw">as</span> <span class="ident">u32</span>
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(i) = <span class="self">self</span>.idx {
+                <span class="self">self</span>.t <span class="kw">as </span>u32 + ((i <span class="kw">as </span>u32) &lt;&lt; <span class="number">16</span>)
+            } <span class="kw">else </span>{
+                <span class="self">self</span>.t <span class="kw">as </span>u32
             },
-            <span class="string">&quot;{}&quot;</span>
-        );
+            <span class="string">&quot;{}&quot;
+        </span>);
 
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="doccomment">/// This panics if there is no save dir</span>
-    <span class="kw">fn</span> <span class="ident">get_save_path</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut</span> <span class="ident">dir</span>: <span class="ident">PathBuf</span>) -&gt; <span class="ident">PathBuf</span> {
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">idx</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">idx</span> {
-            <span class="ident">dir</span>.<span class="ident">push</span>(<span class="macro">format!</span>(
+    <span class="doccomment">/// This panics if there is no save dir
+    </span><span class="kw">fn </span>get_save_path(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut </span>dir: PathBuf) -&gt; PathBuf {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(idx) = <span class="self">self</span>.idx {
+            dir.push(<span class="macro">format!</span>(
                 <span class="string">&quot;{name}s/{s}_{t}_{idx}_{name}&quot;</span>,
-                <span class="ident">name</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">kind</span>.<span class="ident">name</span>(),
-                <span class="ident">s</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">s</span>,
-                <span class="ident">t</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">t</span>
+                name = <span class="self">self</span>.kind.name(),
+                s = <span class="self">self</span>.s,
+                t = <span class="self">self</span>.t
             ));
-        } <span class="kw">else</span> {
-            <span class="ident">dir</span>.<span class="ident">push</span>(<span class="macro">format!</span>(
+        } <span class="kw">else </span>{
+            dir.push(<span class="macro">format!</span>(
                 <span class="string">&quot;{name}s/{s}_{t}_{name}&quot;</span>,
-                <span class="ident">name</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">kind</span>.<span class="ident">name</span>(),
-                <span class="ident">s</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">s</span>,
-                <span class="ident">t</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">t</span>
+                name = <span class="self">self</span>.kind.name(),
+                s = <span class="self">self</span>.s,
+                t = <span class="self">self</span>.t
             ));
         }
-        <span class="ident">dir</span>
+        dir
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">open_file</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">dir</span>: <span class="ident">PathBuf</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Read</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">open_file</span>(<span class="self">self</span>.<span class="ident">get_save_path</span>(<span class="ident">dir</span>))<span class="question-mark">?</span>;
-        <span class="self">self</span>.<span class="ident">validate_header</span>(<span class="kw-2">&amp;mut</span> <span class="ident">f</span>).<span class="ident">unwrap</span>();
-        <span class="prelude-val">Some</span>(<span class="ident">f</span>)
+    <span class="kw">pub fn </span>open_file(<span class="kw-2">&amp;</span><span class="self">self</span>, dir: PathBuf) -&gt; <span class="prelude-ty">Option</span>&lt;Box&lt;<span class="kw">dyn </span>Read&gt;&gt; {
+        <span class="kw">let </span><span class="kw-2">mut </span>f = open_file(<span class="self">self</span>.get_save_path(dir))<span class="question-mark">?</span>;
+        <span class="self">self</span>.validate_header(<span class="kw-2">&amp;mut </span>f).unwrap();
+        <span class="prelude-val">Some</span>(f)
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">exists</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">dir</span>: <span class="ident">PathBuf</span>) -&gt; <span class="ident">bool</span> {
-        <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">unused_mut</span>)]</span>
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">path</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">get_save_path</span>(<span class="ident">dir</span>);
-        <span class="kw">if</span> <span class="ident">path</span>.<span class="ident">exists</span>() {
-            <span class="kw">return</span> <span class="bool-val">true</span>;
+    <span class="kw">pub fn </span>exists(<span class="kw-2">&amp;</span><span class="self">self</span>, dir: PathBuf) -&gt; bool {
+        <span class="attribute">#[allow(unused_mut)]
+        </span><span class="kw">let </span><span class="kw-2">mut </span>path = <span class="self">self</span>.get_save_path(dir);
+        <span class="kw">if </span>path.exists() {
+            <span class="kw">return </span><span class="bool-val">true</span>;
         }
-        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">target_arch</span> <span class="op">=</span> <span class="string">&quot;wasm32&quot;</span>))]</span>
-        {
-            <span class="ident">path</span>.<span class="ident">set_extension</span>(<span class="string">&quot;zst&quot;</span>);
-            <span class="kw">if</span> <span class="ident">path</span>.<span class="ident">exists</span>() {
-                <span class="kw">return</span> <span class="bool-val">true</span>;
+        <span class="attribute">#[cfg(not(target_arch = <span class="string">&quot;wasm32&quot;</span>))]
+        </span>{
+            path.set_extension(<span class="string">&quot;zst&quot;</span>);
+            <span class="kw">if </span>path.exists() {
+                <span class="kw">return </span><span class="bool-val">true</span>;
             }
         }
-        <span class="bool-val">false</span>
-    }
+        <span class="bool-val">false
+    </span>}
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">delete_file</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">dir</span>: <span class="ident">PathBuf</span>) -&gt; <span class="ident">std::io::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">get_save_path</span>(<span class="ident">dir</span>);
-        <span class="kw">match</span> <span class="ident">std::fs::remove_file</span>(<span class="ident">p</span>) {
+    <span class="kw">pub fn </span>delete_file(<span class="kw-2">&amp;</span><span class="self">self</span>, dir: PathBuf) -&gt; std::io::Result&lt;()&gt; {
+        <span class="kw">let </span>p = <span class="self">self</span>.get_save_path(dir);
+        <span class="kw">match </span>std::fs::remove_file(p) {
             <span class="prelude-val">Ok</span>(()) =&gt; <span class="prelude-val">Ok</span>(()),
-            <span class="prelude-val">Err</span>(<span class="ident">e</span>) <span class="kw">if</span> <span class="ident">e</span>.<span class="ident">kind</span>() <span class="op">==</span> <span class="ident">ErrorKind::NotFound</span> =&gt; <span class="prelude-val">Ok</span>(()),
-            <span class="prelude-val">Err</span>(<span class="ident">e</span>) =&gt; <span class="prelude-val">Err</span>(<span class="ident">e</span>),
+            <span class="prelude-val">Err</span>(e) <span class="kw">if </span>e.kind() == ErrorKind::NotFound =&gt; <span class="prelude-val">Ok</span>(()),
+            <span class="prelude-val">Err</span>(e) =&gt; <span class="prelude-val">Err</span>(e),
         }
     }
 
-    <span class="doccomment">/// # Arguments</span>
-    <span class="doccomment">///  - `overwrite`: Whether to overwrite a file if it already exists.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">create_file</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">dir</span>: <span class="ident">PathBuf</span>, <span class="ident">overwrite</span>: <span class="ident">bool</span>) -&gt; <span class="kw">impl</span> <span class="ident">Write</span> {
-        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">get_save_path</span>(<span class="ident">dir</span>);
+    <span class="doccomment">/// # Arguments
+    ///  - `overwrite`: Whether to overwrite a file if it already exists.
+    </span><span class="kw">pub fn </span>create_file(<span class="kw-2">&amp;</span><span class="self">self</span>, dir: PathBuf, overwrite: bool) -&gt; <span class="kw">impl </span>Write {
+        <span class="kw">let </span>p = <span class="self">self</span>.get_save_path(dir);
 
-        <span class="comment">// We need to do this before creating any file. The ctrlc handler does not block other threads</span>
-        <span class="comment">// from running, but it does lock [`open_files()`]. So this ensures we do not open new files</span>
-        <span class="comment">// while handling ctrlc.</span>
-        <span class="macro">assert!</span>(
-            <span class="ident">open_files</span>().<span class="ident">lock</span>().<span class="ident">unwrap</span>().<span class="ident">insert</span>(<span class="ident">p</span>.<span class="ident">clone</span>()),
-            <span class="string">&quot;File {p:?} is already opened&quot;</span>
-        );
+        <span class="comment">// We need to do this before creating any file. The ctrlc handler does not block other threads
+        // from running, but it does lock [`open_files()`]. So this ensures we do not open new files
+        // while handling ctrlc.
+        </span><span class="macro">assert!</span>(
+            open_files().lock().unwrap().insert(p.clone()),
+            <span class="string">&quot;File {p:?} is already opened&quot;
+        </span>);
 
-        <span class="kw">let</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">std::fs::OpenOptions::new</span>()
-            .<span class="ident">write</span>(<span class="bool-val">true</span>)
-            .<span class="ident">create_new</span>(<span class="op">!</span><span class="ident">overwrite</span>)
-            .<span class="ident">create</span>(<span class="bool-val">true</span>)
-            .<span class="ident">open</span>(<span class="kw-2">&amp;</span><span class="ident">p</span>)
-            .<span class="ident">with_context</span>(<span class="op">|</span><span class="op">|</span> <span class="macro">format!</span>(<span class="string">&quot;Failed to create save file {p:?}&quot;</span>))
-            .<span class="ident">unwrap</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">ChecksumWriter::new</span>(<span class="ident">p</span>, <span class="ident">BufWriter::new</span>(<span class="ident">f</span>));
-        <span class="self">self</span>.<span class="ident">write_header</span>(<span class="kw-2">&amp;mut</span> <span class="ident">f</span>).<span class="ident">unwrap</span>();
-        <span class="ident">f</span>
+        <span class="kw">let </span>f = std::fs::OpenOptions::new()
+            .write(<span class="bool-val">true</span>)
+            .create_new(!overwrite)
+            .create(<span class="bool-val">true</span>)
+            .open(<span class="kw-2">&amp;</span>p)
+            .with_context(|| <span class="macro">format!</span>(<span class="string">&quot;Failed to create save file {p:?}&quot;</span>))
+            .unwrap();
+        <span class="kw">let </span><span class="kw-2">mut </span>f = ChecksumWriter::new(p, BufWriter::new(f));
+        <span class="self">self</span>.write_header(<span class="kw-2">&amp;mut </span>f).unwrap();
+        f
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="ext" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0 (a55dd71d5 2022-09-19)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="ext" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0 (897e37553 2022-11-02)" ></div></body></html>

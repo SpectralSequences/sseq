@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `examples/d2_charts.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>d2_charts.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled><link rel="stylesheet" type="text/css" href="../../dark.css" disabled><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script><script defer src="../../main.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `examples/d2_charts.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>d2_charts.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" href="../../normalize.css"><link rel="stylesheet" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" href="../../ayu.css" disabled><link rel="stylesheet" href="../../dark.css" disabled><link rel="stylesheet" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script><script defer src="../../main.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
 <!-- The loading of KaTeX is deferred to speed up page rendering -->
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.js" integrity="sha384-Bi8OWqMXO1ta+a4EPkZv7bYGIes7C3krGSZoTGNTAnAn5eYQc7IIXrJ/7ck1drAi" crossorigin="anonymous"></script>
 <!-- To automatically render math in text elements, include the auto-render extension: -->
@@ -70,52 +70,52 @@
 <span id="45">45</span>
 <span id="46">46</span>
 <span id="47">47</span>
-</pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">algebra::Algebra</span>;
-<span class="kw">use</span> <span class="ident">chart</span>::{<span class="ident">Backend</span> <span class="kw">as</span> <span class="kw">_</span>, <span class="ident">TikzBackend</span> <span class="kw">as</span> <span class="ident">Backend</span>};
-<span class="kw">use</span> <span class="ident">ext</span>::{
-    <span class="ident">chain_complex</span>::{<span class="ident">ChainComplex</span>, <span class="ident">FreeChainComplex</span>},
-    <span class="ident">secondary</span>::{<span class="ident">SecondaryLift</span>, <span class="ident">SecondaryResolution</span>},
+</pre><pre class="rust"><code><span class="kw">use </span>algebra::Algebra;
+<span class="kw">use </span>chart::{Backend <span class="kw">as _</span>, TikzBackend <span class="kw">as </span>Backend};
+<span class="kw">use </span>ext::{
+    chain_complex::{ChainComplex, FreeChainComplex},
+    secondary::{SecondaryLift, SecondaryResolution},
 };
-<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">fs::File</span>, <span class="ident">sync::Arc</span>};
+<span class="kw">use </span>std::{fs::File, sync::Arc};
 
-<span class="kw">fn</span> <span class="ident">main</span>() -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-    <span class="kw">let</span> <span class="ident">resolution</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">ext::utils::query_module</span>(
-        <span class="prelude-val">Some</span>(<span class="ident">algebra::AlgebraType::Milnor</span>),
+<span class="kw">fn </span>main() -&gt; anyhow::Result&lt;()&gt; {
+    <span class="kw">let </span>resolution = Arc::new(ext::utils::query_module(
+        <span class="prelude-val">Some</span>(algebra::AlgebraType::Milnor),
         <span class="bool-val">true</span>,
     )<span class="question-mark">?</span>);
 
-    <span class="kw">let</span> <span class="ident">lift</span> <span class="op">=</span> <span class="ident">SecondaryResolution::new</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">resolution</span>));
-    <span class="ident">lift</span>.<span class="ident">extend_all</span>();
+    <span class="kw">let </span>lift = SecondaryResolution::new(Arc::clone(<span class="kw-2">&amp;</span>resolution));
+    lift.extend_all();
 
-    <span class="kw">let</span> <span class="ident">sseq</span> <span class="op">=</span> <span class="ident">lift</span>.<span class="ident">e3_page</span>();
-    <span class="kw">let</span> <span class="ident">products</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">resolution</span>
-        .<span class="ident">algebra</span>()
-        .<span class="ident">default_filtration_one_products</span>()
-        .<span class="ident">into_iter</span>()
-        .<span class="ident">map</span>(<span class="op">|</span>(<span class="ident">name</span>, <span class="ident">op_deg</span>, <span class="ident">op_idx</span>)<span class="op">|</span> (<span class="ident">name</span>, <span class="ident">resolution</span>.<span class="ident">filtration_one_products</span>(<span class="ident">op_deg</span>, <span class="ident">op_idx</span>)))
-        .<span class="ident">collect</span>();
+    <span class="kw">let </span>sseq = lift.e3_page();
+    <span class="kw">let </span>products: Vec&lt;<span class="kw">_</span>&gt; = resolution
+        .algebra()
+        .default_filtration_one_products()
+        .into_iter()
+        .map(|(name, op_deg, op_idx)| (name, resolution.filtration_one_products(op_deg, op_idx)))
+        .collect();
 
-    <span class="kw">let</span> <span class="ident">write</span> <span class="op">=</span> <span class="op">|</span><span class="ident">path</span>, <span class="ident">page</span>, <span class="ident">diff</span>, <span class="ident">prod</span><span class="op">|</span> {
-        <span class="kw">const</span> <span class="ident">EXT</span>: <span class="kw-2">&amp;</span><span class="ident">str</span> <span class="op">=</span> <span class="ident">Backend</span>::<span class="op">&lt;</span><span class="ident">File</span><span class="op">&gt;</span><span class="ident">::EXT</span>;
-        <span class="kw">let</span> <span class="ident">backend</span> <span class="op">=</span> <span class="ident">Backend::new</span>(<span class="ident">File::create</span>(<span class="macro">format!</span>(
+    <span class="kw">let </span>write = |path, page, diff, prod| {
+        <span class="kw">const </span>EXT: <span class="kw-2">&amp;</span>str = Backend::&lt;File&gt;::EXT;
+        <span class="kw">let </span>backend = Backend::new(File::create(<span class="macro">format!</span>(
             <span class="string">&quot;{}_{}.{}&quot;</span>,
-            <span class="ident">path</span>,
-            <span class="ident">resolution</span>.<span class="ident">name</span>(),
-            <span class="ident">EXT</span>
+            path,
+            resolution.name(),
+            EXT
         ))<span class="question-mark">?</span>);
-        <span class="ident">sseq</span>.<span class="ident">write_to_graph</span>(<span class="ident">backend</span>, <span class="ident">page</span>, <span class="ident">diff</span>, <span class="ident">products</span>.<span class="ident">iter</span>().<span class="ident">take</span>(<span class="ident">prod</span>), <span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="prelude-val">Ok</span>(()))<span class="question-mark">?</span>;
-        <span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">std::io::Error</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="ident">::Ok</span>(())
+        sseq.write_to_graph(backend, page, diff, products.iter().take(prod), |<span class="kw">_</span>| <span class="prelude-val">Ok</span>(()))<span class="question-mark">?</span>;
+        &lt;<span class="prelude-ty">Result</span>&lt;(), std::io::Error&gt;&gt;::Ok(())
     };
 
-    <span class="ident">write</span>(<span class="string">&quot;e2&quot;</span>, <span class="number">2</span>, <span class="bool-val">false</span>, <span class="number">3</span>)<span class="question-mark">?</span>;
-    <span class="ident">write</span>(<span class="string">&quot;e2_d2&quot;</span>, <span class="number">2</span>, <span class="bool-val">true</span>, <span class="number">3</span>)<span class="question-mark">?</span>;
-    <span class="ident">write</span>(<span class="string">&quot;e3&quot;</span>, <span class="number">3</span>, <span class="bool-val">false</span>, <span class="number">3</span>)<span class="question-mark">?</span>;
+    write(<span class="string">&quot;e2&quot;</span>, <span class="number">2</span>, <span class="bool-val">false</span>, <span class="number">3</span>)<span class="question-mark">?</span>;
+    write(<span class="string">&quot;e2_d2&quot;</span>, <span class="number">2</span>, <span class="bool-val">true</span>, <span class="number">3</span>)<span class="question-mark">?</span>;
+    write(<span class="string">&quot;e3&quot;</span>, <span class="number">3</span>, <span class="bool-val">false</span>, <span class="number">3</span>)<span class="question-mark">?</span>;
 
-    <span class="ident">write</span>(<span class="string">&quot;e2_clean&quot;</span>, <span class="number">2</span>, <span class="bool-val">false</span>, <span class="number">2</span>)<span class="question-mark">?</span>;
-    <span class="ident">write</span>(<span class="string">&quot;e2_d2_clean&quot;</span>, <span class="number">2</span>, <span class="bool-val">true</span>, <span class="number">2</span>)<span class="question-mark">?</span>;
-    <span class="ident">write</span>(<span class="string">&quot;e3_clean&quot;</span>, <span class="number">3</span>, <span class="bool-val">false</span>, <span class="number">2</span>)<span class="question-mark">?</span>;
+    write(<span class="string">&quot;e2_clean&quot;</span>, <span class="number">2</span>, <span class="bool-val">false</span>, <span class="number">2</span>)<span class="question-mark">?</span>;
+    write(<span class="string">&quot;e2_d2_clean&quot;</span>, <span class="number">2</span>, <span class="bool-val">true</span>, <span class="number">2</span>)<span class="question-mark">?</span>;
+    write(<span class="string">&quot;e3_clean&quot;</span>, <span class="number">3</span>, <span class="bool-val">false</span>, <span class="number">2</span>)<span class="question-mark">?</span>;
 
     <span class="prelude-val">Ok</span>(())
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="d2_charts" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0 (a55dd71d5 2022-09-19)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="d2_charts" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0 (897e37553 2022-11-02)" ></div></body></html>

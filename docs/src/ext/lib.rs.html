@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/lib.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>lib.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled><link rel="stylesheet" type="text/css" href="../../dark.css" disabled><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script><script defer src="../../main.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/lib.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>lib.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" href="../../normalize.css"><link rel="stylesheet" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" href="../../ayu.css" disabled><link rel="stylesheet" href="../../dark.css" disabled><link rel="stylesheet" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script><script defer src="../../main.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
 <!-- The loading of KaTeX is deferred to speed up page rendering -->
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.js" integrity="sha384-Bi8OWqMXO1ta+a4EPkZv7bYGIes7C3krGSZoTGNTAnAn5eYQc7IIXrJ/7ck1drAi" crossorigin="anonymous"></script>
 <!-- To automatically render math in text elements, include the auto-render extension: -->
@@ -211,193 +211,193 @@
 <span id="186">186</span>
 <span id="187">187</span>
 <span id="188">188</span>
-</pre><pre class="rust"><code><span class="doccomment">//! `ext-rs` is a collection of libraries for doing homological algebra over $\F_p$. The</span>
-<span class="doccomment">//! main and original purpose is to compute Ext of a Steenrod module, but the library is written to</span>
-<span class="doccomment">//! be sufficiently generic to deal with more general applications.</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! # Examples</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! The library comes with a number of &quot;example&quot; binaries that use the library for various</span>
-<span class="doccomment">//! purposes. These can be used directly to perform specific computations, or act as actual</span>
-<span class="doccomment">//! examples for how to use the library.</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! ## Running an example</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! An example can be run by executing the command</span>
-<span class="doccomment">//! ```sh</span>
-<span class="doccomment">//!  $ cargo run --example EXAMPLE_NAME</span>
-<span class="doccomment">//! ```</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! There are various flags that can be useful to supply:</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//!  - `--release` compiles the code in release mode. This increases compilation</span>
-<span class="doccomment">//!    time, but results in a much faster binary. This also disables some expensive</span>
-<span class="doccomment">//!    run-time sanity checks.</span>
-<span class="doccomment">//!  - `--no-default-features` disables support for odd primes.</span>
-<span class="doccomment">//!  - `--features concurrent` compiles the program with multi-threading support. It defaults to</span>
-<span class="doccomment">//!    using all CPU cores, and can be configured via `RAYON_NUM_THREADS`.</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! These are supplied right after `cargo run`, in any order. In general, one</span>
-<span class="doccomment">//! should set all of these flags for any non-trivial calculation at the prime 2. See the</span>
-<span class="doccomment">//! [Features](#features) section for other features that can be enabled.</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! Each example runs interactively, and prompts the user for input. For example,</span>
-<span class="doccomment">//! the following session computes all filtration one products in $\Ext(C2, \F_2)$ and</span>
-<span class="doccomment">//! prints them to `stdout`:</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! ```sh</span>
-<span class="doccomment">//!  $ cargo run --features concurrent --example filtration_one</span>
-<span class="doccomment">//! Module (default: S_2): C2</span>
-<span class="doccomment">//! Module save directory (optional):</span>
-<span class="doccomment">//! Max n (default: 30): 40</span>
-<span class="doccomment">//! Max s (default: 7): 20</span>
-<span class="doccomment">//! ```</span>
-<span class="doccomment">//! In each line, the text after the final `:` is input by the user.</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! In general, we write the output to `stdout` and the prompts to `stderr`. This</span>
-<span class="doccomment">//! allows the user to redirect the output to another file or program.</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! ## Prompts and arguments</span>
-<span class="doccomment">//! Each prompt asks the user for an input, which is submitted by pressing the</span>
-<span class="doccomment">//! Enter/Return key. If the input is invalid, an error message is produced and the</span>
-<span class="doccomment">//! user is queried for the same input again. To exit the program early, one sends</span>
-<span class="doccomment">//! a `SIGTERM`, e.g. via `Ctrl-C`.</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! Some prompts are optional or have default values. To select the `None` or</span>
-<span class="doccomment">//! default option, simply supply an empty input.</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! To facilitate batch processing, answers to the prompt can be supplied as</span>
-<span class="doccomment">//! command line arguments instead; the nth command line argument is treated as the</span>
-<span class="doccomment">//! answer to the nth prompt. For example, the previous interaction can be called by</span>
-<span class="doccomment">//! ```sh</span>
-<span class="doccomment">//!  $ cargo run --features concurrent --example filtration_one -- C2 &quot;&quot; 2 40 20</span>
-<span class="doccomment">//! ```</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! ## Conventions</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! ### Module specification</span>
-<span class="doccomment">//! Each Steenrod module is defined in a `json` file, and a collection of such</span>
-<span class="doccomment">//! modules are available in the `steenrod_modules/` subdirectory. New modules can</span>
-<span class="doccomment">//! be defined using the [`define_module`](../define_module/index.html) example.</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! Modules are specified using their file names, excluding the `.json` extension.</span>
-<span class="doccomment">//! Module files are searched in the following order:</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//!  1. The current working directory</span>
-<span class="doccomment">//!  2. The `steenrod_modules/` subdirectory of the current directory</span>
-<span class="doccomment">//!  3. The fixed directory `ext/steenrod_modules/` relative to the repository.</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! For example, the module defined by `steenrod_modules/Ceta.json` can be</span>
-<span class="doccomment">//! specified with the name `Ceta`. It is possible to apply a degree shift to the</span>
-<span class="doccomment">//! module without having to define a new one. For example, to shift `Ceta` by one,</span>
-<span class="doccomment">//! we supply `Ceta[1]`.</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! When resolving a module, we have to pick a basis of the Steenrod algebra, which</span>
-<span class="doccomment">//! is either the Adem basis or the Milnor basis. The default choice is the Milnor</span>
-<span class="doccomment">//! basis. We can specify the basis by appending `@basis_name`. For example, if we</span>
-<span class="doccomment">//! want to resolve `Ceta[1]` with the Adem basis, we can specify it as `Ceta[1]@adem`.</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! ### Ext elements</span>
-<span class="doccomment">//! Each Ext group comes with a basis. The ith basis element of $\Ext^{s, n + s}$ is</span>
-<span class="doccomment">//! denoted `x_(n, s, i)`. If we want to specify an element in a particular Ext</span>
-<span class="doccomment">//! group, we either write it as a linear combination of the `x_(n, s, i)`, or</span>
-<span class="doccomment">//! written as a vector of the form e.g. `[0, 1, 0]`. In the latter case, the bidegree is implicit.</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! ### Save directory</span>
-<span class="doccomment">//! For most scripts, one can specify a save directory for each module. All save data relating to</span>
-<span class="doccomment">//! the module will be saved in this directory, including resolution data, products, secondary</span>
-<span class="doccomment">//! Steenrod algebra computations etc. For products, the data is saved in the save directory of the</span>
-<span class="doccomment">//! source of the chain map.</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! In general, the data for each bidegree (or each generator in some cases) is stored in a</span>
-<span class="doccomment">//! separate file in an appropriate directory. This lets us only load the data we need when doing a</span>
-<span class="doccomment">//! computation, and protects against corruption when the program is terminated halfway through</span>
-<span class="doccomment">//! writing (only the data for said bidegree would be corrupted).</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! For products, the subdirectory will be named after the name of the product. One must not reuse</span>
-<span class="doccomment">//! a name for different products; the script may produce and write erroneous results silently in</span>
-<span class="doccomment">//! such cases (though it practice it is likely to hit some error sooner or later).</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! If the script is compiled with the `zstd` feature, then it supports reading from zstd</span>
-<span class="doccomment">//! compressed save files, where each save file is individually compressed. The script will first</span>
-<span class="doccomment">//! look for the uncompressed file. If it does not exist, it then looks for the file with the same</span>
-<span class="doccomment">//! name but with a `.zst` extension.</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! Note that any new save file will still be written uncompressed. To compress the files, one must</span>
-<span class="doccomment">//! run the `zstd` program on each file in the save directory. It is safe to remove the original</span>
-<span class="doccomment">//! file after compression (i.e. run with the `--rm` option).</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! # List of examples</span>
-<span class="doccomment">//! Click on the individual examples for further information.</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! | Name | Description |</span>
-<span class="doccomment">//! | --- | --- |</span>
-<span class="doccomment">//! | [algebra_dim](../algebra_dim/index.html) | Print the dimension of the Steenrod algebra in each degree. |</span>
-<span class="doccomment">//! | [bruner](../bruner/index.html) | Compare our basis with Bruner&#39;s. |</span>
-<span class="doccomment">//! | [define_module](../define_module/index.html) | Interactively define a Steenrod module. |</span>
-<span class="doccomment">//! | [differentials](../differentials/index.html) | Print all differentials in the minimal resolution. |</span>
-<span class="doccomment">//! | [filtration_one](../filtration_one/index.html) | Print all filtration one products. |</span>
-<span class="doccomment">//! | [lift_hom](../lift_hom/index.html) | Compute the map $\Ext(N, k) \to \Ext(M, k)$ induced by an element in $\Ext(M, N)$. |</span>
-<span class="doccomment">//! | [massey](../massey/index.html) | Compute Massey products. |</span>
-<span class="doccomment">//! | [num_gens](../num_gens/index.html) | Compute the dimension of Ext in each bidegree. |</span>
-<span class="doccomment">//! | [resolution_size](../resolution_size/index.html) | Compute the size of the minimal resolution in each bidegree |</span>
-<span class="doccomment">//! | [resolve](../resolve/index.html) | Resolve a module to a fixed $(s, t)$ and potentially save the resolution. |</span>
-<span class="doccomment">//! | [resolve_through_stem](../resolve_through_stem/index.html) | Resolve a module to a fixed $(s, n)$ and potentially save the resolution. |</span>
-<span class="doccomment">//! | [save_bruner](../save_bruner/index.html) | Save the resolution in the format used by Bruner&#39;s [ext](http://www.rrb.wayne.edu/papers/index.html). |</span>
-<span class="doccomment">//! | [secondary](../secondary/index.html) | Compute $d_2$ differentials using the secondary Steenrod algebra. |</span>
-<span class="doccomment">//! | [secondary_product](../secondary_product/index.html) | Compute products in $\Mod_{C\tau^2}$ using the secondary Stennrod algebra. |</span>
-<span class="doccomment">//! | [secondary_massey](../secondary_massey/index.html) | Compute Massey products in $\Mod_{C\tau^2}$ using the secondary Stennrod algebra. |</span>
-<span class="doccomment">//! | [steenrod](../steenrod/index.html) | Compute Steenrod operations in Ext. |</span>
-<span class="doccomment">//! | [tensor](../tensor/index.html) | Compute the tensor product of two modules. |</span>
-<span class="doccomment">//! | [yoneda](../yoneda/index.html) | Compute a Yoneda representative of an Ext class. |</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! # Subcrates</span>
-<span class="doccomment">//! This contains a number of sub-crates, which each have their own documentation. A brief overview</span>
-<span class="doccomment">//! is as follows:</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! | Name | Description |</span>
-<span class="doccomment">//! | --- | --- |</span>
-<span class="doccomment">//! | [algebra] | This defines algebras, modules and module homomorphisms |</span>
-<span class="doccomment">//! | [bivec] | This is a small crate that provides [`BiVec`](`bivec::BiVec`) - a variant of [`Vec`] indexed by an `i32` whose starting index may be non-zero. |</span>
-<span class="doccomment">//! | [chart] | This provides some APIs for generating charts |</span>
-<span class="doccomment">//! | [fp] | This implements linear algebra over $\mathbb{F}_p$, as well as general helper functions about primes. |</span>
-<span class="doccomment">//! | [once] | This provides `OnceVec` and `OnceBiVec`, a push-only vector with non-blocking reads. This models some partially computed infinite data structure, and we think of pushing as simply finding out more of this infinite data structure instead of genuinely mutating it. |</span>
-<span class="doccomment">//! | [query] | This contains some helper functions for a command line interface. |</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! # Features</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! - `odd-primes`: This enables support for odd primes, and is enabled by default. Disabling this</span>
-<span class="doccomment">//!   feature offers significant improvements at the prime 2.</span>
-<span class="doccomment">//! - `concurrent`: Use multiple threads for computations. The number of threads used can be</span>
-<span class="doccomment">//!   configured via the `RAYON_NUM_THREADS` environment variable.</span>
-<span class="doccomment">//! - `zstd`: Support reading zstd-compressed save files.</span>
-<span class="doccomment">//! - `cache-multiplication`: Precompute and cache the multiplication table under the Milnor basis.</span>
-<span class="doccomment">//!    This is only feasible when using a small, finite subalgebra, e.g. when working with</span>
-<span class="doccomment">//!    $\mathrm{tmf}$ modules.</span>
-<span class="doccomment">//! - `logging`: Print timing information of the computations to stderr.</span>
-<span class="doccomment">//! - `nassau`: Use Nassau&#39;s algorithm to compute the minimal resolution instead of the usual</span>
-<span class="doccomment">//!    minimal resolution algorithm. When this feature is enabled, only finite dimensional modules</span>
-<span class="doccomment">//!    at the prime 2 can be resolved.</span>
+</pre><pre class="rust"><code><span class="doccomment">//! `ext-rs` is a collection of libraries for doing homological algebra over $\F_p$. The
+//! main and original purpose is to compute Ext of a Steenrod module, but the library is written to
+//! be sufficiently generic to deal with more general applications.
+//!
+//! # Examples
+//!
+//! The library comes with a number of &quot;example&quot; binaries that use the library for various
+//! purposes. These can be used directly to perform specific computations, or act as actual
+//! examples for how to use the library.
+//!
+//! ## Running an example
+//!
+//! An example can be run by executing the command
+//! ```sh
+//!  $ cargo run --example EXAMPLE_NAME
+//! ```
+//!
+//! There are various flags that can be useful to supply:
+//!
+//!  - `--release` compiles the code in release mode. This increases compilation
+//!    time, but results in a much faster binary. This also disables some expensive
+//!    run-time sanity checks.
+//!  - `--no-default-features` disables support for odd primes.
+//!  - `--features concurrent` compiles the program with multi-threading support. It defaults to
+//!    using all CPU cores, and can be configured via `RAYON_NUM_THREADS`.
+//!
+//! These are supplied right after `cargo run`, in any order. In general, one
+//! should set all of these flags for any non-trivial calculation at the prime 2. See the
+//! [Features](#features) section for other features that can be enabled.
+//!
+//! Each example runs interactively, and prompts the user for input. For example,
+//! the following session computes all filtration one products in $\Ext(C2, \F_2)$ and
+//! prints them to `stdout`:
+//!
+//! ```sh
+//!  $ cargo run --features concurrent --example filtration_one
+//! Module (default: S_2): C2
+//! Module save directory (optional):
+//! Max n (default: 30): 40
+//! Max s (default: 7): 20
+//! ```
+//! In each line, the text after the final `:` is input by the user.
+//!
+//! In general, we write the output to `stdout` and the prompts to `stderr`. This
+//! allows the user to redirect the output to another file or program.
+//!
+//! ## Prompts and arguments
+//! Each prompt asks the user for an input, which is submitted by pressing the
+//! Enter/Return key. If the input is invalid, an error message is produced and the
+//! user is queried for the same input again. To exit the program early, one sends
+//! a `SIGTERM`, e.g. via `Ctrl-C`.
+//!
+//! Some prompts are optional or have default values. To select the `None` or
+//! default option, simply supply an empty input.
+//!
+//! To facilitate batch processing, answers to the prompt can be supplied as
+//! command line arguments instead; the nth command line argument is treated as the
+//! answer to the nth prompt. For example, the previous interaction can be called by
+//! ```sh
+//!  $ cargo run --features concurrent --example filtration_one -- C2 &quot;&quot; 2 40 20
+//! ```
+//!
+//! ## Conventions
+//!
+//! ### Module specification
+//! Each Steenrod module is defined in a `json` file, and a collection of such
+//! modules are available in the `steenrod_modules/` subdirectory. New modules can
+//! be defined using the [`define_module`](../define_module/index.html) example.
+//!
+//! Modules are specified using their file names, excluding the `.json` extension.
+//! Module files are searched in the following order:
+//!
+//!  1. The current working directory
+//!  2. The `steenrod_modules/` subdirectory of the current directory
+//!  3. The fixed directory `ext/steenrod_modules/` relative to the repository.
+//!
+//! For example, the module defined by `steenrod_modules/Ceta.json` can be
+//! specified with the name `Ceta`. It is possible to apply a degree shift to the
+//! module without having to define a new one. For example, to shift `Ceta` by one,
+//! we supply `Ceta[1]`.
+//!
+//! When resolving a module, we have to pick a basis of the Steenrod algebra, which
+//! is either the Adem basis or the Milnor basis. The default choice is the Milnor
+//! basis. We can specify the basis by appending `@basis_name`. For example, if we
+//! want to resolve `Ceta[1]` with the Adem basis, we can specify it as `Ceta[1]@adem`.
+//!
+//! ### Ext elements
+//! Each Ext group comes with a basis. The ith basis element of $\Ext^{s, n + s}$ is
+//! denoted `x_(n, s, i)`. If we want to specify an element in a particular Ext
+//! group, we either write it as a linear combination of the `x_(n, s, i)`, or
+//! written as a vector of the form e.g. `[0, 1, 0]`. In the latter case, the bidegree is implicit.
+//!
+//! ### Save directory
+//! For most scripts, one can specify a save directory for each module. All save data relating to
+//! the module will be saved in this directory, including resolution data, products, secondary
+//! Steenrod algebra computations etc. For products, the data is saved in the save directory of the
+//! source of the chain map.
+//!
+//! In general, the data for each bidegree (or each generator in some cases) is stored in a
+//! separate file in an appropriate directory. This lets us only load the data we need when doing a
+//! computation, and protects against corruption when the program is terminated halfway through
+//! writing (only the data for said bidegree would be corrupted).
+//!
+//! For products, the subdirectory will be named after the name of the product. One must not reuse
+//! a name for different products; the script may produce and write erroneous results silently in
+//! such cases (though it practice it is likely to hit some error sooner or later).
+//!
+//! If the script is compiled with the `zstd` feature, then it supports reading from zstd
+//! compressed save files, where each save file is individually compressed. The script will first
+//! look for the uncompressed file. If it does not exist, it then looks for the file with the same
+//! name but with a `.zst` extension.
+//!
+//! Note that any new save file will still be written uncompressed. To compress the files, one must
+//! run the `zstd` program on each file in the save directory. It is safe to remove the original
+//! file after compression (i.e. run with the `--rm` option).
+//!
+//! # List of examples
+//! Click on the individual examples for further information.
+//!
+//! | Name | Description |
+//! | --- | --- |
+//! | [algebra_dim](../algebra_dim/index.html) | Print the dimension of the Steenrod algebra in each degree. |
+//! | [bruner](../bruner/index.html) | Compare our basis with Bruner&#39;s. |
+//! | [define_module](../define_module/index.html) | Interactively define a Steenrod module. |
+//! | [differentials](../differentials/index.html) | Print all differentials in the minimal resolution. |
+//! | [filtration_one](../filtration_one/index.html) | Print all filtration one products. |
+//! | [lift_hom](../lift_hom/index.html) | Compute the map $\Ext(N, k) \to \Ext(M, k)$ induced by an element in $\Ext(M, N)$. |
+//! | [massey](../massey/index.html) | Compute Massey products. |
+//! | [num_gens](../num_gens/index.html) | Compute the dimension of Ext in each bidegree. |
+//! | [resolution_size](../resolution_size/index.html) | Compute the size of the minimal resolution in each bidegree |
+//! | [resolve](../resolve/index.html) | Resolve a module to a fixed $(s, t)$ and potentially save the resolution. |
+//! | [resolve_through_stem](../resolve_through_stem/index.html) | Resolve a module to a fixed $(s, n)$ and potentially save the resolution. |
+//! | [save_bruner](../save_bruner/index.html) | Save the resolution in the format used by Bruner&#39;s [ext](http://www.rrb.wayne.edu/papers/index.html). |
+//! | [secondary](../secondary/index.html) | Compute $d_2$ differentials using the secondary Steenrod algebra. |
+//! | [secondary_product](../secondary_product/index.html) | Compute products in $\Mod_{C\tau^2}$ using the secondary Stennrod algebra. |
+//! | [secondary_massey](../secondary_massey/index.html) | Compute Massey products in $\Mod_{C\tau^2}$ using the secondary Stennrod algebra. |
+//! | [steenrod](../steenrod/index.html) | Compute Steenrod operations in Ext. |
+//! | [tensor](../tensor/index.html) | Compute the tensor product of two modules. |
+//! | [yoneda](../yoneda/index.html) | Compute a Yoneda representative of an Ext class. |
+//!
+//! # Subcrates
+//! This contains a number of sub-crates, which each have their own documentation. A brief overview
+//! is as follows:
+//!
+//! | Name | Description |
+//! | --- | --- |
+//! | [algebra] | This defines algebras, modules and module homomorphisms |
+//! | [bivec] | This is a small crate that provides [`BiVec`](`bivec::BiVec`) - a variant of [`Vec`] indexed by an `i32` whose starting index may be non-zero. |
+//! | [chart] | This provides some APIs for generating charts |
+//! | [fp] | This implements linear algebra over $\mathbb{F}_p$, as well as general helper functions about primes. |
+//! | [once] | This provides `OnceVec` and `OnceBiVec`, a push-only vector with non-blocking reads. This models some partially computed infinite data structure, and we think of pushing as simply finding out more of this infinite data structure instead of genuinely mutating it. |
+//! | [query] | This contains some helper functions for a command line interface. |
+//!
+//! # Features
+//!
+//! - `odd-primes`: This enables support for odd primes, and is enabled by default. Disabling this
+//!   feature offers significant improvements at the prime 2.
+//! - `concurrent`: Use multiple threads for computations. The number of threads used can be
+//!   configured via the `RAYON_NUM_THREADS` environment variable.
+//! - `zstd`: Support reading zstd-compressed save files.
+//! - `cache-multiplication`: Precompute and cache the multiplication table under the Milnor basis.
+//!    This is only feasible when using a small, finite subalgebra, e.g. when working with
+//!    $\mathrm{tmf}$ modules.
+//! - `logging`: Print timing information of the computations to stderr.
+//! - `nassau`: Use Nassau&#39;s algorithm to compute the minimal resolution instead of the usual
+//!    minimal resolution algorithm. When this feature is enabled, only finite dimensional modules
+//!    at the prime 2 can be resolved.
 
-<span class="attribute">#![<span class="ident">allow</span>(<span class="ident">clippy::upper_case_acronyms</span>)]</span>
+</span><span class="attribute">#![allow(clippy::upper_case_acronyms)]
 
-<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">chain_complex</span>;
-<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">resolution</span>;
-<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">resolution_homomorphism</span>;
-<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">save</span>;
+</span><span class="kw">pub mod </span>chain_complex;
+<span class="kw">pub mod </span>resolution;
+<span class="kw">pub mod </span>resolution_homomorphism;
+<span class="kw">pub mod </span>save;
 
-<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">yoneda</span>;
+<span class="kw">pub mod </span>yoneda;
 
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::chain_complex::FiniteChainComplex</span>;
-<span class="kw">use</span> <span class="ident">algebra::module::SteenrodModule</span>;
-<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">CCC</span> <span class="op">=</span> <span class="ident">FiniteChainComplex</span><span class="op">&lt;</span><span class="ident">SteenrodModule</span><span class="op">&gt;</span>;
+<span class="kw">use </span><span class="kw">crate</span>::chain_complex::FiniteChainComplex;
+<span class="kw">use </span>algebra::module::SteenrodModule;
+<span class="kw">pub type </span>CCC = FiniteChainComplex&lt;SteenrodModule&gt;;
 
-<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">nassau</span>;
-<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">secondary</span>;
-<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">utils</span>;
+<span class="kw">pub mod </span>nassau;
+<span class="kw">pub mod </span>secondary;
+<span class="kw">pub mod </span>utils;
 
-<span class="comment">// Ensure dependencies don&#39;t accidentally activate odd primes</span>
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;odd-primes&quot;</span>))]</span>
-<span class="kw">const</span> <span class="kw">_</span>: () <span class="op">=</span> <span class="macro">assert!</span>(<span class="op">!</span><span class="ident">fp::ODD_PRIMES</span>);
+<span class="comment">// Ensure dependencies don&#39;t accidentally activate odd primes
+</span><span class="attribute">#[cfg(not(feature = <span class="string">&quot;odd-primes&quot;</span>))]
+</span><span class="kw">const _</span>: () = <span class="macro">assert!</span>(!fp::ODD_PRIMES);
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="ext" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0 (a55dd71d5 2022-09-19)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="ext" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0 (897e37553 2022-11-02)" ></div></body></html>

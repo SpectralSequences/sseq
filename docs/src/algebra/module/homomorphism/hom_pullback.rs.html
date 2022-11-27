@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/algebra/src/module/homomorphism/hom_pullback.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>hom_pullback.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" type="text/css" href="../../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../../ayu.css" disabled><link rel="stylesheet" type="text/css" href="../../../../dark.css" disabled><link rel="stylesheet" type="text/css" href="../../../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../../../storage.js"></script><script defer src="../../../../source-script.js"></script><script defer src="../../../../source-files.js"></script><script defer src="../../../../main.js"></script><noscript><link rel="stylesheet" href="../../../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../../../favicon.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/algebra/src/module/homomorphism/hom_pullback.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>hom_pullback.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" href="../../../../normalize.css"><link rel="stylesheet" href="../../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" href="../../../../ayu.css" disabled><link rel="stylesheet" href="../../../../dark.css" disabled><link rel="stylesheet" href="../../../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../../../storage.js"></script><script defer src="../../../../source-script.js"></script><script defer src="../../../../source-files.js"></script><script defer src="../../../../main.js"></script><noscript><link rel="stylesheet" href="../../../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../../../favicon.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
 <!-- The loading of KaTeX is deferred to speed up page rendering -->
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.js" integrity="sha384-Bi8OWqMXO1ta+a4EPkZv7bYGIes7C3krGSZoTGNTAnAn5eYQc7IIXrJ/7ck1drAi" crossorigin="anonymous"></script>
 <!-- To automatically render math in text elements, include the auto-render extension: -->
@@ -285,267 +285,267 @@
 <span id="260">260</span>
 <span id="261">261</span>
 <span id="262">262</span>
-</pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
+</pre><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
 
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::module::block_structure::GeneratorBasisEltPair</span>;
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::module::homomorphism</span>::{<span class="ident">FreeModuleHomomorphism</span>, <span class="ident">ModuleHomomorphism</span>};
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::module::HomModule</span>;
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::module</span>::{<span class="ident">FreeModule</span>, <span class="ident">Module</span>};
-<span class="kw">use</span> <span class="ident">fp::matrix</span>::{<span class="ident">QuasiInverse</span>, <span class="ident">Subspace</span>};
-<span class="kw">use</span> <span class="ident">fp::vector::SliceMut</span>;
-<span class="kw">use</span> <span class="ident">once::OnceBiVec</span>;
+<span class="kw">use </span><span class="kw">crate</span>::module::block_structure::GeneratorBasisEltPair;
+<span class="kw">use </span><span class="kw">crate</span>::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
+<span class="kw">use </span><span class="kw">crate</span>::module::HomModule;
+<span class="kw">use </span><span class="kw">crate</span>::module::{FreeModule, Module};
+<span class="kw">use </span>fp::matrix::{QuasiInverse, Subspace};
+<span class="kw">use </span>fp::vector::SliceMut;
+<span class="kw">use </span>once::OnceBiVec;
 
-<span class="doccomment">/// Given a map $\mathtt{map}: A \to B$ and hom modules $\mathtt{source} = \Hom(B, X)$, $\mathtt{target} = \Hom(A, X)$, produce the induced pullback map $\Hom(B, X) \to \Hom(A, X)$.</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">HomPullback</span><span class="op">&lt;</span><span class="ident">M</span>: <span class="ident">Module</span><span class="op">&gt;</span> {
-    <span class="ident">source</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">HomModule</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    <span class="ident">target</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">HomModule</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    <span class="ident">map</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident">M::Algebra</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    <span class="ident">images</span>: <span class="ident">OnceBiVec</span><span class="op">&lt;</span><span class="ident">Subspace</span><span class="op">&gt;</span>,
-    <span class="ident">kernels</span>: <span class="ident">OnceBiVec</span><span class="op">&lt;</span><span class="ident">Subspace</span><span class="op">&gt;</span>,
-    <span class="ident">quasi_inverses</span>: <span class="ident">OnceBiVec</span><span class="op">&lt;</span><span class="ident">QuasiInverse</span><span class="op">&gt;</span>,
+<span class="doccomment">/// Given a map $\mathtt{map}: A \to B$ and hom modules $\mathtt{source} = \Hom(B, X)$, $\mathtt{target} = \Hom(A, X)$, produce the induced pullback map $\Hom(B, X) \to \Hom(A, X)$.
+</span><span class="kw">pub struct </span>HomPullback&lt;M: Module&gt; {
+    source: Arc&lt;HomModule&lt;M&gt;&gt;,
+    target: Arc&lt;HomModule&lt;M&gt;&gt;,
+    map: Arc&lt;FreeModuleHomomorphism&lt;FreeModule&lt;M::Algebra&gt;&gt;&gt;,
+    images: OnceBiVec&lt;Subspace&gt;,
+    kernels: OnceBiVec&lt;Subspace&gt;,
+    quasi_inverses: OnceBiVec&lt;QuasiInverse&gt;,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">M</span>: <span class="ident">Module</span><span class="op">&gt;</span> <span class="ident">HomPullback</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(
-        <span class="ident">source</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">HomModule</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-        <span class="ident">target</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">HomModule</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-        <span class="ident">map</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident">M::Algebra</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    ) -&gt; <span class="self">Self</span> {
-        <span class="macro">assert!</span>(<span class="ident">Arc::ptr_eq</span>(<span class="kw-2">&amp;</span><span class="ident">source</span>.<span class="ident">source</span>(), <span class="kw-2">&amp;</span><span class="ident">map</span>.<span class="ident">target</span>()));
-        <span class="macro">assert!</span>(<span class="ident">Arc::ptr_eq</span>(<span class="kw-2">&amp;</span><span class="ident">target</span>.<span class="ident">source</span>(), <span class="kw-2">&amp;</span><span class="ident">map</span>.<span class="ident">source</span>()));
-        <span class="macro">assert!</span>(<span class="ident">Arc::ptr_eq</span>(<span class="kw-2">&amp;</span><span class="ident">source</span>.<span class="ident">target</span>(), <span class="kw-2">&amp;</span><span class="ident">target</span>.<span class="ident">target</span>()));
+<span class="kw">impl</span>&lt;M: Module&gt; HomPullback&lt;M&gt; {
+    <span class="kw">pub fn </span>new(
+        source: Arc&lt;HomModule&lt;M&gt;&gt;,
+        target: Arc&lt;HomModule&lt;M&gt;&gt;,
+        map: Arc&lt;FreeModuleHomomorphism&lt;FreeModule&lt;M::Algebra&gt;&gt;&gt;,
+    ) -&gt; <span class="self">Self </span>{
+        <span class="macro">assert!</span>(Arc::ptr_eq(<span class="kw-2">&amp;</span>source.source(), <span class="kw-2">&amp;</span>map.target()));
+        <span class="macro">assert!</span>(Arc::ptr_eq(<span class="kw-2">&amp;</span>target.source(), <span class="kw-2">&amp;</span>map.source()));
+        <span class="macro">assert!</span>(Arc::ptr_eq(<span class="kw-2">&amp;</span>source.target(), <span class="kw-2">&amp;</span>target.target()));
 
-        <span class="kw">let</span> <span class="ident">min_degree</span> <span class="op">=</span> <span class="ident">source</span>.<span class="ident">min_degree</span>();
-        <span class="self">Self</span> {
-            <span class="ident">source</span>,
-            <span class="ident">target</span>,
-            <span class="ident">map</span>,
-            <span class="ident">images</span>: <span class="ident">OnceBiVec::new</span>(<span class="ident">min_degree</span>),
-            <span class="ident">kernels</span>: <span class="ident">OnceBiVec::new</span>(<span class="ident">min_degree</span>),
-            <span class="ident">quasi_inverses</span>: <span class="ident">OnceBiVec::new</span>(<span class="ident">min_degree</span>),
+        <span class="kw">let </span>min_degree = source.min_degree();
+        <span class="self">Self </span>{
+            source,
+            target,
+            map,
+            images: OnceBiVec::new(min_degree),
+            kernels: OnceBiVec::new(min_degree),
+            quasi_inverses: OnceBiVec::new(min_degree),
         }
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">M</span>: <span class="ident">Module</span><span class="op">&gt;</span> <span class="ident">ModuleHomomorphism</span> <span class="kw">for</span> <span class="ident">HomPullback</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span> {
-    <span class="kw">type</span> <span class="ident">Source</span> <span class="op">=</span> <span class="ident">HomModule</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span>;
-    <span class="kw">type</span> <span class="ident">Target</span> <span class="op">=</span> <span class="ident">HomModule</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span>;
+<span class="kw">impl</span>&lt;M: Module&gt; ModuleHomomorphism <span class="kw">for </span>HomPullback&lt;M&gt; {
+    <span class="kw">type </span>Source = HomModule&lt;M&gt;;
+    <span class="kw">type </span>Target = HomModule&lt;M&gt;;
 
-    <span class="kw">fn</span> <span class="ident">source</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Source</span><span class="op">&gt;</span> {
-        <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">source</span>)
+    <span class="kw">fn </span>source(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Arc&lt;<span class="self">Self</span>::Source&gt; {
+        Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.source)
     }
 
-    <span class="kw">fn</span> <span class="ident">target</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Target</span><span class="op">&gt;</span> {
-        <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">target</span>)
+    <span class="kw">fn </span>target(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Arc&lt;<span class="self">Self</span>::Target&gt; {
+        Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.target)
     }
 
-    <span class="kw">fn</span> <span class="ident">degree_shift</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">i32</span> {
-        <span class="op">-</span><span class="self">self</span>.<span class="ident">map</span>.<span class="ident">degree_shift</span>()
+    <span class="kw">fn </span>degree_shift(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; i32 {
+        -<span class="self">self</span>.map.degree_shift()
     }
 
-    <span class="kw">fn</span> <span class="ident">min_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">i32</span> {
-        <span class="self">self</span>.<span class="ident">source</span>().<span class="ident">min_degree</span>()
+    <span class="kw">fn </span>min_degree(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; i32 {
+        <span class="self">self</span>.source().min_degree()
     }
 
-    <span class="kw">fn</span> <span class="ident">apply_to_basis_element</span>(
+    <span class="kw">fn </span>apply_to_basis_element(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="kw-2">mut</span> <span class="ident">result</span>: <span class="ident">SliceMut</span>,
-        <span class="ident">coeff</span>: <span class="ident">u32</span>,
-        <span class="ident">fn_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">fn_idx</span>: <span class="ident">usize</span>,
+        <span class="kw-2">mut </span>result: SliceMut,
+        coeff: u32,
+        fn_degree: i32,
+        fn_idx: usize,
     ) {
-        <span class="kw">let</span> <span class="ident">GeneratorBasisEltPair</span> {
-            <span class="ident">generator_degree</span>,
-            <span class="ident">generator_index</span>,
-            <span class="ident">basis_index</span>,
-        } <span class="op">=</span> <span class="self">self</span>.<span class="ident">source</span>.<span class="ident">block_structures</span>[<span class="ident">fn_degree</span>].<span class="ident">index_to_generator_basis_elt</span>(<span class="ident">fn_idx</span>);
+        <span class="kw">let </span>GeneratorBasisEltPair {
+            generator_degree,
+            generator_index,
+            basis_index,
+        } = <span class="self">self</span>.source.block_structures[fn_degree].index_to_generator_basis_elt(fn_idx);
 
-        <span class="kw">let</span> <span class="ident">target_module</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">target</span>.<span class="ident">target</span>(); <span class="comment">// == self.source.target()</span>
-        <span class="kw">let</span> <span class="ident">source_free_module</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">source</span>.<span class="ident">source</span>();
-        <span class="kw">let</span> <span class="ident">target_free_module</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">target</span>.<span class="ident">source</span>();
-        <span class="kw">let</span> <span class="ident">degree_shift</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">map</span>.<span class="ident">degree_shift</span>();
+        <span class="kw">let </span>target_module = <span class="self">self</span>.target.target(); <span class="comment">// == self.source.target()
+        </span><span class="kw">let </span>source_free_module = <span class="self">self</span>.source.source();
+        <span class="kw">let </span>target_free_module = <span class="self">self</span>.target.source();
+        <span class="kw">let </span>degree_shift = <span class="self">self</span>.map.degree_shift();
 
-        <span class="kw">let</span> <span class="ident">max_degree</span> <span class="op">=</span> <span class="ident">fn_degree</span> <span class="op">+</span> <span class="ident">degree_shift</span> <span class="op">+</span> <span class="ident">target_module</span>.<span class="ident">max_degree</span>().<span class="ident">unwrap</span>();
-        <span class="kw">let</span> <span class="ident">min_degree</span> <span class="op">=</span> <span class="ident">std::cmp::max</span>(
-            <span class="kw-2">*</span><span class="ident">generator_degree</span> <span class="op">+</span> <span class="ident">degree_shift</span>,
-            <span class="ident">fn_degree</span> <span class="op">+</span> <span class="ident">degree_shift</span> <span class="op">+</span> <span class="ident">target_module</span>.<span class="ident">min_degree</span>(),
+        <span class="kw">let </span>max_degree = fn_degree + degree_shift + target_module.max_degree().unwrap();
+        <span class="kw">let </span>min_degree = std::cmp::max(
+            <span class="kw-2">*</span>generator_degree + degree_shift,
+            fn_degree + degree_shift + target_module.min_degree(),
         );
 
-        <span class="kw">for</span> (<span class="ident">target_gen_deg</span>, <span class="ident">target_gen_idx</span>) <span class="kw">in</span> <span class="ident">target_free_module</span>
-            .<span class="ident">iter_gens</span>(<span class="ident">max_degree</span>)
-            .<span class="ident">filter</span>(<span class="op">|</span>(<span class="ident">t</span>, <span class="kw">_</span>)<span class="op">|</span> <span class="kw-2">*</span><span class="ident">t</span> <span class="op">&gt;</span><span class="op">=</span> <span class="ident">min_degree</span>)
+        <span class="kw">for </span>(target_gen_deg, target_gen_idx) <span class="kw">in </span>target_free_module
+            .iter_gens(max_degree)
+            .filter(|(t, <span class="kw">_</span>)| <span class="kw-2">*</span>t &gt;= min_degree)
         {
-            <span class="kw">let</span> <span class="ident">target_range</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">target</span>.<span class="ident">block_structures</span>[<span class="ident">fn_degree</span> <span class="op">+</span> <span class="ident">degree_shift</span>]
-                .<span class="ident">generator_to_block</span>(<span class="ident">target_gen_deg</span>, <span class="ident">target_gen_idx</span>);
+            <span class="kw">let </span>target_range = <span class="self">self</span>.target.block_structures[fn_degree + degree_shift]
+                .generator_to_block(target_gen_deg, target_gen_idx);
 
-            <span class="kw">let</span> <span class="ident">slice</span> <span class="op">=</span> <span class="ident">source_free_module</span>.<span class="ident">slice_vector</span>(
-                <span class="ident">target_gen_deg</span> <span class="op">-</span> <span class="ident">degree_shift</span>,
-                <span class="kw-2">*</span><span class="ident">generator_degree</span>,
-                <span class="kw-2">*</span><span class="ident">generator_index</span>,
-                <span class="self">self</span>.<span class="ident">map</span>.<span class="ident">output</span>(<span class="ident">target_gen_deg</span>, <span class="ident">target_gen_idx</span>).<span class="ident">as_slice</span>(),
+            <span class="kw">let </span>slice = source_free_module.slice_vector(
+                target_gen_deg - degree_shift,
+                <span class="kw-2">*</span>generator_degree,
+                <span class="kw-2">*</span>generator_index,
+                <span class="self">self</span>.map.output(target_gen_deg, target_gen_idx).as_slice(),
             );
 
-            <span class="comment">// Needed if the output is shorter due to resolve_through_stem</span>
-            <span class="kw">if</span> <span class="ident">slice</span>.<span class="ident">is_empty</span>() {
+            <span class="comment">// Needed if the output is shorter due to resolve_through_stem
+            </span><span class="kw">if </span>slice.is_empty() {
                 <span class="kw">continue</span>;
             }
-            <span class="ident">target_module</span>.<span class="ident">act_by_element_on_basis</span>(
-                <span class="ident">result</span>.<span class="ident">slice_mut</span>(<span class="ident">target_range</span>.<span class="ident">start</span>, <span class="ident">target_range</span>.<span class="ident">end</span>),
-                <span class="ident">coeff</span>,
-                <span class="ident">target_gen_deg</span> <span class="op">-</span> <span class="ident">degree_shift</span> <span class="op">-</span> <span class="kw-2">*</span><span class="ident">generator_degree</span>,
-                <span class="ident">slice</span>,
-                <span class="kw-2">*</span><span class="ident">generator_degree</span> <span class="op">-</span> <span class="ident">fn_degree</span>,
-                <span class="kw-2">*</span><span class="ident">basis_index</span>,
+            target_module.act_by_element_on_basis(
+                result.slice_mut(target_range.start, target_range.end),
+                coeff,
+                target_gen_deg - degree_shift - <span class="kw-2">*</span>generator_degree,
+                slice,
+                <span class="kw-2">*</span>generator_degree - fn_degree,
+                <span class="kw-2">*</span>basis_index,
             );
         }
     }
 
-    <span class="kw">fn</span> <span class="ident">compute_auxiliary_data_through_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) {
-        <span class="self">self</span>.<span class="ident">kernels</span>.<span class="ident">extend</span>(<span class="ident">degree</span>, <span class="op">|</span><span class="ident">i</span><span class="op">|</span> {
-            <span class="kw">let</span> (<span class="ident">image</span>, <span class="ident">kernel</span>, <span class="ident">qi</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">auxiliary_data</span>(<span class="ident">i</span>);
-            <span class="self">self</span>.<span class="ident">images</span>.<span class="ident">push_checked</span>(<span class="ident">image</span>, <span class="ident">i</span>);
-            <span class="self">self</span>.<span class="ident">quasi_inverses</span>.<span class="ident">push_checked</span>(<span class="ident">qi</span>, <span class="ident">i</span>);
-            <span class="ident">kernel</span>
+    <span class="kw">fn </span>compute_auxiliary_data_through_degree(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32) {
+        <span class="self">self</span>.kernels.extend(degree, |i| {
+            <span class="kw">let </span>(image, kernel, qi) = <span class="self">self</span>.auxiliary_data(i);
+            <span class="self">self</span>.images.push_checked(image, i);
+            <span class="self">self</span>.quasi_inverses.push_checked(qi, i);
+            kernel
         });
     }
 
-    <span class="kw">fn</span> <span class="ident">quasi_inverse</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">QuasiInverse</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">quasi_inverses</span>.<span class="ident">get</span>(<span class="ident">degree</span>)
+    <span class="kw">fn </span>quasi_inverse(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>QuasiInverse&gt; {
+        <span class="self">self</span>.quasi_inverses.get(degree)
     }
 
-    <span class="kw">fn</span> <span class="ident">kernel</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">Subspace</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">kernels</span>.<span class="ident">get</span>(<span class="ident">degree</span>)
+    <span class="kw">fn </span>kernel(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Subspace&gt; {
+        <span class="self">self</span>.kernels.get(degree)
     }
 
-    <span class="kw">fn</span> <span class="ident">image</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">Subspace</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">images</span>.<span class="ident">get</span>(<span class="ident">degree</span>)
+    <span class="kw">fn </span>image(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Subspace&gt; {
+        <span class="self">self</span>.images.get(degree)
     }
 }
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
-<span class="kw">mod</span> <span class="ident">tests</span> {
-    <span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
-    <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::module::FDModule</span>;
-    <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::MilnorAlgebra</span>;
-    <span class="kw">use</span> <span class="ident">bivec::BiVec</span>;
-    <span class="kw">use</span> <span class="ident">fp::matrix::Matrix</span>;
-    <span class="kw">use</span> <span class="ident">fp::vector::FpVector</span>;
+<span class="attribute">#[cfg(test)]
+</span><span class="kw">mod </span>tests {
+    <span class="kw">use super</span>::<span class="kw-2">*</span>;
+    <span class="kw">use </span><span class="kw">crate</span>::module::FDModule;
+    <span class="kw">use </span><span class="kw">crate</span>::MilnorAlgebra;
+    <span class="kw">use </span>bivec::BiVec;
+    <span class="kw">use </span>fp::matrix::Matrix;
+    <span class="kw">use </span>fp::vector::FpVector;
 
-    <span class="attribute">#[<span class="ident">test</span>]</span>
-    <span class="kw">fn</span> <span class="ident">test_pullback_id</span>() {
-        <span class="kw">const</span> <span class="ident">SHIFT</span>: <span class="ident">i32</span> <span class="op">=</span> <span class="number">2</span>;
-        <span class="kw">const</span> <span class="ident">NUM_GENS</span>: [<span class="ident">usize</span>; <span class="number">3</span>] <span class="op">=</span> [<span class="number">1</span>, <span class="number">2</span>, <span class="number">1</span>];
+    <span class="attribute">#[test]
+    </span><span class="kw">fn </span>test_pullback_id() {
+        <span class="kw">const </span>SHIFT: i32 = <span class="number">2</span>;
+        <span class="kw">const </span>NUM_GENS: [usize; <span class="number">3</span>] = [<span class="number">1</span>, <span class="number">2</span>, <span class="number">1</span>];
 
-        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">fp::prime::TWO</span>;
+        <span class="kw">let </span>p = fp::prime::TWO;
 
-        <span class="kw">let</span> <span class="ident">algebra</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">MilnorAlgebra::new</span>(<span class="ident">p</span>, <span class="bool-val">false</span>));
-        <span class="kw">let</span> <span class="ident">f0</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">FreeModule::new</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">algebra</span>), <span class="string">&quot;F0&quot;</span>.<span class="ident">to_string</span>(), <span class="number">0</span>));
-        <span class="kw">let</span> <span class="ident">f1</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">FreeModule::new</span>(
-            <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">algebra</span>),
-            <span class="string">&quot;F1&quot;</span>.<span class="ident">to_string</span>(),
-            <span class="ident">SHIFT</span>,
+        <span class="kw">let </span>algebra = Arc::new(MilnorAlgebra::new(p, <span class="bool-val">false</span>));
+        <span class="kw">let </span>f0 = Arc::new(FreeModule::new(Arc::clone(<span class="kw-2">&amp;</span>algebra), <span class="string">&quot;F0&quot;</span>.to_string(), <span class="number">0</span>));
+        <span class="kw">let </span>f1 = Arc::new(FreeModule::new(
+            Arc::clone(<span class="kw-2">&amp;</span>algebra),
+            <span class="string">&quot;F1&quot;</span>.to_string(),
+            SHIFT,
         ));
-        <span class="kw">let</span> <span class="ident">m</span> <span class="op">=</span> <span class="ident">Arc::new</span>(
-            <span class="ident">FDModule::from_json</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">algebra</span>), <span class="kw-2">&amp;</span><span class="ident"><span class="kw">crate</span>::test::joker_json</span>()).<span class="ident">unwrap</span>(),
+        <span class="kw">let </span>m = Arc::new(
+            FDModule::from_json(Arc::clone(<span class="kw-2">&amp;</span>algebra), <span class="kw-2">&amp;</span><span class="kw">crate</span>::test::joker_json()).unwrap(),
         );
 
-        <span class="kw">let</span> <span class="ident">d</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">FreeModuleHomomorphism::new</span>(
-            <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">f1</span>),
-            <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">f0</span>),
-            <span class="ident">SHIFT</span>,
+        <span class="kw">let </span>d = Arc::new(FreeModuleHomomorphism::new(
+            Arc::clone(<span class="kw-2">&amp;</span>f1),
+            Arc::clone(<span class="kw-2">&amp;</span>f0),
+            SHIFT,
         ));
 
-        <span class="ident">f0</span>.<span class="ident">compute_basis</span>(<span class="ident">NUM_GENS</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">i32</span>);
-        <span class="ident">f1</span>.<span class="ident">compute_basis</span>(<span class="ident">NUM_GENS</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">i32</span> <span class="op">+</span> <span class="ident">SHIFT</span>);
+        f0.compute_basis(NUM_GENS.len() <span class="kw">as </span>i32);
+        f1.compute_basis(NUM_GENS.len() <span class="kw">as </span>i32 + SHIFT);
 
-        <span class="kw">for</span> (<span class="ident">deg</span>, <span class="ident">num_gens</span>) <span class="kw">in</span> <span class="ident">NUM_GENS</span>.<span class="ident">into_iter</span>().<span class="ident">enumerate</span>() {
-            <span class="ident">f0</span>.<span class="ident">add_generators</span>(<span class="ident">deg</span> <span class="kw">as</span> <span class="ident">i32</span>, <span class="ident">num_gens</span>, <span class="prelude-val">None</span>);
-            <span class="ident">f1</span>.<span class="ident">add_generators</span>(<span class="ident">deg</span> <span class="kw">as</span> <span class="ident">i32</span> <span class="op">+</span> <span class="ident">SHIFT</span>, <span class="ident">num_gens</span>, <span class="prelude-val">None</span>);
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">rows</span> <span class="op">=</span> <span class="macro">vec!</span>[<span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="ident">f0</span>.<span class="ident">dimension</span>(<span class="ident">deg</span> <span class="kw">as</span> <span class="ident">i32</span>)); <span class="ident">num_gens</span>];
-            <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">row</span>) <span class="kw">in</span> <span class="ident">rows</span>.<span class="ident">iter_mut</span>().<span class="ident">enumerate</span>() {
-                <span class="ident">row</span>.<span class="ident">add_basis_element</span>(<span class="ident">row</span>.<span class="ident">len</span>() <span class="op">-</span> <span class="ident">num_gens</span> <span class="op">+</span> <span class="ident">i</span>, <span class="number">1</span>);
+        <span class="kw">for </span>(deg, num_gens) <span class="kw">in </span>NUM_GENS.into_iter().enumerate() {
+            f0.add_generators(deg <span class="kw">as </span>i32, num_gens, <span class="prelude-val">None</span>);
+            f1.add_generators(deg <span class="kw">as </span>i32 + SHIFT, num_gens, <span class="prelude-val">None</span>);
+            <span class="kw">let </span><span class="kw-2">mut </span>rows = <span class="macro">vec!</span>[FpVector::new(p, f0.dimension(deg <span class="kw">as </span>i32)); num_gens];
+            <span class="kw">for </span>(i, row) <span class="kw">in </span>rows.iter_mut().enumerate() {
+                row.add_basis_element(row.len() - num_gens + i, <span class="number">1</span>);
             }
-            <span class="ident">d</span>.<span class="ident">add_generators_from_rows</span>(<span class="ident">deg</span> <span class="kw">as</span> <span class="ident">i32</span> <span class="op">+</span> <span class="ident">SHIFT</span>, <span class="ident">rows</span>);
+            d.add_generators_from_rows(deg <span class="kw">as </span>i32 + SHIFT, rows);
         }
 
-        <span class="kw">let</span> <span class="ident">pb</span> <span class="op">=</span> <span class="ident">HomPullback::new</span>(
-            <span class="ident">Arc::new</span>(<span class="ident">HomModule::new</span>(<span class="ident">f0</span>, <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">m</span>))),
-            <span class="ident">Arc::new</span>(<span class="ident">HomModule::new</span>(<span class="ident">f1</span>, <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">m</span>))),
-            <span class="ident">d</span>,
+        <span class="kw">let </span>pb = HomPullback::new(
+            Arc::new(HomModule::new(f0, Arc::clone(<span class="kw-2">&amp;</span>m))),
+            Arc::new(HomModule::new(f1, Arc::clone(<span class="kw-2">&amp;</span>m))),
+            d,
         );
 
-        <span class="ident">pb</span>.<span class="ident">source</span>.<span class="ident">compute_basis</span>(<span class="op">-</span><span class="number">2</span>);
-        <span class="ident">pb</span>.<span class="ident">target</span>.<span class="ident">compute_basis</span>(<span class="op">-</span><span class="number">2</span> <span class="op">+</span> <span class="ident">SHIFT</span>);
+        pb.source.compute_basis(-<span class="number">2</span>);
+        pb.target.compute_basis(-<span class="number">2 </span>+ SHIFT);
 
-        <span class="kw">for</span> <span class="ident">deg</span> <span class="kw">in</span> <span class="ident">pb</span>.<span class="ident">source</span>.<span class="ident">min_degree</span>()..<span class="op">=</span><span class="ident">pb</span>.<span class="ident">source</span>.<span class="ident">max_computed_degree</span>() {
-            <span class="kw">let</span> <span class="ident">dim</span> <span class="op">=</span> <span class="ident">pb</span>.<span class="ident">source</span>.<span class="ident">dimension</span>(<span class="ident">deg</span>);
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">matrix</span> <span class="op">=</span> <span class="ident">Matrix::new</span>(<span class="ident">p</span>, <span class="ident">dim</span>, <span class="ident">dim</span>);
-            <span class="ident">pb</span>.<span class="ident">get_matrix</span>(<span class="ident">matrix</span>.<span class="ident">as_slice_mut</span>(), <span class="ident">deg</span>);
-            <span class="macro">assert_eq!</span>(<span class="ident">matrix</span>, <span class="ident">Matrix::identity</span>(<span class="ident">p</span>, <span class="ident">dim</span>));
+        <span class="kw">for </span>deg <span class="kw">in </span>pb.source.min_degree()..=pb.source.max_computed_degree() {
+            <span class="kw">let </span>dim = pb.source.dimension(deg);
+            <span class="kw">let </span><span class="kw-2">mut </span>matrix = Matrix::new(p, dim, dim);
+            pb.get_matrix(matrix.as_slice_mut(), deg);
+            <span class="macro">assert_eq!</span>(matrix, Matrix::identity(p, dim));
         }
     }
 
-    <span class="attribute">#[<span class="ident">test</span>]</span>
-    <span class="kw">fn</span> <span class="ident">test_pullback</span>() {
-        <span class="kw">const</span> <span class="ident">SHIFT</span>: <span class="ident">i32</span> <span class="op">=</span> <span class="number">3</span>;
-        <span class="kw">const</span> <span class="ident">NUM_GENS</span>: [<span class="ident">usize</span>; <span class="number">3</span>] <span class="op">=</span> [<span class="number">1</span>, <span class="number">1</span>, <span class="number">1</span>];
+    <span class="attribute">#[test]
+    </span><span class="kw">fn </span>test_pullback() {
+        <span class="kw">const </span>SHIFT: i32 = <span class="number">3</span>;
+        <span class="kw">const </span>NUM_GENS: [usize; <span class="number">3</span>] = [<span class="number">1</span>, <span class="number">1</span>, <span class="number">1</span>];
 
-        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">fp::prime::TWO</span>;
+        <span class="kw">let </span>p = fp::prime::TWO;
 
-        <span class="kw">let</span> <span class="ident">algebra</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">MilnorAlgebra::new</span>(<span class="ident">p</span>, <span class="bool-val">false</span>));
-        <span class="kw">let</span> <span class="ident">f0</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">FreeModule::new</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">algebra</span>), <span class="string">&quot;F0&quot;</span>.<span class="ident">to_string</span>(), <span class="number">0</span>));
-        <span class="kw">let</span> <span class="ident">f1</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">FreeModule::new</span>(
-            <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">algebra</span>),
-            <span class="string">&quot;F1&quot;</span>.<span class="ident">to_string</span>(),
-            <span class="ident">SHIFT</span>,
+        <span class="kw">let </span>algebra = Arc::new(MilnorAlgebra::new(p, <span class="bool-val">false</span>));
+        <span class="kw">let </span>f0 = Arc::new(FreeModule::new(Arc::clone(<span class="kw-2">&amp;</span>algebra), <span class="string">&quot;F0&quot;</span>.to_string(), <span class="number">0</span>));
+        <span class="kw">let </span>f1 = Arc::new(FreeModule::new(
+            Arc::clone(<span class="kw-2">&amp;</span>algebra),
+            <span class="string">&quot;F1&quot;</span>.to_string(),
+            SHIFT,
         ));
-        <span class="kw">let</span> <span class="ident">m</span> <span class="op">=</span> <span class="ident">Arc::new</span>(
-            <span class="ident">FDModule::from_json</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">algebra</span>), <span class="kw-2">&amp;</span><span class="ident"><span class="kw">crate</span>::test::joker_json</span>()).<span class="ident">unwrap</span>(),
+        <span class="kw">let </span>m = Arc::new(
+            FDModule::from_json(Arc::clone(<span class="kw-2">&amp;</span>algebra), <span class="kw-2">&amp;</span><span class="kw">crate</span>::test::joker_json()).unwrap(),
         );
 
-        <span class="kw">let</span> <span class="ident">d</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">FreeModuleHomomorphism::new</span>(
-            <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">f1</span>),
-            <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">f0</span>),
-            <span class="ident">SHIFT</span>,
+        <span class="kw">let </span>d = Arc::new(FreeModuleHomomorphism::new(
+            Arc::clone(<span class="kw-2">&amp;</span>f1),
+            Arc::clone(<span class="kw-2">&amp;</span>f0),
+            SHIFT,
         ));
 
-        <span class="ident">f0</span>.<span class="ident">compute_basis</span>(<span class="ident">NUM_GENS</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">i32</span>);
-        <span class="ident">f1</span>.<span class="ident">compute_basis</span>(<span class="ident">NUM_GENS</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">i32</span> <span class="op">+</span> <span class="ident">SHIFT</span>);
+        f0.compute_basis(NUM_GENS.len() <span class="kw">as </span>i32);
+        f1.compute_basis(NUM_GENS.len() <span class="kw">as </span>i32 + SHIFT);
 
-        <span class="kw">for</span> (<span class="ident">deg</span>, <span class="ident">num_gens</span>) <span class="kw">in</span> <span class="ident">NUM_GENS</span>.<span class="ident">into_iter</span>().<span class="ident">enumerate</span>() {
-            <span class="ident">f0</span>.<span class="ident">add_generators</span>(<span class="ident">deg</span> <span class="kw">as</span> <span class="ident">i32</span>, <span class="ident">num_gens</span>, <span class="prelude-val">None</span>);
-            <span class="ident">f1</span>.<span class="ident">add_generators</span>(<span class="ident">deg</span> <span class="kw">as</span> <span class="ident">i32</span> <span class="op">+</span> <span class="ident">SHIFT</span>, <span class="ident">num_gens</span>, <span class="prelude-val">None</span>);
+        <span class="kw">for </span>(deg, num_gens) <span class="kw">in </span>NUM_GENS.into_iter().enumerate() {
+            f0.add_generators(deg <span class="kw">as </span>i32, num_gens, <span class="prelude-val">None</span>);
+            f1.add_generators(deg <span class="kw">as </span>i32 + SHIFT, num_gens, <span class="prelude-val">None</span>);
         }
 
-        <span class="ident">d</span>.<span class="ident">add_generators_from_rows</span>(<span class="ident">SHIFT</span>, <span class="macro">vec!</span>[<span class="ident">FpVector::from_slice</span>(<span class="ident">p</span>, <span class="kw-2">&amp;</span>[<span class="number">1</span>])]);
-        <span class="ident">d</span>.<span class="ident">add_generators_from_rows</span>(<span class="ident">SHIFT</span> <span class="op">+</span> <span class="number">1</span>, <span class="macro">vec!</span>[<span class="ident">FpVector::from_slice</span>(<span class="ident">p</span>, <span class="kw-2">&amp;</span>[<span class="number">0</span>, <span class="number">1</span>])]);
-        <span class="ident">d</span>.<span class="ident">add_generators_from_rows</span>(<span class="ident">SHIFT</span> <span class="op">+</span> <span class="number">2</span>, <span class="macro">vec!</span>[<span class="ident">FpVector::from_slice</span>(<span class="ident">p</span>, <span class="kw-2">&amp;</span>[<span class="number">1</span>, <span class="number">1</span>, <span class="number">1</span>])]);
+        d.add_generators_from_rows(SHIFT, <span class="macro">vec!</span>[FpVector::from_slice(p, <span class="kw-2">&amp;</span>[<span class="number">1</span>])]);
+        d.add_generators_from_rows(SHIFT + <span class="number">1</span>, <span class="macro">vec!</span>[FpVector::from_slice(p, <span class="kw-2">&amp;</span>[<span class="number">0</span>, <span class="number">1</span>])]);
+        d.add_generators_from_rows(SHIFT + <span class="number">2</span>, <span class="macro">vec!</span>[FpVector::from_slice(p, <span class="kw-2">&amp;</span>[<span class="number">1</span>, <span class="number">1</span>, <span class="number">1</span>])]);
 
-        <span class="kw">let</span> <span class="ident">pb</span> <span class="op">=</span> <span class="ident">HomPullback::new</span>(
-            <span class="ident">Arc::new</span>(<span class="ident">HomModule::new</span>(<span class="ident">f0</span>, <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">m</span>))),
-            <span class="ident">Arc::new</span>(<span class="ident">HomModule::new</span>(<span class="ident">f1</span>, <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">m</span>))),
-            <span class="ident">d</span>,
+        <span class="kw">let </span>pb = HomPullback::new(
+            Arc::new(HomModule::new(f0, Arc::clone(<span class="kw-2">&amp;</span>m))),
+            Arc::new(HomModule::new(f1, Arc::clone(<span class="kw-2">&amp;</span>m))),
+            d,
         );
 
-        <span class="ident">pb</span>.<span class="ident">source</span>.<span class="ident">compute_basis</span>(<span class="op">-</span><span class="number">2</span>);
-        <span class="ident">pb</span>.<span class="ident">target</span>.<span class="ident">compute_basis</span>(<span class="op">-</span><span class="number">2</span> <span class="op">+</span> <span class="ident">SHIFT</span>);
+        pb.source.compute_basis(-<span class="number">2</span>);
+        pb.target.compute_basis(-<span class="number">2 </span>+ SHIFT);
 
-        <span class="kw">let</span> <span class="ident">outputs</span> <span class="op">=</span> <span class="ident">BiVec::from_vec</span>(
-            <span class="op">-</span><span class="number">4</span>,
+        <span class="kw">let </span>outputs = BiVec::from_vec(
+            -<span class="number">4</span>,
             <span class="macro">vec!</span>[
-                <span class="ident">Matrix::from_vec</span>(<span class="ident">p</span>, <span class="kw-2">&amp;</span>[<span class="macro">vec!</span>[<span class="number">1</span>]]),
-                <span class="ident">Matrix::from_vec</span>(<span class="ident">p</span>, <span class="kw-2">&amp;</span>[<span class="macro">vec!</span>[<span class="number">1</span>, <span class="number">0</span>], <span class="macro">vec!</span>[<span class="number">0</span>, <span class="number">1</span>]]),
-                <span class="ident">Matrix::from_vec</span>(<span class="ident">p</span>, <span class="kw-2">&amp;</span>[<span class="macro">vec!</span>[<span class="number">1</span>, <span class="number">0</span>, <span class="number">1</span>], <span class="macro">vec!</span>[<span class="number">0</span>, <span class="number">1</span>, <span class="number">1</span>], <span class="macro">vec!</span>[<span class="number">0</span>, <span class="number">0</span>, <span class="number">1</span>]]),
+                Matrix::from_vec(p, <span class="kw-2">&amp;</span>[<span class="macro">vec!</span>[<span class="number">1</span>]]),
+                Matrix::from_vec(p, <span class="kw-2">&amp;</span>[<span class="macro">vec!</span>[<span class="number">1</span>, <span class="number">0</span>], <span class="macro">vec!</span>[<span class="number">0</span>, <span class="number">1</span>]]),
+                Matrix::from_vec(p, <span class="kw-2">&amp;</span>[<span class="macro">vec!</span>[<span class="number">1</span>, <span class="number">0</span>, <span class="number">1</span>], <span class="macro">vec!</span>[<span class="number">0</span>, <span class="number">1</span>, <span class="number">1</span>], <span class="macro">vec!</span>[<span class="number">0</span>, <span class="number">0</span>, <span class="number">1</span>]]),
             ],
         );
 
-        <span class="kw">for</span> <span class="ident">deg</span> <span class="kw">in</span> <span class="ident">pb</span>.<span class="ident">source</span>.<span class="ident">min_degree</span>()..<span class="op">=</span><span class="ident">pb</span>.<span class="ident">source</span>.<span class="ident">max_computed_degree</span>() {
-            <span class="kw">let</span> <span class="ident">dim</span> <span class="op">=</span> <span class="ident">pb</span>.<span class="ident">source</span>.<span class="ident">dimension</span>(<span class="ident">deg</span>);
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">matrix</span> <span class="op">=</span> <span class="ident">Matrix::new</span>(<span class="ident">p</span>, <span class="ident">dim</span>, <span class="ident">dim</span>);
-            <span class="ident">pb</span>.<span class="ident">get_matrix</span>(<span class="ident">matrix</span>.<span class="ident">as_slice_mut</span>(), <span class="ident">deg</span>);
-            <span class="macro">assert_eq!</span>(<span class="ident">matrix</span>, <span class="ident">outputs</span>[<span class="ident">deg</span>]);
+        <span class="kw">for </span>deg <span class="kw">in </span>pb.source.min_degree()..=pb.source.max_computed_degree() {
+            <span class="kw">let </span>dim = pb.source.dimension(deg);
+            <span class="kw">let </span><span class="kw-2">mut </span>matrix = Matrix::new(p, dim, dim);
+            pb.get_matrix(matrix.as_slice_mut(), deg);
+            <span class="macro">assert_eq!</span>(matrix, outputs[deg]);
         }
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../../" data-current-crate="algebra" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0 (a55dd71d5 2022-09-19)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../../" data-current-crate="algebra" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0 (897e37553 2022-11-02)" ></div></body></html>

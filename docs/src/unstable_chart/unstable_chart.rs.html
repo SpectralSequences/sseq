@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `examples/unstable_chart.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>unstable_chart.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled><link rel="stylesheet" type="text/css" href="../../dark.css" disabled><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script><script defer src="../../main.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `examples/unstable_chart.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>unstable_chart.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" href="../../normalize.css"><link rel="stylesheet" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" href="../../ayu.css" disabled><link rel="stylesheet" href="../../dark.css" disabled><link rel="stylesheet" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script><script defer src="../../main.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
 <!-- The loading of KaTeX is deferred to speed up page rendering -->
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.js" integrity="sha384-Bi8OWqMXO1ta+a4EPkZv7bYGIes7C3krGSZoTGNTAnAn5eYQc7IIXrJ/7ck1drAi" crossorigin="anonymous"></script>
 <!-- To automatically render math in text elements, include the auto-render extension: -->
@@ -114,89 +114,89 @@
 <span id="89">89</span>
 <span id="90">90</span>
 <span id="91">91</span>
-</pre><pre class="rust"><code><span class="doccomment">//! Computes the suspension map between different unstable Ext groups.</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! Given an unstable Steenrod module $M$, compute the unstable Ext groups of $\Sigma^k M$ for all</span>
-<span class="doccomment">//! $k$ up till the stable range. Each result is printed in the form</span>
-<span class="doccomment">//! ```</span>
-<span class="doccomment">//! n s min_degree: num_gens - matrix</span>
-<span class="doccomment">//! ```</span>
-<span class="doccomment">//! The entries are to be interpreted as follows:</span>
-<span class="doccomment">//!  - `n` is the stem, which is defined to be `t - s - min_degree`</span>
-<span class="doccomment">//!  - `s` is the Adams filtration</span>
-<span class="doccomment">//!  - `min_degree` is the minimum degre of $\Sigma^k M$.</span>
-<span class="doccomment">//!  - `num_gens` is the number of generators in this Ext group</span>
-<span class="doccomment">//!  - `matrix` is the matrix representing the suspension map from $\Sigma^k M$. This is omitted if</span>
-<span class="doccomment">//!    the source or target of the suspension map is trivial, or if they have the same dimension</span>
-<span class="doccomment">//!    and the matrix is the identity matrix.</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! The output is best read after sorting with `sort -n -k 1 -k 2 -k 3`.</span>
+</pre><pre class="rust"><code><span class="doccomment">//! Computes the suspension map between different unstable Ext groups.
+//!
+//! Given an unstable Steenrod module $M$, compute the unstable Ext groups of $\Sigma^k M$ for all
+//! $k$ up till the stable range. Each result is printed in the form
+//! ```
+//! n s min_degree: num_gens - matrix
+//! ```
+//! The entries are to be interpreted as follows:
+//!  - `n` is the stem, which is defined to be `t - s - min_degree`
+//!  - `s` is the Adams filtration
+//!  - `min_degree` is the minimum degre of $\Sigma^k M$.
+//!  - `num_gens` is the number of generators in this Ext group
+//!  - `matrix` is the matrix representing the suspension map from $\Sigma^k M$. This is omitted if
+//!    the source or target of the suspension map is trivial, or if they have the same dimension
+//!    and the matrix is the identity matrix.
+//!
+//! The output is best read after sorting with `sort -n -k 1 -k 2 -k 3`.
 
-<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">path::PathBuf</span>, <span class="ident">sync::Arc</span>};
+</span><span class="kw">use </span>std::{path::PathBuf, sync::Arc};
 
-<span class="kw">use</span> <span class="ident">algebra::module</span>::{<span class="ident">Module</span>, <span class="ident">SuspensionModule</span>};
-<span class="kw">use</span> <span class="ident">algebra::Algebra</span>;
-<span class="kw">use</span> <span class="ident">chart</span>::{<span class="ident">Backend</span>, <span class="ident">Orientation</span>, <span class="ident">TikzBackend</span>};
-<span class="kw">use</span> <span class="ident">ext::chain_complex</span>::{<span class="ident">FiniteChainComplex</span>, <span class="ident">FreeChainComplex</span>};
-<span class="kw">use</span> <span class="ident">ext::resolution::UnstableResolution</span>;
+<span class="kw">use </span>algebra::module::{Module, SuspensionModule};
+<span class="kw">use </span>algebra::Algebra;
+<span class="kw">use </span>chart::{Backend, Orientation, TikzBackend};
+<span class="kw">use </span>ext::chain_complex::{FiniteChainComplex, FreeChainComplex};
+<span class="kw">use </span>ext::resolution::UnstableResolution;
 
-<span class="kw">fn</span> <span class="ident">main</span>() -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-    <span class="kw">let</span> <span class="ident">module</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">ext::utils::query_unstable_module_only</span>()<span class="question-mark">?</span>);
-    <span class="kw">let</span> <span class="ident">save_dir</span> <span class="op">=</span> {
-        <span class="kw">let</span> <span class="ident">base</span> <span class="op">=</span> <span class="ident">query::optional</span>(<span class="string">&quot;Module save directory&quot;</span>, <span class="op">|</span><span class="ident">x</span><span class="op">|</span> {
-            <span class="ident">core::result::Result</span>::<span class="op">&lt;</span><span class="ident">PathBuf</span>, <span class="ident">std::convert::Infallible</span><span class="op">&gt;</span><span class="ident">::Ok</span>(<span class="ident">PathBuf::from</span>(<span class="ident">x</span>))
+<span class="kw">fn </span>main() -&gt; anyhow::Result&lt;()&gt; {
+    <span class="kw">let </span>module = Arc::new(ext::utils::query_unstable_module_only()<span class="question-mark">?</span>);
+    <span class="kw">let </span>save_dir = {
+        <span class="kw">let </span>base = query::optional(<span class="string">&quot;Module save directory&quot;</span>, |x| {
+            core::result::Result::&lt;PathBuf, std::convert::Infallible&gt;::Ok(PathBuf::from(x))
         });
-        <span class="kw">move</span> <span class="op">|</span><span class="ident">shift</span><span class="op">|</span> {
-            <span class="ident">base</span>.<span class="ident">as_ref</span>().<span class="ident">cloned</span>().<span class="ident">map</span>(<span class="op">|</span><span class="kw-2">mut</span> <span class="ident">x</span><span class="op">|</span> {
-                <span class="ident">x</span>.<span class="ident">push</span>(<span class="macro">format!</span>(<span class="string">&quot;suspension{shift}&quot;</span>));
-                <span class="ident">x</span>
+        <span class="kw">move </span>|shift| {
+            base.as_ref().cloned().map(|<span class="kw-2">mut </span>x| {
+                x.push(<span class="macro">format!</span>(<span class="string">&quot;suspension{shift}&quot;</span>));
+                x
             })
         }
     };
 
-    <span class="kw">let</span> <span class="ident">max_n</span>: <span class="ident">i32</span> <span class="op">=</span> <span class="ident">query::raw</span>(<span class="string">&quot;Max n&quot;</span>, <span class="ident">str::parse</span>);
-    <span class="kw">let</span> <span class="ident">max_s</span>: <span class="ident">u32</span> <span class="op">=</span> <span class="ident">query::raw</span>(<span class="string">&quot;Max s&quot;</span>, <span class="ident">str::parse</span>);
+    <span class="kw">let </span>max_n: i32 = query::raw(<span class="string">&quot;Max n&quot;</span>, str::parse);
+    <span class="kw">let </span>max_s: u32 = query::raw(<span class="string">&quot;Max s&quot;</span>, str::parse);
 
-    <span class="kw">let</span> <span class="ident">disp_template</span>: <span class="ident">String</span> <span class="op">=</span> <span class="ident">query::raw</span>(
+    <span class="kw">let </span>disp_template: String = query::raw(
         <span class="string">&quot;LaTeX name template (replace % with min degree)&quot;</span>,
-        <span class="ident">str::parse</span>,
+        str::parse,
     );
 
-    <span class="kw">let</span> <span class="ident">products</span> <span class="op">=</span> <span class="ident">module</span>.<span class="ident">algebra</span>().<span class="ident">default_filtration_one_products</span>();
+    <span class="kw">let </span>products = module.algebra().default_filtration_one_products();
 
-    <span class="kw">for</span> <span class="ident">shift</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">max_n</span> <span class="op">-</span> <span class="ident">module</span>.<span class="ident">min_degree</span>() <span class="op">+</span> <span class="number">3</span> {
-        <span class="kw">let</span> <span class="ident">res</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">UnstableResolution</span><span class="op">&lt;</span><span class="ident">FiniteChainComplex</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span>
-            <span class="ident">Arc::new</span>(<span class="ident">UnstableResolution::new_with_save</span>(
-                <span class="ident">Arc::new</span>(<span class="ident">FiniteChainComplex::ccdz</span>(<span class="ident">Arc::new</span>(<span class="ident">SuspensionModule::new</span>(
-                    <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">module</span>),
-                    <span class="ident">shift</span>,
+    <span class="kw">for </span>shift <span class="kw">in </span><span class="number">0</span>..max_n - module.min_degree() + <span class="number">3 </span>{
+        <span class="kw">let </span>res: Arc&lt;UnstableResolution&lt;FiniteChainComplex&lt;<span class="kw">_</span>&gt;&gt;&gt; =
+            Arc::new(UnstableResolution::new_with_save(
+                Arc::new(FiniteChainComplex::ccdz(Arc::new(SuspensionModule::new(
+                    Arc::clone(<span class="kw-2">&amp;</span>module),
+                    shift,
                 )))),
-                <span class="ident">save_dir</span>(<span class="ident">shift</span>),
+                save_dir(shift),
             )<span class="question-mark">?</span>);
 
-        <span class="ident">res</span>.<span class="ident">compute_through_stem</span>(<span class="ident">max_s</span>, <span class="ident">max_n</span> <span class="op">+</span> <span class="ident">shift</span>);
+        res.compute_through_stem(max_s, max_n + shift);
 
         <span class="macro">println!</span>(<span class="string">&quot;\\begin{{figure}}[p]\\centering&quot;</span>);
 
-        <span class="kw">let</span> <span class="ident">sseq</span> <span class="op">=</span> <span class="ident">res</span>.<span class="ident">to_sseq</span>();
-        <span class="kw">let</span> <span class="ident">products</span> <span class="op">=</span> <span class="ident">products</span>
-            .<span class="ident">iter</span>()
-            .<span class="ident">map</span>(<span class="op">|</span>(<span class="ident">name</span>, <span class="ident">op_deg</span>, <span class="ident">op_idx</span>)<span class="op">|</span> {
-                (<span class="ident">name</span>.<span class="ident">clone</span>(), <span class="ident">res</span>.<span class="ident">filtration_one_products</span>(<span class="kw-2">*</span><span class="ident">op_deg</span>, <span class="kw-2">*</span><span class="ident">op_idx</span>))
+        <span class="kw">let </span>sseq = res.to_sseq();
+        <span class="kw">let </span>products = products
+            .iter()
+            .map(|(name, op_deg, op_idx)| {
+                (name.clone(), res.filtration_one_products(<span class="kw-2">*</span>op_deg, <span class="kw-2">*</span>op_idx))
             })
-            .<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span>();
+            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
 
-        <span class="ident">sseq</span>.<span class="ident">write_to_graph</span>(
-            <span class="ident">TikzBackend::new</span>(<span class="ident">std::io::stdout</span>()),
+        sseq.write_to_graph(
+            TikzBackend::new(std::io::stdout()),
             <span class="number">2</span>,
             <span class="bool-val">false</span>,
-            <span class="ident">products</span>.<span class="ident">iter</span>(),
-            <span class="op">|</span><span class="ident">g</span><span class="op">|</span> {
-                <span class="ident">g</span>.<span class="ident">text</span>(
+            products.iter(),
+            |g| {
+                g.text(
                     <span class="number">1</span>,
-                    <span class="ident">max_s</span> <span class="kw">as</span> <span class="ident">i32</span> <span class="op">-</span> <span class="number">1</span>,
-                    <span class="ident">disp_template</span>.<span class="ident">replace</span>(<span class="string">&#39;%&#39;</span>, <span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;{shift}&quot;</span>)),
-                    <span class="ident">Orientation::Right</span>,
+                    max_s <span class="kw">as </span>i32 - <span class="number">1</span>,
+                    disp_template.replace(<span class="string">&#39;%&#39;</span>, <span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;{shift}&quot;</span>)),
+                    Orientation::Right,
                 )
             },
         )<span class="question-mark">?</span>;
@@ -206,4 +206,4 @@
     <span class="prelude-val">Ok</span>(())
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="unstable_chart" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0 (a55dd71d5 2022-09-19)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="unstable_chart" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0 (897e37553 2022-11-02)" ></div></body></html>

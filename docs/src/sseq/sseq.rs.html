@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/sseq/src/sseq.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>sseq.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled><link rel="stylesheet" type="text/css" href="../../dark.css" disabled><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script><script defer src="../../main.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/sseq/src/sseq.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>sseq.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" href="../../normalize.css"><link rel="stylesheet" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" href="../../ayu.css" disabled><link rel="stylesheet" href="../../dark.css" disabled><link rel="stylesheet" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script><script defer src="../../main.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
 <!-- The loading of KaTeX is deferred to speed up page rendering -->
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.js" integrity="sha384-Bi8OWqMXO1ta+a4EPkZv7bYGIes7C3krGSZoTGNTAnAn5eYQc7IIXrJ/7ck1drAi" crossorigin="anonymous"></script>
 <!-- To automatically render math in text elements, include the auto-render extension: -->
@@ -979,568 +979,568 @@
 <span id="954">954</span>
 <span id="955">955</span>
 <span id="956">956</span>
-</pre><pre class="rust"><code><span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::bigraded::DenseBigradedModule</span>;
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::differential::Differential</span>;
-<span class="kw">use</span> <span class="ident">bivec::BiVec</span>;
-<span class="kw">use</span> <span class="ident">fp</span>::{
-    <span class="ident">matrix</span>::{<span class="ident">Matrix</span>, <span class="ident">Subquotient</span>, <span class="ident">Subspace</span>},
-    <span class="ident">prime::ValidPrime</span>,
-    <span class="ident">vector</span>::{<span class="ident">FpVector</span>, <span class="ident">Slice</span>},
+</pre><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::bigraded::DenseBigradedModule;
+<span class="kw">use </span><span class="kw">crate</span>::differential::Differential;
+<span class="kw">use </span>bivec::BiVec;
+<span class="kw">use </span>fp::{
+    matrix::{Matrix, Subquotient, Subspace},
+    prime::ValidPrime,
+    vector::{FpVector, Slice},
 };
-<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">marker::PhantomData</span>, <span class="ident">sync::Arc</span>};
+<span class="kw">use </span>std::{marker::PhantomData, sync::Arc};
 
-<span class="doccomment">/// The direction of the differentials</span>
-<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">SseqProfile</span> {
-    <span class="kw">const</span> <span class="ident">MIN_R</span>: <span class="ident">i32</span>;
-    <span class="kw">fn</span> <span class="ident">profile</span>(<span class="ident">r</span>: <span class="ident">i32</span>, <span class="ident">x</span>: <span class="ident">i32</span>, <span class="ident">y</span>: <span class="ident">i32</span>) -&gt; (<span class="ident">i32</span>, <span class="ident">i32</span>);
-    <span class="kw">fn</span> <span class="ident">profile_inverse</span>(<span class="ident">r</span>: <span class="ident">i32</span>, <span class="ident">x</span>: <span class="ident">i32</span>, <span class="ident">y</span>: <span class="ident">i32</span>) -&gt; (<span class="ident">i32</span>, <span class="ident">i32</span>);
-    <span class="kw">fn</span> <span class="ident">differential_length</span>(<span class="ident">diff_x</span>: <span class="ident">i32</span>, <span class="ident">diff_y</span>: <span class="ident">i32</span>) -&gt; <span class="ident">i32</span>;
+<span class="doccomment">/// The direction of the differentials
+</span><span class="kw">pub trait </span>SseqProfile {
+    <span class="kw">const </span>MIN_R: i32;
+    <span class="kw">fn </span>profile(r: i32, x: i32, y: i32) -&gt; (i32, i32);
+    <span class="kw">fn </span>profile_inverse(r: i32, x: i32, y: i32) -&gt; (i32, i32);
+    <span class="kw">fn </span>differential_length(diff_x: i32, diff_y: i32) -&gt; i32;
 }
 
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Adams</span>;
+<span class="kw">pub struct </span>Adams;
 
-<span class="kw">impl</span> <span class="ident">SseqProfile</span> <span class="kw">for</span> <span class="ident">Adams</span> {
-    <span class="kw">const</span> <span class="ident">MIN_R</span>: <span class="ident">i32</span> <span class="op">=</span> <span class="number">2</span>;
-    <span class="kw">fn</span> <span class="ident">profile</span>(<span class="ident">r</span>: <span class="ident">i32</span>, <span class="ident">x</span>: <span class="ident">i32</span>, <span class="ident">y</span>: <span class="ident">i32</span>) -&gt; (<span class="ident">i32</span>, <span class="ident">i32</span>) {
-        (<span class="ident">x</span> <span class="op">-</span> <span class="number">1</span>, <span class="ident">y</span> <span class="op">+</span> <span class="ident">r</span>)
+<span class="kw">impl </span>SseqProfile <span class="kw">for </span>Adams {
+    <span class="kw">const </span>MIN_R: i32 = <span class="number">2</span>;
+    <span class="kw">fn </span>profile(r: i32, x: i32, y: i32) -&gt; (i32, i32) {
+        (x - <span class="number">1</span>, y + r)
     }
-    <span class="kw">fn</span> <span class="ident">profile_inverse</span>(<span class="ident">r</span>: <span class="ident">i32</span>, <span class="ident">x</span>: <span class="ident">i32</span>, <span class="ident">y</span>: <span class="ident">i32</span>) -&gt; (<span class="ident">i32</span>, <span class="ident">i32</span>) {
-        (<span class="ident">x</span> <span class="op">+</span> <span class="number">1</span>, <span class="ident">y</span> <span class="op">-</span> <span class="ident">r</span>)
+    <span class="kw">fn </span>profile_inverse(r: i32, x: i32, y: i32) -&gt; (i32, i32) {
+        (x + <span class="number">1</span>, y - r)
     }
-    <span class="kw">fn</span> <span class="ident">differential_length</span>(<span class="ident">_diff_x</span>: <span class="ident">i32</span>, <span class="ident">diff_y</span>: <span class="ident">i32</span>) -&gt; <span class="ident">i32</span> {
-        <span class="ident">diff_y</span>
+    <span class="kw">fn </span>differential_length(_diff_x: i32, diff_y: i32) -&gt; i32 {
+        diff_y
     }
 }
 
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Product</span> {
-    <span class="kw">pub</span> <span class="ident">x</span>: <span class="ident">i32</span>,
-    <span class="kw">pub</span> <span class="ident">y</span>: <span class="ident">i32</span>,
-    <span class="doccomment">/// Whether the product acts on the left or not. This affects the sign in the Leibniz rule.</span>
-    <span class="kw">pub</span> <span class="ident">left</span>: <span class="ident">bool</span>,
-    <span class="kw">pub</span> <span class="ident">matrices</span>: <span class="ident">BiVec</span><span class="op">&lt;</span><span class="ident">BiVec</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Matrix</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+<span class="kw">pub struct </span>Product {
+    <span class="kw">pub </span>x: i32,
+    <span class="kw">pub </span>y: i32,
+    <span class="doccomment">/// Whether the product acts on the left or not. This affects the sign in the Leibniz rule.
+    </span><span class="kw">pub </span>left: bool,
+    <span class="kw">pub </span>matrices: BiVec&lt;BiVec&lt;<span class="prelude-ty">Option</span>&lt;Matrix&gt;&gt;&gt;,
 }
 
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Sseq</span><span class="op">&lt;</span><span class="ident">P</span>: <span class="ident">SseqProfile</span> <span class="op">=</span> <span class="ident">Adams</span><span class="op">&gt;</span> {
-    <span class="ident">p</span>: <span class="ident">ValidPrime</span>,
+<span class="kw">pub struct </span>Sseq&lt;P: SseqProfile = Adams&gt; {
+    p: ValidPrime,
 
-    <span class="doccomment">/// The first page of the spectral sequence</span>
-    <span class="ident">classes</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">DenseBigradedModule</span><span class="op">&gt;</span>,
+    <span class="doccomment">/// The first page of the spectral sequence
+    </span>classes: Arc&lt;DenseBigradedModule&gt;,
 
-    <span class="doccomment">/// x -&gt; y -&gt; r -&gt; differential</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// If the bidegree is valid (see [`Sseq::invalid`]), then the differential is reduced.</span>
-    <span class="ident">differentials</span>: <span class="ident">BiVec</span><span class="op">&lt;</span><span class="ident">BiVec</span><span class="op">&lt;</span><span class="ident">BiVec</span><span class="op">&lt;</span><span class="ident">Differential</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="doccomment">/// x -&gt; y -&gt; r -&gt; differential
+    ///
+    /// If the bidegree is valid (see [`Sseq::invalid`]), then the differential is reduced.
+    </span>differentials: BiVec&lt;BiVec&lt;BiVec&lt;Differential&gt;&gt;&gt;,
 
-    <span class="doccomment">/// x -&gt; y -&gt; permanent_classes</span>
-    <span class="ident">permanent_classes</span>: <span class="ident">BiVec</span><span class="op">&lt;</span><span class="ident">BiVec</span><span class="op">&lt;</span><span class="ident">Subspace</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="doccomment">/// x -&gt; y -&gt; permanent_classes
+    </span>permanent_classes: BiVec&lt;BiVec&lt;Subspace&gt;&gt;,
 
-    <span class="doccomment">/// x -&gt; y -&gt; r -&gt; E_r^{x, y} as a subquotient of the original bidegree.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// The &quot;quotient&quot; part of the subquotient is always accurate, but the &quot;sub&quot; part may not be.</span>
-    <span class="doccomment">/// The `invalid` field tracks which bidegrees are valid.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// This is always the full ambient space when `r = P::MIN_R`, but we set `min_degree` to</span>
-    <span class="doccomment">/// `P::MIN_R` to make code a bit more streamlined.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// # Invariants:</span>
-    <span class="doccomment">///  - if `differential[x][y][r]` is defined, then `page_data[x][y][r + 1]` and `page_data[tx][ty][r + 1]` are always defined,</span>
-    <span class="ident">page_data</span>: <span class="ident">BiVec</span><span class="op">&lt;</span><span class="ident">BiVec</span><span class="op">&lt;</span><span class="ident">BiVec</span><span class="op">&lt;</span><span class="ident">Subquotient</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="doccomment">/// x -&gt; y -&gt; r -&gt; E_r^{x, y} as a subquotient of the original bidegree.
+    ///
+    /// The &quot;quotient&quot; part of the subquotient is always accurate, but the &quot;sub&quot; part may not be.
+    /// The `invalid` field tracks which bidegrees are valid.
+    ///
+    /// This is always the full ambient space when `r = P::MIN_R`, but we set `min_degree` to
+    /// `P::MIN_R` to make code a bit more streamlined.
+    ///
+    /// # Invariants:
+    ///  - if `differential[x][y][r]` is defined, then `page_data[x][y][r + 1]` and `page_data[tx][ty][r + 1]` are always defined,
+    </span>page_data: BiVec&lt;BiVec&lt;BiVec&lt;Subquotient&gt;&gt;&gt;,
 
-    <span class="doccomment">/// x -&gt; y -&gt; validity. A bidegree is invalid if the page_data is no longer accurate.</span>
-    <span class="ident">invalid</span>: <span class="ident">BiVec</span><span class="op">&lt;</span><span class="ident">BiVec</span><span class="op">&lt;</span><span class="ident">bool</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="doccomment">/// x -&gt; y -&gt; validity. A bidegree is invalid if the page_data is no longer accurate.
+    </span>invalid: BiVec&lt;BiVec&lt;bool&gt;&gt;,
 
-    <span class="comment">// Docs: If your struct does not in fact own the data of type T, it is better to use a</span>
-    <span class="comment">// reference type, like PhantomData&lt;&amp;&#39;a T&gt; (ideally) or PhantomData&lt;*const T&gt; (if no lifetime</span>
-    <span class="comment">// applies), so as not to indicate ownership.</span>
-    <span class="ident">profile</span>: <span class="ident">PhantomData</span><span class="op">&lt;</span><span class="kw-2">*const</span> <span class="ident">P</span><span class="op">&gt;</span>,
+    <span class="comment">// Docs: If your struct does not in fact own the data of type T, it is better to use a
+    // reference type, like PhantomData&lt;&amp;&#39;a T&gt; (ideally) or PhantomData&lt;*const T&gt; (if no lifetime
+    // applies), so as not to indicate ownership.
+    </span>profile: PhantomData&lt;<span class="kw-2">*const </span>P&gt;,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">P</span>: <span class="ident">SseqProfile</span><span class="op">&gt;</span> <span class="ident">Sseq</span><span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>, <span class="ident">min_x</span>: <span class="ident">i32</span>, <span class="ident">min_y</span>: <span class="ident">i32</span>) -&gt; <span class="self">Self</span> {
-        <span class="self">Self</span> {
-            <span class="ident">p</span>,
-            <span class="ident">classes</span>: <span class="ident">Arc::new</span>(<span class="ident">DenseBigradedModule::new</span>(<span class="ident">min_x</span>, <span class="ident">min_y</span>)),
-            <span class="ident">differentials</span>: <span class="ident">BiVec::new</span>(<span class="ident">min_x</span>),
-            <span class="ident">permanent_classes</span>: <span class="ident">BiVec::new</span>(<span class="ident">min_x</span>),
-            <span class="ident">page_data</span>: <span class="ident">BiVec::new</span>(<span class="ident">min_x</span>),
-            <span class="ident">invalid</span>: <span class="ident">BiVec::new</span>(<span class="ident">min_x</span>),
-            <span class="ident">profile</span>: <span class="ident">PhantomData</span>,
+<span class="kw">impl</span>&lt;P: SseqProfile&gt; Sseq&lt;P&gt; {
+    <span class="kw">pub fn </span>new(p: ValidPrime, min_x: i32, min_y: i32) -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{
+            p,
+            classes: Arc::new(DenseBigradedModule::new(min_x, min_y)),
+            differentials: BiVec::new(min_x),
+            permanent_classes: BiVec::new(min_x),
+            page_data: BiVec::new(min_x),
+            invalid: BiVec::new(min_x),
+            profile: PhantomData,
         }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">min_x</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">i32</span> {
-        <span class="self">self</span>.<span class="ident">classes</span>.<span class="ident">min_x</span>()
+    <span class="kw">pub fn </span>min_x(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; i32 {
+        <span class="self">self</span>.classes.min_x()
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">min_y</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">i32</span> {
-        <span class="self">self</span>.<span class="ident">classes</span>.<span class="ident">min_y</span>()
+    <span class="kw">pub fn </span>min_y(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; i32 {
+        <span class="self">self</span>.classes.min_y()
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">classes</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">DenseBigradedModule</span><span class="op">&gt;</span> {
-        <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">classes</span>)
+    <span class="kw">pub fn </span>classes(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Arc&lt;DenseBigradedModule&gt; {
+        Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.classes)
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">range</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">x</span>: <span class="ident">i32</span>) -&gt; <span class="ident">std::ops::Range</span><span class="op">&lt;</span><span class="ident">i32</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">classes</span>.<span class="ident">range</span>(<span class="ident">x</span>)
+    <span class="kw">pub fn </span>range(<span class="kw-2">&amp;</span><span class="self">self</span>, x: i32) -&gt; std::ops::Range&lt;i32&gt; {
+        <span class="self">self</span>.classes.range(x)
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">max_x</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">i32</span> {
-        <span class="self">self</span>.<span class="ident">classes</span>.<span class="ident">max_x</span>()
+    <span class="kw">pub fn </span>max_x(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; i32 {
+        <span class="self">self</span>.classes.max_x()
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">max_y</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">i32</span> {
-        <span class="self">self</span>.<span class="ident">classes</span>.<span class="ident">max_y</span>()
+    <span class="kw">pub fn </span>max_y(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; i32 {
+        <span class="self">self</span>.classes.max_y()
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">defined</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">x</span>: <span class="ident">i32</span>, <span class="ident">y</span>: <span class="ident">i32</span>) -&gt; <span class="ident">bool</span> {
-        <span class="self">self</span>.<span class="ident">classes</span>.<span class="ident">defined</span>(<span class="ident">x</span>, <span class="ident">y</span>)
+    <span class="kw">pub fn </span>defined(<span class="kw-2">&amp;</span><span class="self">self</span>, x: i32, y: i32) -&gt; bool {
+        <span class="self">self</span>.classes.defined(x, y)
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">set_dimension</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">x</span>: <span class="ident">i32</span>, <span class="ident">y</span>: <span class="ident">i32</span>, <span class="ident">dim</span>: <span class="ident">usize</span>) {
-        <span class="comment">// This already ensures it is valid to set x, y</span>
-        <span class="self">self</span>.<span class="ident">classes</span>.<span class="ident">set_dimension</span>(<span class="ident">x</span>, <span class="ident">y</span>, <span class="ident">dim</span>);
-        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">differentials</span>.<span class="ident">len</span>() <span class="op">==</span> <span class="ident">x</span> {
-            <span class="kw">let</span> <span class="ident">min_y</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">classes</span>.<span class="ident">min_y</span>();
-            <span class="self">self</span>.<span class="ident">differentials</span>.<span class="ident">push</span>(<span class="ident">BiVec::new</span>(<span class="ident">min_y</span>));
-            <span class="self">self</span>.<span class="ident">permanent_classes</span>.<span class="ident">push</span>(<span class="ident">BiVec::new</span>(<span class="ident">min_y</span>));
-            <span class="self">self</span>.<span class="ident">page_data</span>.<span class="ident">push</span>(<span class="ident">BiVec::new</span>(<span class="ident">min_y</span>));
-            <span class="self">self</span>.<span class="ident">invalid</span>.<span class="ident">push</span>(<span class="ident">BiVec::new</span>(<span class="ident">min_y</span>));
+    <span class="kw">pub fn </span>set_dimension(<span class="kw-2">&amp;mut </span><span class="self">self</span>, x: i32, y: i32, dim: usize) {
+        <span class="comment">// This already ensures it is valid to set x, y
+        </span><span class="self">self</span>.classes.set_dimension(x, y, dim);
+        <span class="kw">if </span><span class="self">self</span>.differentials.len() == x {
+            <span class="kw">let </span>min_y = <span class="self">self</span>.classes.min_y();
+            <span class="self">self</span>.differentials.push(BiVec::new(min_y));
+            <span class="self">self</span>.permanent_classes.push(BiVec::new(min_y));
+            <span class="self">self</span>.page_data.push(BiVec::new(min_y));
+            <span class="self">self</span>.invalid.push(BiVec::new(min_y));
         }
 
-        <span class="self">self</span>.<span class="ident">differentials</span>[<span class="ident">x</span>].<span class="ident">push</span>(<span class="ident">BiVec::new</span>(<span class="ident">P::MIN_R</span>));
-        <span class="self">self</span>.<span class="ident">page_data</span>[<span class="ident">x</span>].<span class="ident">push</span>(<span class="ident">BiVec::new</span>(<span class="ident">P::MIN_R</span>));
-        <span class="self">self</span>.<span class="ident">page_data</span>[<span class="ident">x</span>][<span class="ident">y</span>].<span class="ident">push</span>(<span class="ident">Subquotient::new_full</span>(<span class="self">self</span>.<span class="ident">p</span>, <span class="ident">dim</span>));
-        <span class="self">self</span>.<span class="ident">permanent_classes</span>[<span class="ident">x</span>].<span class="ident">push</span>(<span class="ident">Subspace::new</span>(<span class="self">self</span>.<span class="ident">p</span>, <span class="ident">dim</span> <span class="op">+</span> <span class="number">1</span>, <span class="ident">dim</span>));
-        <span class="self">self</span>.<span class="ident">invalid</span>[<span class="ident">x</span>].<span class="ident">push</span>(<span class="bool-val">false</span>);
+        <span class="self">self</span>.differentials[x].push(BiVec::new(P::MIN_R));
+        <span class="self">self</span>.page_data[x].push(BiVec::new(P::MIN_R));
+        <span class="self">self</span>.page_data[x][y].push(Subquotient::new_full(<span class="self">self</span>.p, dim));
+        <span class="self">self</span>.permanent_classes[x].push(Subspace::new(<span class="self">self</span>.p, dim + <span class="number">1</span>, dim));
+        <span class="self">self</span>.invalid[x].push(<span class="bool-val">false</span>);
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">clear</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) {
-        <span class="self">self</span>.<span class="ident">permanent_classes</span>
-            .<span class="ident">iter_mut</span>()
-            .<span class="ident">flatten</span>()
-            .<span class="ident">for_each</span>(<span class="ident">Subspace::set_to_zero</span>);
-        <span class="self">self</span>.<span class="ident">differentials</span>
-            .<span class="ident">iter_mut</span>()
-            .<span class="ident">flatten</span>()
-            .<span class="ident">flatten</span>()
-            .<span class="ident">for_each</span>(<span class="ident">Differential::set_to_zero</span>);
-        <span class="self">self</span>.<span class="ident">page_data</span>
-            .<span class="ident">iter_mut</span>()
-            .<span class="ident">flatten</span>()
-            .<span class="ident">flatten</span>()
-            .<span class="ident">for_each</span>(<span class="ident">Subquotient::set_to_full</span>);
-        <span class="self">self</span>.<span class="ident">invalid</span>.<span class="ident">iter_mut</span>().<span class="ident">flatten</span>().<span class="ident">for_each</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="kw-2">*</span><span class="ident">x</span> <span class="op">=</span> <span class="bool-val">true</span>);
+    <span class="kw">pub fn </span>clear(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+        <span class="self">self</span>.permanent_classes
+            .iter_mut()
+            .flatten()
+            .for_each(Subspace::set_to_zero);
+        <span class="self">self</span>.differentials
+            .iter_mut()
+            .flatten()
+            .flatten()
+            .for_each(Differential::set_to_zero);
+        <span class="self">self</span>.page_data
+            .iter_mut()
+            .flatten()
+            .flatten()
+            .for_each(Subquotient::set_to_full);
+        <span class="self">self</span>.invalid.iter_mut().flatten().for_each(|x| <span class="kw-2">*</span>x = <span class="bool-val">true</span>);
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">x</span>: <span class="ident">i32</span>, <span class="ident">y</span>: <span class="ident">i32</span>) -&gt; <span class="ident">usize</span> {
-        <span class="self">self</span>.<span class="ident">classes</span>.<span class="ident">dimension</span>(<span class="ident">x</span>, <span class="ident">y</span>)
+    <span class="kw">pub fn </span>dimension(<span class="kw-2">&amp;</span><span class="self">self</span>, x: i32, y: i32) -&gt; usize {
+        <span class="self">self</span>.classes.dimension(x, y)
     }
 
-    <span class="doccomment">/// # Returns</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// Whether a new permanent class was added</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">add_permanent_class</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">x</span>: <span class="ident">i32</span>, <span class="ident">y</span>: <span class="ident">i32</span>, <span class="ident">class</span>: <span class="ident">Slice</span>) -&gt; <span class="ident">bool</span> {
-        <span class="kw">let</span> <span class="ident">old_dim</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">permanent_classes</span>[<span class="ident">x</span>][<span class="ident">y</span>].<span class="ident">dimension</span>();
-        <span class="kw">let</span> <span class="ident">new_dim</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">permanent_classes</span>[<span class="ident">x</span>][<span class="ident">y</span>].<span class="ident">add_vector</span>(<span class="ident">class</span>);
-        <span class="kw">if</span> <span class="ident">old_dim</span> <span class="op">!</span><span class="op">=</span> <span class="ident">new_dim</span> {
-            <span class="comment">// This was a new permanent class</span>
-            <span class="kw">for</span> <span class="ident">d</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">differentials</span>[<span class="ident">x</span>][<span class="ident">y</span>].<span class="ident">iter_mut</span>() {
-                <span class="ident">d</span>.<span class="ident">add</span>(<span class="ident">class</span>, <span class="prelude-val">None</span>);
+    <span class="doccomment">/// # Returns
+    ///
+    /// Whether a new permanent class was added
+    </span><span class="kw">pub fn </span>add_permanent_class(<span class="kw-2">&amp;mut </span><span class="self">self</span>, x: i32, y: i32, class: Slice) -&gt; bool {
+        <span class="kw">let </span>old_dim = <span class="self">self</span>.permanent_classes[x][y].dimension();
+        <span class="kw">let </span>new_dim = <span class="self">self</span>.permanent_classes[x][y].add_vector(class);
+        <span class="kw">if </span>old_dim != new_dim {
+            <span class="comment">// This was a new permanent class
+            </span><span class="kw">for </span>d <span class="kw">in </span><span class="self">self</span>.differentials[x][y].iter_mut() {
+                d.add(class, <span class="prelude-val">None</span>);
             }
-            <span class="self">self</span>.<span class="ident">invalid</span>[<span class="ident">x</span>][<span class="ident">y</span>] <span class="op">=</span> <span class="bool-val">true</span>;
+            <span class="self">self</span>.invalid[x][y] = <span class="bool-val">true</span>;
         }
-        <span class="ident">old_dim</span> <span class="op">!</span><span class="op">=</span> <span class="ident">new_dim</span>
+        old_dim != new_dim
     }
 
-    <span class="doccomment">/// Ensure `self.differentials[x][y][r]` is defined. Must call `extend_page_data` on the source</span>
-    <span class="doccomment">/// and target after this.</span>
-    <span class="kw">fn</span> <span class="ident">extend_differential</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">r</span>: <span class="ident">i32</span>, <span class="ident">x</span>: <span class="ident">i32</span>, <span class="ident">y</span>: <span class="ident">i32</span>) {
-        <span class="kw">let</span> <span class="ident">source_dim</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">classes</span>.<span class="ident">dimension</span>(<span class="ident">x</span>, <span class="ident">y</span>);
-        <span class="kw">while</span> <span class="self">self</span>.<span class="ident">differentials</span>[<span class="ident">x</span>][<span class="ident">y</span>].<span class="ident">len</span>() <span class="op">&lt;</span><span class="op">=</span> <span class="ident">r</span> {
-            <span class="kw">let</span> <span class="ident">r</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">differentials</span>[<span class="ident">x</span>][<span class="ident">y</span>].<span class="ident">len</span>();
-            <span class="kw">let</span> (<span class="ident">target_x</span>, <span class="ident">target_y</span>) <span class="op">=</span> <span class="ident">P::profile</span>(<span class="ident">r</span>, <span class="ident">x</span>, <span class="ident">y</span>);
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">differential</span> <span class="op">=</span> <span class="ident">Differential::new</span>(
-                <span class="self">self</span>.<span class="ident">p</span>,
-                <span class="ident">source_dim</span>,
-                <span class="self">self</span>.<span class="ident">classes</span>.<span class="ident">dimension</span>(<span class="ident">target_x</span>, <span class="ident">target_y</span>),
+    <span class="doccomment">/// Ensure `self.differentials[x][y][r]` is defined. Must call `extend_page_data` on the source
+    /// and target after this.
+    </span><span class="kw">fn </span>extend_differential(<span class="kw-2">&amp;mut </span><span class="self">self</span>, r: i32, x: i32, y: i32) {
+        <span class="kw">let </span>source_dim = <span class="self">self</span>.classes.dimension(x, y);
+        <span class="kw">while </span><span class="self">self</span>.differentials[x][y].len() &lt;= r {
+            <span class="kw">let </span>r = <span class="self">self</span>.differentials[x][y].len();
+            <span class="kw">let </span>(target_x, target_y) = P::profile(r, x, y);
+            <span class="kw">let </span><span class="kw-2">mut </span>differential = Differential::new(
+                <span class="self">self</span>.p,
+                source_dim,
+                <span class="self">self</span>.classes.dimension(target_x, target_y),
             );
 
-            <span class="kw">for</span> <span class="ident">class</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">permanent_classes</span>[<span class="ident">x</span>][<span class="ident">y</span>].<span class="ident">basis</span>() {
-                <span class="ident">differential</span>.<span class="ident">add</span>(<span class="ident">class</span>.<span class="ident">as_slice</span>(), <span class="prelude-val">None</span>);
+            <span class="kw">for </span>class <span class="kw">in </span><span class="self">self</span>.permanent_classes[x][y].basis() {
+                differential.add(class.as_slice(), <span class="prelude-val">None</span>);
             }
-            <span class="self">self</span>.<span class="ident">differentials</span>[<span class="ident">x</span>][<span class="ident">y</span>].<span class="ident">push</span>(<span class="ident">differential</span>);
+            <span class="self">self</span>.differentials[x][y].push(differential);
         }
     }
 
-    <span class="doccomment">/// Ensure `self.page_data[x][y][r]` is defined</span>
-    <span class="kw">fn</span> <span class="ident">extend_page_data</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">r</span>: <span class="ident">i32</span>, <span class="ident">x</span>: <span class="ident">i32</span>, <span class="ident">y</span>: <span class="ident">i32</span>) {
-        <span class="kw">let</span> <span class="ident">page_data</span> <span class="op">=</span> <span class="kw-2">&amp;mut</span> <span class="self">self</span>.<span class="ident">page_data</span>[<span class="ident">x</span>][<span class="ident">y</span>];
-        <span class="kw">while</span> <span class="ident">page_data</span>.<span class="ident">len</span>() <span class="op">&lt;</span><span class="op">=</span> <span class="ident">r</span> {
-            <span class="ident">page_data</span>.<span class="ident">push</span>(<span class="ident">page_data</span>.<span class="ident">last</span>().<span class="ident">unwrap</span>().<span class="ident">clone</span>())
+    <span class="doccomment">/// Ensure `self.page_data[x][y][r]` is defined
+    </span><span class="kw">fn </span>extend_page_data(<span class="kw-2">&amp;mut </span><span class="self">self</span>, r: i32, x: i32, y: i32) {
+        <span class="kw">let </span>page_data = <span class="kw-2">&amp;mut </span><span class="self">self</span>.page_data[x][y];
+        <span class="kw">while </span>page_data.len() &lt;= r {
+            page_data.push(page_data.last().unwrap().clone())
         }
     }
 
-    <span class="doccomment">/// Add a $d_r$ differential from bidegree $(x, y)$, with the given `source` and `target`</span>
-    <span class="doccomment">/// classes.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// # Return</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// Whether the differential is new</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">add_differential</span>(
-        <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
-        <span class="ident">r</span>: <span class="ident">i32</span>,
-        <span class="ident">x</span>: <span class="ident">i32</span>,
-        <span class="ident">y</span>: <span class="ident">i32</span>,
-        <span class="ident">source</span>: <span class="ident">Slice</span>,
-        <span class="ident">target</span>: <span class="ident">Slice</span>,
-    ) -&gt; <span class="ident">bool</span> {
-        <span class="kw">let</span> (<span class="ident">tx</span>, <span class="ident">ty</span>) <span class="op">=</span> <span class="ident">P::profile</span>(<span class="ident">r</span>, <span class="ident">x</span>, <span class="ident">y</span>);
+    <span class="doccomment">/// Add a $d_r$ differential from bidegree $(x, y)$, with the given `source` and `target`
+    /// classes.
+    ///
+    /// # Return
+    ///
+    /// Whether the differential is new
+    </span><span class="kw">pub fn </span>add_differential(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        r: i32,
+        x: i32,
+        y: i32,
+        source: Slice,
+        target: Slice,
+    ) -&gt; bool {
+        <span class="kw">let </span>(tx, ty) = P::profile(r, x, y);
 
-        <span class="self">self</span>.<span class="ident">extend_differential</span>(<span class="ident">r</span>, <span class="ident">x</span>, <span class="ident">y</span>);
-        <span class="self">self</span>.<span class="ident">extend_page_data</span>(<span class="ident">r</span> <span class="op">+</span> <span class="number">1</span>, <span class="ident">x</span>, <span class="ident">y</span>);
-        <span class="self">self</span>.<span class="ident">extend_page_data</span>(<span class="ident">r</span> <span class="op">+</span> <span class="number">1</span>, <span class="ident">tx</span>, <span class="ident">ty</span>);
+        <span class="self">self</span>.extend_differential(r, x, y);
+        <span class="self">self</span>.extend_page_data(r + <span class="number">1</span>, x, y);
+        <span class="self">self</span>.extend_page_data(r + <span class="number">1</span>, tx, ty);
 
-        <span class="kw">for</span> <span class="ident">r</span> <span class="kw">in</span> <span class="ident">P::MIN_R</span>..<span class="ident">r</span> {
-            <span class="self">self</span>.<span class="ident">differentials</span>[<span class="ident">x</span>][<span class="ident">y</span>][<span class="ident">r</span>].<span class="ident">add</span>(<span class="ident">source</span>, <span class="prelude-val">None</span>);
-            <span class="kw">let</span> (<span class="ident">tx</span>, <span class="ident">ty</span>) <span class="op">=</span> <span class="ident">P::profile</span>(<span class="ident">r</span>, <span class="ident">x</span>, <span class="ident">y</span>);
-            <span class="self">self</span>.<span class="ident">extend_page_data</span>(<span class="ident">r</span> <span class="op">+</span> <span class="number">1</span>, <span class="ident">tx</span>, <span class="ident">ty</span>);
+        <span class="kw">for </span>r <span class="kw">in </span>P::MIN_R..r {
+            <span class="self">self</span>.differentials[x][y][r].add(source, <span class="prelude-val">None</span>);
+            <span class="kw">let </span>(tx, ty) = P::profile(r, x, y);
+            <span class="self">self</span>.extend_page_data(r + <span class="number">1</span>, tx, ty);
         }
-        <span class="kw">let</span> <span class="ident">is_new</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">differentials</span>[<span class="ident">x</span>][<span class="ident">y</span>][<span class="ident">r</span>].<span class="ident">add</span>(<span class="ident">source</span>, <span class="prelude-val">Some</span>(<span class="ident">target</span>));
-        <span class="kw">if</span> <span class="ident">is_new</span> {
-            <span class="self">self</span>.<span class="ident">invalid</span>[<span class="ident">x</span>][<span class="ident">y</span>] <span class="op">=</span> <span class="bool-val">true</span>;
-            <span class="kw">if</span> <span class="op">!</span><span class="ident">target</span>.<span class="ident">is_zero</span>() {
-                <span class="self">self</span>.<span class="ident">invalid</span>[<span class="ident">tx</span>][<span class="ident">ty</span>] <span class="op">=</span> <span class="bool-val">true</span>;
-                <span class="self">self</span>.<span class="ident">add_permanent_class</span>(<span class="ident">tx</span>, <span class="ident">ty</span>, <span class="ident">target</span>);
-                <span class="kw">for</span> <span class="ident">r</span> <span class="kw">in</span> <span class="ident">r</span> <span class="op">+</span> <span class="number">1</span>..<span class="self">self</span>.<span class="ident">page_data</span>[<span class="ident">tx</span>][<span class="ident">ty</span>].<span class="ident">len</span>() {
-                    <span class="self">self</span>.<span class="ident">page_data</span>[<span class="ident">tx</span>][<span class="ident">ty</span>][<span class="ident">r</span>].<span class="ident">quotient</span>(<span class="ident">target</span>);
+        <span class="kw">let </span>is_new = <span class="self">self</span>.differentials[x][y][r].add(source, <span class="prelude-val">Some</span>(target));
+        <span class="kw">if </span>is_new {
+            <span class="self">self</span>.invalid[x][y] = <span class="bool-val">true</span>;
+            <span class="kw">if </span>!target.is_zero() {
+                <span class="self">self</span>.invalid[tx][ty] = <span class="bool-val">true</span>;
+                <span class="self">self</span>.add_permanent_class(tx, ty, target);
+                <span class="kw">for </span>r <span class="kw">in </span>r + <span class="number">1</span>..<span class="self">self</span>.page_data[tx][ty].len() {
+                    <span class="self">self</span>.page_data[tx][ty][r].quotient(target);
 
-                    <span class="kw">let</span> (<span class="ident">px</span>, <span class="ident">py</span>) <span class="op">=</span> <span class="ident">P::profile_inverse</span>(<span class="ident">r</span>, <span class="ident">tx</span>, <span class="ident">ty</span>);
-                    <span class="kw">if</span> <span class="self">self</span>.<span class="ident">defined</span>(<span class="ident">px</span>, <span class="ident">py</span>) {
-                        <span class="self">self</span>.<span class="ident">invalid</span>[<span class="ident">px</span>][<span class="ident">py</span>] <span class="op">=</span> <span class="bool-val">true</span>;
+                    <span class="kw">let </span>(px, py) = P::profile_inverse(r, tx, ty);
+                    <span class="kw">if </span><span class="self">self</span>.defined(px, py) {
+                        <span class="self">self</span>.invalid[px][py] = <span class="bool-val">true</span>;
                     }
                 }
             }
         }
-        <span class="ident">is_new</span>
+        is_new
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">invalid</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">x</span>: <span class="ident">i32</span>, <span class="ident">y</span>: <span class="ident">i32</span>) -&gt; <span class="ident">bool</span> {
-        <span class="self">self</span>.<span class="ident">invalid</span>[<span class="ident">x</span>][<span class="ident">y</span>]
+    <span class="kw">pub fn </span>invalid(<span class="kw-2">&amp;</span><span class="self">self</span>, x: i32, y: i32) -&gt; bool {
+        <span class="self">self</span>.invalid[x][y]
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">update</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) {
-        <span class="kw">for</span> <span class="ident">x</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">invalid</span>.<span class="ident">range</span>() {
-            <span class="kw">for</span> <span class="ident">y</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">invalid</span>[<span class="ident">x</span>].<span class="ident">range</span>() {
-                <span class="kw">if</span> <span class="self">self</span>.<span class="ident">invalid</span>[<span class="ident">x</span>][<span class="ident">y</span>] {
-                    <span class="self">self</span>.<span class="ident">update_bidegree</span>(<span class="ident">x</span>, <span class="ident">y</span>);
+    <span class="kw">pub fn </span>update(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+        <span class="kw">for </span>x <span class="kw">in </span><span class="self">self</span>.invalid.range() {
+            <span class="kw">for </span>y <span class="kw">in </span><span class="self">self</span>.invalid[x].range() {
+                <span class="kw">if </span><span class="self">self</span>.invalid[x][y] {
+                    <span class="self">self</span>.update_bidegree(x, y);
                 }
             }
         }
     }
 
-    <span class="doccomment">/// This returns the vec of differentials to draw on each page.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">update_bidegree</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">x</span>: <span class="ident">i32</span>, <span class="ident">y</span>: <span class="ident">i32</span>) -&gt; <span class="ident">BiVec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">invalid</span>[<span class="ident">x</span>][<span class="ident">y</span>] <span class="op">=</span> <span class="bool-val">false</span>;
-        <span class="kw">for</span> (<span class="ident">r</span>, <span class="ident">d</span>) <span class="kw">in</span> <span class="self">self</span>.<span class="ident">differentials</span>[<span class="ident">x</span>][<span class="ident">y</span>].<span class="ident">iter_mut_enum</span>() {
-            <span class="kw">let</span> (<span class="ident">tx</span>, <span class="ident">ty</span>) <span class="op">=</span> <span class="ident">P::profile</span>(<span class="ident">r</span>, <span class="ident">x</span>, <span class="ident">y</span>);
-            <span class="ident">d</span>.<span class="ident">reduce_target</span>(<span class="self">self</span>.<span class="ident">page_data</span>[<span class="ident">tx</span>][<span class="ident">ty</span>][<span class="ident">r</span>].<span class="ident">zeros</span>());
+    <span class="doccomment">/// This returns the vec of differentials to draw on each page.
+    </span><span class="kw">pub fn </span>update_bidegree(<span class="kw-2">&amp;mut </span><span class="self">self</span>, x: i32, y: i32) -&gt; BiVec&lt;Vec&lt;Vec&lt;u32&gt;&gt;&gt; {
+        <span class="self">self</span>.invalid[x][y] = <span class="bool-val">false</span>;
+        <span class="kw">for </span>(r, d) <span class="kw">in </span><span class="self">self</span>.differentials[x][y].iter_mut_enum() {
+            <span class="kw">let </span>(tx, ty) = P::profile(r, x, y);
+            d.reduce_target(<span class="self">self</span>.page_data[tx][ty][r].zeros());
         }
 
-        <span class="comment">// For each page, the array of differentials to draw</span>
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">differentials</span>: <span class="ident">BiVec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span>
-            <span class="ident">BiVec::with_capacity</span>(<span class="ident">P::MIN_R</span>, <span class="self">self</span>.<span class="ident">differentials</span>[<span class="ident">x</span>][<span class="ident">y</span>].<span class="ident">len</span>());
+        <span class="comment">// For each page, the array of differentials to draw
+        </span><span class="kw">let </span><span class="kw-2">mut </span>differentials: BiVec&lt;Vec&lt;Vec&lt;u32&gt;&gt;&gt; =
+            BiVec::with_capacity(P::MIN_R, <span class="self">self</span>.differentials[x][y].len());
 
-        <span class="kw">for</span> <span class="ident">r</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">page_data</span>[<span class="ident">x</span>][<span class="ident">y</span>].<span class="ident">range</span>().<span class="ident">skip</span>(<span class="number">1</span>) {
-            <span class="kw">let</span> (<span class="ident">tx</span>, <span class="ident">ty</span>) <span class="op">=</span> <span class="ident">P::profile</span>(<span class="ident">r</span> <span class="op">-</span> <span class="number">1</span>, <span class="ident">x</span>, <span class="ident">y</span>);
+        <span class="kw">for </span>r <span class="kw">in </span><span class="self">self</span>.page_data[x][y].range().skip(<span class="number">1</span>) {
+            <span class="kw">let </span>(tx, ty) = P::profile(r - <span class="number">1</span>, x, y);
 
-            <span class="self">self</span>.<span class="ident">page_data</span>[<span class="ident">x</span>][<span class="ident">y</span>][<span class="ident">r</span>].<span class="ident">clear_gens</span>();
+            <span class="self">self</span>.page_data[x][y][r].clear_gens();
 
-            <span class="kw">if</span> <span class="ident">r</span> <span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">differentials</span>[<span class="ident">x</span>][<span class="ident">y</span>].<span class="ident">len</span>() <span class="op">|</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">page_data</span>[<span class="ident">tx</span>][<span class="ident">ty</span>][<span class="ident">r</span> <span class="op">-</span> <span class="number">1</span>].<span class="ident">is_empty</span>() {
-                <span class="kw">let</span> (<span class="ident">prev</span>, <span class="ident">cur</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">page_data</span>[<span class="ident">x</span>][<span class="ident">y</span>].<span class="ident">split_borrow_mut</span>(<span class="ident">r</span> <span class="op">-</span> <span class="number">1</span>, <span class="ident">r</span>);
-                <span class="kw">for</span> <span class="ident">gen</span> <span class="kw">in</span> <span class="ident">prev</span>.<span class="ident">gens</span>() {
-                    <span class="ident">cur</span>.<span class="ident">add_gen</span>(<span class="ident">gen</span>);
+            <span class="kw">if </span>r &gt; <span class="self">self</span>.differentials[x][y].len() || <span class="self">self</span>.page_data[tx][ty][r - <span class="number">1</span>].is_empty() {
+                <span class="kw">let </span>(prev, cur) = <span class="self">self</span>.page_data[x][y].split_borrow_mut(r - <span class="number">1</span>, r);
+                <span class="kw">for </span>gen <span class="kw">in </span>prev.gens() {
+                    cur.add_gen(gen);
                 }
-                <span class="kw">if</span> <span class="ident">r</span> <span class="op">-</span> <span class="number">1</span> <span class="op">&lt;</span> <span class="self">self</span>.<span class="ident">differentials</span>[<span class="ident">x</span>][<span class="ident">y</span>].<span class="ident">len</span>() {
-                    <span class="ident">differentials</span>.<span class="ident">push</span>(<span class="macro">vec!</span>[<span class="ident">Vec::new</span>(); <span class="self">self</span>.<span class="ident">page_data</span>[<span class="ident">x</span>][<span class="ident">y</span>][<span class="ident">r</span>].<span class="ident">dimension</span>()]);
+                <span class="kw">if </span>r - <span class="number">1 </span>&lt; <span class="self">self</span>.differentials[x][y].len() {
+                    differentials.push(<span class="macro">vec!</span>[Vec::new(); <span class="self">self</span>.page_data[x][y][r].dimension()]);
                 }
-            } <span class="kw">else</span> {
-                <span class="kw">let</span> <span class="ident">d</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">differentials</span>[<span class="ident">x</span>][<span class="ident">y</span>][<span class="ident">r</span> <span class="op">-</span> <span class="number">1</span>];
+            } <span class="kw">else </span>{
+                <span class="kw">let </span>d = <span class="kw-2">&amp;</span><span class="self">self</span>.differentials[x][y][r - <span class="number">1</span>];
 
-                <span class="kw">let</span> <span class="ident">source_dim</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">dimension</span>(<span class="ident">x</span>, <span class="ident">y</span>);
-                <span class="kw">let</span> <span class="ident">target_dim</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">dimension</span>(<span class="ident">tx</span>, <span class="ident">ty</span>);
+                <span class="kw">let </span>source_dim = <span class="self">self</span>.dimension(x, y);
+                <span class="kw">let </span>target_dim = <span class="self">self</span>.dimension(tx, ty);
 
-                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">drawn_differentials</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span>
-                    <span class="ident">Vec::with_capacity</span>(<span class="self">self</span>.<span class="ident">page_data</span>[<span class="ident">x</span>][<span class="ident">y</span>][<span class="ident">r</span> <span class="op">-</span> <span class="number">1</span>].<span class="ident">dimension</span>());
+                <span class="kw">let </span><span class="kw-2">mut </span>drawn_differentials: Vec&lt;Vec&lt;u32&gt;&gt; =
+                    Vec::with_capacity(<span class="self">self</span>.page_data[x][y][r - <span class="number">1</span>].dimension());
 
-                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">dvec</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="self">self</span>.<span class="ident">p</span>, <span class="ident">target_dim</span>);
-                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">matrix</span> <span class="op">=</span> <span class="ident">Matrix::new</span>(
-                    <span class="self">self</span>.<span class="ident">p</span>,
-                    <span class="self">self</span>.<span class="ident">page_data</span>[<span class="ident">x</span>][<span class="ident">y</span>][<span class="ident">r</span> <span class="op">-</span> <span class="number">1</span>].<span class="ident">dimension</span>(),
-                    <span class="ident">source_dim</span> <span class="op">+</span> <span class="ident">target_dim</span>,
+                <span class="kw">let </span><span class="kw-2">mut </span>dvec = FpVector::new(<span class="self">self</span>.p, target_dim);
+                <span class="kw">let </span><span class="kw-2">mut </span>matrix = Matrix::new(
+                    <span class="self">self</span>.p,
+                    <span class="self">self</span>.page_data[x][y][r - <span class="number">1</span>].dimension(),
+                    source_dim + target_dim,
                 );
 
-                <span class="kw">for</span> (<span class="ident">row</span>, <span class="ident">gen</span>) <span class="kw">in</span>
-                    <span class="ident">std::iter::zip</span>(<span class="ident">matrix</span>.<span class="ident">iter_mut</span>(), <span class="self">self</span>.<span class="ident">page_data</span>[<span class="ident">x</span>][<span class="ident">y</span>][<span class="ident">r</span> <span class="op">-</span> <span class="number">1</span>].<span class="ident">gens</span>())
+                <span class="kw">for </span>(row, gen) <span class="kw">in
+                    </span>std::iter::zip(matrix.iter_mut(), <span class="self">self</span>.page_data[x][y][r - <span class="number">1</span>].gens())
                 {
-                    <span class="ident">row</span>.<span class="ident">slice_mut</span>(<span class="ident">target_dim</span>, <span class="ident">target_dim</span> <span class="op">+</span> <span class="ident">source_dim</span>)
-                        .<span class="ident">assign</span>(<span class="ident">gen</span>);
+                    row.slice_mut(target_dim, target_dim + source_dim)
+                        .assign(gen);
 
-                    <span class="ident">d</span>.<span class="ident">evaluate</span>(<span class="ident">gen</span>, <span class="ident">dvec</span>.<span class="ident">as_slice_mut</span>());
-                    <span class="ident">row</span>.<span class="ident">slice_mut</span>(<span class="number">0</span>, <span class="ident">target_dim</span>).<span class="ident">assign</span>(<span class="ident">dvec</span>.<span class="ident">as_slice</span>());
+                    d.evaluate(gen, dvec.as_slice_mut());
+                    row.slice_mut(<span class="number">0</span>, target_dim).assign(dvec.as_slice());
 
-                    <span class="ident">drawn_differentials</span>
-                        .<span class="ident">push</span>(<span class="self">self</span>.<span class="ident">page_data</span>[<span class="ident">tx</span>][<span class="ident">ty</span>][<span class="ident">r</span> <span class="op">-</span> <span class="number">1</span>].<span class="ident">reduce</span>(<span class="ident">dvec</span>.<span class="ident">as_slice_mut</span>()));
-                    <span class="ident">dvec</span>.<span class="ident">set_to_zero</span>();
+                    drawn_differentials
+                        .push(<span class="self">self</span>.page_data[tx][ty][r - <span class="number">1</span>].reduce(dvec.as_slice_mut()));
+                    dvec.set_to_zero();
                 }
-                <span class="ident">differentials</span>.<span class="ident">push</span>(<span class="ident">drawn_differentials</span>);
+                differentials.push(drawn_differentials);
 
-                <span class="ident">matrix</span>.<span class="ident">row_reduce</span>();
+                matrix.row_reduce();
 
-                <span class="kw">let</span> <span class="ident">first_kernel_row</span> <span class="op">=</span> <span class="ident">matrix</span>.<span class="ident">find_first_row_in_block</span>(<span class="ident">target_dim</span>);
+                <span class="kw">let </span>first_kernel_row = matrix.find_first_row_in_block(target_dim);
 
-                <span class="kw">for</span> <span class="ident">row</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="ident">matrix</span>[<span class="ident">first_kernel_row</span>..] {
-                    <span class="kw">if</span> <span class="ident">row</span>.<span class="ident">is_zero</span>() {
+                <span class="kw">for </span>row <span class="kw">in </span><span class="kw-2">&amp;</span>matrix[first_kernel_row..] {
+                    <span class="kw">if </span>row.is_zero() {
                         <span class="kw">break</span>;
                     }
-                    <span class="self">self</span>.<span class="ident">page_data</span>[<span class="ident">x</span>][<span class="ident">y</span>][<span class="ident">r</span>].<span class="ident">add_gen</span>(<span class="ident">row</span>.<span class="ident">slice</span>(<span class="ident">target_dim</span>, <span class="ident">target_dim</span> <span class="op">+</span> <span class="ident">source_dim</span>));
+                    <span class="self">self</span>.page_data[x][y][r].add_gen(row.slice(target_dim, target_dim + source_dim));
                 }
             }
         }
-        <span class="ident">differentials</span>
+        differentials
     }
 
-    <span class="doccomment">/// Whether the calcuations at bidegree (x, y) are complete. This means all classes on the</span>
-    <span class="doccomment">/// final page are known to be permanent.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">complete</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">x</span>: <span class="ident">i32</span>, <span class="ident">y</span>: <span class="ident">i32</span>) -&gt; <span class="ident">bool</span> {
-        <span class="self">self</span>.<span class="ident">page_data</span>[<span class="ident">x</span>][<span class="ident">y</span>]
-            .<span class="ident">last</span>()
-            .<span class="ident">unwrap</span>()
-            .<span class="ident">gens</span>()
-            .<span class="ident">all</span>(<span class="op">|</span><span class="ident">v</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">permanent_classes</span>[<span class="ident">x</span>][<span class="ident">y</span>].<span class="ident">contains</span>(<span class="ident">v</span>))
+    <span class="doccomment">/// Whether the calcuations at bidegree (x, y) are complete. This means all classes on the
+    /// final page are known to be permanent.
+    </span><span class="kw">pub fn </span>complete(<span class="kw-2">&amp;</span><span class="self">self</span>, x: i32, y: i32) -&gt; bool {
+        <span class="self">self</span>.page_data[x][y]
+            .last()
+            .unwrap()
+            .gens()
+            .all(|v| <span class="self">self</span>.permanent_classes[x][y].contains(v))
     }
 
-    <span class="doccomment">/// Whether there is an inconsistent differential involving bidegree (x, y).</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">inconsistent</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">x</span>: <span class="ident">i32</span>, <span class="ident">y</span>: <span class="ident">i32</span>) -&gt; <span class="ident">bool</span> {
-        <span class="self">self</span>.<span class="ident">differentials</span>(<span class="ident">x</span>, <span class="ident">y</span>)
-            .<span class="ident">iter</span>()
-            .<span class="ident">any</span>(<span class="ident">Differential::inconsistent</span>)
-            <span class="op">|</span><span class="op">|</span> <span class="self">self</span>
-                .<span class="ident">differentials_hitting</span>(<span class="ident">x</span>, <span class="ident">y</span>)
-                .<span class="ident">any</span>(<span class="op">|</span>(<span class="kw">_</span>, <span class="ident">d</span>)<span class="op">|</span> <span class="ident">d</span>.<span class="ident">inconsistent</span>())
+    <span class="doccomment">/// Whether there is an inconsistent differential involving bidegree (x, y).
+    </span><span class="kw">pub fn </span>inconsistent(<span class="kw-2">&amp;</span><span class="self">self</span>, x: i32, y: i32) -&gt; bool {
+        <span class="self">self</span>.differentials(x, y)
+            .iter()
+            .any(Differential::inconsistent)
+            || <span class="self">self
+                </span>.differentials_hitting(x, y)
+                .any(|(<span class="kw">_</span>, d)| d.inconsistent())
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">differentials</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">x</span>: <span class="ident">i32</span>, <span class="ident">y</span>: <span class="ident">i32</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">BiVec</span><span class="op">&lt;</span><span class="ident">Differential</span><span class="op">&gt;</span> {
-        <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">differentials</span>[<span class="ident">x</span>][<span class="ident">y</span>]
+    <span class="kw">pub fn </span>differentials(<span class="kw-2">&amp;</span><span class="self">self</span>, x: i32, y: i32) -&gt; <span class="kw-2">&amp;</span>BiVec&lt;Differential&gt; {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.differentials[x][y]
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">differentials_hitting</span>(
+    <span class="kw">pub fn </span>differentials_hitting(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">x</span>: <span class="ident">i32</span>,
-        <span class="ident">y</span>: <span class="ident">i32</span>,
-    ) -&gt; <span class="kw">impl</span> <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> (<span class="ident">i32</span>, <span class="kw-2">&amp;</span><span class="lifetime">&#39;_</span> <span class="ident">Differential</span>)<span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;_</span> {
-        <span class="kw">let</span> <span class="ident">max_r</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">page_data</span>[<span class="ident">x</span>][<span class="ident">y</span>].<span class="ident">len</span>() <span class="op">-</span> <span class="number">1</span>;
-        (<span class="ident">P::MIN_R</span>..<span class="ident">max_r</span>).<span class="ident">filter_map</span>(<span class="kw">move</span> <span class="op">|</span><span class="ident">r</span><span class="op">|</span> {
-            <span class="kw">let</span> (<span class="ident">sx</span>, <span class="ident">sy</span>) <span class="op">=</span> <span class="ident">P::profile_inverse</span>(<span class="ident">r</span>, <span class="ident">x</span>, <span class="ident">y</span>);
-            <span class="prelude-val">Some</span>((<span class="ident">r</span>, <span class="self">self</span>.<span class="ident">differentials</span>.<span class="ident">get</span>(<span class="ident">sx</span>)<span class="question-mark">?</span>.<span class="ident">get</span>(<span class="ident">sy</span>)<span class="question-mark">?</span>.<span class="ident">get</span>(<span class="ident">r</span>)<span class="question-mark">?</span>))
+        x: i32,
+        y: i32,
+    ) -&gt; <span class="kw">impl </span>Iterator&lt;Item = (i32, <span class="kw-2">&amp;</span><span class="lifetime">&#39;_ </span>Differential)&gt; + <span class="lifetime">&#39;_ </span>{
+        <span class="kw">let </span>max_r = <span class="self">self</span>.page_data[x][y].len() - <span class="number">1</span>;
+        (P::MIN_R..max_r).filter_map(<span class="kw">move </span>|r| {
+            <span class="kw">let </span>(sx, sy) = P::profile_inverse(r, x, y);
+            <span class="prelude-val">Some</span>((r, <span class="self">self</span>.differentials.get(sx)<span class="question-mark">?</span>.get(sy)<span class="question-mark">?</span>.get(r)<span class="question-mark">?</span>))
         })
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">permanent_classes</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">x</span>: <span class="ident">i32</span>, <span class="ident">y</span>: <span class="ident">i32</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">Subspace</span> {
-        <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">permanent_classes</span>[<span class="ident">x</span>][<span class="ident">y</span>]
+    <span class="kw">pub fn </span>permanent_classes(<span class="kw-2">&amp;</span><span class="self">self</span>, x: i32, y: i32) -&gt; <span class="kw-2">&amp;</span>Subspace {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.permanent_classes[x][y]
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">page_data</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">x</span>: <span class="ident">i32</span>, <span class="ident">y</span>: <span class="ident">i32</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">BiVec</span><span class="op">&lt;</span><span class="ident">Subquotient</span><span class="op">&gt;</span> {
-        <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">page_data</span>[<span class="ident">x</span>][<span class="ident">y</span>]
+    <span class="kw">pub fn </span>page_data(<span class="kw-2">&amp;</span><span class="self">self</span>, x: i32, y: i32) -&gt; <span class="kw-2">&amp;</span>BiVec&lt;Subquotient&gt; {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.page_data[x][y]
     }
 
-    <span class="doccomment">/// Compute the product between `product` and the class `class` at `(x, y)`. Returns `None` if</span>
-    <span class="doccomment">/// the product is not yet computed.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">multiply</span>(
+    <span class="doccomment">/// Compute the product between `product` and the class `class` at `(x, y)`. Returns `None` if
+    /// the product is not yet computed.
+    </span><span class="kw">pub fn </span>multiply(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">x</span>: <span class="ident">i32</span>,
-        <span class="ident">y</span>: <span class="ident">i32</span>,
-        <span class="ident">class</span>: <span class="ident">Slice</span>,
-        <span class="ident">prod</span>: <span class="kw-2">&amp;</span><span class="ident">Product</span>,
-    ) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">i32</span>, <span class="ident">i32</span>, <span class="ident">FpVector</span>)<span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="self">self</span>.<span class="ident">p</span>, <span class="self">self</span>.<span class="ident">classes</span>.<span class="ident">get_dimension</span>(<span class="ident">x</span> <span class="op">+</span> <span class="ident">prod</span>.<span class="ident">x</span>, <span class="ident">y</span> <span class="op">+</span> <span class="ident">prod</span>.<span class="ident">y</span>)<span class="question-mark">?</span>);
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">matrix</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">prod</span>.<span class="ident">matrices</span>.<span class="ident">get</span>(<span class="ident">x</span>)<span class="question-mark">?</span>.<span class="ident">get</span>(<span class="ident">y</span>)<span class="question-mark">?</span> {
-            <span class="ident">matrix</span>.<span class="ident">apply</span>(<span class="ident">result</span>.<span class="ident">as_slice_mut</span>(), <span class="number">1</span>, <span class="ident">class</span>);
+        x: i32,
+        y: i32,
+        class: Slice,
+        prod: <span class="kw-2">&amp;</span>Product,
+    ) -&gt; <span class="prelude-ty">Option</span>&lt;(i32, i32, FpVector)&gt; {
+        <span class="kw">let </span><span class="kw-2">mut </span>result = FpVector::new(<span class="self">self</span>.p, <span class="self">self</span>.classes.get_dimension(x + prod.x, y + prod.y)<span class="question-mark">?</span>);
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(matrix) = <span class="kw-2">&amp;</span>prod.matrices.get(x)<span class="question-mark">?</span>.get(y)<span class="question-mark">? </span>{
+            matrix.apply(result.as_slice_mut(), <span class="number">1</span>, class);
         }
-        <span class="prelude-val">Some</span>((<span class="ident">x</span> <span class="op">+</span> <span class="ident">prod</span>.<span class="ident">x</span>, <span class="ident">y</span> <span class="op">+</span> <span class="ident">prod</span>.<span class="ident">y</span>, <span class="ident">result</span>))
+        <span class="prelude-val">Some</span>((x + prod.x, y + prod.y, result))
     }
 
-    <span class="doccomment">/// Apply the Leibniz rule to obtain new differentials. The differential we start with is a d_r</span>
-    <span class="doccomment">/// differential from (x, y) with source `s` and target `t`. If the source is permanent, then r</span>
-    <span class="doccomment">/// should be set to [`i32::MAX`].</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// # Arguments</span>
-    <span class="doccomment">///  - `source_product` the product to multiply the class with</span>
-    <span class="doccomment">///  - `target_product` the differential on `source_product`. If `source_product` is permanent,</span>
-    <span class="doccomment">///    then this is None.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// # Return</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// We return a tuple `(r, x, y, class)` recording the (source of) the new differential.</span>
-    <span class="doccomment">/// If the function returns None, this means no differential was added. This can either be</span>
-    <span class="doccomment">/// because the differential was trivial, or the data needed to compute the product is not yet</span>
-    <span class="doccomment">/// available.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">leibniz</span>(
-        <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
-        <span class="ident">r</span>: <span class="ident">i32</span>,
-        <span class="ident">x</span>: <span class="ident">i32</span>,
-        <span class="ident">y</span>: <span class="ident">i32</span>,
-        <span class="ident">class</span>: <span class="ident">Slice</span>,
-        <span class="ident">source_product</span>: <span class="kw-2">&amp;</span><span class="ident">Product</span>,
-        <span class="ident">target_product</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">Product</span><span class="op">&gt;</span>,
-    ) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">i32</span>, <span class="ident">i32</span>, <span class="ident">i32</span>, <span class="ident">FpVector</span>)<span class="op">&gt;</span> {
-        <span class="kw">let</span> (<span class="ident">source_x</span>, <span class="ident">source_y</span>, <span class="ident">source_class</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">multiply</span>(<span class="ident">x</span>, <span class="ident">y</span>, <span class="ident">class</span>, <span class="ident">source_product</span>)<span class="question-mark">?</span>;
+    <span class="doccomment">/// Apply the Leibniz rule to obtain new differentials. The differential we start with is a d_r
+    /// differential from (x, y) with source `s` and target `t`. If the source is permanent, then r
+    /// should be set to [`i32::MAX`].
+    ///
+    /// # Arguments
+    ///  - `source_product` the product to multiply the class with
+    ///  - `target_product` the differential on `source_product`. If `source_product` is permanent,
+    ///    then this is None.
+    ///
+    /// # Return
+    ///
+    /// We return a tuple `(r, x, y, class)` recording the (source of) the new differential.
+    /// If the function returns None, this means no differential was added. This can either be
+    /// because the differential was trivial, or the data needed to compute the product is not yet
+    /// available.
+    </span><span class="kw">pub fn </span>leibniz(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        r: i32,
+        x: i32,
+        y: i32,
+        class: Slice,
+        source_product: <span class="kw-2">&amp;</span>Product,
+        target_product: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Product&gt;,
+    ) -&gt; <span class="prelude-ty">Option</span>&lt;(i32, i32, i32, FpVector)&gt; {
+        <span class="kw">let </span>(source_x, source_y, source_class) = <span class="self">self</span>.multiply(x, y, class, source_product)<span class="question-mark">?</span>;
 
-        <span class="comment">// The class and the product are both permanent.</span>
-        <span class="kw">if</span> <span class="ident">r</span> <span class="op">==</span> <span class="ident">i32::MAX</span> <span class="op">&amp;&amp;</span> <span class="ident">target_product</span>.<span class="ident">is_none</span>() {
-            <span class="kw">if</span> <span class="self">self</span>.<span class="ident">add_permanent_class</span>(<span class="ident">source_x</span>, <span class="ident">source_y</span>, <span class="ident">source_class</span>.<span class="ident">as_slice</span>()) {
-                <span class="kw">return</span> <span class="prelude-val">Some</span>((<span class="ident">i32::MAX</span>, <span class="ident">source_x</span>, <span class="ident">source_y</span>, <span class="ident">source_class</span>));
-            } <span class="kw">else</span> {
-                <span class="kw">return</span> <span class="prelude-val">None</span>;
+        <span class="comment">// The class and the product are both permanent.
+        </span><span class="kw">if </span>r == i32::MAX &amp;&amp; target_product.is_none() {
+            <span class="kw">if </span><span class="self">self</span>.add_permanent_class(source_x, source_y, source_class.as_slice()) {
+                <span class="kw">return </span><span class="prelude-val">Some</span>((i32::MAX, source_x, source_y, source_class));
+            } <span class="kw">else </span>{
+                <span class="kw">return </span><span class="prelude-val">None</span>;
             }
         }
 
-        <span class="kw">let</span> <span class="ident">neg_1</span> <span class="op">=</span> <span class="kw-2">*</span><span class="self">self</span>.<span class="ident">p</span> <span class="op">-</span> <span class="number">1</span>;
+        <span class="kw">let </span>neg_1 = <span class="kw-2">*</span><span class="self">self</span>.p - <span class="number">1</span>;
 
-        <span class="kw">let</span> <span class="ident">target_r</span> <span class="op">=</span> <span class="ident">target_product</span>
-            .<span class="ident">map</span>(<span class="op">|</span><span class="ident">prod</span><span class="op">|</span> <span class="ident">P::differential_length</span>(<span class="ident">x</span> <span class="op">+</span> <span class="ident">prod</span>.<span class="ident">x</span> <span class="op">-</span> <span class="ident">source_x</span>, <span class="ident">y</span> <span class="op">+</span> <span class="ident">prod</span>.<span class="ident">y</span> <span class="op">-</span> <span class="ident">source_y</span>))
-            .<span class="ident">unwrap_or</span>(<span class="ident">i32::MAX</span>);
+        <span class="kw">let </span>target_r = target_product
+            .map(|prod| P::differential_length(x + prod.x - source_x, y + prod.y - source_y))
+            .unwrap_or(i32::MAX);
 
-        <span class="kw">let</span> <span class="ident">result_r</span> <span class="op">=</span> <span class="ident">std::cmp::min</span>(<span class="ident">r</span>, <span class="ident">target_r</span>);
+        <span class="kw">let </span>result_r = std::cmp::min(r, target_r);
 
-        <span class="kw">let</span> (<span class="ident">result_x</span>, <span class="ident">result_y</span>) <span class="op">=</span> <span class="ident">P::profile</span>(<span class="ident">result_r</span>, <span class="ident">source_x</span>, <span class="ident">source_y</span>);
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="self">self</span>.<span class="ident">p</span>, <span class="self">self</span>.<span class="ident">classes</span>.<span class="ident">get_dimension</span>(<span class="ident">result_x</span>, <span class="ident">result_y</span>)<span class="question-mark">?</span>);
+        <span class="kw">let </span>(result_x, result_y) = P::profile(result_r, source_x, source_y);
+        <span class="kw">let </span><span class="kw-2">mut </span>result = FpVector::new(<span class="self">self</span>.p, <span class="self">self</span>.classes.get_dimension(result_x, result_y)<span class="question-mark">?</span>);
 
-        <span class="kw">if</span> <span class="ident">r</span> <span class="op">==</span> <span class="ident">result_r</span> {
-            <span class="kw">let</span> <span class="ident">diffs</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">differentials</span>[<span class="ident">x</span>][<span class="ident">y</span>][<span class="ident">r</span>];
-            <span class="kw">let</span> (<span class="ident">d_x</span>, <span class="ident">d_y</span>) <span class="op">=</span> <span class="ident">P::profile</span>(<span class="ident">r</span>, <span class="ident">x</span>, <span class="ident">y</span>);
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">dx</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="self">self</span>.<span class="ident">p</span>, <span class="self">self</span>.<span class="ident">classes</span>.<span class="ident">dimension</span>(<span class="ident">d_x</span>, <span class="ident">d_y</span>));
-            <span class="ident">diffs</span>.<span class="ident">evaluate</span>(<span class="ident">class</span>, <span class="ident">dx</span>.<span class="ident">as_slice_mut</span>());
-            <span class="kw">let</span> (<span class="kw">_</span>, <span class="kw">_</span>, <span class="ident">target_class</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">multiply</span>(<span class="ident">d_x</span>, <span class="ident">d_y</span>, <span class="ident">dx</span>.<span class="ident">as_slice</span>(), <span class="ident">source_product</span>)<span class="question-mark">?</span>;
+        <span class="kw">if </span>r == result_r {
+            <span class="kw">let </span>diffs = <span class="kw-2">&amp;</span><span class="self">self</span>.differentials[x][y][r];
+            <span class="kw">let </span>(d_x, d_y) = P::profile(r, x, y);
+            <span class="kw">let </span><span class="kw-2">mut </span>dx = FpVector::new(<span class="self">self</span>.p, <span class="self">self</span>.classes.dimension(d_x, d_y));
+            diffs.evaluate(class, dx.as_slice_mut());
+            <span class="kw">let </span>(<span class="kw">_</span>, <span class="kw">_</span>, target_class) = <span class="self">self</span>.multiply(d_x, d_y, dx.as_slice(), source_product)<span class="question-mark">?</span>;
 
-            <span class="kw">if</span> <span class="ident">source_product</span>.<span class="ident">left</span> <span class="op">&amp;&amp;</span> <span class="ident">source_product</span>.<span class="ident">x</span> <span class="op">%</span> <span class="number">2</span> <span class="op">!</span><span class="op">=</span> <span class="number">0</span> {
-                <span class="ident">result</span>.<span class="ident">add</span>(<span class="kw-2">&amp;</span><span class="ident">target_class</span>, <span class="ident">neg_1</span>);
-            } <span class="kw">else</span> {
-                <span class="ident">result</span>.<span class="ident">add</span>(<span class="kw-2">&amp;</span><span class="ident">target_class</span>, <span class="number">1</span>);
+            <span class="kw">if </span>source_product.left &amp;&amp; source_product.x % <span class="number">2 </span>!= <span class="number">0 </span>{
+                result.add(<span class="kw-2">&amp;</span>target_class, neg_1);
+            } <span class="kw">else </span>{
+                result.add(<span class="kw-2">&amp;</span>target_class, <span class="number">1</span>);
             }
         }
 
-        <span class="kw">if</span> <span class="ident">target_r</span> <span class="op">==</span> <span class="ident">result_r</span> {
-            <span class="kw">let</span> (<span class="kw">_</span>, <span class="kw">_</span>, <span class="ident">target</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">multiply</span>(<span class="ident">x</span>, <span class="ident">y</span>, <span class="ident">class</span>, <span class="ident">target_product</span>.<span class="ident">unwrap</span>())<span class="question-mark">?</span>;
-            <span class="comment">// why is this x - 1 but not x? This is what the original code does and came from trial</span>
-            <span class="comment">// and error(?)</span>
-            <span class="kw">if</span> <span class="op">!</span><span class="ident">source_product</span>.<span class="ident">left</span> <span class="op">&amp;&amp;</span> (<span class="ident">x</span> <span class="op">-</span> <span class="number">1</span>) <span class="op">%</span> <span class="number">2</span> <span class="op">!</span><span class="op">=</span> <span class="number">0</span> {
-                <span class="ident">result</span>.<span class="ident">add</span>(<span class="kw-2">&amp;</span><span class="ident">target</span>, <span class="ident">neg_1</span>);
-            } <span class="kw">else</span> {
-                <span class="ident">result</span>.<span class="ident">add</span>(<span class="kw-2">&amp;</span><span class="ident">target</span>, <span class="number">1</span>);
+        <span class="kw">if </span>target_r == result_r {
+            <span class="kw">let </span>(<span class="kw">_</span>, <span class="kw">_</span>, target) = <span class="self">self</span>.multiply(x, y, class, target_product.unwrap())<span class="question-mark">?</span>;
+            <span class="comment">// why is this x - 1 but not x? This is what the original code does and came from trial
+            // and error(?)
+            </span><span class="kw">if </span>!source_product.left &amp;&amp; (x - <span class="number">1</span>) % <span class="number">2 </span>!= <span class="number">0 </span>{
+                result.add(<span class="kw-2">&amp;</span>target, neg_1);
+            } <span class="kw">else </span>{
+                result.add(<span class="kw-2">&amp;</span>target, <span class="number">1</span>);
             }
         }
 
-        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">add_differential</span>(
-            <span class="ident">result_r</span>,
-            <span class="ident">source_x</span>,
-            <span class="ident">source_y</span>,
-            <span class="ident">source_class</span>.<span class="ident">as_slice</span>(),
-            <span class="ident">result</span>.<span class="ident">as_slice</span>(),
+        <span class="kw">if </span><span class="self">self</span>.add_differential(
+            result_r,
+            source_x,
+            source_y,
+            source_class.as_slice(),
+            result.as_slice(),
         ) {
-            <span class="prelude-val">Some</span>((<span class="ident">result_r</span>, <span class="ident">source_x</span>, <span class="ident">source_y</span>, <span class="ident">source_class</span>))
-        } <span class="kw">else</span> {
-            <span class="prelude-val">None</span>
-        }
+            <span class="prelude-val">Some</span>((result_r, source_x, source_y, source_class))
+        } <span class="kw">else </span>{
+            <span class="prelude-val">None
+        </span>}
     }
 
-    <span class="doccomment">/// This shifts the sseq horizontally so that the minimum x is 0.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">write_to_graph</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">T</span>: <span class="ident">chart::Backend</span><span class="op">&gt;</span>(
+    <span class="doccomment">/// This shifts the sseq horizontally so that the minimum x is 0.
+    </span><span class="kw">pub fn </span>write_to_graph&lt;<span class="lifetime">&#39;a</span>, T: chart::Backend&gt;(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="kw-2">mut</span> <span class="ident">g</span>: <span class="ident">T</span>,
-        <span class="ident">r</span>: <span class="ident">i32</span>,
-        <span class="ident">differentials</span>: <span class="ident">bool</span>,
-        <span class="ident">products</span>: <span class="kw">impl</span> <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> (<span class="ident">String</span>, <span class="ident">Product</span>)<span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Clone</span>,
-        <span class="ident">header</span>: <span class="kw">impl</span> <span class="ident">FnOnce</span>(<span class="kw-2">&amp;mut</span> <span class="ident">T</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">T::Error</span><span class="op">&gt;</span>,
-    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">T::Error</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">min_x</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">min_x</span>();
-        <span class="macro">assert_eq!</span>(<span class="self">self</span>.<span class="ident">min_y</span>(), <span class="number">0</span>);
+        <span class="kw-2">mut </span>g: T,
+        r: i32,
+        differentials: bool,
+        products: <span class="kw">impl </span>Iterator&lt;Item = <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>(String, Product)&gt; + Clone,
+        header: <span class="kw">impl </span>FnOnce(<span class="kw-2">&amp;mut </span>T) -&gt; <span class="prelude-ty">Result</span>&lt;(), T::Error&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), T::Error&gt; {
+        <span class="kw">let </span>min_x = <span class="self">self</span>.min_x();
+        <span class="macro">assert_eq!</span>(<span class="self">self</span>.min_y(), <span class="number">0</span>);
 
-        <span class="kw">let</span> <span class="ident">max_x</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">max_x</span>();
-        <span class="kw">let</span> <span class="ident">max_y</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">max_y</span>();
+        <span class="kw">let </span>max_x = <span class="self">self</span>.max_x();
+        <span class="kw">let </span>max_y = <span class="self">self</span>.max_y();
 
-        <span class="ident">g</span>.<span class="ident">init</span>(<span class="ident">max_x</span> <span class="op">-</span> <span class="ident">min_x</span>, <span class="ident">max_y</span>)<span class="question-mark">?</span>;
-        <span class="ident">header</span>(<span class="kw-2">&amp;mut</span> <span class="ident">g</span>)<span class="question-mark">?</span>;
+        g.init(max_x - min_x, max_y)<span class="question-mark">?</span>;
+        header(<span class="kw-2">&amp;mut </span>g)<span class="question-mark">?</span>;
 
-        <span class="kw">for</span> <span class="ident">x</span> <span class="kw">in</span> <span class="ident">min_x</span>..<span class="op">=</span><span class="ident">max_x</span> {
-            <span class="kw">for</span> <span class="ident">y</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">range</span>(<span class="ident">x</span>) {
-                <span class="kw">let</span> <span class="ident">data</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">page_data</span>(<span class="ident">x</span>, <span class="ident">y</span>).<span class="ident">get_max</span>(<span class="ident">r</span>);
-                <span class="kw">if</span> <span class="ident">data</span>.<span class="ident">is_empty</span>() {
+        <span class="kw">for </span>x <span class="kw">in </span>min_x..=max_x {
+            <span class="kw">for </span>y <span class="kw">in </span><span class="self">self</span>.range(x) {
+                <span class="kw">let </span>data = <span class="self">self</span>.page_data(x, y).get_max(r);
+                <span class="kw">if </span>data.is_empty() {
                     <span class="kw">continue</span>;
                 }
 
-                <span class="ident">g</span>.<span class="ident">node</span>(<span class="ident">x</span> <span class="op">-</span> <span class="ident">min_x</span>, <span class="ident">y</span>, <span class="ident">data</span>.<span class="ident">dimension</span>())<span class="question-mark">?</span>;
+                g.node(x - min_x, y, data.dimension())<span class="question-mark">?</span>;
 
-                <span class="comment">// Now add the products hitting this bidegree</span>
-                <span class="kw">for</span> (<span class="ident">name</span>, <span class="ident">prod</span>) <span class="kw">in</span> <span class="ident">products</span>.<span class="ident">clone</span>() {
-                    <span class="kw">let</span> <span class="ident">source_x</span> <span class="op">=</span> <span class="ident">x</span> <span class="op">-</span> <span class="ident">prod</span>.<span class="ident">x</span>;
-                    <span class="kw">let</span> <span class="ident">source_y</span> <span class="op">=</span> <span class="ident">y</span> <span class="op">-</span> <span class="ident">prod</span>.<span class="ident">y</span>;
+                <span class="comment">// Now add the products hitting this bidegree
+                </span><span class="kw">for </span>(name, prod) <span class="kw">in </span>products.clone() {
+                    <span class="kw">let </span>source_x = x - prod.x;
+                    <span class="kw">let </span>source_y = y - prod.y;
 
-                    <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">defined</span>(<span class="ident">source_x</span>, <span class="ident">source_y</span>) {
+                    <span class="kw">if </span>!<span class="self">self</span>.defined(source_x, source_y) {
                         <span class="kw">continue</span>;
                     }
 
-                    <span class="kw">let</span> <span class="ident">source_data</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">page_data</span>(<span class="ident">source_x</span>, <span class="ident">source_y</span>).<span class="ident">get_max</span>(<span class="ident">r</span>);
-                    <span class="kw">if</span> <span class="ident">source_data</span>.<span class="ident">is_empty</span>() {
+                    <span class="kw">let </span>source_data = <span class="self">self</span>.page_data(source_x, source_y).get_max(r);
+                    <span class="kw">if </span>source_data.is_empty() {
                         <span class="kw">continue</span>;
                     }
 
-                    <span class="comment">// For unstable charts this is None in low degrees.</span>
-                    <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">matrix</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">prod</span>.<span class="ident">matrices</span>[<span class="ident">source_x</span>][<span class="ident">source_y</span>] {
-                        <span class="kw">let</span> <span class="ident">matrix</span> <span class="op">=</span> <span class="ident">Subquotient::reduce_matrix</span>(<span class="ident">matrix</span>, <span class="ident">source_data</span>, <span class="ident">data</span>);
-                        <span class="ident">g</span>.<span class="ident">structline_matrix</span>(
-                            (<span class="ident">source_x</span> <span class="op">-</span> <span class="ident">min_x</span>, <span class="ident">source_y</span>),
-                            (<span class="ident">x</span> <span class="op">-</span> <span class="ident">min_x</span>, <span class="ident">y</span>),
-                            <span class="ident">matrix</span>,
-                            <span class="prelude-val">Some</span>(<span class="ident">name</span>),
+                    <span class="comment">// For unstable charts this is None in low degrees.
+                    </span><span class="kw">if let </span><span class="prelude-val">Some</span>(matrix) = <span class="kw-2">&amp;</span>prod.matrices[source_x][source_y] {
+                        <span class="kw">let </span>matrix = Subquotient::reduce_matrix(matrix, source_data, data);
+                        g.structline_matrix(
+                            (source_x - min_x, source_y),
+                            (x - min_x, y),
+                            matrix,
+                            <span class="prelude-val">Some</span>(name),
                         )<span class="question-mark">?</span>;
                     }
                 }
 
-                <span class="comment">// Finally add the differentials</span>
-                <span class="kw">if</span> <span class="ident">differentials</span> {
-                    <span class="kw">let</span> (<span class="ident">tx</span>, <span class="ident">ty</span>) <span class="op">=</span> <span class="ident">P::profile</span>(<span class="ident">r</span>, <span class="ident">x</span>, <span class="ident">y</span>);
-                    <span class="kw">if</span> <span class="ident">tx</span> <span class="op">&lt;</span> <span class="number">0</span> {
+                <span class="comment">// Finally add the differentials
+                </span><span class="kw">if </span>differentials {
+                    <span class="kw">let </span>(tx, ty) = P::profile(r, x, y);
+                    <span class="kw">if </span>tx &lt; <span class="number">0 </span>{
                         <span class="kw">continue</span>;
                     }
-                    <span class="kw">let</span> <span class="ident">d</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">differentials</span>(<span class="ident">x</span>, <span class="ident">y</span>);
-                    <span class="kw">if</span> <span class="ident">d</span>.<span class="ident">len</span>() <span class="op">&lt;</span><span class="op">=</span> <span class="ident">r</span> {
+                    <span class="kw">let </span>d = <span class="self">self</span>.differentials(x, y);
+                    <span class="kw">if </span>d.len() &lt;= r {
                         <span class="kw">continue</span>;
                     }
-                    <span class="kw">let</span> <span class="ident">d</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">d</span>[<span class="ident">r</span>];
-                    <span class="kw">let</span> <span class="ident">target_data</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">page_data</span>(<span class="ident">tx</span>, <span class="ident">ty</span>).<span class="ident">get_max</span>(<span class="ident">r</span>);
+                    <span class="kw">let </span>d = <span class="kw-2">&amp;</span>d[r];
+                    <span class="kw">let </span>target_data = <span class="self">self</span>.page_data(tx, ty).get_max(r);
 
-                    <span class="kw">let</span> <span class="ident">pairs</span> <span class="op">=</span> <span class="ident">d</span>
-                        .<span class="ident">get_source_target_pairs</span>()
-                        .<span class="ident">into_iter</span>()
-                        .<span class="ident">map</span>(<span class="op">|</span>(<span class="kw-2">mut</span> <span class="ident">s</span>, <span class="kw-2">mut</span> <span class="ident">t</span>)<span class="op">|</span> {
+                    <span class="kw">let </span>pairs = d
+                        .get_source_target_pairs()
+                        .into_iter()
+                        .map(|(<span class="kw-2">mut </span>s, <span class="kw-2">mut </span>t)| {
                             (
-                                <span class="ident">data</span>.<span class="ident">reduce</span>(<span class="ident">s</span>.<span class="ident">as_slice_mut</span>()),
-                                <span class="ident">target_data</span>.<span class="ident">reduce</span>(<span class="ident">t</span>.<span class="ident">as_slice_mut</span>()),
+                                data.reduce(s.as_slice_mut()),
+                                target_data.reduce(t.as_slice_mut()),
                             )
                         });
 
-                    <span class="kw">for</span> (<span class="ident">source</span>, <span class="ident">target</span>) <span class="kw">in</span> <span class="ident">pairs</span> {
-                        <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">v</span>) <span class="kw">in</span> <span class="ident">source</span>.<span class="ident">into_iter</span>().<span class="ident">enumerate</span>() {
-                            <span class="kw">if</span> <span class="ident">v</span> <span class="op">==</span> <span class="number">0</span> {
+                    <span class="kw">for </span>(source, target) <span class="kw">in </span>pairs {
+                        <span class="kw">for </span>(i, v) <span class="kw">in </span>source.into_iter().enumerate() {
+                            <span class="kw">if </span>v == <span class="number">0 </span>{
                                 <span class="kw">continue</span>;
                             }
-                            <span class="kw">for</span> (<span class="ident">j</span>, <span class="kw-2">&amp;</span><span class="ident">v</span>) <span class="kw">in</span> <span class="ident">target</span>.<span class="ident">iter</span>().<span class="ident">enumerate</span>() {
-                                <span class="kw">if</span> <span class="ident">v</span> <span class="op">==</span> <span class="number">0</span> {
+                            <span class="kw">for </span>(j, <span class="kw-2">&amp;</span>v) <span class="kw">in </span>target.iter().enumerate() {
+                                <span class="kw">if </span>v == <span class="number">0 </span>{
                                     <span class="kw">continue</span>;
                                 }
-                                <span class="ident">g</span>.<span class="ident">structline</span>(
-                                    (<span class="ident">x</span> <span class="op">-</span> <span class="ident">min_x</span>, <span class="ident">y</span>, <span class="ident">i</span>),
-                                    (<span class="ident">tx</span> <span class="op">-</span> <span class="ident">min_x</span>, <span class="ident">ty</span>, <span class="ident">j</span>),
+                                g.structline(
+                                    (x - min_x, y, i),
+                                    (tx - min_x, ty, j),
                                     <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;d{r}&quot;</span>)),
                                 )<span class="question-mark">?</span>;
                             }
@@ -1554,46 +1554,46 @@
     }
 }
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
-<span class="kw">mod</span> <span class="ident">tests</span> {
-    <span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
-    <span class="kw">use</span> <span class="ident">expect_test</span>::{<span class="ident">expect</span>, <span class="ident">Expect</span>};
+<span class="attribute">#[cfg(test)]
+</span><span class="kw">mod </span>tests {
+    <span class="kw">use super</span>::<span class="kw-2">*</span>;
+    <span class="kw">use </span>expect_test::{expect, Expect};
 
-    <span class="attribute">#[<span class="ident">test</span>]</span>
-    <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">clippy::cognitive_complexity</span>)]</span>
-    <span class="kw">fn</span> <span class="ident">test_sseq_differential</span>() {
-        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">ValidPrime::new</span>(<span class="number">3</span>);
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">sseq</span> <span class="op">=</span> <span class="ident">Sseq</span>::<span class="op">&lt;</span><span class="ident">Adams</span><span class="op">&gt;</span><span class="ident">::new</span>(<span class="ident">p</span>, <span class="number">0</span>, <span class="number">0</span>);
-        <span class="ident">sseq</span>.<span class="ident">set_dimension</span>(<span class="number">0</span>, <span class="number">0</span>, <span class="number">1</span>);
-        <span class="ident">sseq</span>.<span class="ident">set_dimension</span>(<span class="number">1</span>, <span class="number">0</span>, <span class="number">2</span>);
-        <span class="ident">sseq</span>.<span class="ident">set_dimension</span>(<span class="number">1</span>, <span class="number">1</span>, <span class="number">2</span>);
-        <span class="ident">sseq</span>.<span class="ident">set_dimension</span>(<span class="number">0</span>, <span class="number">1</span>, <span class="number">0</span>);
-        <span class="ident">sseq</span>.<span class="ident">set_dimension</span>(<span class="number">0</span>, <span class="number">2</span>, <span class="number">3</span>);
-        <span class="ident">sseq</span>.<span class="ident">set_dimension</span>(<span class="number">0</span>, <span class="number">3</span>, <span class="number">1</span>);
+    <span class="attribute">#[test]
+    #[allow(clippy::cognitive_complexity)]
+    </span><span class="kw">fn </span>test_sseq_differential() {
+        <span class="kw">let </span>p = ValidPrime::new(<span class="number">3</span>);
+        <span class="kw">let </span><span class="kw-2">mut </span>sseq = Sseq::&lt;Adams&gt;::new(p, <span class="number">0</span>, <span class="number">0</span>);
+        sseq.set_dimension(<span class="number">0</span>, <span class="number">0</span>, <span class="number">1</span>);
+        sseq.set_dimension(<span class="number">1</span>, <span class="number">0</span>, <span class="number">2</span>);
+        sseq.set_dimension(<span class="number">1</span>, <span class="number">1</span>, <span class="number">2</span>);
+        sseq.set_dimension(<span class="number">0</span>, <span class="number">1</span>, <span class="number">0</span>);
+        sseq.set_dimension(<span class="number">0</span>, <span class="number">2</span>, <span class="number">3</span>);
+        sseq.set_dimension(<span class="number">0</span>, <span class="number">3</span>, <span class="number">1</span>);
 
-        <span class="ident">sseq</span>.<span class="ident">add_differential</span>(
+        sseq.add_differential(
             <span class="number">2</span>,
             <span class="number">1</span>,
             <span class="number">0</span>,
-            <span class="ident">FpVector::from_slice</span>(<span class="ident">p</span>, <span class="kw-2">&amp;</span>[<span class="number">1</span>, <span class="number">1</span>]).<span class="ident">as_slice</span>(),
-            <span class="ident">FpVector::from_slice</span>(<span class="ident">p</span>, <span class="kw-2">&amp;</span>[<span class="number">0</span>, <span class="number">1</span>, <span class="number">2</span>]).<span class="ident">as_slice</span>(),
+            FpVector::from_slice(p, <span class="kw-2">&amp;</span>[<span class="number">1</span>, <span class="number">1</span>]).as_slice(),
+            FpVector::from_slice(p, <span class="kw-2">&amp;</span>[<span class="number">0</span>, <span class="number">1</span>, <span class="number">2</span>]).as_slice(),
         );
 
-        <span class="ident">sseq</span>.<span class="ident">add_differential</span>(
+        sseq.add_differential(
             <span class="number">3</span>,
             <span class="number">1</span>,
             <span class="number">0</span>,
-            <span class="ident">FpVector::from_slice</span>(<span class="ident">p</span>, <span class="kw-2">&amp;</span>[<span class="number">1</span>, <span class="number">0</span>]).<span class="ident">as_slice</span>(),
-            <span class="ident">FpVector::from_slice</span>(<span class="ident">p</span>, <span class="kw-2">&amp;</span>[<span class="number">1</span>]).<span class="ident">as_slice</span>(),
+            FpVector::from_slice(p, <span class="kw-2">&amp;</span>[<span class="number">1</span>, <span class="number">0</span>]).as_slice(),
+            FpVector::from_slice(p, <span class="kw-2">&amp;</span>[<span class="number">1</span>]).as_slice(),
         );
 
-        <span class="ident">sseq</span>.<span class="ident">update</span>();
+        sseq.update();
 
-        <span class="kw">let</span> <span class="ident">check</span> <span class="op">=</span> <span class="op">|</span><span class="ident">x</span>, <span class="ident">y</span>, <span class="ident">r</span>, <span class="ident">e</span>: <span class="ident">Expect</span><span class="op">|</span> {
-            <span class="ident">e</span>.<span class="ident">assert_eq</span>(<span class="kw-2">&amp;</span><span class="ident">sseq</span>.<span class="ident">page_data</span>[<span class="ident">x</span>][<span class="ident">y</span>][<span class="ident">r</span>].<span class="ident">to_string</span>());
+        <span class="kw">let </span>check = |x, y, r, e: Expect| {
+            e.assert_eq(<span class="kw-2">&amp;</span>sseq.page_data[x][y][r].to_string());
         };
 
-        <span class="ident">check</span>(
+        check(
             <span class="number">1</span>,
             <span class="number">0</span>,
             <span class="number">2</span>,
@@ -1606,7 +1606,7 @@
 
         &quot;#</span>]],
         );
-        <span class="ident">check</span>(
+        check(
             <span class="number">1</span>,
             <span class="number">0</span>,
             <span class="number">3</span>,
@@ -1618,7 +1618,7 @@
 
         &quot;#</span>]],
         );
-        <span class="ident">check</span>(
+        check(
             <span class="number">1</span>,
             <span class="number">0</span>,
             <span class="number">4</span>,
@@ -1630,7 +1630,7 @@
         &quot;#</span>]],
         );
 
-        <span class="ident">check</span>(
+        check(
             <span class="number">1</span>,
             <span class="number">1</span>,
             <span class="number">2</span>,
@@ -1644,7 +1644,7 @@
         &quot;#</span>]],
         );
 
-        <span class="ident">check</span>(
+        check(
             <span class="number">0</span>,
             <span class="number">2</span>,
             <span class="number">2</span>,
@@ -1658,7 +1658,7 @@
 
         &quot;#</span>]],
         );
-        <span class="ident">check</span>(
+        check(
             <span class="number">0</span>,
             <span class="number">2</span>,
             <span class="number">3</span>,
@@ -1673,7 +1673,7 @@
         &quot;#</span>]],
         );
 
-        <span class="ident">check</span>(
+        check(
             <span class="number">0</span>,
             <span class="number">3</span>,
             <span class="number">2</span>,
@@ -1685,7 +1685,7 @@
 
         &quot;#</span>]],
         );
-        <span class="ident">check</span>(
+        check(
             <span class="number">0</span>,
             <span class="number">3</span>,
             <span class="number">3</span>,
@@ -1697,7 +1697,7 @@
 
         &quot;#</span>]],
         );
-        <span class="ident">check</span>(
+        check(
             <span class="number">0</span>,
             <span class="number">3</span>,
             <span class="number">4</span>,
@@ -1710,19 +1710,19 @@
         &quot;#</span>]],
         );
 
-        <span class="ident">sseq</span>.<span class="ident">add_differential</span>(
+        sseq.add_differential(
             <span class="number">2</span>,
             <span class="number">1</span>,
             <span class="number">1</span>,
-            <span class="ident">FpVector::from_slice</span>(<span class="ident">p</span>, <span class="kw-2">&amp;</span>[<span class="number">1</span>, <span class="number">0</span>]).<span class="ident">as_slice</span>(),
-            <span class="ident">FpVector::from_slice</span>(<span class="ident">p</span>, <span class="kw-2">&amp;</span>[<span class="number">1</span>]).<span class="ident">as_slice</span>(),
+            FpVector::from_slice(p, <span class="kw-2">&amp;</span>[<span class="number">1</span>, <span class="number">0</span>]).as_slice(),
+            FpVector::from_slice(p, <span class="kw-2">&amp;</span>[<span class="number">1</span>]).as_slice(),
         );
-        <span class="ident">sseq</span>.<span class="ident">update</span>();
-        <span class="kw">let</span> <span class="ident">check</span> <span class="op">=</span> <span class="op">|</span><span class="ident">x</span>, <span class="ident">y</span>, <span class="ident">r</span>, <span class="ident">e</span>: <span class="ident">Expect</span><span class="op">|</span> {
-            <span class="ident">e</span>.<span class="ident">assert_eq</span>(<span class="kw-2">&amp;</span><span class="ident">sseq</span>.<span class="ident">page_data</span>[<span class="ident">x</span>][<span class="ident">y</span>][<span class="ident">r</span>].<span class="ident">to_string</span>());
+        sseq.update();
+        <span class="kw">let </span>check = |x, y, r, e: Expect| {
+            e.assert_eq(<span class="kw-2">&amp;</span>sseq.page_data[x][y][r].to_string());
         };
 
-        <span class="ident">check</span>(
+        check(
             <span class="number">1</span>,
             <span class="number">0</span>,
             <span class="number">2</span>,
@@ -1735,7 +1735,7 @@
 
         &quot;#</span>]],
         );
-        <span class="ident">check</span>(
+        check(
             <span class="number">1</span>,
             <span class="number">0</span>,
             <span class="number">3</span>,
@@ -1747,7 +1747,7 @@
 
         &quot;#</span>]],
         );
-        <span class="ident">check</span>(
+        check(
             <span class="number">1</span>,
             <span class="number">0</span>,
             <span class="number">4</span>,
@@ -1760,7 +1760,7 @@
         &quot;#</span>]],
         );
 
-        <span class="ident">check</span>(
+        check(
             <span class="number">1</span>,
             <span class="number">1</span>,
             <span class="number">2</span>,
@@ -1773,7 +1773,7 @@
 
         &quot;#</span>]],
         );
-        <span class="ident">check</span>(
+        check(
             <span class="number">1</span>,
             <span class="number">1</span>,
             <span class="number">3</span>,
@@ -1786,7 +1786,7 @@
         &quot;#</span>]],
         );
 
-        <span class="ident">check</span>(
+        check(
             <span class="number">0</span>,
             <span class="number">2</span>,
             <span class="number">2</span>,
@@ -1800,7 +1800,7 @@
 
         &quot;#</span>]],
         );
-        <span class="ident">check</span>(
+        check(
             <span class="number">0</span>,
             <span class="number">2</span>,
             <span class="number">3</span>,
@@ -1815,7 +1815,7 @@
         &quot;#</span>]],
         );
 
-        <span class="ident">check</span>(
+        check(
             <span class="number">0</span>,
             <span class="number">3</span>,
             <span class="number">2</span>,
@@ -1827,7 +1827,7 @@
 
         &quot;#</span>]],
         );
-        <span class="ident">check</span>(
+        check(
             <span class="number">0</span>,
             <span class="number">3</span>,
             <span class="number">3</span>,
@@ -1839,7 +1839,7 @@
 
         &quot;#</span>]],
         );
-        <span class="ident">check</span>(
+        check(
             <span class="number">0</span>,
             <span class="number">3</span>,
             <span class="number">4</span>,
@@ -1853,37 +1853,37 @@
         );
     }
 
-    <span class="attribute">#[<span class="ident">test</span>]</span>
-    <span class="kw">fn</span> <span class="ident">test_sseq_differential_2</span>() {
-        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">ValidPrime::new</span>(<span class="number">2</span>);
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">sseq</span> <span class="op">=</span> <span class="ident">Sseq</span>::<span class="op">&lt;</span><span class="ident">Adams</span><span class="op">&gt;</span><span class="ident">::new</span>(<span class="ident">p</span>, <span class="number">0</span>, <span class="number">0</span>);
+    <span class="attribute">#[test]
+    </span><span class="kw">fn </span>test_sseq_differential_2() {
+        <span class="kw">let </span>p = ValidPrime::new(<span class="number">2</span>);
+        <span class="kw">let </span><span class="kw-2">mut </span>sseq = Sseq::&lt;Adams&gt;::new(p, <span class="number">0</span>, <span class="number">0</span>);
 
-        <span class="ident">sseq</span>.<span class="ident">set_dimension</span>(<span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>);
-        <span class="ident">sseq</span>.<span class="ident">set_dimension</span>(<span class="number">1</span>, <span class="number">0</span>, <span class="number">2</span>);
-        <span class="ident">sseq</span>.<span class="ident">set_dimension</span>(<span class="number">0</span>, <span class="number">1</span>, <span class="number">0</span>);
-        <span class="ident">sseq</span>.<span class="ident">set_dimension</span>(<span class="number">0</span>, <span class="number">2</span>, <span class="number">2</span>);
+        sseq.set_dimension(<span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>);
+        sseq.set_dimension(<span class="number">1</span>, <span class="number">0</span>, <span class="number">2</span>);
+        sseq.set_dimension(<span class="number">0</span>, <span class="number">1</span>, <span class="number">0</span>);
+        sseq.set_dimension(<span class="number">0</span>, <span class="number">2</span>, <span class="number">2</span>);
 
-        <span class="ident">sseq</span>.<span class="ident">add_differential</span>(
+        sseq.add_differential(
             <span class="number">2</span>,
             <span class="number">1</span>,
             <span class="number">0</span>,
-            <span class="ident">FpVector::from_slice</span>(<span class="ident">p</span>, <span class="kw-2">&amp;</span>[<span class="number">1</span>, <span class="number">0</span>]).<span class="ident">as_slice</span>(),
-            <span class="ident">FpVector::from_slice</span>(<span class="ident">p</span>, <span class="kw-2">&amp;</span>[<span class="number">1</span>, <span class="number">0</span>]).<span class="ident">as_slice</span>(),
+            FpVector::from_slice(p, <span class="kw-2">&amp;</span>[<span class="number">1</span>, <span class="number">0</span>]).as_slice(),
+            FpVector::from_slice(p, <span class="kw-2">&amp;</span>[<span class="number">1</span>, <span class="number">0</span>]).as_slice(),
         );
-        <span class="ident">sseq</span>.<span class="ident">add_differential</span>(
+        sseq.add_differential(
             <span class="number">2</span>,
             <span class="number">1</span>,
             <span class="number">0</span>,
-            <span class="ident">FpVector::from_slice</span>(<span class="ident">p</span>, <span class="kw-2">&amp;</span>[<span class="number">0</span>, <span class="number">1</span>]).<span class="ident">as_slice</span>(),
-            <span class="ident">FpVector::from_slice</span>(<span class="ident">p</span>, <span class="kw-2">&amp;</span>[<span class="number">1</span>, <span class="number">1</span>]).<span class="ident">as_slice</span>(),
+            FpVector::from_slice(p, <span class="kw-2">&amp;</span>[<span class="number">0</span>, <span class="number">1</span>]).as_slice(),
+            FpVector::from_slice(p, <span class="kw-2">&amp;</span>[<span class="number">1</span>, <span class="number">1</span>]).as_slice(),
         );
-        <span class="ident">sseq</span>.<span class="ident">update</span>();
+        sseq.update();
 
-        <span class="kw">let</span> <span class="ident">check</span> <span class="op">=</span> <span class="op">|</span><span class="ident">x</span>, <span class="ident">y</span>, <span class="ident">r</span>, <span class="ident">e</span>: <span class="ident">Expect</span><span class="op">|</span> {
-            <span class="ident">e</span>.<span class="ident">assert_eq</span>(<span class="kw-2">&amp;</span><span class="ident">sseq</span>.<span class="ident">page_data</span>[<span class="ident">x</span>][<span class="ident">y</span>][<span class="ident">r</span>].<span class="ident">to_string</span>());
+        <span class="kw">let </span>check = |x, y, r, e: Expect| {
+            e.assert_eq(<span class="kw-2">&amp;</span>sseq.page_data[x][y][r].to_string());
         };
 
-        <span class="ident">check</span>(
+        check(
             <span class="number">1</span>,
             <span class="number">0</span>,
             <span class="number">2</span>,
@@ -1896,7 +1896,7 @@
 
         &quot;#</span>]],
         );
-        <span class="ident">check</span>(
+        check(
             <span class="number">1</span>,
             <span class="number">0</span>,
             <span class="number">3</span>,
@@ -1907,7 +1907,7 @@
 
         &quot;#</span>]],
         );
-        <span class="ident">check</span>(
+        check(
             <span class="number">0</span>,
             <span class="number">2</span>,
             <span class="number">2</span>,
@@ -1920,7 +1920,7 @@
 
         &quot;#</span>]],
         );
-        <span class="ident">check</span>(
+        check(
             <span class="number">0</span>,
             <span class="number">2</span>,
             <span class="number">3</span>,
@@ -1936,4 +1936,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="sseq" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0 (a55dd71d5 2022-09-19)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="sseq" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0 (897e37553 2022-11-02)" ></div></body></html>

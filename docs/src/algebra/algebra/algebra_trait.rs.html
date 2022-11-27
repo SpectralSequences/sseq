@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/algebra/src/algebra/algebra_trait.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>algebra_trait.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../ayu.css" disabled><link rel="stylesheet" type="text/css" href="../../../dark.css" disabled><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../../storage.js"></script><script defer src="../../../source-script.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../main.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../../favicon.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/algebra/src/algebra/algebra_trait.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>algebra_trait.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" href="../../../normalize.css"><link rel="stylesheet" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" href="../../../ayu.css" disabled><link rel="stylesheet" href="../../../dark.css" disabled><link rel="stylesheet" href="../../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../../storage.js"></script><script defer src="../../../source-script.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../main.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../../favicon.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
 <!-- The loading of KaTeX is deferred to speed up page rendering -->
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.js" integrity="sha384-Bi8OWqMXO1ta+a4EPkZv7bYGIes7C3krGSZoTGNTAnAn5eYQc7IIXrJ/7ck1drAi" crossorigin="anonymous"></script>
 <!-- To automatically render math in text elements, include the auto-render extension: -->
@@ -615,597 +615,597 @@
 <span id="590">590</span>
 <span id="591">591</span>
 <span id="592">592</span>
-</pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">fp::prime::ValidPrime</span>;
-<span class="kw">use</span> <span class="ident">fp::vector</span>::{<span class="ident">Slice</span>, <span class="ident">SliceMut</span>};
+</pre><pre class="rust"><code><span class="kw">use </span>fp::prime::ValidPrime;
+<span class="kw">use </span>fp::vector::{Slice, SliceMut};
 
-<span class="kw">use</span> <span class="ident">std::fmt::Write</span> <span class="kw">as</span> <span class="kw">_</span>; <span class="comment">// Needed for write! macro for String</span>
+<span class="kw">use </span>std::fmt::Write <span class="kw">as _</span>; <span class="comment">// Needed for write! macro for String
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">doc</span>)]</span>
-<span class="kw">use</span> <span class="ident">fp::vector::FpVector</span>;
+</span><span class="attribute">#[cfg(doc)]
+</span><span class="kw">use </span>fp::vector::FpVector;
 
-<span class="doccomment">/// A graded algebra over $\mathbb{F}_p$.</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// Each degree is finite dimensional, and equipped with a distinguished ordered basis. Basis</span>
-<span class="doccomment">/// elements are referred to by their signed degree and unsigned index, while a general</span>
-<span class="doccomment">/// element of a given degree is denoted by an [`FpVector`] given in terms of that degree&#39;s</span>
-<span class="doccomment">/// basis.</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// These algebras are frequently infinite-dimensional, so we must construct the representation</span>
-<span class="doccomment">/// lazily. The function [`Algebra::compute_basis()`] will request that book-keeping information</span>
-<span class="doccomment">/// be updated to perform computations up to the given degree; users must make sure to call</span>
-<span class="doccomment">/// this function before performing other operations at that degree.</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// Algebras may have a distinguished set of generators; see [`GeneratedAlgebra`].</span>
-<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">Algebra</span>: <span class="ident">std::fmt::Display</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;static</span> {
-    <span class="doccomment">/// A name for the algebra to use in serialization operations. This defaults to &quot;&quot; for algebras</span>
-    <span class="doccomment">/// that don&#39;t care about this problem.</span>
-    <span class="kw">fn</span> <span class="ident">prefix</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">str</span> {
-        <span class="string">&quot;&quot;</span>
-    }
+<span class="doccomment">/// A graded algebra over $\mathbb{F}_p$.
+///
+/// Each degree is finite dimensional, and equipped with a distinguished ordered basis. Basis
+/// elements are referred to by their signed degree and unsigned index, while a general
+/// element of a given degree is denoted by an [`FpVector`] given in terms of that degree&#39;s
+/// basis.
+///
+/// These algebras are frequently infinite-dimensional, so we must construct the representation
+/// lazily. The function [`Algebra::compute_basis()`] will request that book-keeping information
+/// be updated to perform computations up to the given degree; users must make sure to call
+/// this function before performing other operations at that degree.
+///
+/// Algebras may have a distinguished set of generators; see [`GeneratedAlgebra`].
+</span><span class="kw">pub trait </span>Algebra: std::fmt::Display + Send + Sync + <span class="lifetime">&#39;static </span>{
+    <span class="doccomment">/// A name for the algebra to use in serialization operations. This defaults to &quot;&quot; for algebras
+    /// that don&#39;t care about this problem.
+    </span><span class="kw">fn </span>prefix(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>str {
+        <span class="string">&quot;&quot;
+    </span>}
 
-    <span class="doccomment">/// A magic constant used to identify the algebra in save files. When working with the</span>
-    <span class="doccomment">/// Milnor algebra, it is easy to forget to specify the algebra and load Milnor save files</span>
-    <span class="doccomment">/// with the Adem basis. If we somehow manage to resume computation, this can have</span>
-    <span class="doccomment">/// disasterous consequences. So we store the magic in the save files.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// This defaults to 0 for other kinds of algebra that don&#39;t care about this problem.</span>
-    <span class="kw">fn</span> <span class="ident">magic</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">u32</span> {
-        <span class="number">0</span>
-    }
+    <span class="doccomment">/// A magic constant used to identify the algebra in save files. When working with the
+    /// Milnor algebra, it is easy to forget to specify the algebra and load Milnor save files
+    /// with the Adem basis. If we somehow manage to resume computation, this can have
+    /// disasterous consequences. So we store the magic in the save files.
+    ///
+    /// This defaults to 0 for other kinds of algebra that don&#39;t care about this problem.
+    </span><span class="kw">fn </span>magic(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u32 {
+        <span class="number">0
+    </span>}
 
-    <span class="doccomment">/// Returns the prime the algebra is over.</span>
-    <span class="kw">fn</span> <span class="ident">prime</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">ValidPrime</span>;
+    <span class="doccomment">/// Returns the prime the algebra is over.
+    </span><span class="kw">fn </span>prime(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ValidPrime;
 
-    <span class="doccomment">/// Computes basis elements up to and including `degree`.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// This function must be called by users before other functions that will involve operations</span>
-    <span class="doccomment">/// at `degree`, so it should be used to update internal data structure in perparation</span>
-    <span class="doccomment">/// for such operations.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// This function must be idempotent and cheap to call again with the</span>
-    <span class="doccomment">/// same argument.</span>
-    <span class="kw">fn</span> <span class="ident">compute_basis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>);
+    <span class="doccomment">/// Computes basis elements up to and including `degree`.
+    ///
+    /// This function must be called by users before other functions that will involve operations
+    /// at `degree`, so it should be used to update internal data structure in perparation
+    /// for such operations.
+    ///
+    /// This function must be idempotent and cheap to call again with the
+    /// same argument.
+    </span><span class="kw">fn </span>compute_basis(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32);
 
-    <span class="doccomment">/// Returns the dimension of the algebra in degree `degree`.</span>
-    <span class="kw">fn</span> <span class="ident">dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) -&gt; <span class="ident">usize</span>;
+    <span class="doccomment">/// Returns the dimension of the algebra in degree `degree`.
+    </span><span class="kw">fn </span>dimension(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32) -&gt; usize;
 
-    <span class="doccomment">/// Computes the product `r * s` of two basis elements, and adds the</span>
-    <span class="doccomment">/// result to `result`.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// `result` is not required to be aligned.</span>
-    <span class="kw">fn</span> <span class="ident">multiply_basis_elements</span>(
+    <span class="doccomment">/// Computes the product `r * s` of two basis elements, and adds the
+    /// result to `result`.
+    ///
+    /// `result` is not required to be aligned.
+    </span><span class="kw">fn </span>multiply_basis_elements(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">result</span>: <span class="ident">SliceMut</span>,
-        <span class="ident">coeff</span>: <span class="ident">u32</span>,
-        <span class="ident">r_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">r_idx</span>: <span class="ident">usize</span>,
-        <span class="ident">s_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">s_idx</span>: <span class="ident">usize</span>,
+        result: SliceMut,
+        coeff: u32,
+        r_degree: i32,
+        r_idx: usize,
+        s_degree: i32,
+        s_idx: usize,
     );
 
-    <span class="doccomment">/// Computes the product `r * s` of a basis element `r` and a general element `s`, and adds the</span>
-    <span class="doccomment">/// result to `result`.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// Neither `result` nor `s` must be aligned.</span>
-    <span class="kw">fn</span> <span class="ident">multiply_basis_element_by_element</span>(
+    <span class="doccomment">/// Computes the product `r * s` of a basis element `r` and a general element `s`, and adds the
+    /// result to `result`.
+    ///
+    /// Neither `result` nor `s` must be aligned.
+    </span><span class="kw">fn </span>multiply_basis_element_by_element(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="kw-2">mut</span> <span class="ident">result</span>: <span class="ident">SliceMut</span>,
-        <span class="ident">coeff</span>: <span class="ident">u32</span>,
-        <span class="ident">r_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">r_idx</span>: <span class="ident">usize</span>,
-        <span class="ident">s_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">s</span>: <span class="ident">Slice</span>,
+        <span class="kw-2">mut </span>result: SliceMut,
+        coeff: u32,
+        r_degree: i32,
+        r_idx: usize,
+        s_degree: i32,
+        s: Slice,
     ) {
-        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prime</span>();
-        <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">v</span>) <span class="kw">in</span> <span class="ident">s</span>.<span class="ident">iter_nonzero</span>() {
-            <span class="self">self</span>.<span class="ident">multiply_basis_elements</span>(
-                <span class="ident">result</span>.<span class="ident">copy</span>(),
-                (<span class="ident">coeff</span> <span class="op">*</span> <span class="ident">v</span>) <span class="op">%</span> <span class="kw-2">*</span><span class="ident">p</span>,
-                <span class="ident">r_degree</span>,
-                <span class="ident">r_idx</span>,
-                <span class="ident">s_degree</span>,
-                <span class="ident">i</span>,
+        <span class="kw">let </span>p = <span class="self">self</span>.prime();
+        <span class="kw">for </span>(i, v) <span class="kw">in </span>s.iter_nonzero() {
+            <span class="self">self</span>.multiply_basis_elements(
+                result.copy(),
+                (coeff * v) % <span class="kw-2">*</span>p,
+                r_degree,
+                r_idx,
+                s_degree,
+                i,
             );
         }
     }
 
-    <span class="doccomment">/// Computes the product `r * s` of a general element `r` and a basis element `s`, and adds the</span>
-    <span class="doccomment">/// result to `result`.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// Neither `result` nor `r` must be aligned.</span>
-    <span class="kw">fn</span> <span class="ident">multiply_element_by_basis_element</span>(
+    <span class="doccomment">/// Computes the product `r * s` of a general element `r` and a basis element `s`, and adds the
+    /// result to `result`.
+    ///
+    /// Neither `result` nor `r` must be aligned.
+    </span><span class="kw">fn </span>multiply_element_by_basis_element(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="kw-2">mut</span> <span class="ident">result</span>: <span class="ident">SliceMut</span>,
-        <span class="ident">coeff</span>: <span class="ident">u32</span>,
-        <span class="ident">r_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">r</span>: <span class="ident">Slice</span>,
-        <span class="ident">s_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">s_idx</span>: <span class="ident">usize</span>,
+        <span class="kw-2">mut </span>result: SliceMut,
+        coeff: u32,
+        r_degree: i32,
+        r: Slice,
+        s_degree: i32,
+        s_idx: usize,
     ) {
-        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prime</span>();
-        <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">v</span>) <span class="kw">in</span> <span class="ident">r</span>.<span class="ident">iter_nonzero</span>() {
-            <span class="self">self</span>.<span class="ident">multiply_basis_elements</span>(
-                <span class="ident">result</span>.<span class="ident">copy</span>(),
-                (<span class="ident">coeff</span> <span class="op">*</span> <span class="ident">v</span>) <span class="op">%</span> <span class="kw-2">*</span><span class="ident">p</span>,
-                <span class="ident">r_degree</span>,
-                <span class="ident">i</span>,
-                <span class="ident">s_degree</span>,
-                <span class="ident">s_idx</span>,
+        <span class="kw">let </span>p = <span class="self">self</span>.prime();
+        <span class="kw">for </span>(i, v) <span class="kw">in </span>r.iter_nonzero() {
+            <span class="self">self</span>.multiply_basis_elements(
+                result.copy(),
+                (coeff * v) % <span class="kw-2">*</span>p,
+                r_degree,
+                i,
+                s_degree,
+                s_idx,
             );
         }
     }
 
-    <span class="doccomment">/// Computes the product `r * s` of two general elements, and adds the</span>
-    <span class="doccomment">/// result to `result`.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// Neither `result`, `s`, nor `r` must be aligned.</span>
-    <span class="kw">fn</span> <span class="ident">multiply_element_by_element</span>(
+    <span class="doccomment">/// Computes the product `r * s` of two general elements, and adds the
+    /// result to `result`.
+    ///
+    /// Neither `result`, `s`, nor `r` must be aligned.
+    </span><span class="kw">fn </span>multiply_element_by_element(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="kw-2">mut</span> <span class="ident">result</span>: <span class="ident">SliceMut</span>,
-        <span class="ident">coeff</span>: <span class="ident">u32</span>,
-        <span class="ident">r_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">r</span>: <span class="ident">Slice</span>,
-        <span class="ident">s_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">s</span>: <span class="ident">Slice</span>,
+        <span class="kw-2">mut </span>result: SliceMut,
+        coeff: u32,
+        r_degree: i32,
+        r: Slice,
+        s_degree: i32,
+        s: Slice,
     ) {
-        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prime</span>();
-        <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">v</span>) <span class="kw">in</span> <span class="ident">s</span>.<span class="ident">iter_nonzero</span>() {
-            <span class="self">self</span>.<span class="ident">multiply_element_by_basis_element</span>(
-                <span class="ident">result</span>.<span class="ident">copy</span>(),
-                (<span class="ident">coeff</span> <span class="op">*</span> <span class="ident">v</span>) <span class="op">%</span> <span class="kw-2">*</span><span class="ident">p</span>,
-                <span class="ident">r_degree</span>,
-                <span class="ident">r</span>,
-                <span class="ident">s_degree</span>,
-                <span class="ident">i</span>,
+        <span class="kw">let </span>p = <span class="self">self</span>.prime();
+        <span class="kw">for </span>(i, v) <span class="kw">in </span>s.iter_nonzero() {
+            <span class="self">self</span>.multiply_element_by_basis_element(
+                result.copy(),
+                (coeff * v) % <span class="kw-2">*</span>p,
+                r_degree,
+                r,
+                s_degree,
+                i,
             );
         }
     }
 
-    <span class="doccomment">/// Returns a list of filtration-one elements in $Ext(k, k)$.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// These are the same as indecomposable elements of the algebra.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// This function returns a default list of such elements in the format</span>
-    <span class="doccomment">/// `(name, degree, index)` for which we want to compute products with in</span>
-    <span class="doccomment">/// the resolutions.</span>
-    <span class="kw">fn</span> <span class="ident">default_filtration_one_products</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">String</span>, <span class="ident">i32</span>, <span class="ident">usize</span>)<span class="op">&gt;</span> {
-        <span class="ident">Vec::new</span>()
+    <span class="doccomment">/// Returns a list of filtration-one elements in $Ext(k, k)$.
+    ///
+    /// These are the same as indecomposable elements of the algebra.
+    ///
+    /// This function returns a default list of such elements in the format
+    /// `(name, degree, index)` for which we want to compute products with in
+    /// the resolutions.
+    </span><span class="kw">fn </span>default_filtration_one_products(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;(String, i32, usize)&gt; {
+        Vec::new()
     }
 
-    <span class="doccomment">/// Converts a basis element into a string for display.</span>
-    <span class="kw">fn</span> <span class="ident">basis_element_to_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">idx</span>: <span class="ident">usize</span>) -&gt; <span class="ident">String</span>;
+    <span class="doccomment">/// Converts a basis element into a string for display.
+    </span><span class="kw">fn </span>basis_element_to_string(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32, idx: usize) -&gt; String;
 
-    <span class="doccomment">/// Converts a string to a basis element. This must be a one-sided inverse inverse to</span>
-    <span class="doccomment">/// both basis_element_to_string and generator_to_string (if [`GeneratedAlgebra`] is</span>
-    <span class="doccomment">/// implemented).</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// If the input is invalid, the function is allowed to return None or nonsense (since it is</span>
-    <span class="doccomment">/// only required to be a one-sided inverse).</span>
-    <span class="kw">fn</span> <span class="ident">basis_element_from_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">elt</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">i32</span>, <span class="ident">usize</span>)<span class="op">&gt;</span>;
+    <span class="doccomment">/// Converts a string to a basis element. This must be a one-sided inverse inverse to
+    /// both basis_element_to_string and generator_to_string (if [`GeneratedAlgebra`] is
+    /// implemented).
+    ///
+    /// If the input is invalid, the function is allowed to return None or nonsense (since it is
+    /// only required to be a one-sided inverse).
+    </span><span class="kw">fn </span>basis_element_from_string(<span class="kw-2">&amp;</span><span class="self">self</span>, elt: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;(i32, usize)&gt;;
 
-    <span class="doccomment">/// Converts a general element into a string for display.</span>
-    <span class="kw">fn</span> <span class="ident">element_to_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">element</span>: <span class="ident">Slice</span>) -&gt; <span class="ident">String</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">String::new</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">zero</span> <span class="op">=</span> <span class="bool-val">true</span>;
-        <span class="kw">for</span> (<span class="ident">idx</span>, <span class="ident">value</span>) <span class="kw">in</span> <span class="ident">element</span>.<span class="ident">iter_nonzero</span>() {
-            <span class="ident">zero</span> <span class="op">=</span> <span class="bool-val">false</span>;
-            <span class="kw">if</span> <span class="ident">value</span> <span class="op">!</span><span class="op">=</span> <span class="number">1</span> {
-                <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="macro">write!</span>(<span class="ident">result</span>, <span class="string">&quot;{value} * &quot;</span>);
+    <span class="doccomment">/// Converts a general element into a string for display.
+    </span><span class="kw">fn </span>element_to_string(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32, element: Slice) -&gt; String {
+        <span class="kw">let </span><span class="kw-2">mut </span>result = String::new();
+        <span class="kw">let </span><span class="kw-2">mut </span>zero = <span class="bool-val">true</span>;
+        <span class="kw">for </span>(idx, value) <span class="kw">in </span>element.iter_nonzero() {
+            zero = <span class="bool-val">false</span>;
+            <span class="kw">if </span>value != <span class="number">1 </span>{
+                <span class="kw">let _ </span>= <span class="macro">write!</span>(result, <span class="string">&quot;{value} * &quot;</span>);
             }
-            <span class="kw">let</span> <span class="ident">b</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">basis_element_to_string</span>(<span class="ident">degree</span>, <span class="ident">idx</span>);
-            <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="macro">write!</span>(<span class="ident">result</span>, <span class="string">&quot;{b} + &quot;</span>);
+            <span class="kw">let </span>b = <span class="self">self</span>.basis_element_to_string(degree, idx);
+            <span class="kw">let _ </span>= <span class="macro">write!</span>(result, <span class="string">&quot;{b} + &quot;</span>);
         }
-        <span class="kw">if</span> <span class="ident">zero</span> {
-            <span class="ident">result</span>.<span class="ident">push</span>(<span class="string">&#39;0&#39;</span>);
-        } <span class="kw">else</span> {
-            <span class="comment">// Remove trailing &quot; + &quot;</span>
-            <span class="ident">result</span>.<span class="ident">pop</span>();
-            <span class="ident">result</span>.<span class="ident">pop</span>();
-            <span class="ident">result</span>.<span class="ident">pop</span>();
+        <span class="kw">if </span>zero {
+            result.push(<span class="string">&#39;0&#39;</span>);
+        } <span class="kw">else </span>{
+            <span class="comment">// Remove trailing &quot; + &quot;
+            </span>result.pop();
+            result.pop();
+            result.pop();
         }
-        <span class="ident">result</span>
+        result
     }
 }
 
-<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">UnstableAlgebra</span>: <span class="ident">Algebra</span> {
-    <span class="kw">fn</span> <span class="ident">dimension_unstable</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">excess</span>: <span class="ident">i32</span>) -&gt; <span class="ident">usize</span>;
+<span class="kw">pub trait </span>UnstableAlgebra: Algebra {
+    <span class="kw">fn </span>dimension_unstable(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32, excess: i32) -&gt; usize;
 
-    <span class="kw">fn</span> <span class="ident">multiply_basis_elements_unstable</span>(
+    <span class="kw">fn </span>multiply_basis_elements_unstable(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">result</span>: <span class="ident">SliceMut</span>,
-        <span class="ident">coeff</span>: <span class="ident">u32</span>,
-        <span class="ident">r_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">r_index</span>: <span class="ident">usize</span>,
-        <span class="ident">s_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">s_index</span>: <span class="ident">usize</span>,
-        <span class="ident">excess</span>: <span class="ident">i32</span>,
+        result: SliceMut,
+        coeff: u32,
+        r_degree: i32,
+        r_index: usize,
+        s_degree: i32,
+        s_index: usize,
+        excess: i32,
     );
 
-    <span class="doccomment">/// Computes the product `r * s` of a basis element `r` and a general element `s`, and adds the</span>
-    <span class="doccomment">/// result to `result`.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// Neither `result` nor `s` must be aligned.</span>
-    <span class="kw">fn</span> <span class="ident">multiply_basis_element_by_element_unstable</span>(
+    <span class="doccomment">/// Computes the product `r * s` of a basis element `r` and a general element `s`, and adds the
+    /// result to `result`.
+    ///
+    /// Neither `result` nor `s` must be aligned.
+    </span><span class="kw">fn </span>multiply_basis_element_by_element_unstable(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="kw-2">mut</span> <span class="ident">result</span>: <span class="ident">SliceMut</span>,
-        <span class="ident">coeff</span>: <span class="ident">u32</span>,
-        <span class="ident">r_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">r_idx</span>: <span class="ident">usize</span>,
-        <span class="ident">s_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">s</span>: <span class="ident">Slice</span>,
-        <span class="ident">excess</span>: <span class="ident">i32</span>,
+        <span class="kw-2">mut </span>result: SliceMut,
+        coeff: u32,
+        r_degree: i32,
+        r_idx: usize,
+        s_degree: i32,
+        s: Slice,
+        excess: i32,
     ) {
-        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prime</span>();
-        <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">v</span>) <span class="kw">in</span> <span class="ident">s</span>.<span class="ident">iter_nonzero</span>() {
-            <span class="self">self</span>.<span class="ident">multiply_basis_elements_unstable</span>(
-                <span class="ident">result</span>.<span class="ident">copy</span>(),
-                (<span class="ident">coeff</span> <span class="op">*</span> <span class="ident">v</span>) <span class="op">%</span> <span class="kw-2">*</span><span class="ident">p</span>,
-                <span class="ident">r_degree</span>,
-                <span class="ident">r_idx</span>,
-                <span class="ident">s_degree</span>,
-                <span class="ident">i</span>,
-                <span class="ident">excess</span>,
+        <span class="kw">let </span>p = <span class="self">self</span>.prime();
+        <span class="kw">for </span>(i, v) <span class="kw">in </span>s.iter_nonzero() {
+            <span class="self">self</span>.multiply_basis_elements_unstable(
+                result.copy(),
+                (coeff * v) % <span class="kw-2">*</span>p,
+                r_degree,
+                r_idx,
+                s_degree,
+                i,
+                excess,
             );
         }
     }
 
-    <span class="doccomment">/// Computes the product `r * s` of a general element `r` and a basis element `s`, and adds the</span>
-    <span class="doccomment">/// result to `result`.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// Neither `result` nor `r` must be aligned.</span>
-    <span class="kw">fn</span> <span class="ident">multiply_element_by_basis_element_unstable</span>(
+    <span class="doccomment">/// Computes the product `r * s` of a general element `r` and a basis element `s`, and adds the
+    /// result to `result`.
+    ///
+    /// Neither `result` nor `r` must be aligned.
+    </span><span class="kw">fn </span>multiply_element_by_basis_element_unstable(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="kw-2">mut</span> <span class="ident">result</span>: <span class="ident">SliceMut</span>,
-        <span class="ident">coeff</span>: <span class="ident">u32</span>,
-        <span class="ident">r_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">r</span>: <span class="ident">Slice</span>,
-        <span class="ident">s_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">s_idx</span>: <span class="ident">usize</span>,
-        <span class="ident">excess</span>: <span class="ident">i32</span>,
+        <span class="kw-2">mut </span>result: SliceMut,
+        coeff: u32,
+        r_degree: i32,
+        r: Slice,
+        s_degree: i32,
+        s_idx: usize,
+        excess: i32,
     ) {
-        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prime</span>();
-        <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">v</span>) <span class="kw">in</span> <span class="ident">r</span>.<span class="ident">iter_nonzero</span>() {
-            <span class="self">self</span>.<span class="ident">multiply_basis_elements_unstable</span>(
-                <span class="ident">result</span>.<span class="ident">copy</span>(),
-                (<span class="ident">coeff</span> <span class="op">*</span> <span class="ident">v</span>) <span class="op">%</span> <span class="kw-2">*</span><span class="ident">p</span>,
-                <span class="ident">r_degree</span>,
-                <span class="ident">i</span>,
-                <span class="ident">s_degree</span>,
-                <span class="ident">s_idx</span>,
-                <span class="ident">excess</span>,
+        <span class="kw">let </span>p = <span class="self">self</span>.prime();
+        <span class="kw">for </span>(i, v) <span class="kw">in </span>r.iter_nonzero() {
+            <span class="self">self</span>.multiply_basis_elements_unstable(
+                result.copy(),
+                (coeff * v) % <span class="kw-2">*</span>p,
+                r_degree,
+                i,
+                s_degree,
+                s_idx,
+                excess,
             );
         }
     }
 
-    <span class="doccomment">/// Computes the product `r * s` of two general elements, and adds the</span>
-    <span class="doccomment">/// result to `result`.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// Neither `result`, `s`, nor `r` must be aligned.</span>
-    <span class="kw">fn</span> <span class="ident">multiply_element_by_element_unstable</span>(
+    <span class="doccomment">/// Computes the product `r * s` of two general elements, and adds the
+    /// result to `result`.
+    ///
+    /// Neither `result`, `s`, nor `r` must be aligned.
+    </span><span class="kw">fn </span>multiply_element_by_element_unstable(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="kw-2">mut</span> <span class="ident">result</span>: <span class="ident">SliceMut</span>,
-        <span class="ident">coeff</span>: <span class="ident">u32</span>,
-        <span class="ident">r_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">r</span>: <span class="ident">Slice</span>,
-        <span class="ident">s_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">s</span>: <span class="ident">Slice</span>,
-        <span class="ident">excess</span>: <span class="ident">i32</span>,
+        <span class="kw-2">mut </span>result: SliceMut,
+        coeff: u32,
+        r_degree: i32,
+        r: Slice,
+        s_degree: i32,
+        s: Slice,
+        excess: i32,
     ) {
-        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prime</span>();
-        <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">v</span>) <span class="kw">in</span> <span class="ident">s</span>.<span class="ident">iter_nonzero</span>() {
-            <span class="self">self</span>.<span class="ident">multiply_element_by_basis_element_unstable</span>(
-                <span class="ident">result</span>.<span class="ident">copy</span>(),
-                (<span class="ident">coeff</span> <span class="op">*</span> <span class="ident">v</span>) <span class="op">%</span> <span class="kw-2">*</span><span class="ident">p</span>,
-                <span class="ident">r_degree</span>,
-                <span class="ident">r</span>,
-                <span class="ident">s_degree</span>,
-                <span class="ident">i</span>,
-                <span class="ident">excess</span>,
+        <span class="kw">let </span>p = <span class="self">self</span>.prime();
+        <span class="kw">for </span>(i, v) <span class="kw">in </span>s.iter_nonzero() {
+            <span class="self">self</span>.multiply_element_by_basis_element_unstable(
+                result.copy(),
+                (coeff * v) % <span class="kw-2">*</span>p,
+                r_degree,
+                r,
+                s_degree,
+                i,
+                excess,
             );
         }
     }
 }
 
-<span class="doccomment">/// An algebra that is maybe unstable. Every Algebra implements MuAlgebra&lt;false&gt; by ignoring the</span>
-<span class="doccomment">/// excess parameter, and every UnstableAlgebra implements MuAlgebra&lt;true&gt;. This makes it possible</span>
-<span class="doccomment">/// to write code that is generic over stable and unstable algebras.</span>
-<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">MuAlgebra</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">U</span>: <span class="ident">bool</span><span class="op">&gt;</span>: <span class="ident">Algebra</span> {
-    <span class="kw">fn</span> <span class="ident">dimension_unstable</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">excess</span>: <span class="ident">i32</span>) -&gt; <span class="ident">usize</span>;
+<span class="doccomment">/// An algebra that is maybe unstable. Every Algebra implements MuAlgebra&lt;false&gt; by ignoring the
+/// excess parameter, and every UnstableAlgebra implements MuAlgebra&lt;true&gt;. This makes it possible
+/// to write code that is generic over stable and unstable algebras.
+</span><span class="kw">pub trait </span>MuAlgebra&lt;<span class="kw">const </span>U: bool&gt;: Algebra {
+    <span class="kw">fn </span>dimension_unstable(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32, excess: i32) -&gt; usize;
 
-    <span class="kw">fn</span> <span class="ident">multiply_basis_elements_unstable</span>(
+    <span class="kw">fn </span>multiply_basis_elements_unstable(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">result</span>: <span class="ident">SliceMut</span>,
-        <span class="ident">coeff</span>: <span class="ident">u32</span>,
-        <span class="ident">r_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">r_index</span>: <span class="ident">usize</span>,
-        <span class="ident">s_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">s_index</span>: <span class="ident">usize</span>,
-        <span class="ident">excess</span>: <span class="ident">i32</span>,
+        result: SliceMut,
+        coeff: u32,
+        r_degree: i32,
+        r_index: usize,
+        s_degree: i32,
+        s_index: usize,
+        excess: i32,
     );
 
-    <span class="kw">fn</span> <span class="ident">multiply_basis_element_by_element_unstable</span>(
+    <span class="kw">fn </span>multiply_basis_element_by_element_unstable(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">result</span>: <span class="ident">SliceMut</span>,
-        <span class="ident">coeff</span>: <span class="ident">u32</span>,
-        <span class="ident">r_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">r_idx</span>: <span class="ident">usize</span>,
-        <span class="ident">s_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">s</span>: <span class="ident">Slice</span>,
-        <span class="ident">excess</span>: <span class="ident">i32</span>,
+        result: SliceMut,
+        coeff: u32,
+        r_degree: i32,
+        r_idx: usize,
+        s_degree: i32,
+        s: Slice,
+        excess: i32,
     );
 
-    <span class="doccomment">/// Computes the product `r * s` of a general element `r` and a basis element `s`, and adds the</span>
-    <span class="doccomment">/// result to `result`.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// Neither `result` nor `r` must be aligned.</span>
-    <span class="kw">fn</span> <span class="ident">multiply_element_by_basis_element_unstable</span>(
+    <span class="doccomment">/// Computes the product `r * s` of a general element `r` and a basis element `s`, and adds the
+    /// result to `result`.
+    ///
+    /// Neither `result` nor `r` must be aligned.
+    </span><span class="kw">fn </span>multiply_element_by_basis_element_unstable(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">result</span>: <span class="ident">SliceMut</span>,
-        <span class="ident">coeff</span>: <span class="ident">u32</span>,
-        <span class="ident">r_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">r</span>: <span class="ident">Slice</span>,
-        <span class="ident">s_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">s_idx</span>: <span class="ident">usize</span>,
-        <span class="ident">excess</span>: <span class="ident">i32</span>,
+        result: SliceMut,
+        coeff: u32,
+        r_degree: i32,
+        r: Slice,
+        s_degree: i32,
+        s_idx: usize,
+        excess: i32,
     );
 
-    <span class="doccomment">/// Computes the product `r * s` of two general elements, and adds the</span>
-    <span class="doccomment">/// result to `result`.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// Neither `result`, `s`, nor `r` must be aligned.</span>
-    <span class="kw">fn</span> <span class="ident">multiply_element_by_element_unstable</span>(
+    <span class="doccomment">/// Computes the product `r * s` of two general elements, and adds the
+    /// result to `result`.
+    ///
+    /// Neither `result`, `s`, nor `r` must be aligned.
+    </span><span class="kw">fn </span>multiply_element_by_element_unstable(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">result</span>: <span class="ident">SliceMut</span>,
-        <span class="ident">coeff</span>: <span class="ident">u32</span>,
-        <span class="ident">r_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">r</span>: <span class="ident">Slice</span>,
-        <span class="ident">s_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">s</span>: <span class="ident">Slice</span>,
-        <span class="ident">excess</span>: <span class="ident">i32</span>,
+        result: SliceMut,
+        coeff: u32,
+        r_degree: i32,
+        r: Slice,
+        s_degree: i32,
+        s: Slice,
+        excess: i32,
     );
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">Algebra</span><span class="op">&gt;</span> <span class="ident">MuAlgebra</span><span class="op">&lt;</span><span class="bool-val">false</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">A</span> {
-    <span class="kw">fn</span> <span class="ident">dimension_unstable</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">_excess</span>: <span class="ident">i32</span>) -&gt; <span class="ident">usize</span> {
-        <span class="self">self</span>.<span class="ident">dimension</span>(<span class="ident">degree</span>)
+<span class="kw">impl</span>&lt;A: Algebra&gt; MuAlgebra&lt;<span class="bool-val">false</span>&gt; <span class="kw">for </span>A {
+    <span class="kw">fn </span>dimension_unstable(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32, _excess: i32) -&gt; usize {
+        <span class="self">self</span>.dimension(degree)
     }
 
-    <span class="kw">fn</span> <span class="ident">multiply_basis_elements_unstable</span>(
+    <span class="kw">fn </span>multiply_basis_elements_unstable(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">result</span>: <span class="ident">SliceMut</span>,
-        <span class="ident">coeff</span>: <span class="ident">u32</span>,
-        <span class="ident">r_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">r_index</span>: <span class="ident">usize</span>,
-        <span class="ident">s_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">s_index</span>: <span class="ident">usize</span>,
-        <span class="ident">_excess</span>: <span class="ident">i32</span>,
+        result: SliceMut,
+        coeff: u32,
+        r_degree: i32,
+        r_index: usize,
+        s_degree: i32,
+        s_index: usize,
+        _excess: i32,
     ) {
-        <span class="self">self</span>.<span class="ident">multiply_basis_elements</span>(<span class="ident">result</span>, <span class="ident">coeff</span>, <span class="ident">r_degree</span>, <span class="ident">r_index</span>, <span class="ident">s_degree</span>, <span class="ident">s_index</span>)
+        <span class="self">self</span>.multiply_basis_elements(result, coeff, r_degree, r_index, s_degree, s_index)
     }
 
-    <span class="kw">fn</span> <span class="ident">multiply_basis_element_by_element_unstable</span>(
+    <span class="kw">fn </span>multiply_basis_element_by_element_unstable(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">result</span>: <span class="ident">SliceMut</span>,
-        <span class="ident">coeff</span>: <span class="ident">u32</span>,
-        <span class="ident">r_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">r_idx</span>: <span class="ident">usize</span>,
-        <span class="ident">s_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">s</span>: <span class="ident">Slice</span>,
-        <span class="ident">_excess</span>: <span class="ident">i32</span>,
+        result: SliceMut,
+        coeff: u32,
+        r_degree: i32,
+        r_idx: usize,
+        s_degree: i32,
+        s: Slice,
+        _excess: i32,
     ) {
-        <span class="self">self</span>.<span class="ident">multiply_basis_element_by_element</span>(<span class="ident">result</span>, <span class="ident">coeff</span>, <span class="ident">r_degree</span>, <span class="ident">r_idx</span>, <span class="ident">s_degree</span>, <span class="ident">s</span>)
+        <span class="self">self</span>.multiply_basis_element_by_element(result, coeff, r_degree, r_idx, s_degree, s)
     }
 
-    <span class="kw">fn</span> <span class="ident">multiply_element_by_basis_element_unstable</span>(
+    <span class="kw">fn </span>multiply_element_by_basis_element_unstable(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">result</span>: <span class="ident">SliceMut</span>,
-        <span class="ident">coeff</span>: <span class="ident">u32</span>,
-        <span class="ident">r_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">r</span>: <span class="ident">Slice</span>,
-        <span class="ident">s_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">s_idx</span>: <span class="ident">usize</span>,
-        <span class="ident">_excess</span>: <span class="ident">i32</span>,
+        result: SliceMut,
+        coeff: u32,
+        r_degree: i32,
+        r: Slice,
+        s_degree: i32,
+        s_idx: usize,
+        _excess: i32,
     ) {
-        <span class="self">self</span>.<span class="ident">multiply_element_by_basis_element</span>(<span class="ident">result</span>, <span class="ident">coeff</span>, <span class="ident">r_degree</span>, <span class="ident">r</span>, <span class="ident">s_degree</span>, <span class="ident">s_idx</span>)
+        <span class="self">self</span>.multiply_element_by_basis_element(result, coeff, r_degree, r, s_degree, s_idx)
     }
 
-    <span class="kw">fn</span> <span class="ident">multiply_element_by_element_unstable</span>(
+    <span class="kw">fn </span>multiply_element_by_element_unstable(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">result</span>: <span class="ident">SliceMut</span>,
-        <span class="ident">coeff</span>: <span class="ident">u32</span>,
-        <span class="ident">r_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">r</span>: <span class="ident">Slice</span>,
-        <span class="ident">s_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">s</span>: <span class="ident">Slice</span>,
-        <span class="ident">_excess</span>: <span class="ident">i32</span>,
+        result: SliceMut,
+        coeff: u32,
+        r_degree: i32,
+        r: Slice,
+        s_degree: i32,
+        s: Slice,
+        _excess: i32,
     ) {
-        <span class="self">self</span>.<span class="ident">multiply_element_by_element</span>(<span class="ident">result</span>, <span class="ident">coeff</span>, <span class="ident">r_degree</span>, <span class="ident">r</span>, <span class="ident">s_degree</span>, <span class="ident">s</span>)
+        <span class="self">self</span>.multiply_element_by_element(result, coeff, r_degree, r, s_degree, s)
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">UnstableAlgebra</span><span class="op">&gt;</span> <span class="ident">MuAlgebra</span><span class="op">&lt;</span><span class="bool-val">true</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">A</span> {
-    <span class="kw">fn</span> <span class="ident">dimension_unstable</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">excess</span>: <span class="ident">i32</span>) -&gt; <span class="ident">usize</span> {
-        <span class="ident">UnstableAlgebra::dimension_unstable</span>(<span class="self">self</span>, <span class="ident">degree</span>, <span class="ident">excess</span>)
+<span class="kw">impl</span>&lt;A: UnstableAlgebra&gt; MuAlgebra&lt;<span class="bool-val">true</span>&gt; <span class="kw">for </span>A {
+    <span class="kw">fn </span>dimension_unstable(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32, excess: i32) -&gt; usize {
+        UnstableAlgebra::dimension_unstable(<span class="self">self</span>, degree, excess)
     }
 
-    <span class="kw">fn</span> <span class="ident">multiply_basis_elements_unstable</span>(
+    <span class="kw">fn </span>multiply_basis_elements_unstable(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">result</span>: <span class="ident">SliceMut</span>,
-        <span class="ident">coeff</span>: <span class="ident">u32</span>,
-        <span class="ident">r_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">r_index</span>: <span class="ident">usize</span>,
-        <span class="ident">s_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">s_index</span>: <span class="ident">usize</span>,
-        <span class="ident">excess</span>: <span class="ident">i32</span>,
+        result: SliceMut,
+        coeff: u32,
+        r_degree: i32,
+        r_index: usize,
+        s_degree: i32,
+        s_index: usize,
+        excess: i32,
     ) {
-        <span class="ident">UnstableAlgebra::multiply_basis_elements_unstable</span>(
-            <span class="self">self</span>, <span class="ident">result</span>, <span class="ident">coeff</span>, <span class="ident">r_degree</span>, <span class="ident">r_index</span>, <span class="ident">s_degree</span>, <span class="ident">s_index</span>, <span class="ident">excess</span>,
+        UnstableAlgebra::multiply_basis_elements_unstable(
+            <span class="self">self</span>, result, coeff, r_degree, r_index, s_degree, s_index, excess,
         )
     }
 
-    <span class="kw">fn</span> <span class="ident">multiply_basis_element_by_element_unstable</span>(
+    <span class="kw">fn </span>multiply_basis_element_by_element_unstable(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">result</span>: <span class="ident">SliceMut</span>,
-        <span class="ident">coeff</span>: <span class="ident">u32</span>,
-        <span class="ident">r_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">r_idx</span>: <span class="ident">usize</span>,
-        <span class="ident">s_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">s</span>: <span class="ident">Slice</span>,
-        <span class="ident">excess</span>: <span class="ident">i32</span>,
+        result: SliceMut,
+        coeff: u32,
+        r_degree: i32,
+        r_idx: usize,
+        s_degree: i32,
+        s: Slice,
+        excess: i32,
     ) {
-        <span class="ident">UnstableAlgebra::multiply_basis_element_by_element_unstable</span>(
-            <span class="self">self</span>, <span class="ident">result</span>, <span class="ident">coeff</span>, <span class="ident">r_degree</span>, <span class="ident">r_idx</span>, <span class="ident">s_degree</span>, <span class="ident">s</span>, <span class="ident">excess</span>,
+        UnstableAlgebra::multiply_basis_element_by_element_unstable(
+            <span class="self">self</span>, result, coeff, r_degree, r_idx, s_degree, s, excess,
         )
     }
 
-    <span class="kw">fn</span> <span class="ident">multiply_element_by_basis_element_unstable</span>(
+    <span class="kw">fn </span>multiply_element_by_basis_element_unstable(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">result</span>: <span class="ident">SliceMut</span>,
-        <span class="ident">coeff</span>: <span class="ident">u32</span>,
-        <span class="ident">r_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">r</span>: <span class="ident">Slice</span>,
-        <span class="ident">s_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">s_idx</span>: <span class="ident">usize</span>,
-        <span class="ident">excess</span>: <span class="ident">i32</span>,
+        result: SliceMut,
+        coeff: u32,
+        r_degree: i32,
+        r: Slice,
+        s_degree: i32,
+        s_idx: usize,
+        excess: i32,
     ) {
-        <span class="ident">UnstableAlgebra::multiply_element_by_basis_element_unstable</span>(
-            <span class="self">self</span>, <span class="ident">result</span>, <span class="ident">coeff</span>, <span class="ident">r_degree</span>, <span class="ident">r</span>, <span class="ident">s_degree</span>, <span class="ident">s_idx</span>, <span class="ident">excess</span>,
+        UnstableAlgebra::multiply_element_by_basis_element_unstable(
+            <span class="self">self</span>, result, coeff, r_degree, r, s_degree, s_idx, excess,
         )
     }
 
-    <span class="kw">fn</span> <span class="ident">multiply_element_by_element_unstable</span>(
+    <span class="kw">fn </span>multiply_element_by_element_unstable(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">result</span>: <span class="ident">SliceMut</span>,
-        <span class="ident">coeff</span>: <span class="ident">u32</span>,
-        <span class="ident">r_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">r</span>: <span class="ident">Slice</span>,
-        <span class="ident">s_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">s</span>: <span class="ident">Slice</span>,
-        <span class="ident">excess</span>: <span class="ident">i32</span>,
+        result: SliceMut,
+        coeff: u32,
+        r_degree: i32,
+        r: Slice,
+        s_degree: i32,
+        s: Slice,
+        excess: i32,
     ) {
-        <span class="ident">UnstableAlgebra::multiply_element_by_element_unstable</span>(
-            <span class="self">self</span>, <span class="ident">result</span>, <span class="ident">coeff</span>, <span class="ident">r_degree</span>, <span class="ident">r</span>, <span class="ident">s_degree</span>, <span class="ident">s</span>, <span class="ident">excess</span>,
+        UnstableAlgebra::multiply_element_by_element_unstable(
+            <span class="self">self</span>, result, coeff, r_degree, r, s_degree, s, excess,
         )
     }
 }
 
-<span class="doccomment">/// An [`Algebra`] equipped with a distinguished presentation.</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// These data can be used to specify finite modules as the actions of the distinguished generators.</span>
-<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">GeneratedAlgebra</span>: <span class="ident">Algebra</span> {
-    <span class="doccomment">/// Return generators in `degree`.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// Generators are specified as basis element indices in that degree. The order of the</span>
-    <span class="doccomment">/// list is not important.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// This method need not be fast, because they will only be performed when constructing the module,</span>
-    <span class="doccomment">/// and will often only involve low dimensional elements.</span>
-    <span class="kw">fn</span> <span class="ident">generators</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span>;
+<span class="doccomment">/// An [`Algebra`] equipped with a distinguished presentation.
+///
+/// These data can be used to specify finite modules as the actions of the distinguished generators.
+</span><span class="kw">pub trait </span>GeneratedAlgebra: Algebra {
+    <span class="doccomment">/// Return generators in `degree`.
+    ///
+    /// Generators are specified as basis element indices in that degree. The order of the
+    /// list is not important.
+    ///
+    /// This method need not be fast, because they will only be performed when constructing the module,
+    /// and will often only involve low dimensional elements.
+    </span><span class="kw">fn </span>generators(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32) -&gt; Vec&lt;usize&gt;;
 
-    <span class="doccomment">/// Returns the name of a generator.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// Note: `idx` is the index within `degree`&#39;s basis, *not* the list returned by</span>
-    <span class="doccomment">/// [`GeneratedAlgebra::generators()`].</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// By default, this function will forward to [`Algebra::basis_element_to_string()`], but</span>
-    <span class="doccomment">/// may be overridden if more concise names are available.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// This function MUST be inverse to [`GeneratedAlgebra::string_to_generator()`].</span>
-    <span class="kw">fn</span> <span class="ident">generator_to_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">idx</span>: <span class="ident">usize</span>) -&gt; <span class="ident">String</span> {
-        <span class="self">self</span>.<span class="ident">basis_element_to_string</span>(<span class="ident">degree</span>, <span class="ident">idx</span>)
+    <span class="doccomment">/// Returns the name of a generator.
+    ///
+    /// Note: `idx` is the index within `degree`&#39;s basis, *not* the list returned by
+    /// [`GeneratedAlgebra::generators()`].
+    ///
+    /// By default, this function will forward to [`Algebra::basis_element_to_string()`], but
+    /// may be overridden if more concise names are available.
+    ///
+    /// This function MUST be inverse to [`GeneratedAlgebra::string_to_generator()`].
+    </span><span class="kw">fn </span>generator_to_string(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32, idx: usize) -&gt; String {
+        <span class="self">self</span>.basis_element_to_string(degree, idx)
     }
 
-    <span class="doccomment">/// Decomposes an element into generators.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// Given a basis element $A$, this function returns a list of triples $(c_i, A_i, B_i)$, such</span>
-    <span class="doccomment">/// that</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// $$ A = \sum_i c_i A_i B_i,$$</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// where either ($A_i$ and $B_i$ are basis elements of strictly smaller degree than $A$), or</span>
-    <span class="doccomment">/// (one of them is a generator and the other is the identity).</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// Combined with actions for generators, this allows us to recursively compute the action</span>
-    <span class="doccomment">/// of an element on a module.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// This method need not be fast, because they will only be performed when constructing the module,</span>
-    <span class="doccomment">/// and will often only involve low dimensional elements.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// It is invalid to supply an element that is a generator.</span>
-    <span class="kw">fn</span> <span class="ident">decompose_basis_element</span>(
+    <span class="doccomment">/// Decomposes an element into generators.
+    ///
+    /// Given a basis element $A$, this function returns a list of triples $(c_i, A_i, B_i)$, such
+    /// that
+    ///
+    /// $$ A = \sum_i c_i A_i B_i,$$
+    ///
+    /// where either ($A_i$ and $B_i$ are basis elements of strictly smaller degree than $A$), or
+    /// (one of them is a generator and the other is the identity).
+    ///
+    /// Combined with actions for generators, this allows us to recursively compute the action
+    /// of an element on a module.
+    ///
+    /// This method need not be fast, because they will only be performed when constructing the module,
+    /// and will often only involve low dimensional elements.
+    ///
+    /// It is invalid to supply an element that is a generator.
+    </span><span class="kw">fn </span>decompose_basis_element(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">degree</span>: <span class="ident">i32</span>,
-        <span class="ident">idx</span>: <span class="ident">usize</span>,
-    ) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">u32</span>, (<span class="ident">i32</span>, <span class="ident">usize</span>), (<span class="ident">i32</span>, <span class="ident">usize</span>))<span class="op">&gt;</span>;
+        degree: i32,
+        idx: usize,
+    ) -&gt; Vec&lt;(u32, (i32, usize), (i32, usize))&gt;;
 
-    <span class="doccomment">/// Returns relations that the algebra wants checked to ensure the consistency of module.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// Relations are encoded as general multi-degree elements which are killed in the quotient:</span>
-    <span class="doccomment">/// $$ \sum_i c_i \alpha_i \beta_i = 0. $$</span>
-    <span class="doccomment">/// where $c_i$ are coefficients and $\alpha_i$ and $\beta_i$ are basis elements of</span>
-    <span class="doccomment">/// arbitrary degree.</span>
-    <span class="kw">fn</span> <span class="ident">generating_relations</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">u32</span>, (<span class="ident">i32</span>, <span class="ident">usize</span>), (<span class="ident">i32</span>, <span class="ident">usize</span>))<span class="op">&gt;</span><span class="op">&gt;</span>;
+    <span class="doccomment">/// Returns relations that the algebra wants checked to ensure the consistency of module.
+    ///
+    /// Relations are encoded as general multi-degree elements which are killed in the quotient:
+    /// $$ \sum_i c_i \alpha_i \beta_i = 0. $$
+    /// where $c_i$ are coefficients and $\alpha_i$ and $\beta_i$ are basis elements of
+    /// arbitrary degree.
+    </span><span class="kw">fn </span>generating_relations(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32) -&gt; Vec&lt;Vec&lt;(u32, (i32, usize), (i32, usize))&gt;&gt;;
 }
 
-<span class="attribute">#[<span class="ident">macro_export</span>]</span>
-<span class="macro">macro_rules!</span> <span class="ident">dispatch_algebra</span> {
-    (<span class="macro-nonterminal">$</span><span class="kw">struct</span>:<span class="macro-nonterminal">ty</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">dispatch_macro</span>: <span class="ident">ident</span>) =&gt; {
-        <span class="kw">impl</span> <span class="ident">Algebra</span> <span class="kw">for</span> <span class="macro-nonterminal">$</span><span class="kw">struct</span> {
-            <span class="macro-nonterminal">$</span><span class="macro">dispatch_macro!</span> {
-                <span class="kw">fn</span> <span class="macro-nonterminal">prefix</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">str</span>;
-                <span class="kw">fn</span> <span class="ident">magic</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">u32</span>;
-                <span class="kw">fn</span> <span class="ident">prime</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">ValidPrime</span>;
-                <span class="kw">fn</span> <span class="ident">compute_basis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>);
-                <span class="kw">fn</span> <span class="ident">dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) -&gt; <span class="ident">usize</span>;
-                <span class="kw">fn</span> <span class="ident">multiply_basis_elements</span>(
+<span class="attribute">#[macro_export]
+</span><span class="macro">macro_rules! </span>dispatch_algebra {
+    (<span class="macro-nonterminal">$</span><span class="kw">struct</span>:<span class="macro-nonterminal">ty</span>, <span class="macro-nonterminal">$dispatch_macro</span>: ident) =&gt; {
+        <span class="kw">impl </span>Algebra <span class="kw">for </span><span class="macro-nonterminal">$</span><span class="kw">struct </span>{
+            <span class="macro-nonterminal">$</span><span class="macro">dispatch_macro! </span>{
+                <span class="kw">fn </span><span class="macro-nonterminal">prefix</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>str;
+                <span class="kw">fn </span>magic(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u32;
+                <span class="kw">fn </span>prime(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ValidPrime;
+                <span class="kw">fn </span>compute_basis(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32);
+                <span class="kw">fn </span>dimension(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32) -&gt; usize;
+                <span class="kw">fn </span>multiply_basis_elements(
                     <span class="kw-2">&amp;</span><span class="self">self</span>,
-                    <span class="ident">result</span>: <span class="ident">SliceMut</span>,
-                    <span class="ident">coeff</span>: <span class="ident">u32</span>,
-                    <span class="ident">r_degree</span>: <span class="ident">i32</span>,
-                    <span class="ident">r_idx</span>: <span class="ident">usize</span>,
-                    <span class="ident">s_degree</span>: <span class="ident">i32</span>,
-                    <span class="ident">s_idx</span>: <span class="ident">usize</span>,
+                    result: SliceMut,
+                    coeff: u32,
+                    r_degree: i32,
+                    r_idx: usize,
+                    s_degree: i32,
+                    s_idx: usize,
                 );
 
-                <span class="kw">fn</span> <span class="ident">multiply_basis_element_by_element</span>(
+                <span class="kw">fn </span>multiply_basis_element_by_element(
                     <span class="kw-2">&amp;</span><span class="self">self</span>,
-                    <span class="ident">result</span>: <span class="ident">SliceMut</span>,
-                    <span class="ident">coeff</span>: <span class="ident">u32</span>,
-                    <span class="ident">r_degree</span>: <span class="ident">i32</span>,
-                    <span class="ident">r_idx</span>: <span class="ident">usize</span>,
-                    <span class="ident">s_degree</span>: <span class="ident">i32</span>,
-                    <span class="ident">s</span>: <span class="ident">Slice</span>,
+                    result: SliceMut,
+                    coeff: u32,
+                    r_degree: i32,
+                    r_idx: usize,
+                    s_degree: i32,
+                    s: Slice,
                 );
 
-                <span class="kw">fn</span> <span class="ident">multiply_element_by_basis_element</span>(
+                <span class="kw">fn </span>multiply_element_by_basis_element(
                     <span class="kw-2">&amp;</span><span class="self">self</span>,
-                    <span class="ident">result</span>: <span class="ident">SliceMut</span>,
-                    <span class="ident">coeff</span>: <span class="ident">u32</span>,
-                    <span class="ident">r_degree</span>: <span class="ident">i32</span>,
-                    <span class="ident">r</span>: <span class="ident">Slice</span>,
-                    <span class="ident">s_degree</span>: <span class="ident">i32</span>,
-                    <span class="ident">s_idx</span>: <span class="ident">usize</span>,
+                    result: SliceMut,
+                    coeff: u32,
+                    r_degree: i32,
+                    r: Slice,
+                    s_degree: i32,
+                    s_idx: usize,
                 );
 
-                <span class="kw">fn</span> <span class="ident">multiply_element_by_element</span>(
+                <span class="kw">fn </span>multiply_element_by_element(
                     <span class="kw-2">&amp;</span><span class="self">self</span>,
-                    <span class="ident">result</span>: <span class="ident">SliceMut</span>,
-                    <span class="ident">coeff</span>: <span class="ident">u32</span>,
-                    <span class="ident">r_degree</span>: <span class="ident">i32</span>,
-                    <span class="ident">r</span>: <span class="ident">Slice</span>,
-                    <span class="ident">s_degree</span>: <span class="ident">i32</span>,
-                    <span class="ident">s</span>: <span class="ident">Slice</span>,
+                    result: SliceMut,
+                    coeff: u32,
+                    r_degree: i32,
+                    r: Slice,
+                    s_degree: i32,
+                    s: Slice,
                 );
 
-                <span class="kw">fn</span> <span class="ident">default_filtration_one_products</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">String</span>, <span class="ident">i32</span>, <span class="ident">usize</span>)<span class="op">&gt;</span>;
+                <span class="kw">fn </span>default_filtration_one_products(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;(String, i32, usize)&gt;;
 
-                <span class="kw">fn</span> <span class="ident">basis_element_to_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">idx</span>: <span class="ident">usize</span>) -&gt; <span class="ident">String</span>;
-                <span class="kw">fn</span> <span class="ident">basis_element_from_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">elt</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">i32</span>, <span class="ident">usize</span>)<span class="op">&gt;</span>;
+                <span class="kw">fn </span>basis_element_to_string(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32, idx: usize) -&gt; String;
+                <span class="kw">fn </span>basis_element_from_string(<span class="kw-2">&amp;</span><span class="self">self</span>, elt: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;(i32, usize)&gt;;
 
-                <span class="kw">fn</span> <span class="ident">element_to_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">element</span>: <span class="ident">Slice</span>) -&gt; <span class="ident">String</span>;
+                <span class="kw">fn </span>element_to_string(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32, element: Slice) -&gt; String;
             }
         }
     };
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="algebra" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0 (a55dd71d5 2022-09-19)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="algebra" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0 (897e37553 2022-11-02)" ></div></body></html>

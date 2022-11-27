@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/chain_complex/chain_homotopy.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>chain_homotopy.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../ayu.css" disabled><link rel="stylesheet" type="text/css" href="../../../dark.css" disabled><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../../storage.js"></script><script defer src="../../../source-script.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../main.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../../favicon.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/chain_complex/chain_homotopy.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>chain_homotopy.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" href="../../../normalize.css"><link rel="stylesheet" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" href="../../../ayu.css" disabled><link rel="stylesheet" href="../../../dark.css" disabled><link rel="stylesheet" href="../../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../../storage.js"></script><script defer src="../../../source-script.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../main.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../../favicon.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
 <!-- The loading of KaTeX is deferred to speed up page rendering -->
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.js" integrity="sha384-Bi8OWqMXO1ta+a4EPkZv7bYGIes7C3krGSZoTGNTAnAn5eYQc7IIXrJ/7ck1drAi" crossorigin="anonymous"></script>
 <!-- To automatically render math in text elements, include the auto-render extension: -->
@@ -327,309 +327,311 @@
 <span id="302">302</span>
 <span id="303">303</span>
 <span id="304">304</span>
-</pre><pre class="rust"><code><span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::chain_complex</span>::{<span class="ident">ChainComplex</span>, <span class="ident">FreeChainComplex</span>};
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::resolution_homomorphism::ResolutionHomomorphism</span>;
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::save::SaveKind</span>;
-<span class="kw">use</span> <span class="ident">algebra::module::homomorphism</span>::{<span class="ident">FreeModuleHomomorphism</span>, <span class="ident">ModuleHomomorphism</span>};
-<span class="kw">use</span> <span class="ident">algebra::module::Module</span>;
-<span class="kw">use</span> <span class="ident">fp::prime::ValidPrime</span>;
-<span class="kw">use</span> <span class="ident">fp::vector::FpVector</span>;
-<span class="kw">use</span> <span class="ident">once::OnceBiVec</span>;
+<span id="305">305</span>
+</pre><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::chain_complex::{ChainComplex, FreeChainComplex};
+<span class="kw">use </span><span class="kw">crate</span>::resolution_homomorphism::ResolutionHomomorphism;
+<span class="kw">use </span><span class="kw">crate</span>::save::SaveKind;
+<span class="kw">use </span>algebra::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
+<span class="kw">use </span>algebra::module::Module;
+<span class="kw">use </span>fp::prime::ValidPrime;
+<span class="kw">use </span>fp::vector::FpVector;
+<span class="kw">use </span>once::OnceBiVec;
 
-<span class="kw">use</span> <span class="ident">std::path</span>::{<span class="ident">Path</span>, <span class="ident">PathBuf</span>};
-<span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
-<span class="kw">use</span> <span class="ident">std::sync::Mutex</span>;
+<span class="kw">use </span>std::path::{Path, PathBuf};
+<span class="kw">use </span>std::sync::Arc;
+<span class="kw">use </span>std::sync::Mutex;
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
-<span class="kw">use</span> <span class="ident">rayon::prelude</span>::<span class="kw-2">*</span>;
+<span class="attribute">#[cfg(feature = <span class="string">&quot;concurrent&quot;</span>)]
+</span><span class="kw">use </span>rayon::prelude::<span class="kw-2">*</span>;
 
-<span class="comment">// Another instance of https://github.com/rust-lang/rust/issues/91380</span>
-<span class="doccomment">/// A chain homotopy from $f to g$, or equivalently a null-homotopy of $h = f - g$. A chain map is</span>
-<span class="doccomment">/// a priori a collection of free module homomorphisms. However, instead of providing</span>
-<span class="doccomment">/// FreeModuleHomomorphism objects, the user is expected to give a function that computes the value</span>
-<span class="doccomment">/// of $h$ on each generator.</span>
-<span class="attribute">#[<span class="ident">doc</span>(<span class="ident">hidden</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ChainHomotopy</span><span class="op">&lt;</span>
-    <span class="ident">S</span>: <span class="ident">FreeChainComplex</span>,
-    <span class="ident">T</span>: <span class="ident">FreeChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">S::Algebra</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Sync</span>,
-    <span class="ident">U</span>: <span class="ident">ChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">S::Algebra</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Sync</span>,
-<span class="op">&gt;</span> {
-    <span class="ident">left</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">ResolutionHomomorphism</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    <span class="ident">right</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">ResolutionHomomorphism</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">U</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    <span class="ident">lock</span>: <span class="ident">Mutex</span><span class="op">&lt;</span>()<span class="op">&gt;</span>,
-    <span class="doccomment">/// Homotopies, indexed by the filtration of the target of f - g.</span>
-    <span class="ident">homotopies</span>: <span class="ident">OnceBiVec</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">U::Module</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    <span class="ident">save_dir</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">PathBuf</span><span class="op">&gt;</span>,
+<span class="comment">// Another instance of https://github.com/rust-lang/rust/issues/91380
+</span><span class="doccomment">/// A chain homotopy from $f to g$, or equivalently a null-homotopy of $h = f - g$. A chain map is
+/// a priori a collection of free module homomorphisms. However, instead of providing
+/// FreeModuleHomomorphism objects, the user is expected to give a function that computes the value
+/// of $h$ on each generator.
+</span><span class="attribute">#[doc(hidden)]
+</span><span class="kw">pub struct </span>ChainHomotopy&lt;
+    S: FreeChainComplex,
+    T: FreeChainComplex&lt;Algebra = S::Algebra&gt; + Sync,
+    U: ChainComplex&lt;Algebra = S::Algebra&gt; + Sync,
+&gt; {
+    left: Arc&lt;ResolutionHomomorphism&lt;S, T&gt;&gt;,
+    right: Arc&lt;ResolutionHomomorphism&lt;T, U&gt;&gt;,
+    lock: Mutex&lt;()&gt;,
+    <span class="doccomment">/// Homotopies, indexed by the filtration of the target of f - g.
+    </span>homotopies: OnceBiVec&lt;Arc&lt;FreeModuleHomomorphism&lt;U::Module&gt;&gt;&gt;,
+    save_dir: <span class="prelude-ty">Option</span>&lt;PathBuf&gt;,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span>
-        <span class="ident">S</span>: <span class="ident">FreeChainComplex</span>,
-        <span class="ident">T</span>: <span class="ident">FreeChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">S::Algebra</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Sync</span>,
-        <span class="ident">U</span>: <span class="ident">ChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">S::Algebra</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Sync</span>,
-    <span class="op">&gt;</span> <span class="ident">ChainHomotopy</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">T</span>, <span class="ident">U</span><span class="op">&gt;</span>
+<span class="kw">impl</span>&lt;
+        S: FreeChainComplex,
+        T: FreeChainComplex&lt;Algebra = S::Algebra&gt; + Sync,
+        U: ChainComplex&lt;Algebra = S::Algebra&gt; + Sync,
+    &gt; ChainHomotopy&lt;S, T, U&gt;
 {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(
-        <span class="ident">left</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">ResolutionHomomorphism</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-        <span class="ident">right</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">ResolutionHomomorphism</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">U</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    ) -&gt; <span class="self">Self</span> {
-        <span class="kw">let</span> <span class="ident">save_dir</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">left</span>.<span class="ident">source</span>.<span class="ident">save_dir</span>().<span class="ident">is_some</span>()
-            <span class="op">&amp;&amp;</span> <span class="op">!</span><span class="ident">left</span>.<span class="ident">name</span>().<span class="ident">is_empty</span>()
-            <span class="op">&amp;&amp;</span> <span class="op">!</span><span class="ident">right</span>.<span class="ident">name</span>().<span class="ident">is_empty</span>()
+    <span class="kw">pub fn </span>new(
+        left: Arc&lt;ResolutionHomomorphism&lt;S, T&gt;&gt;,
+        right: Arc&lt;ResolutionHomomorphism&lt;T, U&gt;&gt;,
+    ) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>save_dir = <span class="kw">if </span>left.source.save_dir().is_some()
+            &amp;&amp; !left.name().is_empty()
+            &amp;&amp; !right.name().is_empty()
         {
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">path</span> <span class="op">=</span> <span class="ident">left</span>.<span class="ident">source</span>.<span class="ident">save_dir</span>().<span class="ident">unwrap</span>().<span class="ident">to_owned</span>();
-            <span class="ident">path</span>.<span class="ident">push</span>(<span class="macro">format!</span>(<span class="string">&quot;massey/{},{}/&quot;</span>, <span class="ident">left</span>.<span class="ident">name</span>(), <span class="ident">right</span>.<span class="ident">name</span>(),));
+            <span class="kw">let </span><span class="kw-2">mut </span>path = left.source.save_dir().unwrap().to_owned();
+            path.push(<span class="macro">format!</span>(<span class="string">&quot;massey/{},{}/&quot;</span>, left.name(), right.name(),));
 
-            <span class="ident">SaveKind::ChainHomotopy</span>.<span class="ident">create_dir</span>(<span class="kw-2">&amp;</span><span class="ident">path</span>).<span class="ident">unwrap</span>();
+            SaveKind::ChainHomotopy.create_dir(<span class="kw-2">&amp;</span>path).unwrap();
 
-            <span class="prelude-val">Some</span>(<span class="ident">path</span>)
-        } <span class="kw">else</span> {
-            <span class="prelude-val">None</span>
-        };
+            <span class="prelude-val">Some</span>(path)
+        } <span class="kw">else </span>{
+            <span class="prelude-val">None
+        </span>};
 
-        <span class="macro">assert!</span>(<span class="ident">Arc::ptr_eq</span>(<span class="kw-2">&amp;</span><span class="ident">left</span>.<span class="ident">target</span>, <span class="kw-2">&amp;</span><span class="ident">right</span>.<span class="ident">source</span>));
-        <span class="self">Self</span> {
-            <span class="ident">homotopies</span>: <span class="ident">OnceBiVec::new</span>((<span class="ident">left</span>.<span class="ident">shift_s</span> <span class="op">+</span> <span class="ident">right</span>.<span class="ident">shift_s</span>) <span class="kw">as</span> <span class="ident">i32</span> <span class="op">-</span> <span class="number">1</span>),
-            <span class="ident">left</span>,
-            <span class="ident">right</span>,
-            <span class="ident">lock</span>: <span class="ident">Mutex::new</span>(()),
-            <span class="ident">save_dir</span>,
+        <span class="macro">assert!</span>(Arc::ptr_eq(<span class="kw-2">&amp;</span>left.target, <span class="kw-2">&amp;</span>right.source));
+        <span class="self">Self </span>{
+            homotopies: OnceBiVec::new((left.shift_s + right.shift_s) <span class="kw">as </span>i32 - <span class="number">1</span>),
+            left,
+            right,
+            lock: Mutex::new(()),
+            save_dir,
         }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">prime</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">ValidPrime</span> {
-        <span class="self">self</span>.<span class="ident">left</span>.<span class="ident">source</span>.<span class="ident">prime</span>()
+    <span class="kw">pub fn </span>prime(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ValidPrime {
+        <span class="self">self</span>.left.source.prime()
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">shift_s</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">u32</span> {
-        <span class="self">self</span>.<span class="ident">left</span>.<span class="ident">shift_s</span> <span class="op">+</span> <span class="self">self</span>.<span class="ident">right</span>.<span class="ident">shift_s</span>
+    <span class="kw">pub fn </span>shift_s(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u32 {
+        <span class="self">self</span>.left.shift_s + <span class="self">self</span>.right.shift_s
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">shift_t</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">i32</span> {
-        <span class="self">self</span>.<span class="ident">left</span>.<span class="ident">shift_t</span> <span class="op">+</span> <span class="self">self</span>.<span class="ident">right</span>.<span class="ident">shift_t</span>
+    <span class="kw">pub fn </span>shift_t(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; i32 {
+        <span class="self">self</span>.left.shift_t + <span class="self">self</span>.right.shift_t
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">left</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">ResolutionHomomorphism</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-        <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">left</span>)
+    <span class="kw">pub fn </span>left(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Arc&lt;ResolutionHomomorphism&lt;S, T&gt;&gt; {
+        Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.left)
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">right</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">ResolutionHomomorphism</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">U</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-        <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">right</span>)
+    <span class="kw">pub fn </span>right(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Arc&lt;ResolutionHomomorphism&lt;T, U&gt;&gt; {
+        Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.right)
     }
 
-    <span class="doccomment">/// Lift maps so that the chain *homotopy* is defined on `(max_source_s, max_source_t)`.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">extend</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">max_source_s</span>: <span class="ident">u32</span>, <span class="ident">max_source_t</span>: <span class="ident">i32</span>) {
-        <span class="self">self</span>.<span class="ident">extend_profile</span>(<span class="ident">max_source_s</span> <span class="op">+</span> <span class="number">1</span>, <span class="kw-2">&amp;</span><span class="op">|</span><span class="ident">s</span><span class="op">|</span> {
-            <span class="ident">max_source_t</span> <span class="op">-</span> (<span class="ident">max_source_s</span> <span class="op">-</span> <span class="ident">s</span>) <span class="kw">as</span> <span class="ident">i32</span> <span class="op">+</span> <span class="number">1</span>
-        });
+    <span class="doccomment">/// Lift maps so that the chain *homotopy* is defined on `(max_source_s, max_source_t)`.
+    </span><span class="kw">pub fn </span>extend(<span class="kw-2">&amp;</span><span class="self">self</span>, max_source_s: u32, max_source_t: i32) {
+        <span class="self">self</span>.extend_profile(max_source_s + <span class="number">1</span>, <span class="kw-2">&amp;</span>|s| {
+            max_source_t - (max_source_s - s) <span class="kw">as </span>i32 + <span class="number">1
+        </span>});
     }
 
-    <span class="doccomment">/// Lift maps so that the chain homotopy is defined on as many bidegrees as possible</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">extend_all</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) {
-        <span class="kw">let</span> <span class="ident">max_source_s</span> <span class="op">=</span> <span class="ident">std::cmp::min</span>(
-            <span class="self">self</span>.<span class="ident">left</span>.<span class="ident">source</span>.<span class="ident">next_homological_degree</span>(),
-            <span class="self">self</span>.<span class="ident">right</span>.<span class="ident">target</span>.<span class="ident">next_homological_degree</span>() <span class="op">+</span> <span class="self">self</span>.<span class="ident">shift_s</span>(),
+    <span class="doccomment">/// Lift maps so that the chain homotopy is defined on as many bidegrees as possible
+    </span><span class="kw">pub fn </span>extend_all(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+        <span class="kw">let </span>max_source_s = std::cmp::min(
+            <span class="self">self</span>.left.source.next_homological_degree(),
+            <span class="self">self</span>.right.target.next_homological_degree() + <span class="self">self</span>.shift_s(),
         );
 
-        <span class="kw">let</span> <span class="ident">max_source_t</span> <span class="op">=</span> <span class="op">|</span><span class="ident">s</span><span class="op">|</span> {
-            <span class="ident">std::cmp::min</span>(
-                <span class="self">self</span>.<span class="ident">left</span>.<span class="ident">source</span>.<span class="ident">module</span>(<span class="ident">s</span>).<span class="ident">max_computed_degree</span>() <span class="op">+</span> <span class="number">1</span>,
-                <span class="self">self</span>.<span class="ident">right</span>
-                    .<span class="ident">target</span>
-                    .<span class="ident">module</span>(<span class="ident">s</span> <span class="op">+</span> <span class="number">1</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">shift_s</span>())
-                    .<span class="ident">max_computed_degree</span>()
-                    <span class="op">+</span> <span class="self">self</span>.<span class="ident">shift_t</span>()
-                    <span class="op">+</span> <span class="number">1</span>,
+        <span class="kw">let </span>max_source_t = |s| {
+            std::cmp::min(
+                <span class="self">self</span>.left.source.module(s).max_computed_degree() + <span class="number">1</span>,
+                <span class="self">self</span>.right
+                    .target
+                    .module(s + <span class="number">1 </span>- <span class="self">self</span>.shift_s())
+                    .max_computed_degree()
+                    + <span class="self">self</span>.shift_t()
+                    + <span class="number">1</span>,
             )
         };
 
-        <span class="self">self</span>.<span class="ident">extend_profile</span>(<span class="ident">max_source_s</span>, <span class="kw-2">&amp;</span><span class="ident">max_source_t</span>);
+        <span class="self">self</span>.extend_profile(max_source_s, <span class="kw-2">&amp;</span>max_source_t);
     }
 
-    <span class="doccomment">/// Initialize self.homotopies to contain [`FreeModuleHomomorphisms`]s up to but excluding</span>
-    <span class="doccomment">/// `max_source_s`, which can be returned by [`Self::homotopy`]. This does not actually lift</span>
-    <span class="doccomment">/// the maps, which is done by [`Self::extend_all`] and [`Self::extend`].</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">initialize_homotopies</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">max_source_s</span>: <span class="ident">u32</span>) {
-        <span class="self">self</span>.<span class="ident">homotopies</span>.<span class="ident">extend</span>(<span class="ident">max_source_s</span> <span class="kw">as</span> <span class="ident">i32</span> <span class="op">-</span> <span class="number">1</span>, <span class="op">|</span><span class="ident">s</span><span class="op">|</span> {
-            <span class="kw">let</span> <span class="ident">s</span> <span class="op">=</span> <span class="ident">s</span> <span class="kw">as</span> <span class="ident">u32</span>;
-            <span class="ident">Arc::new</span>(<span class="ident">FreeModuleHomomorphism::new</span>(
-                <span class="self">self</span>.<span class="ident">left</span>.<span class="ident">source</span>.<span class="ident">module</span>(<span class="ident">s</span>),
-                <span class="self">self</span>.<span class="ident">right</span>.<span class="ident">target</span>.<span class="ident">module</span>(<span class="ident">s</span> <span class="op">+</span> <span class="number">1</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">shift_s</span>()),
-                <span class="self">self</span>.<span class="ident">shift_t</span>(),
+    <span class="doccomment">/// Initialize self.homotopies to contain [`FreeModuleHomomorphisms`]s up to but excluding
+    /// `max_source_s`, which can be returned by [`Self::homotopy`]. This does not actually lift
+    /// the maps, which is done by [`Self::extend_all`] and [`Self::extend`].
+    </span><span class="kw">pub fn </span>initialize_homotopies(<span class="kw-2">&amp;</span><span class="self">self</span>, max_source_s: u32) {
+        <span class="self">self</span>.homotopies.extend(max_source_s <span class="kw">as </span>i32 - <span class="number">1</span>, |s| {
+            <span class="kw">let </span>s = s <span class="kw">as </span>u32;
+            Arc::new(FreeModuleHomomorphism::new(
+                <span class="self">self</span>.left.source.module(s),
+                <span class="self">self</span>.right.target.module(s + <span class="number">1 </span>- <span class="self">self</span>.shift_s()),
+                <span class="self">self</span>.shift_t(),
             ))
         });
     }
 
-    <span class="doccomment">/// Exclusive bounds</span>
-    <span class="kw">fn</span> <span class="ident">extend_profile</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">max_source_s</span>: <span class="ident">u32</span>, <span class="ident">max_source_t</span>: <span class="kw-2">&amp;</span>(<span class="kw">impl</span> <span class="ident">Fn</span>(<span class="ident">u32</span>) -&gt; <span class="ident">i32</span> <span class="op">+</span> <span class="ident">Sync</span>)) {
-        <span class="kw">let</span> <span class="ident">shift_s</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">shift_s</span>();
+    <span class="doccomment">/// Exclusive bounds
+    </span><span class="kw">fn </span>extend_profile(<span class="kw-2">&amp;</span><span class="self">self</span>, max_source_s: u32, max_source_t: <span class="kw-2">&amp;</span>(<span class="kw">impl </span>Fn(u32) -&gt; i32 + Sync)) {
+        <span class="kw">let </span>shift_s = <span class="self">self</span>.shift_s();
 
-        <span class="kw">if</span> <span class="ident">max_source_s</span> <span class="op">==</span> <span class="ident">shift_s</span> <span class="op">-</span> <span class="number">1</span> {
+        <span class="kw">if </span>max_source_s == shift_s - <span class="number">1 </span>{
             <span class="kw">return</span>;
         }
 
-        <span class="kw">let</span> <span class="ident">_lock</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">lock</span>.<span class="ident">lock</span>();
+        <span class="kw">let </span>_lock = <span class="self">self</span>.lock.lock();
 
-        <span class="self">self</span>.<span class="ident">initialize_homotopies</span>(<span class="ident">max_source_s</span>);
+        <span class="self">self</span>.initialize_homotopies(max_source_s);
 
-        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>))]</span>
-        {
-            <span class="kw">for</span> <span class="ident">source_s</span> <span class="kw">in</span> <span class="ident">shift_s</span> <span class="op">-</span> <span class="number">1</span>..<span class="ident">max_source_s</span> {
-                <span class="kw">for</span> <span class="ident">source_t</span> <span class="kw">in</span>
-                    <span class="self">self</span>.<span class="ident">homotopies</span>[<span class="ident">source_s</span> <span class="kw">as</span> <span class="ident">i32</span>].<span class="ident">next_degree</span>()..<span class="ident">max_source_t</span>(<span class="ident">source_s</span>)
+        <span class="attribute">#[cfg(not(feature = <span class="string">&quot;concurrent&quot;</span>))]
+        </span>{
+            <span class="kw">for </span>source_s <span class="kw">in </span>shift_s - <span class="number">1</span>..max_source_s {
+                <span class="kw">for </span>source_t <span class="kw">in
+                    </span><span class="self">self</span>.homotopies[source_s <span class="kw">as </span>i32].next_degree()..max_source_t(source_s)
                 {
-                    <span class="self">self</span>.<span class="ident">extend_step</span>(<span class="ident">source_s</span>, <span class="ident">source_t</span>);
+                    <span class="self">self</span>.extend_step(source_s, source_t);
                 }
             }
         }
 
-        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
-        {
-            <span class="kw">let</span> <span class="ident">min_source_t</span> <span class="op">=</span> <span class="ident">std::cmp::min</span>(
-                <span class="self">self</span>.<span class="ident">left</span>.<span class="ident">source</span>.<span class="ident">min_degree</span>(),
-                <span class="self">self</span>.<span class="ident">right</span>.<span class="ident">target</span>.<span class="ident">min_degree</span>() <span class="op">+</span> <span class="self">self</span>.<span class="ident">shift_t</span>(),
+        <span class="attribute">#[cfg(feature = <span class="string">&quot;concurrent&quot;</span>)]
+        </span>{
+            <span class="kw">let </span>min_source_t = std::cmp::min(
+                <span class="self">self</span>.left.source.min_degree(),
+                <span class="self">self</span>.right.target.min_degree() + <span class="self">self</span>.shift_t(),
             );
 
-            <span class="ident"><span class="kw">crate</span>::utils::iter_s_t</span>(
-                <span class="kw-2">&amp;</span><span class="op">|</span><span class="ident">s</span>, <span class="ident">t</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">extend_step</span>(<span class="ident">s</span>, <span class="ident">t</span>),
-                <span class="ident">shift_s</span> <span class="op">-</span> <span class="number">1</span>,
-                <span class="ident">min_source_t</span>,
-                <span class="ident">max_source_s</span>,
-                <span class="ident">max_source_t</span>,
+            <span class="kw">crate</span>::utils::iter_s_t(
+                <span class="kw-2">&amp;</span>|s, t| <span class="self">self</span>.extend_step(s, t),
+                shift_s - <span class="number">1</span>,
+                min_source_t,
+                max_source_s,
+                max_source_t,
             );
         }
     }
 
-    <span class="kw">fn</span> <span class="ident">extend_step</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">source_s</span>: <span class="ident">u32</span>, <span class="ident">source_t</span>: <span class="ident">i32</span>) -&gt; <span class="ident">std::ops::Range</span><span class="op">&lt;</span><span class="ident">i32</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prime</span>();
-        <span class="kw">let</span> <span class="ident">shift_s</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">shift_s</span>();
-        <span class="kw">let</span> <span class="ident">shift_t</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">shift_t</span>();
-        <span class="kw">let</span> <span class="ident">target_s</span> <span class="op">=</span> <span class="ident">source_s</span> <span class="op">+</span> <span class="number">1</span> <span class="op">-</span> <span class="ident">shift_s</span>;
-        <span class="kw">let</span> <span class="ident">target_t</span> <span class="op">=</span> <span class="ident">source_t</span> <span class="op">-</span> <span class="ident">shift_t</span>;
+    <span class="kw">fn </span>extend_step(<span class="kw-2">&amp;</span><span class="self">self</span>, source_s: u32, source_t: i32) -&gt; std::ops::Range&lt;i32&gt; {
+        <span class="kw">let </span>p = <span class="self">self</span>.prime();
+        <span class="kw">let </span>shift_s = <span class="self">self</span>.shift_s();
+        <span class="kw">let </span>shift_t = <span class="self">self</span>.shift_t();
+        <span class="kw">let </span>target_s = source_s + <span class="number">1 </span>- shift_s;
+        <span class="kw">let </span>target_t = source_t - shift_t;
 
-        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">homotopies</span>[<span class="ident">source_s</span> <span class="kw">as</span> <span class="ident">i32</span>].<span class="ident">next_degree</span>() <span class="op">&gt;</span> <span class="ident">source_t</span> {
-            <span class="kw">return</span> <span class="ident">source_t</span>..<span class="ident">source_t</span> <span class="op">+</span> <span class="number">1</span>;
+        <span class="kw">if </span><span class="self">self</span>.homotopies[source_s <span class="kw">as </span>i32].next_degree() &gt; source_t {
+            <span class="kw">return </span>source_t..source_t + <span class="number">1</span>;
         }
 
-        <span class="kw">let</span> <span class="ident">num_gens</span> <span class="op">=</span> <span class="self">self</span>
-            .<span class="ident">left</span>
-            .<span class="ident">source</span>
-            .<span class="ident">module</span>(<span class="ident">source_s</span>)
-            .<span class="ident">number_of_gens_in_degree</span>(<span class="ident">source_t</span>);
+        <span class="kw">let </span>num_gens = <span class="self">self
+            </span>.left
+            .source
+            .module(source_s)
+            .number_of_gens_in_degree(source_t);
 
-        <span class="kw">let</span> <span class="ident">target_dim</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">right</span>.<span class="ident">target</span>.<span class="ident">module</span>(<span class="ident">target_s</span>).<span class="ident">dimension</span>(<span class="ident">target_t</span>);
+        <span class="kw">let </span>target_dim = <span class="self">self</span>.right.target.module(target_s).dimension(target_t);
 
-        <span class="comment">// Default to the zero homotopy for the bottom-most homotopy. For computing normal Massey</span>
-        <span class="comment">// products, any choice works, and it is conventional to choose zero. For secondary Massey</span>
-        <span class="comment">// products, this may have to be non-zero, in which case the user should manually set up</span>
-        <span class="comment">// these values.</span>
-        <span class="kw">if</span> <span class="ident">target_s</span> <span class="op">==</span> <span class="number">0</span> <span class="op">|</span><span class="op">|</span> <span class="ident">target_dim</span> <span class="op">==</span> <span class="number">0</span> <span class="op">|</span><span class="op">|</span> <span class="ident">num_gens</span> <span class="op">==</span> <span class="number">0</span> {
-            <span class="kw">let</span> <span class="ident">outputs</span> <span class="op">=</span> <span class="macro">vec!</span>[<span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="ident">target_dim</span>); <span class="ident">num_gens</span>];
-            <span class="kw">return</span> <span class="self">self</span>.<span class="ident">homotopies</span>[<span class="ident">source_s</span> <span class="kw">as</span> <span class="ident">i32</span>]
-                .<span class="ident">add_generators_from_rows_ooo</span>(<span class="ident">source_t</span>, <span class="ident">outputs</span>);
+        <span class="comment">// Default to the zero homotopy for the bottom-most homotopy. For computing normal Massey
+        // products, any choice works, and it is conventional to choose zero. For secondary Massey
+        // products, this may have to be non-zero, in which case the user should manually set up
+        // these values.
+        </span><span class="kw">if </span>target_s == <span class="number">0 </span>|| target_dim == <span class="number">0 </span>|| num_gens == <span class="number">0 </span>{
+            <span class="kw">let </span>outputs = <span class="macro">vec!</span>[FpVector::new(p, target_dim); num_gens];
+            <span class="kw">return </span><span class="self">self</span>.homotopies[source_s <span class="kw">as </span>i32]
+                .add_generators_from_rows_ooo(source_t, outputs);
         }
 
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dir</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">save_dir</span> {
-            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">mut</span> <span class="ident">f</span>) <span class="op">=</span> <span class="self">self</span>
-                .<span class="ident">left</span>
-                .<span class="ident">source</span>
-                .<span class="ident">save_file</span>(<span class="ident">SaveKind::ChainHomotopy</span>, <span class="ident">source_s</span>, <span class="ident">source_t</span>)
-                .<span class="ident">open_file</span>(<span class="ident">dir</span>.<span class="ident">to_owned</span>())
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = <span class="kw-2">&amp;</span><span class="self">self</span>.save_dir {
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">mut </span>f) = <span class="self">self
+                </span>.left
+                .source
+                .save_file(SaveKind::ChainHomotopy, source_s, source_t)
+                .open_file(dir.to_owned())
             {
-                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">outputs</span> <span class="op">=</span> <span class="ident">Vec::with_capacity</span>(<span class="ident">num_gens</span>);
-                <span class="kw">for</span> <span class="kw">_</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">num_gens</span> {
-                    <span class="ident">outputs</span>.<span class="ident">push</span>(<span class="ident">FpVector::from_bytes</span>(<span class="ident">p</span>, <span class="ident">target_dim</span>, <span class="kw-2">&amp;mut</span> <span class="ident">f</span>).<span class="ident">unwrap</span>());
+                <span class="kw">let </span><span class="kw-2">mut </span>outputs = Vec::with_capacity(num_gens);
+                <span class="kw">for _ in </span><span class="number">0</span>..num_gens {
+                    outputs.push(FpVector::from_bytes(p, target_dim, <span class="kw-2">&amp;mut </span>f).unwrap());
                 }
-                <span class="kw">return</span> <span class="self">self</span>.<span class="ident">homotopies</span>[<span class="ident">source_s</span> <span class="kw">as</span> <span class="ident">i32</span>]
-                    .<span class="ident">add_generators_from_rows_ooo</span>(<span class="ident">source_t</span>, <span class="ident">outputs</span>);
+                <span class="kw">return </span><span class="self">self</span>.homotopies[source_s <span class="kw">as </span>i32]
+                    .add_generators_from_rows_ooo(source_t, outputs);
             }
         }
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">outputs</span> <span class="op">=</span> <span class="macro">vec!</span>[<span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="ident">target_dim</span>); <span class="ident">num_gens</span>];
+        <span class="kw">let </span><span class="kw-2">mut </span>outputs = <span class="macro">vec!</span>[FpVector::new(p, target_dim); num_gens];
 
-        <span class="kw">let</span> <span class="ident">f</span> <span class="op">=</span> <span class="op">|</span><span class="ident">i</span><span class="op">|</span> {
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">scratch</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(
-                <span class="ident">p</span>,
-                <span class="self">self</span>.<span class="ident">right</span>.<span class="ident">target</span>.<span class="ident">module</span>(<span class="ident">target_s</span> <span class="op">-</span> <span class="number">1</span>).<span class="ident">dimension</span>(<span class="ident">target_t</span>),
+        <span class="kw">let </span>f = |i| {
+            <span class="kw">let </span><span class="kw-2">mut </span>scratch = FpVector::new(
+                p,
+                <span class="self">self</span>.right.target.module(target_s - <span class="number">1</span>).dimension(target_t),
             );
-            <span class="self">self</span>.<span class="ident">right</span>.<span class="ident">get_map</span>(<span class="ident">source_s</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">left</span>.<span class="ident">shift_s</span>).<span class="ident">apply</span>(
-                <span class="ident">scratch</span>.<span class="ident">as_slice_mut</span>(),
+            <span class="self">self</span>.right.get_map(source_s - <span class="self">self</span>.left.shift_s).apply(
+                scratch.as_slice_mut(),
                 <span class="number">1</span>,
-                <span class="ident">source_t</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">left</span>.<span class="ident">shift_t</span>,
-                <span class="self">self</span>.<span class="ident">left</span>.<span class="ident">get_map</span>(<span class="ident">source_s</span>).<span class="ident">output</span>(<span class="ident">source_t</span>, <span class="ident">i</span>).<span class="ident">as_slice</span>(),
+                source_t - <span class="self">self</span>.left.shift_t,
+                <span class="self">self</span>.left.get_map(source_s).output(source_t, i).as_slice(),
             );
 
-            <span class="self">self</span>.<span class="ident">homotopies</span>[<span class="ident">source_s</span> <span class="kw">as</span> <span class="ident">i32</span> <span class="op">-</span> <span class="number">1</span>].<span class="ident">apply</span>(
-                <span class="ident">scratch</span>.<span class="ident">as_slice_mut</span>(),
-                <span class="kw-2">*</span><span class="ident">p</span> <span class="op">-</span> <span class="number">1</span>,
-                <span class="ident">source_t</span>,
-                <span class="self">self</span>.<span class="ident">left</span>
-                    .<span class="ident">source</span>
-                    .<span class="ident">differential</span>(<span class="ident">source_s</span>)
-                    .<span class="ident">output</span>(<span class="ident">source_t</span>, <span class="ident">i</span>)
-                    .<span class="ident">as_slice</span>(),
+            <span class="self">self</span>.homotopies[source_s <span class="kw">as </span>i32 - <span class="number">1</span>].apply(
+                scratch.as_slice_mut(),
+                <span class="kw-2">*</span>p - <span class="number">1</span>,
+                source_t,
+                <span class="self">self</span>.left
+                    .source
+                    .differential(source_s)
+                    .output(source_t, i)
+                    .as_slice(),
             );
 
-            <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">debug_assertions</span>)]</span>
-            <span class="kw">if</span> <span class="ident">target_s</span> <span class="op">&gt;</span> <span class="number">1</span>
-                <span class="op">&amp;&amp;</span> <span class="self">self</span>
-                    .<span class="ident">right</span>
-                    .<span class="ident">target</span>
-                    .<span class="ident">has_computed_bidegree</span>(<span class="ident">target_s</span> <span class="op">-</span> <span class="number">2</span>, <span class="ident">target_t</span>)
+            <span class="attribute">#[cfg(debug_assertions)]
+            </span><span class="kw">if </span>target_s &gt; <span class="number">1
+                </span>&amp;&amp; <span class="self">self
+                    </span>.right
+                    .target
+                    .has_computed_bidegree(target_s - <span class="number">2</span>, target_t)
             {
-                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">r</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(
-                    <span class="ident">p</span>,
-                    <span class="self">self</span>.<span class="ident">right</span>.<span class="ident">target</span>.<span class="ident">module</span>(<span class="ident">target_s</span> <span class="op">-</span> <span class="number">2</span>).<span class="ident">dimension</span>(<span class="ident">target_t</span>),
+                <span class="kw">let </span><span class="kw-2">mut </span>r = FpVector::new(
+                    p,
+                    <span class="self">self</span>.right.target.module(target_s - <span class="number">2</span>).dimension(target_t),
                 );
-                <span class="self">self</span>.<span class="ident">right</span>.<span class="ident">target</span>.<span class="ident">differential</span>(<span class="ident">target_s</span> <span class="op">-</span> <span class="number">1</span>).<span class="ident">apply</span>(
-                    <span class="ident">r</span>.<span class="ident">as_slice_mut</span>(),
+                <span class="self">self</span>.right.target.differential(target_s - <span class="number">1</span>).apply(
+                    r.as_slice_mut(),
                     <span class="number">1</span>,
-                    <span class="ident">target_t</span>,
-                    <span class="ident">scratch</span>.<span class="ident">as_slice</span>(),
+                    target_t,
+                    scratch.as_slice(),
                 );
                 <span class="macro">assert!</span>(
-                    <span class="ident">r</span>.<span class="ident">is_zero</span>(),
+                    r.is_zero(),
                     <span class="string">&quot;Failed to lift at (target_s, target_t) = ({}, {})&quot;</span>,
-                    <span class="ident">target_s</span> <span class="op">-</span> <span class="number">1</span>,
-                    <span class="ident">target_t</span>
+                    target_s - <span class="number">1</span>,
+                    target_t
                 );
             }
 
-            <span class="ident">scratch</span>
+            scratch
         };
 
-        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>))]</span>
-        <span class="kw">let</span> <span class="ident">scratches</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">FpVector</span><span class="op">&gt;</span> <span class="op">=</span> (<span class="number">0</span>..<span class="ident">num_gens</span>).<span class="ident">into_iter</span>().<span class="ident">map</span>(<span class="ident">f</span>).<span class="ident">collect</span>();
+        <span class="attribute">#[cfg(not(feature = <span class="string">&quot;concurrent&quot;</span>))]
+        </span><span class="kw">let </span>scratches: Vec&lt;FpVector&gt; = (<span class="number">0</span>..num_gens).into_iter().map(f).collect();
 
-        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
-        <span class="kw">let</span> <span class="ident">scratches</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">FpVector</span><span class="op">&gt;</span> <span class="op">=</span> (<span class="number">0</span>..<span class="ident">num_gens</span>).<span class="ident">into_par_iter</span>().<span class="ident">map</span>(<span class="ident">f</span>).<span class="ident">collect</span>();
+        <span class="attribute">#[cfg(feature = <span class="string">&quot;concurrent&quot;</span>)]
+        </span><span class="kw">let </span>scratches: Vec&lt;FpVector&gt; = (<span class="number">0</span>..num_gens).into_par_iter().map(f).collect();
 
-        <span class="macro">assert!</span>(<span class="self">self</span>.<span class="ident">right</span>.<span class="ident">target</span>.<span class="ident">apply_quasi_inverse</span>(
-            <span class="kw-2">&amp;mut</span> <span class="ident">outputs</span>,
-            <span class="ident">target_s</span>,
-            <span class="ident">target_t</span>,
-            <span class="kw-2">&amp;</span><span class="ident">scratches</span>,
+        <span class="macro">assert!</span>(U::apply_quasi_inverse(
+            <span class="kw-2">&amp;*</span><span class="self">self</span>.right.target,
+            <span class="kw-2">&amp;mut </span>outputs,
+            target_s,
+            target_t,
+            <span class="kw-2">&amp;</span>scratches,
         ));
 
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dir</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">save_dir</span> {
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="self">self</span>
-                .<span class="ident">left</span>
-                .<span class="ident">source</span>
-                .<span class="ident">save_file</span>(<span class="ident">SaveKind::ChainHomotopy</span>, <span class="ident">source_s</span>, <span class="ident">source_t</span>)
-                .<span class="ident">create_file</span>(<span class="ident">dir</span>.<span class="ident">to_owned</span>(), <span class="bool-val">false</span>);
-            <span class="kw">for</span> <span class="ident">row</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="ident">outputs</span> {
-                <span class="ident">row</span>.<span class="ident">to_bytes</span>(<span class="kw-2">&amp;mut</span> <span class="ident">f</span>).<span class="ident">unwrap</span>();
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = <span class="kw-2">&amp;</span><span class="self">self</span>.save_dir {
+            <span class="kw">let </span><span class="kw-2">mut </span>f = <span class="self">self
+                </span>.left
+                .source
+                .save_file(SaveKind::ChainHomotopy, source_s, source_t)
+                .create_file(dir.to_owned(), <span class="bool-val">false</span>);
+            <span class="kw">for </span>row <span class="kw">in </span><span class="kw-2">&amp;</span>outputs {
+                row.to_bytes(<span class="kw-2">&amp;mut </span>f).unwrap();
             }
         }
-        <span class="self">self</span>.<span class="ident">homotopies</span>[<span class="ident">source_s</span> <span class="kw">as</span> <span class="ident">i32</span>].<span class="ident">add_generators_from_rows_ooo</span>(<span class="ident">source_t</span>, <span class="ident">outputs</span>)
+        <span class="self">self</span>.homotopies[source_s <span class="kw">as </span>i32].add_generators_from_rows_ooo(source_t, outputs)
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">homotopy</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">source_s</span>: <span class="ident">u32</span>) -&gt; <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">U::Module</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-        <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">homotopies</span>[<span class="ident">source_s</span> <span class="kw">as</span> <span class="ident">i32</span>])
+    <span class="kw">pub fn </span>homotopy(<span class="kw-2">&amp;</span><span class="self">self</span>, source_s: u32) -&gt; Arc&lt;FreeModuleHomomorphism&lt;U::Module&gt;&gt; {
+        Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.homotopies[source_s <span class="kw">as </span>i32])
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">save_dir</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">Path</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">save_dir</span>.<span class="ident">as_deref</span>()
+    <span class="kw">pub fn </span>save_dir(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Path&gt; {
+        <span class="self">self</span>.save_dir.as_deref()
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="ext" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0 (a55dd71d5 2022-09-19)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="ext" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0 (897e37553 2022-11-02)" ></div></body></html>

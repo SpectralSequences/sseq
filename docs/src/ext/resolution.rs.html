@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/resolution.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>resolution.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled><link rel="stylesheet" type="text/css" href="../../dark.css" disabled><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script><script defer src="../../main.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/resolution.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>resolution.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" href="../../normalize.css"><link rel="stylesheet" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" href="../../ayu.css" disabled><link rel="stylesheet" href="../../dark.css" disabled><link rel="stylesheet" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script><script defer src="../../main.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
 <!-- The loading of KaTeX is deferred to speed up page rendering -->
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.js" integrity="sha384-Bi8OWqMXO1ta+a4EPkZv7bYGIes7C3krGSZoTGNTAnAn5eYQc7IIXrJ/7ck1drAi" crossorigin="anonymous"></script>
 <!-- To automatically render math in text elements, include the auto-render extension: -->
@@ -1018,969 +1018,967 @@
 <span id="993">993</span>
 <span id="994">994</span>
 <span id="995">995</span>
-<span id="996">996</span>
-</pre><pre class="rust"><code><span class="doccomment">//! This module exports the [`Resolution`] object, which is a chain complex resolving a module. In</span>
-<span class="doccomment">//! particular, this contains the core logic that compute minimal resolutions.</span>
-<span class="kw">use</span> <span class="ident">std::sync</span>::{<span class="ident">Arc</span>, <span class="ident">Mutex</span>};
+</pre><pre class="rust"><code><span class="doccomment">//! This module exports the [`Resolution`] object, which is a chain complex resolving a module. In
+//! particular, this contains the core logic that compute minimal resolutions.
+</span><span class="kw">use </span>std::sync::{Arc, Mutex};
 
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::chain_complex</span>::{<span class="ident">AugmentedChainComplex</span>, <span class="ident">ChainComplex</span>};
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::save::SaveKind</span>;
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::utils::Timer</span>;
+<span class="kw">use </span><span class="kw">crate</span>::chain_complex::{AugmentedChainComplex, ChainComplex};
+<span class="kw">use </span><span class="kw">crate</span>::save::SaveKind;
+<span class="kw">use </span><span class="kw">crate</span>::utils::Timer;
 
-<span class="kw">use</span> <span class="ident">algebra::module::homomorphism</span>::{<span class="ident">ModuleHomomorphism</span>, <span class="ident">MuFreeModuleHomomorphism</span>};
-<span class="kw">use</span> <span class="ident">algebra::module</span>::{<span class="ident">Module</span>, <span class="ident">MuFreeModule</span>};
-<span class="kw">use</span> <span class="ident">algebra</span>::{<span class="ident">Algebra</span>, <span class="ident">MuAlgebra</span>};
-<span class="kw">use</span> <span class="ident">fp::matrix</span>::{<span class="ident">AugmentedMatrix</span>, <span class="ident">QuasiInverse</span>, <span class="ident">Subspace</span>};
-<span class="kw">use</span> <span class="ident">fp::vector</span>::{<span class="ident">FpVector</span>, <span class="ident">Slice</span>, <span class="ident">SliceMut</span>};
-<span class="kw">use</span> <span class="ident">once::OnceVec</span>;
+<span class="kw">use </span>algebra::module::homomorphism::{ModuleHomomorphism, MuFreeModuleHomomorphism};
+<span class="kw">use </span>algebra::module::{Module, MuFreeModule};
+<span class="kw">use </span>algebra::{Algebra, MuAlgebra};
+<span class="kw">use </span>fp::matrix::{AugmentedMatrix, QuasiInverse, Subspace};
+<span class="kw">use </span>fp::vector::{FpVector, Slice, SliceMut};
+<span class="kw">use </span>once::OnceVec;
 
-<span class="kw">use</span> <span class="ident">std::path</span>::{<span class="ident">Path</span>, <span class="ident">PathBuf</span>};
+<span class="kw">use </span>std::path::{Path, PathBuf};
 
-<span class="kw">use</span> <span class="ident">anyhow::Context</span>;
-<span class="kw">use</span> <span class="ident">byteorder</span>::{<span class="ident">LittleEndian</span>, <span class="ident">ReadBytesExt</span>, <span class="ident">WriteBytesExt</span>};
-<span class="kw">use</span> <span class="ident">dashmap::DashMap</span>;
+<span class="kw">use </span>anyhow::Context;
+<span class="kw">use </span>byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+<span class="kw">use </span>dashmap::DashMap;
 
-<span class="kw">use</span> <span class="ident">itertools::Itertools</span>;
+<span class="kw">use </span>itertools::Itertools;
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
-<span class="kw">use</span> <span class="ident">std::sync::mpsc</span>;
+<span class="attribute">#[cfg(feature = <span class="string">&quot;concurrent&quot;</span>)]
+</span><span class="kw">use </span>std::sync::mpsc;
 
-<span class="doccomment">/// In [`MuResolution::compute_through_stem`] and [`MuResolution::compute_through_bidegree`], we pass</span>
-<span class="doccomment">/// this struct around to inform the supervisor what bidegrees have been computed. We use an</span>
-<span class="doccomment">/// explicit struct instead of a tuple to avoid an infinite type problem.</span>
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
-<span class="kw">struct</span> <span class="ident">SenderData</span> {
-    <span class="ident">s</span>: <span class="ident">u32</span>,
-    <span class="ident">t</span>: <span class="ident">i32</span>,
-    <span class="doccomment">/// Whether this bidegree was newly calculated or have already been calculated.</span>
-    <span class="ident">new</span>: <span class="ident">bool</span>,
-    <span class="doccomment">/// The sender object used to send the `SenderData`. We put this in the struct and pass it</span>
-    <span class="doccomment">/// around the mpsc, so that when all senders are dropped, we know the computation has</span>
-    <span class="doccomment">/// completed. Compared to keeping track of calculations manually, this has the advantage of</span>
-    <span class="doccomment">/// behaving correctly when a thread panicking.</span>
-    <span class="ident">sender</span>: <span class="ident">mpsc::Sender</span><span class="op">&lt;</span><span class="ident">SenderData</span><span class="op">&gt;</span>,
+<span class="doccomment">/// In [`MuResolution::compute_through_stem`] and [`MuResolution::compute_through_bidegree`], we pass
+/// this struct around to inform the supervisor what bidegrees have been computed. We use an
+/// explicit struct instead of a tuple to avoid an infinite type problem.
+</span><span class="attribute">#[cfg(feature = <span class="string">&quot;concurrent&quot;</span>)]
+</span><span class="kw">struct </span>SenderData {
+    s: u32,
+    t: i32,
+    <span class="doccomment">/// Whether this bidegree was newly calculated or have already been calculated.
+    </span>new: bool,
+    <span class="doccomment">/// The sender object used to send the `SenderData`. We put this in the struct and pass it
+    /// around the mpsc, so that when all senders are dropped, we know the computation has
+    /// completed. Compared to keeping track of calculations manually, this has the advantage of
+    /// behaving correctly when a thread panicking.
+    </span>sender: mpsc::Sender&lt;SenderData&gt;,
 }
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
-<span class="kw">impl</span> <span class="ident">SenderData</span> {
-    <span class="kw">fn</span> <span class="ident">send</span>(<span class="ident">s</span>: <span class="ident">u32</span>, <span class="ident">t</span>: <span class="ident">i32</span>, <span class="ident">new</span>: <span class="ident">bool</span>, <span class="ident">sender</span>: <span class="ident">mpsc::Sender</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span>) {
-        <span class="ident">sender</span>
-            .<span class="ident">send</span>(<span class="self">Self</span> {
-                <span class="ident">s</span>,
-                <span class="ident">t</span>,
-                <span class="ident">new</span>,
-                <span class="ident">sender</span>: <span class="ident">sender</span>.<span class="ident">clone</span>(),
+<span class="attribute">#[cfg(feature = <span class="string">&quot;concurrent&quot;</span>)]
+</span><span class="kw">impl </span>SenderData {
+    <span class="kw">fn </span>send(s: u32, t: i32, new: bool, sender: mpsc::Sender&lt;<span class="self">Self</span>&gt;) {
+        sender
+            .send(<span class="self">Self </span>{
+                s,
+                t,
+                new,
+                sender: sender.clone(),
             })
-            .<span class="ident">unwrap</span>()
+            .unwrap()
     }
 }
 
-<span class="doccomment">/// This is the maximum number of new generators we expect in each bidegree. This affects how much</span>
-<span class="doccomment">/// space we allocate when we are extending our resolutions. Having more than this many new</span>
-<span class="doccomment">/// generators will result in a slowdown but not an error. It is relatively cheap to increment this</span>
-<span class="doccomment">/// number if needs be, but up to the 140th stem we only see at most 8 new generators.</span>
-<span class="kw">const</span> <span class="ident">MAX_NEW_GENS</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="number">10</span>;
+<span class="doccomment">/// This is the maximum number of new generators we expect in each bidegree. This affects how much
+/// space we allocate when we are extending our resolutions. Having more than this many new
+/// generators will result in a slowdown but not an error. It is relatively cheap to increment this
+/// number if needs be, but up to the 140th stem we only see at most 8 new generators.
+</span><span class="kw">const </span>MAX_NEW_GENS: usize = <span class="number">10</span>;
 
-<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">Resolution</span><span class="op">&lt;</span><span class="ident">CC</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">MuResolution</span><span class="op">&lt;</span><span class="bool-val">false</span>, <span class="ident">CC</span><span class="op">&gt;</span>;
-<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">UnstableResolution</span><span class="op">&lt;</span><span class="ident">CC</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">MuResolution</span><span class="op">&lt;</span><span class="bool-val">true</span>, <span class="ident">CC</span><span class="op">&gt;</span>;
+<span class="kw">pub type </span>Resolution&lt;CC&gt; = MuResolution&lt;<span class="bool-val">false</span>, CC&gt;;
+<span class="kw">pub type </span>UnstableResolution&lt;CC&gt; = MuResolution&lt;<span class="bool-val">true</span>, CC&gt;;
 
-<span class="doccomment">/// A minimal resolution of a chain complex. The functions [`MuResolution::compute_through_stem`] and</span>
-<span class="doccomment">/// [`MuResolution::compute_through_bidegree`] extends the minimal resolution to the given bidegree.</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">MuResolution</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">U</span>: <span class="ident">bool</span>, <span class="ident">CC</span>: <span class="ident">ChainComplex</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">CC::Algebra</span>: <span class="ident">MuAlgebra</span><span class="op">&lt;</span><span class="ident">U</span><span class="op">&gt;</span>,
+<span class="doccomment">/// A minimal resolution of a chain complex. The functions [`MuResolution::compute_through_stem`] and
+/// [`MuResolution::compute_through_bidegree`] extends the minimal resolution to the given bidegree.
+</span><span class="kw">pub struct </span>MuResolution&lt;<span class="kw">const </span>U: bool, CC: ChainComplex&gt;
+<span class="kw">where
+    </span>CC::Algebra: MuAlgebra&lt;U&gt;,
 {
-    <span class="ident">name</span>: <span class="ident">String</span>,
-    <span class="ident">lock</span>: <span class="ident">Mutex</span><span class="op">&lt;</span>()<span class="op">&gt;</span>,
-    <span class="ident">complex</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">CC</span><span class="op">&gt;</span>,
-    <span class="ident">modules</span>: <span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">MuFreeModule</span><span class="op">&lt;</span><span class="ident">U</span>, <span class="ident">CC::Algebra</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    <span class="ident">zero_module</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">MuFreeModule</span><span class="op">&lt;</span><span class="ident">U</span>, <span class="ident">CC::Algebra</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    <span class="ident">chain_maps</span>: <span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">MuFreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">U</span>, <span class="ident">CC::Module</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    <span class="ident">differentials</span>: <span class="ident">OnceVec</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">MuFreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">U</span>, <span class="ident">MuFreeModule</span><span class="op">&lt;</span><span class="ident">U</span>, <span class="ident">CC::Algebra</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    name: String,
+    lock: Mutex&lt;()&gt;,
+    complex: Arc&lt;CC&gt;,
+    modules: OnceVec&lt;Arc&lt;MuFreeModule&lt;U, CC::Algebra&gt;&gt;&gt;,
+    zero_module: Arc&lt;MuFreeModule&lt;U, CC::Algebra&gt;&gt;,
+    chain_maps: OnceVec&lt;Arc&lt;MuFreeModuleHomomorphism&lt;U, CC::Module&gt;&gt;&gt;,
+    differentials: OnceVec&lt;Arc&lt;MuFreeModuleHomomorphism&lt;U, MuFreeModule&lt;U, CC::Algebra&gt;&gt;&gt;&gt;,
 
-    <span class="doccomment">///  For each *internal* degree, store the kernel of the most recently calculated chain map as</span>
-    <span class="doccomment">///  returned by `generate_old_kernel_and_compute_new_kernel`, to be used if we run</span>
-    <span class="doccomment">///  compute_through_degree again.</span>
-    <span class="ident">kernels</span>: <span class="ident">DashMap</span><span class="op">&lt;</span>(<span class="ident">u32</span>, <span class="ident">i32</span>), <span class="ident">Subspace</span><span class="op">&gt;</span>,
-    <span class="ident">save_dir</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">PathBuf</span><span class="op">&gt;</span>,
+    <span class="doccomment">///  For each *internal* degree, store the kernel of the most recently calculated chain map as
+    ///  returned by `generate_old_kernel_and_compute_new_kernel`, to be used if we run
+    ///  compute_through_degree again.
+    </span>kernels: DashMap&lt;(u32, i32), Subspace&gt;,
+    save_dir: <span class="prelude-ty">Option</span>&lt;PathBuf&gt;,
 
-    <span class="doccomment">/// Whether we should save newly computed data to the disk. This has no effect if there is no</span>
-    <span class="doccomment">/// save file. Defaults to `self.save_dir.is_some()`.</span>
-    <span class="kw">pub</span> <span class="ident">should_save</span>: <span class="ident">bool</span>,
+    <span class="doccomment">/// Whether we should save newly computed data to the disk. This has no effect if there is no
+    /// save file. Defaults to `self.save_dir.is_some()`.
+    </span><span class="kw">pub </span>should_save: bool,
 
-    <span class="doccomment">/// Whether we should keep the quasi-inverses of the differentials.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// If set to false,</span>
-    <span class="doccomment">///  - If there is no save file, then the quasi-inverse will not be computed.</span>
-    <span class="doccomment">///  - If there is a save file, then the quasi-inverse will be computed, written to disk, and</span>
-    <span class="doccomment">///    dropped from memory. We will not load quasi-inverses from save files.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// Note that this only applies to quasi-inverses of differentials. The quasi-inverses to the</span>
-    <span class="doccomment">/// augmentation map are useful when the target chain complex is not concentrated in one</span>
-    <span class="doccomment">/// degree, and they tend to be quite small anyway.</span>
-    <span class="kw">pub</span> <span class="ident">load_quasi_inverse</span>: <span class="ident">bool</span>,
+    <span class="doccomment">/// Whether we should keep the quasi-inverses of the differentials.
+    ///
+    /// If set to false,
+    ///  - If there is no save file, then the quasi-inverse will not be computed.
+    ///  - If there is a save file, then the quasi-inverse will be computed, written to disk, and
+    ///    dropped from memory. We will not load quasi-inverses from save files.
+    ///
+    /// Note that this only applies to quasi-inverses of differentials. The quasi-inverses to the
+    /// augmentation map are useful when the target chain complex is not concentrated in one
+    /// degree, and they tend to be quite small anyway.
+    </span><span class="kw">pub </span>load_quasi_inverse: bool,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">U</span>: <span class="ident">bool</span>, <span class="ident">CC</span>: <span class="ident">ChainComplex</span><span class="op">&gt;</span> <span class="ident">MuResolution</span><span class="op">&lt;</span><span class="ident">U</span>, <span class="ident">CC</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">CC::Algebra</span>: <span class="ident">MuAlgebra</span><span class="op">&lt;</span><span class="ident">U</span><span class="op">&gt;</span>,
+<span class="kw">impl</span>&lt;<span class="kw">const </span>U: bool, CC: ChainComplex&gt; MuResolution&lt;U, CC&gt;
+<span class="kw">where
+    </span>CC::Algebra: MuAlgebra&lt;U&gt;,
 {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">complex</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">CC</span><span class="op">&gt;</span>) -&gt; <span class="self">Self</span> {
-        <span class="comment">// It doesn&#39;t error if the save file is None</span>
-        <span class="ident"><span class="self">Self</span>::new_with_save</span>(<span class="ident">complex</span>, <span class="prelude-val">None</span>).<span class="ident">unwrap</span>()
+    <span class="kw">pub fn </span>new(complex: Arc&lt;CC&gt;) -&gt; <span class="self">Self </span>{
+        <span class="comment">// It doesn&#39;t error if the save file is None
+        </span><span class="self">Self</span>::new_with_save(complex, <span class="prelude-val">None</span>).unwrap()
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new_with_save</span>(<span class="ident">complex</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">CC</span><span class="op">&gt;</span>, <span class="ident">save_dir</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">PathBuf</span><span class="op">&gt;</span>) -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">algebra</span> <span class="op">=</span> <span class="ident">complex</span>.<span class="ident">algebra</span>();
-        <span class="kw">let</span> <span class="ident">min_degree</span> <span class="op">=</span> <span class="ident">complex</span>.<span class="ident">min_degree</span>();
-        <span class="kw">let</span> <span class="ident">zero_module</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">MuFreeModule::new</span>(<span class="ident">algebra</span>, <span class="string">&quot;F_{-1}&quot;</span>.<span class="ident">to_string</span>(), <span class="ident">min_degree</span>));
+    <span class="kw">pub fn </span>new_with_save(complex: Arc&lt;CC&gt;, save_dir: <span class="prelude-ty">Option</span>&lt;PathBuf&gt;) -&gt; anyhow::Result&lt;<span class="self">Self</span>&gt; {
+        <span class="kw">let </span>algebra = complex.algebra();
+        <span class="kw">let </span>min_degree = complex.min_degree();
+        <span class="kw">let </span>zero_module = Arc::new(MuFreeModule::new(algebra, <span class="string">&quot;F_{-1}&quot;</span>.to_string(), min_degree));
 
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">p</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">save_dir</span> {
-            <span class="kw">for</span> <span class="ident">subdir</span> <span class="kw">in</span> <span class="ident">SaveKind::resolution_data</span>() {
-                <span class="ident">subdir</span>.<span class="ident">create_dir</span>(<span class="ident">p</span>)<span class="question-mark">?</span>;
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(p) = <span class="kw-2">&amp;</span>save_dir {
+            <span class="kw">for </span>subdir <span class="kw">in </span>SaveKind::resolution_data() {
+                subdir.create_dir(p)<span class="question-mark">?</span>;
             }
         }
 
-        <span class="prelude-val">Ok</span>(<span class="self">Self</span> {
-            <span class="ident">name</span>: <span class="ident">String::new</span>(),
-            <span class="ident">complex</span>,
-            <span class="ident">zero_module</span>,
-            <span class="ident">should_save</span>: <span class="ident">save_dir</span>.<span class="ident">is_some</span>(),
-            <span class="ident">save_dir</span>,
-            <span class="ident">lock</span>: <span class="ident">Mutex::new</span>(()),
+        <span class="prelude-val">Ok</span>(<span class="self">Self </span>{
+            name: String::new(),
+            complex,
+            zero_module,
+            should_save: save_dir.is_some(),
+            save_dir,
+            lock: Mutex::new(()),
 
-            <span class="ident">chain_maps</span>: <span class="ident">OnceVec::new</span>(),
-            <span class="ident">modules</span>: <span class="ident">OnceVec::new</span>(),
-            <span class="ident">differentials</span>: <span class="ident">OnceVec::new</span>(),
-            <span class="ident">kernels</span>: <span class="ident">DashMap::new</span>(),
-            <span class="ident">load_quasi_inverse</span>: <span class="bool-val">true</span>,
+            chain_maps: OnceVec::new(),
+            modules: OnceVec::new(),
+            differentials: OnceVec::new(),
+            kernels: DashMap::new(),
+            load_quasi_inverse: <span class="bool-val">true</span>,
         })
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">set_name</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">name</span>: <span class="ident">String</span>) {
-        <span class="self">self</span>.<span class="ident">name</span> <span class="op">=</span> <span class="ident">name</span>;
+    <span class="kw">pub fn </span>set_name(<span class="kw-2">&amp;mut </span><span class="self">self</span>, name: String) {
+        <span class="self">self</span>.name = name;
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">name</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">str</span> {
-        <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">name</span>
+    <span class="kw">pub fn </span>name(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>str {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.name
     }
 
-    <span class="doccomment">/// This function prepares the Resolution object to perform computations up to the</span>
-    <span class="doccomment">/// specified s degree. It does *not* perform any computations by itself. It simply lengthens</span>
-    <span class="doccomment">/// the `OnceVec`s `modules`, `chain_maps`, etc. to the right length.</span>
-    <span class="kw">fn</span> <span class="ident">extend_through_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">max_s</span>: <span class="ident">u32</span>) {
-        <span class="kw">let</span> <span class="ident">min_degree</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">min_degree</span>();
+    <span class="doccomment">/// This function prepares the Resolution object to perform computations up to the
+    /// specified s degree. It does *not* perform any computations by itself. It simply lengthens
+    /// the `OnceVec`s `modules`, `chain_maps`, etc. to the right length.
+    </span><span class="kw">fn </span>extend_through_degree(<span class="kw-2">&amp;</span><span class="self">self</span>, max_s: u32) {
+        <span class="kw">let </span>min_degree = <span class="self">self</span>.min_degree();
 
-        <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">modules</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">u32</span>..<span class="op">=</span><span class="ident">max_s</span> {
-            <span class="self">self</span>.<span class="ident">modules</span>.<span class="ident">push</span>(<span class="ident">Arc::new</span>(<span class="ident">MuFreeModule::new</span>(
-                <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">algebra</span>()),
+        <span class="kw">for </span>i <span class="kw">in </span><span class="self">self</span>.modules.len() <span class="kw">as </span>u32..=max_s {
+            <span class="self">self</span>.modules.push(Arc::new(MuFreeModule::new(
+                Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.algebra()),
                 <span class="macro">format!</span>(<span class="string">&quot;F{i}&quot;</span>),
-                <span class="ident">min_degree</span>,
+                min_degree,
             )));
-            <span class="self">self</span>.<span class="ident">chain_maps</span>.<span class="ident">push</span>(<span class="ident">Arc::new</span>(<span class="ident">MuFreeModuleHomomorphism::new</span>(
-                <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">modules</span>[<span class="ident">i</span>]),
-                <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">complex</span>.<span class="ident">module</span>(<span class="ident">i</span>)),
+            <span class="self">self</span>.chain_maps.push(Arc::new(MuFreeModuleHomomorphism::new(
+                Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.modules[i]),
+                Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.complex.module(i)),
                 <span class="number">0</span>,
             )));
         }
 
-        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">differentials</span>.<span class="ident">is_empty</span>() {
-            <span class="self">self</span>.<span class="ident">differentials</span>
-                .<span class="ident">push</span>(<span class="ident">Arc::new</span>(<span class="ident">MuFreeModuleHomomorphism::new</span>(
-                    <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">modules</span>[<span class="number">0u32</span>]),
-                    <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">zero_module</span>),
+        <span class="kw">if </span><span class="self">self</span>.differentials.is_empty() {
+            <span class="self">self</span>.differentials
+                .push(Arc::new(MuFreeModuleHomomorphism::new(
+                    Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.modules[<span class="number">0u32</span>]),
+                    Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.zero_module),
                     <span class="number">0</span>,
                 )));
         }
 
-        <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">differentials</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">u32</span>..<span class="op">=</span><span class="ident">max_s</span> {
-            <span class="self">self</span>.<span class="ident">differentials</span>
-                .<span class="ident">push</span>(<span class="ident">Arc::new</span>(<span class="ident">MuFreeModuleHomomorphism::new</span>(
-                    <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">modules</span>[<span class="ident">i</span>]),
-                    <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">modules</span>[<span class="ident">i</span> <span class="op">-</span> <span class="number">1</span>]),
+        <span class="kw">for </span>i <span class="kw">in </span><span class="self">self</span>.differentials.len() <span class="kw">as </span>u32..=max_s {
+            <span class="self">self</span>.differentials
+                .push(Arc::new(MuFreeModuleHomomorphism::new(
+                    Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.modules[i]),
+                    Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.modules[i - <span class="number">1</span>]),
                     <span class="number">0</span>,
                 )));
         }
     }
 
-    <span class="doccomment">/// Gets the kernel of the differential starting at $(s, t)$. If this was previously computed,</span>
-    <span class="doccomment">/// we simply retrieve the value (and remove it from the cache). Otherwise, we compute the</span>
-    <span class="doccomment">/// kernel. This requires the differential to be computed at $(s, t - 1)$, but not $(s, t)$</span>
-    <span class="doccomment">/// itself. Indeed, the new generators added to $(s, t)$ are by construction not in the kernel.</span>
-    <span class="kw">fn</span> <span class="ident">get_kernel</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">s</span>: <span class="ident">u32</span>, <span class="ident">t</span>: <span class="ident">i32</span>) -&gt; <span class="ident">Subspace</span> {
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>((<span class="kw">_</span>, <span class="ident">v</span>)) <span class="op">=</span> <span class="self">self</span>.<span class="ident">kernels</span>.<span class="ident">remove</span>(<span class="kw-2">&amp;</span>(<span class="ident">s</span>, <span class="ident">t</span>)) {
-            <span class="kw">return</span> <span class="ident">v</span>;
+    <span class="doccomment">/// Gets the kernel of the differential starting at $(s, t)$. If this was previously computed,
+    /// we simply retrieve the value (and remove it from the cache). Otherwise, we compute the
+    /// kernel. This requires the differential to be computed at $(s, t - 1)$, but not $(s, t)$
+    /// itself. Indeed, the new generators added to $(s, t)$ are by construction not in the kernel.
+    </span><span class="kw">fn </span>get_kernel(<span class="kw-2">&amp;</span><span class="self">self</span>, s: u32, t: i32) -&gt; Subspace {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>((<span class="kw">_</span>, v)) = <span class="self">self</span>.kernels.remove(<span class="kw-2">&amp;</span>(s, t)) {
+            <span class="kw">return </span>v;
         }
 
-        <span class="kw">if</span> <span class="ident">s</span> <span class="op">==</span> <span class="number">0</span> {
-            <span class="self">self</span>.<span class="ident">zero_module</span>.<span class="ident">extend_by_zero</span>(<span class="ident">t</span>);
+        <span class="kw">if </span>s == <span class="number">0 </span>{
+            <span class="self">self</span>.zero_module.extend_by_zero(t);
         }
 
-        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prime</span>();
+        <span class="kw">let </span>p = <span class="self">self</span>.prime();
 
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dir</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">save_dir</span> {
-            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">mut</span> <span class="ident">f</span>) <span class="op">=</span> <span class="self">self</span>
-                .<span class="ident">save_file</span>(<span class="ident">SaveKind::Kernel</span>, <span class="ident">s</span>, <span class="ident">t</span>)
-                .<span class="ident">open_file</span>(<span class="ident">dir</span>.<span class="ident">clone</span>())
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = <span class="kw-2">&amp;</span><span class="self">self</span>.save_dir {
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">mut </span>f) = <span class="self">self
+                </span>.save_file(SaveKind::Kernel, s, t)
+                .open_file(dir.clone())
             {
-                <span class="kw">return</span> <span class="ident">Subspace::from_bytes</span>(<span class="ident">p</span>, <span class="kw-2">&amp;mut</span> <span class="ident">f</span>)
-                    .<span class="ident">with_context</span>(<span class="op">|</span><span class="op">|</span> <span class="macro">format!</span>(<span class="string">&quot;Failed to read kernel at ({s}, {t})&quot;</span>))
-                    .<span class="ident">unwrap</span>();
+                <span class="kw">return </span>Subspace::from_bytes(p, <span class="kw-2">&amp;mut </span>f)
+                    .with_context(|| <span class="macro">format!</span>(<span class="string">&quot;Failed to read kernel at ({s}, {t})&quot;</span>))
+                    .unwrap();
             }
         }
 
-        <span class="kw">let</span> <span class="ident">timer</span> <span class="op">=</span> <span class="ident">Timer::start</span>();
-        <span class="kw">let</span> <span class="ident">complex</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">target</span>();
-        <span class="ident">complex</span>.<span class="ident">compute_through_bidegree</span>(<span class="ident">s</span>, <span class="ident">t</span>);
+        <span class="kw">let </span>timer = Timer::start();
+        <span class="kw">let </span>complex = <span class="self">self</span>.target();
+        complex.compute_through_bidegree(s, t);
 
-        <span class="kw">let</span> <span class="ident">current_differential</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">differential</span>(<span class="ident">s</span>);
-        <span class="kw">let</span> <span class="ident">current_chain_map</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">chain_map</span>(<span class="ident">s</span>);
+        <span class="kw">let </span>current_differential = <span class="self">self</span>.differential(s);
+        <span class="kw">let </span>current_chain_map = <span class="self">self</span>.chain_map(s);
 
-        <span class="kw">let</span> <span class="ident">source</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">module</span>(<span class="ident">s</span>);
-        <span class="kw">let</span> <span class="ident">target_cc</span> <span class="op">=</span> <span class="ident">complex</span>.<span class="ident">module</span>(<span class="ident">s</span>);
-        <span class="kw">let</span> <span class="ident">target_res</span> <span class="op">=</span> <span class="ident">current_differential</span>.<span class="ident">target</span>(); <span class="comment">// This is self.module(s - 1) unless s = 0.</span>
+        <span class="kw">let </span>source = <span class="self">self</span>.module(s);
+        <span class="kw">let </span>target_cc = complex.module(s);
+        <span class="kw">let </span>target_res = current_differential.target(); <span class="comment">// This is self.module(s - 1) unless s = 0.
 
-        <span class="ident">source</span>.<span class="ident">compute_basis</span>(<span class="ident">t</span>);
-        <span class="ident">target_res</span>.<span class="ident">compute_basis</span>(<span class="ident">t</span>);
+        </span>source.compute_basis(t);
+        target_res.compute_basis(t);
 
-        <span class="kw">let</span> <span class="ident">source_dimension</span> <span class="op">=</span> <span class="ident">source</span>.<span class="ident">dimension</span>(<span class="ident">t</span>);
-        <span class="kw">let</span> <span class="ident">target_cc_dimension</span> <span class="op">=</span> <span class="ident">target_cc</span>.<span class="ident">dimension</span>(<span class="ident">t</span>);
-        <span class="kw">let</span> <span class="ident">target_res_dimension</span> <span class="op">=</span> <span class="ident">target_res</span>.<span class="ident">dimension</span>(<span class="ident">t</span>);
+        <span class="kw">let </span>source_dimension = source.dimension(t);
+        <span class="kw">let </span>target_cc_dimension = target_cc.dimension(t);
+        <span class="kw">let </span>target_res_dimension = target_res.dimension(t);
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">matrix</span> <span class="op">=</span> <span class="ident">AugmentedMatrix</span>::<span class="op">&lt;</span><span class="number">3</span><span class="op">&gt;</span><span class="ident">::new</span>(
-            <span class="ident">p</span>,
-            <span class="ident">source_dimension</span>,
-            [<span class="ident">target_cc_dimension</span>, <span class="ident">target_res_dimension</span>, <span class="ident">source_dimension</span>],
+        <span class="kw">let </span><span class="kw-2">mut </span>matrix = AugmentedMatrix::&lt;<span class="number">3</span>&gt;::new(
+            p,
+            source_dimension,
+            [target_cc_dimension, target_res_dimension, source_dimension],
         );
 
-        <span class="ident">current_chain_map</span>.<span class="ident">get_matrix</span>(<span class="ident">matrix</span>.<span class="ident">segment</span>(<span class="number">0</span>, <span class="number">0</span>), <span class="ident">t</span>);
-        <span class="ident">current_differential</span>.<span class="ident">get_matrix</span>(<span class="ident">matrix</span>.<span class="ident">segment</span>(<span class="number">1</span>, <span class="number">1</span>), <span class="ident">t</span>);
-        <span class="ident">matrix</span>.<span class="ident">segment</span>(<span class="number">2</span>, <span class="number">2</span>).<span class="ident">add_identity</span>();
-        <span class="ident">matrix</span>.<span class="ident">row_reduce</span>();
+        current_chain_map.get_matrix(matrix.segment(<span class="number">0</span>, <span class="number">0</span>), t);
+        current_differential.get_matrix(matrix.segment(<span class="number">1</span>, <span class="number">1</span>), t);
+        matrix.segment(<span class="number">2</span>, <span class="number">2</span>).add_identity();
+        matrix.row_reduce();
 
-        <span class="kw">let</span> <span class="ident">kernel</span> <span class="op">=</span> <span class="ident">matrix</span>.<span class="ident">compute_kernel</span>();
+        <span class="kw">let </span>kernel = matrix.compute_kernel();
 
-        <span class="ident">timer</span>.<span class="ident">end</span>(<span class="macro">format_args!</span>(
+        timer.end(<span class="macro">format_args!</span>(
             <span class="string">&quot;Computed kernel for bidegree ({n}, {s})&quot;</span>,
-            <span class="ident">n</span> <span class="op">=</span> <span class="ident">t</span> <span class="op">-</span> <span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span>
+            n = t - s <span class="kw">as </span>i32
         ));
 
-        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">should_save</span> {
-            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dir</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">save_dir</span> {
-                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="self">self</span>
-                    .<span class="ident">save_file</span>(<span class="ident">SaveKind::Kernel</span>, <span class="ident">s</span>, <span class="ident">t</span>)
-                    .<span class="ident">create_file</span>(<span class="ident">dir</span>.<span class="ident">clone</span>(), <span class="bool-val">true</span>);
-                <span class="ident">kernel</span>
-                    .<span class="ident">to_bytes</span>(<span class="kw-2">&amp;mut</span> <span class="ident">f</span>)
-                    .<span class="ident">with_context</span>(<span class="op">|</span><span class="op">|</span> <span class="macro">format!</span>(<span class="string">&quot;Failed to write kernel at ({s}, {t})&quot;</span>))
-                    .<span class="ident">unwrap</span>();
+        <span class="kw">if </span><span class="self">self</span>.should_save {
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = <span class="kw-2">&amp;</span><span class="self">self</span>.save_dir {
+                <span class="kw">let </span><span class="kw-2">mut </span>f = <span class="self">self
+                    </span>.save_file(SaveKind::Kernel, s, t)
+                    .create_file(dir.clone(), <span class="bool-val">true</span>);
+                kernel
+                    .to_bytes(<span class="kw-2">&amp;mut </span>f)
+                    .with_context(|| <span class="macro">format!</span>(<span class="string">&quot;Failed to write kernel at ({s}, {t})&quot;</span>))
+                    .unwrap();
             }
         }
-        <span class="ident">kernel</span>
+        kernel
     }
 
-    <span class="doccomment">/// Call our resolution $X$, and the chain complex to resolve $C$. This is a legitimate</span>
-    <span class="doccomment">/// resolution if the map $f: X \to C$ induces an isomorphism on homology. This is the same as</span>
-    <span class="doccomment">/// saying the cofiber is exact. The cofiber is given by the complex</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// $$ X_s \oplus C_{s+1} \to X_{s-1} \oplus C_s \to X_{s-2} \oplus C_{s-1} \to \cdots $$</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// where the differentials are given by</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// $$ \begin{pmatrix} d_X &amp; 0 \\\\ (-1)^s f &amp; d_C \end{pmatrix} $$</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// Our method of producing $X_{s, t}$ and the chain maps are as follows. Suppose we have already</span>
-    <span class="doccomment">/// built the chain map and differential for $X_{s-1, t}$ and $X_{s, t-1}$. Since $X_s$ is a</span>
-    <span class="doccomment">/// free module, the generators in degree $&lt; t$ gives us a bunch of elements in $X_s$ already,</span>
-    <span class="doccomment">/// and we know exactly where they get mapped to. Let $T$ be the $\\mathbb{F}_p$ vector space</span>
-    <span class="doccomment">/// generated by these elements. Then we already have a map</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// $$ T \to X_{s-1, t} \oplus C_{s, t}$$</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// and we know this hits the kernel of the map</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// $$ D = X_{s-1, t} \oplus C_{s, t} \to X_{s-2, t} \oplus C_{s-1, t}. $$</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// What we need to do now is to add generators to $X_{s, t}$ to hit the entirity of this</span>
-    <span class="doccomment">/// kernel.  Note that we don&#39;t *have* to do this. Some of the elements in the kernel might be</span>
-    <span class="doccomment">/// hit by $C_{s+1, t}$ and we don&#39;t have to hit them, but we opt to add generators to hit it</span>
-    <span class="doccomment">/// anyway.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// If we do it this way, then we know the composite of the map</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// $$ T \to X_{s-1, t} \oplus C_{s, t} \to C_{s, t} $$</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// has to be surjective, since the image of $C_{s, t}$ under $D$ is also in the image of $X_{s-1, t}$.</span>
-    <span class="doccomment">/// So our first step is to add generators to $X_{s, t}$ such that this composite is</span>
-    <span class="doccomment">/// surjective.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// After adding these generators, we need to decide where to send them to. We know their</span>
-    <span class="doccomment">/// values in the $C_{s, t}$ component, but we need to use a quasi-inverse to find the element in</span>
-    <span class="doccomment">/// $X_{s-1, t}$ that hits the corresponding image of $C_{s, t}$. This tells us the $X_{s-1,</span>
-    <span class="doccomment">/// t}$ component.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// Finally, we need to add further generators to $X_{s, t}$ to hit all the elements in the</span>
-    <span class="doccomment">/// kernel of</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// $$ X_{s-1, t} \to X_{s-2, t} \oplus C_{s-1, t}. $$</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// This kernel was recorded by the previous iteration of the method in `old_kernel`, so this</span>
-    <span class="doccomment">/// step is doable as well.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// Note that if we add our new generators conservatively, then the kernel of the maps</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// $$</span>
-    <span class="doccomment">/// \begin{aligned}</span>
-    <span class="doccomment">/// T &amp;\to X_{s-1, t} \oplus C_{s, t} \\\\</span>
-    <span class="doccomment">/// X_{s, t} &amp;\to X_{s-1, t} \oplus C_{s, t}</span>
-    <span class="doccomment">/// \end{aligned}</span>
-    <span class="doccomment">/// $$</span>
-    <span class="doccomment">/// agree.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// In the code, we first row reduce the matrix of the map from $T$. This lets us record</span>
-    <span class="doccomment">/// the kernel which is what the function returns at the end. This computation helps us perform</span>
-    <span class="doccomment">/// the future steps since we need to know about the cokernel of this map.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// # Arguments</span>
-    <span class="doccomment">///  * `s` - The s degree to calculate</span>
-    <span class="doccomment">///  * `t` - The t degree to calculate</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// To run `step_resolution(s, t)`, we must have already had run `step_resolution(s, t - 1)`</span>
-    <span class="doccomment">/// and `step_resolution(s - 1, t - 1)`. It is more efficient if we have in fact run</span>
-    <span class="doccomment">/// `step_resolution(s - 1, t)`, so try your best to arrange calls to be run in this order.</span>
-    <span class="kw">fn</span> <span class="ident">step_resolution</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">s</span>: <span class="ident">u32</span>, <span class="ident">t</span>: <span class="ident">i32</span>) {
-        <span class="kw">if</span> <span class="ident">s</span> <span class="op">==</span> <span class="number">0</span> {
-            <span class="self">self</span>.<span class="ident">zero_module</span>.<span class="ident">extend_by_zero</span>(<span class="ident">t</span>);
+    <span class="doccomment">/// Call our resolution $X$, and the chain complex to resolve $C$. This is a legitimate
+    /// resolution if the map $f: X \to C$ induces an isomorphism on homology. This is the same as
+    /// saying the cofiber is exact. The cofiber is given by the complex
+    ///
+    /// $$ X_s \oplus C_{s+1} \to X_{s-1} \oplus C_s \to X_{s-2} \oplus C_{s-1} \to \cdots $$
+    ///
+    /// where the differentials are given by
+    ///
+    /// $$ \begin{pmatrix} d_X &amp; 0 \\\\ (-1)^s f &amp; d_C \end{pmatrix} $$
+    ///
+    /// Our method of producing $X_{s, t}$ and the chain maps are as follows. Suppose we have already
+    /// built the chain map and differential for $X_{s-1, t}$ and $X_{s, t-1}$. Since $X_s$ is a
+    /// free module, the generators in degree $&lt; t$ gives us a bunch of elements in $X_s$ already,
+    /// and we know exactly where they get mapped to. Let $T$ be the $\\mathbb{F}_p$ vector space
+    /// generated by these elements. Then we already have a map
+    ///
+    /// $$ T \to X_{s-1, t} \oplus C_{s, t}$$
+    ///
+    /// and we know this hits the kernel of the map
+    ///
+    /// $$ D = X_{s-1, t} \oplus C_{s, t} \to X_{s-2, t} \oplus C_{s-1, t}. $$
+    ///
+    /// What we need to do now is to add generators to $X_{s, t}$ to hit the entirity of this
+    /// kernel.  Note that we don&#39;t *have* to do this. Some of the elements in the kernel might be
+    /// hit by $C_{s+1, t}$ and we don&#39;t have to hit them, but we opt to add generators to hit it
+    /// anyway.
+    ///
+    /// If we do it this way, then we know the composite of the map
+    ///
+    /// $$ T \to X_{s-1, t} \oplus C_{s, t} \to C_{s, t} $$
+    ///
+    /// has to be surjective, since the image of $C_{s, t}$ under $D$ is also in the image of $X_{s-1, t}$.
+    /// So our first step is to add generators to $X_{s, t}$ such that this composite is
+    /// surjective.
+    ///
+    /// After adding these generators, we need to decide where to send them to. We know their
+    /// values in the $C_{s, t}$ component, but we need to use a quasi-inverse to find the element in
+    /// $X_{s-1, t}$ that hits the corresponding image of $C_{s, t}$. This tells us the $X_{s-1,
+    /// t}$ component.
+    ///
+    /// Finally, we need to add further generators to $X_{s, t}$ to hit all the elements in the
+    /// kernel of
+    ///
+    /// $$ X_{s-1, t} \to X_{s-2, t} \oplus C_{s-1, t}. $$
+    ///
+    /// This kernel was recorded by the previous iteration of the method in `old_kernel`, so this
+    /// step is doable as well.
+    ///
+    /// Note that if we add our new generators conservatively, then the kernel of the maps
+    ///
+    /// $$
+    /// \begin{aligned}
+    /// T &amp;\to X_{s-1, t} \oplus C_{s, t} \\\\
+    /// X_{s, t} &amp;\to X_{s-1, t} \oplus C_{s, t}
+    /// \end{aligned}
+    /// $$
+    /// agree.
+    ///
+    /// In the code, we first row reduce the matrix of the map from $T$. This lets us record
+    /// the kernel which is what the function returns at the end. This computation helps us perform
+    /// the future steps since we need to know about the cokernel of this map.
+    ///
+    /// # Arguments
+    ///  * `s` - The s degree to calculate
+    ///  * `t` - The t degree to calculate
+    ///
+    /// To run `step_resolution(s, t)`, we must have already had run `step_resolution(s, t - 1)`
+    /// and `step_resolution(s - 1, t - 1)`. It is more efficient if we have in fact run
+    /// `step_resolution(s - 1, t)`, so try your best to arrange calls to be run in this order.
+    </span><span class="kw">fn </span>step_resolution(<span class="kw-2">&amp;</span><span class="self">self</span>, s: u32, t: i32) {
+        <span class="kw">if </span>s == <span class="number">0 </span>{
+            <span class="self">self</span>.zero_module.extend_by_zero(t);
         }
 
-        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prime</span>();
+        <span class="kw">let </span>p = <span class="self">self</span>.prime();
 
-        <span class="comment">//                           current_chain_map</span>
-        <span class="comment">//                X_{s, t} --------------------&gt; C_{s, t}</span>
-        <span class="comment">//                   |                               |</span>
-        <span class="comment">//                   | current_differential          |</span>
-        <span class="comment">//                   v                               v</span>
-        <span class="comment">// old_kernel &lt;= X_{s-1, t} -------------------&gt; C_{s-1, t}</span>
+        <span class="comment">//                           current_chain_map
+        //                X_{s, t} --------------------&gt; C_{s, t}
+        //                   |                               |
+        //                   | current_differential          |
+        //                   v                               v
+        // old_kernel &lt;= X_{s-1, t} -------------------&gt; C_{s-1, t}
 
-        <span class="kw">let</span> <span class="ident">complex</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">target</span>();
-        <span class="ident">complex</span>.<span class="ident">compute_through_bidegree</span>(<span class="ident">s</span>, <span class="ident">t</span>);
+        </span><span class="kw">let </span>complex = <span class="self">self</span>.target();
+        complex.compute_through_bidegree(s, t);
 
-        <span class="kw">let</span> <span class="ident">current_differential</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">differential</span>(<span class="ident">s</span>);
-        <span class="kw">let</span> <span class="ident">current_chain_map</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">chain_map</span>(<span class="ident">s</span>);
-        <span class="kw">let</span> <span class="ident">complex_cur_differential</span> <span class="op">=</span> <span class="ident">complex</span>.<span class="ident">differential</span>(<span class="ident">s</span>);
+        <span class="kw">let </span>current_differential = <span class="self">self</span>.differential(s);
+        <span class="kw">let </span>current_chain_map = <span class="self">self</span>.chain_map(s);
+        <span class="kw">let </span>complex_cur_differential = complex.differential(s);
 
-        <span class="kw">match</span> <span class="ident">current_differential</span>.<span class="ident">next_degree</span>().<span class="ident">cmp</span>(<span class="kw-2">&amp;</span><span class="ident">t</span>) {
-            <span class="ident">std::cmp::Ordering::Greater</span> =&gt; {
-                <span class="comment">// Already computed this degree.</span>
-                <span class="kw">return</span>;
+        <span class="kw">match </span>current_differential.next_degree().cmp(<span class="kw-2">&amp;</span>t) {
+            std::cmp::Ordering::Greater =&gt; {
+                <span class="comment">// Already computed this degree.
+                </span><span class="kw">return</span>;
             }
-            <span class="ident">std::cmp::Ordering::Less</span> =&gt; {
-                <span class="comment">// Haven&#39;t computed far enough yet</span>
-                <span class="macro">panic!</span>(<span class="string">&quot;We&#39;re not ready to compute bidegree ({s}, {t}) yet.&quot;</span>);
+            std::cmp::Ordering::Less =&gt; {
+                <span class="comment">// Haven&#39;t computed far enough yet
+                </span><span class="macro">panic!</span>(<span class="string">&quot;We&#39;re not ready to compute bidegree ({s}, {t}) yet.&quot;</span>);
             }
-            <span class="ident">std::cmp::Ordering::Equal</span> =&gt; (),
+            std::cmp::Ordering::Equal =&gt; (),
         };
 
-        <span class="kw">let</span> <span class="ident">source</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">module</span>(<span class="ident">s</span>);
-        <span class="kw">let</span> <span class="ident">target_cc</span> <span class="op">=</span> <span class="ident">complex</span>.<span class="ident">module</span>(<span class="ident">s</span>);
-        <span class="kw">let</span> <span class="ident">target_res</span> <span class="op">=</span> <span class="ident">current_differential</span>.<span class="ident">target</span>(); <span class="comment">// This is self.module(s - 1) unless s = 0.</span>
+        <span class="kw">let </span>source = <span class="self">self</span>.module(s);
+        <span class="kw">let </span>target_cc = complex.module(s);
+        <span class="kw">let </span>target_res = current_differential.target(); <span class="comment">// This is self.module(s - 1) unless s = 0.
 
-        <span class="ident">source</span>.<span class="ident">compute_basis</span>(<span class="ident">t</span>);
+        </span>source.compute_basis(t);
 
-        <span class="comment">// The Homomorphism matrix has size source_dimension x target_dimension, but we are going to augment it with an</span>
-        <span class="comment">// identity matrix so that gives a matrix with dimensions source_dimension x (target_dimension + source_dimension).</span>
-        <span class="comment">// Later we&#39;re going to write into this same matrix an isomorphism source/image + new vectors --&gt; kernel</span>
-        <span class="comment">// This has size target_dimension x (2*target_dimension).</span>
-        <span class="comment">// This latter matrix may be used to find a preimage of an element under the differential.</span>
-        <span class="kw">let</span> <span class="ident">source_dimension</span> <span class="op">=</span> <span class="ident">source</span>.<span class="ident">dimension</span>(<span class="ident">t</span>);
-        <span class="kw">let</span> <span class="ident">target_cc_dimension</span> <span class="op">=</span> <span class="ident">target_cc</span>.<span class="ident">dimension</span>(<span class="ident">t</span>);
-        <span class="ident">target_res</span>.<span class="ident">compute_basis</span>(<span class="ident">t</span>);
-        <span class="kw">let</span> <span class="ident">target_res_dimension</span> <span class="op">=</span> <span class="ident">target_res</span>.<span class="ident">dimension</span>(<span class="ident">t</span>);
+        <span class="comment">// The Homomorphism matrix has size source_dimension x target_dimension, but we are going to augment it with an
+        // identity matrix so that gives a matrix with dimensions source_dimension x (target_dimension + source_dimension).
+        // Later we&#39;re going to write into this same matrix an isomorphism source/image + new vectors --&gt; kernel
+        // This has size target_dimension x (2*target_dimension).
+        // This latter matrix may be used to find a preimage of an element under the differential.
+        </span><span class="kw">let </span>source_dimension = source.dimension(t);
+        <span class="kw">let </span>target_cc_dimension = target_cc.dimension(t);
+        target_res.compute_basis(t);
+        <span class="kw">let </span>target_res_dimension = target_res.dimension(t);
 
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dir</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">save_dir</span> {
-            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">mut</span> <span class="ident">f</span>) <span class="op">=</span> <span class="self">self</span>
-                .<span class="ident">save_file</span>(<span class="ident">SaveKind::Differential</span>, <span class="ident">s</span>, <span class="ident">t</span>)
-                .<span class="ident">open_file</span>(<span class="ident">dir</span>.<span class="ident">clone</span>())
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = <span class="kw-2">&amp;</span><span class="self">self</span>.save_dir {
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">mut </span>f) = <span class="self">self
+                </span>.save_file(SaveKind::Differential, s, t)
+                .open_file(dir.clone())
             {
-                <span class="kw">let</span> <span class="ident">num_new_gens</span> <span class="op">=</span> <span class="ident">f</span>.<span class="ident">read_u64</span>::<span class="op">&lt;</span><span class="ident">LittleEndian</span><span class="op">&gt;</span>().<span class="ident">unwrap</span>() <span class="kw">as</span> <span class="ident">usize</span>;
-                <span class="comment">// This need not be equal to `target_res_dimension`. If we saved a big resolution</span>
-                <span class="comment">// and now only want to load up to a small stem, then `target_res_dimension` will</span>
-                <span class="comment">// be smaller. If we have previously saved a small resolution up to a stem and now</span>
-                <span class="comment">// want to resolve further, it will be bigger.</span>
-                <span class="kw">let</span> <span class="ident">saved_target_res_dimension</span> <span class="op">=</span> <span class="ident">f</span>.<span class="ident">read_u64</span>::<span class="op">&lt;</span><span class="ident">LittleEndian</span><span class="op">&gt;</span>().<span class="ident">unwrap</span>() <span class="kw">as</span> <span class="ident">usize</span>;
+                <span class="kw">let </span>num_new_gens = f.read_u64::&lt;LittleEndian&gt;().unwrap() <span class="kw">as </span>usize;
+                <span class="comment">// This need not be equal to `target_res_dimension`. If we saved a big resolution
+                // and now only want to load up to a small stem, then `target_res_dimension` will
+                // be smaller. If we have previously saved a small resolution up to a stem and now
+                // want to resolve further, it will be bigger.
+                </span><span class="kw">let </span>saved_target_res_dimension = f.read_u64::&lt;LittleEndian&gt;().unwrap() <span class="kw">as </span>usize;
                 <span class="macro">assert_eq!</span>(
-                    <span class="ident">target_cc_dimension</span>,
-                    <span class="ident">f</span>.<span class="ident">read_u64</span>::<span class="op">&lt;</span><span class="ident">LittleEndian</span><span class="op">&gt;</span>().<span class="ident">unwrap</span>() <span class="kw">as</span> <span class="ident">usize</span>,
-                    <span class="string">&quot;Malformed data: mismatched augmentation target dimension&quot;</span>
-                );
+                    target_cc_dimension,
+                    f.read_u64::&lt;LittleEndian&gt;().unwrap() <span class="kw">as </span>usize,
+                    <span class="string">&quot;Malformed data: mismatched augmentation target dimension&quot;
+                </span>);
 
-                <span class="ident">source</span>.<span class="ident">add_generators</span>(<span class="ident">t</span>, <span class="ident">num_new_gens</span>, <span class="prelude-val">None</span>);
+                source.add_generators(t, num_new_gens, <span class="prelude-val">None</span>);
 
-                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">d_targets</span> <span class="op">=</span> <span class="ident">Vec::with_capacity</span>(<span class="ident">num_new_gens</span>);
-                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">a_targets</span> <span class="op">=</span> <span class="ident">Vec::with_capacity</span>(<span class="ident">num_new_gens</span>);
+                <span class="kw">let </span><span class="kw-2">mut </span>d_targets = Vec::with_capacity(num_new_gens);
+                <span class="kw">let </span><span class="kw-2">mut </span>a_targets = Vec::with_capacity(num_new_gens);
 
-                <span class="kw">for</span> <span class="kw">_</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">num_new_gens</span> {
-                    <span class="ident">d_targets</span>
-                        .<span class="ident">push</span>(<span class="ident">FpVector::from_bytes</span>(<span class="ident">p</span>, <span class="ident">saved_target_res_dimension</span>, <span class="kw-2">&amp;mut</span> <span class="ident">f</span>).<span class="ident">unwrap</span>());
+                <span class="kw">for _ in </span><span class="number">0</span>..num_new_gens {
+                    d_targets
+                        .push(FpVector::from_bytes(p, saved_target_res_dimension, <span class="kw-2">&amp;mut </span>f).unwrap());
                 }
-                <span class="kw">for</span> <span class="kw">_</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">num_new_gens</span> {
-                    <span class="ident">a_targets</span>.<span class="ident">push</span>(<span class="ident">FpVector::from_bytes</span>(<span class="ident">p</span>, <span class="ident">target_cc_dimension</span>, <span class="kw-2">&amp;mut</span> <span class="ident">f</span>).<span class="ident">unwrap</span>());
+                <span class="kw">for _ in </span><span class="number">0</span>..num_new_gens {
+                    a_targets.push(FpVector::from_bytes(p, target_cc_dimension, <span class="kw-2">&amp;mut </span>f).unwrap());
                 }
-                <span class="ident">drop</span>(<span class="ident">f</span>);
-                <span class="ident">current_differential</span>.<span class="ident">add_generators_from_rows</span>(<span class="ident">t</span>, <span class="ident">d_targets</span>);
-                <span class="ident">current_chain_map</span>.<span class="ident">add_generators_from_rows</span>(<span class="ident">t</span>, <span class="ident">a_targets</span>);
+                drop(f);
+                current_differential.add_generators_from_rows(t, d_targets);
+                current_chain_map.add_generators_from_rows(t, a_targets);
 
-                <span class="comment">// res qi</span>
-                <span class="kw">if</span> <span class="self">self</span>.<span class="ident">load_quasi_inverse</span> {
-                    <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">mut</span> <span class="ident">f</span>) <span class="op">=</span>
-                        <span class="self">self</span>.<span class="ident">save_file</span>(<span class="ident">SaveKind::ResQi</span>, <span class="ident">s</span>, <span class="ident">t</span>).<span class="ident">open_file</span>(<span class="ident">dir</span>.<span class="ident">clone</span>())
+                <span class="comment">// res qi
+                </span><span class="kw">if </span><span class="self">self</span>.load_quasi_inverse {
+                    <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">mut </span>f) =
+                        <span class="self">self</span>.save_file(SaveKind::ResQi, s, t).open_file(dir.clone())
                     {
-                        <span class="kw">let</span> <span class="ident">res_qi</span> <span class="op">=</span> <span class="ident">QuasiInverse::from_bytes</span>(<span class="ident">p</span>, <span class="kw-2">&amp;mut</span> <span class="ident">f</span>).<span class="ident">unwrap</span>();
+                        <span class="kw">let </span>res_qi = QuasiInverse::from_bytes(p, <span class="kw-2">&amp;mut </span>f).unwrap();
 
                         <span class="macro">assert_eq!</span>(
-                            <span class="ident">res_qi</span>.<span class="ident">source_dimension</span>(),
-                            <span class="ident">source_dimension</span> <span class="op">+</span> <span class="ident">num_new_gens</span>,
-                            <span class="string">&quot;Malformed data: mismatched source dimension in resolution qi at ({s}, {t})&quot;</span>
-                            );
+                            res_qi.source_dimension(),
+                            source_dimension + num_new_gens,
+                            <span class="string">&quot;Malformed data: mismatched source dimension in resolution qi at ({s}, {t})&quot;
+                            </span>);
 
-                        <span class="ident">current_differential</span>.<span class="ident">set_quasi_inverse</span>(<span class="ident">t</span>, <span class="prelude-val">Some</span>(<span class="ident">res_qi</span>));
-                    } <span class="kw">else</span> {
-                        <span class="ident">current_differential</span>.<span class="ident">set_quasi_inverse</span>(<span class="ident">t</span>, <span class="prelude-val">None</span>);
+                        current_differential.set_quasi_inverse(t, <span class="prelude-val">Some</span>(res_qi));
+                    } <span class="kw">else </span>{
+                        current_differential.set_quasi_inverse(t, <span class="prelude-val">None</span>);
                     }
-                } <span class="kw">else</span> {
-                    <span class="ident">current_differential</span>.<span class="ident">set_quasi_inverse</span>(<span class="ident">t</span>, <span class="prelude-val">None</span>);
+                } <span class="kw">else </span>{
+                    current_differential.set_quasi_inverse(t, <span class="prelude-val">None</span>);
                 }
 
-                <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">mut</span> <span class="ident">f</span>) <span class="op">=</span> <span class="self">self</span>
-                    .<span class="ident">save_file</span>(<span class="ident">SaveKind::AugmentationQi</span>, <span class="ident">s</span>, <span class="ident">t</span>)
-                    .<span class="ident">open_file</span>(<span class="ident">dir</span>.<span class="ident">clone</span>())
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">mut </span>f) = <span class="self">self
+                    </span>.save_file(SaveKind::AugmentationQi, s, t)
+                    .open_file(dir.clone())
                 {
-                    <span class="kw">let</span> <span class="ident">cm_qi</span> <span class="op">=</span> <span class="ident">QuasiInverse::from_bytes</span>(<span class="ident">p</span>, <span class="kw-2">&amp;mut</span> <span class="ident">f</span>).<span class="ident">unwrap</span>();
+                    <span class="kw">let </span>cm_qi = QuasiInverse::from_bytes(p, <span class="kw-2">&amp;mut </span>f).unwrap();
 
                     <span class="macro">assert_eq!</span>(
-                        <span class="ident">cm_qi</span>.<span class="ident">target_dimension</span>(),
-                        <span class="ident">target_cc_dimension</span>,
-                        <span class="string">&quot;Malformed data: mismatched augmentation target dimension in qi at ({s}, {t})&quot;</span>
-                        );
+                        cm_qi.target_dimension(),
+                        target_cc_dimension,
+                        <span class="string">&quot;Malformed data: mismatched augmentation target dimension in qi at ({s}, {t})&quot;
+                        </span>);
                     <span class="macro">assert_eq!</span>(
-                        <span class="ident">cm_qi</span>.<span class="ident">source_dimension</span>(),
-                        <span class="ident">source_dimension</span> <span class="op">+</span> <span class="ident">num_new_gens</span>,
-                        <span class="string">&quot;Malformed data: mismatched source dimension in augmentation qi at ({s}, {t})&quot;</span>
-                        );
+                        cm_qi.source_dimension(),
+                        source_dimension + num_new_gens,
+                        <span class="string">&quot;Malformed data: mismatched source dimension in augmentation qi at ({s}, {t})&quot;
+                        </span>);
 
-                    <span class="ident">current_chain_map</span>.<span class="ident">set_quasi_inverse</span>(<span class="ident">t</span>, <span class="prelude-val">Some</span>(<span class="ident">cm_qi</span>));
-                } <span class="kw">else</span> {
-                    <span class="ident">current_chain_map</span>.<span class="ident">set_quasi_inverse</span>(<span class="ident">t</span>, <span class="prelude-val">None</span>);
+                    current_chain_map.set_quasi_inverse(t, <span class="prelude-val">Some</span>(cm_qi));
+                } <span class="kw">else </span>{
+                    current_chain_map.set_quasi_inverse(t, <span class="prelude-val">None</span>);
                 }
 
-                <span class="ident">current_differential</span>.<span class="ident">set_kernel</span>(<span class="ident">t</span>, <span class="prelude-val">None</span>);
-                <span class="ident">current_differential</span>.<span class="ident">set_image</span>(<span class="ident">t</span>, <span class="prelude-val">None</span>);
+                current_differential.set_kernel(t, <span class="prelude-val">None</span>);
+                current_differential.set_image(t, <span class="prelude-val">None</span>);
 
-                <span class="ident">current_chain_map</span>.<span class="ident">set_kernel</span>(<span class="ident">t</span>, <span class="prelude-val">None</span>);
-                <span class="ident">current_chain_map</span>.<span class="ident">set_image</span>(<span class="ident">t</span>, <span class="prelude-val">None</span>);
+                current_chain_map.set_kernel(t, <span class="prelude-val">None</span>);
+                current_chain_map.set_image(t, <span class="prelude-val">None</span>);
                 <span class="kw">return</span>;
             }
         }
 
-        <span class="kw">let</span> <span class="ident">timer</span> <span class="op">=</span> <span class="ident">Timer::start</span>();
+        <span class="kw">let </span>timer = Timer::start();
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">matrix</span> <span class="op">=</span> <span class="ident">AugmentedMatrix</span>::<span class="op">&lt;</span><span class="number">3</span><span class="op">&gt;</span><span class="ident">::new_with_capacity</span>(
-            <span class="ident">p</span>,
-            <span class="ident">source_dimension</span>,
-            <span class="kw-2">&amp;</span>[<span class="ident">target_cc_dimension</span>, <span class="ident">target_res_dimension</span>, <span class="ident">source_dimension</span>],
-            <span class="ident">source_dimension</span> <span class="op">+</span> <span class="ident">MAX_NEW_GENS</span>,
-            <span class="ident">MAX_NEW_GENS</span>,
+        <span class="kw">let </span><span class="kw-2">mut </span>matrix = AugmentedMatrix::&lt;<span class="number">3</span>&gt;::new_with_capacity(
+            p,
+            source_dimension,
+            <span class="kw-2">&amp;</span>[target_cc_dimension, target_res_dimension, source_dimension],
+            source_dimension + MAX_NEW_GENS,
+            MAX_NEW_GENS,
         );
-        <span class="comment">// Get the map (d, f) : X_{s, t} -&gt; X_{s-1, t} (+) C_{s, t} into matrix</span>
+        <span class="comment">// Get the map (d, f) : X_{s, t} -&gt; X_{s-1, t} (+) C_{s, t} into matrix
 
-        <span class="ident">current_chain_map</span>.<span class="ident">get_matrix</span>(<span class="ident">matrix</span>.<span class="ident">segment</span>(<span class="number">0</span>, <span class="number">0</span>), <span class="ident">t</span>);
-        <span class="ident">current_differential</span>.<span class="ident">get_matrix</span>(<span class="ident">matrix</span>.<span class="ident">segment</span>(<span class="number">1</span>, <span class="number">1</span>), <span class="ident">t</span>);
-        <span class="ident">matrix</span>.<span class="ident">segment</span>(<span class="number">2</span>, <span class="number">2</span>).<span class="ident">add_identity</span>();
+        </span>current_chain_map.get_matrix(matrix.segment(<span class="number">0</span>, <span class="number">0</span>), t);
+        current_differential.get_matrix(matrix.segment(<span class="number">1</span>, <span class="number">1</span>), t);
+        matrix.segment(<span class="number">2</span>, <span class="number">2</span>).add_identity();
 
-        <span class="ident">matrix</span>.<span class="ident">row_reduce</span>();
+        matrix.row_reduce();
 
-        <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">has_computed_bidegree</span>(<span class="ident">s</span> <span class="op">+</span> <span class="number">1</span>, <span class="ident">t</span>) {
-            <span class="kw">let</span> <span class="ident">kernel</span> <span class="op">=</span> <span class="ident">matrix</span>.<span class="ident">compute_kernel</span>();
-            <span class="kw">if</span> <span class="self">self</span>.<span class="ident">should_save</span> {
-                <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dir</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">save_dir</span> {
-                    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="self">self</span>
-                        .<span class="ident">save_file</span>(<span class="ident">SaveKind::Kernel</span>, <span class="ident">s</span>, <span class="ident">t</span>)
-                        .<span class="ident">create_file</span>(<span class="ident">dir</span>.<span class="ident">clone</span>(), <span class="bool-val">true</span>);
+        <span class="kw">if </span>!<span class="self">self</span>.has_computed_bidegree(s + <span class="number">1</span>, t) {
+            <span class="kw">let </span>kernel = matrix.compute_kernel();
+            <span class="kw">if </span><span class="self">self</span>.should_save {
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = <span class="kw-2">&amp;</span><span class="self">self</span>.save_dir {
+                    <span class="kw">let </span><span class="kw-2">mut </span>f = <span class="self">self
+                        </span>.save_file(SaveKind::Kernel, s, t)
+                        .create_file(dir.clone(), <span class="bool-val">true</span>);
 
-                    <span class="ident">kernel</span>
-                        .<span class="ident">to_bytes</span>(<span class="kw-2">&amp;mut</span> <span class="ident">f</span>)
-                        .<span class="ident">with_context</span>(<span class="op">|</span><span class="op">|</span> <span class="macro">format!</span>(<span class="string">&quot;Failed to write kernel at ({s}, {t})&quot;</span>))
-                        .<span class="ident">unwrap</span>();
+                    kernel
+                        .to_bytes(<span class="kw-2">&amp;mut </span>f)
+                        .with_context(|| <span class="macro">format!</span>(<span class="string">&quot;Failed to write kernel at ({s}, {t})&quot;</span>))
+                        .unwrap();
                 }
             }
 
-            <span class="self">self</span>.<span class="ident">kernels</span>.<span class="ident">insert</span>((<span class="ident">s</span>, <span class="ident">t</span>), <span class="ident">kernel</span>);
+            <span class="self">self</span>.kernels.insert((s, t), kernel);
         }
 
-        <span class="comment">// Now add generators to surject onto C_{s, t}.</span>
-        <span class="comment">// (For now we are just adding the eventual images of the new generators into matrix, we will update</span>
-        <span class="comment">// X_{s,t} and f later).</span>
-        <span class="comment">// We record which pivots exactly we added so that we can walk over the added genrators in a moment and</span>
-        <span class="comment">// work out what dX should to to each of them.</span>
-        <span class="kw">let</span> <span class="ident">cc_new_gens</span> <span class="op">=</span> <span class="ident">matrix</span>.<span class="ident">extend_to_surjection</span>(<span class="number">0</span>, <span class="ident">target_cc_dimension</span>, <span class="ident">MAX_NEW_GENS</span>);
+        <span class="comment">// Now add generators to surject onto C_{s, t}.
+        // (For now we are just adding the eventual images of the new generators into matrix, we will update
+        // X_{s,t} and f later).
+        // We record which pivots exactly we added so that we can walk over the added genrators in a moment and
+        // work out what dX should to to each of them.
+        </span><span class="kw">let </span>cc_new_gens = matrix.extend_to_surjection(<span class="number">0</span>, target_cc_dimension, MAX_NEW_GENS);
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">res_new_gens</span> <span class="op">=</span> <span class="ident">Vec::new</span>();
+        <span class="kw">let </span><span class="kw-2">mut </span>res_new_gens = Vec::new();
 
-        <span class="kw">if</span> <span class="ident">s</span> <span class="op">&gt;</span> <span class="number">0</span> {
-            <span class="kw">if</span> <span class="op">!</span><span class="ident">cc_new_gens</span>.<span class="ident">is_empty</span>() {
-                <span class="comment">// Now we need to make sure that we have a chain homomorphism. Each generator x we just added to</span>
-                <span class="comment">// X_{s,t} has a nontrivial image f(x) \in C_{s,t}. We need to set d(x) so that f(dX(x)) = dC(f(x)).</span>
-                <span class="comment">// So we set dX(x) = f^{-1}(dC(f(x)))</span>
-                <span class="kw">let</span> <span class="ident">prev_chain_map</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">chain_map</span>(<span class="ident">s</span> <span class="op">-</span> <span class="number">1</span>);
-                <span class="kw">let</span> <span class="ident">quasi_inverse</span> <span class="op">=</span> <span class="ident">prev_chain_map</span>.<span class="ident">quasi_inverse</span>(<span class="ident">t</span>).<span class="ident">unwrap</span>();
+        <span class="kw">if </span>s &gt; <span class="number">0 </span>{
+            <span class="kw">if </span>!cc_new_gens.is_empty() {
+                <span class="comment">// Now we need to make sure that we have a chain homomorphism. Each generator x we just added to
+                // X_{s,t} has a nontrivial image f(x) \in C_{s,t}. We need to set d(x) so that f(dX(x)) = dC(f(x)).
+                // So we set dX(x) = f^{-1}(dC(f(x)))
+                </span><span class="kw">let </span>prev_chain_map = <span class="self">self</span>.chain_map(s - <span class="number">1</span>);
+                <span class="kw">let </span>quasi_inverse = prev_chain_map.quasi_inverse(t).unwrap();
 
-                <span class="kw">let</span> <span class="ident">dfx_dim</span> <span class="op">=</span> <span class="ident">complex_cur_differential</span>.<span class="ident">target</span>().<span class="ident">dimension</span>(<span class="ident">t</span>);
-                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">dfx</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="self">self</span>.<span class="ident">prime</span>(), <span class="ident">dfx_dim</span>);
+                <span class="kw">let </span>dfx_dim = complex_cur_differential.target().dimension(t);
+                <span class="kw">let </span><span class="kw-2">mut </span>dfx = FpVector::new(<span class="self">self</span>.prime(), dfx_dim);
 
-                <span class="kw">for</span> (<span class="ident">i</span>, <span class="kw-2">&amp;</span><span class="ident">column</span>) <span class="kw">in</span> <span class="ident">cc_new_gens</span>.<span class="ident">iter</span>().<span class="ident">enumerate</span>() {
-                    <span class="ident">complex_cur_differential</span>.<span class="ident">apply_to_basis_element</span>(
-                        <span class="ident">dfx</span>.<span class="ident">as_slice_mut</span>(),
+                <span class="kw">for </span>(i, <span class="kw-2">&amp;</span>column) <span class="kw">in </span>cc_new_gens.iter().enumerate() {
+                    complex_cur_differential.apply_to_basis_element(
+                        dfx.as_slice_mut(),
                         <span class="number">1</span>,
-                        <span class="ident">t</span>,
-                        <span class="ident">column</span>,
+                        t,
+                        column,
                     );
-                    <span class="ident">quasi_inverse</span>.<span class="ident">apply</span>(
-                        <span class="ident">matrix</span>.<span class="ident">row_segment_mut</span>(<span class="ident">source_dimension</span> <span class="op">+</span> <span class="ident">i</span>, <span class="number">1</span>, <span class="number">1</span>),
+                    quasi_inverse.apply(
+                        matrix.row_segment_mut(source_dimension + i, <span class="number">1</span>, <span class="number">1</span>),
                         <span class="number">1</span>,
-                        <span class="ident">dfx</span>.<span class="ident">as_slice</span>(),
+                        dfx.as_slice(),
                     );
-                    <span class="ident">dfx</span>.<span class="ident">set_to_zero</span>();
+                    dfx.set_to_zero();
                 }
             }
 
-            <span class="comment">// Now we add new generators to hit any cycles in old_kernel that we don&#39;t want in our homology.</span>
-            <span class="comment">//</span>
-            <span class="comment">// At this point the matrix is not quite row reduced and the pivots are not correct.</span>
-            <span class="comment">// However, extend_image only needs the sign of the pivots within the column range,</span>
-            <span class="comment">// which are still correct. The point is that the rows we added all have pivot columns</span>
-            <span class="comment">// in the first segment.</span>
-            <span class="ident">res_new_gens</span> <span class="op">=</span> <span class="ident">matrix</span>.<span class="ident">inner</span>.<span class="ident">extend_image</span>(
-                <span class="ident">matrix</span>.<span class="ident">start</span>[<span class="number">1</span>],
-                <span class="ident">matrix</span>.<span class="ident">end</span>[<span class="number">1</span>],
-                <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">get_kernel</span>(<span class="ident">s</span> <span class="op">-</span> <span class="number">1</span>, <span class="ident">t</span>),
-                <span class="ident">MAX_NEW_GENS</span>,
+            <span class="comment">// Now we add new generators to hit any cycles in old_kernel that we don&#39;t want in our homology.
+            //
+            // At this point the matrix is not quite row reduced and the pivots are not correct.
+            // However, extend_image only needs the sign of the pivots within the column range,
+            // which are still correct. The point is that the rows we added all have pivot columns
+            // in the first segment.
+            </span>res_new_gens = matrix.inner.extend_image(
+                matrix.start[<span class="number">1</span>],
+                matrix.end[<span class="number">1</span>],
+                <span class="kw-2">&amp;</span><span class="self">self</span>.get_kernel(s - <span class="number">1</span>, t),
+                MAX_NEW_GENS,
             );
         }
-        <span class="kw">let</span> <span class="ident">num_new_gens</span> <span class="op">=</span> <span class="ident">cc_new_gens</span>.<span class="ident">len</span>() <span class="op">+</span> <span class="ident">res_new_gens</span>.<span class="ident">len</span>();
-        <span class="ident">source</span>.<span class="ident">add_generators</span>(<span class="ident">t</span>, <span class="ident">num_new_gens</span>, <span class="prelude-val">None</span>);
+        <span class="kw">let </span>num_new_gens = cc_new_gens.len() + res_new_gens.len();
+        source.add_generators(t, num_new_gens, <span class="prelude-val">None</span>);
 
-        <span class="kw">let</span> <span class="ident">new_rows</span> <span class="op">=</span> <span class="ident">source_dimension</span> <span class="op">+</span> <span class="ident">num_new_gens</span>;
+        <span class="kw">let </span>new_rows = source_dimension + num_new_gens;
 
-        <span class="ident">current_chain_map</span>.<span class="ident">add_generators_from_matrix_rows</span>(
-            <span class="ident">t</span>,
-            <span class="ident">matrix</span>.<span class="ident">segment</span>(<span class="number">0</span>, <span class="number">0</span>).<span class="ident">row_slice</span>(<span class="ident">source_dimension</span>, <span class="ident">new_rows</span>),
+        current_chain_map.add_generators_from_matrix_rows(
+            t,
+            matrix.segment(<span class="number">0</span>, <span class="number">0</span>).row_slice(source_dimension, new_rows),
         );
-        <span class="ident">current_differential</span>.<span class="ident">add_generators_from_matrix_rows</span>(
-            <span class="ident">t</span>,
-            <span class="ident">matrix</span>.<span class="ident">segment</span>(<span class="number">1</span>, <span class="number">1</span>).<span class="ident">row_slice</span>(<span class="ident">source_dimension</span>, <span class="ident">new_rows</span>),
+        current_differential.add_generators_from_matrix_rows(
+            t,
+            matrix.segment(<span class="number">1</span>, <span class="number">1</span>).row_slice(source_dimension, new_rows),
         );
 
-        <span class="kw">if</span> <span class="ident">num_new_gens</span> <span class="op">&gt;</span> <span class="number">0</span> {
-            <span class="comment">// Fix up the augmentation</span>
-            <span class="kw">let</span> <span class="ident">columns</span> <span class="op">=</span> <span class="ident">matrix</span>.<span class="ident">columns</span>();
-            <span class="ident">matrix</span>.<span class="ident">extend_column_dimension</span>(<span class="ident">columns</span> <span class="op">+</span> <span class="ident">num_new_gens</span>);
+        <span class="kw">if </span>num_new_gens &gt; <span class="number">0 </span>{
+            <span class="comment">// Fix up the augmentation
+            </span><span class="kw">let </span>columns = matrix.columns();
+            matrix.extend_column_dimension(columns + num_new_gens);
 
-            <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="ident">source_dimension</span>..<span class="ident">new_rows</span> {
-                <span class="ident">matrix</span>.<span class="ident">inner</span>[<span class="ident">i</span>].<span class="ident">set_entry</span>(<span class="ident">matrix</span>.<span class="ident">start</span>[<span class="number">2</span>] <span class="op">+</span> <span class="ident">i</span>, <span class="number">1</span>);
+            <span class="kw">for </span>i <span class="kw">in </span>source_dimension..new_rows {
+                matrix.inner[i].set_entry(matrix.start[<span class="number">2</span>] + i, <span class="number">1</span>);
             }
 
-            <span class="comment">// We are now supposed to row reduce the matrix. However, running the full row</span>
-            <span class="comment">// reduction algorithm is wasteful, since we have only added a few rows and the rest is</span>
-            <span class="comment">// intact.</span>
-            <span class="comment">//</span>
-            <span class="comment">// The new resolution rows are all zero in the existing pivot columns. Indeed,</span>
-            <span class="comment">// the resolution generators are mapped to generators of the kernel, which are zero in</span>
-            <span class="comment">// pivot columns of the kernel matrix. But the old image is a subspace of the kernel,</span>
-            <span class="comment">// so its pivot columns are a subset of the pivot columns of the kernel matrix.</span>
-            <span class="comment">//</span>
-            <span class="comment">// So we clear the new cc rows using the old rows.</span>
-            <span class="kw">for</span> <span class="ident">k</span> <span class="kw">in</span> <span class="ident">source_dimension</span>..<span class="ident">source_dimension</span> <span class="op">+</span> <span class="ident">cc_new_gens</span>.<span class="ident">len</span>() {
-                <span class="kw">for</span> <span class="ident">column</span> <span class="kw">in</span> <span class="ident">matrix</span>.<span class="ident">start</span>[<span class="number">1</span>]..<span class="ident">matrix</span>.<span class="ident">end</span>[<span class="number">1</span>] {
-                    <span class="kw">let</span> <span class="ident">row</span> <span class="op">=</span> <span class="ident">matrix</span>.<span class="ident">pivots</span>()[<span class="ident">column</span>];
-                    <span class="kw">if</span> <span class="ident">row</span> <span class="op">&lt;</span> <span class="number">0</span> {
+            <span class="comment">// We are now supposed to row reduce the matrix. However, running the full row
+            // reduction algorithm is wasteful, since we have only added a few rows and the rest is
+            // intact.
+            //
+            // The new resolution rows are all zero in the existing pivot columns. Indeed,
+            // the resolution generators are mapped to generators of the kernel, which are zero in
+            // pivot columns of the kernel matrix. But the old image is a subspace of the kernel,
+            // so its pivot columns are a subset of the pivot columns of the kernel matrix.
+            //
+            // So we clear the new cc rows using the old rows.
+            </span><span class="kw">for </span>k <span class="kw">in </span>source_dimension..source_dimension + cc_new_gens.len() {
+                <span class="kw">for </span>column <span class="kw">in </span>matrix.start[<span class="number">1</span>]..matrix.end[<span class="number">1</span>] {
+                    <span class="kw">let </span>row = matrix.pivots()[column];
+                    <span class="kw">if </span>row &lt; <span class="number">0 </span>{
                         <span class="kw">continue</span>;
                     }
-                    <span class="kw">let</span> <span class="ident">row</span> <span class="op">=</span> <span class="ident">row</span> <span class="kw">as</span> <span class="ident">usize</span>;
-                    <span class="kw">unsafe</span> {
-                        <span class="ident">matrix</span>.<span class="ident">row_op</span>(<span class="ident">k</span>, <span class="ident">row</span>, <span class="ident">column</span>, <span class="ident">p</span>);
+                    <span class="kw">let </span>row = row <span class="kw">as </span>usize;
+                    <span class="kw">unsafe </span>{
+                        matrix.row_op(k, row, column, p);
                     }
                 }
             }
 
-            <span class="comment">// Now use the new resolution rows to reduce the old rows and the cc rows.</span>
-            <span class="kw">let</span> <span class="ident">first_res_row</span> <span class="op">=</span> <span class="ident">source_dimension</span> <span class="op">+</span> <span class="ident">cc_new_gens</span>.<span class="ident">len</span>();
-            <span class="kw">for</span> (<span class="ident">source_row</span>, <span class="kw-2">&amp;</span><span class="ident">pivot_col</span>) <span class="kw">in</span> <span class="ident">res_new_gens</span>.<span class="ident">iter</span>().<span class="ident">enumerate</span>() {
-                <span class="kw">for</span> <span class="ident">target_row</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">first_res_row</span> {
-                    <span class="kw">unsafe</span> {
-                        <span class="ident">matrix</span>.<span class="ident">row_op</span>(<span class="ident">target_row</span>, <span class="ident">source_row</span> <span class="op">+</span> <span class="ident">first_res_row</span>, <span class="ident">pivot_col</span>, <span class="ident">p</span>);
+            <span class="comment">// Now use the new resolution rows to reduce the old rows and the cc rows.
+            </span><span class="kw">let </span>first_res_row = source_dimension + cc_new_gens.len();
+            <span class="kw">for </span>(source_row, <span class="kw-2">&amp;</span>pivot_col) <span class="kw">in </span>res_new_gens.iter().enumerate() {
+                <span class="kw">for </span>target_row <span class="kw">in </span><span class="number">0</span>..first_res_row {
+                    <span class="kw">unsafe </span>{
+                        matrix.row_op(target_row, source_row + first_res_row, pivot_col, p);
                     }
                 }
             }
 
-            <span class="comment">// We are now almost in RREF, except we need to permute the rows.</span>
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">new_gens</span> <span class="op">=</span> <span class="ident">cc_new_gens</span>.<span class="ident">into_iter</span>().<span class="ident">chain</span>(<span class="ident">res_new_gens</span>).<span class="ident">enumerate</span>();
-            <span class="kw">let</span> (<span class="kw-2">mut</span> <span class="ident">next_new_row</span>, <span class="kw-2">mut</span> <span class="ident">next_new_col</span>) <span class="op">=</span> <span class="ident">new_gens</span>.<span class="ident">next</span>().<span class="ident">unwrap</span>();
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">next_old_row</span> <span class="op">=</span> <span class="number">0</span>;
+            <span class="comment">// We are now almost in RREF, except we need to permute the rows.
+            </span><span class="kw">let </span><span class="kw-2">mut </span>new_gens = cc_new_gens.into_iter().chain(res_new_gens).enumerate();
+            <span class="kw">let </span>(<span class="kw-2">mut </span>next_new_row, <span class="kw-2">mut </span>next_new_col) = new_gens.next().unwrap();
+            <span class="kw">let </span><span class="kw-2">mut </span>next_old_row = <span class="number">0</span>;
 
-            <span class="kw">for</span> <span class="ident">old_col</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">matrix</span>.<span class="ident">columns</span>() {
-                <span class="kw">if</span> <span class="ident">old_col</span> <span class="op">==</span> <span class="ident">next_new_col</span> {
-                    <span class="ident">matrix</span>[<span class="ident">next_old_row</span>..<span class="op">=</span><span class="ident">source_dimension</span> <span class="op">+</span> <span class="ident">next_new_row</span>].<span class="ident">rotate_right</span>(<span class="number">1</span>);
-                    <span class="ident">matrix</span>.<span class="ident">pivots_mut</span>()[<span class="ident">old_col</span>] <span class="op">=</span> <span class="ident">next_old_row</span> <span class="kw">as</span> <span class="ident">isize</span>;
-                    <span class="kw">match</span> <span class="ident">new_gens</span>.<span class="ident">next</span>() {
-                        <span class="prelude-val">Some</span>((<span class="ident">x</span>, <span class="ident">y</span>)) =&gt; {
-                            <span class="ident">next_new_row</span> <span class="op">=</span> <span class="ident">x</span>;
-                            <span class="ident">next_new_col</span> <span class="op">=</span> <span class="ident">y</span>;
+            <span class="kw">for </span>old_col <span class="kw">in </span><span class="number">0</span>..matrix.columns() {
+                <span class="kw">if </span>old_col == next_new_col {
+                    matrix[next_old_row..=source_dimension + next_new_row].rotate_right(<span class="number">1</span>);
+                    matrix.pivots_mut()[old_col] = next_old_row <span class="kw">as </span>isize;
+                    <span class="kw">match </span>new_gens.next() {
+                        <span class="prelude-val">Some</span>((x, y)) =&gt; {
+                            next_new_row = x;
+                            next_new_col = y;
                         }
-                        <span class="prelude-val">None</span> =&gt; {
-                            <span class="kw">for</span> <span class="ident">entry</span> <span class="kw">in</span> <span class="kw-2">&amp;mut</span> <span class="ident">matrix</span>.<span class="ident">pivots_mut</span>()[<span class="ident">old_col</span> <span class="op">+</span> <span class="number">1</span>..] {
-                                <span class="kw">if</span> <span class="kw-2">*</span><span class="ident">entry</span> <span class="op">&gt;</span><span class="op">=</span> <span class="number">0</span> {
-                                    <span class="kw-2">*</span><span class="ident">entry</span> <span class="op">+</span><span class="op">=</span> <span class="ident">next_new_row</span> <span class="kw">as</span> <span class="ident">isize</span> <span class="op">+</span> <span class="number">1</span>;
+                        <span class="prelude-val">None </span>=&gt; {
+                            <span class="kw">for </span>entry <span class="kw">in </span><span class="kw-2">&amp;mut </span>matrix.pivots_mut()[old_col + <span class="number">1</span>..] {
+                                <span class="kw">if </span><span class="kw-2">*</span>entry &gt;= <span class="number">0 </span>{
+                                    <span class="kw-2">*</span>entry += next_new_row <span class="kw">as </span>isize + <span class="number">1</span>;
                                 }
                             }
                             <span class="kw">break</span>;
                         }
                     }
-                    <span class="ident">next_old_row</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
-                } <span class="kw">else</span> <span class="kw">if</span> <span class="ident">matrix</span>.<span class="ident">pivots</span>()[<span class="ident">old_col</span>] <span class="op">&gt;</span><span class="op">=</span> <span class="number">0</span> {
-                    <span class="ident">matrix</span>.<span class="ident">pivots_mut</span>()[<span class="ident">old_col</span>] <span class="op">+</span><span class="op">=</span> <span class="ident">next_new_row</span> <span class="kw">as</span> <span class="ident">isize</span>;
-                    <span class="ident">next_old_row</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
+                    next_old_row += <span class="number">1</span>;
+                } <span class="kw">else if </span>matrix.pivots()[old_col] &gt;= <span class="number">0 </span>{
+                    matrix.pivots_mut()[old_col] += next_new_row <span class="kw">as </span>isize;
+                    next_old_row += <span class="number">1</span>;
                 }
             }
         }
-        <span class="kw">let</span> (<span class="ident">cm_qi</span>, <span class="ident">res_qi</span>) <span class="op">=</span> <span class="ident">matrix</span>.<span class="ident">compute_quasi_inverses</span>();
+        <span class="kw">let </span>(cm_qi, res_qi) = matrix.compute_quasi_inverses();
 
-        <span class="ident">timer</span>.<span class="ident">end</span>(<span class="macro">format_args!</span>(
+        timer.end(<span class="macro">format_args!</span>(
             <span class="string">&quot;Computed bidegree ({n}, {s}), num new gens = {num_new_gens}, density = {density:.2}%&quot;</span>,
-            <span class="ident">n</span> <span class="op">=</span> <span class="ident">t</span> <span class="op">-</span> <span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span>,
-            <span class="ident">density</span> <span class="op">=</span> <span class="ident">current_differential</span>.<span class="ident">differential_density</span>(<span class="ident">t</span>) <span class="op">*</span> <span class="number">100.0</span>
-        ));
+            n = t - s <span class="kw">as </span>i32,
+            density = current_differential.differential_density(t) * <span class="number">100.0
+        </span>));
 
-        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">should_save</span> {
-            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dir</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">save_dir</span> {
-                <span class="comment">// Write differentials last, because if we were terminated halfway, we want the</span>
-                <span class="comment">// differentials to exist iff everything has been written. However, we start by</span>
-                <span class="comment">// opening the differentials first to make sure we are not overwriting anything.</span>
+        <span class="kw">if </span><span class="self">self</span>.should_save {
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = <span class="kw-2">&amp;</span><span class="self">self</span>.save_dir {
+                <span class="comment">// Write differentials last, because if we were terminated halfway, we want the
+                // differentials to exist iff everything has been written. However, we start by
+                // opening the differentials first to make sure we are not overwriting anything.
 
-                <span class="comment">// Open differentials file</span>
-                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="self">self</span>
-                    .<span class="ident">save_file</span>(<span class="ident">SaveKind::Differential</span>, <span class="ident">s</span>, <span class="ident">t</span>)
-                    .<span class="ident">create_file</span>(<span class="ident">dir</span>.<span class="ident">clone</span>(), <span class="bool-val">false</span>);
+                // Open differentials file
+                </span><span class="kw">let </span><span class="kw-2">mut </span>f = <span class="self">self
+                    </span>.save_file(SaveKind::Differential, s, t)
+                    .create_file(dir.clone(), <span class="bool-val">false</span>);
 
-                <span class="comment">// Write resolution qi</span>
-                <span class="ident">res_qi</span>
-                    .<span class="ident">to_bytes</span>(
-                        <span class="kw-2">&amp;mut</span> <span class="self">self</span>
-                            .<span class="ident">save_file</span>(<span class="ident">SaveKind::ResQi</span>, <span class="ident">s</span>, <span class="ident">t</span>)
-                            .<span class="ident">create_file</span>(<span class="ident">dir</span>.<span class="ident">clone</span>(), <span class="bool-val">true</span>),
+                <span class="comment">// Write resolution qi
+                </span>res_qi
+                    .to_bytes(
+                        <span class="kw-2">&amp;mut </span><span class="self">self
+                            </span>.save_file(SaveKind::ResQi, s, t)
+                            .create_file(dir.clone(), <span class="bool-val">true</span>),
                     )
-                    .<span class="ident">unwrap</span>();
+                    .unwrap();
 
-                <span class="comment">// Write augmentation qi</span>
-                <span class="ident">cm_qi</span>
-                    .<span class="ident">to_bytes</span>(
-                        <span class="kw-2">&amp;mut</span> <span class="self">self</span>
-                            .<span class="ident">save_file</span>(<span class="ident">SaveKind::AugmentationQi</span>, <span class="ident">s</span>, <span class="ident">t</span>)
-                            .<span class="ident">create_file</span>(<span class="ident">dir</span>.<span class="ident">clone</span>(), <span class="bool-val">true</span>),
+                <span class="comment">// Write augmentation qi
+                </span>cm_qi
+                    .to_bytes(
+                        <span class="kw-2">&amp;mut </span><span class="self">self
+                            </span>.save_file(SaveKind::AugmentationQi, s, t)
+                            .create_file(dir.clone(), <span class="bool-val">true</span>),
                     )
-                    .<span class="ident">unwrap</span>();
+                    .unwrap();
 
-                <span class="comment">// Write differentials</span>
-                <span class="ident">f</span>.<span class="ident">write_u64</span>::<span class="op">&lt;</span><span class="ident">LittleEndian</span><span class="op">&gt;</span>(<span class="ident">num_new_gens</span> <span class="kw">as</span> <span class="ident">u64</span>).<span class="ident">unwrap</span>();
-                <span class="ident">f</span>.<span class="ident">write_u64</span>::<span class="op">&lt;</span><span class="ident">LittleEndian</span><span class="op">&gt;</span>(<span class="ident">target_res_dimension</span> <span class="kw">as</span> <span class="ident">u64</span>)
-                    .<span class="ident">unwrap</span>();
-                <span class="ident">f</span>.<span class="ident">write_u64</span>::<span class="op">&lt;</span><span class="ident">LittleEndian</span><span class="op">&gt;</span>(<span class="ident">target_cc_dimension</span> <span class="kw">as</span> <span class="ident">u64</span>)
-                    .<span class="ident">unwrap</span>();
+                <span class="comment">// Write differentials
+                </span>f.write_u64::&lt;LittleEndian&gt;(num_new_gens <span class="kw">as </span>u64).unwrap();
+                f.write_u64::&lt;LittleEndian&gt;(target_res_dimension <span class="kw">as </span>u64)
+                    .unwrap();
+                f.write_u64::&lt;LittleEndian&gt;(target_cc_dimension <span class="kw">as </span>u64)
+                    .unwrap();
 
-                <span class="kw">for</span> <span class="ident">n</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">num_new_gens</span> {
-                    <span class="ident">current_differential</span>.<span class="ident">output</span>(<span class="ident">t</span>, <span class="ident">n</span>).<span class="ident">to_bytes</span>(<span class="kw-2">&amp;mut</span> <span class="ident">f</span>).<span class="ident">unwrap</span>();
+                <span class="kw">for </span>n <span class="kw">in </span><span class="number">0</span>..num_new_gens {
+                    current_differential.output(t, n).to_bytes(<span class="kw-2">&amp;mut </span>f).unwrap();
                 }
-                <span class="kw">for</span> <span class="ident">n</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">num_new_gens</span> {
-                    <span class="ident">current_chain_map</span>.<span class="ident">output</span>(<span class="ident">t</span>, <span class="ident">n</span>).<span class="ident">to_bytes</span>(<span class="kw-2">&amp;mut</span> <span class="ident">f</span>).<span class="ident">unwrap</span>();
+                <span class="kw">for </span>n <span class="kw">in </span><span class="number">0</span>..num_new_gens {
+                    current_chain_map.output(t, n).to_bytes(<span class="kw-2">&amp;mut </span>f).unwrap();
                 }
-                <span class="ident">drop</span>(<span class="ident">f</span>);
+                drop(f);
 
-                <span class="comment">// Delete kernel</span>
-                <span class="kw">if</span> <span class="ident">s</span> <span class="op">&gt;</span> <span class="number">0</span> {
-                    <span class="self">self</span>.<span class="ident">save_file</span>(<span class="ident">SaveKind::Kernel</span>, <span class="ident">s</span> <span class="op">-</span> <span class="number">1</span>, <span class="ident">t</span>)
-                        .<span class="ident">delete_file</span>(<span class="ident">dir</span>.<span class="ident">clone</span>())
-                        .<span class="ident">unwrap</span>();
+                <span class="comment">// Delete kernel
+                </span><span class="kw">if </span>s &gt; <span class="number">0 </span>{
+                    <span class="self">self</span>.save_file(SaveKind::Kernel, s - <span class="number">1</span>, t)
+                        .delete_file(dir.clone())
+                        .unwrap();
                 }
             }
         }
 
-        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">load_quasi_inverse</span> {
-            <span class="ident">current_differential</span>.<span class="ident">set_quasi_inverse</span>(<span class="ident">t</span>, <span class="prelude-val">Some</span>(<span class="ident">res_qi</span>));
-        } <span class="kw">else</span> {
-            <span class="ident">current_differential</span>.<span class="ident">set_quasi_inverse</span>(<span class="ident">t</span>, <span class="prelude-val">None</span>);
+        <span class="kw">if </span><span class="self">self</span>.load_quasi_inverse {
+            current_differential.set_quasi_inverse(t, <span class="prelude-val">Some</span>(res_qi));
+        } <span class="kw">else </span>{
+            current_differential.set_quasi_inverse(t, <span class="prelude-val">None</span>);
         }
 
-        <span class="comment">// This tends to be small and is always needed if the target is not concentrated in a</span>
-        <span class="comment">// single homological degree</span>
-        <span class="ident">current_chain_map</span>.<span class="ident">set_quasi_inverse</span>(<span class="ident">t</span>, <span class="prelude-val">Some</span>(<span class="ident">cm_qi</span>));
-        <span class="ident">current_chain_map</span>.<span class="ident">set_kernel</span>(<span class="ident">t</span>, <span class="prelude-val">None</span>);
-        <span class="ident">current_chain_map</span>.<span class="ident">set_image</span>(<span class="ident">t</span>, <span class="prelude-val">None</span>);
+        <span class="comment">// This tends to be small and is always needed if the target is not concentrated in a
+        // single homological degree
+        </span>current_chain_map.set_quasi_inverse(t, <span class="prelude-val">Some</span>(cm_qi));
+        current_chain_map.set_kernel(t, <span class="prelude-val">None</span>);
+        current_chain_map.set_image(t, <span class="prelude-val">None</span>);
 
-        <span class="ident">current_differential</span>.<span class="ident">set_kernel</span>(<span class="ident">t</span>, <span class="prelude-val">None</span>);
-        <span class="ident">current_differential</span>.<span class="ident">set_image</span>(<span class="ident">t</span>, <span class="prelude-val">None</span>);
+        current_differential.set_kernel(t, <span class="prelude-val">None</span>);
+        current_differential.set_image(t, <span class="prelude-val">None</span>);
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">compute_through_bidegree_with_callback</span>(
+    <span class="kw">pub fn </span>compute_through_bidegree_with_callback(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">max_s</span>: <span class="ident">u32</span>,
-        <span class="ident">max_t</span>: <span class="ident">i32</span>,
-        <span class="kw-2">mut</span> <span class="ident">cb</span>: <span class="kw">impl</span> <span class="ident">FnMut</span>(<span class="ident">u32</span>, <span class="ident">i32</span>),
+        max_s: u32,
+        max_t: i32,
+        <span class="kw-2">mut </span>cb: <span class="kw">impl </span>FnMut(u32, i32),
     ) {
-        <span class="kw">let</span> <span class="ident">min_degree</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">min_degree</span>();
-        <span class="kw">let</span> <span class="ident">_lock</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">lock</span>.<span class="ident">lock</span>();
+        <span class="kw">let </span>min_degree = <span class="self">self</span>.min_degree();
+        <span class="kw">let </span>_lock = <span class="self">self</span>.lock.lock();
 
-        <span class="self">self</span>.<span class="ident">target</span>().<span class="ident">compute_through_bidegree</span>(<span class="ident">max_s</span>, <span class="ident">max_t</span>);
-        <span class="self">self</span>.<span class="ident">extend_through_degree</span>(<span class="ident">max_s</span>);
-        <span class="self">self</span>.<span class="ident">algebra</span>().<span class="ident">compute_basis</span>(<span class="ident">max_t</span> <span class="op">-</span> <span class="ident">min_degree</span>);
+        <span class="self">self</span>.target().compute_through_bidegree(max_s, max_t);
+        <span class="self">self</span>.extend_through_degree(max_s);
+        <span class="self">self</span>.algebra().compute_basis(max_t - min_degree);
 
-        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>))]</span>
-        <span class="kw">for</span> <span class="ident">t</span> <span class="kw">in</span> <span class="ident">min_degree</span>..<span class="op">=</span><span class="ident">max_t</span> {
-            <span class="kw">for</span> <span class="ident">s</span> <span class="kw">in</span> <span class="number">0</span>..<span class="op">=</span><span class="ident">max_s</span> {
-                <span class="kw">if</span> <span class="self">self</span>.<span class="ident">has_computed_bidegree</span>(<span class="ident">s</span>, <span class="ident">t</span>) {
+        <span class="attribute">#[cfg(not(feature = <span class="string">&quot;concurrent&quot;</span>))]
+        </span><span class="kw">for </span>t <span class="kw">in </span>min_degree..=max_t {
+            <span class="kw">for </span>s <span class="kw">in </span><span class="number">0</span>..=max_s {
+                <span class="kw">if </span><span class="self">self</span>.has_computed_bidegree(s, t) {
                     <span class="kw">continue</span>;
                 }
-                <span class="self">self</span>.<span class="ident">step_resolution</span>(<span class="ident">s</span>, <span class="ident">t</span>);
-                <span class="ident">cb</span>(<span class="ident">s</span>, <span class="ident">t</span>);
+                <span class="self">self</span>.step_resolution(s, t);
+                cb(s, t);
             }
         }
 
-        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
-        <span class="ident">rayon::in_place_scope</span>(<span class="op">|</span><span class="ident">scope</span><span class="op">|</span> {
-            <span class="comment">// Things that we have finished computing.</span>
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">progress</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">i32</span><span class="op">&gt;</span> <span class="op">=</span> <span class="macro">vec!</span>[<span class="ident">min_degree</span> <span class="op">-</span> <span class="number">1</span>; <span class="ident">max_s</span> <span class="kw">as</span> <span class="ident">usize</span> <span class="op">+</span> <span class="number">1</span>];
-            <span class="comment">// We will kickstart the process by pretending we have computed (0, min_degree - 1). So</span>
-            <span class="comment">// we must pretend we have only computed up to (0, min_degree - 2);</span>
-            <span class="ident">progress</span>[<span class="number">0</span>] <span class="op">=</span> <span class="ident">min_degree</span> <span class="op">-</span> <span class="number">2</span>;
+        <span class="attribute">#[cfg(feature = <span class="string">&quot;concurrent&quot;</span>)]
+        </span>rayon::in_place_scope(|scope| {
+            <span class="comment">// Things that we have finished computing.
+            </span><span class="kw">let </span><span class="kw-2">mut </span>progress: Vec&lt;i32&gt; = <span class="macro">vec!</span>[min_degree - <span class="number">1</span>; max_s <span class="kw">as </span>usize + <span class="number">1</span>];
+            <span class="comment">// We will kickstart the process by pretending we have computed (0, min_degree - 1). So
+            // we must pretend we have only computed up to (0, min_degree - 2);
+            </span>progress[<span class="number">0</span>] = min_degree - <span class="number">2</span>;
 
-            <span class="kw">let</span> (<span class="ident">sender</span>, <span class="ident">receiver</span>) <span class="op">=</span> <span class="ident">mpsc::channel</span>();
-            <span class="ident">SenderData::send</span>(<span class="number">0</span>, <span class="ident">min_degree</span> <span class="op">-</span> <span class="number">1</span>, <span class="bool-val">false</span>, <span class="ident">sender</span>);
+            <span class="kw">let </span>(sender, receiver) = mpsc::channel();
+            SenderData::send(<span class="number">0</span>, min_degree - <span class="number">1</span>, <span class="bool-val">false</span>, sender);
 
-            <span class="kw">let</span> <span class="ident">f</span> <span class="op">=</span> <span class="op">|</span><span class="ident">s</span>, <span class="ident">t</span>, <span class="ident">sender</span><span class="op">|</span> {
-                <span class="kw">if</span> <span class="self">self</span>.<span class="ident">has_computed_bidegree</span>(<span class="ident">s</span>, <span class="ident">t</span>) {
-                    <span class="ident">SenderData::send</span>(<span class="ident">s</span>, <span class="ident">t</span>, <span class="bool-val">false</span>, <span class="ident">sender</span>);
-                } <span class="kw">else</span> {
-                    <span class="ident">scope</span>.<span class="ident">spawn</span>(<span class="kw">move</span> <span class="op">|</span><span class="kw">_</span><span class="op">|</span> {
-                        <span class="self">self</span>.<span class="ident">step_resolution</span>(<span class="ident">s</span>, <span class="ident">t</span>);
-                        <span class="ident">SenderData::send</span>(<span class="ident">s</span>, <span class="ident">t</span>, <span class="bool-val">true</span>, <span class="ident">sender</span>);
+            <span class="kw">let </span>f = |s, t, sender| {
+                <span class="kw">if </span><span class="self">self</span>.has_computed_bidegree(s, t) {
+                    SenderData::send(s, t, <span class="bool-val">false</span>, sender);
+                } <span class="kw">else </span>{
+                    scope.spawn(<span class="kw">move </span>|<span class="kw">_</span>| {
+                        <span class="self">self</span>.step_resolution(s, t);
+                        SenderData::send(s, t, <span class="bool-val">true</span>, sender);
                     });
                 }
             };
 
-            <span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Ok</span>(<span class="ident">SenderData</span> { <span class="ident">s</span>, <span class="ident">t</span>, <span class="ident">new</span>, <span class="ident">sender</span> }) <span class="op">=</span> <span class="ident">receiver</span>.<span class="ident">recv</span>() {
-                <span class="macro">assert!</span>(<span class="ident">progress</span>[<span class="ident">s</span> <span class="kw">as</span> <span class="ident">usize</span>] <span class="op">==</span> <span class="ident">t</span> <span class="op">-</span> <span class="number">1</span>);
-                <span class="ident">progress</span>[<span class="ident">s</span> <span class="kw">as</span> <span class="ident">usize</span>] <span class="op">=</span> <span class="ident">t</span>;
+            <span class="kw">while let </span><span class="prelude-val">Ok</span>(SenderData { s, t, new, sender }) = receiver.recv() {
+                <span class="macro">assert!</span>(progress[s <span class="kw">as </span>usize] == t - <span class="number">1</span>);
+                progress[s <span class="kw">as </span>usize] = t;
 
-                <span class="kw">if</span> <span class="ident">t</span> <span class="op">&lt;</span> <span class="ident">max_t</span> <span class="op">&amp;&amp;</span> (<span class="ident">s</span> <span class="op">==</span> <span class="number">0</span> <span class="op">|</span><span class="op">|</span> <span class="ident">progress</span>[<span class="ident">s</span> <span class="kw">as</span> <span class="ident">usize</span> <span class="op">-</span> <span class="number">1</span>] <span class="op">&gt;</span> <span class="ident">t</span>) {
-                    <span class="comment">// We are computing a normal step</span>
-                    <span class="ident">f</span>(<span class="ident">s</span>, <span class="ident">t</span> <span class="op">+</span> <span class="number">1</span>, <span class="ident">sender</span>.<span class="ident">clone</span>());
+                <span class="kw">if </span>t &lt; max_t &amp;&amp; (s == <span class="number">0 </span>|| progress[s <span class="kw">as </span>usize - <span class="number">1</span>] &gt; t) {
+                    <span class="comment">// We are computing a normal step
+                    </span>f(s, t + <span class="number">1</span>, sender.clone());
                 }
-                <span class="kw">if</span> <span class="ident">s</span> <span class="op">&lt;</span> <span class="ident">max_s</span> <span class="op">&amp;&amp;</span> <span class="ident">progress</span>[<span class="ident">s</span> <span class="kw">as</span> <span class="ident">usize</span> <span class="op">+</span> <span class="number">1</span>] <span class="op">==</span> <span class="ident">t</span> <span class="op">-</span> <span class="number">1</span> {
-                    <span class="ident">f</span>(<span class="ident">s</span> <span class="op">+</span> <span class="number">1</span>, <span class="ident">t</span>, <span class="ident">sender</span>);
+                <span class="kw">if </span>s &lt; max_s &amp;&amp; progress[s <span class="kw">as </span>usize + <span class="number">1</span>] == t - <span class="number">1 </span>{
+                    f(s + <span class="number">1</span>, t, sender);
                 }
-                <span class="kw">if</span> <span class="ident">new</span> {
-                    <span class="ident">cb</span>(<span class="ident">s</span>, <span class="ident">t</span>);
+                <span class="kw">if </span>new {
+                    cb(s, t);
                 }
             }
         });
     }
 
-    <span class="doccomment">/// This function resolves up till a fixed stem instead of a fixed t.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">compute_through_stem</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">max_s</span>: <span class="ident">u32</span>, <span class="ident">max_n</span>: <span class="ident">i32</span>) {
-        <span class="self">self</span>.<span class="ident">compute_through_stem_with_callback</span>(<span class="ident">max_s</span>, <span class="ident">max_n</span>, <span class="op">|</span><span class="kw">_</span>, <span class="kw">_</span><span class="op">|</span> ());
+    <span class="doccomment">/// This function resolves up till a fixed stem instead of a fixed t.
+    </span><span class="kw">pub fn </span>compute_through_stem(<span class="kw-2">&amp;</span><span class="self">self</span>, max_s: u32, max_n: i32) {
+        <span class="self">self</span>.compute_through_stem_with_callback(max_s, max_n, |<span class="kw">_</span>, <span class="kw">_</span>| ());
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">compute_through_stem_with_callback</span>(
+    <span class="kw">pub fn </span>compute_through_stem_with_callback(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">max_s</span>: <span class="ident">u32</span>,
-        <span class="ident">max_n</span>: <span class="ident">i32</span>,
-        <span class="kw-2">mut</span> <span class="ident">cb</span>: <span class="kw">impl</span> <span class="ident">FnMut</span>(<span class="ident">u32</span>, <span class="ident">i32</span>),
+        max_s: u32,
+        max_n: i32,
+        <span class="kw-2">mut </span>cb: <span class="kw">impl </span>FnMut(u32, i32),
     ) {
-        <span class="kw">let</span> <span class="ident">min_degree</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">min_degree</span>();
-        <span class="kw">let</span> <span class="ident">_lock</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">lock</span>.<span class="ident">lock</span>();
-        <span class="kw">let</span> <span class="ident">max_t</span> <span class="op">=</span> <span class="ident">max_s</span> <span class="kw">as</span> <span class="ident">i32</span> <span class="op">+</span> <span class="ident">max_n</span>;
+        <span class="kw">let </span>min_degree = <span class="self">self</span>.min_degree();
+        <span class="kw">let </span>_lock = <span class="self">self</span>.lock.lock();
+        <span class="kw">let </span>max_t = max_s <span class="kw">as </span>i32 + max_n;
 
-        <span class="self">self</span>.<span class="ident">target</span>().<span class="ident">compute_through_bidegree</span>(<span class="ident">max_s</span>, <span class="ident">max_t</span>);
-        <span class="self">self</span>.<span class="ident">extend_through_degree</span>(<span class="ident">max_s</span>);
-        <span class="self">self</span>.<span class="ident">algebra</span>().<span class="ident">compute_basis</span>(<span class="ident">max_t</span> <span class="op">-</span> <span class="ident">min_degree</span>);
+        <span class="self">self</span>.target().compute_through_bidegree(max_s, max_t);
+        <span class="self">self</span>.extend_through_degree(max_s);
+        <span class="self">self</span>.algebra().compute_basis(max_t - min_degree);
 
-        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>))]</span>
-        <span class="kw">for</span> <span class="ident">t</span> <span class="kw">in</span> <span class="ident">min_degree</span>..<span class="op">=</span><span class="ident">max_t</span> {
-            <span class="kw">let</span> <span class="ident">start_s</span> <span class="op">=</span> <span class="ident">std::cmp::max</span>(<span class="number">0</span>, <span class="ident">t</span> <span class="op">-</span> <span class="ident">max_n</span>) <span class="kw">as</span> <span class="ident">u32</span>;
-            <span class="kw">for</span> <span class="ident">s</span> <span class="kw">in</span> <span class="ident">start_s</span>..<span class="op">=</span><span class="ident">max_s</span> {
-                <span class="kw">if</span> <span class="self">self</span>.<span class="ident">has_computed_bidegree</span>(<span class="ident">s</span>, <span class="ident">t</span>) {
+        <span class="attribute">#[cfg(not(feature = <span class="string">&quot;concurrent&quot;</span>))]
+        </span><span class="kw">for </span>t <span class="kw">in </span>min_degree..=max_t {
+            <span class="kw">let </span>start_s = std::cmp::max(<span class="number">0</span>, t - max_n) <span class="kw">as </span>u32;
+            <span class="kw">for </span>s <span class="kw">in </span>start_s..=max_s {
+                <span class="kw">if </span><span class="self">self</span>.has_computed_bidegree(s, t) {
                     <span class="kw">continue</span>;
                 }
-                <span class="self">self</span>.<span class="ident">step_resolution</span>(<span class="ident">s</span>, <span class="ident">t</span>);
-                <span class="ident">cb</span>(<span class="ident">s</span>, <span class="ident">t</span>);
+                <span class="self">self</span>.step_resolution(s, t);
+                cb(s, t);
             }
         }
 
-        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
-        <span class="ident">rayon::in_place_scope</span>(<span class="op">|</span><span class="ident">scope</span><span class="op">|</span> {
-            <span class="comment">// Things that we have finished computing.</span>
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">progress</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">i32</span><span class="op">&gt;</span> <span class="op">=</span> <span class="macro">vec!</span>[<span class="ident">min_degree</span> <span class="op">-</span> <span class="number">1</span>; <span class="ident">max_s</span> <span class="kw">as</span> <span class="ident">usize</span> <span class="op">+</span> <span class="number">1</span>];
-            <span class="comment">// We will kickstart the process by pretending we have computed (0, min_degree - 1). So</span>
-            <span class="comment">// we must pretend we have only computed up to (0, min_degree - 2);</span>
-            <span class="ident">progress</span>[<span class="number">0</span>] <span class="op">=</span> <span class="ident">min_degree</span> <span class="op">-</span> <span class="number">2</span>;
+        <span class="attribute">#[cfg(feature = <span class="string">&quot;concurrent&quot;</span>)]
+        </span>rayon::in_place_scope(|scope| {
+            <span class="comment">// Things that we have finished computing.
+            </span><span class="kw">let </span><span class="kw-2">mut </span>progress: Vec&lt;i32&gt; = <span class="macro">vec!</span>[min_degree - <span class="number">1</span>; max_s <span class="kw">as </span>usize + <span class="number">1</span>];
+            <span class="comment">// We will kickstart the process by pretending we have computed (0, min_degree - 1). So
+            // we must pretend we have only computed up to (0, min_degree - 2);
+            </span>progress[<span class="number">0</span>] = min_degree - <span class="number">2</span>;
 
-            <span class="kw">let</span> (<span class="ident">sender</span>, <span class="ident">receiver</span>) <span class="op">=</span> <span class="ident">mpsc::channel</span>();
-            <span class="ident">SenderData::send</span>(<span class="number">0</span>, <span class="ident">min_degree</span> <span class="op">-</span> <span class="number">1</span>, <span class="bool-val">false</span>, <span class="ident">sender</span>);
+            <span class="kw">let </span>(sender, receiver) = mpsc::channel();
+            SenderData::send(<span class="number">0</span>, min_degree - <span class="number">1</span>, <span class="bool-val">false</span>, sender);
 
-            <span class="kw">let</span> <span class="ident">f</span> <span class="op">=</span> <span class="op">|</span><span class="ident">s</span>, <span class="ident">t</span>, <span class="ident">sender</span><span class="op">|</span> {
-                <span class="kw">if</span> <span class="self">self</span>.<span class="ident">has_computed_bidegree</span>(<span class="ident">s</span>, <span class="ident">t</span>) {
-                    <span class="ident">SenderData::send</span>(<span class="ident">s</span>, <span class="ident">t</span>, <span class="bool-val">false</span>, <span class="ident">sender</span>);
-                } <span class="kw">else</span> {
-                    <span class="kw">let</span> <span class="ident">sender</span> <span class="op">=</span> <span class="ident">sender</span>.<span class="ident">clone</span>();
-                    <span class="ident">scope</span>.<span class="ident">spawn</span>(<span class="kw">move</span> <span class="op">|</span><span class="kw">_</span><span class="op">|</span> {
-                        <span class="self">self</span>.<span class="ident">step_resolution</span>(<span class="ident">s</span>, <span class="ident">t</span>);
-                        <span class="ident">SenderData::send</span>(<span class="ident">s</span>, <span class="ident">t</span>, <span class="bool-val">true</span>, <span class="ident">sender</span>);
+            <span class="kw">let </span>f = |s, t, sender| {
+                <span class="kw">if </span><span class="self">self</span>.has_computed_bidegree(s, t) {
+                    SenderData::send(s, t, <span class="bool-val">false</span>, sender);
+                } <span class="kw">else </span>{
+                    scope.spawn(<span class="kw">move </span>|<span class="kw">_</span>| {
+                        <span class="self">self</span>.step_resolution(s, t);
+                        SenderData::send(s, t, <span class="bool-val">true</span>, sender);
                     });
                 }
             };
 
-            <span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Ok</span>(<span class="ident">SenderData</span> { <span class="ident">s</span>, <span class="ident">t</span>, <span class="ident">new</span>, <span class="ident">sender</span> }) <span class="op">=</span> <span class="ident">receiver</span>.<span class="ident">recv</span>() {
-                <span class="macro">assert!</span>(<span class="ident">progress</span>[<span class="ident">s</span> <span class="kw">as</span> <span class="ident">usize</span>] <span class="op">==</span> <span class="ident">t</span> <span class="op">-</span> <span class="number">1</span>);
-                <span class="ident">progress</span>[<span class="ident">s</span> <span class="kw">as</span> <span class="ident">usize</span>] <span class="op">=</span> <span class="ident">t</span>;
+            <span class="kw">while let </span><span class="prelude-val">Ok</span>(SenderData { s, t, new, sender }) = receiver.recv() {
+                <span class="macro">assert!</span>(progress[s <span class="kw">as </span>usize] == t - <span class="number">1</span>);
+                progress[s <span class="kw">as </span>usize] = t;
 
-                <span class="comment">// How far we are from the last one for this s.</span>
-                <span class="kw">let</span> <span class="ident">distance</span> <span class="op">=</span> <span class="ident">max_n</span> <span class="op">+</span> <span class="number">1</span> <span class="op">-</span> (<span class="ident">t</span> <span class="op">-</span> <span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span>);
+                <span class="comment">// How far we are from the last one for this s.
+                </span><span class="kw">let </span>distance = max_n + <span class="number">1 </span>- (t - s <span class="kw">as </span>i32);
 
-                <span class="kw">if</span> <span class="ident">s</span> <span class="op">&lt;</span> <span class="ident">max_s</span> <span class="op">&amp;&amp;</span> <span class="ident">progress</span>[<span class="ident">s</span> <span class="kw">as</span> <span class="ident">usize</span> <span class="op">+</span> <span class="number">1</span>] <span class="op">==</span> <span class="ident">t</span> <span class="op">-</span> <span class="number">1</span> {
-                    <span class="ident">f</span>(<span class="ident">s</span> <span class="op">+</span> <span class="number">1</span>, <span class="ident">t</span>, <span class="ident">sender</span>.<span class="ident">clone</span>());
+                <span class="kw">if </span>s &lt; max_s &amp;&amp; progress[s <span class="kw">as </span>usize + <span class="number">1</span>] == t - <span class="number">1 </span>{
+                    f(s + <span class="number">1</span>, t, sender.clone());
                 }
 
-                <span class="kw">if</span> <span class="ident">distance</span> <span class="op">&gt;</span> <span class="number">1</span> <span class="op">&amp;&amp;</span> (<span class="ident">s</span> <span class="op">==</span> <span class="number">0</span> <span class="op">|</span><span class="op">|</span> <span class="ident">progress</span>[<span class="ident">s</span> <span class="kw">as</span> <span class="ident">usize</span> <span class="op">-</span> <span class="number">1</span>] <span class="op">&gt;</span> <span class="ident">t</span>) {
-                    <span class="comment">// We are computing a normal step</span>
-                    <span class="ident">f</span>(<span class="ident">s</span>, <span class="ident">t</span> <span class="op">+</span> <span class="number">1</span>, <span class="ident">sender</span>);
-                } <span class="kw">else</span> <span class="kw">if</span> <span class="ident">distance</span> <span class="op">==</span> <span class="number">1</span> <span class="op">&amp;&amp;</span> <span class="ident">s</span> <span class="op">&lt;</span> <span class="ident">max_s</span> {
-                    <span class="comment">// We compute the kernel at the edge if necessary</span>
-                    <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">has_computed_bidegree</span>(<span class="ident">s</span> <span class="op">+</span> <span class="number">1</span>, <span class="ident">t</span> <span class="op">+</span> <span class="number">1</span>)
-                        <span class="op">&amp;&amp;</span> (<span class="self">self</span>.<span class="ident">save_dir</span>.<span class="ident">is_none</span>()
-                            <span class="op">|</span><span class="op">|</span> <span class="op">!</span><span class="self">self</span>
-                                .<span class="ident">save_file</span>(<span class="ident">SaveKind::Differential</span>, <span class="ident">s</span> <span class="op">+</span> <span class="number">1</span>, <span class="ident">t</span> <span class="op">+</span> <span class="number">1</span>)
-                                .<span class="ident">exists</span>(<span class="self">self</span>.<span class="ident">save_dir</span>.<span class="ident">clone</span>().<span class="ident">unwrap</span>()))
+                <span class="kw">if </span>distance &gt; <span class="number">1 </span>&amp;&amp; (s == <span class="number">0 </span>|| progress[s <span class="kw">as </span>usize - <span class="number">1</span>] &gt; t) {
+                    <span class="comment">// We are computing a normal step
+                    </span>f(s, t + <span class="number">1</span>, sender);
+                } <span class="kw">else if </span>distance == <span class="number">1 </span>&amp;&amp; s &lt; max_s {
+                    <span class="comment">// We compute the kernel at the edge if necessary
+                    </span><span class="kw">if </span>!<span class="self">self</span>.has_computed_bidegree(s + <span class="number">1</span>, t + <span class="number">1</span>)
+                        &amp;&amp; (<span class="self">self</span>.save_dir.is_none()
+                            || !<span class="self">self
+                                </span>.save_file(SaveKind::Differential, s + <span class="number">1</span>, t + <span class="number">1</span>)
+                                .exists(<span class="self">self</span>.save_dir.clone().unwrap()))
                     {
-                        <span class="ident">scope</span>.<span class="ident">spawn</span>(<span class="kw">move</span> <span class="op">|</span><span class="kw">_</span><span class="op">|</span> {
-                            <span class="self">self</span>.<span class="ident">kernels</span>.<span class="ident">insert</span>((<span class="ident">s</span>, <span class="ident">t</span> <span class="op">+</span> <span class="number">1</span>), <span class="self">self</span>.<span class="ident">get_kernel</span>(<span class="ident">s</span>, <span class="ident">t</span> <span class="op">+</span> <span class="number">1</span>));
-                            <span class="ident">SenderData::send</span>(<span class="ident">s</span>, <span class="ident">t</span> <span class="op">+</span> <span class="number">1</span>, <span class="bool-val">false</span>, <span class="ident">sender</span>);
+                        scope.spawn(<span class="kw">move </span>|<span class="kw">_</span>| {
+                            <span class="self">self</span>.kernels.insert((s, t + <span class="number">1</span>), <span class="self">self</span>.get_kernel(s, t + <span class="number">1</span>));
+                            SenderData::send(s, t + <span class="number">1</span>, <span class="bool-val">false</span>, sender);
                         });
-                    } <span class="kw">else</span> {
-                        <span class="ident">SenderData::send</span>(<span class="ident">s</span>, <span class="ident">t</span> <span class="op">+</span> <span class="number">1</span>, <span class="bool-val">false</span>, <span class="ident">sender</span>);
+                    } <span class="kw">else </span>{
+                        SenderData::send(s, t + <span class="number">1</span>, <span class="bool-val">false</span>, sender);
                     }
                 }
-                <span class="kw">if</span> <span class="ident">new</span> {
-                    <span class="ident">cb</span>(<span class="ident">s</span>, <span class="ident">t</span>);
+                <span class="kw">if </span>new {
+                    cb(s, t);
                 }
             }
         });
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">U</span>: <span class="ident">bool</span>, <span class="ident">CC</span>: <span class="ident">ChainComplex</span><span class="op">&gt;</span> <span class="ident">ChainComplex</span> <span class="kw">for</span> <span class="ident">MuResolution</span><span class="op">&lt;</span><span class="ident">U</span>, <span class="ident">CC</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">CC::Algebra</span>: <span class="ident">MuAlgebra</span><span class="op">&lt;</span><span class="ident">U</span><span class="op">&gt;</span>,
+<span class="kw">impl</span>&lt;<span class="kw">const </span>U: bool, CC: ChainComplex&gt; ChainComplex <span class="kw">for </span>MuResolution&lt;U, CC&gt;
+<span class="kw">where
+    </span>CC::Algebra: MuAlgebra&lt;U&gt;,
 {
-    <span class="kw">type</span> <span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">CC::Algebra</span>;
-    <span class="kw">type</span> <span class="ident">Module</span> <span class="op">=</span> <span class="ident">MuFreeModule</span><span class="op">&lt;</span><span class="ident">U</span>, <span class="ident"><span class="self">Self</span>::Algebra</span><span class="op">&gt;</span>;
-    <span class="kw">type</span> <span class="ident">Homomorphism</span> <span class="op">=</span> <span class="ident">MuFreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">U</span>, <span class="ident">MuFreeModule</span><span class="op">&lt;</span><span class="ident">U</span>, <span class="ident"><span class="self">Self</span>::Algebra</span><span class="op">&gt;</span><span class="op">&gt;</span>;
+    <span class="kw">type </span>Algebra = CC::Algebra;
+    <span class="kw">type </span>Module = MuFreeModule&lt;U, <span class="self">Self</span>::Algebra&gt;;
+    <span class="kw">type </span>Homomorphism = MuFreeModuleHomomorphism&lt;U, MuFreeModule&lt;U, <span class="self">Self</span>::Algebra&gt;&gt;;
 
-    <span class="kw">fn</span> <span class="ident">algebra</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Algebra</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">target</span>().<span class="ident">algebra</span>()
+    <span class="kw">fn </span>algebra(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Arc&lt;<span class="self">Self</span>::Algebra&gt; {
+        <span class="self">self</span>.target().algebra()
     }
 
-    <span class="kw">fn</span> <span class="ident">module</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">s</span>: <span class="ident">u32</span>) -&gt; <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Module</span><span class="op">&gt;</span> {
-        <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">modules</span>[<span class="ident">s</span> <span class="kw">as</span> <span class="ident">usize</span>])
+    <span class="kw">fn </span>module(<span class="kw-2">&amp;</span><span class="self">self</span>, s: u32) -&gt; Arc&lt;<span class="self">Self</span>::Module&gt; {
+        Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.modules[s <span class="kw">as </span>usize])
     }
 
-    <span class="kw">fn</span> <span class="ident">zero_module</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Module</span><span class="op">&gt;</span> {
-        <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">zero_module</span>)
+    <span class="kw">fn </span>zero_module(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Arc&lt;<span class="self">Self</span>::Module&gt; {
+        Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.zero_module)
     }
 
-    <span class="kw">fn</span> <span class="ident">min_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">i32</span> {
-        <span class="self">self</span>.<span class="ident">target</span>().<span class="ident">min_degree</span>()
+    <span class="kw">fn </span>min_degree(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; i32 {
+        <span class="self">self</span>.target().min_degree()
     }
 
-    <span class="kw">fn</span> <span class="ident">has_computed_bidegree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">s</span>: <span class="ident">u32</span>, <span class="ident">t</span>: <span class="ident">i32</span>) -&gt; <span class="ident">bool</span> {
-        <span class="self">self</span>.<span class="ident">differentials</span>.<span class="ident">len</span>() <span class="op">&gt;</span> <span class="ident">s</span> <span class="kw">as</span> <span class="ident">usize</span> <span class="op">&amp;&amp;</span> <span class="self">self</span>.<span class="ident">differential</span>(<span class="ident">s</span>).<span class="ident">next_degree</span>() <span class="op">&gt;</span> <span class="ident">t</span>
+    <span class="kw">fn </span>has_computed_bidegree(<span class="kw-2">&amp;</span><span class="self">self</span>, s: u32, t: i32) -&gt; bool {
+        <span class="self">self</span>.differentials.len() &gt; s <span class="kw">as </span>usize &amp;&amp; <span class="self">self</span>.differential(s).next_degree() &gt; t
     }
 
-    <span class="kw">fn</span> <span class="ident">differential</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">s</span>: <span class="ident">u32</span>) -&gt; <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Homomorphism</span><span class="op">&gt;</span> {
-        <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">differentials</span>[<span class="ident">s</span> <span class="kw">as</span> <span class="ident">usize</span>])
+    <span class="kw">fn </span>differential(<span class="kw-2">&amp;</span><span class="self">self</span>, s: u32) -&gt; Arc&lt;<span class="self">Self</span>::Homomorphism&gt; {
+        Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.differentials[s <span class="kw">as </span>usize])
     }
 
-    <span class="kw">fn</span> <span class="ident">compute_through_bidegree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">s</span>: <span class="ident">u32</span>, <span class="ident">t</span>: <span class="ident">i32</span>) {
-        <span class="self">self</span>.<span class="ident">compute_through_bidegree_with_callback</span>(<span class="ident">s</span>, <span class="ident">t</span>, <span class="op">|</span><span class="kw">_</span>, <span class="kw">_</span><span class="op">|</span> ())
+    <span class="kw">fn </span>compute_through_bidegree(<span class="kw-2">&amp;</span><span class="self">self</span>, s: u32, t: i32) {
+        <span class="self">self</span>.compute_through_bidegree_with_callback(s, t, |<span class="kw">_</span>, <span class="kw">_</span>| ())
     }
 
-    <span class="kw">fn</span> <span class="ident">next_homological_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">u32</span> {
-        <span class="self">self</span>.<span class="ident">modules</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">u32</span>
+    <span class="kw">fn </span>next_homological_degree(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u32 {
+        <span class="self">self</span>.modules.len() <span class="kw">as </span>u32
     }
 
-    <span class="kw">fn</span> <span class="ident">apply_quasi_inverse</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">S</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">results</span>: <span class="kw-2">&amp;mut</span> [<span class="ident">T</span>], <span class="ident">s</span>: <span class="ident">u32</span>, <span class="ident">t</span>: <span class="ident">i32</span>, <span class="ident">inputs</span>: <span class="kw-2">&amp;</span>[<span class="ident">S</span>]) -&gt; <span class="ident">bool</span>
-    <span class="kw">where</span>
-        <span class="kw">for</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="kw-2">mut</span> <span class="ident">T</span>: <span class="ident">Into</span><span class="op">&lt;</span><span class="ident">SliceMut</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-        <span class="kw">for</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">S</span>: <span class="ident">Into</span><span class="op">&lt;</span><span class="ident">Slice</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="kw">fn </span>apply_quasi_inverse&lt;T, S&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, results: <span class="kw-2">&amp;mut </span>[T], s: u32, t: i32, inputs: <span class="kw-2">&amp;</span>[S]) -&gt; bool
+    <span class="kw">where
+        for</span>&lt;<span class="lifetime">&#39;a</span>&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="kw-2">mut </span>T: Into&lt;SliceMut&lt;<span class="lifetime">&#39;a</span>&gt;&gt;,
+        <span class="kw">for</span>&lt;<span class="lifetime">&#39;a</span>&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>S: Into&lt;Slice&lt;<span class="lifetime">&#39;a</span>&gt;&gt;,
     {
-        <span class="macro">assert_eq!</span>(<span class="ident">results</span>.<span class="ident">len</span>(), <span class="ident">inputs</span>.<span class="ident">len</span>());
+        <span class="macro">assert_eq!</span>(results.len(), inputs.len());
 
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">qi</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">differential</span>(<span class="ident">s</span>).<span class="ident">quasi_inverse</span>(<span class="ident">t</span>) {
-            <span class="kw">for</span> (<span class="ident">input</span>, <span class="ident">result</span>) <span class="kw">in</span> <span class="ident">inputs</span>.<span class="ident">iter</span>().<span class="ident">zip_eq</span>(<span class="ident">results</span>) {
-                <span class="ident">qi</span>.<span class="ident">apply</span>(<span class="ident">result</span>.<span class="ident">into</span>(), <span class="number">1</span>, <span class="ident">input</span>.<span class="ident">into</span>());
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(qi) = <span class="self">self</span>.differential(s).quasi_inverse(t) {
+            <span class="kw">for </span>(input, result) <span class="kw">in </span>inputs.iter().zip_eq(results) {
+                qi.apply(result.into(), <span class="number">1</span>, input.into());
             }
-            <span class="bool-val">true</span>
-        } <span class="kw">else</span> <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dir</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">save_dir</span> {
-            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">mut</span> <span class="ident">f</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">save_file</span>(<span class="ident">SaveKind::ResQi</span>, <span class="ident">s</span>, <span class="ident">t</span>).<span class="ident">open_file</span>(<span class="ident">dir</span>.<span class="ident">clone</span>()) {
-                <span class="ident">QuasiInverse::stream_quasi_inverse</span>(<span class="self">self</span>.<span class="ident">prime</span>(), <span class="kw-2">&amp;mut</span> <span class="ident">f</span>, <span class="ident">results</span>, <span class="ident">inputs</span>).<span class="ident">unwrap</span>();
-                <span class="bool-val">true</span>
-            } <span class="kw">else</span> {
-                <span class="bool-val">false</span>
-            }
-        } <span class="kw">else</span> {
-            <span class="bool-val">false</span>
-        }
+            <span class="bool-val">true
+        </span>} <span class="kw">else if let </span><span class="prelude-val">Some</span>(dir) = <span class="kw-2">&amp;</span><span class="self">self</span>.save_dir {
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">mut </span>f) = <span class="self">self</span>.save_file(SaveKind::ResQi, s, t).open_file(dir.clone()) {
+                QuasiInverse::stream_quasi_inverse(<span class="self">self</span>.prime(), <span class="kw-2">&amp;mut </span>f, results, inputs).unwrap();
+                <span class="bool-val">true
+            </span>} <span class="kw">else </span>{
+                <span class="bool-val">false
+            </span>}
+        } <span class="kw">else </span>{
+            <span class="bool-val">false
+        </span>}
     }
 
-    <span class="kw">fn</span> <span class="ident">save_dir</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">Path</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">save_dir</span>.<span class="ident">as_deref</span>()
+    <span class="kw">fn </span>save_dir(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Path&gt; {
+        <span class="self">self</span>.save_dir.as_deref()
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">U</span>: <span class="ident">bool</span>, <span class="ident">CC</span>: <span class="ident">ChainComplex</span><span class="op">&gt;</span> <span class="ident">AugmentedChainComplex</span> <span class="kw">for</span> <span class="ident">MuResolution</span><span class="op">&lt;</span><span class="ident">U</span>, <span class="ident">CC</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">CC::Algebra</span>: <span class="ident">MuAlgebra</span><span class="op">&lt;</span><span class="ident">U</span><span class="op">&gt;</span>,
+<span class="kw">impl</span>&lt;<span class="kw">const </span>U: bool, CC: ChainComplex&gt; AugmentedChainComplex <span class="kw">for </span>MuResolution&lt;U, CC&gt;
+<span class="kw">where
+    </span>CC::Algebra: MuAlgebra&lt;U&gt;,
 {
-    <span class="kw">type</span> <span class="ident">TargetComplex</span> <span class="op">=</span> <span class="ident">CC</span>;
-    <span class="kw">type</span> <span class="ident">ChainMap</span> <span class="op">=</span> <span class="ident">MuFreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">U</span>, <span class="ident">CC::Module</span><span class="op">&gt;</span>;
+    <span class="kw">type </span>TargetComplex = CC;
+    <span class="kw">type </span>ChainMap = MuFreeModuleHomomorphism&lt;U, CC::Module&gt;;
 
-    <span class="kw">fn</span> <span class="ident">target</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::TargetComplex</span><span class="op">&gt;</span> {
-        <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">complex</span>)
+    <span class="kw">fn </span>target(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Arc&lt;<span class="self">Self</span>::TargetComplex&gt; {
+        Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.complex)
     }
 
-    <span class="kw">fn</span> <span class="ident">chain_map</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">s</span>: <span class="ident">u32</span>) -&gt; <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::ChainMap</span><span class="op">&gt;</span> {
-        <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">chain_maps</span>[<span class="ident">s</span>])
+    <span class="kw">fn </span>chain_map(<span class="kw-2">&amp;</span><span class="self">self</span>, s: u32) -&gt; Arc&lt;<span class="self">Self</span>::ChainMap&gt; {
+        Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.chain_maps[s])
     }
 }
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
-<span class="kw">mod</span> <span class="ident">test</span> {
-    <span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
-    <span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">chain_complex::FreeChainComplex</span>, <span class="ident">utils::construct_standard</span>};
-    <span class="kw">use</span> <span class="ident">expect_test::expect</span>;
+<span class="attribute">#[cfg(test)]
+</span><span class="kw">mod </span>test {
+    <span class="kw">use super</span>::<span class="kw-2">*</span>;
+    <span class="kw">use crate</span>::{chain_complex::FreeChainComplex, utils::construct_standard};
+    <span class="kw">use </span>expect_test::expect;
 
-    <span class="attribute">#[<span class="ident">test</span>]</span>
-    <span class="kw">fn</span> <span class="ident">test_restart_stem</span>() {
-        <span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">construct_standard</span>::<span class="op">&lt;</span><span class="bool-val">false</span>, <span class="kw">_</span>, <span class="kw">_</span><span class="op">&gt;</span>(<span class="string">&quot;S_2&quot;</span>, <span class="prelude-val">None</span>).<span class="ident">unwrap</span>();
-        <span class="ident">res</span>.<span class="ident">compute_through_stem</span>(<span class="number">8</span>, <span class="number">14</span>);
-        <span class="ident">res</span>.<span class="ident">compute_through_bidegree</span>(<span class="number">5</span>, <span class="number">19</span>);
+    <span class="attribute">#[test]
+    </span><span class="kw">fn </span>test_restart_stem() {
+        <span class="kw">let </span>res = construct_standard::&lt;<span class="bool-val">false</span>, <span class="kw">_</span>, <span class="kw">_</span>&gt;(<span class="string">&quot;S_2&quot;</span>, <span class="prelude-val">None</span>).unwrap();
+        res.compute_through_stem(<span class="number">8</span>, <span class="number">14</span>);
+        res.compute_through_bidegree(<span class="number">5</span>, <span class="number">19</span>);
 
         <span class="macro">expect!</span>[[<span class="string">r#&quot;
             ·                             
@@ -1993,27 +1991,27 @@
             · ·   ·       ·               ·       
             ·                                       
         &quot;#</span>]]
-        .<span class="ident">assert_eq</span>(<span class="kw-2">&amp;</span><span class="ident">res</span>.<span class="ident">graded_dimension_string</span>());
+        .assert_eq(<span class="kw-2">&amp;</span>res.graded_dimension_string());
     }
 
-    <span class="attribute">#[<span class="ident">test</span>]</span>
-    <span class="kw">fn</span> <span class="ident">test_apply_quasi_inverse</span>() {
-        <span class="kw">let</span> <span class="ident">tempdir</span> <span class="op">=</span> <span class="ident">tempfile::TempDir::new</span>().<span class="ident">unwrap</span>();
+    <span class="attribute">#[test]
+    </span><span class="kw">fn </span>test_apply_quasi_inverse() {
+        <span class="kw">let </span>tempdir = tempfile::TempDir::new().unwrap();
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">res</span> <span class="op">=</span>
-            <span class="ident">construct_standard</span>::<span class="op">&lt;</span><span class="bool-val">false</span>, <span class="kw">_</span>, <span class="kw">_</span><span class="op">&gt;</span>(<span class="string">&quot;S_2&quot;</span>, <span class="prelude-val">Some</span>(<span class="ident">tempdir</span>.<span class="ident">path</span>().<span class="ident">into</span>())).<span class="ident">unwrap</span>();
-        <span class="ident">res</span>.<span class="ident">load_quasi_inverse</span> <span class="op">=</span> <span class="bool-val">false</span>;
+        <span class="kw">let </span><span class="kw-2">mut </span>res =
+            construct_standard::&lt;<span class="bool-val">false</span>, <span class="kw">_</span>, <span class="kw">_</span>&gt;(<span class="string">&quot;S_2&quot;</span>, <span class="prelude-val">Some</span>(tempdir.path().into())).unwrap();
+        res.load_quasi_inverse = <span class="bool-val">false</span>;
 
-        <span class="ident">res</span>.<span class="ident">compute_through_bidegree</span>(<span class="number">8</span>, <span class="number">8</span>);
+        res.compute_through_bidegree(<span class="number">8</span>, <span class="number">8</span>);
 
-        <span class="macro">assert!</span>(<span class="ident">res</span>.<span class="ident">differential</span>(<span class="number">8</span>).<span class="ident">quasi_inverse</span>(<span class="number">8</span>).<span class="ident">is_none</span>());
+        <span class="macro">assert!</span>(res.differential(<span class="number">8</span>).quasi_inverse(<span class="number">8</span>).is_none());
 
-        <span class="kw">let</span> <span class="ident">v</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="ident">res</span>.<span class="ident">prime</span>(), <span class="ident">res</span>.<span class="ident">module</span>(<span class="number">7</span>).<span class="ident">dimension</span>(<span class="number">8</span>));
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">w</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="ident">res</span>.<span class="ident">prime</span>(), <span class="ident">res</span>.<span class="ident">module</span>(<span class="number">8</span>).<span class="ident">dimension</span>(<span class="number">8</span>));
+        <span class="kw">let </span>v = FpVector::new(res.prime(), res.module(<span class="number">7</span>).dimension(<span class="number">8</span>));
+        <span class="kw">let </span><span class="kw-2">mut </span>w = FpVector::new(res.prime(), res.module(<span class="number">8</span>).dimension(<span class="number">8</span>));
 
-        <span class="macro">assert!</span>(<span class="ident">res</span>.<span class="ident">apply_quasi_inverse</span>(<span class="kw-2">&amp;mut</span> [<span class="ident">w</span>.<span class="ident">as_slice_mut</span>()], <span class="number">8</span>, <span class="number">8</span>, <span class="kw-2">&amp;</span>[<span class="ident">v</span>.<span class="ident">as_slice</span>()]));
-        <span class="macro">assert!</span>(<span class="ident">w</span>.<span class="ident">is_zero</span>());
+        <span class="macro">assert!</span>(res.apply_quasi_inverse(<span class="kw-2">&amp;mut </span>[w.as_slice_mut()], <span class="number">8</span>, <span class="number">8</span>, <span class="kw-2">&amp;</span>[v.as_slice()]));
+        <span class="macro">assert!</span>(w.is_zero());
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="ext" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0 (a55dd71d5 2022-09-19)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="ext" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0 (897e37553 2022-11-02)" ></div></body></html>

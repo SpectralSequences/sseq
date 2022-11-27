@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `examples/save_bruner.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>save_bruner.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled><link rel="stylesheet" type="text/css" href="../../dark.css" disabled><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script><script defer src="../../main.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `examples/save_bruner.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>save_bruner.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" href="../../normalize.css"><link rel="stylesheet" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" href="../../ayu.css" disabled><link rel="stylesheet" href="../../dark.css" disabled><link rel="stylesheet" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script><script defer src="../../main.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
 <!-- The loading of KaTeX is deferred to speed up page rendering -->
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.js" integrity="sha384-Bi8OWqMXO1ta+a4EPkZv7bYGIes7C3krGSZoTGNTAnAn5eYQc7IIXrJ/7ck1drAi" crossorigin="anonymous"></script>
 <!-- To automatically render math in text elements, include the auto-render extension: -->
@@ -99,81 +99,81 @@
 <span id="74">74</span>
 <span id="75">75</span>
 <span id="76">76</span>
-</pre><pre class="rust"><code><span class="doccomment">//! This saves a resolution to Bruner&#39;s format. This saves the resulting files to the current</span>
-<span class="doccomment">//! working directory. It is recommended that you run this in a dedicated subdirectory.</span>
+</pre><pre class="rust"><code><span class="doccomment">//! This saves a resolution to Bruner&#39;s format. This saves the resulting files to the current
+//! working directory. It is recommended that you run this in a dedicated subdirectory.
 
-<span class="kw">use</span> <span class="ident">algebra::module::Module</span>;
-<span class="kw">use</span> <span class="ident">algebra</span>::{<span class="ident">Algebra</span>, <span class="ident">AlgebraType</span>, <span class="ident">MilnorAlgebra</span>};
-<span class="kw">use</span> <span class="ident">ext</span>::{<span class="ident">chain_complex::ChainComplex</span>, <span class="ident">utils::query_module</span>};
-<span class="kw">use</span> <span class="ident">itertools::Itertools</span>;
-<span class="kw">use</span> <span class="ident">std::fmt::Write</span> <span class="kw">as</span> <span class="kw">_</span>;
-<span class="kw">use</span> <span class="ident">std::fs::File</span>;
-<span class="kw">use</span> <span class="ident">std::io</span>::{<span class="ident">BufWriter</span>, <span class="ident">Write</span> <span class="kw">as</span> <span class="kw">_</span>};
+</span><span class="kw">use </span>algebra::module::Module;
+<span class="kw">use </span>algebra::{Algebra, AlgebraType, MilnorAlgebra};
+<span class="kw">use </span>ext::{chain_complex::ChainComplex, utils::query_module};
+<span class="kw">use </span>itertools::Itertools;
+<span class="kw">use </span>std::fmt::Write <span class="kw">as _</span>;
+<span class="kw">use </span>std::fs::File;
+<span class="kw">use </span>std::io::{BufWriter, Write <span class="kw">as _</span>};
 
-<span class="kw">fn</span> <span class="ident">main</span>() -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-    <span class="kw">let</span> <span class="ident">resolution</span> <span class="op">=</span> <span class="ident">query_module</span>(<span class="prelude-val">Some</span>(<span class="ident">AlgebraType::Milnor</span>), <span class="bool-val">false</span>)<span class="question-mark">?</span>;
+<span class="kw">fn </span>main() -&gt; anyhow::Result&lt;()&gt; {
+    <span class="kw">let </span>resolution = query_module(<span class="prelude-val">Some</span>(AlgebraType::Milnor), <span class="bool-val">false</span>)<span class="question-mark">?</span>;
 
-    <span class="macro">assert_eq!</span>(<span class="kw-2">*</span><span class="ident">resolution</span>.<span class="ident">prime</span>(), <span class="number">2</span>);
-    <span class="kw">let</span> <span class="ident">algebra</span> <span class="op">=</span> <span class="ident">resolution</span>.<span class="ident">algebra</span>();
-    <span class="kw">let</span> <span class="ident">algebra</span>: <span class="kw-2">&amp;</span><span class="ident">MilnorAlgebra</span> <span class="op">=</span> <span class="ident">algebra</span>.<span class="ident">as_ref</span>().<span class="ident">try_into</span>()<span class="question-mark">?</span>;
+    <span class="macro">assert_eq!</span>(<span class="kw-2">*</span>resolution.prime(), <span class="number">2</span>);
+    <span class="kw">let </span>algebra = resolution.algebra();
+    <span class="kw">let </span>algebra: <span class="kw-2">&amp;</span>MilnorAlgebra = algebra.as_ref().try_into()<span class="question-mark">?</span>;
 
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">buffer</span> <span class="op">=</span> <span class="ident">String::new</span>();
+    <span class="kw">let </span><span class="kw-2">mut </span>buffer = String::new();
 
-    <span class="kw">for</span> <span class="ident">s</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">resolution</span>.<span class="ident">next_homological_degree</span>() {
-        <span class="kw">let</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">File::create</span>(<span class="macro">format!</span>(<span class="string">&quot;hDiff.{s}&quot;</span>))<span class="question-mark">?</span>;
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">BufWriter::new</span>(<span class="ident">f</span>);
-        <span class="kw">let</span> <span class="ident">module</span> <span class="op">=</span> <span class="ident">resolution</span>.<span class="ident">module</span>(<span class="ident">s</span>);
-        <span class="comment">// We don&#39;t use this when s = 0</span>
-        <span class="kw">let</span> <span class="ident">dmodule</span> <span class="op">=</span> <span class="ident">resolution</span>.<span class="ident">module</span>(<span class="ident">s</span>.<span class="ident">saturating_sub</span>(<span class="number">1</span>));
-        <span class="kw">let</span> <span class="ident">min_degree</span> <span class="op">=</span> <span class="ident">module</span>.<span class="ident">min_degree</span>();
-        <span class="kw">let</span> <span class="ident">max_degree</span> <span class="op">=</span> <span class="ident">module</span>.<span class="ident">max_computed_degree</span>();
-        <span class="kw">let</span> <span class="ident">num_gens</span>: <span class="ident">usize</span> <span class="op">=</span> (<span class="ident">min_degree</span>..<span class="op">=</span><span class="ident">max_degree</span>)
-            .<span class="ident">map</span>(<span class="op">|</span><span class="ident">t</span><span class="op">|</span> <span class="ident">module</span>.<span class="ident">number_of_gens_in_degree</span>(<span class="ident">t</span>))
-            .<span class="ident">sum</span>();
+    <span class="kw">for </span>s <span class="kw">in </span><span class="number">0</span>..resolution.next_homological_degree() {
+        <span class="kw">let </span>f = File::create(<span class="macro">format!</span>(<span class="string">&quot;hDiff.{s}&quot;</span>))<span class="question-mark">?</span>;
+        <span class="kw">let </span><span class="kw-2">mut </span>f = BufWriter::new(f);
+        <span class="kw">let </span>module = resolution.module(s);
+        <span class="comment">// We don&#39;t use this when s = 0
+        </span><span class="kw">let </span>dmodule = resolution.module(s.saturating_sub(<span class="number">1</span>));
+        <span class="kw">let </span>min_degree = module.min_degree();
+        <span class="kw">let </span>max_degree = module.max_computed_degree();
+        <span class="kw">let </span>num_gens: usize = (min_degree..=max_degree)
+            .map(|t| module.number_of_gens_in_degree(t))
+            .sum();
 
-        <span class="macro">writeln!</span>(<span class="ident">f</span>, <span class="string">&quot;        {num_gens}        {max_degree}\n&quot;</span>)<span class="question-mark">?</span>;
+        <span class="macro">writeln!</span>(f, <span class="string">&quot;        {num_gens}        {max_degree}\n&quot;</span>)<span class="question-mark">?</span>;
 
-        <span class="kw">let</span> <span class="ident">d</span> <span class="op">=</span> <span class="ident">resolution</span>.<span class="ident">differential</span>(<span class="ident">s</span>);
-        <span class="kw">for</span> <span class="ident">t</span> <span class="kw">in</span> <span class="ident">min_degree</span>..<span class="op">=</span><span class="ident">max_degree</span> {
-            <span class="kw">for</span> <span class="ident">idx</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">module</span>.<span class="ident">number_of_gens_in_degree</span>(<span class="ident">t</span>) {
-                <span class="macro">writeln!</span>(<span class="ident">f</span>, <span class="string">&quot;{t}\n&quot;</span>)<span class="question-mark">?</span>;
+        <span class="kw">let </span>d = resolution.differential(s);
+        <span class="kw">for </span>t <span class="kw">in </span>min_degree..=max_degree {
+            <span class="kw">for </span>idx <span class="kw">in </span><span class="number">0</span>..module.number_of_gens_in_degree(t) {
+                <span class="macro">writeln!</span>(f, <span class="string">&quot;{t}\n&quot;</span>)<span class="question-mark">?</span>;
 
-                <span class="kw">if</span> <span class="ident">s</span> <span class="op">==</span> <span class="number">0</span> {
-                    <span class="macro">writeln!</span>(<span class="ident">f</span>, <span class="string">&quot;1\n0 0 1 i(0).\n\n\n&quot;</span>)<span class="question-mark">?</span>;
+                <span class="kw">if </span>s == <span class="number">0 </span>{
+                    <span class="macro">writeln!</span>(f, <span class="string">&quot;1\n0 0 1 i(0).\n\n\n&quot;</span>)<span class="question-mark">?</span>;
                     <span class="kw">continue</span>;
                 }
-                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">row_count</span> <span class="op">=</span> <span class="number">0</span>;
-                <span class="ident">buffer</span>.<span class="ident">clear</span>();
-                <span class="kw">let</span> <span class="ident">dx</span> <span class="op">=</span> <span class="ident">d</span>.<span class="ident">output</span>(<span class="ident">t</span>, <span class="ident">idx</span>);
+                <span class="kw">let </span><span class="kw-2">mut </span>row_count = <span class="number">0</span>;
+                buffer.clear();
+                <span class="kw">let </span>dx = d.output(t, idx);
 
-                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">gen_count</span> <span class="op">=</span> <span class="number">0</span>;
-                <span class="kw">for</span> <span class="ident">gen_deg</span> <span class="kw">in</span> <span class="ident">min_degree</span>..<span class="ident">t</span> {
-                    <span class="kw">for</span> <span class="ident">gen_idx</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">dmodule</span>.<span class="ident">number_of_gens_in_degree</span>(<span class="ident">gen_deg</span>) {
-                        <span class="kw">let</span> <span class="ident">op_deg</span> <span class="op">=</span> <span class="ident">t</span> <span class="op">-</span> <span class="ident">gen_deg</span>;
-                        <span class="kw">let</span> <span class="ident">algebra_dim</span> <span class="op">=</span> <span class="ident">algebra</span>.<span class="ident">dimension</span>(<span class="ident">op_deg</span>);
-                        <span class="kw">let</span> <span class="ident">start</span> <span class="op">=</span> <span class="ident">dmodule</span>.<span class="ident">generator_offset</span>(<span class="ident">t</span>, <span class="ident">gen_deg</span>, <span class="ident">gen_idx</span>);
-                        <span class="kw">let</span> <span class="ident">slice</span> <span class="op">=</span> <span class="ident">dx</span>.<span class="ident">slice</span>(<span class="ident">start</span>, <span class="ident">start</span> <span class="op">+</span> <span class="ident">algebra_dim</span>);
-                        <span class="kw">if</span> <span class="ident">slice</span>.<span class="ident">is_zero</span>() {
-                            <span class="ident">gen_count</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
+                <span class="kw">let </span><span class="kw-2">mut </span>gen_count = <span class="number">0</span>;
+                <span class="kw">for </span>gen_deg <span class="kw">in </span>min_degree..t {
+                    <span class="kw">for </span>gen_idx <span class="kw">in </span><span class="number">0</span>..dmodule.number_of_gens_in_degree(gen_deg) {
+                        <span class="kw">let </span>op_deg = t - gen_deg;
+                        <span class="kw">let </span>algebra_dim = algebra.dimension(op_deg);
+                        <span class="kw">let </span>start = dmodule.generator_offset(t, gen_deg, gen_idx);
+                        <span class="kw">let </span>slice = dx.slice(start, start + algebra_dim);
+                        <span class="kw">if </span>slice.is_zero() {
+                            gen_count += <span class="number">1</span>;
                             <span class="kw">continue</span>;
                         }
-                        <span class="ident">row_count</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
-                        <span class="macro">write!</span>(<span class="ident">buffer</span>, <span class="string">&quot;{gen_count} {op_deg} {algebra_dim} i&quot;</span>).<span class="ident">unwrap</span>();
-                        <span class="kw">for</span> (<span class="ident">op_idx</span>, <span class="kw">_</span>) <span class="kw">in</span> <span class="ident">slice</span>.<span class="ident">iter_nonzero</span>() {
-                            <span class="kw">let</span> <span class="ident">elt</span> <span class="op">=</span> <span class="ident">algebra</span>.<span class="ident">basis_element_from_index</span>(<span class="ident">op_deg</span>, <span class="ident">op_idx</span>);
-                            <span class="macro">write!</span>(<span class="ident">buffer</span>, <span class="string">&quot;({:?})&quot;</span>, <span class="ident">elt</span>.<span class="ident">p_part</span>.<span class="ident">iter</span>().<span class="ident">format</span>(<span class="string">&quot;,&quot;</span>)).<span class="ident">unwrap</span>();
+                        row_count += <span class="number">1</span>;
+                        <span class="macro">write!</span>(buffer, <span class="string">&quot;{gen_count} {op_deg} {algebra_dim} i&quot;</span>).unwrap();
+                        <span class="kw">for </span>(op_idx, <span class="kw">_</span>) <span class="kw">in </span>slice.iter_nonzero() {
+                            <span class="kw">let </span>elt = algebra.basis_element_from_index(op_deg, op_idx);
+                            <span class="macro">write!</span>(buffer, <span class="string">&quot;({:?})&quot;</span>, elt.p_part.iter().format(<span class="string">&quot;,&quot;</span>)).unwrap();
                         }
-                        <span class="macro">writeln!</span>(<span class="ident">buffer</span>, <span class="string">&quot;.&quot;</span>).<span class="ident">unwrap</span>();
-                        <span class="ident">gen_count</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
+                        <span class="macro">writeln!</span>(buffer, <span class="string">&quot;.&quot;</span>).unwrap();
+                        gen_count += <span class="number">1</span>;
                     }
                 }
-                <span class="macro">writeln!</span>(<span class="ident">f</span>, <span class="string">&quot;{row_count}&quot;</span>)<span class="question-mark">?</span>;
-                <span class="macro">writeln!</span>(<span class="ident">f</span>, <span class="string">&quot;{buffer}&quot;</span>)<span class="question-mark">?</span>; <span class="comment">// buffer has one new line, writeln has one new line, add another one.</span>
-            }
+                <span class="macro">writeln!</span>(f, <span class="string">&quot;{row_count}&quot;</span>)<span class="question-mark">?</span>;
+                <span class="macro">writeln!</span>(f, <span class="string">&quot;{buffer}&quot;</span>)<span class="question-mark">?</span>; <span class="comment">// buffer has one new line, writeln has one new line, add another one.
+            </span>}
         }
     }
 
     <span class="prelude-val">Ok</span>(())
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="save_bruner" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0 (a55dd71d5 2022-09-19)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="save_bruner" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0 (897e37553 2022-11-02)" ></div></body></html>

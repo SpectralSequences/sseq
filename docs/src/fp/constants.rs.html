@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/fp/src/constants.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>constants.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled><link rel="stylesheet" type="text/css" href="../../dark.css" disabled><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script><script defer src="../../main.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/fp/src/constants.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>constants.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" href="../../normalize.css"><link rel="stylesheet" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" href="../../ayu.css" disabled><link rel="stylesheet" href="../../dark.css" disabled><link rel="stylesheet" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script><script defer src="../../main.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
 <!-- The loading of KaTeX is deferred to speed up page rendering -->
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.js" integrity="sha384-Bi8OWqMXO1ta+a4EPkZv7bYGIes7C3krGSZoTGNTAnAn5eYQc7IIXrJ/7ck1drAi" crossorigin="anonymous"></script>
 <!-- To automatically render math in text elements, include the auto-render extension: -->
@@ -77,59 +77,59 @@
 <span id="52">52</span>
 <span id="53">53</span>
 <span id="54">54</span>
-</pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">build_const::build_const</span>;
+</pre><pre class="rust"><code><span class="kw">use </span>build_const::build_const;
 
 <span class="macro">build_const!</span>(<span class="string">&quot;constants&quot;</span>);
 
-<span class="attribute">#[<span class="ident">macro_export</span>]</span>
-<span class="macro">macro_rules!</span> <span class="ident">const_for</span> {
-    (<span class="macro-nonterminal">$</span><span class="macro-nonterminal">i</span>:<span class="ident">ident</span> <span class="kw">in</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">a</span>:<span class="ident">literal</span> .. <span class="macro-nonterminal">$</span><span class="macro-nonterminal">b</span>:<span class="ident">ident</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">contents</span>:<span class="ident">block</span>) =&gt; {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">i</span> <span class="op">=</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">a</span>;
-        <span class="kw">while</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">i</span> <span class="op">&lt;</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">b</span> {
-            <span class="macro-nonterminal">$</span><span class="macro-nonterminal">contents</span>;
-            <span class="macro-nonterminal">$</span><span class="macro-nonterminal">i</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
+<span class="attribute">#[macro_export]
+</span><span class="macro">macro_rules! </span>const_for {
+    (<span class="macro-nonterminal">$i</span>:ident <span class="kw">in </span><span class="macro-nonterminal">$a</span>:literal .. <span class="macro-nonterminal">$b</span>:ident <span class="macro-nonterminal">$contents</span>:block) =&gt; {
+        <span class="kw">let </span><span class="kw-2">mut </span><span class="macro-nonterminal">$i </span>= <span class="macro-nonterminal">$a</span>;
+        <span class="kw">while </span><span class="macro-nonterminal">$i </span>&lt; <span class="macro-nonterminal">$b </span>{
+            <span class="macro-nonterminal">$contents</span>;
+            <span class="macro-nonterminal">$i </span>+= <span class="number">1</span>;
         }
     };
 }
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const</span> <span class="ident">INVERSE_TABLE</span>: [[<span class="ident">u32</span>; <span class="ident">MAX_PRIME</span>]; <span class="ident">NUM_PRIMES</span>] <span class="op">=</span> {
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> [[<span class="number">0</span>; <span class="ident">MAX_PRIME</span>]; <span class="ident">NUM_PRIMES</span>];
-    <span class="macro">const_for!</span> { <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span> .. <span class="ident">NUM_PRIMES</span> {
-        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">PRIMES</span>[<span class="ident">i</span>];
-        <span class="macro">const_for!</span> { <span class="ident">k</span> <span class="kw">in</span> <span class="number">1</span> .. <span class="ident">p</span> {
-            <span class="ident">result</span>[<span class="ident">i</span>][<span class="ident">k</span> <span class="kw">as</span> <span class="ident">usize</span>] <span class="op">=</span> <span class="ident"><span class="kw">crate</span>::prime::power_mod</span>(<span class="ident">p</span>, <span class="ident">k</span>, <span class="ident">p</span> <span class="op">-</span> <span class="number">2</span>);
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const </span>INVERSE_TABLE: [[u32; MAX_PRIME]; NUM_PRIMES] = {
+    <span class="kw">let </span><span class="kw-2">mut </span>result = [[<span class="number">0</span>; MAX_PRIME]; NUM_PRIMES];
+    <span class="macro">const_for! </span>{ i <span class="kw">in </span><span class="number">0 </span>.. NUM_PRIMES {
+        <span class="kw">let </span>p = PRIMES[i];
+        <span class="macro">const_for! </span>{ k <span class="kw">in </span><span class="number">1 </span>.. p {
+            result[i][k <span class="kw">as </span>usize] = <span class="kw">crate</span>::prime::power_mod(p, k, p - <span class="number">2</span>);
         }}
     }};
-    <span class="ident">result</span>
+    result
 };
 
-<span class="macro">macro_rules!</span> <span class="ident">populate_binomial_table</span> {
-    (<span class="macro-nonterminal">$</span><span class="macro-nonterminal">res</span>:<span class="ident">expr</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">size</span>:<span class="ident">ident</span>, <span class="macro-nonterminal">$</span><span class="kw">mod</span>:<span class="macro-nonterminal">expr</span>) =&gt; {
-        <span class="macro">const_for!</span> { <span class="ident">n</span> <span class="kw">in</span> <span class="number">0</span> .. <span class="macro-nonterminal">$</span><span class="macro-nonterminal">size</span> {
-            <span class="macro-nonterminal">$</span><span class="macro-nonterminal">res</span>[<span class="ident">n</span>][<span class="number">0</span>] <span class="op">=</span> <span class="number">1</span>;
-            <span class="macro">const_for!</span> { <span class="ident">k</span> <span class="kw">in</span> <span class="number">0</span> .. <span class="ident">n</span> {
-                <span class="macro-nonterminal">$</span><span class="macro-nonterminal">res</span>[<span class="ident">n</span>][<span class="ident">k</span> <span class="op">+</span> <span class="number">1</span>] <span class="op">=</span> (<span class="macro-nonterminal">$</span><span class="macro-nonterminal">res</span>[<span class="ident">n</span> <span class="op">-</span> <span class="number">1</span>][<span class="ident">k</span>] <span class="op">+</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">res</span>[<span class="ident">n</span> <span class="op">-</span> <span class="number">1</span>][<span class="ident">k</span> <span class="op">+</span> <span class="number">1</span>]) <span class="op">%</span> <span class="macro-nonterminal">$</span><span class="kw">mod</span>;
+<span class="macro">macro_rules! </span>populate_binomial_table {
+    (<span class="macro-nonterminal">$res</span>:expr, <span class="macro-nonterminal">$size</span>:ident, <span class="macro-nonterminal">$</span><span class="kw">mod</span>:<span class="macro-nonterminal">expr</span>) =&gt; {
+        <span class="macro">const_for! </span>{ n <span class="kw">in </span><span class="number">0 </span>.. <span class="macro-nonterminal">$size </span>{
+            <span class="macro-nonterminal">$res</span>[n][<span class="number">0</span>] = <span class="number">1</span>;
+            <span class="macro">const_for! </span>{ k <span class="kw">in </span><span class="number">0 </span>.. n {
+                <span class="macro-nonterminal">$res</span>[n][k + <span class="number">1</span>] = (<span class="macro-nonterminal">$res</span>[n - <span class="number">1</span>][k] + <span class="macro-nonterminal">$res</span>[n - <span class="number">1</span>][k + <span class="number">1</span>]) % <span class="macro-nonterminal">$</span><span class="kw">mod</span>;
             }}
         }}
     };
 }
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const</span> <span class="macro-nonterminal">BINOMIAL4_TABLE_SIZE</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="number">50</span>;
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const </span><span class="macro-nonterminal">BINOMIAL4_TABLE_SIZE</span>: usize = <span class="number">50</span>;
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const</span> <span class="ident">BINOMIAL4_TABLE</span>: [[<span class="ident">u32</span>; <span class="ident">BINOMIAL4_TABLE_SIZE</span>]; <span class="ident">BINOMIAL4_TABLE_SIZE</span>] <span class="op">=</span> {
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">res</span> <span class="op">=</span> [[<span class="number">0</span>; <span class="ident">BINOMIAL4_TABLE_SIZE</span>]; <span class="ident">BINOMIAL4_TABLE_SIZE</span>];
-    <span class="macro">populate_binomial_table!</span>(<span class="ident">res</span>, <span class="ident">BINOMIAL4_TABLE_SIZE</span>, <span class="number">4</span>);
-    <span class="ident">res</span>
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const </span>BINOMIAL4_TABLE: [[u32; BINOMIAL4_TABLE_SIZE]; BINOMIAL4_TABLE_SIZE] = {
+    <span class="kw">let </span><span class="kw-2">mut </span>res = [[<span class="number">0</span>; BINOMIAL4_TABLE_SIZE]; BINOMIAL4_TABLE_SIZE];
+    <span class="macro">populate_binomial_table!</span>(res, BINOMIAL4_TABLE_SIZE, <span class="number">4</span>);
+    res
 };
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">static</span> <span class="ident">BINOMIAL_TABLE</span>: [[[<span class="ident">u32</span>; <span class="ident">MAX_PRIME</span>]; <span class="ident">MAX_PRIME</span>]; <span class="ident">NUM_PRIMES</span>] <span class="op">=</span> {
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> [[[<span class="number">0</span>; <span class="ident">MAX_PRIME</span>]; <span class="ident">MAX_PRIME</span>]; <span class="ident">NUM_PRIMES</span>];
-    <span class="macro">const_for!</span> { <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span> .. <span class="ident">NUM_PRIMES</span> {
-        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">PRIMES</span>[<span class="ident">i</span>];
-        <span class="kw">let</span> <span class="ident">pu</span> <span class="op">=</span> <span class="ident">p</span> <span class="kw">as</span> <span class="ident">usize</span>;
-        <span class="macro">populate_binomial_table!</span>(<span class="ident">result</span>[<span class="ident">i</span>], <span class="ident">pu</span>, <span class="ident">p</span>);
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">static </span>BINOMIAL_TABLE: [[[u32; MAX_PRIME]; MAX_PRIME]; NUM_PRIMES] = {
+    <span class="kw">let </span><span class="kw-2">mut </span>result = [[[<span class="number">0</span>; MAX_PRIME]; MAX_PRIME]; NUM_PRIMES];
+    <span class="macro">const_for! </span>{ i <span class="kw">in </span><span class="number">0 </span>.. NUM_PRIMES {
+        <span class="kw">let </span>p = PRIMES[i];
+        <span class="kw">let </span>pu = p <span class="kw">as </span>usize;
+        <span class="macro">populate_binomial_table!</span>(result[i], pu, p);
     }}
-    <span class="ident">result</span>
+    result
 };
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="fp" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0 (a55dd71d5 2022-09-19)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="fp" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0 (897e37553 2022-11-02)" ></div></body></html>

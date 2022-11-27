@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/algebra/src/module/quotient_module.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>quotient_module.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../ayu.css" disabled><link rel="stylesheet" type="text/css" href="../../../dark.css" disabled><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../../storage.js"></script><script defer src="../../../source-script.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../main.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../../favicon.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/algebra/src/module/quotient_module.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>quotient_module.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" href="../../../normalize.css"><link rel="stylesheet" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" href="../../../ayu.css" disabled><link rel="stylesheet" href="../../../dark.css" disabled><link rel="stylesheet" href="../../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../../storage.js"></script><script defer src="../../../source-script.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../main.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../../favicon.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
 <!-- The loading of KaTeX is deferred to speed up page rendering -->
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.js" integrity="sha384-Bi8OWqMXO1ta+a4EPkZv7bYGIes7C3krGSZoTGNTAnAn5eYQc7IIXrJ/7ck1drAi" crossorigin="anonymous"></script>
 <!-- To automatically render math in text elements, include the auto-render extension: -->
@@ -223,205 +223,205 @@
 <span id="198">198</span>
 <span id="199">199</span>
 <span id="200">200</span>
-</pre><pre class="rust"><code><span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::module</span>::{<span class="ident">Module</span>, <span class="ident">ZeroModule</span>};
-<span class="kw">use</span> <span class="ident">bivec::BiVec</span>;
-<span class="kw">use</span> <span class="ident">fp::matrix::Subspace</span>;
-<span class="kw">use</span> <span class="ident">fp::vector</span>::{<span class="ident">FpVector</span>, <span class="ident">Slice</span>, <span class="ident">SliceMut</span>};
-<span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
+</pre><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::module::{Module, ZeroModule};
+<span class="kw">use </span>bivec::BiVec;
+<span class="kw">use </span>fp::matrix::Subspace;
+<span class="kw">use </span>fp::vector::{FpVector, Slice, SliceMut};
+<span class="kw">use </span>std::sync::Arc;
 
-<span class="doccomment">/// A quotient of a module truncated below a fix degree.</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">QuotientModule</span><span class="op">&lt;</span><span class="ident">M</span>: <span class="ident">Module</span><span class="op">&gt;</span> {
-    <span class="doccomment">/// The underlying module</span>
-    <span class="kw">pub</span> <span class="ident">module</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span>,
-    <span class="doccomment">/// The subspaces that we quotient out by</span>
-    <span class="kw">pub</span> <span class="ident">subspaces</span>: <span class="ident">BiVec</span><span class="op">&lt;</span><span class="ident">Subspace</span><span class="op">&gt;</span>,
-    <span class="doccomment">/// For each degree `d`, `basis_list[d]` is a list of basis elements of `self.module` that</span>
-    <span class="doccomment">/// generates the quotient.</span>
-    <span class="kw">pub</span> <span class="ident">basis_list</span>: <span class="ident">BiVec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    <span class="doccomment">/// Everything above this degree is quotiented out.</span>
-    <span class="kw">pub</span> <span class="ident">truncation</span>: <span class="ident">i32</span>,
+<span class="doccomment">/// A quotient of a module truncated below a fix degree.
+</span><span class="kw">pub struct </span>QuotientModule&lt;M: Module&gt; {
+    <span class="doccomment">/// The underlying module
+    </span><span class="kw">pub </span>module: Arc&lt;M&gt;,
+    <span class="doccomment">/// The subspaces that we quotient out by
+    </span><span class="kw">pub </span>subspaces: BiVec&lt;Subspace&gt;,
+    <span class="doccomment">/// For each degree `d`, `basis_list[d]` is a list of basis elements of `self.module` that
+    /// generates the quotient.
+    </span><span class="kw">pub </span>basis_list: BiVec&lt;Vec&lt;usize&gt;&gt;,
+    <span class="doccomment">/// Everything above this degree is quotiented out.
+    </span><span class="kw">pub </span>truncation: i32,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">M</span>: <span class="ident">Module</span><span class="op">&gt;</span> <span class="ident">std::fmt::Display</span> <span class="kw">for</span> <span class="ident">QuotientModule</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">std::fmt::Formatter</span>) -&gt; <span class="ident">std::fmt::Result</span> {
-        <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;Quotient of {}&quot;</span>, <span class="self">self</span>.<span class="ident">module</span>)
+<span class="kw">impl</span>&lt;M: Module&gt; std::fmt::Display <span class="kw">for </span>QuotientModule&lt;M&gt; {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter) -&gt; std::fmt::Result {
+        <span class="macro">write!</span>(f, <span class="string">&quot;Quotient of {}&quot;</span>, <span class="self">self</span>.module)
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">M</span>: <span class="ident">Module</span><span class="op">&gt;</span> <span class="ident">QuotientModule</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">module</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span>, <span class="ident">truncation</span>: <span class="ident">i32</span>) -&gt; <span class="self">Self</span> {
-        <span class="ident">module</span>.<span class="ident">compute_basis</span>(<span class="ident">truncation</span>);
+<span class="kw">impl</span>&lt;M: Module&gt; QuotientModule&lt;M&gt; {
+    <span class="kw">pub fn </span>new(module: Arc&lt;M&gt;, truncation: i32) -&gt; <span class="self">Self </span>{
+        module.compute_basis(truncation);
 
-        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">module</span>.<span class="ident">prime</span>();
-        <span class="kw">let</span> <span class="ident">min_degree</span> <span class="op">=</span> <span class="ident">module</span>.<span class="ident">min_degree</span>();
+        <span class="kw">let </span>p = module.prime();
+        <span class="kw">let </span>min_degree = module.min_degree();
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">subspaces</span> <span class="op">=</span> <span class="ident">BiVec::with_capacity</span>(<span class="ident">min_degree</span>, <span class="ident">truncation</span> <span class="op">+</span> <span class="number">1</span>);
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">basis_list</span> <span class="op">=</span> <span class="ident">BiVec::with_capacity</span>(<span class="ident">min_degree</span>, <span class="ident">truncation</span> <span class="op">+</span> <span class="number">1</span>);
+        <span class="kw">let </span><span class="kw-2">mut </span>subspaces = BiVec::with_capacity(min_degree, truncation + <span class="number">1</span>);
+        <span class="kw">let </span><span class="kw-2">mut </span>basis_list = BiVec::with_capacity(min_degree, truncation + <span class="number">1</span>);
 
-        <span class="kw">for</span> <span class="ident">t</span> <span class="kw">in</span> <span class="ident">min_degree</span>..<span class="op">=</span><span class="ident">truncation</span> {
-            <span class="kw">let</span> <span class="ident">dim</span> <span class="op">=</span> <span class="ident">module</span>.<span class="ident">dimension</span>(<span class="ident">t</span>);
-            <span class="ident">subspaces</span>.<span class="ident">push</span>(<span class="ident">Subspace::new</span>(<span class="ident">p</span>, <span class="ident">dim</span> <span class="op">+</span> <span class="number">1</span>, <span class="ident">dim</span>));
-            <span class="ident">basis_list</span>.<span class="ident">push</span>((<span class="number">0</span>..<span class="ident">dim</span>).<span class="ident">collect</span>());
+        <span class="kw">for </span>t <span class="kw">in </span>min_degree..=truncation {
+            <span class="kw">let </span>dim = module.dimension(t);
+            subspaces.push(Subspace::new(p, dim + <span class="number">1</span>, dim));
+            basis_list.push((<span class="number">0</span>..dim).collect());
         }
-        <span class="ident">QuotientModule</span> {
-            <span class="ident">module</span>,
-            <span class="ident">subspaces</span>,
-            <span class="ident">basis_list</span>,
-            <span class="ident">truncation</span>,
-        }
-    }
-
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">quotient</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">element</span>: <span class="ident">Slice</span>) {
-        <span class="kw">if</span> <span class="ident">degree</span> <span class="op">&lt;</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">truncation</span> {
-            <span class="self">self</span>.<span class="ident">subspaces</span>[<span class="ident">degree</span>].<span class="ident">add_vector</span>(<span class="ident">element</span>);
-            <span class="self">self</span>.<span class="ident">flush</span>(<span class="ident">degree</span>);
+        QuotientModule {
+            module,
+            subspaces,
+            basis_list,
+            truncation,
         }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">quotient_basis_elements</span>(
-        <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
-        <span class="ident">degree</span>: <span class="ident">i32</span>,
-        <span class="ident">elements</span>: <span class="kw">impl</span> <span class="ident">std::iter::Iterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">usize</span><span class="op">&gt;</span>,
+    <span class="kw">pub fn </span>quotient(<span class="kw-2">&amp;mut </span><span class="self">self</span>, degree: i32, element: Slice) {
+        <span class="kw">if </span>degree &lt;= <span class="self">self</span>.truncation {
+            <span class="self">self</span>.subspaces[degree].add_vector(element);
+            <span class="self">self</span>.flush(degree);
+        }
+    }
+
+    <span class="kw">pub fn </span>quotient_basis_elements(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        degree: i32,
+        elements: <span class="kw">impl </span>std::iter::Iterator&lt;Item = usize&gt;,
     ) {
-        <span class="self">self</span>.<span class="ident">subspaces</span>[<span class="ident">degree</span>].<span class="ident">add_basis_elements</span>(<span class="ident">elements</span>);
-        <span class="self">self</span>.<span class="ident">flush</span>(<span class="ident">degree</span>);
+        <span class="self">self</span>.subspaces[degree].add_basis_elements(elements);
+        <span class="self">self</span>.flush(degree);
     }
 
-    <span class="doccomment">/// # Arguments</span>
-    <span class="doccomment">///  - `degree`: The degree to quotient in</span>
-    <span class="doccomment">///  - `vecs`: See [`Subspace::add_vectors`]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">quotient_vectors</span>(
-        <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
-        <span class="ident">degree</span>: <span class="ident">i32</span>,
-        <span class="ident">vecs</span>: <span class="kw">impl</span> <span class="kw">for</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> <span class="ident">FnMut</span>(<span class="ident">SliceMut</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span>()<span class="op">&gt;</span>,
+    <span class="doccomment">/// # Arguments
+    ///  - `degree`: The degree to quotient in
+    ///  - `vecs`: See [`Subspace::add_vectors`]
+    </span><span class="kw">pub fn </span>quotient_vectors(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        degree: i32,
+        vecs: <span class="kw">impl for</span>&lt;<span class="lifetime">&#39;a</span>&gt; FnMut(SliceMut&lt;<span class="lifetime">&#39;a</span>&gt;) -&gt; <span class="prelude-ty">Option</span>&lt;()&gt;,
     ) {
-        <span class="kw">if</span> <span class="ident">degree</span> <span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">truncation</span> {
+        <span class="kw">if </span>degree &gt; <span class="self">self</span>.truncation {
             <span class="kw">return</span>;
         }
-        <span class="self">self</span>.<span class="ident">subspaces</span>[<span class="ident">degree</span>].<span class="ident">add_vectors</span>(<span class="ident">vecs</span>);
-        <span class="self">self</span>.<span class="ident">flush</span>(<span class="ident">degree</span>);
+        <span class="self">self</span>.subspaces[degree].add_vectors(vecs);
+        <span class="self">self</span>.flush(degree);
     }
 
-    <span class="kw">fn</span> <span class="ident">flush</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) {
-        <span class="self">self</span>.<span class="ident">basis_list</span>[<span class="ident">degree</span>].<span class="ident">clear</span>();
-        <span class="self">self</span>.<span class="ident">basis_list</span>[<span class="ident">degree</span>].<span class="ident">extend</span>(
-            <span class="self">self</span>.<span class="ident">subspaces</span>[<span class="ident">degree</span>]
-                .<span class="ident">pivots</span>()
-                .<span class="ident">iter</span>()
-                .<span class="ident">enumerate</span>()
-                .<span class="ident">filter_map</span>(<span class="op">|</span>(<span class="ident">idx</span>, <span class="kw-2">&amp;</span><span class="ident">row</span>)<span class="op">|</span> <span class="kw">if</span> <span class="ident">row</span> <span class="op">&lt;</span> <span class="number">0</span> { <span class="prelude-val">Some</span>(<span class="ident">idx</span>) } <span class="kw">else</span> { <span class="prelude-val">None</span> }),
+    <span class="kw">fn </span>flush(<span class="kw-2">&amp;mut </span><span class="self">self</span>, degree: i32) {
+        <span class="self">self</span>.basis_list[degree].clear();
+        <span class="self">self</span>.basis_list[degree].extend(
+            <span class="self">self</span>.subspaces[degree]
+                .pivots()
+                .iter()
+                .enumerate()
+                .filter_map(|(idx, <span class="kw-2">&amp;</span>row)| <span class="kw">if </span>row &lt; <span class="number">0 </span>{ <span class="prelude-val">Some</span>(idx) } <span class="kw">else </span>{ <span class="prelude-val">None </span>}),
         );
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">quotient_all</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) {
-        <span class="self">self</span>.<span class="ident">subspaces</span>[<span class="ident">degree</span>].<span class="ident">set_to_entire</span>();
-        <span class="self">self</span>.<span class="ident">basis_list</span>[<span class="ident">degree</span>] <span class="op">=</span> <span class="ident">Vec::new</span>();
+    <span class="kw">pub fn </span>quotient_all(<span class="kw-2">&amp;mut </span><span class="self">self</span>, degree: i32) {
+        <span class="self">self</span>.subspaces[degree].set_to_entire();
+        <span class="self">self</span>.basis_list[degree] = Vec::new();
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">act_on_original_basis</span>(
+    <span class="kw">pub fn </span>act_on_original_basis(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="kw-2">mut</span> <span class="ident">result</span>: <span class="ident">SliceMut</span>,
-        <span class="ident">coeff</span>: <span class="ident">u32</span>,
-        <span class="ident">op_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">op_index</span>: <span class="ident">usize</span>,
-        <span class="ident">mod_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">mod_index</span>: <span class="ident">usize</span>,
+        <span class="kw-2">mut </span>result: SliceMut,
+        coeff: u32,
+        op_degree: i32,
+        op_index: usize,
+        mod_degree: i32,
+        mod_index: usize,
     ) {
-        <span class="kw">if</span> <span class="ident">op_degree</span> <span class="op">+</span> <span class="ident">mod_degree</span> <span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">truncation</span> {
+        <span class="kw">if </span>op_degree + mod_degree &gt; <span class="self">self</span>.truncation {
             <span class="kw">return</span>;
         }
-        <span class="self">self</span>.<span class="ident">module</span>.<span class="ident">act_on_basis</span>(
-            <span class="ident">result</span>.<span class="ident">copy</span>(),
-            <span class="ident">coeff</span>,
-            <span class="ident">op_degree</span>,
-            <span class="ident">op_index</span>,
-            <span class="ident">mod_degree</span>,
-            <span class="ident">mod_index</span>,
+        <span class="self">self</span>.module.act_on_basis(
+            result.copy(),
+            coeff,
+            op_degree,
+            op_index,
+            mod_degree,
+            mod_index,
         );
-        <span class="self">self</span>.<span class="ident">reduce</span>(<span class="ident">op_degree</span> <span class="op">+</span> <span class="ident">mod_degree</span>, <span class="ident">result</span>)
+        <span class="self">self</span>.reduce(op_degree + mod_degree, result)
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">reduce</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="kw-2">mut</span> <span class="ident">vec</span>: <span class="ident">SliceMut</span>) {
-        <span class="kw">if</span> <span class="ident">degree</span> <span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">truncation</span> {
-            <span class="ident">vec</span>.<span class="ident">set_to_zero</span>()
-        } <span class="kw">else</span> {
-            <span class="self">self</span>.<span class="ident">subspaces</span>[<span class="ident">degree</span>].<span class="ident">reduce</span>(<span class="ident">vec</span>);
+    <span class="kw">pub fn </span>reduce(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32, <span class="kw-2">mut </span>vec: SliceMut) {
+        <span class="kw">if </span>degree &gt; <span class="self">self</span>.truncation {
+            vec.set_to_zero()
+        } <span class="kw">else </span>{
+            <span class="self">self</span>.subspaces[degree].reduce(vec);
         }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">old_basis_to_new</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="kw-2">mut</span> <span class="ident">new</span>: <span class="ident">SliceMut</span>, <span class="ident">old</span>: <span class="ident">Slice</span>) {
-        <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">idx</span>) <span class="kw">in</span> <span class="self">self</span>.<span class="ident">basis_list</span>[<span class="ident">degree</span>].<span class="ident">iter</span>().<span class="ident">enumerate</span>() {
-            <span class="ident">new</span>.<span class="ident">add_basis_element</span>(<span class="ident">i</span>, <span class="ident">old</span>.<span class="ident">entry</span>(<span class="kw-2">*</span><span class="ident">idx</span>));
+    <span class="kw">pub fn </span>old_basis_to_new(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32, <span class="kw-2">mut </span>new: SliceMut, old: Slice) {
+        <span class="kw">for </span>(i, idx) <span class="kw">in </span><span class="self">self</span>.basis_list[degree].iter().enumerate() {
+            new.add_basis_element(i, old.entry(<span class="kw-2">*</span>idx));
         }
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">M</span>: <span class="ident">Module</span><span class="op">&gt;</span> <span class="ident">Module</span> <span class="kw">for</span> <span class="ident">QuotientModule</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span> {
-    <span class="kw">type</span> <span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">M::Algebra</span>;
-    <span class="kw">fn</span> <span class="ident">algebra</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Algebra</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">module</span>.<span class="ident">algebra</span>()
+<span class="kw">impl</span>&lt;M: Module&gt; Module <span class="kw">for </span>QuotientModule&lt;M&gt; {
+    <span class="kw">type </span>Algebra = M::Algebra;
+    <span class="kw">fn </span>algebra(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Arc&lt;<span class="self">Self</span>::Algebra&gt; {
+        <span class="self">self</span>.module.algebra()
     }
 
-    <span class="kw">fn</span> <span class="ident">min_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">i32</span> {
-        <span class="self">self</span>.<span class="ident">module</span>.<span class="ident">min_degree</span>()
+    <span class="kw">fn </span>min_degree(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; i32 {
+        <span class="self">self</span>.module.min_degree()
     }
 
-    <span class="kw">fn</span> <span class="ident">max_computed_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">i32</span> {
-        <span class="self">self</span>.<span class="ident">module</span>.<span class="ident">max_computed_degree</span>()
+    <span class="kw">fn </span>max_computed_degree(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; i32 {
+        <span class="self">self</span>.module.max_computed_degree()
     }
 
-    <span class="kw">fn</span> <span class="ident">dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) -&gt; <span class="ident">usize</span> {
-        <span class="kw">if</span> <span class="ident">degree</span> <span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">truncation</span> {
-            <span class="number">0</span>
-        } <span class="kw">else</span> {
-            <span class="self">self</span>.<span class="ident">module</span>.<span class="ident">dimension</span>(<span class="ident">degree</span>) <span class="op">-</span> <span class="self">self</span>.<span class="ident">subspaces</span>[<span class="ident">degree</span>].<span class="ident">dimension</span>()
+    <span class="kw">fn </span>dimension(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32) -&gt; usize {
+        <span class="kw">if </span>degree &gt; <span class="self">self</span>.truncation {
+            <span class="number">0
+        </span>} <span class="kw">else </span>{
+            <span class="self">self</span>.module.dimension(degree) - <span class="self">self</span>.subspaces[degree].dimension()
         }
     }
 
-    <span class="kw">fn</span> <span class="ident">act_on_basis</span>(
+    <span class="kw">fn </span>act_on_basis(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">result</span>: <span class="ident">SliceMut</span>,
-        <span class="ident">coeff</span>: <span class="ident">u32</span>,
-        <span class="ident">op_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">op_index</span>: <span class="ident">usize</span>,
-        <span class="ident">mod_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">mod_index</span>: <span class="ident">usize</span>,
+        result: SliceMut,
+        coeff: u32,
+        op_degree: i32,
+        op_index: usize,
+        mod_degree: i32,
+        mod_index: usize,
     ) {
-        <span class="kw">let</span> <span class="ident">target_deg</span> <span class="op">=</span> <span class="ident">op_degree</span> <span class="op">+</span> <span class="ident">mod_degree</span>;
-        <span class="kw">if</span> <span class="ident">target_deg</span> <span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">truncation</span> {
+        <span class="kw">let </span>target_deg = op_degree + mod_degree;
+        <span class="kw">if </span>target_deg &gt; <span class="self">self</span>.truncation {
             <span class="kw">return</span>;
         }
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result_</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="self">self</span>.<span class="ident">prime</span>(), <span class="self">self</span>.<span class="ident">module</span>.<span class="ident">dimension</span>(<span class="ident">target_deg</span>));
-        <span class="self">self</span>.<span class="ident">act_on_original_basis</span>(
-            <span class="ident">result_</span>.<span class="ident">as_slice_mut</span>(),
-            <span class="ident">coeff</span>,
-            <span class="ident">op_degree</span>,
-            <span class="ident">op_index</span>,
-            <span class="ident">mod_degree</span>,
-            <span class="self">self</span>.<span class="ident">basis_list</span>[<span class="ident">mod_degree</span>][<span class="ident">mod_index</span>],
+        <span class="kw">let </span><span class="kw-2">mut </span>result_ = FpVector::new(<span class="self">self</span>.prime(), <span class="self">self</span>.module.dimension(target_deg));
+        <span class="self">self</span>.act_on_original_basis(
+            result_.as_slice_mut(),
+            coeff,
+            op_degree,
+            op_index,
+            mod_degree,
+            <span class="self">self</span>.basis_list[mod_degree][mod_index],
         );
-        <span class="self">self</span>.<span class="ident">reduce</span>(<span class="ident">target_deg</span>, <span class="ident">result_</span>.<span class="ident">as_slice_mut</span>());
-        <span class="self">self</span>.<span class="ident">old_basis_to_new</span>(<span class="ident">target_deg</span>, <span class="ident">result</span>, <span class="ident">result_</span>.<span class="ident">as_slice</span>());
+        <span class="self">self</span>.reduce(target_deg, result_.as_slice_mut());
+        <span class="self">self</span>.old_basis_to_new(target_deg, result, result_.as_slice());
     }
 
-    <span class="kw">fn</span> <span class="ident">basis_element_to_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">idx</span>: <span class="ident">usize</span>) -&gt; <span class="ident">String</span> {
-        <span class="self">self</span>.<span class="ident">module</span>
-            .<span class="ident">basis_element_to_string</span>(<span class="ident">degree</span>, <span class="self">self</span>.<span class="ident">basis_list</span>[<span class="ident">degree</span>][<span class="ident">idx</span>])
+    <span class="kw">fn </span>basis_element_to_string(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32, idx: usize) -&gt; String {
+        <span class="self">self</span>.module
+            .basis_element_to_string(degree, <span class="self">self</span>.basis_list[degree][idx])
     }
 
-    <span class="kw">fn</span> <span class="ident">max_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">i32</span><span class="op">&gt;</span> {
-        <span class="prelude-val">Some</span>(<span class="kw">match</span> <span class="self">self</span>.<span class="ident">module</span>.<span class="ident">max_degree</span>() {
-            <span class="prelude-val">Some</span>(<span class="ident">max_degree</span>) =&gt; <span class="ident">std::cmp::min</span>(<span class="ident">max_degree</span>, <span class="self">self</span>.<span class="ident">truncation</span>),
-            <span class="prelude-val">None</span> =&gt; <span class="self">self</span>.<span class="ident">truncation</span>,
+    <span class="kw">fn </span>max_degree(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;i32&gt; {
+        <span class="prelude-val">Some</span>(<span class="kw">match </span><span class="self">self</span>.module.max_degree() {
+            <span class="prelude-val">Some</span>(max_degree) =&gt; std::cmp::min(max_degree, <span class="self">self</span>.truncation),
+            <span class="prelude-val">None </span>=&gt; <span class="self">self</span>.truncation,
         })
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">M</span>: <span class="ident">ZeroModule</span><span class="op">&gt;</span> <span class="ident">ZeroModule</span> <span class="kw">for</span> <span class="ident">QuotientModule</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">zero_module</span>(<span class="ident">algebra</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">M::Algebra</span><span class="op">&gt;</span>, <span class="ident">min_degree</span>: <span class="ident">i32</span>) -&gt; <span class="self">Self</span> {
-        <span class="ident"><span class="self">Self</span>::new</span>(<span class="ident">Arc::new</span>(<span class="ident">M::zero_module</span>(<span class="ident">algebra</span>, <span class="ident">min_degree</span>)), <span class="ident">min_degree</span>)
+<span class="kw">impl</span>&lt;M: ZeroModule&gt; ZeroModule <span class="kw">for </span>QuotientModule&lt;M&gt; {
+    <span class="kw">fn </span>zero_module(algebra: Arc&lt;M::Algebra&gt;, min_degree: i32) -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>::new(Arc::new(M::zero_module(algebra, min_degree)), min_degree)
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="algebra" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0 (a55dd71d5 2022-09-19)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="algebra" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0 (897e37553 2022-11-02)" ></div></body></html>

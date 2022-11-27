@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/resolution_homomorphism.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>resolution_homomorphism.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled><link rel="stylesheet" type="text/css" href="../../dark.css" disabled><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script><script defer src="../../main.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/resolution_homomorphism.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>resolution_homomorphism.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" href="../../normalize.css"><link rel="stylesheet" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" href="../../ayu.css" disabled><link rel="stylesheet" href="../../dark.css" disabled><link rel="stylesheet" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script><script defer src="../../main.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
 <!-- The loading of KaTeX is deferred to speed up page rendering -->
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.js" integrity="sha384-Bi8OWqMXO1ta+a4EPkZv7bYGIes7C3krGSZoTGNTAnAn5eYQc7IIXrJ/7ck1drAi" crossorigin="anonymous"></script>
 <!-- To automatically render math in text elements, include the auto-render extension: -->
@@ -534,516 +534,518 @@
 <span id="509">509</span>
 <span id="510">510</span>
 <span id="511">511</span>
-</pre><pre class="rust"><code><span class="doccomment">//! This module defines [`MuResolutionHomomorphism`], which is a chain map from a</span>
-<span class="doccomment">//! [`FreeChainComplex`].</span>
-<span class="kw">use</span> <span class="ident">std::ops::Range</span>;
-<span class="kw">use</span> <span class="ident">std::path::PathBuf</span>;
-<span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
+<span id="512">512</span>
+</pre><pre class="rust"><code><span class="doccomment">//! This module defines [`MuResolutionHomomorphism`], which is a chain map from a
+//! [`FreeChainComplex`].
+</span><span class="kw">use </span>std::ops::Range;
+<span class="kw">use </span>std::path::PathBuf;
+<span class="kw">use </span>std::sync::Arc;
 
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::chain_complex</span>::{
-    <span class="ident">AugmentedChainComplex</span>, <span class="ident">BoundedChainComplex</span>, <span class="ident">ChainComplex</span>, <span class="ident">FreeChainComplex</span>,
+<span class="kw">use </span><span class="kw">crate</span>::chain_complex::{
+    AugmentedChainComplex, BoundedChainComplex, ChainComplex, FreeChainComplex,
 };
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::save::SaveKind</span>;
-<span class="kw">use</span> <span class="ident">algebra::module::homomorphism</span>::{<span class="ident">ModuleHomomorphism</span>, <span class="ident">MuFreeModuleHomomorphism</span>};
-<span class="kw">use</span> <span class="ident">algebra::module::Module</span>;
-<span class="kw">use</span> <span class="ident">algebra::MuAlgebra</span>;
-<span class="kw">use</span> <span class="ident">fp::matrix::Matrix</span>;
-<span class="kw">use</span> <span class="ident">fp::vector</span>::{<span class="ident">FpVector</span>, <span class="ident">SliceMut</span>};
-<span class="kw">use</span> <span class="ident">once::OnceBiVec</span>;
+<span class="kw">use </span><span class="kw">crate</span>::save::SaveKind;
+<span class="kw">use </span>algebra::module::homomorphism::{ModuleHomomorphism, MuFreeModuleHomomorphism};
+<span class="kw">use </span>algebra::module::Module;
+<span class="kw">use </span>algebra::MuAlgebra;
+<span class="kw">use </span>fp::matrix::Matrix;
+<span class="kw">use </span>fp::vector::{FpVector, SliceMut};
+<span class="kw">use </span>once::OnceBiVec;
 
-<span class="kw">use</span> <span class="ident">byteorder</span>::{<span class="ident">LittleEndian</span>, <span class="ident">ReadBytesExt</span>, <span class="ident">WriteBytesExt</span>};
+<span class="kw">use </span>byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
-<span class="kw">use</span> <span class="ident">rayon::prelude</span>::<span class="kw-2">*</span>;
+<span class="attribute">#[cfg(feature = <span class="string">&quot;concurrent&quot;</span>)]
+</span><span class="kw">use </span>rayon::prelude::<span class="kw-2">*</span>;
 
-<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">ResolutionHomomorphism</span><span class="op">&lt;</span><span class="ident">CC1</span>, <span class="ident">CC2</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">MuResolutionHomomorphism</span><span class="op">&lt;</span><span class="bool-val">false</span>, <span class="ident">CC1</span>, <span class="ident">CC2</span><span class="op">&gt;</span>;
-<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">UnstableResolutionHomomorphism</span><span class="op">&lt;</span><span class="ident">CC1</span>, <span class="ident">CC2</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">MuResolutionHomomorphism</span><span class="op">&lt;</span><span class="bool-val">true</span>, <span class="ident">CC1</span>, <span class="ident">CC2</span><span class="op">&gt;</span>;
+<span class="kw">pub type </span>ResolutionHomomorphism&lt;CC1, CC2&gt; = MuResolutionHomomorphism&lt;<span class="bool-val">false</span>, CC1, CC2&gt;;
+<span class="kw">pub type </span>UnstableResolutionHomomorphism&lt;CC1, CC2&gt; = MuResolutionHomomorphism&lt;<span class="bool-val">true</span>, CC1, CC2&gt;;
 
-<span class="doccomment">/// A chain complex homomorphims from a [`FreeChainComplex`]. This contains logic to lift chain</span>
-<span class="doccomment">/// maps using the freeness.</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">MuResolutionHomomorphism</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">U</span>: <span class="ident">bool</span>, <span class="ident">CC1</span>, <span class="ident">CC2</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">CC1</span>: <span class="ident">FreeChainComplex</span><span class="op">&lt;</span><span class="ident">U</span><span class="op">&gt;</span>,
-    <span class="ident">CC1::Algebra</span>: <span class="ident">MuAlgebra</span><span class="op">&lt;</span><span class="ident">U</span><span class="op">&gt;</span>,
-    <span class="ident">CC2</span>: <span class="ident">ChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">CC1::Algebra</span><span class="op">&gt;</span>,
+<span class="doccomment">/// A chain complex homomorphims from a [`FreeChainComplex`]. This contains logic to lift chain
+/// maps using the freeness.
+</span><span class="kw">pub struct </span>MuResolutionHomomorphism&lt;<span class="kw">const </span>U: bool, CC1, CC2&gt;
+<span class="kw">where
+    </span>CC1: FreeChainComplex&lt;U&gt;,
+    CC1::Algebra: MuAlgebra&lt;U&gt;,
+    CC2: ChainComplex&lt;Algebra = CC1::Algebra&gt;,
 {
-    <span class="ident">name</span>: <span class="ident">String</span>,
-    <span class="kw">pub</span> <span class="ident">source</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">CC1</span><span class="op">&gt;</span>,
-    <span class="kw">pub</span> <span class="ident">target</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">CC2</span><span class="op">&gt;</span>,
-    <span class="ident">maps</span>: <span class="ident">OnceBiVec</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">MuFreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">U</span>, <span class="ident">CC2::Module</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    <span class="kw">pub</span> <span class="ident">shift_s</span>: <span class="ident">u32</span>,
-    <span class="kw">pub</span> <span class="ident">shift_t</span>: <span class="ident">i32</span>,
-    <span class="ident">save_dir</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">PathBuf</span><span class="op">&gt;</span>,
+    name: String,
+    <span class="kw">pub </span>source: Arc&lt;CC1&gt;,
+    <span class="kw">pub </span>target: Arc&lt;CC2&gt;,
+    maps: OnceBiVec&lt;Arc&lt;MuFreeModuleHomomorphism&lt;U, CC2::Module&gt;&gt;&gt;,
+    <span class="kw">pub </span>shift_s: u32,
+    <span class="kw">pub </span>shift_t: i32,
+    save_dir: <span class="prelude-ty">Option</span>&lt;PathBuf&gt;,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">U</span>: <span class="ident">bool</span>, <span class="ident">CC1</span>, <span class="ident">CC2</span><span class="op">&gt;</span> <span class="ident">MuResolutionHomomorphism</span><span class="op">&lt;</span><span class="ident">U</span>, <span class="ident">CC1</span>, <span class="ident">CC2</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">CC1</span>: <span class="ident">FreeChainComplex</span><span class="op">&lt;</span><span class="ident">U</span><span class="op">&gt;</span>,
-    <span class="ident">CC1::Algebra</span>: <span class="ident">MuAlgebra</span><span class="op">&lt;</span><span class="ident">U</span><span class="op">&gt;</span>,
-    <span class="ident">CC2</span>: <span class="ident">ChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">CC1::Algebra</span><span class="op">&gt;</span>,
+<span class="kw">impl</span>&lt;<span class="kw">const </span>U: bool, CC1, CC2&gt; MuResolutionHomomorphism&lt;U, CC1, CC2&gt;
+<span class="kw">where
+    </span>CC1: FreeChainComplex&lt;U&gt;,
+    CC1::Algebra: MuAlgebra&lt;U&gt;,
+    CC2: ChainComplex&lt;Algebra = CC1::Algebra&gt;,
 {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(
-        <span class="ident">name</span>: <span class="ident">String</span>,
-        <span class="ident">source</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">CC1</span><span class="op">&gt;</span>,
-        <span class="ident">target</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">CC2</span><span class="op">&gt;</span>,
-        <span class="ident">shift_s</span>: <span class="ident">u32</span>,
-        <span class="ident">shift_t</span>: <span class="ident">i32</span>,
-    ) -&gt; <span class="self">Self</span> {
-        <span class="kw">let</span> <span class="ident">save_dir</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">source</span>.<span class="ident">save_dir</span>().<span class="ident">is_some</span>() <span class="op">&amp;&amp;</span> <span class="op">!</span><span class="ident">name</span>.<span class="ident">is_empty</span>() {
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">path</span> <span class="op">=</span> <span class="ident">source</span>.<span class="ident">save_dir</span>().<span class="ident">unwrap</span>().<span class="ident">to_owned</span>();
-            <span class="ident">path</span>.<span class="ident">push</span>(<span class="macro">format!</span>(<span class="string">&quot;products/{name}&quot;</span>));
-            <span class="ident">SaveKind::ChainMap</span>.<span class="ident">create_dir</span>(<span class="kw-2">&amp;</span><span class="ident">path</span>).<span class="ident">unwrap</span>();
-            <span class="prelude-val">Some</span>(<span class="ident">path</span>)
-        } <span class="kw">else</span> {
-            <span class="prelude-val">None</span>
-        };
+    <span class="kw">pub fn </span>new(
+        name: String,
+        source: Arc&lt;CC1&gt;,
+        target: Arc&lt;CC2&gt;,
+        shift_s: u32,
+        shift_t: i32,
+    ) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>save_dir = <span class="kw">if </span>source.save_dir().is_some() &amp;&amp; !name.is_empty() {
+            <span class="kw">let </span><span class="kw-2">mut </span>path = source.save_dir().unwrap().to_owned();
+            path.push(<span class="macro">format!</span>(<span class="string">&quot;products/{name}&quot;</span>));
+            SaveKind::ChainMap.create_dir(<span class="kw-2">&amp;</span>path).unwrap();
+            <span class="prelude-val">Some</span>(path)
+        } <span class="kw">else </span>{
+            <span class="prelude-val">None
+        </span>};
 
-        <span class="self">Self</span> {
-            <span class="ident">name</span>,
-            <span class="ident">source</span>,
-            <span class="ident">target</span>,
-            <span class="ident">maps</span>: <span class="ident">OnceBiVec::new</span>(<span class="ident">shift_s</span> <span class="kw">as</span> <span class="ident">i32</span>),
-            <span class="ident">shift_s</span>,
-            <span class="ident">shift_t</span>,
-            <span class="ident">save_dir</span>,
+        <span class="self">Self </span>{
+            name,
+            source,
+            target,
+            maps: OnceBiVec::new(shift_s <span class="kw">as </span>i32),
+            shift_s,
+            shift_t,
+            save_dir,
         }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">name</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">str</span> {
-        <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">name</span>
+    <span class="kw">pub fn </span>name(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>str {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.name
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">algebra</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">CC1::Algebra</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">source</span>.<span class="ident">algebra</span>()
+    <span class="kw">pub fn </span>algebra(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Arc&lt;CC1::Algebra&gt; {
+        <span class="self">self</span>.source.algebra()
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">next_homological_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">i32</span> {
-        <span class="self">self</span>.<span class="ident">maps</span>.<span class="ident">len</span>()
+    <span class="kw">pub fn </span>next_homological_degree(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; i32 {
+        <span class="self">self</span>.maps.len()
     }
 
-    <span class="kw">fn</span> <span class="ident">get_map_ensure_length</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">input_s</span>: <span class="ident">u32</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">MuFreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">U</span>, <span class="ident">CC2::Module</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">maps</span>.<span class="ident">extend</span>(<span class="ident">input_s</span> <span class="kw">as</span> <span class="ident">i32</span>, <span class="op">|</span><span class="ident">input_s</span><span class="op">|</span> {
-            <span class="kw">let</span> <span class="ident">output_s</span> <span class="op">=</span> <span class="ident">input_s</span> <span class="kw">as</span> <span class="ident">u32</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">shift_s</span>;
-            <span class="ident">Arc::new</span>(<span class="ident">MuFreeModuleHomomorphism::new</span>(
-                <span class="self">self</span>.<span class="ident">source</span>.<span class="ident">module</span>(<span class="ident">input_s</span> <span class="kw">as</span> <span class="ident">u32</span>),
-                <span class="self">self</span>.<span class="ident">target</span>.<span class="ident">module</span>(<span class="ident">output_s</span>),
-                <span class="self">self</span>.<span class="ident">shift_t</span>,
+    <span class="kw">fn </span>get_map_ensure_length(<span class="kw-2">&amp;</span><span class="self">self</span>, input_s: u32) -&gt; <span class="kw-2">&amp;</span>MuFreeModuleHomomorphism&lt;U, CC2::Module&gt; {
+        <span class="self">self</span>.maps.extend(input_s <span class="kw">as </span>i32, |input_s| {
+            <span class="kw">let </span>output_s = input_s <span class="kw">as </span>u32 - <span class="self">self</span>.shift_s;
+            Arc::new(MuFreeModuleHomomorphism::new(
+                <span class="self">self</span>.source.module(input_s <span class="kw">as </span>u32),
+                <span class="self">self</span>.target.module(output_s),
+                <span class="self">self</span>.shift_t,
             ))
         });
-        <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">maps</span>[<span class="ident">input_s</span> <span class="kw">as</span> <span class="ident">i32</span>]
+        <span class="kw-2">&amp;</span><span class="self">self</span>.maps[input_s <span class="kw">as </span>i32]
     }
 
-    <span class="doccomment">/// Returns the chain map on the `s`th source module.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_map</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">input_s</span>: <span class="ident">u32</span>) -&gt; <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">MuFreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">U</span>, <span class="ident">CC2::Module</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-        <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">maps</span>[<span class="ident">input_s</span> <span class="kw">as</span> <span class="ident">i32</span>])
+    <span class="doccomment">/// Returns the chain map on the `s`th source module.
+    </span><span class="kw">pub fn </span>get_map(<span class="kw-2">&amp;</span><span class="self">self</span>, input_s: u32) -&gt; Arc&lt;MuFreeModuleHomomorphism&lt;U, CC2::Module&gt;&gt; {
+        Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.maps[input_s <span class="kw">as </span>i32])
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">save_dir</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">std::path::Path</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">save_dir</span>.<span class="ident">as_deref</span>()
+    <span class="kw">pub fn </span>save_dir(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>std::path::Path&gt; {
+        <span class="self">self</span>.save_dir.as_deref()
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">U</span>: <span class="ident">bool</span>, <span class="ident">CC1</span>, <span class="ident">CC2</span><span class="op">&gt;</span> <span class="ident">MuResolutionHomomorphism</span><span class="op">&lt;</span><span class="ident">U</span>, <span class="ident">CC1</span>, <span class="ident">CC2</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">CC1</span>: <span class="ident">FreeChainComplex</span><span class="op">&lt;</span><span class="ident">U</span><span class="op">&gt;</span>,
-    <span class="ident">CC1::Algebra</span>: <span class="ident">MuAlgebra</span><span class="op">&lt;</span><span class="ident">U</span><span class="op">&gt;</span>,
-    <span class="ident">CC2</span>: <span class="ident">ChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">CC1::Algebra</span><span class="op">&gt;</span>,
+<span class="kw">impl</span>&lt;<span class="kw">const </span>U: bool, CC1, CC2&gt; MuResolutionHomomorphism&lt;U, CC1, CC2&gt;
+<span class="kw">where
+    </span>CC1: FreeChainComplex&lt;U&gt;,
+    CC1::Algebra: MuAlgebra&lt;U&gt;,
+    CC2: ChainComplex&lt;Algebra = CC1::Algebra&gt;,
 {
-    <span class="doccomment">/// Extend the resolution homomorphism such that it is defined on degrees</span>
-    <span class="doccomment">/// (`max_s`, `max_t`).</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// This assumes in yet-uncomputed bidegrees, the homology of the source consists only of</span>
-    <span class="doccomment">/// decomposables (e.g. it is trivial). More precisely, we assume</span>
-    <span class="doccomment">/// [`MuResolutionHomomorphism::extend_step_raw`] can be called with `extra_images = None`.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">extend</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">max_s</span>: <span class="ident">u32</span>, <span class="ident">max_t</span>: <span class="ident">i32</span>) {
-        <span class="self">self</span>.<span class="ident">extend_profile</span>(<span class="ident">max_s</span> <span class="op">+</span> <span class="number">1</span>, <span class="op">|</span><span class="ident">_s</span><span class="op">|</span> <span class="ident">max_t</span> <span class="op">+</span> <span class="number">1</span>)
+    <span class="doccomment">/// Extend the resolution homomorphism such that it is defined on degrees
+    /// (`max_s`, `max_t`).
+    ///
+    /// This assumes in yet-uncomputed bidegrees, the homology of the source consists only of
+    /// decomposables (e.g. it is trivial). More precisely, we assume
+    /// [`MuResolutionHomomorphism::extend_step_raw`] can be called with `extra_images = None`.
+    </span><span class="kw">pub fn </span>extend(<span class="kw-2">&amp;</span><span class="self">self</span>, max_s: u32, max_t: i32) {
+        <span class="self">self</span>.extend_profile(max_s + <span class="number">1</span>, |_s| max_t + <span class="number">1</span>)
     }
 
-    <span class="doccomment">/// Extend the resolution homomorphism such that it is defined on degrees</span>
-    <span class="doccomment">/// (`max_n`, `max_s`).</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// This assumes in yet-uncomputed bidegrees, the homology of the source consists only of</span>
-    <span class="doccomment">/// decomposables (e.g. it is trivial). More precisely, we assume</span>
-    <span class="doccomment">/// [`MuResolutionHomomorphism::extend_step_raw`] can be called with `extra_images = None`.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">extend_through_stem</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">max_s</span>: <span class="ident">u32</span>, <span class="ident">max_n</span>: <span class="ident">i32</span>) {
-        <span class="self">self</span>.<span class="ident">extend_profile</span>(<span class="ident">max_s</span> <span class="op">+</span> <span class="number">1</span>, <span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="ident">max_n</span> <span class="op">+</span> <span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span> <span class="op">+</span> <span class="number">1</span>)
+    <span class="doccomment">/// Extend the resolution homomorphism such that it is defined on degrees
+    /// (`max_n`, `max_s`).
+    ///
+    /// This assumes in yet-uncomputed bidegrees, the homology of the source consists only of
+    /// decomposables (e.g. it is trivial). More precisely, we assume
+    /// [`MuResolutionHomomorphism::extend_step_raw`] can be called with `extra_images = None`.
+    </span><span class="kw">pub fn </span>extend_through_stem(<span class="kw-2">&amp;</span><span class="self">self</span>, max_s: u32, max_n: i32) {
+        <span class="self">self</span>.extend_profile(max_s + <span class="number">1</span>, |s| max_n + s <span class="kw">as </span>i32 + <span class="number">1</span>)
     }
 
-    <span class="doccomment">/// Extend the resolution homomorphism as far as possible, as constrained by how much the</span>
-    <span class="doccomment">/// source and target have been resolved.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// This assumes in yet-uncomputed bidegrees, the homology of the source consists only of</span>
-    <span class="doccomment">/// decomposables (e.g. it is trivial). More precisely, we assume</span>
-    <span class="doccomment">/// [`MuResolutionHomomorphism::extend_step_raw`] can be called with `extra_images = None`.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">extend_all</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) {
-        <span class="self">self</span>.<span class="ident">extend_profile</span>(
-            <span class="ident">std::cmp::min</span>(
-                <span class="self">self</span>.<span class="ident">target</span>.<span class="ident">next_homological_degree</span>() <span class="op">+</span> <span class="self">self</span>.<span class="ident">shift_s</span>,
-                <span class="self">self</span>.<span class="ident">source</span>.<span class="ident">next_homological_degree</span>(),
+    <span class="doccomment">/// Extend the resolution homomorphism as far as possible, as constrained by how much the
+    /// source and target have been resolved.
+    ///
+    /// This assumes in yet-uncomputed bidegrees, the homology of the source consists only of
+    /// decomposables (e.g. it is trivial). More precisely, we assume
+    /// [`MuResolutionHomomorphism::extend_step_raw`] can be called with `extra_images = None`.
+    </span><span class="kw">pub fn </span>extend_all(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+        <span class="self">self</span>.extend_profile(
+            std::cmp::min(
+                <span class="self">self</span>.target.next_homological_degree() + <span class="self">self</span>.shift_s,
+                <span class="self">self</span>.source.next_homological_degree(),
             ),
-            <span class="op">|</span><span class="ident">s</span><span class="op">|</span> {
-                <span class="ident">std::cmp::min</span>(
-                    <span class="self">self</span>.<span class="ident">target</span>.<span class="ident">module</span>(<span class="ident">s</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">shift_s</span>).<span class="ident">max_computed_degree</span>() <span class="op">+</span> <span class="self">self</span>.<span class="ident">shift_t</span>,
-                    <span class="self">self</span>.<span class="ident">source</span>.<span class="ident">module</span>(<span class="ident">s</span>).<span class="ident">max_computed_degree</span>(),
-                ) <span class="op">+</span> <span class="number">1</span>
-            },
+            |s| {
+                std::cmp::min(
+                    <span class="self">self</span>.target.module(s - <span class="self">self</span>.shift_s).max_computed_degree() + <span class="self">self</span>.shift_t,
+                    <span class="self">self</span>.source.module(s).max_computed_degree(),
+                ) + <span class="number">1
+            </span>},
         );
     }
 
-    <span class="comment">// See the concurrent version for documentation</span>
-    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>))]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">extend_profile</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">max_s</span>: <span class="ident">u32</span>, <span class="ident">max_t</span>: <span class="kw">impl</span> <span class="ident">Fn</span>(<span class="ident">u32</span>) -&gt; <span class="ident">i32</span> <span class="op">+</span> <span class="ident">Sync</span>) {
-        <span class="self">self</span>.<span class="ident">get_map_ensure_length</span>(<span class="ident">max_s</span> <span class="op">-</span> <span class="number">1</span>);
-        <span class="kw">for</span> <span class="ident">s</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">shift_s</span>..<span class="ident">max_s</span> {
-            <span class="kw">let</span> <span class="ident">f_cur</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">get_map_ensure_length</span>(<span class="ident">s</span>);
-            <span class="kw">for</span> <span class="ident">t</span> <span class="kw">in</span> <span class="ident">f_cur</span>.<span class="ident">next_degree</span>()..<span class="ident">max_t</span>(<span class="ident">s</span>) {
-                <span class="self">self</span>.<span class="ident">extend_step_raw</span>(<span class="ident">s</span>, <span class="ident">t</span>, <span class="prelude-val">None</span>);
+    <span class="comment">// See the concurrent version for documentation
+    </span><span class="attribute">#[cfg(not(feature = <span class="string">&quot;concurrent&quot;</span>))]
+    </span><span class="kw">pub fn </span>extend_profile(<span class="kw-2">&amp;</span><span class="self">self</span>, max_s: u32, max_t: <span class="kw">impl </span>Fn(u32) -&gt; i32 + Sync) {
+        <span class="self">self</span>.get_map_ensure_length(max_s - <span class="number">1</span>);
+        <span class="kw">for </span>s <span class="kw">in </span><span class="self">self</span>.shift_s..max_s {
+            <span class="kw">let </span>f_cur = <span class="self">self</span>.get_map_ensure_length(s);
+            <span class="kw">for </span>t <span class="kw">in </span>f_cur.next_degree()..max_t(s) {
+                <span class="self">self</span>.extend_step_raw(s, t, <span class="prelude-val">None</span>);
             }
         }
     }
 
-    <span class="doccomment">/// Extends the resolution homomorphism up to a given range. This range is first specified by</span>
-    <span class="doccomment">/// the maximum `s`, then the maximum `t` for each `s`. This should rarely be used directly;</span>
-    <span class="doccomment">/// instead one should use [`MuResolutionHomomorphism::extend`],</span>
-    <span class="doccomment">/// [`MuResolutionHomomorphism::extend_through_stem`] and [`ResolutionHomomorphism::extend_all`]</span>
-    <span class="doccomment">/// as appropriate.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// Note that unlike the more specific versions of this function, the bounds `max_s` and</span>
-    <span class="doccomment">/// `max_t` are exclusive.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// This assumes in yet-uncomputed bidegrees, the homology of the source consists only of</span>
-    <span class="doccomment">/// decomposables (e.g. it is trivial). More precisely, we assume</span>
-    <span class="doccomment">/// [`MuResolutionHomomorphism::extend_step_raw`] can be called with `extra_images = None`.</span>
-    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">extend_profile</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">max_s</span>: <span class="ident">u32</span>, <span class="ident">max_t</span>: <span class="kw">impl</span> <span class="ident">Fn</span>(<span class="ident">u32</span>) -&gt; <span class="ident">i32</span> <span class="op">+</span> <span class="ident">Sync</span>) {
-        <span class="self">self</span>.<span class="ident">get_map_ensure_length</span>(<span class="ident">max_s</span> <span class="op">-</span> <span class="number">1</span>);
+    <span class="doccomment">/// Extends the resolution homomorphism up to a given range. This range is first specified by
+    /// the maximum `s`, then the maximum `t` for each `s`. This should rarely be used directly;
+    /// instead one should use [`MuResolutionHomomorphism::extend`],
+    /// [`MuResolutionHomomorphism::extend_through_stem`] and [`ResolutionHomomorphism::extend_all`]
+    /// as appropriate.
+    ///
+    /// Note that unlike the more specific versions of this function, the bounds `max_s` and
+    /// `max_t` are exclusive.
+    ///
+    /// This assumes in yet-uncomputed bidegrees, the homology of the source consists only of
+    /// decomposables (e.g. it is trivial). More precisely, we assume
+    /// [`MuResolutionHomomorphism::extend_step_raw`] can be called with `extra_images = None`.
+    </span><span class="attribute">#[cfg(feature = <span class="string">&quot;concurrent&quot;</span>)]
+    </span><span class="kw">pub fn </span>extend_profile(<span class="kw-2">&amp;</span><span class="self">self</span>, max_s: u32, max_t: <span class="kw">impl </span>Fn(u32) -&gt; i32 + Sync) {
+        <span class="self">self</span>.get_map_ensure_length(max_s - <span class="number">1</span>);
 
-        <span class="ident"><span class="kw">crate</span>::utils::iter_s_t</span>(
-            <span class="kw-2">&amp;</span><span class="op">|</span><span class="ident">s</span>, <span class="ident">t</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">extend_step_raw</span>(<span class="ident">s</span>, <span class="ident">t</span>, <span class="prelude-val">None</span>),
-            <span class="self">self</span>.<span class="ident">shift_s</span>,
-            <span class="self">self</span>.<span class="ident">get_map_ensure_length</span>(<span class="self">self</span>.<span class="ident">shift_s</span>).<span class="ident">min_degree</span>(),
-            <span class="ident">max_s</span>,
-            <span class="kw-2">&amp;</span><span class="ident">max_t</span>,
+        <span class="kw">crate</span>::utils::iter_s_t(
+            <span class="kw-2">&amp;</span>|s, t| <span class="self">self</span>.extend_step_raw(s, t, <span class="prelude-val">None</span>),
+            <span class="self">self</span>.shift_s,
+            <span class="self">self</span>.get_map_ensure_length(<span class="self">self</span>.shift_s).min_degree(),
+            max_s,
+            <span class="kw-2">&amp;</span>max_t,
         );
 
-        <span class="kw">for</span> <span class="ident">s</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">shift_s</span>..<span class="ident">max_s</span> {
+        <span class="kw">for </span>s <span class="kw">in </span><span class="self">self</span>.shift_s..max_s {
             <span class="macro">assert_eq!</span>(
-                <span class="ident">Vec</span>::<span class="op">&lt;</span><span class="ident">i32</span><span class="op">&gt;</span><span class="ident">::new</span>(),
-                <span class="self">self</span>.<span class="ident">maps</span>[<span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span>].<span class="ident">ooo_outputs</span>(),
-                <span class="string">&quot;Map {s} has out of order elements&quot;</span>
-            );
+                Vec::&lt;i32&gt;::new(),
+                <span class="self">self</span>.maps[s <span class="kw">as </span>i32].ooo_outputs(),
+                <span class="string">&quot;Map {s} has out of order elements&quot;
+            </span>);
         }
     }
 
-    <span class="doccomment">/// Extend the [`MuResolutionHomomorphism`] to be defined on `(input_s, input_t)`. The resulting</span>
-    <span class="doccomment">/// homomorphism `f` is a chain map such that if `g` is the `k`th generator in the source such</span>
-    <span class="doccomment">/// that `d(g) = 0`, then `f(g)` is the `k`th row of `extra_images`.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// The user should call this function explicitly to manually define the chain map where the</span>
-    <span class="doccomment">/// chain complex is not exact, and then call [`MuResolutionHomomorphism::extend_all`] to extend</span>
-    <span class="doccomment">/// the rest by exactness.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">extend_step_raw</span>(
+    <span class="doccomment">/// Extend the [`MuResolutionHomomorphism`] to be defined on `(input_s, input_t)`. The resulting
+    /// homomorphism `f` is a chain map such that if `g` is the `k`th generator in the source such
+    /// that `d(g) = 0`, then `f(g)` is the `k`th row of `extra_images`.
+    ///
+    /// The user should call this function explicitly to manually define the chain map where the
+    /// chain complex is not exact, and then call [`MuResolutionHomomorphism::extend_all`] to extend
+    /// the rest by exactness.
+    </span><span class="kw">pub fn </span>extend_step_raw(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">input_s</span>: <span class="ident">u32</span>,
-        <span class="ident">input_t</span>: <span class="ident">i32</span>,
-        <span class="ident">extra_images</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">FpVector</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    ) -&gt; <span class="ident">Range</span><span class="op">&lt;</span><span class="ident">i32</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">output_s</span> <span class="op">=</span> <span class="ident">input_s</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">shift_s</span>;
-        <span class="kw">let</span> <span class="ident">output_t</span> <span class="op">=</span> <span class="ident">input_t</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">shift_t</span>;
-        <span class="macro">assert!</span>(<span class="self">self</span>.<span class="ident">target</span>.<span class="ident">has_computed_bidegree</span>(<span class="ident">output_s</span>, <span class="ident">output_t</span>));
-        <span class="macro">assert!</span>(<span class="self">self</span>.<span class="ident">source</span>.<span class="ident">has_computed_bidegree</span>(<span class="ident">input_s</span>, <span class="ident">input_t</span>));
-        <span class="macro">assert!</span>(<span class="ident">input_s</span> <span class="op">&gt;</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">shift_s</span>);
+        input_s: u32,
+        input_t: i32,
+        extra_images: <span class="prelude-ty">Option</span>&lt;Vec&lt;FpVector&gt;&gt;,
+    ) -&gt; Range&lt;i32&gt; {
+        <span class="kw">let </span>output_s = input_s - <span class="self">self</span>.shift_s;
+        <span class="kw">let </span>output_t = input_t - <span class="self">self</span>.shift_t;
+        <span class="macro">assert!</span>(<span class="self">self</span>.target.has_computed_bidegree(output_s, output_t));
+        <span class="macro">assert!</span>(<span class="self">self</span>.source.has_computed_bidegree(input_s, input_t));
+        <span class="macro">assert!</span>(input_s &gt;= <span class="self">self</span>.shift_s);
 
-        <span class="kw">let</span> <span class="ident">f_cur</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">get_map_ensure_length</span>(<span class="ident">input_s</span>);
-        <span class="kw">if</span> <span class="ident">input_t</span> <span class="op">&lt;</span> <span class="ident">f_cur</span>.<span class="ident">next_degree</span>() {
-            <span class="macro">assert!</span>(<span class="ident">extra_images</span>.<span class="ident">is_none</span>());
-            <span class="comment">// We need to signal to compute the dependents of this</span>
-            <span class="kw">return</span> <span class="ident">input_t</span>..<span class="ident">input_t</span> <span class="op">+</span> <span class="number">1</span>;
+        <span class="kw">let </span>f_cur = <span class="self">self</span>.get_map_ensure_length(input_s);
+        <span class="kw">if </span>input_t &lt; f_cur.next_degree() {
+            <span class="macro">assert!</span>(extra_images.is_none());
+            <span class="comment">// We need to signal to compute the dependents of this
+            </span><span class="kw">return </span>input_t..input_t + <span class="number">1</span>;
         }
 
-        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">source</span>.<span class="ident">prime</span>();
+        <span class="kw">let </span>p = <span class="self">self</span>.source.prime();
 
-        <span class="kw">let</span> <span class="ident">num_gens</span> <span class="op">=</span> <span class="ident">f_cur</span>.<span class="ident">source</span>().<span class="ident">number_of_gens_in_degree</span>(<span class="ident">input_t</span>);
-        <span class="kw">let</span> <span class="ident">fx_dimension</span> <span class="op">=</span> <span class="ident">f_cur</span>.<span class="ident">target</span>().<span class="ident">dimension</span>(<span class="ident">output_t</span>);
+        <span class="kw">let </span>num_gens = f_cur.source().number_of_gens_in_degree(input_t);
+        <span class="kw">let </span>fx_dimension = f_cur.target().dimension(output_t);
 
-        <span class="kw">if</span> <span class="ident">num_gens</span> <span class="op">==</span> <span class="number">0</span> <span class="op">|</span><span class="op">|</span> <span class="ident">fx_dimension</span> <span class="op">==</span> <span class="number">0</span> {
-            <span class="kw">return</span> <span class="ident">f_cur</span>.<span class="ident">add_generators_from_rows_ooo</span>(
-                <span class="ident">input_t</span>,
-                <span class="macro">vec!</span>[<span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="ident">fx_dimension</span>); <span class="ident">num_gens</span>],
+        <span class="kw">if </span>num_gens == <span class="number">0 </span>|| fx_dimension == <span class="number">0 </span>{
+            <span class="kw">return </span>f_cur.add_generators_from_rows_ooo(
+                input_t,
+                <span class="macro">vec!</span>[FpVector::new(p, fx_dimension); num_gens],
             );
         }
 
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dir</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">save_dir</span> {
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">outputs</span> <span class="op">=</span> <span class="ident">Vec::with_capacity</span>(<span class="ident">num_gens</span>);
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = <span class="kw-2">&amp;</span><span class="self">self</span>.save_dir {
+            <span class="kw">let </span><span class="kw-2">mut </span>outputs = Vec::with_capacity(num_gens);
 
-            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">mut</span> <span class="ident">f</span>) <span class="op">=</span> <span class="self">self</span>
-                .<span class="ident">source</span>
-                .<span class="ident">save_file</span>(<span class="ident">SaveKind::ChainMap</span>, <span class="ident">input_s</span>, <span class="ident">input_t</span>)
-                .<span class="ident">open_file</span>(<span class="ident">dir</span>.<span class="ident">to_owned</span>())
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">mut </span>f) = <span class="self">self
+                </span>.source
+                .save_file(SaveKind::ChainMap, input_s, input_t)
+                .open_file(dir.to_owned())
             {
-                <span class="kw">let</span> <span class="ident">fx_dimension</span> <span class="op">=</span> <span class="ident">f</span>.<span class="ident">read_u64</span>::<span class="op">&lt;</span><span class="ident">LittleEndian</span><span class="op">&gt;</span>().<span class="ident">unwrap</span>() <span class="kw">as</span> <span class="ident">usize</span>;
-                <span class="kw">for</span> <span class="kw">_</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">num_gens</span> {
-                    <span class="ident">outputs</span>.<span class="ident">push</span>(<span class="ident">FpVector::from_bytes</span>(<span class="ident">p</span>, <span class="ident">fx_dimension</span>, <span class="kw-2">&amp;mut</span> <span class="ident">f</span>).<span class="ident">unwrap</span>());
+                <span class="kw">let </span>fx_dimension = f.read_u64::&lt;LittleEndian&gt;().unwrap() <span class="kw">as </span>usize;
+                <span class="kw">for _ in </span><span class="number">0</span>..num_gens {
+                    outputs.push(FpVector::from_bytes(p, fx_dimension, <span class="kw-2">&amp;mut </span>f).unwrap());
                 }
-                <span class="kw">return</span> <span class="ident">f_cur</span>.<span class="ident">add_generators_from_rows_ooo</span>(<span class="ident">input_t</span>, <span class="ident">outputs</span>);
+                <span class="kw">return </span>f_cur.add_generators_from_rows_ooo(input_t, outputs);
             }
         }
 
-        <span class="kw">if</span> <span class="ident">output_s</span> <span class="op">==</span> <span class="number">0</span> {
-            <span class="kw">let</span> <span class="ident">outputs</span> <span class="op">=</span>
-                <span class="ident">extra_images</span>.<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="macro">vec!</span>[<span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="ident">fx_dimension</span>); <span class="ident">num_gens</span>]);
+        <span class="kw">if </span>output_s == <span class="number">0 </span>{
+            <span class="kw">let </span>outputs =
+                extra_images.unwrap_or_else(|| <span class="macro">vec!</span>[FpVector::new(p, fx_dimension); num_gens]);
 
-            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dir</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">save_dir</span> {
-                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="self">self</span>
-                    .<span class="ident">source</span>
-                    .<span class="ident">save_file</span>(<span class="ident">SaveKind::ChainMap</span>, <span class="ident">input_s</span>, <span class="ident">input_t</span>)
-                    .<span class="ident">create_file</span>(<span class="ident">dir</span>.<span class="ident">clone</span>(), <span class="bool-val">false</span>);
-                <span class="ident">f</span>.<span class="ident">write_u64</span>::<span class="op">&lt;</span><span class="ident">LittleEndian</span><span class="op">&gt;</span>(<span class="ident">fx_dimension</span> <span class="kw">as</span> <span class="ident">u64</span>).<span class="ident">unwrap</span>();
-                <span class="kw">for</span> <span class="ident">row</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="ident">outputs</span> {
-                    <span class="ident">row</span>.<span class="ident">to_bytes</span>(<span class="kw-2">&amp;mut</span> <span class="ident">f</span>).<span class="ident">unwrap</span>();
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = <span class="kw-2">&amp;</span><span class="self">self</span>.save_dir {
+                <span class="kw">let </span><span class="kw-2">mut </span>f = <span class="self">self
+                    </span>.source
+                    .save_file(SaveKind::ChainMap, input_s, input_t)
+                    .create_file(dir.clone(), <span class="bool-val">false</span>);
+                f.write_u64::&lt;LittleEndian&gt;(fx_dimension <span class="kw">as </span>u64).unwrap();
+                <span class="kw">for </span>row <span class="kw">in </span><span class="kw-2">&amp;</span>outputs {
+                    row.to_bytes(<span class="kw-2">&amp;mut </span>f).unwrap();
                 }
             }
 
-            <span class="kw">return</span> <span class="ident">f_cur</span>.<span class="ident">add_generators_from_rows_ooo</span>(<span class="ident">input_t</span>, <span class="ident">outputs</span>);
+            <span class="kw">return </span>f_cur.add_generators_from_rows_ooo(input_t, outputs);
         }
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">outputs</span> <span class="op">=</span> <span class="macro">vec!</span>[<span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="ident">fx_dimension</span>); <span class="ident">num_gens</span>];
-        <span class="kw">let</span> <span class="ident">d_source</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">source</span>.<span class="ident">differential</span>(<span class="ident">input_s</span>);
-        <span class="kw">let</span> <span class="ident">d_target</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">target</span>.<span class="ident">differential</span>(<span class="ident">output_s</span>);
-        <span class="kw">let</span> <span class="ident">f_prev</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">get_map</span>(<span class="ident">input_s</span> <span class="op">-</span> <span class="number">1</span>);
-        <span class="macro">assert!</span>(<span class="ident">Arc::ptr_eq</span>(<span class="kw-2">&amp;</span><span class="ident">d_source</span>.<span class="ident">source</span>(), <span class="kw-2">&amp;</span><span class="ident">f_cur</span>.<span class="ident">source</span>()));
-        <span class="macro">assert!</span>(<span class="ident">Arc::ptr_eq</span>(<span class="kw-2">&amp;</span><span class="ident">d_source</span>.<span class="ident">target</span>(), <span class="kw-2">&amp;</span><span class="ident">f_prev</span>.<span class="ident">source</span>()));
-        <span class="macro">assert!</span>(<span class="ident">Arc::ptr_eq</span>(<span class="kw-2">&amp;</span><span class="ident">d_target</span>.<span class="ident">source</span>(), <span class="kw-2">&amp;</span><span class="ident">f_cur</span>.<span class="ident">target</span>()));
-        <span class="macro">assert!</span>(<span class="ident">Arc::ptr_eq</span>(<span class="kw-2">&amp;</span><span class="ident">d_target</span>.<span class="ident">target</span>(), <span class="kw-2">&amp;</span><span class="ident">f_prev</span>.<span class="ident">target</span>()));
-        <span class="kw">let</span> <span class="ident">fdx_dimension</span> <span class="op">=</span> <span class="ident">f_prev</span>.<span class="ident">target</span>().<span class="ident">dimension</span>(<span class="ident">output_t</span>);
+        <span class="kw">let </span><span class="kw-2">mut </span>outputs = <span class="macro">vec!</span>[FpVector::new(p, fx_dimension); num_gens];
+        <span class="kw">let </span>d_source = <span class="self">self</span>.source.differential(input_s);
+        <span class="kw">let </span>d_target = <span class="self">self</span>.target.differential(output_s);
+        <span class="kw">let </span>f_prev = <span class="self">self</span>.get_map(input_s - <span class="number">1</span>);
+        <span class="macro">assert!</span>(Arc::ptr_eq(<span class="kw-2">&amp;</span>d_source.source(), <span class="kw-2">&amp;</span>f_cur.source()));
+        <span class="macro">assert!</span>(Arc::ptr_eq(<span class="kw-2">&amp;</span>d_source.target(), <span class="kw-2">&amp;</span>f_prev.source()));
+        <span class="macro">assert!</span>(Arc::ptr_eq(<span class="kw-2">&amp;</span>d_target.source(), <span class="kw-2">&amp;</span>f_cur.target()));
+        <span class="macro">assert!</span>(Arc::ptr_eq(<span class="kw-2">&amp;</span>d_target.target(), <span class="kw-2">&amp;</span>f_prev.target()));
+        <span class="kw">let </span>fdx_dimension = f_prev.target().dimension(output_t);
 
-        <span class="comment">// First take care of generators that hit the target chain complex.</span>
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">extra_image_row</span> <span class="op">=</span> <span class="number">0</span>;
-        <span class="kw">for</span> (<span class="ident">k</span>, <span class="ident">output_row</span>) <span class="kw">in</span> <span class="ident">outputs</span>.<span class="ident">iter_mut</span>().<span class="ident">enumerate</span>() {
-            <span class="kw">if</span> <span class="ident">d_source</span>.<span class="ident">output</span>(<span class="ident">input_t</span>, <span class="ident">k</span>).<span class="ident">is_zero</span>() {
-                <span class="kw">let</span> <span class="ident">extra_image_matrix</span> <span class="op">=</span> <span class="ident">extra_images</span>.<span class="ident">as_ref</span>().<span class="ident">expect</span>(<span class="string">&quot;Missing extra image rows&quot;</span>);
-                <span class="ident">output_row</span>.<span class="ident">assign</span>(<span class="kw-2">&amp;</span><span class="ident">extra_image_matrix</span>[<span class="ident">extra_image_row</span>]);
-                <span class="ident">extra_image_row</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
+        <span class="comment">// First take care of generators that hit the target chain complex.
+        </span><span class="kw">let </span><span class="kw-2">mut </span>extra_image_row = <span class="number">0</span>;
+        <span class="kw">for </span>(k, output_row) <span class="kw">in </span>outputs.iter_mut().enumerate() {
+            <span class="kw">if </span>d_source.output(input_t, k).is_zero() {
+                <span class="kw">let </span>extra_image_matrix = extra_images.as_ref().expect(<span class="string">&quot;Missing extra image rows&quot;</span>);
+                output_row.assign(<span class="kw-2">&amp;</span>extra_image_matrix[extra_image_row]);
+                extra_image_row += <span class="number">1</span>;
             }
         }
 
-        <span class="comment">// Now do the rest</span>
-        <span class="ident">d_target</span>.<span class="ident">compute_auxiliary_data_through_degree</span>(<span class="ident">output_t</span>);
+        <span class="comment">// Now do the rest
+        </span>d_target.compute_auxiliary_data_through_degree(output_t);
 
-        <span class="kw">let</span> <span class="ident">compute_fdx_vector</span> <span class="op">=</span> <span class="op">|</span><span class="ident">k</span><span class="op">|</span> {
-            <span class="kw">let</span> <span class="ident">dx_vector</span> <span class="op">=</span> <span class="ident">d_source</span>.<span class="ident">output</span>(<span class="ident">input_t</span>, <span class="ident">k</span>);
-            <span class="kw">if</span> <span class="ident">dx_vector</span>.<span class="ident">is_zero</span>() {
-                <span class="prelude-val">None</span>
-            } <span class="kw">else</span> {
-                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">fdx_vector</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="ident">fdx_dimension</span>);
-                <span class="ident">f_prev</span>.<span class="ident">apply</span>(<span class="ident">fdx_vector</span>.<span class="ident">as_slice_mut</span>(), <span class="number">1</span>, <span class="ident">input_t</span>, <span class="ident">dx_vector</span>.<span class="ident">as_slice</span>());
-                <span class="prelude-val">Some</span>(<span class="ident">fdx_vector</span>)
+        <span class="kw">let </span>compute_fdx_vector = |k| {
+            <span class="kw">let </span>dx_vector = d_source.output(input_t, k);
+            <span class="kw">if </span>dx_vector.is_zero() {
+                <span class="prelude-val">None
+            </span>} <span class="kw">else </span>{
+                <span class="kw">let </span><span class="kw-2">mut </span>fdx_vector = FpVector::new(p, fdx_dimension);
+                f_prev.apply(fdx_vector.as_slice_mut(), <span class="number">1</span>, input_t, dx_vector.as_slice());
+                <span class="prelude-val">Some</span>(fdx_vector)
             }
         };
 
-        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>))]</span>
-        <span class="kw">let</span> <span class="ident">fdx_vectors</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">FpVector</span><span class="op">&gt;</span> <span class="op">=</span> (<span class="number">0</span>..<span class="ident">num_gens</span>)
-            .<span class="ident">into_iter</span>()
-            .<span class="ident">filter_map</span>(<span class="ident">compute_fdx_vector</span>)
-            .<span class="ident">collect</span>();
+        <span class="attribute">#[cfg(not(feature = <span class="string">&quot;concurrent&quot;</span>))]
+        </span><span class="kw">let </span>fdx_vectors: Vec&lt;FpVector&gt; = (<span class="number">0</span>..num_gens)
+            .into_iter()
+            .filter_map(compute_fdx_vector)
+            .collect();
 
-        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
-        <span class="kw">let</span> <span class="ident">fdx_vectors</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">FpVector</span><span class="op">&gt;</span> <span class="op">=</span> (<span class="number">0</span>..<span class="ident">num_gens</span>)
-            .<span class="ident">into_par_iter</span>()
-            .<span class="ident">filter_map</span>(<span class="ident">compute_fdx_vector</span>)
-            .<span class="ident">collect</span>();
+        <span class="attribute">#[cfg(feature = <span class="string">&quot;concurrent&quot;</span>)]
+        </span><span class="kw">let </span>fdx_vectors: Vec&lt;FpVector&gt; = (<span class="number">0</span>..num_gens)
+            .into_par_iter()
+            .filter_map(compute_fdx_vector)
+            .collect();
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">qi_outputs</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">outputs</span>
-            .<span class="ident">iter_mut</span>()
-            .<span class="ident">enumerate</span>()
-            .<span class="ident">filter_map</span>(<span class="op">|</span>(<span class="ident">k</span>, <span class="ident">v</span>)<span class="op">|</span> {
-                <span class="kw">if</span> <span class="ident">d_source</span>.<span class="ident">output</span>(<span class="ident">input_t</span>, <span class="ident">k</span>).<span class="ident">is_zero</span>() {
-                    <span class="prelude-val">None</span>
-                } <span class="kw">else</span> {
-                    <span class="prelude-val">Some</span>(<span class="ident">v</span>.<span class="ident">as_slice_mut</span>())
+        <span class="kw">let </span><span class="kw-2">mut </span>qi_outputs: Vec&lt;<span class="kw">_</span>&gt; = outputs
+            .iter_mut()
+            .enumerate()
+            .filter_map(|(k, v)| {
+                <span class="kw">if </span>d_source.output(input_t, k).is_zero() {
+                    <span class="prelude-val">None
+                </span>} <span class="kw">else </span>{
+                    <span class="prelude-val">Some</span>(v.as_slice_mut())
                 }
             })
-            .<span class="ident">collect</span>();
+            .collect();
 
-        <span class="kw">if</span> <span class="op">!</span><span class="ident">fdx_vectors</span>.<span class="ident">is_empty</span>() {
-            <span class="macro">assert!</span>(<span class="self">self</span>.<span class="ident">target</span>.<span class="ident">apply_quasi_inverse</span>(
-                <span class="kw-2">&amp;mut</span> <span class="ident">qi_outputs</span>,
-                <span class="ident">output_s</span>,
-                <span class="ident">output_t</span>,
-                <span class="kw-2">&amp;</span><span class="ident">fdx_vectors</span>
+        <span class="kw">if </span>!fdx_vectors.is_empty() {
+            <span class="macro">assert!</span>(CC2::apply_quasi_inverse(
+                <span class="kw-2">&amp;*</span><span class="self">self</span>.target,
+                <span class="kw-2">&amp;mut </span>qi_outputs,
+                output_s,
+                output_t,
+                <span class="kw-2">&amp;</span>fdx_vectors
             ));
         }
 
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dir</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">save_dir</span> {
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">f</span> <span class="op">=</span> <span class="self">self</span>
-                .<span class="ident">source</span>
-                .<span class="ident">save_file</span>(<span class="ident">SaveKind::ChainMap</span>, <span class="ident">input_s</span>, <span class="ident">input_t</span>)
-                .<span class="ident">create_file</span>(<span class="ident">dir</span>.<span class="ident">clone</span>(), <span class="bool-val">false</span>);
-            <span class="ident">f</span>.<span class="ident">write_u64</span>::<span class="op">&lt;</span><span class="ident">LittleEndian</span><span class="op">&gt;</span>(<span class="ident">fx_dimension</span> <span class="kw">as</span> <span class="ident">u64</span>).<span class="ident">unwrap</span>();
-            <span class="kw">for</span> <span class="ident">row</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="ident">outputs</span> {
-                <span class="ident">row</span>.<span class="ident">to_bytes</span>(<span class="kw-2">&amp;mut</span> <span class="ident">f</span>).<span class="ident">unwrap</span>();
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = <span class="kw-2">&amp;</span><span class="self">self</span>.save_dir {
+            <span class="kw">let </span><span class="kw-2">mut </span>f = <span class="self">self
+                </span>.source
+                .save_file(SaveKind::ChainMap, input_s, input_t)
+                .create_file(dir.clone(), <span class="bool-val">false</span>);
+            f.write_u64::&lt;LittleEndian&gt;(fx_dimension <span class="kw">as </span>u64).unwrap();
+            <span class="kw">for </span>row <span class="kw">in </span><span class="kw-2">&amp;</span>outputs {
+                row.to_bytes(<span class="kw-2">&amp;mut </span>f).unwrap();
             }
         }
-        <span class="ident">f_cur</span>.<span class="ident">add_generators_from_rows_ooo</span>(<span class="ident">input_t</span>, <span class="ident">outputs</span>)
+        f_cur.add_generators_from_rows_ooo(input_t, outputs)
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">U</span>: <span class="ident">bool</span>, <span class="ident">CC1</span>, <span class="ident">CC2</span><span class="op">&gt;</span> <span class="ident">MuResolutionHomomorphism</span><span class="op">&lt;</span><span class="ident">U</span>, <span class="ident">CC1</span>, <span class="ident">CC2</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">CC1</span>: <span class="ident">FreeChainComplex</span><span class="op">&lt;</span><span class="ident">U</span><span class="op">&gt;</span>,
-    <span class="ident">CC1::Algebra</span>: <span class="ident">MuAlgebra</span><span class="op">&lt;</span><span class="ident">U</span><span class="op">&gt;</span>,
-    <span class="ident">CC2</span>: <span class="ident">AugmentedChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">CC1::Algebra</span><span class="op">&gt;</span>,
+<span class="kw">impl</span>&lt;<span class="kw">const </span>U: bool, CC1, CC2&gt; MuResolutionHomomorphism&lt;U, CC1, CC2&gt;
+<span class="kw">where
+    </span>CC1: FreeChainComplex&lt;U&gt;,
+    CC1::Algebra: MuAlgebra&lt;U&gt;,
+    CC2: AugmentedChainComplex&lt;Algebra = CC1::Algebra&gt;,
 {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_class</span>(
-        <span class="ident">name</span>: <span class="ident">String</span>,
-        <span class="ident">source</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">CC1</span><span class="op">&gt;</span>,
-        <span class="ident">target</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">CC2</span><span class="op">&gt;</span>,
-        <span class="ident">shift_s</span>: <span class="ident">u32</span>,
-        <span class="ident">shift_t</span>: <span class="ident">i32</span>,
-        <span class="ident">class</span>: <span class="kw-2">&amp;</span>[<span class="ident">u32</span>],
-    ) -&gt; <span class="self">Self</span> {
-        <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident"><span class="self">Self</span>::new</span>(<span class="ident">name</span>, <span class="ident">source</span>, <span class="ident">target</span>, <span class="ident">shift_s</span>, <span class="ident">shift_t</span>);
+    <span class="kw">pub fn </span>from_class(
+        name: String,
+        source: Arc&lt;CC1&gt;,
+        target: Arc&lt;CC2&gt;,
+        shift_s: u32,
+        shift_t: i32,
+        class: <span class="kw-2">&amp;</span>[u32],
+    ) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>result = <span class="self">Self</span>::new(name, source, target, shift_s, shift_t);
 
-        <span class="kw">let</span> <span class="ident">num_gens</span> <span class="op">=</span> <span class="ident">result</span>
-            .<span class="ident">source</span>
-            .<span class="ident">module</span>(<span class="ident">shift_s</span>)
-            .<span class="ident">number_of_gens_in_degree</span>(<span class="ident">shift_t</span>);
-        <span class="macro">assert_eq!</span>(<span class="ident">num_gens</span>, <span class="ident">class</span>.<span class="ident">len</span>());
+        <span class="kw">let </span>num_gens = result
+            .source
+            .module(shift_s)
+            .number_of_gens_in_degree(shift_t);
+        <span class="macro">assert_eq!</span>(num_gens, class.len());
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">matrix</span> <span class="op">=</span> <span class="ident">Matrix::new</span>(<span class="ident">result</span>.<span class="ident">source</span>.<span class="ident">prime</span>(), <span class="ident">num_gens</span>, <span class="number">1</span>);
-        <span class="kw">for</span> (<span class="ident">k</span>, <span class="kw-2">&amp;</span><span class="ident">v</span>) <span class="kw">in</span> <span class="ident">class</span>.<span class="ident">iter</span>().<span class="ident">enumerate</span>() {
-            <span class="ident">matrix</span>[<span class="ident">k</span>].<span class="ident">set_entry</span>(<span class="number">0</span>, <span class="ident">v</span>);
+        <span class="kw">let </span><span class="kw-2">mut </span>matrix = Matrix::new(result.source.prime(), num_gens, <span class="number">1</span>);
+        <span class="kw">for </span>(k, <span class="kw-2">&amp;</span>v) <span class="kw">in </span>class.iter().enumerate() {
+            matrix[k].set_entry(<span class="number">0</span>, v);
         }
 
-        <span class="ident">result</span>.<span class="ident">extend_step</span>(<span class="ident">shift_s</span>, <span class="ident">shift_t</span>, <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="ident">matrix</span>));
-        <span class="ident">result</span>
+        result.extend_step(shift_s, shift_t, <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>matrix));
+        result
     }
 
-    <span class="doccomment">/// Extend the [`MuResolutionHomomorphism`] to be defined on `(input_s, input_t)`. The resulting</span>
-    <span class="doccomment">/// homomorphism `f` is a chain map such that if `g` is the `k`th generator in the source such</span>
-    <span class="doccomment">/// that `d(g) = 0`, then the image of `f(g)` in the augmentation of the target is the `k`th</span>
-    <span class="doccomment">/// row of `extra_images`.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// The user should call this function explicitly to manually define the chain map where the</span>
-    <span class="doccomment">/// chain complex is not exact, and then call [`MuResolutionHomomorphism::extend_all`] to extend</span>
-    <span class="doccomment">/// the rest by exactness.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">extend_step</span>(
+    <span class="doccomment">/// Extend the [`MuResolutionHomomorphism`] to be defined on `(input_s, input_t)`. The resulting
+    /// homomorphism `f` is a chain map such that if `g` is the `k`th generator in the source such
+    /// that `d(g) = 0`, then the image of `f(g)` in the augmentation of the target is the `k`th
+    /// row of `extra_images`.
+    ///
+    /// The user should call this function explicitly to manually define the chain map where the
+    /// chain complex is not exact, and then call [`MuResolutionHomomorphism::extend_all`] to extend
+    /// the rest by exactness.
+    </span><span class="kw">pub fn </span>extend_step(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">input_s</span>: <span class="ident">u32</span>,
-        <span class="ident">input_t</span>: <span class="ident">i32</span>,
-        <span class="ident">extra_images</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">Matrix</span><span class="op">&gt;</span>,
-    ) -&gt; <span class="ident">Range</span><span class="op">&lt;</span><span class="ident">i32</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">extend_step_raw</span>(
-            <span class="ident">input_s</span>,
-            <span class="ident">input_t</span>,
-            <span class="ident">extra_images</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">m</span><span class="op">|</span> {
-                <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">target</span>.<span class="ident">prime</span>();
-                <span class="kw">let</span> <span class="ident">output_s</span> <span class="op">=</span> <span class="ident">input_s</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">shift_s</span>;
-                <span class="kw">let</span> <span class="ident">output_t</span> <span class="op">=</span> <span class="ident">input_t</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">shift_t</span>;
+        input_s: u32,
+        input_t: i32,
+        extra_images: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Matrix&gt;,
+    ) -&gt; Range&lt;i32&gt; {
+        <span class="self">self</span>.extend_step_raw(
+            input_s,
+            input_t,
+            extra_images.map(|m| {
+                <span class="kw">let </span>p = <span class="self">self</span>.target.prime();
+                <span class="kw">let </span>output_s = input_s - <span class="self">self</span>.shift_s;
+                <span class="kw">let </span>output_t = input_t - <span class="self">self</span>.shift_t;
 
-                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">outputs</span> <span class="op">=</span>
+                <span class="kw">let </span><span class="kw-2">mut </span>outputs =
                     <span class="macro">vec!</span>[
-                        <span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="self">self</span>.<span class="ident">target</span>.<span class="ident">module</span>(<span class="ident">output_s</span>).<span class="ident">dimension</span>(<span class="ident">output_t</span>));
-                        <span class="ident">m</span>.<span class="ident">rows</span>()
+                        FpVector::new(p, <span class="self">self</span>.target.module(output_s).dimension(output_t));
+                        m.rows()
                     ];
-                <span class="kw">let</span> <span class="ident">chain_map</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">target</span>.<span class="ident">chain_map</span>(<span class="ident">output_s</span>);
-                <span class="ident">chain_map</span>.<span class="ident">compute_auxiliary_data_through_degree</span>(<span class="ident">output_t</span>);
-                <span class="kw">for</span> (<span class="ident">output</span>, <span class="ident">input</span>) <span class="kw">in</span> <span class="ident">std::iter::zip</span>(<span class="kw-2">&amp;mut</span> <span class="ident">outputs</span>, <span class="ident">m</span>.<span class="ident">iter</span>()) {
-                    <span class="macro">assert!</span>(<span class="ident">chain_map</span>.<span class="ident">apply_quasi_inverse</span>(
-                        <span class="ident">output</span>.<span class="ident">as_slice_mut</span>(),
-                        <span class="ident">output_t</span>,
-                        <span class="ident">input</span>.<span class="ident">as_slice</span>(),
+                <span class="kw">let </span>chain_map = <span class="self">self</span>.target.chain_map(output_s);
+                chain_map.compute_auxiliary_data_through_degree(output_t);
+                <span class="kw">for </span>(output, input) <span class="kw">in </span>std::iter::zip(<span class="kw-2">&amp;mut </span>outputs, m.iter()) {
+                    <span class="macro">assert!</span>(chain_map.apply_quasi_inverse(
+                        output.as_slice_mut(),
+                        output_t,
+                        input.as_slice(),
                     ));
                 }
-                <span class="ident">outputs</span>
+                outputs
             }),
         )
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">U</span>: <span class="ident">bool</span>, <span class="ident">CC1</span>, <span class="ident">CC2</span><span class="op">&gt;</span> <span class="ident">MuResolutionHomomorphism</span><span class="op">&lt;</span><span class="ident">U</span>, <span class="ident">CC1</span>, <span class="ident">CC2</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">CC1</span>: <span class="ident">AugmentedChainComplex</span> <span class="op">+</span> <span class="ident">FreeChainComplex</span><span class="op">&lt;</span><span class="ident">U</span><span class="op">&gt;</span>,
-    <span class="ident">CC1::Algebra</span>: <span class="ident">MuAlgebra</span><span class="op">&lt;</span><span class="ident">U</span><span class="op">&gt;</span>,
-    <span class="ident">CC2</span>: <span class="ident">AugmentedChainComplex</span><span class="op">&lt;</span><span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">CC1::Algebra</span><span class="op">&gt;</span>,
-    <span class="ident">CC1::TargetComplex</span>: <span class="ident">BoundedChainComplex</span>,
-    <span class="ident">CC2::TargetComplex</span>: <span class="ident">BoundedChainComplex</span>,
+<span class="kw">impl</span>&lt;<span class="kw">const </span>U: bool, CC1, CC2&gt; MuResolutionHomomorphism&lt;U, CC1, CC2&gt;
+<span class="kw">where
+    </span>CC1: AugmentedChainComplex + FreeChainComplex&lt;U&gt;,
+    CC1::Algebra: MuAlgebra&lt;U&gt;,
+    CC2: AugmentedChainComplex&lt;Algebra = CC1::Algebra&gt;,
+    CC1::TargetComplex: BoundedChainComplex,
+    CC2::TargetComplex: BoundedChainComplex,
 {
-    <span class="doccomment">/// Construct a chain map that lifts a given module homomorphism.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_module_homomorphism</span>(
-        <span class="ident">name</span>: <span class="ident">String</span>,
-        <span class="ident">source</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">CC1</span><span class="op">&gt;</span>,
-        <span class="ident">target</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">CC2</span><span class="op">&gt;</span>,
-        <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw">impl</span> <span class="ident">ModuleHomomorphism</span><span class="op">&lt;</span>
-            <span class="ident">Source</span> <span class="op">=</span> <span class="op">&lt;</span><span class="op">&lt;</span><span class="ident">CC1</span> <span class="kw">as</span> <span class="ident">AugmentedChainComplex</span><span class="op">&gt;</span><span class="ident">::TargetComplex</span> <span class="kw">as</span> <span class="ident">ChainComplex</span><span class="op">&gt;</span><span class="ident">::Module</span>,
-            <span class="ident">Target</span> <span class="op">=</span> <span class="op">&lt;</span><span class="op">&lt;</span><span class="ident">CC2</span> <span class="kw">as</span> <span class="ident">AugmentedChainComplex</span><span class="op">&gt;</span><span class="ident">::TargetComplex</span> <span class="kw">as</span> <span class="ident">ChainComplex</span><span class="op">&gt;</span><span class="ident">::Module</span>,
-        <span class="op">&gt;</span>,
-    ) -&gt; <span class="self">Self</span> {
-        <span class="macro">assert_eq!</span>(<span class="ident">source</span>.<span class="ident">target</span>().<span class="ident">max_s</span>(), <span class="number">1</span>);
-        <span class="macro">assert_eq!</span>(<span class="ident">target</span>.<span class="ident">target</span>().<span class="ident">max_s</span>(), <span class="number">1</span>);
+    <span class="doccomment">/// Construct a chain map that lifts a given module homomorphism.
+    </span><span class="kw">pub fn </span>from_module_homomorphism(
+        name: String,
+        source: Arc&lt;CC1&gt;,
+        target: Arc&lt;CC2&gt;,
+        f: <span class="kw-2">&amp;</span><span class="kw">impl </span>ModuleHomomorphism&lt;
+            Source = &lt;&lt;CC1 <span class="kw">as </span>AugmentedChainComplex&gt;::TargetComplex <span class="kw">as </span>ChainComplex&gt;::Module,
+            Target = &lt;&lt;CC2 <span class="kw">as </span>AugmentedChainComplex&gt;::TargetComplex <span class="kw">as </span>ChainComplex&gt;::Module,
+        &gt;,
+    ) -&gt; <span class="self">Self </span>{
+        <span class="macro">assert_eq!</span>(source.target().max_s(), <span class="number">1</span>);
+        <span class="macro">assert_eq!</span>(target.target().max_s(), <span class="number">1</span>);
 
-        <span class="kw">let</span> <span class="ident">source_module</span> <span class="op">=</span> <span class="ident">source</span>.<span class="ident">target</span>().<span class="ident">module</span>(<span class="number">0</span>);
-        <span class="kw">let</span> <span class="ident">target_module</span> <span class="op">=</span> <span class="ident">target</span>.<span class="ident">target</span>().<span class="ident">module</span>(<span class="number">0</span>);
-        <span class="macro">assert!</span>(<span class="ident">Arc::ptr_eq</span>(<span class="kw-2">&amp;</span><span class="ident">source_module</span>, <span class="kw-2">&amp;</span><span class="ident">f</span>.<span class="ident">source</span>()));
-        <span class="macro">assert!</span>(<span class="ident">Arc::ptr_eq</span>(<span class="kw-2">&amp;</span><span class="ident">target_module</span>, <span class="kw-2">&amp;</span><span class="ident">f</span>.<span class="ident">target</span>()));
+        <span class="kw">let </span>source_module = source.target().module(<span class="number">0</span>);
+        <span class="kw">let </span>target_module = target.target().module(<span class="number">0</span>);
+        <span class="macro">assert!</span>(Arc::ptr_eq(<span class="kw-2">&amp;</span>source_module, <span class="kw-2">&amp;</span>f.source()));
+        <span class="macro">assert!</span>(Arc::ptr_eq(<span class="kw-2">&amp;</span>target_module, <span class="kw-2">&amp;</span>f.target()));
 
-        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">source</span>.<span class="ident">prime</span>();
-        <span class="kw">let</span> <span class="ident">degree_shift</span> <span class="op">=</span> <span class="ident">f</span>.<span class="ident">degree_shift</span>();
+        <span class="kw">let </span>p = source.prime();
+        <span class="kw">let </span>degree_shift = f.degree_shift();
 
-        <span class="kw">let</span> <span class="ident">max_degree</span> <span class="op">=</span> <span class="ident">source_module</span>.<span class="ident">max_generator_degree</span>().<span class="ident">expect</span>(
+        <span class="kw">let </span>max_degree = source_module.max_generator_degree().expect(
             <span class="string">&quot;MuResolutionHomomorphism::from_module_homomorphism requires finite max_generator_degree&quot;</span>,
         );
 
-        <span class="kw">let</span> <span class="ident">hom</span> <span class="op">=</span> <span class="ident"><span class="self">Self</span>::new</span>(<span class="ident">name</span>, <span class="ident">source</span>, <span class="ident">target</span>, <span class="number">0</span>, <span class="ident">degree_shift</span>);
+        <span class="kw">let </span>hom = <span class="self">Self</span>::new(name, source, target, <span class="number">0</span>, degree_shift);
 
-        <span class="ident">source_module</span>.<span class="ident">compute_basis</span>(<span class="ident">max_degree</span>);
-        <span class="ident">target_module</span>.<span class="ident">compute_basis</span>(<span class="ident">degree_shift</span> <span class="op">+</span> <span class="ident">max_degree</span>);
+        source_module.compute_basis(max_degree);
+        target_module.compute_basis(degree_shift + max_degree);
 
-        <span class="ident">hom</span>.<span class="ident">source</span>.<span class="ident">compute_through_bidegree</span>(<span class="number">0</span>, <span class="ident">max_degree</span>);
-        <span class="ident">hom</span>.<span class="ident">target</span>
-            .<span class="ident">compute_through_bidegree</span>(<span class="number">0</span>, <span class="ident">degree_shift</span> <span class="op">+</span> <span class="ident">max_degree</span>);
+        hom.source.compute_through_bidegree(<span class="number">0</span>, max_degree);
+        hom.target
+            .compute_through_bidegree(<span class="number">0</span>, degree_shift + max_degree);
 
-        <span class="kw">for</span> <span class="ident">t</span> <span class="kw">in</span> <span class="ident">source_module</span>.<span class="ident">min_degree</span>()..<span class="op">=</span><span class="ident">max_degree</span> {
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">m</span> <span class="op">=</span> <span class="ident">Matrix::new</span>(
-                <span class="ident">p</span>,
-                <span class="ident">source_module</span>.<span class="ident">dimension</span>(<span class="ident">t</span>),
-                <span class="ident">target_module</span>.<span class="ident">dimension</span>(<span class="ident">t</span> <span class="op">+</span> <span class="ident">degree_shift</span>),
+        <span class="kw">for </span>t <span class="kw">in </span>source_module.min_degree()..=max_degree {
+            <span class="kw">let </span><span class="kw-2">mut </span>m = Matrix::new(
+                p,
+                source_module.dimension(t),
+                target_module.dimension(t + degree_shift),
             );
 
-            <span class="ident">f</span>.<span class="ident">get_matrix</span>(<span class="ident">m</span>.<span class="ident">as_slice_mut</span>(), <span class="ident">t</span>);
-            <span class="ident">hom</span>.<span class="ident">extend_step</span>(<span class="number">0</span>, <span class="ident">t</span>, <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="ident">m</span>));
+            f.get_matrix(m.as_slice_mut(), t);
+            hom.extend_step(<span class="number">0</span>, t, <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>m));
         }
-        <span class="ident">hom</span>
+        hom
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">U</span>: <span class="ident">bool</span>, <span class="ident">CC1</span>, <span class="ident">CC2</span><span class="op">&gt;</span> <span class="ident">MuResolutionHomomorphism</span><span class="op">&lt;</span><span class="ident">U</span>, <span class="ident">CC1</span>, <span class="ident">CC2</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">CC1</span>: <span class="ident">FreeChainComplex</span><span class="op">&lt;</span><span class="ident">U</span><span class="op">&gt;</span>,
-    <span class="ident">CC1::Algebra</span>: <span class="ident">MuAlgebra</span><span class="op">&lt;</span><span class="ident">U</span><span class="op">&gt;</span>,
-    <span class="ident">CC2</span>: <span class="ident">FreeChainComplex</span><span class="op">&lt;</span><span class="ident">U</span>, <span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">CC1::Algebra</span><span class="op">&gt;</span>,
+<span class="kw">impl</span>&lt;<span class="kw">const </span>U: bool, CC1, CC2&gt; MuResolutionHomomorphism&lt;U, CC1, CC2&gt;
+<span class="kw">where
+    </span>CC1: FreeChainComplex&lt;U&gt;,
+    CC1::Algebra: MuAlgebra&lt;U&gt;,
+    CC2: FreeChainComplex&lt;U, Algebra = CC1::Algebra&gt;,
 {
-    <span class="doccomment">/// Given a chain map $f: C \to C&#39;$ between free chain complexes, apply</span>
-    <span class="doccomment">/// $$ \Hom(f, k): \Hom(C&#39;, k) \to \Hom(C, k) $$</span>
-    <span class="doccomment">/// to the specified generator of $\Hom(C&#39;, k)$.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">act</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut</span> <span class="ident">result</span>: <span class="ident">SliceMut</span>, <span class="ident">coef</span>: <span class="ident">u32</span>, <span class="ident">s</span>: <span class="ident">u32</span>, <span class="ident">t</span>: <span class="ident">i32</span>, <span class="ident">idx</span>: <span class="ident">usize</span>) {
-        <span class="kw">let</span> <span class="ident">source_s</span> <span class="op">=</span> <span class="ident">s</span> <span class="op">+</span> <span class="self">self</span>.<span class="ident">shift_s</span>;
-        <span class="kw">let</span> <span class="ident">source_t</span> <span class="op">=</span> <span class="ident">t</span> <span class="op">+</span> <span class="self">self</span>.<span class="ident">shift_t</span>;
+    <span class="doccomment">/// Given a chain map $f: C \to C&#39;$ between free chain complexes, apply
+    /// $$ \Hom(f, k): \Hom(C&#39;, k) \to \Hom(C, k) $$
+    /// to the specified generator of $\Hom(C&#39;, k)$.
+    </span><span class="kw">pub fn </span>act(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut </span>result: SliceMut, coef: u32, s: u32, t: i32, idx: usize) {
+        <span class="kw">let </span>source_s = s + <span class="self">self</span>.shift_s;
+        <span class="kw">let </span>source_t = t + <span class="self">self</span>.shift_t;
 
         <span class="macro">assert_eq!</span>(
-            <span class="ident">result</span>.<span class="ident">as_slice</span>().<span class="ident">len</span>(),
-            <span class="self">self</span>.<span class="ident">source</span>
-                .<span class="ident">module</span>(<span class="ident">source_s</span>)
-                .<span class="ident">number_of_gens_in_degree</span>(<span class="ident">source_t</span>)
+            result.as_slice().len(),
+            <span class="self">self</span>.source
+                .module(source_s)
+                .number_of_gens_in_degree(source_t)
         );
 
-        <span class="kw">let</span> <span class="ident">target_module</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">target</span>.<span class="ident">module</span>(<span class="ident">s</span>);
+        <span class="kw">let </span>target_module = <span class="self">self</span>.target.module(s);
 
-        <span class="kw">let</span> <span class="ident">map</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">get_map</span>(<span class="ident">source_s</span>);
-        <span class="kw">let</span> <span class="ident">j</span> <span class="op">=</span> <span class="ident">target_module</span>.<span class="ident">operation_generator_to_index</span>(<span class="number">0</span>, <span class="number">0</span>, <span class="ident">t</span>, <span class="ident">idx</span>);
-        <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">result</span>.<span class="ident">as_slice</span>().<span class="ident">len</span>() {
-            <span class="ident">result</span>.<span class="ident">add_basis_element</span>(<span class="ident">i</span>, <span class="ident">coef</span> <span class="op">*</span> <span class="ident">map</span>.<span class="ident">output</span>(<span class="ident">source_t</span>, <span class="ident">i</span>).<span class="ident">entry</span>(<span class="ident">j</span>));
+        <span class="kw">let </span>map = <span class="self">self</span>.get_map(source_s);
+        <span class="kw">let </span>j = target_module.operation_generator_to_index(<span class="number">0</span>, <span class="number">0</span>, t, idx);
+        <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..result.as_slice().len() {
+            result.add_basis_element(i, coef * map.output(source_t, i).entry(j));
         }
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="ext" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0 (a55dd71d5 2022-09-19)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="ext" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0 (897e37553 2022-11-02)" ></div></body></html>

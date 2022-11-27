@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/algebra/src/algebra/steenrod_algebra.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>steenrod_algebra.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../ayu.css" disabled><link rel="stylesheet" type="text/css" href="../../../dark.css" disabled><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../../storage.js"></script><script defer src="../../../source-script.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../main.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../../favicon.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/algebra/src/algebra/steenrod_algebra.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>steenrod_algebra.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" href="../../../normalize.css"><link rel="stylesheet" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" href="../../../ayu.css" disabled><link rel="stylesheet" href="../../../dark.css" disabled><link rel="stylesheet" href="../../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../../storage.js"></script><script defer src="../../../source-script.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../main.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../../favicon.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
 <!-- The loading of KaTeX is deferred to speed up page rendering -->
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.js" integrity="sha384-Bi8OWqMXO1ta+a4EPkZv7bYGIes7C3krGSZoTGNTAnAn5eYQc7IIXrJ/7ck1drAi" crossorigin="anonymous"></script>
 <!-- To automatically render math in text elements, include the auto-render extension: -->
@@ -328,310 +328,310 @@
 <span id="303">303</span>
 <span id="304">304</span>
 <span id="305">305</span>
-</pre><pre class="rust"><code><span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::algebra</span>::{
-    <span class="ident">AdemAlgebra</span>, <span class="ident">AdemAlgebraT</span>, <span class="ident">Algebra</span>, <span class="ident">Bialgebra</span>, <span class="ident">GeneratedAlgebra</span>, <span class="ident">MilnorAlgebra</span>, <span class="ident">MilnorAlgebraT</span>,
+</pre><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::algebra::{
+    AdemAlgebra, AdemAlgebraT, Algebra, Bialgebra, GeneratedAlgebra, MilnorAlgebra, MilnorAlgebraT,
 };
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::dispatch_algebra</span>;
-<span class="kw">use</span> <span class="ident">fp::prime::ValidPrime</span>;
-<span class="kw">use</span> <span class="ident">fp::vector</span>::{<span class="ident">Slice</span>, <span class="ident">SliceMut</span>};
+<span class="kw">use </span><span class="kw">crate</span>::dispatch_algebra;
+<span class="kw">use </span>fp::prime::ValidPrime;
+<span class="kw">use </span>fp::vector::{Slice, SliceMut};
 
-<span class="kw">use</span> <span class="ident">anyhow::anyhow</span>;
+<span class="kw">use </span>anyhow::anyhow;
 
-<span class="kw">use</span> <span class="ident">std::io</span>::{<span class="ident">Read</span>, <span class="ident">Write</span>};
+<span class="kw">use </span>std::io::{Read, Write};
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;json&quot;</span>)]</span>
-<span class="kw">use</span> {<span class="ident">serde::Deserialize</span>, <span class="ident">serde_json::Value</span>};
+<span class="attribute">#[cfg(feature = <span class="string">&quot;json&quot;</span>)]
+</span><span class="kw">use </span>{serde::Deserialize, serde_json::Value};
 
-<span class="comment">// This is here so that the Python bindings can use modules defined aor SteenrodAlgebraT with their own algebra enum.</span>
-<span class="comment">// In order for things to work SteenrodAlgebraT cannot implement Algebra.</span>
-<span class="comment">// Otherwise, the algebra enum for our bindings will see an implementation clash.</span>
-<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">SteenrodAlgebraT</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="ident">Algebra</span> {
-    <span class="kw">fn</span> <span class="ident">steenrod_algebra</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">SteenrodAlgebraBorrow</span>;
+<span class="comment">// This is here so that the Python bindings can use modules defined aor SteenrodAlgebraT with their own algebra enum.
+// In order for things to work SteenrodAlgebraT cannot implement Algebra.
+// Otherwise, the algebra enum for our bindings will see an implementation clash.
+</span><span class="kw">pub trait </span>SteenrodAlgebraT: Send + Sync + Algebra {
+    <span class="kw">fn </span>steenrod_algebra(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; SteenrodAlgebraBorrow;
 }
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Copy</span>, <span class="ident">Clone</span>, <span class="ident">Debug</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>)]</span>
-<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">AlgebraType</span> {
-    <span class="ident">Adem</span>,
-    <span class="ident">Milnor</span>,
+<span class="attribute">#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+</span><span class="kw">pub enum </span>AlgebraType {
+    Adem,
+    Milnor,
 }
 
-<span class="kw">impl</span> <span class="ident">std::fmt::Display</span> <span class="kw">for</span> <span class="ident">AlgebraType</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">std::fmt::Formatter</span>) -&gt; <span class="ident">std::fmt::Result</span> {
+<span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>AlgebraType {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter) -&gt; std::fmt::Result {
         <span class="macro">write!</span>(
-            <span class="ident">f</span>,
+            f,
             <span class="string">&quot;{}&quot;</span>,
-            <span class="kw">match</span> <span class="self">self</span> {
-                <span class="ident"><span class="self">Self</span>::Adem</span> =&gt; <span class="string">&quot;adem&quot;</span>,
-                <span class="ident"><span class="self">Self</span>::Milnor</span> =&gt; <span class="string">&quot;milnor&quot;</span>,
+            <span class="kw">match </span><span class="self">self </span>{
+                <span class="self">Self</span>::Adem =&gt; <span class="string">&quot;adem&quot;</span>,
+                <span class="self">Self</span>::Milnor =&gt; <span class="string">&quot;milnor&quot;</span>,
             }
         )
     }
 }
 
-<span class="kw">impl</span> <span class="ident">std::convert::TryFrom</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">str</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">AlgebraType</span> {
-    <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">anyhow::Error</span>;
+<span class="kw">impl </span>std::convert::TryFrom&lt;<span class="kw-2">&amp;</span>str&gt; <span class="kw">for </span>AlgebraType {
+    <span class="kw">type </span>Error = anyhow::Error;
 
-    <span class="kw">fn</span> <span class="ident">try_from</span>(<span class="ident">s</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident"><span class="self">Self</span>::Error</span><span class="op">&gt;</span> {
-        <span class="kw">match</span> <span class="ident">s</span> {
-            <span class="string">&quot;adem&quot;</span> =&gt; <span class="prelude-val">Ok</span>(<span class="ident"><span class="self">Self</span>::Adem</span>),
-            <span class="string">&quot;milnor&quot;</span> =&gt; <span class="prelude-val">Ok</span>(<span class="ident"><span class="self">Self</span>::Milnor</span>),
-            <span class="kw">_</span> =&gt; <span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(<span class="string">&quot;Invalid algebra name: {}&quot;</span>, <span class="ident">s</span>)),
+    <span class="kw">fn </span>try_from(s: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, <span class="self">Self</span>::Error&gt; {
+        <span class="kw">match </span>s {
+            <span class="string">&quot;adem&quot; </span>=&gt; <span class="prelude-val">Ok</span>(<span class="self">Self</span>::Adem),
+            <span class="string">&quot;milnor&quot; </span>=&gt; <span class="prelude-val">Ok</span>(<span class="self">Self</span>::Milnor),
+            <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(<span class="string">&quot;Invalid algebra name: {}&quot;</span>, s)),
         }
     }
 }
 
-<span class="kw">impl</span> <span class="ident">std::str::FromStr</span> <span class="kw">for</span> <span class="ident">AlgebraType</span> {
-    <span class="kw">type</span> <span class="prelude-val">Err</span> <span class="op">=</span> <span class="ident">anyhow::Error</span>;
+<span class="kw">impl </span>std::str::FromStr <span class="kw">for </span>AlgebraType {
+    <span class="kw">type </span><span class="prelude-val">Err </span>= anyhow::Error;
 
-    <span class="kw">fn</span> <span class="ident">from_str</span>(<span class="ident">s</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident"><span class="self">Self</span>::Err</span><span class="op">&gt;</span> {
-        <span class="ident">s</span>.<span class="ident">try_into</span>()
+    <span class="kw">fn </span>from_str(s: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, <span class="self">Self</span>::Err&gt; {
+        s.try_into()
     }
 }
 
-<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">SteenrodAlgebraBorrow</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> {
-    <span class="ident">BorrowAdem</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">AdemAlgebra</span>),
-    <span class="ident">BorrowMilnor</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">MilnorAlgebra</span>),
+<span class="kw">pub enum </span>SteenrodAlgebraBorrow&lt;<span class="lifetime">&#39;a</span>&gt; {
+    BorrowAdem(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>AdemAlgebra),
+    BorrowMilnor(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>MilnorAlgebra),
 }
 
-<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">SteenrodAlgebra</span> {
-    <span class="ident">AdemAlgebra</span>(<span class="ident">AdemAlgebra</span>),
-    <span class="ident">MilnorAlgebra</span>(<span class="ident">MilnorAlgebra</span>),
+<span class="kw">pub enum </span>SteenrodAlgebra {
+    AdemAlgebra(AdemAlgebra),
+    MilnorAlgebra(MilnorAlgebra),
 }
 
-<span class="kw">impl</span> <span class="ident">std::fmt::Display</span> <span class="kw">for</span> <span class="ident">SteenrodAlgebra</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">std::fmt::Formatter</span>) -&gt; <span class="ident">std::fmt::Result</span> {
-        <span class="kw">match</span> <span class="self">self</span> {
-            <span class="ident">SteenrodAlgebra::AdemAlgebra</span>(<span class="ident">a</span>) =&gt; <span class="ident">a</span>.<span class="ident">fmt</span>(<span class="ident">f</span>),
-            <span class="ident">SteenrodAlgebra::MilnorAlgebra</span>(<span class="ident">a</span>) =&gt; <span class="ident">a</span>.<span class="ident">fmt</span>(<span class="ident">f</span>),
+<span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>SteenrodAlgebra {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter) -&gt; std::fmt::Result {
+        <span class="kw">match </span><span class="self">self </span>{
+            SteenrodAlgebra::AdemAlgebra(a) =&gt; a.fmt(f),
+            SteenrodAlgebra::MilnorAlgebra(a) =&gt; a.fmt(f),
         }
     }
 }
 
-<span class="kw">impl</span> <span class="ident">SteenrodAlgebraT</span> <span class="kw">for</span> <span class="ident">SteenrodAlgebra</span> {
-    <span class="kw">fn</span> <span class="ident">steenrod_algebra</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">SteenrodAlgebraBorrow</span> {
-        <span class="kw">match</span> <span class="self">self</span> {
-            <span class="ident">SteenrodAlgebra::AdemAlgebra</span>(<span class="ident">a</span>) =&gt; <span class="ident">SteenrodAlgebraBorrow::BorrowAdem</span>(<span class="ident">a</span>),
-            <span class="ident">SteenrodAlgebra::MilnorAlgebra</span>(<span class="ident">a</span>) =&gt; <span class="ident">SteenrodAlgebraBorrow::BorrowMilnor</span>(<span class="ident">a</span>),
+<span class="kw">impl </span>SteenrodAlgebraT <span class="kw">for </span>SteenrodAlgebra {
+    <span class="kw">fn </span>steenrod_algebra(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; SteenrodAlgebraBorrow {
+        <span class="kw">match </span><span class="self">self </span>{
+            SteenrodAlgebra::AdemAlgebra(a) =&gt; SteenrodAlgebraBorrow::BorrowAdem(a),
+            SteenrodAlgebra::MilnorAlgebra(a) =&gt; SteenrodAlgebraBorrow::BorrowMilnor(a),
         }
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">SteenrodAlgebraT</span><span class="op">&gt;</span> <span class="ident">AdemAlgebraT</span> <span class="kw">for</span> <span class="ident">A</span> {
-    <span class="kw">fn</span> <span class="ident">adem_algebra</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">AdemAlgebra</span> {
-        <span class="kw">match</span> <span class="self">self</span>.<span class="ident">steenrod_algebra</span>() {
-            <span class="ident">SteenrodAlgebraBorrow::BorrowAdem</span>(<span class="ident">a</span>) =&gt; <span class="ident">a</span>,
-            <span class="ident">SteenrodAlgebraBorrow::BorrowMilnor</span>(<span class="kw">_</span>) =&gt; <span class="macro">panic!</span>(),
+<span class="kw">impl</span>&lt;A: SteenrodAlgebraT&gt; AdemAlgebraT <span class="kw">for </span>A {
+    <span class="kw">fn </span>adem_algebra(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>AdemAlgebra {
+        <span class="kw">match </span><span class="self">self</span>.steenrod_algebra() {
+            SteenrodAlgebraBorrow::BorrowAdem(a) =&gt; a,
+            SteenrodAlgebraBorrow::BorrowMilnor(<span class="kw">_</span>) =&gt; <span class="macro">panic!</span>(),
         }
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">SteenrodAlgebraT</span><span class="op">&gt;</span> <span class="ident">MilnorAlgebraT</span> <span class="kw">for</span> <span class="ident">A</span> {
-    <span class="kw">fn</span> <span class="ident">milnor_algebra</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">MilnorAlgebra</span> {
-        <span class="kw">match</span> <span class="self">self</span>.<span class="ident">steenrod_algebra</span>() {
-            <span class="ident">SteenrodAlgebraBorrow::BorrowAdem</span>(<span class="kw">_</span>) =&gt; <span class="macro">panic!</span>(),
-            <span class="ident">SteenrodAlgebraBorrow::BorrowMilnor</span>(<span class="ident">a</span>) =&gt; <span class="ident">a</span>,
+<span class="kw">impl</span>&lt;A: SteenrodAlgebraT&gt; MilnorAlgebraT <span class="kw">for </span>A {
+    <span class="kw">fn </span>milnor_algebra(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>MilnorAlgebra {
+        <span class="kw">match </span><span class="self">self</span>.steenrod_algebra() {
+            SteenrodAlgebraBorrow::BorrowAdem(<span class="kw">_</span>) =&gt; <span class="macro">panic!</span>(),
+            SteenrodAlgebraBorrow::BorrowMilnor(a) =&gt; a,
         }
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> <span class="ident">TryInto</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">AdemAlgebra</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">SteenrodAlgebra</span> {
-    <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">anyhow::Error</span>;
-    <span class="kw">fn</span> <span class="ident">try_into</span>(<span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">AdemAlgebra</span>, <span class="ident"><span class="self">Self</span>::Error</span><span class="op">&gt;</span> {
-        <span class="kw">match</span> <span class="self">self</span> {
-            <span class="ident">SteenrodAlgebra::AdemAlgebra</span>(<span class="ident">a</span>) =&gt; <span class="prelude-val">Ok</span>(<span class="ident">a</span>),
-            <span class="ident">SteenrodAlgebra::MilnorAlgebra</span>(<span class="kw">_</span>) =&gt; {
+<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; TryInto&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>AdemAlgebra&gt; <span class="kw">for </span><span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>SteenrodAlgebra {
+    <span class="kw">type </span>Error = anyhow::Error;
+    <span class="kw">fn </span>try_into(<span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>AdemAlgebra, <span class="self">Self</span>::Error&gt; {
+        <span class="kw">match </span><span class="self">self </span>{
+            SteenrodAlgebra::AdemAlgebra(a) =&gt; <span class="prelude-val">Ok</span>(a),
+            SteenrodAlgebra::MilnorAlgebra(<span class="kw">_</span>) =&gt; {
                 <span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(<span class="string">&quot;Expected AdemAlgebra, found MilnorAlgebra&quot;</span>))
             }
         }
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> <span class="ident">TryInto</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">MilnorAlgebra</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">SteenrodAlgebra</span> {
-    <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">anyhow::Error</span>;
-    <span class="kw">fn</span> <span class="ident">try_into</span>(<span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">MilnorAlgebra</span>, <span class="ident"><span class="self">Self</span>::Error</span><span class="op">&gt;</span> {
-        <span class="kw">match</span> <span class="self">self</span> {
-            <span class="ident">SteenrodAlgebra::MilnorAlgebra</span>(<span class="ident">a</span>) =&gt; <span class="prelude-val">Ok</span>(<span class="ident">a</span>),
-            <span class="ident">SteenrodAlgebra::AdemAlgebra</span>(<span class="kw">_</span>) =&gt; {
+<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; TryInto&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>MilnorAlgebra&gt; <span class="kw">for </span><span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>SteenrodAlgebra {
+    <span class="kw">type </span>Error = anyhow::Error;
+    <span class="kw">fn </span>try_into(<span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>MilnorAlgebra, <span class="self">Self</span>::Error&gt; {
+        <span class="kw">match </span><span class="self">self </span>{
+            SteenrodAlgebra::MilnorAlgebra(a) =&gt; <span class="prelude-val">Ok</span>(a),
+            SteenrodAlgebra::AdemAlgebra(<span class="kw">_</span>) =&gt; {
                 <span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(<span class="string">&quot;Expected MilnorAlgebra, found AdemAlgebra&quot;</span>))
             }
         }
     }
 }
 
-<span class="kw">impl</span> <span class="ident">Bialgebra</span> <span class="kw">for</span> <span class="ident">SteenrodAlgebra</span> {
-    <span class="kw">fn</span> <span class="ident">decompose</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">op_deg</span>: <span class="ident">i32</span>, <span class="ident">op_idx</span>: <span class="ident">usize</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">i32</span>, <span class="ident">usize</span>)<span class="op">&gt;</span> {
-        <span class="kw">match</span> <span class="self">self</span> {
-            <span class="ident">SteenrodAlgebra::AdemAlgebra</span>(<span class="ident">a</span>) =&gt; <span class="ident">a</span>.<span class="ident">decompose</span>(<span class="ident">op_deg</span>, <span class="ident">op_idx</span>),
-            <span class="ident">SteenrodAlgebra::MilnorAlgebra</span>(<span class="ident">a</span>) =&gt; <span class="ident">a</span>.<span class="ident">decompose</span>(<span class="ident">op_deg</span>, <span class="ident">op_idx</span>),
+<span class="kw">impl </span>Bialgebra <span class="kw">for </span>SteenrodAlgebra {
+    <span class="kw">fn </span>decompose(<span class="kw-2">&amp;</span><span class="self">self</span>, op_deg: i32, op_idx: usize) -&gt; Vec&lt;(i32, usize)&gt; {
+        <span class="kw">match </span><span class="self">self </span>{
+            SteenrodAlgebra::AdemAlgebra(a) =&gt; a.decompose(op_deg, op_idx),
+            SteenrodAlgebra::MilnorAlgebra(a) =&gt; a.decompose(op_deg, op_idx),
         }
     }
 
-    <span class="kw">fn</span> <span class="ident">coproduct</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">op_deg</span>: <span class="ident">i32</span>, <span class="ident">op_idx</span>: <span class="ident">usize</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">i32</span>, <span class="ident">usize</span>, <span class="ident">i32</span>, <span class="ident">usize</span>)<span class="op">&gt;</span> {
-        <span class="kw">match</span> <span class="self">self</span> {
-            <span class="ident">SteenrodAlgebra::AdemAlgebra</span>(<span class="ident">a</span>) =&gt; <span class="ident">a</span>.<span class="ident">coproduct</span>(<span class="ident">op_deg</span>, <span class="ident">op_idx</span>),
-            <span class="ident">SteenrodAlgebra::MilnorAlgebra</span>(<span class="ident">a</span>) =&gt; <span class="ident">a</span>.<span class="ident">coproduct</span>(<span class="ident">op_deg</span>, <span class="ident">op_idx</span>),
+    <span class="kw">fn </span>coproduct(<span class="kw-2">&amp;</span><span class="self">self</span>, op_deg: i32, op_idx: usize) -&gt; Vec&lt;(i32, usize, i32, usize)&gt; {
+        <span class="kw">match </span><span class="self">self </span>{
+            SteenrodAlgebra::AdemAlgebra(a) =&gt; a.coproduct(op_deg, op_idx),
+            SteenrodAlgebra::MilnorAlgebra(a) =&gt; a.coproduct(op_deg, op_idx),
         }
     }
 }
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;json&quot;</span>)]</span>
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Deserialize</span>, <span class="ident">Debug</span>)]</span>
-<span class="kw">struct</span> <span class="ident">AlgebraSpec</span> {
-    <span class="ident">p</span>: <span class="ident">ValidPrime</span>,
-    <span class="ident">algebra</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    <span class="ident">profile</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident"><span class="kw">crate</span>::algebra::milnor_algebra::MilnorProfile</span><span class="op">&gt;</span>,
+<span class="attribute">#[cfg(feature = <span class="string">&quot;json&quot;</span>)]
+#[derive(Deserialize, Debug)]
+</span><span class="kw">struct </span>AlgebraSpec {
+    p: ValidPrime,
+    algebra: <span class="prelude-ty">Option</span>&lt;Vec&lt;String&gt;&gt;,
+    profile: <span class="prelude-ty">Option</span>&lt;<span class="kw">crate</span>::algebra::milnor_algebra::MilnorProfile&gt;,
 }
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;json&quot;</span>)]</span>
-<span class="kw">impl</span> <span class="ident">SteenrodAlgebra</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_json</span>(
-        <span class="ident">json</span>: <span class="kw-2">&amp;</span><span class="ident">Value</span>,
-        <span class="kw-2">mut</span> <span class="ident">algebra_type</span>: <span class="ident">AlgebraType</span>,
-        <span class="ident">unstable</span>: <span class="ident">bool</span>,
-    ) -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span><span class="ident">SteenrodAlgebra</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">spec</span>: <span class="ident">AlgebraSpec</span> <span class="op">=</span> <span class="ident">AlgebraSpec::deserialize</span>(<span class="ident">json</span>)<span class="question-mark">?</span>;
+<span class="attribute">#[cfg(feature = <span class="string">&quot;json&quot;</span>)]
+</span><span class="kw">impl </span>SteenrodAlgebra {
+    <span class="kw">pub fn </span>from_json(
+        json: <span class="kw-2">&amp;</span>Value,
+        <span class="kw-2">mut </span>algebra_type: AlgebraType,
+        unstable: bool,
+    ) -&gt; anyhow::Result&lt;SteenrodAlgebra&gt; {
+        <span class="kw">let </span>spec: AlgebraSpec = AlgebraSpec::deserialize(json)<span class="question-mark">?</span>;
 
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">list</span>) <span class="op">=</span> <span class="ident">spec</span>.<span class="ident">algebra</span> {
-            <span class="kw">let</span> <span class="ident">algebra_name</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">algebra_type</span>.<span class="ident">to_string</span>();
-            <span class="kw">if</span> <span class="op">!</span><span class="ident">list</span>.<span class="ident">iter</span>().<span class="ident">any</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">x</span> <span class="op">==</span> <span class="ident">algebra_name</span>) {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(list) = spec.algebra {
+            <span class="kw">let </span>algebra_name = <span class="kw-2">&amp;</span>algebra_type.to_string();
+            <span class="kw">if </span>!list.iter().any(|x| x == algebra_name) {
                 <span class="macro">println!</span>(<span class="string">&quot;Module does not support algebra {algebra_name}&quot;</span>);
-                <span class="macro">println!</span>(<span class="string">&quot;Using {} instead&quot;</span>, <span class="ident">list</span>[<span class="number">0</span>]);
-                <span class="ident">algebra_type</span> <span class="op">=</span> <span class="ident">list</span>[<span class="number">0</span>].<span class="ident">parse</span>()<span class="question-mark">?</span>;
+                <span class="macro">println!</span>(<span class="string">&quot;Using {} instead&quot;</span>, list[<span class="number">0</span>]);
+                algebra_type = list[<span class="number">0</span>].parse()<span class="question-mark">?</span>;
             }
         }
 
-        <span class="prelude-val">Ok</span>(<span class="kw">match</span> <span class="ident">algebra_type</span> {
-            <span class="ident">AlgebraType::Adem</span> =&gt; <span class="ident"><span class="self">Self</span>::AdemAlgebra</span>(<span class="ident">AdemAlgebra::new</span>(<span class="ident">spec</span>.<span class="ident">p</span>, <span class="ident">unstable</span>)),
-            <span class="ident">AlgebraType::Milnor</span> =&gt; <span class="ident"><span class="self">Self</span>::MilnorAlgebra</span>(<span class="ident">MilnorAlgebra::new_with_profile</span>(
-                <span class="ident">spec</span>.<span class="ident">p</span>,
-                <span class="ident">spec</span>.<span class="ident">profile</span>.<span class="ident">unwrap_or_default</span>(),
-                <span class="ident">unstable</span>,
+        <span class="prelude-val">Ok</span>(<span class="kw">match </span>algebra_type {
+            AlgebraType::Adem =&gt; <span class="self">Self</span>::AdemAlgebra(AdemAlgebra::new(spec.p, unstable)),
+            AlgebraType::Milnor =&gt; <span class="self">Self</span>::MilnorAlgebra(MilnorAlgebra::new_with_profile(
+                spec.p,
+                spec.profile.unwrap_or_default(),
+                unstable,
             )),
         })
     }
 }
 
-<span class="macro">macro_rules!</span> <span class="ident">dispatch_steenrod</span> {
+<span class="macro">macro_rules! </span>dispatch_steenrod {
     () =&gt; {};
-    (<span class="macro-nonterminal">$</span><span class="macro-nonterminal">vis</span>:<span class="ident">vis</span> <span class="kw">fn</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">method</span>:<span class="ident">ident</span>$(<span class="op">&lt;</span>$(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">lt</span>:<span class="ident">lifetime</span>),<span class="op">+</span><span class="op">&gt;</span>)<span class="question-mark">?</span>(<span class="kw-2">&amp;</span>$(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">lt2</span>:<span class="ident">lifetime</span>)<span class="question-mark">?</span><span class="self">self</span>$(, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">arg</span>:<span class="ident">ident</span>: <span class="macro-nonterminal">$</span><span class="macro-nonterminal">ty</span>:<span class="ident">ty</span> )<span class="kw-2">*</span>$(,)<span class="question-mark">?</span>) $(-&gt; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">ret</span>:<span class="ident">ty</span>)<span class="question-mark">?</span>; $(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">tail</span>:<span class="ident">tt</span>)<span class="kw-2">*</span>) =&gt; {
-        <span class="macro-nonterminal">$</span><span class="macro-nonterminal">vis</span> <span class="kw">fn</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">method</span>$(<span class="op">&lt;</span>$(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">lt</span>),<span class="op">+</span><span class="op">&gt;</span>)<span class="question-mark">?</span>(<span class="kw-2">&amp;</span>$(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">lt2</span>)<span class="question-mark">?</span><span class="self">self</span>, $(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">arg</span>: <span class="macro-nonterminal">$</span><span class="macro-nonterminal">ty</span>),<span class="op">*</span> ) $(-&gt; <span class="macro-nonterminal">$</span><span class="macro-nonterminal">ret</span>)<span class="op">*</span> {
-            <span class="kw">match</span> <span class="self">self</span> {
-                <span class="ident">SteenrodAlgebra::AdemAlgebra</span>(<span class="ident">a</span>) =&gt; <span class="ident">a</span>.<span class="macro-nonterminal">$</span><span class="macro-nonterminal">method</span>($(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">arg</span>),<span class="kw-2">*</span>),
-                <span class="ident">SteenrodAlgebra::MilnorAlgebra</span>(<span class="ident">a</span>) =&gt; <span class="ident">a</span>.<span class="macro-nonterminal">$</span><span class="macro-nonterminal">method</span>($(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">arg</span>),<span class="kw-2">*</span>),
+    (<span class="macro-nonterminal">$vis</span>:vis <span class="kw">fn </span><span class="macro-nonterminal">$method</span>:ident$(&lt;$(<span class="macro-nonterminal">$lt</span>:lifetime),+&gt;)<span class="question-mark">?</span>(<span class="kw-2">&amp;</span>$(<span class="macro-nonterminal">$lt2</span>:lifetime)<span class="question-mark">?</span><span class="self">self</span>$(, <span class="macro-nonterminal">$arg</span>:ident: <span class="macro-nonterminal">$ty</span>:ty )<span class="kw-2">*</span>$(,)<span class="question-mark">?</span>) $(-&gt; <span class="macro-nonterminal">$ret</span>:ty)<span class="question-mark">?</span>; $(<span class="macro-nonterminal">$tail</span>:tt)<span class="kw-2">*</span>) =&gt; {
+        <span class="macro-nonterminal">$vis </span><span class="kw">fn </span><span class="macro-nonterminal">$method</span>$(&lt;$(<span class="macro-nonterminal">$lt</span>),+&gt;)<span class="question-mark">?</span>(<span class="kw-2">&amp;</span>$(<span class="macro-nonterminal">$lt2</span>)<span class="question-mark">?</span><span class="self">self</span>, $(<span class="macro-nonterminal">$arg</span>: <span class="macro-nonterminal">$ty</span>),* ) $(-&gt; <span class="macro-nonterminal">$ret</span>)* {
+            <span class="kw">match </span><span class="self">self </span>{
+                SteenrodAlgebra::AdemAlgebra(a) =&gt; a.<span class="macro-nonterminal">$method</span>($(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>),
+                SteenrodAlgebra::MilnorAlgebra(a) =&gt; a.<span class="macro-nonterminal">$method</span>($(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>),
             }
         }
-        <span class="macro">dispatch_steenrod!</span>{$(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">tail</span>)<span class="kw-2">*</span>}
+        <span class="macro">dispatch_steenrod!</span>{$(<span class="macro-nonterminal">$tail</span>)<span class="kw-2">*</span>}
     };
 }
 
-<span class="macro">dispatch_algebra!</span>(<span class="ident">SteenrodAlgebra</span>, <span class="ident">dispatch_steenrod</span>);
+<span class="macro">dispatch_algebra!</span>(SteenrodAlgebra, dispatch_steenrod);
 
-<span class="doccomment">/// An algebra with a specified list of generators and generating relations. This data can be used</span>
-<span class="doccomment">/// to specify modules by specifying the actions of the generators.</span>
-<span class="kw">impl</span> <span class="ident">GeneratedAlgebra</span> <span class="kw">for</span> <span class="ident">SteenrodAlgebra</span> {
-    <span class="macro">dispatch_steenrod!</span> {
-        <span class="kw">fn</span> <span class="ident">generators</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span>;
-        <span class="kw">fn</span> <span class="ident">generator_to_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">idx</span>: <span class="ident">usize</span>) -&gt; <span class="ident">String</span>;
+<span class="doccomment">/// An algebra with a specified list of generators and generating relations. This data can be used
+/// to specify modules by specifying the actions of the generators.
+</span><span class="kw">impl </span>GeneratedAlgebra <span class="kw">for </span>SteenrodAlgebra {
+    <span class="macro">dispatch_steenrod! </span>{
+        <span class="kw">fn </span>generators(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32) -&gt; Vec&lt;usize&gt;;
+        <span class="kw">fn </span>generator_to_string(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32, idx: usize) -&gt; String;
 
-        <span class="kw">fn</span> <span class="ident">decompose_basis_element</span>(
+        <span class="kw">fn </span>decompose_basis_element(
             <span class="kw-2">&amp;</span><span class="self">self</span>,
-            <span class="ident">degree</span>: <span class="ident">i32</span>,
-            <span class="ident">idx</span>: <span class="ident">usize</span>,
-        ) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">u32</span>, (<span class="ident">i32</span>, <span class="ident">usize</span>), (<span class="ident">i32</span>, <span class="ident">usize</span>))<span class="op">&gt;</span>;
+            degree: i32,
+            idx: usize,
+        ) -&gt; Vec&lt;(u32, (i32, usize), (i32, usize))&gt;;
 
-        <span class="kw">fn</span> <span class="ident">generating_relations</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">u32</span>, (<span class="ident">i32</span>, <span class="ident">usize</span>), (<span class="ident">i32</span>, <span class="ident">usize</span>))<span class="op">&gt;</span><span class="op">&gt;</span>;
+        <span class="kw">fn </span>generating_relations(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32) -&gt; Vec&lt;Vec&lt;(u32, (i32, usize), (i32, usize))&gt;&gt;;
     }
 }
 
-<span class="kw">impl</span> <span class="ident"><span class="kw">crate</span>::pair_algebra::PairAlgebra</span> <span class="kw">for</span> <span class="ident">AdemAlgebra</span> {
-    <span class="kw">type</span> <span class="ident">Element</span> <span class="op">=</span> <span class="ident"><span class="kw">crate</span>::pair_algebra::MilnorPairElement</span>;
+<span class="kw">impl </span><span class="kw">crate</span>::pair_algebra::PairAlgebra <span class="kw">for </span>AdemAlgebra {
+    <span class="kw">type </span>Element = <span class="kw">crate</span>::pair_algebra::MilnorPairElement;
 
-    <span class="kw">fn</span> <span class="ident">element_is_zero</span>(<span class="ident">_elt</span>: <span class="kw-2">&amp;</span><span class="ident"><span class="self">Self</span>::Element</span>) -&gt; <span class="ident">bool</span> {
+    <span class="kw">fn </span>element_is_zero(_elt: <span class="kw-2">&amp;</span><span class="self">Self</span>::Element) -&gt; bool {
         <span class="macro">unimplemented!</span>()
     }
 
-    <span class="kw">fn</span> <span class="ident">finalize_element</span>(<span class="ident">_elt</span>: <span class="kw-2">&amp;mut</span> <span class="ident"><span class="self">Self</span>::Element</span>) {
+    <span class="kw">fn </span>finalize_element(_elt: <span class="kw-2">&amp;mut </span><span class="self">Self</span>::Element) {
         <span class="macro">unimplemented!</span>()
     }
 
-    <span class="kw">fn</span> <span class="ident">p_tilde</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">usize</span> {
-        <span class="number">0</span>
-    }
+    <span class="kw">fn </span>p_tilde(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
+        <span class="number">0
+    </span>}
 
-    <span class="kw">fn</span> <span class="ident">new_pair_element</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">_degree</span>: <span class="ident">i32</span>) -&gt; <span class="ident"><span class="self">Self</span>::Element</span> {
+    <span class="kw">fn </span>new_pair_element(<span class="kw-2">&amp;</span><span class="self">self</span>, _degree: i32) -&gt; <span class="self">Self</span>::Element {
         <span class="macro">unimplemented!</span>()
     }
 
-    <span class="kw">fn</span> <span class="ident">sigma_multiply_basis</span>(
+    <span class="kw">fn </span>sigma_multiply_basis(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">_result</span>: <span class="kw-2">&amp;mut</span> <span class="ident"><span class="self">Self</span>::Element</span>,
-        <span class="ident">_coeff</span>: <span class="ident">u32</span>,
-        <span class="ident">_r_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">_r_idx</span>: <span class="ident">usize</span>,
-        <span class="ident">_s_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">_s_idx</span>: <span class="ident">usize</span>,
+        _result: <span class="kw-2">&amp;mut </span><span class="self">Self</span>::Element,
+        _coeff: u32,
+        _r_degree: i32,
+        _r_idx: usize,
+        _s_degree: i32,
+        _s_idx: usize,
     ) {
         <span class="macro">unimplemented!</span>()
     }
 
-    <span class="kw">fn</span> <span class="ident">a_multiply</span>(
+    <span class="kw">fn </span>a_multiply(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">_result</span>: <span class="ident">SliceMut</span>,
-        <span class="ident">_coeff</span>: <span class="ident">u32</span>,
-        <span class="ident">_r_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">_r</span>: <span class="ident">Slice</span>,
-        <span class="ident">_s_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">_s</span>: <span class="kw-2">&amp;</span><span class="ident"><span class="self">Self</span>::Element</span>,
+        _result: SliceMut,
+        _coeff: u32,
+        _r_degree: i32,
+        _r: Slice,
+        _s_degree: i32,
+        _s: <span class="kw-2">&amp;</span><span class="self">Self</span>::Element,
     ) {
         <span class="macro">unimplemented!</span>()
     }
 
-    <span class="kw">fn</span> <span class="ident">element_to_bytes</span>(
+    <span class="kw">fn </span>element_to_bytes(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">_elt</span>: <span class="kw-2">&amp;</span><span class="ident"><span class="self">Self</span>::Element</span>,
-        <span class="ident">_buffer</span>: <span class="kw-2">&amp;mut</span> <span class="kw">impl</span> <span class="ident">Write</span>,
-    ) -&gt; <span class="ident">std::io::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+        _elt: <span class="kw-2">&amp;</span><span class="self">Self</span>::Element,
+        _buffer: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Write,
+    ) -&gt; std::io::Result&lt;()&gt; {
         <span class="macro">unimplemented!</span>()
     }
 
-    <span class="kw">fn</span> <span class="ident">element_from_bytes</span>(
+    <span class="kw">fn </span>element_from_bytes(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">_buffer</span>: <span class="kw-2">&amp;mut</span> <span class="kw">impl</span> <span class="ident">Read</span>,
-    ) -&gt; <span class="ident">std::io::Result</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Element</span><span class="op">&gt;</span> {
+        _degree: i32,
+        _buffer: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Read,
+    ) -&gt; std::io::Result&lt;<span class="self">Self</span>::Element&gt; {
         <span class="macro">unimplemented!</span>()
     }
 }
 
-<span class="kw">impl</span> <span class="ident"><span class="kw">crate</span>::pair_algebra::PairAlgebra</span> <span class="kw">for</span> <span class="ident">SteenrodAlgebra</span> {
-    <span class="kw">type</span> <span class="ident">Element</span> <span class="op">=</span> <span class="ident"><span class="kw">crate</span>::pair_algebra::MilnorPairElement</span>;
+<span class="kw">impl </span><span class="kw">crate</span>::pair_algebra::PairAlgebra <span class="kw">for </span>SteenrodAlgebra {
+    <span class="kw">type </span>Element = <span class="kw">crate</span>::pair_algebra::MilnorPairElement;
 
-    <span class="kw">fn</span> <span class="ident">element_is_zero</span>(<span class="ident">elt</span>: <span class="kw-2">&amp;</span><span class="ident"><span class="self">Self</span>::Element</span>) -&gt; <span class="ident">bool</span> {
-        <span class="ident">MilnorAlgebra::element_is_zero</span>(<span class="ident">elt</span>)
+    <span class="kw">fn </span>element_is_zero(elt: <span class="kw-2">&amp;</span><span class="self">Self</span>::Element) -&gt; bool {
+        MilnorAlgebra::element_is_zero(elt)
     }
-    <span class="kw">fn</span> <span class="ident">finalize_element</span>(<span class="ident">elt</span>: <span class="kw-2">&amp;mut</span> <span class="ident"><span class="self">Self</span>::Element</span>) {
-        <span class="ident">MilnorAlgebra::finalize_element</span>(<span class="ident">elt</span>);
+    <span class="kw">fn </span>finalize_element(elt: <span class="kw-2">&amp;mut </span><span class="self">Self</span>::Element) {
+        MilnorAlgebra::finalize_element(elt);
     }
 
-    <span class="macro">dispatch_steenrod!</span> {
-        <span class="kw">fn</span> <span class="ident">p_tilde</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">usize</span>;
-        <span class="kw">fn</span> <span class="ident">new_pair_element</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) -&gt; <span class="ident"><span class="self">Self</span>::Element</span>;
-        <span class="kw">fn</span> <span class="ident">sigma_multiply_basis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">result</span>: <span class="kw-2">&amp;mut</span> <span class="ident"><span class="self">Self</span>::Element</span>, <span class="ident">coeff</span>: <span class="ident">u32</span>, <span class="ident">r_degree</span>: <span class="ident">i32</span>, <span class="ident">r_idx</span>: <span class="ident">usize</span>, <span class="ident">s_degree</span>: <span class="ident">i32</span>, <span class="ident">s_idx</span>: <span class="ident">usize</span>);
-        <span class="kw">fn</span> <span class="ident">sigma_multiply</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">result</span>: <span class="kw-2">&amp;mut</span> <span class="ident"><span class="self">Self</span>::Element</span>, <span class="ident">coeff</span>: <span class="ident">u32</span>, <span class="ident">r_degree</span>: <span class="ident">i32</span>, <span class="ident">r</span>: <span class="ident">Slice</span>, <span class="ident">s_degree</span>: <span class="ident">i32</span>, <span class="ident">s</span>: <span class="ident">Slice</span>);
-        <span class="kw">fn</span> <span class="ident">a_multiply</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">result</span>: <span class="ident">SliceMut</span>, <span class="ident">coeff</span>: <span class="ident">u32</span>, <span class="ident">r_degree</span>: <span class="ident">i32</span>, <span class="ident">r</span>: <span class="ident">Slice</span>, <span class="ident">s_degree</span>: <span class="ident">i32</span>, <span class="ident">s</span>: <span class="kw-2">&amp;</span><span class="ident"><span class="self">Self</span>::Element</span>);
-        <span class="kw">fn</span> <span class="ident">element_to_bytes</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">elt</span>: <span class="kw-2">&amp;</span><span class="ident"><span class="self">Self</span>::Element</span>, <span class="ident">buffer</span>: <span class="kw-2">&amp;mut</span> <span class="kw">impl</span> <span class="ident">Write</span>) -&gt; <span class="ident">std::io::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span>;
-        <span class="kw">fn</span> <span class="ident">element_from_bytes</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">buffer</span>: <span class="kw-2">&amp;mut</span> <span class="kw">impl</span> <span class="ident">Read</span>) -&gt; <span class="ident">std::io::Result</span><span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::Element</span><span class="op">&gt;</span>;
+    <span class="macro">dispatch_steenrod! </span>{
+        <span class="kw">fn </span>p_tilde(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize;
+        <span class="kw">fn </span>new_pair_element(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32) -&gt; <span class="self">Self</span>::Element;
+        <span class="kw">fn </span>sigma_multiply_basis(<span class="kw-2">&amp;</span><span class="self">self</span>, result: <span class="kw-2">&amp;mut </span><span class="self">Self</span>::Element, coeff: u32, r_degree: i32, r_idx: usize, s_degree: i32, s_idx: usize);
+        <span class="kw">fn </span>sigma_multiply(<span class="kw-2">&amp;</span><span class="self">self</span>, result: <span class="kw-2">&amp;mut </span><span class="self">Self</span>::Element, coeff: u32, r_degree: i32, r: Slice, s_degree: i32, s: Slice);
+        <span class="kw">fn </span>a_multiply(<span class="kw-2">&amp;</span><span class="self">self</span>, result: SliceMut, coeff: u32, r_degree: i32, r: Slice, s_degree: i32, s: <span class="kw-2">&amp;</span><span class="self">Self</span>::Element);
+        <span class="kw">fn </span>element_to_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>, elt: <span class="kw-2">&amp;</span><span class="self">Self</span>::Element, buffer: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Write) -&gt; std::io::Result&lt;()&gt;;
+        <span class="kw">fn </span>element_from_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32, buffer: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Read) -&gt; std::io::Result&lt;<span class="self">Self</span>::Element&gt;;
     }
 }
 
-<span class="kw">impl</span> <span class="ident"><span class="kw">crate</span>::UnstableAlgebra</span> <span class="kw">for</span> <span class="ident">SteenrodAlgebra</span> {
-    <span class="macro">dispatch_steenrod!</span> {
-        <span class="kw">fn</span> <span class="ident">dimension_unstable</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">excess</span>: <span class="ident">i32</span>) -&gt; <span class="ident">usize</span>;
-        <span class="kw">fn</span> <span class="ident">multiply_basis_elements_unstable</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">result</span>: <span class="ident">SliceMut</span>, <span class="ident">coeff</span>: <span class="ident">u32</span>, <span class="ident">r_degree</span>: <span class="ident">i32</span>, <span class="ident">r_index</span>: <span class="ident">usize</span>, <span class="ident">s_degree</span>: <span class="ident">i32</span>, <span class="ident">s_index</span>: <span class="ident">usize</span>, <span class="ident">excess</span>: <span class="ident">i32</span>);
-        <span class="kw">fn</span> <span class="ident">multiply_basis_element_by_element_unstable</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">result</span>: <span class="ident">SliceMut</span>, <span class="ident">coeff</span>: <span class="ident">u32</span>, <span class="ident">r_degree</span>: <span class="ident">i32</span>, <span class="ident">r_idx</span>: <span class="ident">usize</span>, <span class="ident">s_degree</span>: <span class="ident">i32</span>, <span class="ident">s</span>: <span class="ident">Slice</span>, <span class="ident">excess</span>: <span class="ident">i32</span>);
-        <span class="kw">fn</span> <span class="ident">multiply_element_by_basis_element_unstable</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">result</span>: <span class="ident">SliceMut</span>, <span class="ident">coeff</span>: <span class="ident">u32</span>, <span class="ident">r_degree</span>: <span class="ident">i32</span>, <span class="ident">r</span>: <span class="ident">Slice</span>, <span class="ident">s_degree</span>: <span class="ident">i32</span>, <span class="ident">s_idx</span>: <span class="ident">usize</span>, <span class="ident">excess</span>: <span class="ident">i32</span>);
-        <span class="kw">fn</span> <span class="ident">multiply_element_by_element_unstable</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">result</span>: <span class="ident">SliceMut</span>, <span class="ident">coeff</span>: <span class="ident">u32</span>, <span class="ident">r_degree</span>: <span class="ident">i32</span>, <span class="ident">r</span>: <span class="ident">Slice</span>, <span class="ident">s_degree</span>: <span class="ident">i32</span>, <span class="ident">s</span>: <span class="ident">Slice</span>, <span class="ident">excess</span>: <span class="ident">i32</span>);
+<span class="kw">impl </span><span class="kw">crate</span>::UnstableAlgebra <span class="kw">for </span>SteenrodAlgebra {
+    <span class="macro">dispatch_steenrod! </span>{
+        <span class="kw">fn </span>dimension_unstable(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32, excess: i32) -&gt; usize;
+        <span class="kw">fn </span>multiply_basis_elements_unstable(<span class="kw-2">&amp;</span><span class="self">self</span>, result: SliceMut, coeff: u32, r_degree: i32, r_index: usize, s_degree: i32, s_index: usize, excess: i32);
+        <span class="kw">fn </span>multiply_basis_element_by_element_unstable(<span class="kw-2">&amp;</span><span class="self">self</span>, result: SliceMut, coeff: u32, r_degree: i32, r_idx: usize, s_degree: i32, s: Slice, excess: i32);
+        <span class="kw">fn </span>multiply_element_by_basis_element_unstable(<span class="kw-2">&amp;</span><span class="self">self</span>, result: SliceMut, coeff: u32, r_degree: i32, r: Slice, s_degree: i32, s_idx: usize, excess: i32);
+        <span class="kw">fn </span>multiply_element_by_element_unstable(<span class="kw-2">&amp;</span><span class="self">self</span>, result: SliceMut, coeff: u32, r_degree: i32, r: Slice, s_degree: i32, s: Slice, excess: i32);
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="algebra" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0 (a55dd71d5 2022-09-19)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="algebra" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0 (897e37553 2022-11-02)" ></div></body></html>

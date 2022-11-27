@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/algebra/src/module/finitely_presented_module.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>finitely_presented_module.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../ayu.css" disabled><link rel="stylesheet" type="text/css" href="../../../dark.css" disabled><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../../storage.js"></script><script defer src="../../../source-script.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../main.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../../favicon.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/algebra/src/module/finitely_presented_module.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>finitely_presented_module.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" href="../../../normalize.css"><link rel="stylesheet" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" href="../../../ayu.css" disabled><link rel="stylesheet" href="../../../dark.css" disabled><link rel="stylesheet" href="../../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../../storage.js"></script><script defer src="../../../source-script.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../main.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../../favicon.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
 <!-- The loading of KaTeX is deferred to speed up page rendering -->
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.js" integrity="sha384-Bi8OWqMXO1ta+a4EPkZv7bYGIes7C3krGSZoTGNTAnAn5eYQc7IIXrJ/7ck1drAi" crossorigin="anonymous"></script>
 <!-- To automatically render math in text elements, include the auto-render extension: -->
@@ -273,255 +273,255 @@
 <span id="248">248</span>
 <span id="249">249</span>
 <span id="250">250</span>
-</pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
+</pre><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
 
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::algebra::Algebra</span>;
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::module::homomorphism</span>::{<span class="ident">FreeModuleHomomorphism</span>, <span class="ident">ModuleHomomorphism</span>};
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::module</span>::{<span class="ident">FreeModule</span>, <span class="ident">Module</span>, <span class="ident">ZeroModule</span>};
-<span class="kw">use</span> <span class="ident">fp::vector</span>::{<span class="ident">FpVector</span>, <span class="ident">SliceMut</span>};
-<span class="kw">use</span> <span class="ident">once::OnceBiVec</span>;
+<span class="kw">use </span><span class="kw">crate</span>::algebra::Algebra;
+<span class="kw">use </span><span class="kw">crate</span>::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
+<span class="kw">use </span><span class="kw">crate</span>::module::{FreeModule, Module, ZeroModule};
+<span class="kw">use </span>fp::vector::{FpVector, SliceMut};
+<span class="kw">use </span>once::OnceBiVec;
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;json&quot;</span>)]</span>
-<span class="kw">use</span> {<span class="ident">itertools::Itertools</span>, <span class="ident">serde_json::Value</span>};
+<span class="attribute">#[cfg(feature = <span class="string">&quot;json&quot;</span>)]
+</span><span class="kw">use </span>{itertools::Itertools, serde_json::Value};
 
-<span class="kw">struct</span> <span class="ident">FPMIndexTable</span> {
-    <span class="ident">gen_idx_to_fp_idx</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">isize</span><span class="op">&gt;</span>,
-    <span class="ident">fp_idx_to_gen_idx</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span>,
+<span class="kw">struct </span>FPMIndexTable {
+    gen_idx_to_fp_idx: Vec&lt;isize&gt;,
+    fp_idx_to_gen_idx: Vec&lt;usize&gt;,
 }
 
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">FinitelyPresentedModule</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">Algebra</span><span class="op">&gt;</span> {
-    <span class="ident">name</span>: <span class="ident">String</span>,
-    <span class="ident">min_degree</span>: <span class="ident">i32</span>,
-    <span class="ident">generators</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    <span class="ident">relations</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    <span class="ident">map</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">FreeModuleHomomorphism</span><span class="op">&lt;</span><span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    <span class="ident">index_table</span>: <span class="ident">OnceBiVec</span><span class="op">&lt;</span><span class="ident">FPMIndexTable</span><span class="op">&gt;</span>,
+<span class="kw">pub struct </span>FinitelyPresentedModule&lt;A: Algebra&gt; {
+    name: String,
+    min_degree: i32,
+    generators: Arc&lt;FreeModule&lt;A&gt;&gt;,
+    relations: Arc&lt;FreeModule&lt;A&gt;&gt;,
+    map: Arc&lt;FreeModuleHomomorphism&lt;FreeModule&lt;A&gt;&gt;&gt;,
+    index_table: OnceBiVec&lt;FPMIndexTable&gt;,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">Algebra</span><span class="op">&gt;</span> <span class="ident">std::fmt::Display</span> <span class="kw">for</span> <span class="ident">FinitelyPresentedModule</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">std::fmt::Formatter</span>) -&gt; <span class="ident">std::fmt::Result</span> {
-        <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{}&quot;</span>, <span class="self">self</span>.<span class="ident">name</span>)
+<span class="kw">impl</span>&lt;A: Algebra&gt; std::fmt::Display <span class="kw">for </span>FinitelyPresentedModule&lt;A&gt; {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter) -&gt; std::fmt::Result {
+        <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, <span class="self">self</span>.name)
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">Algebra</span><span class="op">&gt;</span> <span class="ident">PartialEq</span> <span class="kw">for</span> <span class="ident">FinitelyPresentedModule</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">eq</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">_other</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; <span class="ident">bool</span> {
+<span class="kw">impl</span>&lt;A: Algebra&gt; PartialEq <span class="kw">for </span>FinitelyPresentedModule&lt;A&gt; {
+    <span class="kw">fn </span>eq(<span class="kw-2">&amp;</span><span class="self">self</span>, _other: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; bool {
         <span class="macro">todo!</span>()
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">Algebra</span><span class="op">&gt;</span> <span class="ident">Eq</span> <span class="kw">for</span> <span class="ident">FinitelyPresentedModule</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {}
+<span class="kw">impl</span>&lt;A: Algebra&gt; Eq <span class="kw">for </span>FinitelyPresentedModule&lt;A&gt; {}
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">Algebra</span><span class="op">&gt;</span> <span class="ident">ZeroModule</span> <span class="kw">for</span> <span class="ident">FinitelyPresentedModule</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">zero_module</span>(<span class="ident">algebra</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>, <span class="ident">min_degree</span>: <span class="ident">i32</span>) -&gt; <span class="self">Self</span> {
-        <span class="ident"><span class="self">Self</span>::new</span>(<span class="ident">algebra</span>, <span class="string">&quot;zero&quot;</span>.<span class="ident">to_string</span>(), <span class="ident">min_degree</span>)
+<span class="kw">impl</span>&lt;A: Algebra&gt; ZeroModule <span class="kw">for </span>FinitelyPresentedModule&lt;A&gt; {
+    <span class="kw">fn </span>zero_module(algebra: Arc&lt;A&gt;, min_degree: i32) -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>::new(algebra, <span class="string">&quot;zero&quot;</span>.to_string(), min_degree)
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">Algebra</span><span class="op">&gt;</span> <span class="ident">FinitelyPresentedModule</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">algebra</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>, <span class="ident">name</span>: <span class="ident">String</span>, <span class="ident">min_degree</span>: <span class="ident">i32</span>) -&gt; <span class="self">Self</span> {
-        <span class="kw">let</span> <span class="ident">generators</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">FreeModule::new</span>(
-            <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">algebra</span>),
+<span class="kw">impl</span>&lt;A: Algebra&gt; FinitelyPresentedModule&lt;A&gt; {
+    <span class="kw">pub fn </span>new(algebra: Arc&lt;A&gt;, name: String, min_degree: i32) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>generators = Arc::new(FreeModule::new(
+            Arc::clone(<span class="kw-2">&amp;</span>algebra),
             <span class="macro">format!</span>(<span class="string">&quot;{name}-gens&quot;</span>),
-            <span class="ident">min_degree</span>,
+            min_degree,
         ));
-        <span class="kw">let</span> <span class="ident">relations</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">FreeModule::new</span>(
-            <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">algebra</span>),
+        <span class="kw">let </span>relations = Arc::new(FreeModule::new(
+            Arc::clone(<span class="kw-2">&amp;</span>algebra),
             <span class="macro">format!</span>(<span class="string">&quot;{name}-gens&quot;</span>),
-            <span class="ident">min_degree</span>,
+            min_degree,
         ));
-        <span class="self">Self</span> {
-            <span class="ident">name</span>,
-            <span class="ident">min_degree</span>,
-            <span class="ident">generators</span>: <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">generators</span>),
-            <span class="ident">relations</span>: <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">relations</span>),
-            <span class="ident">map</span>: <span class="ident">Arc::new</span>(<span class="ident">FreeModuleHomomorphism::new</span>(
-                <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">relations</span>),
-                <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">generators</span>),
+        <span class="self">Self </span>{
+            name,
+            min_degree,
+            generators: Arc::clone(<span class="kw-2">&amp;</span>generators),
+            relations: Arc::clone(<span class="kw-2">&amp;</span>relations),
+            map: Arc::new(FreeModuleHomomorphism::new(
+                Arc::clone(<span class="kw-2">&amp;</span>relations),
+                Arc::clone(<span class="kw-2">&amp;</span>generators),
                 <span class="number">0</span>,
             )),
-            <span class="ident">index_table</span>: <span class="ident">OnceBiVec::new</span>(<span class="ident">min_degree</span>),
+            index_table: OnceBiVec::new(min_degree),
         }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">generators</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">FreeModule</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-        <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">generators</span>)
+    <span class="kw">pub fn </span>generators(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Arc&lt;FreeModule&lt;A&gt;&gt; {
+        Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.generators)
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">add_generators</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">gen_names</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span>) {
-        <span class="kw">let</span> <span class="ident">num_gens</span> <span class="op">=</span> <span class="ident">gen_names</span>.<span class="ident">len</span>();
-        <span class="self">self</span>.<span class="ident">generators</span>
-            .<span class="ident">add_generators</span>(<span class="ident">degree</span>, <span class="ident">num_gens</span>, <span class="prelude-val">Some</span>(<span class="ident">gen_names</span>));
+    <span class="kw">pub fn </span>add_generators(<span class="kw-2">&amp;mut </span><span class="self">self</span>, degree: i32, gen_names: Vec&lt;String&gt;) {
+        <span class="kw">let </span>num_gens = gen_names.len();
+        <span class="self">self</span>.generators
+            .add_generators(degree, num_gens, <span class="prelude-val">Some</span>(gen_names));
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">add_relations</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">relations</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">FpVector</span><span class="op">&gt;</span>) {
-        <span class="self">self</span>.<span class="ident">relations</span>.<span class="ident">add_generators</span>(<span class="ident">degree</span>, <span class="ident">relations</span>.<span class="ident">len</span>(), <span class="prelude-val">None</span>);
-        <span class="self">self</span>.<span class="ident">map</span>.<span class="ident">add_generators_from_rows</span>(<span class="ident">degree</span>, <span class="ident">relations</span>);
+    <span class="kw">pub fn </span>add_relations(<span class="kw-2">&amp;mut </span><span class="self">self</span>, degree: i32, relations: Vec&lt;FpVector&gt;) {
+        <span class="self">self</span>.relations.add_generators(degree, relations.len(), <span class="prelude-val">None</span>);
+        <span class="self">self</span>.map.add_generators_from_rows(degree, relations);
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">gen_idx_to_fp_idx</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">idx</span>: <span class="ident">usize</span>) -&gt; <span class="ident">isize</span> {
-        <span class="macro">assert!</span>(<span class="ident">degree</span> <span class="op">&gt;</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">min_degree</span>);
-        <span class="self">self</span>.<span class="ident">index_table</span>[<span class="ident">degree</span>].<span class="ident">gen_idx_to_fp_idx</span>[<span class="ident">idx</span>]
+    <span class="kw">pub fn </span>gen_idx_to_fp_idx(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32, idx: usize) -&gt; isize {
+        <span class="macro">assert!</span>(degree &gt;= <span class="self">self</span>.min_degree);
+        <span class="self">self</span>.index_table[degree].gen_idx_to_fp_idx[idx]
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">fp_idx_to_gen_idx</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">idx</span>: <span class="ident">usize</span>) -&gt; <span class="ident">usize</span> {
-        <span class="macro">assert!</span>(<span class="ident">degree</span> <span class="op">&gt;</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">min_degree</span>);
-        <span class="self">self</span>.<span class="ident">index_table</span>[<span class="ident">degree</span>].<span class="ident">fp_idx_to_gen_idx</span>[<span class="ident">idx</span>]
+    <span class="kw">pub fn </span>fp_idx_to_gen_idx(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32, idx: usize) -&gt; usize {
+        <span class="macro">assert!</span>(degree &gt;= <span class="self">self</span>.min_degree);
+        <span class="self">self</span>.index_table[degree].fp_idx_to_gen_idx[idx]
     }
 }
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;json&quot;</span>)]</span>
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">Algebra</span><span class="op">&gt;</span> <span class="ident">FinitelyPresentedModule</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_json</span>(<span class="ident">algebra</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>, <span class="ident">json</span>: <span class="kw-2">&amp;</span><span class="ident">Value</span>) -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
-        <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::steenrod_parser::digits</span>;
-        <span class="kw">use</span> <span class="ident">anyhow::anyhow</span>;
-        <span class="kw">use</span> <span class="ident">nom::combinator::opt</span>;
+<span class="attribute">#[cfg(feature = <span class="string">&quot;json&quot;</span>)]
+</span><span class="kw">impl</span>&lt;A: Algebra&gt; FinitelyPresentedModule&lt;A&gt; {
+    <span class="kw">pub fn </span>from_json(algebra: Arc&lt;A&gt;, json: <span class="kw-2">&amp;</span>Value) -&gt; anyhow::Result&lt;<span class="self">Self</span>&gt; {
+        <span class="kw">use </span><span class="kw">crate</span>::steenrod_parser::digits;
+        <span class="kw">use </span>anyhow::anyhow;
+        <span class="kw">use </span>nom::combinator::opt;
 
-        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">algebra</span>.<span class="ident">prime</span>();
-        <span class="kw">let</span> <span class="ident">name</span> <span class="op">=</span> <span class="ident">json</span>[<span class="string">&quot;name&quot;</span>].<span class="ident">as_str</span>().<span class="ident">unwrap_or</span>(<span class="string">&quot;&quot;</span>).<span class="ident">to_string</span>();
-        <span class="kw">let</span> (<span class="kw">_</span>, <span class="ident">gen_names</span>, <span class="ident">gen_to_deg_idx</span>) <span class="op">=</span> <span class="ident"><span class="kw">crate</span>::module_gens_from_json</span>(<span class="kw-2">&amp;</span><span class="ident">json</span>[<span class="string">&quot;gens&quot;</span>]);
+        <span class="kw">let </span>p = algebra.prime();
+        <span class="kw">let </span>name = json[<span class="string">&quot;name&quot;</span>].as_str().unwrap_or(<span class="string">&quot;&quot;</span>).to_string();
+        <span class="kw">let </span>(<span class="kw">_</span>, gen_names, gen_to_deg_idx) = <span class="kw">crate</span>::module_gens_from_json(<span class="kw-2">&amp;</span>json[<span class="string">&quot;gens&quot;</span>]);
 
-        <span class="kw">let</span> <span class="ident">min_degree</span> <span class="op">=</span> <span class="ident">gen_names</span>.<span class="ident">min_degree</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident"><span class="self">Self</span>::new</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">algebra</span>), <span class="ident">name</span>, <span class="ident">min_degree</span>);
+        <span class="kw">let </span>min_degree = gen_names.min_degree();
+        <span class="kw">let </span><span class="kw-2">mut </span>result = <span class="self">Self</span>::new(Arc::clone(<span class="kw-2">&amp;</span>algebra), name, min_degree);
 
-        <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">gen_names</span>) <span class="kw">in</span> <span class="ident">gen_names</span>.<span class="ident">into_iter_enum</span>() {
-            <span class="ident">result</span>.<span class="ident">add_generators</span>(<span class="ident">i</span>, <span class="ident">gen_names</span>);
+        <span class="kw">for </span>(i, gen_names) <span class="kw">in </span>gen_names.into_iter_enum() {
+            result.add_generators(i, gen_names);
         }
 
-        <span class="comment">// A list of relations, specified by the degree then the element to be killed</span>
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">relations</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">i32</span>, <span class="ident">FpVector</span>)<span class="op">&gt;</span> <span class="op">=</span> <span class="ident">json</span>[<span class="ident">algebra</span>.<span class="ident">prefix</span>().<span class="ident">to_string</span>() <span class="op">+</span> <span class="string">&quot;_relations&quot;</span>]
-            .<span class="ident">as_array</span>()
-            .<span class="ident">unwrap</span>()
-            .<span class="ident">iter</span>()
-            .<span class="ident">map</span>(<span class="op">|</span><span class="ident">reln</span><span class="op">|</span> {
-                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">deg</span> <span class="op">=</span> <span class="number">0</span>;
-                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">v</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="number">0</span>);
+        <span class="comment">// A list of relations, specified by the degree then the element to be killed
+        </span><span class="kw">let </span><span class="kw-2">mut </span>relations: Vec&lt;(i32, FpVector)&gt; = json[algebra.prefix().to_string() + <span class="string">&quot;_relations&quot;</span>]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|reln| {
+                <span class="kw">let </span><span class="kw-2">mut </span>deg = <span class="number">0</span>;
+                <span class="kw">let </span><span class="kw-2">mut </span>v = FpVector::new(p, <span class="number">0</span>);
 
-                <span class="kw">for</span> <span class="ident">term</span> <span class="kw">in</span> <span class="ident">reln</span>.<span class="ident">as_str</span>().<span class="ident">unwrap</span>().<span class="ident">split</span>(<span class="string">&quot; + &quot;</span>) {
-                    <span class="kw">let</span> (<span class="ident">term</span>, <span class="ident">coef</span>) <span class="op">=</span> <span class="ident">opt</span>(<span class="ident">digits</span>)(<span class="ident">term</span>).<span class="ident">unwrap</span>();
-                    <span class="kw">let</span> <span class="ident">coef</span>: <span class="ident">u32</span> <span class="op">=</span> <span class="ident">coef</span>.<span class="ident">unwrap_or</span>(<span class="number">1</span>);
+                <span class="kw">for </span>term <span class="kw">in </span>reln.as_str().unwrap().split(<span class="string">&quot; + &quot;</span>) {
+                    <span class="kw">let </span>(term, coef) = opt(digits)(term).unwrap();
+                    <span class="kw">let </span>coef: u32 = coef.unwrap_or(<span class="number">1</span>);
 
-                    <span class="kw">let</span> (<span class="ident">op</span>, <span class="ident">gen</span>) <span class="op">=</span> <span class="ident">term</span>.<span class="ident">rsplit_once</span>(<span class="string">&#39; &#39;</span>).<span class="ident">unwrap_or</span>((<span class="string">&quot;1&quot;</span>, <span class="ident">term</span>));
-                    <span class="kw">let</span> (<span class="ident">op_deg</span>, <span class="ident">op_idx</span>) <span class="op">=</span> <span class="ident">algebra</span>
-                        .<span class="ident">basis_element_from_string</span>(<span class="ident">op</span>)
-                        .<span class="ident">ok_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="macro">anyhow!</span>(<span class="string">&quot;Invalid term in relation: {term}&quot;</span>))<span class="question-mark">?</span>;
-                    <span class="kw">let</span> (<span class="ident">gen_deg</span>, <span class="ident">gen_idx</span>) <span class="op">=</span> <span class="ident">gen_to_deg_idx</span>(<span class="ident">gen</span>)<span class="question-mark">?</span>;
+                    <span class="kw">let </span>(op, gen) = term.rsplit_once(<span class="string">&#39; &#39;</span>).unwrap_or((<span class="string">&quot;1&quot;</span>, term));
+                    <span class="kw">let </span>(op_deg, op_idx) = algebra
+                        .basis_element_from_string(op)
+                        .ok_or_else(|| <span class="macro">anyhow!</span>(<span class="string">&quot;Invalid term in relation: {term}&quot;</span>))<span class="question-mark">?</span>;
+                    <span class="kw">let </span>(gen_deg, gen_idx) = gen_to_deg_idx(gen)<span class="question-mark">?</span>;
 
-                    <span class="kw">if</span> <span class="ident">v</span>.<span class="ident">is_empty</span>() {
-                        <span class="ident">deg</span> <span class="op">=</span> <span class="ident">op_deg</span> <span class="op">+</span> <span class="ident">gen_deg</span>;
-                        <span class="ident">algebra</span>.<span class="ident">compute_basis</span>(<span class="ident">deg</span> <span class="op">-</span> <span class="ident">min_degree</span>);
-                        <span class="ident">result</span>.<span class="ident">generators</span>.<span class="ident">compute_basis</span>(<span class="ident">deg</span>);
-                        <span class="ident">v</span>.<span class="ident">set_scratch_vector_size</span>(<span class="ident">result</span>.<span class="ident">generators</span>.<span class="ident">dimension</span>(<span class="ident">deg</span>));
-                    } <span class="kw">else</span> <span class="kw">if</span> <span class="ident">op_deg</span> <span class="op">+</span> <span class="ident">gen_deg</span> <span class="op">!</span><span class="op">=</span> <span class="ident">deg</span> {
-                        <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(<span class="string">&quot;Relation has inconsistent degree. Expected {deg} but {term} has degree {}&quot;</span>, <span class="ident">op_deg</span> <span class="op">+</span> <span class="ident">gen_deg</span>));
+                    <span class="kw">if </span>v.is_empty() {
+                        deg = op_deg + gen_deg;
+                        algebra.compute_basis(deg - min_degree);
+                        result.generators.compute_basis(deg);
+                        v.set_scratch_vector_size(result.generators.dimension(deg));
+                    } <span class="kw">else if </span>op_deg + gen_deg != deg {
+                        <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(<span class="string">&quot;Relation has inconsistent degree. Expected {deg} but {term} has degree {}&quot;</span>, op_deg + gen_deg));
                     }
 
-                    <span class="kw">let</span> <span class="ident">idx</span> <span class="op">=</span> <span class="ident">result</span>.<span class="ident">generators</span>.<span class="ident">operation_generator_to_index</span>(
-                         <span class="ident">op_deg</span>,
-                         <span class="ident">op_idx</span>,
-                         <span class="ident">gen_deg</span>,
-                         <span class="ident">gen_idx</span>,
+                    <span class="kw">let </span>idx = result.generators.operation_generator_to_index(
+                         op_deg,
+                         op_idx,
+                         gen_deg,
+                         gen_idx,
                     );
 
-                    <span class="ident">v</span>.<span class="ident">add_basis_element</span>(<span class="ident">idx</span>, <span class="ident">coef</span>);
+                    v.add_basis_element(idx, coef);
                 }
-                <span class="prelude-val">Ok</span>((<span class="ident">deg</span>, <span class="ident">v</span>))
+                <span class="prelude-val">Ok</span>((deg, v))
             })
-            .<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">anyhow::Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>()<span class="question-mark">?</span>;
+            .collect::&lt;anyhow::Result&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;&gt;()<span class="question-mark">?</span>;
 
-        <span class="ident">relations</span>.<span class="ident">sort_unstable_by_key</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">x</span>.<span class="number">0</span>);
-        <span class="kw">for</span> (<span class="ident">degree</span>, <span class="ident">rels</span>) <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="ident">relations</span>.<span class="ident">into_iter</span>().<span class="ident">group_by</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">x</span>.<span class="number">0</span>) {
-            <span class="kw">for</span> <span class="ident">deg</span> <span class="kw">in</span> <span class="ident">result</span>.<span class="ident">relations</span>.<span class="ident">max_computed_degree</span>() <span class="op">+</span> <span class="number">1</span>..<span class="ident">degree</span> {
-                <span class="ident">result</span>.<span class="ident">add_relations</span>(<span class="ident">deg</span>, <span class="macro">vec!</span>[]);
+        relations.sort_unstable_by_key(|x| x.<span class="number">0</span>);
+        <span class="kw">for </span>(degree, rels) <span class="kw">in </span><span class="kw-2">&amp;</span>relations.into_iter().group_by(|x| x.<span class="number">0</span>) {
+            <span class="kw">for </span>deg <span class="kw">in </span>result.relations.max_computed_degree() + <span class="number">1</span>..degree {
+                result.add_relations(deg, <span class="macro">vec!</span>[]);
             }
-            <span class="ident">result</span>.<span class="ident">add_relations</span>(<span class="ident">degree</span>, <span class="ident">rels</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">x</span>.<span class="number">1</span>).<span class="ident">collect</span>());
+            result.add_relations(degree, rels.map(|x| x.<span class="number">1</span>).collect());
         }
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>)
+        <span class="prelude-val">Ok</span>(result)
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">Algebra</span><span class="op">&gt;</span> <span class="ident">Module</span> <span class="kw">for</span> <span class="ident">FinitelyPresentedModule</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
-    <span class="kw">type</span> <span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">A</span>;
+<span class="kw">impl</span>&lt;A: Algebra&gt; Module <span class="kw">for </span>FinitelyPresentedModule&lt;A&gt; {
+    <span class="kw">type </span>Algebra = A;
 
-    <span class="kw">fn</span> <span class="ident">algebra</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">generators</span>.<span class="ident">algebra</span>()
+    <span class="kw">fn </span>algebra(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Arc&lt;A&gt; {
+        <span class="self">self</span>.generators.algebra()
     }
 
-    <span class="kw">fn</span> <span class="ident">min_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">i32</span> {
-        <span class="self">self</span>.<span class="ident">generators</span>.<span class="ident">min_degree</span>()
+    <span class="kw">fn </span>min_degree(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; i32 {
+        <span class="self">self</span>.generators.min_degree()
     }
 
-    <span class="kw">fn</span> <span class="ident">max_computed_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">i32</span> {
-        <span class="self">self</span>.<span class="ident">generators</span>.<span class="ident">max_computed_degree</span>()
+    <span class="kw">fn </span>max_computed_degree(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; i32 {
+        <span class="self">self</span>.generators.max_computed_degree()
     }
 
-    <span class="kw">fn</span> <span class="ident">compute_basis</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) {
-        <span class="self">self</span>.<span class="ident">generators</span>.<span class="ident">extend_by_zero</span>(<span class="ident">degree</span>);
-        <span class="self">self</span>.<span class="ident">relations</span>.<span class="ident">extend_by_zero</span>(<span class="ident">degree</span>);
-        <span class="self">self</span>.<span class="ident">map</span>.<span class="ident">compute_auxiliary_data_through_degree</span>(<span class="ident">degree</span>);
+    <span class="kw">fn </span>compute_basis(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32) {
+        <span class="self">self</span>.generators.extend_by_zero(degree);
+        <span class="self">self</span>.relations.extend_by_zero(degree);
+        <span class="self">self</span>.map.compute_auxiliary_data_through_degree(degree);
 
-        <span class="self">self</span>.<span class="ident">index_table</span>.<span class="ident">extend</span>(<span class="ident">degree</span>, <span class="op">|</span><span class="ident">i</span><span class="op">|</span> {
-            <span class="kw">let</span> <span class="ident">qi</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">map</span>.<span class="ident">quasi_inverse</span>(<span class="ident">i</span>).<span class="ident">unwrap</span>();
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">gen_idx_to_fp_idx</span> <span class="op">=</span> <span class="ident">Vec::new</span>();
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">fp_idx_to_gen_idx</span> <span class="op">=</span> <span class="ident">Vec::new</span>();
-            <span class="kw">for</span> (<span class="ident">i</span>, <span class="kw-2">&amp;</span><span class="ident">pivot</span>) <span class="kw">in</span> <span class="ident">qi</span>.<span class="ident">pivots</span>().<span class="ident">unwrap</span>().<span class="ident">iter</span>().<span class="ident">enumerate</span>() {
-                <span class="kw">if</span> <span class="ident">pivot</span> <span class="op">&lt;</span> <span class="number">0</span> {
-                    <span class="ident">gen_idx_to_fp_idx</span>.<span class="ident">push</span>(<span class="ident">fp_idx_to_gen_idx</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">isize</span>);
-                    <span class="ident">fp_idx_to_gen_idx</span>.<span class="ident">push</span>(<span class="ident">i</span>);
-                } <span class="kw">else</span> {
-                    <span class="ident">gen_idx_to_fp_idx</span>.<span class="ident">push</span>(<span class="op">-</span><span class="number">1</span>);
+        <span class="self">self</span>.index_table.extend(degree, |i| {
+            <span class="kw">let </span>qi = <span class="self">self</span>.map.quasi_inverse(i).unwrap();
+            <span class="kw">let </span><span class="kw-2">mut </span>gen_idx_to_fp_idx = Vec::new();
+            <span class="kw">let </span><span class="kw-2">mut </span>fp_idx_to_gen_idx = Vec::new();
+            <span class="kw">for </span>(i, <span class="kw-2">&amp;</span>pivot) <span class="kw">in </span>qi.pivots().unwrap().iter().enumerate() {
+                <span class="kw">if </span>pivot &lt; <span class="number">0 </span>{
+                    gen_idx_to_fp_idx.push(fp_idx_to_gen_idx.len() <span class="kw">as </span>isize);
+                    fp_idx_to_gen_idx.push(i);
+                } <span class="kw">else </span>{
+                    gen_idx_to_fp_idx.push(-<span class="number">1</span>);
                 }
             }
-            <span class="ident">FPMIndexTable</span> {
-                <span class="ident">gen_idx_to_fp_idx</span>,
-                <span class="ident">fp_idx_to_gen_idx</span>,
+            FPMIndexTable {
+                gen_idx_to_fp_idx,
+                fp_idx_to_gen_idx,
             }
         });
     }
 
-    <span class="kw">fn</span> <span class="ident">dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) -&gt; <span class="ident">usize</span> {
-        <span class="macro">assert!</span>(<span class="ident">degree</span> <span class="op">&gt;</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">min_degree</span>);
-        <span class="self">self</span>.<span class="ident">index_table</span>[<span class="ident">degree</span>].<span class="ident">fp_idx_to_gen_idx</span>.<span class="ident">len</span>()
+    <span class="kw">fn </span>dimension(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32) -&gt; usize {
+        <span class="macro">assert!</span>(degree &gt;= <span class="self">self</span>.min_degree);
+        <span class="self">self</span>.index_table[degree].fp_idx_to_gen_idx.len()
     }
 
-    <span class="kw">fn</span> <span class="ident">act_on_basis</span>(
+    <span class="kw">fn </span>act_on_basis(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="kw-2">mut</span> <span class="ident">result</span>: <span class="ident">SliceMut</span>,
-        <span class="ident">coeff</span>: <span class="ident">u32</span>,
-        <span class="ident">op_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">op_index</span>: <span class="ident">usize</span>,
-        <span class="ident">mod_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">mod_index</span>: <span class="ident">usize</span>,
+        <span class="kw-2">mut </span>result: SliceMut,
+        coeff: u32,
+        op_degree: i32,
+        op_index: usize,
+        mod_degree: i32,
+        mod_index: usize,
     ) {
-        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">prime</span>();
-        <span class="kw">let</span> <span class="ident">gen_idx</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">fp_idx_to_gen_idx</span>(<span class="ident">mod_degree</span>, <span class="ident">mod_index</span>);
-        <span class="kw">let</span> <span class="ident">out_deg</span> <span class="op">=</span> <span class="ident">mod_degree</span> <span class="op">+</span> <span class="ident">op_degree</span>;
-        <span class="kw">let</span> <span class="ident">gen_dim</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">generators</span>.<span class="ident">dimension</span>(<span class="ident">out_deg</span>);
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">temp_vec</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="ident">gen_dim</span>);
-        <span class="self">self</span>.<span class="ident">generators</span>.<span class="ident">act_on_basis</span>(
-            <span class="ident">temp_vec</span>.<span class="ident">as_slice_mut</span>(),
-            <span class="ident">coeff</span>,
-            <span class="ident">op_degree</span>,
-            <span class="ident">op_index</span>,
-            <span class="ident">mod_degree</span>,
-            <span class="ident">gen_idx</span>,
+        <span class="kw">let </span>p = <span class="self">self</span>.prime();
+        <span class="kw">let </span>gen_idx = <span class="self">self</span>.fp_idx_to_gen_idx(mod_degree, mod_index);
+        <span class="kw">let </span>out_deg = mod_degree + op_degree;
+        <span class="kw">let </span>gen_dim = <span class="self">self</span>.generators.dimension(out_deg);
+        <span class="kw">let </span><span class="kw-2">mut </span>temp_vec = FpVector::new(p, gen_dim);
+        <span class="self">self</span>.generators.act_on_basis(
+            temp_vec.as_slice_mut(),
+            coeff,
+            op_degree,
+            op_index,
+            mod_degree,
+            gen_idx,
         );
-        <span class="kw">let</span> <span class="ident">image</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">map</span>.<span class="ident">image</span>(<span class="ident">out_deg</span>).<span class="ident">unwrap</span>();
-        <span class="ident">image</span>.<span class="ident">reduce</span>(<span class="ident">temp_vec</span>.<span class="ident">as_slice_mut</span>());
-        <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">result</span>.<span class="ident">as_slice</span>().<span class="ident">len</span>() {
-            <span class="kw">let</span> <span class="ident">value</span> <span class="op">=</span> <span class="ident">temp_vec</span>.<span class="ident">entry</span>(<span class="self">self</span>.<span class="ident">fp_idx_to_gen_idx</span>(<span class="ident">out_deg</span>, <span class="ident">i</span>));
-            <span class="ident">result</span>.<span class="ident">add_basis_element</span>(<span class="ident">i</span>, <span class="ident">value</span>);
+        <span class="kw">let </span>image = <span class="self">self</span>.map.image(out_deg).unwrap();
+        image.reduce(temp_vec.as_slice_mut());
+        <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..result.as_slice().len() {
+            <span class="kw">let </span>value = temp_vec.entry(<span class="self">self</span>.fp_idx_to_gen_idx(out_deg, i));
+            result.add_basis_element(i, value);
         }
     }
 
-    <span class="kw">fn</span> <span class="ident">basis_element_to_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">idx</span>: <span class="ident">usize</span>) -&gt; <span class="ident">String</span> {
-        <span class="kw">let</span> <span class="ident">gen_idx</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">fp_idx_to_gen_idx</span>(<span class="ident">degree</span>, <span class="ident">idx</span>);
-        <span class="self">self</span>.<span class="ident">generators</span>.<span class="ident">basis_element_to_string</span>(<span class="ident">degree</span>, <span class="ident">gen_idx</span>)
+    <span class="kw">fn </span>basis_element_to_string(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32, idx: usize) -&gt; String {
+        <span class="kw">let </span>gen_idx = <span class="self">self</span>.fp_idx_to_gen_idx(degree, idx);
+        <span class="self">self</span>.generators.basis_element_to_string(degree, gen_idx)
     }
 
-    <span class="kw">fn</span> <span class="ident">max_generator_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">i32</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">generators</span>.<span class="ident">max_generator_degree</span>()
+    <span class="kw">fn </span>max_generator_degree(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;i32&gt; {
+        <span class="self">self</span>.generators.max_generator_degree()
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="algebra" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0 (a55dd71d5 2022-09-19)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="algebra" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0 (897e37553 2022-11-02)" ></div></body></html>

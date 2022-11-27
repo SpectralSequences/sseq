@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/fp/src/matrix/subquotient.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>subquotient.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../ayu.css" disabled><link rel="stylesheet" type="text/css" href="../../../dark.css" disabled><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../../storage.js"></script><script defer src="../../../source-script.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../main.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../../favicon.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/fp/src/matrix/subquotient.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>subquotient.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" href="../../../normalize.css"><link rel="stylesheet" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" href="../../../ayu.css" disabled><link rel="stylesheet" href="../../../dark.css" disabled><link rel="stylesheet" href="../../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../../storage.js"></script><script defer src="../../../source-script.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../main.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../../favicon.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
 <!-- The loading of KaTeX is deferred to speed up page rendering -->
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.js" integrity="sha384-Bi8OWqMXO1ta+a4EPkZv7bYGIes7C3krGSZoTGNTAnAn5eYQc7IIXrJ/7ck1drAi" crossorigin="anonymous"></script>
 <!-- To automatically render math in text elements, include the auto-render extension: -->
@@ -236,197 +236,197 @@
 <span id="211">211</span>
 <span id="212">212</span>
 <span id="213">213</span>
-</pre><pre class="rust"><code><span class="kw">use</span> <span class="ident"><span class="kw">super</span>::Subspace</span>;
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::matrix::Matrix</span>;
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::prime::ValidPrime</span>;
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::vector</span>::{<span class="ident">FpVector</span>, <span class="ident">Slice</span>, <span class="ident">SliceMut</span>};
+</pre><pre class="rust"><code><span class="kw">use </span><span class="kw">super</span>::Subspace;
+<span class="kw">use </span><span class="kw">crate</span>::matrix::Matrix;
+<span class="kw">use </span><span class="kw">crate</span>::prime::ValidPrime;
+<span class="kw">use </span><span class="kw">crate</span>::vector::{FpVector, Slice, SliceMut};
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Subquotient</span> {
-    <span class="ident">gens</span>: <span class="ident">Subspace</span>,
-    <span class="ident">quotient</span>: <span class="ident">Subspace</span>,
-    <span class="ident">dimension</span>: <span class="ident">usize</span>,
+<span class="attribute">#[derive(Clone)]
+</span><span class="kw">pub struct </span>Subquotient {
+    gens: Subspace,
+    quotient: Subspace,
+    dimension: usize,
 }
 
-<span class="kw">impl</span> <span class="ident">std::fmt::Display</span> <span class="kw">for</span> <span class="ident">Subquotient</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">std::fmt::Formatter</span>) -&gt; <span class="ident">std::fmt::Result</span> {
-        <span class="macro">writeln!</span>(<span class="ident">f</span>, <span class="string">&quot;Generators:\n{}&quot;</span>, <span class="self">self</span>.<span class="ident">gens</span>)<span class="question-mark">?</span>;
-        <span class="macro">writeln!</span>(<span class="ident">f</span>, <span class="string">&quot;Zeros:\n{}&quot;</span>, <span class="self">self</span>.<span class="ident">quotient</span>)
+<span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>Subquotient {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter) -&gt; std::fmt::Result {
+        <span class="macro">writeln!</span>(f, <span class="string">&quot;Generators:\n{}&quot;</span>, <span class="self">self</span>.gens)<span class="question-mark">?</span>;
+        <span class="macro">writeln!</span>(f, <span class="string">&quot;Zeros:\n{}&quot;</span>, <span class="self">self</span>.quotient)
     }
 }
 
-<span class="kw">impl</span> <span class="ident">Subquotient</span> {
-    <span class="doccomment">/// Create a new subquotient of an ambient space of dimension `dim`. This defaults to the zero</span>
-    <span class="doccomment">/// subspace.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>, <span class="ident">dim</span>: <span class="ident">usize</span>) -&gt; <span class="self">Self</span> {
-        <span class="self">Self</span> {
-            <span class="ident">gens</span>: <span class="ident">Subspace::new</span>(<span class="ident">p</span>, <span class="ident">dim</span> <span class="op">+</span> <span class="number">1</span>, <span class="ident">dim</span>),
-            <span class="ident">quotient</span>: <span class="ident">Subspace::new</span>(<span class="ident">p</span>, <span class="ident">dim</span> <span class="op">+</span> <span class="number">1</span>, <span class="ident">dim</span>),
-            <span class="ident">dimension</span>: <span class="number">0</span>,
+<span class="kw">impl </span>Subquotient {
+    <span class="doccomment">/// Create a new subquotient of an ambient space of dimension `dim`. This defaults to the zero
+    /// subspace.
+    </span><span class="kw">pub fn </span>new(p: ValidPrime, dim: usize) -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{
+            gens: Subspace::new(p, dim + <span class="number">1</span>, dim),
+            quotient: Subspace::new(p, dim + <span class="number">1</span>, dim),
+            dimension: <span class="number">0</span>,
         }
     }
 
-    <span class="doccomment">/// Create a new subquotient of an ambient space of dimension `dim`, where the subspace is the</span>
-    <span class="doccomment">/// full subspace and quotient is trivial.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new_full</span>(<span class="ident">p</span>: <span class="ident">ValidPrime</span>, <span class="ident">dim</span>: <span class="ident">usize</span>) -&gt; <span class="self">Self</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident"><span class="self">Self</span>::new</span>(<span class="ident">p</span>, <span class="ident">dim</span>);
-        <span class="ident">result</span>.<span class="ident">gens</span>.<span class="ident">set_to_entire</span>();
-        <span class="ident">result</span>.<span class="ident">dimension</span> <span class="op">=</span> <span class="ident">dim</span>;
-        <span class="ident">result</span>
+    <span class="doccomment">/// Create a new subquotient of an ambient space of dimension `dim`, where the subspace is the
+    /// full subspace and quotient is trivial.
+    </span><span class="kw">pub fn </span>new_full(p: ValidPrime, dim: usize) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span><span class="kw-2">mut </span>result = <span class="self">Self</span>::new(p, dim);
+        result.gens.set_to_entire();
+        result.dimension = dim;
+        result
     }
 
-    <span class="doccomment">/// Given a vector `elt`, project `elt` to the complement and express</span>
-    <span class="doccomment">/// as a linear combination of the basis. The result is returned as a list of coefficients.</span>
-    <span class="doccomment">/// If elt is nonzero afterwards, this means the vector was not in the subspace to begin with.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">reduce</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut</span> <span class="ident">elt</span>: <span class="ident">SliceMut</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">quotient</span>.<span class="ident">reduce</span>(<span class="ident">elt</span>.<span class="ident">copy</span>());
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">Vec::with_capacity</span>(<span class="self">self</span>.<span class="ident">gens</span>.<span class="ident">ambient_dimension</span>());
-        <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="self">self</span>.<span class="ident">gens</span>.<span class="ident">ambient_dimension</span>() {
-            <span class="kw">if</span> <span class="self">self</span>.<span class="ident">gens</span>.<span class="ident">pivots</span>()[<span class="ident">i</span>] <span class="op">&lt;</span> <span class="number">0</span> {
+    <span class="doccomment">/// Given a vector `elt`, project `elt` to the complement and express
+    /// as a linear combination of the basis. The result is returned as a list of coefficients.
+    /// If elt is nonzero afterwards, this means the vector was not in the subspace to begin with.
+    </span><span class="kw">pub fn </span>reduce(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut </span>elt: SliceMut) -&gt; Vec&lt;u32&gt; {
+        <span class="self">self</span>.quotient.reduce(elt.copy());
+        <span class="kw">let </span><span class="kw-2">mut </span>result = Vec::with_capacity(<span class="self">self</span>.gens.ambient_dimension());
+        <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..<span class="self">self</span>.gens.ambient_dimension() {
+            <span class="kw">if </span><span class="self">self</span>.gens.pivots()[i] &lt; <span class="number">0 </span>{
                 <span class="kw">continue</span>;
             }
-            <span class="kw">let</span> <span class="ident">c</span> <span class="op">=</span> <span class="ident">elt</span>.<span class="ident">as_slice</span>().<span class="ident">entry</span>(<span class="ident">i</span>);
-            <span class="ident">result</span>.<span class="ident">push</span>(<span class="ident">c</span>);
-            <span class="kw">if</span> <span class="ident">c</span> <span class="op">!</span><span class="op">=</span> <span class="number">0</span> {
-                <span class="ident">elt</span>.<span class="ident">add</span>(
-                    <span class="self">self</span>.<span class="ident">gens</span>.<span class="ident">matrix</span>.<span class="ident">row</span>(<span class="self">self</span>.<span class="ident">gens</span>.<span class="ident">pivots</span>()[<span class="ident">i</span>] <span class="kw">as</span> <span class="ident">usize</span>),
-                    ((<span class="kw-2">*</span><span class="ident">elt</span>.<span class="ident">prime</span>() <span class="op">-</span> <span class="number">1</span>) <span class="op">*</span> <span class="ident">c</span>) <span class="op">%</span> <span class="kw-2">*</span><span class="ident">elt</span>.<span class="ident">prime</span>(),
+            <span class="kw">let </span>c = elt.as_slice().entry(i);
+            result.push(c);
+            <span class="kw">if </span>c != <span class="number">0 </span>{
+                elt.add(
+                    <span class="self">self</span>.gens.matrix.row(<span class="self">self</span>.gens.pivots()[i] <span class="kw">as </span>usize),
+                    ((<span class="kw-2">*</span>elt.prime() - <span class="number">1</span>) * c) % <span class="kw-2">*</span>elt.prime(),
                 );
             }
         }
-        <span class="ident">result</span>
+        result
     }
 
-    <span class="doccomment">/// Project the vector onto the complement of the quotient part of the subquotient.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">reduce_by_quotient</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">elt</span>: <span class="ident">SliceMut</span>) {
-        <span class="self">self</span>.<span class="ident">quotient</span>.<span class="ident">reduce</span>(<span class="ident">elt</span>)
+    <span class="doccomment">/// Project the vector onto the complement of the quotient part of the subquotient.
+    </span><span class="kw">pub fn </span>reduce_by_quotient(<span class="kw-2">&amp;</span><span class="self">self</span>, elt: SliceMut) {
+        <span class="self">self</span>.quotient.reduce(elt)
     }
 
-    <span class="doccomment">/// Set the subquotient to be the full ambient space quotiented by zero</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">set_to_full</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) {
-        <span class="self">self</span>.<span class="ident">quotient</span>.<span class="ident">set_to_zero</span>();
-        <span class="self">self</span>.<span class="ident">gens</span>.<span class="ident">set_to_entire</span>();
+    <span class="doccomment">/// Set the subquotient to be the full ambient space quotiented by zero
+    </span><span class="kw">pub fn </span>set_to_full(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+        <span class="self">self</span>.quotient.set_to_zero();
+        <span class="self">self</span>.gens.set_to_entire();
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">zeros</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">Subspace</span> {
-        <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">quotient</span>
+    <span class="kw">pub fn </span>zeros(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>Subspace {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.quotient
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">gens</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl</span> <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">Slice</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">gens</span>.<span class="ident">iter</span>()
+    <span class="kw">pub fn </span>gens(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = Slice&gt; {
+        <span class="self">self</span>.gens.iter()
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">quotient_dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">usize</span> {
-        <span class="self">self</span>.<span class="ident">ambient_dimension</span>() <span class="op">-</span> <span class="self">self</span>.<span class="ident">quotient</span>.<span class="ident">dimension</span>()
+    <span class="kw">pub fn </span>quotient_dimension(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
+        <span class="self">self</span>.ambient_dimension() - <span class="self">self</span>.quotient.dimension()
     }
 
-    <span class="doccomment">/// The dimension of the subspace part of the subquotient.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">subspace_dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">usize</span> {
-        <span class="self">self</span>.<span class="ident">dimension</span> <span class="op">+</span> <span class="self">self</span>.<span class="ident">quotient</span>.<span class="ident">dimension</span>()
+    <span class="doccomment">/// The dimension of the subspace part of the subquotient.
+    </span><span class="kw">pub fn </span>subspace_dimension(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
+        <span class="self">self</span>.dimension + <span class="self">self</span>.quotient.dimension()
     }
 
-    <span class="doccomment">/// The generators of the subspace part of the subquotient.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">subspace_gens</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl</span> <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">Slice</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">gens</span>().<span class="ident">chain</span>(<span class="self">self</span>.<span class="ident">quotient</span>.<span class="ident">iter</span>())
+    <span class="doccomment">/// The generators of the subspace part of the subquotient.
+    </span><span class="kw">pub fn </span>subspace_gens(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = Slice&gt; {
+        <span class="self">self</span>.gens().chain(<span class="self">self</span>.quotient.iter())
     }
 
-    <span class="doccomment">/// The pivot columns of the complement to the subspace</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">complement_pivots</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl</span> <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">usize</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;_</span> {
-        (<span class="number">0</span>..<span class="self">self</span>.<span class="ident">ambient_dimension</span>()).<span class="ident">filter</span>(<span class="op">|</span><span class="kw-2">&amp;</span><span class="ident">i</span><span class="op">|</span> {
-            <span class="op">!</span><span class="self">self</span>.<span class="ident">quotient</span>.<span class="ident">pivots</span>().<span class="ident">contains</span>(<span class="kw-2">&amp;</span>(<span class="ident">i</span> <span class="kw">as</span> <span class="ident">isize</span>))
-                <span class="op">&amp;&amp;</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">gens</span>.<span class="ident">pivots</span>().<span class="ident">contains</span>(<span class="kw-2">&amp;</span>(<span class="ident">i</span> <span class="kw">as</span> <span class="ident">isize</span>))
+    <span class="doccomment">/// The pivot columns of the complement to the subspace
+    </span><span class="kw">pub fn </span>complement_pivots(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = usize&gt; + <span class="lifetime">&#39;_ </span>{
+        (<span class="number">0</span>..<span class="self">self</span>.ambient_dimension()).filter(|<span class="kw-2">&amp;</span>i| {
+            !<span class="self">self</span>.quotient.pivots().contains(<span class="kw-2">&amp;</span>(i <span class="kw">as </span>isize))
+                &amp;&amp; !<span class="self">self</span>.gens.pivots().contains(<span class="kw-2">&amp;</span>(i <span class="kw">as </span>isize))
         })
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">quotient</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">elt</span>: <span class="ident">Slice</span>) {
-        <span class="self">self</span>.<span class="ident">quotient</span>.<span class="ident">add_vector</span>(<span class="ident">elt</span>);
-        <span class="kw">for</span> <span class="ident">elt</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">gens</span>.<span class="ident">matrix</span>.<span class="ident">iter_mut</span>().<span class="ident">take</span>(<span class="self">self</span>.<span class="ident">dimension</span>) {
-            <span class="self">self</span>.<span class="ident">quotient</span>.<span class="ident">reduce</span>(<span class="ident">elt</span>.<span class="ident">as_slice_mut</span>());
+    <span class="kw">pub fn </span>quotient(<span class="kw-2">&amp;mut </span><span class="self">self</span>, elt: Slice) {
+        <span class="self">self</span>.quotient.add_vector(elt);
+        <span class="kw">for </span>elt <span class="kw">in </span><span class="self">self</span>.gens.matrix.iter_mut().take(<span class="self">self</span>.dimension) {
+            <span class="self">self</span>.quotient.reduce(elt.as_slice_mut());
         }
-        <span class="self">self</span>.<span class="ident">gens</span>.<span class="ident">matrix</span>.<span class="ident">row_reduce</span>();
-        <span class="self">self</span>.<span class="ident">dimension</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">gens</span>.<span class="ident">dimension</span>();
+        <span class="self">self</span>.gens.matrix.row_reduce();
+        <span class="self">self</span>.dimension = <span class="self">self</span>.gens.dimension();
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">usize</span> {
-        <span class="self">self</span>.<span class="ident">dimension</span>
+    <span class="kw">pub fn </span>dimension(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
+        <span class="self">self</span>.dimension
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">ambient_dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">usize</span> {
-        <span class="self">self</span>.<span class="ident">gens</span>.<span class="ident">ambient_dimension</span>()
+    <span class="kw">pub fn </span>ambient_dimension(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
+        <span class="self">self</span>.gens.ambient_dimension()
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">prime</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">ValidPrime</span> {
-        <span class="self">self</span>.<span class="ident">gens</span>.<span class="ident">prime</span>()
+    <span class="kw">pub fn </span>prime(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ValidPrime {
+        <span class="self">self</span>.gens.prime()
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">is_empty</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">bool</span> {
-        <span class="self">self</span>.<span class="ident">dimension</span> <span class="op">==</span> <span class="number">0</span>
+    <span class="kw">pub fn </span>is_empty(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="self">self</span>.dimension == <span class="number">0
+    </span>}
+
+    <span class="kw">pub fn </span>clear_gens(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+        <span class="self">self</span>.gens.set_to_zero();
+        <span class="self">self</span>.dimension = <span class="number">0</span>;
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">clear_gens</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) {
-        <span class="self">self</span>.<span class="ident">gens</span>.<span class="ident">set_to_zero</span>();
-        <span class="self">self</span>.<span class="ident">dimension</span> <span class="op">=</span> <span class="number">0</span>;
+    <span class="kw">pub fn </span>add_gen(<span class="kw-2">&amp;mut </span><span class="self">self</span>, gen: Slice) {
+        <span class="kw">let </span><span class="kw-2">mut </span>new_row = <span class="self">self</span>.gens.matrix.row_mut(<span class="self">self</span>.dimension);
+        new_row.assign(gen);
+        <span class="self">self</span>.quotient.reduce(new_row);
+        <span class="self">self</span>.gens.matrix.row_reduce();
+        <span class="self">self</span>.dimension = <span class="self">self</span>.gens.dimension();
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">add_gen</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">gen</span>: <span class="ident">Slice</span>) {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">new_row</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">gens</span>.<span class="ident">matrix</span>.<span class="ident">row_mut</span>(<span class="self">self</span>.<span class="ident">dimension</span>);
-        <span class="ident">new_row</span>.<span class="ident">assign</span>(<span class="ident">gen</span>);
-        <span class="self">self</span>.<span class="ident">quotient</span>.<span class="ident">reduce</span>(<span class="ident">new_row</span>);
-        <span class="self">self</span>.<span class="ident">gens</span>.<span class="ident">matrix</span>.<span class="ident">row_reduce</span>();
-        <span class="self">self</span>.<span class="ident">dimension</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">gens</span>.<span class="ident">dimension</span>();
-    }
-
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">reduce_matrix</span>(<span class="ident">matrix</span>: <span class="kw-2">&amp;</span><span class="ident">Matrix</span>, <span class="ident">source</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>, <span class="ident">target</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">Vec::with_capacity</span>(<span class="ident">source</span>.<span class="ident">dimension</span>());
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">temp</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="ident">source</span>.<span class="ident">prime</span>(), <span class="ident">target</span>.<span class="ident">ambient_dimension</span>());
-        <span class="kw">for</span> <span class="ident">v</span> <span class="kw">in</span> <span class="ident">source</span>.<span class="ident">gens</span>() {
-            <span class="ident">matrix</span>.<span class="ident">apply</span>(<span class="ident">temp</span>.<span class="ident">as_slice_mut</span>(), <span class="number">1</span>, <span class="ident">v</span>);
-            <span class="ident">result</span>.<span class="ident">push</span>(<span class="ident">target</span>.<span class="ident">reduce</span>(<span class="ident">temp</span>.<span class="ident">as_slice_mut</span>()));
-            <span class="ident">temp</span>.<span class="ident">set_to_zero</span>()
+    <span class="kw">pub fn </span>reduce_matrix(matrix: <span class="kw-2">&amp;</span>Matrix, source: <span class="kw-2">&amp;</span><span class="self">Self</span>, target: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; Vec&lt;Vec&lt;u32&gt;&gt; {
+        <span class="kw">let </span><span class="kw-2">mut </span>result = Vec::with_capacity(source.dimension());
+        <span class="kw">let </span><span class="kw-2">mut </span>temp = FpVector::new(source.prime(), target.ambient_dimension());
+        <span class="kw">for </span>v <span class="kw">in </span>source.gens() {
+            matrix.apply(temp.as_slice_mut(), <span class="number">1</span>, v);
+            result.push(target.reduce(temp.as_slice_mut()));
+            temp.set_to_zero()
         }
-        <span class="ident">result</span>
+        result
     }
 
-    <span class="doccomment">/// Given a chain of subspaces `subspace` &lt; `space` &lt; k^`ambient_dimension`, compute the</span>
-    <span class="doccomment">/// subquotient `space`/`subspace`. The answer is expressed as a list of basis vectors of</span>
-    <span class="doccomment">/// `space` whose image in `space`/`subspace` forms a basis, and a basis vector of `space` is</span>
-    <span class="doccomment">/// described by its index in the list of basis vectors of `space` (not the ambient space).</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// # Arguments</span>
-    <span class="doccomment">///  * `space` - If this is None, it is the whole space k^`ambient_dimension`</span>
-    <span class="doccomment">///  * `subspace` - If this is None, it is empty</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_parts</span>(<span class="kw-2">mut</span> <span class="ident">sub</span>: <span class="ident">Subspace</span>, <span class="ident">quotient</span>: <span class="ident">Subspace</span>) -&gt; <span class="self">Self</span> {
-        <span class="kw">let</span> <span class="ident">dim</span> <span class="op">=</span> <span class="ident">sub</span>.<span class="ident">dimension</span>();
-        <span class="kw">for</span> <span class="ident">row</span> <span class="kw">in</span> <span class="ident">sub</span>.<span class="ident">matrix</span>.<span class="ident">iter_mut</span>().<span class="ident">take</span>(<span class="ident">dim</span>) {
-            <span class="ident">quotient</span>.<span class="ident">reduce</span>(<span class="ident">row</span>.<span class="ident">as_slice_mut</span>());
+    <span class="doccomment">/// Given a chain of subspaces `subspace` &lt; `space` &lt; k^`ambient_dimension`, compute the
+    /// subquotient `space`/`subspace`. The answer is expressed as a list of basis vectors of
+    /// `space` whose image in `space`/`subspace` forms a basis, and a basis vector of `space` is
+    /// described by its index in the list of basis vectors of `space` (not the ambient space).
+    ///
+    /// # Arguments
+    ///  * `space` - If this is None, it is the whole space k^`ambient_dimension`
+    ///  * `subspace` - If this is None, it is empty
+    </span><span class="kw">pub fn </span>from_parts(<span class="kw-2">mut </span>sub: Subspace, quotient: Subspace) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>dim = sub.dimension();
+        <span class="kw">for </span>row <span class="kw">in </span>sub.matrix.iter_mut().take(dim) {
+            quotient.reduce(row.as_slice_mut());
         }
-        <span class="ident">sub</span>.<span class="ident">matrix</span>.<span class="ident">row_reduce</span>();
-        <span class="self">Self</span> {
-            <span class="ident">dimension</span>: <span class="ident">sub</span>.<span class="ident">dimension</span>(),
-            <span class="ident">gens</span>: <span class="ident">sub</span>,
-            <span class="ident">quotient</span>,
+        sub.matrix.row_reduce();
+        <span class="self">Self </span>{
+            dimension: sub.dimension(),
+            gens: sub,
+            quotient,
         }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">quotient_pivots</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[<span class="ident">isize</span>] {
-        <span class="self">self</span>.<span class="ident">quotient</span>.<span class="ident">pivots</span>()
+    <span class="kw">pub fn </span>quotient_pivots(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[isize] {
+        <span class="self">self</span>.quotient.pivots()
     }
 }
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
-<span class="kw">mod</span> <span class="ident">test</span> {
-    <span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
-    <span class="kw">use</span> <span class="ident">expect_test::expect</span>;
+<span class="attribute">#[cfg(test)]
+</span><span class="kw">mod </span>test {
+    <span class="kw">use super</span>::<span class="kw-2">*</span>;
+    <span class="kw">use </span>expect_test::expect;
 
-    <span class="attribute">#[<span class="ident">test</span>]</span>
-    <span class="kw">fn</span> <span class="ident">test_add_gen</span>() {
-        <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">ValidPrime::new</span>(<span class="number">3</span>);
+    <span class="attribute">#[test]
+    </span><span class="kw">fn </span>test_add_gen() {
+        <span class="kw">let </span>p = ValidPrime::new(<span class="number">3</span>);
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">sq</span> <span class="op">=</span> <span class="ident">Subquotient::new</span>(<span class="ident">p</span>, <span class="number">5</span>);
-        <span class="ident">sq</span>.<span class="ident">quotient</span>(<span class="ident">FpVector::from_slice</span>(<span class="ident">p</span>, <span class="kw-2">&amp;</span>[<span class="number">1</span>, <span class="number">1</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">1</span>]).<span class="ident">as_slice</span>());
-        <span class="ident">sq</span>.<span class="ident">quotient</span>(<span class="ident">FpVector::from_slice</span>(<span class="ident">p</span>, <span class="kw-2">&amp;</span>[<span class="number">0</span>, <span class="number">2</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">1</span>]).<span class="ident">as_slice</span>());
-        <span class="ident">sq</span>.<span class="ident">add_gen</span>(<span class="ident">FpVector::from_slice</span>(<span class="ident">p</span>, <span class="kw-2">&amp;</span>[<span class="number">1</span>, <span class="number">1</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>]).<span class="ident">as_slice</span>());
-        <span class="ident">sq</span>.<span class="ident">add_gen</span>(<span class="ident">FpVector::from_slice</span>(<span class="ident">p</span>, <span class="kw-2">&amp;</span>[<span class="number">0</span>, <span class="number">1</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>]).<span class="ident">as_slice</span>());
+        <span class="kw">let </span><span class="kw-2">mut </span>sq = Subquotient::new(p, <span class="number">5</span>);
+        sq.quotient(FpVector::from_slice(p, <span class="kw-2">&amp;</span>[<span class="number">1</span>, <span class="number">1</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">1</span>]).as_slice());
+        sq.quotient(FpVector::from_slice(p, <span class="kw-2">&amp;</span>[<span class="number">0</span>, <span class="number">2</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">1</span>]).as_slice());
+        sq.add_gen(FpVector::from_slice(p, <span class="kw-2">&amp;</span>[<span class="number">1</span>, <span class="number">1</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>]).as_slice());
+        sq.add_gen(FpVector::from_slice(p, <span class="kw-2">&amp;</span>[<span class="number">0</span>, <span class="number">1</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>]).as_slice());
 
         <span class="macro">expect!</span>[[<span class="string">r#&quot;
             Generators:
@@ -437,17 +437,17 @@
             [0, 1, 0, 0, 2]
 
         &quot;#</span>]]
-        .<span class="ident">assert_eq</span>(<span class="kw-2">&amp;</span><span class="ident">sq</span>.<span class="ident">to_string</span>());
+        .assert_eq(<span class="kw-2">&amp;</span>sq.to_string());
 
         <span class="macro">expect!</span>[[<span class="string">r#&quot;
             [
                 2,
             ]
         &quot;#</span>]]
-        .<span class="ident">assert_debug_eq</span>(<span class="kw-2">&amp;</span><span class="ident">sq</span>.<span class="ident">reduce</span>(<span class="ident">FpVector::from_slice</span>(<span class="ident">p</span>, <span class="kw-2">&amp;</span>[<span class="number">2</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>]).<span class="ident">as_slice_mut</span>()));
+        .assert_debug_eq(<span class="kw-2">&amp;</span>sq.reduce(FpVector::from_slice(p, <span class="kw-2">&amp;</span>[<span class="number">2</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>]).as_slice_mut()));
 
-        <span class="macro">assert_eq!</span>(<span class="ident">sq</span>.<span class="ident">gens</span>().<span class="ident">count</span>(), <span class="number">1</span>);
+        <span class="macro">assert_eq!</span>(sq.gens().count(), <span class="number">1</span>);
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="fp" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0 (a55dd71d5 2022-09-19)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="fp" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0 (897e37553 2022-11-02)" ></div></body></html>

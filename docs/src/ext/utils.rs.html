@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/utils.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>utils.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled><link rel="stylesheet" type="text/css" href="../../dark.css" disabled><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script><script defer src="../../main.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/utils.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>utils.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" href="../../normalize.css"><link rel="stylesheet" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" href="../../ayu.css" disabled><link rel="stylesheet" href="../../dark.css" disabled><link rel="stylesheet" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script><script defer src="../../main.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
 <!-- The loading of KaTeX is deferred to speed up page rendering -->
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.js" integrity="sha384-Bi8OWqMXO1ta+a4EPkZv7bYGIes7C3krGSZoTGNTAnAn5eYQc7IIXrJ/7ck1drAi" crossorigin="anonymous"></script>
 <!-- To automatically render math in text elements, include the auto-render extension: -->
@@ -678,660 +678,660 @@
 <span id="653">653</span>
 <span id="654">654</span>
 <span id="655">655</span>
-</pre><pre class="rust"><code><span class="doccomment">//! A module containing various utility functions related to user interaction in some way.</span>
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::chain_complex</span>::{
-    <span class="ident">AugmentedChainComplex</span>, <span class="ident">BoundedChainComplex</span>, <span class="ident">ChainComplex</span>, <span class="ident">FiniteChainComplex</span>,
+</pre><pre class="rust"><code><span class="doccomment">//! A module containing various utility functions related to user interaction in some way.
+</span><span class="kw">use </span><span class="kw">crate</span>::chain_complex::{
+    AugmentedChainComplex, BoundedChainComplex, ChainComplex, FiniteChainComplex,
 };
 
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::resolution</span>::{<span class="ident">Resolution</span>, <span class="ident">UnstableResolution</span>};
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::CCC</span>;
-<span class="kw">use</span> <span class="ident">algebra::module</span>::{<span class="ident">steenrod_module</span>, <span class="ident">FDModule</span>, <span class="ident">Module</span>, <span class="ident">SteenrodModule</span>};
-<span class="kw">use</span> <span class="ident">algebra</span>::{<span class="ident">AlgebraType</span>, <span class="ident">MilnorAlgebra</span>, <span class="ident">SteenrodAlgebra</span>};
+<span class="kw">use </span><span class="kw">crate</span>::resolution::{Resolution, UnstableResolution};
+<span class="kw">use </span><span class="kw">crate</span>::CCC;
+<span class="kw">use </span>algebra::module::{steenrod_module, FDModule, Module, SteenrodModule};
+<span class="kw">use </span>algebra::{AlgebraType, MilnorAlgebra, SteenrodAlgebra};
 
-<span class="kw">use</span> <span class="ident">anyhow</span>::{<span class="ident">anyhow</span>, <span class="ident">Context</span>};
-<span class="kw">use</span> <span class="ident">serde_json::Value</span>;
+<span class="kw">use </span>anyhow::{anyhow, Context};
+<span class="kw">use </span>serde_json::Value;
 
-<span class="kw">use</span> <span class="ident">std::convert</span>::{<span class="ident">TryFrom</span>, <span class="ident">TryInto</span>};
-<span class="kw">use</span> <span class="ident">std::path::PathBuf</span>;
-<span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
+<span class="kw">use </span>std::convert::{TryFrom, TryInto};
+<span class="kw">use </span>std::path::PathBuf;
+<span class="kw">use </span>std::sync::Arc;
 
-<span class="comment">// We build docs with --all-features so the docs are at the feature = &quot;nassau&quot; version</span>
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;nassau&quot;</span>))]</span>
-<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">QueryModuleResolution</span> <span class="op">=</span> <span class="ident">Resolution</span><span class="op">&lt;</span><span class="ident">CCC</span><span class="op">&gt;</span>;
+<span class="comment">// We build docs with --all-features so the docs are at the feature = &quot;nassau&quot; version
+</span><span class="attribute">#[cfg(not(feature = <span class="string">&quot;nassau&quot;</span>))]
+</span><span class="kw">pub type </span>QueryModuleResolution = Resolution&lt;CCC&gt;;
 
-<span class="doccomment">/// The type returned by [`query_module`]. The value of this type depends on whether</span>
-<span class="doccomment">/// [`nassau`](crate::nassau) is enabled. In any case, it is an augmented free chain complex over</span>
-<span class="doccomment">/// either [`SteenrodAlgebra`] or [`MilnorAlgebra`](algebra::MilnorAlgebra) and supports the</span>
-<span class="doccomment">/// `compute_through_stem` function.</span>
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;nassau&quot;</span>)]</span>
-<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">QueryModuleResolution</span> <span class="op">=</span> <span class="ident"><span class="kw">crate</span>::nassau::Resolution</span><span class="op">&lt;</span><span class="ident">FDModule</span><span class="op">&lt;</span><span class="ident">MilnorAlgebra</span><span class="op">&gt;</span><span class="op">&gt;</span>;
+<span class="doccomment">/// The type returned by [`query_module`]. The value of this type depends on whether
+/// [`nassau`](crate::nassau) is enabled. In any case, it is an augmented free chain complex over
+/// either [`SteenrodAlgebra`] or [`MilnorAlgebra`](algebra::MilnorAlgebra) and supports the
+/// `compute_through_stem` function.
+</span><span class="attribute">#[cfg(feature = <span class="string">&quot;nassau&quot;</span>)]
+</span><span class="kw">pub type </span>QueryModuleResolution = <span class="kw">crate</span>::nassau::Resolution&lt;FDModule&lt;MilnorAlgebra&gt;&gt;;
 
-<span class="kw">const</span> <span class="ident">STATIC_MODULES_PATH</span>: <span class="kw-2">&amp;</span><span class="ident">str</span> <span class="op">=</span> <span class="macro">concat!</span>(<span class="macro">env!</span>(<span class="string">&quot;CARGO_MANIFEST_DIR&quot;</span>), <span class="string">&quot;/../ext/steenrod_modules&quot;</span>);
+<span class="kw">const </span>STATIC_MODULES_PATH: <span class="kw-2">&amp;</span>str = <span class="macro">concat!</span>(<span class="macro">env!</span>(<span class="string">&quot;CARGO_MANIFEST_DIR&quot;</span>), <span class="string">&quot;/../ext/steenrod_modules&quot;</span>);
 
-<span class="doccomment">/// A config object is an object that specifies how a Steenrod module should be constructed.</span>
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Debug</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Config</span> {
-    <span class="doccomment">/// The json specification of the module</span>
-    <span class="ident">module</span>: <span class="ident">Value</span>,
-    <span class="doccomment">/// The basis for the Steenrod algebra</span>
-    <span class="ident">algebra</span>: <span class="ident">AlgebraType</span>,
+<span class="doccomment">/// A config object is an object that specifies how a Steenrod module should be constructed.
+</span><span class="attribute">#[derive(Clone, Debug, Eq, PartialEq)]
+</span><span class="kw">pub struct </span>Config {
+    <span class="doccomment">/// The json specification of the module
+    </span>module: Value,
+    <span class="doccomment">/// The basis for the Steenrod algebra
+    </span>algebra: AlgebraType,
 }
 
-<span class="doccomment">/// Given a module specification string, load a json description of the module as described</span>
-<span class="doccomment">/// [here](../index.html#module-specification).</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">parse_module_name</span>(<span class="ident">module_name</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span><span class="ident">Value</span><span class="op">&gt;</span> {
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">args</span> <span class="op">=</span> <span class="ident">module_name</span>.<span class="ident">split</span>(<span class="string">&#39;[&#39;</span>);
-    <span class="kw">let</span> <span class="ident">module_file</span> <span class="op">=</span> <span class="ident">args</span>.<span class="ident">next</span>().<span class="ident">unwrap</span>();
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">module</span> <span class="op">=</span> <span class="ident">load_module_json</span>(<span class="ident">module_file</span>)
-        .<span class="ident">with_context</span>(<span class="op">|</span><span class="op">|</span> <span class="macro">format!</span>(<span class="string">&quot;Failed to load module file {module_file}&quot;</span>))<span class="question-mark">?</span>;
-    <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">shift</span>) <span class="op">=</span> <span class="ident">args</span>.<span class="ident">next</span>() {
-        <span class="kw">let</span> <span class="ident">shift</span>: <span class="ident">i64</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">shift</span>.<span class="ident">strip_suffix</span>(<span class="string">&#39;]&#39;</span>) {
-            <span class="prelude-val">None</span> =&gt; <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(<span class="string">&quot;Unterminated shift [&quot;</span>)),
-            <span class="prelude-val">Some</span>(<span class="ident">x</span>) =&gt; <span class="ident">x</span>
-                .<span class="ident">parse</span>()
-                .<span class="ident">with_context</span>(<span class="op">|</span><span class="op">|</span> <span class="macro">format!</span>(<span class="string">&quot;Cannot parse shift value ({x}) as an integer&quot;</span>))<span class="question-mark">?</span>,
+<span class="doccomment">/// Given a module specification string, load a json description of the module as described
+/// [here](../index.html#module-specification).
+</span><span class="kw">pub fn </span>parse_module_name(module_name: <span class="kw-2">&amp;</span>str) -&gt; anyhow::Result&lt;Value&gt; {
+    <span class="kw">let </span><span class="kw-2">mut </span>args = module_name.split(<span class="string">&#39;[&#39;</span>);
+    <span class="kw">let </span>module_file = args.next().unwrap();
+    <span class="kw">let </span><span class="kw-2">mut </span>module = load_module_json(module_file)
+        .with_context(|| <span class="macro">format!</span>(<span class="string">&quot;Failed to load module file {module_file}&quot;</span>))<span class="question-mark">?</span>;
+    <span class="kw">if let </span><span class="prelude-val">Some</span>(shift) = args.next() {
+        <span class="kw">let </span>shift: i64 = <span class="kw">match </span>shift.strip_suffix(<span class="string">&#39;]&#39;</span>) {
+            <span class="prelude-val">None </span>=&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(<span class="string">&quot;Unterminated shift [&quot;</span>)),
+            <span class="prelude-val">Some</span>(x) =&gt; x
+                .parse()
+                .with_context(|| <span class="macro">format!</span>(<span class="string">&quot;Cannot parse shift value ({x}) as an integer&quot;</span>))<span class="question-mark">?</span>,
         };
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">spec_shift</span>) <span class="op">=</span> <span class="ident">module</span>.<span class="ident">get_mut</span>(<span class="string">&quot;shift&quot;</span>) {
-            <span class="kw-2">*</span><span class="ident">spec_shift</span> <span class="op">=</span> <span class="ident">Value::from</span>(<span class="ident">spec_shift</span>.<span class="ident">as_i64</span>().<span class="ident">unwrap</span>() <span class="op">+</span> <span class="ident">shift</span>);
-        } <span class="kw">else</span> {
-            <span class="ident">module</span>[<span class="string">&quot;shift&quot;</span>] <span class="op">=</span> <span class="ident">Value::from</span>(<span class="ident">shift</span>);
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(spec_shift) = module.get_mut(<span class="string">&quot;shift&quot;</span>) {
+            <span class="kw-2">*</span>spec_shift = Value::from(spec_shift.as_i64().unwrap() + shift);
+        } <span class="kw">else </span>{
+            module[<span class="string">&quot;shift&quot;</span>] = Value::from(shift);
         }
     }
-    <span class="prelude-val">Ok</span>(<span class="ident">module</span>)
+    <span class="prelude-val">Ok</span>(module)
 }
 
-<span class="kw">impl</span> <span class="ident">TryFrom</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">str</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">Config</span> {
-    <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">anyhow::Error</span>;
+<span class="kw">impl </span>TryFrom&lt;<span class="kw-2">&amp;</span>str&gt; <span class="kw">for </span>Config {
+    <span class="kw">type </span>Error = anyhow::Error;
 
-    <span class="kw">fn</span> <span class="ident">try_from</span>(<span class="ident">spec</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident"><span class="self">Self</span>::Error</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">args</span> <span class="op">=</span> <span class="ident">spec</span>.<span class="ident">split</span>(<span class="string">&#39;@&#39;</span>);
-        <span class="kw">let</span> <span class="ident">module_name</span> <span class="op">=</span> <span class="ident">args</span>.<span class="ident">next</span>().<span class="ident">unwrap</span>();
-        <span class="kw">let</span> <span class="ident">algebra</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">args</span>.<span class="ident">next</span>() {
-            <span class="prelude-val">Some</span>(<span class="ident">x</span>) =&gt; <span class="ident">x</span>
-                .<span class="ident">parse</span>()
-                .<span class="ident">with_context</span>(<span class="op">|</span><span class="op">|</span> <span class="macro">format!</span>(<span class="string">&quot;Invalid algebra type: {x}&quot;</span>))<span class="question-mark">?</span>,
-            <span class="prelude-val">None</span> =&gt; <span class="ident">AlgebraType::Milnor</span>,
+    <span class="kw">fn </span>try_from(spec: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, <span class="self">Self</span>::Error&gt; {
+        <span class="kw">let </span><span class="kw-2">mut </span>args = spec.split(<span class="string">&#39;@&#39;</span>);
+        <span class="kw">let </span>module_name = args.next().unwrap();
+        <span class="kw">let </span>algebra = <span class="kw">match </span>args.next() {
+            <span class="prelude-val">Some</span>(x) =&gt; x
+                .parse()
+                .with_context(|| <span class="macro">format!</span>(<span class="string">&quot;Invalid algebra type: {x}&quot;</span>))<span class="question-mark">?</span>,
+            <span class="prelude-val">None </span>=&gt; AlgebraType::Milnor,
         };
 
-        <span class="prelude-val">Ok</span>(<span class="ident">Config</span> {
-            <span class="ident">module</span>: <span class="ident">parse_module_name</span>(<span class="ident">module_name</span>)
-                .<span class="ident">with_context</span>(<span class="op">|</span><span class="op">|</span> <span class="macro">format!</span>(<span class="string">&quot;Failed to load module: {module_name}&quot;</span>))<span class="question-mark">?</span>,
-            <span class="ident">algebra</span>,
+        <span class="prelude-val">Ok</span>(Config {
+            module: parse_module_name(module_name)
+                .with_context(|| <span class="macro">format!</span>(<span class="string">&quot;Failed to load module: {module_name}&quot;</span>))<span class="question-mark">?</span>,
+            algebra,
         })
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">E</span><span class="op">&gt;</span> <span class="ident">TryFrom</span><span class="op">&lt;</span>(<span class="kw-2">&amp;</span><span class="ident">str</span>, <span class="ident">T</span>)<span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">Config</span>
-<span class="kw">where</span>
-    <span class="ident">anyhow::Error</span>: <span class="ident">From</span><span class="op">&lt;</span><span class="ident">E</span><span class="op">&gt;</span>,
-    <span class="ident">T</span>: <span class="ident">TryInto</span><span class="op">&lt;</span><span class="ident">AlgebraType</span>, <span class="ident">Error</span> <span class="op">=</span> <span class="ident">E</span><span class="op">&gt;</span>,
+<span class="kw">impl</span>&lt;T, E&gt; TryFrom&lt;(<span class="kw-2">&amp;</span>str, T)&gt; <span class="kw">for </span>Config
+<span class="kw">where
+    </span>anyhow::Error: From&lt;E&gt;,
+    T: TryInto&lt;AlgebraType, Error = E&gt;,
 {
-    <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">anyhow::Error</span>;
+    <span class="kw">type </span>Error = anyhow::Error;
 
-    <span class="kw">fn</span> <span class="ident">try_from</span>(<span class="kw-2">mut</span> <span class="ident">spec</span>: (<span class="kw-2">&amp;</span><span class="ident">str</span>, <span class="ident">T</span>)) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident"><span class="self">Self</span>::Error</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">algebra</span> <span class="op">=</span> <span class="ident">spec</span>.<span class="number">1</span>.<span class="ident">try_into</span>()<span class="question-mark">?</span>;
-        <span class="kw">if</span> <span class="ident">spec</span>.<span class="number">0</span>.<span class="ident">contains</span>(<span class="string">&#39;@&#39;</span>) {
-            <span class="kw">if</span> <span class="ident">spec</span>.<span class="number">0</span>.<span class="ident">ends_with</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">algebra</span>.<span class="ident">to_string</span>()) {
-                <span class="ident">spec</span>.<span class="number">0</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">spec</span>.<span class="number">0</span>[<span class="number">0</span>..<span class="ident">spec</span>.<span class="number">0</span>.<span class="ident">len</span>() <span class="op">-</span> <span class="ident">algebra</span>.<span class="ident">to_string</span>().<span class="ident">len</span>() <span class="op">-</span> <span class="number">1</span>];
-            } <span class="kw">else</span> {
-                <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(<span class="string">&quot;Invalid algebra supplied. Must be {}&quot;</span>, <span class="ident">algebra</span>));
+    <span class="kw">fn </span>try_from(<span class="kw-2">mut </span>spec: (<span class="kw-2">&amp;</span>str, T)) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, <span class="self">Self</span>::Error&gt; {
+        <span class="kw">let </span>algebra = spec.<span class="number">1</span>.try_into()<span class="question-mark">?</span>;
+        <span class="kw">if </span>spec.<span class="number">0</span>.contains(<span class="string">&#39;@&#39;</span>) {
+            <span class="kw">if </span>spec.<span class="number">0</span>.ends_with(<span class="kw-2">&amp;*</span>algebra.to_string()) {
+                spec.<span class="number">0 </span>= <span class="kw-2">&amp;</span>spec.<span class="number">0</span>[<span class="number">0</span>..spec.<span class="number">0</span>.len() - algebra.to_string().len() - <span class="number">1</span>];
+            } <span class="kw">else </span>{
+                <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(<span class="string">&quot;Invalid algebra supplied. Must be {}&quot;</span>, algebra));
             }
         }
-        <span class="prelude-val">Ok</span>(<span class="ident">Config</span> {
-            <span class="ident">module</span>: <span class="ident">parse_module_name</span>(<span class="ident">spec</span>.<span class="number">0</span>)<span class="question-mark">?</span>,
-            <span class="ident">algebra</span>,
+        <span class="prelude-val">Ok</span>(Config {
+            module: parse_module_name(spec.<span class="number">0</span>)<span class="question-mark">?</span>,
+            algebra,
         })
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">TryInto</span><span class="op">&lt;</span><span class="ident">AlgebraType</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="ident">TryFrom</span><span class="op">&lt;</span>(<span class="ident">Value</span>, <span class="ident">T</span>)<span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">Config</span> {
-    <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">T::Error</span>;
+<span class="kw">impl</span>&lt;T: TryInto&lt;AlgebraType&gt;&gt; TryFrom&lt;(Value, T)&gt; <span class="kw">for </span>Config {
+    <span class="kw">type </span>Error = T::Error;
 
-    <span class="kw">fn</span> <span class="ident">try_from</span>(<span class="ident">spec</span>: (<span class="ident">Value</span>, <span class="ident">T</span>)) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident"><span class="self">Self</span>::Error</span><span class="op">&gt;</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">Config</span> {
-            <span class="ident">module</span>: <span class="ident">spec</span>.<span class="number">0</span>,
-            <span class="ident">algebra</span>: <span class="ident">spec</span>.<span class="number">1</span>.<span class="ident">try_into</span>()<span class="question-mark">?</span>,
+    <span class="kw">fn </span>try_from(spec: (Value, T)) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, <span class="self">Self</span>::Error&gt; {
+        <span class="prelude-val">Ok</span>(Config {
+            module: spec.<span class="number">0</span>,
+            algebra: spec.<span class="number">1</span>.try_into()<span class="question-mark">?</span>,
         })
     }
 }
 
-<span class="doccomment">/// This constructs a resolution resolving a module according to the specifications</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// # Arguments</span>
-<span class="doccomment">///  - `module_spec`: A specification for the module. This is any object that implements</span>
-<span class="doccomment">///     [`TryInto&lt;Config&gt;`] (with appropriate error bounds). In practice, we can supply</span>
-<span class="doccomment">///     - A [`Config`] object itself</span>
-<span class="doccomment">///     - `(json, algebra)`: The first argument is a [`serde_json::Value`] that specifies the</span>
-<span class="doccomment">///       module; the second argument is either a string (`&quot;milnor&quot;` or `&quot;adem&quot;`) or an</span>
-<span class="doccomment">///       [`algebra::AlgebraType`] object.</span>
-<span class="doccomment">///     - `(module_name, algebra)`: The first argument is the name of the module and the second is</span>
-<span class="doccomment">///       as above. Modules are searched in the current directory, `$CWD/steenrod_modules` and</span>
-<span class="doccomment">///       `ext/steenrod_modules`. The modules can be shifted by appending e.g. `S_2[2]`.</span>
-<span class="doccomment">///     - `module_spec`, a single `&amp;str` of the form `module_name@algebra`, where `module_name` and</span>
-<span class="doccomment">///       `algebra` are as above.</span>
-<span class="doccomment">///  - `save_file`: The save file for the module. If it points to an invalid save file, an error is</span>
-<span class="doccomment">///    returned.</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// This dispatches to either [`construct_nassau`] or [`construct_standard`] depending on whether</span>
-<span class="doccomment">/// the `nassau` feature is enabled.</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">construct</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">E</span><span class="op">&gt;</span>(
-    <span class="ident">module_spec</span>: <span class="ident">T</span>,
-    <span class="ident">save_dir</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">PathBuf</span><span class="op">&gt;</span>,
-) -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span><span class="ident">QueryModuleResolution</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">anyhow::Error</span>: <span class="ident">From</span><span class="op">&lt;</span><span class="ident">E</span><span class="op">&gt;</span>,
-    <span class="ident">T</span>: <span class="ident">TryInto</span><span class="op">&lt;</span><span class="ident">Config</span>, <span class="ident">Error</span> <span class="op">=</span> <span class="ident">E</span><span class="op">&gt;</span>,
+<span class="doccomment">/// This constructs a resolution resolving a module according to the specifications
+///
+/// # Arguments
+///  - `module_spec`: A specification for the module. This is any object that implements
+///     [`TryInto&lt;Config&gt;`] (with appropriate error bounds). In practice, we can supply
+///     - A [`Config`] object itself
+///     - `(json, algebra)`: The first argument is a [`serde_json::Value`] that specifies the
+///       module; the second argument is either a string (`&quot;milnor&quot;` or `&quot;adem&quot;`) or an
+///       [`algebra::AlgebraType`] object.
+///     - `(module_name, algebra)`: The first argument is the name of the module and the second is
+///       as above. Modules are searched in the current directory, `$CWD/steenrod_modules` and
+///       `ext/steenrod_modules`. The modules can be shifted by appending e.g. `S_2[2]`.
+///     - `module_spec`, a single `&amp;str` of the form `module_name@algebra`, where `module_name` and
+///       `algebra` are as above.
+///  - `save_file`: The save file for the module. If it points to an invalid save file, an error is
+///    returned.
+///
+/// This dispatches to either [`construct_nassau`] or [`construct_standard`] depending on whether
+/// the `nassau` feature is enabled.
+</span><span class="kw">pub fn </span>construct&lt;T, E&gt;(
+    module_spec: T,
+    save_dir: <span class="prelude-ty">Option</span>&lt;PathBuf&gt;,
+) -&gt; anyhow::Result&lt;QueryModuleResolution&gt;
+<span class="kw">where
+    </span>anyhow::Error: From&lt;E&gt;,
+    T: TryInto&lt;Config, Error = E&gt;,
 {
-    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;nassau&quot;</span>)]</span>
-    {
-        <span class="ident">construct_nassau</span>(<span class="ident">module_spec</span>, <span class="ident">save_dir</span>)
+    <span class="attribute">#[cfg(feature = <span class="string">&quot;nassau&quot;</span>)]
+    </span>{
+        construct_nassau(module_spec, save_dir)
     }
 
-    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;nassau&quot;</span>))]</span>
-    {
-        <span class="ident">construct_standard</span>(<span class="ident">module_spec</span>, <span class="ident">save_dir</span>)
+    <span class="attribute">#[cfg(not(feature = <span class="string">&quot;nassau&quot;</span>))]
+    </span>{
+        construct_standard(module_spec, save_dir)
     }
 }
 
-<span class="doccomment">/// See [`construct`]</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">construct_nassau</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">E</span><span class="op">&gt;</span>(
-    <span class="ident">module_spec</span>: <span class="ident">T</span>,
-    <span class="ident">save_dir</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">PathBuf</span><span class="op">&gt;</span>,
-) -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span><span class="ident"><span class="kw">crate</span>::nassau::Resolution</span><span class="op">&lt;</span><span class="ident">FDModule</span><span class="op">&lt;</span><span class="ident">MilnorAlgebra</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">anyhow::Error</span>: <span class="ident">From</span><span class="op">&lt;</span><span class="ident">E</span><span class="op">&gt;</span>,
-    <span class="ident">T</span>: <span class="ident">TryInto</span><span class="op">&lt;</span><span class="ident">Config</span>, <span class="ident">Error</span> <span class="op">=</span> <span class="ident">E</span><span class="op">&gt;</span>,
+<span class="doccomment">/// See [`construct`]
+</span><span class="kw">pub fn </span>construct_nassau&lt;T, E&gt;(
+    module_spec: T,
+    save_dir: <span class="prelude-ty">Option</span>&lt;PathBuf&gt;,
+) -&gt; anyhow::Result&lt;<span class="kw">crate</span>::nassau::Resolution&lt;FDModule&lt;MilnorAlgebra&gt;&gt;&gt;
+<span class="kw">where
+    </span>anyhow::Error: From&lt;E&gt;,
+    T: TryInto&lt;Config, Error = E&gt;,
 {
-    <span class="kw">let</span> <span class="ident">Config</span> {
-        <span class="ident">module</span>: <span class="ident">json</span>,
-        <span class="ident">algebra</span>,
-    } <span class="op">=</span> <span class="ident">module_spec</span>.<span class="ident">try_into</span>()<span class="question-mark">?</span>;
+    <span class="kw">let </span>Config {
+        module: json,
+        algebra,
+    } = module_spec.try_into()<span class="question-mark">?</span>;
 
-    <span class="kw">if</span> <span class="ident">algebra</span> <span class="op">==</span> <span class="ident">AlgebraType::Adem</span> {
-        <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(<span class="string">&quot;Nassau&#39;s algorithm requires Milnor&#39;s basis&quot;</span>));
+    <span class="kw">if </span>algebra == AlgebraType::Adem {
+        <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(<span class="string">&quot;Nassau&#39;s algorithm requires Milnor&#39;s basis&quot;</span>));
     }
-    <span class="kw">if</span> <span class="op">!</span><span class="ident">json</span>[<span class="string">&quot;profile&quot;</span>].<span class="ident">is_null</span>() {
-        <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(
-            <span class="string">&quot;Nassau&#39;s algorithm does not support non-trivial profile&quot;</span>
-        ));
+    <span class="kw">if </span>!json[<span class="string">&quot;profile&quot;</span>].is_null() {
+        <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(
+            <span class="string">&quot;Nassau&#39;s algorithm does not support non-trivial profile&quot;
+        </span>));
     }
-    <span class="kw">if</span> <span class="ident">json</span>[<span class="string">&quot;p&quot;</span>].<span class="ident">as_i64</span>() <span class="op">!</span><span class="op">=</span> <span class="prelude-val">Some</span>(<span class="number">2</span>) {
-        <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(<span class="string">&quot;Nassau&#39;s algorithm does not support odd primes&quot;</span>));
+    <span class="kw">if </span>json[<span class="string">&quot;p&quot;</span>].as_i64() != <span class="prelude-val">Some</span>(<span class="number">2</span>) {
+        <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(<span class="string">&quot;Nassau&#39;s algorithm does not support odd primes&quot;</span>));
     }
-    <span class="kw">if</span> <span class="ident">json</span>[<span class="string">&quot;type&quot;</span>].<span class="ident">as_str</span>() <span class="op">!</span><span class="op">=</span> <span class="prelude-val">Some</span>(<span class="string">&quot;finite dimensional module&quot;</span>) {
-        <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(
-            <span class="string">&quot;Nassau&#39;s algorithm only supports finite dimensional modules&quot;</span>
-        ));
+    <span class="kw">if </span>json[<span class="string">&quot;type&quot;</span>].as_str() != <span class="prelude-val">Some</span>(<span class="string">&quot;finite dimensional module&quot;</span>) {
+        <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(
+            <span class="string">&quot;Nassau&#39;s algorithm only supports finite dimensional modules&quot;
+        </span>));
     }
 
-    <span class="kw">let</span> <span class="ident">algebra</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">MilnorAlgebra::new</span>(<span class="ident">fp::prime::TWO</span>, <span class="bool-val">false</span>));
-    <span class="kw">let</span> <span class="ident">module</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">FDModule::from_json</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">algebra</span>), <span class="kw-2">&amp;</span><span class="ident">json</span>)<span class="question-mark">?</span>);
+    <span class="kw">let </span>algebra = Arc::new(MilnorAlgebra::new(fp::prime::TWO, <span class="bool-val">false</span>));
+    <span class="kw">let </span>module = Arc::new(FDModule::from_json(Arc::clone(<span class="kw-2">&amp;</span>algebra), <span class="kw-2">&amp;</span>json)<span class="question-mark">?</span>);
 
-    <span class="kw">if</span> <span class="op">!</span><span class="ident">json</span>[<span class="string">&quot;confiber&quot;</span>].<span class="ident">is_null</span>() {
-        <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(<span class="string">&quot;Nassau&#39;s algorithm does not support cofiber&quot;</span>));
+    <span class="kw">if </span>!json[<span class="string">&quot;confiber&quot;</span>].is_null() {
+        <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(<span class="string">&quot;Nassau&#39;s algorithm does not support cofiber&quot;</span>));
     }
-    <span class="ident"><span class="kw">crate</span>::nassau::Resolution::new_with_save</span>(<span class="ident">module</span>, <span class="ident">save_dir</span>)
+    <span class="kw">crate</span>::nassau::Resolution::new_with_save(module, save_dir)
 }
 
-<span class="doccomment">/// See [`construct`]</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">construct_standard</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">U</span>: <span class="ident">bool</span>, <span class="ident">T</span>, <span class="ident">E</span><span class="op">&gt;</span>(
-    <span class="ident">module_spec</span>: <span class="ident">T</span>,
-    <span class="ident">save_dir</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">PathBuf</span><span class="op">&gt;</span>,
-) -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span><span class="ident"><span class="kw">crate</span>::resolution::MuResolution</span><span class="op">&lt;</span><span class="ident">U</span>, <span class="ident">CCC</span><span class="op">&gt;</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">anyhow::Error</span>: <span class="ident">From</span><span class="op">&lt;</span><span class="ident">E</span><span class="op">&gt;</span>,
-    <span class="ident">T</span>: <span class="ident">TryInto</span><span class="op">&lt;</span><span class="ident">Config</span>, <span class="ident">Error</span> <span class="op">=</span> <span class="ident">E</span><span class="op">&gt;</span>,
-    <span class="ident">SteenrodAlgebra</span>: <span class="ident">algebra::MuAlgebra</span><span class="op">&lt;</span><span class="ident">U</span><span class="op">&gt;</span>,
+<span class="doccomment">/// See [`construct`]
+</span><span class="kw">pub fn </span>construct_standard&lt;<span class="kw">const </span>U: bool, T, E&gt;(
+    module_spec: T,
+    save_dir: <span class="prelude-ty">Option</span>&lt;PathBuf&gt;,
+) -&gt; anyhow::Result&lt;<span class="kw">crate</span>::resolution::MuResolution&lt;U, CCC&gt;&gt;
+<span class="kw">where
+    </span>anyhow::Error: From&lt;E&gt;,
+    T: TryInto&lt;Config, Error = E&gt;,
+    SteenrodAlgebra: algebra::MuAlgebra&lt;U&gt;,
 {
-    <span class="kw">let</span> <span class="ident">Config</span> {
-        <span class="ident">module</span>: <span class="ident">json</span>,
-        <span class="ident">algebra</span>,
-    } <span class="op">=</span> <span class="ident">module_spec</span>.<span class="ident">try_into</span>()<span class="question-mark">?</span>;
+    <span class="kw">let </span>Config {
+        module: json,
+        algebra,
+    } = module_spec.try_into()<span class="question-mark">?</span>;
 
-    <span class="kw">let</span> <span class="ident">algebra</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">SteenrodAlgebra::from_json</span>(<span class="kw-2">&amp;</span><span class="ident">json</span>, <span class="ident">algebra</span>, <span class="ident">U</span>)<span class="question-mark">?</span>);
-    <span class="kw">let</span> <span class="ident">module</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">steenrod_module::from_json</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">algebra</span>), <span class="kw-2">&amp;</span><span class="ident">json</span>)<span class="question-mark">?</span>);
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">chain_complex</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">FiniteChainComplex::ccdz</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">module</span>)));
+    <span class="kw">let </span>algebra = Arc::new(SteenrodAlgebra::from_json(<span class="kw-2">&amp;</span>json, algebra, U)<span class="question-mark">?</span>);
+    <span class="kw">let </span>module = Arc::new(steenrod_module::from_json(Arc::clone(<span class="kw-2">&amp;</span>algebra), <span class="kw-2">&amp;</span>json)<span class="question-mark">?</span>);
+    <span class="kw">let </span><span class="kw-2">mut </span>chain_complex = Arc::new(FiniteChainComplex::ccdz(Arc::clone(<span class="kw-2">&amp;</span>module)));
 
-    <span class="kw">let</span> <span class="ident">cofiber</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">json</span>[<span class="string">&quot;cofiber&quot;</span>];
-    <span class="kw">if</span> <span class="op">!</span><span class="ident">cofiber</span>.<span class="ident">is_null</span>() {
-        <span class="macro">assert!</span>(<span class="op">!</span><span class="ident">U</span>, <span class="string">&quot;Cofiber not supported for unstable resolution&quot;</span>);
-        <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::chain_complex::ChainMap</span>;
-        <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::yoneda::yoneda_representative</span>;
-        <span class="kw">use</span> <span class="ident">algebra::module::homomorphism::FreeModuleHomomorphism</span>;
+    <span class="kw">let </span>cofiber = <span class="kw-2">&amp;</span>json[<span class="string">&quot;cofiber&quot;</span>];
+    <span class="kw">if </span>!cofiber.is_null() {
+        <span class="macro">assert!</span>(!U, <span class="string">&quot;Cofiber not supported for unstable resolution&quot;</span>);
+        <span class="kw">use </span><span class="kw">crate</span>::chain_complex::ChainMap;
+        <span class="kw">use </span><span class="kw">crate</span>::yoneda::yoneda_representative;
+        <span class="kw">use </span>algebra::module::homomorphism::FreeModuleHomomorphism;
 
-        <span class="kw">let</span> <span class="ident">shift</span> <span class="op">=</span> <span class="ident">json</span>[<span class="string">&quot;shift&quot;</span>].<span class="ident">as_i64</span>().<span class="ident">unwrap_or</span>(<span class="number">0</span>) <span class="kw">as</span> <span class="ident">i32</span>;
+        <span class="kw">let </span>shift = json[<span class="string">&quot;shift&quot;</span>].as_i64().unwrap_or(<span class="number">0</span>) <span class="kw">as </span>i32;
 
-        <span class="kw">let</span> <span class="ident">s</span> <span class="op">=</span> <span class="ident">cofiber</span>[<span class="string">&quot;s&quot;</span>].<span class="ident">as_u64</span>().<span class="ident">unwrap</span>() <span class="kw">as</span> <span class="ident">u32</span>;
-        <span class="kw">let</span> <span class="ident">t</span> <span class="op">=</span> <span class="ident">cofiber</span>[<span class="string">&quot;t&quot;</span>].<span class="ident">as_i64</span>().<span class="ident">unwrap</span>() <span class="kw">as</span> <span class="ident">i32</span> <span class="op">+</span> <span class="ident">shift</span>;
-        <span class="kw">let</span> <span class="ident">idx</span> <span class="op">=</span> <span class="ident">cofiber</span>[<span class="string">&quot;idx&quot;</span>].<span class="ident">as_u64</span>().<span class="ident">unwrap</span>() <span class="kw">as</span> <span class="ident">usize</span>;
+        <span class="kw">let </span>s = cofiber[<span class="string">&quot;s&quot;</span>].as_u64().unwrap() <span class="kw">as </span>u32;
+        <span class="kw">let </span>t = cofiber[<span class="string">&quot;t&quot;</span>].as_i64().unwrap() <span class="kw">as </span>i32 + shift;
+        <span class="kw">let </span>idx = cofiber[<span class="string">&quot;idx&quot;</span>].as_u64().unwrap() <span class="kw">as </span>usize;
 
-        <span class="kw">let</span> <span class="ident">max_degree</span> <span class="op">=</span> <span class="ident">module</span>
-            .<span class="ident">max_degree</span>()
-            .<span class="ident">expect</span>(<span class="string">&quot;Can only take cofiber when module is bounded&quot;</span>);
+        <span class="kw">let </span>max_degree = module
+            .max_degree()
+            .expect(<span class="string">&quot;Can only take cofiber when module is bounded&quot;</span>);
 
-        <span class="kw">let</span> <span class="ident">resolution</span> <span class="op">=</span> <span class="ident">Resolution::new</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">chain_complex</span>));
-        <span class="ident">resolution</span>.<span class="ident">compute_through_stem</span>(<span class="ident">s</span>, <span class="ident">t</span> <span class="op">+</span> <span class="ident">max_degree</span> <span class="op">-</span> <span class="ident">s</span> <span class="kw">as</span> <span class="ident">i32</span>);
+        <span class="kw">let </span>resolution = Resolution::new(Arc::clone(<span class="kw-2">&amp;</span>chain_complex));
+        resolution.compute_through_stem(s, t + max_degree - s <span class="kw">as </span>i32);
 
-        <span class="kw">let</span> <span class="ident">map</span> <span class="op">=</span> <span class="ident">FreeModuleHomomorphism::new</span>(<span class="ident">resolution</span>.<span class="ident">module</span>(<span class="ident">s</span>), <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">module</span>), <span class="ident">t</span>);
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">new_output</span> <span class="op">=</span> <span class="ident">fp::matrix::Matrix::new</span>(
-            <span class="ident">module</span>.<span class="ident">prime</span>(),
-            <span class="ident">resolution</span>.<span class="ident">module</span>(<span class="ident">s</span>).<span class="ident">number_of_gens_in_degree</span>(<span class="ident">t</span>),
+        <span class="kw">let </span>map = FreeModuleHomomorphism::new(resolution.module(s), Arc::clone(<span class="kw-2">&amp;</span>module), t);
+        <span class="kw">let </span><span class="kw-2">mut </span>new_output = fp::matrix::Matrix::new(
+            module.prime(),
+            resolution.module(s).number_of_gens_in_degree(t),
             <span class="number">1</span>,
         );
-        <span class="ident">new_output</span>[<span class="ident">idx</span>].<span class="ident">set_entry</span>(<span class="number">0</span>, <span class="number">1</span>);
+        new_output[idx].set_entry(<span class="number">0</span>, <span class="number">1</span>);
 
-        <span class="ident">map</span>.<span class="ident">add_generators_from_matrix_rows</span>(<span class="ident">t</span>, <span class="ident">new_output</span>.<span class="ident">as_slice_mut</span>());
-        <span class="ident">map</span>.<span class="ident">extend_by_zero</span>(<span class="ident">max_degree</span> <span class="op">+</span> <span class="ident">t</span>);
+        map.add_generators_from_matrix_rows(t, new_output.as_slice_mut());
+        map.extend_by_zero(max_degree + t);
 
-        <span class="kw">let</span> <span class="ident">cm</span> <span class="op">=</span> <span class="ident">ChainMap</span> {
-            <span class="ident">s_shift</span>: <span class="ident">s</span>,
-            <span class="ident">chain_maps</span>: <span class="macro">vec!</span>[<span class="ident">map</span>],
+        <span class="kw">let </span>cm = ChainMap {
+            s_shift: s,
+            chain_maps: <span class="macro">vec!</span>[map],
         };
-        <span class="kw">let</span> <span class="ident">yoneda</span> <span class="op">=</span> <span class="ident">yoneda_representative</span>(<span class="ident">Arc::new</span>(<span class="ident">resolution</span>), <span class="ident">cm</span>);
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">yoneda</span> <span class="op">=</span> <span class="ident">FiniteChainComplex::from</span>(<span class="ident">yoneda</span>);
-        <span class="ident">yoneda</span>.<span class="ident">pop</span>();
+        <span class="kw">let </span>yoneda = yoneda_representative(Arc::new(resolution), cm);
+        <span class="kw">let </span><span class="kw-2">mut </span>yoneda = FiniteChainComplex::from(yoneda);
+        yoneda.pop();
 
-        <span class="ident">chain_complex</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">yoneda</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">m</span><span class="op">|</span> <span class="ident">Box::new</span>(<span class="ident">m</span>.<span class="ident">clone</span>()) <span class="kw">as</span> <span class="ident">SteenrodModule</span>));
+        chain_complex = Arc::new(yoneda.map(|m| Box::new(m.clone()) <span class="kw">as </span>SteenrodModule));
     }
 
-    <span class="ident"><span class="kw">crate</span>::resolution::MuResolution::new_with_save</span>(<span class="ident">chain_complex</span>, <span class="ident">save_dir</span>)
+    <span class="kw">crate</span>::resolution::MuResolution::new_with_save(chain_complex, save_dir)
 }
 
-<span class="doccomment">/// Given the name of a module file (without the `.json` extension), find a json file with this</span>
-<span class="doccomment">/// name, and return the parsed json object. The search path for this json file is described</span>
-<span class="doccomment">/// [here](../index.html#module-specification).</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">load_module_json</span>(<span class="ident">name</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span><span class="ident">Value</span><span class="op">&gt;</span> {
-    <span class="kw">let</span> <span class="ident">current_dir</span> <span class="op">=</span> <span class="ident">std::env::current_dir</span>().<span class="ident">context</span>(<span class="string">&quot;Failed to read current directory&quot;</span>)<span class="question-mark">?</span>;
-    <span class="kw">let</span> <span class="ident">relative_dir</span> <span class="op">=</span> <span class="ident">current_dir</span>.<span class="ident">join</span>(<span class="string">&quot;steenrod_modules&quot;</span>);
+<span class="doccomment">/// Given the name of a module file (without the `.json` extension), find a json file with this
+/// name, and return the parsed json object. The search path for this json file is described
+/// [here](../index.html#module-specification).
+</span><span class="kw">pub fn </span>load_module_json(name: <span class="kw-2">&amp;</span>str) -&gt; anyhow::Result&lt;Value&gt; {
+    <span class="kw">let </span>current_dir = std::env::current_dir().context(<span class="string">&quot;Failed to read current directory&quot;</span>)<span class="question-mark">?</span>;
+    <span class="kw">let </span>relative_dir = current_dir.join(<span class="string">&quot;steenrod_modules&quot;</span>);
 
-    <span class="kw">for</span> <span class="ident">path</span> <span class="kw">in</span> <span class="kw-2">&amp;</span>[
-        <span class="ident">current_dir</span>,
-        <span class="ident">relative_dir</span>,
-        <span class="ident">PathBuf::from</span>(<span class="ident">STATIC_MODULES_PATH</span>),
+    <span class="kw">for </span>path <span class="kw">in </span><span class="kw-2">&amp;</span>[
+        current_dir,
+        relative_dir,
+        PathBuf::from(STATIC_MODULES_PATH),
     ] {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">path</span> <span class="op">=</span> <span class="ident">path</span>.<span class="ident">clone</span>();
-        <span class="ident">path</span>.<span class="ident">push</span>(<span class="ident">name</span>);
-        <span class="ident">path</span>.<span class="ident">set_extension</span>(<span class="string">&quot;json&quot;</span>);
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Ok</span>(<span class="ident">s</span>) <span class="op">=</span> <span class="ident">std::fs::read_to_string</span>(<span class="kw-2">&amp;</span><span class="ident">path</span>) {
-            <span class="kw">return</span> <span class="ident">serde_json::from_str</span>(<span class="kw-2">&amp;</span><span class="ident">s</span>)
-                .<span class="ident">with_context</span>(<span class="op">|</span><span class="op">|</span> <span class="macro">format!</span>(<span class="string">&quot;Failed to load module json at {path:?}&quot;</span>));
+        <span class="kw">let </span><span class="kw-2">mut </span>path = path.clone();
+        path.push(name);
+        path.set_extension(<span class="string">&quot;json&quot;</span>);
+        <span class="kw">if let </span><span class="prelude-val">Ok</span>(s) = std::fs::read_to_string(<span class="kw-2">&amp;</span>path) {
+            <span class="kw">return </span>serde_json::from_str(<span class="kw-2">&amp;</span>s)
+                .with_context(|| <span class="macro">format!</span>(<span class="string">&quot;Failed to load module json at {path:?}&quot;</span>));
         }
     }
-    <span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(<span class="string">&quot;Module file &#39;{}&#39; not found&quot;</span>, <span class="ident">name</span>))
+    <span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(<span class="string">&quot;Module file &#39;{}&#39; not found&quot;</span>, name))
 }
 
-<span class="doccomment">/// Given an `n: usize`, return a UTF-8 character that best depicts this number. If `n &lt; 9`, then</span>
-<span class="doccomment">/// this is a UTF-8 when `n` many dots. If `n = 9`, then this is the number `9`. Otherwise, it is</span>
-<span class="doccomment">/// `*`.</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">unicode_num</span>(<span class="ident">n</span>: <span class="ident">usize</span>) -&gt; <span class="ident">char</span> {
-    <span class="kw">match</span> <span class="ident">n</span> {
-        <span class="number">0</span> =&gt; <span class="string">&#39; &#39;</span>,
-        <span class="number">1</span> =&gt; <span class="string">&#39;·&#39;</span>,
-        <span class="number">2</span> =&gt; <span class="string">&#39;:&#39;</span>,
-        <span class="number">3</span> =&gt; <span class="string">&#39;∴&#39;</span>,
-        <span class="number">4</span> =&gt; <span class="string">&#39;⁘&#39;</span>,
-        <span class="number">5</span> =&gt; <span class="string">&#39;⁙&#39;</span>,
-        <span class="number">6</span> =&gt; <span class="string">&#39;⠿&#39;</span>,
-        <span class="number">7</span> =&gt; <span class="string">&#39;⡿&#39;</span>,
-        <span class="number">8</span> =&gt; <span class="string">&#39;⣿&#39;</span>,
-        <span class="number">9</span> =&gt; <span class="string">&#39;9&#39;</span>,
-        <span class="kw">_</span> =&gt; <span class="string">&#39;*&#39;</span>,
+<span class="doccomment">/// Given an `n: usize`, return a UTF-8 character that best depicts this number. If `n &lt; 9`, then
+/// this is a UTF-8 when `n` many dots. If `n = 9`, then this is the number `9`. Otherwise, it is
+/// `*`.
+</span><span class="kw">pub fn </span>unicode_num(n: usize) -&gt; char {
+    <span class="kw">match </span>n {
+        <span class="number">0 </span>=&gt; <span class="string">&#39; &#39;</span>,
+        <span class="number">1 </span>=&gt; <span class="string">&#39;·&#39;</span>,
+        <span class="number">2 </span>=&gt; <span class="string">&#39;:&#39;</span>,
+        <span class="number">3 </span>=&gt; <span class="string">&#39;∴&#39;</span>,
+        <span class="number">4 </span>=&gt; <span class="string">&#39;⁘&#39;</span>,
+        <span class="number">5 </span>=&gt; <span class="string">&#39;⁙&#39;</span>,
+        <span class="number">6 </span>=&gt; <span class="string">&#39;⠿&#39;</span>,
+        <span class="number">7 </span>=&gt; <span class="string">&#39;⡿&#39;</span>,
+        <span class="number">8 </span>=&gt; <span class="string">&#39;⣿&#39;</span>,
+        <span class="number">9 </span>=&gt; <span class="string">&#39;9&#39;</span>,
+        <span class="kw">_ </span>=&gt; <span class="string">&#39;*&#39;</span>,
     }
 }
 
-<span class="doccomment">/// Query the user for a module and its save directory. See</span>
-<span class="doccomment">/// [here](../index.html#module-specification) for details on the propmt format.</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// # Arguments</span>
-<span class="doccomment">/// - `prompt`: The prompt used to query the user for the module. This is `&quot;Module&quot;` when invoked</span>
-<span class="doccomment">///   through [`query_module`], but the user may want to use something more specific, e.g. `&quot;Source</span>
-<span class="doccomment">///   module&quot;`.</span>
-<span class="doccomment">/// - `algebra`: The Steenrod algebra basis allowed. Some applications only support using one of</span>
-<span class="doccomment">///   the two basis, and specifying this parameter forbids the user from specifying the other</span>
-<span class="doccomment">///   basis.</span>
-<span class="doccomment">/// - `load_quasi_inverse`: Whether or not the quasi-inverses of the resolution should be stored.</span>
-<span class="doccomment">///   Note that if there is a save directory, then quasi-inverses will never be stored in memory;</span>
-<span class="doccomment">///   they must be accessed via `apply_quasi_inverse`.</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// # Returns</span>
-<span class="doccomment">/// A [`QueryModuleResolution`]. Note that this type depends on whether the `nassau` feature is</span>
-<span class="doccomment">/// enabled.</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">query_module_only</span>(
-    <span class="ident">prompt</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>,
-    <span class="ident">algebra</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">AlgebraType</span><span class="op">&gt;</span>,
-    <span class="ident">load_quasi_inverse</span>: <span class="ident">bool</span>,
-) -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span><span class="ident">QueryModuleResolution</span><span class="op">&gt;</span> {
-    <span class="kw">let</span> (<span class="ident">name</span>, <span class="ident">module</span>): (<span class="ident">String</span>, <span class="ident">Config</span>) <span class="op">=</span> <span class="ident">query::with_default</span>(<span class="ident">prompt</span>, <span class="string">&quot;S_2&quot;</span>, <span class="op">|</span><span class="ident">s</span><span class="op">|</span> {
-        <span class="prelude-ty">Result</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="ident">anyhow::Error</span><span class="op">&gt;</span><span class="ident">::Ok</span>((
-            <span class="ident">s</span>.<span class="ident">to_owned</span>(),
-            <span class="kw">match</span> <span class="ident">algebra</span> {
-                <span class="prelude-val">Some</span>(<span class="ident">algebra</span>) =&gt; (<span class="ident">s</span>, <span class="ident">algebra</span>).<span class="ident">try_into</span>()<span class="question-mark">?</span>,
-                <span class="prelude-val">None</span> =&gt; <span class="ident">s</span>.<span class="ident">try_into</span>()<span class="question-mark">?</span>,
+<span class="doccomment">/// Query the user for a module and its save directory. See
+/// [here](../index.html#module-specification) for details on the propmt format.
+///
+/// # Arguments
+/// - `prompt`: The prompt used to query the user for the module. This is `&quot;Module&quot;` when invoked
+///   through [`query_module`], but the user may want to use something more specific, e.g. `&quot;Source
+///   module&quot;`.
+/// - `algebra`: The Steenrod algebra basis allowed. Some applications only support using one of
+///   the two basis, and specifying this parameter forbids the user from specifying the other
+///   basis.
+/// - `load_quasi_inverse`: Whether or not the quasi-inverses of the resolution should be stored.
+///   Note that if there is a save directory, then quasi-inverses will never be stored in memory;
+///   they must be accessed via `apply_quasi_inverse`.
+///
+/// # Returns
+/// A [`QueryModuleResolution`]. Note that this type depends on whether the `nassau` feature is
+/// enabled.
+</span><span class="kw">pub fn </span>query_module_only(
+    prompt: <span class="kw-2">&amp;</span>str,
+    algebra: <span class="prelude-ty">Option</span>&lt;AlgebraType&gt;,
+    load_quasi_inverse: bool,
+) -&gt; anyhow::Result&lt;QueryModuleResolution&gt; {
+    <span class="kw">let </span>(name, module): (String, Config) = query::with_default(prompt, <span class="string">&quot;S_2&quot;</span>, |s| {
+        <span class="prelude-ty">Result</span>::&lt;<span class="kw">_</span>, anyhow::Error&gt;::Ok((
+            s.to_owned(),
+            <span class="kw">match </span>algebra {
+                <span class="prelude-val">Some</span>(algebra) =&gt; (s, algebra).try_into()<span class="question-mark">?</span>,
+                <span class="prelude-val">None </span>=&gt; s.try_into()<span class="question-mark">?</span>,
             },
         ))
     });
 
-    <span class="kw">let</span> <span class="ident">save_dir</span> <span class="op">=</span> <span class="ident">query::optional</span>(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;{prompt} save directory&quot;</span>), <span class="op">|</span><span class="ident">x</span><span class="op">|</span> {
-        <span class="ident">core::result::Result</span>::<span class="op">&lt;</span><span class="ident">PathBuf</span>, <span class="ident">std::convert::Infallible</span><span class="op">&gt;</span><span class="ident">::Ok</span>(<span class="ident">PathBuf::from</span>(<span class="ident">x</span>))
+    <span class="kw">let </span>save_dir = query::optional(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;{prompt} save directory&quot;</span>), |x| {
+        core::result::Result::&lt;PathBuf, std::convert::Infallible&gt;::Ok(PathBuf::from(x))
     });
 
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">resolution</span> <span class="op">=</span>
-        <span class="ident">construct</span>(<span class="ident">module</span>, <span class="ident">save_dir</span>).<span class="ident">context</span>(<span class="string">&quot;Failed to load module from save file&quot;</span>)<span class="question-mark">?</span>;
+    <span class="kw">let </span><span class="kw-2">mut </span>resolution =
+        construct(module, save_dir).context(<span class="string">&quot;Failed to load module from save file&quot;</span>)<span class="question-mark">?</span>;
 
-    <span class="kw">let</span> <span class="ident">load_quasi_inverse</span> <span class="op">=</span> <span class="ident">load_quasi_inverse</span> <span class="op">&amp;&amp;</span> <span class="ident">resolution</span>.<span class="ident">save_dir</span>().<span class="ident">is_none</span>();
+    <span class="kw">let </span>load_quasi_inverse = load_quasi_inverse &amp;&amp; resolution.save_dir().is_none();
 
-    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;nassau&quot;</span>))]</span>
-    {
-        <span class="ident">resolution</span>.<span class="ident">load_quasi_inverse</span> <span class="op">=</span> <span class="ident">load_quasi_inverse</span>;
+    <span class="attribute">#[cfg(not(feature = <span class="string">&quot;nassau&quot;</span>))]
+    </span>{
+        resolution.load_quasi_inverse = load_quasi_inverse;
     }
 
-    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;nassau&quot;</span>)]</span>
-    <span class="macro">assert!</span>(
-        <span class="op">!</span><span class="ident">load_quasi_inverse</span>,
-        <span class="string">&quot;Quasi inverse loading not support with Nassau. Please use a save directory instead&quot;</span>
-    );
+    <span class="attribute">#[cfg(feature = <span class="string">&quot;nassau&quot;</span>)]
+    </span><span class="macro">assert!</span>(
+        !load_quasi_inverse,
+        <span class="string">&quot;Quasi inverse loading not support with Nassau. Please use a save directory instead&quot;
+    </span>);
 
-    <span class="ident">resolution</span>.<span class="ident">set_name</span>(<span class="ident">name</span>);
+    resolution.set_name(name);
 
-    <span class="prelude-val">Ok</span>(<span class="ident">resolution</span>)
+    <span class="prelude-val">Ok</span>(resolution)
 }
 
-<span class="doccomment">/// Query the user for a module and a bidegree, and return a resolution resolved up to said</span>
-<span class="doccomment">/// bidegree. This is mainly a wrapper around [`query_module_only`] that also asks for the bidegree</span>
-<span class="doccomment">/// to resolve up to as well. The prompt of [`query_module_only`] is always set to `&quot;Module&quot;` when</span>
-<span class="doccomment">/// invoked through this function.</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">query_module</span>(
-    <span class="ident">algebra</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">AlgebraType</span><span class="op">&gt;</span>,
-    <span class="ident">load_quasi_inverse</span>: <span class="ident">bool</span>,
-) -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span><span class="ident">QueryModuleResolution</span><span class="op">&gt;</span> {
-    <span class="kw">let</span> <span class="ident">resolution</span> <span class="op">=</span> <span class="ident">query_module_only</span>(<span class="string">&quot;Module&quot;</span>, <span class="ident">algebra</span>, <span class="ident">load_quasi_inverse</span>)<span class="question-mark">?</span>;
+<span class="doccomment">/// Query the user for a module and a bidegree, and return a resolution resolved up to said
+/// bidegree. This is mainly a wrapper around [`query_module_only`] that also asks for the bidegree
+/// to resolve up to as well. The prompt of [`query_module_only`] is always set to `&quot;Module&quot;` when
+/// invoked through this function.
+</span><span class="kw">pub fn </span>query_module(
+    algebra: <span class="prelude-ty">Option</span>&lt;AlgebraType&gt;,
+    load_quasi_inverse: bool,
+) -&gt; anyhow::Result&lt;QueryModuleResolution&gt; {
+    <span class="kw">let </span>resolution = query_module_only(<span class="string">&quot;Module&quot;</span>, algebra, load_quasi_inverse)<span class="question-mark">?</span>;
 
-    <span class="kw">let</span> <span class="ident">max_n</span>: <span class="ident">i32</span> <span class="op">=</span> <span class="ident">query::with_default</span>(<span class="string">&quot;Max n&quot;</span>, <span class="string">&quot;30&quot;</span>, <span class="ident">str::parse</span>);
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">max_s</span>: <span class="ident">u32</span> <span class="op">=</span> <span class="ident">query::with_default</span>(<span class="string">&quot;Max s&quot;</span>, <span class="string">&quot;7&quot;</span>, <span class="ident">str::parse</span>);
+    <span class="kw">let </span>max_n: i32 = query::with_default(<span class="string">&quot;Max n&quot;</span>, <span class="string">&quot;30&quot;</span>, str::parse);
+    <span class="kw">let </span><span class="kw-2">mut </span>max_s: u32 = query::with_default(<span class="string">&quot;Max s&quot;</span>, <span class="string">&quot;7&quot;</span>, str::parse);
 
-    <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">s</span>) <span class="op">=</span> <span class="ident">secondary_job</span>() {
-        <span class="kw">if</span> <span class="ident">s</span> <span class="op">&lt;</span><span class="op">=</span> <span class="ident">max_s</span> {
-            <span class="ident">max_s</span> <span class="op">=</span> <span class="ident">std::cmp::min</span>(<span class="ident">s</span> <span class="op">+</span> <span class="number">1</span>, <span class="ident">max_s</span>);
-        } <span class="kw">else</span> {
-            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(<span class="string">&quot;SECONDARY_JOB is larger than max_s&quot;</span>));
+    <span class="kw">if let </span><span class="prelude-val">Some</span>(s) = secondary_job() {
+        <span class="kw">if </span>s &lt;= max_s {
+            max_s = std::cmp::min(s + <span class="number">1</span>, max_s);
+        } <span class="kw">else </span>{
+            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(<span class="string">&quot;SECONDARY_JOB is larger than max_s&quot;</span>));
         }
     }
 
-    <span class="ident">resolution</span>.<span class="ident">compute_through_stem</span>(<span class="ident">max_s</span>, <span class="ident">max_n</span>);
+    resolution.compute_through_stem(max_s, max_n);
 
-    <span class="prelude-val">Ok</span>(<span class="ident">resolution</span>)
+    <span class="prelude-val">Ok</span>(resolution)
 }
 
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">query_unstable_module_only</span>() -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span><span class="ident">SteenrodModule</span><span class="op">&gt;</span> {
-    <span class="kw">let</span> <span class="ident">spec</span>: <span class="ident">Config</span> <span class="op">=</span> <span class="ident">query::raw</span>(<span class="string">&quot;Module&quot;</span>, <span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">x</span>.<span class="ident">try_into</span>());
-    <span class="kw">let</span> <span class="ident">algebra</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">SteenrodAlgebra::from_json</span>(
-        <span class="kw-2">&amp;</span><span class="ident">spec</span>.<span class="ident">module</span>,
-        <span class="ident">spec</span>.<span class="ident">algebra</span>,
+<span class="kw">pub fn </span>query_unstable_module_only() -&gt; anyhow::Result&lt;SteenrodModule&gt; {
+    <span class="kw">let </span>spec: Config = query::raw(<span class="string">&quot;Module&quot;</span>, |x| x.try_into());
+    <span class="kw">let </span>algebra = Arc::new(SteenrodAlgebra::from_json(
+        <span class="kw-2">&amp;</span>spec.module,
+        spec.algebra,
         <span class="bool-val">true</span>,
     )<span class="question-mark">?</span>);
-    <span class="ident">steenrod_module::from_json</span>(<span class="ident">algebra</span>, <span class="kw-2">&amp;</span><span class="ident">spec</span>.<span class="ident">module</span>)
+    steenrod_module::from_json(algebra, <span class="kw-2">&amp;</span>spec.module)
 }
 
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">query_unstable_module</span>(<span class="ident">load_quasi_inverse</span>: <span class="ident">bool</span>) -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span><span class="ident">UnstableResolution</span><span class="op">&lt;</span><span class="ident">CCC</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-    <span class="kw">let</span> <span class="ident">module</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">query_unstable_module_only</span>()<span class="question-mark">?</span>);
-    <span class="kw">let</span> <span class="ident">cc</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">FiniteChainComplex::ccdz</span>(<span class="ident">module</span>));
+<span class="kw">pub fn </span>query_unstable_module(load_quasi_inverse: bool) -&gt; anyhow::Result&lt;UnstableResolution&lt;CCC&gt;&gt; {
+    <span class="kw">let </span>module = Arc::new(query_unstable_module_only()<span class="question-mark">?</span>);
+    <span class="kw">let </span>cc = Arc::new(FiniteChainComplex::ccdz(module));
 
-    <span class="kw">let</span> <span class="ident">save_dir</span> <span class="op">=</span> <span class="ident">query::optional</span>(<span class="string">&quot;Module save directory&quot;</span>, <span class="op">|</span><span class="ident">x</span><span class="op">|</span> {
-        <span class="ident">core::result::Result</span>::<span class="op">&lt;</span><span class="ident">PathBuf</span>, <span class="ident">std::convert::Infallible</span><span class="op">&gt;</span><span class="ident">::Ok</span>(<span class="ident">PathBuf::from</span>(<span class="ident">x</span>))
+    <span class="kw">let </span>save_dir = query::optional(<span class="string">&quot;Module save directory&quot;</span>, |x| {
+        core::result::Result::&lt;PathBuf, std::convert::Infallible&gt;::Ok(PathBuf::from(x))
     });
 
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">resolution</span> <span class="op">=</span> <span class="ident">UnstableResolution::new_with_save</span>(<span class="ident">cc</span>, <span class="ident">save_dir</span>)<span class="question-mark">?</span>;
-    <span class="ident">resolution</span>.<span class="ident">load_quasi_inverse</span> <span class="op">=</span> <span class="ident">load_quasi_inverse</span> <span class="op">&amp;&amp;</span> <span class="ident">resolution</span>.<span class="ident">save_dir</span>().<span class="ident">is_none</span>();
+    <span class="kw">let </span><span class="kw-2">mut </span>resolution = UnstableResolution::new_with_save(cc, save_dir)<span class="question-mark">?</span>;
+    resolution.load_quasi_inverse = load_quasi_inverse &amp;&amp; resolution.save_dir().is_none();
 
-    <span class="prelude-val">Ok</span>(<span class="ident">resolution</span>)
+    <span class="prelude-val">Ok</span>(resolution)
 }
 
-<span class="doccomment">/// Prints an element in the bidegree `(n, s)` to stdout. For example, `[0, 2, 1]` will be printed</span>
-<span class="doccomment">/// as `2 x_(n, s, 1) + x_(n, s, 2)`.</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">print_element</span>(<span class="ident">v</span>: <span class="ident">fp::vector::Slice</span>, <span class="ident">n</span>: <span class="ident">i32</span>, <span class="ident">s</span>: <span class="ident">u32</span>) {
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">first</span> <span class="op">=</span> <span class="bool-val">true</span>;
-    <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">v</span>) <span class="kw">in</span> <span class="ident">v</span>.<span class="ident">iter_nonzero</span>() {
-        <span class="kw">if</span> <span class="op">!</span><span class="ident">first</span> {
+<span class="doccomment">/// Prints an element in the bidegree `(n, s)` to stdout. For example, `[0, 2, 1]` will be printed
+/// as `2 x_(n, s, 1) + x_(n, s, 2)`.
+</span><span class="kw">pub fn </span>print_element(v: fp::vector::Slice, n: i32, s: u32) {
+    <span class="kw">let </span><span class="kw-2">mut </span>first = <span class="bool-val">true</span>;
+    <span class="kw">for </span>(i, v) <span class="kw">in </span>v.iter_nonzero() {
+        <span class="kw">if </span>!first {
             <span class="macro">print!</span>(<span class="string">&quot; + &quot;</span>);
         }
-        <span class="kw">if</span> <span class="ident">v</span> <span class="op">!</span><span class="op">=</span> <span class="number">1</span> {
+        <span class="kw">if </span>v != <span class="number">1 </span>{
             <span class="macro">print!</span>(<span class="string">&quot;{v} &quot;</span>);
         }
         <span class="macro">print!</span>(<span class="string">&quot;x_({n}, {s}, {i})&quot;</span>);
-        <span class="ident">first</span> <span class="op">=</span> <span class="bool-val">false</span>;
+        first = <span class="bool-val">false</span>;
     }
 }
 
-<span class="doccomment">/// Given a resolution, return a resolution of the unit, together with a boolean indicating whether</span>
-<span class="doccomment">/// this is the original resolution was already a resolution of the unit. If the boolean is true,</span>
-<span class="doccomment">/// then the original resolution is returned.</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_unit</span>(
-    <span class="ident">resolution</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">QueryModuleResolution</span><span class="op">&gt;</span>,
-) -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span>(<span class="ident">bool</span>, <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">QueryModuleResolution</span><span class="op">&gt;</span>)<span class="op">&gt;</span> {
-    <span class="kw">let</span> <span class="ident">is_unit</span> <span class="op">=</span> <span class="ident">resolution</span>.<span class="ident">target</span>().<span class="ident">max_s</span>() <span class="op">==</span> <span class="number">1</span> <span class="op">&amp;&amp;</span> <span class="ident">resolution</span>.<span class="ident">target</span>().<span class="ident">module</span>(<span class="number">0</span>).<span class="ident">is_unit</span>();
+<span class="doccomment">/// Given a resolution, return a resolution of the unit, together with a boolean indicating whether
+/// this is the original resolution was already a resolution of the unit. If the boolean is true,
+/// then the original resolution is returned.
+</span><span class="kw">pub fn </span>get_unit(
+    resolution: Arc&lt;QueryModuleResolution&gt;,
+) -&gt; anyhow::Result&lt;(bool, Arc&lt;QueryModuleResolution&gt;)&gt; {
+    <span class="kw">let </span>is_unit = resolution.target().max_s() == <span class="number">1 </span>&amp;&amp; resolution.target().module(<span class="number">0</span>).is_unit();
 
-    <span class="kw">let</span> <span class="ident">unit</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">is_unit</span> {
-        <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">resolution</span>)
-    } <span class="kw">else</span> {
-        <span class="kw">let</span> <span class="ident">save_dir</span> <span class="op">=</span> <span class="ident">query::optional</span>(<span class="string">&quot;Unit save directory&quot;</span>, <span class="op">|</span><span class="ident">x</span><span class="op">|</span> {
-            <span class="ident">core::result::Result</span>::<span class="op">&lt;</span><span class="ident">PathBuf</span>, <span class="ident">std::convert::Infallible</span><span class="op">&gt;</span><span class="ident">::Ok</span>(<span class="ident">PathBuf::from</span>(<span class="ident">x</span>))
+    <span class="kw">let </span>unit = <span class="kw">if </span>is_unit {
+        Arc::clone(<span class="kw-2">&amp;</span>resolution)
+    } <span class="kw">else </span>{
+        <span class="kw">let </span>save_dir = query::optional(<span class="string">&quot;Unit save directory&quot;</span>, |x| {
+            core::result::Result::&lt;PathBuf, std::convert::Infallible&gt;::Ok(PathBuf::from(x))
         });
 
-        <span class="kw">let</span> <span class="ident">algebra</span> <span class="op">=</span> <span class="ident">resolution</span>.<span class="ident">algebra</span>();
-        <span class="kw">let</span> <span class="ident">module</span> <span class="op">=</span> <span class="ident">FDModule::new</span>(
-            <span class="ident">algebra</span>,
-            <span class="ident">String::from</span>(<span class="string">&quot;unit&quot;</span>),
-            <span class="ident">bivec::BiVec::from_vec</span>(<span class="number">0</span>, <span class="macro">vec!</span>[<span class="number">1</span>]),
+        <span class="kw">let </span>algebra = resolution.algebra();
+        <span class="kw">let </span>module = FDModule::new(
+            algebra,
+            String::from(<span class="string">&quot;unit&quot;</span>),
+            bivec::BiVec::from_vec(<span class="number">0</span>, <span class="macro">vec!</span>[<span class="number">1</span>]),
         );
 
-        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;nassau&quot;</span>)]</span>
-        {
-            <span class="ident">Arc::new</span>(<span class="ident"><span class="kw">crate</span>::nassau::Resolution::new_with_save</span>(
-                <span class="ident">Arc::new</span>(<span class="ident">module</span>),
-                <span class="ident">save_dir</span>,
+        <span class="attribute">#[cfg(feature = <span class="string">&quot;nassau&quot;</span>)]
+        </span>{
+            Arc::new(<span class="kw">crate</span>::nassau::Resolution::new_with_save(
+                Arc::new(module),
+                save_dir,
             )<span class="question-mark">?</span>)
         }
 
-        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;nassau&quot;</span>))]</span>
-        {
-            <span class="kw">let</span> <span class="ident">cc</span> <span class="op">=</span> <span class="ident">FiniteChainComplex::ccdz</span>(<span class="ident">Arc::new</span>(<span class="ident">Box::new</span>(<span class="ident">module</span>) <span class="kw">as</span> <span class="ident">SteenrodModule</span>));
-            <span class="ident">Arc::new</span>(<span class="ident">Resolution::new_with_save</span>(<span class="ident">Arc::new</span>(<span class="ident">cc</span>), <span class="ident">save_dir</span>)<span class="question-mark">?</span>)
+        <span class="attribute">#[cfg(not(feature = <span class="string">&quot;nassau&quot;</span>))]
+        </span>{
+            <span class="kw">let </span>cc = FiniteChainComplex::ccdz(Arc::new(Box::new(module) <span class="kw">as </span>SteenrodModule));
+            Arc::new(Resolution::new_with_save(Arc::new(cc), save_dir)<span class="question-mark">?</span>)
         }
     };
 
-    <span class="prelude-val">Ok</span>((<span class="ident">is_unit</span>, <span class="ident">unit</span>))
+    <span class="prelude-val">Ok</span>((is_unit, unit))
 }
 
-<span class="doccomment">/// Given a function `f(s, t)`, compute it for every `s` in `[min_s, max_s]` and every `t` in</span>
-<span class="doccomment">/// `[min_t, max_t(s)]`.  Further, we only compute `f(s, t)` when `f(s - 1, t&#39;)` has been computed</span>
-<span class="doccomment">/// for all `t&#39; &lt; t`.</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// The function `f` should return a range starting from t and ending at the largest `T` such that</span>
-<span class="doccomment">/// `f(s, t&#39;)` has already been computed for every `t&#39; &lt; T`.</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// While `iter_s_t` could have had kept track of that data, it is usually the case that `f` would</span>
-<span class="doccomment">/// compute something and write it to a `OnceBiVec`, and</span>
-<span class="doccomment">/// [`OnceBiVec::push_ooo`](once::OnceBiVec::push_ooo) would return this range for us.</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// This uses [`rayon`] under the hood, and `f` should feel free to use further rayon parallelism.</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// # Arguments:</span>
-<span class="doccomment">///  - `max_s`: This is exclusive</span>
-<span class="doccomment">///  - `max_t`: This is exclusive</span>
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;concurrent&quot;</span>)]</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">iter_s_t</span>(
-    <span class="ident">f</span>: <span class="kw-2">&amp;</span>(<span class="kw">impl</span> <span class="ident">Fn</span>(<span class="ident">u32</span>, <span class="ident">i32</span>) -&gt; <span class="ident">std::ops::Range</span><span class="op">&lt;</span><span class="ident">i32</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Sync</span>),
-    <span class="ident">min_s</span>: <span class="ident">u32</span>,
-    <span class="ident">min_t</span>: <span class="ident">i32</span>,
-    <span class="ident">max_s</span>: <span class="ident">u32</span>,
-    <span class="ident">max_t</span>: <span class="kw-2">&amp;</span>(<span class="kw">impl</span> <span class="ident">Fn</span>(<span class="ident">u32</span>) -&gt; <span class="ident">i32</span> <span class="op">+</span> <span class="ident">Sync</span>),
+<span class="doccomment">/// Given a function `f(s, t)`, compute it for every `s` in `[min_s, max_s]` and every `t` in
+/// `[min_t, max_t(s)]`.  Further, we only compute `f(s, t)` when `f(s - 1, t&#39;)` has been computed
+/// for all `t&#39; &lt; t`.
+///
+/// The function `f` should return a range starting from t and ending at the largest `T` such that
+/// `f(s, t&#39;)` has already been computed for every `t&#39; &lt; T`.
+///
+/// While `iter_s_t` could have had kept track of that data, it is usually the case that `f` would
+/// compute something and write it to a `OnceBiVec`, and
+/// [`OnceBiVec::push_ooo`](once::OnceBiVec::push_ooo) would return this range for us.
+///
+/// This uses [`rayon`] under the hood, and `f` should feel free to use further rayon parallelism.
+///
+/// # Arguments:
+///  - `max_s`: This is exclusive
+///  - `max_t`: This is exclusive
+</span><span class="attribute">#[cfg(feature = <span class="string">&quot;concurrent&quot;</span>)]
+</span><span class="kw">pub fn </span>iter_s_t(
+    f: <span class="kw-2">&amp;</span>(<span class="kw">impl </span>Fn(u32, i32) -&gt; std::ops::Range&lt;i32&gt; + Sync),
+    min_s: u32,
+    min_t: i32,
+    max_s: u32,
+    max_t: <span class="kw-2">&amp;</span>(<span class="kw">impl </span>Fn(u32) -&gt; i32 + Sync),
 ) {
-    <span class="kw">use</span> <span class="ident">rayon::prelude</span>::<span class="kw-2">*</span>;
+    <span class="kw">use </span>rayon::prelude::<span class="kw-2">*</span>;
 
-    <span class="ident">rayon::scope</span>(<span class="op">|</span><span class="ident">scope</span><span class="op">|</span> {
-        <span class="comment">// Rust does not support recursive closures, so we have to pass everything along as</span>
-        <span class="comment">// arguments.</span>
-        <span class="kw">fn</span> <span class="ident">run</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>(
-            <span class="ident">scope</span>: <span class="kw-2">&amp;</span><span class="ident">rayon::Scope</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>,
-            <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> (<span class="kw">impl</span> <span class="ident">Fn</span>(<span class="ident">u32</span>, <span class="ident">i32</span>) -&gt; <span class="ident">std::ops::Range</span><span class="op">&lt;</span><span class="ident">i32</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;a</span>),
-            <span class="ident">max_s</span>: <span class="ident">u32</span>,
-            <span class="ident">max_t</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> (<span class="kw">impl</span> <span class="ident">Fn</span>(<span class="ident">u32</span>) -&gt; <span class="ident">i32</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;a</span>),
-            <span class="ident">s</span>: <span class="ident">u32</span>,
-            <span class="ident">t</span>: <span class="ident">i32</span>,
+    rayon::scope(|scope| {
+        <span class="comment">// Rust does not support recursive closures, so we have to pass everything along as
+        // arguments.
+        </span><span class="kw">fn </span>run&lt;<span class="lifetime">&#39;a</span>&gt;(
+            scope: <span class="kw-2">&amp;</span>rayon::Scope&lt;<span class="lifetime">&#39;a</span>&gt;,
+            f: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>(<span class="kw">impl </span>Fn(u32, i32) -&gt; std::ops::Range&lt;i32&gt; + Sync + <span class="lifetime">&#39;a</span>),
+            max_s: u32,
+            max_t: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>(<span class="kw">impl </span>Fn(u32) -&gt; i32 + Sync + <span class="lifetime">&#39;a</span>),
+            s: u32,
+            t: i32,
         ) {
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ret</span> <span class="op">=</span> <span class="ident">f</span>(<span class="ident">s</span>, <span class="ident">t</span>);
-            <span class="kw">if</span> <span class="ident">s</span> <span class="op">+</span> <span class="number">1</span> <span class="op">&lt;</span> <span class="ident">max_s</span> {
-                <span class="ident">ret</span>.<span class="ident">start</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
-                <span class="ident">ret</span>.<span class="ident">end</span> <span class="op">=</span> <span class="ident">std::cmp::min</span>(<span class="ident">ret</span>.<span class="ident">end</span> <span class="op">+</span> <span class="number">1</span>, <span class="ident">max_t</span>(<span class="ident">s</span> <span class="op">+</span> <span class="number">1</span>));
+            <span class="kw">let </span><span class="kw-2">mut </span>ret = f(s, t);
+            <span class="kw">if </span>s + <span class="number">1 </span>&lt; max_s {
+                ret.start += <span class="number">1</span>;
+                ret.end = std::cmp::min(ret.end + <span class="number">1</span>, max_t(s + <span class="number">1</span>));
 
-                <span class="kw">if</span> <span class="op">!</span><span class="ident">ret</span>.<span class="ident">is_empty</span>() {
-                    <span class="comment">// We spawn a new scope to avoid recursion, which may blow the stack</span>
-                    <span class="ident">scope</span>.<span class="ident">spawn</span>(<span class="kw">move</span> <span class="op">|</span><span class="ident">scope</span><span class="op">|</span> {
-                        <span class="ident">ret</span>.<span class="ident">into_par_iter</span>()
-                            .<span class="ident">for_each</span>(<span class="op">|</span><span class="ident">t</span><span class="op">|</span> <span class="ident">run</span>(<span class="ident">scope</span>, <span class="ident">f</span>, <span class="ident">max_s</span>, <span class="ident">max_t</span>, <span class="ident">s</span> <span class="op">+</span> <span class="number">1</span>, <span class="ident">t</span>));
+                <span class="kw">if </span>!ret.is_empty() {
+                    <span class="comment">// We spawn a new scope to avoid recursion, which may blow the stack
+                    </span>scope.spawn(<span class="kw">move </span>|scope| {
+                        ret.into_par_iter()
+                            .for_each(|t| run(scope, f, max_s, max_t, s + <span class="number">1</span>, t));
                     });
                 }
             }
         }
 
-        <span class="ident">rayon::join</span>(
-            <span class="op">|</span><span class="op">|</span> {
-                (<span class="ident">min_t</span>..<span class="ident">max_t</span>(<span class="ident">min_s</span>))
-                    .<span class="ident">into_par_iter</span>()
-                    .<span class="ident">for_each</span>(<span class="op">|</span><span class="ident">t</span><span class="op">|</span> <span class="ident">run</span>(<span class="kw-2">&amp;</span><span class="ident">scope</span>, <span class="ident">f</span>, <span class="ident">max_s</span>, <span class="ident">max_t</span>, <span class="ident">min_s</span>, <span class="ident">t</span>))
+        rayon::join(
+            || {
+                (min_t..max_t(min_s))
+                    .into_par_iter()
+                    .for_each(|t| run(scope, f, max_s, max_t, min_s, t))
             },
-            <span class="op">|</span><span class="op">|</span> {
-                (<span class="ident">min_s</span> <span class="op">+</span> <span class="number">1</span>..<span class="ident">max_s</span>)
-                    .<span class="ident">into_par_iter</span>()
-                    .<span class="ident">for_each</span>(<span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="ident">run</span>(<span class="kw-2">&amp;</span><span class="ident">scope</span>, <span class="ident">f</span>, <span class="ident">max_s</span>, <span class="ident">max_t</span>, <span class="ident">s</span>, <span class="ident">min_t</span>))
+            || {
+                (min_s + <span class="number">1</span>..max_s)
+                    .into_par_iter()
+                    .for_each(|s| run(scope, f, max_s, max_t, s, min_t))
             },
         );
     });
 }
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;logging&quot;</span>)]</span>
-<span class="kw">mod</span> <span class="ident">logging</span> {
-    <span class="kw">use</span> <span class="ident">std::io::Write</span>;
-    <span class="kw">use</span> <span class="ident">std::time::Instant</span>;
+<span class="attribute">#[cfg(feature = <span class="string">&quot;logging&quot;</span>)]
+</span><span class="kw">mod </span>logging {
+    <span class="kw">use </span>std::io::Write;
+    <span class="kw">use </span>std::time::Instant;
 
-    <span class="doccomment">/// If the `logging` feature is enabled, this can be used to time how long an operation takes.</span>
-    <span class="doccomment">/// If the `logging` features is disabled, this is a no-op.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// # Example</span>
-    <span class="doccomment">/// ```</span>
-    <span class="doccomment">/// # use logging::Timer;</span>
-    <span class="doccomment">/// let timer = Timer::start();</span>
-    <span class="doccomment">/// // slow_function();</span>
-    <span class="doccomment">/// timer.end(format_args!(&quot;Ran slow_function&quot;));</span>
-    <span class="doccomment">/// ```</span>
-    <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Timer</span>(<span class="ident">Instant</span>);
+    <span class="doccomment">/// If the `logging` feature is enabled, this can be used to time how long an operation takes.
+    /// If the `logging` features is disabled, this is a no-op.
+    ///
+    /// # Example
+    /// ```
+    /// # use logging::Timer;
+    /// let timer = Timer::start();
+    /// // slow_function();
+    /// timer.end(format_args!(&quot;Ran slow_function&quot;));
+    /// ```
+    </span><span class="kw">pub struct </span>Timer(Instant);
 
-    <span class="kw">impl</span> <span class="ident">Timer</span> {
-        <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">start</span>() -&gt; <span class="self">Self</span> {
-            <span class="self">Self</span>(<span class="ident">Instant::now</span>())
+    <span class="kw">impl </span>Timer {
+        <span class="kw">pub fn </span>start() -&gt; <span class="self">Self </span>{
+            <span class="self">Self</span>(Instant::now())
         }
 
-        <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">end</span>(<span class="self">self</span>, <span class="ident">msg</span>: <span class="ident">std::fmt::Arguments</span>) {
-            <span class="kw">let</span> <span class="ident">duration</span> <span class="op">=</span> <span class="self">self</span>.<span class="number">0</span>.<span class="ident">elapsed</span>();
+        <span class="kw">pub fn </span>end(<span class="self">self</span>, msg: std::fmt::Arguments) {
+            <span class="kw">let </span>duration = <span class="self">self</span>.<span class="number">0</span>.elapsed();
             <span class="macro">eprintln!</span>(
                 <span class="string">&quot;[{:&gt;6}.{:&gt;06} s] {msg}&quot;</span>,
-                <span class="ident">duration</span>.<span class="ident">as_secs</span>(),
-                <span class="ident">duration</span>.<span class="ident">subsec_micros</span>(),
+                duration.as_secs(),
+                duration.subsec_micros(),
             );
         }
     }
 
-    <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">LogWriter</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
-        <span class="ident">writer</span>: <span class="ident">T</span>,
-        <span class="ident">bytes</span>: <span class="ident">u64</span>,
-        <span class="ident">timer</span>: <span class="ident">Timer</span>,
+    <span class="kw">pub struct </span>LogWriter&lt;T&gt; {
+        writer: T,
+        bytes: u64,
+        timer: Timer,
     }
 
-    <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Write</span><span class="op">&gt;</span> <span class="ident">Write</span> <span class="kw">for</span> <span class="ident">LogWriter</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
-        <span class="kw">fn</span> <span class="ident">write</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">buf</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) -&gt; <span class="ident">std::io::Result</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span> {
-            <span class="kw">let</span> <span class="ident">written</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">writer</span>.<span class="ident">write</span>(<span class="ident">buf</span>)<span class="question-mark">?</span>;
-            <span class="self">self</span>.<span class="ident">bytes</span> <span class="op">+</span><span class="op">=</span> <span class="ident">written</span> <span class="kw">as</span> <span class="ident">u64</span>;
-            <span class="prelude-val">Ok</span>(<span class="ident">written</span>)
+    <span class="kw">impl</span>&lt;T: Write&gt; Write <span class="kw">for </span>LogWriter&lt;T&gt; {
+        <span class="kw">fn </span>write(<span class="kw-2">&amp;mut </span><span class="self">self</span>, buf: <span class="kw-2">&amp;</span>[u8]) -&gt; std::io::Result&lt;usize&gt; {
+            <span class="kw">let </span>written = <span class="self">self</span>.writer.write(buf)<span class="question-mark">?</span>;
+            <span class="self">self</span>.bytes += written <span class="kw">as </span>u64;
+            <span class="prelude-val">Ok</span>(written)
         }
 
-        <span class="kw">fn</span> <span class="ident">flush</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) -&gt; <span class="ident">std::io::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-            <span class="self">self</span>.<span class="ident">writer</span>.<span class="ident">flush</span>()
+        <span class="kw">fn </span>flush(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; std::io::Result&lt;()&gt; {
+            <span class="self">self</span>.writer.flush()
         }
     }
 
-    <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="ident">LogWriter</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
-        <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">writer</span>: <span class="ident">T</span>) -&gt; <span class="self">Self</span> {
-            <span class="ident">LogWriter</span> {
-                <span class="ident">writer</span>,
-                <span class="ident">bytes</span>: <span class="number">0</span>,
-                <span class="ident">timer</span>: <span class="ident">Timer::start</span>(),
+    <span class="kw">impl</span>&lt;T&gt; LogWriter&lt;T&gt; {
+        <span class="kw">pub fn </span>new(writer: T) -&gt; <span class="self">Self </span>{
+            LogWriter {
+                writer,
+                bytes: <span class="number">0</span>,
+                timer: Timer::start(),
             }
         }
     }
 
-    <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Write</span><span class="op">&gt;</span> <span class="ident">LogWriter</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
-        <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">finalize</span>(<span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">msg</span>: <span class="ident">std::fmt::Arguments</span>) {
-            <span class="self">self</span>.<span class="ident">writer</span>.<span class="ident">flush</span>().<span class="ident">unwrap</span>();
-            <span class="kw">let</span> <span class="ident">duration</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">timer</span>.<span class="number">0</span>.<span class="ident">elapsed</span>();
-            <span class="kw">let</span> <span class="ident">mib</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">bytes</span> <span class="kw">as</span> <span class="ident">f64</span> <span class="op">/</span> (<span class="number">1024</span> <span class="op">*</span> <span class="number">1024</span>) <span class="kw">as</span> <span class="ident">f64</span>;
-            <span class="kw">let</span> <span class="ident">mib_per_second</span> <span class="op">=</span> <span class="ident">mib</span> <span class="op">/</span> <span class="ident">duration</span>.<span class="ident">as_secs_f64</span>();
-            <span class="self">self</span>.<span class="ident">timer</span>
-                .<span class="ident">end</span>(<span class="macro">format_args!</span>(<span class="string">&quot;[{mib_per_second:&gt;9.3} MiB/s] {msg}&quot;</span>));
+    <span class="kw">impl</span>&lt;T: Write&gt; LogWriter&lt;T&gt; {
+        <span class="kw">pub fn </span>finalize(<span class="kw-2">mut </span><span class="self">self</span>, msg: std::fmt::Arguments) {
+            <span class="self">self</span>.writer.flush().unwrap();
+            <span class="kw">let </span>duration = <span class="self">self</span>.timer.<span class="number">0</span>.elapsed();
+            <span class="kw">let </span>mib = <span class="self">self</span>.bytes <span class="kw">as </span>f64 / (<span class="number">1024 </span>* <span class="number">1024</span>) <span class="kw">as </span>f64;
+            <span class="kw">let </span>mib_per_second = mib / duration.as_secs_f64();
+            <span class="self">self</span>.timer
+                .end(<span class="macro">format_args!</span>(<span class="string">&quot;[{mib_per_second:&gt;9.3} MiB/s] {msg}&quot;</span>));
         }
     }
 }
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;logging&quot;</span>))]</span>
-<span class="kw">mod</span> <span class="ident">logging</span> {
-    <span class="kw">use</span> <span class="ident">std::io::Write</span>;
+<span class="attribute">#[cfg(not(feature = <span class="string">&quot;logging&quot;</span>))]
+</span><span class="kw">mod </span>logging {
+    <span class="kw">use </span>std::io::Write;
 
-    <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Timer</span>;
+    <span class="kw">pub struct </span>Timer;
 
-    <span class="kw">impl</span> <span class="ident">Timer</span> {
-        <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">start</span>() -&gt; <span class="self">Self</span> {
-            <span class="self">Self</span> {}
+    <span class="kw">impl </span>Timer {
+        <span class="kw">pub fn </span>start() -&gt; <span class="self">Self </span>{
+            <span class="self">Self </span>{}
         }
 
-        <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">end</span>(<span class="self">self</span>, <span class="ident">_msg</span>: <span class="ident">std::fmt::Arguments</span>) {}
+        <span class="kw">pub fn </span>end(<span class="self">self</span>, _msg: std::fmt::Arguments) {}
     }
 
-    <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">LogWriter</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>(<span class="ident">T</span>);
+    <span class="kw">pub struct </span>LogWriter&lt;T&gt;(T);
 
-    <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Write</span><span class="op">&gt;</span> <span class="ident">Write</span> <span class="kw">for</span> <span class="ident">LogWriter</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
-        <span class="kw">fn</span> <span class="ident">write</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">buf</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) -&gt; <span class="ident">std::io::Result</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span> {
-            <span class="self">self</span>.<span class="number">0</span>.<span class="ident">write</span>(<span class="ident">buf</span>)
+    <span class="kw">impl</span>&lt;T: Write&gt; Write <span class="kw">for </span>LogWriter&lt;T&gt; {
+        <span class="kw">fn </span>write(<span class="kw-2">&amp;mut </span><span class="self">self</span>, buf: <span class="kw-2">&amp;</span>[u8]) -&gt; std::io::Result&lt;usize&gt; {
+            <span class="self">self</span>.<span class="number">0</span>.write(buf)
         }
 
-        <span class="kw">fn</span> <span class="ident">flush</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) -&gt; <span class="ident">std::io::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-            <span class="self">self</span>.<span class="number">0</span>.<span class="ident">flush</span>()
+        <span class="kw">fn </span>flush(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; std::io::Result&lt;()&gt; {
+            <span class="self">self</span>.<span class="number">0</span>.flush()
         }
     }
 
-    <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="ident">LogWriter</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
-        <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">writer</span>: <span class="ident">T</span>) -&gt; <span class="self">Self</span> {
-            <span class="ident">LogWriter</span>(<span class="ident">writer</span>)
+    <span class="kw">impl</span>&lt;T&gt; LogWriter&lt;T&gt; {
+        <span class="kw">pub fn </span>new(writer: T) -&gt; <span class="self">Self </span>{
+            LogWriter(writer)
         }
 
-        <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">finalize</span>(<span class="self">self</span>, <span class="ident">_msg</span>: <span class="ident">std::fmt::Arguments</span>) {}
+        <span class="kw">pub fn </span>finalize(<span class="self">self</span>, _msg: std::fmt::Arguments) {}
     }
 }
 
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">logging::LogWriter</span>;
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">logging::Timer</span>;
+<span class="kw">pub use </span>logging::LogWriter;
+<span class="kw">pub use </span>logging::Timer;
 
-<span class="doccomment">/// The value of the SECONDARY_JOB environment variable. This is used for distributing the</span>
-<span class="doccomment">/// `secondary`. If set, only data with `s = SECONDARY_JOB` will be computed. The minimum value of</span>
-<span class="doccomment">/// `s` is the `shift_s` of the [`SecondaryLift`](crate::secondary::SecondaryLift) and the maximum</span>
-<span class="doccomment">/// value (inclusive) is the maximum `s` of the resolution.</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">secondary_job</span>() -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span> {
-    <span class="kw">let</span> <span class="ident">val</span> <span class="op">=</span> <span class="ident">std::env::var</span>(<span class="string">&quot;SECONDARY_JOB&quot;</span>).<span class="ident">ok</span>()<span class="question-mark">?</span>;
-    <span class="kw">let</span> <span class="ident">parsed</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">str::parse</span>(<span class="kw-2">&amp;</span><span class="ident">val</span>).<span class="ident">ok</span>();
-    <span class="kw">if</span> <span class="ident">parsed</span>.<span class="ident">is_none</span>() {
+<span class="doccomment">/// The value of the SECONDARY_JOB environment variable. This is used for distributing the
+/// `secondary`. If set, only data with `s = SECONDARY_JOB` will be computed. The minimum value of
+/// `s` is the `shift_s` of the [`SecondaryLift`](crate::secondary::SecondaryLift) and the maximum
+/// value (inclusive) is the maximum `s` of the resolution.
+</span><span class="kw">pub fn </span>secondary_job() -&gt; <span class="prelude-ty">Option</span>&lt;u32&gt; {
+    <span class="kw">let </span>val = std::env::var(<span class="string">&quot;SECONDARY_JOB&quot;</span>).ok()<span class="question-mark">?</span>;
+    <span class="kw">let </span>parsed: <span class="prelude-ty">Option</span>&lt;u32&gt; = str::parse(<span class="kw-2">&amp;</span>val).ok();
+    <span class="kw">if </span>parsed.is_none() {
         <span class="macro">eprintln!</span>(
-            <span class="string">&quot;Invalid argument for `SECONDARY_JOB`. Expected non-negative integer but found {val}&quot;</span>
-        );
+            <span class="string">&quot;Invalid argument for `SECONDARY_JOB`. Expected non-negative integer but found {val}&quot;
+        </span>);
     }
-    <span class="ident">parsed</span>
+    parsed
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="ext" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0 (a55dd71d5 2022-09-19)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="ext" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0 (897e37553 2022-11-02)" ></div></body></html>

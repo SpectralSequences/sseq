@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `examples/define_module.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>define_module.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled><link rel="stylesheet" type="text/css" href="../../dark.css" disabled><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script><script defer src="../../main.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `examples/define_module.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>define_module.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" href="../../normalize.css"><link rel="stylesheet" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" href="../../ayu.css" disabled><link rel="stylesheet" href="../../dark.css" disabled><link rel="stylesheet" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script><script defer src="../../main.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
 <!-- The loading of KaTeX is deferred to speed up page rendering -->
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.js" integrity="sha384-Bi8OWqMXO1ta+a4EPkZv7bYGIes7C3krGSZoTGNTAnAn5eYQc7IIXrJ/7ck1drAi" crossorigin="anonymous"></script>
 <!-- To automatically render math in text elements, include the auto-render extension: -->
@@ -320,302 +320,302 @@
 <span id="295">295</span>
 <span id="296">296</span>
 <span id="297">297</span>
-</pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">rustc_hash::FxHashMap</span> <span class="kw">as</span> <span class="ident">HashMap</span>;
-<span class="kw">use</span> <span class="ident">std::io</span>::{<span class="ident">stderr</span>, <span class="ident">Write</span>};
-<span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
+</pre><pre class="rust"><code><span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
+<span class="kw">use </span>std::io::{stderr, Write};
+<span class="kw">use </span>std::sync::Arc;
 
-<span class="kw">use</span> <span class="ident">serde_json::json</span>;
-<span class="kw">use</span> <span class="ident">serde_json::Value</span>;
+<span class="kw">use </span>serde_json::json;
+<span class="kw">use </span>serde_json::Value;
 
-<span class="kw">use</span> <span class="ident">algebra::module::FDModule</span>;
-<span class="kw">use</span> <span class="ident">algebra::steenrod_evaluator::SteenrodEvaluator</span>;
-<span class="kw">use</span> <span class="ident">algebra</span>::{<span class="ident">AdemAlgebra</span>, <span class="ident">Algebra</span>, <span class="ident">GeneratedAlgebra</span>};
-<span class="kw">use</span> <span class="ident">bivec::BiVec</span>;
-<span class="kw">use</span> <span class="ident">fp::prime::ValidPrime</span>;
-<span class="kw">use</span> <span class="ident">fp::vector::FpVector</span>;
+<span class="kw">use </span>algebra::module::FDModule;
+<span class="kw">use </span>algebra::steenrod_evaluator::SteenrodEvaluator;
+<span class="kw">use </span>algebra::{AdemAlgebra, Algebra, GeneratedAlgebra};
+<span class="kw">use </span>bivec::BiVec;
+<span class="kw">use </span>fp::prime::ValidPrime;
+<span class="kw">use </span>fp::vector::FpVector;
 
-<span class="kw">use</span> <span class="ident">anyhow::anyhow</span>;
+<span class="kw">use </span>anyhow::anyhow;
 
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_gens</span>() -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span><span class="ident">BiVec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-    <span class="comment">// Query for generators</span>
-    <span class="macro">eprintln!</span>(<span class="string">&quot;Input generators. Press return to finish.&quot;</span>);
-    <span class="ident">stderr</span>().<span class="ident">flush</span>()<span class="question-mark">?</span>;
+<span class="kw">pub fn </span>get_gens() -&gt; anyhow::Result&lt;BiVec&lt;Vec&lt;String&gt;&gt;&gt; {
+    <span class="comment">// Query for generators
+    </span><span class="macro">eprintln!</span>(<span class="string">&quot;Input generators. Press return to finish.&quot;</span>);
+    stderr().flush()<span class="question-mark">?</span>;
 
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">gens</span>: <span class="ident">BiVec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">BiVec::new</span>(<span class="number">0</span>);
-    <span class="kw">loop</span> {
-        <span class="kw">let</span> <span class="ident">gen_deg</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">i32</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">query::optional</span>(<span class="string">&quot;Generator degree&quot;</span>, <span class="ident">str::parse</span>);
-        <span class="kw">if</span> <span class="ident">gen_deg</span>.<span class="ident">is_none</span>() {
+    <span class="kw">let </span><span class="kw-2">mut </span>gens: BiVec&lt;Vec&lt;<span class="kw">_</span>&gt;&gt; = BiVec::new(<span class="number">0</span>);
+    <span class="kw">loop </span>{
+        <span class="kw">let </span>gen_deg: <span class="prelude-ty">Option</span>&lt;i32&gt; = query::optional(<span class="string">&quot;Generator degree&quot;</span>, str::parse);
+        <span class="kw">if </span>gen_deg.is_none() {
             <span class="macro">eprintln!</span>(<span class="string">&quot;This is the list of generators and degrees:&quot;</span>);
-            <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">deg_i_gens</span>) <span class="kw">in</span> <span class="ident">gens</span>.<span class="ident">iter_enum</span>() {
-                <span class="kw">for</span> <span class="ident">gen</span> <span class="kw">in</span> <span class="ident">deg_i_gens</span>.<span class="ident">iter</span>() {
+            <span class="kw">for </span>(i, deg_i_gens) <span class="kw">in </span>gens.iter_enum() {
+                <span class="kw">for </span>gen <span class="kw">in </span>deg_i_gens.iter() {
                     <span class="macro">eprint!</span>(<span class="string">&quot;({i}, {gen}) &quot;</span>);
                 }
             }
             <span class="macro">eprintln!</span>();
-            <span class="kw">if</span> <span class="ident">query::yes_no</span>(<span class="string">&quot;Is it okay?&quot;</span>) {
+            <span class="kw">if </span>query::yes_no(<span class="string">&quot;Is it okay?&quot;</span>) {
                 <span class="kw">break</span>;
-            } <span class="kw">else</span> {
-                <span class="kw">if</span> <span class="ident">query::yes_no</span>(<span class="string">&quot;Start over?&quot;</span>) {
-                    <span class="ident">gens</span> <span class="op">=</span> <span class="ident">BiVec::new</span>(<span class="number">0</span>);
+            } <span class="kw">else </span>{
+                <span class="kw">if </span>query::yes_no(<span class="string">&quot;Start over?&quot;</span>) {
+                    gens = BiVec::new(<span class="number">0</span>);
                 }
                 <span class="kw">continue</span>;
             }
         }
 
-        <span class="kw">let</span> <span class="ident">gen_deg</span> <span class="op">=</span> <span class="ident">gen_deg</span>.<span class="ident">unwrap</span>();
+        <span class="kw">let </span>gen_deg = gen_deg.unwrap();
 
-        <span class="ident">gens</span>.<span class="ident">extend_negative</span>(<span class="ident">gen_deg</span>, <span class="ident">Vec::new</span>());
-        <span class="ident">gens</span>.<span class="ident">extend_with</span>(<span class="ident">gen_deg</span>, <span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">Vec::new</span>());
+        gens.extend_negative(gen_deg, Vec::new());
+        gens.extend_with(gen_deg, |<span class="kw">_</span>| Vec::new());
 
-        <span class="kw">let</span> <span class="ident">gen_name</span> <span class="op">=</span> <span class="ident">query::with_default</span>(
+        <span class="kw">let </span>gen_name = query::with_default(
             <span class="string">&quot;Generator name&quot;</span>,
-            <span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;x{gen_deg}{}&quot;</span>, <span class="ident">gens</span>[<span class="ident">gen_deg</span>].<span class="ident">len</span>()).<span class="ident">replace</span>(<span class="string">&#39;-&#39;</span>, <span class="string">&quot;_&quot;</span>),
-            <span class="op">|</span><span class="ident">x</span><span class="op">|</span> {
-                <span class="kw">match</span> <span class="ident">x</span>.<span class="ident">chars</span>().<span class="ident">next</span>() {
-                    <span class="prelude-val">Some</span>(<span class="ident">a</span>) =&gt; {
-                        <span class="kw">if</span> <span class="op">!</span><span class="ident">a</span>.<span class="ident">is_alphabetic</span>() {
-                            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="string">&quot;variable name must start with a letter&quot;</span>.<span class="ident">to_string</span>());
+            <span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;x{gen_deg}{}&quot;</span>, gens[gen_deg].len()).replace(<span class="string">&#39;-&#39;</span>, <span class="string">&quot;_&quot;</span>),
+            |x| {
+                <span class="kw">match </span>x.chars().next() {
+                    <span class="prelude-val">Some</span>(a) =&gt; {
+                        <span class="kw">if </span>!a.is_alphabetic() {
+                            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="string">&quot;variable name must start with a letter&quot;</span>.to_string());
                         }
                     }
-                    <span class="prelude-val">None</span> =&gt; <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="string">&quot;Variable name cannot be empty&quot;</span>.<span class="ident">to_string</span>()),
+                    <span class="prelude-val">None </span>=&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="string">&quot;Variable name cannot be empty&quot;</span>.to_string()),
                 };
-                <span class="kw">for</span> <span class="ident">c</span> <span class="kw">in</span> <span class="ident">x</span>.<span class="ident">chars</span>() {
-                    <span class="kw">if</span> <span class="op">!</span><span class="ident">c</span>.<span class="ident">is_alphanumeric</span>() <span class="op">&amp;&amp;</span> <span class="ident">c</span> <span class="op">!</span><span class="op">=</span> <span class="string">&#39;_&#39;</span> {
-                        <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="macro">format!</span>(
+                <span class="kw">for </span>c <span class="kw">in </span>x.chars() {
+                    <span class="kw">if </span>!c.is_alphanumeric() &amp;&amp; c != <span class="string">&#39;_&#39; </span>{
+                        <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(
                             <span class="string">&quot;Variable name cannot contain {}. Should be alphanumeric and &#39;_&#39;&quot;</span>,
-                            <span class="ident">c</span>
+                            c
                         ));
                     }
                 }
-                <span class="prelude-val">Ok</span>(<span class="ident">x</span>.<span class="ident">to_string</span>())
+                <span class="prelude-val">Ok</span>(x.to_string())
             },
         );
-        <span class="ident">gens</span>[<span class="ident">gen_deg</span>].<span class="ident">push</span>(<span class="ident">gen_name</span>);
+        gens[gen_deg].push(gen_name);
     }
-    <span class="prelude-val">Ok</span>(<span class="ident">gens</span>)
+    <span class="prelude-val">Ok</span>(gens)
 }
 
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">gens_to_json</span>(<span class="ident">gens</span>: <span class="kw-2">&amp;</span><span class="ident">BiVec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span><span class="op">&gt;</span>) -&gt; <span class="ident">serde_json::Value</span> {
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">gens_json</span> <span class="op">=</span> <span class="macro">json!</span>({});
-    <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">deg_i_gens</span>) <span class="kw">in</span> <span class="ident">gens</span>.<span class="ident">iter_enum</span>() {
-        <span class="kw">for</span> <span class="ident">gen</span> <span class="kw">in</span> <span class="ident">deg_i_gens</span> {
-            <span class="ident">gens_json</span>[<span class="ident">gen</span>] <span class="op">=</span> <span class="macro">json!</span>(<span class="ident">i</span>);
+<span class="kw">pub fn </span>gens_to_json(gens: <span class="kw-2">&amp;</span>BiVec&lt;Vec&lt;String&gt;&gt;) -&gt; serde_json::Value {
+    <span class="kw">let </span><span class="kw-2">mut </span>gens_json = <span class="macro">json!</span>({});
+    <span class="kw">for </span>(i, deg_i_gens) <span class="kw">in </span>gens.iter_enum() {
+        <span class="kw">for </span>gen <span class="kw">in </span>deg_i_gens {
+            gens_json[gen] = <span class="macro">json!</span>(i);
         }
     }
-    <span class="ident">gens_json</span>
+    gens_json
 }
 
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">interactive_module_define_fdmodule</span>(
-    <span class="ident">output_json</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Value</span>,
-    <span class="ident">p</span>: <span class="ident">ValidPrime</span>,
-) -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-    <span class="ident">output_json</span>[<span class="string">&quot;p&quot;</span>] <span class="op">=</span> <span class="ident">Value::from</span>(<span class="kw-2">*</span><span class="ident">p</span>);
-    <span class="kw">let</span> <span class="ident">algebra</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">AdemAlgebra::new</span>(<span class="ident">p</span>, <span class="bool-val">false</span>));
+<span class="kw">pub fn </span>interactive_module_define_fdmodule(
+    output_json: <span class="kw-2">&amp;mut </span>Value,
+    p: ValidPrime,
+) -&gt; anyhow::Result&lt;()&gt; {
+    output_json[<span class="string">&quot;p&quot;</span>] = Value::from(<span class="kw-2">*</span>p);
+    <span class="kw">let </span>algebra = Arc::new(AdemAlgebra::new(p, <span class="bool-val">false</span>));
 
-    <span class="kw">let</span> <span class="ident">gens</span> <span class="op">=</span> <span class="ident">get_gens</span>()<span class="question-mark">?</span>;
-    <span class="kw">let</span> <span class="ident">min_degree</span> <span class="op">=</span> <span class="ident">gens</span>.<span class="ident">min_degree</span>();
-    <span class="kw">let</span> <span class="ident">max_degree</span> <span class="op">=</span> <span class="ident">gens</span>.<span class="ident">len</span>();
+    <span class="kw">let </span>gens = get_gens()<span class="question-mark">?</span>;
+    <span class="kw">let </span>min_degree = gens.min_degree();
+    <span class="kw">let </span>max_degree = gens.len();
 
-    <span class="ident">algebra</span>.<span class="ident">compute_basis</span>(<span class="ident">max_degree</span> <span class="op">-</span> <span class="ident">min_degree</span>);
+    algebra.compute_basis(max_degree - min_degree);
 
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">graded_dim</span> <span class="op">=</span> <span class="ident">BiVec::with_capacity</span>(<span class="ident">min_degree</span>, <span class="ident">max_degree</span>);
-    <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="ident">gens</span>.<span class="ident">iter</span>().<span class="ident">map</span>(<span class="ident">Vec::len</span>) {
-        <span class="ident">graded_dim</span>.<span class="ident">push</span>(<span class="ident">i</span>);
+    <span class="kw">let </span><span class="kw-2">mut </span>graded_dim = BiVec::with_capacity(min_degree, max_degree);
+    <span class="kw">for </span>i <span class="kw">in </span>gens.iter().map(Vec::len) {
+        graded_dim.push(i);
     }
 
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">module</span> <span class="op">=</span> <span class="ident">FDModule::new</span>(<span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">algebra</span>), <span class="ident">String::new</span>(), <span class="ident">graded_dim</span>);
+    <span class="kw">let </span><span class="kw-2">mut </span>module = FDModule::new(Arc::clone(<span class="kw-2">&amp;</span>algebra), String::new(), graded_dim);
 
-    <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">deg_i_gens</span>) <span class="kw">in</span> <span class="ident">gens</span>.<span class="ident">iter_enum</span>() {
-        <span class="kw">for</span> (<span class="ident">j</span>, <span class="ident">gen</span>) <span class="kw">in</span> <span class="ident">deg_i_gens</span>.<span class="ident">iter</span>().<span class="ident">enumerate</span>() {
-            <span class="ident">module</span>.<span class="ident">set_basis_element_name</span>(<span class="ident">i</span>, <span class="ident">j</span>, <span class="ident">gen</span>.<span class="ident">to_string</span>());
+    <span class="kw">for </span>(i, deg_i_gens) <span class="kw">in </span>gens.iter_enum() {
+        <span class="kw">for </span>(j, gen) <span class="kw">in </span>deg_i_gens.iter().enumerate() {
+            module.set_basis_element_name(i, j, gen.to_string());
         }
     }
 
     <span class="macro">eprintln!</span>(<span class="string">&quot;Input actions. Write the value of the action in the form &#39;a x0 + b x1 + ...&#39; where a, b are non-negative integers and x0, x1 are names of the generators. The coefficient can be omitted if it is 1&quot;</span>);
 
-    <span class="kw">let</span> <span class="ident">len</span> <span class="op">=</span> <span class="ident">gens</span>.<span class="ident">len</span>();
-    <span class="kw">for</span> <span class="ident">input_deg</span> <span class="kw">in</span> <span class="ident">gens</span>.<span class="ident">range</span>().<span class="ident">rev</span>() {
-        <span class="kw">for</span> <span class="ident">output_deg</span> <span class="kw">in</span> (<span class="ident">input_deg</span> <span class="op">+</span> <span class="number">1</span>)..<span class="ident">len</span> {
-            <span class="kw">let</span> <span class="ident">op_deg</span> <span class="op">=</span> <span class="ident">output_deg</span> <span class="op">-</span> <span class="ident">input_deg</span>;
-            <span class="kw">if</span> <span class="ident">gens</span>[<span class="ident">output_deg</span>].<span class="ident">is_empty</span>() {
+    <span class="kw">let </span>len = gens.len();
+    <span class="kw">for </span>input_deg <span class="kw">in </span>gens.range().rev() {
+        <span class="kw">for </span>output_deg <span class="kw">in </span>(input_deg + <span class="number">1</span>)..len {
+            <span class="kw">let </span>op_deg = output_deg - input_deg;
+            <span class="kw">if </span>gens[output_deg].is_empty() {
                 <span class="kw">continue</span>;
             }
-            <span class="kw">for</span> <span class="ident">op_idx</span> <span class="kw">in</span> <span class="ident">algebra</span>.<span class="ident">generators</span>(<span class="ident">op_deg</span>) {
-                <span class="kw">for</span> <span class="ident">input_idx</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">gens</span>[<span class="ident">input_deg</span>].<span class="ident">len</span>() {
-                    <span class="kw">let</span> <span class="ident">output</span> <span class="op">=</span> <span class="ident">query::raw</span>(
+            <span class="kw">for </span>op_idx <span class="kw">in </span>algebra.generators(op_deg) {
+                <span class="kw">for </span>input_idx <span class="kw">in </span><span class="number">0</span>..gens[input_deg].len() {
+                    <span class="kw">let </span>output = query::raw(
                         <span class="kw-2">&amp;</span><span class="macro">format!</span>(
                             <span class="string">&quot;{} {}&quot;</span>,
-                            <span class="ident">algebra</span>.<span class="ident">basis_element_to_string</span>(<span class="ident">op_deg</span>, <span class="ident">op_idx</span>),
-                            <span class="ident">gens</span>[<span class="ident">input_deg</span>][<span class="ident">input_idx</span>]
+                            algebra.basis_element_to_string(op_deg, op_idx),
+                            gens[input_deg][input_idx]
                         ),
-                        <span class="op">|</span><span class="ident">expr</span><span class="op">|</span> {
-                            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="macro">vec!</span>[<span class="number">0</span>; <span class="ident">gens</span>[<span class="ident">output_deg</span>].<span class="ident">len</span>()];
-                            <span class="kw">if</span> <span class="ident">expr</span> <span class="op">==</span> <span class="string">&quot;0&quot;</span> {
-                                <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">result</span>);
+                        |expr| {
+                            <span class="kw">let </span><span class="kw-2">mut </span>result = <span class="macro">vec!</span>[<span class="number">0</span>; gens[output_deg].len()];
+                            <span class="kw">if </span>expr == <span class="string">&quot;0&quot; </span>{
+                                <span class="kw">return </span><span class="prelude-val">Ok</span>(result);
                             }
-                            <span class="kw">for</span> <span class="ident">term</span> <span class="kw">in</span> <span class="ident">expr</span>.<span class="ident">split</span>(<span class="string">&#39;+&#39;</span>) {
-                                <span class="kw">let</span> <span class="ident">term</span> <span class="op">=</span> <span class="ident">term</span>.<span class="ident">trim</span>();
-                                <span class="kw">let</span> (<span class="ident">coef</span>, <span class="ident">gen</span>) <span class="op">=</span> <span class="kw">match</span> <span class="ident">term</span>.<span class="ident">split_once</span>(<span class="string">&#39; &#39;</span>) {
-                                    <span class="prelude-val">Some</span>((<span class="ident">coef</span>, <span class="ident">gen</span>)) =&gt; (<span class="ident">str::parse</span>::<span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span>(<span class="ident">coef</span>)<span class="question-mark">?</span>, <span class="ident">gen</span>),
-                                    <span class="prelude-val">None</span> =&gt; (<span class="number">1</span>, <span class="ident">term</span>),
+                            <span class="kw">for </span>term <span class="kw">in </span>expr.split(<span class="string">&#39;+&#39;</span>) {
+                                <span class="kw">let </span>term = term.trim();
+                                <span class="kw">let </span>(coef, gen) = <span class="kw">match </span>term.split_once(<span class="string">&#39; &#39;</span>) {
+                                    <span class="prelude-val">Some</span>((coef, gen)) =&gt; (str::parse::&lt;u32&gt;(coef)<span class="question-mark">?</span>, gen),
+                                    <span class="prelude-val">None </span>=&gt; (<span class="number">1</span>, term),
                                 };
 
-                                <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">gen_idx</span>) <span class="op">=</span>
-                                    <span class="ident">gens</span>[<span class="ident">output_deg</span>].<span class="ident">iter</span>().<span class="ident">position</span>(<span class="op">|</span><span class="ident">d</span><span class="op">|</span> <span class="ident">d</span> <span class="op">==</span> <span class="ident">gen</span>)
+                                <span class="kw">if let </span><span class="prelude-val">Some</span>(gen_idx) =
+                                    gens[output_deg].iter().position(|d| d == gen)
                                 {
-                                    <span class="ident">result</span>[<span class="ident">gen_idx</span>] <span class="op">+</span><span class="op">=</span> <span class="ident">coef</span>;
-                                } <span class="kw">else</span> {
-                                    <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(
-                                        <span class="string">&quot;No generator {gen} in degree {output_deg}&quot;</span>
-                                    ));
+                                    result[gen_idx] += coef;
+                                } <span class="kw">else </span>{
+                                    <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(
+                                        <span class="string">&quot;No generator {gen} in degree {output_deg}&quot;
+                                    </span>));
                                 }
                             }
 
-                            <span class="prelude-val">Ok</span>(<span class="ident">result</span>)
+                            <span class="prelude-val">Ok</span>(result)
                         },
                     );
 
-                    <span class="ident">module</span>.<span class="ident">set_action</span>(<span class="ident">op_deg</span>, <span class="ident">op_idx</span>, <span class="ident">input_deg</span>, <span class="ident">input_idx</span>, <span class="kw-2">&amp;</span><span class="ident">output</span>);
+                    module.set_action(op_deg, op_idx, input_deg, input_idx, <span class="kw-2">&amp;</span>output);
                 }
             }
-            <span class="ident">module</span>.<span class="ident">extend_actions</span>(<span class="ident">input_deg</span>, <span class="ident">output_deg</span>);
-            <span class="ident">module</span>.<span class="ident">check_validity</span>(<span class="ident">input_deg</span>, <span class="ident">output_deg</span>)<span class="question-mark">?</span>;
+            module.extend_actions(input_deg, output_deg);
+            module.check_validity(input_deg, output_deg)<span class="question-mark">?</span>;
         }
     }
 
-    <span class="ident">module</span>.<span class="ident">to_json</span>(<span class="ident">output_json</span>);
+    module.to_json(output_json);
     <span class="prelude-val">Ok</span>(())
 }
 
-<span class="doccomment">/// Given a string representation of an element in an algebra together with a generator, multiply</span>
-<span class="doccomment">/// each term on the right with the generator.</span>
-<span class="kw">fn</span> <span class="ident">replace</span>(<span class="ident">algebra_elt</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>, <span class="ident">gen</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) -&gt; <span class="ident">String</span> {
-    <span class="ident">algebra_elt</span>.<span class="ident">replace</span>(<span class="string">&#39;+&#39;</span>, <span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;{gen} +&quot;</span>)) <span class="op">+</span> <span class="string">&quot; &quot;</span> <span class="op">+</span> <span class="ident">gen</span>
+<span class="doccomment">/// Given a string representation of an element in an algebra together with a generator, multiply
+/// each term on the right with the generator.
+</span><span class="kw">fn </span>replace(algebra_elt: <span class="kw-2">&amp;</span>str, gen: <span class="kw-2">&amp;</span>str) -&gt; String {
+    algebra_elt.replace(<span class="string">&#39;+&#39;</span>, <span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;{gen} +&quot;</span>)) + <span class="string">&quot; &quot; </span>+ gen
 }
 
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">interactive_module_define_fpmodule</span>(
-    <span class="ident">output_json</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Value</span>,
-    <span class="ident">p</span>: <span class="ident">ValidPrime</span>,
-) -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-    <span class="kw">let</span> <span class="ident">gens</span> <span class="op">=</span> <span class="ident">get_gens</span>()<span class="question-mark">?</span>;
-    <span class="kw">let</span> <span class="ident">min_degree</span> <span class="op">=</span> <span class="ident">gens</span>.<span class="ident">min_degree</span>();
-    <span class="kw">let</span> <span class="ident">max_degree</span> <span class="op">=</span> <span class="ident">gens</span>.<span class="ident">len</span>();
+<span class="kw">pub fn </span>interactive_module_define_fpmodule(
+    output_json: <span class="kw-2">&amp;mut </span>Value,
+    p: ValidPrime,
+) -&gt; anyhow::Result&lt;()&gt; {
+    <span class="kw">let </span>gens = get_gens()<span class="question-mark">?</span>;
+    <span class="kw">let </span>min_degree = gens.min_degree();
+    <span class="kw">let </span>max_degree = gens.len();
 
-    <span class="kw">let</span> <span class="ident">ev</span> <span class="op">=</span> <span class="ident">SteenrodEvaluator::new</span>(<span class="ident">p</span>);
+    <span class="kw">let </span>ev = SteenrodEvaluator::new(p);
 
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">graded_dim</span> <span class="op">=</span> <span class="ident">BiVec::with_capacity</span>(<span class="ident">min_degree</span>, <span class="ident">max_degree</span>);
-    <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="ident">gens</span>.<span class="ident">iter</span>().<span class="ident">map</span>(<span class="ident">Vec::len</span>) {
-        <span class="ident">graded_dim</span>.<span class="ident">push</span>(<span class="ident">i</span>);
+    <span class="kw">let </span><span class="kw-2">mut </span>graded_dim = BiVec::with_capacity(min_degree, max_degree);
+    <span class="kw">for </span>i <span class="kw">in </span>gens.iter().map(Vec::len) {
+        graded_dim.push(i);
     }
 
     <span class="macro">eprintln!</span>(<span class="string">&quot;Input relations&quot;</span>);
-    <span class="kw">match</span> <span class="kw-2">*</span><span class="ident">p</span> {
-        <span class="number">2</span> =&gt; <span class="macro">eprintln!</span>(<span class="string">&quot;Write relations in the form &#39;Sq6 * Sq2 * x + Sq7 * y&#39;&quot;</span>),
-        <span class="kw">_</span> =&gt; <span class="macro">eprintln!</span>(<span class="string">&quot;Write relations in the form &#39;Q5 * P(5) * x + 2 * P(1, 3) * Q2 * y&#39;, where P(...) and Qi are Milnor basis elements.&quot;</span>),
+    <span class="kw">match </span><span class="kw-2">*</span>p {
+        <span class="number">2 </span>=&gt; <span class="macro">eprintln!</span>(<span class="string">&quot;Write relations in the form &#39;Sq6 * Sq2 * x + Sq7 * y&#39;&quot;</span>),
+        <span class="kw">_ </span>=&gt; <span class="macro">eprintln!</span>(<span class="string">&quot;Write relations in the form &#39;Q5 * P(5) * x + 2 * P(1, 3) * Q2 * y&#39;, where P(...) and Qi are Milnor basis elements.&quot;</span>),
     }
 
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">degree_lookup</span> <span class="op">=</span> <span class="ident">HashMap::default</span>();
-    <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">deg_i_gens</span>) <span class="kw">in</span> <span class="ident">gens</span>.<span class="ident">iter_enum</span>() {
-        <span class="kw">for</span> <span class="ident">gen</span> <span class="kw">in</span> <span class="ident">deg_i_gens</span>.<span class="ident">iter</span>() {
-            <span class="ident">degree_lookup</span>.<span class="ident">insert</span>(<span class="ident">gen</span>.<span class="ident">clone</span>(), <span class="ident">i</span>);
+    <span class="kw">let </span><span class="kw-2">mut </span>degree_lookup = HashMap::default();
+    <span class="kw">for </span>(i, deg_i_gens) <span class="kw">in </span>gens.iter_enum() {
+        <span class="kw">for </span>gen <span class="kw">in </span>deg_i_gens.iter() {
+            degree_lookup.insert(gen.clone(), i);
         }
     }
 
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">adem_relations</span> <span class="op">=</span> <span class="ident">Vec::new</span>();
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">milnor_relations</span> <span class="op">=</span> <span class="ident">Vec::new</span>();
+    <span class="kw">let </span><span class="kw-2">mut </span>adem_relations = Vec::new();
+    <span class="kw">let </span><span class="kw-2">mut </span>milnor_relations = Vec::new();
 
-    <span class="kw">loop</span> {
-        <span class="kw">let</span> <span class="ident">relation</span> <span class="op">=</span> <span class="ident">query::raw</span>(<span class="string">&quot;Enter relation&quot;</span>, <span class="op">|</span><span class="ident">rel</span><span class="op">|</span> {
-            <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">ev</span>.<span class="ident">evaluate_module_adem</span>(<span class="ident">rel</span>)<span class="question-mark">?</span>;
+    <span class="kw">loop </span>{
+        <span class="kw">let </span>relation = query::raw(<span class="string">&quot;Enter relation&quot;</span>, |rel| {
+            <span class="kw">let </span>result = ev.evaluate_module_adem(rel)<span class="question-mark">?</span>;
 
-            <span class="kw">if</span> <span class="ident">result</span>.<span class="ident">is_empty</span>() {
-                <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">result</span>);
+            <span class="kw">if </span>result.is_empty() {
+                <span class="kw">return </span><span class="prelude-val">Ok</span>(result);
             }
 
-            <span class="comment">// Check that the generators exist and the terms all have the same degree</span>
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">deg</span> <span class="op">=</span> <span class="prelude-val">None</span>;
-            <span class="kw">for</span> (<span class="ident">gen</span>, (<span class="ident">op_deg</span>, <span class="kw">_</span>)) <span class="kw">in</span> <span class="ident">result</span>.<span class="ident">iter</span>() {
-                <span class="kw">let</span> <span class="ident">cur_deg</span> <span class="op">=</span> <span class="ident">op_deg</span>
-                    <span class="op">+</span> <span class="ident">degree_lookup</span>
-                        .<span class="ident">get</span>(<span class="ident">gen</span>)
-                        .<span class="ident">ok_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="macro">anyhow!</span>(<span class="string">&quot;Unknown generator: {gen}&quot;</span>))<span class="question-mark">?</span>;
-                <span class="kw">if</span> <span class="ident">deg</span>.<span class="ident">is_none</span>() {
-                    <span class="ident">deg</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">cur_deg</span>);
-                } <span class="kw">else</span> <span class="kw">if</span> <span class="ident">deg</span> <span class="op">!</span><span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">cur_deg</span>) {
-                    <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(
+            <span class="comment">// Check that the generators exist and the terms all have the same degree
+            </span><span class="kw">let </span><span class="kw-2">mut </span>deg = <span class="prelude-val">None</span>;
+            <span class="kw">for </span>(gen, (op_deg, <span class="kw">_</span>)) <span class="kw">in </span>result.iter() {
+                <span class="kw">let </span>cur_deg = op_deg
+                    + degree_lookup
+                        .get(gen)
+                        .ok_or_else(|| <span class="macro">anyhow!</span>(<span class="string">&quot;Unknown generator: {gen}&quot;</span>))<span class="question-mark">?</span>;
+                <span class="kw">if </span>deg.is_none() {
+                    deg = <span class="prelude-val">Some</span>(cur_deg);
+                } <span class="kw">else if </span>deg != <span class="prelude-val">Some</span>(cur_deg) {
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(
                         <span class="string">&quot;Relation terms have different degrees: {} and {cur_deg}&quot;</span>,
-                        <span class="ident">deg</span>.<span class="ident">unwrap</span>()
+                        deg.unwrap()
                     ));
                 }
             }
 
-            <span class="prelude-val">Ok</span>(<span class="ident">result</span>)
+            <span class="prelude-val">Ok</span>(result)
         });
 
-        <span class="kw">if</span> <span class="ident">relation</span>.<span class="ident">is_empty</span>() {
+        <span class="kw">if </span>relation.is_empty() {
             <span class="kw">break</span>;
         }
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">adem_relation</span> <span class="op">=</span> <span class="ident">String::new</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">milnor_relation</span> <span class="op">=</span> <span class="ident">String::new</span>();
+        <span class="kw">let </span><span class="kw-2">mut </span>adem_relation = String::new();
+        <span class="kw">let </span><span class="kw-2">mut </span>milnor_relation = String::new();
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">milnor_op</span> <span class="op">=</span> <span class="ident">FpVector::new</span>(<span class="ident">p</span>, <span class="number">0</span>);
-        <span class="kw">for</span> (<span class="ident">gen</span>, (<span class="ident">op_deg</span>, <span class="ident">adem_op</span>)) <span class="kw">in</span> <span class="ident">relation</span>.<span class="ident">iter</span>() {
-            <span class="kw">if</span> <span class="ident">adem_op</span>.<span class="ident">is_zero</span>() {
+        <span class="kw">let </span><span class="kw-2">mut </span>milnor_op = FpVector::new(p, <span class="number">0</span>);
+        <span class="kw">for </span>(gen, (op_deg, adem_op)) <span class="kw">in </span>relation.iter() {
+            <span class="kw">if </span>adem_op.is_zero() {
                 <span class="kw">continue</span>;
             }
-            <span class="kw">if</span> <span class="op">!</span><span class="ident">adem_relation</span>.<span class="ident">is_empty</span>() {
-                <span class="ident">adem_relation</span> <span class="op">+</span><span class="op">=</span> <span class="string">&quot; + &quot;</span>;
-                <span class="ident">milnor_relation</span> <span class="op">+</span><span class="op">=</span> <span class="string">&quot; + &quot;</span>;
+            <span class="kw">if </span>!adem_relation.is_empty() {
+                adem_relation += <span class="string">&quot; + &quot;</span>;
+                milnor_relation += <span class="string">&quot; + &quot;</span>;
             }
-            <span class="ident">milnor_op</span>.<span class="ident">set_scratch_vector_size</span>(<span class="ident">adem_op</span>.<span class="ident">len</span>());
-            <span class="ident">ev</span>.<span class="ident">adem_to_milnor</span>(<span class="kw-2">&amp;mut</span> <span class="ident">milnor_op</span>, <span class="number">1</span>, <span class="kw-2">*</span><span class="ident">op_deg</span>, <span class="ident">adem_op</span>);
+            milnor_op.set_scratch_vector_size(adem_op.len());
+            ev.adem_to_milnor(<span class="kw-2">&amp;mut </span>milnor_op, <span class="number">1</span>, <span class="kw-2">*</span>op_deg, adem_op);
 
-            <span class="ident">adem_relation</span> <span class="op">+</span><span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">replace</span>(<span class="kw-2">&amp;</span><span class="ident">ev</span>.<span class="ident">adem</span>.<span class="ident">element_to_string</span>(<span class="kw-2">*</span><span class="ident">op_deg</span>, <span class="ident">adem_op</span>.<span class="ident">as_slice</span>()), <span class="ident">gen</span>);
-            <span class="ident">milnor_relation</span> <span class="op">+</span><span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">replace</span>(
-                <span class="kw-2">&amp;</span><span class="ident">ev</span>.<span class="ident">milnor</span>.<span class="ident">element_to_string</span>(<span class="kw-2">*</span><span class="ident">op_deg</span>, <span class="ident">milnor_op</span>.<span class="ident">as_slice</span>()),
-                <span class="ident">gen</span>,
+            adem_relation += <span class="kw-2">&amp;</span>replace(<span class="kw-2">&amp;</span>ev.adem.element_to_string(<span class="kw-2">*</span>op_deg, adem_op.as_slice()), gen);
+            milnor_relation += <span class="kw-2">&amp;</span>replace(
+                <span class="kw-2">&amp;</span>ev.milnor.element_to_string(<span class="kw-2">*</span>op_deg, milnor_op.as_slice()),
+                gen,
             );
         }
-        <span class="kw">if</span> <span class="op">!</span><span class="ident">adem_relation</span>.<span class="ident">is_empty</span>() {
-            <span class="ident">adem_relations</span>.<span class="ident">push</span>(<span class="ident">Value::String</span>(<span class="ident">adem_relation</span>));
-            <span class="ident">milnor_relations</span>.<span class="ident">push</span>(<span class="ident">Value::String</span>(<span class="ident">milnor_relation</span>));
+        <span class="kw">if </span>!adem_relation.is_empty() {
+            adem_relations.push(Value::String(adem_relation));
+            milnor_relations.push(Value::String(milnor_relation));
         }
     }
 
-    <span class="ident">output_json</span>[<span class="string">&quot;p&quot;</span>] <span class="op">=</span> <span class="ident">Value::from</span>(<span class="kw-2">*</span><span class="ident">p</span>);
-    <span class="ident">output_json</span>[<span class="string">&quot;type&quot;</span>] <span class="op">=</span> <span class="ident">Value::String</span>(<span class="string">&quot;finitely presented module&quot;</span>.<span class="ident">to_owned</span>());
-    <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">deg_i_gens</span>) <span class="kw">in</span> <span class="ident">gens</span>.<span class="ident">iter_enum</span>() {
-        <span class="kw">for</span> <span class="ident">gen</span> <span class="kw">in</span> <span class="ident">deg_i_gens</span> {
-            <span class="ident">output_json</span>[<span class="string">&quot;gens&quot;</span>][<span class="ident">gen</span>] <span class="op">=</span> <span class="ident">Value::from</span>(<span class="ident">i</span>);
+    output_json[<span class="string">&quot;p&quot;</span>] = Value::from(<span class="kw-2">*</span>p);
+    output_json[<span class="string">&quot;type&quot;</span>] = Value::String(<span class="string">&quot;finitely presented module&quot;</span>.to_owned());
+    <span class="kw">for </span>(i, deg_i_gens) <span class="kw">in </span>gens.iter_enum() {
+        <span class="kw">for </span>gen <span class="kw">in </span>deg_i_gens {
+            output_json[<span class="string">&quot;gens&quot;</span>][gen] = Value::from(i);
         }
     }
-    <span class="ident">output_json</span>[<span class="string">&quot;adem_relations&quot;</span>] <span class="op">=</span> <span class="ident">Value::Array</span>(<span class="ident">adem_relations</span>);
-    <span class="ident">output_json</span>[<span class="string">&quot;milnor_relations&quot;</span>] <span class="op">=</span> <span class="ident">Value::Array</span>(<span class="ident">milnor_relations</span>);
+    output_json[<span class="string">&quot;adem_relations&quot;</span>] = Value::Array(adem_relations);
+    output_json[<span class="string">&quot;milnor_relations&quot;</span>] = Value::Array(milnor_relations);
     <span class="prelude-val">Ok</span>(())
 }
 
-<span class="kw">fn</span> <span class="ident">main</span>() -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-    <span class="kw">let</span> <span class="ident">module_type</span> <span class="op">=</span> <span class="ident">query::with_default</span>(
+<span class="kw">fn </span>main() -&gt; anyhow::Result&lt;()&gt; {
+    <span class="kw">let </span>module_type = query::with_default(
         <span class="string">&quot;Input module type (default &#39;finite dimensional module&#39;):\n (fd) - finite dimensional module \n (fp) - finitely presented module\n&quot;</span>,
         <span class="string">&quot;fd&quot;</span>,
-        <span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">x</span> {
-            <span class="string">&quot;fd&quot;</span> <span class="op">|</span> <span class="string">&quot;fp&quot;</span> =&gt; <span class="prelude-val">Ok</span>(<span class="ident">x</span>.<span class="ident">to_string</span>()),
-            <span class="kw">_</span> =&gt; <span class="prelude-val">Err</span>(<span class="macro">format!</span>(<span class="string">&quot;Invalid type &#39;{x}&#39;. Type must be &#39;fd&#39; or &#39;fp&#39;&quot;</span>))
+        |x| <span class="kw">match </span>x {
+            <span class="string">&quot;fd&quot; </span>| <span class="string">&quot;fp&quot; </span>=&gt; <span class="prelude-val">Ok</span>(x.to_string()),
+            <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(<span class="macro">format!</span>(<span class="string">&quot;Invalid type &#39;{x}&#39;. Type must be &#39;fd&#39; or &#39;fp&#39;&quot;</span>))
         }
     );
 
-    <span class="kw">let</span> <span class="ident">p</span>: <span class="ident">ValidPrime</span> <span class="op">=</span> <span class="ident">query::with_default</span>(<span class="string">&quot;p&quot;</span>, <span class="string">&quot;2&quot;</span>, <span class="ident">str::parse</span>);
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">output_json</span> <span class="op">=</span> <span class="macro">json!</span>({});
+    <span class="kw">let </span>p: ValidPrime = query::with_default(<span class="string">&quot;p&quot;</span>, <span class="string">&quot;2&quot;</span>, str::parse);
+    <span class="kw">let </span><span class="kw-2">mut </span>output_json = <span class="macro">json!</span>({});
 
     <span class="macro">eprintln!</span>(<span class="string">&quot;module_type: {module_type}&quot;</span>);
-    <span class="kw">match</span> <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">module_type</span> {
-        <span class="string">&quot;fd&quot;</span> =&gt; <span class="ident">interactive_module_define_fdmodule</span>(<span class="kw-2">&amp;mut</span> <span class="ident">output_json</span>, <span class="ident">p</span>)<span class="question-mark">?</span>,
-        <span class="string">&quot;fp&quot;</span> =&gt; <span class="ident">interactive_module_define_fpmodule</span>(<span class="kw-2">&amp;mut</span> <span class="ident">output_json</span>, <span class="ident">p</span>)<span class="question-mark">?</span>,
-        <span class="kw">_</span> =&gt; <span class="macro">unreachable!</span>(),
+    <span class="kw">match </span><span class="kw-2">&amp;*</span>module_type {
+        <span class="string">&quot;fd&quot; </span>=&gt; interactive_module_define_fdmodule(<span class="kw-2">&amp;mut </span>output_json, p)<span class="question-mark">?</span>,
+        <span class="string">&quot;fp&quot; </span>=&gt; interactive_module_define_fpmodule(<span class="kw-2">&amp;mut </span>output_json, p)<span class="question-mark">?</span>,
+        <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
     }
     <span class="macro">println!</span>(<span class="string">&quot;{output_json}&quot;</span>);
     <span class="prelude-val">Ok</span>(())
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="define_module" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0 (a55dd71d5 2022-09-19)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="define_module" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0 (897e37553 2022-11-02)" ></div></body></html>

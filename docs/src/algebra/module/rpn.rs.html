@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/algebra/src/module/rpn.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>rpn.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../ayu.css" disabled><link rel="stylesheet" type="text/css" href="../../../dark.css" disabled><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../../storage.js"></script><script defer src="../../../source-script.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../main.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../../favicon.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/algebra/src/module/rpn.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>rpn.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" href="../../../normalize.css"><link rel="stylesheet" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" href="../../../ayu.css" disabled><link rel="stylesheet" href="../../../dark.css" disabled><link rel="stylesheet" href="../../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../../storage.js"></script><script defer src="../../../source-script.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../main.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../../favicon.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
 <!-- The loading of KaTeX is deferred to speed up page rendering -->
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.js" integrity="sha384-Bi8OWqMXO1ta+a4EPkZv7bYGIes7C3krGSZoTGNTAnAn5eYQc7IIXrJ/7ck1drAi" crossorigin="anonymous"></script>
 <!-- To automatically render math in text elements, include the auto-render extension: -->
@@ -269,251 +269,251 @@
 <span id="244">244</span>
 <span id="245">245</span>
 <span id="246">246</span>
-</pre><pre class="rust"><code><span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::algebra</span>::{
-    <span class="ident">adem_algebra::AdemBasisElement</span>,
-    <span class="ident">milnor_algebra</span>::{<span class="ident">MilnorBasisElement</span>, <span class="ident">PPartEntry</span>},
-    <span class="ident">AdemAlgebra</span>, <span class="ident">Algebra</span>, <span class="ident">MilnorAlgebra</span>, <span class="ident">SteenrodAlgebra</span>,
+</pre><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::algebra::{
+    adem_algebra::AdemBasisElement,
+    milnor_algebra::{MilnorBasisElement, PPartEntry},
+    AdemAlgebra, Algebra, MilnorAlgebra, SteenrodAlgebra,
 };
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::module</span>::{<span class="ident">Module</span>, <span class="ident">ZeroModule</span>};
-<span class="kw">use</span> <span class="ident">fp::prime</span>::{<span class="ident">Binomial</span>, <span class="ident">TWO</span>};
-<span class="kw">use</span> <span class="ident">fp::vector::SliceMut</span>;
+<span class="kw">use </span><span class="kw">crate</span>::module::{Module, ZeroModule};
+<span class="kw">use </span>fp::prime::{Binomial, TWO};
+<span class="kw">use </span>fp::vector::SliceMut;
 
-<span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
+<span class="kw">use </span>std::sync::Arc;
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;json&quot;</span>)]</span>
-<span class="kw">use</span> {<span class="ident">serde::Deserialize</span>, <span class="ident">serde_json::Value</span>};
+<span class="attribute">#[cfg(feature = <span class="string">&quot;json&quot;</span>)]
+</span><span class="kw">use </span>{serde::Deserialize, serde_json::Value};
 
-<span class="doccomment">/// This is $\mathbb{RP}_{\mathrm{min}}^{\mathrm{max}}$. The cohomology is the subquotient of</span>
-<span class="doccomment">/// $\mathbb{F}_2[x^\pm]$ given by elements of degree between min and max (inclusive)</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// The `clear_bottom` option, if selected, mods out by the elements in the *$A(2)$ submodule*</span>
-<span class="doccomment">/// generated by degrees less than `min`. This is useful for approximating $\mathrm{tmf} \wedge</span>
-<span class="doccomment">/// \mathbb{RP}_{-\infty}^n$, c.f. Proposition 2.2 of Bailey and Ricka. Note that this quotient</span>
-<span class="doccomment">/// always has minimum degree -1 mod 8.</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">RealProjectiveSpace</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">Algebra</span><span class="op">&gt;</span> {
-    <span class="ident">algebra</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>,
-    <span class="kw">pub</span> <span class="ident">min</span>: <span class="ident">i32</span>,
-    <span class="kw">pub</span> <span class="ident">max</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">i32</span><span class="op">&gt;</span>, <span class="comment">// If None,  then RP^oo</span>
-    <span class="kw">pub</span> <span class="ident">clear_bottom</span>: <span class="ident">bool</span>,
+<span class="doccomment">/// This is $\mathbb{RP}_{\mathrm{min}}^{\mathrm{max}}$. The cohomology is the subquotient of
+/// $\mathbb{F}_2[x^\pm]$ given by elements of degree between min and max (inclusive)
+///
+/// The `clear_bottom` option, if selected, mods out by the elements in the *$A(2)$ submodule*
+/// generated by degrees less than `min`. This is useful for approximating $\mathrm{tmf} \wedge
+/// \mathbb{RP}_{-\infty}^n$, c.f. Proposition 2.2 of Bailey and Ricka. Note that this quotient
+/// always has minimum degree -1 mod 8.
+</span><span class="kw">pub struct </span>RealProjectiveSpace&lt;A: Algebra&gt; {
+    algebra: Arc&lt;A&gt;,
+    <span class="kw">pub </span>min: i32,
+    <span class="kw">pub </span>max: <span class="prelude-ty">Option</span>&lt;i32&gt;, <span class="comment">// If None,  then RP^oo
+    </span><span class="kw">pub </span>clear_bottom: bool,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">Algebra</span><span class="op">&gt;</span> <span class="ident">std::fmt::Display</span> <span class="kw">for</span> <span class="ident">RealProjectiveSpace</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">std::fmt::Formatter</span>) -&gt; <span class="ident">std::fmt::Result</span> {
-        <span class="kw">let</span> <span class="ident">clear</span> <span class="op">=</span> <span class="kw">if</span> <span class="self">self</span>.<span class="ident">clear_bottom</span> {
-            <span class="string">&quot; (clear_bottom)&quot;</span>
-        } <span class="kw">else</span> {
-            <span class="string">&quot;&quot;</span>
-        };
+<span class="kw">impl</span>&lt;A: Algebra&gt; std::fmt::Display <span class="kw">for </span>RealProjectiveSpace&lt;A&gt; {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter) -&gt; std::fmt::Result {
+        <span class="kw">let </span>clear = <span class="kw">if </span><span class="self">self</span>.clear_bottom {
+            <span class="string">&quot; (clear_bottom)&quot;
+        </span>} <span class="kw">else </span>{
+            <span class="string">&quot;&quot;
+        </span>};
 
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">max</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">max</span> {
-            <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;RP^{max}_{}{clear}&quot;</span>, <span class="self">self</span>.<span class="ident">min</span>)
-        } <span class="kw">else</span> {
-            <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;RP_{}{clear}&quot;</span>, <span class="self">self</span>.<span class="ident">min</span>)
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(max) = <span class="self">self</span>.max {
+            <span class="macro">write!</span>(f, <span class="string">&quot;RP^{max}_{}{clear}&quot;</span>, <span class="self">self</span>.min)
+        } <span class="kw">else </span>{
+            <span class="macro">write!</span>(f, <span class="string">&quot;RP_{}{clear}&quot;</span>, <span class="self">self</span>.min)
         }
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">Algebra</span><span class="op">&gt;</span> <span class="ident">PartialEq</span> <span class="kw">for</span> <span class="ident">RealProjectiveSpace</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">eq</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; <span class="ident">bool</span> {
-        <span class="self">self</span>.<span class="ident">min</span> <span class="op">==</span> <span class="ident">other</span>.<span class="ident">min</span> <span class="op">&amp;&amp;</span> <span class="self">self</span>.<span class="ident">max</span> <span class="op">==</span> <span class="ident">other</span>.<span class="ident">max</span>
+<span class="kw">impl</span>&lt;A: Algebra&gt; PartialEq <span class="kw">for </span>RealProjectiveSpace&lt;A&gt; {
+    <span class="kw">fn </span>eq(<span class="kw-2">&amp;</span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; bool {
+        <span class="self">self</span>.min == other.min &amp;&amp; <span class="self">self</span>.max == other.max
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">Algebra</span><span class="op">&gt;</span> <span class="ident">Eq</span> <span class="kw">for</span> <span class="ident">RealProjectiveSpace</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {}
+<span class="kw">impl</span>&lt;A: Algebra&gt; Eq <span class="kw">for </span>RealProjectiveSpace&lt;A&gt; {}
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">Algebra</span><span class="op">&gt;</span> <span class="ident">Module</span> <span class="kw">for</span> <span class="ident">RealProjectiveSpace</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="kw">for</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">A</span>: <span class="ident">TryInto</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">SteenrodAlgebra</span><span class="op">&gt;</span>,
+<span class="kw">impl</span>&lt;A: Algebra&gt; Module <span class="kw">for </span>RealProjectiveSpace&lt;A&gt;
+<span class="kw">where
+    for</span>&lt;<span class="lifetime">&#39;a</span>&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>A: TryInto&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>SteenrodAlgebra&gt;,
 {
-    <span class="kw">type</span> <span class="ident">Algebra</span> <span class="op">=</span> <span class="ident">A</span>;
+    <span class="kw">type </span>Algebra = A;
 
-    <span class="kw">fn</span> <span class="ident">algebra</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
-        <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">algebra</span>)
+    <span class="kw">fn </span>algebra(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Arc&lt;A&gt; {
+        Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.algebra)
     }
 
-    <span class="kw">fn</span> <span class="ident">min_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">i32</span> {
-        <span class="self">self</span>.<span class="ident">min</span>
+    <span class="kw">fn </span>min_degree(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; i32 {
+        <span class="self">self</span>.min
     }
 
-    <span class="kw">fn</span> <span class="ident">max_computed_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">i32</span> {
-        <span class="ident">i32::max_value</span>()
+    <span class="kw">fn </span>max_computed_degree(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; i32 {
+        i32::max_value()
     }
 
-    <span class="kw">fn</span> <span class="ident">dimension</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>) -&gt; <span class="ident">usize</span> {
-        <span class="kw">if</span> <span class="ident">degree</span> <span class="op">&lt;</span> <span class="self">self</span>.<span class="ident">min</span> {
-            <span class="kw">return</span> <span class="number">0</span>;
+    <span class="kw">fn </span>dimension(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32) -&gt; usize {
+        <span class="kw">if </span>degree &lt; <span class="self">self</span>.min {
+            <span class="kw">return </span><span class="number">0</span>;
         }
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">m</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">max</span> {
-            <span class="kw">if</span> <span class="ident">degree</span> <span class="op">&gt;</span> <span class="ident">m</span> {
-                <span class="kw">return</span> <span class="number">0</span>;
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(m) = <span class="self">self</span>.max {
+            <span class="kw">if </span>degree &gt; m {
+                <span class="kw">return </span><span class="number">0</span>;
             }
         }
 
-        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">clear_bottom</span>
-            <span class="op">&amp;&amp;</span> (<span class="ident">degree</span> <span class="op">==</span> <span class="self">self</span>.<span class="ident">min</span> <span class="op">+</span> <span class="number">1</span>
-                <span class="op">|</span><span class="op">|</span> <span class="ident">degree</span> <span class="op">==</span> <span class="self">self</span>.<span class="ident">min</span> <span class="op">+</span> <span class="number">1</span> <span class="op">+</span> <span class="number">1</span>
-                <span class="op">|</span><span class="op">|</span> <span class="ident">degree</span> <span class="op">==</span> <span class="self">self</span>.<span class="ident">min</span> <span class="op">+</span> <span class="number">1</span> <span class="op">+</span> <span class="number">2</span>
-                <span class="op">|</span><span class="op">|</span> <span class="ident">degree</span> <span class="op">==</span> <span class="self">self</span>.<span class="ident">min</span> <span class="op">+</span> <span class="number">1</span> <span class="op">+</span> <span class="number">4</span>
-                <span class="op">|</span><span class="op">|</span> <span class="ident">degree</span> <span class="op">==</span> <span class="self">self</span>.<span class="ident">min</span> <span class="op">+</span> <span class="number">1</span> <span class="op">+</span> <span class="number">8</span>)
+        <span class="kw">if </span><span class="self">self</span>.clear_bottom
+            &amp;&amp; (degree == <span class="self">self</span>.min + <span class="number">1
+                </span>|| degree == <span class="self">self</span>.min + <span class="number">1 </span>+ <span class="number">1
+                </span>|| degree == <span class="self">self</span>.min + <span class="number">1 </span>+ <span class="number">2
+                </span>|| degree == <span class="self">self</span>.min + <span class="number">1 </span>+ <span class="number">4
+                </span>|| degree == <span class="self">self</span>.min + <span class="number">1 </span>+ <span class="number">8</span>)
         {
-            <span class="kw">return</span> <span class="number">0</span>;
+            <span class="kw">return </span><span class="number">0</span>;
         }
-        <span class="number">1</span>
+        <span class="number">1
+    </span>}
+
+    <span class="kw">fn </span>basis_element_to_string(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32, _idx: usize) -&gt; String {
+        <span class="comment">// It is an error to call the function if self.dimension(degree) == 0
+        </span><span class="macro">format!</span>(<span class="string">&quot;x^{{{degree}}}&quot;</span>)
     }
 
-    <span class="kw">fn</span> <span class="ident">basis_element_to_string</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">degree</span>: <span class="ident">i32</span>, <span class="ident">_idx</span>: <span class="ident">usize</span>) -&gt; <span class="ident">String</span> {
-        <span class="comment">// It is an error to call the function if self.dimension(degree) == 0</span>
-        <span class="macro">format!</span>(<span class="string">&quot;x^{{{degree}}}&quot;</span>)
-    }
-
-    <span class="kw">fn</span> <span class="ident">act_on_basis</span>(
+    <span class="kw">fn </span>act_on_basis(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="kw-2">mut</span> <span class="ident">result</span>: <span class="ident">SliceMut</span>,
-        <span class="ident">coeff</span>: <span class="ident">u32</span>,
-        <span class="ident">op_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">op_index</span>: <span class="ident">usize</span>,
-        <span class="ident">mod_degree</span>: <span class="ident">i32</span>,
-        <span class="ident">mod_index</span>: <span class="ident">usize</span>,
+        <span class="kw-2">mut </span>result: SliceMut,
+        coeff: u32,
+        op_degree: i32,
+        op_index: usize,
+        mod_degree: i32,
+        mod_index: usize,
     ) {
-        <span class="macro">assert!</span>(<span class="ident">op_index</span> <span class="op">&lt;</span> <span class="self">self</span>.<span class="ident">algebra</span>().<span class="ident">dimension</span>(<span class="ident">op_degree</span>));
-        <span class="macro">assert!</span>(<span class="ident">mod_index</span> <span class="op">&lt;</span> <span class="self">self</span>.<span class="ident">dimension</span>(<span class="ident">mod_degree</span>));
+        <span class="macro">assert!</span>(op_index &lt; <span class="self">self</span>.algebra().dimension(op_degree));
+        <span class="macro">assert!</span>(mod_index &lt; <span class="self">self</span>.dimension(mod_degree));
 
-        <span class="kw">let</span> <span class="ident">output_degree</span> <span class="op">=</span> <span class="ident">mod_degree</span> <span class="op">+</span> <span class="ident">op_degree</span>;
+        <span class="kw">let </span>output_degree = mod_degree + op_degree;
 
-        <span class="kw">if</span> <span class="ident">op_degree</span> <span class="op">==</span> <span class="number">0</span> <span class="op">|</span><span class="op">|</span> <span class="ident">coeff</span> <span class="op">==</span> <span class="number">0</span> <span class="op">|</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">dimension</span>(<span class="ident">output_degree</span>) <span class="op">==</span> <span class="number">0</span> {
+        <span class="kw">if </span>op_degree == <span class="number">0 </span>|| coeff == <span class="number">0 </span>|| <span class="self">self</span>.dimension(output_degree) == <span class="number">0 </span>{
             <span class="kw">return</span>;
         }
 
-        <span class="kw">if</span> <span class="kw">match</span> <span class="kw-2">&amp;</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">algebra</span>).<span class="ident">try_into</span>() {
-            <span class="prelude-val">Ok</span>(<span class="ident">SteenrodAlgebra::AdemAlgebra</span>(<span class="ident">a</span>)) =&gt; <span class="ident">coef_adem</span>(<span class="ident">a</span>, <span class="ident">op_degree</span>, <span class="ident">op_index</span>, <span class="ident">mod_degree</span>),
-            <span class="prelude-val">Ok</span>(<span class="ident">SteenrodAlgebra::MilnorAlgebra</span>(<span class="ident">a</span>)) =&gt; {
-                <span class="ident">coef_milnor</span>(<span class="ident">a</span>, <span class="ident">op_degree</span>, <span class="ident">op_index</span>, <span class="ident">mod_degree</span>)
+        <span class="kw">if match </span><span class="kw-2">&amp;</span>(<span class="kw-2">&amp;*</span><span class="self">self</span>.algebra).try_into() {
+            <span class="prelude-val">Ok</span>(SteenrodAlgebra::AdemAlgebra(a)) =&gt; coef_adem(a, op_degree, op_index, mod_degree),
+            <span class="prelude-val">Ok</span>(SteenrodAlgebra::MilnorAlgebra(a)) =&gt; {
+                coef_milnor(a, op_degree, op_index, mod_degree)
             }
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="macro">unreachable!</span>(),
         } {
-            <span class="ident">result</span>.<span class="ident">add_basis_element</span>(<span class="number">0</span>, <span class="number">1</span>);
+            result.add_basis_element(<span class="number">0</span>, <span class="number">1</span>);
         }
     }
 
-    <span class="kw">fn</span> <span class="ident">max_degree</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">i32</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">max</span>
+    <span class="kw">fn </span>max_degree(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;i32&gt; {
+        <span class="self">self</span>.max
     }
 }
 
-<span class="comment">// Compute the coefficient of the operation on x^j.</span>
-<span class="kw">fn</span> <span class="ident">coef_adem</span>(<span class="ident">algebra</span>: <span class="kw-2">&amp;</span><span class="ident">AdemAlgebra</span>, <span class="ident">op_deg</span>: <span class="ident">i32</span>, <span class="ident">op_idx</span>: <span class="ident">usize</span>, <span class="kw-2">mut</span> <span class="ident">j</span>: <span class="ident">i32</span>) -&gt; <span class="ident">bool</span> {
-    <span class="kw">let</span> <span class="ident">elt</span>: <span class="kw-2">&amp;</span><span class="ident">AdemBasisElement</span> <span class="op">=</span> <span class="ident">algebra</span>.<span class="ident">basis_element_from_index</span>(<span class="ident">op_deg</span>, <span class="ident">op_idx</span>);
-    <span class="comment">// Apply Sq^i to x^j and see if it is zero</span>
-    <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="ident">elt</span>.<span class="ident">ps</span>.<span class="ident">iter</span>().<span class="ident">rev</span>() {
-        <span class="kw">let</span> <span class="ident">c</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">j</span> <span class="op">&gt;</span><span class="op">=</span> <span class="number">0</span> {
-            <span class="ident">i32::binomial</span>(<span class="ident">TWO</span>, <span class="ident">j</span>, <span class="kw-2">*</span><span class="ident">i</span> <span class="kw">as</span> <span class="ident">i32</span>)
-        } <span class="kw">else</span> {
-            <span class="ident">i32::binomial</span>(<span class="ident">TWO</span>, <span class="op">-</span><span class="ident">j</span> <span class="op">+</span> (<span class="kw-2">*</span><span class="ident">i</span> <span class="kw">as</span> <span class="ident">i32</span>) <span class="op">-</span> <span class="number">1</span>, <span class="kw-2">*</span><span class="ident">i</span> <span class="kw">as</span> <span class="ident">i32</span>)
+<span class="comment">// Compute the coefficient of the operation on x^j.
+</span><span class="kw">fn </span>coef_adem(algebra: <span class="kw-2">&amp;</span>AdemAlgebra, op_deg: i32, op_idx: usize, <span class="kw-2">mut </span>j: i32) -&gt; bool {
+    <span class="kw">let </span>elt: <span class="kw-2">&amp;</span>AdemBasisElement = algebra.basis_element_from_index(op_deg, op_idx);
+    <span class="comment">// Apply Sq^i to x^j and see if it is zero
+    </span><span class="kw">for </span>i <span class="kw">in </span>elt.ps.iter().rev() {
+        <span class="kw">let </span>c = <span class="kw">if </span>j &gt;= <span class="number">0 </span>{
+            i32::binomial(TWO, j, <span class="kw-2">*</span>i <span class="kw">as </span>i32)
+        } <span class="kw">else </span>{
+            i32::binomial(TWO, -j + (<span class="kw-2">*</span>i <span class="kw">as </span>i32) - <span class="number">1</span>, <span class="kw-2">*</span>i <span class="kw">as </span>i32)
         };
-        <span class="kw">if</span> <span class="ident">c</span> <span class="op">==</span> <span class="number">0</span> {
-            <span class="kw">return</span> <span class="bool-val">false</span>;
+        <span class="kw">if </span>c == <span class="number">0 </span>{
+            <span class="kw">return </span><span class="bool-val">false</span>;
         }
-        <span class="comment">// Somehow j += 1 produces the same answer...</span>
-        <span class="ident">j</span> <span class="op">+</span><span class="op">=</span> <span class="kw-2">*</span><span class="ident">i</span> <span class="kw">as</span> <span class="ident">i32</span>;
+        <span class="comment">// Somehow j += 1 produces the same answer...
+        </span>j += <span class="kw-2">*</span>i <span class="kw">as </span>i32;
     }
-    <span class="bool-val">true</span>
-}
+    <span class="bool-val">true
+</span>}
 
-<span class="kw">fn</span> <span class="ident">coef_milnor</span>(<span class="ident">algebra</span>: <span class="kw-2">&amp;</span><span class="ident">MilnorAlgebra</span>, <span class="ident">op_deg</span>: <span class="ident">i32</span>, <span class="ident">op_idx</span>: <span class="ident">usize</span>, <span class="kw-2">mut</span> <span class="ident">mod_degree</span>: <span class="ident">i32</span>) -&gt; <span class="ident">bool</span> {
-    <span class="kw">if</span> <span class="ident">mod_degree</span> <span class="op">==</span> <span class="number">0</span> {
-        <span class="kw">return</span> <span class="bool-val">false</span>;
-    }
-
-    <span class="kw">let</span> <span class="ident">elt</span>: <span class="kw-2">&amp;</span><span class="ident">MilnorBasisElement</span> <span class="op">=</span> <span class="ident">algebra</span>.<span class="ident">basis_element_from_index</span>(<span class="ident">op_deg</span>, <span class="ident">op_idx</span>);
-
-    <span class="kw">let</span> <span class="ident">sum</span>: <span class="ident">PPartEntry</span> <span class="op">=</span> <span class="ident">elt</span>.<span class="ident">p_part</span>.<span class="ident">iter</span>().<span class="ident">sum</span>();
-    <span class="kw">if</span> <span class="ident">mod_degree</span> <span class="op">&lt;</span> <span class="number">0</span> {
-        <span class="ident">mod_degree</span> <span class="op">=</span> <span class="ident">sum</span> <span class="kw">as</span> <span class="ident">i32</span> <span class="op">-</span> <span class="ident">mod_degree</span> <span class="op">-</span> <span class="number">1</span>;
-    } <span class="kw">else</span> <span class="kw">if</span> <span class="ident">mod_degree</span> <span class="op">&lt;</span> <span class="ident">sum</span> <span class="kw">as</span> <span class="ident">i32</span> {
-        <span class="kw">return</span> <span class="bool-val">false</span>;
+<span class="kw">fn </span>coef_milnor(algebra: <span class="kw-2">&amp;</span>MilnorAlgebra, op_deg: i32, op_idx: usize, <span class="kw-2">mut </span>mod_degree: i32) -&gt; bool {
+    <span class="kw">if </span>mod_degree == <span class="number">0 </span>{
+        <span class="kw">return </span><span class="bool-val">false</span>;
     }
 
-    <span class="kw">let</span> <span class="ident">mod_degree</span> <span class="op">=</span> <span class="ident">mod_degree</span> <span class="kw">as</span> <span class="ident">PPartEntry</span>;
+    <span class="kw">let </span>elt: <span class="kw-2">&amp;</span>MilnorBasisElement = algebra.basis_element_from_index(op_deg, op_idx);
 
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">list</span> <span class="op">=</span> <span class="ident">Vec::with_capacity</span>(<span class="ident">elt</span>.<span class="ident">p_part</span>.<span class="ident">len</span>() <span class="op">+</span> <span class="number">1</span>);
-    <span class="ident">list</span>.<span class="ident">push</span>(<span class="ident">mod_degree</span> <span class="op">-</span> <span class="ident">sum</span>);
-    <span class="ident">list</span>.<span class="ident">extend_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">elt</span>.<span class="ident">p_part</span>);
+    <span class="kw">let </span>sum: PPartEntry = elt.p_part.iter().sum();
+    <span class="kw">if </span>mod_degree &lt; <span class="number">0 </span>{
+        mod_degree = sum <span class="kw">as </span>i32 - mod_degree - <span class="number">1</span>;
+    } <span class="kw">else if </span>mod_degree &lt; sum <span class="kw">as </span>i32 {
+        <span class="kw">return </span><span class="bool-val">false</span>;
+    }
 
-    <span class="ident">PPartEntry::multinomial2</span>(<span class="kw-2">&amp;</span><span class="ident">list</span>) <span class="op">==</span> <span class="number">1</span>
-}
+    <span class="kw">let </span>mod_degree = mod_degree <span class="kw">as </span>PPartEntry;
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">Algebra</span><span class="op">&gt;</span> <span class="ident">ZeroModule</span> <span class="kw">for</span> <span class="ident">RealProjectiveSpace</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="kw">for</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">A</span>: <span class="ident">TryInto</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">SteenrodAlgebra</span><span class="op">&gt;</span>,
+    <span class="kw">let </span><span class="kw-2">mut </span>list = Vec::with_capacity(elt.p_part.len() + <span class="number">1</span>);
+    list.push(mod_degree - sum);
+    list.extend_from_slice(<span class="kw-2">&amp;</span>elt.p_part);
+
+    PPartEntry::multinomial2(<span class="kw-2">&amp;</span>list) == <span class="number">1
+</span>}
+
+<span class="kw">impl</span>&lt;A: Algebra&gt; ZeroModule <span class="kw">for </span>RealProjectiveSpace&lt;A&gt;
+<span class="kw">where
+    for</span>&lt;<span class="lifetime">&#39;a</span>&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>A: TryInto&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>SteenrodAlgebra&gt;,
 {
-    <span class="kw">fn</span> <span class="ident">zero_module</span>(<span class="ident">algebra</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>, <span class="ident">min_degree</span>: <span class="ident">i32</span>) -&gt; <span class="self">Self</span> {
-        <span class="ident"><span class="self">Self</span>::new</span>(<span class="ident">algebra</span>, <span class="ident">min_degree</span>, <span class="prelude-val">Some</span>(<span class="ident">min_degree</span> <span class="op">-</span> <span class="number">1</span>), <span class="bool-val">false</span>)
+    <span class="kw">fn </span>zero_module(algebra: Arc&lt;A&gt;, min_degree: i32) -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>::new(algebra, min_degree, <span class="prelude-val">Some</span>(min_degree - <span class="number">1</span>), <span class="bool-val">false</span>)
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">Algebra</span><span class="op">&gt;</span> <span class="ident">RealProjectiveSpace</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="kw">for</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">A</span>: <span class="ident">TryInto</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">SteenrodAlgebra</span><span class="op">&gt;</span>,
+<span class="kw">impl</span>&lt;A: Algebra&gt; RealProjectiveSpace&lt;A&gt;
+<span class="kw">where
+    for</span>&lt;<span class="lifetime">&#39;a</span>&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>A: TryInto&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>SteenrodAlgebra&gt;,
 {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">algebra</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>, <span class="ident">min</span>: <span class="ident">i32</span>, <span class="ident">max</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">i32</span><span class="op">&gt;</span>, <span class="ident">clear_bottom</span>: <span class="ident">bool</span>) -&gt; <span class="self">Self</span> {
-        <span class="macro">assert_eq!</span>(<span class="kw-2">*</span><span class="ident">algebra</span>.<span class="ident">prime</span>(), <span class="number">2</span>);
+    <span class="kw">pub fn </span>new(algebra: Arc&lt;A&gt;, min: i32, max: <span class="prelude-ty">Option</span>&lt;i32&gt;, clear_bottom: bool) -&gt; <span class="self">Self </span>{
+        <span class="macro">assert_eq!</span>(<span class="kw-2">*</span>algebra.prime(), <span class="number">2</span>);
         <span class="macro">assert!</span>(
-            (<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">algebra</span>).<span class="ident">try_into</span>().<span class="ident">is_ok</span>(),
-            <span class="string">&quot;Real Projective Space only supports Steenrod Algebra&quot;</span>
-        );
+            (<span class="kw-2">&amp;*</span>algebra).try_into().is_ok(),
+            <span class="string">&quot;Real Projective Space only supports Steenrod Algebra&quot;
+        </span>);
 
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">max</span>) <span class="op">=</span> <span class="ident">max</span> {
-            <span class="macro">assert!</span>(<span class="ident">max</span> <span class="op">&gt;</span><span class="op">=</span> <span class="ident">min</span>);
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(max) = max {
+            <span class="macro">assert!</span>(max &gt;= min);
         }
-        <span class="self">Self</span> {
-            <span class="ident">algebra</span>,
-            <span class="ident">min</span>,
-            <span class="ident">max</span>,
-            <span class="ident">clear_bottom</span>,
+        <span class="self">Self </span>{
+            algebra,
+            min,
+            max,
+            clear_bottom,
         }
     }
 }
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;json&quot;</span>)]</span>
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Deserialize</span>, <span class="ident">Debug</span>)]</span>
-<span class="kw">struct</span> <span class="ident">RPSpec</span> {
-    <span class="ident">min</span>: <span class="ident">i32</span>,
-    <span class="ident">clear_bottom</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">bool</span><span class="op">&gt;</span>,
-    <span class="ident">max</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">i32</span><span class="op">&gt;</span>,
+<span class="attribute">#[cfg(feature = <span class="string">&quot;json&quot;</span>)]
+#[derive(Deserialize, Debug)]
+</span><span class="kw">struct </span>RPSpec {
+    min: i32,
+    clear_bottom: <span class="prelude-ty">Option</span>&lt;bool&gt;,
+    max: <span class="prelude-ty">Option</span>&lt;i32&gt;,
 }
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;json&quot;</span>)]</span>
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">Algebra</span><span class="op">&gt;</span> <span class="ident">RealProjectiveSpace</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_json</span>(<span class="ident">algebra</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>, <span class="ident">json</span>: <span class="kw-2">&amp;</span><span class="ident">Value</span>) -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">spec</span>: <span class="ident">RPSpec</span> <span class="op">=</span> <span class="ident">RPSpec::deserialize</span>(<span class="ident">json</span>)<span class="question-mark">?</span>;
-        <span class="kw">let</span> <span class="ident">clear_bottom</span> <span class="op">=</span> <span class="ident">spec</span>.<span class="ident">clear_bottom</span>.<span class="ident">unwrap_or</span>(<span class="bool-val">false</span>);
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">min</span> <span class="op">=</span> <span class="ident">spec</span>.<span class="ident">min</span>;
-        <span class="kw">if</span> <span class="ident">clear_bottom</span> {
-            <span class="kw">let</span> <span class="ident">x</span> <span class="op">=</span> (<span class="ident">spec</span>.<span class="ident">min</span> <span class="op">+</span> <span class="number">1</span>).<span class="ident">rem_euclid</span>(<span class="number">8</span>);
-            <span class="kw">if</span> <span class="ident">x</span> <span class="op">!</span><span class="op">=</span> <span class="number">0</span> {
-                <span class="ident">min</span> <span class="op">+</span><span class="op">=</span> <span class="number">8</span> <span class="op">-</span> <span class="ident">x</span>;
+<span class="attribute">#[cfg(feature = <span class="string">&quot;json&quot;</span>)]
+</span><span class="kw">impl</span>&lt;A: Algebra&gt; RealProjectiveSpace&lt;A&gt; {
+    <span class="kw">pub fn </span>from_json(algebra: Arc&lt;A&gt;, json: <span class="kw-2">&amp;</span>Value) -&gt; anyhow::Result&lt;<span class="self">Self</span>&gt; {
+        <span class="kw">let </span>spec: RPSpec = RPSpec::deserialize(json)<span class="question-mark">?</span>;
+        <span class="kw">let </span>clear_bottom = spec.clear_bottom.unwrap_or(<span class="bool-val">false</span>);
+        <span class="kw">let </span><span class="kw-2">mut </span>min = spec.min;
+        <span class="kw">if </span>clear_bottom {
+            <span class="kw">let </span>x = (spec.min + <span class="number">1</span>).rem_euclid(<span class="number">8</span>);
+            <span class="kw">if </span>x != <span class="number">0 </span>{
+                min += <span class="number">8 </span>- x;
             }
         }
 
-        <span class="prelude-val">Ok</span>(<span class="self">Self</span> {
-            <span class="ident">algebra</span>,
-            <span class="ident">min</span>,
-            <span class="ident">clear_bottom</span>,
-            <span class="ident">max</span>: <span class="ident">spec</span>.<span class="ident">max</span>,
+        <span class="prelude-val">Ok</span>(<span class="self">Self </span>{
+            algebra,
+            min,
+            clear_bottom,
+            max: spec.max,
         })
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">to_json</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">json</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Value</span>) {
-        <span class="ident">json</span>[<span class="string">&quot;name&quot;</span>] <span class="op">=</span> <span class="ident">Value::String</span>(<span class="self">self</span>.<span class="ident">to_string</span>());
-        <span class="ident">json</span>[<span class="string">&quot;type&quot;</span>] <span class="op">=</span> <span class="ident">Value::from</span>(<span class="string">&quot;real projective space&quot;</span>);
-        <span class="ident">json</span>[<span class="string">&quot;min&quot;</span>] <span class="op">=</span> <span class="ident">Value::from</span>(<span class="self">self</span>.<span class="ident">min</span>);
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">max</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">max</span> {
-            <span class="ident">json</span>[<span class="string">&quot;max&quot;</span>] <span class="op">=</span> <span class="ident">Value::from</span>(<span class="ident">max</span>);
+    <span class="kw">pub fn </span>to_json(<span class="kw-2">&amp;</span><span class="self">self</span>, json: <span class="kw-2">&amp;mut </span>Value) {
+        json[<span class="string">&quot;name&quot;</span>] = Value::String(<span class="self">self</span>.to_string());
+        json[<span class="string">&quot;type&quot;</span>] = Value::from(<span class="string">&quot;real projective space&quot;</span>);
+        json[<span class="string">&quot;min&quot;</span>] = Value::from(<span class="self">self</span>.min);
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(max) = <span class="self">self</span>.max {
+            json[<span class="string">&quot;max&quot;</span>] = Value::from(max);
         }
-        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">clear_bottom</span> {
-            <span class="ident">json</span>[<span class="string">&quot;clear_bottom&quot;</span>] <span class="op">=</span> <span class="ident">Value::Bool</span>(<span class="bool-val">true</span>);
+        <span class="kw">if </span><span class="self">self</span>.clear_bottom {
+            json[<span class="string">&quot;clear_bottom&quot;</span>] = Value::Bool(<span class="bool-val">true</span>);
         }
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="algebra" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0 (a55dd71d5 2022-09-19)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="algebra" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0 (897e37553 2022-11-02)" ></div></body></html>

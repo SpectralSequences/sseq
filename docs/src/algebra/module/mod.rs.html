@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/algebra/src/module/mod.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>mod.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../ayu.css" disabled><link rel="stylesheet" type="text/css" href="../../../dark.css" disabled><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../../storage.js"></script><script defer src="../../../source-script.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../main.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../../favicon.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/algebra/src/module/mod.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>mod.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" href="../../../normalize.css"><link rel="stylesheet" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" href="../../../ayu.css" disabled><link rel="stylesheet" href="../../../dark.css" disabled><link rel="stylesheet" href="../../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../../storage.js"></script><script defer src="../../../source-script.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../main.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../../favicon.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
 <!-- The loading of KaTeX is deferred to speed up page rendering -->
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.js" integrity="sha384-Bi8OWqMXO1ta+a4EPkZv7bYGIes7C3krGSZoTGNTAnAn5eYQc7IIXrJ/7ck1drAi" crossorigin="anonymous"></script>
 <!-- To automatically render math in text elements, include the auto-render extension: -->
@@ -54,36 +54,36 @@
 <span id="29">29</span>
 <span id="30">30</span>
 <span id="31">31</span>
-</pre><pre class="rust"><code><span class="kw">mod</span> <span class="ident">finite_dimensional_module</span>;
-<span class="kw">mod</span> <span class="ident">finitely_presented_module</span>;
-<span class="kw">mod</span> <span class="ident">free_module</span>;
-<span class="kw">mod</span> <span class="ident">module_trait</span>;
-<span class="kw">mod</span> <span class="ident">rpn</span>;
-<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">steenrod_module</span>;
-<span class="kw">mod</span> <span class="ident">zero_module</span>;
+</pre><pre class="rust"><code><span class="kw">mod </span>finite_dimensional_module;
+<span class="kw">mod </span>finitely_presented_module;
+<span class="kw">mod </span>free_module;
+<span class="kw">mod </span>module_trait;
+<span class="kw">mod </span>rpn;
+<span class="kw">pub mod </span>steenrod_module;
+<span class="kw">mod </span>zero_module;
 
-<span class="kw">mod</span> <span class="ident">hom_module</span>;
-<span class="kw">mod</span> <span class="ident">quotient_module</span>;
-<span class="kw">mod</span> <span class="ident">suspension_module</span>;
-<span class="kw">mod</span> <span class="ident">tensor_module</span>;
+<span class="kw">mod </span>hom_module;
+<span class="kw">mod </span>quotient_module;
+<span class="kw">mod </span>suspension_module;
+<span class="kw">mod </span>tensor_module;
 
-<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">block_structure</span>;
+<span class="kw">pub mod </span>block_structure;
 
-<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">homomorphism</span>;
+<span class="kw">pub mod </span>homomorphism;
 
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">finite_dimensional_module::FiniteDimensionalModule</span> <span class="kw">as</span> <span class="ident">FDModule</span>;
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">finitely_presented_module::FinitelyPresentedModule</span> <span class="kw">as</span> <span class="ident">FPModule</span>;
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">free_module</span>::{
-    <span class="ident">FreeModule</span>, <span class="ident">GeneratorData</span>, <span class="ident">MuFreeModule</span>, <span class="ident">OperationGeneratorPair</span>, <span class="ident">UnstableFreeModule</span>,
+<span class="kw">pub use </span>finite_dimensional_module::FiniteDimensionalModule <span class="kw">as </span>FDModule;
+<span class="kw">pub use </span>finitely_presented_module::FinitelyPresentedModule <span class="kw">as </span>FPModule;
+<span class="kw">pub use </span>free_module::{
+    FreeModule, GeneratorData, MuFreeModule, OperationGeneratorPair, UnstableFreeModule,
 };
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">module_trait</span>::{<span class="ident">Module</span>, <span class="ident">ModuleFailedRelationError</span>};
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">rpn::RealProjectiveSpace</span>;
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">steenrod_module::SteenrodModule</span>;
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">zero_module::ZeroModule</span>;
+<span class="kw">pub use </span>module_trait::{Module, ModuleFailedRelationError};
+<span class="kw">pub use </span>rpn::RealProjectiveSpace;
+<span class="kw">pub use </span>steenrod_module::SteenrodModule;
+<span class="kw">pub use </span>zero_module::ZeroModule;
 
-<span class="kw">pub</span> <span class="kw">use</span> {
-    <span class="ident">hom_module::HomModule</span>, <span class="ident">quotient_module::QuotientModule</span>, <span class="ident">suspension_module::SuspensionModule</span>,
-    <span class="ident">tensor_module::TensorModule</span>,
+<span class="kw">pub use </span>{
+    hom_module::HomModule, quotient_module::QuotientModule, suspension_module::SuspensionModule,
+    tensor_module::TensorModule,
 };
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="algebra" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0 (a55dd71d5 2022-09-19)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="algebra" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0 (897e37553 2022-11-02)" ></div></body></html>
