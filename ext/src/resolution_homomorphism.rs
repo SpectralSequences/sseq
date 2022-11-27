@@ -329,7 +329,8 @@ where
             .collect();
 
         if !fdx_vectors.is_empty() {
-            assert!(self.target.apply_quasi_inverse(
+            assert!(CC2::apply_quasi_inverse(
+                &*self.target,
                 &mut qi_outputs,
                 output_s,
                 output_t,

@@ -274,7 +274,8 @@ impl<
         #[cfg(feature = "concurrent")]
         let scratches: Vec<FpVector> = (0..num_gens).into_par_iter().map(f).collect();
 
-        assert!(self.right.target.apply_quasi_inverse(
+        assert!(U::apply_quasi_inverse(
+            &*self.right.target,
             &mut outputs,
             target_s,
             target_t,
