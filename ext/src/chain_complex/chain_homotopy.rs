@@ -269,7 +269,7 @@ impl<
         };
 
         #[cfg(not(feature = "concurrent"))]
-        let scratches: Vec<FpVector> = (0..num_gens).into_iter().map(f).collect();
+        let scratches: Vec<FpVector> = (0..num_gens).map(f).collect();
 
         #[cfg(feature = "concurrent")]
         let scratches: Vec<FpVector> = (0..num_gens).into_par_iter().map(f).collect();
