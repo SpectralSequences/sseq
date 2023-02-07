@@ -51,6 +51,7 @@ impl PolynomialAlgebraTableEntry {
     }
 }
 
+#[allow(renamed_and_removed_lints)] // TODO: remove when 1.68 lands
 #[allow(clippy::derive_hash_xor_eq)]
 impl std::hash::Hash for PolynomialAlgebraMonomial {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
