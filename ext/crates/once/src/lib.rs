@@ -632,9 +632,7 @@ impl<T> IndexMut<usize> for OnceVec<T> {
     fn index_mut(&mut self, index: usize) -> &mut T {
         let len = self.len();
         self.get_mut(index).unwrap_or_else(|| {
-            panic!(
-                "Index out of bounds: the len is {len} but the index is {index}"
-            )
+            panic!("Index out of bounds: the len is {len} but the index is {index}")
         })
     }
 }
