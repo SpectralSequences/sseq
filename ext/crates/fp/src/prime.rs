@@ -562,10 +562,7 @@ mod tests {
                     assert_eq!(
                         u32::binomial(ValidPrime::new(p), n, j),
                         ans % p,
-                        "{} choose {} mod {}",
-                        n,
-                        j,
-                        p
+                        "{n} choose {j} mod {p}"
                     );
                 }
                 assert_eq!(u32::binomial4(n, j), ans % 4, "{n} choose {j} mod 4");
@@ -575,9 +572,7 @@ mod tests {
                     assert_eq!(
                         u32::binomial4_rec(n, j),
                         ans % 4,
-                        "{} choose {} mod 4 rec",
-                        n,
-                        j
+                        "{n} choose {j} mod 4 rec"
                     );
                 }
             }

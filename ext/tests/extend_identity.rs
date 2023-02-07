@@ -67,10 +67,7 @@ fn extend_identity<T: TryInto<Config>>(#[case] config: T, #[case] max_degree: i3
                 assert_eq!(
                     map.output(t, idx),
                     &correct_result,
-                    "Check failed at s = {}, t = {}, idx = {}",
-                    s,
-                    t,
-                    idx
+                    "Check failed at s = {s}, t = {t}, idx = {idx}"
                 );
                 correct_result.set_to_zero();
             }

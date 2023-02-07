@@ -5,8 +5,7 @@ use std::time::Instant;
 
 fn benchmark(module_name: &str, max_degree: i32, algebra: &str, n_times: u128) {
     print!(
-        "benchmark  {:6}  {}  {}:    ",
-        algebra, module_name, max_degree
+        "benchmark  {algebra:6}  {module_name}  {max_degree}:    "
     );
     std::io::stdout().flush().unwrap();
 

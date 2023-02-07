@@ -113,9 +113,7 @@ impl<const U: bool, A: MuAlgebra<U>> Module for MuFreeModule<U, A> {
         }
         assert!(
             degree < self.basis_element_to_opgen.len(),
-            "Free Module {} not computed through degree {}",
-            self,
-            degree
+            "Free Module {self} not computed through degree {degree}"
         );
         self.basis_element_to_opgen[degree].len()
     }
