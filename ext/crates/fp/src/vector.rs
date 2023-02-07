@@ -612,7 +612,7 @@ mod test {
 
     test_dim! {
         fn test_serialize(p: ValidPrime, dim: usize) {
-            use std::io::{Seek, Cursor, SeekFrom};
+            use std::io::{Seek, Cursor};
 
             let v_arr = random_vector(p, dim);
             let v = FpVector::from_slice(p, &v_arr);
