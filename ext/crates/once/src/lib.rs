@@ -571,7 +571,7 @@ impl<T> OnceVec<T> {
             inner_index(len - 1).0 + 1
         };
 
-        (0..page_end).into_iter().flat_map(move |page| unsafe {
+        (0..page_end).flat_map(move |page| unsafe {
             // Safety: tautological
             self.page(page).as_slice(len, page)
         })

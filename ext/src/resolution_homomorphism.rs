@@ -305,10 +305,7 @@ where
         };
 
         #[cfg(not(feature = "concurrent"))]
-        let fdx_vectors: Vec<FpVector> = (0..num_gens)
-            .into_iter()
-            .filter_map(compute_fdx_vector)
-            .collect();
+        let fdx_vectors: Vec<FpVector> = (0..num_gens).filter_map(compute_fdx_vector).collect();
 
         #[cfg(feature = "concurrent")]
         let fdx_vectors: Vec<FpVector> = (0..num_gens)

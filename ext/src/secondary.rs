@@ -593,8 +593,7 @@ pub trait SecondaryLift: Sync {
             .collect();
 
         #[cfg(not(feature = "concurrent"))]
-        let mut intermediates: Vec<FpVector> =
-            (0..num_gens).into_iter().map(get_intermediate).collect();
+        let mut intermediates: Vec<FpVector> = (0..num_gens).map(get_intermediate).collect();
 
         let mut results = vec![FpVector::new(p, target_dim); num_gens];
 
