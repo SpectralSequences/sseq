@@ -57,8 +57,7 @@ pub fn yes_no(prompt: &str) -> bool {
             Ok(response.starts_with('y'))
         } else {
             Err(format!(
-                "unrecognized response '{}'. Should be '(y)es' or '(n)o'",
-                response
+                "unrecognized response '{response}'. Should be '(y)es' or '(n)o'"
             ))
         }
     })

@@ -60,8 +60,7 @@ pub fn get_gens() -> anyhow::Result<BiVec<Vec<String>>> {
                 for c in x.chars() {
                     if !c.is_alphanumeric() && c != '_' {
                         return Err(format!(
-                            "Variable name cannot contain {}. Should be alphanumeric and '_'",
-                            c
+                            "Variable name cannot contain {c}. Should be alphanumeric and '_'"
                         ));
                     }
                 }

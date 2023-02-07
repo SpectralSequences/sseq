@@ -633,8 +633,7 @@ impl<T> IndexMut<usize> for OnceVec<T> {
         let len = self.len();
         self.get_mut(index).unwrap_or_else(|| {
             panic!(
-                "Index out of bounds: the len is {} but the index is {index}",
-                len
+                "Index out of bounds: the len is {len} but the index is {index}"
             )
         })
     }

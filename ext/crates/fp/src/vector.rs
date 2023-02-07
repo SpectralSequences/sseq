@@ -619,7 +619,7 @@ mod test {
 
             let mut cursor = Cursor::new(Vec::<u8>::new());
             v.to_bytes(&mut cursor).unwrap();
-            cursor.seek(SeekFrom::Start(0)).unwrap();
+            cursor.rewind().unwrap();
 
             let w = FpVector::from_bytes(p, dim, &mut cursor).unwrap();
             v.assert_vec_eq(&w);
@@ -682,8 +682,7 @@ mod test {
             let v = FpVector::from_slice(p, &v_arr);
             let v = v.slice(slice_start, slice_end);
             println!(
-                "slice_start: {}, slice_end: {}, slice: {}",
-                slice_start, slice_end, v
+                "slice_start: {slice_start}, slice_end: {slice_end}, slice: {v}"
                 );
 
             let mut diffs = Vec::new();
@@ -1501,8 +1500,7 @@ mod test {
                 .iter()
                 .format_with("\n", |(tuple, popcnts, res, test_res), f| {
                     f(&format_args!(
-                        "   Inputs: {:x?}\n      expected {:?}, got {:?}. popcnts: {:?}",
-                        tuple, res, test_res, popcnts
+                        "   Inputs: {tuple:x?}\n      expected {res:?}, got {test_res:?}. popcnts: {popcnts:?}"
                     ))
                 });
             panic!("\nFailed test cases:\n {formatter}");
