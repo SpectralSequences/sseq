@@ -2,9 +2,13 @@ use super::{Bidegree, BidegreeElement};
 
 use std::fmt::{self, Display, Formatter};
 
+#[cfg(feature = "json")]
+use serde::{Deserialize, Serialize};
+
 /// A *basis* element of a bigraded vector space. Most commonly used to index elements of spectral
 /// sequences.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct BidegreeGenerator {
     /// Bidegree of the element
     degree: Bidegree,
@@ -13,6 +17,19 @@ pub struct BidegreeGenerator {
 }
 
 impl BidegreeGenerator {
+    pub fn new<T: Into<Bidegree>>(degree: T, idx: usize) -> BidegreeGenerator {
+        BidegreeGenerator {
+            degree: degree.into(),
+            idx,
+        }
+    }
+    pub fn s_t(s: u32, t: i32, idx: usize) -> BidegreeGenerator {
+        Self::new(Bidegree::s_t(s, t), idx)
+    }
+    pub fn n_s(n: i32, s: u32, idx: usize) -> BidegreeGenerator {
+        Self::new(Bidegree::n_s(n, s), idx)
+    }
+
     pub fn s(&self) -> u32 {
         self.degree.s()
     }
@@ -32,18 +49,16 @@ impl BidegreeGenerator {
     pub fn idx(&self) -> usize {
         self.idx
     }
-
-    pub fn new<T: Into<Bidegree>>(degree: T, idx: usize) -> BidegreeGenerator {
-        BidegreeGenerator {
-            degree: degree.into(),
-            idx,
-        }
-    }
 }
 
 impl Display for BidegreeGenerator {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "({}, {}, {})", self.n(), self.s(), self.idx())
+        if f.alternate() {
+            // Compact representation
+            write!(f, "({},{},{})", self.n(), self.s(), self.idx())
+        } else {
+            write!(f, "({}, {}, {})", self.n(), self.s(), self.idx())
+        }
     }
 }
 
@@ -53,22 +68,13 @@ impl From<(Bidegree, usize)> for BidegreeGenerator {
     }
 }
 
-impl TryFrom<BidegreeElement> for BidegreeGenerator {
+impl TryFrom<BidegreeElement<'_>> for BidegreeGenerator {
     type Error = ();
 
     fn try_from(value: BidegreeElement) -> Result<Self, Self::Error> {
-        Self::try_from(&value)
-    }
-}
-
-impl<'a> TryFrom<&'a BidegreeElement> for BidegreeGenerator {
-    type Error = ();
-
-    fn try_from(value: &'a BidegreeElement) -> Result<Self, Self::Error> {
-        let (degree, v) = value.into();
-        if v.iter().sum::<u32>() == 1 {
-            let (idx, _) = v.first_nonzero().unwrap();
-            Ok((degree, idx).into())
+        if value.vec().iter().sum::<u32>() == 1 {
+            let (idx, _) = value.vec().iter_nonzero().next().unwrap();
+            Ok((value.degree(), idx).into())
         } else {
             Err(())
         }
