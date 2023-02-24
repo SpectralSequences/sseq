@@ -9,6 +9,7 @@ use bivec::BiVec;
 use fp::matrix::Matrix;
 use fp::prime::ValidPrime;
 use fp::vector::{Slice, SliceMut};
+use sseq::coordinates::{Bidegree, BidegreeElement, BidegreeGenerator};
 use std::sync::Arc;
 
 use itertools::Itertools;
@@ -52,8 +53,8 @@ where
     fn to_sseq(&self) -> sseq::Sseq<sseq::Adams> {
         let p = self.prime();
         let mut sseq = sseq::Sseq::new(p, self.min_degree(), 0);
-        for (s, n, t) in self.iter_stem() {
-            sseq.set_dimension(n, s as i32, self.number_of_gens_in_bidegree(s, t));
+        for b in self.iter_stem() {
+            sseq.set_dimension(b.n(), b.s() as i32, self.number_of_gens_in_bidegree(b));
         }
         sseq
     }
@@ -64,13 +65,13 @@ where
         let max_y = self.next_homological_degree() as i32 - 1;
         matrices.extend_with(self.module(0).max_computed_degree() - op_deg + 2, |x| {
             let mut entries = BiVec::with_capacity(0, max_y);
-            let mut y = 0;
-            while self.has_computed_bidegree(y as u32 + 1, x + y + op_deg) {
+            let mut b = Bidegree::n_s(x, 0);
+            while self.has_computed_bidegree(b + Bidegree::s_t(1, op_deg)) {
                 entries.push(
-                    self.filtration_one_product(op_deg, op_idx, y as u32, x + y)
+                    self.filtration_one_product(op_deg, op_idx, b)
                         .map(|m| Matrix::from_vec(p, &m)),
                 );
-                y += 1;
+                b = b + Bidegree::n_s(0, 1);
             }
             entries
         });
@@ -92,33 +93,31 @@ where
         &self,
         op_deg: i32,
         op_idx: usize,
-        source_s: u32,
-        source_t: i32,
+        source: Bidegree,
     ) -> Option<Vec<Vec<u32>>> {
-        let target_t = source_t + op_deg;
-        let target_s = source_s + 1;
-        if !self.has_computed_bidegree(target_s, target_t) {
+        let target = source + Bidegree::s_t(1, op_deg);
+        if !self.has_computed_bidegree(target) {
             return None;
         }
 
-        let source = self.module(target_s - 1);
-        let target = self.module(target_s);
+        let source_mod = self.module(target.s() - 1);
+        let target_mod = self.module(target.s());
 
-        if U && op_idx >= self.algebra().dimension_unstable(op_deg, source_t) {
+        if U && op_idx >= self.algebra().dimension_unstable(op_deg, source.t()) {
             return None;
         }
 
-        let source_dim = source.number_of_gens_in_degree(source_t);
-        let target_dim = target.number_of_gens_in_degree(target_t);
+        let source_dim = source_mod.number_of_gens_in_degree(source.t());
+        let target_dim = target_mod.number_of_gens_in_degree(target.t());
 
-        let d = self.differential(target_s);
+        let d = self.differential(target.s());
 
         let mut products = vec![Vec::with_capacity(target_dim); source_dim];
         for i in 0..target_dim {
-            let dx = d.output(target_t, i);
+            let dx = d.output(target.t(), i);
 
             for (j, row) in products.iter_mut().enumerate() {
-                let idx = source.operation_generator_to_index(op_deg, op_idx, source_t, j);
+                let idx = source_mod.operation_generator_to_index(op_deg, op_idx, source.t(), j);
                 row.push(dx.entry(idx));
             }
         }
@@ -126,16 +125,17 @@ where
         Some(products)
     }
 
-    fn number_of_gens_in_bidegree(&self, s: u32, t: i32) -> usize {
-        self.module(s).number_of_gens_in_degree(t)
+    fn number_of_gens_in_bidegree(&self, b: Bidegree) -> usize {
+        self.module(b.s()).number_of_gens_in_degree(b.t())
     }
 
-    fn cocycle_string(&self, s: u32, t: i32, idx: usize) -> String {
-        let d = self.differential(s);
+    fn cocycle_string(&self, gen: BidegreeGenerator, compact: bool) -> String {
+        let d = self.differential(gen.s());
         let target = d.target();
-        let result_vector = d.output(t, idx);
+        let result_vector = d.output(gen.t(), gen.idx());
 
-        target.element_to_string_pretty(s, t, result_vector.as_slice())
+        BidegreeElement::new(gen.degree(), result_vector.as_slice())
+            .to_string_pretty(&*target, compact)
     }
 }
 
@@ -172,10 +172,10 @@ pub trait ChainComplex: Send + Sync {
     /// computed at (s, t), and so has the differential at (s, t). In the case of a free module,
     /// the target of the differential, namely the bidegree (s - 1, t), need not be computed, as
     /// long as all the generators hit by the differential have already been computed.
-    fn has_computed_bidegree(&self, s: u32, t: i32) -> bool;
+    fn has_computed_bidegree(&self, b: Bidegree) -> bool;
 
     /// Ensure all bidegrees less than or equal to (s, t) have been computed
-    fn compute_through_bidegree(&self, s: u32, t: i32);
+    fn compute_through_bidegree(&self, b: Bidegree);
 
     /// The first s such that `self.module(s)` is not defined.
     fn next_homological_degree(&self) -> u32;
@@ -185,8 +185,7 @@ pub trait ChainComplex: Send + Sync {
     fn iter_stem(&self) -> StemIterator<'_, Self> {
         StemIterator {
             cc: self,
-            n: self.min_degree(),
-            s: 0,
+            current: Bidegree::n_s(self.min_degree(), 0),
             max_s: self.next_homological_degree(),
         }
     }
@@ -197,7 +196,7 @@ pub trait ChainComplex: Send + Sync {
     ///
     /// This returns whether the application was successful
     #[must_use]
-    fn apply_quasi_inverse<T, S>(&self, results: &mut [T], s: u32, t: i32, inputs: &[S]) -> bool
+    fn apply_quasi_inverse<T, S>(&self, results: &mut [T], b: Bidegree, inputs: &[S]) -> bool
     where
         for<'a> &'a mut T: Into<SliceMut<'a>>,
         for<'a> &'a S: Into<Slice<'a>>,
@@ -209,10 +208,10 @@ pub trait ChainComplex: Send + Sync {
 
         let mut iter = inputs.iter().zip_eq(results);
         let (input, result) = iter.next().unwrap();
-        let d = self.differential(s);
-        if d.apply_quasi_inverse(result.into(), t, input.into()) {
+        let d = self.differential(b.s());
+        if d.apply_quasi_inverse(result.into(), b.t(), input.into()) {
             for (input, result) in iter {
-                assert!(d.apply_quasi_inverse(result.into(), t, input.into()));
+                assert!(d.apply_quasi_inverse(result.into(), b.t(), input.into()));
             }
             true
         } else {
@@ -229,14 +228,12 @@ pub trait ChainComplex: Send + Sync {
     fn save_file(
         &self,
         kind: crate::save::SaveKind,
-        s: u32,
-        t: i32,
+        b: Bidegree,
     ) -> crate::save::SaveFile<Self::Algebra> {
         crate::save::SaveFile {
             algebra: self.algebra(),
             kind,
-            s,
-            t,
+            b,
             idx: None,
         }
     }
@@ -245,38 +242,33 @@ pub trait ChainComplex: Send + Sync {
 /// An iterator returned by [`ChainComplex::iter_stem`]
 pub struct StemIterator<'a, CC: ?Sized> {
     cc: &'a CC,
-    n: i32,
-    s: u32,
+    current: Bidegree,
     max_s: u32,
 }
 
 impl<'a, CC: ChainComplex + ?Sized> Iterator for StemIterator<'a, CC> {
-    // (s, n, t)
-    type Item = (u32, i32, i32);
+    type Item = Bidegree;
+
     fn next(&mut self) -> Option<Self::Item> {
         if self.max_s == 0 {
             return None;
         }
-        let s = self.s;
-        let n = self.n;
-        let t = self.n + self.s as i32;
+        let cur = self.current;
 
-        if s == self.max_s {
-            self.n += 1;
-            self.s = 0;
+        if cur.s() == self.max_s {
+            self.current = Bidegree::n_s(cur.n() + 1, 0);
             return self.next();
         }
-        if t > self.cc.module(s).max_computed_degree() {
-            if s == 0 {
+        if cur.t() > self.cc.module(cur.s()).max_computed_degree() {
+            if cur.s() == 0 {
                 return None;
             } else {
-                self.n += 1;
-                self.s = 0;
+                self.current = Bidegree::n_s(cur.n() + 1, 0);
                 return self.next();
             }
         }
-        self.s += 1;
-        Some((s, n, t))
+        self.current = cur + Bidegree::n_s(0, 1);
+        Some(cur)
     }
 }
 

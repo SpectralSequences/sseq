@@ -32,6 +32,7 @@ use ext::secondary::*;
 use ext::utils::query_module;
 
 use itertools::Itertools;
+use sseq::coordinates::{Bidegree, BidegreeElement, BidegreeGenerator};
 
 fn main() -> anyhow::Result<()> {
     let resolution = Arc::new(query_module(Some(algebra::AlgebraType::Milnor), true)?);
@@ -42,23 +43,14 @@ fn main() -> anyhow::Result<()> {
 
     let name: String = query::raw("Name of product", str::parse);
 
-    let shift_n: i32 = query::raw(&format!("n of Ext class {name}"), str::parse);
-    let shift_s: u32 = query::raw(&format!("s of Ext class {name}"), str::parse);
-    let shift_t = shift_n + shift_s as i32;
-
-    let hom = ResolutionHomomorphism::new(
-        name,
-        Arc::clone(&resolution),
-        Arc::clone(&unit),
-        shift_s,
-        shift_t,
+    let shift = Bidegree::n_s(
+        query::raw(&format!("n of Ext class {name}"), str::parse),
+        query::raw(&format!("s of Ext class {name}"), str::parse),
     );
 
-    let mut matrix = Matrix::new(
-        p,
-        hom.source.number_of_gens_in_bidegree(shift_s, shift_t),
-        1,
-    );
+    let hom = ResolutionHomomorphism::new(name, Arc::clone(&resolution), Arc::clone(&unit), shift);
+
+    let mut matrix = Matrix::new(p, hom.source.number_of_gens_in_bidegree(shift), 1);
 
     if matrix.rows() == 0 || matrix.columns() == 0 {
         panic!("No classes in this bidegree");
@@ -69,13 +61,14 @@ fn main() -> anyhow::Result<()> {
     }
 
     if !is_unit {
-        unit.compute_through_stem(
-            resolution.next_homological_degree() - 1 - shift_s,
-            resolution.module(0).max_computed_degree() - shift_n,
+        let res_max = Bidegree::n_s(
+            resolution.module(0).max_computed_degree(),
+            resolution.next_homological_degree() - 1,
         );
+        unit.compute_through_stem(res_max - shift);
     }
 
-    hom.extend_step(shift_s, shift_t, Some(&matrix));
+    hom.extend_step(shift, Some(&matrix));
     hom.extend_all();
 
     let res_lift = SecondaryResolution::new(Arc::clone(&resolution));
@@ -83,7 +76,7 @@ fn main() -> anyhow::Result<()> {
 
     // Check that class survives to E3.
     {
-        let m = res_lift.homotopy(shift_s + 2).homotopies.hom_k(shift_t);
+        let m = res_lift.homotopy(shift.s() + 2).homotopies.hom_k(shift.t());
         assert_eq!(m.len(), v.len());
         let mut sum = vec![0; m[0].len()];
         for (x, d2) in v.iter().zip_eq(&m) {
@@ -130,31 +123,31 @@ fn main() -> anyhow::Result<()> {
         Arc::new(unit_lift.e3_page())
     };
 
-    fn get_page_data(sseq: &sseq::Sseq<sseq::Adams>, n: i32, s: u32) -> &fp::matrix::Subquotient {
-        let d = sseq.page_data(n, s as i32);
+    fn get_page_data(sseq: &sseq::Sseq<sseq::Adams>, b: Bidegree) -> &fp::matrix::Subquotient {
+        let d = sseq.page_data(b.n(), b.s() as i32);
         &d[std::cmp::min(3, d.len() - 1)]
     }
 
     let name = hom_lift.name();
     // Iterate through the multiplicand
-    for (s, n, t) in unit.iter_stem() {
+    for b in unit.iter_stem() {
         // The potential target has to be hit, and we need to have computed (the data need for) the
         // d2 that hits the potential target.
-        if !resolution.has_computed_bidegree(s + shift_s + 1, t + shift_t + 1) {
+        if !resolution.has_computed_bidegree(b + shift + TAU_BIDEGREE) {
             continue;
         }
-        if !resolution.has_computed_bidegree(s + shift_s - 1, t + shift_t) {
-            continue;
-        }
-
-        if unit.number_of_gens_in_bidegree(s, t) == 0 {
+        if !resolution.has_computed_bidegree(b + shift - Bidegree::s_t(1, 0)) {
             continue;
         }
 
-        let page_data = get_page_data(unit_sseq.as_ref(), n, s);
+        if unit.number_of_gens_in_bidegree(b) == 0 {
+            continue;
+        }
 
-        let target_num_gens = resolution.number_of_gens_in_bidegree(s + shift_s, t + shift_t);
-        let tau_num_gens = resolution.number_of_gens_in_bidegree(s + shift_s + 1, t + shift_t + 1);
+        let page_data = get_page_data(unit_sseq.as_ref(), b);
+
+        let target_num_gens = resolution.number_of_gens_in_bidegree(b + shift);
+        let tau_num_gens = resolution.number_of_gens_in_bidegree(b + shift + TAU_BIDEGREE);
 
         if target_num_gens == 0 && tau_num_gens == 0 {
             continue;
@@ -162,9 +155,10 @@ fn main() -> anyhow::Result<()> {
 
         // First print the products with non-surviving classes
         if target_num_gens > 0 {
-            let hom_k = hom.get_map(s + shift_s).hom_k(t);
+            let hom_k = hom.get_map((b + shift).s()).hom_k(b.t());
             for i in page_data.complement_pivots() {
-                println!("{name} τ x_({n}, {s}, {i}) = τ {:?}", &hom_k[i]);
+                let gen = BidegreeGenerator::new(b, i);
+                println!("{name} τ x_{gen} = τ {:?}", &hom_k[i]);
             }
         }
 
@@ -178,14 +172,13 @@ fn main() -> anyhow::Result<()> {
 
         hom_lift.hom_k(
             Some(&res_sseq),
-            s,
-            t,
+            b,
             page_data.subspace_gens(),
             outputs.iter_mut().map(FpVector::as_slice_mut),
         );
         for (gen, output) in page_data.subspace_gens().zip_eq(outputs) {
             print!("{name} [");
-            ext::utils::print_element(gen, n, s);
+            BidegreeElement::new(b, gen).print();
             println!(
                 "] = {} + τ {}",
                 output.slice(0, target_num_gens),

@@ -1,4 +1,5 @@
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+use sseq::coordinates::Bidegree;
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::{BufRead, BufReader, BufWriter, Error, ErrorKind, Read, Write};
@@ -291,8 +292,7 @@ fn open_file(mut path: PathBuf) -> Option<Box<dyn Read>> {
 pub struct SaveFile<A: Algebra> {
     pub kind: SaveKind,
     pub algebra: Arc<A>,
-    pub s: u32,
-    pub t: i32,
+    pub b: Bidegree,
     pub idx: Option<usize>,
 }
 
@@ -300,11 +300,11 @@ impl<A: Algebra> SaveFile<A> {
     fn write_header(&self, buffer: &mut impl Write) -> std::io::Result<()> {
         buffer.write_u32::<LittleEndian>(self.kind.magic())?;
         buffer.write_u32::<LittleEndian>(self.algebra.magic())?;
-        buffer.write_u32::<LittleEndian>(self.s)?;
+        buffer.write_u32::<LittleEndian>(self.b.s())?;
         buffer.write_i32::<LittleEndian>(if let Some(i) = self.idx {
-            self.t + ((i as i32) << 16)
+            self.b.t() + ((i as i32) << 16)
         } else {
-            self.t
+            self.b.t()
         })
     }
 
@@ -328,13 +328,13 @@ impl<A: Algebra> SaveFile<A> {
 
         check_header!("magic", self.kind.magic(), "{:#010x}");
         check_header!("algebra", self.algebra.magic(), "{:#06x}");
-        check_header!("s", self.s, "{}");
+        check_header!("s", self.b.s(), "{}");
         check_header!(
             "t",
             if let Some(i) = self.idx {
-                self.t as u32 + ((i as u32) << 16)
+                self.b.t() as u32 + ((i as u32) << 16)
             } else {
-                self.t as u32
+                self.b.t() as u32
             },
             "{}"
         );
@@ -348,15 +348,15 @@ impl<A: Algebra> SaveFile<A> {
             dir.push(format!(
                 "{name}s/{s}_{t}_{idx}_{name}",
                 name = self.kind.name(),
-                s = self.s,
-                t = self.t
+                s = self.b.s(),
+                t = self.b.t()
             ));
         } else {
             dir.push(format!(
                 "{name}s/{s}_{t}_{name}",
                 name = self.kind.name(),
-                s = self.s,
-                t = self.t
+                s = self.b.s(),
+                t = self.b.t()
             ));
         }
         dir

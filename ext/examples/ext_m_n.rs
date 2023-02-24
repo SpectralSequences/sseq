@@ -1,6 +1,7 @@
 use algebra::{module::Module, Algebra};
 use ext::chain_complex::ChainComplex;
 use hom_cochain_complex::HomCochainComplex;
+use sseq::coordinates::Bidegree;
 use std::sync::Arc;
 
 fn main() -> anyhow::Result<()> {
@@ -13,23 +14,24 @@ fn main() -> anyhow::Result<()> {
     #[cfg(feature = "nassau")]
     let module = algebra::module::FDModule::from_json(res.algebra(), &module_spec)?;
 
-    let max_n: i32 = query::raw("Max n", str::parse);
-    let max_s: u32 = query::raw("Max s", str::parse);
+    let max = Bidegree::n_s(
+        query::raw("Max n", str::parse),
+        query::raw("Max s", str::parse),
+    );
 
-    res.compute_through_stem(max_s + 1, max_n + module.max_degree().unwrap());
+    res.compute_through_stem(max + Bidegree::n_s(module.max_degree().unwrap(), 1));
     res.algebra()
-        .compute_basis(max_n + module.max_degree().unwrap() + max_s as i32 + 2);
+        .compute_basis(max.t() + module.max_degree().unwrap() + 2);
 
     let hom_cc = HomCochainComplex::new(Arc::new(res), Arc::new(module));
-    hom_cc.compute_through_stem(max_s, max_n);
+    hom_cc.compute_through_stem(max);
 
     // FreeChainComplex::graded_dimension_string
     let mut result = String::new();
-    for s in (0..=max_s).rev() {
-        for n in hom_cc.min_degree()..=max_n {
-            result.push(ext::utils::unicode_num(
-                hom_cc.homology_dimension(s, n + s as i32),
-            ));
+    for s in (0..=max.s()).rev() {
+        for n in hom_cc.min_degree()..=max.n() {
+            let b = Bidegree::n_s(n, s);
+            result.push(ext::utils::unicode_num(hom_cc.homology_dimension(b)));
             result.push(' ');
         }
         result.push('\n');
@@ -49,6 +51,7 @@ mod hom_cochain_complex {
     use ext::chain_complex::FreeChainComplex;
     use fp::matrix::Subquotient;
     use once::OnceVec;
+    use sseq::coordinates::Bidegree;
 
     use std::sync::Arc;
 
@@ -73,14 +76,14 @@ mod hom_cochain_complex {
             self.modules[0usize].min_degree()
         }
 
-        pub fn compute_through_stem(&self, max_s: u32, max_n: i32) {
-            self.modules.extend(max_s as usize + 1, |s| {
+        pub fn compute_through_stem(&self, max: Bidegree) {
+            self.modules.extend(max.s() as usize + 1, |s| {
                 Arc::new(HomModule::new(
                     self.source.module(s as u32),
                     Arc::clone(&self.target),
                 ))
             });
-            self.differentials.extend(max_s as usize, |s| {
+            self.differentials.extend(max.s() as usize, |s| {
                 Arc::new(HomPullback::new(
                     Arc::clone(&self.modules[s]),
                     Arc::clone(&self.modules[s + 1]),
@@ -88,20 +91,20 @@ mod hom_cochain_complex {
                 ))
             });
             for (s, module) in self.modules.iter().enumerate() {
-                module.compute_basis(max_n + s as i32 + 1);
+                module.compute_basis(max.n() + s as i32 + 1);
             }
             for (s, d) in self.differentials.iter().enumerate() {
-                d.compute_auxiliary_data_through_degree(max_n + s as i32 + 1);
+                d.compute_auxiliary_data_through_degree(max.n() + s as i32 + 1);
             }
         }
 
-        pub fn homology_dimension(&self, s: u32, t: i32) -> usize {
-            if s == 0 {
-                self.differentials[s].kernel(t).unwrap().dimension()
+        pub fn homology_dimension(&self, b: Bidegree) -> usize {
+            if b.s() == 0 {
+                self.differentials[b.s()].kernel(b.t()).unwrap().dimension()
             } else {
                 Subquotient::from_parts(
-                    self.differentials[s].kernel(t).cloned().unwrap(),
-                    self.differentials[s - 1].image(t).cloned().unwrap(),
+                    self.differentials[b.s()].kernel(b.t()).cloned().unwrap(),
+                    self.differentials[b.s() - 1].image(b.t()).cloned().unwrap(),
                 )
                 .dimension()
             }

@@ -6,6 +6,7 @@
 use ext::chain_complex::{ChainComplex, ChainHomotopy, FreeChainComplex};
 use ext::resolution_homomorphism::ResolutionHomomorphism;
 use fp::matrix::{AugmentedMatrix, Matrix};
+use sseq::coordinates::{Bidegree, BidegreeElement, BidegreeGenerator};
 use std::sync::Arc;
 
 fn main() -> anyhow::Result<()> {
@@ -17,40 +18,34 @@ fn main() -> anyhow::Result<()> {
     eprintln!("\nComputing Massey products <a, b, ->");
     eprintln!("\nEnter a:");
 
-    let a_n: i32 = query::raw("n of Ext class a", str::parse);
-    let a_s: u32 = query::raw("s of Ext class a", str::parse::<std::num::NonZeroU32>).get();
-    let a_t = a_n + a_s as i32;
-
-    unit.compute_through_stem(a_s, a_n);
-
-    let a_class = query::vector(
-        "Input Ext class a",
-        unit.number_of_gens_in_bidegree(a_s, a_t),
+    let a = Bidegree::n_s(
+        query::raw("n of Ext class a", str::parse),
+        query::raw("s of Ext class a", str::parse::<std::num::NonZeroU32>).get(),
     );
+
+    unit.compute_through_stem(a);
+
+    let a_class = query::vector("Input Ext class a", unit.number_of_gens_in_bidegree(a));
 
     eprintln!("\nEnter b:");
 
-    let b_n: i32 = query::raw("n of Ext class b", str::parse);
-    let b_s: u32 = query::raw("s of Ext class b", str::parse::<std::num::NonZeroU32>).get();
-    let b_t = b_n + b_s as i32;
-
-    unit.compute_through_stem(b_s, b_n);
-
-    let b_class = query::vector(
-        "Input Ext class b",
-        unit.number_of_gens_in_bidegree(b_s, b_t),
+    let b = Bidegree::n_s(
+        query::raw("n of Ext class b", str::parse),
+        query::raw("s of Ext class b", str::parse::<std::num::NonZeroU32>).get(),
     );
 
+    unit.compute_through_stem(b);
+
+    let b_class = query::vector("Input Ext class b", unit.number_of_gens_in_bidegree(b));
+
     // The Massey product shifts the bidegree by this amount
-    let shift_s = a_s + b_s - 1;
-    let shift_t = a_t + b_t;
-    let shift_n = shift_t - shift_s as i32;
+    let shift = a + b - Bidegree::s_t(1, 0);
 
     if !is_unit {
-        unit.compute_through_stem(shift_s, shift_n);
+        unit.compute_through_stem(shift);
     }
 
-    if !resolution.has_computed_bidegree(shift_s, shift_t + resolution.min_degree()) {
+    if !resolution.has_computed_bidegree(shift + Bidegree::s_t(0, resolution.min_degree())) {
         eprintln!("No computable bidegrees");
         return Ok(());
     }
@@ -59,26 +54,23 @@ fn main() -> anyhow::Result<()> {
         String::new(),
         Arc::clone(&unit),
         Arc::clone(&unit),
-        b_s,
-        b_t,
+        b,
         &b_class,
     ));
 
-    b_hom.extend_through_stem(shift_s, shift_n);
+    b_hom.extend_through_stem(shift);
 
-    let offset_a = unit.module(a_s).generator_offset(a_t, a_t, 0);
-    for (s, n, t) in resolution.iter_stem() {
-        if !resolution.has_computed_bidegree(s + shift_s, t + shift_t) {
+    let offset_a = unit.module(a.s()).generator_offset(a.t(), a.t(), 0);
+    for c in resolution.iter_stem() {
+        if !resolution.has_computed_bidegree(c + shift) {
             continue;
         }
 
-        let tot_s = s + shift_s;
-        let tot_t = t + shift_t;
-        let tot_n = n + shift_n;
+        let tot = c + shift;
 
-        let num_gens = resolution.module(s).number_of_gens_in_degree(t);
-        let product_num_gens = resolution.module(s + b_s).number_of_gens_in_degree(t + b_t);
-        let target_num_gens = resolution.module(tot_s).number_of_gens_in_degree(tot_t);
+        let num_gens = resolution.number_of_gens_in_bidegree(c);
+        let product_num_gens = resolution.number_of_gens_in_bidegree(b + c);
+        let target_num_gens = resolution.number_of_gens_in_bidegree(tot);
         if num_gens == 0 || target_num_gens == 0 {
             continue;
         }
@@ -93,23 +85,22 @@ fn main() -> anyhow::Result<()> {
                 String::new(),
                 Arc::clone(&resolution),
                 Arc::clone(&unit),
-                s,
-                t,
+                c,
             ));
 
             matrix[idx].set_entry(0, 1);
-            hom.extend_step(s, t, Some(&matrix));
+            hom.extend_step(c, Some(&matrix));
             matrix[idx].set_entry(0, 0);
 
-            hom.extend_through_stem(tot_s, tot_n);
+            hom.extend_through_stem(tot);
 
             let homotopy = ChainHomotopy::new(Arc::clone(&hom), Arc::clone(&b_hom));
 
-            homotopy.extend(tot_s, tot_t);
+            homotopy.extend(tot);
 
-            let last = homotopy.homotopy(tot_s);
+            let last = homotopy.homotopy(tot.s());
             for i in 0..target_num_gens {
-                let output = last.output(tot_t, i);
+                let output = last.output(tot.t(), i);
                 for (k, &v) in a_class.iter().enumerate() {
                     if v != 0 {
                         answers[idx][i] += v * output.entry(offset_a + k);
@@ -119,7 +110,8 @@ fn main() -> anyhow::Result<()> {
 
             for (k, &v) in b_class.iter().enumerate() {
                 if v != 0 {
-                    hom.act(product[idx].slice_mut(0, product_num_gens), v, b_s, b_t, k);
+                    let gen = BidegreeGenerator::new(b, k);
+                    hom.act(product[idx].slice_mut(0, product_num_gens), v, gen);
                 }
             }
         }
@@ -127,8 +119,9 @@ fn main() -> anyhow::Result<()> {
         let kernel = product.compute_kernel();
 
         for row in kernel.iter() {
+            let c_element = BidegreeElement::new(c, row);
             print!("<a, b, ");
-            ext::utils::print_element(row, n, s);
+            c_element.print();
             print!("> = [");
 
             for i in 0..target_num_gens {

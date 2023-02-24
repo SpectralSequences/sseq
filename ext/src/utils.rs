@@ -10,6 +10,7 @@ use algebra::{AlgebraType, MilnorAlgebra, SteenrodAlgebra};
 
 use anyhow::{anyhow, Context};
 use serde_json::Value;
+use sseq::coordinates::{Bidegree, BidegreeGenerator};
 
 use std::convert::{TryFrom, TryInto};
 use std::path::PathBuf;
@@ -221,30 +222,41 @@ where
 
         let shift = json["shift"].as_i64().unwrap_or(0) as i32;
 
-        let s = cofiber["s"].as_u64().unwrap() as u32;
-        let t = cofiber["t"].as_i64().unwrap() as i32 + shift;
-        let idx = cofiber["idx"].as_u64().unwrap() as usize;
+        let cofiber = BidegreeGenerator::s_t(
+            cofiber["s"].as_u64().unwrap() as u32,
+            cofiber["t"].as_i64().unwrap() as i32 + shift,
+            cofiber["idx"].as_u64().unwrap() as usize,
+        );
 
-        let max_degree = module
-            .max_degree()
-            .expect("Can only take cofiber when module is bounded");
+        let max_degree = Bidegree::n_s(
+            module
+                .max_degree()
+                .expect("Can only take cofiber when module is bounded"),
+            0,
+        );
 
         let resolution = Resolution::new(Arc::clone(&chain_complex));
-        resolution.compute_through_stem(s, t + max_degree - s as i32);
+        resolution.compute_through_stem(cofiber.degree() + max_degree);
 
-        let map = FreeModuleHomomorphism::new(resolution.module(s), Arc::clone(&module), t);
+        let map = FreeModuleHomomorphism::new(
+            resolution.module(cofiber.s()),
+            Arc::clone(&module),
+            cofiber.t(),
+        );
         let mut new_output = fp::matrix::Matrix::new(
             module.prime(),
-            resolution.module(s).number_of_gens_in_degree(t),
+            resolution
+                .module(cofiber.s())
+                .number_of_gens_in_degree(cofiber.t()),
             1,
         );
-        new_output[idx].set_entry(0, 1);
+        new_output[cofiber.idx()].set_entry(0, 1);
 
-        map.add_generators_from_matrix_rows(t, new_output.as_slice_mut());
-        map.extend_by_zero(max_degree + t);
+        map.add_generators_from_matrix_rows(cofiber.t(), new_output.as_slice_mut());
+        map.extend_by_zero((max_degree + cofiber.degree()).t());
 
         let cm = ChainMap {
-            s_shift: s,
+            s_shift: cofiber.s(),
             chain_maps: vec![map],
         };
         let yoneda = yoneda_representative(Arc::new(resolution), cm);
@@ -366,18 +378,20 @@ pub fn query_module(
 ) -> anyhow::Result<QueryModuleResolution> {
     let resolution = query_module_only("Module", algebra, load_quasi_inverse)?;
 
-    let max_n: i32 = query::with_default("Max n", "30", str::parse);
-    let mut max_s: u32 = query::with_default("Max s", "7", str::parse);
+    let mut max = Bidegree::n_s(
+        query::with_default("Max n", "30", str::parse),
+        query::with_default("Max s", "7", str::parse),
+    );
 
     if let Some(s) = secondary_job() {
-        if s <= max_s {
-            max_s = std::cmp::min(s + 1, max_s);
+        if s <= max.s() {
+            max = Bidegree::s_t(std::cmp::min(s + 1, max.s()), max.t());
         } else {
             return Err(anyhow!("SECONDARY_JOB is larger than max_s"));
         }
     }
 
-    resolution.compute_through_stem(max_s, max_n);
+    resolution.compute_through_stem(max);
 
     Ok(resolution)
 }
@@ -404,22 +418,6 @@ pub fn query_unstable_module(load_quasi_inverse: bool) -> anyhow::Result<Unstabl
     resolution.load_quasi_inverse = load_quasi_inverse && resolution.save_dir().is_none();
 
     Ok(resolution)
-}
-
-/// Prints an element in the bidegree `(n, s)` to stdout. For example, `[0, 2, 1]` will be printed
-/// as `2 x_(n, s, 1) + x_(n, s, 2)`.
-pub fn print_element(v: fp::vector::Slice, n: i32, s: u32) {
-    let mut first = true;
-    for (i, v) in v.iter_nonzero() {
-        if !first {
-            print!(" + ");
-        }
-        if v != 1 {
-            print!("{v} ");
-        }
-        print!("x_({n}, {s}, {i})");
-        first = false;
-    }
 }
 
 /// Given a resolution, return a resolution of the unit, together with a boolean indicating whether
@@ -460,73 +458,6 @@ pub fn get_unit(
     };
 
     Ok((is_unit, unit))
-}
-
-/// Given a function `f(s, t)`, compute it for every `s` in `[min_s, max_s]` and every `t` in
-/// `[min_t, max_t(s)]`.  Further, we only compute `f(s, t)` when `f(s - 1, t')` has been computed
-/// for all `t' < t`.
-///
-/// The function `f` should return a range starting from t and ending at the largest `T` such that
-/// `f(s, t')` has already been computed for every `t' < T`.
-///
-/// While `iter_s_t` could have had kept track of that data, it is usually the case that `f` would
-/// compute something and write it to a `OnceBiVec`, and
-/// [`OnceBiVec::push_ooo`](once::OnceBiVec::push_ooo) would return this range for us.
-///
-/// This uses [`rayon`] under the hood, and `f` should feel free to use further rayon parallelism.
-///
-/// # Arguments:
-///  - `max_s`: This is exclusive
-///  - `max_t`: This is exclusive
-#[cfg(feature = "concurrent")]
-pub fn iter_s_t(
-    f: &(impl Fn(u32, i32) -> std::ops::Range<i32> + Sync),
-    min_s: u32,
-    min_t: i32,
-    max_s: u32,
-    max_t: &(impl Fn(u32) -> i32 + Sync),
-) {
-    use rayon::prelude::*;
-
-    rayon::scope(|scope| {
-        // Rust does not support recursive closures, so we have to pass everything along as
-        // arguments.
-        fn run<'a>(
-            scope: &rayon::Scope<'a>,
-            f: &'a (impl Fn(u32, i32) -> std::ops::Range<i32> + Sync + 'a),
-            max_s: u32,
-            max_t: &'a (impl Fn(u32) -> i32 + Sync + 'a),
-            s: u32,
-            t: i32,
-        ) {
-            let mut ret = f(s, t);
-            if s + 1 < max_s {
-                ret.start += 1;
-                ret.end = std::cmp::min(ret.end + 1, max_t(s + 1));
-
-                if !ret.is_empty() {
-                    // We spawn a new scope to avoid recursion, which may blow the stack
-                    scope.spawn(move |scope| {
-                        ret.into_par_iter()
-                            .for_each(|t| run(scope, f, max_s, max_t, s + 1, t));
-                    });
-                }
-            }
-        }
-
-        rayon::join(
-            || {
-                (min_t..max_t(min_s))
-                    .into_par_iter()
-                    .for_each(|t| run(scope, f, max_s, max_t, min_s, t))
-            },
-            || {
-                (min_s + 1..max_s)
-                    .into_par_iter()
-                    .for_each(|s| run(scope, f, max_s, max_t, s, min_t))
-            },
-        );
-    });
 }
 
 #[cfg(feature = "logging")]

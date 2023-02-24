@@ -1,6 +1,7 @@
 use ext::chain_complex::{ChainComplex, FreeChainComplex};
 use ext::utils::{construct, construct_standard};
 use rstest::rstest;
+use sseq::coordinates::Bidegree;
 
 #[rstest]
 #[trace]
@@ -17,11 +18,12 @@ use rstest::rstest;
 #[case("j_mod_2", 30)]
 #[case("ksp", 30)]
 fn compare(#[case] module_name: &str, #[case] max_degree: i32) {
+    let max = Bidegree::s_t(max_degree as u32, max_degree);
     let a = construct((module_name, "adem"), None).unwrap();
     let b = construct((module_name, "milnor"), None).unwrap();
 
-    a.compute_through_bidegree(max_degree as u32, max_degree);
-    b.compute_through_bidegree(max_degree as u32, max_degree);
+    a.compute_through_bidegree(max);
+    b.compute_through_bidegree(max);
 
     assert_eq!(a.graded_dimension_string(), b.graded_dimension_string());
 }
@@ -36,11 +38,12 @@ fn compare(#[case] module_name: &str, #[case] max_degree: i32) {
 #[case("S_3[10]", 50)]
 #[case("Calpha[15]", 50)]
 fn compare_unstable(#[case] module_name: &str, #[case] max_degree: i32) {
+    let max = Bidegree::s_t(max_degree as u32, max_degree);
     let a = construct_standard::<true, _, _>((module_name, "adem"), None).unwrap();
     let b = construct_standard::<true, _, _>((module_name, "milnor"), None).unwrap();
 
-    a.compute_through_bidegree(max_degree as u32, max_degree);
-    b.compute_through_bidegree(max_degree as u32, max_degree);
+    a.compute_through_bidegree(max);
+    b.compute_through_bidegree(max);
 
     assert_eq!(a.graded_dimension_string(), b.graded_dimension_string());
 }

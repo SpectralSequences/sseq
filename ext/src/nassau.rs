@@ -36,6 +36,7 @@ use fp::prime::{ValidPrime, TWO};
 use fp::vector::{FpVector, Slice, SliceMut};
 use itertools::Itertools;
 use once::OnceVec;
+use sseq::coordinates::Bidegree;
 
 #[cfg(feature = "concurrent")]
 use std::sync::mpsc;
@@ -43,18 +44,16 @@ use std::sync::mpsc;
 #[cfg(feature = "concurrent")]
 /// See [`resolution::SenderData`](../resolution/struct.SenderData.html). This differs by not having the `new` field.
 struct SenderData {
-    s: u32,
-    t: i32,
+    b: Bidegree,
     sender: mpsc::Sender<SenderData>,
 }
 
 #[cfg(feature = "concurrent")]
 impl SenderData {
-    pub(crate) fn send(s: u32, t: i32, sender: mpsc::Sender<Self>) {
+    pub(crate) fn send(b: Bidegree, sender: mpsc::Sender<Self>) {
         sender
             .send(Self {
-                s,
-                t,
+                b,
                 sender: sender.clone(),
             })
             .unwrap()
@@ -184,11 +183,11 @@ impl MilnorSubalgebra {
             .sum()
     }
 
-    fn optimal_for(s: u32, t: i32) -> MilnorSubalgebra {
+    fn optimal_for(b: Bidegree) -> MilnorSubalgebra {
         let mut result = MilnorSubalgebra::zero_algebra();
         for subalgebra in SubalgebraIterator::new() {
             let coeff = (1 << subalgebra.profile.len()) - 1;
-            if t < coeff * (s as i32 + 1) + subalgebra.top_degree() {
+            if b.t() < coeff * (b.s() as i32 + 1) + subalgebra.top_degree() {
                 // (s,t) is not in the vanishing region of `subalgebra` or any further subalgebra
                 break;
             }
@@ -481,8 +480,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
 
     fn write_qi(
         f: &mut Option<impl Write>,
-        s: u32,
-        t: i32,
+        b: Bidegree,
         subalgebra: &MilnorSubalgebra,
         scratch: &mut FpVector,
         signature: &[PPartEntry],
@@ -528,28 +526,26 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         }
 
         own_f.finalize(format_args!(
-            "Written quasi-inverse for bidegree ({n}, {s}) and signature {signature:?}, with {subalgebra}",
-            n = t - s as i32,
+            "Written quasi-inverse for bidegree {b} and signature {signature:?}, with {subalgebra}"
         ));
         Ok(())
     }
 
     fn write_differential(
         &self,
-        s: u32,
-        t: i32,
+        b: Bidegree,
         num_new_gens: usize,
         target_dim: usize,
     ) -> anyhow::Result<()> {
         if let Some(dir) = &self.save_dir {
             let mut f = self
-                .save_file(SaveKind::NassauDifferential, s, t)
+                .save_file(SaveKind::NassauDifferential, b)
                 .create_file(dir.clone(), false);
             f.write_u64::<LittleEndian>(num_new_gens as u64)?;
             f.write_u64::<LittleEndian>(target_dim as u64)?;
 
             for n in 0..num_new_gens {
-                self.differential(s).output(t, n).to_bytes(&mut f)?;
+                self.differential(b.s()).output(b.t(), n).to_bytes(&mut f)?;
             }
         }
         Ok(())
@@ -557,18 +553,16 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
 
     fn step_resolution_with_subalgebra(
         &self,
-        s: u32,
-        t: i32,
+        b: Bidegree,
         subalgebra: MilnorSubalgebra,
     ) -> anyhow::Result<()> {
         let timer = Timer::start();
         let end = || {
             timer.end(
                 format_args!(
-                    "Computed bidegree ({n}, {s}) with {subalgebra}, num new gens = {num_new_gens}, density = {density:.2}%",
-                    n = t - s as i32,
-                    num_new_gens = self.number_of_gens_in_bidegree(s, t),
-                    density = self.differentials[s].differential_density(t) * 100.0,
+                    "Computed bidegree {b} with {subalgebra}, num new gens = {num_new_gens}, density = {density:.2}%",
+                    num_new_gens = self.number_of_gens_in_bidegree(b),
+                    density = self.differentials[b.s()].differential_density(b.t()) * 100.0,
                 ),
             );
         };
@@ -576,25 +570,25 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         let p = self.prime();
         let mut scratch = FpVector::new(p, 0);
 
-        let source = &*self.modules[s];
-        let target = &*self.modules[s - 1];
+        let source = &*self.modules[b.s()];
+        let target = &*self.modules[b.s() - 1];
         let algebra = target.algebra();
 
         let zero_sig = subalgebra.zero_signature();
-        let target_dim = target.dimension(t);
+        let target_dim = target.dimension(b.t());
         let target_mask: Vec<usize> = subalgebra
-            .signature_mask(&algebra, target, t, &zero_sig)
+            .signature_mask(&algebra, target, b.t(), &zero_sig)
             .collect();
         let target_masked_dim = target_mask.len();
 
-        let next = &self.modules[s - 2];
-        next.compute_basis(t);
+        let next = &self.modules[b.s() - 2];
+        next.compute_basis(b.t());
 
         let mut f = if let Some(dir) = self.save_dir() {
             let mut f = self
-                .save_file(SaveKind::NassauQi, s - 1, t)
+                .save_file(SaveKind::NassauQi, b - Bidegree::s_t(1, 0))
                 .create_file(dir.to_owned(), true);
-            f.write_u64::<LittleEndian>(next.dimension(t) as u64)?;
+            f.write_u64::<LittleEndian>(next.dimension(b.t()) as u64)?;
             f.write_u64::<LittleEndian>(target_masked_dim as u64)?;
             subalgebra.to_bytes(&mut f)?;
             Some(f)
@@ -603,11 +597,11 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         };
 
         let next_mask: Vec<usize> = subalgebra
-            .signature_mask(&algebra, &self.modules[s - 2], t, &zero_sig)
+            .signature_mask(&algebra, &self.modules[b.s() - 2], b.t(), &zero_sig)
             .collect();
         let next_masked_dim = next_mask.len();
 
-        let full_matrix = self.differentials[s - 1].get_partial_matrix(t, &target_mask);
+        let full_matrix = self.differentials[b.s() - 1].get_partial_matrix(b.t(), &target_mask);
         let mut masked_matrix =
             AugmentedMatrix::new(p, target_masked_dim, [next_masked_dim, target_masked_dim]);
 
@@ -620,8 +614,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
 
         Self::write_qi(
             &mut f,
-            s,
-            t,
+            b,
             &subalgebra,
             &mut scratch,
             &zero_sig,
@@ -631,26 +624,26 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         )?;
 
         if let Some(f) = &mut f {
-            if target.max_computed_degree() < t {
+            if target.max_computed_degree() < b.t() {
                 f.write_u64::<LittleEndian>(Magic::Fix as u64)?;
             }
         }
 
         // Compute image
-        let mut n = subalgebra.signature_matrix(&self.differentials[s], t, &zero_sig);
+        let mut n = subalgebra.signature_matrix(&self.differentials[b.s()], b.t(), &zero_sig);
         n.row_reduce();
         let next_row = n.rows();
 
         let num_new_gens = n.extend_image(0, n.columns(), &kernel, 0).len();
 
-        if t < s as i32 {
-            assert_eq!(num_new_gens, 0, "Adding generators at t = {t}, s = {s}");
+        if b.t() < b.s() as i32 {
+            assert_eq!(num_new_gens, 0, "Adding generators at {b}");
         }
 
-        source.add_generators(t, num_new_gens, None);
+        source.add_generators(b.t(), num_new_gens, None);
 
         let mut xs = vec![FpVector::new(p, target_dim); num_new_gens];
-        let mut dxs = vec![FpVector::new(p, next.dimension(t)); num_new_gens];
+        let mut dxs = vec![FpVector::new(p, next.dimension(b.t())); num_new_gens];
 
         for ((x, x_masked), dx) in xs.iter_mut().zip_eq(&n[next_row..]).zip_eq(&mut dxs) {
             x.as_slice_mut()
@@ -664,13 +657,15 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         let mut target_mask: Vec<usize> = Vec::new();
         let mut next_mask: Vec<usize> = Vec::new();
 
-        for signature in subalgebra.iter_signatures(t) {
+        for signature in subalgebra.iter_signatures(b.t()) {
             target_mask.clear();
             next_mask.clear();
-            target_mask.extend(subalgebra.signature_mask(&algebra, target, t, &signature));
-            next_mask.extend(subalgebra.signature_mask(&algebra, next, t, &signature));
+            target_mask.extend(subalgebra.signature_mask(&algebra, target, b.t(), &signature));
+            next_mask.extend(subalgebra.signature_mask(&algebra, next, b.t(), &signature));
 
-            let full_matrix = self.differential(s - 1).get_partial_matrix(t, &target_mask);
+            let full_matrix = self
+                .differential(b.s() - 1)
+                .get_partial_matrix(b.t(), &target_mask);
 
             let mut masked_matrix =
                 AugmentedMatrix::new(p, target_mask.len(), [next_mask.len(), target_mask.len()]);
@@ -703,8 +698,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             }
             Self::write_qi(
                 &mut f,
-                s,
-                t,
+                b,
                 &subalgebra,
                 &mut scratch,
                 &signature,
@@ -714,9 +708,9 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             )?;
         }
         for dx in &dxs {
-            assert!(dx.is_zero(), "dx non-zero at t = {t}, s = {s}");
+            assert!(dx.is_zero(), "dx non-zero at {b}");
         }
-        self.differential(s).add_generators_from_rows(t, xs);
+        self.differential(b.s()).add_generators_from_rows(b.t(), xs);
 
         end();
 
@@ -724,7 +718,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             f.write_u64::<LittleEndian>(Magic::End as u64)?;
         }
 
-        self.write_differential(s, t, num_new_gens, target_dim)?;
+        self.write_differential(b, num_new_gens, target_dim)?;
         Ok(())
     }
 
@@ -818,37 +812,37 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
                 .row_slice(source_dim, source_dim + num_new_gens),
         );
 
-        self.write_differential(1, t, num_new_gens, target_dim)?;
+        self.write_differential(Bidegree::s_t(1, t), num_new_gens, target_dim)?;
         Ok(())
     }
 
-    fn step_resolution_with_result(&self, s: u32, t: i32) -> anyhow::Result<()> {
+    fn step_resolution_with_result(&self, b: Bidegree) -> anyhow::Result<()> {
         let p = self.prime();
         let set_data = || {
-            let d = &self.differentials[s];
-            let c = &self.chain_maps[s];
+            let d = &self.differentials[b.s()];
+            let c = &self.chain_maps[b.s()];
 
-            d.set_kernel(t, None);
-            d.set_image(t, None);
-            d.set_quasi_inverse(t, None);
+            d.set_kernel(b.t(), None);
+            d.set_image(b.t(), None);
+            d.set_quasi_inverse(b.t(), None);
 
-            c.set_kernel(t, None);
-            c.set_image(t, None);
-            c.set_quasi_inverse(t, None);
+            c.set_kernel(b.t(), None);
+            c.set_image(b.t(), None);
+            c.set_quasi_inverse(b.t(), None);
         };
-        self.modules[s].compute_basis(t);
-        if s > 0 {
-            self.modules[s - 1].compute_basis(t);
+        self.modules[b.s()].compute_basis(b.t());
+        if b.s() > 0 {
+            self.modules[b.s() - 1].compute_basis(b.t());
         }
 
-        if s == 0 {
-            self.step0(t);
+        if b.s() == 0 {
+            self.step0(b.t());
             return Ok(());
         }
 
         if let Some(dir) = &self.save_dir {
             if let Some(mut f) = self
-                .save_file(SaveKind::NassauDifferential, s, t)
+                .save_file(SaveKind::NassauDifferential, b)
                 .open_file(dir.clone())
             {
                 let num_new_gens = f.read_u64::<LittleEndian>()? as usize;
@@ -858,7 +852,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
                 // want to resolve further, it will be bigger.
                 let saved_target_res_dimension = f.read_u64::<LittleEndian>()? as usize;
 
-                self.modules[s].add_generators(t, num_new_gens, None);
+                self.modules[b.s()].add_generators(b.t(), num_new_gens, None);
 
                 let mut d_targets = Vec::with_capacity(num_new_gens);
 
@@ -866,7 +860,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
                     d_targets.push(FpVector::from_bytes(p, saved_target_res_dimension, &mut f)?);
                 }
 
-                self.differentials[s].add_generators_from_rows(t, d_targets);
+                self.differentials[b.s()].add_generators_from_rows(b.t(), d_targets);
 
                 set_data();
 
@@ -874,45 +868,43 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             }
         }
 
-        if s == 1 {
-            self.step1(t)?;
+        if b.s() == 1 {
+            self.step1(b.t())?;
             set_data();
             return Ok(());
         }
 
         self.step_resolution_with_subalgebra(
-            s,
-            t,
-            MilnorSubalgebra::optimal_for(s, t - self.max_degree),
+            b,
+            MilnorSubalgebra::optimal_for(b - Bidegree::s_t(0, self.max_degree)),
         )?;
-        self.chain_maps[s].extend_by_zero(t);
+        self.chain_maps[b.s()].extend_by_zero(b.t());
 
         set_data();
         Ok(())
     }
 
-    fn step_resolution(&self, s: u32, t: i32) {
-        self.step_resolution_with_result(s, t).unwrap_or_else(|e| {
-            panic!("Error computing bidegree ({n}, {s}): {e}", n = t - s as i32)
-        });
+    fn step_resolution(&self, b: Bidegree) {
+        self.step_resolution_with_result(b)
+            .unwrap_or_else(|e| panic!("Error computing bidegree {b}: {e}"));
     }
 
     /// This function resolves up till a fixed stem instead of a fixed t.
-    pub fn compute_through_stem(&self, max_s: u32, max_n: i32) {
+    pub fn compute_through_stem(&self, max: Bidegree) {
         let _lock = self.lock.lock();
-        let max_t = max_s as i32 + max_n;
 
-        self.extend_through_degree(max_s);
-        self.algebra().compute_basis(max_t);
+        self.extend_through_degree(max.s());
+        self.algebra().compute_basis(max.t());
 
         #[cfg(not(feature = "concurrent"))]
-        for t in 0..=max_t {
-            let start_s = std::cmp::max(0, t - max_n) as u32;
-            for s in start_s..=max_s {
-                if self.has_computed_bidegree(s, t) {
+        for t in 0..=max.t() {
+            let start_s = std::cmp::max(0, t - max.n()) as u32;
+            for s in start_s..=max.s() {
+                let b = Bidegree::s_t(s, t);
+                if self.has_computed_bidegree(b) {
                     continue;
                 }
-                self.step_resolution(s, t);
+                self.step_resolution(b);
             }
         }
 
@@ -924,41 +916,41 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             // annoying to do correctly. It seems more prudent to improve parallelism elsewhere.
 
             // Things that we have finished computing.
-            let mut progress: Vec<i32> = vec![-1; max_s as usize + 1];
+            let mut progress: Vec<i32> = vec![-1; max.s() as usize + 1];
             // We will kickstart the process by pretending we have computed (0, - 1). So
             // we must pretend we have only computed up to (0, - 2);
             progress[0] = -2;
 
             let (sender, receiver) = mpsc::channel();
-            SenderData::send(0, -1, sender);
+            SenderData::send(Bidegree::s_t(0, -1), sender);
 
-            let f = |s, t, sender| {
-                if self.has_computed_bidegree(s, t) {
-                    SenderData::send(s, t, sender);
+            let f = |b, sender| {
+                if self.has_computed_bidegree(b) {
+                    SenderData::send(b, sender);
                 } else {
                     scope.spawn(move |_| {
-                        self.step_resolution(s, t);
-                        SenderData::send(s, t, sender);
+                        self.step_resolution(b);
+                        SenderData::send(b, sender);
                     });
                 }
             };
 
-            while let Ok(SenderData { s, t, sender }) = receiver.recv() {
-                assert!(progress[s as usize] == t - 1);
-                progress[s as usize] = t;
+            while let Ok(SenderData { b, sender }) = receiver.recv() {
+                assert!(progress[b.s() as usize] == b.t() - 1);
+                progress[b.s() as usize] = b.t();
 
                 // How far we are from the last one for this s.
-                let distance = max_n + 1 - (t - s as i32);
+                let distance = max.n() - b.n() + 1;
 
-                if s < max_s && progress[s as usize + 1] == t - 1 {
-                    f(s + 1, t, sender.clone());
+                if b.s() < max.s() && progress[b.s() as usize + 1] == b.t() - 1 {
+                    f(b + Bidegree::s_t(1, 0), sender.clone());
                 }
 
-                if distance > 1 && (s == 0 || progress[s as usize - 1] > t) {
+                if distance > 1 && (b.s() == 0 || progress[b.s() as usize - 1] > b.t()) {
                     // We are computing a normal step
-                    f(s, t + 1, sender);
-                } else if distance == 1 && s < max_s {
-                    SenderData::send(s, t + 1, sender);
+                    f(b + Bidegree::s_t(0, 1), sender);
+                } else if distance == 1 && b.s() < max.s() {
+                    SenderData::send(b + Bidegree::s_t(0, 1), sender);
                 }
             }
         });
@@ -986,26 +978,27 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
         0
     }
 
-    fn has_computed_bidegree(&self, s: u32, t: i32) -> bool {
-        self.differentials.len() > s as usize && self.differential(s).next_degree() > t
+    fn has_computed_bidegree(&self, b: Bidegree) -> bool {
+        self.differentials.len() > b.s() as usize && self.differential(b.s()).next_degree() > b.t()
     }
 
     fn differential(&self, s: u32) -> Arc<Self::Homomorphism> {
         Arc::clone(&self.differentials[s as usize])
     }
 
-    fn compute_through_bidegree(&self, max_s: u32, max_t: i32) {
+    fn compute_through_bidegree(&self, max: Bidegree) {
         let _lock = self.lock.lock();
 
-        self.extend_through_degree(max_s);
-        self.algebra().compute_basis(max_t);
+        self.extend_through_degree(max.s());
+        self.algebra().compute_basis(max.t());
 
-        for t in 0..=max_t {
-            for s in 0..=max_s {
-                if self.has_computed_bidegree(s, t) {
+        for t in 0..=max.t() {
+            for s in 0..=max.s() {
+                let b = Bidegree::s_t(s, t);
+                if self.has_computed_bidegree(b) {
                     continue;
                 }
-                self.step_resolution(s, t);
+                self.step_resolution(b);
             }
         }
     }
@@ -1018,16 +1011,13 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
         self.save_dir.as_deref()
     }
 
-    fn apply_quasi_inverse<T, S>(&self, results: &mut [T], s: u32, t: i32, inputs: &[S]) -> bool
+    fn apply_quasi_inverse<T, S>(&self, results: &mut [T], b: Bidegree, inputs: &[S]) -> bool
     where
         for<'a> &'a mut T: Into<SliceMut<'a>>,
         for<'a> &'a S: Into<Slice<'a>>,
     {
         let mut f = if let Some(dir) = &self.save_dir {
-            if let Some(f) = self
-                .save_file(SaveKind::NassauQi, s, t)
-                .open_file(dir.clone())
-            {
+            if let Some(f) = self.save_file(SaveKind::NassauQi, b).open_file(dir.clone()) {
                 f
             } else {
                 return false;
@@ -1041,13 +1031,18 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
         let target_dim = f.read_u64::<LittleEndian>().unwrap() as usize;
         let zero_mask_dim = f.read_u64::<LittleEndian>().unwrap() as usize;
         let subalgebra = MilnorSubalgebra::from_bytes(&mut f).unwrap();
-        let source = &self.modules[s];
-        let target = &self.modules[s - 1];
+        let source = &self.modules[b.s()];
+        let target = &self.modules[b.s() - 1];
         let algebra = target.algebra();
 
         let mut inputs: Vec<FpVector> = inputs.iter().map(|x| x.into().to_owned()).collect();
         let mut mask: Vec<usize> = Vec::with_capacity(zero_mask_dim + 8);
-        mask.extend(subalgebra.signature_mask(&algebra, source, t, &subalgebra.zero_signature()));
+        mask.extend(subalgebra.signature_mask(
+            &algebra,
+            source,
+            b.t(),
+            &subalgebra.zero_signature(),
+        ));
 
         let mut scratch0 = FpVector::new(p, zero_mask_dim);
         let mut scratch1 = FpVector::new(p, target_dim);
@@ -1071,20 +1066,20 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
         // the pivot columns of the quasi-inverse. We can then use (the rref of) this matrix to
         // lift remaining elements with zero signature.
         let (mut target_zero_mask, mut dx_matrix) = if zero_mask_dim != mask.len() {
-            let num_new_gens = source.number_of_gens_in_degree(t);
+            let num_new_gens = source.number_of_gens_in_degree(b.t());
             assert_eq!(mask.len(), zero_mask_dim + num_new_gens);
 
             let target_zero_mask: Vec<usize> = subalgebra
-                .signature_mask(&algebra, target, t, &subalgebra.zero_signature())
+                .signature_mask(&algebra, target, b.t(), &subalgebra.zero_signature())
                 .collect();
             let mut matrix = AugmentedMatrix::<3>::new(
                 p,
                 num_new_gens,
-                [target_zero_mask.len(), target.dimension(t), mask.len()],
+                [target_zero_mask.len(), target.dimension(b.t()), mask.len()],
             );
 
             for i in 0..num_new_gens {
-                let dx = self.differentials[s].output(t, i);
+                let dx = self.differentials[b.s()].output(b.t(), i);
                 matrix
                     .row_segment_mut(i, 1, 1)
                     .slice_mut(0, dx.len())
@@ -1107,7 +1102,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
                 let signature = subalgebra.signature_from_bytes(&mut f).unwrap();
 
                 mask.clear();
-                mask.extend(subalgebra.signature_mask(&algebra, source, t, &signature));
+                mask.extend(subalgebra.signature_mask(&algebra, source, b.t(), &signature));
                 scratch0.set_scratch_vector_size(mask.len());
             } else if col == Magic::Fix as usize {
                 // We need to fix the differential problem
@@ -1180,8 +1175,8 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
         for dx in inputs {
             assert!(
                 dx.is_zero(),
-                "remainder non-zero at t = {t}, s = {s}\nAlgebra: {subalgebra}\ndx: {}",
-                target.element_to_string(t, dx.as_slice())
+                "remainder non-zero at {b}\nAlgebra: {subalgebra}\ndx: {}",
+                target.element_to_string(b.t(), dx.as_slice())
             );
         }
         true
@@ -1210,8 +1205,8 @@ mod test {
     #[test]
     fn test_restart_stem() {
         let res = crate::utils::construct_nassau("S_2", None).unwrap();
-        res.compute_through_stem(8, 14);
-        res.compute_through_bidegree(5, 19);
+        res.compute_through_stem(Bidegree::n_s(14, 8));
+        res.compute_through_bidegree(Bidegree::s_t(5, 19));
 
         expect![[r#"
             ·                             

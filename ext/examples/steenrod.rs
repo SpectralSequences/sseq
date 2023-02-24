@@ -8,6 +8,7 @@ use ext::yoneda::yoneda_representative_element;
 use fp::matrix::Matrix;
 use fp::vector::FpVector;
 use itertools::Itertools;
+use sseq::coordinates::{Bidegree, BidegreeElement};
 use tensor_product_chain_complex::TensorChainComplex;
 
 use std::io::{stderr, stdout, Write};
@@ -22,26 +23,24 @@ fn main() -> anyhow::Result<()> {
         panic!("Can only run Steenrod on the sphere");
     }
 
-    let n: i32 = query::raw("n of Ext class", str::parse);
-    let s: u32 = query::raw("s of Ext class", str::parse);
-    let t = n + s as i32;
-
-    resolution.compute_through_bidegree(2 * s, 2 * t);
-
-    let class: Vec<u32> = query::vector(
-        "Input Ext class",
-        resolution.number_of_gens_in_bidegree(s, t),
+    let b = Bidegree::n_s(
+        query::raw("n of Ext class", str::parse),
+        query::raw("s of Ext class", str::parse),
     );
+
+    resolution.compute_through_bidegree(b + b);
+
+    let class: Vec<u32> =
+        query::vector("Input Ext class", resolution.number_of_gens_in_bidegree(b));
 
     let yoneda = Arc::new(yoneda_representative_element(
         Arc::clone(&resolution),
-        s,
-        t,
+        b,
         &class,
     ));
 
     print!("Dimensions of Yoneda representative: 1");
-    for s in 0..=s {
+    for s in 0..=b.s() {
         print!(" {}", yoneda.module(s).total_dimension());
     }
     println!();
@@ -50,24 +49,26 @@ fn main() -> anyhow::Result<()> {
         Arc::clone(&yoneda),
         Arc::clone(&yoneda),
     ));
+    let doubled_b = b + b;
 
     let timer = utils::Timer::start();
-    square.compute_through_bidegree(2 * s, 2 * t);
-    for s in 0..=2 * s {
+    square.compute_through_bidegree(doubled_b);
+    for s in 0..=doubled_b.s() {
         square
             .differential(s)
-            .compute_auxiliary_data_through_degree(2 * t);
+            .compute_auxiliary_data_through_degree(doubled_b.t());
     }
     timer.end(format_args!("Computed quasi-inverses"));
 
     eprintln!("Computing Steenrod operations: ");
 
-    let mut delta = Vec::with_capacity(s as usize);
+    let mut delta = Vec::with_capacity(b.s() as usize);
 
-    for i in 0..=s {
-        let mut maps: Vec<Arc<FreeModuleHomomorphism<_>>> = Vec::with_capacity(2 * s as usize - 1);
+    for i in 0..=b.s() {
+        let mut maps: Vec<Arc<FreeModuleHomomorphism<_>>> =
+            Vec::with_capacity(doubled_b.s() as usize - 1);
 
-        for s in 0..=2 * s - i {
+        for s in 0..=doubled_b.s() - i {
             let source = resolution.module(s);
             let target = square.module(s + i);
 
@@ -90,7 +91,8 @@ fn main() -> anyhow::Result<()> {
     let timer = utils::Timer::start();
 
     // We use the formula d Δ_i + Δ_i d = Δ_{i-1} + τΔ_{i-1}
-    for i in 0..=s {
+    for i in 0..=b.s() {
+        let shift_s = Bidegree::s_t(i, 0);
         // Δ_i is a map C_s -> C_{s + i}. So to hit C_{2s}, we only need to compute up to 2
         // * s - i
         //        #[cfg(not(feature = "concurrent"))]
@@ -105,14 +107,14 @@ fn main() -> anyhow::Result<()> {
         #[cfg(feature = "concurrent")]
         let top_s = 2 * s - i;*/
 
-        for s in 0..=2 * s - i {
+        for s in 0..=(doubled_b - shift_s).s() {
             if i == 0 && s == 0 {
                 let map = &delta[0][0];
                 map.add_generators_from_matrix_rows(
                     0,
                     Matrix::from_vec(p, &[vec![1]]).as_slice_mut(),
                 );
-                map.extend_by_zero(2 * t);
+                map.extend_by_zero(doubled_b.t());
                 continue;
             }
 
@@ -153,7 +155,8 @@ fn main() -> anyhow::Result<()> {
                 /* #[cfg(feature = "concurrent")]
                 let mut token = bucket.take_token();*/
 
-                for t in 0..=2 * t {
+                for t in 0..=doubled_b.t() {
+                    let b = Bidegree::s_t(s, t);
                     /* #[cfg(feature = "concurrent")]
                     {
                         token = bucket.recv2_or_release(token, &last_receiver, &prev_i_receiver);
@@ -186,7 +189,7 @@ fn main() -> anyhow::Result<()> {
                             let prevd = m.output(t, j);
 
                             // τ Δ_{i-1}x
-                            square.swap(&mut result, prevd, s + i - 1, t);
+                            square.swap(&mut result, prevd, b + shift_s - Bidegree::s_t(1, 0));
                             result += prevd;
                         }
 
@@ -230,15 +233,15 @@ fn main() -> anyhow::Result<()> {
 
         // #[cfg(not(feature = "concurrent"))]
         {
-            let final_map = &delta[i as usize][(2 * s - i) as usize];
-            let num_gens = resolution.number_of_gens_in_bidegree(2 * s - i, 2 * t);
-            print!("Sq^{} ", s - i);
-            utils::print_element(FpVector::from_slice(p, &class).as_slice(), n, s);
+            let final_map = &delta[i as usize][(doubled_b - shift_s).s() as usize];
+            let num_gens = resolution.number_of_gens_in_bidegree(doubled_b - shift_s);
+            print!("Sq^{} ", (b - shift_s).s());
+            BidegreeElement::new(b, FpVector::from_slice(p, &class).as_slice()).print();
 
             print!(
                 " = [{}]",
                 (0..num_gens)
-                    .map(|k| format!("{}", final_map.output(2 * t, k).entry(0)))
+                    .map(|k| format!("{}", final_map.output(doubled_b.t(), k).entry(0)))
                     .format(", "),
             );
             stdout().flush().unwrap();
@@ -476,6 +479,7 @@ mod tensor_product_chain_complex {
     use ext::chain_complex::ChainComplex;
     use fp::matrix::AugmentedMatrix;
     use fp::vector::{FpVector, Slice, SliceMut};
+    use sseq::coordinates::Bidegree;
     use std::sync::Arc;
 
     use once::{OnceBiVec, OnceVec};
@@ -521,6 +525,14 @@ mod tensor_product_chain_complex {
         fn right_cc(&self) -> Arc<CC2> {
             Arc::clone(&self.right_cc)
         }
+
+        fn left_min_shift(&self) -> Bidegree {
+            Bidegree::s_t(0, self.left_cc.min_degree())
+        }
+
+        fn right_min_shift(&self) -> Bidegree {
+            Bidegree::s_t(0, self.right_cc.min_degree())
+        }
     }
 
     impl<A, CC> TensorChainComplex<A, CC, CC>
@@ -530,18 +542,18 @@ mod tensor_product_chain_complex {
     {
         /// This function sends a (x) b to b (x) a. This makes sense only if left_cc and right_cc are
         /// equal, but we don't check that.
-        pub fn swap(&self, result: &mut FpVector, vec: &FpVector, s: u32, t: i32) {
-            let s = s as usize;
+        pub fn swap(&self, result: &mut FpVector, vec: &FpVector, b: Bidegree) {
+            let s = b.s() as usize;
 
             for left_s in 0..=s {
                 let right_s = s - left_s;
                 let module = &self.modules[s];
 
-                let source_offset = module.offset(t, left_s);
-                let target_offset = module.offset(t, right_s);
+                let source_offset = module.offset(b.t(), left_s);
+                let target_offset = module.offset(b.t(), right_s);
 
-                for left_t in 0..=t {
-                    let right_t = t - left_t;
+                for left_t in 0..=b.t() {
+                    let right_t = b.t() - left_t;
 
                     let left_dim = module.modules[left_s].left.dimension(left_t);
                     let right_dim = module.modules[left_s].right.dimension(right_t);
@@ -550,8 +562,8 @@ mod tensor_product_chain_complex {
                         continue;
                     }
 
-                    let source_inner_offset = module.modules[left_s].offset(t, left_t);
-                    let target_inner_offset = module.modules[right_s].offset(t, right_t);
+                    let source_inner_offset = module.modules[left_s].offset(b.t(), left_t);
+                    let target_inner_offset = module.modules[right_s].offset(b.t(), right_t);
 
                     for i in 0..left_dim {
                         for j in 0..right_dim {
@@ -592,13 +604,13 @@ mod tensor_product_chain_complex {
             Arc::clone(&self.zero_module)
         }
 
-        fn has_computed_bidegree(&self, s: u32, t: i32) -> bool {
+        fn has_computed_bidegree(&self, b: Bidegree) -> bool {
             self.left_cc
-                .has_computed_bidegree(s, t - self.right_cc.min_degree())
+                .has_computed_bidegree(b - self.left_min_shift())
                 && self
                     .right_cc
-                    .has_computed_bidegree(s, t - self.left_cc.min_degree())
-                && self.differentials.len() > s as usize
+                    .has_computed_bidegree(b - self.left_min_shift())
+                && self.differentials.len() > b.s() as usize
         }
 
         fn module(&self, s: u32) -> Arc<Self::Module> {
@@ -609,13 +621,13 @@ mod tensor_product_chain_complex {
             Arc::clone(&self.differentials[s as usize])
         }
 
-        fn compute_through_bidegree(&self, s: u32, t: i32) {
+        fn compute_through_bidegree(&self, b: Bidegree) {
             self.left_cc
-                .compute_through_bidegree(s, t - self.right_cc.min_degree());
+                .compute_through_bidegree(b - self.right_min_shift());
             self.right_cc
-                .compute_through_bidegree(s, t - self.left_cc.min_degree());
+                .compute_through_bidegree(b - self.left_min_shift());
 
-            self.modules.extend(s as usize, |i| {
+            self.modules.extend(b.s() as usize, |i| {
                 let i = i as u32;
                 let new_module_list: Vec<Arc<TensorModule<CC1::Module, CC2::Module>>> = (0..=i)
                     .map(|j| {
@@ -633,10 +645,10 @@ mod tensor_product_chain_complex {
             });
 
             for module in self.modules.iter() {
-                module.compute_basis(t);
+                module.compute_basis(b.t());
             }
 
-            self.differentials.extend(s as usize, |s| {
+            self.differentials.extend(b.s() as usize, |s| {
                 let s = s as u32;
                 if s == 0 {
                     Arc::new(TensorChainMap {
@@ -960,26 +972,20 @@ mod tensor_product_chain_complex {
 
         #[rstest]
         #[trace]
-        #[case(0, 1, &[1], &[1])]
-        #[case(0, 2, &[1], &[1])]
-        #[case(1, 1, &[1], &[1])]
-        #[case(3, 1, &[1], &[1])]
-        #[case(14, 4, &[1], &[1])]
-        fn test_square_cc(
-            #[case] n: i32,
-            #[case] s: u32,
-            #[case] class: &[u32],
-            #[case] output: &[u32],
-        ) {
-            let t = s as i32 + n;
+        #[case(Bidegree::n_s(0, 1), &[1], &[1])]
+        #[case(Bidegree::n_s(0, 2), &[1], &[1])]
+        #[case(Bidegree::n_s(1, 1), &[1], &[1])]
+        #[case(Bidegree::n_s(3, 1), &[1], &[1])]
+        #[case(Bidegree::n_s(14, 4), &[1], &[1])]
+        fn test_square_cc(#[case] b: Bidegree, #[case] class: &[u32], #[case] output: &[u32]) {
+            let doubled_b = b + b;
             let resolution = Arc::new(construct("S_2", None).unwrap());
             let p = resolution.prime();
-            resolution.compute_through_stem(2 * s, 2 * t);
+            resolution.compute_through_bidegree(doubled_b);
 
             let yoneda = Arc::new(yoneda_representative_element(
                 Arc::clone(&resolution),
-                s,
-                t,
+                b,
                 class,
             ));
 
@@ -987,18 +993,22 @@ mod tensor_product_chain_complex {
                 Arc::clone(&yoneda),
                 Arc::clone(&yoneda),
             ));
-            square.compute_through_bidegree(2 * s, 2 * t);
+            square.compute_through_bidegree(doubled_b);
 
-            let f =
-                ResolutionHomomorphism::new("".to_string(), Arc::clone(&resolution), square, 0, 0);
-            f.extend_step_raw(0, 0, Some(vec![FpVector::from_slice(p, &[1])]));
+            let f = ResolutionHomomorphism::new(
+                "".to_string(),
+                Arc::clone(&resolution),
+                square,
+                Bidegree::zero(),
+            );
+            f.extend_step_raw(Bidegree::zero(), Some(vec![FpVector::from_slice(p, &[1])]));
 
-            f.extend(2 * s, 2 * t);
-            let final_map = f.get_map(2 * s);
+            f.extend(doubled_b);
+            let final_map = f.get_map(doubled_b.s());
 
             for (i, &v) in output.iter().enumerate() {
-                assert_eq!(final_map.output(2 * t, i).len(), 1);
-                assert_eq!(final_map.output(2 * t, i).entry(0), v);
+                assert_eq!(final_map.output(doubled_b.t(), i).len(), 1);
+                assert_eq!(final_map.output(doubled_b.t(), i).entry(0), v);
             }
         }
     }

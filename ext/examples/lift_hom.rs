@@ -45,14 +45,17 @@ use ext::chain_complex::{AugmentedChainComplex, ChainComplex, FreeChainComplex};
 use ext::resolution_homomorphism::ResolutionHomomorphism;
 use ext::utils;
 use fp::matrix::Matrix;
+use sseq::coordinates::{Bidegree, BidegreeGenerator};
 
 use std::path::PathBuf;
 use std::sync::Arc;
 
 fn main() -> anyhow::Result<()> {
     let source = Arc::new(utils::query_module_only("Source module", None, true)?);
-    let n: i32 = query::with_default("Max source n", "30", str::parse);
-    let s: u32 = query::with_default("Max source s", "7", str::parse);
+    let b = Bidegree::n_s(
+        query::with_default("Max source n", "30", str::parse),
+        query::with_default("Max source s", "7", str::parse),
+    );
 
     let source_name = source.name();
     let target = query::with_default("Target module", source_name, |s| {
@@ -85,53 +88,57 @@ fn main() -> anyhow::Result<()> {
 
     let name: String = query::raw("Name of product", str::parse);
 
-    let shift_n: i32 = query::with_default("n of product", "0", str::parse);
-    let shift_s: u32 = query::with_default("s of product", "0", str::parse);
-    let shift_t = shift_n + shift_s as i32;
+    let shift = Bidegree::n_s(
+        query::with_default("n of product", "0", str::parse),
+        query::with_default("s of product", "0", str::parse),
+    );
 
-    source.compute_through_stem(s, n);
-    target.compute_through_stem(s - shift_s, n - shift_n);
+    source.compute_through_stem(b);
+    target.compute_through_stem(b - shift);
 
     let target_module = target.target().module(0);
-    let hom = ResolutionHomomorphism::new(name.clone(), source, target, shift_s, shift_t);
+    let hom = ResolutionHomomorphism::new(name.clone(), source, target, shift);
 
     eprintln!("\nInput Ext class to lift:");
     for output_t in 0..=target_module
         .max_degree()
         .expect("lift_hom requires target to be bounded")
     {
-        let input_t = output_t + shift_t;
+        let output = Bidegree::s_t(0, output_t);
+        let input = output + shift;
         let mut matrix = Matrix::new(
             p,
-            hom.source.number_of_gens_in_bidegree(shift_s, input_t),
-            target_module.dimension(output_t),
+            hom.source.number_of_gens_in_bidegree(input),
+            target_module.dimension(output.t()),
         );
 
         if matrix.rows() == 0 || matrix.columns() == 0 {
-            hom.extend_step(shift_s, input_t, None);
+            hom.extend_step(input, None);
         } else {
             for (idx, row) in matrix.iter_mut().enumerate() {
-                let v: Vec<u32> =
-                    query::vector(&format!("f(x_({shift_s}, {input_t}, {idx}))"), row.len());
+                let gen = BidegreeGenerator::new(input, idx);
+                let v: Vec<u32> = query::vector(&format!("f(x_{gen}"), row.len());
                 for (i, &x) in v.iter().enumerate() {
                     row.set_entry(i, x);
                 }
             }
-            hom.extend_step(shift_s, input_t, Some(&matrix));
+            hom.extend_step(input, Some(&matrix));
         }
     }
 
     hom.extend_all();
 
-    for (s, n, t) in hom.target.iter_stem() {
-        if s + shift_s >= hom.source.next_homological_degree()
-            || t + shift_t > hom.source.module(s + shift_s).max_computed_degree()
+    for b2 in hom.target.iter_stem() {
+        let shifted_b2 = b2 + shift;
+        if shifted_b2.s() >= hom.source.next_homological_degree()
+            || shifted_b2.t() > hom.source.module(shifted_b2.s()).max_computed_degree()
         {
             continue;
         }
-        let matrix = hom.get_map(s + shift_s).hom_k(t);
+        let matrix = hom.get_map(shifted_b2.s()).hom_k(b2.t());
         for (i, r) in matrix.iter().enumerate() {
-            println!("{name} x_({n}, {s}, {i}) = {r:?}");
+            let gen = BidegreeGenerator::new(b2, i);
+            println!("{name} x_{gen} = {r:?}");
         }
     }
     Ok(())

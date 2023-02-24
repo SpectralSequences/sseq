@@ -9,6 +9,7 @@ use ext::resolution_homomorphism::ResolutionHomomorphism;
 use ext::utils;
 use fp::vector::FpVector;
 use itertools::Itertools;
+use sseq::coordinates::{Bidegree, BidegreeGenerator};
 
 fn main() -> anyhow::Result<()> {
     let res = utils::query_module(None, true)?;
@@ -19,31 +20,41 @@ fn main() -> anyhow::Result<()> {
 
     let res = Arc::new(res);
     let doubled = Arc::new(DoubleChainComplex::new(Arc::clone(&res)));
-    doubled.compute_through_bidegree(res.next_homological_degree() - 1, 0);
+    doubled.compute_through_bidegree(Bidegree::s_t(res.next_homological_degree() - 1, 0));
 
-    let hom = ResolutionHomomorphism::new(String::from("Sq^0"), Arc::clone(&res), doubled, 0, 0);
-    hom.extend_step_raw(0, 0, Some(vec![FpVector::from_slice(res.prime(), &[1])]));
+    let hom = ResolutionHomomorphism::new(
+        String::from("Sq^0"),
+        Arc::clone(&res),
+        doubled,
+        Bidegree::zero(),
+    );
+    hom.extend_step_raw(
+        Bidegree::zero(),
+        Some(vec![FpVector::from_slice(res.prime(), &[1])]),
+    );
     hom.extend_all();
 
-    for (s, n, t) in res.iter_stem() {
-        if !res.has_computed_bidegree(s, t * 2) {
+    for b in res.iter_stem() {
+        let doubled_b = Bidegree::s_t(b.s(), 2 * b.t());
+        if !res.has_computed_bidegree(doubled_b) {
             continue;
         }
 
-        let num_gens = res.number_of_gens_in_bidegree(s, t);
+        let num_gens = res.number_of_gens_in_bidegree(b);
         if num_gens == 0 {
             continue;
         }
-        let source_num_gens = res.number_of_gens_in_bidegree(s, t * 2);
-        let module = res.module(s);
-        let offset = module.generator_offset(t, t, 0);
-        let map = hom.get_map(s);
+        let source_num_gens = res.number_of_gens_in_bidegree(doubled_b);
+        let module = res.module(b.s());
+        let offset = module.generator_offset(b.t(), b.t(), 0);
+        let map = hom.get_map(b.s());
 
-        for i in 0..res.number_of_gens_in_bidegree(s, t) {
+        for i in 0..res.number_of_gens_in_bidegree(b) {
+            let gen = BidegreeGenerator::new(b, i);
             println!(
-                "Sq^0 x_({n}, {s}, {i}) = [{}]",
+                "Sq^0 x_{gen} = [{}]",
                 (0..source_num_gens)
-                    .map(|j| map.output(t * 2, j).entry(offset + i))
+                    .map(|j| map.output(doubled_b.t(), j).entry(offset + i))
                     .format(", ")
             )
         }
@@ -55,10 +66,15 @@ mod double {
     use double_algebra::DoubleAlgebra;
     pub use double_chain_complex::DoubleChainComplex;
     use double_module::{DoubleModule, DoubleModuleHomomorphism};
+    use sseq::coordinates::Bidegree;
 
     /// Divide by 2 and round towards -infty
     fn div_floor(x: i32) -> i32 {
         ((x as u32) / 2) as i32
+    }
+
+    fn div_bidegree(b: Bidegree) -> Bidegree {
+        Bidegree::s_t(b.s(), div_floor(b.t()))
     }
 
     mod double_algebra {
@@ -381,6 +397,7 @@ mod double {
 
         use ext::chain_complex::ChainComplex;
         use once::OnceVec;
+        use sseq::coordinates::Bidegree;
 
         use super::{DoubleAlgebra, DoubleModule, DoubleModuleHomomorphism};
 
@@ -433,16 +450,16 @@ mod double {
                 Arc::clone(&self.differentials[s])
             }
 
-            fn has_computed_bidegree(&self, s: u32, t: i32) -> bool {
-                self.inner.has_computed_bidegree(s, super::div_floor(t))
+            fn has_computed_bidegree(&self, b: Bidegree) -> bool {
+                self.inner.has_computed_bidegree(super::div_bidegree(b))
             }
 
-            fn compute_through_bidegree(&self, s: u32, t: i32) {
-                self.inner.compute_through_bidegree(s, super::div_floor(t));
-                self.modules.extend(s as usize, |s| {
+            fn compute_through_bidegree(&self, b: Bidegree) {
+                self.inner.compute_through_bidegree(super::div_bidegree(b));
+                self.modules.extend(b.s() as usize, |s| {
                     Arc::new(DoubleModule::new(self.inner.module(s as u32)))
                 });
-                self.differentials.extend(s as usize, |s| {
+                self.differentials.extend(b.s() as usize, |s| {
                     let s = s as u32;
                     Arc::new(DoubleModuleHomomorphism::new(
                         self.module(s),
@@ -459,16 +476,16 @@ mod double {
             fn apply_quasi_inverse<T, S>(
                 &self,
                 results: &mut [T],
-                s: u32,
-                t: i32,
+                b: Bidegree,
                 inputs: &[S],
             ) -> bool
             where
                 for<'a> &'a mut T: Into<fp::vector::SliceMut<'a>>,
                 for<'a> &'a S: Into<fp::vector::Slice<'a>>,
             {
-                if t % 2 == 0 {
-                    self.inner.apply_quasi_inverse(results, s, t / 2, inputs)
+                if b.t() % 2 == 0 {
+                    let halved_b = Bidegree::s_t(b.s(), b.t() / 2);
+                    self.inner.apply_quasi_inverse(results, halved_b, inputs)
                 } else {
                     true
                 }

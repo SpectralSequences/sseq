@@ -6,12 +6,12 @@ use ext::utils::query_module;
 fn main() -> anyhow::Result<()> {
     let resolution = query_module(None, false)?;
 
-    for (s, n, t) in resolution.iter_stem() {
+    for b in resolution.iter_stem() {
         println!(
             "{},{},{}",
-            n,
-            s,
-            resolution.module(s).number_of_gens_in_degree(t)
+            b.n(),
+            b.s(),
+            resolution.module(b.s()).number_of_gens_in_degree(b.t())
         );
     }
     Ok(())

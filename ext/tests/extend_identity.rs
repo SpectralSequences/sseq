@@ -5,6 +5,7 @@ use ext::resolution_homomorphism::ResolutionHomomorphism;
 use ext::utils::{construct, Config};
 use fp::vector::FpVector;
 use serde_json::json;
+use sseq::coordinates::Bidegree;
 use std::convert::TryInto;
 use std::sync::Arc;
 
@@ -40,7 +41,8 @@ use rstest::rstest;
 fn extend_identity<T: TryInto<Config>>(#[case] config: T, #[case] max_degree: i32) {
     let config: Config = config.try_into().ok().unwrap();
     let resolution = Arc::new(construct(config, None).unwrap());
-    resolution.compute_through_bidegree(max_degree as u32, max_degree);
+    let max = Bidegree::s_t(max_degree as u32, max_degree);
+    resolution.compute_through_bidegree(max);
 
     let module = resolution.target().module(0);
     let p = module.prime();
@@ -53,7 +55,7 @@ fn extend_identity<T: TryInto<Config>>(#[case] config: T, #[case] max_degree: i3
         Arc::clone(&resolution),
         &id,
     );
-    hom.extend(max_degree as u32, max_degree);
+    hom.extend(max);
 
     for s in 0..=max_degree as u32 {
         let source = resolution.module(s);

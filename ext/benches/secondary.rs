@@ -4,6 +4,7 @@
 use ext::chain_complex::ChainComplex;
 use ext::secondary::*;
 use ext::utils::construct;
+use sseq::coordinates::Bidegree;
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -19,7 +20,7 @@ fn main() {
     let resolution = construct("S_2@milnor", save_file).unwrap();
 
     // Compute the minimal resolution R_{s, t}
-    resolution.compute_through_bidegree(6, 70);
+    resolution.compute_through_bidegree(Bidegree::s_t(6, 70));
 
     let start = Instant::now();
     let lift = SecondaryResolution::new(Arc::new(resolution));

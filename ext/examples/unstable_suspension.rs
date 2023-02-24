@@ -24,6 +24,7 @@ use ext::{
     resolution::UnstableResolution, resolution_homomorphism::UnstableResolutionHomomorphism,
 };
 use fp::vector::FpVector;
+use sseq::coordinates::Bidegree;
 
 fn main() -> anyhow::Result<()> {
     let module = Arc::new(ext::utils::query_unstable_module_only()?);
@@ -39,9 +40,11 @@ fn main() -> anyhow::Result<()> {
         }
     };
 
-    let max_n: i32 = query::raw("Max n", str::parse);
-    let max_s: u32 = query::raw("Max s", str::parse);
-    let min_degree = module.min_degree();
+    let max = Bidegree::n_s(
+        query::raw("Max n", str::parse),
+        query::raw("Max s", str::parse),
+    );
+    let min_degree = Bidegree::s_t(0, module.min_degree());
 
     let mut res_a;
     let mut res_b: Arc<UnstableResolution<FiniteChainComplex<_>>> =
@@ -52,53 +55,56 @@ fn main() -> anyhow::Result<()> {
             )))),
             save_dir(0),
         )?);
-    res_b.compute_through_stem(max_s, max_n);
+    res_b.compute_through_stem(max);
 
-    for n in min_degree..=max_n {
-        for s in 0..=max_s {
-            let source_num_gens = res_b.number_of_gens_in_bidegree(s, n + s as i32);
-            println!("{n} {s} 0: {source_num_gens}",);
+    for n in min_degree.n()..=max.n() {
+        for s in 0..=max.s() {
+            let b = Bidegree::n_s(n, s);
+            let source_num_gens = res_b.number_of_gens_in_bidegree(b);
+            println!("{n} {s} 0: {source_num_gens}");
         }
     }
 
-    for shift in 1..max_n - module.min_degree() + 3 {
+    for shift_t in 1..(max - min_degree).n() + 3 {
+        let shift = Bidegree::s_t(0, shift_t);
         res_a = res_b;
         res_b = Arc::new(UnstableResolution::new_with_save(
             Arc::new(FiniteChainComplex::ccdz(Arc::new(SuspensionModule::new(
                 Arc::clone(&module),
-                shift,
+                shift_t,
             )))),
-            save_dir(shift),
+            save_dir(shift_t),
         )?);
 
-        res_b.compute_through_stem(max_s, max_n + shift);
+        res_b.compute_through_stem(max + shift);
 
+        let suspension_shift = Bidegree::s_t(0, 1);
         let hom = UnstableResolutionHomomorphism::new(
             String::from("suspension"),
             Arc::clone(&res_b),
             Arc::clone(&res_a),
-            0,
-            1,
+            suspension_shift,
         );
 
         hom.extend_step_raw(
-            0,
             min_degree + shift,
             Some(vec![FpVector::from_slice(module.prime(), &[1])]),
         );
         hom.extend_all();
 
-        for n in 2 * (min_degree + shift - 1)..=max_n + shift {
-            if n < min_degree + shift {
+        for n in 2 * ((min_degree + shift).n() - 1)..=(max + shift).n() {
+            if n < (min_degree + shift).n() {
                 continue;
             }
-            for s in 0..=max_s {
-                let source_num_gens = res_b.number_of_gens_in_bidegree(s, n + s as i32);
-                let target_num_gens = res_a.number_of_gens_in_bidegree(s, n + s as i32 - 1);
+            for s in 0..=max.s() {
+                let source = Bidegree::n_s(n, s);
+                let target = source - suspension_shift;
+                let source_num_gens = res_b.number_of_gens_in_bidegree(source);
+                let target_num_gens = res_a.number_of_gens_in_bidegree(target);
                 let m = if source_num_gens == 0 || target_num_gens == 0 {
                     String::new()
                 } else {
-                    let m = hom.get_map(s).hom_k(n + s as i32 - 1);
+                    let m = hom.get_map(target.s()).hom_k(target.t());
                     if source_num_gens == target_num_gens
                         && m.iter().enumerate().all(|(n, x)| {
                             x.iter()
@@ -111,7 +117,7 @@ fn main() -> anyhow::Result<()> {
                         format!(" - {m:?}")
                     }
                 };
-                println!("{n} {s} {shift}: {source_num_gens}{m}", n = n - shift);
+                println!("{n} {s} {shift_t}: {source_num_gens}{m}", n = n - shift_t);
             }
         }
     }
