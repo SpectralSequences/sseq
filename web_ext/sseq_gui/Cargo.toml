@@ -12,7 +12,7 @@ bivec = { path = "../../ext/crates/bivec", features = ["json"] }
 ext = { path = "../../ext", default-features = false }
 fp = { path = "../../ext/crates/fp", features = ["json"], default-features = false }
 once = { path = "../../ext/crates/once" }
-sseq = { path = "../../ext/crates/sseq", default-features = false }
+sseq = { path = "../../ext/crates/sseq", features = ["json"], default-features = false }
 
 anyhow = "1.0.0"
 enum_dispatch = "0.3"

@@ -7,6 +7,7 @@ use ext::{chain_complex::FreeChainComplex, CCC};
 use fp::vector::FpVector;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
+use sseq::coordinates::{Bidegree, BidegreeGenerator};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Message {
@@ -139,10 +140,9 @@ impl ActionT for AddProductType {
     }
 
     fn act_resolution(&self, resolution: &mut Resolution<CCC>) -> Option<Message> {
-        let s = self.y as u32;
-        let t = self.x + self.y;
+        let b = Bidegree::s_t(self.y as u32, self.x + self.y);
 
-        resolution.add_product(s, t, self.class.clone(), &self.name);
+        resolution.add_product(b, self.class.clone(), &self.name);
         None
     }
 }
@@ -352,76 +352,63 @@ impl ActionT for SetPageList {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QueryTable {
-    pub s: u32,
-    pub t: i32,
+    pub b: Bidegree,
 }
 impl ActionT for QueryTable {
     fn act_resolution(&self, resolution: &mut Resolution<CCC>) -> Option<Message> {
-        let s = self.s;
-        let t = self.t;
-
-        let module = resolution.module(s);
-        if t < module.min_degree() {
+        let module = resolution.module(self.b.s());
+        if self.b.t() < module.min_degree() {
             return None;
         }
-        if t > module.max_computed_degree() {
+        if self.b.t() > module.max_computed_degree() {
             return None;
         }
-        let dimension = module.dimension(t);
+        let dimension = module.dimension(self.b.t());
         let string = (0..dimension)
-            .map(|i| module.basis_element_to_string(t, i))
+            .map(|i| module.basis_element_to_string(self.b.t(), i))
             .join(", ");
         Some(Message {
             recipients: vec![],
             sseq: SseqChoice::Main, // This will be overwritten
-            action: Action::from(QueryTableResult { s, t, string }),
+            action: Action::from(QueryTableResult { b: self.b, string }),
         })
     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QueryTableResult {
-    s: u32,
-    t: i32,
+    b: Bidegree,
     string: String,
 }
 impl ActionT for QueryTableResult {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QueryCocycleString {
-    s: u32,
-    t: i32,
-    idx: usize,
+    g: BidegreeGenerator,
 }
 impl ActionT for QueryCocycleString {
     fn act_resolution(&self, resolution: &mut Resolution<CCC>) -> Option<Message> {
-        let s = self.s;
-        let t = self.t;
-        let idx = self.idx;
-
         // Ensure bidegree is defined
-        let module = resolution.module(s);
-        if t < module.min_degree() {
+        let module = resolution.module(self.g.s());
+        if self.g.t() < module.min_degree() {
             return None;
         }
-        if t > module.max_computed_degree() {
+        if self.g.t() > module.max_computed_degree() {
             return None;
         }
 
-        let string = resolution.inner.cocycle_string(s, t, idx);
+        let string = resolution.inner.cocycle_string(self.g, true);
         Some(Message {
             recipients: vec![],
             sseq: SseqChoice::Main, // This will be overwritten
-            action: Action::from(QueryCocycleStringResult { s, t, idx, string }),
+            action: Action::from(QueryCocycleStringResult { g: self.g, string }),
         })
     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QueryCocycleStringResult {
-    s: u32,
-    t: i32,
-    idx: usize,
+    g: BidegreeGenerator,
     string: String,
 }
 impl ActionT for QueryCocycleStringResult {}
