@@ -4,10 +4,11 @@ use std::ops::Range;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use crate::chain_complex::{
-    AugmentedChainComplex, BoundedChainComplex, ChainComplex, FreeChainComplex,
-};
 use crate::save::SaveKind;
+use crate::{
+    chain_complex::{AugmentedChainComplex, BoundedChainComplex, ChainComplex, FreeChainComplex},
+    save::SaveOption,
+};
 use algebra::module::homomorphism::{ModuleHomomorphism, MuFreeModuleHomomorphism};
 use algebra::module::Module;
 use algebra::MuAlgebra;
@@ -38,6 +39,7 @@ where
     pub shift_s: u32,
     pub shift_t: i32,
     save_dir: Option<PathBuf>,
+    save_option: SaveOption,
 }
 
 impl<const U: bool, CC1, CC2> MuResolutionHomomorphism<U, CC1, CC2>
@@ -53,10 +55,30 @@ where
         shift_s: u32,
         shift_t: i32,
     ) -> Self {
+        Self::new_with_save_option(name, source, target, shift_s, shift_t, Default::default())
+    }
+
+    pub fn new_with_save_option(
+        name: String,
+        source: Arc<CC1>,
+        target: Arc<CC2>,
+        shift_s: u32,
+        shift_t: i32,
+        save_option: SaveOption,
+    ) -> Self {
+        if save_option.required() {
+            assert!(
+                source.save_dir().is_some(),
+                "Saving is required but no path was provided"
+            );
+        }
+
         let save_dir = if source.save_dir().is_some() && !name.is_empty() {
             let mut path = source.save_dir().unwrap().to_owned();
-            path.push(format!("products/{name}"));
-            SaveKind::ChainMap.create_dir(&path).unwrap();
+            if save_option.write() {
+                path.push(format!("products/{name}"));
+                SaveKind::ChainMap.create_dir(&path).unwrap();
+            }
             Some(path)
         } else {
             None
@@ -70,6 +92,7 @@ where
             shift_s,
             shift_t,
             save_dir,
+            save_option,
         }
     }
 
@@ -257,14 +280,16 @@ where
             let outputs =
                 extra_images.unwrap_or_else(|| vec![FpVector::new(p, fx_dimension); num_gens]);
 
-            if let Some(dir) = &self.save_dir {
-                let mut f = self
-                    .source
-                    .save_file(SaveKind::ChainMap, input_s, input_t)
-                    .create_file(dir.clone(), false);
-                f.write_u64::<LittleEndian>(fx_dimension as u64).unwrap();
-                for row in &outputs {
-                    row.to_bytes(&mut f).unwrap();
+            if self.save_option.write() {
+                if let Some(dir) = &self.save_dir {
+                    let mut f = self
+                        .source
+                        .save_file(SaveKind::ChainMap, input_s, input_t)
+                        .create_file(dir.clone(), false);
+                    f.write_u64::<LittleEndian>(fx_dimension as u64).unwrap();
+                    for row in &outputs {
+                        row.to_bytes(&mut f).unwrap();
+                    }
                 }
             }
 
@@ -335,14 +360,16 @@ where
             ));
         }
 
-        if let Some(dir) = &self.save_dir {
-            let mut f = self
-                .source
-                .save_file(SaveKind::ChainMap, input_s, input_t)
-                .create_file(dir.clone(), false);
-            f.write_u64::<LittleEndian>(fx_dimension as u64).unwrap();
-            for row in &outputs {
-                row.to_bytes(&mut f).unwrap();
+        if self.save_option.write() {
+            if let Some(dir) = &self.save_dir {
+                let mut f = self
+                    .source
+                    .save_file(SaveKind::ChainMap, input_s, input_t)
+                    .create_file(dir.clone(), false);
+                f.write_u64::<LittleEndian>(fx_dimension as u64).unwrap();
+                for row in &outputs {
+                    row.to_bytes(&mut f).unwrap();
+                }
             }
         }
         f_cur.add_generators_from_rows_ooo(input_t, outputs)
@@ -363,7 +390,28 @@ where
         shift_t: i32,
         class: &[u32],
     ) -> Self {
-        let result = Self::new(name, source, target, shift_s, shift_t);
+        Self::from_class_with_save_option(
+            name,
+            source,
+            target,
+            shift_s,
+            shift_t,
+            class,
+            Default::default(),
+        )
+    }
+
+    pub fn from_class_with_save_option(
+        name: String,
+        source: Arc<CC1>,
+        target: Arc<CC2>,
+        shift_s: u32,
+        shift_t: i32,
+        class: &[u32],
+        save_option: SaveOption,
+    ) -> Self {
+        let result =
+            Self::new_with_save_option(name, source, target, shift_s, shift_t, save_option);
 
         let num_gens = result
             .source

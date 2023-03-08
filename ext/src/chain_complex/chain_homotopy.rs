@@ -1,6 +1,9 @@
-use crate::chain_complex::{ChainComplex, FreeChainComplex};
 use crate::resolution_homomorphism::ResolutionHomomorphism;
 use crate::save::SaveKind;
+use crate::{
+    chain_complex::{ChainComplex, FreeChainComplex},
+    save::SaveOption,
+};
 use algebra::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
 use algebra::module::Module;
 use fp::prime::ValidPrime;
@@ -31,6 +34,7 @@ pub struct ChainHomotopy<
     /// Homotopies, indexed by the filtration of the target of f - g.
     homotopies: OnceBiVec<Arc<FreeModuleHomomorphism<U::Module>>>,
     save_dir: Option<PathBuf>,
+    save_option: SaveOption,
 }
 
 impl<
@@ -43,14 +47,29 @@ impl<
         left: Arc<ResolutionHomomorphism<S, T>>,
         right: Arc<ResolutionHomomorphism<T, U>>,
     ) -> Self {
+        Self::new_with_save_option(left, right, Default::default())
+    }
+
+    pub fn new_with_save_option(
+        left: Arc<ResolutionHomomorphism<S, T>>,
+        right: Arc<ResolutionHomomorphism<T, U>>,
+        save_option: SaveOption,
+    ) -> Self {
+        if save_option.required() {
+            assert!(
+                left.source.save_dir().is_some(),
+                "Saving is required but no path was provided"
+            );
+        }
         let save_dir = if left.source.save_dir().is_some()
             && !left.name().is_empty()
             && !right.name().is_empty()
         {
             let mut path = left.source.save_dir().unwrap().to_owned();
-            path.push(format!("massey/{},{}/", left.name(), right.name(),));
-
-            SaveKind::ChainHomotopy.create_dir(&path).unwrap();
+            if save_option.write() {
+                path.push(format!("massey/{},{}/", left.name(), right.name(),));
+                SaveKind::ChainHomotopy.create_dir(&path).unwrap();
+            }
 
             Some(path)
         } else {
@@ -64,6 +83,7 @@ impl<
             right,
             lock: Mutex::new(()),
             save_dir,
+            save_option,
         }
     }
 
@@ -282,7 +302,8 @@ impl<
             &scratches,
         ));
 
-        if let Some(dir) = &self.save_dir {
+        if self.save_option.write() && self.save_dir.is_some() {
+            let dir = self.save_dir.as_ref().unwrap();
             let mut f = self
                 .left
                 .source

@@ -418,3 +418,50 @@ impl<A: Algebra> SaveFile<A> {
         f
     }
 }
+
+/// Decides whether the structure will be stored to disk.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[non_exhaustive]
+pub enum SaveOption {
+    /// Save to disk if a save path was provided.
+    #[default]
+    Yes,
+    /// Do not save to disk even if a save path was provided.
+    No,
+    /// Save to disk. Not providing a save path will cause an error.
+    Force,
+    /// Only read from disk if the structure has already been computed, but don't write. Note that
+    /// the directories will still be created if they don't already exist, but they won't be
+    /// populated.
+    ReadOnly,
+}
+
+impl SaveOption {
+    pub fn required(&self) -> bool {
+        matches!(self, SaveOption::Force)
+    }
+
+    pub fn write(&self) -> bool {
+        match self {
+            SaveOption::Yes => true,
+            SaveOption::No => false,
+            SaveOption::Force => true,
+            SaveOption::ReadOnly => false,
+        }
+    }
+}
+
+impl std::str::FromStr for SaveOption {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "" | "default" => Ok(Default::default()),
+            "yes" | "y" | "Y" => Ok(SaveOption::Yes),
+            "no" | "n" | "N" => Ok(SaveOption::No),
+            "force" | "f" | "F" => Ok(SaveOption::Force),
+            "readonly" | "r" | "ro" | "R" | "RO" => Ok(SaveOption::ReadOnly),
+            _ => Err(anyhow::anyhow!("Invalid save option")),
+        }
+    }
+}

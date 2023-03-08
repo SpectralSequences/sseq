@@ -260,3 +260,86 @@ fn test_checksum() {
         .unwrap()
         .compute_through_bidegree(2, 2);
 }
+
+mod save_option {
+    use std::sync::Arc;
+
+    use ext::{
+        chain_complex::ChainHomotopy, resolution_homomorphism::ResolutionHomomorphism,
+        save::SaveOption, utils::construct,
+    };
+    use rstest::rstest;
+
+    use super::lock_tempdir;
+
+    #[rstest]
+    #[case(SaveOption::No)]
+    #[case(SaveOption::ReadOnly)]
+    fn test_morphism_locked(#[case] save_option: SaveOption) {
+        let tempdir = tempfile::TempDir::new().unwrap();
+
+        let resolution = Arc::new(construct("S_2", Some(tempdir.path().into())).unwrap());
+        resolution.compute_through_stem(1, 0);
+
+        lock_tempdir(tempdir.path());
+        ResolutionHomomorphism::from_class_with_save_option(
+            "h0".into(),
+            Arc::clone(&resolution),
+            Arc::clone(&resolution),
+            1,
+            1,
+            &[1],
+            save_option,
+        )
+        .extend_all();
+    }
+
+    #[rstest]
+    #[case(SaveOption::No)]
+    #[case(SaveOption::ReadOnly)]
+    fn test_homotopy_locked(#[case] save_option: SaveOption) {
+        let tempdir = tempfile::TempDir::new().unwrap();
+
+        let resolution = Arc::new(construct("S_2", Some(tempdir.path().into())).unwrap());
+        resolution.compute_through_stem(2, 2);
+
+        let h0 = ResolutionHomomorphism::from_class(
+            "h0".into(),
+            Arc::clone(&resolution),
+            Arc::clone(&resolution),
+            1,
+            1,
+            &[1],
+        );
+        h0.extend_all();
+        let h1 = ResolutionHomomorphism::from_class(
+            "h1".into(),
+            Arc::clone(&resolution),
+            Arc::clone(&resolution),
+            1,
+            2,
+            &[1],
+        );
+        h1.extend_all();
+
+        lock_tempdir(tempdir.path());
+        ChainHomotopy::new_with_save_option(Arc::new(h0), Arc::new(h1), save_option).extend_all();
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_force() {
+        let resolution = Arc::new(construct("S_2", None).unwrap());
+        resolution.compute_through_stem(1, 0);
+
+        ResolutionHomomorphism::from_class_with_save_option(
+            "h0".into(),
+            Arc::clone(&resolution),
+            Arc::clone(&resolution),
+            1,
+            1,
+            &[1],
+            SaveOption::Force,
+        );
+    }
+}
