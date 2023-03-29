@@ -8,36 +8,25 @@ use super::{
 };
 use crate::{limb::Limb, prime::ValidPrime};
 
-#[derive(Debug, Hash, Eq, PartialEq, Clone)]
-pub enum FpVector {
-    _2(FpVectorP<2>),
-    _3(FpVectorP<3>),
-    _5(FpVectorP<5>),
-    _7(FpVectorP<7>),
-}
+dispatch_type!(
+    derive(Debug, Hash, Eq, PartialEq, Clone),
+    pub FpVector { FpVectorP }
+);
 
-#[derive(Debug, Copy, Clone)]
-pub enum Slice<'a> {
-    _2(SliceP<'a, 2>),
-    _3(SliceP<'a, 3>),
-    _5(SliceP<'a, 5>),
-    _7(SliceP<'a, 7>),
-}
+dispatch_type!(
+    derive(Debug, Copy, Clone),
+    pub Slice<'a> { SliceP }
+);
 
-#[derive(Debug)]
-pub enum SliceMut<'a> {
-    _2(SliceMutP<'a, 2>),
-    _3(SliceMutP<'a, 3>),
-    _5(SliceMutP<'a, 5>),
-    _7(SliceMutP<'a, 7>),
-}
+dispatch_type!(
+    derive(Debug),
+    pub SliceMut<'a> { SliceMutP }
+);
 
-pub enum FpVectorNonZeroIterator<'a> {
-    _2(FpVectorNonZeroIteratorP<'a, 2>),
-    _3(FpVectorNonZeroIteratorP<'a, 3>),
-    _5(FpVectorNonZeroIteratorP<'a, 5>),
-    _7(FpVectorNonZeroIteratorP<'a, 7>),
-}
+dispatch_type!(
+    derive(),
+    pub FpVectorNonZeroIterator<'a> { FpVectorNonZeroIteratorP }
+);
 
 macro_rules! dispatch_prime_generic_inner {
     (fn $method:ident(&mut self $(, $arg:ident: $ty:ty )*) $(-> $ret:ty)?) => {

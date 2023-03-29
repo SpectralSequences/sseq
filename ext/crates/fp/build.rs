@@ -1,17 +1,25 @@
 use std::io::Error;
 
 use build_const::ConstWriter;
+use itertools::Itertools;
 
 type Limb = u64;
 
 fn main() -> Result<(), Error> {
     #[cfg(feature = "odd-primes")]
-    let num_primes = 8;
+    let max_prime: u32 = 7;
     #[cfg(not(feature = "odd-primes"))]
-    let num_primes = 1;
+    let max_prime: u32 = 2;
+    let primes = primes_up_to_n(max_prime);
 
-    let primes = first_n_primes(num_primes);
+    write_constants(&primes)?;
+    write_macros(&primes)?;
 
+    Ok(())
+}
+
+fn write_constants(primes: &[u32]) -> Result<(), Error> {
+    let num_primes = primes.len();
     let max_prime = *primes.last().unwrap();
     let not_a_prime: usize = u32::MAX as usize; // Hack for 32-bit architectures
     let max_multinomial_len = 10;
@@ -60,16 +68,175 @@ fn main() -> Result<(), Error> {
     Ok(())
 }
 
-fn first_n_primes(n: usize) -> Vec<u32> {
-    let mut acc = vec![];
-    let mut i = 2;
-    while acc.len() < n {
-        if is_prime(i) {
-            acc.push(i);
-        }
-        i += 1;
-    }
-    acc
+fn write_macros(primes: &[u32]) -> Result<(), Error> {
+    let mut writer = ConstWriter::for_build("macros")?.finish_dependencies();
+
+    // methods taking `self` and `other` by reference
+    let ref_ref = primes
+        .iter()
+        .map(|&p| format!("(Self::_{p}(ref x), $other::_{p}(ref y)) => x.$method(y, $($arg),*),"))
+        .join("\n                ");
+
+    // methods taking `self` by mutable reference and `other` by reference
+    let mut_ref_ref = primes
+        .iter()
+        .map(|&p| {
+            format!("(Self::_{p}(ref mut x), $other::_{p}(ref y)) => x.$method(y, $($arg),*),")
+        })
+        .join("\n                ");
+
+    // methods taking `self` by mutable reference and returning a prime-dependent type
+    let mut_ref_dispatch = primes
+        .iter()
+        .map(|&p| format!("Self::_{p}(ref mut x) => $ret::_{p}(x.$method($($arg),*)),"))
+        .join("\n                ");
+
+    // methods taking self by reference and returning a prime-dependent type
+    let ref_dispatch = primes
+        .iter()
+        .map(|&p| format!("Self::_{p}(ref x) => $ret::_{p}(x.$method($($arg),*)),"))
+        .join("\n                ");
+
+    // methods taking self by value and returning a prime-dependent type
+    let val_dispatch = primes
+        .iter()
+        .map(|&p| format!("Self::_{p}(x) => $ret::_{p}(x.$method($($arg),*)),"))
+        .join("\n                ");
+
+    // methods taking self by mutable reference
+    let mut_ref = primes
+        .iter()
+        .map(|&p| format!("Self::_{p}(ref mut x) => x.$method($($arg),*),"))
+        .join("\n                ");
+
+    // methods taking self by reference
+    let reff = primes
+        .iter()
+        .map(|p| format!("Self::_{p}(ref x) => x.$method($($arg),*),"))
+        .join("\n                ");
+
+    // generic match_p
+    let match_p = primes
+        .iter()
+        .map(|p| format!("{p} => Self::_{p}($($val)*),"))
+        .join("\n            ");
+
+    // dispatch type
+    let dispatch_type = primes
+        .iter()
+        .map(|p| format!("_{p}($generic<{p}>),"))
+        .join("\n            ");
+
+    // dispatch type with lifetime
+    let dispatch_type_life = primes
+        .iter()
+        .map(|p| format!("_{p}($generic<$life, {p}>),"))
+        .join("\n            ");
+
+    writer.add_raw(&format!(r#"
+macro_rules! dispatch_prime_inner {{
+    // other is a type, but marking it as a :ty instead of :tt means we cannot use it to access its
+    // enum variants.
+    ($vis:vis fn $method:ident(&self, other: &$other:tt $(, $arg:ident: $ty:ty )* ) $(-> $ret:ty)?) => {{
+        $vis fn $method(&self, other: &$other, $($arg: $ty),* ) $(-> $ret)* {{
+            match (self, other) {{
+                {ref_ref}
+                (l, r) => {{
+                    panic!("Applying {{}} to vectors over different primes ({{}} and {{}})", stringify!($method), l.prime(), r.prime());
+                }}
+            }}
+        }}
+    }};
+    ($vis:vis fn $method:ident(&mut self, other: &$other:tt $(, $arg:ident: $ty:ty )* ) $(-> $ret:ty)?) => {{
+        #[allow(unused_parens)]
+        $vis fn $method(&mut self, other: &$other, $($arg: $ty),* ) $(-> $ret)* {{
+            match (self, other) {{
+                {mut_ref_ref}
+                (l, r) => {{
+                    panic!("Applying {{}} to vectors over different primes ({{}} and {{}})", stringify!($method), l.prime(), r.prime());
+                }}
+            }}
+        }}
+    }};
+    ($vis:vis fn $method:ident(&mut self $(, $arg:ident: $ty:ty )* ) -> (dispatch $ret:tt)) => {{
+        $vis fn $method(&mut self, $($arg: $ty),* ) -> $ret {{
+            match self {{
+                {mut_ref_dispatch}
+            }}
+        }}
+    }};
+    ($vis:vis fn $method:ident(&self $(, $arg:ident: $ty:ty )* ) -> (dispatch $ret:tt)) => {{
+        $vis fn $method(&self, $($arg: $ty),* ) -> $ret {{
+            match self {{
+                {ref_dispatch}
+            }}
+        }}
+    }};
+    ($vis:vis fn $method:ident(self $(, $arg:ident: $ty:ty )* ) -> (dispatch $ret:tt)) => {{
+        $vis fn $method(self, $($arg: $ty),* ) -> $ret {{
+            match self {{
+                {val_dispatch}
+            }}
+        }}
+    }};
+    ($vis:vis fn $method:ident(&mut self $(, $arg:ident: $ty:ty )* ) $(-> $ret:ty)?) => {{
+        #[allow(unused_parens)]
+        $vis fn $method(&mut self, $($arg: $ty),* ) $(-> $ret)* {{
+            match self {{
+                {mut_ref}
+            }}
+        }}
+    }};
+    ($vis:vis fn $method:ident(&self $(, $arg:ident: $ty:ty )* ) $(-> $ret:ty)?) => {{
+        #[allow(unused_parens)]
+        $vis fn $method(&self, $($arg: $ty),* ) $(-> $ret)* {{
+            match self {{
+                {reff}
+            }}
+        }}
+    }};
+}}
+
+macro_rules! dispatch_prime {{
+    () => {{}};
+    ($vis:vis fn $method:ident $tt:tt $(-> $ret:tt)?; $($tail:tt)*) => {{
+        dispatch_prime_inner! {{
+            $vis fn $method $tt $(-> $ret)*
+        }}
+        dispatch_prime!{{$($tail)*}}
+    }}
+}}
+
+macro_rules! dispatch_type {{
+    (derive($($derive_macro:tt)*), $vis:vis $special:ident {{ $generic:ident }}) => {{
+        #[derive($($derive_macro)*)]
+        $vis enum $special {{
+            {dispatch_type}
+        }}
+    }};
+    (derive($($derive_macro:tt)*), $vis:vis $special:ident<$life:lifetime> {{ $generic:ident }}) => {{
+        #[derive($($derive_macro)*)]
+        $vis enum $special<$life> {{
+            {dispatch_type_life}
+        }}
+    }}
+}}
+
+macro_rules! match_p {{
+    ($p:ident, $($val:tt)*) => {{
+        match *$p {{
+            {match_p}
+            _ => panic!("Prime not supported: {{}}", *$p)
+        }}
+    }}
+}}"#,
+    ));
+
+    Ok(())
+}
+
+fn primes_up_to_n(n: u32) -> Vec<u32> {
+    (2..=n).filter(|&i| is_prime(i)).collect()
 }
 
 fn is_prime(i: u32) -> bool {
