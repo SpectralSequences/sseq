@@ -28,35 +28,6 @@ dispatch_type!(
     pub FpVectorNonZeroIterator<'a> { FpVectorNonZeroIteratorP }
 );
 
-macro_rules! dispatch_prime_generic_inner {
-    (fn $method:ident(&mut self $(, $arg:ident: $ty:ty )*) $(-> $ret:ty)?) => {
-        fn $method<'b, T: Into<Slice<'b>>>(&mut self, other: T $(,$arg: $ty)*) $(-> $ret)? {
-            match (self, other.into()) {
-                (Self::_2(ref mut x), Slice::_2(y)) => x.$method(y $(,$arg)*),
-                (Self::_3(ref mut x), Slice::_3(y)) => x.$method(y $(,$arg)*),
-                (Self::_5(ref mut x), Slice::_5(y)) => x.$method(y $(,$arg)*),
-                (Self::_7(ref mut x), Slice::_7(y)) => x.$method(y $(,$arg)*),
-                (l, r) => panic!(
-                    "Applying add to vectors over different primes ({} and {})",
-                    l.prime(),
-                    r.prime()
-                ),
-            }
-        }
-    }
-}
-
-/// Macro to implement the generic addition methods.
-macro_rules! dispatch_prime_generic {
-    () => {};
-    (fn $method:ident(&mut self $(, $arg:ident: $ty:ty )*) $(-> $ret:ty)?; $($tail:tt)*) => {
-        dispatch_prime_generic_inner! {
-            fn $method(&mut self $(, $arg: $ty )*) $(-> $ret)?
-        }
-        dispatch_prime_generic!{$($tail)*}
-    }
-}
-
 macro_rules! dispatch_basevector {
     () => {
         dispatch_prime! {
@@ -77,12 +48,7 @@ macro_rules! dispatch_basevector {
         where
             Self: 'b,
         {
-            match self {
-                Self::_2(x) => Slice::_2(x.slice(start, end)),
-                Self::_3(x) => Slice::_3(x.slice(start, end)),
-                Self::_5(x) => Slice::_5(x.slice(start, end)),
-                Self::_7(x) => Slice::_7(x.slice(start, end)),
-            }
+            match_self_p!(slice(&self, start, end) -> Slice)
         }
     };
 }
@@ -196,10 +162,7 @@ macro_rules! impl_try_into {
     };
 }
 
-impl_try_into!(_2, 2);
-impl_try_into!(_3, 3);
-impl_try_into!(_5, 5);
-impl_try_into!(_7, 7);
+call_macro_p!(impl_try_into);
 
 #[cfg(feature = "json")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -281,23 +244,7 @@ impl<'a> SliceMut<'a> {
     }
 
     pub fn add_tensor(&mut self, offset: usize, coeff: u32, left: Slice, right: Slice) {
-        match (self, left, right) {
-            (SliceMut::_2(ref mut x), Slice::_2(y), Slice::_2(z)) => {
-                x.add_tensor(offset, coeff, y, z)
-            }
-            (SliceMut::_3(ref mut x), Slice::_3(y), Slice::_3(z)) => {
-                x.add_tensor(offset, coeff, y, z)
-            }
-            (SliceMut::_5(ref mut x), Slice::_5(y), Slice::_5(z)) => {
-                x.add_tensor(offset, coeff, y, z)
-            }
-            (SliceMut::_7(ref mut x), Slice::_7(y), Slice::_7(z)) => {
-                x.add_tensor(offset, coeff, y, z)
-            }
-            _ => {
-                panic!("Applying add_tensor to vectors over different primes");
-            }
-        }
+        match_self_left_right_p!(add_tensor(&mut self, offset, coeff; left, right));
     }
 }
 
@@ -353,21 +300,6 @@ impl<'a> FpVectorNonZeroIterator<'a> {
 }
 
 // other trait impls
-
-macro_rules! impl_from_ref {
-    ($t1:tt, $t2:tt, $t2p:tt $(, $m:tt)?) => {
-        impl<'a, 'b> From<&'a $($m)* $t1<'b>> for $t2<'a> {
-            fn from(slice: &'a $($m)* $t1<'b>) -> $t2<'a> {
-                match slice {
-                    $t1::_2(x) => $t2::_2($t2p::<'a, 2>::from(x)),
-                    $t1::_3(x) => $t2::_3($t2p::<'a, 3>::from(x)),
-                    $t1::_5(x) => $t2::_5($t2p::<'a, 5>::from(x)),
-                    $t1::_7(x) => $t2::_7($t2p::<'a, 7>::from(x)),
-                }
-            }
-        }
-    };
-}
 
 impl_from_ref!(SliceMut, SliceMut, SliceMutP, mut);
 impl_from_ref!(Slice, Slice, SliceP);

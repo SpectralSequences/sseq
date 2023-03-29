@@ -115,6 +115,12 @@ fn write_macros(primes: &[u32]) -> Result<(), Error> {
         .map(|p| format!("Self::_{p}(ref x) => x.$method($($arg),*),"))
         .join("\n                ");
 
+    // dispatch prime generic
+    let dispatch_prime_generic = primes
+        .iter()
+        .map(|p| format!("(Self::_{p}(ref mut x), Slice::_{p}(y)) => x.$method(y $(,$arg)*),"))
+        .join("\n                ");
+
     // generic match_p
     let match_p = primes
         .iter()
@@ -132,6 +138,32 @@ fn write_macros(primes: &[u32]) -> Result<(), Error> {
         .iter()
         .map(|p| format!("_{p}($generic<$life, {p}>),"))
         .join("\n            ");
+
+    // implement `From` for references
+    let impl_from_ref = primes
+        .iter()
+        .map(|p| format!("$t1::_{p}(x) => $t2::_{p}($t2p::<'a, {p}>::from(x)),"))
+        .join("\n                    ");
+
+    // match p over self
+    let match_self = primes
+        .iter()
+        .map(|p| format!("Self::_{p}(x) => $ret::_{p}(x.$method($($arg),*)),"))
+        .join("\n            ");
+
+    // match p over a triple (self, left, right)
+    let match_self_left_right = primes
+        .iter()
+        .map(|p| {
+            format!("(SliceMut::_{p}(ref mut x), Slice::_{p}(y), Slice::_{p}(z)) => {{ x.$method($($arg),*, y, z) }},")
+        })
+        .join("\n            ");
+
+    // call a macro for all values of p
+    let call_macro = primes
+        .iter()
+        .map(|p| format!("$macro!(_{p}, {p});"))
+        .join("\n        ");
 
     writer.add_raw(&format!(r#"
 macro_rules! dispatch_prime_inner {{
@@ -204,6 +236,32 @@ macro_rules! dispatch_prime {{
             $vis fn $method $tt $(-> $ret)*
         }}
         dispatch_prime!{{$($tail)*}}
+    }};
+}}
+
+macro_rules! dispatch_prime_generic_inner {{
+    (fn $method:ident(&mut self $(, $arg:ident: $ty:ty )*) $(-> $ret:ty)?) => {{
+        fn $method<'b, T: Into<Slice<'b>>>(&mut self, other: T $(,$arg: $ty)*) $(-> $ret)? {{
+            match (self, other.into()) {{
+                {dispatch_prime_generic}
+                (l, r) => panic!(
+                    "Applying add to vectors over different primes ({{}} and {{}})",
+                    l.prime(),
+                    r.prime()
+                ),
+            }}
+        }}
+    }}
+}}
+
+/// Macro to implement the generic addition methods.
+macro_rules! dispatch_prime_generic {{
+    () => {{}};
+    (fn $method:ident(&mut self $(, $arg:ident: $ty:ty )*) $(-> $ret:ty)?; $($tail:tt)*) => {{
+        dispatch_prime_generic_inner! {{
+            fn $method(&mut self $(, $arg: $ty )*) $(-> $ret)?
+        }}
+        dispatch_prime_generic!{{$($tail)*}}
     }}
 }}
 
@@ -219,7 +277,38 @@ macro_rules! dispatch_type {{
         $vis enum $special<$life> {{
             {dispatch_type_life}
         }}
-    }}
+    }};
+}}
+
+macro_rules! impl_from_ref {{
+    ($t1:tt, $t2:tt, $t2p:tt $(, $m:tt)?) => {{
+        impl<'a, 'b> From<&'a $($m)* $t1<'b>> for $t2<'a> {{
+            fn from(slice: &'a $($m)* $t1<'b>) -> $t2<'a> {{
+                match slice {{
+                    {impl_from_ref}
+                }}
+            }}
+        }}
+    }};
+}}
+
+macro_rules! match_self_p {{
+    ($method:ident(&$selff:ident $(, $arg:ident)*) -> $ret:tt) => {{
+        match $selff {{
+            {match_self}
+        }}
+    }};
+}}
+
+macro_rules! match_self_left_right_p {{
+    ($method:ident(&mut $selff:ident $(, $arg:ident)*; $left:ident, $right:ident )) => {{
+        match ($selff, $left, $right) {{
+            {match_self_left_right}
+            _ => {{
+                panic!(concat!("Applying method to vectors over different primes"));
+            }}
+        }}
+    }};
 }}
 
 macro_rules! match_p {{
@@ -228,7 +317,13 @@ macro_rules! match_p {{
             {match_p}
             _ => panic!("Prime not supported: {{}}", *$p)
         }}
-    }}
+    }};
+}}
+
+macro_rules! call_macro_p {{
+    ($macro:ident) => {{
+        {call_macro}
+    }};
 }}"#,
     ));
 
