@@ -49,7 +49,13 @@ impl<
             && !right.name().is_empty()
         {
             let mut save_dir = left.source.save_dir().clone();
-            save_dir.push(format!("massey/{},{}/", left.name(), right.name()));
+            save_dir.push(format!(
+                "massey/{left_s}/{right_s}/{},{}/",
+                left.name(),
+                right.name(),
+                left_s = left.shift.s(),
+                right_s = right.shift.s(),
+            ));
 
             SaveKind::ChainHomotopy
                 .create_dir(save_dir.write().unwrap())

@@ -51,7 +51,7 @@ where
     pub fn new(name: String, source: Arc<CC1>, target: Arc<CC2>, shift: Bidegree) -> Self {
         let save_dir = if source.save_dir().is_some() && !name.is_empty() {
             let mut save_dir = source.save_dir().clone();
-            save_dir.push(format!("products/{name}"));
+            save_dir.push(format!("products/{shift_s}/{name}", shift_s = shift.s()));
             SaveKind::ChainMap
                 .create_dir(save_dir.write().unwrap())
                 .unwrap();
