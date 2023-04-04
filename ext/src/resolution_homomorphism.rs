@@ -55,7 +55,7 @@ where
     ) -> Self {
         let save_dir = if source.save_dir().is_some() && !name.is_empty() {
             let mut path = source.save_dir().unwrap().to_owned();
-            path.push(format!("products/{name}"));
+            path.push(format!("products/{shift_s}/{name}"));
             SaveKind::ChainMap.create_dir(&path).unwrap();
             Some(path)
         } else {
