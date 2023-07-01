@@ -58,6 +58,7 @@ use fp::{matrix::Matrix, prime::TWO, vector::FpVector};
 
 use anyhow::Result;
 use serde_json::json;
+use std::fmt;
 use std::num::NonZeroU32;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -103,35 +104,8 @@ fn main() -> Result<()> {
                 let rank = matrix.row_reduce();
 
                 if rank > 0 {
-                    let f2_vec_to_sum = |v: &FpVector| {
-                        // We will only ever print non-zero vectors, so ignoring empty sums is fine.
-                        v.iter()
-                            .enumerate()
-                            .filter_map(|(i, e)| {
-                                if e == 1 {
-                                    Some(format!("x_({s}, {t_bottom}, {i})"))
-                                } else {
-                                    None
-                                }
-                            })
-                            .collect::<Vec<_>>()
-                            .join(" + ")
-                    };
-
                     let kernel_subspace = matrix.compute_kernel(padded_columns);
-                    let indeterminacy_info = if kernel_subspace.dimension() == 0 {
-                        String::new()
-                    } else {
-                        format!(
-                            " mod <{inner}>",
-                            inner = kernel_subspace
-                                .basis()
-                                .iter()
-                                .map(f2_vec_to_sum)
-                                .collect::<Vec<_>>()
-                                .join(", ")
-                        )
-                    };
+                    let indeterminacy_basis = kernel_subspace.basis();
                     let image_subspace = matrix.compute_image(p_k_gens, padded_columns);
                     let quasi_inverse = matrix.compute_quasi_inverse(p_k_gens, padded_columns);
 
@@ -139,16 +113,17 @@ fn main() -> Result<()> {
                         let mut image = FpVector::new(TWO, p_k_gens);
                         p_k.minus_one_cell.act(image.as_slice_mut(), 1, s, t, i);
                         if !image.is_zero() && image_subspace.contains(image.as_slice()) {
-                            let mut mahowald_invariant = FpVector::new(TWO, bottom_s_2_gens);
-                            quasi_inverse.apply(
-                                mahowald_invariant.as_slice_mut(),
-                                1,
-                                image.as_slice(),
-                            );
-                            let mahowald_invariant = f2_vec_to_sum(&mahowald_invariant);
-                            println!(
-                                "M(x_({s}, {t}, {i})) = {mahowald_invariant}{indeterminacy_info}",
-                            );
+                            let mut invariant = FpVector::new(TWO, bottom_s_2_gens);
+                            quasi_inverse.apply(invariant.as_slice_mut(), 1, image.as_slice());
+                            let mahowald_invariant = MahowaldInvariant {
+                                s,
+                                input_t: t,
+                                input_i: i,
+                                output_t: t_bottom,
+                                invariant,
+                                indeterminacy_basis: indeterminacy_basis.to_vec(),
+                            };
+                            println!("{mahowald_invariant}",);
                         }
                     }
                 }
@@ -168,6 +143,15 @@ struct PKData {
     resolution: Arc<Resolution>,
     bottom_cell: Homomorphism,
     minus_one_cell: Homomorphism,
+}
+
+struct MahowaldInvariant {
+    s: u32,
+    input_t: i32,
+    input_i: usize,
+    output_t: i32,
+    invariant: FpVector,
+    indeterminacy_basis: Vec<FpVector>,
 }
 
 fn resolve_s_2(s_2_path: Option<PathBuf>, k_max: u32) -> Result<Arc<Resolution>> {
@@ -237,5 +221,46 @@ impl PKData {
             bottom_cell,
             minus_one_cell,
         })
+    }
+}
+
+impl fmt::Display for MahowaldInvariant {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
+        let s = self.s;
+        let input_t = self.input_t;
+        let input_i = self.input_i;
+        let output_t = self.output_t;
+        let f2_vec_to_sum = |v: &FpVector| {
+            // We will only ever print non-zero vectors, so ignoring empty sums is fine.
+            v.iter()
+                .enumerate()
+                .filter_map(|(i, e)| {
+                    if e == 1 {
+                        Some(format!("x_({s}, {output_t}, {i})"))
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join(" + ")
+        };
+        let indeterminacy_info = if self.indeterminacy_basis.is_empty() {
+            String::new()
+        } else {
+            format!(
+                " mod <{inner}>",
+                inner = self
+                    .indeterminacy_basis
+                    .iter()
+                    .map(f2_vec_to_sum)
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )
+        };
+        let invariant = f2_vec_to_sum(&self.invariant);
+        write!(
+            f,
+            "M(x_({s}, {input_t}, {input_i})) = {invariant}{indeterminacy_info}"
+        )
     }
 }
