@@ -45,7 +45,11 @@
 //! [bruner--greenlees]: https://projecteuclid.org/journals/experimental-mathematics/volume-4/issue-4/The-Bredon-L%C3%B6ffler-conjecture/em/1047674389.full
 
 use algebra::{module::homomorphism::ModuleHomomorphism, AlgebraType};
-use ext::{chain_complex::ChainComplex, resolution_homomorphism::ResolutionHomomorphism, utils};
+use ext::{
+    chain_complex::{ChainComplex, FreeChainComplex},
+    resolution_homomorphism::ResolutionHomomorphism,
+    utils,
+};
 use fp::{matrix::Matrix, prime::TWO, vector::FpVector};
 
 use anyhow::Result;
@@ -124,10 +128,10 @@ fn main() -> Result<()> {
             .filter(|&(s, _, t)| p_k_resolution.has_computed_bidegree(s, t - 1))
         {
             let t_bottom = t + k as i32 - 1;
-            let bottom_s_2_gens = s_2_resolution.module(s).number_of_gens_in_degree(t_bottom);
-            let minus_one_s_2_gens = s_2_resolution.module(s).number_of_gens_in_degree(t);
+            let bottom_s_2_gens = s_2_resolution.number_of_gens_in_bidegree(s, t_bottom);
+            let minus_one_s_2_gens = s_2_resolution.number_of_gens_in_bidegree(s, t);
             let t_p_k = t - 1;
-            let p_k_gens = p_k_resolution.module(s).number_of_gens_in_degree(t_p_k);
+            let p_k_gens = p_k_resolution.number_of_gens_in_bidegree(s, t_p_k);
             if bottom_s_2_gens > 0 && minus_one_s_2_gens > 0 && p_k_gens > 0 {
                 let bottom_cell_map = bottom_cell.get_map(s);
                 let mut matrix = vec![vec![0; p_k_gens]; bottom_s_2_gens];
