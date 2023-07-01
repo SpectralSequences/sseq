@@ -110,7 +110,7 @@ struct MahowaldInvariant {
 }
 
 fn resolve_s_2(s_2_path: Option<PathBuf>, k_max: u32) -> Result<Arc<Resolution>> {
-    let s_2_resolution = Arc::new(utils::construct("S_2", s_2_path)?);
+    let s_2_resolution = Arc::new(utils::construct_standard("S_2", s_2_path)?);
     // Here are some bounds on the bidegrees in which we have should have resolutions available.
     //
     // A class in stem n won't be detected before RP_-{n+1}_inf, so we can only detect Mahowald
@@ -143,7 +143,7 @@ impl PKData {
         if let Some(p) = p_k_path.as_mut() {
             p.push(PathBuf::from(&format!("RP_-{k}_inf")))
         };
-        let resolution = Arc::new(utils::construct(
+        let resolution = Arc::new(utils::construct_standard(
             (p_k_config, AlgebraType::Milnor),
             p_k_path,
         )?);
