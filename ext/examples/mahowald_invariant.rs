@@ -285,3 +285,36 @@ impl fmt::Display for MahowaldInvariant {
         )
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rstest::rstest;
+
+    #[rstest]
+    #[case(1, 0, 0, 0, 0, vec![1], 0)]
+    #[case(5, 1, 4, 0, 8, vec![1], 0)]
+    #[case(18, 3, 17, 0, 34, vec![0, 1], 0)]
+    #[case(25, 6, 20, 0, 44, vec![1, 0], 1)]
+    fn test_mahowald_invariants(
+        #[case] k: u32,
+        #[case] s: u32,
+        #[case] input_t: i32,
+        #[case] input_i: usize,
+        #[case] output_t: i32,
+        #[case] invariant: Vec<u32>,
+        #[case] indeterminacy_dim: usize,
+    ) {
+        let s_2_resolution = resolve_s_2(None, k).unwrap();
+        let p_k = PKData::try_new(k, &None, &s_2_resolution).unwrap();
+        for mi in p_k.mahowald_invariants_for_bidegree(s, input_t) {
+            if mi.input_i == input_i {
+                assert_eq!(mi.output_t, output_t);
+                assert_eq!(Vec::from(&mi.invariant), invariant);
+                assert_eq!(mi.indeterminacy_basis.len(), indeterminacy_dim);
+                return;
+            }
+        }
+        panic!("could not find Mahowald invariant")
+    }
+}
