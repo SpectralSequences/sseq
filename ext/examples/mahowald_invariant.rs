@@ -44,9 +44,13 @@
 //! [mahowald--ravenel]: https://www.sciencedirect.com/science/article/pii/004093839390055Z
 //! [bruner--greenlees]: https://projecteuclid.org/journals/experimental-mathematics/volume-4/issue-4/The-Bredon-L%C3%B6ffler-conjecture/em/1047674389.full
 
-use algebra::{module::homomorphism::ModuleHomomorphism, AlgebraType};
+use algebra::{
+    module::{homomorphism::ModuleHomomorphism, Module},
+    AlgebraType, SteenrodAlgebra,
+};
 use ext::{
-    chain_complex::{ChainComplex, FreeChainComplex},
+    chain_complex::{ChainComplex, FiniteChainComplex, FreeChainComplex},
+    resolution::MuResolution,
     resolution_homomorphism::ResolutionHomomorphism,
     utils,
 };
@@ -68,21 +72,7 @@ fn main() -> Result<()> {
     // and one that has non-trivial indeterminacy.
     let k_max = query::with_default("Max k (positive)", "25", str::parse::<NonZeroU32>).get();
 
-    let s_2_resolution = Arc::new(utils::construct("S_2", s_2_path)?);
-    // Here are some bounds on the bidegrees in which we have should have resolutions available.
-    //
-    // A class in stem n won't be detected before RP_-{n+1}_inf, so we can only detect Mahowald
-    // invariants of classes in stems <=k_max-1.
-    // If an element in stem k_max-1 is detected in RP_-{k_max}_inf, then its Mahowald invariant
-    // will be in stem 2*k_max-2, so we should resolve S_2 up to that stem.
-    //
-    // As for the filtration s, resolving up to (k/2)+1 will cover all classes in positive stems up
-    // to k-1 because of the Adams vanishing line.
-    // In the zero stem, the Mahowald invariant of x_(i, i, 0) (i.e. (h_0)^i) is the first element
-    // of filtration i that is in a positive stem.
-    // As that element appears by stem 2*i, resolving RP_-k_inf up to filtration (k/2)+1 is also
-    // sufficient to detect Mahowald invariants of elements in the zero stem.
-    s_2_resolution.compute_through_stem(k_max / 2 + 1, 2 * k_max as i32 - 2);
+    let s_2_resolution = resolve_s_2(s_2_path, k_max)?;
 
     println!("M({{basis element}}) = {{mahowald_invariant}}[ mod {{indeterminacy}}]");
     for k in 1..=k_max {
@@ -202,4 +192,26 @@ fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+type Resolution =
+    MuResolution<false, FiniteChainComplex<Box<dyn Module<Algebra = SteenrodAlgebra>>>>;
+
+fn resolve_s_2(s_2_path: Option<PathBuf>, k_max: u32) -> Result<Arc<Resolution>> {
+    let s_2_resolution = Arc::new(utils::construct("S_2", s_2_path)?);
+    // Here are some bounds on the bidegrees in which we have should have resolutions available.
+    //
+    // A class in stem n won't be detected before RP_-{n+1}_inf, so we can only detect Mahowald
+    // invariants of classes in stems <=k_max-1.
+    // If an element in stem k_max-1 is detected in RP_-{k_max}_inf, then its Mahowald invariant
+    // will be in stem 2*k_max-2, so we should resolve S_2 up to that stem.
+    //
+    // As for the filtration s, resolving up to (k/2)+1 will cover all classes in positive stems up
+    // to k-1 because of the Adams vanishing line.
+    // In the zero stem, the Mahowald invariant of x_(i, i, 0) (i.e. (h_0)^i) is the first element
+    // of filtration i that is in a positive stem.
+    // As that element appears by stem 2*i, resolving RP_-k_inf up to filtration (k/2)+1 is also
+    // sufficient to detect Mahowald invariants of elements in the zero stem.
+    s_2_resolution.compute_through_stem(k_max / 2 + 1, 2 * k_max as i32 - 2);
+    Ok(s_2_resolution)
 }
