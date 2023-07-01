@@ -51,7 +51,7 @@ use algebra::{
 use ext::{
     chain_complex::{ChainComplex, FiniteChainComplex, FreeChainComplex},
     resolution::MuResolution,
-    resolution_homomorphism::ResolutionHomomorphism,
+    resolution_homomorphism::{MuResolutionHomomorphism, ResolutionHomomorphism},
     utils,
 };
 use fp::{matrix::Matrix, prime::TWO, vector::FpVector};
@@ -76,54 +76,19 @@ fn main() -> Result<()> {
 
     println!("M({{basis element}}) = {{mahowald_invariant}}[ mod {{indeterminacy}}]");
     for k in 1..=k_max {
-        let p_k_config = json! ({
-            "p": 2,
-            "type": "real projective space",
-            "min": -(k as i32),
-        });
-        let mut p_k_path = p_k_prefix.clone();
-        if let Some(p) = p_k_path.as_mut() {
-            p.push(PathBuf::from(&format!("RP_-{k}_inf")))
-        };
-        let p_k_resolution = Arc::new(utils::construct(
-            (p_k_config, AlgebraType::Milnor),
-            p_k_path,
-        )?);
-        // As mentioned before, RP_-k_inf won't detect Mahowald invariants of any classes in the
-        // k-stem and beyond or of any classes of filtration higher than k/2+1.
-        p_k_resolution.compute_through_stem(k / 2 + 1, k as i32 - 2);
-
-        let bottom_cell = ResolutionHomomorphism::from_class(
-            String::from("bottom_cell"),
-            p_k_resolution.clone(),
-            s_2_resolution.clone(),
-            0,
-            -(k as i32),
-            &[1],
-        );
-        bottom_cell.extend_all();
-
-        let minus_one_cell = ResolutionHomomorphism::from_class(
-            String::from("minus_one_cell"),
-            p_k_resolution.clone(),
-            s_2_resolution.clone(),
-            0,
-            -1,
-            &[1],
-        );
-        minus_one_cell.extend_all();
+        let p_k = PKData::try_new(k, &p_k_prefix, &s_2_resolution)?;
 
         for (s, _, t) in s_2_resolution
             .iter_stem()
-            .filter(|&(s, _, t)| p_k_resolution.has_computed_bidegree(s, t - 1))
+            .filter(|&(s, _, t)| p_k.resolution.has_computed_bidegree(s, t - 1))
         {
             let t_bottom = t + k as i32 - 1;
             let bottom_s_2_gens = s_2_resolution.number_of_gens_in_bidegree(s, t_bottom);
             let minus_one_s_2_gens = s_2_resolution.number_of_gens_in_bidegree(s, t);
             let t_p_k = t - 1;
-            let p_k_gens = p_k_resolution.number_of_gens_in_bidegree(s, t_p_k);
+            let p_k_gens = p_k.resolution.number_of_gens_in_bidegree(s, t_p_k);
             if bottom_s_2_gens > 0 && minus_one_s_2_gens > 0 && p_k_gens > 0 {
-                let bottom_cell_map = bottom_cell.get_map(s);
+                let bottom_cell_map = p_k.bottom_cell.get_map(s);
                 let mut matrix = vec![vec![0; p_k_gens]; bottom_s_2_gens];
                 for p_k_gen in 0..p_k_gens {
                     let output = bottom_cell_map.output(t_p_k, p_k_gen);
@@ -172,7 +137,7 @@ fn main() -> Result<()> {
 
                     for i in 0..minus_one_s_2_gens {
                         let mut image = FpVector::new(TWO, p_k_gens);
-                        minus_one_cell.act(image.as_slice_mut(), 1, s, t, i);
+                        p_k.minus_one_cell.act(image.as_slice_mut(), 1, s, t, i);
                         if !image.is_zero() && image_subspace.contains(image.as_slice()) {
                             let mut mahowald_invariant = FpVector::new(TWO, bottom_s_2_gens);
                             quasi_inverse.apply(
@@ -197,6 +162,14 @@ fn main() -> Result<()> {
 type Resolution =
     MuResolution<false, FiniteChainComplex<Box<dyn Module<Algebra = SteenrodAlgebra>>>>;
 
+type Homomorphism = MuResolutionHomomorphism<false, Resolution, Resolution>;
+
+struct PKData {
+    resolution: Arc<Resolution>,
+    bottom_cell: Homomorphism,
+    minus_one_cell: Homomorphism,
+}
+
 fn resolve_s_2(s_2_path: Option<PathBuf>, k_max: u32) -> Result<Arc<Resolution>> {
     let s_2_resolution = Arc::new(utils::construct("S_2", s_2_path)?);
     // Here are some bounds on the bidegrees in which we have should have resolutions available.
@@ -214,4 +187,55 @@ fn resolve_s_2(s_2_path: Option<PathBuf>, k_max: u32) -> Result<Arc<Resolution>>
     // sufficient to detect Mahowald invariants of elements in the zero stem.
     s_2_resolution.compute_through_stem(k_max / 2 + 1, 2 * k_max as i32 - 2);
     Ok(s_2_resolution)
+}
+
+impl PKData {
+    fn try_new(
+        k: u32,
+        p_k_prefix: &Option<PathBuf>,
+        s_2_resolution: &Arc<Resolution>,
+    ) -> Result<Self> {
+        let p_k_config = json! ({
+            "p": 2,
+            "type": "real projective space",
+            "min": -(k as i32),
+        });
+        let mut p_k_path = p_k_prefix.clone();
+        if let Some(p) = p_k_path.as_mut() {
+            p.push(PathBuf::from(&format!("RP_-{k}_inf")))
+        };
+        let resolution = Arc::new(utils::construct(
+            (p_k_config, AlgebraType::Milnor),
+            p_k_path,
+        )?);
+        // As mentioned before, RP_-k_inf won't detect Mahowald invariants of any classes in the
+        // k-stem and beyond or of any classes of filtration higher than k/2+1.
+        resolution.compute_through_stem(k / 2 + 1, k as i32 - 2);
+
+        let bottom_cell = ResolutionHomomorphism::from_class(
+            String::from("bottom_cell"),
+            resolution.clone(),
+            s_2_resolution.clone(),
+            0,
+            -(k as i32),
+            &[1],
+        );
+        bottom_cell.extend_all();
+
+        let minus_one_cell = ResolutionHomomorphism::from_class(
+            String::from("minus_one_cell"),
+            resolution.clone(),
+            s_2_resolution.clone(),
+            0,
+            -1,
+            &[1],
+        );
+        minus_one_cell.extend_all();
+
+        Ok(PKData {
+            resolution,
+            bottom_cell,
+            minus_one_cell,
+        })
+    }
 }
