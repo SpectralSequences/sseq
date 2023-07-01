@@ -59,6 +59,7 @@ use fp::{matrix::Matrix, prime::TWO, vector::FpVector};
 use anyhow::Result;
 use serde_json::json;
 use std::fmt;
+use std::iter;
 use std::num::NonZeroU32;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -78,56 +79,8 @@ fn main() -> Result<()> {
     println!("M({{basis element}}) = {{mahowald_invariant}}[ mod {{indeterminacy}}]");
     for k in 1..=k_max {
         let p_k = PKData::try_new(k, &p_k_prefix, &s_2_resolution)?;
-
-        for (s, _, t) in s_2_resolution
-            .iter_stem()
-            .filter(|&(s, _, t)| p_k.resolution.has_computed_bidegree(s, t - 1))
-        {
-            let t_bottom = t + k as i32 - 1;
-            let bottom_s_2_gens = s_2_resolution.number_of_gens_in_bidegree(s, t_bottom);
-            let minus_one_s_2_gens = s_2_resolution.number_of_gens_in_bidegree(s, t);
-            let t_p_k = t - 1;
-            let p_k_gens = p_k.resolution.number_of_gens_in_bidegree(s, t_p_k);
-            if bottom_s_2_gens > 0 && minus_one_s_2_gens > 0 && p_k_gens > 0 {
-                let bottom_cell_map = p_k.bottom_cell.get_map(s);
-                let mut matrix = vec![vec![0; p_k_gens]; bottom_s_2_gens];
-                for p_k_gen in 0..p_k_gens {
-                    let output = bottom_cell_map.output(t_p_k, p_k_gen);
-                    for (s_2_gen, row) in matrix.iter_mut().enumerate() {
-                        let index = bottom_cell_map
-                            .target()
-                            .operation_generator_to_index(0, 0, t_bottom, s_2_gen);
-                        row[p_k_gen] = output.entry(index);
-                    }
-                }
-                let (padded_columns, mut matrix) = Matrix::augmented_from_vec(TWO, &matrix);
-                let rank = matrix.row_reduce();
-
-                if rank > 0 {
-                    let kernel_subspace = matrix.compute_kernel(padded_columns);
-                    let indeterminacy_basis = kernel_subspace.basis();
-                    let image_subspace = matrix.compute_image(p_k_gens, padded_columns);
-                    let quasi_inverse = matrix.compute_quasi_inverse(p_k_gens, padded_columns);
-
-                    for i in 0..minus_one_s_2_gens {
-                        let mut image = FpVector::new(TWO, p_k_gens);
-                        p_k.minus_one_cell.act(image.as_slice_mut(), 1, s, t, i);
-                        if !image.is_zero() && image_subspace.contains(image.as_slice()) {
-                            let mut invariant = FpVector::new(TWO, bottom_s_2_gens);
-                            quasi_inverse.apply(invariant.as_slice_mut(), 1, image.as_slice());
-                            let mahowald_invariant = MahowaldInvariant {
-                                s,
-                                input_t: t,
-                                input_i: i,
-                                output_t: t_bottom,
-                                invariant,
-                                indeterminacy_basis: indeterminacy_basis.to_vec(),
-                            };
-                            println!("{mahowald_invariant}",);
-                        }
-                    }
-                }
-            }
+        for mi in p_k.mahowald_invariants() {
+            println!("{mi}")
         }
     }
 
@@ -140,9 +93,11 @@ type Resolution =
 type Homomorphism = MuResolutionHomomorphism<false, Resolution, Resolution>;
 
 struct PKData {
+    k: u32,
     resolution: Arc<Resolution>,
     bottom_cell: Homomorphism,
     minus_one_cell: Homomorphism,
+    s_2_resolution: Arc<Resolution>,
 }
 
 struct MahowaldInvariant {
@@ -217,10 +172,76 @@ impl PKData {
         minus_one_cell.extend_all();
 
         Ok(PKData {
+            k,
             resolution,
             bottom_cell,
             minus_one_cell,
+            s_2_resolution: s_2_resolution.clone(),
         })
+    }
+
+    fn mahowald_invariants(&self) -> impl Iterator<Item = MahowaldInvariant> + '_ {
+        self.s_2_resolution
+            .iter_stem()
+            .flat_map(|(s, _, t)| self.mahowald_invariants_for_bidegree(s, t))
+    }
+
+    fn mahowald_invariants_for_bidegree(
+        &self,
+        s: u32,
+        t: i32,
+    ) -> Box<dyn Iterator<Item = MahowaldInvariant> + '_> {
+        let t_p_k = t - 1;
+        if self.resolution.has_computed_bidegree(s, t_p_k) {
+            let t_bottom = t + self.k as i32 - 1;
+            let bottom_s_2_gens = self.s_2_resolution.number_of_gens_in_bidegree(s, t_bottom);
+            let minus_one_s_2_gens = self.s_2_resolution.number_of_gens_in_bidegree(s, t);
+            let p_k_gens = self.resolution.number_of_gens_in_bidegree(s, t_p_k);
+            if bottom_s_2_gens > 0 && minus_one_s_2_gens > 0 && p_k_gens > 0 {
+                let bottom_cell_map = self.bottom_cell.get_map(s);
+                let mut matrix = vec![vec![0; p_k_gens]; bottom_s_2_gens];
+                for p_k_gen in 0..p_k_gens {
+                    let output = bottom_cell_map.output(t_p_k, p_k_gen);
+                    for (s_2_gen, row) in matrix.iter_mut().enumerate() {
+                        let index = bottom_cell_map
+                            .target()
+                            .operation_generator_to_index(0, 0, t_bottom, s_2_gen);
+                        row[p_k_gen] = output.entry(index);
+                    }
+                }
+                let (padded_columns, mut matrix) = Matrix::augmented_from_vec(TWO, &matrix);
+                let rank = matrix.row_reduce();
+
+                if rank > 0 {
+                    let kernel_subspace = matrix.compute_kernel(padded_columns);
+                    let indeterminacy_basis = kernel_subspace.basis().to_vec();
+                    let image_subspace = matrix.compute_image(p_k_gens, padded_columns);
+                    let quasi_inverse = matrix.compute_quasi_inverse(p_k_gens, padded_columns);
+
+                    let it = (0..minus_one_s_2_gens).filter_map(move |i| {
+                        let mut image = FpVector::new(TWO, p_k_gens);
+                        self.minus_one_cell.act(image.as_slice_mut(), 1, s, t, i);
+                        if !image.is_zero() && image_subspace.contains(image.as_slice()) {
+                            let mut invariant = FpVector::new(TWO, bottom_s_2_gens);
+                            quasi_inverse.apply(invariant.as_slice_mut(), 1, image.as_slice());
+                            Some(MahowaldInvariant {
+                                s,
+                                input_t: t,
+                                input_i: i,
+                                output_t: t_bottom,
+                                invariant,
+                                indeterminacy_basis: indeterminacy_basis.clone(),
+                            })
+                        } else {
+                            None
+                        }
+                    });
+                    return Box::new(it);
+                }
+            }
+        }
+
+        Box::new(iter::empty())
     }
 }
 
