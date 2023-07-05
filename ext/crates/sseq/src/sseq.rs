@@ -68,10 +68,9 @@ pub struct Sseq<P: SseqProfile = Adams> {
     /// x -> y -> validity. A bidegree is invalid if the page_data is no longer accurate.
     invalid: BiVec<BiVec<bool>>,
 
-    // Docs: If your struct does not in fact own the data of type T, it is better to use a
-    // reference type, like PhantomData<&'a T> (ideally) or PhantomData<*const T> (if no lifetime
-    // applies), so as not to indicate ownership.
-    profile: PhantomData<*const P>,
+    // `P` is itself a marker, so it's safe to claim that we own one. As opposed to
+    // `PhantomData<*const P>`, this lets us implement `Send` and `Sync`.
+    profile: PhantomData<P>,
 }
 
 impl<P: SseqProfile> Sseq<P> {
