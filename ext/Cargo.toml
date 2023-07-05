@@ -1,7 +1,10 @@
 [package]
 name = "ext"
 version = "0.1.0"
-authors = ["Hood Chatham <hood@mit.edu>", "Dexter Chua <dexter@math.harvard.edu>"]
+authors = [
+    "Hood Chatham <hood@mit.edu>",
+    "Dexter Chua <dexter@math.harvard.edu>",
+]
 edition = "2021"
 description = "Compute Ext over the Steenrod algebra"
 repository = "https://github.com/SpectralSequences/ext/"
@@ -9,10 +12,12 @@ license = "(MIT OR Apache-2.0)"
 resolver = "2"
 
 [dependencies]
-algebra = { path = "crates/algebra", default-features = false, features = ["json"] }
-bivec = { path = "crates/bivec"}
+algebra = { path = "crates/algebra", default-features = false, features = [
+    "json",
+] }
+bivec = { path = "crates/bivec" }
 fp = { path = "crates/fp", default-features = false }
-once = { path = "crates/once"}
+once = { path = "crates/once" }
 query = { path = "crates/query" }
 sseq = { path = "crates/sseq", default-features = false }
 adler = "1"
@@ -21,7 +26,9 @@ anyhow = "1.0.0"
 rayon = { version = "1.5", optional = true }
 rustc-hash = "1.1.0"
 serde_json = { version = "1.0.0", features = ["preserve_order"] }
-itertools = { version = "0.10.0", default-features = false, features = ["use_alloc"] }
+itertools = { version = "0.10.0", default-features = false, features = [
+    "use_alloc",
+] }
 chart = { path = "crates/chart" }
 dashmap = "4.0.0"
 byteorder = "1.4.3"
@@ -33,7 +40,7 @@ ctrlc = { version = "3", features = ["termination"] }
 
 [dev-dependencies]
 expect-test = "1.1.0"
-rstest = "0.11.0"
+rstest = "0.17.0"
 iai = "0.1.1"
 tempfile = "3.0.0"
 

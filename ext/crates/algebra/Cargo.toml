@@ -1,7 +1,10 @@
 [package]
 name = "algebra"
 version = "0.1.0"
-authors = ["Hood Chatham <hood@mit.edu>", "Dexter Chua <dexter@math.harvard.edu>"]
+authors = [
+    "Hood Chatham <hood@mit.edu>",
+    "Dexter Chua <dexter@math.harvard.edu>",
+]
 edition = "2021"
 
 [lib]
@@ -11,20 +14,22 @@ crate-type = ["cdylib", "rlib"]
 anyhow = "1.0.0"
 serde_json = { version = "1.0.0", optional = true }
 serde = { version = "1.0.0", features = ["derive"], optional = true }
-itertools = { version = "0.10.0", default-features = false, features = ["use_alloc"] }
+itertools = { version = "0.10.0", default-features = false, features = [
+    "use_alloc",
+] }
 nom = { version = "7.0.0", default-features = false, features = ["alloc"] }
 rustc-hash = "1.1.0"
 hashbrown = "0.11.0"
 auto_impl = "1.0.0"
 
-bivec = { path = "../bivec"}
+bivec = { path = "../bivec" }
 fp = { path = "../fp", default-features = false }
 once = { path = "../once" }
 
 rayon = { version = "1.5", optional = true }
 
 [dev-dependencies]
-rstest = "0.10.0"
+rstest = "0.17.0"
 bencher = "0.1.5"
 expect-test = "1.1.0"
 
