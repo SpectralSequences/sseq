@@ -19,6 +19,6 @@ fn module_construct_error() {
 }
 
 fn test(json: Value) {
-    matches!(construct((json.clone(), "adem"), None), Err(_));
-    matches!(construct((json, "milnor"), None), Err(_));
+    assert!(construct((json.clone(), "adem"), None).is_err());
+    assert!(construct((json, "milnor"), None).is_err());
 }
