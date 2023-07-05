@@ -41,10 +41,9 @@ impl FpVector {
 
     pub fn update_from_bytes(&mut self, data: &mut impl Read) -> std::io::Result<()> {
         let limbs = self.limbs_mut();
-        let num_limbs = limbs.len();
 
         if cfg!(target_endian = "little") {
-            let num_bytes = num_limbs * size_of::<Limb>();
+            let num_bytes = std::mem::size_of_val(limbs);
             unsafe {
                 let buf: &mut [u8] =
                     std::slice::from_raw_parts_mut(limbs.as_mut_ptr() as *mut u8, num_bytes);
