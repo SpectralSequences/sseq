@@ -319,11 +319,11 @@ pub struct TikzBackend<T: Write> {
 }
 
 impl<T: Write> TikzBackend<T> {
-    const HEADER: &'static str = r#"\begin{tikzpicture}[
+    const HEADER: &'static str = r"\begin{tikzpicture}[
   major-grid/.style={ opacity = 0.2 },
   grid/.style={ opacity = 0.1 },
   d2/.style={ blue },
-]"#;
+]";
 
     pub fn new(out: T) -> Self {
         Self {
