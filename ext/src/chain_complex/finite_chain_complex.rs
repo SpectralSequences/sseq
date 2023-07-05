@@ -30,7 +30,7 @@ where
             Arc::clone(&zero_module),
             0,
         )));
-        all_differentials.extend(differentials.into_iter());
+        all_differentials.extend(differentials);
         all_differentials.push(Arc::new(F::zero_homomorphism(
             Arc::clone(&zero_module),
             Arc::clone(&modules[modules.len() - 1]),
