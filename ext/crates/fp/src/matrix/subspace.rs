@@ -134,6 +134,24 @@ impl Subspace {
         }
     }
 
+    /// Returns a complementary space to `self`.
+    pub fn complement(&self) -> Subspace {
+        let dimension = self.ambient_dimension() - self.dimension();
+        let mut complement = Subspace::new(self.prime(), dimension, self.ambient_dimension());
+        let mut i = 0;
+        complement.add_vectors(|mut row| {
+            while i < self.ambient_dimension() {
+                i += 1;
+                if self.pivots()[i - 1] < 0 {
+                    row.set_entry(i - 1, 1);
+                    return Some(());
+                }
+            }
+            None
+        });
+        complement
+    }
+
     pub fn contains(&self, vector: Slice) -> bool {
         let mut vector: FpVector = vector.into_owned();
         self.reduce(vector.as_slice_mut());
