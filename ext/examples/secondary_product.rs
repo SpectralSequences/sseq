@@ -177,12 +177,11 @@ fn main() -> anyhow::Result<()> {
             outputs.iter_mut().map(FpVector::as_slice_mut),
         );
         for (gen, output) in page_data.subspace_gens().zip_eq(outputs) {
-            print!("{name} [");
-            BidegreeElement::new(b, gen).print();
             println!(
-                "] = {} + τ {}",
+                "{name} [{basis_string}] = {} + τ {}",
                 output.slice(0, target_num_gens),
-                output.slice(target_num_gens, target_num_gens + tau_num_gens)
+                output.slice(target_num_gens, target_num_gens + tau_num_gens),
+                basis_string = BidegreeElement::new(b, gen).to_basis_string(),
             );
         }
     }

@@ -43,11 +43,11 @@ impl<'a> BidegreeElement<'a> {
         self.vec
     }
 
-    /// Prints the element to stdout. For example, an element in bidegree `(n,s)` with vector
-    /// `[0,2,1]` will be printed as `2 x_(n, s, 1) + x_(n, s, 2)`.
-    pub fn print(&self) {
-        let output = self
-            .vec
+    /// Get the string representation of the element as a linear combination of generators. For
+    /// example, an element in bidegree `(n,s)` with vector `[0,2,1]` will be printed as `2 x_(n, s,
+    /// 1) + x_(n, s, 2)`.
+    pub fn to_basis_string(&self) -> String {
+        self.vec
             .iter_nonzero()
             .map(|(i, v)| {
                 let gen = BidegreeGenerator::new(self.degree(), i);
@@ -59,13 +59,12 @@ impl<'a> BidegreeElement<'a> {
                 format!("{coeff_str}x_{gen}")
             })
             .collect::<Vec<_>>()
-            .join(" + ");
-        print!("{output}");
+            .join(" + ")
     }
 
     /// An algebra-aware string representation. This assumes that the element belongs to `module`,
     /// and uses the string representation of its underlying algebra's operations.
-    pub fn to_string_pretty<const U: bool, A: MuAlgebra<U>>(
+    pub fn to_string_module<const U: bool, A: MuAlgebra<U>>(
         &self,
         module: &MuFreeModule<U, A>,
         compact: bool,

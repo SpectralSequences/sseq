@@ -235,12 +235,12 @@ fn main() -> anyhow::Result<()> {
         {
             let final_map = &delta[i as usize][(doubled_b - shift_s).s() as usize];
             let num_gens = resolution.number_of_gens_in_bidegree(doubled_b - shift_s);
-            print!("Sq^{} ", (b - shift_s).s());
-            BidegreeElement::new(b, FpVector::from_slice(p, &class).as_slice()).print();
-
             print!(
-                " = [{}]",
-                (0..num_gens)
+                "Sq^{} {basis_string} = [{result}]",
+                (b - shift_s).s(),
+                basis_string = BidegreeElement::new(b, FpVector::from_slice(p, &class).as_slice())
+                    .to_basis_string(),
+                result = (0..num_gens)
                     .map(|k| format!("{}", final_map.output(doubled_b.t(), k).entry(0)))
                     .format(", "),
             );

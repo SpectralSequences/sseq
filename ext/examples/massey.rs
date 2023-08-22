@@ -120,9 +120,10 @@ fn main() -> anyhow::Result<()> {
 
         for row in kernel.iter() {
             let c_element = BidegreeElement::new(c, row);
-            print!("<a, b, ");
-            c_element.print();
-            print!("> = [");
+            print!(
+                "<a, b, {c_string}> = [",
+                c_string = c_element.to_basis_string()
+            );
 
             for i in 0..target_num_gens {
                 let mut entry = 0;

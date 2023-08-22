@@ -135,7 +135,7 @@ where
         let result_vector = d.output(gen.t(), gen.idx());
 
         BidegreeElement::new(gen.degree(), result_vector.as_slice())
-            .to_string_pretty(&*target, compact)
+            .to_string_module(&*target, compact)
     }
 }
 

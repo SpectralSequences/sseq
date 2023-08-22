@@ -411,9 +411,10 @@ fn main() -> anyhow::Result<()> {
                 let has_ext = {
                     let ext_part = gen.slice(0, target_num_gens);
                     if ext_part.iter_nonzero().count() > 0 {
-                        print!("[");
-                        BidegreeElement::new(c, ext_part).print();
-                        print!("]");
+                        print!(
+                            "[{basis_string}]",
+                            basis_string = BidegreeElement::new(c, ext_part).to_basis_string()
+                        );
                         true
                     } else {
                         false
@@ -427,20 +428,16 @@ fn main() -> anyhow::Result<()> {
                         print!(" + ");
                     }
                     print!("τ");
+
+                    let basis_string = BidegreeElement::new(
+                        c + TAU_BIDEGREE,
+                        gen.slice(target_num_gens, target_all_gens),
+                    )
+                    .to_basis_string();
                     if num_entries == 1 {
-                        BidegreeElement::new(
-                            c + TAU_BIDEGREE,
-                            gen.slice(target_num_gens, target_all_gens),
-                        )
-                        .print();
+                        print!("{basis_string}",);
                     } else {
-                        print!("(");
-                        BidegreeElement::new(
-                            c + TAU_BIDEGREE,
-                            gen.slice(target_num_gens, target_all_gens),
-                        )
-                        .print();
-                        print!(")");
+                        print!("({basis_string})",);
                     }
                 }
                 print!("> = ±");
