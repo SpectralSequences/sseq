@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = [
     "Hood Chatham <hood@mit.edu>",
     "Dexter Chua <dexter@math.harvard.edu>",
+    "Joey Beauvais-Feisthauer <joeybf@wayne.edu>",
 ]
 edition = "2021"
 description = "Compute Ext over the Steenrod algebra"
