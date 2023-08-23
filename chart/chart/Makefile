@@ -26,6 +26,7 @@ $(JAVASCRIPT):
 javascript/dist/sseq_chart_node.js : javascript/src/*.ts
 	cd javascript && \
 		./node_modules/esbuild/bin/esbuild \
+			--keep-names \
 			--outfile=dist/sseq_chart_node.js \
 			--platform=node src/lib.ts \
 			--format=cjs \
