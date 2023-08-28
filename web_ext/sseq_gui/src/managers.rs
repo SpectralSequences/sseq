@@ -10,6 +10,7 @@ use ext::CCC;
 
 use anyhow::{anyhow, Context};
 use serde_json::json;
+use sseq::coordinates::Bidegree;
 
 use crate::Sender;
 
@@ -182,7 +183,10 @@ impl ResolutionManager {
         };
         self.sender.send(msg)?;
 
-        resolution.compute_through_stem(action.max_degree as u32 / 2 + 5, action.max_degree);
+        resolution.compute_through_stem(Bidegree::n_s(
+            action.max_degree,
+            action.max_degree as u32 / 2 + 5,
+        ));
 
         Ok(())
     }

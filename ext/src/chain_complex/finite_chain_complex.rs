@@ -1,6 +1,7 @@
 use crate::chain_complex::{AugmentedChainComplex, BoundedChainComplex, ChainComplex};
 use algebra::module::homomorphism::{FullModuleHomomorphism, ModuleHomomorphism, ZeroHomomorphism};
 use algebra::module::{Module, ZeroModule};
+use sseq::coordinates::Bidegree;
 use std::sync::Arc;
 
 pub struct FiniteChainComplex<M, F = FullModuleHomomorphism<M>>
@@ -150,14 +151,14 @@ where
         Arc::clone(&self.differentials[s])
     }
 
-    fn compute_through_bidegree(&self, s: u32, t: i32) {
-        for module in self.modules.iter().take(s as usize + 1) {
-            module.compute_basis(t);
+    fn compute_through_bidegree(&self, b: Bidegree) {
+        for module in self.modules.iter().take(b.s() as usize + 1) {
+            module.compute_basis(b.t());
         }
     }
 
-    fn has_computed_bidegree(&self, s: u32, t: i32) -> bool {
-        s > self.modules.len() as u32 || t < self.module(s).max_computed_degree()
+    fn has_computed_bidegree(&self, b: Bidegree) -> bool {
+        b.s() > self.modules.len() as u32 || b.t() < self.module(b.s()).max_computed_degree()
     }
 
     fn next_homological_degree(&self) -> u32 {
@@ -206,8 +207,8 @@ where
         self.cc.min_degree()
     }
 
-    fn has_computed_bidegree(&self, s: u32, t: i32) -> bool {
-        self.cc.has_computed_bidegree(s, t)
+    fn has_computed_bidegree(&self, b: Bidegree) -> bool {
+        self.cc.has_computed_bidegree(b)
     }
 
     fn zero_module(&self) -> Arc<Self::Module> {
@@ -222,8 +223,8 @@ where
         self.cc.differential(s)
     }
 
-    fn compute_through_bidegree(&self, s: u32, t: i32) {
-        self.cc.compute_through_bidegree(s, t)
+    fn compute_through_bidegree(&self, b: Bidegree) {
+        self.cc.compute_through_bidegree(b)
     }
 
     fn next_homological_degree(&self) -> u32 {

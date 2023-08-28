@@ -23,6 +23,7 @@ use algebra::Algebra;
 use chart::{Backend, Orientation, TikzBackend};
 use ext::chain_complex::{FiniteChainComplex, FreeChainComplex};
 use ext::resolution::UnstableResolution;
+use sseq::coordinates::Bidegree;
 
 fn main() -> anyhow::Result<()> {
     let module = Arc::new(ext::utils::query_unstable_module_only()?);
@@ -38,8 +39,10 @@ fn main() -> anyhow::Result<()> {
         }
     };
 
-    let max_n: i32 = query::raw("Max n", str::parse);
-    let max_s: u32 = query::raw("Max s", str::parse);
+    let max = Bidegree::n_s(
+        query::raw("Max n", str::parse),
+        query::raw("Max s", str::parse),
+    );
 
     let disp_template: String = query::raw(
         "LaTeX name template (replace % with min degree)",
@@ -48,17 +51,18 @@ fn main() -> anyhow::Result<()> {
 
     let products = module.algebra().default_filtration_one_products();
 
-    for shift in 0..max_n - module.min_degree() + 3 {
+    for shift_t in 0..max.n() - module.min_degree() + 3 {
+        let shift = Bidegree::s_t(0, shift_t);
         let res: Arc<UnstableResolution<FiniteChainComplex<_>>> =
             Arc::new(UnstableResolution::new_with_save(
                 Arc::new(FiniteChainComplex::ccdz(Arc::new(SuspensionModule::new(
                     Arc::clone(&module),
-                    shift,
+                    shift.t(),
                 )))),
-                save_dir(shift),
+                save_dir(shift.t()),
             )?);
 
-        res.compute_through_stem(max_s, max_n + shift);
+        res.compute_through_stem(max + shift);
 
         println!("\\begin{{figure}}[p]\\centering");
 
@@ -78,8 +82,8 @@ fn main() -> anyhow::Result<()> {
             |g| {
                 g.text(
                     1,
-                    max_s as i32 - 1,
-                    disp_template.replace('%', &format!("{shift}")),
+                    max.s() as i32 - 1,
+                    disp_template.replace('%', &format!("{shift_t}")),
                     Orientation::Right,
                 )
             },

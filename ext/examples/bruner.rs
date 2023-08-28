@@ -27,6 +27,7 @@ use ext::{
     resolution_homomorphism::ResolutionHomomorphism,
 };
 use fp::{matrix::Matrix, prime::TWO, vector::FpVector};
+use sseq::coordinates::{Bidegree, BidegreeGenerator};
 use std::{
     fs::File,
     io::{BufRead, BufReader},
@@ -225,6 +226,7 @@ fn main() {
 
     // Read in Bruner's resolution
     let (max_s, cc) = read_bruner_resolution(&data_dir, max_n).unwrap();
+    let max = Bidegree::n_s(max_n, max_s);
     let cc = Arc::new(cc);
 
     let save_dir = query::optional("Save directory", |x| {
@@ -240,24 +242,25 @@ fn main() {
 
     let resolution = ext::utils::construct("S_2@milnor", save_dir).unwrap();
 
-    resolution.compute_through_stem(max_s, max_n);
+    resolution.compute_through_stem(max);
 
     let resolution = Arc::new(resolution);
 
     // Create a ResolutionHomomorphism object
-    let hom = ResolutionHomomorphism::new(String::new(), cc, resolution, 0, 0);
+    let hom = ResolutionHomomorphism::new(String::new(), cc, resolution, Bidegree::zero());
 
     // We have to explicitly tell it what to do at (0, 0)
-    hom.extend_step(0, 0, Some(&Matrix::from_vec(TWO, &[vec![1]])));
+    hom.extend_step(Bidegree::zero(), Some(&Matrix::from_vec(TWO, &[vec![1]])));
     hom.extend_all();
 
     // Now print the results
     println!("sseq_basis | bruner_basis");
-    for (s, n, t) in hom.target.iter_stem() {
-        let matrix = hom.get_map(s).hom_k(t);
+    for b in hom.target.iter_stem() {
+        let matrix = hom.get_map(b.s()).hom_k(b.t());
 
         for (i, row) in matrix.into_iter().enumerate() {
-            println!("x_({n},{s},{i}) = {row:?}");
+            let gen = BidegreeGenerator::new(b, i);
+            println!("x_{gen:#} = {row:?}");
         }
     }
 }

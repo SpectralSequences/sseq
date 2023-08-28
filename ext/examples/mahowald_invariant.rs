@@ -58,6 +58,7 @@ use fp::{matrix::Matrix, prime::TWO, vector::FpVector};
 
 use anyhow::Result;
 use serde_json::json;
+use sseq::coordinates::{Bidegree, BidegreeElement, BidegreeGenerator};
 use std::fmt;
 use std::iter;
 use std::num::NonZeroU32;
@@ -101,9 +102,7 @@ struct PKData {
 }
 
 struct MahowaldInvariant {
-    s: u32,
-    input_t: i32,
-    input_i: usize,
+    gen: BidegreeGenerator,
     output_t: i32,
     invariant: FpVector,
     indeterminacy_basis: Vec<FpVector>,
@@ -124,7 +123,7 @@ fn resolve_s_2(s_2_path: Option<PathBuf>, k_max: u32) -> Result<Arc<Resolution>>
     // of filtration i that is in a positive stem.
     // As that element appears by stem 2*i, resolving RP_-k_inf up to filtration (k/2)+1 is also
     // sufficient to detect Mahowald invariants of elements in the zero stem.
-    s_2_resolution.compute_through_stem(k_max / 2 + 1, 2 * k_max as i32 - 2);
+    s_2_resolution.compute_through_stem(Bidegree::n_s(2 * k_max as i32 - 2, k_max / 2 + 1));
     Ok(s_2_resolution)
 }
 
@@ -149,14 +148,13 @@ impl PKData {
         )?);
         // As mentioned before, RP_-k_inf won't detect Mahowald invariants of any classes in the
         // k-stem and beyond or of any classes of filtration higher than k/2+1.
-        resolution.compute_through_stem(k / 2 + 1, k as i32 - 2);
+        resolution.compute_through_stem(Bidegree::n_s(k as i32 - 2, k / 2 + 1));
 
         let bottom_cell = ResolutionHomomorphism::from_class(
             String::from("bottom_cell"),
             resolution.clone(),
             s_2_resolution.clone(),
-            0,
-            -(k as i32),
+            Bidegree::s_t(0, -(k as i32)),
             &[1],
         );
         bottom_cell.extend_all();
@@ -165,8 +163,7 @@ impl PKData {
             String::from("minus_one_cell"),
             resolution.clone(),
             s_2_resolution.clone(),
-            0,
-            -1,
+            Bidegree::s_t(0, -1),
             &[1],
         );
         minus_one_cell.extend_all();
@@ -183,29 +180,31 @@ impl PKData {
     fn mahowald_invariants(&self) -> impl Iterator<Item = MahowaldInvariant> + '_ {
         self.s_2_resolution
             .iter_stem()
-            .flat_map(|(s, _, t)| self.mahowald_invariants_for_bidegree(s, t))
+            .flat_map(|b| self.mahowald_invariants_for_bidegree(b))
     }
 
     fn mahowald_invariants_for_bidegree(
         &self,
-        s: u32,
-        t: i32,
+        b: Bidegree,
     ) -> Box<dyn Iterator<Item = MahowaldInvariant> + '_> {
-        let t_p_k = t - 1;
-        if self.resolution.has_computed_bidegree(s, t_p_k) {
-            let t_bottom = t + self.k as i32 - 1;
-            let bottom_s_2_gens = self.s_2_resolution.number_of_gens_in_bidegree(s, t_bottom);
-            let minus_one_s_2_gens = self.s_2_resolution.number_of_gens_in_bidegree(s, t);
-            let p_k_gens = self.resolution.number_of_gens_in_bidegree(s, t_p_k);
+        let b_p_k = b - Bidegree::s_t(0, 1);
+        if self.resolution.has_computed_bidegree(b_p_k) {
+            let b_bottom = b_p_k + Bidegree::s_t(0, self.k as i32);
+            let bottom_s_2_gens = self.s_2_resolution.number_of_gens_in_bidegree(b_bottom);
+            let minus_one_s_2_gens = self.s_2_resolution.number_of_gens_in_bidegree(b);
+            let p_k_gens = self.resolution.number_of_gens_in_bidegree(b_p_k);
             if bottom_s_2_gens > 0 && minus_one_s_2_gens > 0 && p_k_gens > 0 {
-                let bottom_cell_map = self.bottom_cell.get_map(s);
+                let bottom_cell_map = self.bottom_cell.get_map(b_bottom.s());
                 let mut matrix = vec![vec![0; p_k_gens]; bottom_s_2_gens];
                 for p_k_gen in 0..p_k_gens {
-                    let output = bottom_cell_map.output(t_p_k, p_k_gen);
+                    let output = bottom_cell_map.output(b_p_k.t(), p_k_gen);
                     for (s_2_gen, row) in matrix.iter_mut().enumerate() {
-                        let index = bottom_cell_map
-                            .target()
-                            .operation_generator_to_index(0, 0, t_bottom, s_2_gen);
+                        let index = bottom_cell_map.target().operation_generator_to_index(
+                            0,
+                            0,
+                            b_bottom.t(),
+                            s_2_gen,
+                        );
                         row[p_k_gen] = output.entry(index);
                     }
                 }
@@ -220,15 +219,14 @@ impl PKData {
 
                     let it = (0..minus_one_s_2_gens).filter_map(move |i| {
                         let mut image = FpVector::new(TWO, p_k_gens);
-                        self.minus_one_cell.act(image.as_slice_mut(), 1, s, t, i);
+                        let gen = BidegreeGenerator::new(b, i);
+                        self.minus_one_cell.act(image.as_slice_mut(), 1, gen);
                         if !image.is_zero() && image_subspace.contains(image.as_slice()) {
                             let mut invariant = FpVector::new(TWO, bottom_s_2_gens);
                             quasi_inverse.apply(invariant.as_slice_mut(), 1, image.as_slice());
                             Some(MahowaldInvariant {
-                                s,
-                                input_t: t,
-                                input_i: i,
-                                output_t: t_bottom,
+                                gen,
+                                output_t: b_bottom.t(),
                                 invariant,
                                 indeterminacy_basis: indeterminacy_basis.clone(),
                             })
@@ -247,23 +245,10 @@ impl PKData {
 
 impl fmt::Display for MahowaldInvariant {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
-        let s = self.s;
-        let input_t = self.input_t;
-        let input_i = self.input_i;
         let output_t = self.output_t;
         let f2_vec_to_sum = |v: &FpVector| {
-            // We will only ever print non-zero vectors, so ignoring empty sums is fine.
-            v.iter()
-                .enumerate()
-                .filter_map(|(i, e)| {
-                    if e == 1 {
-                        Some(format!("x_({s}, {output_t}, {i})"))
-                    } else {
-                        None
-                    }
-                })
-                .collect::<Vec<_>>()
-                .join(" + ")
+            let elt = BidegreeElement::new(Bidegree::s_t(self.gen.s(), output_t), v.as_slice());
+            elt.to_basis_string()
         };
         let indeterminacy_info = if self.indeterminacy_basis.is_empty() {
             String::new()
@@ -281,7 +266,8 @@ impl fmt::Display for MahowaldInvariant {
         let invariant = f2_vec_to_sum(&self.invariant);
         write!(
             f,
-            "M(x_({s}, {input_t}, {input_i})) = {invariant}{indeterminacy_info}"
+            "M(x_{gen}) = {invariant}{indeterminacy_info}",
+            gen = self.gen
         )
     }
 }
@@ -305,10 +291,11 @@ mod tests {
         #[case] invariant: Vec<u32>,
         #[case] indeterminacy_dim: usize,
     ) {
+        let gen = BidegreeGenerator::new(Bidegree::s_t(s, input_t), input_i);
         let s_2_resolution = resolve_s_2(None, k).unwrap();
         let p_k = PKData::try_new(k, &None, &s_2_resolution).unwrap();
-        for mi in p_k.mahowald_invariants_for_bidegree(s, input_t) {
-            if mi.input_i == input_i {
+        for mi in p_k.mahowald_invariants_for_bidegree(gen.degree()) {
+            if mi.gen.idx() == gen.idx() {
                 assert_eq!(mi.output_t, output_t);
                 assert_eq!(Vec::from(&mi.invariant), invariant);
                 assert_eq!(mi.indeterminacy_basis.len(), indeterminacy_dim);

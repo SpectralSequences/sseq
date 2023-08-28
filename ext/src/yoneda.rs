@@ -17,6 +17,7 @@ use fp::vector::FpVector;
 use bivec::BiVec;
 
 use rustc_hash::FxHashSet as HashSet;
+use sseq::coordinates::Bidegree;
 use std::sync::Arc;
 
 const PENALTY_UNIT: i32 = 10000;
@@ -87,7 +88,7 @@ fn split_mut_borrow<T>(v: &mut [T], i: usize, j: usize) -> (&mut T, &mut T) {
     (&mut first[i], &mut second[0])
 }
 
-pub fn yoneda_representative_element<CC>(cc: Arc<CC>, s: u32, t: i32, class: &[u32]) -> Yoneda<CC>
+pub fn yoneda_representative_element<CC>(cc: Arc<CC>, b: Bidegree, class: &[u32]) -> Yoneda<CC>
 where
     CC: FreeChainComplex
         + AugmentedChainComplex<
@@ -101,16 +102,16 @@ where
     let p = cc.prime();
 
     let target = FDModule::new(cc.algebra(), "".to_string(), BiVec::from_vec(0, vec![1]));
-    let map = FreeModuleHomomorphism::new(cc.module(s), Arc::new(target), t);
-    let mut rows = vec![FpVector::new(p, 1); cc.module(s).number_of_gens_in_degree(t)];
+    let map = FreeModuleHomomorphism::new(cc.module(b.s()), Arc::new(target), b.t());
+    let mut rows = vec![FpVector::new(p, 1); cc.module(b.s()).number_of_gens_in_degree(b.t())];
     for (&i, row) in std::iter::zip(class, &mut rows) {
         row.set_entry(0, i);
     }
 
-    map.add_generators_from_rows(t, rows);
+    map.add_generators_from_rows(b.t(), rows);
 
     let cm = ChainMap {
-        s_shift: s,
+        s_shift: b.s(),
         chain_maps: vec![map],
     };
     let yoneda = Arc::new(yoneda_representative(Arc::clone(&cc), cm));
@@ -118,7 +119,7 @@ where
     // We now do some safety checks
     let module = cc.target().module(0);
 
-    for t in cc.min_degree()..=t {
+    for t in cc.min_degree()..=b.t() {
         assert_eq!(
             yoneda.euler_characteristic(t),
             module.dimension(t) as isize,
@@ -133,11 +134,11 @@ where
         &FullModuleHomomorphism::identity_homomorphism(module),
     );
 
-    f.extend_through_stem(s, t - s as i32);
-    let final_map = f.get_map(s);
+    f.extend_through_stem(b);
+    let final_map = f.get_map(b.s());
     for (i, &v) in class.iter().enumerate() {
-        assert_eq!(final_map.output(t, i).len(), 1);
-        assert_eq!(final_map.output(t, i).entry(0), v);
+        assert_eq!(final_map.output(b.t(), i).len(), 1);
+        assert_eq!(final_map.output(b.t(), i).entry(0), v);
     }
 
     drop(f);

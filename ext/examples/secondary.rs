@@ -46,9 +46,10 @@
 //! ```
 
 use algebra::module::Module;
+use sseq::coordinates::{Bidegree, BidegreeGenerator};
 use std::sync::Arc;
 
-use ext::chain_complex::ChainComplex;
+use ext::chain_complex::{ChainComplex, FreeChainComplex};
 use ext::secondary::*;
 use ext::utils::query_module;
 
@@ -65,23 +66,26 @@ fn main() -> anyhow::Result<()> {
     lift.extend_all();
     timer.end(format_args!("Total computation time"));
 
+    let d2_shift = Bidegree::n_s(-1, 2);
+
     // Iterate through target of the d2
-    for (s, n, t) in lift.underlying().iter_stem() {
-        if s < 3 {
+    for b in lift.underlying().iter_stem() {
+        if b.s() < 3 {
             continue;
         }
 
-        if t - 1 > resolution.module(s - 2).max_computed_degree() {
+        if b.t() - 1 > resolution.module(b.s() - 2).max_computed_degree() {
             continue;
         }
-        if resolution.module(s).number_of_gens_in_degree(t) == 0 {
+        if resolution.number_of_gens_in_bidegree(b) == 0 {
             continue;
         }
-        let homotopy = lift.homotopy(s);
-        let m = homotopy.homotopies.hom_k(t - 1);
+        let homotopy = lift.homotopy(b.s());
+        let m = homotopy.homotopies.hom_k(b.t() - 1);
 
         for (i, entry) in m.into_iter().enumerate() {
-            println!("d_2 x_({}, {}, {i}) = {entry:?}", n + 1, s - 2);
+            let source_gen = BidegreeGenerator::new(b - d2_shift, i);
+            println!("d_2 x_{source_gen} = {entry:?}");
         }
     }
 

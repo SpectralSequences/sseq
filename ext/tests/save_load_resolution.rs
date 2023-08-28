@@ -3,6 +3,7 @@ use ext::chain_complex::{ChainComplex, FreeChainComplex};
 use ext::save::SaveKind;
 use ext::secondary::{SecondaryLift, SecondaryResolution};
 use ext::utils::construct_standard;
+use sseq::coordinates::Bidegree;
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -41,10 +42,10 @@ fn test_tempdir_lock() {
     let tempdir = tempfile::TempDir::new().unwrap();
     let resolution1 =
         construct_standard::<false, _, _>("S_2", Some(tempdir.path().into())).unwrap();
-    resolution1.compute_through_bidegree(5, 5);
+    resolution1.compute_through_bidegree(Bidegree::s_t(5, 5));
 
     lock_tempdir(tempdir.path());
-    resolution1.compute_through_bidegree(6, 6);
+    resolution1.compute_through_bidegree(Bidegree::s_t(6, 6));
 }
 
 #[test]
@@ -52,11 +53,11 @@ fn test_tempdir_unlock() {
     let tempdir = tempfile::TempDir::new().unwrap();
     let resolution1 =
         construct_standard::<false, _, _>("S_2", Some(tempdir.path().into())).unwrap();
-    resolution1.compute_through_bidegree(5, 5);
+    resolution1.compute_through_bidegree(Bidegree::s_t(5, 5));
 
     lock_tempdir(tempdir.path());
     unlock_tempdir(tempdir.path());
-    resolution1.compute_through_bidegree(6, 6);
+    resolution1.compute_through_bidegree(Bidegree::s_t(6, 6));
 }
 
 #[test]
@@ -65,8 +66,8 @@ fn test_save_load() {
     let mut resolution1 =
         construct_standard::<false, _, _>("S_2", Some(tempdir.path().into())).unwrap();
 
-    resolution1.compute_through_bidegree(10, 6);
-    resolution1.compute_through_bidegree(6, 10);
+    resolution1.compute_through_bidegree(Bidegree::s_t(10, 6));
+    resolution1.compute_through_bidegree(Bidegree::s_t(6, 10));
     resolution1.should_save = false;
 
     let mut resolution2 =
@@ -74,13 +75,13 @@ fn test_save_load() {
 
     // Check that we are not writing anything new.
     lock_tempdir(tempdir.path());
-    resolution2.compute_through_bidegree(10, 6);
-    resolution2.compute_through_bidegree(6, 10);
+    resolution2.compute_through_bidegree(Bidegree::s_t(10, 6));
+    resolution2.compute_through_bidegree(Bidegree::s_t(6, 10));
 
     resolution2.should_save = false;
 
-    resolution1.compute_through_bidegree(20, 20);
-    resolution2.compute_through_bidegree(20, 20);
+    resolution1.compute_through_bidegree(Bidegree::s_t(20, 20));
+    resolution2.compute_through_bidegree(Bidegree::s_t(20, 20));
 
     assert_eq!(
         resolution1.graded_dimension_string(),
@@ -100,11 +101,11 @@ fn wrong_algebra() {
     let tempdir = tempfile::TempDir::new().unwrap();
     let resolution1 =
         construct_standard::<false, _, _>("S_2@adem", Some(tempdir.path().into())).unwrap();
-    resolution1.compute_through_bidegree(2, 2);
+    resolution1.compute_through_bidegree(Bidegree::s_t(2, 2));
 
     let resolution2 =
         construct_standard::<false, _, _>("S_2@milnor", Some(tempdir.path().into())).unwrap();
-    resolution2.compute_through_bidegree(2, 2);
+    resolution2.compute_through_bidegree(Bidegree::s_t(2, 2));
 }
 
 #[test]
@@ -114,13 +115,13 @@ fn test_save_load_stem() {
     let resolution1 =
         construct_standard::<false, _, _>("S_2", Some(tempdir.path().into())).unwrap();
 
-    resolution1.compute_through_stem(10, 10);
+    resolution1.compute_through_stem(Bidegree::n_s(10, 10));
 
     let resolution2 =
         construct_standard::<false, _, _>("S_2", Some(tempdir.path().into())).unwrap();
     lock_tempdir(tempdir.path());
 
-    resolution2.compute_through_stem(10, 10);
+    resolution2.compute_through_stem(Bidegree::n_s(10, 10));
 
     assert_eq!(
         resolution1.graded_dimension_string(),
@@ -140,17 +141,17 @@ fn test_save_load_resume() {
 
     let resolution1 =
         construct_standard::<false, _, _>("S_2", Some(tempdir.path().into())).unwrap();
-    resolution1.compute_through_stem(8, 14);
+    resolution1.compute_through_stem(Bidegree::n_s(14, 8));
 
     let resolution2 =
         construct_standard::<false, _, _>("S_2", Some(tempdir.path().into())).unwrap();
     lock_tempdir(tempdir.path());
-    resolution2.compute_through_stem(8, 14);
+    resolution2.compute_through_stem(Bidegree::n_s(14, 8));
     unlock_tempdir(tempdir.path());
 
-    resolution1.compute_through_stem(5, 19);
+    resolution1.compute_through_stem(Bidegree::n_s(19, 5));
     lock_tempdir(tempdir.path());
-    resolution2.compute_through_stem(5, 19);
+    resolution2.compute_through_stem(Bidegree::n_s(19, 5));
 
     assert_eq!(
         resolution1.graded_dimension_string(),
@@ -165,11 +166,11 @@ fn test_load_smaller() {
 
     let resolution1 =
         construct_standard::<false, _, _>("S_2", Some(tempdir.path().into())).unwrap();
-    resolution1.compute_through_stem(8, 14);
+    resolution1.compute_through_stem(Bidegree::n_s(14, 8));
 
     let resolution2 =
         construct_standard::<false, _, _>("S_2", Some(tempdir.path().into())).unwrap();
-    resolution2.compute_through_stem(5, 8);
+    resolution2.compute_through_stem(Bidegree::n_s(8, 5));
 }
 
 #[test]
@@ -179,7 +180,7 @@ fn test_load_secondary() {
     let mut resolution1 =
         construct_standard::<false, _, _>("S_2", Some(tempdir.path().into())).unwrap();
     resolution1.load_quasi_inverse = false;
-    resolution1.compute_through_stem(4, 10);
+    resolution1.compute_through_stem(Bidegree::n_s(10, 4));
 
     let lift1 = SecondaryResolution::new(Arc::new(resolution1));
     lift1.initialize_homotopies();
@@ -207,7 +208,7 @@ fn test_load_secondary() {
     let mut resolution2 =
         construct_standard::<false, _, _>("S_2", Some(tempdir.path().into())).unwrap();
     resolution2.load_quasi_inverse = false;
-    resolution2.compute_through_stem(8, 15);
+    resolution2.compute_through_stem(Bidegree::n_s(15, 8));
 
     let lift2 = SecondaryResolution::new(Arc::new(resolution2));
     lift2.initialize_homotopies();
@@ -224,7 +225,7 @@ fn test_load_secondary() {
     let mut resolution3 =
         construct_standard::<false, _, _>("S_2", Some(tempdir.path().into())).unwrap();
     resolution3.load_quasi_inverse = false;
-    resolution3.compute_through_stem(5, 12);
+    resolution3.compute_through_stem(Bidegree::n_s(12, 5));
 
     let lift3 = SecondaryResolution::new(Arc::new(resolution3));
     lift3.initialize_homotopies();
@@ -242,7 +243,7 @@ fn test_checksum() {
 
     construct_standard::<false, _, _>("S_2", Some(tempdir.path().into()))
         .unwrap()
-        .compute_through_bidegree(2, 2);
+        .compute_through_bidegree(Bidegree::s_t(2, 2));
 
     let mut path = tempdir.path().to_owned();
     path.push("differentials/2_2_differential");
@@ -258,5 +259,5 @@ fn test_checksum() {
 
     construct_standard::<false, _, _>("S_2", Some(tempdir.path().into()))
         .unwrap()
-        .compute_through_bidegree(2, 2);
+        .compute_through_bidegree(Bidegree::s_t(2, 2));
 }
