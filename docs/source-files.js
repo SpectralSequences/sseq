@@ -12,6 +12,7 @@ var sourcesIndex = JSON.parse('{\
 "filtration_one":["",[],["filtration_one.rs"]],\
 "fp":["",[["matrix",[],["m4ri.rs","matrix_inner.rs","mod.rs","quasi_inverse.rs","subquotient.rs","subspace.rs"]],["simd",[],["mod.rs","x86_64.rs"]]],["constants.rs","lib.rs","limb.rs","prime.rs","vector.rs","vector_2.rs","vector_inner.rs"]],\
 "lift_hom":["",[],["lift_hom.rs"]],\
+"mahowald_invariant":["",[],["mahowald_invariant.rs"]],\
 "massey":["",[],["massey.rs"]],\
 "num_gens":["",[],["num_gens.rs"]],\
 "once":["",[],["lib.rs"]],\
@@ -25,7 +26,7 @@ var sourcesIndex = JSON.parse('{\
 "secondary_massey":["",[],["secondary_massey.rs"]],\
 "secondary_product":["",[],["secondary_product.rs"]],\
 "sq0":["",[],["sq0.rs"]],\
-"sseq":["",[],["bigraded.rs","differential.rs","lib.rs","sseq.rs"]],\
+"sseq":["",[["coordinates",[],["bidegree.rs","element.rs","generator.rs","mod.rs","range.rs"]]],["bigraded.rs","differential.rs","lib.rs","sseq.rs"]],\
 "steenrod":["",[],["steenrod.rs"]],\
 "tensor":["",[],["tensor.rs"]],\
 "unstable_chart":["",[],["unstable_chart.rs"]],\

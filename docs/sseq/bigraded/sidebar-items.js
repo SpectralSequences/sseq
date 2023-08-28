@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":[["DenseBigradedModule",""]]};
+window.SIDEBAR_ITEMS = {"struct":["DenseBigradedModule"]};

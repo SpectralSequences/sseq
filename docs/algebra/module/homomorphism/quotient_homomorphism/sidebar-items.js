@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":[["QuotientHomomorphism",""],["QuotientHomomorphismSource",""]]};
+window.SIDEBAR_ITEMS = {"struct":["QuotientHomomorphism","QuotientHomomorphismSource"]};

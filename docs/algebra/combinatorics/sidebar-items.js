@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":[["MAX_XI_TAU",""]],"fn":[["adem_relation_coefficient",""],["inadmissible_pairs",""],["tau_degrees",""],["xi_degrees",""]],"struct":[["PartitionIterator",""],["TruncatedPolynomialMonomialBasis",""]]};
+window.SIDEBAR_ITEMS = {"constant":["MAX_XI_TAU"],"fn":["adem_relation_coefficient","inadmissible_pairs","tau_degrees","xi_degrees"],"struct":["PartitionIterator","TruncatedPolynomialMonomialBasis"]};

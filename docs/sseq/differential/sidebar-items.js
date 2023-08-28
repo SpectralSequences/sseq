@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":[["Differential",""]]};
+window.SIDEBAR_ITEMS = {"struct":["Differential"]};

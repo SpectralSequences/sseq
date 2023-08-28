@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":[["GenericZeroHomomorphism",""]]};
+window.SIDEBAR_ITEMS = {"struct":["GenericZeroHomomorphism"]};

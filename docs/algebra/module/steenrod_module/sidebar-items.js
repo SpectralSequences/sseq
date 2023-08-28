@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":[["from_json",""]],"mod":[["json",""]],"type":[["SteenrodModule",""]]};
+window.SIDEBAR_ITEMS = {"fn":["from_json"],"mod":["json"],"type":["SteenrodModule"]};

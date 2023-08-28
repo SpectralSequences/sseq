@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":[["SteenrodEvaluator",""]]};
+window.SIDEBAR_ITEMS = {"struct":["SteenrodEvaluator"]};

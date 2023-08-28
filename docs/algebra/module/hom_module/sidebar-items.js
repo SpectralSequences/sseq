@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":[["HomModule","Given a module N and a free module M, this is the module Hom(M, N) as a module over the ground field. This requires N to be bounded, and is graded opposite to the usual grading so that Hom(M, N) is bounded below."]]};
+window.SIDEBAR_ITEMS = {"struct":["HomModule"]};

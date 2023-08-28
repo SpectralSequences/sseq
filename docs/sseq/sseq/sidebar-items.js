@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":[["Adams",""],["Product",""],["Sseq",""]],"trait":[["SseqProfile","The direction of the differentials"]]};
+window.SIDEBAR_ITEMS = {"struct":["Adams","Product","Sseq"],"trait":["SseqProfile"]};

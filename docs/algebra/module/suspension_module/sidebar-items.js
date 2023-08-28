@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":[["SuspensionModule",""]]};
+window.SIDEBAR_ITEMS = {"struct":["SuspensionModule"]};

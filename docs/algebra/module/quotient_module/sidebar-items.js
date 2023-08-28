@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":[["QuotientModule","A quotient of a module truncated below a fix degree."]]};
+window.SIDEBAR_ITEMS = {"struct":["QuotientModule"]};

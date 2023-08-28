@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":[["TensorModule",""]]};
+window.SIDEBAR_ITEMS = {"struct":["TensorModule"]};

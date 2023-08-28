@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":[["PorBockstein","A Steenrod power $P^i$, or a Bockstein $\\beta^\\varepsilon$."]],"fn":[["shift_vec","Shifts a `Vec`’s elements back by `offset`."]],"struct":[["AdemAlgebra","An [`Algebra`] implementing the Steenrod algebra, using the Adem basis."],["AdemBasisElement","An Adem basis element for the Steenrod algebra."]],"trait":[["AdemAlgebraT","An algebra that can be viewed as an Adem algebra."]]};
+window.SIDEBAR_ITEMS = {"enum":["PorBockstein"],"fn":["shift_vec"],"struct":["AdemAlgebra","AdemBasisElement"],"trait":["AdemAlgebraT"]};

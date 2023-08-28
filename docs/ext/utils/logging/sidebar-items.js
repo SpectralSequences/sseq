@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":[["LogWriter",""],["Timer","If the `logging` feature is enabled, this can be used to time how long an operation takes. If the `logging` features is disabled, this is a no-op."]]};
+window.SIDEBAR_ITEMS = {"struct":["LogWriter","Timer"]};

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"type":[["FpVector",""],["FpVectorNonZeroIterator",""],["Slice",""],["SliceMut",""]]};
+window.SIDEBAR_ITEMS = {"type":["FpVector","FpVectorNonZeroIterator","Slice","SliceMut"]};

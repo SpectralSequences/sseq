@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"trait":[["ZeroModule",""]]};
+window.SIDEBAR_ITEMS = {"trait":["ZeroModule"]};

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":[["from_json",""]]};
+window.SIDEBAR_ITEMS = {"fn":["from_json"]};

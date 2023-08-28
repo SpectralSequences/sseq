@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":[["FPMIndexTable",""],["FinitelyPresentedModule",""]]};
+window.SIDEBAR_ITEMS = {"struct":["FPMIndexTable","FinitelyPresentedModule"]};

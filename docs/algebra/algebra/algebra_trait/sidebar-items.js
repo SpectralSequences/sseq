@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"trait":[["Algebra","A graded algebra over $\\mathbb{F}_p$."],["GeneratedAlgebra","An [`Algebra`] equipped with a distinguished presentation."],["MuAlgebra","An algebra that is maybe unstable. Every Algebra implements MuAlgebra by ignoring the excess parameter, and every UnstableAlgebra implements MuAlgebra. This makes it possible to write code that is generic over stable and unstable algebras."],["UnstableAlgebra",""]]};
+window.SIDEBAR_ITEMS = {"trait":["Algebra","GeneratedAlgebra","MuAlgebra","UnstableAlgebra"]};
