@@ -364,6 +364,16 @@ where
 }
 
 impl Matrix {
+    /// A no-nonsense, safe, row operation. Adds `c * self[source]` to `self[target]`.
+    pub fn safe_row_op(&mut self, target: usize, source: usize, c: u32) {
+        assert_ne!(target, source);
+        assert!(source < self.rows());
+        assert!(target < self.rows());
+
+        let (target, source) = unsafe { self.split_borrow(target, source) };
+        target.add(source, c)
+    }
+
     /// Performs a row operation using `pivot_column` as the pivot column. This assumes that the
     /// source row is zero in all columns before the pivot column.
     ///
