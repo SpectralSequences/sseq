@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["FpVector","FpVectorNonZeroIterator","Slice","SliceMut"],"macro":["dispatch_vector","dispatch_vector_inner","impl_try_into","match_p"]};
+window.SIDEBAR_ITEMS = {"mod":["impl_fpvectorp","impl_slicemutp","impl_slicep","inner","iter","vector_generic"]};

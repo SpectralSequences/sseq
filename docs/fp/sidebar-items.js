@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["MAX_MULTINOMIAL_LEN","NUM_PRIMES","ODD_PRIMES","PRIMES","PRIME_TO_INDEX_MAP"],"macro":["const_for"],"mod":["constants","limb","matrix","prime","simd","vector","vector_2","vector_inner"]};
+window.SIDEBAR_ITEMS = {"constant":["MAX_MULTINOMIAL_LEN","NUM_PRIMES","ODD_PRIMES","PRIMES","PRIME_TO_INDEX_MAP"],"macro":["const_for"],"mod":["constants","limb","matrix","prime","simd","vector"]};

@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"struct":["AddShiftLeftData","AddShiftRightData","FpVectorIterator","FpVectorNonZeroIteratorP","FpVectorP","SliceMutP","SliceP"]};

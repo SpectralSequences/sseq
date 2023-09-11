@@ -10,7 +10,7 @@ var sourcesIndex = JSON.parse('{\
 "ext":["",[["chain_complex",[],["chain_homotopy.rs","finite_chain_complex.rs","mod.rs"]]],["lib.rs","nassau.rs","resolution.rs","resolution_homomorphism.rs","save.rs","secondary.rs","utils.rs","yoneda.rs"]],\
 "ext_m_n":["",[],["ext_m_n.rs"]],\
 "filtration_one":["",[],["filtration_one.rs"]],\
-"fp":["",[["matrix",[],["m4ri.rs","matrix_inner.rs","mod.rs","quasi_inverse.rs","subquotient.rs","subspace.rs"]],["simd",[],["mod.rs","x86_64.rs"]]],["constants.rs","lib.rs","limb.rs","prime.rs","vector.rs","vector_2.rs","vector_inner.rs"]],\
+"fp":["",[["matrix",[],["m4ri.rs","matrix_inner.rs","mod.rs","quasi_inverse.rs","subquotient.rs","subspace.rs"]],["simd",[],["mod.rs","x86_64.rs"]],["vector",[],["impl_fpvectorp.rs","impl_slicemutp.rs","impl_slicep.rs","inner.rs","iter.rs","mod.rs","vector_generic.rs"]]],["constants.rs","lib.rs","limb.rs","prime.rs"]],\
 "lift_hom":["",[],["lift_hom.rs"]],\
 "mahowald_invariant":["",[],["mahowald_invariant.rs"]],\
 "massey":["",[],["massey.rs"]],\
