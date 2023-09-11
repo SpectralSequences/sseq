@@ -1,20 +1,25 @@
 //! This module replaces `vector` when `odd-primes` is disabled. Instead of producing enum
 //! wrappers, it simply rexports `FooP<2>` as `Foo`.
 
-use crate::limb::{entries_per_limb_const, Limb};
-use crate::prime::ValidPrime;
-use crate::vector_inner::{FpVectorNonZeroIteratorP, FpVectorP, SliceMutP, SliceP};
+use std::io::{Read, Write};
+use std::mem::size_of;
+
 use itertools::Itertools;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use std::io::{Read, Write};
-use std::mem::size_of;
+use crate::limb::{entries_per_limb_const, Limb};
+use crate::prime::ValidPrime;
+use crate::vector::inner::{FpVectorP, SliceMutP, SliceP};
+
+use super::iter::{FpVectorIterator, FpVectorNonZeroIteratorP};
 
 pub type FpVector = FpVectorP<2>;
 pub type Slice<'a> = SliceP<'a, 2>;
 pub type SliceMut<'a> = SliceMutP<'a, 2>;
 pub type FpVectorNonZeroIterator<'a> = FpVectorNonZeroIteratorP<'a, 2>;
+
+// `FpVector` implementations
 
 impl FpVector {
     pub fn new(_p: ValidPrime, len: usize) -> FpVector {
@@ -93,19 +98,6 @@ impl std::fmt::Display for FpVector {
     }
 }
 
-impl<'a> std::fmt::Display for Slice<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        if f.alternate() {
-            for v in self.iter() {
-                write!(f, "{v}")?;
-            }
-            Ok(())
-        } else {
-            write!(f, "[{}]", self.iter().format(", "))
-        }
-    }
-}
-
 impl std::ops::AddAssign<&FpVector> for FpVector {
     fn add_assign(&mut self, other: &FpVector) {
         self.add(other, 1);
@@ -113,7 +105,7 @@ impl std::ops::AddAssign<&FpVector> for FpVector {
 }
 
 impl<'a> IntoIterator for &'a FpVector {
-    type IntoIter = crate::vector_inner::FpVectorIterator<'a>;
+    type IntoIter = FpVectorIterator<'a>;
     type Item = u32;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -141,6 +133,23 @@ impl<'de> Deserialize<'de> for FpVector {
         // This is needed for ext-websocket/actions to be happy
     }
 }
+
+// `Slice` implementations
+
+impl<'a> std::fmt::Display for Slice<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        if f.alternate() {
+            for v in self.iter() {
+                write!(f, "{v}")?;
+            }
+            Ok(())
+        } else {
+            write!(f, "[{}]", self.iter().format(", "))
+        }
+    }
+}
+
+// Type conversions
 
 impl<'a, 'b> From<&'a mut SliceMut<'b>> for SliceMut<'a> {
     fn from(slice: &'a mut SliceMut<'b>) -> SliceMut<'a> {
