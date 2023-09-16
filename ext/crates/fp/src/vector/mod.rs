@@ -462,9 +462,7 @@ mod test {
 
         fn test_iter_nonzero_empty(p: ValidPrime) {
             let v = FpVector::new(p, 0);
-            for (_, _) in v.iter_nonzero() {
-                panic!();
-            }
+            assert_eq!(v.iter_nonzero().next(), None);
         }
 
         fn test_iter_nonzero_slice(p: ValidPrime) {
