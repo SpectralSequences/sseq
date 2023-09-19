@@ -1070,8 +1070,6 @@
 <a href="#1045" id="1045">1045</a>
 <a href="#1046" id="1046">1046</a>
 <a href="#1047" id="1047">1047</a>
-<a href="#1048" id="1048">1048</a>
-<a href="#1049" id="1049">1049</a>
 </pre></div><pre class="rust"><code><span class="attr">#[cfg(not(feature = <span class="string">&quot;odd-primes&quot;</span>))]
 </span><span class="kw">pub mod </span>vector_2;
 <span class="attr">#[cfg(not(feature = <span class="string">&quot;odd-primes&quot;</span>))]
@@ -1536,9 +1534,7 @@
 
         <span class="kw">fn </span>test_iter_nonzero_empty(p: ValidPrime) {
             <span class="kw">let </span>v = FpVector::new(p, <span class="number">0</span>);
-            <span class="kw">for </span>(<span class="kw">_</span>, <span class="kw">_</span>) <span class="kw">in </span>v.iter_nonzero() {
-                <span class="macro">panic!</span>();
-            }
+            <span class="macro">assert_eq!</span>(v.iter_nonzero().next(), <span class="prelude-val">None</span>);
         }
 
         <span class="kw">fn </span>test_iter_nonzero_slice(p: ValidPrime) {
