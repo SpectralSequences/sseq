@@ -32,7 +32,9 @@ fn arb_tableau(rows: usize, cols: usize) -> impl Strategy<Value = Vec<usize>> {
 /// them could potentially cause the whole proptest to fail.
 fn arb_row_pair(rows: usize) -> impl Strategy<Value = (usize, usize)> {
     let all_rows: Vec<usize> = (0usize..rows).collect();
-    proptest::sample::subsequence(all_rows, 2).prop_map(|v| (v[0], v[1]))
+    proptest::sample::subsequence(all_rows, 2)
+        .prop_shuffle()
+        .prop_map(|v| (v[0], v[1]))
 }
 
 /// An arbitrary sequence of row operation specifiers. The row operation `self[target] += c *
