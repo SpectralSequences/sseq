@@ -131,7 +131,9 @@ mod test {
         }
     }
 
-    /// An arbitrary vector of length `dimension` containing values in the range `0..p`
+    /// An arbitrary vector of length `dimension` containing values in the range `0..p`. The tests
+    /// take in a `Vec<u32>` instead of an `FpVector` directly because they will usually apply some
+    /// operation on both the `FpVector` and the original `Vec<u32>` and then compare the results.
     fn arb_vec_u32(p: ValidPrime, dimension: usize) -> impl Strategy<Value = Vec<u32>> {
         proptest::collection::vec(0..*p, dimension)
     }
