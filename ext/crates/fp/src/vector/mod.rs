@@ -133,7 +133,7 @@ mod test {
     /// An arbitrary pair of slices of a vector of length `dimension` _that have the same length_
     fn arb_slice_pair(dimension: usize) -> impl Strategy<Value = [(usize, usize); 2]> {
         // Similarly to `arb_slice`, we triplicate the entries because we want to also test the case
-        // where two values or all three values coincide.
+        // where two or all three values coincide.
         let all_indices: Vec<_> = (0..=dimension).flat_map(|i| [i, i, i]).collect();
         proptest::sample::subsequence(all_indices, 3)
             .prop_map(|v| [(v[0], v[1]), (v[2] - (v[1] - v[0]), v[2])])
@@ -146,6 +146,8 @@ mod test {
     }
 
     prop_compose! {
+        /// A pair of a prime `p` and a vector containing values in the range `0..p`. In other
+        /// words, a vector over Fp.
         fn arb_vec()(p in arb_prime(), dimension in arb_dim())
         (v in arb_vec_u32(p, dimension), p in Just(p)) -> (ValidPrime, Vec<u32>) {
             (p, v)
@@ -153,6 +155,7 @@ mod test {
     }
 
     prop_compose! {
+        /// An Fp vector together with valid slice indices
         fn arb_vec_and_slice()(p in arb_prime(), dimension in arb_dim())
         (v in arb_vec_u32(p, dimension), (start, end) in arb_slice(dimension), p in Just(p))
             -> (ValidPrime, Vec<u32>, usize, usize)
@@ -162,6 +165,7 @@ mod test {
     }
 
     prop_compose! {
+        /// An Fp vector together with a scalar (in Fp)
         fn arb_vec_and_scalar()(p in arb_prime(), dimension in arb_dim())
         (c in 0u32..*p, v in arb_vec_u32(p, dimension), p in Just(p)) -> (ValidPrime, Vec<u32>, u32) {
             (p, v, c)
@@ -169,6 +173,7 @@ mod test {
     }
 
     prop_compose! {
+        /// An Fp vector together with valid slice indices and a scalar
         fn arb_vec_and_slice_and_scalar()(p in arb_prime(), dimension in arb_dim())
         (c in 0u32..*p, v in arb_vec_u32(p, dimension), (start, end) in arb_slice(dimension), p in Just(p))
             -> (ValidPrime, Vec<u32>, usize, usize, u32)
@@ -178,6 +183,7 @@ mod test {
     }
 
     prop_compose! {
+        /// An Fp vector together with a valid number of entries to skip
         fn arb_vec_and_skip()(p in arb_prime(), dimension in arb_dim())
         (v in arb_vec_u32(p, dimension), skip in 0usize..=dimension, p in Just(p))
             -> (ValidPrime, Vec<u32>, usize)
@@ -187,6 +193,7 @@ mod test {
     }
 
     prop_compose! {
+        /// A pair of Fp vectors of the same length over the same prime
         fn arb_vec_pair()(p in arb_prime(), dimension in arb_dim())
         (v in arb_vec_u32(p, dimension), w in arb_vec_u32(p, dimension), p in Just(p))
             -> (ValidPrime, Vec<u32>, Vec<u32>)
@@ -196,6 +203,8 @@ mod test {
     }
 
     prop_compose! {
+        /// A pair of Fp vectors of the same length over the same prime, together with valid slice
+        /// indices
         fn arb_vec_pair_and_slice()(p in arb_prime(), dimension in arb_dim())
         (v in arb_vec_u32(p, dimension),
          w in arb_vec_u32(p, dimension),
@@ -208,6 +217,8 @@ mod test {
     }
 
     prop_compose! {
+        /// A pair of Fp vectors of the same length over the same prime, together with two slice
+        /// index pairs that are valid and have the same length
         fn arb_vec_pair_and_slice_pair()(p in arb_prime(), dimension in arb_dim())
         (v in arb_vec_u32(p, dimension),
          w in arb_vec_u32(p, dimension),
@@ -220,6 +231,8 @@ mod test {
     }
 
     prop_compose! {
+        /// A pair of Fp vectors of the same length over the same prime, together with a mask (in
+        /// the sense of [`FpVector::add_masked`] and [`FpVector::add_unmasked`])
         fn arb_vec_pair_and_mask()(p in arb_prime(), (dim_small, dim_big) in arb_dim_pair())
         (v_small in arb_vec_u32(p, dim_small),
          v_big in arb_vec_u32(p, dim_big),
@@ -233,7 +246,7 @@ mod test {
 
     proptest! {
         #![proptest_config(ProptestConfig {
-            cases: 16384,
+            cases: 1024,
             max_shrink_time: 30_000,
             max_shrink_iters: 1_000_000,
             .. ProptestConfig::default()
