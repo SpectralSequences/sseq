@@ -120,19 +120,17 @@ mod test {
 
     /// The start and end positions of an arbitrary slice of a vector of length `dimension`
     fn arb_slice(dimension: usize) -> impl Strategy<Value = (usize, usize)> {
-        // We have every integer twice because `subsequence` returns distinct values, but we want to
-        // also test the case where the slices have the same start and end positions.
-        let all_indices: Vec<_> = (0..=dimension).flat_map(|i| [i, i]).collect();
-        proptest::sample::subsequence(all_indices, 2).prop_map(|v| (v[0], v[1]))
+        (0..dimension).prop_flat_map(move |first| (Just(first), first..dimension))
     }
 
-    /// An arbitrary pair of slices of a vector of length `dimension` _that have the same length_
     prop_compose! {
+        /// An arbitrary pair of slices of a vector of length `dimension` _that have the same length_
         fn arb_slice_pair(dimension: usize)
-            (len in 0..max_integer)
-            (len in Just(len), first in 0..max_integer-len, second in 0..max_integer-len)
-            -> [(usize, usize); 2] {
-            [(first, first+len), (second, second+len)]
+            (len in 0..dimension)
+            (len in Just(len), first in 0..dimension - len, second in 0..dimension - len)
+            -> [(usize, usize); 2]
+        {
+            [(first, first + len), (second, second + len)]
         }
     }
 
