@@ -117,14 +117,14 @@ mod test {
 
     /// The start and end positions of an arbitrary slice of a vector of length `dimension`
     fn arb_slice(dimension: usize) -> impl Strategy<Value = (usize, usize)> {
-        (0..dimension).prop_flat_map(move |first| (Just(first), first..dimension))
+        (0..=dimension).prop_flat_map(move |first| (Just(first), first..=dimension))
     }
 
     prop_compose! {
         /// An arbitrary pair of slices of a vector of length `dimension` _that have the same length_
         fn arb_slice_pair(dimension: usize)
-            (len in 0..dimension)
-            (len in Just(len), first in 0..dimension - len, second in 0..dimension - len)
+            (len in 0..=dimension)
+            (len in Just(len), first in 0..=dimension - len, second in 0..=dimension - len)
             -> [(usize, usize); 2]
         {
             [(first, first + len), (second, second + len)]
