@@ -101,18 +101,14 @@ mod test {
     }
 
     /// An arbitrary `ValidPrime`
-    fn arb_prime() -> impl Strategy<Value = ValidPrime> {
+    fn arb_prime_dim() -> impl Strategy<Value = (ValidPrime, usize)> {
         prop_oneof![
             Just(ValidPrime::new(2)),
             Just(ValidPrime::new(3)),
             Just(ValidPrime::new(5)),
             Just(ValidPrime::new(7)),
         ]
-    }
-
-    /// An arbitrary number of dimensions. This makes the functions that create vectors DRY.
-    fn arb_dim() -> impl Strategy<Value = usize> {
-        0usize..=10_000
+        .prop_flat_map(|p| (Just(p), 0usize..=10_000))
     }
 
     /// An arbitrary pair of dimensions, where the second dimension is bigger than or equal to the
