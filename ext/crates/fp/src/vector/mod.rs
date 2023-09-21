@@ -17,10 +17,8 @@ mod iter;
 
 #[cfg(test)]
 mod test {
-    use std::fmt::Write as _; // Needed for write! macro for String
-
     use itertools::Itertools;
-    use rand::Rng;
+    use proptest::prelude::*;
     use rstest::rstest;
 
     use super::{inner::FpVectorP, *};
@@ -97,92 +95,179 @@ mod test {
         }
     }
 
-    fn random_vector(p: impl Into<u32>, dimension: usize) -> Vec<u32> {
-        let p: u32 = p.into();
-        let mut result = Vec::with_capacity(dimension);
+    fn random_vector(p: u32, dimension: usize) -> Vec<u32> {
         let mut rng = rand::thread_rng();
-        for _ in 0..dimension {
-            result.push(rng.gen::<u32>() % p);
+        (0..dimension).map(|_| rng.gen_range(0..p)).collect()
+    }
+
+    /// An arbitrary `ValidPrime`
+    fn arb_prime() -> impl Strategy<Value = ValidPrime> {
+        prop_oneof![
+            Just(ValidPrime::new(2)),
+            Just(ValidPrime::new(3)),
+            Just(ValidPrime::new(5)),
+            Just(ValidPrime::new(7)),
+        ]
+    }
+
+    /// An arbitrary number of dimensions. This makes the functions that create vectors DRY.
+    fn arb_dim() -> impl Strategy<Value = usize> {
+        0usize..=10_000
+    }
+
+    /// An arbitrary pair of dimensions, where the second dimension is bigger than or equal to the
+    /// first. This happens to be the same as `arb_slice(10000)`, but we make it a separate function
+    /// because the semantics are different.
+    fn arb_dim_pair() -> impl Strategy<Value = (usize, usize)> {
+        arb_slice(10_000)
+    }
+
+    /// The start and end positions of an arbitrary slice of a vector of length `dimension`
+    fn arb_slice(dimension: usize) -> impl Strategy<Value = (usize, usize)> {
+        // We have every integer twice because `subsequence` returns distinct values, but we want to
+        // also test the case where the slices have the same start and end positions.
+        let all_indices: Vec<_> = (0..=dimension).flat_map(|i| [i, i]).collect();
+        proptest::sample::subsequence(all_indices, 2).prop_map(|v| (v[0], v[1]))
+    }
+
+    /// An arbitrary pair of slices of a vector of length `dimension` _that have the same length_
+    fn arb_slice_pair(dimension: usize) -> impl Strategy<Value = [(usize, usize); 2]> {
+        // Similarly to `arb_slice`, we triplicate the entries because we want to also test the case
+        // where two values or all three values coincide.
+        let all_indices: Vec<_> = (0..=dimension).flat_map(|i| [i, i, i]).collect();
+        proptest::sample::subsequence(all_indices, 3)
+            .prop_map(|v| [(v[0], v[1]), (v[2] - (v[1] - v[0]), v[2])])
+            .prop_shuffle()
+    }
+
+    /// An arbitrary vector of length `dimension` containing values in the range `0..p`
+    fn arb_vec_u32(p: ValidPrime, dimension: usize) -> impl Strategy<Value = Vec<u32>> {
+        proptest::collection::vec(0..*p, dimension)
+    }
+
+    prop_compose! {
+        fn arb_vec()(p in arb_prime(), dimension in arb_dim())
+        (v in arb_vec_u32(p, dimension), p in Just(p)) -> (ValidPrime, Vec<u32>) {
+            (p, v)
         }
-        result
     }
 
-    macro_rules! test_dim {
-        () => {};
-        (fn $name:ident($p:ident: ValidPrime) $body:tt $($rest:tt)*) => {
-            #[rstest]
-            #[trace]
-            fn $name(#[values(2, 3, 5, 7)] p: u32) {
-                let $p = ValidPrime::new(p);
-
-                $body
-            }
-            test_dim! { $($rest)* }
-        };
-        (fn $name:ident($p:ident: ValidPrime, $dim:ident: usize) $body:tt $($rest:tt)*) => {
-            #[rstest]
-            #[trace]
-            fn $name(#[values(2, 3, 5, 7)] p: u32, #[values(10, 20, 70, 100, 1000)] $dim: usize) {
-                let $p = ValidPrime::new(p);
-
-                $body
-            }
-            test_dim! { $($rest)* }
-        };
-        (fn $name:ident($p:ident: ValidPrime, $dim:ident: usize, $slice_start:ident: usize, $slice_end:ident: usize) $body:tt $($rest:tt)*) => {
-            #[rstest]
-            #[trace]
-            fn $name(#[values(2, 3, 5, 7)] p: u32, #[values(10, 20, 70, 100, 1000)] $dim: usize) {
-                let $p = ValidPrime::new(p);
-
-                let $slice_start = match $dim {
-                    10 => 5,
-                    20 => 10,
-                    70 => 20,
-                    100 => 30,
-                    1000 => 290,
-                    _ => unreachable!(),
-                };
-                let $slice_end = ($dim + $slice_start) / 2;
-                $body
-            }
-            test_dim! { $($rest)* }
-        };
+    prop_compose! {
+        fn arb_vec_and_slice()(p in arb_prime(), dimension in arb_dim())
+        (v in arb_vec_u32(p, dimension), (start, end) in arb_slice(dimension), p in Just(p))
+            -> (ValidPrime, Vec<u32>, usize, usize)
+        {
+            (p, v, start, end)
+        }
     }
 
-    test_dim! {
-        fn test_serialize(p: ValidPrime, dim: usize) {
+    prop_compose! {
+        fn arb_vec_and_scalar()(p in arb_prime(), dimension in arb_dim())
+        (c in 0u32..*p, v in arb_vec_u32(p, dimension), p in Just(p)) -> (ValidPrime, Vec<u32>, u32) {
+            (p, v, c)
+        }
+    }
+
+    prop_compose! {
+        fn arb_vec_and_slice_and_scalar()(p in arb_prime(), dimension in arb_dim())
+        (c in 0u32..*p, v in arb_vec_u32(p, dimension), (start, end) in arb_slice(dimension), p in Just(p))
+            -> (ValidPrime, Vec<u32>, usize, usize, u32)
+        {
+            (p, v, start, end, c)
+        }
+    }
+
+    prop_compose! {
+        fn arb_vec_and_skip()(p in arb_prime(), dimension in arb_dim())
+        (v in arb_vec_u32(p, dimension), skip in 0usize..=dimension, p in Just(p))
+            -> (ValidPrime, Vec<u32>, usize)
+        {
+            (p, v, skip)
+        }
+    }
+
+    prop_compose! {
+        fn arb_vec_pair()(p in arb_prime(), dimension in arb_dim())
+        (v in arb_vec_u32(p, dimension), w in arb_vec_u32(p, dimension), p in Just(p))
+            -> (ValidPrime, Vec<u32>, Vec<u32>)
+        {
+            (p, v, w)
+        }
+    }
+
+    prop_compose! {
+        fn arb_vec_pair_and_slice()(p in arb_prime(), dimension in arb_dim())
+        (v in arb_vec_u32(p, dimension),
+         w in arb_vec_u32(p, dimension),
+         (start, end) in arb_slice(dimension),
+         p in Just(p))
+            -> (ValidPrime, Vec<u32>, Vec<u32>, usize, usize)
+        {
+            (p, v, w, start, end)
+        }
+    }
+
+    prop_compose! {
+        fn arb_vec_pair_and_slice_pair()(p in arb_prime(), dimension in arb_dim())
+        (v in arb_vec_u32(p, dimension),
+         w in arb_vec_u32(p, dimension),
+         [(start1, end1), (start2, end2)] in arb_slice_pair(dimension),
+         p in Just(p))
+            -> (ValidPrime, Vec<u32>, Vec<u32>, usize, usize, usize, usize)
+        {
+            (p, v, w, start1, end1, start2, end2)
+        }
+    }
+
+    prop_compose! {
+        fn arb_vec_pair_and_mask()(p in arb_prime(), (dim_small, dim_big) in arb_dim_pair())
+        (v_small in arb_vec_u32(p, dim_small),
+         v_big in arb_vec_u32(p, dim_big),
+         mask in proptest::collection::vec(0..dim_big, dim_small),
+         p in Just(p))
+            -> (ValidPrime, Vec<u32>, Vec<u32>, Vec<usize>)
+        {
+            (p, v_small, v_big, mask)
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig {
+            cases: 16384,
+            max_shrink_time: 30_000,
+            max_shrink_iters: 1_000_000,
+            .. ProptestConfig::default()
+        })]
+
+        #[test]
+        fn test_serialize((p, v_arr) in arb_vec()) {
             use std::io::{Seek, Cursor};
 
-            let v_arr = random_vector(p, dim);
             let v = FpVector::from_slice(p, &v_arr);
 
             let mut cursor = Cursor::new(Vec::<u8>::new());
             v.to_bytes(&mut cursor).unwrap();
             cursor.rewind().unwrap();
 
-            let w = FpVector::from_bytes(p, dim, &mut cursor).unwrap();
+            let w = FpVector::from_bytes(v.prime(), v.len(), &mut cursor).unwrap();
             v.assert_vec_eq(&w);
         }
 
-        fn test_add(p: ValidPrime, dim: usize) {
-            let mut v_arr = random_vector(p, dim);
-            let w_arr = random_vector(p, dim);
+        #[test]
+        fn test_add((p, mut v_arr, w_arr) in arb_vec_pair()) {
             let mut v = FpVector::from_slice(p, &v_arr);
             let w = FpVector::from_slice(p, &w_arr);
 
             v.add(&w, 1);
-            for i in 0..dim {
-                v_arr[i] = (v_arr[i] + w_arr[i]) % *p;
+
+            for (v_element, w_element) in v_arr.iter_mut().zip(w_arr.iter()) {
+                *v_element = (*v_element + *w_element) % *p;
             }
             v.assert_list_eq(&v_arr);
         }
 
-        fn test_scale(p: ValidPrime, dim: usize) {
-            let mut v_arr = random_vector(p, dim);
-            let mut rng = rand::thread_rng();
-            let c = rng.gen::<u32>() % *p;
-
+        #[test]
+        fn test_scale((p, mut v_arr, c) in arb_vec_and_scalar()) {
             let mut v = FpVector::from_slice(p, &v_arr);
             v.scale(c);
             for entry in &mut v_arr {
@@ -191,21 +276,19 @@ mod test {
             v.assert_list_eq(&v_arr);
         }
 
-        fn test_scale_slice(p: ValidPrime, dim: usize, slice_start: usize, slice_end: usize) {
-            let mut v_arr = random_vector(p, dim);
-            let mut rng = rand::thread_rng();
-            let c = rng.gen::<u32>() % *p;
-
+        #[test]
+        fn test_scale_slice((p, mut v_arr, slice_start, slice_end, c) in arb_vec_and_slice_and_scalar()) {
             let mut v = FpVector::from_slice(p, &v_arr);
             v.slice_mut(slice_start, slice_end).scale(c);
-            for entry in &mut v_arr[slice_start .. slice_end] {
+
+            for entry in &mut v_arr[slice_start..slice_end] {
                 *entry = (*entry * c) % *p;
             }
             v.assert_list_eq(&v_arr);
         }
 
-        fn test_entry(p: ValidPrime, dim: usize) {
-            let v_arr = random_vector(p, dim);
+        #[test]
+        fn test_entry((p, v_arr) in arb_vec()) {
             let v = FpVector::from_slice(p, &v_arr);
 
             let mut diffs = Vec::new();
@@ -214,11 +297,11 @@ mod test {
                     diffs.push((i, val, v.entry(i)));
                 }
             }
-            assert_eq!(diffs, []);
+            prop_assert_eq!(diffs, []);
         }
 
-        fn test_entry_slice(p: ValidPrime, dim: usize, slice_start: usize, slice_end: usize) {
-            let v_arr = random_vector(p, dim);
+        #[test]
+        fn test_entry_slice((p, v_arr, slice_start, slice_end) in arb_vec_and_slice()) {
             let v = FpVector::from_slice(p, &v_arr);
             let v = v.slice(slice_start, slice_end);
             println!(
@@ -231,59 +314,56 @@ mod test {
                     diffs.push((i, v_arr[i + slice_start], v.entry(i)));
                 }
             }
-            assert_eq!(diffs, []);
+            prop_assert_eq!(diffs, []);
         }
 
-        fn test_set_entry(p: ValidPrime, dim: usize) {
-            let mut v = FpVector::new(p, dim);
-            let v_arr = random_vector(p, dim);
+        #[test]
+        fn test_set_entry((p, v_arr) in arb_vec()) {
+            let mut v = FpVector::new(p, v_arr.len());
+
             for (i, &val) in v_arr.iter().enumerate() {
                 v.set_entry(i, val);
             }
             v.assert_list_eq(&v_arr);
         }
 
-        fn test_set_entry_slice(p: ValidPrime, dim: usize, slice_start: usize, slice_end: usize) {
+        #[test]
+        fn test_set_entry_slice((p, v_arr, slice_start, slice_end) in arb_vec_and_slice()) {
+            let dim = v_arr.len();
             let mut v = FpVector::new(p, dim);
             let mut v = v.slice_mut(slice_start, slice_end);
 
-            let slice_dim = v.as_slice().len();
-            let v_arr = random_vector(p, slice_dim);
-            for (i, &val) in v_arr.iter().enumerate() {
+            let v_slice = &v_arr[slice_start..slice_end];
+            for (i, &val) in v_slice.iter().enumerate() {
                 v.set_entry(i, val);
             }
             let v = v.as_slice();
 
-            // println!("slice_start: {}, slice_end: {}, slice: {}", slice_start, slice_end, v);
             let mut diffs = Vec::new();
-            for (i, &val) in v_arr.iter().enumerate() {
+            for (i, &val) in v_slice.iter().enumerate() {
                 if v.entry(i) != val {
                     diffs.push((i, val, v.entry(i)));
                 }
             }
-            assert_eq!(diffs, []);
+            prop_assert_eq!(diffs, []);
         }
 
-        fn test_set_to_zero_slice(p: ValidPrime, dim: usize, slice_start: usize, slice_end: usize) {
+        #[test]
+        fn test_set_to_zero_slice((p, mut v_arr, slice_start, slice_end) in arb_vec_and_slice()) {
             println!("slice_start : {slice_start}, slice_end : {slice_end}");
-            let mut v_arr = random_vector(p, dim);
-            v_arr[0] = 1; // make sure that v isn't zero
             let mut v = FpVector::from_slice(p, &v_arr);
 
             v.slice_mut(slice_start, slice_end).set_to_zero();
-            assert!(v.slice(slice_start, slice_end).is_zero());
+            prop_assert!(v.slice(slice_start, slice_end).is_zero());
 
-            assert!(!v.is_zero()); // The first entry is 1, so it's not zero.
             for entry in &mut v_arr[slice_start..slice_end] {
                 *entry = 0;
             }
             v.assert_list_eq(&v_arr);
         }
 
-        fn test_add_slice_to_slice(p: ValidPrime, dim: usize, slice_start: usize, slice_end: usize) {
-            let mut v_arr = random_vector(p, dim);
-            let w_arr = random_vector(p, dim);
-
+        #[test]
+        fn test_add_slice_to_slice((p, mut v_arr, w_arr, slice_start, slice_end) in arb_vec_pair_and_slice()) {
             let mut v = FpVector::from_slice(p, &v_arr);
             let w = FpVector::from_slice(p, &w_arr);
 
@@ -296,10 +376,8 @@ mod test {
             v.assert_list_eq(&v_arr);
         }
 
-        fn test_assign(p: ValidPrime, dim: usize) {
-            let v_arr = random_vector(p, dim);
-            let w_arr = random_vector(p, dim);
-
+        #[test]
+        fn test_assign((p, v_arr, w_arr) in arb_vec_pair()) {
             let mut v = FpVector::from_slice(p, &v_arr);
             let w = FpVector::from_slice(p, &w_arr);
 
@@ -307,26 +385,20 @@ mod test {
             v.assert_vec_eq(&w);
         }
 
-        fn test_assign_partial(p: ValidPrime, dim: usize) {
-            let v_arr = random_vector(p, dim);
-            let w_arr = random_vector(p, dim / 2);
-
+        #[test]
+        fn test_assign_partial((p, v_arr, w_arr) in arb_vec_pair()) {
+            let dim = v_arr.len();
             let mut v = FpVector::from_slice(p, &v_arr);
-            let w = FpVector::from_slice(p, &w_arr);
+            let w = FpVector::from_slice(p, &w_arr[0..(dim / 2)]);
 
             v.assign_partial(&w);
-            assert!(v.slice(dim / 2, dim).is_zero());
-            assert_eq!(v.len(), dim);
+            prop_assert!(v.slice(dim / 2, dim).is_zero());
+            prop_assert_eq!(v.len(), dim);
             v.slice(0, dim / 2).to_owned().assert_vec_eq(&w);
         }
 
-        fn test_assign_slice_to_slice(p: ValidPrime, dim: usize, slice_start: usize, slice_end: usize) {
-            let mut v_arr = random_vector(p, dim);
-            let mut w_arr = random_vector(p, dim);
-
-            v_arr[0] = 1; // Ensure v != w.
-            w_arr[0] = 0; // Ensure v != w.
-
+        #[test]
+        fn test_assign_slice_to_slice((p, mut v_arr, w_arr, slice_start, slice_end) in arb_vec_pair_and_slice()) {
             let mut v = FpVector::from_slice(p, &v_arr);
             let w = FpVector::from_slice(p, &w_arr);
 
@@ -336,147 +408,105 @@ mod test {
             v.assert_list_eq(&v_arr);
         }
 
-        fn test_add_shift_right(p: ValidPrime, dim: usize, slice_start: usize, slice_end: usize) {
-            let mut v_arr = random_vector(p, dim);
-            let w_arr = random_vector(p, dim);
-
+        #[test]
+        fn test_add_shift((p, mut v_arr, w_arr, slice1_start, slice1_end, slice2_start, slice2_end)
+            in arb_vec_pair_and_slice_pair())
+        {
             let mut v = FpVector::from_slice(p, &v_arr);
             let w = FpVector::from_slice(p, &w_arr);
 
-            v.slice_mut(slice_start + 2, slice_end + 2)
-                .add(w.slice(slice_start, slice_end), 1);
+            v.slice_mut(slice1_start, slice1_end)
+                .add(w.slice(slice2_start, slice2_end), 1);
 
-            println!("v : {v}");
-            for i in slice_start + 2..slice_end + 2 {
-                v_arr[i] = (v_arr[i] + w_arr[i - 2]) % *p;
+            for (v_element, w_element) in v_arr[slice1_start..slice1_end]
+                .iter_mut()
+                .zip(w_arr[slice2_start..slice2_end].iter())
+            {
+                *v_element = (*v_element + *w_element) % *p;
             }
             v.assert_list_eq(&v_arr);
         }
 
-        fn test_add_shift_left(p: ValidPrime, dim: usize, slice_start: usize, slice_end: usize) {
-            let mut v_arr = random_vector(p, dim);
-            let w_arr = random_vector(p, dim);
+        #[test]
+        fn test_add_masked((p, mut v_small, v_big, mask) in arb_vec_pair_and_mask()) {
+            let mut v = FpVector::from_slice(p, &v_small);
+            let w = FpVector::from_slice(p, &v_big);
 
-            let mut v = FpVector::from_slice(p, &v_arr);
-            let w = FpVector::from_slice(p, &w_arr);
+            v.as_slice_mut().add_masked(w.as_slice(), 1, &mask);
 
-            v.slice_mut(slice_start - 2, slice_end - 2)
-                .add(w.slice(slice_start, slice_end), 1);
-            for i in slice_start - 2..slice_end - 2 {
-                v_arr[i] = (v_arr[i] + w_arr[i + 2]) % *p;
-            }
-            v.assert_list_eq(&v_arr);
-        }
-
-        fn test_add_masked(p: ValidPrime) {
-            let mut v_arr = random_vector(p, 10);
-            let w_arr = random_vector(p, 100);
-
-            let mut v = FpVector::from_slice(p, &v_arr);
-            let w = FpVector::from_slice(p, &w_arr);
-
-            let mask = &[4, 6, 7, 12, 30, 45, 50, 60, 72, 75];
-
-            v.as_slice_mut().add_masked(w.as_slice(), 1, mask);
-            for (i, x) in v_arr.iter_mut().enumerate() {
-                *x += w_arr[mask[i]];
+            for (i, x) in v_small.iter_mut().enumerate() {
+                *x += v_big[mask[i]];
                 *x %= *p;
             }
-            v.assert_list_eq(&v_arr);
+
+            v.assert_list_eq(&v_small);
         }
 
-        fn test_add_unmasked(p: ValidPrime) {
-            let mut v_arr = random_vector(p, 100);
-            let w_arr = random_vector(p, 10);
+        #[test]
+        fn test_add_unmasked((p, v_small, mut v_big, mask) in arb_vec_pair_and_mask()) {
+            let mut v = FpVector::from_slice(p, &v_big);
+            let w = FpVector::from_slice(p, &v_small);
 
-            let mut v = FpVector::from_slice(p, &v_arr);
-            let w = FpVector::from_slice(p, &w_arr);
-
-            let mask = &[4, 6, 7, 12, 30, 45, 50, 60, 72, 75];
-
-            v.as_slice_mut().add_unmasked(w.as_slice(), 1, mask);
-            for (i, &x) in w_arr.iter().enumerate() {
-                v_arr[mask[i]] += x;
-                v_arr[mask[i]] %= *p;
+            v.as_slice_mut().add_unmasked(w.as_slice(), 1, &mask);
+            for (i, &x) in v_small.iter().enumerate() {
+                v_big[mask[i]] += x;
+                v_big[mask[i]] %= *p;
             }
-            v.assert_list_eq(&v_arr);
+            v.assert_list_eq(&v_big);
         }
 
-        fn test_iterator_slice(p: ValidPrime) {
-            let ep = limb::entries_per_limb(p);
-            for &dim in &[5, 10, ep, ep - 1, ep + 1, 3 * ep, 3 * ep - 1, 3 * ep + 1] {
-                let v_arr = random_vector(p, dim);
-                let v = FpVector::from_slice(p, &v_arr);
-                let v = v.slice(3, dim - 1);
+        #[test]
+        fn test_iterator_slice((p, v_arr, slice_start, slice_end) in arb_vec_and_slice()) {
+            let v = FpVector::from_slice(p, &v_arr);
+            let v = v.slice(slice_start, slice_end);
 
-                println!("v: {v_arr:?}");
-
-                let w = v.iter();
-                let mut counter = 0;
-                for (i, x) in w.enumerate() {
-                    println!("i: {i}, dim : {dim}");
-                    assert_eq!(v.entry(i), x);
-                    counter += 1;
-                }
-                assert_eq!(counter, v.len());
+            let w = v.iter();
+            let mut counter = 0;
+            for (i, x) in w.enumerate() {
+                prop_assert_eq!(v.entry(i), x);
+                counter += 1;
             }
+            prop_assert_eq!(counter, v.len());
         }
 
-        fn test_iterator_skip(p: ValidPrime) {
-            let ep = limb::entries_per_limb(p);
-            let dim = 5 * ep;
-            for &num_skip in &[ep, ep - 1, ep + 1, 3 * ep, 3 * ep - 1, 3 * ep + 1, 6 * ep] {
-                let v_arr = random_vector(p, dim);
-                let v = FpVector::from_slice(p, &v_arr);
+        #[test]
+        fn test_iterator_skip((p, v_arr, num_skip) in arb_vec_and_skip()) {
+            let v = FpVector::from_slice(p, &v_arr);
 
-                let mut w = v.iter();
-                w.skip_n(num_skip);
-                let mut counter = 0;
-                for (i, x) in w.enumerate() {
-                    assert_eq!(v.entry(i + num_skip), x);
-                    counter += 1;
-                }
-                if num_skip == 6 * ep {
-                    assert_eq!(counter, 0);
-                } else {
-                    assert_eq!(counter, v.len() - num_skip);
-                }
+            let mut w = v.iter();
+            w.skip_n(num_skip);
+            let mut counter = 0;
+            for (i, x) in w.enumerate() {
+                prop_assert_eq!(v.entry(i + num_skip), x);
+                counter += 1;
             }
+
+            prop_assert_eq!(counter, v.len() - num_skip);
         }
 
-        fn test_iterator(p: ValidPrime) {
-            let ep = limb::entries_per_limb(p);
-            for &dim in &[0, 5, 10, ep, ep - 1, ep + 1, 3 * ep, 3 * ep - 1, 3 * ep + 1] {
-                let v_arr = random_vector(p, dim);
+        #[test]
+        fn test_iterator((p, v_arr) in arb_vec()) {
                 let v = FpVector::from_slice(p, &v_arr);
 
                 let w = v.iter();
                 let mut counter = 0;
                 for (i, x) in w.enumerate() {
-                    assert_eq!(v.entry(i), x);
+                    prop_assert_eq!(v.entry(i), x);
                     counter += 1;
                 }
-                assert_eq!(counter, v.len());
-            }
+                prop_assert_eq!(counter, v.len());
         }
 
-        fn test_iter_nonzero_empty(p: ValidPrime) {
-            let v = FpVector::new(p, 0);
-            assert_eq!(v.iter_nonzero().next(), None);
+        #[test]
+        fn test_iter_nonzero_empty(p in arb_prime(), dimension in arb_dim()) {
+            let v = FpVector::new(p, dimension);
+            prop_assert_eq!(v.iter_nonzero().next(), None);
         }
 
-        fn test_iter_nonzero_slice(p: ValidPrime) {
-            let mut v = FpVector::new(p, 5);
-            v.set_entry(0, 1);
-            v.set_entry(1, 1);
-            v.set_entry(2, 1);
-            for (i, _) in v.slice(0, 1).iter_nonzero() {
-                assert_eq!(i, 0);
-            }
-        }
+        #[test]
+        fn test_iter_nonzero((p, v_arr, slice_start, slice_end) in arb_vec_and_slice()) {
+            use std::fmt::Write;
 
-        fn test_iter_nonzero(p: ValidPrime, dim: usize, slice_start: usize, slice_end: usize) {
-            let v_arr = random_vector(p, dim);
             let v = FpVector::from_slice(p, &v_arr);
 
             println!("v: {v}");
@@ -517,13 +547,15 @@ mod test {
             // for i in 0 .. std::cmp::min(result.len(), comparison_result.len()) {
             //     println!("res : {:?}, comp : {:?}", result[i], comparison_result[i]);
             // }
-            assert!(diffs_str.is_empty(), "{}", diffs_str);
+            prop_assert!(diffs_str.is_empty(), "{}", diffs_str);
         }
     }
 
     #[rstest]
     #[trace]
     fn test_add_carry(#[values(2)] p: u32, #[values(10, 20, 70, 100, 1000)] dim: usize) {
+        use std::fmt::Write;
+
         let p = ValidPrime::new(p);
         const E_MAX: usize = 4;
         let pto_the_e_max = (*p * *p * *p * *p) * *p;
