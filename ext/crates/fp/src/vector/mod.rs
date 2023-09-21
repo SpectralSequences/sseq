@@ -101,21 +101,18 @@ mod test {
     }
 
     /// An arbitrary `ValidPrime`
-    fn arb_prime_dim() -> impl Strategy<Value = (ValidPrime, usize)> {
+    fn arb_prime() -> impl Strategy<Value = ValidPrime> {
         prop_oneof![
             Just(ValidPrime::new(2)),
             Just(ValidPrime::new(3)),
             Just(ValidPrime::new(5)),
             Just(ValidPrime::new(7)),
         ]
-        .prop_flat_map(|p| (Just(p), 0usize..=10_000))
     }
 
-    /// An arbitrary pair of dimensions, where the second dimension is bigger than or equal to the
-    /// first. This happens to be the same as `arb_slice(10000)`, but we make it a separate function
-    /// because the semantics are different.
-    fn arb_dim_pair() -> impl Strategy<Value = (usize, usize)> {
-        arb_slice(10_000)
+    /// An arbitrary (prime, dimension) pair
+    fn arb_prime_dim() -> impl Strategy<Value = (ValidPrime, usize)> {
+        arb_prime().prop_flat_map(|p| (Just(p), 0usize..=10_000))
     }
 
     /// The start and end positions of an arbitrary slice of a vector of length `dimension`
@@ -139,103 +136,51 @@ mod test {
         proptest::collection::vec(0..*p, dimension)
     }
 
-    prop_compose! {
-        /// A pair of a prime `p` and a vector containing values in the range `0..p`. In other
-        /// words, a vector over Fp.
-        fn arb_vec()(p in arb_prime(), dimension in arb_dim())
-        (v in arb_vec_u32(p, dimension), p in Just(p)) -> (ValidPrime, Vec<u32>) {
-            (p, v)
-        }
+    /// A pair of a prime `p` and a vector containing values in the range `0..p`. In other
+    /// words, a vector over Fp.
+    fn arb_vec() -> impl Strategy<Value = (ValidPrime, Vec<u32>)> {
+        arb_prime_dim().prop_flat_map(|(p, dim)| (Just(p), arb_vec_u32(p, dim)))
     }
 
-    prop_compose! {
-        /// An Fp vector together with valid slice indices
-        fn arb_vec_and_slice()(p in arb_prime(), dimension in arb_dim())
-        (v in arb_vec_u32(p, dimension), (start, end) in arb_slice(dimension), p in Just(p))
-            -> (ValidPrime, Vec<u32>, usize, usize)
-        {
-            (p, v, start, end)
-        }
+    /// An Fp vector together with valid slice indices
+    fn arb_vec_and_slice() -> impl Strategy<Value = (ValidPrime, Vec<u32>, (usize, usize))> {
+        arb_prime_dim().prop_flat_map(|(p, dim)| (Just(p), arb_vec_u32(p, dim), arb_slice(dim)))
     }
 
-    prop_compose! {
-        /// An Fp vector together with a scalar (in Fp)
-        fn arb_vec_and_scalar()(p in arb_prime(), dimension in arb_dim())
-        (c in 0u32..*p, v in arb_vec_u32(p, dimension), p in Just(p)) -> (ValidPrime, Vec<u32>, u32) {
-            (p, v, c)
-        }
+    /// A pair of Fp vectors of the same length over the same prime
+    fn arb_vec_pair() -> impl Strategy<Value = (ValidPrime, Vec<u32>, Vec<u32>)> {
+        arb_prime_dim()
+            .prop_flat_map(|(p, dim)| (Just(p), arb_vec_u32(p, dim), arb_vec_u32(p, dim)))
     }
 
-    prop_compose! {
-        /// An Fp vector together with valid slice indices and a scalar
-        fn arb_vec_and_slice_and_scalar()(p in arb_prime(), dimension in arb_dim())
-        (c in 0u32..*p, v in arb_vec_u32(p, dimension), (start, end) in arb_slice(dimension), p in Just(p))
-            -> (ValidPrime, Vec<u32>, usize, usize, u32)
-        {
-            (p, v, start, end, c)
-        }
+    /// A pair of Fp vectors of the same length over the same prime, together with valid slice
+    /// indices
+    fn arb_vec_pair_and_slice(
+    ) -> impl Strategy<Value = (ValidPrime, Vec<u32>, Vec<u32>, (usize, usize))> {
+        arb_prime_dim().prop_flat_map(|(p, dim)| {
+            (
+                Just(p),
+                arb_vec_u32(p, dim),
+                arb_vec_u32(p, dim),
+                arb_slice(dim),
+            )
+        })
     }
 
-    prop_compose! {
-        /// An Fp vector together with a valid number of entries to skip
-        fn arb_vec_and_skip()(p in arb_prime(), dimension in arb_dim())
-        (v in arb_vec_u32(p, dimension), skip in 0usize..=dimension, p in Just(p))
-            -> (ValidPrime, Vec<u32>, usize)
-        {
-            (p, v, skip)
-        }
-    }
-
-    prop_compose! {
-        /// A pair of Fp vectors of the same length over the same prime
-        fn arb_vec_pair()(p in arb_prime(), dimension in arb_dim())
-        (v in arb_vec_u32(p, dimension), w in arb_vec_u32(p, dimension), p in Just(p))
-            -> (ValidPrime, Vec<u32>, Vec<u32>)
-        {
-            (p, v, w)
-        }
-    }
-
-    prop_compose! {
-        /// A pair of Fp vectors of the same length over the same prime, together with valid slice
-        /// indices
-        fn arb_vec_pair_and_slice()(p in arb_prime(), dimension in arb_dim())
-        (v in arb_vec_u32(p, dimension),
-         w in arb_vec_u32(p, dimension),
-         (start, end) in arb_slice(dimension),
-         p in Just(p))
-            -> (ValidPrime, Vec<u32>, Vec<u32>, usize, usize)
-        {
-            (p, v, w, start, end)
-        }
-    }
-
-    prop_compose! {
-        /// A pair of Fp vectors of the same length over the same prime, together with two slice
-        /// index pairs that are valid and have the same length
-        fn arb_vec_pair_and_slice_pair()(p in arb_prime(), dimension in arb_dim())
-        (v in arb_vec_u32(p, dimension),
-         w in arb_vec_u32(p, dimension),
-         [(start1, end1), (start2, end2)] in arb_slice_pair(dimension),
-         p in Just(p))
-            -> (ValidPrime, Vec<u32>, Vec<u32>, usize, usize, usize, usize)
-        {
-            (p, v, w, start1, end1, start2, end2)
-        }
-    }
-
-    prop_compose! {
-        /// A pair of Fp vectors of the same length over the same prime, together with a mask (in
-        /// the sense of [`FpVector::add_masked`] and [`FpVector::add_unmasked`])
-        fn arb_vec_pair_and_mask()(p in arb_prime(), (dim_small, dim_big) in arb_dim_pair())
-        (v_small in arb_vec_u32(p, dim_small),
-         v_big in arb_vec_u32(p, dim_big),
-         mask in proptest::collection::vec(0..dim_big, dim_small),
-         p in Just(p))
-            -> (ValidPrime, Vec<u32>, Vec<u32>, Vec<usize>)
-        {
-            (p, v_small, v_big, mask)
-        }
+    /// A pair of Fp vectors of the same length over the same prime, together with a mask (in
+    /// the sense of [`FpVector::add_masked`] and [`FpVector::add_unmasked`])
+    fn arb_vec_pair_and_mask() -> impl Strategy<Value = (ValidPrime, Vec<u32>, Vec<u32>, Vec<usize>)>
+    {
+        arb_prime()
+            .prop_flat_map(|p| (Just(p), arb_slice(10_000)))
+            .prop_flat_map(|(p, (dim_small, dim_large))| {
+                (
+                    Just(p),
+                    arb_vec_u32(p, dim_small),
+                    arb_vec_u32(p, dim_large),
+                    proptest::collection::vec(0..dim_large, dim_small),
+                )
+            })
     }
 
     proptest! {
@@ -274,7 +219,9 @@ mod test {
         }
 
         #[test]
-        fn test_scale((p, mut v_arr, c) in arb_vec_and_scalar()) {
+        fn test_scale((p, mut v_arr, c) in arb_prime_dim().prop_flat_map(|(p, dim)| {
+            (Just(p), arb_vec_u32(p, dim), 0u32..*p)
+        })) {
             let mut v = FpVector::from_slice(p, &v_arr);
             v.scale(c);
             for entry in &mut v_arr {
@@ -284,7 +231,11 @@ mod test {
         }
 
         #[test]
-        fn test_scale_slice((p, mut v_arr, slice_start, slice_end, c) in arb_vec_and_slice_and_scalar()) {
+        fn test_scale_slice((p, mut v_arr, (slice_start, slice_end), c) in
+            arb_prime_dim().prop_flat_map(|(p, dim)| {
+                (Just(p), arb_vec_u32(p, dim), arb_slice(dim), 0u32..*p)
+            })
+        ) {
             let mut v = FpVector::from_slice(p, &v_arr);
             v.slice_mut(slice_start, slice_end).scale(c);
 
@@ -308,7 +259,7 @@ mod test {
         }
 
         #[test]
-        fn test_entry_slice((p, v_arr, slice_start, slice_end) in arb_vec_and_slice()) {
+        fn test_entry_slice((p, v_arr, (slice_start, slice_end)) in arb_vec_and_slice()) {
             let v = FpVector::from_slice(p, &v_arr);
             let v = v.slice(slice_start, slice_end);
             println!(
@@ -335,7 +286,7 @@ mod test {
         }
 
         #[test]
-        fn test_set_entry_slice((p, v_arr, slice_start, slice_end) in arb_vec_and_slice()) {
+        fn test_set_entry_slice((p, v_arr, (slice_start, slice_end)) in arb_vec_and_slice()) {
             let dim = v_arr.len();
             let mut v = FpVector::new(p, dim);
             let mut v = v.slice_mut(slice_start, slice_end);
@@ -356,7 +307,7 @@ mod test {
         }
 
         #[test]
-        fn test_set_to_zero_slice((p, mut v_arr, slice_start, slice_end) in arb_vec_and_slice()) {
+        fn test_set_to_zero_slice((p, mut v_arr, (slice_start, slice_end)) in arb_vec_and_slice()) {
             println!("slice_start : {slice_start}, slice_end : {slice_end}");
             let mut v = FpVector::from_slice(p, &v_arr);
 
@@ -370,7 +321,7 @@ mod test {
         }
 
         #[test]
-        fn test_add_slice_to_slice((p, mut v_arr, w_arr, slice_start, slice_end) in arb_vec_pair_and_slice()) {
+        fn test_add_slice_to_slice((p, mut v_arr, w_arr, (slice_start, slice_end)) in arb_vec_pair_and_slice()) {
             let mut v = FpVector::from_slice(p, &v_arr);
             let w = FpVector::from_slice(p, &w_arr);
 
@@ -405,7 +356,7 @@ mod test {
         }
 
         #[test]
-        fn test_assign_slice_to_slice((p, mut v_arr, w_arr, slice_start, slice_end) in arb_vec_pair_and_slice()) {
+        fn test_assign_slice_to_slice((p, mut v_arr, w_arr, (slice_start, slice_end)) in arb_vec_pair_and_slice()) {
             let mut v = FpVector::from_slice(p, &v_arr);
             let w = FpVector::from_slice(p, &w_arr);
 
@@ -416,9 +367,16 @@ mod test {
         }
 
         #[test]
-        fn test_add_shift((p, mut v_arr, w_arr, slice1_start, slice1_end, slice2_start, slice2_end)
-            in arb_vec_pair_and_slice_pair())
-        {
+        fn test_add_shift((p, mut v_arr, w_arr, [(slice1_start, slice1_end), (slice2_start, slice2_end)])
+            in arb_prime_dim().prop_flat_map(|(p, dim)| {
+                (
+                    Just(p),
+                    arb_vec_u32(p, dim),
+                    arb_vec_u32(p, dim),
+                    arb_slice_pair(dim),
+                )
+            })
+        ) {
             let mut v = FpVector::from_slice(p, &v_arr);
             let w = FpVector::from_slice(p, &w_arr);
 
@@ -463,7 +421,7 @@ mod test {
         }
 
         #[test]
-        fn test_iterator_slice((p, v_arr, slice_start, slice_end) in arb_vec_and_slice()) {
+        fn test_iterator_slice((p, v_arr, (slice_start, slice_end)) in arb_vec_and_slice()) {
             let v = FpVector::from_slice(p, &v_arr);
             let v = v.slice(slice_start, slice_end);
 
@@ -477,7 +435,9 @@ mod test {
         }
 
         #[test]
-        fn test_iterator_skip((p, v_arr, num_skip) in arb_vec_and_skip()) {
+        fn test_iterator_skip((p, v_arr, num_skip) in arb_prime_dim().prop_flat_map(|(p, dim)| {
+            (Just(p), arb_vec_u32(p, dim), 0..=dim)
+        })) {
             let v = FpVector::from_slice(p, &v_arr);
 
             let mut w = v.iter();
@@ -505,13 +465,13 @@ mod test {
         }
 
         #[test]
-        fn test_iter_nonzero_empty(p in arb_prime(), dimension in arb_dim()) {
+        fn test_iter_nonzero_empty((p, dimension) in arb_prime_dim()) {
             let v = FpVector::new(p, dimension);
             prop_assert_eq!(v.iter_nonzero().next(), None);
         }
 
         #[test]
-        fn test_iter_nonzero((p, v_arr, slice_start, slice_end) in arb_vec_and_slice()) {
+        fn test_iter_nonzero((p, v_arr, (slice_start, slice_end)) in arb_vec_and_slice()) {
             use std::fmt::Write;
 
             let v = FpVector::from_slice(p, &v_arr);
