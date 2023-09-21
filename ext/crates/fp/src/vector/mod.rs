@@ -131,13 +131,13 @@ mod test {
     }
 
     /// An arbitrary pair of slices of a vector of length `dimension` _that have the same length_
-    fn arb_slice_pair(dimension: usize) -> impl Strategy<Value = [(usize, usize); 2]> {
-        // Similarly to `arb_slice`, we triplicate the entries because we want to also test the case
-        // where two or all three values coincide.
-        let all_indices: Vec<_> = (0..=dimension).flat_map(|i| [i, i, i]).collect();
-        proptest::sample::subsequence(all_indices, 3)
-            .prop_map(|v| [(v[0], v[1]), (v[2] - (v[1] - v[0]), v[2])])
-            .prop_shuffle()
+    prop_compose! {
+        fn arb_slice_pair(dimension: usize)
+            (len in 0..max_integer)
+            (len in Just(len), first in 0..max_integer-len, second in 0..max_integer-len)
+            -> [(usize, usize); 2] {
+            [(first, first+len), (second, second+len)]
+        }
     }
 
     /// An arbitrary vector of length `dimension` containing values in the range `0..p`
