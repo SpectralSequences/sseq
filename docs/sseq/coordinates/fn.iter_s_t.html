@@ -34,7 +34,7 @@ for all <code>t' &lt; t</code>.</p>
 <code>f(s, t')</code> has already been computed for every <code>t' &lt; T</code>.</p>
 <p>While <code>iter_s_t</code> could have had kept track of that data, it is usually the case that <code>f</code> would
 compute something and write it to a <code>OnceBiVec</code>, and
-<a href="once::OnceBiVec::push_ooo"><code>OnceBiVec::push_ooo</code></a> would return this range for us.</p>
+<a href="../../once/struct.OnceBiVec.html#method.push_ooo" title="method once::OnceBiVec::push_ooo"><code>OnceBiVec::push_ooo</code></a> would return this range for us.</p>
 <p>This uses [<code>rayon</code>] under the hood, and <code>f</code> should feel free to use further rayon parallelism.</p>
 <h2 id="arguments"><a href="#arguments">Arguments:</a></h2>
 <ul>

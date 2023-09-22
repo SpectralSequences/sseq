@@ -1070,6 +1070,7 @@
 <a href="#1045" id="1045">1045</a>
 <a href="#1046" id="1046">1046</a>
 <a href="#1047" id="1047">1047</a>
+<a href="#1048" id="1048">1048</a>
 </pre></div><pre class="rust"><code><span class="attr">#[cfg(not(feature = <span class="string">&quot;odd-primes&quot;</span>))]
 </span><span class="kw">pub mod </span>vector_2;
 <span class="attr">#[cfg(not(feature = <span class="string">&quot;odd-primes&quot;</span>))]
@@ -1089,10 +1090,8 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>test {
-    <span class="kw">use </span>std::fmt::Write <span class="kw">as _</span>; <span class="comment">// Needed for write! macro for String
-
-    </span><span class="kw">use </span>itertools::Itertools;
-    <span class="kw">use </span>rand::Rng;
+    <span class="kw">use </span>itertools::Itertools;
+    <span class="kw">use </span>proptest::prelude::<span class="kw-2">*</span>;
     <span class="kw">use </span>rstest::rstest;
 
     <span class="kw">use super</span>::{inner::FpVectorP, <span class="kw-2">*</span>};
@@ -1169,92 +1168,135 @@
         }
     }
 
-    <span class="kw">fn </span>random_vector(p: <span class="kw">impl </span>Into&lt;u32&gt;, dimension: usize) -&gt; Vec&lt;u32&gt; {
-        <span class="kw">let </span>p: u32 = p.into();
-        <span class="kw">let </span><span class="kw-2">mut </span>result = Vec::with_capacity(dimension);
+    <span class="kw">fn </span>random_vector(p: u32, dimension: usize) -&gt; Vec&lt;u32&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>rng = rand::thread_rng();
-        <span class="kw">for _ in </span><span class="number">0</span>..dimension {
-            result.push(rng.gen::&lt;u32&gt;() % p);
+        (<span class="number">0</span>..dimension).map(|<span class="kw">_</span>| rng.gen_range(<span class="number">0</span>..p)).collect()
+    }
+
+    <span class="doccomment">/// An arbitrary `ValidPrime`
+    </span><span class="kw">fn </span>arb_prime() -&gt; <span class="kw">impl </span>Strategy&lt;Value = ValidPrime&gt; {
+        <span class="macro">prop_oneof!</span>[
+            Just(ValidPrime::new(<span class="number">2</span>)),
+            Just(ValidPrime::new(<span class="number">3</span>)),
+            Just(ValidPrime::new(<span class="number">5</span>)),
+            Just(ValidPrime::new(<span class="number">7</span>)),
+        ]
+    }
+
+    <span class="doccomment">/// An arbitrary (prime, dimension) pair
+    </span><span class="kw">fn </span>arb_prime_dim() -&gt; <span class="kw">impl </span>Strategy&lt;Value = (ValidPrime, usize)&gt; {
+        arb_prime().prop_flat_map(|p| (Just(p), <span class="number">0usize</span>..=<span class="number">10_000</span>))
+    }
+
+    <span class="doccomment">/// The start and end positions of an arbitrary slice of a vector of length `dimension`
+    </span><span class="kw">fn </span>arb_slice(dimension: usize) -&gt; <span class="kw">impl </span>Strategy&lt;Value = (usize, usize)&gt; {
+        (<span class="number">0</span>..=dimension).prop_flat_map(<span class="kw">move </span>|first| (Just(first), first..=dimension))
+    }
+
+    <span class="macro">prop_compose! </span>{
+        <span class="doccomment">/// An arbitrary pair of slices of a vector of length `dimension` _that have the same length_
+        </span><span class="kw">fn </span>arb_slice_pair(dimension: usize)
+            (len <span class="kw">in </span><span class="number">0</span>..=dimension)
+            (len <span class="kw">in </span>Just(len), first <span class="kw">in </span><span class="number">0</span>..=dimension - len, second <span class="kw">in </span><span class="number">0</span>..=dimension - len)
+            -&gt; [(usize, usize); <span class="number">2</span>]
+        {
+            [(first, first + len), (second, second + len)]
         }
-        result
     }
 
-    <span class="macro">macro_rules! </span>test_dim {
-        () =&gt; {};
-        (<span class="kw">fn </span><span class="macro-nonterminal">$name</span>:ident(<span class="macro-nonterminal">$p</span>:ident: ValidPrime) <span class="macro-nonterminal">$body</span>:tt $(<span class="macro-nonterminal">$rest</span>:tt)<span class="kw-2">*</span>) =&gt; {
-            <span class="attr">#[rstest]
-            #[trace]
-            </span><span class="kw">fn </span><span class="macro-nonterminal">$name</span>(<span class="attr">#[values(<span class="number">2</span>, <span class="number">3</span>, <span class="number">5</span>, <span class="number">7</span>)] </span>p: u32) {
-                <span class="kw">let </span><span class="macro-nonterminal">$p </span>= ValidPrime::new(p);
-
-                <span class="macro-nonterminal">$body
-            </span>}
-            <span class="macro">test_dim! </span>{ $(<span class="macro-nonterminal">$rest</span>)* }
-        };
-        (<span class="kw">fn </span><span class="macro-nonterminal">$name</span>:ident(<span class="macro-nonterminal">$p</span>:ident: ValidPrime, <span class="macro-nonterminal">$dim</span>:ident: usize) <span class="macro-nonterminal">$body</span>:tt $(<span class="macro-nonterminal">$rest</span>:tt)<span class="kw-2">*</span>) =&gt; {
-            <span class="attr">#[rstest]
-            #[trace]
-            </span><span class="kw">fn </span><span class="macro-nonterminal">$name</span>(<span class="attr">#[values(<span class="number">2</span>, <span class="number">3</span>, <span class="number">5</span>, <span class="number">7</span>)] </span>p: u32, <span class="attr">#[values(<span class="number">10</span>, <span class="number">20</span>, <span class="number">70</span>, <span class="number">100</span>, <span class="number">1000</span>)] </span><span class="macro-nonterminal">$dim</span>: usize) {
-                <span class="kw">let </span><span class="macro-nonterminal">$p </span>= ValidPrime::new(p);
-
-                <span class="macro-nonterminal">$body
-            </span>}
-            <span class="macro">test_dim! </span>{ $(<span class="macro-nonterminal">$rest</span>)* }
-        };
-        (<span class="kw">fn </span><span class="macro-nonterminal">$name</span>:ident(<span class="macro-nonterminal">$p</span>:ident: ValidPrime, <span class="macro-nonterminal">$dim</span>:ident: usize, <span class="macro-nonterminal">$slice_start</span>:ident: usize, <span class="macro-nonterminal">$slice_end</span>:ident: usize) <span class="macro-nonterminal">$body</span>:tt $(<span class="macro-nonterminal">$rest</span>:tt)<span class="kw-2">*</span>) =&gt; {
-            <span class="attr">#[rstest]
-            #[trace]
-            </span><span class="kw">fn </span><span class="macro-nonterminal">$name</span>(<span class="attr">#[values(<span class="number">2</span>, <span class="number">3</span>, <span class="number">5</span>, <span class="number">7</span>)] </span>p: u32, <span class="attr">#[values(<span class="number">10</span>, <span class="number">20</span>, <span class="number">70</span>, <span class="number">100</span>, <span class="number">1000</span>)] </span><span class="macro-nonterminal">$dim</span>: usize) {
-                <span class="kw">let </span><span class="macro-nonterminal">$p </span>= ValidPrime::new(p);
-
-                <span class="kw">let </span><span class="macro-nonterminal">$slice_start </span>= <span class="kw">match </span><span class="macro-nonterminal">$dim </span>{
-                    <span class="number">10 </span>=&gt; <span class="number">5</span>,
-                    <span class="number">20 </span>=&gt; <span class="number">10</span>,
-                    <span class="number">70 </span>=&gt; <span class="number">20</span>,
-                    <span class="number">100 </span>=&gt; <span class="number">30</span>,
-                    <span class="number">1000 </span>=&gt; <span class="number">290</span>,
-                    <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
-                };
-                <span class="kw">let </span><span class="macro-nonterminal">$slice_end </span>= (<span class="macro-nonterminal">$dim </span>+ <span class="macro-nonterminal">$slice_start</span>) / <span class="number">2</span>;
-                <span class="macro-nonterminal">$body
-            </span>}
-            <span class="macro">test_dim! </span>{ $(<span class="macro-nonterminal">$rest</span>)* }
-        };
+    <span class="doccomment">/// An arbitrary vector of length `dimension` containing values in the range `0..p`. The tests
+    /// take in a `Vec&lt;u32&gt;` instead of an `FpVector` directly because they will usually apply some
+    /// operation on both the `FpVector` and the original `Vec&lt;u32&gt;` and then compare the results.
+    </span><span class="kw">fn </span>arb_vec_u32(p: ValidPrime, dimension: usize) -&gt; <span class="kw">impl </span>Strategy&lt;Value = Vec&lt;u32&gt;&gt; {
+        proptest::collection::vec(<span class="number">0</span>..<span class="kw-2">*</span>p, dimension)
     }
 
-    <span class="macro">test_dim! </span>{
-        <span class="kw">fn </span>test_serialize(p: ValidPrime, dim: usize) {
+    <span class="doccomment">/// A pair of a prime `p` and a vector containing values in the range `0..p`. In other
+    /// words, a vector over Fp.
+    </span><span class="kw">fn </span>arb_vec() -&gt; <span class="kw">impl </span>Strategy&lt;Value = (ValidPrime, Vec&lt;u32&gt;)&gt; {
+        arb_prime_dim().prop_flat_map(|(p, dim)| (Just(p), arb_vec_u32(p, dim)))
+    }
+
+    <span class="doccomment">/// An Fp vector together with valid slice indices
+    </span><span class="kw">fn </span>arb_vec_and_slice() -&gt; <span class="kw">impl </span>Strategy&lt;Value = (ValidPrime, Vec&lt;u32&gt;, (usize, usize))&gt; {
+        arb_prime_dim().prop_flat_map(|(p, dim)| (Just(p), arb_vec_u32(p, dim), arb_slice(dim)))
+    }
+
+    <span class="doccomment">/// A pair of Fp vectors of the same length over the same prime
+    </span><span class="kw">fn </span>arb_vec_pair() -&gt; <span class="kw">impl </span>Strategy&lt;Value = (ValidPrime, Vec&lt;u32&gt;, Vec&lt;u32&gt;)&gt; {
+        arb_prime_dim()
+            .prop_flat_map(|(p, dim)| (Just(p), arb_vec_u32(p, dim), arb_vec_u32(p, dim)))
+    }
+
+    <span class="doccomment">/// A pair of Fp vectors of the same length over the same prime, together with valid slice
+    /// indices
+    </span><span class="kw">fn </span>arb_vec_pair_and_slice(
+    ) -&gt; <span class="kw">impl </span>Strategy&lt;Value = (ValidPrime, Vec&lt;u32&gt;, Vec&lt;u32&gt;, (usize, usize))&gt; {
+        arb_prime_dim().prop_flat_map(|(p, dim)| {
+            (
+                Just(p),
+                arb_vec_u32(p, dim),
+                arb_vec_u32(p, dim),
+                arb_slice(dim),
+            )
+        })
+    }
+
+    <span class="doccomment">/// A pair of Fp vectors of the same length over the same prime, together with a mask (in
+    /// the sense of [`FpVector::add_masked`] and [`FpVector::add_unmasked`])
+    </span><span class="kw">fn </span>arb_vec_pair_and_mask() -&gt; <span class="kw">impl </span>Strategy&lt;Value = (ValidPrime, Vec&lt;u32&gt;, Vec&lt;u32&gt;, Vec&lt;usize&gt;)&gt;
+    {
+        arb_prime()
+            .prop_flat_map(|p| (Just(p), arb_slice(<span class="number">10_000</span>)))
+            .prop_flat_map(|(p, (dim_small, dim_large))| {
+                (
+                    Just(p),
+                    arb_vec_u32(p, dim_small),
+                    arb_vec_u32(p, dim_large),
+                    proptest::collection::vec(<span class="number">0</span>..dim_large, dim_small),
+                )
+            })
+    }
+
+    <span class="macro">proptest! </span>{
+        <span class="attr">#![proptest_config(ProptestConfig {
+            cases: <span class="number">1024</span>,
+            max_shrink_time: <span class="number">30_000</span>,
+            max_shrink_iters: <span class="number">1_000_000</span>,
+            .. ProptestConfig::default()
+        })]
+
+        #[test]
+        </span><span class="kw">fn </span>test_serialize((p, v_arr) <span class="kw">in </span>arb_vec()) {
             <span class="kw">use </span>std::io::{Seek, Cursor};
 
-            <span class="kw">let </span>v_arr = random_vector(p, dim);
             <span class="kw">let </span>v = FpVector::from_slice(p, <span class="kw-2">&amp;</span>v_arr);
 
             <span class="kw">let </span><span class="kw-2">mut </span>cursor = Cursor::new(Vec::&lt;u8&gt;::new());
             v.to_bytes(<span class="kw-2">&amp;mut </span>cursor).unwrap();
             cursor.rewind().unwrap();
 
-            <span class="kw">let </span>w = FpVector::from_bytes(p, dim, <span class="kw-2">&amp;mut </span>cursor).unwrap();
+            <span class="kw">let </span>w = FpVector::from_bytes(v.prime(), v.len(), <span class="kw-2">&amp;mut </span>cursor).unwrap();
             v.assert_vec_eq(<span class="kw-2">&amp;</span>w);
         }
 
-        <span class="kw">fn </span>test_add(p: ValidPrime, dim: usize) {
-            <span class="kw">let </span><span class="kw-2">mut </span>v_arr = random_vector(p, dim);
-            <span class="kw">let </span>w_arr = random_vector(p, dim);
+        <span class="attr">#[test]
+        </span><span class="kw">fn </span>test_add((p, <span class="kw-2">mut </span>v_arr, w_arr) <span class="kw">in </span>arb_vec_pair()) {
             <span class="kw">let </span><span class="kw-2">mut </span>v = FpVector::from_slice(p, <span class="kw-2">&amp;</span>v_arr);
             <span class="kw">let </span>w = FpVector::from_slice(p, <span class="kw-2">&amp;</span>w_arr);
 
             v.add(<span class="kw-2">&amp;</span>w, <span class="number">1</span>);
-            <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..dim {
-                v_arr[i] = (v_arr[i] + w_arr[i]) % <span class="kw-2">*</span>p;
+
+            <span class="kw">for </span>(v_element, w_element) <span class="kw">in </span>v_arr.iter_mut().zip(w_arr.iter()) {
+                <span class="kw-2">*</span>v_element = (<span class="kw-2">*</span>v_element + <span class="kw-2">*</span>w_element) % <span class="kw-2">*</span>p;
             }
             v.assert_list_eq(<span class="kw-2">&amp;</span>v_arr);
         }
 
-        <span class="kw">fn </span>test_scale(p: ValidPrime, dim: usize) {
-            <span class="kw">let </span><span class="kw-2">mut </span>v_arr = random_vector(p, dim);
-            <span class="kw">let </span><span class="kw-2">mut </span>rng = rand::thread_rng();
-            <span class="kw">let </span>c = rng.gen::&lt;u32&gt;() % <span class="kw-2">*</span>p;
-
+        <span class="attr">#[test]
+        </span><span class="kw">fn </span>test_scale((p, <span class="kw-2">mut </span>v_arr, c) <span class="kw">in </span>arb_prime_dim().prop_flat_map(|(p, dim)| {
+            (Just(p), arb_vec_u32(p, dim), <span class="number">0u32</span>..<span class="kw-2">*</span>p)
+        })) {
             <span class="kw">let </span><span class="kw-2">mut </span>v = FpVector::from_slice(p, <span class="kw-2">&amp;</span>v_arr);
             v.scale(c);
             <span class="kw">for </span>entry <span class="kw">in </span><span class="kw-2">&amp;mut </span>v_arr {
@@ -1263,21 +1305,23 @@
             v.assert_list_eq(<span class="kw-2">&amp;</span>v_arr);
         }
 
-        <span class="kw">fn </span>test_scale_slice(p: ValidPrime, dim: usize, slice_start: usize, slice_end: usize) {
-            <span class="kw">let </span><span class="kw-2">mut </span>v_arr = random_vector(p, dim);
-            <span class="kw">let </span><span class="kw-2">mut </span>rng = rand::thread_rng();
-            <span class="kw">let </span>c = rng.gen::&lt;u32&gt;() % <span class="kw-2">*</span>p;
-
+        <span class="attr">#[test]
+        </span><span class="kw">fn </span>test_scale_slice((p, <span class="kw-2">mut </span>v_arr, (slice_start, slice_end), c) <span class="kw">in
+            </span>arb_prime_dim().prop_flat_map(|(p, dim)| {
+                (Just(p), arb_vec_u32(p, dim), arb_slice(dim), <span class="number">0u32</span>..<span class="kw-2">*</span>p)
+            })
+        ) {
             <span class="kw">let </span><span class="kw-2">mut </span>v = FpVector::from_slice(p, <span class="kw-2">&amp;</span>v_arr);
             v.slice_mut(slice_start, slice_end).scale(c);
-            <span class="kw">for </span>entry <span class="kw">in </span><span class="kw-2">&amp;mut </span>v_arr[slice_start .. slice_end] {
+
+            <span class="kw">for </span>entry <span class="kw">in </span><span class="kw-2">&amp;mut </span>v_arr[slice_start..slice_end] {
                 <span class="kw-2">*</span>entry = (<span class="kw-2">*</span>entry * c) % <span class="kw-2">*</span>p;
             }
             v.assert_list_eq(<span class="kw-2">&amp;</span>v_arr);
         }
 
-        <span class="kw">fn </span>test_entry(p: ValidPrime, dim: usize) {
-            <span class="kw">let </span>v_arr = random_vector(p, dim);
+        <span class="attr">#[test]
+        </span><span class="kw">fn </span>test_entry((p, v_arr) <span class="kw">in </span>arb_vec()) {
             <span class="kw">let </span>v = FpVector::from_slice(p, <span class="kw-2">&amp;</span>v_arr);
 
             <span class="kw">let </span><span class="kw-2">mut </span>diffs = Vec::new();
@@ -1286,11 +1330,11 @@
                     diffs.push((i, val, v.entry(i)));
                 }
             }
-            <span class="macro">assert_eq!</span>(diffs, []);
+            <span class="macro">prop_assert_eq!</span>(diffs, []);
         }
 
-        <span class="kw">fn </span>test_entry_slice(p: ValidPrime, dim: usize, slice_start: usize, slice_end: usize) {
-            <span class="kw">let </span>v_arr = random_vector(p, dim);
+        <span class="attr">#[test]
+        </span><span class="kw">fn </span>test_entry_slice((p, v_arr, (slice_start, slice_end)) <span class="kw">in </span>arb_vec_and_slice()) {
             <span class="kw">let </span>v = FpVector::from_slice(p, <span class="kw-2">&amp;</span>v_arr);
             <span class="kw">let </span>v = v.slice(slice_start, slice_end);
             <span class="macro">println!</span>(
@@ -1303,59 +1347,56 @@
                     diffs.push((i, v_arr[i + slice_start], v.entry(i)));
                 }
             }
-            <span class="macro">assert_eq!</span>(diffs, []);
+            <span class="macro">prop_assert_eq!</span>(diffs, []);
         }
 
-        <span class="kw">fn </span>test_set_entry(p: ValidPrime, dim: usize) {
-            <span class="kw">let </span><span class="kw-2">mut </span>v = FpVector::new(p, dim);
-            <span class="kw">let </span>v_arr = random_vector(p, dim);
+        <span class="attr">#[test]
+        </span><span class="kw">fn </span>test_set_entry((p, v_arr) <span class="kw">in </span>arb_vec()) {
+            <span class="kw">let </span><span class="kw-2">mut </span>v = FpVector::new(p, v_arr.len());
+
             <span class="kw">for </span>(i, <span class="kw-2">&amp;</span>val) <span class="kw">in </span>v_arr.iter().enumerate() {
                 v.set_entry(i, val);
             }
             v.assert_list_eq(<span class="kw-2">&amp;</span>v_arr);
         }
 
-        <span class="kw">fn </span>test_set_entry_slice(p: ValidPrime, dim: usize, slice_start: usize, slice_end: usize) {
+        <span class="attr">#[test]
+        </span><span class="kw">fn </span>test_set_entry_slice((p, v_arr, (slice_start, slice_end)) <span class="kw">in </span>arb_vec_and_slice()) {
+            <span class="kw">let </span>dim = v_arr.len();
             <span class="kw">let </span><span class="kw-2">mut </span>v = FpVector::new(p, dim);
             <span class="kw">let </span><span class="kw-2">mut </span>v = v.slice_mut(slice_start, slice_end);
 
-            <span class="kw">let </span>slice_dim = v.as_slice().len();
-            <span class="kw">let </span>v_arr = random_vector(p, slice_dim);
-            <span class="kw">for </span>(i, <span class="kw-2">&amp;</span>val) <span class="kw">in </span>v_arr.iter().enumerate() {
+            <span class="kw">let </span>v_slice = <span class="kw-2">&amp;</span>v_arr[slice_start..slice_end];
+            <span class="kw">for </span>(i, <span class="kw-2">&amp;</span>val) <span class="kw">in </span>v_slice.iter().enumerate() {
                 v.set_entry(i, val);
             }
             <span class="kw">let </span>v = v.as_slice();
 
-            <span class="comment">// println!(&quot;slice_start: {}, slice_end: {}, slice: {}&quot;, slice_start, slice_end, v);
-            </span><span class="kw">let </span><span class="kw-2">mut </span>diffs = Vec::new();
-            <span class="kw">for </span>(i, <span class="kw-2">&amp;</span>val) <span class="kw">in </span>v_arr.iter().enumerate() {
+            <span class="kw">let </span><span class="kw-2">mut </span>diffs = Vec::new();
+            <span class="kw">for </span>(i, <span class="kw-2">&amp;</span>val) <span class="kw">in </span>v_slice.iter().enumerate() {
                 <span class="kw">if </span>v.entry(i) != val {
                     diffs.push((i, val, v.entry(i)));
                 }
             }
-            <span class="macro">assert_eq!</span>(diffs, []);
+            <span class="macro">prop_assert_eq!</span>(diffs, []);
         }
 
-        <span class="kw">fn </span>test_set_to_zero_slice(p: ValidPrime, dim: usize, slice_start: usize, slice_end: usize) {
+        <span class="attr">#[test]
+        </span><span class="kw">fn </span>test_set_to_zero_slice((p, <span class="kw-2">mut </span>v_arr, (slice_start, slice_end)) <span class="kw">in </span>arb_vec_and_slice()) {
             <span class="macro">println!</span>(<span class="string">&quot;slice_start : {slice_start}, slice_end : {slice_end}&quot;</span>);
-            <span class="kw">let </span><span class="kw-2">mut </span>v_arr = random_vector(p, dim);
-            v_arr[<span class="number">0</span>] = <span class="number">1</span>; <span class="comment">// make sure that v isn&#39;t zero
-            </span><span class="kw">let </span><span class="kw-2">mut </span>v = FpVector::from_slice(p, <span class="kw-2">&amp;</span>v_arr);
+            <span class="kw">let </span><span class="kw-2">mut </span>v = FpVector::from_slice(p, <span class="kw-2">&amp;</span>v_arr);
 
             v.slice_mut(slice_start, slice_end).set_to_zero();
-            <span class="macro">assert!</span>(v.slice(slice_start, slice_end).is_zero());
+            <span class="macro">prop_assert!</span>(v.slice(slice_start, slice_end).is_zero());
 
-            <span class="macro">assert!</span>(!v.is_zero()); <span class="comment">// The first entry is 1, so it&#39;s not zero.
-            </span><span class="kw">for </span>entry <span class="kw">in </span><span class="kw-2">&amp;mut </span>v_arr[slice_start..slice_end] {
+            <span class="kw">for </span>entry <span class="kw">in </span><span class="kw-2">&amp;mut </span>v_arr[slice_start..slice_end] {
                 <span class="kw-2">*</span>entry = <span class="number">0</span>;
             }
             v.assert_list_eq(<span class="kw-2">&amp;</span>v_arr);
         }
 
-        <span class="kw">fn </span>test_add_slice_to_slice(p: ValidPrime, dim: usize, slice_start: usize, slice_end: usize) {
-            <span class="kw">let </span><span class="kw-2">mut </span>v_arr = random_vector(p, dim);
-            <span class="kw">let </span>w_arr = random_vector(p, dim);
-
+        <span class="attr">#[test]
+        </span><span class="kw">fn </span>test_add_slice_to_slice((p, <span class="kw-2">mut </span>v_arr, w_arr, (slice_start, slice_end)) <span class="kw">in </span>arb_vec_pair_and_slice()) {
             <span class="kw">let </span><span class="kw-2">mut </span>v = FpVector::from_slice(p, <span class="kw-2">&amp;</span>v_arr);
             <span class="kw">let </span>w = FpVector::from_slice(p, <span class="kw-2">&amp;</span>w_arr);
 
@@ -1368,10 +1409,8 @@
             v.assert_list_eq(<span class="kw-2">&amp;</span>v_arr);
         }
 
-        <span class="kw">fn </span>test_assign(p: ValidPrime, dim: usize) {
-            <span class="kw">let </span>v_arr = random_vector(p, dim);
-            <span class="kw">let </span>w_arr = random_vector(p, dim);
-
+        <span class="attr">#[test]
+        </span><span class="kw">fn </span>test_assign((p, v_arr, w_arr) <span class="kw">in </span>arb_vec_pair()) {
             <span class="kw">let </span><span class="kw-2">mut </span>v = FpVector::from_slice(p, <span class="kw-2">&amp;</span>v_arr);
             <span class="kw">let </span>w = FpVector::from_slice(p, <span class="kw-2">&amp;</span>w_arr);
 
@@ -1379,27 +1418,21 @@
             v.assert_vec_eq(<span class="kw-2">&amp;</span>w);
         }
 
-        <span class="kw">fn </span>test_assign_partial(p: ValidPrime, dim: usize) {
-            <span class="kw">let </span>v_arr = random_vector(p, dim);
-            <span class="kw">let </span>w_arr = random_vector(p, dim / <span class="number">2</span>);
-
+        <span class="attr">#[test]
+        </span><span class="kw">fn </span>test_assign_partial((p, v_arr, w_arr) <span class="kw">in </span>arb_vec_pair()) {
+            <span class="kw">let </span>dim = v_arr.len();
             <span class="kw">let </span><span class="kw-2">mut </span>v = FpVector::from_slice(p, <span class="kw-2">&amp;</span>v_arr);
-            <span class="kw">let </span>w = FpVector::from_slice(p, <span class="kw-2">&amp;</span>w_arr);
+            <span class="kw">let </span>w = FpVector::from_slice(p, <span class="kw-2">&amp;</span>w_arr[<span class="number">0</span>..(dim / <span class="number">2</span>)]);
 
             v.assign_partial(<span class="kw-2">&amp;</span>w);
-            <span class="macro">assert!</span>(v.slice(dim / <span class="number">2</span>, dim).is_zero());
-            <span class="macro">assert_eq!</span>(v.len(), dim);
+            <span class="macro">prop_assert!</span>(v.slice(dim / <span class="number">2</span>, dim).is_zero());
+            <span class="macro">prop_assert_eq!</span>(v.len(), dim);
             v.slice(<span class="number">0</span>, dim / <span class="number">2</span>).to_owned().assert_vec_eq(<span class="kw-2">&amp;</span>w);
         }
 
-        <span class="kw">fn </span>test_assign_slice_to_slice(p: ValidPrime, dim: usize, slice_start: usize, slice_end: usize) {
-            <span class="kw">let </span><span class="kw-2">mut </span>v_arr = random_vector(p, dim);
-            <span class="kw">let </span><span class="kw-2">mut </span>w_arr = random_vector(p, dim);
-
-            v_arr[<span class="number">0</span>] = <span class="number">1</span>; <span class="comment">// Ensure v != w.
-            </span>w_arr[<span class="number">0</span>] = <span class="number">0</span>; <span class="comment">// Ensure v != w.
-
-            </span><span class="kw">let </span><span class="kw-2">mut </span>v = FpVector::from_slice(p, <span class="kw-2">&amp;</span>v_arr);
+        <span class="attr">#[test]
+        </span><span class="kw">fn </span>test_assign_slice_to_slice((p, <span class="kw-2">mut </span>v_arr, w_arr, (slice_start, slice_end)) <span class="kw">in </span>arb_vec_pair_and_slice()) {
+            <span class="kw">let </span><span class="kw-2">mut </span>v = FpVector::from_slice(p, <span class="kw-2">&amp;</span>v_arr);
             <span class="kw">let </span>w = FpVector::from_slice(p, <span class="kw-2">&amp;</span>w_arr);
 
             v.slice_mut(slice_start, slice_end)
@@ -1408,147 +1441,114 @@
             v.assert_list_eq(<span class="kw-2">&amp;</span>v_arr);
         }
 
-        <span class="kw">fn </span>test_add_shift_right(p: ValidPrime, dim: usize, slice_start: usize, slice_end: usize) {
-            <span class="kw">let </span><span class="kw-2">mut </span>v_arr = random_vector(p, dim);
-            <span class="kw">let </span>w_arr = random_vector(p, dim);
-
+        <span class="attr">#[test]
+        </span><span class="kw">fn </span>test_add_shift((p, <span class="kw-2">mut </span>v_arr, w_arr, [(slice1_start, slice1_end), (slice2_start, slice2_end)])
+            <span class="kw">in </span>arb_prime_dim().prop_flat_map(|(p, dim)| {
+                (
+                    Just(p),
+                    arb_vec_u32(p, dim),
+                    arb_vec_u32(p, dim),
+                    arb_slice_pair(dim),
+                )
+            })
+        ) {
             <span class="kw">let </span><span class="kw-2">mut </span>v = FpVector::from_slice(p, <span class="kw-2">&amp;</span>v_arr);
             <span class="kw">let </span>w = FpVector::from_slice(p, <span class="kw-2">&amp;</span>w_arr);
 
-            v.slice_mut(slice_start + <span class="number">2</span>, slice_end + <span class="number">2</span>)
-                .add(w.slice(slice_start, slice_end), <span class="number">1</span>);
+            v.slice_mut(slice1_start, slice1_end)
+                .add(w.slice(slice2_start, slice2_end), <span class="number">1</span>);
 
-            <span class="macro">println!</span>(<span class="string">&quot;v : {v}&quot;</span>);
-            <span class="kw">for </span>i <span class="kw">in </span>slice_start + <span class="number">2</span>..slice_end + <span class="number">2 </span>{
-                v_arr[i] = (v_arr[i] + w_arr[i - <span class="number">2</span>]) % <span class="kw-2">*</span>p;
+            <span class="kw">for </span>(v_element, w_element) <span class="kw">in </span>v_arr[slice1_start..slice1_end]
+                .iter_mut()
+                .zip(w_arr[slice2_start..slice2_end].iter())
+            {
+                <span class="kw-2">*</span>v_element = (<span class="kw-2">*</span>v_element + <span class="kw-2">*</span>w_element) % <span class="kw-2">*</span>p;
             }
             v.assert_list_eq(<span class="kw-2">&amp;</span>v_arr);
         }
 
-        <span class="kw">fn </span>test_add_shift_left(p: ValidPrime, dim: usize, slice_start: usize, slice_end: usize) {
-            <span class="kw">let </span><span class="kw-2">mut </span>v_arr = random_vector(p, dim);
-            <span class="kw">let </span>w_arr = random_vector(p, dim);
+        <span class="attr">#[test]
+        </span><span class="kw">fn </span>test_add_masked((p, <span class="kw-2">mut </span>v_small, v_big, mask) <span class="kw">in </span>arb_vec_pair_and_mask()) {
+            <span class="kw">let </span><span class="kw-2">mut </span>v = FpVector::from_slice(p, <span class="kw-2">&amp;</span>v_small);
+            <span class="kw">let </span>w = FpVector::from_slice(p, <span class="kw-2">&amp;</span>v_big);
 
-            <span class="kw">let </span><span class="kw-2">mut </span>v = FpVector::from_slice(p, <span class="kw-2">&amp;</span>v_arr);
-            <span class="kw">let </span>w = FpVector::from_slice(p, <span class="kw-2">&amp;</span>w_arr);
+            v.as_slice_mut().add_masked(w.as_slice(), <span class="number">1</span>, <span class="kw-2">&amp;</span>mask);
 
-            v.slice_mut(slice_start - <span class="number">2</span>, slice_end - <span class="number">2</span>)
-                .add(w.slice(slice_start, slice_end), <span class="number">1</span>);
-            <span class="kw">for </span>i <span class="kw">in </span>slice_start - <span class="number">2</span>..slice_end - <span class="number">2 </span>{
-                v_arr[i] = (v_arr[i] + w_arr[i + <span class="number">2</span>]) % <span class="kw-2">*</span>p;
-            }
-            v.assert_list_eq(<span class="kw-2">&amp;</span>v_arr);
-        }
-
-        <span class="kw">fn </span>test_add_masked(p: ValidPrime) {
-            <span class="kw">let </span><span class="kw-2">mut </span>v_arr = random_vector(p, <span class="number">10</span>);
-            <span class="kw">let </span>w_arr = random_vector(p, <span class="number">100</span>);
-
-            <span class="kw">let </span><span class="kw-2">mut </span>v = FpVector::from_slice(p, <span class="kw-2">&amp;</span>v_arr);
-            <span class="kw">let </span>w = FpVector::from_slice(p, <span class="kw-2">&amp;</span>w_arr);
-
-            <span class="kw">let </span>mask = <span class="kw-2">&amp;</span>[<span class="number">4</span>, <span class="number">6</span>, <span class="number">7</span>, <span class="number">12</span>, <span class="number">30</span>, <span class="number">45</span>, <span class="number">50</span>, <span class="number">60</span>, <span class="number">72</span>, <span class="number">75</span>];
-
-            v.as_slice_mut().add_masked(w.as_slice(), <span class="number">1</span>, mask);
-            <span class="kw">for </span>(i, x) <span class="kw">in </span>v_arr.iter_mut().enumerate() {
-                <span class="kw-2">*</span>x += w_arr[mask[i]];
+            <span class="kw">for </span>(i, x) <span class="kw">in </span>v_small.iter_mut().enumerate() {
+                <span class="kw-2">*</span>x += v_big[mask[i]];
                 <span class="kw-2">*</span>x %= <span class="kw-2">*</span>p;
             }
-            v.assert_list_eq(<span class="kw-2">&amp;</span>v_arr);
+
+            v.assert_list_eq(<span class="kw-2">&amp;</span>v_small);
         }
 
-        <span class="kw">fn </span>test_add_unmasked(p: ValidPrime) {
-            <span class="kw">let </span><span class="kw-2">mut </span>v_arr = random_vector(p, <span class="number">100</span>);
-            <span class="kw">let </span>w_arr = random_vector(p, <span class="number">10</span>);
+        <span class="attr">#[test]
+        </span><span class="kw">fn </span>test_add_unmasked((p, v_small, <span class="kw-2">mut </span>v_big, mask) <span class="kw">in </span>arb_vec_pair_and_mask()) {
+            <span class="kw">let </span><span class="kw-2">mut </span>v = FpVector::from_slice(p, <span class="kw-2">&amp;</span>v_big);
+            <span class="kw">let </span>w = FpVector::from_slice(p, <span class="kw-2">&amp;</span>v_small);
 
-            <span class="kw">let </span><span class="kw-2">mut </span>v = FpVector::from_slice(p, <span class="kw-2">&amp;</span>v_arr);
-            <span class="kw">let </span>w = FpVector::from_slice(p, <span class="kw-2">&amp;</span>w_arr);
-
-            <span class="kw">let </span>mask = <span class="kw-2">&amp;</span>[<span class="number">4</span>, <span class="number">6</span>, <span class="number">7</span>, <span class="number">12</span>, <span class="number">30</span>, <span class="number">45</span>, <span class="number">50</span>, <span class="number">60</span>, <span class="number">72</span>, <span class="number">75</span>];
-
-            v.as_slice_mut().add_unmasked(w.as_slice(), <span class="number">1</span>, mask);
-            <span class="kw">for </span>(i, <span class="kw-2">&amp;</span>x) <span class="kw">in </span>w_arr.iter().enumerate() {
-                v_arr[mask[i]] += x;
-                v_arr[mask[i]] %= <span class="kw-2">*</span>p;
+            v.as_slice_mut().add_unmasked(w.as_slice(), <span class="number">1</span>, <span class="kw-2">&amp;</span>mask);
+            <span class="kw">for </span>(i, <span class="kw-2">&amp;</span>x) <span class="kw">in </span>v_small.iter().enumerate() {
+                v_big[mask[i]] += x;
+                v_big[mask[i]] %= <span class="kw-2">*</span>p;
             }
-            v.assert_list_eq(<span class="kw-2">&amp;</span>v_arr);
+            v.assert_list_eq(<span class="kw-2">&amp;</span>v_big);
         }
 
-        <span class="kw">fn </span>test_iterator_slice(p: ValidPrime) {
-            <span class="kw">let </span>ep = limb::entries_per_limb(p);
-            <span class="kw">for </span><span class="kw-2">&amp;</span>dim <span class="kw">in </span><span class="kw-2">&amp;</span>[<span class="number">5</span>, <span class="number">10</span>, ep, ep - <span class="number">1</span>, ep + <span class="number">1</span>, <span class="number">3 </span>* ep, <span class="number">3 </span>* ep - <span class="number">1</span>, <span class="number">3 </span>* ep + <span class="number">1</span>] {
-                <span class="kw">let </span>v_arr = random_vector(p, dim);
-                <span class="kw">let </span>v = FpVector::from_slice(p, <span class="kw-2">&amp;</span>v_arr);
-                <span class="kw">let </span>v = v.slice(<span class="number">3</span>, dim - <span class="number">1</span>);
+        <span class="attr">#[test]
+        </span><span class="kw">fn </span>test_iterator_slice((p, v_arr, (slice_start, slice_end)) <span class="kw">in </span>arb_vec_and_slice()) {
+            <span class="kw">let </span>v = FpVector::from_slice(p, <span class="kw-2">&amp;</span>v_arr);
+            <span class="kw">let </span>v = v.slice(slice_start, slice_end);
 
-                <span class="macro">println!</span>(<span class="string">&quot;v: {v_arr:?}&quot;</span>);
-
-                <span class="kw">let </span>w = v.iter();
-                <span class="kw">let </span><span class="kw-2">mut </span>counter = <span class="number">0</span>;
-                <span class="kw">for </span>(i, x) <span class="kw">in </span>w.enumerate() {
-                    <span class="macro">println!</span>(<span class="string">&quot;i: {i}, dim : {dim}&quot;</span>);
-                    <span class="macro">assert_eq!</span>(v.entry(i), x);
-                    counter += <span class="number">1</span>;
-                }
-                <span class="macro">assert_eq!</span>(counter, v.len());
+            <span class="kw">let </span>w = v.iter();
+            <span class="kw">let </span><span class="kw-2">mut </span>counter = <span class="number">0</span>;
+            <span class="kw">for </span>(i, x) <span class="kw">in </span>w.enumerate() {
+                <span class="macro">prop_assert_eq!</span>(v.entry(i), x);
+                counter += <span class="number">1</span>;
             }
+            <span class="macro">prop_assert_eq!</span>(counter, v.len());
         }
 
-        <span class="kw">fn </span>test_iterator_skip(p: ValidPrime) {
-            <span class="kw">let </span>ep = limb::entries_per_limb(p);
-            <span class="kw">let </span>dim = <span class="number">5 </span>* ep;
-            <span class="kw">for </span><span class="kw-2">&amp;</span>num_skip <span class="kw">in </span><span class="kw-2">&amp;</span>[ep, ep - <span class="number">1</span>, ep + <span class="number">1</span>, <span class="number">3 </span>* ep, <span class="number">3 </span>* ep - <span class="number">1</span>, <span class="number">3 </span>* ep + <span class="number">1</span>, <span class="number">6 </span>* ep] {
-                <span class="kw">let </span>v_arr = random_vector(p, dim);
-                <span class="kw">let </span>v = FpVector::from_slice(p, <span class="kw-2">&amp;</span>v_arr);
+        <span class="attr">#[test]
+        </span><span class="kw">fn </span>test_iterator_skip((p, v_arr, num_skip) <span class="kw">in </span>arb_prime_dim().prop_flat_map(|(p, dim)| {
+            (Just(p), arb_vec_u32(p, dim), <span class="number">0</span>..=dim)
+        })) {
+            <span class="kw">let </span>v = FpVector::from_slice(p, <span class="kw-2">&amp;</span>v_arr);
 
-                <span class="kw">let </span><span class="kw-2">mut </span>w = v.iter();
-                w.skip_n(num_skip);
-                <span class="kw">let </span><span class="kw-2">mut </span>counter = <span class="number">0</span>;
-                <span class="kw">for </span>(i, x) <span class="kw">in </span>w.enumerate() {
-                    <span class="macro">assert_eq!</span>(v.entry(i + num_skip), x);
-                    counter += <span class="number">1</span>;
-                }
-                <span class="kw">if </span>num_skip == <span class="number">6 </span>* ep {
-                    <span class="macro">assert_eq!</span>(counter, <span class="number">0</span>);
-                } <span class="kw">else </span>{
-                    <span class="macro">assert_eq!</span>(counter, v.len() - num_skip);
-                }
+            <span class="kw">let </span><span class="kw-2">mut </span>w = v.iter();
+            w.skip_n(num_skip);
+            <span class="kw">let </span><span class="kw-2">mut </span>counter = <span class="number">0</span>;
+            <span class="kw">for </span>(i, x) <span class="kw">in </span>w.enumerate() {
+                <span class="macro">prop_assert_eq!</span>(v.entry(i + num_skip), x);
+                counter += <span class="number">1</span>;
             }
+
+            <span class="macro">prop_assert_eq!</span>(counter, v.len() - num_skip);
         }
 
-        <span class="kw">fn </span>test_iterator(p: ValidPrime) {
-            <span class="kw">let </span>ep = limb::entries_per_limb(p);
-            <span class="kw">for </span><span class="kw-2">&amp;</span>dim <span class="kw">in </span><span class="kw-2">&amp;</span>[<span class="number">0</span>, <span class="number">5</span>, <span class="number">10</span>, ep, ep - <span class="number">1</span>, ep + <span class="number">1</span>, <span class="number">3 </span>* ep, <span class="number">3 </span>* ep - <span class="number">1</span>, <span class="number">3 </span>* ep + <span class="number">1</span>] {
-                <span class="kw">let </span>v_arr = random_vector(p, dim);
+        <span class="attr">#[test]
+        </span><span class="kw">fn </span>test_iterator((p, v_arr) <span class="kw">in </span>arb_vec()) {
                 <span class="kw">let </span>v = FpVector::from_slice(p, <span class="kw-2">&amp;</span>v_arr);
 
                 <span class="kw">let </span>w = v.iter();
                 <span class="kw">let </span><span class="kw-2">mut </span>counter = <span class="number">0</span>;
                 <span class="kw">for </span>(i, x) <span class="kw">in </span>w.enumerate() {
-                    <span class="macro">assert_eq!</span>(v.entry(i), x);
+                    <span class="macro">prop_assert_eq!</span>(v.entry(i), x);
                     counter += <span class="number">1</span>;
                 }
-                <span class="macro">assert_eq!</span>(counter, v.len());
-            }
+                <span class="macro">prop_assert_eq!</span>(counter, v.len());
         }
 
-        <span class="kw">fn </span>test_iter_nonzero_empty(p: ValidPrime) {
-            <span class="kw">let </span>v = FpVector::new(p, <span class="number">0</span>);
-            <span class="macro">assert_eq!</span>(v.iter_nonzero().next(), <span class="prelude-val">None</span>);
+        <span class="attr">#[test]
+        </span><span class="kw">fn </span>test_iter_nonzero_empty((p, dimension) <span class="kw">in </span>arb_prime_dim()) {
+            <span class="kw">let </span>v = FpVector::new(p, dimension);
+            <span class="macro">prop_assert_eq!</span>(v.iter_nonzero().next(), <span class="prelude-val">None</span>);
         }
 
-        <span class="kw">fn </span>test_iter_nonzero_slice(p: ValidPrime) {
-            <span class="kw">let </span><span class="kw-2">mut </span>v = FpVector::new(p, <span class="number">5</span>);
-            v.set_entry(<span class="number">0</span>, <span class="number">1</span>);
-            v.set_entry(<span class="number">1</span>, <span class="number">1</span>);
-            v.set_entry(<span class="number">2</span>, <span class="number">1</span>);
-            <span class="kw">for </span>(i, <span class="kw">_</span>) <span class="kw">in </span>v.slice(<span class="number">0</span>, <span class="number">1</span>).iter_nonzero() {
-                <span class="macro">assert_eq!</span>(i, <span class="number">0</span>);
-            }
-        }
+        <span class="attr">#[test]
+        </span><span class="kw">fn </span>test_iter_nonzero((p, v_arr, (slice_start, slice_end)) <span class="kw">in </span>arb_vec_and_slice()) {
+            <span class="kw">use </span>std::fmt::Write;
 
-        <span class="kw">fn </span>test_iter_nonzero(p: ValidPrime, dim: usize, slice_start: usize, slice_end: usize) {
-            <span class="kw">let </span>v_arr = random_vector(p, dim);
             <span class="kw">let </span>v = FpVector::from_slice(p, <span class="kw-2">&amp;</span>v_arr);
 
             <span class="macro">println!</span>(<span class="string">&quot;v: {v}&quot;</span>);
@@ -1589,13 +1589,15 @@
             <span class="comment">// for i in 0 .. std::cmp::min(result.len(), comparison_result.len()) {
             //     println!(&quot;res : {:?}, comp : {:?}&quot;, result[i], comparison_result[i]);
             // }
-            </span><span class="macro">assert!</span>(diffs_str.is_empty(), <span class="string">&quot;{}&quot;</span>, diffs_str);
+            </span><span class="macro">prop_assert!</span>(diffs_str.is_empty(), <span class="string">&quot;{}&quot;</span>, diffs_str);
         }
     }
 
     <span class="attr">#[rstest]
     #[trace]
     </span><span class="kw">fn </span>test_add_carry(<span class="attr">#[values(<span class="number">2</span>)] </span>p: u32, <span class="attr">#[values(<span class="number">10</span>, <span class="number">20</span>, <span class="number">70</span>, <span class="number">100</span>, <span class="number">1000</span>)] </span>dim: usize) {
+        <span class="kw">use </span>std::fmt::Write;
+
         <span class="kw">let </span>p = ValidPrime::new(p);
         <span class="kw">const </span>E_MAX: usize = <span class="number">4</span>;
         <span class="kw">let </span>pto_the_e_max = (<span class="kw-2">*</span>p * <span class="kw-2">*</span>p * <span class="kw-2">*</span>p * <span class="kw-2">*</span>p) * <span class="kw-2">*</span>p;
