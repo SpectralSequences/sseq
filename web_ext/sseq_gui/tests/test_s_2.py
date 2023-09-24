@@ -120,6 +120,7 @@ def test_history(driver):
 
     timeout = 0.1
     while True:
+        print(f"Waiting for {timeout} seconds")
         time.sleep(timeout)
 
         try:
@@ -127,6 +128,7 @@ def test_history(driver):
                 file_contents = f.read()
                 if file_contents == "":
                     # The driver hasn't finished saving the file yet, wait a bit longer
+                    print("Waiting for driver to finish")
                     raise FileNotFoundError
                 driver.check_file("s_2.save", file_contents)
             break

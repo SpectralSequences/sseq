@@ -51,8 +51,8 @@ lint-selenium:
 	black --diff --check tests
 
 selenium:
-	python3 -m pytest tests --driver firefox
-	python3 -m pytest tests --driver chrome
+	python3 -m pytest -s tests --driver firefox
+	python3 -m pytest -s tests --driver chrome
 
 selenium-update:
 	python3 -m pytest tests --driver firefox --update
