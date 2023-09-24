@@ -124,7 +124,11 @@ def test_history(driver):
 
         try:
             with open(f"{driver.tempdir}/s_2.save") as f:
-                driver.check_file("s_2.save", f.read())
+                file_contents = f.read()
+                if file_contents == "":
+                    # The driver hasn't finished saving the file yet, wait a bit longer
+                    raise FileNotFoundError
+                driver.check_file("s_2.save", file_contents)
             break
         except FileNotFoundError:
             timeout *= 2
