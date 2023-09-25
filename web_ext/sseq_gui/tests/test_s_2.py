@@ -1,4 +1,6 @@
 import time
+from pathlib import Path
+
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 
@@ -119,23 +121,17 @@ def test_history(driver):
     driver.send_keys(Keys.ENTER)
 
     timeout = 0.1
+    save_path = Path(driver.tempdir) / "s_2.save"
     while True:
         print(f"Waiting for {timeout} seconds")
         time.sleep(timeout)
-
-        try:
-            with open(f"{driver.tempdir}/s_2.save") as f:
-                file_contents = f.read()
-                if file_contents == "":
-                    # The driver hasn't finished saving the file yet, wait a bit longer
-                    print("Waiting for driver to finish")
-                    raise FileNotFoundError
-                driver.check_file("s_2.save", file_contents)
+        file_contents = save_path.read_text() if save_path.exists() else None
+        if file_contents:
             break
-        except FileNotFoundError:
-            timeout *= 2
-            if timeout > 10:
-                raise TimeoutError
+        timeout *= 2
+        if timeout > 10:
+            raise TimeoutError
+    driver.check_file("s_2.save", file_contents)
 
     driver.go("/")
     driver.driver.find_element(By.ID, "history-upload").send_keys(
