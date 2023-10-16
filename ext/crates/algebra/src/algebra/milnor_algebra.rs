@@ -1541,6 +1541,7 @@ impl<'a, const MOD4: bool> Iterator for PPartMultiplier<'a, MOD4> {
         }
     }
 }
+
 impl MilnorAlgebra {
     fn decompose_basis_element_qpart(
         &self,
@@ -1721,6 +1722,82 @@ impl MilnorAlgebra {
             buffer.clear();
         }
         result
+    }
+}
+
+impl MilnorAlgebra {
+    /// Returns `true` if the new element is not within the bounds
+    fn increment_p_part(element: &mut PPart, max: &[PPartEntry]) -> bool {
+        element[0] += 1;
+        for i in 0..element.len() - 1 {
+            if element[i] > max[i] {
+                element[i] = 0;
+                element[i + 1] += 1;
+            }
+        }
+        element.last().unwrap() > max.last().unwrap()
+    }
+}
+
+impl Bialgebra for MilnorAlgebra {
+    fn coproduct(&self, op_deg: i32, op_idx: usize) -> Vec<(i32, usize, i32, usize)> {
+        assert_eq!(*self.prime(), 2, "Coproduct at odd primes not supported");
+        if op_deg == 0 {
+            return vec![(0, 0, 0, 0)];
+        }
+        let xi_degrees = combinatorics::xi_degrees(self.prime());
+
+        let mut len = 1;
+        let p_part = &self.basis_element_from_index(op_deg, op_idx).p_part;
+
+        for i in p_part.iter() {
+            len *= i + 1;
+        }
+        let len = len as usize;
+        let mut result = Vec::with_capacity(len);
+
+        let mut cur_ppart: PPart = vec![0; p_part.len()];
+        loop {
+            let mut left_degree: i32 = 0;
+            for i in 0..cur_ppart.len() {
+                left_degree += cur_ppart[i] as i32 * xi_degrees[i];
+            }
+            let right_degree: i32 = op_deg - left_degree;
+
+            let mut left_ppart = cur_ppart.clone();
+            while let Some(0) = left_ppart.last() {
+                left_ppart.pop();
+            }
+
+            let mut right_ppart = cur_ppart
+                .iter()
+                .enumerate()
+                .map(|(i, v)| p_part[i] - *v)
+                .collect::<Vec<_>>();
+            while let Some(0) = right_ppart.last() {
+                right_ppart.pop();
+            }
+
+            let left_idx = self.basis_element_to_index(&MilnorBasisElement {
+                degree: left_degree,
+                q_part: 0,
+                p_part: left_ppart,
+            });
+            let right_idx = self.basis_element_to_index(&MilnorBasisElement {
+                degree: right_degree,
+                q_part: 0,
+                p_part: right_ppart,
+            });
+
+            result.push((left_degree, left_idx, right_degree, right_idx));
+            if Self::increment_p_part(&mut cur_ppart, p_part) {
+                break;
+            }
+        }
+        result
+    }
+    fn decompose(&self, op_deg: i32, op_idx: usize) -> Vec<(i32, usize)> {
+        vec![(op_deg, op_idx)]
     }
 }
 
@@ -2011,81 +2088,5 @@ mod tests {
             truncated: true
         })
         .is_valid());
-    }
-}
-
-impl MilnorAlgebra {
-    /// Returns `true` if the new element is not within the bounds
-    fn increment_p_part(element: &mut PPart, max: &[PPartEntry]) -> bool {
-        element[0] += 1;
-        for i in 0..element.len() - 1 {
-            if element[i] > max[i] {
-                element[i] = 0;
-                element[i + 1] += 1;
-            }
-        }
-        element.last().unwrap() > max.last().unwrap()
-    }
-}
-
-impl Bialgebra for MilnorAlgebra {
-    fn coproduct(&self, op_deg: i32, op_idx: usize) -> Vec<(i32, usize, i32, usize)> {
-        assert_eq!(*self.prime(), 2, "Coproduct at odd primes not supported");
-        if op_deg == 0 {
-            return vec![(0, 0, 0, 0)];
-        }
-        let xi_degrees = combinatorics::xi_degrees(self.prime());
-
-        let mut len = 1;
-        let p_part = &self.basis_element_from_index(op_deg, op_idx).p_part;
-
-        for i in p_part.iter() {
-            len *= i + 1;
-        }
-        let len = len as usize;
-        let mut result = Vec::with_capacity(len);
-
-        let mut cur_ppart: PPart = vec![0; p_part.len()];
-        loop {
-            let mut left_degree: i32 = 0;
-            for i in 0..cur_ppart.len() {
-                left_degree += cur_ppart[i] as i32 * xi_degrees[i];
-            }
-            let right_degree: i32 = op_deg - left_degree;
-
-            let mut left_ppart = cur_ppart.clone();
-            while let Some(0) = left_ppart.last() {
-                left_ppart.pop();
-            }
-
-            let mut right_ppart = cur_ppart
-                .iter()
-                .enumerate()
-                .map(|(i, v)| p_part[i] - *v)
-                .collect::<Vec<_>>();
-            while let Some(0) = right_ppart.last() {
-                right_ppart.pop();
-            }
-
-            let left_idx = self.basis_element_to_index(&MilnorBasisElement {
-                degree: left_degree,
-                q_part: 0,
-                p_part: left_ppart,
-            });
-            let right_idx = self.basis_element_to_index(&MilnorBasisElement {
-                degree: right_degree,
-                q_part: 0,
-                p_part: right_ppart,
-            });
-
-            result.push((left_degree, left_idx, right_degree, right_idx));
-            if Self::increment_p_part(&mut cur_ppart, p_part) {
-                break;
-            }
-        }
-        result
-    }
-    fn decompose(&self, op_deg: i32, op_idx: usize) -> Vec<(i32, usize)> {
-        vec![(op_deg, op_idx)]
     }
 }
