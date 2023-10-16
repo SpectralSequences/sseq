@@ -1,4 +1,4 @@
-var sourcesIndex = JSON.parse('{\
+var srcIndex = JSON.parse('{\
 "algebra":["",[["algebra",[],["adem_algebra.rs","algebra_trait.rs","bialgebra_trait.rs","combinatorics.rs","field.rs","milnor_algebra.rs","mod.rs","pair_algebra.rs","polynomial_algebra.rs","steenrod_algebra.rs"]],["module",[["homomorphism",[],["free_module_homomorphism.rs","full_module_homomorphism.rs","generic_zero_homomorphism.rs","hom_pullback.rs","mod.rs","quotient_homomorphism.rs"]]],["block_structure.rs","finite_dimensional_module.rs","finitely_presented_module.rs","free_module.rs","hom_module.rs","mod.rs","module_trait.rs","quotient_module.rs","rpn.rs","steenrod_module.rs","suspension_module.rs","tensor_module.rs","zero_module.rs"]]],["lib.rs","steenrod_evaluator.rs","steenrod_parser.rs"]],\
 "algebra_dim":["",[],["algebra_dim.rs"]],\
 "bivec":["",[],["lib.rs"]],\
@@ -33,4 +33,4 @@ var sourcesIndex = JSON.parse('{\
 "unstable_suspension":["",[],["unstable_suspension.rs"]],\
 "yoneda":["",[],["yoneda.rs"]]\
 }');
-createSourceSidebar();
+createSrcSidebar();
