@@ -385,7 +385,7 @@ pub fn query_module(
 
     if let Some(s) = secondary_job() {
         if s <= max.s() {
-            max = Bidegree::s_t(std::cmp::min(s + 1, max.s()), max.t());
+            max = Bidegree::n_s(max.n(), std::cmp::min(s + 1, max.s()));
         } else {
             return Err(anyhow!("SECONDARY_JOB is larger than max_s"));
         }
