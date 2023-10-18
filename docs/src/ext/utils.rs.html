@@ -996,7 +996,7 @@
 
     <span class="kw">if let </span><span class="prelude-val">Some</span>(s) = secondary_job() {
         <span class="kw">if </span>s &lt;= max.s() {
-            max = Bidegree::s_t(std::cmp::min(s + <span class="number">1</span>, max.s()), max.t());
+            max = Bidegree::n_s(max.n(), std::cmp::min(s + <span class="number">1</span>, max.s()));
         } <span class="kw">else </span>{
             <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(<span class="string">&quot;SECONDARY_JOB is larger than max_s&quot;</span>));
         }
