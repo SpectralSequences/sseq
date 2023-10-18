@@ -7,7 +7,7 @@ test:
 	cargo test --examples
 	cargo test --features concurrent --lib --tests --workspace
 	cargo test --features concurrent --doc --workspace
-	bin/test_secondary_job.sh
+	pytest
 
 lint:
 	cargo fmt --all -- --check

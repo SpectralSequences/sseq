@@ -17,6 +17,9 @@ jobs:
     continue-on-error: ${{ matrix.toolchain != 'stable' }}
     steps:
       - uses: actions/checkout@v2
+      - uses: actions/setup-python@v3
+        with:
+          python-version: "3.9"
 
       - name: Install rustup
         id: rustup
@@ -32,6 +35,9 @@ jobs:
             /usr/share/rust/.cargo
             **/target
           key: test-${{ steps.rustup.outputs.rustc_hash }}-${{ hashFiles('**/Cargo.*') }}
+
+      - name: Install testing requirements
+        run: pip install pytest
 
       - name: Run ext tests
         run: make -C ext test
