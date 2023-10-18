@@ -7,6 +7,7 @@ test:
 	cargo test --examples
 	cargo test --features concurrent --lib --tests --workspace
 	cargo test --features concurrent --doc --workspace
+	pytest
 
 lint:
 	cargo fmt --all -- --check
