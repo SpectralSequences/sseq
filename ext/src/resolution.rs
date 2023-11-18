@@ -22,13 +22,11 @@ use dashmap::DashMap;
 
 use itertools::Itertools;
 
-#[cfg(feature = "concurrent")]
 use std::sync::mpsc;
 
 /// In [`MuResolution::compute_through_stem`] and [`MuResolution::compute_through_bidegree`], we pass
 /// this struct around to inform the supervisor what bidegrees have been computed. We use an
 /// explicit struct instead of a tuple to avoid an infinite type problem.
-#[cfg(feature = "concurrent")]
 struct SenderData {
     b: Bidegree,
     /// Whether this bidegree was newly calculated or have already been calculated.
@@ -40,7 +38,6 @@ struct SenderData {
     sender: mpsc::Sender<SenderData>,
 }
 
-#[cfg(feature = "concurrent")]
 impl SenderData {
     fn send(b: Bidegree, new: bool, sender: mpsc::Sender<Self>) {
         sender
@@ -713,20 +710,7 @@ where
         self.extend_through_degree(max.s());
         self.algebra().compute_basis(max.t() - min_degree);
 
-        #[cfg(not(feature = "concurrent"))]
-        for t in min_degree..=max.t() {
-            for s in 0..=max.s() {
-                let b = Bidegree::s_t(s, t);
-                if self.has_computed_bidegree(b) {
-                    continue;
-                }
-                self.step_resolution(b);
-                cb(b);
-            }
-        }
-
-        #[cfg(feature = "concurrent")]
-        rayon::in_place_scope(|scope| {
+        maybe_rayon::in_place_scope(|scope| {
             // Things that we have finished computing.
             let mut progress: Vec<i32> = vec![min_degree - 1; max.s() as usize + 1];
             // We will kickstart the process by pretending we have computed (0, min_degree - 1). So
@@ -778,21 +762,7 @@ where
         self.extend_through_degree(max.s());
         self.algebra().compute_basis(max.t() - min_degree);
 
-        #[cfg(not(feature = "concurrent"))]
-        for t in min_degree..=max.t() {
-            let start_s = std::cmp::max(0, t - max.n()) as u32;
-            for s in start_s..=max.s() {
-                let b = Bidegree::s_t(s, t);
-                if self.has_computed_bidegree(b) {
-                    continue;
-                }
-                self.step_resolution(b);
-                cb(b);
-            }
-        }
-
-        #[cfg(feature = "concurrent")]
-        rayon::in_place_scope(|scope| {
+        maybe_rayon::in_place_scope(|scope| {
             // Things that we have finished computing.
             let mut progress: Vec<i32> = vec![min_degree - 1; max.s() as usize + 1];
             // We will kickstart the process by pretending we have computed (0, min_degree - 1). So

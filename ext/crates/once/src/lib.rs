@@ -10,8 +10,7 @@ use std::sync::{Mutex, MutexGuard};
 use alloc::alloc::Layout;
 use std::ptr::NonNull;
 
-#[cfg(feature = "concurrent")]
-use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
+use maybe_rayon::prelude::*;
 
 const USIZE_LEN: u32 = 0usize.count_zeros();
 
@@ -578,23 +577,22 @@ impl<T> OnceVec<T> {
     }
 }
 
-#[cfg(feature = "concurrent")]
 impl<T: Send + Sync> OnceVec<T> {
-    /// A parallel version of `extend`, where the function `f` is run for different indices
-    /// simultaneously using [`rayon`].
+    /// A parallel version of `extend`. If the `concurrent` feature is enabled, the function `f`
+    /// will be run for different indices simultaneously using [`rayon`].
     ///
     /// # Example
     #[cfg_attr(miri, doc = "```ignore")]
     #[cfg_attr(not(miri), doc = "```")]
     /// # use once::OnceVec;
     /// let v: OnceVec<usize> = OnceVec::new();
-    /// v.par_extend(5, |i| i + 5);
+    /// v.maybe_par_extend(5, |i| i + 5);
     /// assert_eq!(v.len(), 6);
     /// for (i, &n) in v.iter().enumerate() {
     ///     assert_eq!(n, i + 5);
     /// }
     /// ```
-    pub fn par_extend(&self, new_max: usize, f: impl Fn(usize) -> T + Send + Sync) {
+    pub fn maybe_par_extend(&self, new_max: usize, f: impl Fn(usize) -> T + Send + Sync) {
         let ooo = self.lock();
         assert!(ooo.0.is_empty());
 
@@ -607,7 +605,7 @@ impl<T: Send + Sync> OnceVec<T> {
             // This is safe since we have taken the lock and have made no unsafe references.
             self.allocate_for(new_max);
 
-            (old_len..=new_max).into_par_iter().for_each(|i| {
+            (old_len..=new_max).maybe_into_par_iter().for_each(|i| {
                 // These pointers are all non-aliasing so they can be written concurrently.
                 std::ptr::write(self.entry_ptr(i), f(i));
             });
@@ -809,35 +807,34 @@ impl<T> OnceBiVec<T> {
     }
 }
 
-#[cfg(feature = "concurrent")]
 impl<T: Send + Sync> OnceBiVec<T> {
-    /// A parallel version of `extend`, where the function `f` is run for different indices
-    /// simultaneously using [`rayon`].
+    /// A parallel version of `extend`. If the `concurrent` feature is enabled, the function `f`
+    /// will be run for different indices simultaneously using [`rayon`].
     ///
     /// # Example
     /// ```
     /// # use once::OnceBiVec;
     /// let v: OnceBiVec<i32> = OnceBiVec::new(-4);
-    /// v.par_extend(5, |i| i + 5);
+    /// v.maybe_par_extend(5, |i| i + 5);
     /// assert_eq!(v.len(), 6);
     /// for (i, &n) in v.iter_enum() {
     ///     assert_eq!(n, i + 5);
     /// }
     /// ```
-    pub fn par_extend(&self, new_max: i32, f: impl (Fn(i32) -> T) + Send + Sync) {
+    pub fn maybe_par_extend(&self, new_max: i32, f: impl (Fn(i32) -> T) + Send + Sync) {
         if new_max < self.min_degree {
             return;
         }
         self.data
-            .par_extend((new_max - self.min_degree) as usize, |i| {
+            .maybe_par_extend((new_max - self.min_degree) as usize, |i| {
                 f(i as i32 + self.min_degree)
             });
     }
 
-    pub fn par_iter_enum(
+    pub fn maybe_par_iter_enum(
         &self,
-    ) -> impl ParallelIterator<Item = (i32, &T)> + IndexedParallelIterator {
-        self.range().into_par_iter().map(|i| (i, &self[i]))
+    ) -> impl MaybeParallelIterator<Item = (i32, &T)> + MaybeIndexedParallelIterator {
+        self.range().maybe_into_par_iter().map(|i| (i, &self[i]))
     }
 }
 

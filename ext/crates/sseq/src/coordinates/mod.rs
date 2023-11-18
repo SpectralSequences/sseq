@@ -8,6 +8,8 @@ pub use element::BidegreeElement;
 pub use generator::BidegreeGenerator;
 pub use range::BidegreeRange;
 
+use maybe_rayon::prelude::*;
+
 /// Given a function `f(s, t)`, compute it for every `s` in `[min_s, max_s]` and every `t` in
 /// `[min_t, max_t(s)]`.  Further, we only compute `f(s, t)` when `f(s - 1, t')` has been computed
 /// for all `t' < t`.
@@ -24,19 +26,16 @@ pub use range::BidegreeRange;
 /// # Arguments:
 ///  - `max_s`: This is exclusive
 ///  - `max_t`: This is exclusive
-#[cfg(feature = "concurrent")]
 pub fn iter_s_t<T: Sync>(
     f: &(impl Fn(Bidegree) -> std::ops::Range<i32> + Sync),
     min: Bidegree,
     max: BidegreeRange<T>,
 ) {
-    use rayon::prelude::*;
-
-    rayon::scope(|scope| {
+    maybe_rayon::scope(|scope| {
         // Rust does not support recursive closures, so we have to pass everything along as
         // arguments.
         fn run<'a, S: Sync>(
-            scope: &rayon::Scope<'a>,
+            scope: &maybe_rayon::Scope<'a>,
             f: &'a (impl Fn(Bidegree) -> std::ops::Range<i32> + Sync + 'a),
             max: BidegreeRange<'a, S>,
             current: Bidegree,
@@ -49,22 +48,22 @@ pub fn iter_s_t<T: Sync>(
                 if !ret.is_empty() {
                     // We spawn a new scope to avoid recursion, which may blow the stack
                     scope.spawn(move |scope| {
-                        ret.into_par_iter()
+                        ret.maybe_into_par_iter()
                             .for_each(|t| run(scope, f, max, Bidegree::s_t(current.s() + 1, t)));
                     });
                 }
             }
         }
 
-        rayon::join(
+        maybe_rayon::join(
             || {
                 (min.t()..max.t(min.s()))
-                    .into_par_iter()
+                    .maybe_into_par_iter()
                     .for_each(|t| run(scope, f, max, Bidegree::s_t(min.s(), t)))
             },
             || {
                 (min.s() + 1..max.s())
-                    .into_par_iter()
+                    .maybe_into_par_iter()
                     .for_each(|s| run(scope, f, max, Bidegree::s_t(s, min.t())))
             },
         );

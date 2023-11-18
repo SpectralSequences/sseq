@@ -10,15 +10,14 @@ edition = "2021"
 
 [dependencies]
 bivec = { path = "../bivec" }
-
-rayon = { version = "1", optional = true }
+maybe-rayon = { path = "../maybe-rayon" }
 
 [dev-dependencies]
 criterion = "0.3"
 
 [features]
 default = []
-concurrent = ["rayon"]
+concurrent = ["maybe-rayon/concurrent"]
 
 [[bench]]
 name = "criterion"

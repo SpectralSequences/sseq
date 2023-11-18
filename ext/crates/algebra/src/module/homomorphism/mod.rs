@@ -5,9 +5,6 @@ use fp::matrix::{AugmentedMatrix, Matrix, MatrixSliceMut, QuasiInverse, Subspace
 use fp::prime::ValidPrime;
 use fp::vector::{Slice, SliceMut};
 
-#[cfg(feature = "concurrent")]
-use rayon::prelude::*;
-
 mod free_module_homomorphism;
 mod full_module_homomorphism;
 mod generic_zero_homomorphism;
@@ -21,6 +18,9 @@ pub use full_module_homomorphism::FullModuleHomomorphism;
 pub use generic_zero_homomorphism::GenericZeroHomomorphism;
 pub use hom_pullback::HomPullback;
 pub use quotient_homomorphism::{QuotientHomomorphism, QuotientHomomorphismSource};
+
+#[allow(unused_imports)]
+use maybe_rayon::prelude::*;
 
 /// Each `ModuleHomomorphism` may come with auxiliary data, namely the kernel, image and
 /// quasi_inverse at each degree (the quasi-inverse is a map that is a right inverse when
@@ -122,14 +122,8 @@ pub trait ModuleHomomorphism: Send + Sync {
             return;
         }
 
-        #[cfg(not(feature = "concurrent"))]
-        for (i, row) in matrix.iter_mut().enumerate() {
-            self.apply_to_basis_element(row, 1, degree, i);
-        }
-
-        #[cfg(feature = "concurrent")]
         matrix
-            .par_iter_mut()
+            .maybe_par_iter_mut()
             .enumerate()
             .for_each(|(i, row)| self.apply_to_basis_element(row, 1, degree, i));
     }
@@ -142,15 +136,12 @@ pub trait ModuleHomomorphism: Send + Sync {
             return matrix;
         }
 
-        #[cfg(not(feature = "concurrent"))]
-        for (row, &v) in matrix.iter_mut().zip(inputs) {
-            self.apply_to_basis_element(row.as_slice_mut(), 1, degree, v);
-        }
-
-        #[cfg(feature = "concurrent")]
-        matrix.par_iter_mut().enumerate().for_each(|(i, row)| {
-            self.apply_to_basis_element(row.as_slice_mut(), 1, degree, inputs[i])
-        });
+        matrix
+            .maybe_par_iter_mut()
+            .enumerate()
+            .for_each(|(i, row)| {
+                self.apply_to_basis_element(row.as_slice_mut(), 1, degree, inputs[i])
+            });
 
         matrix
     }

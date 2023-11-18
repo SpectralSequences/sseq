@@ -10,9 +10,9 @@ algebra = { path = "../algebra/", default-features = false }
 bivec = { path = "../bivec/" }
 chart = { path = "../chart/" }
 fp = { path = "../fp/", default-features = false }
+maybe-rayon = { path = "../maybe-rayon" }
 once = { path = "../once/" }
 
-rayon = { version = "1.5", optional = true }
 serde = { version = "1.0.0", optional = true }
 serde_json = { version = "1.0.0", optional = true }
 
@@ -22,6 +22,6 @@ rand = "0.8"
 
 [features]
 default = ["odd-primes"]
-concurrent = ["rayon"]
+concurrent = ["maybe-rayon/concurrent"]
 json = ["serde_json", "serde"]
 odd-primes = ["fp/odd-primes"]

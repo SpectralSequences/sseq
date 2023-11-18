@@ -13,6 +13,7 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 bivec = { path = "../bivec" }
 fp = { path = "../fp", default-features = false }
+maybe-rayon = { path = "../maybe-rayon" }
 once = { path = "../once" }
 
 anyhow = "1.0.0"
@@ -26,8 +27,6 @@ rustc-hash = "1.1.0"
 serde = { version = "1.0.0", features = ["derive"], optional = true }
 serde_json = { version = "1.0.0", optional = true }
 
-rayon = { version = "1.5", optional = true }
-
 [dev-dependencies]
 bencher = "0.1.5"
 expect-test = "1.1.0"
@@ -36,7 +35,7 @@ rstest = "0.17.0"
 [features]
 default = ["odd-primes", "json"]
 cache-multiplication = []
-concurrent = ["rayon", "fp/concurrent"]
+concurrent = ["fp/concurrent", "maybe-rayon/concurrent"]
 json = ["serde", "serde_json", "bivec/json", "fp/json"]
 odd-primes = ["fp/odd-primes"]
 

@@ -38,17 +38,14 @@ use itertools::Itertools;
 use once::OnceVec;
 use sseq::coordinates::Bidegree;
 
-#[cfg(feature = "concurrent")]
 use std::sync::mpsc;
 
-#[cfg(feature = "concurrent")]
 /// See [`resolution::SenderData`](../resolution/struct.SenderData.html). This differs by not having the `new` field.
 struct SenderData {
     b: Bidegree,
     sender: mpsc::Sender<SenderData>,
 }
 
-#[cfg(feature = "concurrent")]
 impl SenderData {
     pub(crate) fn send(b: Bidegree, sender: mpsc::Sender<Self>) {
         sender
@@ -896,20 +893,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         self.extend_through_degree(max.s());
         self.algebra().compute_basis(max.t());
 
-        #[cfg(not(feature = "concurrent"))]
-        for t in 0..=max.t() {
-            let start_s = std::cmp::max(0, t - max.n()) as u32;
-            for s in start_s..=max.s() {
-                let b = Bidegree::s_t(s, t);
-                if self.has_computed_bidegree(b) {
-                    continue;
-                }
-                self.step_resolution(b);
-            }
-        }
-
-        #[cfg(feature = "concurrent")]
-        rayon::in_place_scope(|scope| {
+        maybe_rayon::in_place_scope(|scope| {
             // This algorithm is not optimal, as we compute (s, t) only after computing (s - 1, t)
             // and (s, t - 1). In theory, it suffices to wait for (s, t - 1) and (s - 1, t - 1),
             // but having the dimensions of the modules change halfway through the computation is
