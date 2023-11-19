@@ -3,36 +3,34 @@ name = "fp"
 version = "0.1.0"
 authors = ["Dexter Chua <dexter@math.harvard.edu>"]
 edition = "2021"
-
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-serde_json = { version = "1.0.0", optional = true }
-serde = { version = "1.0.0", optional = true }
-itertools = { version = "0.10.0", default-features = false }
-cfg-if = "1.0.0"
 build_const = "0.2.2"
 byteorder = "1.4.3"
+cfg-if = "1.0.0"
+itertools = { version = "0.10.0", default-features = false }
+serde = { version = "1.0.0", optional = true }
+serde_json = { version = "1.0.0", optional = true }
 
 rayon = { version = "1.5", optional = true }
 
 [dev-dependencies]
+criterion = { version = "0.3.5", features = ["html_reports"] }
+expect-test = "1.1.0"
+iai = "0.1.1"
+proptest = "1.2"
 rand = "0.8.4"
 rstest = "0.17.0"
-criterion = { version = "0.3.5", features = ["html_reports"] }
-iai = "0.1.1"
-expect-test = "1.1.0"
-proptest = "1.2"
 
 [build-dependencies]
 build_const = "0.2.2"
 
 [features]
 default = ["odd-primes"]
-
-odd-primes = []
-json = ["serde_json", "serde"]
 concurrent = ["rayon"]
+json = ["serde_json", "serde"]
+odd-primes = []
 
 [[bench]]
 name = "criterion"

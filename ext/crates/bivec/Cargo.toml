@@ -1,7 +1,10 @@
 [package]
 name = "bivec"
 version = "0.1.0"
-authors = ["Hood Chatham <hood@mit.edu>", "Dexter Chua <dexter@math.harvard.edu>"]
+authors = [
+    "Hood Chatham <hood@mit.edu>",
+    "Dexter Chua <dexter@math.harvard.edu>",
+]
 edition = "2021"
 
 [dependencies]
