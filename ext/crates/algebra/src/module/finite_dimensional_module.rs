@@ -6,7 +6,6 @@ use fp::vector::{FpVector, SliceMut};
 use std::fmt::Write as _;
 use std::sync::Arc;
 
-#[cfg(feature = "json")]
 use {
     crate::algebra::GeneratedAlgebra,
     crate::module::ModuleFailedRelationError,
@@ -450,7 +449,6 @@ impl<M: Module> From<&M> for FiniteDimensionalModule<M::Algebra> {
     }
 }
 
-#[cfg(feature = "json")]
 impl<A: GeneratedAlgebra> FiniteDimensionalModule<A> {
     pub fn from_json(algebra: Arc<A>, json: &Value) -> anyhow::Result<Self> {
         let (graded_dimension, gen_names, gen_to_idx) = crate::module_gens_from_json(&json["gens"]);

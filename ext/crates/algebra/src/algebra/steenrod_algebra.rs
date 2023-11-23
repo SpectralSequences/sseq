@@ -9,7 +9,6 @@ use anyhow::anyhow;
 
 use std::io::{Read, Write};
 
-#[cfg(feature = "json")]
 use {serde::Deserialize, serde_json::Value};
 
 // This is here so that the Python bindings can use modules defined aor SteenrodAlgebraT with their own algebra enum.
@@ -144,7 +143,6 @@ impl Bialgebra for SteenrodAlgebra {
     }
 }
 
-#[cfg(feature = "json")]
 #[derive(Deserialize, Debug)]
 struct AlgebraSpec {
     p: ValidPrime,
@@ -152,7 +150,6 @@ struct AlgebraSpec {
     profile: Option<crate::algebra::milnor_algebra::MilnorProfile>,
 }
 
-#[cfg(feature = "json")]
 impl SteenrodAlgebra {
     pub fn from_json(
         json: &Value,

@@ -13,8 +13,8 @@ fp = { path = "../fp/", default-features = false }
 maybe-rayon = { path = "../maybe-rayon" }
 once = { path = "../once/" }
 
-serde = { version = "1.0.0", optional = true }
-serde_json = { version = "1.0.0", optional = true }
+serde = "1.0.0"
+serde_json = "1.0.0"
 
 [dev-dependencies]
 expect-test = "1.1.0"
@@ -23,5 +23,4 @@ rand = "0.8"
 [features]
 default = ["odd-primes"]
 concurrent = ["maybe-rayon/concurrent"]
-json = ["serde_json", "serde"]
 odd-primes = ["fp/odd-primes"]

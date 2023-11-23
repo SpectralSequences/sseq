@@ -8,7 +8,6 @@ use fp::prime::{factor_pk, integer_power, Binomial, BitflagIterator, ValidPrime}
 use fp::vector::{FpVector, Slice, SliceMut};
 use once::OnceVec;
 
-#[cfg(feature = "json")]
 use {serde::Deserialize, serde::Serialize};
 
 // This is here so that the Python bindings can use modules defined for AdemAlgebraT with their own algebra enum.
@@ -24,22 +23,20 @@ impl MilnorAlgebraT for MilnorAlgebra {
     }
 }
 
-#[cfg(feature = "json")]
 fn q_part_default() -> u32 {
     !0
 }
 
-#[cfg_attr(feature = "json", derive(Deserialize, Serialize))]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MilnorProfile {
     /// If `true`, unspecified p_part entries will be 0. Otherwise they will be infinity.
     pub truncated: bool,
     /// A bitmask indicating which of the Q_k we want to include (1 = include). Defaults to `!0`.
     /// This is only relevant at odd primes.
-    #[cfg_attr(feature = "json", serde(default = "q_part_default"))]
+    #[serde(default = "q_part_default")]
     pub q_part: u32,
     /// The profile function for the Q part.
-    #[cfg_attr(feature = "json", serde(default))]
+    #[serde(default)]
     pub p_part: PPart,
 }
 

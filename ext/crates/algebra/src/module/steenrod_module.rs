@@ -2,7 +2,6 @@ use crate::algebra::SteenrodAlgebra;
 
 pub type SteenrodModule = Box<dyn Module<Algebra = SteenrodAlgebra>>;
 
-#[cfg(feature = "json")]
 mod json {
     use super::*;
 
@@ -42,7 +41,6 @@ mod json {
     }
 }
 
-#[cfg(feature = "json")]
 pub use json::*;
 
 use super::Module;
