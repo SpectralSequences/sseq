@@ -57,7 +57,7 @@ examples/benchmarks/%-nassau: dummy
 
 examples/benchmarks/%-concurrent: FILE = examples/benchmarks/$*
 examples/benchmarks/%-concurrent: dummy
-	(head -n 1 $(FILE) && bash -c "echo '' | cargo run --features concurrent --example $$(head -n 1 $(FILE))") | diff --color $(FILE) -
+	(head -n 1 $(FILE) && timeout 30 bash -c "echo '' | cargo run --features concurrent --example $$(head -n 1 $(FILE))" || echo "Timed out") | diff --color $(FILE) -
 
 miri:
 	cargo miri test -p once
