@@ -12,8 +12,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::Mutex;
 
-#[cfg(feature = "concurrent")]
-use rayon::prelude::*;
+use maybe_rayon::prelude::*;
 
 // Another instance of https://github.com/rust-lang/rust/issues/91380
 /// A chain homotopy from $f to g$, or equivalently a null-homotopy of $h = f - g$. A chain map is
@@ -140,30 +139,15 @@ impl<
 
         self.initialize_homotopies(max_source.s());
 
-        #[cfg(not(feature = "concurrent"))]
-        {
-            for source_s in shift.s() - 1..max_source.s() {
-                for source_t in
-                    self.homotopies[source_s as i32].next_degree()..max_source.t(source_s)
-                {
-                    let source = Bidegree::s_t(source_s, source_t);
-                    self.extend_step(source);
-                }
-            }
-        }
+        let min = Bidegree::s_t(
+            shift.s() - 1,
+            std::cmp::min(
+                self.left.source.min_degree(),
+                self.right.target.min_degree() + shift.t(),
+            ),
+        );
 
-        #[cfg(feature = "concurrent")]
-        {
-            let min = Bidegree::s_t(
-                shift.s() - 1,
-                std::cmp::min(
-                    self.left.source.min_degree(),
-                    self.right.target.min_degree() + shift.t(),
-                ),
-            );
-
-            sseq::coordinates::iter_s_t(&|b| self.extend_step(b), min, max_source);
-        }
+        sseq::coordinates::iter_s_t(&|b| self.extend_step(b), min, max_source);
     }
 
     fn extend_step(&self, source: Bidegree) -> std::ops::Range<i32> {
@@ -271,11 +255,7 @@ impl<
             scratch
         };
 
-        #[cfg(not(feature = "concurrent"))]
-        let scratches: Vec<FpVector> = (0..num_gens).map(f).collect();
-
-        #[cfg(feature = "concurrent")]
-        let scratches: Vec<FpVector> = (0..num_gens).into_par_iter().map(f).collect();
+        let scratches: Vec<FpVector> = (0..num_gens).maybe_into_par_iter().map(f).collect();
 
         assert!(U::apply_quasi_inverse(
             &*self.right.target,

@@ -169,19 +169,11 @@ fn main() -> anyhow::Result<()> {
     if is_unit {
         res_lift.extend_all();
     } else {
-        #[cfg(feature = "concurrent")]
-        rayon::join(|| res_lift.extend_all(), || unit_lift.extend_all());
-
-        #[cfg(not(feature = "concurrent"))]
-        {
-            res_lift.extend_all();
-            unit_lift.extend_all();
-        }
+        maybe_rayon::join(|| res_lift.extend_all(), || unit_lift.extend_all());
     }
 
     // Now extend homomorphisms
-    #[cfg(feature = "concurrent")]
-    rayon::scope(|s| {
+    maybe_rayon::scope(|s| {
         s.spawn(|_| {
             a.underlying().extend_all();
             a.extend_all();
@@ -197,20 +189,6 @@ fn main() -> anyhow::Result<()> {
             s.spawn(|_| b_tau.extend_all());
         }
     });
-
-    #[cfg(not(feature = "concurrent"))]
-    {
-        a.underlying().extend_all();
-        a.extend_all();
-        b.underlying().extend_all();
-        b.extend_all();
-        if let Some(a_tau) = &a_tau {
-            a_tau.extend_all();
-        }
-        if let Some(b_tau) = &b_tau {
-            b_tau.extend_all();
-        }
-    }
 
     let res_sseq = Arc::new(res_lift.e3_page());
     let unit_sseq = if is_unit {

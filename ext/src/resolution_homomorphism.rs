@@ -18,8 +18,7 @@ use sseq::coordinates::{Bidegree, BidegreeGenerator, BidegreeRange};
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
-#[cfg(feature = "concurrent")]
-use rayon::prelude::*;
+use maybe_rayon::prelude::*;
 
 pub type ResolutionHomomorphism<CC1, CC2> = MuResolutionHomomorphism<false, CC1, CC2>;
 pub type UnstableResolutionHomomorphism<CC1, CC2> = MuResolutionHomomorphism<true, CC1, CC2>;
@@ -154,19 +153,6 @@ where
         ));
     }
 
-    // See the concurrent version for documentation
-    #[cfg(not(feature = "concurrent"))]
-    pub fn extend_profile<AUX: Sync>(&self, max: BidegreeRange<AUX>) {
-        self.get_map_ensure_length(max.s() - 1);
-        for s in self.shift.s()..max.s() {
-            let f_cur = self.get_map_ensure_length(s);
-            for t in f_cur.next_degree()..max.t(s) {
-                let b = Bidegree::s_t(s, t);
-                self.extend_step_raw(b, None);
-            }
-        }
-    }
-
     /// Extends the resolution homomorphism up to a given range. This range is first specified by
     /// the maximum `s`, then the maximum `t` for each `s`. This should rarely be used directly;
     /// instead one should use [`MuResolutionHomomorphism::extend`],
@@ -179,7 +165,6 @@ where
     /// This assumes in yet-uncomputed bidegrees, the homology of the source consists only of
     /// decomposables (e.g. it is trivial). More precisely, we assume
     /// [`MuResolutionHomomorphism::extend_step_raw`] can be called with `extra_images = None`.
-    #[cfg(feature = "concurrent")]
     pub fn extend_profile<AUX: Sync>(&self, max: BidegreeRange<AUX>) {
         self.get_map_ensure_length(max.s() - 1);
 
@@ -309,12 +294,8 @@ where
             }
         };
 
-        #[cfg(not(feature = "concurrent"))]
-        let fdx_vectors: Vec<FpVector> = (0..num_gens).filter_map(compute_fdx_vector).collect();
-
-        #[cfg(feature = "concurrent")]
         let fdx_vectors: Vec<FpVector> = (0..num_gens)
-            .into_par_iter()
+            .maybe_into_par_iter()
             .filter_map(compute_fdx_vector)
             .collect();
 

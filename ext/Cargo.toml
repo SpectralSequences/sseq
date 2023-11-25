@@ -19,6 +19,7 @@ algebra = { path = "crates/algebra", default-features = false, features = [
 bivec = { path = "crates/bivec" }
 chart = { path = "crates/chart" }
 fp = { path = "crates/fp", default-features = false }
+maybe-rayon = { path = "crates/maybe-rayon" }
 once = { path = "crates/once" }
 query = { path = "crates/query" }
 sseq = { path = "crates/sseq", default-features = false }
@@ -30,7 +31,6 @@ dashmap = "4.0.0"
 itertools = { version = "0.10.0", default-features = false, features = [
     "use_alloc",
 ] }
-rayon = { version = "1.5", optional = true }
 rustc-hash = "1.1.0"
 serde_json = { version = "1.0.0", features = ["preserve_order"] }
 
@@ -54,9 +54,9 @@ cache-multiplication = ["algebra/cache-multiplication"]
 concurrent = [
     "algebra/concurrent",
     "fp/concurrent",
+    "maybe-rayon/concurrent",
     "once/concurrent",
     "sseq/concurrent",
-    "rayon",
 ]
 odd-primes = ["fp/odd-primes", "algebra/odd-primes", "sseq/odd-primes"]
 logging = []
@@ -68,7 +68,9 @@ members = [
     "crates/bivec",
     "crates/chart",
     "crates/fp",
+    "crates/maybe-rayon",
     "crates/once",
+    "crates/query",
     "crates/sseq",
 ]
 

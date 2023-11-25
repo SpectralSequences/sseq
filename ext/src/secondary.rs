@@ -21,8 +21,7 @@ use std::sync::Arc;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use dashmap::DashMap;
 use itertools::Itertools;
-#[cfg(feature = "concurrent")]
-use rayon::prelude::*;
+use maybe_rayon::prelude::*;
 
 pub static TAU_BIDEGREE: Bidegree = Bidegree::n_s(0, 1);
 
@@ -278,17 +277,9 @@ impl<A: PairAlgebra + Send + Sync> SecondaryHomotopy<A> {
             composite
         };
 
-        #[cfg(not(feature = "concurrent"))]
-        self.composites.extend(degree, |t| {
+        self.composites.maybe_par_extend(degree, |t| {
             (0..self.source.number_of_gens_in_degree(t))
-                .map(|i| f(t, i))
-                .collect()
-        });
-
-        #[cfg(feature = "concurrent")]
-        self.composites.par_extend(degree, |t| {
-            (0..self.source.number_of_gens_in_degree(t))
-                .into_par_iter()
+                .maybe_into_par_iter()
                 .map(|i| f(t, i))
                 .collect()
         });
@@ -401,11 +392,7 @@ pub trait SecondaryLift: Sync + Sized {
             );
         };
 
-        #[cfg(not(feature = "concurrent"))]
-        self.homotopies().range().for_each(f);
-
-        #[cfg(feature = "concurrent")]
-        self.homotopies().range().into_par_iter().for_each(f);
+        self.homotopies().range().maybe_into_par_iter().for_each(f);
     }
 
     fn get_intermediate(&self, gen: BidegreeGenerator) -> FpVector {
@@ -461,21 +448,15 @@ pub trait SecondaryLift: Sync + Sized {
         );
 
         if let Some(homotopy) = homotopies.get(s as i32 + 1) {
-            #[cfg(not(feature = "concurrent"))]
-            for t in 0..self.max().t(s + 1) {
-                for i in 0..homotopy.source.number_of_gens_in_degree(t) {
-                    self.get_intermediate(BidegreeGenerator::s_t(s + 1, t, i));
-                }
-            }
-
-            #[cfg(feature = "concurrent")]
-            (0..self.max().t(s + 1)).into_par_iter().for_each(|t| {
-                (0..homotopy.source.number_of_gens_in_degree(t))
-                    .into_par_iter()
-                    .for_each(|i| {
-                        self.get_intermediate(BidegreeGenerator::s_t(s + 1, t, i));
-                    })
-            });
+            (0..self.max().t(s + 1))
+                .maybe_into_par_iter()
+                .for_each(|t| {
+                    (0..homotopy.source.number_of_gens_in_degree(t))
+                        .maybe_into_par_iter()
+                        .for_each(|i| {
+                            self.get_intermediate(BidegreeGenerator::s_t(s + 1, t, i));
+                        })
+                });
         }
     }
 
@@ -501,28 +482,21 @@ pub trait SecondaryLift: Sync + Sized {
             self.intermediates().insert(gen, self.get_intermediate(gen));
         };
 
-        #[cfg(not(feature = "concurrent"))]
-        for (s, homotopy) in self.homotopies().iter_enum().skip(1) {
-            let s = s as u32;
-            for t in homotopy.composites.range() {
-                for i in 0..homotopy.source.number_of_gens_in_degree(t) {
-                    f(BidegreeGenerator::s_t(s, t, i));
-                }
-            }
-        }
-
-        #[cfg(feature = "concurrent")]
         self.homotopies()
-            .par_iter_enum()
+            .maybe_par_iter_enum()
             .skip(1)
             .for_each(|(s, homotopy)| {
                 let s = s as u32;
 
-                homotopy.composites.range().into_par_iter().for_each(|t| {
-                    (0..homotopy.source.number_of_gens_in_degree(t))
-                        .into_par_iter()
-                        .for_each(|i| f(BidegreeGenerator::s_t(s, t, i)))
-                })
+                homotopy
+                    .composites
+                    .range()
+                    .maybe_into_par_iter()
+                    .for_each(|t| {
+                        (0..homotopy.source.number_of_gens_in_degree(t))
+                            .maybe_into_par_iter()
+                            .for_each(|i| f(BidegreeGenerator::s_t(s, t, i)))
+                    })
             })
     }
 
@@ -574,14 +548,10 @@ pub trait SecondaryLift: Sync + Sized {
             v
         };
 
-        #[cfg(feature = "concurrent")]
         let mut intermediates: Vec<FpVector> = (0..num_gens)
-            .into_par_iter()
+            .maybe_into_par_iter()
             .map(get_intermediate)
             .collect();
-
-        #[cfg(not(feature = "concurrent"))]
-        let mut intermediates: Vec<FpVector> = (0..num_gens).map(get_intermediate).collect();
 
         let mut results = vec![FpVector::new(p, target_dim); num_gens];
 
@@ -640,30 +610,16 @@ pub trait SecondaryLift: Sync + Sized {
             h.homotopies.extend_by_zero(h.composites.max_degree());
         }
 
-        #[cfg(not(feature = "concurrent"))]
-        for (s, homotopy) in self.homotopies().iter_enum().skip(1) {
-            let s = s as u32;
-
-            for t in homotopy.homotopies.next_degree()..self.max().t(s) {
-                let b = Bidegree::s_t(s, t);
-                self.compute_homotopy_step(b);
-            }
-        }
-
-        #[cfg(feature = "concurrent")]
-        {
-            let min_t = self.homotopies()[shift.s() as i32].homotopies.min_degree();
-            let s_range = self.homotopies().range();
-            let min = Bidegree::s_t(s_range.start as u32 + 1, min_t);
-            let max = self.max().restrict(s_range.end as u32);
-            sseq::coordinates::iter_s_t(&|b| self.compute_homotopy_step(b), min, max);
-        }
+        let min_t = self.homotopies()[shift.s() as i32].homotopies.min_degree();
+        let s_range = self.homotopies().range();
+        let min = Bidegree::s_t(s_range.start as u32 + 1, min_t);
+        let max = self.max().restrict(s_range.end as u32);
+        sseq::coordinates::iter_s_t(&|b| self.compute_homotopy_step(b), min, max);
     }
 
     fn extend_all(&self) {
         self.initialize_homotopies();
         self.compute_composites();
-        #[cfg(feature = "concurrent")]
         self.compute_intermediates();
         self.compute_homotopies();
     }
