@@ -10,8 +10,8 @@ build_const = "0.2.2"
 byteorder = "1.4.3"
 cfg-if = "1.0.0"
 itertools = { version = "0.10.0", default-features = false }
-serde = { version = "1.0.0", optional = true }
-serde_json = { version = "1.0.0", optional = true }
+serde = "1.0.0"
+serde_json = "1.0.0"
 
 maybe-rayon = { path = "../maybe-rayon" }
 
@@ -29,7 +29,6 @@ build_const = "0.2.2"
 [features]
 default = ["odd-primes"]
 concurrent = ["maybe-rayon/concurrent"]
-json = ["serde_json", "serde"]
 odd-primes = []
 
 [[bench]]

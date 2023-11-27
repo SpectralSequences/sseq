@@ -5,7 +5,7 @@ use std::io::{Read, Write};
 use std::mem::size_of;
 
 use itertools::Itertools;
-#[cfg(feature = "json")]
+
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::limb::{entries_per_limb_const, Limb};
@@ -113,7 +113,6 @@ impl<'a> IntoIterator for &'a FpVector {
     }
 }
 
-#[cfg(feature = "json")]
 impl Serialize for FpVector {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -123,7 +122,6 @@ impl Serialize for FpVector {
     }
 }
 
-#[cfg(feature = "json")]
 impl<'de> Deserialize<'de> for FpVector {
     fn deserialize<D>(_deserializer: D) -> Result<Self, D::Error>
     where

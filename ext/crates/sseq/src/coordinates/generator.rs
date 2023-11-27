@@ -2,13 +2,11 @@ use super::{Bidegree, BidegreeElement};
 
 use std::fmt::{self, Display, Formatter};
 
-#[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 
 /// A *basis* element of a bigraded vector space. Most commonly used to index elements of spectral
 /// sequences.
-#[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct BidegreeGenerator {
     /// Bidegree of the element
     degree: Bidegree,

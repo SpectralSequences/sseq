@@ -6,7 +6,6 @@ use crate::module::{FreeModule, Module, ZeroModule};
 use fp::vector::{FpVector, SliceMut};
 use once::OnceBiVec;
 
-#[cfg(feature = "json")]
 use {itertools::Itertools, serde_json::Value};
 
 struct FPMIndexTable {
@@ -95,7 +94,6 @@ impl<A: Algebra> FinitelyPresentedModule<A> {
     }
 }
 
-#[cfg(feature = "json")]
 impl<A: Algebra> FinitelyPresentedModule<A> {
     pub fn from_json(algebra: Arc<A>, json: &Value) -> anyhow::Result<Self> {
         use crate::steenrod_parser::digits;

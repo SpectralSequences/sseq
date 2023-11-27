@@ -3,12 +3,10 @@ use std::{
     ops::{Add, Sub},
 };
 
-#[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 
 /// Type synonym for (s, t) bidegrees.
-#[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Bidegree {
     /// Homological degree
     s: u32,

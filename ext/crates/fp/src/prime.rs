@@ -1,4 +1,3 @@
-#[cfg(feature = "json")]
 use serde::{de::Error, Deserialize, Deserializer, Serialize, Serializer};
 use std::convert::TryFrom;
 
@@ -113,7 +112,6 @@ impl std::fmt::Display for ValidPrime {
     }
 }
 
-#[cfg(feature = "json")]
 impl Serialize for ValidPrime {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -123,7 +121,6 @@ impl Serialize for ValidPrime {
     }
 }
 
-#[cfg(feature = "json")]
 impl<'de> Deserialize<'de> for ValidPrime {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where

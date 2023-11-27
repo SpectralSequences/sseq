@@ -13,7 +13,6 @@ mod algebra;
 
 pub use crate::algebra::*;
 
-#[cfg(feature = "json")]
 pub(crate) fn module_gens_from_json(
     gens: &serde_json::Value,
 ) -> (

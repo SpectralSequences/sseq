@@ -9,7 +9,6 @@ use fp::vector::SliceMut;
 
 use std::sync::Arc;
 
-#[cfg(feature = "json")]
 use {serde::Deserialize, serde_json::Value};
 
 /// This is $\mathbb{RP}_{\mathrm{min}}^{\mathrm{max}}$. The cohomology is the subquotient of
@@ -203,7 +202,6 @@ where
     }
 }
 
-#[cfg(feature = "json")]
 #[derive(Deserialize, Debug)]
 struct RPSpec {
     min: i32,
@@ -211,7 +209,6 @@ struct RPSpec {
     max: Option<i32>,
 }
 
-#[cfg(feature = "json")]
 impl<A: Algebra> RealProjectiveSpace<A> {
     pub fn from_json(algebra: Arc<A>, json: &Value) -> anyhow::Result<Self> {
         let spec: RPSpec = RPSpec::deserialize(json)?;

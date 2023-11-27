@@ -24,8 +24,8 @@ itertools = { version = "0.10.0", default-features = false, features = [
 ] }
 nom = { version = "7.0.0", default-features = false, features = ["alloc"] }
 rustc-hash = "1.1.0"
-serde = { version = "1.0.0", features = ["derive"], optional = true }
-serde_json = { version = "1.0.0", optional = true }
+serde = { version = "1.0.0", features = ["derive"] }
+serde_json = "1.0.0"
 
 [dev-dependencies]
 bencher = "0.1.5"
@@ -33,10 +33,9 @@ expect-test = "1.1.0"
 rstest = "0.17.0"
 
 [features]
-default = ["odd-primes", "json"]
+default = ["odd-primes"]
 cache-multiplication = []
 concurrent = ["fp/concurrent", "maybe-rayon/concurrent"]
-json = ["serde", "serde_json", "bivec/json", "fp/json"]
 odd-primes = ["fp/odd-primes"]
 
 [[bench]]

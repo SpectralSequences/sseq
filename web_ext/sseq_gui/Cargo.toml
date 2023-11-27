@@ -8,11 +8,11 @@ edition = "2021"
 
 [dependencies]
 algebra = { path = "../../ext/crates/algebra", default-features = false }
-bivec = { path = "../../ext/crates/bivec", features = ["json"] }
+bivec = { path = "../../ext/crates/bivec" }
 ext = { path = "../../ext", default-features = false }
-fp = { path = "../../ext/crates/fp", features = ["json"], default-features = false }
+fp = { path = "../../ext/crates/fp", default-features = false }
 once = { path = "../../ext/crates/once" }
-sseq = { path = "../../ext/crates/sseq", features = ["json"], default-features = false }
+sseq = { path = "../../ext/crates/sseq", default-features = false }
 
 anyhow = "1.0.0"
 enum_dispatch = "0.3"

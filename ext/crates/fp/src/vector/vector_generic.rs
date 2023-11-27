@@ -12,7 +12,7 @@ use std::io::{Read, Write};
 use std::mem::size_of;
 
 use itertools::Itertools;
-#[cfg(feature = "json")]
+
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::limb::{entries_per_limb, Limb};
@@ -428,7 +428,6 @@ impl_try_into!(_3, 3);
 impl_try_into!(_5, 5);
 impl_try_into!(_7, 7);
 
-#[cfg(feature = "json")]
 impl Serialize for FpVector {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -438,7 +437,6 @@ impl Serialize for FpVector {
     }
 }
 
-#[cfg(feature = "json")]
 impl<'de> Deserialize<'de> for FpVector {
     fn deserialize<D>(_deserializer: D) -> Result<Self, D::Error>
     where
