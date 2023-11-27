@@ -14,6 +14,7 @@ var srcIndex = JSON.parse('{\
 "lift_hom":["",[],["lift_hom.rs"]],\
 "mahowald_invariant":["",[],["mahowald_invariant.rs"]],\
 "massey":["",[],["massey.rs"]],\
+"maybe_rayon":["",[],["concurrent.rs","lib.rs"]],\
 "num_gens":["",[],["num_gens.rs"]],\
 "once":["",[],["lib.rs"]],\
 "query":["",[],["lib.rs"]],\

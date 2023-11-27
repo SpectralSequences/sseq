@@ -115,19 +115,15 @@
 <a href="#90" id="90">90</a>
 <a href="#91" id="91">91</a>
 <a href="#92" id="92">92</a>
-<a href="#93" id="93">93</a>
-<a href="#94" id="94">94</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     fmt::{<span class="self">self</span>, Display, Formatter},
     ops::{Add, Sub},
 };
 
-<span class="attr">#[cfg(feature = <span class="string">&quot;json&quot;</span>)]
-</span><span class="kw">use </span>serde::{Deserialize, Serialize};
+<span class="kw">use </span>serde::{Deserialize, Serialize};
 
 <span class="doccomment">/// Type synonym for (s, t) bidegrees.
-</span><span class="attr">#[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = <span class="string">&quot;json&quot;</span>, derive(Serialize, Deserialize))]
+</span><span class="attr">#[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 </span><span class="kw">pub struct </span>Bidegree {
     <span class="doccomment">/// Homological degree
     </span>s: u32,

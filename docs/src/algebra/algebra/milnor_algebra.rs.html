@@ -2112,9 +2112,6 @@
 <a href="#2087" id="2087">2087</a>
 <a href="#2088" id="2088">2088</a>
 <a href="#2089" id="2089">2089</a>
-<a href="#2090" id="2090">2090</a>
-<a href="#2091" id="2091">2091</a>
-<a href="#2092" id="2092">2092</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>itertools::Itertools;
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
 <span class="kw">use </span>std::cell::Cell;
@@ -2125,8 +2122,7 @@
 <span class="kw">use </span>fp::vector::{FpVector, Slice, SliceMut};
 <span class="kw">use </span>once::OnceVec;
 
-<span class="attr">#[cfg(feature = <span class="string">&quot;json&quot;</span>)]
-</span><span class="kw">use </span>{serde::Deserialize, serde::Serialize};
+<span class="kw">use </span>{serde::Deserialize, serde::Serialize};
 
 <span class="comment">// This is here so that the Python bindings can use modules defined for AdemAlgebraT with their own algebra enum.
 // In order for things to work AdemAlgebraT cannot implement Algebra.
@@ -2141,22 +2137,20 @@
     </span>}
 }
 
-<span class="attr">#[cfg(feature = <span class="string">&quot;json&quot;</span>)]
-</span><span class="kw">fn </span>q_part_default() -&gt; u32 {
+<span class="kw">fn </span>q_part_default() -&gt; u32 {
     !<span class="number">0
 </span>}
 
-<span class="attr">#[cfg_attr(feature = <span class="string">&quot;json&quot;</span>, derive(Deserialize, Serialize))]
-#[derive(Debug, PartialEq, Eq)]
+<span class="attr">#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 </span><span class="kw">pub struct </span>MilnorProfile {
     <span class="doccomment">/// If `true`, unspecified p_part entries will be 0. Otherwise they will be infinity.
     </span><span class="kw">pub </span>truncated: bool,
     <span class="doccomment">/// A bitmask indicating which of the Q_k we want to include (1 = include). Defaults to `!0`.
     /// This is only relevant at odd primes.
-    </span><span class="attr">#[cfg_attr(feature = <span class="string">&quot;json&quot;</span>, serde(default = <span class="string">&quot;q_part_default&quot;</span>))]
+    </span><span class="attr">#[serde(default = <span class="string">&quot;q_part_default&quot;</span>)]
     </span><span class="kw">pub </span>q_part: u32,
     <span class="doccomment">/// The profile function for the Q part.
-    </span><span class="attr">#[cfg_attr(feature = <span class="string">&quot;json&quot;</span>, serde(default))]
+    </span><span class="attr">#[serde(default)]
     </span><span class="kw">pub </span>p_part: PPart,
 }
 

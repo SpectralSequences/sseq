@@ -501,8 +501,6 @@
 <a href="#476" id="476">476</a>
 <a href="#477" id="477">477</a>
 <a href="#478" id="478">478</a>
-<a href="#479" id="479">479</a>
-<a href="#480" id="480">480</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! This module is provides wrappers around the contents of [`crate::vector::inner`]. The main
 //! purpose is to put [`FpVectorP`] for different `p` into a single enum. It does the same for the
 //! various slice structs.
@@ -517,8 +515,8 @@
 <span class="kw">use </span>std::mem::size_of;
 
 <span class="kw">use </span>itertools::Itertools;
-<span class="attr">#[cfg(feature = <span class="string">&quot;json&quot;</span>)]
-</span><span class="kw">use </span>serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+<span class="kw">use </span>serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 <span class="kw">use </span><span class="kw">crate</span>::limb::{entries_per_limb, Limb};
 <span class="kw">use </span><span class="kw">crate</span>::prime::ValidPrime;
@@ -933,8 +931,7 @@
 <span class="macro">impl_try_into!</span>(_5, <span class="number">5</span>);
 <span class="macro">impl_try_into!</span>(_7, <span class="number">7</span>);
 
-<span class="attr">#[cfg(feature = <span class="string">&quot;json&quot;</span>)]
-</span><span class="kw">impl </span>Serialize <span class="kw">for </span>FpVector {
+<span class="kw">impl </span>Serialize <span class="kw">for </span>FpVector {
     <span class="kw">fn </span>serialize&lt;S&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, serializer: S) -&gt; <span class="prelude-ty">Result</span>&lt;S::Ok, S::Error&gt;
     <span class="kw">where
         </span>S: Serializer,
@@ -943,8 +940,7 @@
     }
 }
 
-<span class="attr">#[cfg(feature = <span class="string">&quot;json&quot;</span>)]
-</span><span class="kw">impl</span>&lt;<span class="lifetime">&#39;de</span>&gt; Deserialize&lt;<span class="lifetime">&#39;de</span>&gt; <span class="kw">for </span>FpVector {
+<span class="kw">impl</span>&lt;<span class="lifetime">&#39;de</span>&gt; Deserialize&lt;<span class="lifetime">&#39;de</span>&gt; <span class="kw">for </span>FpVector {
     <span class="kw">fn </span>deserialize&lt;D&gt;(_deserializer: D) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, D::Error&gt;
     <span class="kw">where
         </span>D: Deserializer&lt;<span class="lifetime">&#39;de</span>&gt;,

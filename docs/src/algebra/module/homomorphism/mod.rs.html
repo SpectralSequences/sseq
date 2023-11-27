@@ -193,24 +193,12 @@
 <a href="#168" id="168">168</a>
 <a href="#169" id="169">169</a>
 <a href="#170" id="170">170</a>
-<a href="#171" id="171">171</a>
-<a href="#172" id="172">172</a>
-<a href="#173" id="173">173</a>
-<a href="#174" id="174">174</a>
-<a href="#175" id="175">175</a>
-<a href="#176" id="176">176</a>
-<a href="#177" id="177">177</a>
-<a href="#178" id="178">178</a>
-<a href="#179" id="179">179</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span><span class="kw">crate</span>::module::Module;
 <span class="kw">use </span>fp::matrix::{AugmentedMatrix, Matrix, MatrixSliceMut, QuasiInverse, Subspace};
 <span class="kw">use </span>fp::prime::ValidPrime;
 <span class="kw">use </span>fp::vector::{Slice, SliceMut};
-
-<span class="attr">#[cfg(feature = <span class="string">&quot;concurrent&quot;</span>)]
-</span><span class="kw">use </span>rayon::prelude::<span class="kw-2">*</span>;
 
 <span class="kw">mod </span>free_module_homomorphism;
 <span class="kw">mod </span>full_module_homomorphism;
@@ -225,6 +213,9 @@
 <span class="kw">pub use </span>generic_zero_homomorphism::GenericZeroHomomorphism;
 <span class="kw">pub use </span>hom_pullback::HomPullback;
 <span class="kw">pub use </span>quotient_homomorphism::{QuotientHomomorphism, QuotientHomomorphismSource};
+
+<span class="attr">#[allow(unused_imports)]
+</span><span class="kw">use </span>maybe_rayon::prelude::<span class="kw-2">*</span>;
 
 <span class="doccomment">/// Each `ModuleHomomorphism` may come with auxiliary data, namely the kernel, image and
 /// quasi_inverse at each degree (the quasi-inverse is a map that is a right inverse when
@@ -326,14 +317,8 @@
             <span class="kw">return</span>;
         }
 
-        <span class="attr">#[cfg(not(feature = <span class="string">&quot;concurrent&quot;</span>))]
-        </span><span class="kw">for </span>(i, row) <span class="kw">in </span>matrix.iter_mut().enumerate() {
-            <span class="self">self</span>.apply_to_basis_element(row, <span class="number">1</span>, degree, i);
-        }
-
-        <span class="attr">#[cfg(feature = <span class="string">&quot;concurrent&quot;</span>)]
-        </span>matrix
-            .par_iter_mut()
+        matrix
+            .maybe_par_iter_mut()
             .enumerate()
             .for_each(|(i, row)| <span class="self">self</span>.apply_to_basis_element(row, <span class="number">1</span>, degree, i));
     }
@@ -346,15 +331,12 @@
             <span class="kw">return </span>matrix;
         }
 
-        <span class="attr">#[cfg(not(feature = <span class="string">&quot;concurrent&quot;</span>))]
-        </span><span class="kw">for </span>(row, <span class="kw-2">&amp;</span>v) <span class="kw">in </span>matrix.iter_mut().zip(inputs) {
-            <span class="self">self</span>.apply_to_basis_element(row.as_slice_mut(), <span class="number">1</span>, degree, v);
-        }
-
-        <span class="attr">#[cfg(feature = <span class="string">&quot;concurrent&quot;</span>)]
-        </span>matrix.par_iter_mut().enumerate().for_each(|(i, row)| {
-            <span class="self">self</span>.apply_to_basis_element(row.as_slice_mut(), <span class="number">1</span>, degree, inputs[i])
-        });
+        matrix
+            .maybe_par_iter_mut()
+            .enumerate()
+            .for_each(|(i, row)| {
+                <span class="self">self</span>.apply_to_basis_element(row.as_slice_mut(), <span class="number">1</span>, degree, inputs[i])
+            });
 
         matrix
     }

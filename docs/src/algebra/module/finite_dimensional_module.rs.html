@@ -731,8 +731,6 @@
 <a href="#706" id="706">706</a>
 <a href="#707" id="707">707</a>
 <a href="#708" id="708">708</a>
-<a href="#709" id="709">709</a>
-<a href="#710" id="710">710</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::algebra::Algebra;
 <span class="kw">use </span><span class="kw">crate</span>::module::{Module, ZeroModule};
 <span class="kw">use </span>bivec::BiVec;
@@ -741,8 +739,7 @@
 <span class="kw">use </span>std::fmt::Write <span class="kw">as _</span>;
 <span class="kw">use </span>std::sync::Arc;
 
-<span class="attr">#[cfg(feature = <span class="string">&quot;json&quot;</span>)]
-</span><span class="kw">use </span>{
+<span class="kw">use </span>{
     <span class="kw">crate</span>::algebra::GeneratedAlgebra,
     <span class="kw">crate</span>::module::ModuleFailedRelationError,
     anyhow::{anyhow, Context},
@@ -1185,8 +1182,7 @@
     }
 }
 
-<span class="attr">#[cfg(feature = <span class="string">&quot;json&quot;</span>)]
-</span><span class="kw">impl</span>&lt;A: GeneratedAlgebra&gt; FiniteDimensionalModule&lt;A&gt; {
+<span class="kw">impl</span>&lt;A: GeneratedAlgebra&gt; FiniteDimensionalModule&lt;A&gt; {
     <span class="kw">pub fn </span>from_json(algebra: Arc&lt;A&gt;, json: <span class="kw-2">&amp;</span>Value) -&gt; anyhow::Result&lt;<span class="self">Self</span>&gt; {
         <span class="kw">let </span>(graded_dimension, gen_names, gen_to_idx) = <span class="kw">crate</span>::module_gens_from_json(<span class="kw-2">&amp;</span>json[<span class="string">&quot;gens&quot;</span>]);
         <span class="kw">let </span>name = json[<span class="string">&quot;name&quot;</span>].as_str().unwrap_or(<span class="string">&quot;&quot;</span>).to_string();

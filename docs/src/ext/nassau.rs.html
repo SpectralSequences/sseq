@@ -1294,22 +1294,6 @@
 <a href="#1269" id="1269">1269</a>
 <a href="#1270" id="1270">1270</a>
 <a href="#1271" id="1271">1271</a>
-<a href="#1272" id="1272">1272</a>
-<a href="#1273" id="1273">1273</a>
-<a href="#1274" id="1274">1274</a>
-<a href="#1275" id="1275">1275</a>
-<a href="#1276" id="1276">1276</a>
-<a href="#1277" id="1277">1277</a>
-<a href="#1278" id="1278">1278</a>
-<a href="#1279" id="1279">1279</a>
-<a href="#1280" id="1280">1280</a>
-<a href="#1281" id="1281">1281</a>
-<a href="#1282" id="1282">1282</a>
-<a href="#1283" id="1283">1283</a>
-<a href="#1284" id="1284">1284</a>
-<a href="#1285" id="1285">1285</a>
-<a href="#1286" id="1286">1286</a>
-<a href="#1287" id="1287">1287</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! This module implements [Nassau&#39;s algorithm](https://arxiv.org/abs/1910.04063). The main export
 //! is the [`Resolution`] object, which is a resolution of the sphere at the prime 2 using Nassau&#39;s
 //! algorithm. It aims to provide an API similar to
@@ -1350,18 +1334,15 @@
 <span class="kw">use </span>once::OnceVec;
 <span class="kw">use </span>sseq::coordinates::Bidegree;
 
-<span class="attr">#[cfg(feature = <span class="string">&quot;concurrent&quot;</span>)]
-</span><span class="kw">use </span>std::sync::mpsc;
+<span class="kw">use </span>std::sync::mpsc;
 
-<span class="attr">#[cfg(feature = <span class="string">&quot;concurrent&quot;</span>)]
-</span><span class="doccomment">/// See [`resolution::SenderData`](../resolution/struct.SenderData.html). This differs by not having the `new` field.
+<span class="doccomment">/// See [`resolution::SenderData`](../resolution/struct.SenderData.html). This differs by not having the `new` field.
 </span><span class="kw">struct </span>SenderData {
     b: Bidegree,
     sender: mpsc::Sender&lt;SenderData&gt;,
 }
 
-<span class="attr">#[cfg(feature = <span class="string">&quot;concurrent&quot;</span>)]
-</span><span class="kw">impl </span>SenderData {
+<span class="kw">impl </span>SenderData {
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>send(b: Bidegree, sender: mpsc::Sender&lt;<span class="self">Self</span>&gt;) {
         sender
             .send(<span class="self">Self </span>{
@@ -2208,20 +2189,7 @@
         <span class="self">self</span>.extend_through_degree(max.s());
         <span class="self">self</span>.algebra().compute_basis(max.t());
 
-        <span class="attr">#[cfg(not(feature = <span class="string">&quot;concurrent&quot;</span>))]
-        </span><span class="kw">for </span>t <span class="kw">in </span><span class="number">0</span>..=max.t() {
-            <span class="kw">let </span>start_s = std::cmp::max(<span class="number">0</span>, t - max.n()) <span class="kw">as </span>u32;
-            <span class="kw">for </span>s <span class="kw">in </span>start_s..=max.s() {
-                <span class="kw">let </span>b = Bidegree::s_t(s, t);
-                <span class="kw">if </span><span class="self">self</span>.has_computed_bidegree(b) {
-                    <span class="kw">continue</span>;
-                }
-                <span class="self">self</span>.step_resolution(b);
-            }
-        }
-
-        <span class="attr">#[cfg(feature = <span class="string">&quot;concurrent&quot;</span>)]
-        </span>rayon::in_place_scope(|scope| {
+        maybe_rayon::in_place_scope(|scope| {
             <span class="comment">// This algorithm is not optimal, as we compute (s, t) only after computing (s - 1, t)
             // and (s, t - 1). In theory, it suffices to wait for (s, t - 1) and (s - 1, t - 1),
             // but having the dimensions of the modules change halfway through the computation is

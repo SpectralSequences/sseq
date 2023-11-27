@@ -928,9 +928,6 @@
 <a href="#903" id="903">903</a>
 <a href="#904" id="904">904</a>
 <a href="#905" id="905">905</a>
-<a href="#906" id="906">906</a>
-<a href="#907" id="907">907</a>
-<a href="#908" id="908">908</a>
 </pre></div><pre class="rust"><code><span class="kw">extern crate </span>alloc;
 
 <span class="kw">use </span>core::ops::{Index, IndexMut};
@@ -943,8 +940,7 @@
 <span class="kw">use </span>alloc::alloc::Layout;
 <span class="kw">use </span>std::ptr::NonNull;
 
-<span class="attr">#[cfg(feature = <span class="string">&quot;concurrent&quot;</span>)]
-</span><span class="kw">use </span>rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
+<span class="kw">use </span>maybe_rayon::prelude::<span class="kw-2">*</span>;
 
 <span class="kw">const </span>USIZE_LEN: u32 = <span class="number">0usize</span>.count_zeros();
 
@@ -1511,23 +1507,22 @@
     }
 }
 
-<span class="attr">#[cfg(feature = <span class="string">&quot;concurrent&quot;</span>)]
-</span><span class="kw">impl</span>&lt;T: Send + Sync&gt; OnceVec&lt;T&gt; {
-    <span class="doccomment">/// A parallel version of `extend`, where the function `f` is run for different indices
-    /// simultaneously using [`rayon`].
+<span class="kw">impl</span>&lt;T: Send + Sync&gt; OnceVec&lt;T&gt; {
+    <span class="doccomment">/// A parallel version of `extend`. If the `concurrent` feature is enabled, the function `f`
+    /// will be run for different indices simultaneously using [`rayon`].
     ///
     /// # Example
     </span><span class="attr">#[cfg_attr(miri, doc = <span class="string">&quot;```ignore&quot;</span>)]
     #[cfg_attr(not(miri), doc = <span class="string">&quot;```&quot;</span>)]
     </span><span class="doccomment">/// # use once::OnceVec;
     /// let v: OnceVec&lt;usize&gt; = OnceVec::new();
-    /// v.par_extend(5, |i| i + 5);
+    /// v.maybe_par_extend(5, |i| i + 5);
     /// assert_eq!(v.len(), 6);
     /// for (i, &amp;n) in v.iter().enumerate() {
     ///     assert_eq!(n, i + 5);
     /// }
     /// ```
-    </span><span class="kw">pub fn </span>par_extend(<span class="kw-2">&amp;</span><span class="self">self</span>, new_max: usize, f: <span class="kw">impl </span>Fn(usize) -&gt; T + Send + Sync) {
+    </span><span class="kw">pub fn </span>maybe_par_extend(<span class="kw-2">&amp;</span><span class="self">self</span>, new_max: usize, f: <span class="kw">impl </span>Fn(usize) -&gt; T + Send + Sync) {
         <span class="kw">let </span>ooo = <span class="self">self</span>.lock();
         <span class="macro">assert!</span>(ooo.<span class="number">0</span>.is_empty());
 
@@ -1540,7 +1535,7 @@
             <span class="comment">// This is safe since we have taken the lock and have made no unsafe references.
             </span><span class="self">self</span>.allocate_for(new_max);
 
-            (old_len..=new_max).into_par_iter().for_each(|i| {
+            (old_len..=new_max).maybe_into_par_iter().for_each(|i| {
                 <span class="comment">// These pointers are all non-aliasing so they can be written concurrently.
                 </span>std::ptr::write(<span class="self">self</span>.entry_ptr(i), f(i));
             });
@@ -1742,35 +1737,34 @@
     }
 }
 
-<span class="attr">#[cfg(feature = <span class="string">&quot;concurrent&quot;</span>)]
-</span><span class="kw">impl</span>&lt;T: Send + Sync&gt; OnceBiVec&lt;T&gt; {
-    <span class="doccomment">/// A parallel version of `extend`, where the function `f` is run for different indices
-    /// simultaneously using [`rayon`].
+<span class="kw">impl</span>&lt;T: Send + Sync&gt; OnceBiVec&lt;T&gt; {
+    <span class="doccomment">/// A parallel version of `extend`. If the `concurrent` feature is enabled, the function `f`
+    /// will be run for different indices simultaneously using [`rayon`].
     ///
     /// # Example
     /// ```
     /// # use once::OnceBiVec;
     /// let v: OnceBiVec&lt;i32&gt; = OnceBiVec::new(-4);
-    /// v.par_extend(5, |i| i + 5);
+    /// v.maybe_par_extend(5, |i| i + 5);
     /// assert_eq!(v.len(), 6);
     /// for (i, &amp;n) in v.iter_enum() {
     ///     assert_eq!(n, i + 5);
     /// }
     /// ```
-    </span><span class="kw">pub fn </span>par_extend(<span class="kw-2">&amp;</span><span class="self">self</span>, new_max: i32, f: <span class="kw">impl </span>(Fn(i32) -&gt; T) + Send + Sync) {
+    </span><span class="kw">pub fn </span>maybe_par_extend(<span class="kw-2">&amp;</span><span class="self">self</span>, new_max: i32, f: <span class="kw">impl </span>(Fn(i32) -&gt; T) + Send + Sync) {
         <span class="kw">if </span>new_max &lt; <span class="self">self</span>.min_degree {
             <span class="kw">return</span>;
         }
         <span class="self">self</span>.data
-            .par_extend((new_max - <span class="self">self</span>.min_degree) <span class="kw">as </span>usize, |i| {
+            .maybe_par_extend((new_max - <span class="self">self</span>.min_degree) <span class="kw">as </span>usize, |i| {
                 f(i <span class="kw">as </span>i32 + <span class="self">self</span>.min_degree)
             });
     }
 
-    <span class="kw">pub fn </span>par_iter_enum(
+    <span class="kw">pub fn </span>maybe_par_iter_enum(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-    ) -&gt; <span class="kw">impl </span>ParallelIterator&lt;Item = (i32, <span class="kw-2">&amp;</span>T)&gt; + IndexedParallelIterator {
-        <span class="self">self</span>.range().into_par_iter().map(|i| (i, <span class="kw-2">&amp;</span><span class="self">self</span>[i]))
+    ) -&gt; <span class="kw">impl </span>MaybeParallelIterator&lt;Item = (i32, <span class="kw-2">&amp;</span>T)&gt; + MaybeIndexedParallelIterator {
+        <span class="self">self</span>.range().maybe_into_par_iter().map(|i| (i, <span class="kw-2">&amp;</span><span class="self">self</span>[i]))
     }
 }
 

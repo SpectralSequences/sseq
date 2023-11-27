@@ -1277,6 +1277,8 @@
 <a href="#1252" id="1252">1252</a>
 <a href="#1253" id="1253">1253</a>
 <a href="#1254" id="1254">1254</a>
+<a href="#1255" id="1255">1255</a>
+<a href="#1256" id="1256">1256</a>
 </pre></div><pre class="rust"><code><span class="kw">use super</span>::{QuasiInverse, Subspace};
 <span class="kw">use </span><span class="kw">crate</span>::matrix::m4ri::M4riTable;
 <span class="kw">use </span><span class="kw">crate</span>::prime::{<span class="self">self</span>, ValidPrime};
@@ -1287,8 +1289,8 @@
 <span class="kw">use </span>std::ops::{Index, IndexMut};
 
 <span class="kw">use </span>itertools::Itertools;
-<span class="attr">#[cfg(feature = <span class="string">&quot;concurrent&quot;</span>)]
-</span><span class="kw">use </span>rayon::prelude::<span class="kw-2">*</span>;
+
+<span class="kw">use </span>maybe_rayon::prelude::<span class="kw-2">*</span>;
 
 <span class="doccomment">/// A matrix! In particular, a matrix with values in F_p. The way we store matrices means it is
 /// easier to perform row operations than column operations, and the way we use matrices means we
@@ -1560,9 +1562,10 @@
         <span class="self">self</span>.vectors.iter_mut()
     }
 
-    <span class="attr">#[cfg(feature = <span class="string">&quot;concurrent&quot;</span>)]
-    </span><span class="kw">pub fn </span>par_iter_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw">impl </span>IndexedParallelIterator&lt;Item = <span class="kw-2">&amp;mut </span>FpVector&gt; + <span class="lifetime">&#39;_ </span>{
-        <span class="self">self</span>.vectors.par_iter_mut()
+    <span class="kw">pub fn </span>maybe_par_iter_mut(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+    ) -&gt; <span class="kw">impl </span>MaybeIndexedParallelIterator&lt;Item = <span class="kw-2">&amp;mut </span>FpVector&gt; + <span class="lifetime">&#39;_ </span>{
+        <span class="self">self</span>.vectors.maybe_par_iter_mut()
     }
 }
 
@@ -2439,12 +2442,13 @@
             .map(<span class="kw">move </span>|x| x.slice_mut(start, end))
     }
 
-    <span class="attr">#[cfg(feature = <span class="string">&quot;concurrent&quot;</span>)]
-    </span><span class="kw">pub fn </span>par_iter_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw">impl </span>IndexedParallelIterator&lt;Item = SliceMut&gt; + <span class="lifetime">&#39;_ </span>{
+    <span class="kw">pub fn </span>maybe_par_iter_mut(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+    ) -&gt; <span class="kw">impl </span>MaybeIndexedParallelIterator&lt;Item = SliceMut&gt; + <span class="lifetime">&#39;_ </span>{
         <span class="kw">let </span>start = <span class="self">self</span>.col_start;
         <span class="kw">let </span>end = <span class="self">self</span>.col_end;
         <span class="self">self</span>.vectors
-            .par_iter_mut()
+            .maybe_par_iter_mut()
             .map(<span class="kw">move </span>|x| x.slice_mut(start, end))
     }
 

@@ -116,7 +116,6 @@
 <a href="#91" id="91">91</a>
 <a href="#92" id="92">92</a>
 <a href="#93" id="93">93</a>
-<a href="#94" id="94">94</a>
 </pre></div><pre class="rust"><code><span class="kw">pub mod </span>bidegree;
 <span class="kw">pub mod </span>element;
 <span class="kw">pub mod </span>generator;
@@ -126,6 +125,8 @@
 <span class="kw">pub use </span>element::BidegreeElement;
 <span class="kw">pub use </span>generator::BidegreeGenerator;
 <span class="kw">pub use </span>range::BidegreeRange;
+
+<span class="kw">use </span>maybe_rayon::prelude::<span class="kw-2">*</span>;
 
 <span class="doccomment">/// Given a function `f(s, t)`, compute it for every `s` in `[min_s, max_s]` and every `t` in
 /// `[min_t, max_t(s)]`.  Further, we only compute `f(s, t)` when `f(s - 1, t&#39;)` has been computed
@@ -143,19 +144,16 @@
 /// # Arguments:
 ///  - `max_s`: This is exclusive
 ///  - `max_t`: This is exclusive
-</span><span class="attr">#[cfg(feature = <span class="string">&quot;concurrent&quot;</span>)]
 </span><span class="kw">pub fn </span>iter_s_t&lt;T: Sync&gt;(
     f: <span class="kw-2">&amp;</span>(<span class="kw">impl </span>Fn(Bidegree) -&gt; std::ops::Range&lt;i32&gt; + Sync),
     min: Bidegree,
     max: BidegreeRange&lt;T&gt;,
 ) {
-    <span class="kw">use </span>rayon::prelude::<span class="kw-2">*</span>;
-
-    rayon::scope(|scope| {
+    maybe_rayon::scope(|scope| {
         <span class="comment">// Rust does not support recursive closures, so we have to pass everything along as
         // arguments.
         </span><span class="kw">fn </span>run&lt;<span class="lifetime">&#39;a</span>, S: Sync&gt;(
-            scope: <span class="kw-2">&amp;</span>rayon::Scope&lt;<span class="lifetime">&#39;a</span>&gt;,
+            scope: <span class="kw-2">&amp;</span>maybe_rayon::Scope&lt;<span class="lifetime">&#39;a</span>&gt;,
             f: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>(<span class="kw">impl </span>Fn(Bidegree) -&gt; std::ops::Range&lt;i32&gt; + Sync + <span class="lifetime">&#39;a</span>),
             max: BidegreeRange&lt;<span class="lifetime">&#39;a</span>, S&gt;,
             current: Bidegree,
@@ -168,22 +166,22 @@
                 <span class="kw">if </span>!ret.is_empty() {
                     <span class="comment">// We spawn a new scope to avoid recursion, which may blow the stack
                     </span>scope.spawn(<span class="kw">move </span>|scope| {
-                        ret.into_par_iter()
+                        ret.maybe_into_par_iter()
                             .for_each(|t| run(scope, f, max, Bidegree::s_t(current.s() + <span class="number">1</span>, t)));
                     });
                 }
             }
         }
 
-        rayon::join(
+        maybe_rayon::join(
             || {
                 (min.t()..max.t(min.s()))
-                    .into_par_iter()
+                    .maybe_into_par_iter()
                     .for_each(|t| run(scope, f, max, Bidegree::s_t(min.s(), t)))
             },
             || {
                 (min.s() + <span class="number">1</span>..max.s())
-                    .into_par_iter()
+                    .maybe_into_par_iter()
                     .for_each(|s| run(scope, f, max, Bidegree::s_t(s, min.t())))
             },
         );

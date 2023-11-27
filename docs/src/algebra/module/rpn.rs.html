@@ -266,9 +266,6 @@
 <a href="#241" id="241">241</a>
 <a href="#242" id="242">242</a>
 <a href="#243" id="243">243</a>
-<a href="#244" id="244">244</a>
-<a href="#245" id="245">245</a>
-<a href="#246" id="246">246</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::algebra::{
     adem_algebra::AdemBasisElement,
     milnor_algebra::{MilnorBasisElement, PPartEntry},
@@ -280,8 +277,7 @@
 
 <span class="kw">use </span>std::sync::Arc;
 
-<span class="attr">#[cfg(feature = <span class="string">&quot;json&quot;</span>)]
-</span><span class="kw">use </span>{serde::Deserialize, serde_json::Value};
+<span class="kw">use </span>{serde::Deserialize, serde_json::Value};
 
 <span class="doccomment">/// This is $\mathbb{RP}_{\mathrm{min}}^{\mathrm{max}}$. The cohomology is the subquotient of
 /// $\mathbb{F}_2[x^\pm]$ given by elements of degree between min and max (inclusive)
@@ -474,16 +470,14 @@
     }
 }
 
-<span class="attr">#[cfg(feature = <span class="string">&quot;json&quot;</span>)]
-#[derive(Deserialize, Debug)]
+<span class="attr">#[derive(Deserialize, Debug)]
 </span><span class="kw">struct </span>RPSpec {
     min: i32,
     clear_bottom: <span class="prelude-ty">Option</span>&lt;bool&gt;,
     max: <span class="prelude-ty">Option</span>&lt;i32&gt;,
 }
 
-<span class="attr">#[cfg(feature = <span class="string">&quot;json&quot;</span>)]
-</span><span class="kw">impl</span>&lt;A: Algebra&gt; RealProjectiveSpace&lt;A&gt; {
+<span class="kw">impl</span>&lt;A: Algebra&gt; RealProjectiveSpace&lt;A&gt; {
     <span class="kw">pub fn </span>from_json(algebra: Arc&lt;A&gt;, json: <span class="kw-2">&amp;</span>Value) -&gt; anyhow::Result&lt;<span class="self">Self</span>&gt; {
         <span class="kw">let </span>spec: RPSpec = RPSpec::deserialize(json)<span class="question-mark">?</span>;
         <span class="kw">let </span>clear_bottom = spec.clear_bottom.unwrap_or(<span class="bool-val">false</span>);
