@@ -279,7 +279,7 @@ impl<A: PairAlgebra + Send + Sync> SecondaryHomotopy<A> {
 
         self.composites.maybe_par_extend(degree, |t| {
             (0..self.source.number_of_gens_in_degree(t))
-                .maybe_into_par_iter()
+                .into_maybe_par_iter()
                 .map(|i| f(t, i))
                 .collect()
         });
@@ -392,7 +392,7 @@ pub trait SecondaryLift: Sync + Sized {
             );
         };
 
-        self.homotopies().range().maybe_into_par_iter().for_each(f);
+        self.homotopies().range().into_maybe_par_iter().for_each(f);
     }
 
     fn get_intermediate(&self, gen: BidegreeGenerator) -> FpVector {
@@ -449,10 +449,10 @@ pub trait SecondaryLift: Sync + Sized {
 
         if let Some(homotopy) = homotopies.get(s as i32 + 1) {
             (0..self.max().t(s + 1))
-                .maybe_into_par_iter()
+                .into_maybe_par_iter()
                 .for_each(|t| {
                     (0..homotopy.source.number_of_gens_in_degree(t))
-                        .maybe_into_par_iter()
+                        .into_maybe_par_iter()
                         .for_each(|i| {
                             self.get_intermediate(BidegreeGenerator::s_t(s + 1, t, i));
                         })
@@ -491,10 +491,10 @@ pub trait SecondaryLift: Sync + Sized {
                 homotopy
                     .composites
                     .range()
-                    .maybe_into_par_iter()
+                    .into_maybe_par_iter()
                     .for_each(|t| {
                         (0..homotopy.source.number_of_gens_in_degree(t))
-                            .maybe_into_par_iter()
+                            .into_maybe_par_iter()
                             .for_each(|i| f(BidegreeGenerator::s_t(s, t, i)))
                     })
             })
@@ -549,7 +549,7 @@ pub trait SecondaryLift: Sync + Sized {
         };
 
         let mut intermediates: Vec<FpVector> = (0..num_gens)
-            .maybe_into_par_iter()
+            .into_maybe_par_iter()
             .map(get_intermediate)
             .collect();
 

@@ -295,7 +295,7 @@ where
         };
 
         let fdx_vectors: Vec<FpVector> = (0..num_gens)
-            .maybe_into_par_iter()
+            .into_maybe_par_iter()
             .filter_map(compute_fdx_vector)
             .collect();
 

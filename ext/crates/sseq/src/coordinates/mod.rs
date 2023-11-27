@@ -48,7 +48,7 @@ pub fn iter_s_t<T: Sync>(
                 if !ret.is_empty() {
                     // We spawn a new scope to avoid recursion, which may blow the stack
                     scope.spawn(move |scope| {
-                        ret.maybe_into_par_iter()
+                        ret.into_maybe_par_iter()
                             .for_each(|t| run(scope, f, max, Bidegree::s_t(current.s() + 1, t)));
                     });
                 }
@@ -58,12 +58,12 @@ pub fn iter_s_t<T: Sync>(
         maybe_rayon::join(
             || {
                 (min.t()..max.t(min.s()))
-                    .maybe_into_par_iter()
+                    .into_maybe_par_iter()
                     .for_each(|t| run(scope, f, max, Bidegree::s_t(min.s(), t)))
             },
             || {
                 (min.s() + 1..max.s())
-                    .maybe_into_par_iter()
+                    .into_maybe_par_iter()
                     .for_each(|s| run(scope, f, max, Bidegree::s_t(s, min.t())))
             },
         );

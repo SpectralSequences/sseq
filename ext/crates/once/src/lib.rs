@@ -605,7 +605,7 @@ impl<T: Send + Sync> OnceVec<T> {
             // This is safe since we have taken the lock and have made no unsafe references.
             self.allocate_for(new_max);
 
-            (old_len..=new_max).maybe_into_par_iter().for_each(|i| {
+            (old_len..=new_max).into_maybe_par_iter().for_each(|i| {
                 // These pointers are all non-aliasing so they can be written concurrently.
                 std::ptr::write(self.entry_ptr(i), f(i));
             });
@@ -812,7 +812,8 @@ impl<T: Send + Sync> OnceBiVec<T> {
     /// will be run for different indices simultaneously using [`rayon`].
     ///
     /// # Example
-    /// ```
+    #[cfg_attr(miri, doc = "```ignore")]
+    #[cfg_attr(not(miri), doc = "```")]
     /// # use once::OnceBiVec;
     /// let v: OnceBiVec<i32> = OnceBiVec::new(-4);
     /// v.maybe_par_extend(5, |i| i + 5);
@@ -834,7 +835,7 @@ impl<T: Send + Sync> OnceBiVec<T> {
     pub fn maybe_par_iter_enum(
         &self,
     ) -> impl MaybeParallelIterator<Item = (i32, &T)> + MaybeIndexedParallelIterator {
-        self.range().maybe_into_par_iter().map(|i| (i, &self[i]))
+        self.range().into_maybe_par_iter().map(|i| (i, &self[i]))
     }
 }
 

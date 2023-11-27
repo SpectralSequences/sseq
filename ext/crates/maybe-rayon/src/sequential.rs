@@ -3,10 +3,10 @@ pub mod prelude {
 
     pub trait MaybeIndexedParallelIterator: Iterator {}
 
-    pub trait MaybeIntoParallelIterator: IntoIterator {
+    pub trait IntoMaybeParallelIterator: IntoIterator {
         type Iter;
 
-        fn maybe_into_par_iter(self) -> Self::Iter;
+        fn into_maybe_par_iter(self) -> Self::Iter;
     }
 
     pub trait MaybeIntoParallelRefMutIterator<'data> {
@@ -21,10 +21,10 @@ pub mod prelude {
 
     impl<I: Iterator> MaybeIndexedParallelIterator for I {}
 
-    impl<I: IntoIterator> MaybeIntoParallelIterator for I {
+    impl<I: IntoIterator> IntoMaybeParallelIterator for I {
         type Iter = Self::IntoIter;
 
-        fn maybe_into_par_iter(self) -> Self::Iter {
+        fn into_maybe_par_iter(self) -> Self::Iter {
             self.into_iter()
         }
     }
@@ -41,6 +41,7 @@ pub mod prelude {
     }
 }
 
+#[allow(dead_code)]
 pub struct Scope<'scope>(&'scope ());
 
 impl<'scope> Scope<'scope> {

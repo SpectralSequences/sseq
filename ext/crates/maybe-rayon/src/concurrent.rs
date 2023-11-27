@@ -7,8 +7,8 @@ pub mod prelude {
 
     pub trait MaybeIndexedParallelIterator: IndexedParallelIterator {}
 
-    pub trait MaybeIntoParallelIterator: IntoParallelIterator {
-        fn maybe_into_par_iter(self) -> Self::Iter;
+    pub trait IntoMaybeParallelIterator: IntoParallelIterator {
+        fn into_maybe_par_iter(self) -> Self::Iter;
     }
 
     pub trait MaybeIntoParallelRefMutIterator<'data>: IntoParallelRefMutIterator<'data> {
@@ -21,8 +21,8 @@ pub mod prelude {
 
     impl<I: IndexedParallelIterator> MaybeIndexedParallelIterator for I {}
 
-    impl<I: IntoParallelIterator> MaybeIntoParallelIterator for I {
-        fn maybe_into_par_iter(self) -> Self::Iter {
+    impl<I: IntoParallelIterator> IntoMaybeParallelIterator for I {
+        fn into_maybe_par_iter(self) -> Self::Iter {
             self.into_par_iter()
         }
     }

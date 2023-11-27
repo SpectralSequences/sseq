@@ -255,7 +255,7 @@ impl<
             scratch
         };
 
-        let scratches: Vec<FpVector> = (0..num_gens).maybe_into_par_iter().map(f).collect();
+        let scratches: Vec<FpVector> = (0..num_gens).into_maybe_par_iter().map(f).collect();
 
         assert!(U::apply_quasi_inverse(
             &*self.right.target,
