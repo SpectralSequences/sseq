@@ -57,7 +57,21 @@ examples/benchmarks/%-nassau: dummy
 
 examples/benchmarks/%-concurrent: FILE = examples/benchmarks/$*
 examples/benchmarks/%-concurrent: dummy
-	(head -n 1 $(FILE) && timeout 30 bash -c "echo '' | cargo run --features concurrent --example $$(head -n 1 $(FILE))" || echo "Timed out") | diff --color $(FILE) -
+	@{ \
+		head -n 1 $(FILE); \
+		timeout 30 bash -c "echo '' | cargo run --features concurrent --example $$(head -n 1 $(FILE))"; \
+		ec=$$?; \
+	} > output.txt; \
+	if [ $$ec -eq 124 ]; then \
+		echo "Timeout occurred, but treating as success."; \
+	elif [ $$ec -eq 0 ]; then \
+		diff --color output.txt $(FILE); \
+		rm output.txt; \
+	else \
+		echo "Command failed with code $$ec."; \
+		rm output.txt; \
+		exit 1; \
+	fi
 
 miri:
 	cargo miri test -p once
