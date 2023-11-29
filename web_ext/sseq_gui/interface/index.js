@@ -278,11 +278,18 @@ messageHandler.Error = m => {
 document.getElementById('json-upload').addEventListener('change', () => {
     const file = document.getElementById('json-upload').files[0];
     const fileReader = new FileReader();
+
     fileReader.onload = e => {
-        // Remove whitespace to shorten URL
-        const json = JSON.stringify(JSON.parse(e.target.result));
-        window.location = `?module_json=${encodeURIComponent(json)}`;
+        try {
+            // Remove whitespace to shorten URL
+            const json = JSON.stringify(JSON.parse(e.target.result));
+            window.location = `?module_json=${encodeURIComponent(json)}`;
+        } catch (error) {
+            alert('Invalid JSON file: ' + error.message);
+            console.error('Error parsing JSON:', error);
+        }
     };
+
     fileReader.readAsText(file, 'UTF-8');
 });
 
