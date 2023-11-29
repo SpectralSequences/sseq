@@ -281,12 +281,11 @@ document.getElementById('json-upload').addEventListener('change', () => {
 
     fileReader.onload = e => {
         try {
-            // Attempt to parse JSON
+            // Remove whitespace to shorten URL
             const json = JSON.stringify(JSON.parse(e.target.result));
             window.location = `?module_json=${encodeURIComponent(json)}`;
         } catch (error) {
-            // If an error occurs, display an error message
-            alert('Invalid JSON file. Please upload a valid JSON file.');
+            alert('Invalid JSON file: ' + error.message);
             console.error('Error parsing JSON:', error);
         }
     };
