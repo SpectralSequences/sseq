@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
 use fp::{matrix::Matrix, prime::ValidPrime};
 use rand::Rng;
@@ -41,7 +39,7 @@ fn random_vector(p: ValidPrime, dimension: usize) -> Vec<u32> {
 
 criterion_group! {
     name = row_reduction;
-    config = Criterion::default().sample_size(100).measurement_time(Duration::from_secs(100));
+    config = Criterion::default();
     targets = row_reductions
 }
 
