@@ -102,12 +102,12 @@ mod test {
         (0..dimension).map(|_| rng.gen_range(0..p)).collect()
     }
 
-    /// An arbitrary `ValidPrime` in the range `2..65536`.
+    /// An arbitrary `ValidPrime` in the range `2..(1 << 24)`, plus the largest prime that we support.
     fn arb_prime() -> impl Strategy<Value = ValidPrime> {
         static TEST_PRIMES: OnceLock<Vec<ValidPrime>> = OnceLock::new();
         let test_primes = TEST_PRIMES.get_or_init(|| {
             // Sieve of erathosthenes
-            const MAX: usize = 65536;
+            const MAX: usize = 1 << 24;
             let mut is_prime = Vec::new();
             is_prime.resize_with(MAX, || true);
             is_prime[0] = false;
@@ -122,6 +122,7 @@ mod test {
             (0..MAX)
                 .filter(|&i| is_prime[i])
                 .map(|p| ValidPrime::new_unchecked(p as u32))
+                .chain(std::iter::once(ValidPrime::new_unchecked(2147483647)))
                 .collect()
         });
         (0..test_primes.len()).prop_map(|i| test_primes[i])
@@ -212,7 +213,7 @@ mod test {
 
         #[test]
         fn test_bit_length(p in arb_prime()) {
-            bit_length(p);
+            prop_assert!(bit_length(p) <= 63);
         }
 
         #[test]
@@ -249,7 +250,7 @@ mod test {
             let mut v = FpVector::from_slice(p, &v_arr);
             v.scale(c);
             for entry in &mut v_arr {
-                *entry = (*entry * c) % p;
+                *entry = (((*entry as u64) * (c as u64)) % (p.as_u32() as u64)) as u32;
             }
             v.assert_list_eq(&v_arr);
         }
@@ -264,7 +265,7 @@ mod test {
             v.slice_mut(slice_start, slice_end).scale(c);
 
             for entry in &mut v_arr[slice_start..slice_end] {
-                *entry = (*entry * c) % p;
+                *entry = (((*entry as u64) * (c as u64)) % (p.as_u32() as u64)) as u32
             }
             v.assert_list_eq(&v_arr);
         }

@@ -13,9 +13,10 @@ pub(crate) struct LimbBitIndexPair {
 
 /// Return the number of bits an element of $\mathbb{F}_P$ occupies in a limb.
 pub(crate) fn bit_length<P: Prime>(p: P) -> usize {
-    match p.as_u32() {
+    let p = p.as_u32() as u64;
+    match p {
         2 => 1,
-        _ => (32u32 - (p * (p - 1)).leading_zeros()) as usize,
+        _ => (BITS_PER_LIMB as u32 - (p * (p - 1)).leading_zeros()) as usize,
     }
 }
 
@@ -77,7 +78,7 @@ pub(crate) fn reduce<P: Prime>(p: P, limb: Limb) -> Limb {
             let d = m & BOTTOM_THREE_BITS;
             d + c - BOTTOM_TWO_BITS
         }
-        _ => pack(p, unpack(p, limb).map(|x| x % p.as_u32())),
+        _ => pack(p, unpack(p, limb).map(|x| (x % (p.as_u32() as u64)) as u32)),
     }
 }
 
@@ -104,14 +105,16 @@ pub(crate) fn pack<T: Iterator<Item = u32>, P: Prime>(p: P, entries: T) -> Limb 
     result
 }
 
-/// Give an iterator over the entries of `limb`.
-pub(crate) fn unpack<P: Prime>(p: P, mut limb: Limb) -> impl Iterator<Item = u32> {
+/// Give an iterator over the entries of `limb`. We return `u64` instead of `u32` because the
+/// entries might not be reduced. In general we can only guarantee that the entries are less than p
+/// * (p - 1), so they might not fit into a single `u32`.
+pub(crate) fn unpack<P: Prime>(p: P, mut limb: Limb) -> impl Iterator<Item = u64> {
     let entries = entries_per_limb(p);
     let bit_length = bit_length(p);
     let bit_mask = bitmask(p);
 
     (0..entries).map(move |_| {
-        let result = (limb & bit_mask) as u32;
+        let result = limb & bit_mask;
         limb >>= bit_length;
         result
     })

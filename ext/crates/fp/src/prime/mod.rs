@@ -255,8 +255,14 @@ mod validprime {
 
     impl ValidPrime {
         pub const fn new(p: u32) -> ValidPrime {
-            // We need the size restriction because we need p * (p - 1) to fit in a u32. See `limb::bit_length`.
-            assert!(p < (1 << 16), "Tried to construct a prime larger than 2^16");
+            // We need the size restriction because we need `bit_length(p)` to be smaller than 64.
+            // Otherwise, shifting a u64 by 64 bits is considered an overflow. We could special case
+            // these shifts to be setting to 0, but that doesn't seem worth it.
+            //
+            // Also, we could in theory support primes up to sqrt(2^63 - 1), but that makes the
+            // assert below more complicated, and primes up to 2^31 are good enough for most
+            // purposes anyway.
+            assert!(p < (1 << 31), "Tried to construct a prime larger than 2^31");
             assert!(is_prime(p), "Tried to construct a composite dynamic prime");
             ValidPrime { p }
         }

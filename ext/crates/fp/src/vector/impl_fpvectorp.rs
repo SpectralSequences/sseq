@@ -120,7 +120,8 @@ impl<P: Prime> FpVectorP<P> {
                 for limb in &mut self.limbs {
                     *limb = limb::pack(
                         self.p,
-                        limb::unpack(self.p, *limb).map(|x| (x * c) % self.p.as_u32()),
+                        limb::unpack(self.p, *limb)
+                            .map(|x| ((x * c as u64) % (self.p.as_u32() as u64)) as u32),
                     );
                 }
             }
