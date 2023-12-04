@@ -20,10 +20,10 @@ fn main() -> Result<(), Error> {
 
     let mut writer = ConstWriter::for_build("constants")?.finish_dependencies();
 
-    writer.add_raw("/// The number of primes that are supported.");
+    writer.add_raw("/// The number of primes that will be prepared at compile-time. This includes");
+    writer.add_raw("/// precomputing inverses, binomial coefficients, etc.");
     writer.add_value("NUM_PRIMES", "usize", num_primes);
-    writer.add_raw("/// The `MAX_PRIME`th prime number. Constructing a `ValidPrime` using any number larger than");
-    writer.add_raw("/// this value will cause a panic.");
+    writer.add_raw("/// The `NUM_PRIMES`th prime number.");
     writer.add_value("MAX_PRIME", "usize", max_prime);
     // `NOT_A_PRIME` is never used if odd-primes is disabled.
     writer.add_raw("#[allow(dead_code)]");

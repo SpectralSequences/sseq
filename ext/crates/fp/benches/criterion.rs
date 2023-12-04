@@ -33,7 +33,7 @@ fn row_reductions(c: &mut Criterion) {
 fn random_vector(p: ValidPrime, dimension: usize) -> Vec<u32> {
     let mut result = Vec::with_capacity(dimension);
     let mut rng = rand::thread_rng();
-    result.resize_with(dimension, || rng.gen::<u32>() % *p);
+    result.resize_with(dimension, || rng.gen::<u32>() % p);
     result
 }
 

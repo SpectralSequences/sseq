@@ -17,13 +17,15 @@ mod iter;
 
 #[cfg(test)]
 mod test {
+    use std::sync::OnceLock;
+
     use itertools::Itertools;
     use proptest::prelude::*;
     use rstest::rstest;
 
     use super::{inner::FpVectorP, *};
-    use crate::limb;
-    use crate::prime::ValidPrime;
+    use crate::limb::{self, bit_length};
+    use crate::prime::{Prime, ValidPrime, P2};
 
     pub struct VectorDiffEntry {
         pub index: usize,
@@ -100,14 +102,29 @@ mod test {
         (0..dimension).map(|_| rng.gen_range(0..p)).collect()
     }
 
-    /// An arbitrary `ValidPrime`
+    /// An arbitrary `ValidPrime` in the range `2..65536`.
     fn arb_prime() -> impl Strategy<Value = ValidPrime> {
-        prop_oneof![
-            Just(ValidPrime::new(2)),
-            Just(ValidPrime::new(3)),
-            Just(ValidPrime::new(5)),
-            Just(ValidPrime::new(7)),
-        ]
+        static TEST_PRIMES: OnceLock<Vec<ValidPrime>> = OnceLock::new();
+        let test_primes = TEST_PRIMES.get_or_init(|| {
+            // Sieve of erathosthenes
+            const MAX: usize = 65536;
+            let mut is_prime = Vec::new();
+            is_prime.resize_with(MAX, || true);
+            is_prime[0] = false;
+            is_prime[1] = false;
+            for i in 2..MAX {
+                if is_prime[i] {
+                    for j in ((2 * i)..MAX).step_by(i) {
+                        is_prime[j] = false;
+                    }
+                }
+            }
+            (0..MAX)
+                .filter(|&i| is_prime[i])
+                .map(|p| ValidPrime::new_unchecked(p as u32))
+                .collect()
+        });
+        (0..test_primes.len()).prop_map(|i| test_primes[i])
     }
 
     /// An arbitrary (prime, dimension) pair
@@ -135,7 +152,7 @@ mod test {
     /// take in a `Vec<u32>` instead of an `FpVector` directly because they will usually apply some
     /// operation on both the `FpVector` and the original `Vec<u32>` and then compare the results.
     fn arb_vec_u32(p: ValidPrime, dimension: usize) -> impl Strategy<Value = Vec<u32>> {
-        proptest::collection::vec(0..*p, dimension)
+        proptest::collection::vec(0..p.as_u32(), dimension)
     }
 
     /// A pair of a prime `p` and a vector containing values in the range `0..p`. In other
@@ -194,6 +211,11 @@ mod test {
         })]
 
         #[test]
+        fn test_bit_length(p in arb_prime()) {
+            bit_length(p);
+        }
+
+        #[test]
         fn test_serialize((p, v_arr) in arb_vec()) {
             use std::io::{Seek, Cursor};
 
@@ -215,19 +237,19 @@ mod test {
             v.add(&w, 1);
 
             for (v_element, w_element) in v_arr.iter_mut().zip(w_arr.iter()) {
-                *v_element = (*v_element + *w_element) % *p;
+                *v_element = (*v_element + *w_element) % p;
             }
             v.assert_list_eq(&v_arr);
         }
 
         #[test]
         fn test_scale((p, mut v_arr, c) in arb_prime_dim().prop_flat_map(|(p, dim)| {
-            (Just(p), arb_vec_u32(p, dim), 0u32..*p)
+            (Just(p), arb_vec_u32(p, dim), 0..p.as_u32())
         })) {
             let mut v = FpVector::from_slice(p, &v_arr);
             v.scale(c);
             for entry in &mut v_arr {
-                *entry = (*entry * c) % *p;
+                *entry = (*entry * c) % p;
             }
             v.assert_list_eq(&v_arr);
         }
@@ -235,14 +257,14 @@ mod test {
         #[test]
         fn test_scale_slice((p, mut v_arr, (slice_start, slice_end), c) in
             arb_prime_dim().prop_flat_map(|(p, dim)| {
-                (Just(p), arb_vec_u32(p, dim), arb_slice(dim), 0u32..*p)
+                (Just(p), arb_vec_u32(p, dim), arb_slice(dim), 0..p.as_u32())
             })
         ) {
             let mut v = FpVector::from_slice(p, &v_arr);
             v.slice_mut(slice_start, slice_end).scale(c);
 
             for entry in &mut v_arr[slice_start..slice_end] {
-                *entry = (*entry * c) % *p;
+                *entry = (*entry * c) % p;
             }
             v.assert_list_eq(&v_arr);
         }
@@ -331,7 +353,7 @@ mod test {
                 .add(w.slice(slice_start, slice_end), 1);
 
             for i in slice_start..slice_end {
-                v_arr[i] = (v_arr[i] + w_arr[i]) % *p;
+                v_arr[i] = (v_arr[i] + w_arr[i]) % p;
             }
             v.assert_list_eq(&v_arr);
         }
@@ -389,7 +411,7 @@ mod test {
                 .iter_mut()
                 .zip(w_arr[slice2_start..slice2_end].iter())
             {
-                *v_element = (*v_element + *w_element) % *p;
+                *v_element = (*v_element + *w_element) % p;
             }
             v.assert_list_eq(&v_arr);
         }
@@ -403,7 +425,7 @@ mod test {
 
             for (i, x) in v_small.iter_mut().enumerate() {
                 *x += v_big[mask[i]];
-                *x %= *p;
+                *x %= p;
             }
 
             v.assert_list_eq(&v_small);
@@ -417,7 +439,7 @@ mod test {
             v.as_slice_mut().add_unmasked(w.as_slice(), 1, &mask);
             for (i, &x) in v_small.iter().enumerate() {
                 v_big[mask[i]] += x;
-                v_big[mask[i]] %= *p;
+                v_big[mask[i]] %= p;
             }
             v.assert_list_eq(&v_big);
         }
@@ -527,7 +549,7 @@ mod test {
 
         let p = ValidPrime::new(p);
         const E_MAX: usize = 4;
-        let pto_the_e_max = (*p * *p * *p * *p) * *p;
+        let pto_the_e_max = (p * p * p * p) * p;
         let mut v = Vec::with_capacity(E_MAX + 1);
         let mut w = Vec::with_capacity(E_MAX + 1);
         for _ in 0..=E_MAX {
@@ -540,10 +562,10 @@ mod test {
             let mut ev = v_arr[i];
             let mut ew = w_arr[i];
             for e in 0..=E_MAX {
-                v[e].set_entry(i, ev % *p);
-                w[e].set_entry(i, ew % *p);
-                ev /= *p;
-                ew /= *p;
+                v[e].set_entry(i, ev % p);
+                w[e].set_entry(i, ew % p);
+                ev /= p;
+                ew /= p;
             }
         }
 
@@ -567,7 +589,7 @@ mod test {
         let mut vec_result = vec![0; dim];
         for (i, entry) in vec_result.iter_mut().enumerate() {
             for e in (0..=E_MAX).rev() {
-                *entry *= *p;
+                *entry *= p;
                 *entry += v[e].entry(i);
             }
         }
@@ -609,8 +631,8 @@ mod test {
     #[test]
     #[ignore]
     fn test_sign_rule() {
-        let mut in1 = FpVectorP::<2>::new_(128);
-        let mut in2 = FpVectorP::<2>::new_(128);
+        let mut in1 = FpVectorP::new(P2, 128);
+        let mut in2 = FpVectorP::new(P2, 128);
         let tests = [
             (
                 0x181e20846a820820,

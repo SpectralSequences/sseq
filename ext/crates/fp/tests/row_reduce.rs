@@ -1,6 +1,9 @@
 use proptest::prelude::*;
 
-use fp::{matrix::Matrix, prime::ValidPrime};
+use fp::{
+    matrix::Matrix,
+    prime::{Prime, ValidPrime},
+};
 
 /// An arbitrary `ValidPrime`
 fn arb_prime() -> impl Strategy<Value = ValidPrime> {
@@ -46,7 +49,7 @@ fn arb_coeff_row_pair_seq(
     p: ValidPrime,
     rows: usize,
 ) -> impl Strategy<Value = Vec<(u32, (usize, usize))>> {
-    proptest::collection::vec((1..*p, arb_row_pair(rows)), 0..1000)
+    proptest::collection::vec((1..p.as_u32(), arb_row_pair(rows)), 0..1000)
 }
 
 // This is a macro used to define functions that take in values from strategies as arguments.

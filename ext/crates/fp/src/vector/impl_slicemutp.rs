@@ -5,33 +5,33 @@ use itertools::Itertools;
 use crate::{
     constants,
     limb::{self, Limb},
-    prime::ValidPrime,
+    prime::{Prime, ValidPrime, P2},
 };
 
 use super::inner::{FpVectorP, SliceMutP, SliceP};
 
-impl<'a, const P: u32> SliceMutP<'a, P> {
+impl<'a, P: Prime> SliceMutP<'a, P> {
     pub fn prime(&self) -> ValidPrime {
-        ValidPrime::new(P)
+        self.p.to_dyn()
     }
 
     pub fn add_basis_element(&mut self, index: usize, value: u32) {
-        if P == 2 {
+        if self.p == 2 {
             // Checking for value % 2 == 0 appears to be less performant
-            let pair = limb::limb_bit_index_pair::<2>(index + self.start);
+            let pair = limb::limb_bit_index_pair(P2, index + self.start);
             self.limbs[pair.limb] ^= (value as Limb % 2) << pair.bit_index;
         } else {
             let mut x = self.as_slice().entry(index);
             x += value;
-            x %= P;
+            x %= self.p.as_u32();
             self.set_entry(index, x);
         }
     }
 
     pub fn set_entry(&mut self, index: usize, value: u32) {
         debug_assert!(index < self.as_slice().len());
-        let bit_mask = limb::bitmask::<P>();
-        let limb_index = limb::limb_bit_index_pair::<P>(index + self.start);
+        let bit_mask = limb::bitmask(self.p);
+        let limb_index = limb::limb_bit_index_pair(self.p, index + self.start);
         let mut result = self.limbs[limb_index.limb];
         result &= !(bit_mask << limb_index.bit_index);
         result |= (value as Limb) << limb_index.bit_index;
@@ -39,17 +39,17 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
     }
 
     fn reduce_limbs(&mut self) {
-        if P != 2 {
+        if self.p != 2 {
             let limb_range = self.as_slice().limb_range();
 
             for limb in &mut self.limbs[limb_range] {
-                *limb = limb::reduce::<P>(*limb);
+                *limb = limb::reduce(self.p, *limb);
             }
         }
     }
 
     pub fn scale(&mut self, c: u32) {
-        if P == 2 {
+        if self.p == 2 {
             if c == 0 {
                 self.set_to_zero();
             }
@@ -97,12 +97,12 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
     }
 
     pub fn add(&mut self, other: SliceP<'_, P>, c: u32) {
-        debug_assert!(c < P);
+        debug_assert!(self.p > c);
         if self.as_slice().is_empty() {
             return;
         }
 
-        if P == 2 {
+        if self.p == 2 {
             if c != 0 {
                 match self.as_slice().offset().cmp(&other.offset()) {
                     Ordering::Equal => self.add_shift_none(other, 1),
@@ -125,7 +125,7 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
         let right_dim = right.len();
 
         for (i, v) in left.iter_nonzero() {
-            let entry = (v * coeff) % *self.prime();
+            let entry = (v * coeff) % self.prime();
             self.slice_mut(offset + i * right_dim, offset + (i + 1) * right_dim)
                 .add(right, entry);
         }
@@ -169,12 +169,13 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
 
         let (min_mask, max_mask) = other.limb_masks();
 
-        self.limbs[target_range.start] = limb::add::<P>(
+        self.limbs[target_range.start] = limb::add(
+            self.p,
             self.limbs[target_range.start],
             other.limbs[source_range.start] & min_mask,
             c,
         );
-        self.limbs[target_range.start] = limb::reduce::<P>(self.limbs[target_range.start]);
+        self.limbs[target_range.start] = limb::reduce(self.p, self.limbs[target_range.start]);
 
         let target_inner_range = self.as_slice().limb_range_inner();
         let source_inner_range = other.limb_range_inner();
@@ -183,18 +184,20 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
                 .iter_mut()
                 .zip_eq(&other.limbs[source_inner_range])
             {
-                *left = limb::add::<P>(*left, *right, c);
-                *left = limb::reduce::<P>(*left);
+                *left = limb::add(self.p, *left, *right, c);
+                *left = limb::reduce(self.p, *left);
             }
         }
         if source_range.len() > 1 {
             // The first and last limbs are distinct, so we process the last.
-            self.limbs[target_range.end - 1] = limb::add::<P>(
+            self.limbs[target_range.end - 1] = limb::add(
+                self.p,
                 self.limbs[target_range.end - 1],
                 other.limbs[source_range.end - 1] & max_mask,
                 c,
             );
-            self.limbs[target_range.end - 1] = limb::reduce::<P>(self.limbs[target_range.end - 1]);
+            self.limbs[target_range.end - 1] =
+                limb::reduce(self.p, self.limbs[target_range.end - 1]);
         }
     }
 
@@ -212,7 +215,7 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
         }
 
         impl AddShiftLeftData {
-            fn new<const P: u32>(target: SliceP<'_, P>, source: SliceP<'_, P>) -> Self {
+            fn new<P: Prime>(p: P, target: SliceP<'_, P>, source: SliceP<'_, P>) -> Self {
                 debug_assert!(target.prime() == source.prime());
                 debug_assert!(target.offset() <= source.offset());
                 debug_assert!(
@@ -222,8 +225,8 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
                     source.len()
                 );
                 let offset_shift = source.offset() - target.offset();
-                let bit_length = limb::bit_length_const::<P>();
-                let entries_per_limb = limb::entries_per_limb_const::<P>();
+                let bit_length = limb::bit_length(p);
+                let entries_per_limb = limb::entries_per_limb(p);
                 let usable_bits_per_limb = bit_length * entries_per_limb;
                 let tail_shift = usable_bits_per_limb - offset_shift;
                 let zero_bits = constants::BITS_PER_LIMB - usable_bits_per_limb;
@@ -248,73 +251,78 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
                 }
             }
 
-            fn mask_first_limb<const P: u32>(&self, other: SliceP<'_, P>, i: usize) -> Limb {
+            fn mask_first_limb<P: Prime>(&self, other: SliceP<'_, P>, i: usize) -> Limb {
                 (other.limbs[i] & self.min_mask) >> self.offset_shift
             }
 
-            fn mask_middle_limb_a<const P: u32>(&self, other: SliceP<'_, P>, i: usize) -> Limb {
+            fn mask_middle_limb_a<P: Prime>(&self, other: SliceP<'_, P>, i: usize) -> Limb {
                 other.limbs[i] >> self.offset_shift
             }
 
-            fn mask_middle_limb_b<const P: u32>(&self, other: SliceP<'_, P>, i: usize) -> Limb {
+            fn mask_middle_limb_b<P: Prime>(&self, other: SliceP<'_, P>, i: usize) -> Limb {
                 (other.limbs[i] << (self.tail_shift + self.zero_bits)) >> self.zero_bits
             }
 
-            fn mask_last_limb_a<const P: u32>(&self, other: SliceP<'_, P>, i: usize) -> Limb {
+            fn mask_last_limb_a<P: Prime>(&self, other: SliceP<'_, P>, i: usize) -> Limb {
                 let source_limb_masked = other.limbs[i] & self.max_mask;
                 source_limb_masked << self.tail_shift
             }
 
-            fn mask_last_limb_b<const P: u32>(&self, other: SliceP<'_, P>, i: usize) -> Limb {
+            fn mask_last_limb_b<P: Prime>(&self, other: SliceP<'_, P>, i: usize) -> Limb {
                 let source_limb_masked = other.limbs[i] & self.max_mask;
                 source_limb_masked >> self.offset_shift
             }
         }
 
-        let dat = AddShiftLeftData::new(self.as_slice(), other);
+        let dat = AddShiftLeftData::new(self.p, self.as_slice(), other);
         let mut i = 0;
         {
-            self.limbs[i + dat.min_target_limb] = limb::add::<P>(
+            self.limbs[i + dat.min_target_limb] = limb::add(
+                self.p,
                 self.limbs[i + dat.min_target_limb],
                 dat.mask_first_limb(other, i + dat.min_source_limb),
                 c,
             );
         }
         for i in 1..dat.number_of_source_limbs - 1 {
-            self.limbs[i + dat.min_target_limb] = limb::add::<P>(
+            self.limbs[i + dat.min_target_limb] = limb::add(
+                self.p,
                 self.limbs[i + dat.min_target_limb],
                 dat.mask_middle_limb_a(other, i + dat.min_source_limb),
                 c,
             );
-            self.limbs[i + dat.min_target_limb - 1] = limb::add::<P>(
+            self.limbs[i + dat.min_target_limb - 1] = limb::add(
+                self.p,
                 self.limbs[i + dat.min_target_limb - 1],
                 dat.mask_middle_limb_b(other, i + dat.min_source_limb),
                 c,
             );
             self.limbs[i + dat.min_target_limb - 1] =
-                limb::reduce::<P>(self.limbs[i + dat.min_target_limb - 1]);
+                limb::reduce(self.p, self.limbs[i + dat.min_target_limb - 1]);
         }
         i = dat.number_of_source_limbs - 1;
         if i > 0 {
-            self.limbs[i + dat.min_target_limb - 1] = limb::add::<P>(
+            self.limbs[i + dat.min_target_limb - 1] = limb::add(
+                self.p,
                 self.limbs[i + dat.min_target_limb - 1],
                 dat.mask_last_limb_a(other, i + dat.min_source_limb),
                 c,
             );
             self.limbs[i + dat.min_target_limb - 1] =
-                limb::reduce::<P>(self.limbs[i + dat.min_target_limb - 1]);
+                limb::reduce(self.p, self.limbs[i + dat.min_target_limb - 1]);
             if dat.number_of_source_limbs == dat.number_of_target_limbs {
-                self.limbs[i + dat.min_target_limb] = limb::add::<P>(
+                self.limbs[i + dat.min_target_limb] = limb::add(
+                    self.p,
                     self.limbs[i + dat.min_target_limb],
                     dat.mask_last_limb_b(other, i + dat.min_source_limb),
                     c,
                 );
                 self.limbs[i + dat.min_target_limb] =
-                    limb::reduce::<P>(self.limbs[i + dat.min_target_limb]);
+                    limb::reduce(self.p, self.limbs[i + dat.min_target_limb]);
             }
         } else {
             self.limbs[i + dat.min_target_limb] =
-                limb::reduce::<P>(self.limbs[i + dat.min_target_limb]);
+                limb::reduce(self.p, self.limbs[i + dat.min_target_limb]);
         }
     }
 
@@ -332,7 +340,7 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
         }
 
         impl AddShiftRightData {
-            fn new<const P: u32>(target: SliceP<'_, P>, source: SliceP<'_, P>) -> Self {
+            fn new<P: Prime>(p: P, target: SliceP<'_, P>, source: SliceP<'_, P>) -> Self {
                 debug_assert!(target.prime() == source.prime());
                 debug_assert!(target.offset() >= source.offset());
                 debug_assert!(
@@ -342,8 +350,8 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
                     source.len()
                 );
                 let offset_shift = target.offset() - source.offset();
-                let bit_length = limb::bit_length_const::<P>();
-                let entries_per_limb = limb::entries_per_limb_const::<P>();
+                let bit_length = limb::bit_length(p);
+                let entries_per_limb = limb::entries_per_limb(p);
                 let usable_bits_per_limb = bit_length * entries_per_limb;
                 let tail_shift = usable_bits_per_limb - offset_shift;
                 let zero_bits = constants::BITS_PER_LIMB - usable_bits_per_limb;
@@ -367,47 +375,49 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
                 }
             }
 
-            fn mask_first_limb_a<const P: u32>(&self, other: SliceP<'_, P>, i: usize) -> Limb {
+            fn mask_first_limb_a<P: Prime>(&self, other: SliceP<'_, P>, i: usize) -> Limb {
                 let source_limb_masked = other.limbs[i] & self.min_mask;
                 (source_limb_masked << (self.offset_shift + self.zero_bits)) >> self.zero_bits
             }
 
-            fn mask_first_limb_b<const P: u32>(&self, other: SliceP<'_, P>, i: usize) -> Limb {
+            fn mask_first_limb_b<P: Prime>(&self, other: SliceP<'_, P>, i: usize) -> Limb {
                 let source_limb_masked = other.limbs[i] & self.min_mask;
                 source_limb_masked >> self.tail_shift
             }
 
-            fn mask_middle_limb_a<const P: u32>(&self, other: SliceP<'_, P>, i: usize) -> Limb {
+            fn mask_middle_limb_a<P: Prime>(&self, other: SliceP<'_, P>, i: usize) -> Limb {
                 (other.limbs[i] << (self.offset_shift + self.zero_bits)) >> self.zero_bits
             }
 
-            fn mask_middle_limb_b<const P: u32>(&self, other: SliceP<'_, P>, i: usize) -> Limb {
+            fn mask_middle_limb_b<P: Prime>(&self, other: SliceP<'_, P>, i: usize) -> Limb {
                 other.limbs[i] >> self.tail_shift
             }
 
-            fn mask_last_limb_a<const P: u32>(&self, other: SliceP<'_, P>, i: usize) -> Limb {
+            fn mask_last_limb_a<P: Prime>(&self, other: SliceP<'_, P>, i: usize) -> Limb {
                 let source_limb_masked = other.limbs[i] & self.max_mask;
                 source_limb_masked << self.offset_shift
             }
 
-            fn mask_last_limb_b<const P: u32>(&self, other: SliceP<'_, P>, i: usize) -> Limb {
+            fn mask_last_limb_b<P: Prime>(&self, other: SliceP<'_, P>, i: usize) -> Limb {
                 let source_limb_masked = other.limbs[i] & self.max_mask;
                 source_limb_masked >> self.tail_shift
             }
         }
 
-        let dat = AddShiftRightData::new(self.as_slice(), other);
+        let dat = AddShiftRightData::new(self.p, self.as_slice(), other);
         let mut i = 0;
         {
-            self.limbs[i + dat.min_target_limb] = limb::add::<P>(
+            self.limbs[i + dat.min_target_limb] = limb::add(
+                self.p,
                 self.limbs[i + dat.min_target_limb],
                 dat.mask_first_limb_a(other, i + dat.min_source_limb),
                 c,
             );
             self.limbs[i + dat.min_target_limb] =
-                limb::reduce::<P>(self.limbs[i + dat.min_target_limb]);
+                limb::reduce(self.p, self.limbs[i + dat.min_target_limb]);
             if dat.number_of_target_limbs > 1 {
-                self.limbs[i + dat.min_target_limb + 1] = limb::add::<P>(
+                self.limbs[i + dat.min_target_limb + 1] = limb::add(
+                    self.p,
                     self.limbs[i + dat.min_target_limb + 1],
                     dat.mask_first_limb_b(other, i + dat.min_source_limb),
                     c,
@@ -415,14 +425,16 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
             }
         }
         for i in 1..dat.number_of_source_limbs - 1 {
-            self.limbs[i + dat.min_target_limb] = limb::add::<P>(
+            self.limbs[i + dat.min_target_limb] = limb::add(
+                self.p,
                 self.limbs[i + dat.min_target_limb],
                 dat.mask_middle_limb_a(other, i + dat.min_source_limb),
                 c,
             );
             self.limbs[i + dat.min_target_limb] =
-                limb::reduce::<P>(self.limbs[i + dat.min_target_limb]);
-            self.limbs[i + dat.min_target_limb + 1] = limb::add::<P>(
+                limb::reduce(self.p, self.limbs[i + dat.min_target_limb]);
+            self.limbs[i + dat.min_target_limb + 1] = limb::add(
+                self.p,
                 self.limbs[i + dat.min_target_limb + 1],
                 dat.mask_middle_limb_b(other, i + dat.min_source_limb),
                 c,
@@ -430,15 +442,17 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
         }
         i = dat.number_of_source_limbs - 1;
         if i > 0 {
-            self.limbs[i + dat.min_target_limb] = limb::add::<P>(
+            self.limbs[i + dat.min_target_limb] = limb::add(
+                self.p,
                 self.limbs[i + dat.min_target_limb],
                 dat.mask_last_limb_a(other, i + dat.min_source_limb),
                 c,
             );
             self.limbs[i + dat.min_target_limb] =
-                limb::reduce::<P>(self.limbs[i + dat.min_target_limb]);
+                limb::reduce(self.p, self.limbs[i + dat.min_target_limb]);
             if dat.number_of_target_limbs > dat.number_of_source_limbs {
-                self.limbs[i + dat.min_target_limb + 1] = limb::add::<P>(
+                self.limbs[i + dat.min_target_limb + 1] = limb::add(
+                    self.p,
                     self.limbs[i + dat.min_target_limb + 1],
                     dat.mask_last_limb_b(other, i + dat.min_source_limb),
                     c,
@@ -447,7 +461,7 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
         }
         if dat.number_of_target_limbs > dat.number_of_source_limbs {
             self.limbs[i + dat.min_target_limb + 1] =
-                limb::reduce::<P>(self.limbs[i + dat.min_target_limb + 1]);
+                limb::reduce(self.p, self.limbs[i + dat.min_target_limb + 1]);
         }
     }
 
@@ -475,6 +489,7 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
         assert!(start <= end && end <= self.as_slice().len());
 
         SliceMutP {
+            p: self.p,
             limbs: &mut *self.limbs,
             start: self.start + start,
             end: self.start + end,
@@ -485,6 +500,7 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
     #[must_use]
     pub fn as_slice(&self) -> SliceP<'_, P> {
         SliceP {
+            p: self.p,
             limbs: &*self.limbs,
             start: self.start,
             end: self.end,
@@ -496,6 +512,7 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
     #[must_use]
     pub fn copy(&mut self) -> SliceMutP<'_, P> {
         SliceMutP {
+            p: self.p,
             limbs: self.limbs,
             start: self.start,
             end: self.end,
@@ -503,7 +520,7 @@ impl<'a, const P: u32> SliceMutP<'a, P> {
     }
 }
 
-impl<'a, const P: u32> From<&'a mut FpVectorP<P>> for SliceMutP<'a, P> {
+impl<'a, P: Prime> From<&'a mut FpVectorP<P>> for SliceMutP<'a, P> {
     fn from(v: &'a mut FpVectorP<P>) -> Self {
         v.slice_mut(0, v.len)
     }

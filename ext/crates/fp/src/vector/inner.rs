@@ -1,7 +1,7 @@
 // This generates better llvm optimization
 #![allow(clippy::int_plus_one)]
 
-use crate::limb::Limb;
+use crate::{limb::Limb, prime::Prime};
 
 /// An `FpVectorP` is a vector over $\mathbb{F}_p$ for a fixed prime, implemented using const
 /// generics. Due to limitations with const generics, we cannot constrain P to actually be a prime,
@@ -10,14 +10,16 @@ use crate::limb::Limb;
 /// Interally, it packs entries of the vectors into limbs. However, this is an abstraction that
 /// must not leave the `fp` library.
 #[derive(Debug, Hash, Eq, PartialEq, Clone)]
-pub struct FpVectorP<const P: u32> {
+pub struct FpVectorP<P: Prime> {
+    pub(super) p: P,
     pub(super) len: usize,
     pub(super) limbs: Vec<Limb>,
 }
 
 /// A SliceP is a slice of an FpVectorP. This immutably borrows the vector and implements Copy
 #[derive(Debug, Copy, Clone)]
-pub struct SliceP<'a, const P: u32> {
+pub struct SliceP<'a, P: Prime> {
+    pub(super) p: P,
     pub(super) limbs: &'a [Limb],
     pub(super) start: usize,
     pub(super) end: usize,
@@ -28,7 +30,8 @@ pub struct SliceP<'a, const P: u32> {
 /// that imitates the reborrowing, that mutably borrows `SliceMutP` and returns a `SliceMutP` with
 /// a shorter lifetime.
 #[derive(Debug)]
-pub struct SliceMutP<'a, const P: u32> {
+pub struct SliceMutP<'a, P: Prime> {
+    pub(super) p: P,
     pub(super) limbs: &'a mut [Limb],
     pub(super) start: usize,
     pub(super) end: usize,

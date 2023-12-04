@@ -52,7 +52,7 @@ impl Subquotient {
             if c != 0 {
                 elt.add(
                     self.gens.matrix.row(self.gens.pivots()[i] as usize),
-                    ((*elt.prime() - 1) * c) % *elt.prime(),
+                    ((elt.prime() - 1) * c) % elt.prime(),
                 );
             }
         }
