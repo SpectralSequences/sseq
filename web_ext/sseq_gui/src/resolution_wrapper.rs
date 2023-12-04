@@ -190,7 +190,7 @@ impl<CC: ChainComplex> Resolution<CC> {
             || (!left && mult.t() * (source.s() as i32) % 2 != 0)
         {
             for entry in product.iter_mut().flatten() {
-                *entry = ((*p - 1) * *entry) % *p;
+                *entry = ((p - 1) * *entry) % p;
             }
         }
 
@@ -317,7 +317,7 @@ impl<CC: ChainComplex> Resolution<CC> {
                         val += elt.class[i] * result.entry(idx);
                     }
                 }
-                products[k].push(val % *self.prime());
+                products[k].push(val % self.prime());
             }
         }
         self.add_structline(&elt.name, source, elt.b, true, products);

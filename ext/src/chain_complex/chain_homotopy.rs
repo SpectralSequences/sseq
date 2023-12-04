@@ -216,7 +216,7 @@ impl<
 
             self.homotopies[source.s() as i32 - 1].apply(
                 scratch.as_slice_mut(),
-                *p - 1,
+                p - 1,
                 source.t(),
                 self.left
                     .source

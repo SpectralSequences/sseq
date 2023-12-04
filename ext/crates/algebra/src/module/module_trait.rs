@@ -110,7 +110,7 @@ pub trait Module: std::fmt::Display + std::any::Any + Send + Sync {
         for (i, v) in input.iter_nonzero() {
             self.act_on_basis(
                 result.copy(),
-                (coeff * v) % *p,
+                (coeff * v) % p,
                 op_degree,
                 op_index,
                 input_degree,
@@ -134,7 +134,7 @@ pub trait Module: std::fmt::Display + std::any::Any + Send + Sync {
         for (i, v) in op.iter_nonzero() {
             self.act(
                 result.copy(),
-                (coeff * v) % *p,
+                (coeff * v) % p,
                 op_degree,
                 i,
                 input_degree,
@@ -157,7 +157,7 @@ pub trait Module: std::fmt::Display + std::any::Any + Send + Sync {
         for (i, v) in op.iter_nonzero() {
             self.act_on_basis(
                 result.copy(),
-                (coeff * v) % *p,
+                (coeff * v) % p,
                 op_degree,
                 i,
                 input_degree,

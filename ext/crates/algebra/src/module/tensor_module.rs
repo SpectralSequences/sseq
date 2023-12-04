@@ -129,7 +129,7 @@ where
                         }
                         result.add_tensor(
                             self.offset(output_degree, left_deg + op_deg_l),
-                            minus_one_to_the_n(*self.prime(), op_deg_r * left_deg),
+                            minus_one_to_the_n(self.prime(), op_deg_r * left_deg),
                             left_result.as_slice(),
                             right_result.as_slice(),
                         );

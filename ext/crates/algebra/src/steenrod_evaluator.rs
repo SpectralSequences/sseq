@@ -2,7 +2,7 @@ use crate::algebra::adem_algebra::AdemBasisElement;
 use crate::algebra::{AdemAlgebra, Algebra, MilnorAlgebra};
 use crate::milnor_algebra::{MilnorBasisElement, PPartEntry};
 use crate::steenrod_parser::*;
-use fp::prime::ValidPrime;
+use fp::prime::{Prime, ValidPrime};
 use fp::vector::FpVector;
 
 use anyhow::anyhow;
@@ -24,14 +24,14 @@ impl SteenrodEvaluator {
     pub fn milnor_to_adem(&self, result: &mut FpVector, coeff: u32, degree: i32, input: &FpVector) {
         let p = self.prime();
         for (i, v) in input.iter_nonzero() {
-            self.milnor_to_adem_on_basis(result, (coeff * v) % *p, degree, i);
+            self.milnor_to_adem_on_basis(result, (coeff * v) % p, degree, i);
         }
     }
 
     pub fn adem_to_milnor(&self, result: &mut FpVector, coeff: u32, degree: i32, input: &FpVector) {
         let p = self.prime();
         for (i, v) in input.iter_nonzero() {
-            self.adem_to_milnor_on_basis(result, (coeff * v) % *p, degree, i);
+            self.adem_to_milnor_on_basis(result, (coeff * v) % p, degree, i);
         }
     }
 
@@ -131,7 +131,7 @@ impl SteenrodEvaluator {
                     }
                 }
                 let mut result = FpVector::new(p, 1);
-                result.set_entry(0, x.rem_euclid(*p as i32) as u32);
+                result.set_entry(0, x.rem_euclid(p.as_i32()) as u32);
                 Ok((0, result))
             }
         }
@@ -274,7 +274,7 @@ impl SteenrodEvaluator {
             degree,
             bocksteins: 0,
             ps: t,
-            p_or_sq: *p != 2,
+            p_or_sq: p != 2,
         });
         let mut tmp_vector_a = FpVector::new(p, dim);
         self.adem_to_milnor_on_basis(&mut tmp_vector_a, 1, degree, t_idx);
@@ -315,19 +315,19 @@ impl SteenrodEvaluator {
             } else {
                 0
             };
-            t[i] = p_part + ((elt.q_part >> (i + 1)) & 1) + *p * t[i + 1];
+            t[i] = p_part + ((elt.q_part >> (i + 1)) & 1) + p * t[i + 1];
         }
         let t_idx = self.adem.basis_element_to_index(&AdemBasisElement {
             degree,
             bocksteins: elt.q_part,
             ps: t,
-            p_or_sq: *p != 2,
+            p_or_sq: p != 2,
         });
         let mut tmp_vector_a = FpVector::new(p, dim);
         self.adem_to_milnor_on_basis(&mut tmp_vector_a, 1, degree, t_idx);
         assert!(tmp_vector_a.entry(idx) == 1);
         tmp_vector_a.set_entry(idx, 0);
-        tmp_vector_a.scale(*p - 1);
+        tmp_vector_a.scale(p - 1);
         self.milnor_to_adem(result, coeff, degree, &tmp_vector_a);
         result.add_basis_element(t_idx, coeff);
     }

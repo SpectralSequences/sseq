@@ -127,7 +127,7 @@ impl ResolutionManager {
             let unit_resolution = Resolution::new_from_json(
                 json!({
                     "type": "finite dimensional module",
-                    "p": *resolution.prime(),
+                    "p": resolution.prime(),
                     "gens": {"x0": 0},
                     "actions": [],
                 }),

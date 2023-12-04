@@ -1,7 +1,7 @@
 use algebra::module::{steenrod_module, FDModule, TensorModule};
 use algebra::{AdemAlgebra, SteenrodAlgebra};
 use ext::utils::parse_module_name;
-use fp::prime::ValidPrime;
+use fp::prime::{Prime, ValidPrime};
 
 use anyhow::anyhow;
 use serde_json::json;
@@ -32,7 +32,7 @@ fn main() -> anyhow::Result<()> {
     tensor.name = String::new();
 
     let mut output = json!({
-        "p": *p,
+        "p": p.as_u32(),
     });
     tensor.to_json(&mut output);
 

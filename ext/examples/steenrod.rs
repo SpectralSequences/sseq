@@ -19,7 +19,7 @@ fn main() -> anyhow::Result<()> {
     let module = resolution.target().module(0);
     let p = resolution.prime();
 
-    if resolution.target().max_s() != 1 || !module.is_unit() || *p != 2 {
+    if resolution.target().max_s() != 1 || !module.is_unit() || p != 2 {
         panic!("Can only run Steenrod on the sphere");
     }
 

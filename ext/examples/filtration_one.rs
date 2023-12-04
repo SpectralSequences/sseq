@@ -9,7 +9,7 @@ use sseq::coordinates::{Bidegree, BidegreeGenerator};
 
 fn main() -> anyhow::Result<()> {
     let resolution = query_module(None, false)?;
-    assert_eq!(*resolution.prime(), 2);
+    assert_eq!(resolution.prime(), 2);
 
     for b in resolution.iter_stem() {
         let mut i = 0;

@@ -561,7 +561,7 @@ pub trait SecondaryLift: Sync + Sized {
             // Check that we indeed had a lift
             let d = target.differential(target_b.s());
             for (src, tgt) in std::iter::zip(&results, &mut intermediates) {
-                d.apply(tgt.as_slice_mut(), *p - 1, target_b.t(), src.as_slice());
+                d.apply(tgt.as_slice_mut(), p - 1, target_b.t(), src.as_slice());
                 assert!(
                     tgt.is_zero(),
                     "secondary: Failed to lift at {b}. This likely indicates an invalid input."
@@ -864,7 +864,7 @@ where
     }
 
     fn composite(&self, s: u32) -> CompositeData<Self::Algebra> {
-        let p = *self.prime();
+        let p = self.prime();
         // This is -1 mod p^2
         let neg_1 = p * p - 1;
 
@@ -882,7 +882,7 @@ where
 
     fn compute_intermediate(&self, gen: BidegreeGenerator) -> FpVector {
         let p = self.prime();
-        let neg_1 = *p - 1;
+        let neg_1 = p - 1;
         let shifted_b = gen.degree() - self.shift();
         let target = self.target().module(shifted_b.s() - 1);
 
@@ -996,11 +996,11 @@ where
         );
 
         let sign = if (self.underlying.shift.s() as i32 * b.t()) % 2 == 1 {
-            *p * *p - 1
+            p * p - 1
         } else {
             1
         };
-        let filtration_one_sign = if (b.t() % 2) == 1 { *p - 1 } else { 1 };
+        let filtration_one_sign = if (b.t() % 2) == 1 { p - 1 } else { 1 };
 
         let page_data = sseq.map(|sseq| {
             let d = sseq.page_data(tau_source.n(), tau_source.s() as i32);
@@ -1017,14 +1017,14 @@ where
                     .zip_eq(&m0[i])
                     .for_each(|(a, b)| *a += v * b * sign);
                 out.slice_mut(source_num_gens, source_num_gens + tau_num_gens)
-                    .add(m1[i].as_slice(), (v * sign) % *p);
+                    .add(m1[i].as_slice(), (v * sign) % p);
             }
             for (i, v) in scratch0.iter().enumerate() {
-                out.add_basis_element(i, *v % *p);
+                out.add_basis_element(i, *v % p);
 
-                let extra = *v / *p;
+                let extra = *v / p;
                 out.slice_mut(source_num_gens, source_num_gens + tau_num_gens)
-                    .add(mp[i].as_slice(), (extra * filtration_one_sign) % *p);
+                    .add(mp[i].as_slice(), (extra * filtration_one_sign) % p);
             }
             if let Some(page_data) = page_data {
                 page_data.reduce_by_quotient(
@@ -1209,7 +1209,7 @@ where
 
     fn compute_intermediate(&self, gen: BidegreeGenerator) -> FpVector {
         let p = self.prime();
-        let neg_1 = *p - 1;
+        let neg_1 = p - 1;
         let shifted_b = gen.degree() - self.shift();
 
         let target = self.target().module(shifted_b.s() - 1);
@@ -1301,7 +1301,7 @@ where
     }
 
     fn composite(&self, s: u32) -> CompositeData<S::Algebra> {
-        let p = *self.prime();
+        let p = self.prime();
         // This is -1 mod p^2
         let neg_1 = p * p - 1;
 

@@ -9,7 +9,7 @@ use algebra::module::FDModule;
 use algebra::steenrod_evaluator::SteenrodEvaluator;
 use algebra::{AdemAlgebra, Algebra, GeneratedAlgebra};
 use bivec::BiVec;
-use fp::prime::ValidPrime;
+use fp::prime::{Prime, ValidPrime};
 use fp::vector::FpVector;
 
 use anyhow::anyhow;
@@ -86,7 +86,7 @@ pub fn interactive_module_define_fdmodule(
     output_json: &mut Value,
     p: ValidPrime,
 ) -> anyhow::Result<()> {
-    output_json["p"] = Value::from(*p);
+    output_json["p"] = Value::from(p.as_u32());
     let algebra = Arc::new(AdemAlgebra::new(p, false));
 
     let gens = get_gens()?;
@@ -186,7 +186,7 @@ pub fn interactive_module_define_fpmodule(
     }
 
     eprintln!("Input relations");
-    match *p {
+    match p.as_u32() {
         2 => eprintln!("Write relations in the form 'Sq6 * Sq2 * x + Sq7 * y'"),
         _ => eprintln!("Write relations in the form 'Q5 * P(5) * x + 2 * P(1, 3) * Q2 * y', where P(...) and Qi are Milnor basis elements."),
     }
@@ -260,7 +260,7 @@ pub fn interactive_module_define_fpmodule(
         }
     }
 
-    output_json["p"] = Value::from(*p);
+    output_json["p"] = Value::from(p.as_u32());
     output_json["type"] = Value::String("finitely presented module".to_owned());
     for (i, deg_i_gens) in gens.iter_enum() {
         for gen in deg_i_gens {

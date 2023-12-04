@@ -1,7 +1,7 @@
 use fp::vector::FpVector;
 use once::OnceVec;
 
-use fp::prime::{minus_one_to_the_n, Binomial, ValidPrime};
+use fp::prime::{minus_one_to_the_n, Binomial, Prime, ValidPrime};
 use fp::{const_for, MAX_MULTINOMIAL_LEN, NUM_PRIMES, PRIMES, PRIME_TO_INDEX_MAP};
 
 pub const MAX_XI_TAU: usize = MAX_MULTINOMIAL_LEN;
@@ -39,7 +39,7 @@ const TAU_DEGREES: [[i32; MAX_XI_TAU]; NUM_PRIMES] = {
 };
 
 pub fn adem_relation_coefficient(p: ValidPrime, x: u32, y: u32, j: u32, e1: u32, e2: u32) -> u32 {
-    let pi32 = *p as i32;
+    let pi32 = p.as_i32();
     let x = x as i32;
     let y = y as i32;
     let j = j as i32;
@@ -49,12 +49,11 @@ pub fn adem_relation_coefficient(p: ValidPrime, x: u32, y: u32, j: u32, e1: u32,
     if c == 0 {
         return 0;
     }
-    c *= minus_one_to_the_n(*p, (x + j) + e2);
-    c % *p
+    c *= minus_one_to_the_n(p, (x + j) + e2);
+    c % p
 }
 
 pub fn inadmissible_pairs(p: ValidPrime, generic: bool, degree: i32) -> Vec<(u32, u32, u32)> {
-    let p = *p;
     let degree = degree as u32;
     let q = if generic { 2 * p - 2 } else { 1 };
     // (i, b, j) means P^i P^j if b = 0, or P^i b P^j if b = 1.
@@ -83,11 +82,11 @@ pub fn inadmissible_pairs(p: ValidPrime, generic: bool, degree: i32) -> Vec<(u32
 }
 
 pub fn tau_degrees(p: ValidPrime) -> &'static [i32] {
-    &TAU_DEGREES[PRIME_TO_INDEX_MAP[*p as usize]]
+    &TAU_DEGREES[PRIME_TO_INDEX_MAP[p.as_usize()]]
 }
 
 pub fn xi_degrees(p: ValidPrime) -> &'static [i32] {
-    &XI_DEGREES[PRIME_TO_INDEX_MAP[*p as usize]]
+    &XI_DEGREES[PRIME_TO_INDEX_MAP[p.as_usize()]]
 }
 
 pub struct TruncatedPolynomialMonomialBasis {
@@ -142,7 +141,7 @@ impl TruncatedPolynomialMonomialBasis {
 
     pub fn add_gens_and_calculate_parts(&self, degree: i32, new_gens: usize) {
         assert!(degree as usize == self.gens.len());
-        let p = *self.p;
+        let p = self.p;
         let idx = self.gens[degree as usize - 1].0 + self.gens[degree as usize - 1].1;
         self.gens.push((idx, new_gens));
         let mut new_parts_by_max = Vec::new();

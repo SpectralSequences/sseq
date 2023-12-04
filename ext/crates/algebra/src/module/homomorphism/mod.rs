@@ -71,7 +71,7 @@ pub trait ModuleHomomorphism: Send + Sync {
     fn apply(&self, mut result: SliceMut, coeff: u32, input_degree: i32, input: Slice) {
         let p = self.prime();
         for (i, v) in input.iter_nonzero() {
-            self.apply_to_basis_element(result.copy(), (coeff * v) % *p, input_degree, i);
+            self.apply_to_basis_element(result.copy(), (coeff * v) % p, input_degree, i);
         }
     }
 

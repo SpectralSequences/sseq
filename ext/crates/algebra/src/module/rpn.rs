@@ -184,7 +184,7 @@ where
     for<'a> &'a A: TryInto<&'a SteenrodAlgebra>,
 {
     pub fn new(algebra: Arc<A>, min: i32, max: Option<i32>, clear_bottom: bool) -> Self {
-        assert_eq!(*algebra.prime(), 2);
+        assert_eq!(algebra.prime(), 2);
         assert!(
             (&*algebra).try_into().is_ok(),
             "Real Projective Space only supports Steenrod Algebra"
