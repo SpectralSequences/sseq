@@ -59,6 +59,11 @@ pub trait Prime:
         self.as_u32() as usize
     }
 
+    /// Computes the product mod p. This takes care of overflow.
+    fn product(self, n1: u32, n2: u32) -> u32 {
+        ((n1 as u64) * (n2 as u64) % (self.as_u32() as u64)) as u32
+    }
+
     fn pow(self, exp: u32) -> u32 {
         self.as_u32().pow(exp)
     }
@@ -68,9 +73,9 @@ pub trait Prime:
         let mut result: u32 = 1;
         while e > 0 {
             if (e & 1) == 1 {
-                result = (result * b) % self.as_u32();
+                result = self.product(result, b);
             }
-            b = (b * b) % self.as_u32();
+            b = self.product(b, b);
             e >>= 1;
         }
         result
@@ -368,15 +373,16 @@ mod validprime {
 
 pub use validprime::{is_prime, ValidPrime};
 
-/// Compute b^e mod p.
+/// Compute b^e mod p. This is a const version of `Prime::pow_mod`.
 pub const fn power_mod(p: u32, mut b: u32, mut e: u32) -> u32 {
+    // We can't use Prime::product because const traits are still unstable
     assert!(p > 0);
     let mut result: u32 = 1;
     while e > 0 {
         if (e & 1) == 1 {
-            result = (result * b) % p;
+            result = ((result as u64) * (b as u64) % (p as u64)) as u32;
         }
-        b = (b * b) % p;
+        b = (((b as u64) * (b as u64)) % (p as u64)) as u32;
         e >>= 1;
     }
     result
