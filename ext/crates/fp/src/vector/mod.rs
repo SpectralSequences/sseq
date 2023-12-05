@@ -250,7 +250,7 @@ mod test {
             let mut v = FpVector::from_slice(p, &v_arr);
             v.scale(c);
             for entry in &mut v_arr {
-                *entry = (((*entry as u64) * (c as u64)) % (p.as_u32() as u64)) as u32;
+                *entry = p.product(*entry, c);
             }
             v.assert_list_eq(&v_arr);
         }
@@ -265,7 +265,7 @@ mod test {
             v.slice_mut(slice_start, slice_end).scale(c);
 
             for entry in &mut v_arr[slice_start..slice_end] {
-                *entry = (((*entry as u64) * (c as u64)) % (p.as_u32() as u64)) as u32
+                *entry = p.product(*entry, c);
             }
             v.assert_list_eq(&v_arr);
         }

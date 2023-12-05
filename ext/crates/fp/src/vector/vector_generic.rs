@@ -390,6 +390,7 @@ impl<'a> std::fmt::Display for Slice<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         if f.alternate() {
             for v in self.iter() {
+                // If self.p >= 11, this will look funky
                 write!(f, "{v}")?;
             }
             Ok(())

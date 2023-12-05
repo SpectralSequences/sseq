@@ -118,10 +118,10 @@ impl<P: Prime> FpVectorP<P> {
             }
             _ => {
                 for limb in &mut self.limbs {
+                    // We can cast x to u32 because we assume the limbs are reduced, so x < p < 2^31.
                     *limb = limb::pack(
                         self.p,
-                        limb::unpack(self.p, *limb)
-                            .map(|x| ((x * c as u64) % (self.p.as_u32() as u64)) as u32),
+                        limb::unpack(self.p, *limb).map(|x| self.p.product(x as u32, c)),
                     );
                 }
             }
