@@ -1,3 +1,5 @@
+use std::sync::OnceLock;
+
 use proptest::prelude::*;
 
 use fp::{
@@ -5,14 +7,30 @@ use fp::{
     prime::{Prime, ValidPrime},
 };
 
-/// An arbitrary `ValidPrime`
+/// An arbitrary `ValidPrime` in the range `2..(1 << 24)`, plus the largest prime that we support.
 fn arb_prime() -> impl Strategy<Value = ValidPrime> {
-    prop_oneof![
-        Just(ValidPrime::new(2)),
-        Just(ValidPrime::new(3)),
-        Just(ValidPrime::new(5)),
-        Just(ValidPrime::new(7)),
-    ]
+    static TEST_PRIMES: OnceLock<Vec<ValidPrime>> = OnceLock::new();
+    let test_primes = TEST_PRIMES.get_or_init(|| {
+        // Sieve of erathosthenes
+        const MAX: usize = 1 << 24;
+        let mut is_prime = Vec::new();
+        is_prime.resize_with(MAX, || true);
+        is_prime[0] = false;
+        is_prime[1] = false;
+        for i in 2..MAX {
+            if is_prime[i] {
+                for j in ((2 * i)..MAX).step_by(i) {
+                    is_prime[j] = false;
+                }
+            }
+        }
+        (0..MAX)
+            .filter(|&i| is_prime[i])
+            .map(|p| ValidPrime::new_unchecked(p as u32))
+            .chain(std::iter::once(ValidPrime::new_unchecked(2147483647)))
+            .collect()
+    });
+    (0..test_primes.len()).prop_map(|i| test_primes[i])
 }
 
 /// An increasing sequence of numbers between 0 and `cols`, where the sequence has a length between
