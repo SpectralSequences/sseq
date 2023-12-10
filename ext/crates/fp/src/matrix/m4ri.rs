@@ -1,5 +1,7 @@
 use crate::constants::BITS_PER_LIMB;
-use crate::limb::{number, Limb};
+use crate::field::limb::LimbMethods;
+use crate::field::Fp;
+use crate::limb::Limb;
 use crate::matrix::Matrix;
 use crate::prime::P2;
 use crate::simd;
@@ -36,7 +38,7 @@ pub(crate) struct M4riTable {
 impl M4riTable {
     /// Create a table with space for `k` vectors, each with `cols` columns.
     pub fn new(k: usize, cols: usize) -> Self {
-        let num_limbs = number(P2, cols);
+        let num_limbs = Fp(P2).number(cols);
         Self {
             rows: Vec::with_capacity(k),
             columns: Vec::with_capacity(k),

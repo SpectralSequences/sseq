@@ -1,19 +1,20 @@
 use crate::{
     constants,
-    limb::{self, Limb},
+    field::Field,
+    limb::Limb,
     prime::{Prime, ValidPrime},
 };
 
 use super::{
-    inner::{FpVectorP, SliceP},
-    iter::{FpVectorIterator, FpVectorNonZeroIteratorP},
+    inner::{FqVectorP, SliceP},
+    iter::{FpVectorIteratorP, FpVectorNonZeroIteratorP},
 };
 
 // Public methods
 
-impl<'a, P: Prime> SliceP<'a, P> {
+impl<'a, F: Field> SliceP<'a, F> {
     pub fn prime(&self) -> ValidPrime {
-        self.p.to_dyn()
+        self.fq.characteristic().to_dyn()
     }
 
     pub fn len(&self) -> usize {
@@ -24,27 +25,27 @@ impl<'a, P: Prime> SliceP<'a, P> {
         self.start == self.end
     }
 
-    pub fn entry(&self, index: usize) -> u32 {
+    pub fn entry(&self, index: usize) -> F::Element {
         debug_assert!(
             index < self.len(),
             "Index {} too large, length of vector is only {}.",
             index,
             self.len()
         );
-        let bit_mask = limb::bitmask(self.p);
-        let limb_index = limb::limb_bit_index_pair(self.p, index + self.start);
+        let bit_mask = self.fq.bitmask();
+        let limb_index = self.fq.limb_bit_index_pair(index + self.start);
         let mut result = self.limbs[limb_index.limb];
         result >>= limb_index.bit_index;
         result &= bit_mask;
-        result as u32
+        self.fq.decode(result)
     }
 
     /// TODO: implement prime 2 version
-    pub fn iter(self) -> FpVectorIterator<'a> {
-        FpVectorIterator::new(self)
+    pub fn iter(self) -> FpVectorIteratorP<'a, F> {
+        FpVectorIteratorP::new(self)
     }
 
-    pub fn iter_nonzero(self) -> FpVectorNonZeroIteratorP<'a, P> {
+    pub fn iter_nonzero(self) -> FpVectorNonZeroIteratorP<'a, F> {
         FpVectorNonZeroIteratorP::new(self)
     }
 
@@ -68,11 +69,11 @@ impl<'a, P: Prime> SliceP<'a, P> {
         true
     }
     #[must_use]
-    pub fn slice(self, start: usize, end: usize) -> SliceP<'a, P> {
+    pub fn slice(self, start: usize, end: usize) -> SliceP<'a, F> {
         assert!(start <= end && end <= self.len());
 
         SliceP {
-            p: self.p,
+            fq: self.fq,
             limbs: self.limbs,
             start: self.start + start,
             end: self.start + end,
@@ -81,9 +82,9 @@ impl<'a, P: Prime> SliceP<'a, P> {
 
     /// Converts a slice to an owned FpVectorP. This is vastly more efficient if the start of the vector is aligned.
     #[must_use]
-    pub fn to_owned(self) -> FpVectorP<P> {
-        let mut new = FpVectorP::new(self.p, self.len());
-        if self.start % limb::entries_per_limb(self.p) == 0 {
+    pub fn to_owned(self) -> FqVectorP<F> {
+        let mut new = FqVectorP::new(self.fq, self.len());
+        if self.start % self.fq.entries_per_limb() == 0 {
             let limb_range = self.limb_range();
             new.limbs[0..limb_range.len()].copy_from_slice(&self.limbs[limb_range]);
             if !new.limbs.is_empty() {
@@ -98,17 +99,17 @@ impl<'a, P: Prime> SliceP<'a, P> {
 }
 
 // Limb methods
-impl<'a, P: Prime> SliceP<'a, P> {
+impl<'a, F: Field> SliceP<'a, F> {
     #[inline]
     pub(super) fn offset(&self) -> usize {
-        let bit_length = limb::bit_length(self.p);
-        let entries_per_limb = limb::entries_per_limb(self.p);
+        let bit_length = self.fq.bit_length();
+        let entries_per_limb = self.fq.entries_per_limb();
         (self.start % entries_per_limb) * bit_length
     }
 
     #[inline]
     pub(super) fn limb_range(&self) -> std::ops::Range<usize> {
-        limb::range(self.p, self.start, self.end)
+        self.fq.range(self.start, self.end)
     }
 
     /// This function underflows if `self.end == 0`, which happens if and only if we are taking a
@@ -128,8 +129,8 @@ impl<'a, P: Prime> SliceP<'a, P> {
 
     #[inline(always)]
     pub(super) fn max_limb_mask(&self) -> Limb {
-        let num_entries = 1 + (self.end - 1) % limb::entries_per_limb(self.p);
-        let bit_max = num_entries * limb::bit_length(self.p);
+        let num_entries = 1 + (self.end - 1) % self.fq.entries_per_limb();
+        let bit_max = num_entries * self.fq.bit_length();
 
         (!0) >> (constants::BITS_PER_LIMB - bit_max)
     }
@@ -147,8 +148,8 @@ impl<'a, P: Prime> SliceP<'a, P> {
     }
 }
 
-impl<'a, P: Prime> From<&'a FpVectorP<P>> for SliceP<'a, P> {
-    fn from(v: &'a FpVectorP<P>) -> Self {
+impl<'a, F: Field> From<&'a FqVectorP<F>> for SliceP<'a, F> {
+    fn from(v: &'a FqVectorP<F>) -> Self {
         v.slice(0, v.len)
     }
 }

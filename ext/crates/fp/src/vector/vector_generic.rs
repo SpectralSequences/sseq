@@ -15,11 +15,12 @@ use itertools::Itertools;
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use crate::limb::{entries_per_limb, Limb};
+use crate::field::{limb::LimbMethods, Fp};
+use crate::limb::Limb;
 use crate::prime::{primes::*, Prime, ValidPrime};
-use crate::vector::inner::{FpVectorP, SliceMutP, SliceP};
+use crate::vector::inner::{FqVectorP, SliceMutP, SliceP};
 
-use super::iter::{FpVectorIterator, FpVectorNonZeroIteratorP};
+use super::iter::{FpVectorIteratorP, FpVectorNonZeroIteratorP};
 
 macro_rules! dispatch_vector_inner {
     // other is a type, but marking it as a :ty instead of :tt means we cannot use it to access its
@@ -167,76 +168,84 @@ macro_rules! dispatch_vector {
 
 #[derive(Debug, Hash, Eq, PartialEq, Clone)]
 pub enum FpVector {
-    _2(FpVectorP<P2>),
-    _3(FpVectorP<P3>),
-    _5(FpVectorP<P5>),
-    _7(FpVectorP<P7>),
-    Big(FpVectorP<ValidPrime>),
+    _2(FqVectorP<Fp<P2>>),
+    _3(FqVectorP<Fp<P3>>),
+    _5(FqVectorP<Fp<P5>>),
+    _7(FqVectorP<Fp<P7>>),
+    Big(FqVectorP<Fp<ValidPrime>>),
 }
 
 #[derive(Debug, Copy, Clone)]
 pub enum Slice<'a> {
-    _2(SliceP<'a, P2>),
-    _3(SliceP<'a, P3>),
-    _5(SliceP<'a, P5>),
-    _7(SliceP<'a, P7>),
-    Big(SliceP<'a, ValidPrime>),
+    _2(SliceP<'a, Fp<P2>>),
+    _3(SliceP<'a, Fp<P3>>),
+    _5(SliceP<'a, Fp<P5>>),
+    _7(SliceP<'a, Fp<P7>>),
+    Big(SliceP<'a, Fp<ValidPrime>>),
 }
 
 #[derive(Debug)]
 pub enum SliceMut<'a> {
-    _2(SliceMutP<'a, P2>),
-    _3(SliceMutP<'a, P3>),
-    _5(SliceMutP<'a, P5>),
-    _7(SliceMutP<'a, P7>),
-    Big(SliceMutP<'a, ValidPrime>),
+    _2(SliceMutP<'a, Fp<P2>>),
+    _3(SliceMutP<'a, Fp<P3>>),
+    _5(SliceMutP<'a, Fp<P5>>),
+    _7(SliceMutP<'a, Fp<P7>>),
+    Big(SliceMutP<'a, Fp<ValidPrime>>),
+}
+
+pub enum FpVectorIterator<'a> {
+    _2(FpVectorIteratorP<'a, Fp<P2>>),
+    _3(FpVectorIteratorP<'a, Fp<P3>>),
+    _5(FpVectorIteratorP<'a, Fp<P5>>),
+    _7(FpVectorIteratorP<'a, Fp<P7>>),
+    Big(FpVectorIteratorP<'a, Fp<ValidPrime>>),
 }
 
 pub enum FpVectorNonZeroIterator<'a> {
-    _2(FpVectorNonZeroIteratorP<'a, P2>),
-    _3(FpVectorNonZeroIteratorP<'a, P3>),
-    _5(FpVectorNonZeroIteratorP<'a, P5>),
-    _7(FpVectorNonZeroIteratorP<'a, P7>),
-    Big(FpVectorNonZeroIteratorP<'a, ValidPrime>),
+    _2(FpVectorNonZeroIteratorP<'a, Fp<P2>>),
+    _3(FpVectorNonZeroIteratorP<'a, Fp<P3>>),
+    _5(FpVectorNonZeroIteratorP<'a, Fp<P5>>),
+    _7(FpVectorNonZeroIteratorP<'a, Fp<P7>>),
+    Big(FpVectorNonZeroIteratorP<'a, Fp<ValidPrime>>),
 }
 
 impl FpVector {
     pub fn new<P: Prime>(p: P, len: usize) -> FpVector {
         match p.as_u32() {
-            2 => FpVector::_2(FpVectorP::new(P2, len)),
-            3 => FpVector::_3(FpVectorP::new(P3, len)),
-            5 => FpVector::_5(FpVectorP::new(P5, len)),
-            7 => FpVector::_7(FpVectorP::new(P7, len)),
-            _ => FpVector::Big(FpVectorP::new(p.to_dyn(), len)),
+            2 => FpVector::_2(FqVectorP::new(Fp(P2), len)),
+            3 => FpVector::_3(FqVectorP::new(Fp(P3), len)),
+            5 => FpVector::_5(FqVectorP::new(Fp(P5), len)),
+            7 => FpVector::_7(FqVectorP::new(Fp(P7), len)),
+            _ => FpVector::Big(FqVectorP::new(Fp(p.to_dyn()), len)),
         }
     }
 
     pub fn new_with_capacity<P: Prime>(p: P, len: usize, capacity: usize) -> FpVector {
         match p.as_u32() {
-            2 => FpVector::_2(FpVectorP::new_with_capacity(P2, len, capacity)),
-            3 => FpVector::_3(FpVectorP::new_with_capacity(P3, len, capacity)),
-            5 => FpVector::_5(FpVectorP::new_with_capacity(P5, len, capacity)),
-            7 => FpVector::_7(FpVectorP::new_with_capacity(P7, len, capacity)),
-            _ => FpVector::Big(FpVectorP::new_with_capacity(p.to_dyn(), len, capacity)),
+            2 => FpVector::_2(FqVectorP::new_with_capacity(Fp(P2), len, capacity)),
+            3 => FpVector::_3(FqVectorP::new_with_capacity(Fp(P3), len, capacity)),
+            5 => FpVector::_5(FqVectorP::new_with_capacity(Fp(P5), len, capacity)),
+            7 => FpVector::_7(FqVectorP::new_with_capacity(Fp(P7), len, capacity)),
+            _ => FpVector::Big(FqVectorP::new_with_capacity(Fp(p.to_dyn()), len, capacity)),
         }
     }
 
     pub fn from_slice<P: Prime>(p: P, slice: &[u32]) -> Self {
         match p.as_u32() {
-            2 => FpVector::_2(FpVectorP::from((P2, &slice))),
-            3 => FpVector::_3(FpVectorP::from((P3, &slice))),
-            5 => FpVector::_5(FpVectorP::from((P5, &slice))),
-            7 => FpVector::_7(FpVectorP::from((P7, &slice))),
-            _ => FpVector::Big(FpVectorP::from((p.to_dyn(), &slice))),
+            2 => FpVector::_2(FqVectorP::from((Fp(P2), &slice))),
+            3 => FpVector::_3(FqVectorP::from((Fp(P3), &slice))),
+            5 => FpVector::_5(FqVectorP::from((Fp(P5), &slice))),
+            7 => FpVector::_7(FqVectorP::from((Fp(P7), &slice))),
+            _ => FpVector::Big(FqVectorP::from((Fp(p.to_dyn()), &slice))),
         }
     }
 
-    pub fn num_limbs(p: ValidPrime, len: usize) -> usize {
-        let entries_per_limb = entries_per_limb(p);
+    pub(crate) fn num_limbs(p: ValidPrime, len: usize) -> usize {
+        let entries_per_limb = Fp(p).entries_per_limb();
         (len + entries_per_limb - 1) / entries_per_limb
     }
     pub(crate) fn padded_len(p: ValidPrime, len: usize) -> usize {
-        Self::num_limbs(p, len) * entries_per_limb(p)
+        Self::num_limbs(p, len) * Fp(p).entries_per_limb()
     }
 
     pub fn update_from_bytes(&mut self, data: &mut impl Read) -> std::io::Result<()> {
@@ -297,15 +306,13 @@ impl FpVector {
         pub fn assign(&mut self, other: &Self);
         pub fn assign_partial(&mut self, other: &Self);
         pub fn add(&mut self, other: &Self, c: u32);
-        pub fn add_nosimd(&mut self, other: &Self, c: u32);
         pub fn add_offset(&mut self, other: &Self, c: u32, offset: usize);
-        pub fn add_offset_nosimd(&mut self, other: &Self, c: u32, offset: usize);
         pub fn slice(&self, start: usize, end: usize) -> (dispatch Slice);
         pub fn as_slice(&self) -> (dispatch Slice);
         pub fn slice_mut(&mut self, start: usize, end: usize) -> (dispatch SliceMut);
         pub fn as_slice_mut(&mut self) -> (dispatch SliceMut);
         pub fn is_zero(&self) -> bool;
-        pub fn iter(&self) -> FpVectorIterator;
+        pub fn iter(&self) -> (dispatch FpVectorIterator);
         pub fn iter_nonzero(&self) -> (dispatch FpVectorNonZeroIterator);
         pub fn extend_len(&mut self, dim: usize);
         pub fn set_scratch_vector_size(&mut self, dim: usize);
@@ -329,7 +336,7 @@ impl<'a> Slice<'a> {
         pub fn len(&self) -> usize;
         pub fn is_empty(&self) -> bool;
         pub fn entry(&self, index: usize) -> u32;
-        pub fn iter(self) -> (FpVectorIterator<'a>);
+        pub fn iter(self) -> (dispatch FpVectorIterator 'a);
         pub fn iter_nonzero(self) -> (dispatch FpVectorNonZeroIterator 'a);
         pub fn is_zero(&self) -> bool;
         pub fn slice(self, start: usize, end: usize) -> (dispatch Slice 'a);
@@ -364,6 +371,13 @@ impl<'a> SliceMut<'a> {
                 panic!("Applying add_tensor to vectors over different primes");
             }
         }
+    }
+}
+
+impl<'a> FpVectorIterator<'a> {
+    dispatch_vector! {
+        fn next(&mut self) -> (Option<u32>);
+        pub fn skip_n(&mut self, n: usize);
     }
 }
 
@@ -413,6 +427,14 @@ impl std::ops::AddAssign<&FpVector> for FpVector {
     }
 }
 
+impl<'a> Iterator for FpVectorIterator<'a> {
+    type Item = u32;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.next()
+    }
+}
+
 impl<'a> Iterator for FpVectorNonZeroIterator<'a> {
     type Item = (usize, u32);
 
@@ -432,10 +454,10 @@ impl<'a> IntoIterator for &'a FpVector {
 
 macro_rules! impl_try_into {
     ($var:tt, $p:ty) => {
-        impl<'a> TryInto<&'a mut FpVectorP<$p>> for &'a mut FpVector {
+        impl<'a> TryInto<&'a mut FqVectorP<Fp<$p>>> for &'a mut FpVector {
             type Error = ();
 
-            fn try_into(self) -> Result<&'a mut FpVectorP<$p>, ()> {
+            fn try_into(self) -> Result<&'a mut FqVectorP<Fp<$p>>, ()> {
                 match self {
                     FpVector::$var(x) => Ok(x),
                     _ => Err(()),

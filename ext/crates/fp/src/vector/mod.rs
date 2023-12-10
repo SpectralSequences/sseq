@@ -8,7 +8,7 @@ pub mod vector_generic;
 #[cfg(feature = "odd-primes")]
 pub use vector_generic::*;
 
-mod inner;
+pub(crate) mod inner;
 
 mod impl_fpvectorp;
 mod impl_slicemutp;
@@ -23,8 +23,10 @@ mod test {
     use proptest::prelude::*;
     use rstest::rstest;
 
-    use super::{inner::FpVectorP, *};
-    use crate::limb::{self, bit_length};
+    use super::{inner::FqVectorP, *};
+    use crate::field::limb::LimbMethods;
+    use crate::field::Fp;
+    use crate::limb;
     use crate::prime::{Prime, ValidPrime, P2};
 
     pub struct VectorDiffEntry {
@@ -213,7 +215,7 @@ mod test {
 
         #[test]
         fn test_bit_length(p in arb_prime()) {
-            prop_assert!(bit_length(p) <= 63);
+            prop_assert!(Fp(p).bit_length() <= 63);
         }
 
         #[test]
@@ -632,8 +634,8 @@ mod test {
     #[test]
     #[ignore]
     fn test_sign_rule() {
-        let mut in1 = FpVectorP::new(P2, 128);
-        let mut in2 = FpVectorP::new(P2, 128);
+        let mut in1 = FqVectorP::new(Fp(P2), 128);
+        let mut in2 = FqVectorP::new(Fp(P2), 128);
         let tests = [
             (
                 0x181e20846a820820,
