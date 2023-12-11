@@ -359,6 +359,7 @@ impl<'a> SliceMut<'a> {
             (SliceMut::_3(x), Slice::_3(y), Slice::_3(z)) => x.add_tensor(offset, coeff, y, z),
             (SliceMut::_5(x), Slice::_5(y), Slice::_5(z)) => x.add_tensor(offset, coeff, y, z),
             (SliceMut::_7(x), Slice::_7(y), Slice::_7(z)) => x.add_tensor(offset, coeff, y, z),
+            (SliceMut::Big(x), Slice::Big(y), Slice::Big(z)) => x.add_tensor(offset, coeff, y, z),
             _ => {
                 panic!("Applying add_tensor to vectors over different primes");
             }

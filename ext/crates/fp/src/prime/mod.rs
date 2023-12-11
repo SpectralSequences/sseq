@@ -48,11 +48,11 @@ pub trait Prime:
     + Serialize
     + for<'de> Deserialize<'de>
 {
-    fn as_u32(self) -> u32;
+    fn as_i32(self) -> i32;
     fn to_dyn(self) -> ValidPrime;
 
-    fn as_i32(self) -> i32 {
-        self.as_u32() as i32
+    fn as_u32(self) -> u32 {
+        self.as_i32() as u32
     }
 
     fn as_usize(self) -> usize {
@@ -104,7 +104,7 @@ macro_rules! def_prime_static {
 
         impl Prime for $pn {
             #[inline]
-            fn as_u32(self) -> u32 {
+            fn as_i32(self) -> i32 {
                 $p
             }
             #[inline]
@@ -215,6 +215,7 @@ impl_prime_ops!(P5);
 impl_prime_ops!(P7);
 
 macro_rules! impl_try_from {
+    // We need the type both as a type and as an expression.
     ($pn:ty, $pn_ex:expr) => {
         impl std::convert::TryFrom<u32> for $pn {
             type Error = PrimeError;
@@ -260,13 +261,16 @@ mod validprime {
 
     impl ValidPrime {
         pub const fn new(p: u32) -> ValidPrime {
-            // We need the size restriction because we need `bit_length(p)` to be smaller than 64.
-            // Otherwise, shifting a u64 by 64 bits is considered an overflow. We could special case
-            // these shifts to be setting to 0, but that doesn't seem worth it.
+            // We need the size restriction for a few reasons.
             //
-            // Also, we could in theory support primes up to sqrt(2^63 - 1), but that makes the
-            // assert below more complicated, and primes up to 2^31 are good enough for most
-            // purposes anyway.
+            // First, we need `bit_length(p)` to be smaller than 64. Otherwise, shifting a u64 by 64
+            // bits is considered an overflow. We could special case these shifts to be setting to
+            // 0, but that doesn't seem worth it.
+            //
+            // More importantly, the existence of `Prime::as_i32` means that we need `p` to fit in
+            // an i32. We want this method because there are a few places in the codebase that
+            // use it. It might be possible to go and change all of those to use `as_u32` instead,
+            // but it doesn't seem worth it for now.
             assert!(p < (1 << 31), "Tried to construct a prime larger than 2^31");
             assert!(is_prime(p), "Tried to construct a composite dynamic prime");
             ValidPrime { p }
@@ -278,8 +282,8 @@ mod validprime {
     }
 
     impl Prime for ValidPrime {
-        fn as_u32(self) -> u32 {
-            self.p
+        fn as_i32(self) -> i32 {
+            self.p as i32
         }
 
         fn to_dyn(self) -> ValidPrime {
