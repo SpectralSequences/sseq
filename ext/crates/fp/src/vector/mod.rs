@@ -657,8 +657,8 @@ mod tests {
     #[test]
     #[ignore]
     fn test_sign_rule() {
-        let mut in1 = FqVectorP::new(Fp(P2), 128);
-        let mut in2 = FqVectorP::new(Fp(P2), 128);
+        let mut in1 = FqVectorP::<Fp<P2>>::new(P2, 128);
+        let mut in2 = FqVectorP::<Fp<P2>>::new(P2, 128);
         let tests = [
             (
                 0x181e20846a820820,

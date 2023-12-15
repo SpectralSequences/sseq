@@ -1,24 +1,29 @@
+// According to
+// https://doc.rust-lang.org/stable/rustc/lints/listing/warn-by-default.html#private-interfaces:
+//
+// "Having something private in primary interface guarantees that the item will be unusable from
+// outer modules due to type privacy."
+//
+// In our case, this is a feature. We want to be able to use the `LimbMethods` trait in this crate
+// and we also want it to be inaccessible from outside the crate.
+#![allow(private_interfaces)]
+
 use std::ops::Range;
 
+use super::FieldElement;
 use crate::{
     constants::BITS_PER_LIMB,
     limb::{Limb, LimbBitIndexPair},
-    prime::Prime,
 };
 
-use super::{
-    element::{FieldElement, MultiplicativeFieldElement, PolynomialFieldElement},
-    Field, Fp, LargeFq, SmallFq,
-};
-
-/// Methods that lets us interact with the underlying `Limb` type.
+/// Methods that let us interact with the underlying `Limb` type.
 ///
 /// In practice this is an extension trait of a `Field`, so we treat it as such. We can't make it a
 /// supertrait of `Field` because `Field` is already a supertrait of `LimbMethods`.
 pub trait LimbMethods: Clone + Copy + Sized {
     type Element: FieldElement;
 
-    /// Encode a field element into a `Limb`. The limbs of an `FpVectorP<Self>` will consist of the
+    /// Encode a field element into a `Limb`. The limbs of an `FqVectorP<Self>` will consist of the
     /// coordinates of the vector, packed together using this method. It is assumed that the output
     /// value occupies at most `self.bit_length()` bits with the rest padded with zeros, and that
     /// the limb is reduced.
@@ -38,7 +43,14 @@ pub trait LimbMethods: Clone + Copy + Sized {
     /// reduced.
     fn fma_limb(self, limb_a: Limb, limb_b: Limb, coeff: Self::Element) -> Limb;
 
-    /// Return the `Limb` whose entries are the entries of `limb` reduced modulo `P`.
+    /// Reduce a limb, i.e. make it "canonical". For example, in [`Fp`](super::Fp), this replaces
+    /// every entry by its value modulo p.
+    ///
+    /// Many functions assume that the input limbs are reduced, but it's useful to allow the
+    /// existence of non-reduced limbs for performance reasons. Some functions like `fma_limb` can
+    /// be very quick compared to the reduction step, so finishing a computation by reducing all
+    /// limbs in sequence may allow the compiler to play some tricks with, for example, loop
+    /// unrolling and SIMD.
     fn reduce(self, limb: Limb) -> Limb;
 
     /// If `l` is a limb of `Self::Element`s, then `l & F.bitmask()` is the value of the
@@ -59,18 +71,15 @@ pub trait LimbMethods: Clone + Copy + Sized {
         }
     }
 
-    /// Check whether or not a limb is reduced, i.e. whether every entry is a value in the range `0..P`.
-    /// This is currently **not** faster than calling [`reduce`] directly.
+    /// Check whether or not a limb is reduced. This may potentially not be faster than calling
+    /// [`reduce`] directly.
     fn is_reduced(self, limb: Limb) -> bool {
         limb == self.reduce(limb)
     }
 
-    /// Given an interator of `Self::Element`s, pack all of them into a single limb in order.
-    /// It is assumed that
-    ///  - The values of the iterator are less than P
-    ///  - The values of the iterator fit into a single limb
-    ///
-    /// If these assumptions are violated, the result will be nonsense.
+    /// Given an interator of `Self::Element`s, pack all of them into a single limb in order. It is
+    /// assumed that the values of the iterator fit into a single limb. If this assumption is
+    /// violated, the result will be nonsense.
     fn pack<T: Iterator<Item = Self::Element>>(self, entries: T) -> Limb {
         let bit_length = self.bit_length();
         let mut result: Limb = 0;
@@ -123,7 +132,7 @@ pub trait LimbMethods: Clone + Copy + Sized {
     }
 }
 
-struct LimbIterator<F> {
+pub(crate) struct LimbIterator<F> {
     fq: F,
     limb: Limb,
     bit_length: usize,
@@ -140,115 +149,5 @@ impl<F: LimbMethods> Iterator for LimbIterator<F> {
         let result = self.limb & self.bit_mask;
         self.limb >>= self.bit_length;
         Some(self.fq.decode(result))
-    }
-}
-
-impl<P: Prime> LimbMethods for Fp<P> {
-    type Element = u32;
-
-    fn encode(self, element: Self::Element) -> Limb {
-        element as Limb
-    }
-
-    fn decode(self, element: Limb) -> Self::Element {
-        (element % self.0.as_u32() as Limb) as u32
-    }
-
-    fn bit_length(self) -> usize {
-        let p = self.characteristic().as_u32() as u64;
-        match p {
-            2 => 1,
-            _ => (BITS_PER_LIMB as u32 - (p * (p - 1)).leading_zeros()) as usize,
-        }
-    }
-
-    fn fma_limb(self, limb_a: Limb, limb_b: Limb, coeff: Self::Element) -> Limb {
-        if self.characteristic() == 2 {
-            limb_a ^ (coeff as Limb * limb_b)
-        } else {
-            limb_a + (coeff as Limb) * limb_b
-        }
-    }
-
-    /// Contributed by Robert Burklund.
-    fn reduce(self, limb: Limb) -> Limb {
-        match self.characteristic().as_u32() {
-            2 => limb,
-            3 => {
-                // Set top bit to 1 in every limb
-                const TOP_BIT: Limb = (!0 / 7) << (2 - BITS_PER_LIMB % 3);
-                let mut limb_2 = ((limb & TOP_BIT) >> 2) + (limb & (!TOP_BIT));
-                let mut limb_3s = limb_2 & (limb_2 >> 1);
-                limb_3s |= limb_3s << 1;
-                limb_2 ^= limb_3s;
-                limb_2
-            }
-            5 => {
-                // Set bottom bit to 1 in every limb
-                const BOTTOM_BIT: Limb = (!0 / 31) >> (BITS_PER_LIMB % 5);
-                const BOTTOM_TWO_BITS: Limb = BOTTOM_BIT | (BOTTOM_BIT << 1);
-                const BOTTOM_THREE_BITS: Limb = BOTTOM_BIT | (BOTTOM_TWO_BITS << 1);
-                let a = (limb >> 2) & BOTTOM_THREE_BITS;
-                let b = limb & BOTTOM_TWO_BITS;
-                let m = (BOTTOM_BIT << 3) - a + b;
-                let mut c = (m >> 3) & BOTTOM_BIT;
-                c |= c << 1;
-                let d = m & BOTTOM_THREE_BITS;
-                d + c - BOTTOM_TWO_BITS
-            }
-            _ => self.pack(self.unpack(limb)),
-        }
-    }
-}
-
-impl LimbMethods for SmallFq {
-    type Element = MultiplicativeFieldElement;
-
-    fn encode(self, element: Self::Element) -> Limb {
-        element.0.map(|x| (x as Limb) << 1 | 1).unwrap_or(0)
-    }
-
-    fn decode(self, element: Limb) -> Self::Element {
-        if element & 1 == 0 {
-            MultiplicativeFieldElement(None)
-        } else {
-            MultiplicativeFieldElement(Some((element >> 1) as u32))
-        }
-    }
-
-    fn bit_length(self) -> usize {
-        todo!()
-    }
-
-    fn fma_limb(self, limb_a: Limb, limb_b: Limb, coeff: Self::Element) -> Limb {
-        todo!()
-    }
-
-    fn reduce(self, limb: Limb) -> Limb {
-        todo!()
-    }
-}
-
-impl LimbMethods for LargeFq {
-    type Element = PolynomialFieldElement<Self>;
-
-    fn encode(self, element: Self::Element) -> Limb {
-        todo!()
-    }
-
-    fn decode(self, element: Limb) -> Self::Element {
-        todo!()
-    }
-
-    fn bit_length(self) -> usize {
-        todo!()
-    }
-
-    fn fma_limb(self, limb_a: Limb, limb_b: Limb, coeff: Self::Element) -> Limb {
-        todo!()
-    }
-
-    fn reduce(self, limb: Limb) -> Limb {
-        todo!()
     }
 }

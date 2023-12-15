@@ -5,14 +5,15 @@ use super::{
     iter::{FpVectorIteratorP, FpVectorNonZeroIteratorP},
 };
 use crate::{
-    field::{element::FieldElement, Field},
+    field::{Field, FieldElement},
     limb::{self, Limb},
     prime::{Prime, ValidPrime},
     simd,
 };
 
 impl<F: Field> FqVectorP<F> {
-    pub fn new(fq: F, len: usize) -> Self {
+    pub fn new(fq: impl Into<F>, len: usize) -> Self {
+        let fq = fq.into();
         let number_of_limbs = fq.number(len);
         Self {
             fq,
@@ -26,7 +27,8 @@ impl<F: Field> FqVectorP<F> {
         Self { fq, len, limbs }
     }
 
-    pub fn new_with_capacity(fq: F, len: usize, capacity: usize) -> Self {
+    pub fn new_with_capacity(fq: impl Into<F>, len: usize, capacity: usize) -> Self {
+        let fq = fq.into();
         let mut limbs = Vec::with_capacity(fq.number(capacity));
         limbs.resize(fq.number(len), 0);
         Self { fq, len, limbs }

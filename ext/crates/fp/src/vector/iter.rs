@@ -1,6 +1,5 @@
-use crate::{field::Field, limb::Limb};
-
 use super::inner::SliceP;
+use crate::{field::Field, limb::Limb};
 
 pub struct FpVectorIteratorP<'a, F> {
     fq: F,

@@ -5,7 +5,7 @@ use itertools::Itertools;
 use super::inner::{FqVectorP, SliceMutP, SliceP};
 use crate::{
     constants,
-    field::{element::FieldElement, Field},
+    field::{Field, FieldElement},
     limb::Limb,
     prime::{Prime, ValidPrime},
 };
@@ -17,9 +17,11 @@ impl<'a, F: Field> SliceMutP<'a, F> {
 
     pub fn add_basis_element(&mut self, index: usize, value: F::Element) {
         if self.fq.characteristic() == 2 && self.fq.degree() == 1 {
-            // Checking for value % 2 == 0 appears to be less performant
+            // This is a special case for F_2, where we can use the fact that the basis elements are
+            // 0 and 1. However, `value` (which in this case is equal to its encoded value) comes
+            // from outside the crate and might not be reduced mod 2 yet, so we do that ourselves.
             let pair = self.fq.limb_bit_index_pair(index + self.start);
-            self.limbs[pair.limb] ^= self.fq.encode(value) << pair.bit_index;
+            self.limbs[pair.limb] ^= (self.fq.encode(value) % 2) << pair.bit_index;
         } else {
             let mut x = self.as_slice().entry(index);
             x = self.fq.add(x, value);
