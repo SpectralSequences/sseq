@@ -5,7 +5,7 @@ use super::{
     iter::{FpVectorIteratorP, FpVectorNonZeroIteratorP},
 };
 use crate::{
-    field::{element::FieldElement, Field},
+    field::{Field, FieldElement},
     limb::{self, Limb},
     prime::{Prime, ValidPrime},
     simd,

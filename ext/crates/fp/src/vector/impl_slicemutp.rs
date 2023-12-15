@@ -4,7 +4,7 @@ use itertools::Itertools;
 
 use crate::{
     constants,
-    field::{element::FieldElement, Field},
+    field::{Field, FieldElement},
     limb::Limb,
     prime::{Prime, ValidPrime},
 };
