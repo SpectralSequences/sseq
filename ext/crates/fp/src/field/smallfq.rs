@@ -127,8 +127,10 @@ impl<P: Prime> std::fmt::Display for SmallFq<P> {
 }
 
 impl<P: Prime> Field for SmallFq<P> {
+    #[cfg(feature = "odd-primes")]
     type Characteristic = P;
 
+    #[cfg(feature = "odd-primes")]
     fn characteristic(self) -> Self::Characteristic {
         self.p
     }

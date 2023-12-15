@@ -7,8 +7,10 @@ use super::{limb::LimbMethods, Field, FieldElement};
 pub struct Fp<P>(pub(crate) P);
 
 impl<P: Prime> Field for Fp<P> {
+    #[cfg(feature = "odd-primes")]
     type Characteristic = P;
 
+    #[cfg(feature = "odd-primes")]
     fn characteristic(self) -> Self::Characteristic {
         self.0
     }
@@ -118,6 +120,12 @@ impl<P> std::ops::Deref for Fp<P> {
 
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+impl<P: Prime> From<P> for Fp<P> {
+    fn from(p: P) -> Self {
+        Self(p)
     }
 }
 

@@ -17,9 +17,16 @@ pub trait FieldElement: Clone {
 }
 
 pub trait Field: LimbMethods + Sized {
+    #[cfg(feature = "odd-primes")]
     type Characteristic: Prime;
 
+    #[cfg(feature = "odd-primes")]
     fn characteristic(self) -> Self::Characteristic;
+    #[cfg(not(feature = "odd-primes"))]
+    fn characteristic(self) -> super::prime::P2 {
+        super::prime::P2
+    }
+
     fn degree(self) -> u32;
 
     fn q(self) -> u32 {

@@ -8,36 +8,41 @@ use itertools::Itertools;
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use crate::limb::{entries_per_limb, Limb};
+use crate::field::limb::LimbMethods;
+use crate::field::Fp;
+use crate::limb::Limb;
 use crate::prime::{Prime, ValidPrime, P2};
-use crate::vector::inner::{FpVectorP, SliceMutP, SliceP};
+use crate::vector::inner::{FqVectorP, SliceMutP, SliceP};
 
-use super::iter::{FpVectorIterator, FpVectorNonZeroIteratorP};
+use super::iter::{FpVectorIteratorP, FpVectorNonZeroIteratorP};
 
-pub type FpVector = FpVectorP<P2>;
-pub type Slice<'a> = SliceP<'a, P2>;
-pub type SliceMut<'a> = SliceMutP<'a, P2>;
-pub type FpVectorNonZeroIterator<'a> = FpVectorNonZeroIteratorP<'a, P2>;
+static F2: Fp<P2> = Fp(P2);
+
+pub type FpVector = FqVectorP<Fp<P2>>;
+pub type Slice<'a> = SliceP<'a, Fp<P2>>;
+pub type SliceMut<'a> = SliceMutP<'a, Fp<P2>>;
+pub type FpVectorIterator<'a> = FpVectorIteratorP<'a, Fp<P2>>;
+pub type FpVectorNonZeroIterator<'a> = FpVectorNonZeroIteratorP<'a, Fp<P2>>;
 
 // `FpVector` implementations
 
 impl FpVector {
     pub fn from_slice<P: Prime>(p: P, slice: &[u32]) -> Self {
         if p == 2 {
-            Self::from((P2, &slice))
+            Self::from((F2, &slice))
         } else {
             panic!("Only p = 2 is supported")
         }
     }
 
     pub fn num_limbs(_p: ValidPrime, len: usize) -> usize {
-        let entries_per_limb = entries_per_limb(P2);
+        let entries_per_limb = F2.entries_per_limb();
         (len + entries_per_limb - 1) / entries_per_limb
     }
 
     #[allow(dead_code)]
     pub(crate) fn padded_len(p: ValidPrime, len: usize) -> usize {
-        Self::num_limbs(p, len) * entries_per_limb(P2)
+        Self::num_limbs(p, len) * F2.entries_per_limb()
     }
 
     pub fn update_from_bytes(&mut self, data: &mut impl Read) -> std::io::Result<()> {
@@ -61,7 +66,7 @@ impl FpVector {
     }
 
     pub fn from_bytes(p: ValidPrime, len: usize, data: &mut impl Read) -> std::io::Result<Self> {
-        let mut v = Self::new(p, len);
+        let mut v = Self::new(Fp(p), len);
         v.update_from_bytes(data)?;
         Ok(v)
     }
