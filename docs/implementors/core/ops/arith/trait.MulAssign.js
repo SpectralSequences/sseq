@@ -1,3 +1,0 @@
-(function() {var implementors = {
-"fp":[["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.74.0/core/ops/arith/trait.MulAssign.html\" title=\"trait core::ops::arith::MulAssign\">MulAssign</a>&lt;<a class=\"primitive\" href=\"https://doc.rust-lang.org/1.74.0/std/primitive.u32.html\">u32</a>&gt; for <a class=\"struct\" href=\"fp/matrix/matrix_inner/struct.Matrix.html\" title=\"struct fp::matrix::matrix_inner::Matrix\">Matrix</a>"]]
-};if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
