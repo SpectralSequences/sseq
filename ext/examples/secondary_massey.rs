@@ -221,8 +221,8 @@ fn main() -> anyhow::Result<()> {
     let ch_lift = SecondaryChainHomotopy::new(
         Arc::clone(&a),
         Arc::clone(&b),
-        a_tau.as_ref().map(Arc::clone),
-        b_tau.as_ref().map(Arc::clone),
+        a_tau.clone(),
+        b_tau.clone(),
         Arc::clone(&chain_homotopy),
     );
 
