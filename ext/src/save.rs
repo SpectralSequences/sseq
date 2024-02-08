@@ -410,6 +410,7 @@ impl<A: Algebra> SaveFile<A> {
             .write(true)
             .create_new(!overwrite)
             .create(true)
+            .truncate(true)
             .open(&p)
             .with_context(|| format!("Failed to create save file {p:?}"))
             .unwrap();
