@@ -18,7 +18,7 @@ once = { path = "../once" }
 
 anyhow = "1.0.0"
 auto_impl = "1.0.0"
-hashbrown = "0.11.0"
+hashbrown = "0.14.0"
 itertools = { version = "0.10.0", default-features = false, features = [
     "use_alloc",
 ] }
