@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `examples/bruner.rs`."><title>bruner.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-9ee3a5e31a2afa3e.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="bruner" data-themes="" data-resource-suffix="" data-rustdoc-version="1.75.0 (82e1608df 2023-12-21)" data-channel="1.75.0" data-search-js="search-8fbf244ebcf71464.js" data-settings-js="settings-74424d7eec62a23e.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-9dd44ab47b99a0fb.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `examples/bruner.rs`."><title>bruner.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-ac92e1bbe349e143.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="bruner" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0 (07dca489a 2024-02-04)" data-channel="1.76.0" data-search-js="search-2b6ce74ff89ae146.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-f2adc0d6ca4d09fb.js"></script><script defer src="../../static.files/src-script-39ed315d46fb705f.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-305769736d49e732.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-feafe1bb7466e4bd.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
 <!-- The loading of KaTeX is deferred to speed up page rendering -->
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.js" integrity="sha384-Bi8OWqMXO1ta+a4EPkZv7bYGIes7C3krGSZoTGNTAnAn5eYQc7IIXrJ/7ck1drAi" crossorigin="anonymous"></script>
 <!-- To automatically render math in text elements, include the auto-render extension: -->
@@ -23,7 +23,8 @@
     });
 </script>
 
-</head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+</head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><div class="sidebar-resizer"></div>
+    <main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" tabindex="-1"><a href="../../help.html" title="help">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -289,22 +290,22 @@
 <a href="#264" id="264">264</a>
 <a href="#265" id="265">265</a>
 <a href="#266" id="266">266</a>
-</pre></div><pre class="rust"><code><span class="doccomment">//! This script converts between our basis and Bruner&#39;s basis. At the moment, most inputs are
+</pre></div><pre class="rust"><code><span class="doccomment">//! This script converts between our basis and Bruner's basis. At the moment, most inputs are
 //! hardcoded, and this only works for the sphere.
 //!
 //! The script performs the following procedure:
 //!
 //! 1. Compute our own resolution with the Milnor basis
-//! 2. Create Bruner&#39;s resolution as a
+//! 2. Create Bruner's resolution as a
 //!    [`FiniteChainComplex`](ext::chain_complex::FiniteChainComplex) object
 //! 3. Use a [`ResolutionHomomorphism`](ext::resolution_homomorphism::ResolutionHomomorphism) to
-//!    lift the identity to a chain map from Bruner&#39;s resolution
+//!    lift the identity to a chain map from Bruner's resolution
 //!    to our resolution. We should do it in this direction because we have stored the
-//!    quasi-inverses for our resolution, but not Bruner&#39;s.
+//!    quasi-inverses for our resolution, but not Bruner's.
 //! 4. Read off the transformation matrix we need
 //!
-//! The main extra work to put in is step (2), where we have to parse Bruner&#39;s differentials and
-//! interpret it as a chain complex. Bruner&#39;s resolution can be found at
+//! The main extra work to put in is step (2), where we have to parse Bruner's differentials and
+//! interpret it as a chain complex. Bruner's resolution can be found at
 //! &lt;https://archive.sigma2.no/pages/public/datasetDetail.jsf?id=10.11582/2022.00015&gt;
 //! while the descirption of his save file is at &lt;https://arxiv.org/abs/2109.13117&gt;.
 
@@ -327,9 +328,9 @@
     sync::Arc,
 };
 
-<span class="attr">#[cfg(feature = <span class="string">&quot;nassau&quot;</span>)]
+<span class="attr">#[cfg(feature = <span class="string">"nassau"</span>)]
 </span><span class="kw">type </span>FreeModule = FM&lt;MilnorAlgebra&gt;;
-<span class="attr">#[cfg(not(feature = <span class="string">&quot;nassau&quot;</span>))]
+<span class="attr">#[cfg(not(feature = <span class="string">"nassau"</span>))]
 </span><span class="kw">type </span>FreeModule = FM&lt;algebra::SteenrodAlgebra&gt;;
 
 <span class="kw">type </span>FreeModuleHomomorphism = FMH&lt;FreeModule&gt;;
@@ -356,9 +357,9 @@
     Error: From&lt;&lt;T <span class="kw">as </span>FromStr&gt;::Err&gt;,
 {
     <span class="kw">let </span>x = x.trim();
-    <span class="kw">match </span>x.find(<span class="string">&#39; &#39;</span>) {
+    <span class="kw">match </span>x.find(<span class="string">' '</span>) {
         <span class="prelude-val">Some</span>(k) =&gt; <span class="prelude-val">Ok</span>((<span class="kw-2">&amp;</span>x[k..], x[..k].parse()<span class="question-mark">?</span>)),
-        <span class="prelude-val">None </span>=&gt; <span class="prelude-val">Ok</span>((<span class="string">&quot;&quot;</span>, x.parse()<span class="question-mark">?</span>)),
+        <span class="prelude-val">None </span>=&gt; <span class="prelude-val">Ok</span>((<span class="string">""</span>, x.parse()<span class="question-mark">?</span>)),
     }
 }
 
@@ -367,26 +368,26 @@
 /// $op_deg _ $op
 /// ```
 /// This returns an iterator of indices of the operators whose sum is the element sought.
-</span><span class="kw">fn </span>get_algebra_element&lt;<span class="lifetime">&#39;a</span>&gt;(
-    a: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>MilnorAlgebra,
-    input: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str,
-) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="kw">impl </span>Iterator&lt;Item = usize&gt; + <span class="lifetime">&#39;a</span>&gt; {
+</span><span class="kw">fn </span>get_algebra_element&lt;<span class="lifetime">'a</span>&gt;(
+    a: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>MilnorAlgebra,
+    input: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>str,
+) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="kw">impl </span>Iterator&lt;Item = usize&gt; + <span class="lifetime">'a</span>&gt; {
     <span class="kw">let </span>(input, t) = entry(input)<span class="question-mark">?</span>;
     <span class="kw">let </span>(input, <span class="kw">_</span>) = entry::&lt;u32&gt;(input)<span class="question-mark">?</span>;
 
     <span class="kw">let </span>input = input.trim();
-    <span class="macro">assert_eq!</span>(<span class="kw-2">&amp;</span>input[<span class="number">0</span>..<span class="number">1</span>], <span class="string">&quot;i&quot;</span>);
+    <span class="macro">assert_eq!</span>(<span class="kw-2">&amp;</span>input[<span class="number">0</span>..<span class="number">1</span>], <span class="string">"i"</span>);
 
     <span class="comment">// Remove the i
     </span><span class="kw">let </span>input = <span class="kw-2">&amp;</span>input[<span class="number">1</span>..];
     <span class="comment">// Remove the trailing ).
     </span><span class="kw">let </span>input = <span class="kw-2">&amp;</span>input[..input.len() - <span class="number">2</span>];
 
-    <span class="prelude-val">Ok</span>(input.split(<span class="string">&#39;)&#39;</span>).map(<span class="kw">move </span>|entry| {
+    <span class="prelude-val">Ok</span>(input.split(<span class="string">')'</span>).map(<span class="kw">move </span>|entry| {
         <span class="kw">let </span>entry = <span class="kw-2">&amp;</span>entry[<span class="number">1</span>..];
         <span class="kw">let </span>elt = MilnorBasisElement {
             q_part: <span class="number">0</span>,
-            p_part: entry.split(<span class="string">&#39;,&#39;</span>).map(|x| x.parse().unwrap()).collect(),
+            p_part: entry.split(<span class="string">','</span>).map(|x| x.parse().unwrap()).collect(),
             degree: t,
         };
         a.basis_element_to_index(<span class="kw-2">&amp;</span>elt)
@@ -425,10 +426,10 @@
 
 <span class="doccomment">/// Create a new `FiniteChainComplex` with `num_s` many non-zero modules.
 </span><span class="kw">fn </span>create_chain_complex(num_s: usize) -&gt; FiniteChainComplex {
-    <span class="attr">#[cfg(feature = <span class="string">&quot;nassau&quot;</span>)]
+    <span class="attr">#[cfg(feature = <span class="string">"nassau"</span>)]
     </span><span class="kw">let </span>algebra: Arc&lt;MilnorAlgebra&gt; = Arc::new(MilnorAlgebra::new(TWO, <span class="bool-val">false</span>));
 
-    <span class="attr">#[cfg(not(feature = <span class="string">&quot;nassau&quot;</span>))]
+    <span class="attr">#[cfg(not(feature = <span class="string">"nassau"</span>))]
     </span><span class="kw">let </span>algebra: Arc&lt;algebra::SteenrodAlgebra&gt; = Arc::new(algebra::SteenrodAlgebra::MilnorAlgebra(
         MilnorAlgebra::new(TWO, <span class="bool-val">false</span>),
     ));
@@ -478,8 +479,8 @@
         <span class="kw">let </span>d = cc.differential(s);
 
         <span class="kw">let </span><span class="kw-2">mut </span>f = BufReader::new(
-            File::open(data_dir.join(<span class="macro">format!</span>(<span class="string">&quot;hDiff.{s}&quot;</span>)))
-                .with_context(|| <span class="macro">format!</span>(<span class="string">&quot;Failed to read hDiff.{s}&quot;</span>))<span class="question-mark">?</span>,
+            File::open(data_dir.join(<span class="macro">format!</span>(<span class="string">"hDiff.{s}"</span>)))
+                .with_context(|| <span class="macro">format!</span>(<span class="string">"Failed to read hDiff.{s}"</span>))<span class="question-mark">?</span>,
         );
 
         read_line(<span class="kw-2">&amp;mut </span>f, <span class="kw-2">&amp;mut </span>buf)<span class="question-mark">?</span>;
@@ -512,26 +513,26 @@
 }
 
 <span class="kw">fn </span>main() {
-    <span class="kw">let </span>data_dir = Path::new(<span class="macro">file!</span>()).parent().unwrap().join(<span class="string">&quot;bruner_data&quot;</span>);
-    <span class="kw">let </span>max_n: i32 = query::with_default(<span class="string">&quot;Max n&quot;</span>, <span class="string">&quot;20&quot;</span>, str::parse);
+    <span class="kw">let </span>data_dir = Path::new(<span class="macro">file!</span>()).parent().unwrap().join(<span class="string">"bruner_data"</span>);
+    <span class="kw">let </span>max_n: i32 = query::with_default(<span class="string">"Max n"</span>, <span class="string">"20"</span>, str::parse);
 
-    <span class="comment">// Read in Bruner&#39;s resolution
+    <span class="comment">// Read in Bruner's resolution
     </span><span class="kw">let </span>(max_s, cc) = read_bruner_resolution(<span class="kw-2">&amp;</span>data_dir, max_n).unwrap();
     <span class="kw">let </span>max = Bidegree::n_s(max_n, max_s);
     <span class="kw">let </span>cc = Arc::new(cc);
 
-    <span class="kw">let </span>save_dir = query::optional(<span class="string">&quot;Save directory&quot;</span>, |x| {
+    <span class="kw">let </span>save_dir = query::optional(<span class="string">"Save directory"</span>, |x| {
         core::result::Result::&lt;PathBuf, std::convert::Infallible&gt;::Ok(PathBuf::from(x))
     });
 
-    <span class="attr">#[cfg(feature = <span class="string">&quot;nassau&quot;</span>)]
+    <span class="attr">#[cfg(feature = <span class="string">"nassau"</span>)]
     </span><span class="kw">if </span>save_dir.is_none() {
         <span class="macro">panic!</span>(
-            <span class="string">&quot;A save directory is required for comparison between Bruner and Nassau resolutions.&quot;
+            <span class="string">"A save directory is required for comparison between Bruner and Nassau resolutions."
         </span>);
     }
 
-    <span class="kw">let </span>resolution = ext::utils::construct(<span class="string">&quot;S_2@milnor&quot;</span>, save_dir).unwrap();
+    <span class="kw">let </span>resolution = ext::utils::construct(<span class="string">"S_2@milnor"</span>, save_dir).unwrap();
 
     resolution.compute_through_stem(max);
 
@@ -545,13 +546,13 @@
     hom.extend_all();
 
     <span class="comment">// Now print the results
-    </span><span class="macro">println!</span>(<span class="string">&quot;sseq_basis | bruner_basis&quot;</span>);
+    </span><span class="macro">println!</span>(<span class="string">"sseq_basis | bruner_basis"</span>);
     <span class="kw">for </span>b <span class="kw">in </span>hom.target.iter_stem() {
         <span class="kw">let </span>matrix = hom.get_map(b.s()).hom_k(b.t());
 
         <span class="kw">for </span>(i, row) <span class="kw">in </span>matrix.into_iter().enumerate() {
             <span class="kw">let </span>gen = BidegreeGenerator::new(b, i);
-            <span class="macro">println!</span>(<span class="string">&quot;x_{gen:#} = {row:?}&quot;</span>);
+            <span class="macro">println!</span>(<span class="string">"x_{gen:#} = {row:?}"</span>);
         }
     }
 }

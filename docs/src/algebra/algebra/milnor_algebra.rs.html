@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/algebra/src/algebra/milnor_algebra.rs`."><title>milnor_algebra.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-9ee3a5e31a2afa3e.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="algebra" data-themes="" data-resource-suffix="" data-rustdoc-version="1.75.0 (82e1608df 2023-12-21)" data-channel="1.75.0" data-search-js="search-8fbf244ebcf71464.js" data-settings-js="settings-74424d7eec62a23e.js" ><script src="../../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-9dd44ab47b99a0fb.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/algebra/src/algebra/milnor_algebra.rs`."><title>milnor_algebra.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-ac92e1bbe349e143.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="algebra" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0 (07dca489a 2024-02-04)" data-channel="1.76.0" data-search-js="search-2b6ce74ff89ae146.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../../static.files/storage-f2adc0d6ca4d09fb.js"></script><script defer src="../../../static.files/src-script-39ed315d46fb705f.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-305769736d49e732.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-feafe1bb7466e4bd.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
 <!-- The loading of KaTeX is deferred to speed up page rendering -->
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.js" integrity="sha384-Bi8OWqMXO1ta+a4EPkZv7bYGIes7C3krGSZoTGNTAnAn5eYQc7IIXrJ/7ck1drAi" crossorigin="anonymous"></script>
 <!-- To automatically render math in text elements, include the auto-render extension: -->
@@ -23,7 +23,8 @@
     });
 </script>
 
-</head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+</head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><div class="sidebar-resizer"></div>
+    <main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" tabindex="-1"><a href="../../../help.html" title="help">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -2147,7 +2148,7 @@
     </span><span class="kw">pub </span>truncated: bool,
     <span class="doccomment">/// A bitmask indicating which of the Q_k we want to include (1 = include). Defaults to `!0`.
     /// This is only relevant at odd primes.
-    </span><span class="attr">#[serde(default = <span class="string">&quot;q_part_default&quot;</span>)]
+    </span><span class="attr">#[serde(default = <span class="string">"q_part_default"</span>)]
     </span><span class="kw">pub </span>q_part: u32,
     <span class="doccomment">/// The profile function for the Q part.
     </span><span class="attr">#[serde(default)]
@@ -2275,10 +2276,10 @@
 
 <span class="kw">impl </span>std::cmp::PartialEq <span class="kw">for </span>MilnorBasisElement {
     <span class="kw">fn </span>eq(<span class="kw-2">&amp;</span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; bool {
-        <span class="attr">#[cfg(feature = <span class="string">&quot;odd-primes&quot;</span>)]
+        <span class="attr">#[cfg(feature = <span class="string">"odd-primes"</span>)]
         </span><span class="kw">return </span><span class="self">self</span>.p_part == other.p_part &amp;&amp; <span class="self">self</span>.q_part == other.q_part;
 
-        <span class="attr">#[cfg(not(feature = <span class="string">&quot;odd-primes&quot;</span>))]
+        <span class="attr">#[cfg(not(feature = <span class="string">"odd-primes"</span>))]
         </span><span class="kw">return </span><span class="self">self</span>.p_part == other.p_part;
     }
 }
@@ -2288,7 +2289,7 @@
 <span class="kw">impl </span>std::hash::Hash <span class="kw">for </span>MilnorBasisElement {
     <span class="kw">fn </span>hash&lt;H: std::hash::Hasher&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, state: <span class="kw-2">&amp;mut </span>H) {
         <span class="self">self</span>.p_part.hash(state);
-        <span class="attr">#[cfg(feature = <span class="string">&quot;odd-primes&quot;</span>)]
+        <span class="attr">#[cfg(feature = <span class="string">"odd-primes"</span>)]
         </span><span class="self">self</span>.q_part.hash(state);
     }
 }
@@ -2296,36 +2297,36 @@
 <span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>MilnorBasisElement {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter) -&gt; std::fmt::Result {
         <span class="kw">if </span><span class="self">self</span>.degree == <span class="number">0 </span>{
-            <span class="macro">write!</span>(f, <span class="string">&quot;1&quot;</span>)<span class="question-mark">?</span>;
+            <span class="macro">write!</span>(f, <span class="string">"1"</span>)<span class="question-mark">?</span>;
             <span class="kw">return </span><span class="prelude-val">Ok</span>(());
         }
         <span class="kw">if </span><span class="self">self</span>.q_part != <span class="number">0 </span>{
             <span class="kw">let </span>q_part = BitflagIterator::set_bit_iterator(<span class="self">self</span>.q_part <span class="kw">as </span>u64)
-                .map(|idx| <span class="macro">format!</span>(<span class="string">&quot;Q_{idx}&quot;</span>))
-                .format(<span class="string">&quot; &quot;</span>);
-            <span class="macro">write!</span>(f, <span class="string">&quot;{q_part}&quot;</span>)<span class="question-mark">?</span>;
+                .map(|idx| <span class="macro">format!</span>(<span class="string">"Q_{idx}"</span>))
+                .format(<span class="string">" "</span>);
+            <span class="macro">write!</span>(f, <span class="string">"{q_part}"</span>)<span class="question-mark">?</span>;
         }
         <span class="kw">if </span>!<span class="self">self</span>.p_part.is_empty() {
             <span class="kw">if </span><span class="self">self</span>.q_part != <span class="number">0 </span>{
-                <span class="macro">write!</span>(f, <span class="string">&quot; &quot;</span>)<span class="question-mark">?</span>;
+                <span class="macro">write!</span>(f, <span class="string">" "</span>)<span class="question-mark">?</span>;
             }
-            <span class="macro">write!</span>(f, <span class="string">&quot;P({})&quot;</span>, <span class="self">self</span>.p_part.iter().format(<span class="string">&quot;, &quot;</span>))<span class="question-mark">?</span>;
+            <span class="macro">write!</span>(f, <span class="string">"P({})"</span>, <span class="self">self</span>.p_part.iter().format(<span class="string">", "</span>))<span class="question-mark">?</span>;
         }
         <span class="prelude-val">Ok</span>(())
     }
 }
 
 <span class="doccomment">/// A version of `HashMap&lt;MilnorBasisElement, T&gt;` that is more efficient at the prime 2.
-</span><span class="attr">#[cfg(feature = <span class="string">&quot;odd-primes&quot;</span>)]
+</span><span class="attr">#[cfg(feature = <span class="string">"odd-primes"</span>)]
 </span><span class="kw">type </span>MilnorHashMap&lt;V&gt; = HashMap&lt;MilnorBasisElement, V&gt;;
 
-<span class="attr">#[cfg(not(feature = <span class="string">&quot;odd-primes&quot;</span>))]
+<span class="attr">#[cfg(not(feature = <span class="string">"odd-primes"</span>))]
 </span><span class="kw">struct </span>MilnorHashMap&lt;V&gt; {
     degree: i32,
     inner: HashMap&lt;u64, V&gt;,
 }
 
-<span class="attr">#[cfg(not(feature = <span class="string">&quot;odd-primes&quot;</span>))]
+<span class="attr">#[cfg(not(feature = <span class="string">"odd-primes"</span>))]
 </span><span class="kw">impl</span>&lt;V&gt; Default <span class="kw">for </span>MilnorHashMap&lt;V&gt; {
     <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
@@ -2335,7 +2336,7 @@
     }
 }
 
-<span class="attr">#[cfg(not(feature = <span class="string">&quot;odd-primes&quot;</span>))]
+<span class="attr">#[cfg(not(feature = <span class="string">"odd-primes"</span>))]
 </span><span class="kw">impl</span>&lt;V&gt; MilnorHashMap&lt;V&gt; {
     <span class="doccomment">/// Encode a [`MilnorBasisElement`] of a known degree into a `u64`. This is achieved by packing
     /// the PPart into a single `u64`, where we omit the first entry since it can be derived from
@@ -2361,7 +2362,7 @@
         <span class="macro">assert_eq!</span>(k.degree, <span class="self">self</span>.degree);
         <span class="macro">assert!</span>(
             <span class="macro">matches!</span>(<span class="self">self</span>.inner.insert(<span class="self">Self</span>::code(<span class="kw-2">&amp;</span>k), v), <span class="prelude-val">None</span>),
-            <span class="string">&quot;Duplicate entry for {k}&quot;
+            <span class="string">"Duplicate entry for {k}"
         </span>);
     }
 
@@ -2374,7 +2375,7 @@
 <span class="kw">pub struct </span>MilnorAlgebra {
     profile: MilnorProfile,
     p: ValidPrime,
-    <span class="attr">#[cfg(feature = <span class="string">&quot;odd-primes&quot;</span>)]
+    <span class="attr">#[cfg(feature = <span class="string">"odd-primes"</span>)]
     </span>generic: bool,
 
     unstable_enabled: bool,
@@ -2391,14 +2392,14 @@
     <span class="doccomment">/// degree -&gt; MilnorBasisElement -&gt; index
     </span>basis_element_to_index_map: OnceVec&lt;MilnorHashMap&lt;usize&gt;&gt;,
 
-    <span class="attr">#[cfg(feature = <span class="string">&quot;cache-multiplication&quot;</span>)]
+    <span class="attr">#[cfg(feature = <span class="string">"cache-multiplication"</span>)]
     </span><span class="doccomment">/// source_deg -&gt; target_deg -&gt; source_op -&gt; target_op
     </span>multiplication_table: OnceVec&lt;OnceVec&lt;Vec&lt;Vec&lt;FpVector&gt;&gt;&gt;&gt;,
 }
 
 <span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>MilnorAlgebra {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter) -&gt; std::fmt::Result {
-        <span class="macro">write!</span>(f, <span class="string">&quot;MilnorAlgebra(p={})&quot;</span>, <span class="self">self</span>.prime())
+        <span class="macro">write!</span>(f, <span class="string">"MilnorAlgebra(p={})"</span>, <span class="self">self</span>.prime())
     }
 }
 
@@ -2411,7 +2412,7 @@
         <span class="macro">assert!</span>(profile.is_valid());
         <span class="self">Self </span>{
             p,
-            <span class="attr">#[cfg(feature = <span class="string">&quot;odd-primes&quot;</span>)]
+            <span class="attr">#[cfg(feature = <span class="string">"odd-primes"</span>)]
             </span>generic: <span class="kw-2">*</span>p != <span class="number">2</span>,
             unstable_enabled,
             profile,
@@ -2419,19 +2420,19 @@
             basis_table: OnceVec::new(),
             excess_table: OnceVec::new(),
             basis_element_to_index_map: OnceVec::new(),
-            <span class="attr">#[cfg(feature = <span class="string">&quot;cache-multiplication&quot;</span>)]
+            <span class="attr">#[cfg(feature = <span class="string">"cache-multiplication"</span>)]
             </span>multiplication_table: OnceVec::new(),
         }
     }
 
     <span class="attr">#[inline]
     </span><span class="kw">pub fn </span>generic(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="attr">#[cfg(feature = <span class="string">&quot;odd-primes&quot;</span>)]
+        <span class="attr">#[cfg(feature = <span class="string">"odd-primes"</span>)]
         </span>{
             <span class="self">self</span>.generic
         }
 
-        <span class="attr">#[cfg(not(feature = <span class="string">&quot;odd-primes&quot;</span>))]
+        <span class="attr">#[cfg(not(feature = <span class="string">"odd-primes"</span>))]
         </span>{
             <span class="bool-val">false
         </span>}
@@ -2461,10 +2462,10 @@
 
     <span class="kw">pub fn </span>basis_element_to_index(<span class="kw-2">&amp;</span><span class="self">self</span>, elt: <span class="kw-2">&amp;</span>MilnorBasisElement) -&gt; usize {
         <span class="self">self</span>.try_basis_element_to_index(elt)
-            .unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">&quot;Didn&#39;t find element: {elt:?}&quot;</span>))
+            .unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">"Didn't find element: {elt:?}"</span>))
     }
 
-    <span class="doccomment">/// Gives a list of PPart&#39;s in degree `t`.
+    <span class="doccomment">/// Gives a list of PPart's in degree `t`.
     </span><span class="kw">pub fn </span>ppart_table(<span class="kw-2">&amp;</span><span class="self">self</span>, t: i32) -&gt; <span class="kw-2">&amp;</span>[PPart] {
         <span class="kw-2">&amp;</span><span class="self">self</span>.ppart_table[t <span class="kw">as </span>usize]
     }
@@ -2472,7 +2473,7 @@
 
 <span class="kw">impl </span>Algebra <span class="kw">for </span>MilnorAlgebra {
     <span class="kw">fn </span>prefix(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>str {
-        <span class="string">&quot;milnor&quot;
+        <span class="string">"milnor"
     </span>}
 
     <span class="kw">fn </span>magic(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u32 {
@@ -2494,7 +2495,7 @@
         <span class="kw">if </span><span class="self">self</span>.generic() {
             <span class="kw">if </span><span class="self">self</span>.profile.q_part &amp; <span class="number">1 </span>!= <span class="number">0 </span>{
                 products.push((
-                    <span class="string">&quot;a_0&quot;</span>.to_string(),
+                    <span class="string">"a_0"</span>.to_string(),
                     MilnorBasisElement {
                         degree: <span class="number">1</span>,
                         q_part: <span class="number">1</span>,
@@ -2506,7 +2507,7 @@
                 || (!<span class="self">self</span>.profile.p_part.is_empty() &amp;&amp; <span class="self">self</span>.profile.p_part[<span class="number">0</span>] &gt; <span class="number">0</span>)
             {
                 products.push((
-                    <span class="string">&quot;h_0&quot;</span>.to_string(),
+                    <span class="string">"h_0"</span>.to_string(),
                     MilnorBasisElement {
                         degree: (<span class="number">2 </span>* (<span class="kw-2">*</span><span class="self">self</span>.prime()) - <span class="number">2</span>) <span class="kw">as </span>i32,
                         q_part: <span class="number">0</span>,
@@ -2525,7 +2526,7 @@
             <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..max {
                 <span class="kw">let </span>degree = <span class="number">1 </span>&lt;&lt; i; <span class="comment">// degree is 2^hi
                 </span>products.push((
-                    <span class="macro">format!</span>(<span class="string">&quot;h_{i}&quot;</span>),
+                    <span class="macro">format!</span>(<span class="string">"h_{i}"</span>),
                     MilnorBasisElement {
                         degree,
                         q_part: <span class="number">0</span>,
@@ -2564,7 +2565,7 @@
                 map
             });
 
-        <span class="attr">#[cfg(feature = <span class="string">&quot;cache-multiplication&quot;</span>)]
+        <span class="attr">#[cfg(feature = <span class="string">"cache-multiplication"</span>)]
         </span>{
             <span class="self">self</span>.multiplication_table
                 .extend(max_degree <span class="kw">as </span>usize, |<span class="kw">_</span>| OnceVec::new());
@@ -2604,7 +2605,7 @@
         <span class="self">self</span>.basis_table[degree <span class="kw">as </span>usize].len()
     }
 
-    <span class="attr">#[cfg(not(feature = <span class="string">&quot;cache-multiplication&quot;</span>))]
+    <span class="attr">#[cfg(not(feature = <span class="string">"cache-multiplication"</span>))]
     </span><span class="kw">fn </span>multiply_basis_elements(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         result: SliceMut,
@@ -2622,7 +2623,7 @@
         );
     }
 
-    <span class="attr">#[cfg(feature = <span class="string">&quot;cache-multiplication&quot;</span>)]
+    <span class="attr">#[cfg(feature = <span class="string">"cache-multiplication"</span>)]
     </span><span class="kw">fn </span>multiply_basis_elements(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         <span class="kw-2">mut </span>result: SliceMut,
@@ -2690,7 +2691,7 @@
     }
 
     <span class="kw">fn </span>basis_element_to_string(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32, idx: usize) -&gt; String {
-        <span class="macro">format!</span>(<span class="string">&quot;{}&quot;</span>, <span class="self">self</span>.basis_element_from_index(degree, idx))
+        <span class="macro">format!</span>(<span class="string">"{}"</span>, <span class="self">self</span>.basis_element_from_index(degree, idx))
     }
 
     <span class="kw">fn </span>basis_element_from_string(<span class="kw-2">&amp;</span><span class="self">self</span>, elt: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;(i32, usize)&gt; {
@@ -2707,11 +2708,11 @@
         <span class="kw">let </span>p = <span class="self">self</span>.prime();
 
         <span class="kw">let </span><span class="kw-2">mut </span>parser = alt((
-            map(char(<span class="string">&#39;1&#39;</span>), |<span class="kw">_</span>| (<span class="number">0</span>, <span class="number">0</span>)),
-            map(char(<span class="string">&#39;b&#39;</span>), |<span class="kw">_</span>| (<span class="number">1</span>, <span class="number">0</span>)),
+            map(char(<span class="string">'1'</span>), |<span class="kw">_</span>| (<span class="number">0</span>, <span class="number">0</span>)),
+            map(char(<span class="string">'b'</span>), |<span class="kw">_</span>| (<span class="number">1</span>, <span class="number">0</span>)),
             map(preceded(p_or_sq, digits), |i| <span class="self">self</span>.beps_pn(<span class="number">0</span>, i)),
             map(
-                tuple((tag(<span class="string">&quot;P^&quot;</span>), digits, char(<span class="string">&#39;_&#39;</span>), digits)),
+                tuple((tag(<span class="string">"P^"</span>), digits, char(<span class="string">'_'</span>), digits)),
                 |(<span class="kw">_</span>, s, <span class="kw">_</span>, t)| {
                     <span class="kw">let </span>entry = p.pow(s);
                     <span class="kw">let </span>degree = entry <span class="kw">as </span>i32 * <span class="self">self</span>.q() * combinatorics::xi_degrees(p)[t];
@@ -2727,10 +2728,10 @@
             ),
             map(
                 tuple((
-                    many0(preceded(tag(<span class="string">&quot;Q_&quot;</span>), digits::&lt;u32&gt;)),
+                    many0(preceded(tag(<span class="string">"Q_"</span>), digits::&lt;u32&gt;)),
                     opt(preceded(
-                        char(<span class="string">&#39;P&#39;</span>),
-                        brackets(separated_list1(char(<span class="string">&#39;,&#39;</span>), digits)),
+                        char(<span class="string">'P'</span>),
+                        brackets(separated_list1(char(<span class="string">','</span>), digits)),
                     )),
                 )),
                 |(q_list, p_list)| {
@@ -2748,7 +2749,7 @@
             ),
         ));
 
-        <span class="kw">if let </span><span class="prelude-val">Ok</span>((<span class="string">&quot;&quot;</span>, res)) = parser(elt) {
+        <span class="kw">if let </span><span class="prelude-val">Ok</span>((<span class="string">""</span>, res)) = parser(elt) {
             <span class="prelude-val">Some</span>(res)
         } <span class="kw">else </span>{
             <span class="prelude-val">None
@@ -2789,17 +2790,17 @@
     <span class="kw">fn </span>generator_to_string(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32, idx: usize) -&gt; String {
         <span class="kw">if </span><span class="self">self</span>.generic() {
             <span class="kw">if </span>degree == <span class="number">1 </span>{
-                <span class="kw">return </span><span class="string">&quot;b&quot;</span>.to_string();
+                <span class="kw">return </span><span class="string">"b"</span>.to_string();
             }
             <span class="kw">let </span>elt = <span class="self">self</span>.basis_element_from_index(degree, idx);
             <span class="kw">let </span>len = elt.p_part.len();
             <span class="kw">if </span>elt.q_part != <span class="number">0 </span>{
                 elt.to_string()
             } <span class="kw">else if </span>len == <span class="number">1 </span>{
-                <span class="macro">format!</span>(<span class="string">&quot;P{}&quot;</span>, degree / <span class="self">self</span>.q())
+                <span class="macro">format!</span>(<span class="string">"P{}"</span>, degree / <span class="self">self</span>.q())
             } <span class="kw">else </span>{
                 <span class="macro">format!</span>(
-                    <span class="string">&quot;P^{}_{}&quot;</span>,
+                    <span class="string">"P^{}_{}"</span>,
                     degree / (<span class="self">self</span>.q() * combinatorics::xi_degrees(<span class="self">self</span>.prime())[len - <span class="number">1</span>]),
                     len
                 )
@@ -2808,10 +2809,10 @@
             <span class="kw">let </span>elt = <span class="self">self</span>.basis_element_from_index(degree, idx);
             <span class="kw">let </span>len = elt.p_part.len();
             <span class="kw">if </span>len == <span class="number">1 </span>{
-                <span class="macro">format!</span>(<span class="string">&quot;Sq{degree}&quot;</span>)
+                <span class="macro">format!</span>(<span class="string">"Sq{degree}"</span>)
             } <span class="kw">else </span>{
                 <span class="macro">format!</span>(
-                    <span class="string">&quot;P^{}_{}&quot;</span>,
+                    <span class="string">"P^{}_{}"</span>,
                     degree / (combinatorics::xi_degrees(<span class="self">self</span>.prime())[len - <span class="number">1</span>]),
                     len
                 )
@@ -2915,7 +2916,7 @@
         <span class="kw">let </span><span class="kw-2">mut </span>result = Vec::new();
         <span class="kw">for </span>(x, b, y) <span class="kw">in </span>inadmissible_pairs {
             <span class="kw">let </span><span class="kw-2">mut </span>relation = Vec::new();
-            <span class="comment">// Adem relation. Sometimes these don&#39;t exist because of profiles. Then just ignore it.
+            <span class="comment">// Adem relation. Sometimes these don't exist because of profiles. Then just ignore it.
             </span>(|| {
                 <span class="kw">let </span>(first_degree, first_index) = <span class="self">self</span>.try_beps_pn(<span class="number">0</span>, x <span class="kw">as </span>PPartEntry)<span class="question-mark">?</span>;
                 <span class="kw">let </span>(second_degree, second_index) = <span class="self">self</span>.try_beps_pn(b, y <span class="kw">as </span>PPartEntry)<span class="question-mark">?</span>;
@@ -3146,7 +3147,7 @@
                         new_p[i - <span class="number">1</span>] -= pk;
                     }
 
-                    <span class="comment">// Now calculate the number of Q&#39;s we are moving past
+                    <span class="comment">// Now calculate the number of Q's we are moving past
                     </span><span class="kw">let </span>larger_q = (term.q_part &gt;&gt; (k + i <span class="kw">as </span>u32 + <span class="number">1</span>)).count_ones();
 
                     <span class="comment">// If new_p ends with 0, drop them
@@ -3157,7 +3158,7 @@
                     </span><span class="kw">let </span>m = MilnorBasisElement {
                         p_part: new_p,
                         q_part: term.q_part | <span class="number">1 </span>&lt;&lt; (k + i <span class="kw">as </span>u32),
-                        degree: <span class="number">0</span>, <span class="comment">// we don&#39;t really care about the degree here. The final degree of the whole calculation is known a priori
+                        degree: <span class="number">0</span>, <span class="comment">// we don't really care about the degree here. The final degree of the whole calculation is known a priori
                     </span>};
                     <span class="kw">let </span>c = <span class="kw">if </span>larger_q % <span class="number">2 </span>== <span class="number">0 </span>{
                         <span class="kw-2">*</span>coef
@@ -3280,7 +3281,7 @@
 <span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>Matrix2D {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter) -&gt; std::fmt::Result {
         <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..<span class="self">self</span>.inner.len() / <span class="self">self</span>.cols {
-            <span class="macro">writeln!</span>(f, <span class="string">&quot;{:?}&quot;</span>, <span class="kw-2">&amp;</span><span class="self">self</span>[i][<span class="number">0</span>..<span class="self">self</span>.cols])<span class="question-mark">?</span>;
+            <span class="macro">writeln!</span>(f, <span class="string">"{:?}"</span>, <span class="kw-2">&amp;</span><span class="self">self</span>[i][<span class="number">0</span>..<span class="self">self</span>.cols])<span class="question-mark">?</span>;
         }
         <span class="prelude-val">Ok</span>(())
     }
@@ -3324,7 +3325,7 @@
 </span><span class="attr">#[derive(Default)]
 </span><span class="kw">pub struct </span>PPartAllocation {
     m: Matrix2D,
-    <span class="attr">#[cfg(feature = <span class="string">&quot;odd-primes&quot;</span>)]
+    <span class="attr">#[cfg(feature = <span class="string">"odd-primes"</span>)]
     </span>diagonal: PPart,
     p_part: PPart,
 }
@@ -3339,7 +3340,7 @@
     </span><span class="kw">pub fn </span>with_capacity(n: usize) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             m: Matrix2D::with_capacity(n + <span class="number">1</span>, n),
-            <span class="attr">#[cfg(feature = <span class="string">&quot;odd-primes&quot;</span>)]
+            <span class="attr">#[cfg(feature = <span class="string">"odd-primes"</span>)]
             </span>diagonal: Vec::with_capacity(n),
             <span class="comment">// This size should be the number of diagonals. Even though the answer cannot be that
             // long, we still insert zeros then pop them out later.
@@ -3355,21 +3356,21 @@
 }
 
 <span class="attr">#[allow(non_snake_case)]
-</span><span class="kw">pub struct </span>PPartMultiplier&lt;<span class="lifetime">&#39;a</span>, <span class="kw">const </span>MOD4: bool&gt; {
+</span><span class="kw">pub struct </span>PPartMultiplier&lt;<span class="lifetime">'a</span>, <span class="kw">const </span>MOD4: bool&gt; {
     p: ValidPrime,
     M: Matrix2D,
-    r: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>PPart,
+    r: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>PPart,
     rows: usize,
     cols: usize,
     diag_num: usize,
     init: bool,
     <span class="kw">pub </span>ans: MilnorBasisElement,
-    <span class="attr">#[cfg(feature = <span class="string">&quot;odd-primes&quot;</span>)]
+    <span class="attr">#[cfg(feature = <span class="string">"odd-primes"</span>)]
     </span>diagonal: PPart,
 }
 
 <span class="attr">#[allow(non_snake_case)]
-</span><span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>, <span class="kw">const </span>MOD4: bool&gt; PPartMultiplier&lt;<span class="lifetime">&#39;a</span>, MOD4&gt; {
+</span><span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, <span class="kw">const </span>MOD4: bool&gt; PPartMultiplier&lt;<span class="lifetime">'a</span>, MOD4&gt; {
     <span class="kw">fn </span>prime(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ValidPrime {
         <span class="self">self</span>.p
     }
@@ -3378,8 +3379,8 @@
     #[allow(unused_mut)] </span><span class="comment">// Mut is only used with odd primes
     </span><span class="kw">pub fn </span>new_from_allocation(
         p: ValidPrime,
-        r: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>PPart,
-        s: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>PPart,
+        r: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>PPart,
+        s: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>PPart,
         <span class="kw-2">mut </span>allocation: PPartAllocation,
         q_part: u32,
         degree: i32,
@@ -3390,7 +3391,7 @@
         <span class="kw">let </span>rows = r.len() + <span class="number">1</span>;
         <span class="kw">let </span>cols = s.len() + <span class="number">1</span>;
         <span class="kw">let </span>diag_num = r.len() + s.len();
-        <span class="attr">#[cfg(feature = <span class="string">&quot;odd-primes&quot;</span>)]
+        <span class="attr">#[cfg(feature = <span class="string">"odd-primes"</span>)]
         </span>{
             allocation.diagonal.clear();
             allocation.diagonal.reserve_exact(std::cmp::max(rows, cols));
@@ -3414,7 +3415,7 @@
             degree,
         };
         PPartMultiplier {
-            <span class="attr">#[cfg(feature = <span class="string">&quot;odd-primes&quot;</span>)]
+            <span class="attr">#[cfg(feature = <span class="string">"odd-primes"</span>)]
             </span>diagonal: allocation.diagonal,
             p,
             M,
@@ -3430,7 +3431,7 @@
     <span class="kw">pub fn </span>into_allocation(<span class="self">self</span>) -&gt; PPartAllocation {
         PPartAllocation {
             m: <span class="self">self</span>.M,
-            <span class="attr">#[cfg(feature = <span class="string">&quot;odd-primes&quot;</span>)]
+            <span class="attr">#[cfg(feature = <span class="string">"odd-primes"</span>)]
             </span>diagonal: <span class="self">self</span>.diagonal,
             p_part: <span class="self">self</span>.ans.p_part,
         }
@@ -3472,8 +3473,8 @@
     /// r₂ |     x_{ij}
     /// r₃ |
     ///
-    /// We think of ourselves as modifiying the center pieces x_{ij}, while the r_i&#39;s and s_j&#39;s are
-    /// only there to ensure the x_{ij}&#39;s don&#39;t get too big. The idea is to sweep through the
+    /// We think of ourselves as modifiying the center pieces x_{ij}, while the r_i's and s_j's are
+    /// only there to ensure the x_{ij}'s don't get too big. The idea is to sweep through the
     /// matrix row by row, from top-to-bottom, and left-to-right. In each pass, we find the first
     /// entry that can be incremented. We then increment it and zero out all the entries that
     /// appear before it. This will give us all valid entries.
@@ -3485,7 +3486,7 @@
             <span class="kw">for </span>j <span class="kw">in </span><span class="number">1</span>..<span class="self">self</span>.cols {
                 p_to_the_j <span class="kw-2">*</span>= <span class="kw-2">*</span><span class="self">self</span>.prime() <span class="kw">as </span>PPartEntry;
                 <span class="kw">if </span>total &lt; p_to_the_j {
-                    <span class="comment">// We don&#39;t have enough weight left in the entries above this one in the column to increment this cell.
+                    <span class="comment">// We don't have enough weight left in the entries above this one in the column to increment this cell.
                     // Add the weight from this cell to the total, we can use it to increment a cell lower down.
                     </span>total += <span class="self">self</span>.M[i][j] * p_to_the_j;
                     <span class="kw">continue</span>;
@@ -3531,7 +3532,7 @@
                     <span class="self">self</span>.M[i][<span class="number">0</span>] = total - p_to_the_j * inc;
                     <span class="kw">return </span><span class="bool-val">true</span>;
                 }
-                <span class="comment">// All the cells above this one are zero so we didn&#39;t find our next matrix.
+                <span class="comment">// All the cells above this one are zero so we didn't find our next matrix.
                 // Add the weight from this cell to the total, we can use it to increment a cell lower down.
                 </span>total += <span class="self">self</span>.M[i][j] * p_to_the_j;
             }
@@ -3540,12 +3541,12 @@
     </span>}
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>, <span class="kw">const </span>MOD4: bool&gt; Iterator <span class="kw">for </span>PPartMultiplier&lt;<span class="lifetime">&#39;a</span>, MOD4&gt; {
+<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, <span class="kw">const </span>MOD4: bool&gt; Iterator <span class="kw">for </span>PPartMultiplier&lt;<span class="lifetime">'a</span>, MOD4&gt; {
     <span class="kw">type </span>Item = u32;
 
     <span class="kw">fn </span>next(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;u32&gt; {
         <span class="kw">let </span>p = <span class="kw-2">*</span><span class="self">self</span>.prime() <span class="kw">as </span>PPartEntry;
-        <span class="lifetime">&#39;outer</span>: <span class="kw">loop </span>{
+        <span class="lifetime">'outer</span>: <span class="kw">loop </span>{
             <span class="self">self</span>.ans.p_part.clear();
             <span class="kw">let </span><span class="kw-2">mut </span>coef = <span class="number">1</span>;
 
@@ -3564,7 +3565,7 @@
                         coef %= p;
                     }
                     <span class="kw">if </span>coef == <span class="number">0 </span>{
-                        <span class="kw">continue </span><span class="lifetime">&#39;outer</span>;
+                        <span class="kw">continue </span><span class="lifetime">'outer</span>;
                     }
                 }
                 <span class="self">self</span>.ans
@@ -3609,7 +3610,7 @@
                                 }
                                 coef %= <span class="number">4</span>;
                                 <span class="kw">if </span>coef == <span class="number">0 </span>{
-                                    <span class="kw">continue </span><span class="lifetime">&#39;outer</span>;
+                                    <span class="kw">continue </span><span class="lifetime">'outer</span>;
                                 }
                             }
                         } <span class="kw">else </span>{
@@ -3619,11 +3620,11 @@
                                 or |= <span class="self">self</span>.M[i][diag_idx - i];
                             }
                             <span class="kw">if </span>sum != or {
-                                <span class="kw">continue </span><span class="lifetime">&#39;outer</span>;
+                                <span class="kw">continue </span><span class="lifetime">'outer</span>;
                             }
                         }
                     } <span class="kw">else </span>{
-                        <span class="attr">#[cfg(feature = <span class="string">&quot;odd-primes&quot;</span>)]
+                        <span class="attr">#[cfg(feature = <span class="string">"odd-primes"</span>)]
                         </span>{
                             <span class="self">self</span>.diagonal.clear();
                             <span class="kw">for </span>i <span class="kw">in </span>i_min..i_max {
@@ -3634,7 +3635,7 @@
                             coef <span class="kw-2">*</span>= PPartEntry::multinomial_odd(<span class="self">self</span>.prime(), <span class="kw-2">&amp;mut </span><span class="self">self</span>.diagonal);
                             coef %= p;
                             <span class="kw">if </span>coef == <span class="number">0 </span>{
-                                <span class="kw">continue </span><span class="lifetime">&#39;outer</span>;
+                                <span class="kw">continue </span><span class="lifetime">'outer</span>;
                             }
                         }
                     }
@@ -3852,7 +3853,7 @@
 
 <span class="kw">impl </span>Bialgebra <span class="kw">for </span>MilnorAlgebra {
     <span class="kw">fn </span>coproduct(<span class="kw-2">&amp;</span><span class="self">self</span>, op_deg: i32, op_idx: usize) -&gt; Vec&lt;(i32, usize, i32, usize)&gt; {
-        <span class="macro">assert_eq!</span>(<span class="kw-2">*</span><span class="self">self</span>.prime(), <span class="number">2</span>, <span class="string">&quot;Coproduct at odd primes not supported&quot;</span>);
+        <span class="macro">assert_eq!</span>(<span class="kw-2">*</span><span class="self">self</span>.prime(), <span class="number">2</span>, <span class="string">"Coproduct at odd primes not supported"</span>);
         <span class="kw">if </span>op_deg == <span class="number">0 </span>{
             <span class="kw">return </span><span class="macro">vec!</span>[(<span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>)];
         }
@@ -3940,7 +3941,7 @@
         <span class="kw">for </span>i <span class="kw">in </span><span class="number">1</span>..max_degree {
             <span class="kw">let </span>dim = algebra.dimension(i);
             <span class="kw">let </span>gens = algebra.generators(i);
-            <span class="comment">// println!(&quot;i : {}, gens : {:?}&quot;, i, gens);
+            <span class="comment">// println!("i : {}, gens : {:?}", i, gens);
             </span><span class="kw">let </span><span class="kw-2">mut </span>out_vec = FpVector::new(p, dim);
             <span class="kw">for </span>j <span class="kw">in </span><span class="number">0</span>..dim {
                 <span class="kw">if </span>gens.contains(<span class="kw-2">&amp;</span>j) {
@@ -3949,7 +3950,7 @@
                 <span class="kw">for </span>(coeff, (first_degree, first_idx), (second_degree, second_idx)) <span class="kw">in
                     </span>algebra.decompose_basis_element(i, j)
                 {
-                    <span class="comment">// print!(&quot;{} * {} * {}  +  &quot;, coeff, algebra.basis_element_to_string(first_degree,first_idx), algebra.basis_element_to_string(second_degree, second_idx));
+                    <span class="comment">// print!("{} * {} * {}  +  ", coeff, algebra.basis_element_to_string(first_degree,first_idx), algebra.basis_element_to_string(second_degree, second_idx));
                     </span>algebra.multiply_basis_elements(
                         out_vec.as_slice_mut(),
                         coeff,
@@ -3961,14 +3962,14 @@
                 }
                 <span class="macro">assert!</span>(
                     out_vec.entry(j) == <span class="number">1</span>,
-                    <span class="string">&quot;{} != {}&quot;</span>,
+                    <span class="string">"{} != {}"</span>,
                     algebra.basis_element_to_string(i, j),
                     algebra.element_to_string(i, out_vec.as_slice())
                 );
                 out_vec.set_entry(j, <span class="number">0</span>);
                 <span class="macro">assert!</span>(
                     out_vec.is_zero(),
-                    <span class="string">&quot;\n{} != {}&quot;</span>,
+                    <span class="string">"\n{} != {}"</span>,
                     algebra.basis_element_to_string(i, j),
                     algebra.element_to_string(i, out_vec.as_slice())
                 );
@@ -3990,7 +3991,7 @@
                 <span class="macro">assert_eq!</span>(
                     <span class="prelude-val">Some</span>((t, i)),
                     algebra.basis_element_from_string(<span class="kw-2">&amp;</span>elt),
-                    <span class="string">&quot;Error parsing {elt}&quot;
+                    <span class="string">"Error parsing {elt}"
                 </span>);
             }
             <span class="kw">for </span>i <span class="kw">in </span>algebra.generators(t) {
@@ -3998,7 +3999,7 @@
                 <span class="macro">assert_eq!</span>(
                     <span class="prelude-val">Some</span>((t, i)),
                     algebra.basis_element_from_string(<span class="kw-2">&amp;</span>elt),
-                    <span class="string">&quot;Error parsing {elt}&quot;
+                    <span class="string">"Error parsing {elt}"
                 </span>);
             }
         }
@@ -4016,7 +4017,7 @@
             <span class="kw">let </span>output_dim = algebra.dimension(i);
             output_vec.set_scratch_vector_size(output_dim);
             <span class="kw">let </span>relations = algebra.generating_relations(i);
-            <span class="macro">println!</span>(<span class="string">&quot;{relations:?}&quot;</span>);
+            <span class="macro">println!</span>(<span class="string">"{relations:?}"</span>);
             <span class="kw">for </span>relation <span class="kw">in </span>relations {
                 <span class="kw">for </span>(coeff, (deg_1, idx_1), (deg_2, idx_2)) <span class="kw">in </span><span class="kw-2">&amp;</span>relation {
                     algebra.multiply_basis_elements(
@@ -4033,7 +4034,7 @@
                     <span class="kw">for </span>(coeff, (deg_1, idx_1), (deg_2, idx_2)) <span class="kw">in </span><span class="kw-2">&amp;</span>relation {
                         <span class="kw">let _ </span>= <span class="macro">write!</span>(
                             relation_string,
-                            <span class="string">&quot;{} * {} * {}  +  &quot;</span>,
+                            <span class="string">"{} * {} * {}  +  "</span>,
                             <span class="kw-2">*</span>coeff,
                             <span class="kw-2">&amp;</span>algebra.basis_element_to_string(<span class="kw-2">*</span>deg_1, <span class="kw-2">*</span>idx_1),
                             <span class="kw-2">&amp;</span>algebra.basis_element_to_string(<span class="kw-2">*</span>deg_2, <span class="kw-2">*</span>idx_2)
@@ -4046,7 +4047,7 @@
                     relation_string.pop();
                     <span class="kw">let </span>value_string = algebra.element_to_string(i, output_vec.as_slice());
                     <span class="macro">panic!</span>(
-                        <span class="string">&quot;{}&quot;</span>,
+                        <span class="string">"{}"</span>,
                         ModuleFailedRelationError {
                             relation: relation_string,
                             value: value_string
@@ -4101,29 +4102,29 @@
             <span class="number">0</span>,
         );
 
-        <span class="macro">expect!</span>[[<span class="string">r#&quot;
+        <span class="macro">expect!</span>[[<span class="string">r#"
             [0, 2, 4]
             [1, 0, 0]
             [4, 0, 0]
-        &quot;#</span>]]
+        "#</span>]]
         .assert_eq(<span class="kw-2">&amp;</span>m.M.to_string());
 
         <span class="macro">assert_eq!</span>(m.next(), <span class="prelude-val">Some</span>(<span class="number">1</span>));
 
-        <span class="macro">expect!</span>[[<span class="string">r#&quot;
+        <span class="macro">expect!</span>[[<span class="string">r#"
             [0, 0, 4]
             [1, 0, 0]
             [0, 2, 0]
-        &quot;#</span>]]
+        "#</span>]]
         .assert_eq(<span class="kw-2">&amp;</span>m.M.to_string());
 
         <span class="macro">assert_eq!</span>(m.next(), <span class="prelude-val">Some</span>(<span class="number">1</span>));
 
-        <span class="macro">expect!</span>[[<span class="string">r#&quot;
+        <span class="macro">expect!</span>[[<span class="string">r#"
             [0, 2, 3]
             [1, 0, 0]
             [0, 0, 1]
-        &quot;#</span>]]
+        "#</span>]]
         .assert_eq(<span class="kw-2">&amp;</span>m.M.to_string());
 
         <span class="macro">assert_eq!</span>(m.next(), <span class="prelude-val">None</span>);
@@ -4142,29 +4143,29 @@
             <span class="number">0</span>,
         );
 
-        <span class="macro">expect!</span>[[<span class="string">r#&quot;
+        <span class="macro">expect!</span>[[<span class="string">r#"
             [0, 1, 4]
             [3, 0, 0]
             [4, 0, 0]
-        &quot;#</span>]]
+        "#</span>]]
         .assert_eq(<span class="kw-2">&amp;</span>m.M.to_string());
 
         <span class="macro">assert_eq!</span>(m.next(), <span class="prelude-val">Some</span>(<span class="number">1</span>));
 
-        <span class="macro">expect!</span>[[<span class="string">r#&quot;
+        <span class="macro">expect!</span>[[<span class="string">r#"
             [0, 1, 4]
             [3, 0, 0]
             [4, 0, 0]
-        &quot;#</span>]]
+        "#</span>]]
         .assert_eq(<span class="kw-2">&amp;</span>m.M.to_string());
 
         <span class="macro">assert_eq!</span>(m.next(), <span class="prelude-val">Some</span>(<span class="number">2</span>));
 
-        <span class="macro">expect!</span>[[<span class="string">r#&quot;
+        <span class="macro">expect!</span>[[<span class="string">r#"
             [0, 0, 4]
             [3, 0, 0]
             [1, 1, 0]
-        &quot;#</span>]]
+        "#</span>]]
         .assert_eq(<span class="kw-2">&amp;</span>m.M.to_string());
 
         <span class="macro">assert_eq!</span>(m.next(), <span class="prelude-val">None</span>);

@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/algebra/src/algebra/combinatorics.rs`."><title>combinatorics.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-9ee3a5e31a2afa3e.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="algebra" data-themes="" data-resource-suffix="" data-rustdoc-version="1.75.0 (82e1608df 2023-12-21)" data-channel="1.75.0" data-search-js="search-8fbf244ebcf71464.js" data-settings-js="settings-74424d7eec62a23e.js" ><script src="../../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-9dd44ab47b99a0fb.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/algebra/src/algebra/combinatorics.rs`."><title>combinatorics.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-ac92e1bbe349e143.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="algebra" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0 (07dca489a 2024-02-04)" data-channel="1.76.0" data-search-js="search-2b6ce74ff89ae146.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../../static.files/storage-f2adc0d6ca4d09fb.js"></script><script defer src="../../../static.files/src-script-39ed315d46fb705f.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-305769736d49e732.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-feafe1bb7466e4bd.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
 <!-- The loading of KaTeX is deferred to speed up page rendering -->
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.js" integrity="sha384-Bi8OWqMXO1ta+a4EPkZv7bYGIes7C3krGSZoTGNTAnAn5eYQc7IIXrJ/7ck1drAi" crossorigin="anonymous"></script>
 <!-- To automatically render math in text elements, include the auto-render extension: -->
@@ -23,7 +23,8 @@
     });
 </script>
 
-</head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+</head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><div class="sidebar-resizer"></div>
+    <main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" tabindex="-1"><a href="../../../help.html" title="help">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -601,11 +602,11 @@
     inadmissible_pairs
 }
 
-<span class="kw">pub fn </span>tau_degrees(p: ValidPrime) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>[i32] {
+<span class="kw">pub fn </span>tau_degrees(p: ValidPrime) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'static </span>[i32] {
     <span class="kw-2">&amp;</span>TAU_DEGREES[PRIME_TO_INDEX_MAP[<span class="kw-2">*</span>p <span class="kw">as </span>usize]]
 }
 
-<span class="kw">pub fn </span>xi_degrees(p: ValidPrime) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>[i32] {
+<span class="kw">pub fn </span>xi_degrees(p: ValidPrime) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'static </span>[i32] {
     <span class="kw-2">&amp;</span>XI_DEGREES[PRIME_TO_INDEX_MAP[<span class="kw-2">*</span>p <span class="kw">as </span>usize]]
 }
 
@@ -670,7 +671,7 @@
         <span class="kw">for _ in </span><span class="number">0</span>..new_gens {
             <span class="self">self</span>.gen_degrees.push(degree);
         }
-        <span class="comment">// println!(&quot;degree : {}&quot;, degree);
+        <span class="comment">// println!("degree : {}", degree);
         </span><span class="kw">for </span>last_deg <span class="kw">in </span><span class="number">1</span>..=degree {
             <span class="kw">let </span><span class="kw-2">mut </span>partitions_cur_max_part = Vec::new();
             <span class="kw">let </span>(offset, num_gens) = <span class="self">self</span>.gens[last_deg <span class="kw">as </span>usize];
@@ -679,9 +680,9 @@
                 <span class="kw">continue</span>;
             }
             <span class="kw">let </span>rest_deg = degree - last_deg;
-            <span class="comment">// println!(&quot;  last_deg : {} rest_deg : {}&quot;, last_deg, rest_deg );
+            <span class="comment">// println!("  last_deg : {} rest_deg : {}", last_deg, rest_deg );
             </span><span class="kw">for </span>(max_part, part_list) <span class="kw">in </span><span class="self">self</span>.parts_by_max[rest_deg <span class="kw">as </span>usize].iter().enumerate() {
-                <span class="comment">// println!(&quot;    max_part : {}&quot;, max_part);
+                <span class="comment">// println!("    max_part : {}", max_part);
                 </span><span class="kw">if </span>max_part &gt; last_deg <span class="kw">as </span>usize {
                     <span class="kw">break</span>;
                 }
@@ -697,8 +698,8 @@
                             <span class="kw">break</span>;
                         }
                     }
-                    <span class="comment">// println!(&quot;      part : {}&quot;, part);
-                    // println!(&quot;      lnze : {}&quot;, last_nonzero_entry);
+                    <span class="comment">// println!("      part : {}", part);
+                    // println!("      lnze : {}", last_nonzero_entry);
                     </span><span class="kw">if </span>part.len() &lt;= offset + last_nonzero_entry
                         || part.entry(offset + last_nonzero_entry) &lt; p - <span class="number">1
                     </span>{
@@ -706,7 +707,7 @@
                         new_part.extend_len(offset + num_gens);
                         new_part.add_basis_element(offset + last_nonzero_entry, <span class="number">1</span>);
                         new_parts.push(new_part.clone());
-                        <span class="comment">// println!(&quot;        new_part A: {}&quot;, new_part);
+                        <span class="comment">// println!("        new_part A: {}", new_part);
                         </span>partitions_cur_max_part.push(new_part);
                     }
                     <span class="kw">for </span>d <span class="kw">in </span>last_nonzero_entry + <span class="number">1</span>..num_gens {
@@ -715,7 +716,7 @@
                         new_part.extend_len(offset + num_gens);
                         new_part.add_basis_element(offset + d, <span class="number">1</span>);
                         new_parts.push(new_part.clone());
-                        <span class="comment">// println!(&quot;        new_part B: {}&quot;, new_part);
+                        <span class="comment">// println!("        new_part B: {}", new_part);
                         </span>partitions_cur_max_part.push(new_part);
                     }
                 }
@@ -727,15 +728,15 @@
     }
 }
 
-<span class="kw">pub struct </span>PartitionIterator&lt;<span class="lifetime">&#39;a</span>&gt; {
+<span class="kw">pub struct </span>PartitionIterator&lt;<span class="lifetime">'a</span>&gt; {
     remaining: i32,      <span class="comment">// leftover degree
-    </span>parts: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>[i32],    <span class="comment">// list of part sizes to use
+    </span>parts: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>[i32],    <span class="comment">// list of part sizes to use
     </span>partition: Vec&lt;u32&gt;, <span class="comment">// current partition
     </span>initial: bool,       <span class="comment">//
 </span>}
 
-<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; PartitionIterator&lt;<span class="lifetime">&#39;a</span>&gt; {
-    <span class="kw">pub fn </span>new(max_degree: i32, num_parts: u32, parts: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>[i32]) -&gt; <span class="self">Self </span>{
+<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; PartitionIterator&lt;<span class="lifetime">'a</span>&gt; {
+    <span class="kw">pub fn </span>new(max_degree: i32, num_parts: u32, parts: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>[i32]) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span><span class="kw-2">mut </span>remaining = max_degree;
         <span class="kw">let </span><span class="kw-2">mut </span>partition = <span class="macro">vec!</span>[<span class="number">0</span>; parts.len()];
         <span class="kw">if </span>parts.is_empty() {
@@ -811,8 +812,8 @@
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; Iterator <span class="kw">for </span>PartitionIterator&lt;<span class="lifetime">&#39;a</span>&gt; {
-    <span class="kw">type </span>Item = (i32, <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Vec&lt;u32&gt;);
+<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; Iterator <span class="kw">for </span>PartitionIterator&lt;<span class="lifetime">'a</span>&gt; {
+    <span class="kw">type </span>Item = (i32, <span class="kw-2">&amp;</span><span class="lifetime">'a </span>Vec&lt;u32&gt;);
     <span class="kw">fn </span>next(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="self">Self</span>::Item&gt; {
         <span class="kw">let </span>found;
         <span class="kw">if </span><span class="self">self</span>.initial {
@@ -848,11 +849,11 @@
         tp.add_gens_and_calculate_parts(<span class="number">6</span>, <span class="number">0</span>);
         tp.add_gens_and_calculate_parts(<span class="number">7</span>, <span class="number">0</span>);
         tp.add_gens_and_calculate_parts(<span class="number">8</span>, <span class="number">0</span>);
-        <span class="macro">println!</span>(<span class="string">&quot;\n\n&quot;</span>);
+        <span class="macro">println!</span>(<span class="string">"\n\n"</span>);
         <span class="kw">for </span>d <span class="kw">in </span><span class="number">0</span>..tp.parts.len() {
-            <span class="macro">println!</span>(<span class="string">&quot;Partitions of {d}&quot;</span>);
+            <span class="macro">println!</span>(<span class="string">"Partitions of {d}"</span>);
             <span class="kw">for </span>i <span class="kw">in </span><span class="kw-2">&amp;</span>tp.parts[d] {
-                <span class="macro">println!</span>(<span class="string">&quot;      {i}&quot;</span>);
+                <span class="macro">println!</span>(<span class="string">"      {i}"</span>);
             }
         }
     }
@@ -873,83 +874,83 @@
         tp.add_gens_and_calculate_parts(<span class="number">10</span>, <span class="number">2</span>);
         tp.add_gens_and_calculate_parts(<span class="number">11</span>, <span class="number">1</span>);
         tp.add_gens_and_calculate_parts(<span class="number">12</span>, <span class="number">2</span>);
-        <span class="macro">println!</span>(<span class="string">&quot;\n\n&quot;</span>);
+        <span class="macro">println!</span>(<span class="string">"\n\n"</span>);
         <span class="kw">let </span>expected = <span class="macro">vec!</span>[
-            <span class="macro">vec!</span>[<span class="string">&quot;[]&quot;</span>], <span class="comment">// 0
+            <span class="macro">vec!</span>[<span class="string">"[]"</span>], <span class="comment">// 0
             </span><span class="macro">vec!</span>[],     <span class="comment">// 1
             </span><span class="macro">vec!</span>[],     <span class="comment">// 2
             </span><span class="macro">vec!</span>[
                 <span class="comment">// 3
-                </span><span class="string">&quot;[1]&quot;</span>,
+                </span><span class="string">"[1]"</span>,
             ],
             <span class="macro">vec!</span>[
                 <span class="comment">// 4
-                </span><span class="string">&quot;[0, 1]&quot;</span>,
+                </span><span class="string">"[0, 1]"</span>,
             ],
             <span class="macro">vec!</span>[
                 <span class="comment">// 5
-                </span><span class="string">&quot;[0, 0, 1]&quot;</span>,
+                </span><span class="string">"[0, 0, 1]"</span>,
             ],
             <span class="macro">vec!</span>[
                 <span class="comment">// 6
-                </span><span class="string">&quot;[0, 0, 0, 1, 0]&quot;</span>,
-                <span class="string">&quot;[0, 0, 0, 0, 1]&quot;</span>,
+                </span><span class="string">"[0, 0, 0, 1, 0]"</span>,
+                <span class="string">"[0, 0, 0, 0, 1]"</span>,
             ],
             <span class="macro">vec!</span>[
                 <span class="comment">// 7
-                </span><span class="string">&quot;[1, 1]&quot;</span>,
-                <span class="string">&quot;[0, 0, 0, 0, 0, 1]&quot;</span>,
+                </span><span class="string">"[1, 1]"</span>,
+                <span class="string">"[0, 0, 0, 0, 0, 1]"</span>,
             ],
             <span class="macro">vec!</span>[
                 <span class="comment">// 8
-                </span><span class="string">&quot;[1, 0, 1]&quot;</span>,
-                <span class="string">&quot;[0, 0, 0, 0, 0, 0, 1]&quot;</span>,
+                </span><span class="string">"[1, 0, 1]"</span>,
+                <span class="string">"[0, 0, 0, 0, 0, 0, 1]"</span>,
             ],
             <span class="macro">vec!</span>[
                 <span class="comment">// 9
-                </span><span class="string">&quot;[0, 1, 1]&quot;</span>,
-                <span class="string">&quot;[1, 0, 0, 1, 0]&quot;</span>,
-                <span class="string">&quot;[1, 0, 0, 0, 1]&quot;</span>,
-                <span class="string">&quot;[0, 0, 0, 0, 0, 0, 0, 1]&quot;</span>,
+                </span><span class="string">"[0, 1, 1]"</span>,
+                <span class="string">"[1, 0, 0, 1, 0]"</span>,
+                <span class="string">"[1, 0, 0, 0, 1]"</span>,
+                <span class="string">"[0, 0, 0, 0, 0, 0, 0, 1]"</span>,
             ],
             <span class="macro">vec!</span>[
                 <span class="comment">// 10
-                </span><span class="string">&quot;[0, 1, 0, 1, 0]&quot;</span>,
-                <span class="string">&quot;[0, 1, 0, 0, 1]&quot;</span>,
-                <span class="string">&quot;[1, 0, 0, 0, 0, 1]&quot;</span>,
-                <span class="string">&quot;[0, 0, 0, 0, 0, 0, 0, 0, 1, 0]&quot;</span>,
-                <span class="string">&quot;[0, 0, 0, 0, 0, 0, 0, 0, 0, 1]&quot;</span>,
+                </span><span class="string">"[0, 1, 0, 1, 0]"</span>,
+                <span class="string">"[0, 1, 0, 0, 1]"</span>,
+                <span class="string">"[1, 0, 0, 0, 0, 1]"</span>,
+                <span class="string">"[0, 0, 0, 0, 0, 0, 0, 0, 1, 0]"</span>,
+                <span class="string">"[0, 0, 0, 0, 0, 0, 0, 0, 0, 1]"</span>,
             ],
             <span class="macro">vec!</span>[
                 <span class="comment">// 11
-                </span><span class="string">&quot;[0, 0, 1, 1, 0]&quot;</span>,
-                <span class="string">&quot;[0, 0, 1, 0, 1]&quot;</span>,
-                <span class="string">&quot;[0, 1, 0, 0, 0, 1]&quot;</span>,
-                <span class="string">&quot;[1, 0, 0, 0, 0, 0, 1]&quot;</span>,
-                <span class="string">&quot;[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]&quot;</span>,
+                </span><span class="string">"[0, 0, 1, 1, 0]"</span>,
+                <span class="string">"[0, 0, 1, 0, 1]"</span>,
+                <span class="string">"[0, 1, 0, 0, 0, 1]"</span>,
+                <span class="string">"[1, 0, 0, 0, 0, 0, 1]"</span>,
+                <span class="string">"[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]"</span>,
             ],
             <span class="macro">vec!</span>[
                 <span class="comment">// 12
-                </span><span class="string">&quot;[1, 1, 1]&quot;</span>,
-                <span class="string">&quot;[0, 0, 0, 1, 1]&quot;</span>,
-                <span class="string">&quot;[0, 0, 1, 0, 0, 1]&quot;</span>,
-                <span class="string">&quot;[0, 1, 0, 0, 0, 0, 1]&quot;</span>,
-                <span class="string">&quot;[1, 0, 0, 0, 0, 0, 0, 1]&quot;</span>,
-                <span class="string">&quot;[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0]&quot;</span>,
-                <span class="string">&quot;[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]&quot;</span>,
+                </span><span class="string">"[1, 1, 1]"</span>,
+                <span class="string">"[0, 0, 0, 1, 1]"</span>,
+                <span class="string">"[0, 0, 1, 0, 0, 1]"</span>,
+                <span class="string">"[0, 1, 0, 0, 0, 0, 1]"</span>,
+                <span class="string">"[1, 0, 0, 0, 0, 0, 0, 1]"</span>,
+                <span class="string">"[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0]"</span>,
+                <span class="string">"[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]"</span>,
             ],
         ];
         <span class="kw">for </span>d <span class="kw">in </span><span class="number">0</span>..tp.parts.len() {
-            <span class="macro">println!</span>(<span class="string">&quot;Partitions of {d}&quot;</span>);
+            <span class="macro">println!</span>(<span class="string">"Partitions of {d}"</span>);
             <span class="kw">for </span>part <span class="kw">in </span><span class="kw-2">&amp;</span>tp.parts[d] {
-                <span class="macro">println!</span>(<span class="string">&quot;      {part}&quot;</span>);
+                <span class="macro">println!</span>(<span class="string">"      {part}"</span>);
             }
         }
         <span class="kw">for </span>(d, parts) <span class="kw">in </span>tp.parts.iter().enumerate() {
             <span class="kw">for </span>(idx, part) <span class="kw">in </span>parts.iter().enumerate() {
                 <span class="macro">assert!</span>(
-                    expected[d][idx] == <span class="macro">format!</span>(<span class="string">&quot;{part}&quot;</span>),
-                    <span class="string">&quot;Discrepancy : degree : {}, idx : {} expected : {}, got : {}&quot;</span>,
+                    expected[d][idx] == <span class="macro">format!</span>(<span class="string">"{part}"</span>),
+                    <span class="string">"Discrepancy : degree : {}, idx : {} expected : {}, got : {}"</span>,
                     d,
                     idx,
                     expected[d][idx],

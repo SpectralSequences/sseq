@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/chart/src/lib.rs`."><title>lib.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-9ee3a5e31a2afa3e.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="chart" data-themes="" data-resource-suffix="" data-rustdoc-version="1.75.0 (82e1608df 2023-12-21)" data-channel="1.75.0" data-search-js="search-8fbf244ebcf71464.js" data-settings-js="settings-74424d7eec62a23e.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-9dd44ab47b99a0fb.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/chart/src/lib.rs`."><title>lib.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-ac92e1bbe349e143.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="chart" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0 (07dca489a 2024-02-04)" data-channel="1.76.0" data-search-js="search-2b6ce74ff89ae146.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-f2adc0d6ca4d09fb.js"></script><script defer src="../../static.files/src-script-39ed315d46fb705f.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-305769736d49e732.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-feafe1bb7466e4bd.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
 <!-- The loading of KaTeX is deferred to speed up page rendering -->
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.js" integrity="sha384-Bi8OWqMXO1ta+a4EPkZv7bYGIes7C3krGSZoTGNTAnAn5eYQc7IIXrJ/7ck1drAi" crossorigin="anonymous"></script>
 <!-- To automatically render math in text elements, include the auto-render extension: -->
@@ -23,7 +23,8 @@
     });
 </script>
 
-</head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+</head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><div class="sidebar-resizer"></div>
+    <main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" tabindex="-1"><a href="../../help.html" title="help">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -508,7 +509,7 @@
     <span class="kw">type </span>Error;
 
     <span class="doccomment">/// If the backend writes to a file, this is the extension commonly taken by the file type
-    </span><span class="kw">const </span>EXT: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str = <span class="string">&quot;&quot;</span>;
+    </span><span class="kw">const </span>EXT: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str = <span class="string">""</span>;
 
     <span class="kw">fn </span>header(<span class="kw-2">&amp;mut </span><span class="self">self</span>, max_x: i32, max_y: i32) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="self">Self</span>::Error&gt;;
     <span class="kw">fn </span>line(
@@ -545,7 +546,7 @@
                 x,
                 <span class="number">0</span>,
                 max_y,
-                <span class="kw">if </span>x % <span class="number">4 </span>== <span class="number">0 </span>{ <span class="string">&quot;major-grid&quot; </span>} <span class="kw">else </span>{ <span class="string">&quot;grid&quot; </span>},
+                <span class="kw">if </span>x % <span class="number">4 </span>== <span class="number">0 </span>{ <span class="string">"major-grid" </span>} <span class="kw">else </span>{ <span class="string">"grid" </span>},
             )<span class="question-mark">?</span>;
             <span class="kw">if </span>x % <span class="number">4 </span>== <span class="number">0 </span>{
                 <span class="self">self</span>.text(x, <span class="number">0</span>, x, Orientation::Below)<span class="question-mark">?</span>;
@@ -557,7 +558,7 @@
                 max_x,
                 y,
                 y,
-                <span class="kw">if </span>y % <span class="number">4 </span>== <span class="number">0 </span>{ <span class="string">&quot;major-grid&quot; </span>} <span class="kw">else </span>{ <span class="string">&quot;grid&quot; </span>},
+                <span class="kw">if </span>y % <span class="number">4 </span>== <span class="number">0 </span>{ <span class="string">"major-grid" </span>} <span class="kw">else </span>{ <span class="string">"grid" </span>},
             )<span class="question-mark">?</span>;
             <span class="kw">if </span>y % <span class="number">4 </span>== <span class="number">0 </span>{
                 <span class="self">self</span>.text(<span class="number">0</span>, y, y, Orientation::Left)<span class="question-mark">?</span>;
@@ -592,7 +593,7 @@
 }
 
 <span class="kw">impl</span>&lt;T: Write&gt; SvgBackend&lt;T&gt; {
-    <span class="kw">const </span>STYLES: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str = <span class="string">r#&quot;
+    <span class="kw">const </span>STYLES: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str = <span class="string">r#"
     circle {
         fill: black;
     }
@@ -623,7 +624,7 @@
      text-anchor: end;
      dominant-baseline: middle;
     }
-    &quot;#</span>;
+    "#</span>;
 
     <span class="kw">const </span>GRID_WIDTH: i32 = <span class="number">20</span>;
     <span class="kw">const </span>MARGIN: i32 = <span class="number">30</span>;
@@ -632,26 +633,26 @@
     </span><span class="kw">pub fn </span>legend(<span class="kw-2">mut </span>out: T) -&gt; std::io::Result&lt;()&gt; {
         <span class="macro">writeln!</span>(
             out,
-            <span class="string">r#&quot;&lt;svg version = &quot;1.1&quot; width=&quot;{}&quot; height=&quot;100&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot;&gt;&quot;#</span>,
+            <span class="string">r#"&lt;svg version = "1.1" width="{}" height="100" xmlns="http://www.w3.org/2000/svg"&gt;"#</span>,
             PATTERNS.len() * <span class="number">100</span>,
         )<span class="question-mark">?</span>;
 
         <span class="kw">for </span>(n, (<span class="kw">_</span>, row)) <span class="kw">in </span>PATTERNS.iter().enumerate() {
             <span class="macro">writeln!</span>(
                 out,
-                <span class="string">r#&quot;&lt;rect fill=&quot;none&quot; stroke=&quot;black&quot; width=&quot;80&quot; height=&quot;80&quot; y=&quot;10&quot; x=&quot;{x}&quot;/&gt;&quot;#</span>,
+                <span class="string">r#"&lt;rect fill="none" stroke="black" width="80" height="80" y="10" x="{x}"/&gt;"#</span>,
                 x = <span class="number">10 </span>+ n * <span class="number">100
             </span>)<span class="question-mark">?</span>;
             <span class="kw">for </span>(k, offset) <span class="kw">in </span>row[<span class="number">0</span>..=n].iter().enumerate() {
                 <span class="macro">writeln!</span>(
                     out,
-                    <span class="string">r#&quot;&lt;text x=&quot;{x}&quot; y=&quot;{y}&quot; text-anchor=&quot;middle&quot; dominant-baseline=&quot;middle&quot;&gt;{k}&lt;/text&gt;&quot;#</span>,
+                    <span class="string">r#"&lt;text x="{x}" y="{y}" text-anchor="middle" dominant-baseline="middle"&gt;{k}&lt;/text&gt;"#</span>,
                     x = <span class="number">50.0 </span>+ n <span class="kw">as </span>f32 * <span class="number">100.0 </span>+ offset.<span class="number">0 </span>* <span class="number">6.0</span>,
                     y = <span class="number">50.0 </span>+ offset.<span class="number">1 </span>* <span class="number">6.0</span>,
                 )<span class="question-mark">?</span>;
             }
         }
-        <span class="macro">writeln!</span>(out, <span class="string">r#&quot;&lt;/svg&gt;&quot;#</span>,)<span class="question-mark">?</span>;
+        <span class="macro">writeln!</span>(out, <span class="string">r#"&lt;/svg&gt;"#</span>,)<span class="question-mark">?</span>;
 
         <span class="prelude-val">Ok</span>(())
     }
@@ -682,7 +683,7 @@
 
 <span class="kw">impl</span>&lt;T: Write&gt; Backend <span class="kw">for </span>SvgBackend&lt;T&gt; {
     <span class="kw">type </span>Error = std::io::Error;
-    <span class="kw">const </span>EXT: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str = <span class="string">&quot;svg&quot;</span>;
+    <span class="kw">const </span>EXT: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str = <span class="string">"svg"</span>;
 
     <span class="kw">fn </span>header(<span class="kw-2">&amp;mut </span><span class="self">self</span>, max_x: i32, max_y: i32) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="self">Self</span>::Error&gt; {
         <span class="self">self</span>.max_x = max_x;
@@ -693,9 +694,9 @@
 
         <span class="macro">writeln!</span>(
             <span class="self">self</span>.out,
-            <span class="string">r#&quot;&lt;svg version = &quot;1.1&quot; width=&quot;{width}&quot; height=&quot;{height}&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot;&gt;&quot;#</span>,
+            <span class="string">r#"&lt;svg version = "1.1" width="{width}" height="{height}" xmlns="http://www.w3.org/2000/svg"&gt;"#</span>,
         )<span class="question-mark">?</span>;
-        <span class="macro">writeln!</span>(<span class="self">self</span>.out, <span class="string">&quot;&lt;style&gt;{}&lt;/style&gt;&quot;</span>, <span class="self">Self</span>::STYLES)
+        <span class="macro">writeln!</span>(<span class="self">self</span>.out, <span class="string">"&lt;style&gt;{}&lt;/style&gt;"</span>, <span class="self">Self</span>::STYLES)
     }
 
     <span class="kw">fn </span>line(
@@ -710,7 +711,7 @@
 
         <span class="macro">writeln!</span>(
             <span class="self">self</span>.out,
-            <span class="string">r#&quot;&lt;line class=&quot;{style}&quot; x1=&quot;{start_x}&quot; x2=&quot;{end_x}&quot; y1=&quot;{start_y}&quot; y2=&quot;{end_y}&quot; /&gt;&quot;#</span>,
+            <span class="string">r#"&lt;line class="{style}" x1="{start_x}" x2="{end_x}" y1="{start_y}" y2="{end_y}" /&gt;"#</span>,
             start_x = <span class="self">Self</span>::MARGIN + start_x * <span class="self">Self</span>::GRID_WIDTH,
             end_x = <span class="self">Self</span>::MARGIN + end_x * <span class="self">Self</span>::GRID_WIDTH,
             start_y = height - <span class="self">Self</span>::MARGIN - start_y * <span class="self">Self</span>::GRID_WIDTH,
@@ -726,15 +727,15 @@
         orientation: Orientation,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="self">Self</span>::Error&gt; {
         <span class="kw">let </span>(offset, class) = <span class="kw">match </span>orientation {
-            Orientation::Left =&gt; ((-<span class="number">5</span>, <span class="number">0</span>), <span class="string">&quot;y-label&quot;</span>),
+            Orientation::Left =&gt; ((-<span class="number">5</span>, <span class="number">0</span>), <span class="string">"y-label"</span>),
             Orientation::Right =&gt; <span class="macro">unimplemented!</span>(),
-            Orientation::Below =&gt; ((<span class="number">0</span>, <span class="number">3</span>), <span class="string">&quot;x-label&quot;</span>),
+            Orientation::Below =&gt; ((<span class="number">0</span>, <span class="number">3</span>), <span class="string">"x-label"</span>),
             Orientation::Above =&gt; <span class="macro">unimplemented!</span>(),
         };
 
         <span class="macro">writeln!</span>(
             <span class="self">self</span>.out,
-            <span class="string">r#&quot;&lt;text class=&quot;{class}&quot; x=&quot;{x}&quot; y=&quot;{y}&quot;&gt;{content}&lt;/text&gt;&quot;#</span>,
+            <span class="string">r#"&lt;text class="{class}" x="{x}" y="{y}"&gt;{content}&lt;/text&gt;"#</span>,
             x = <span class="self">Self</span>::MARGIN + x * <span class="self">Self</span>::GRID_WIDTH + offset.<span class="number">0</span>,
             y = <span class="self">Self</span>::MARGIN + (<span class="self">self</span>.max_y - y) * <span class="self">Self</span>::GRID_WIDTH + offset.<span class="number">1</span>,
         )
@@ -748,7 +749,7 @@
 
         <span class="kw">for </span>k <span class="kw">in </span><span class="number">0</span>..n {
             <span class="kw">let </span>(r, x, y) = <span class="self">self</span>.get_coords(x, y, k);
-            <span class="macro">writeln!</span>(<span class="self">self</span>.out, <span class="string">r#&quot;&lt;circle cx=&quot;{x}&quot; cy=&quot;{y}&quot; r=&quot;{r}&quot;/&gt;&quot;#</span>,)<span class="question-mark">?</span>;
+            <span class="macro">writeln!</span>(<span class="self">self</span>.out, <span class="string">r#"&lt;circle cx="{x}" cy="{y}" r="{r}"/&gt;"#</span>,)<span class="question-mark">?</span>;
         }
         <span class="prelude-val">Ok</span>(())
     }
@@ -772,10 +773,10 @@
 
         <span class="macro">writeln!</span>(
             <span class="self">self</span>.out,
-            <span class="string">r#&quot;&lt;line class=&quot;{style}&quot; x1=&quot;{source_x}&quot; x2=&quot;{target_x}&quot; y1=&quot;{source_y}&quot; y2=&quot;{target_y}&quot; /&gt;&quot;#</span>,
+            <span class="string">r#"&lt;line class="{style}" x1="{source_x}" x2="{target_x}" y1="{source_y}" y2="{target_y}" /&gt;"#</span>,
             style = <span class="kw">match </span><span class="kw-2">&amp;</span>style {
-                <span class="prelude-val">Some</span>(x) =&gt; <span class="macro">format!</span>(<span class="string">&quot;structline {x}&quot;</span>),
-                <span class="prelude-val">None </span>=&gt; String::from(<span class="string">&quot;structline&quot;</span>),
+                <span class="prelude-val">Some</span>(x) =&gt; <span class="macro">format!</span>(<span class="string">"structline {x}"</span>),
+                <span class="prelude-val">None </span>=&gt; String::from(<span class="string">"structline"</span>),
             },
         )<span class="question-mark">?</span>;
 
@@ -785,7 +786,7 @@
 
 <span class="kw">impl</span>&lt;T: Write&gt; Drop <span class="kw">for </span>SvgBackend&lt;T&gt; {
     <span class="kw">fn </span>drop(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-        <span class="macro">writeln!</span>(<span class="self">self</span>.out, <span class="string">&quot;&lt;/svg&gt;&quot;</span>).unwrap();
+        <span class="macro">writeln!</span>(<span class="self">self</span>.out, <span class="string">"&lt;/svg&gt;"</span>).unwrap();
     }
 }
 
@@ -797,11 +798,11 @@
 }
 
 <span class="kw">impl</span>&lt;T: Write&gt; TikzBackend&lt;T&gt; {
-    <span class="kw">const </span>HEADER: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str = <span class="string">r&quot;\begin{tikzpicture}[
+    <span class="kw">const </span>HEADER: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str = <span class="string">r"\begin{tikzpicture}[
   major-grid/.style={ opacity = 0.2 },
   grid/.style={ opacity = 0.1 },
   d2/.style={ blue },
-]&quot;</span>;
+]"</span>;
 
     <span class="kw">pub fn </span>new(out: T) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
@@ -831,12 +832,12 @@
 
 <span class="kw">impl</span>&lt;T: Write&gt; Backend <span class="kw">for </span>TikzBackend&lt;T&gt; {
     <span class="kw">type </span>Error = std::io::Error;
-    <span class="kw">const </span>EXT: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str = <span class="string">&quot;tex&quot;</span>;
+    <span class="kw">const </span>EXT: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str = <span class="string">"tex"</span>;
 
     <span class="kw">fn </span>header(<span class="kw-2">&amp;mut </span><span class="self">self</span>, max_x: i32, max_y: i32) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="self">Self</span>::Error&gt; {
         <span class="self">self</span>.max_x = max_x;
         <span class="self">self</span>.max_y = max_y;
-        <span class="macro">writeln!</span>(<span class="self">self</span>.out, <span class="string">&quot;{}&quot;</span>, <span class="self">Self</span>::HEADER)
+        <span class="macro">writeln!</span>(<span class="self">self</span>.out, <span class="string">"{}"</span>, <span class="self">Self</span>::HEADER)
     }
 
     <span class="kw">fn </span>line(
@@ -849,7 +850,7 @@
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="self">Self</span>::Error&gt; {
         <span class="macro">writeln!</span>(
             <span class="self">self</span>.out,
-            <span class="string">r#&quot;\draw [{style}] ({start_x}, {start_y}) -- ({end_x}, {end_y});&quot;#</span>,
+            <span class="string">r#"\draw [{style}] ({start_x}, {start_y}) -- ({end_x}, {end_y});"#</span>,
         )
     }
 
@@ -861,13 +862,13 @@
         orientation: Orientation,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="self">Self</span>::Error&gt; {
         <span class="kw">let </span>offset = <span class="kw">match </span>orientation {
-            Orientation::Left =&gt; <span class="string">&quot;left&quot;</span>,
-            Orientation::Right =&gt; <span class="string">&quot;right&quot;</span>,
-            Orientation::Below =&gt; <span class="string">&quot;below&quot;</span>,
-            Orientation::Above =&gt; <span class="string">&quot;above&quot;</span>,
+            Orientation::Left =&gt; <span class="string">"left"</span>,
+            Orientation::Right =&gt; <span class="string">"right"</span>,
+            Orientation::Below =&gt; <span class="string">"below"</span>,
+            Orientation::Above =&gt; <span class="string">"above"</span>,
         };
 
-        <span class="macro">writeln!</span>(<span class="self">self</span>.out, <span class="string">r#&quot;\node [{offset}] at ({x}, {y}) {{{content}}};&quot;#</span>,)
+        <span class="macro">writeln!</span>(<span class="self">self</span>.out, <span class="string">r#"\node [{offset}] at ({x}, {y}) {{{content}}};"#</span>,)
     }
 
     <span class="kw">fn </span>node(<span class="kw-2">&amp;mut </span><span class="self">self</span>, x: i32, y: i32, n: usize) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="self">Self</span>::Error&gt; {
@@ -878,7 +879,7 @@
 
         <span class="kw">for </span>k <span class="kw">in </span><span class="number">0</span>..n {
             <span class="kw">let </span>(r, x, y) = <span class="self">self</span>.get_coords(x, y, k);
-            <span class="macro">writeln!</span>(<span class="self">self</span>.out, <span class="string">r#&quot;\draw [fill] ({x}, {y}) circle ({r});&quot;#</span>,)<span class="question-mark">?</span>;
+            <span class="macro">writeln!</span>(<span class="self">self</span>.out, <span class="string">r#"\draw [fill] ({x}, {y}) circle ({r});"#</span>,)<span class="question-mark">?</span>;
         }
         <span class="prelude-val">Ok</span>(())
     }
@@ -902,8 +903,8 @@
 
         <span class="macro">writeln!</span>(
             <span class="self">self</span>.out,
-            <span class="string">r#&quot;\draw [{style}] ({source_x}, {source_y}) -- ({target_x}, {target_y});&quot;#</span>,
-            style = style.unwrap_or(<span class="string">&quot;&quot;</span>),
+            <span class="string">r#"\draw [{style}] ({source_x}, {source_y}) -- ({target_x}, {target_y});"#</span>,
+            style = style.unwrap_or(<span class="string">""</span>),
         )<span class="question-mark">?</span>;
 
         <span class="prelude-val">Ok</span>(())
@@ -912,7 +913,7 @@
 
 <span class="kw">impl</span>&lt;T: Write&gt; Drop <span class="kw">for </span>TikzBackend&lt;T&gt; {
     <span class="kw">fn </span>drop(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-        <span class="macro">writeln!</span>(<span class="self">self</span>.out, <span class="string">r#&quot;\end{{tikzpicture}}&quot;#</span>).unwrap();
+        <span class="macro">writeln!</span>(<span class="self">self</span>.out, <span class="string">r#"\end{{tikzpicture}}"#</span>).unwrap();
     }
 }
 
@@ -926,7 +927,7 @@
         <span class="kw">let </span><span class="kw-2">mut </span>res: Vec&lt;u8&gt; = Vec::new();
         SvgBackend::legend(<span class="kw-2">&amp;mut </span>res).unwrap();
 
-        <span class="macro">expect_file!</span>[<span class="string">&quot;../legend.svg&quot;</span>].assert_eq(std::str::from_utf8(<span class="kw-2">&amp;</span>res).unwrap());
+        <span class="macro">expect_file!</span>[<span class="string">"../legend.svg"</span>].assert_eq(std::str::from_utf8(<span class="kw-2">&amp;</span>res).unwrap());
     }
 }
 </code></pre></div></section></main></body></html>

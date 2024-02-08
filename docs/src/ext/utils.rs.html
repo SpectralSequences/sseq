@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/utils.rs`."><title>utils.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-9ee3a5e31a2afa3e.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="ext" data-themes="" data-resource-suffix="" data-rustdoc-version="1.75.0 (82e1608df 2023-12-21)" data-channel="1.75.0" data-search-js="search-8fbf244ebcf71464.js" data-settings-js="settings-74424d7eec62a23e.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-9dd44ab47b99a0fb.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/utils.rs`."><title>utils.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-ac92e1bbe349e143.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="ext" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0 (07dca489a 2024-02-04)" data-channel="1.76.0" data-search-js="search-2b6ce74ff89ae146.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-f2adc0d6ca4d09fb.js"></script><script defer src="../../static.files/src-script-39ed315d46fb705f.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-305769736d49e732.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-feafe1bb7466e4bd.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
 <!-- The loading of KaTeX is deferred to speed up page rendering -->
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.js" integrity="sha384-Bi8OWqMXO1ta+a4EPkZv7bYGIes7C3krGSZoTGNTAnAn5eYQc7IIXrJ/7ck1drAi" crossorigin="anonymous"></script>
 <!-- To automatically render math in text elements, include the auto-render extension: -->
@@ -23,7 +23,8 @@
     });
 </script>
 
-</head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+</head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><div class="sidebar-resizer"></div>
+    <main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" tabindex="-1"><a href="../../help.html" title="help">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -627,18 +628,18 @@
 <span class="kw">use </span>std::path::PathBuf;
 <span class="kw">use </span>std::sync::Arc;
 
-<span class="comment">// We build docs with --all-features so the docs are at the feature = &quot;nassau&quot; version
-</span><span class="attr">#[cfg(not(feature = <span class="string">&quot;nassau&quot;</span>))]
+<span class="comment">// We build docs with --all-features so the docs are at the feature = "nassau" version
+</span><span class="attr">#[cfg(not(feature = <span class="string">"nassau"</span>))]
 </span><span class="kw">pub type </span>QueryModuleResolution = Resolution&lt;CCC&gt;;
 
 <span class="doccomment">/// The type returned by [`query_module`]. The value of this type depends on whether
 /// [`nassau`](crate::nassau) is enabled. In any case, it is an augmented free chain complex over
 /// either [`SteenrodAlgebra`] or [`MilnorAlgebra`](algebra::MilnorAlgebra) and supports the
 /// `compute_through_stem` function.
-</span><span class="attr">#[cfg(feature = <span class="string">&quot;nassau&quot;</span>)]
+</span><span class="attr">#[cfg(feature = <span class="string">"nassau"</span>)]
 </span><span class="kw">pub type </span>QueryModuleResolution = <span class="kw">crate</span>::nassau::Resolution&lt;FDModule&lt;MilnorAlgebra&gt;&gt;;
 
-<span class="kw">const </span>STATIC_MODULES_PATH: <span class="kw-2">&amp;</span>str = <span class="macro">concat!</span>(<span class="macro">env!</span>(<span class="string">&quot;CARGO_MANIFEST_DIR&quot;</span>), <span class="string">&quot;/../ext/steenrod_modules&quot;</span>);
+<span class="kw">const </span>STATIC_MODULES_PATH: <span class="kw-2">&amp;</span>str = <span class="macro">concat!</span>(<span class="macro">env!</span>(<span class="string">"CARGO_MANIFEST_DIR"</span>), <span class="string">"/../ext/steenrod_modules"</span>);
 
 <span class="doccomment">/// A config object is an object that specifies how a Steenrod module should be constructed.
 </span><span class="attr">#[derive(Clone, Debug, Eq, PartialEq)]
@@ -652,21 +653,21 @@
 <span class="doccomment">/// Given a module specification string, load a json description of the module as described
 /// [here](../index.html#module-specification).
 </span><span class="kw">pub fn </span>parse_module_name(module_name: <span class="kw-2">&amp;</span>str) -&gt; anyhow::Result&lt;Value&gt; {
-    <span class="kw">let </span><span class="kw-2">mut </span>args = module_name.split(<span class="string">&#39;[&#39;</span>);
+    <span class="kw">let </span><span class="kw-2">mut </span>args = module_name.split(<span class="string">'['</span>);
     <span class="kw">let </span>module_file = args.next().unwrap();
     <span class="kw">let </span><span class="kw-2">mut </span>module = load_module_json(module_file)
-        .with_context(|| <span class="macro">format!</span>(<span class="string">&quot;Failed to load module file {module_file}&quot;</span>))<span class="question-mark">?</span>;
+        .with_context(|| <span class="macro">format!</span>(<span class="string">"Failed to load module file {module_file}"</span>))<span class="question-mark">?</span>;
     <span class="kw">if let </span><span class="prelude-val">Some</span>(shift) = args.next() {
-        <span class="kw">let </span>shift: i64 = <span class="kw">match </span>shift.strip_suffix(<span class="string">&#39;]&#39;</span>) {
-            <span class="prelude-val">None </span>=&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(<span class="string">&quot;Unterminated shift [&quot;</span>)),
+        <span class="kw">let </span>shift: i64 = <span class="kw">match </span>shift.strip_suffix(<span class="string">']'</span>) {
+            <span class="prelude-val">None </span>=&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(<span class="string">"Unterminated shift ["</span>)),
             <span class="prelude-val">Some</span>(x) =&gt; x
                 .parse()
-                .with_context(|| <span class="macro">format!</span>(<span class="string">&quot;Cannot parse shift value ({x}) as an integer&quot;</span>))<span class="question-mark">?</span>,
+                .with_context(|| <span class="macro">format!</span>(<span class="string">"Cannot parse shift value ({x}) as an integer"</span>))<span class="question-mark">?</span>,
         };
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(spec_shift) = module.get_mut(<span class="string">&quot;shift&quot;</span>) {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(spec_shift) = module.get_mut(<span class="string">"shift"</span>) {
             <span class="kw-2">*</span>spec_shift = Value::from(spec_shift.as_i64().unwrap() + shift);
         } <span class="kw">else </span>{
-            module[<span class="string">&quot;shift&quot;</span>] = Value::from(shift);
+            module[<span class="string">"shift"</span>] = Value::from(shift);
         }
     }
     <span class="prelude-val">Ok</span>(module)
@@ -676,18 +677,18 @@
     <span class="kw">type </span>Error = anyhow::Error;
 
     <span class="kw">fn </span>try_from(spec: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, <span class="self">Self</span>::Error&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>args = spec.split(<span class="string">&#39;@&#39;</span>);
+        <span class="kw">let </span><span class="kw-2">mut </span>args = spec.split(<span class="string">'@'</span>);
         <span class="kw">let </span>module_name = args.next().unwrap();
         <span class="kw">let </span>algebra = <span class="kw">match </span>args.next() {
             <span class="prelude-val">Some</span>(x) =&gt; x
                 .parse()
-                .with_context(|| <span class="macro">format!</span>(<span class="string">&quot;Invalid algebra type: {x}&quot;</span>))<span class="question-mark">?</span>,
+                .with_context(|| <span class="macro">format!</span>(<span class="string">"Invalid algebra type: {x}"</span>))<span class="question-mark">?</span>,
             <span class="prelude-val">None </span>=&gt; AlgebraType::Milnor,
         };
 
         <span class="prelude-val">Ok</span>(Config {
             module: parse_module_name(module_name)
-                .with_context(|| <span class="macro">format!</span>(<span class="string">&quot;Failed to load module: {module_name}&quot;</span>))<span class="question-mark">?</span>,
+                .with_context(|| <span class="macro">format!</span>(<span class="string">"Failed to load module: {module_name}"</span>))<span class="question-mark">?</span>,
             algebra,
         })
     }
@@ -702,11 +703,11 @@
 
     <span class="kw">fn </span>try_from(<span class="kw-2">mut </span>spec: (<span class="kw-2">&amp;</span>str, T)) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, <span class="self">Self</span>::Error&gt; {
         <span class="kw">let </span>algebra = spec.<span class="number">1</span>.try_into()<span class="question-mark">?</span>;
-        <span class="kw">if </span>spec.<span class="number">0</span>.contains(<span class="string">&#39;@&#39;</span>) {
+        <span class="kw">if </span>spec.<span class="number">0</span>.contains(<span class="string">'@'</span>) {
             <span class="kw">if </span>spec.<span class="number">0</span>.ends_with(<span class="kw-2">&amp;*</span>algebra.to_string()) {
                 spec.<span class="number">0 </span>= <span class="kw-2">&amp;</span>spec.<span class="number">0</span>[<span class="number">0</span>..spec.<span class="number">0</span>.len() - algebra.to_string().len() - <span class="number">1</span>];
             } <span class="kw">else </span>{
-                <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(<span class="string">&quot;Invalid algebra supplied. Must be {}&quot;</span>, algebra));
+                <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(<span class="string">"Invalid algebra supplied. Must be {}"</span>, algebra));
             }
         }
         <span class="prelude-val">Ok</span>(Config {
@@ -734,7 +735,7 @@
 ///     [`TryInto&lt;Config&gt;`] (with appropriate error bounds). In practice, we can supply
 ///     - A [`Config`] object itself
 ///     - `(json, algebra)`: The first argument is a [`serde_json::Value`] that specifies the
-///       module; the second argument is either a string (`&quot;milnor&quot;` or `&quot;adem&quot;`) or an
+///       module; the second argument is either a string (`"milnor"` or `"adem"`) or an
 ///       [`algebra::AlgebraType`] object.
 ///     - `(module_name, algebra)`: The first argument is the name of the module and the second is
 ///       as above. Modules are searched in the current directory, `$CWD/steenrod_modules` and
@@ -754,12 +755,12 @@
     </span>anyhow::Error: From&lt;E&gt;,
     T: TryInto&lt;Config, Error = E&gt;,
 {
-    <span class="attr">#[cfg(feature = <span class="string">&quot;nassau&quot;</span>)]
+    <span class="attr">#[cfg(feature = <span class="string">"nassau"</span>)]
     </span>{
         construct_nassau(module_spec, save_dir)
     }
 
-    <span class="attr">#[cfg(not(feature = <span class="string">&quot;nassau&quot;</span>))]
+    <span class="attr">#[cfg(not(feature = <span class="string">"nassau"</span>))]
     </span>{
         construct_standard(module_spec, save_dir)
     }
@@ -780,27 +781,27 @@
     } = module_spec.try_into()<span class="question-mark">?</span>;
 
     <span class="kw">if </span>algebra == AlgebraType::Adem {
-        <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(<span class="string">&quot;Nassau&#39;s algorithm requires Milnor&#39;s basis&quot;</span>));
+        <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(<span class="string">"Nassau's algorithm requires Milnor's basis"</span>));
     }
-    <span class="kw">if </span>!json[<span class="string">&quot;profile&quot;</span>].is_null() {
+    <span class="kw">if </span>!json[<span class="string">"profile"</span>].is_null() {
         <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(
-            <span class="string">&quot;Nassau&#39;s algorithm does not support non-trivial profile&quot;
+            <span class="string">"Nassau's algorithm does not support non-trivial profile"
         </span>));
     }
-    <span class="kw">if </span>json[<span class="string">&quot;p&quot;</span>].as_i64() != <span class="prelude-val">Some</span>(<span class="number">2</span>) {
-        <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(<span class="string">&quot;Nassau&#39;s algorithm does not support odd primes&quot;</span>));
+    <span class="kw">if </span>json[<span class="string">"p"</span>].as_i64() != <span class="prelude-val">Some</span>(<span class="number">2</span>) {
+        <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(<span class="string">"Nassau's algorithm does not support odd primes"</span>));
     }
-    <span class="kw">if </span>json[<span class="string">&quot;type&quot;</span>].as_str() != <span class="prelude-val">Some</span>(<span class="string">&quot;finite dimensional module&quot;</span>) {
+    <span class="kw">if </span>json[<span class="string">"type"</span>].as_str() != <span class="prelude-val">Some</span>(<span class="string">"finite dimensional module"</span>) {
         <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(
-            <span class="string">&quot;Nassau&#39;s algorithm only supports finite dimensional modules&quot;
+            <span class="string">"Nassau's algorithm only supports finite dimensional modules"
         </span>));
     }
 
     <span class="kw">let </span>algebra = Arc::new(MilnorAlgebra::new(fp::prime::TWO, <span class="bool-val">false</span>));
     <span class="kw">let </span>module = Arc::new(FDModule::from_json(Arc::clone(<span class="kw-2">&amp;</span>algebra), <span class="kw-2">&amp;</span>json)<span class="question-mark">?</span>);
 
-    <span class="kw">if </span>!json[<span class="string">&quot;confiber&quot;</span>].is_null() {
-        <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(<span class="string">&quot;Nassau&#39;s algorithm does not support cofiber&quot;</span>));
+    <span class="kw">if </span>!json[<span class="string">"confiber"</span>].is_null() {
+        <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(<span class="string">"Nassau's algorithm does not support cofiber"</span>));
     }
     <span class="kw">crate</span>::nassau::Resolution::new_with_save(module, save_dir)
 }
@@ -824,25 +825,25 @@
     <span class="kw">let </span>module = Arc::new(steenrod_module::from_json(Arc::clone(<span class="kw-2">&amp;</span>algebra), <span class="kw-2">&amp;</span>json)<span class="question-mark">?</span>);
     <span class="kw">let </span><span class="kw-2">mut </span>chain_complex = Arc::new(FiniteChainComplex::ccdz(Arc::clone(<span class="kw-2">&amp;</span>module)));
 
-    <span class="kw">let </span>cofiber = <span class="kw-2">&amp;</span>json[<span class="string">&quot;cofiber&quot;</span>];
+    <span class="kw">let </span>cofiber = <span class="kw-2">&amp;</span>json[<span class="string">"cofiber"</span>];
     <span class="kw">if </span>!cofiber.is_null() {
-        <span class="macro">assert!</span>(!U, <span class="string">&quot;Cofiber not supported for unstable resolution&quot;</span>);
+        <span class="macro">assert!</span>(!U, <span class="string">"Cofiber not supported for unstable resolution"</span>);
         <span class="kw">use </span><span class="kw">crate</span>::chain_complex::ChainMap;
         <span class="kw">use </span><span class="kw">crate</span>::yoneda::yoneda_representative;
         <span class="kw">use </span>algebra::module::homomorphism::FreeModuleHomomorphism;
 
-        <span class="kw">let </span>shift = json[<span class="string">&quot;shift&quot;</span>].as_i64().unwrap_or(<span class="number">0</span>) <span class="kw">as </span>i32;
+        <span class="kw">let </span>shift = json[<span class="string">"shift"</span>].as_i64().unwrap_or(<span class="number">0</span>) <span class="kw">as </span>i32;
 
         <span class="kw">let </span>cofiber = BidegreeGenerator::s_t(
-            cofiber[<span class="string">&quot;s&quot;</span>].as_u64().unwrap() <span class="kw">as </span>u32,
-            cofiber[<span class="string">&quot;t&quot;</span>].as_i64().unwrap() <span class="kw">as </span>i32 + shift,
-            cofiber[<span class="string">&quot;idx&quot;</span>].as_u64().unwrap() <span class="kw">as </span>usize,
+            cofiber[<span class="string">"s"</span>].as_u64().unwrap() <span class="kw">as </span>u32,
+            cofiber[<span class="string">"t"</span>].as_i64().unwrap() <span class="kw">as </span>i32 + shift,
+            cofiber[<span class="string">"idx"</span>].as_u64().unwrap() <span class="kw">as </span>usize,
         );
 
         <span class="kw">let </span>max_degree = Bidegree::n_s(
             module
                 .max_degree()
-                .expect(<span class="string">&quot;Can only take cofiber when module is bounded&quot;</span>),
+                .expect(<span class="string">"Can only take cofiber when module is bounded"</span>),
             <span class="number">0</span>,
         );
 
@@ -884,8 +885,8 @@
 /// name, and return the parsed json object. The search path for this json file is described
 /// [here](../index.html#module-specification).
 </span><span class="kw">pub fn </span>load_module_json(name: <span class="kw-2">&amp;</span>str) -&gt; anyhow::Result&lt;Value&gt; {
-    <span class="kw">let </span>current_dir = std::env::current_dir().context(<span class="string">&quot;Failed to read current directory&quot;</span>)<span class="question-mark">?</span>;
-    <span class="kw">let </span>relative_dir = current_dir.join(<span class="string">&quot;steenrod_modules&quot;</span>);
+    <span class="kw">let </span>current_dir = std::env::current_dir().context(<span class="string">"Failed to read current directory"</span>)<span class="question-mark">?</span>;
+    <span class="kw">let </span>relative_dir = current_dir.join(<span class="string">"steenrod_modules"</span>);
 
     <span class="kw">for </span>path <span class="kw">in </span><span class="kw-2">&amp;</span>[
         current_dir,
@@ -894,13 +895,13 @@
     ] {
         <span class="kw">let </span><span class="kw-2">mut </span>path = path.clone();
         path.push(name);
-        path.set_extension(<span class="string">&quot;json&quot;</span>);
+        path.set_extension(<span class="string">"json"</span>);
         <span class="kw">if let </span><span class="prelude-val">Ok</span>(s) = std::fs::read_to_string(<span class="kw-2">&amp;</span>path) {
             <span class="kw">return </span>serde_json::from_str(<span class="kw-2">&amp;</span>s)
-                .with_context(|| <span class="macro">format!</span>(<span class="string">&quot;Failed to load module json at {path:?}&quot;</span>));
+                .with_context(|| <span class="macro">format!</span>(<span class="string">"Failed to load module json at {path:?}"</span>));
         }
     }
-    <span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(<span class="string">&quot;Module file &#39;{}&#39; not found&quot;</span>, name))
+    <span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(<span class="string">"Module file '{}' not found"</span>, name))
 }
 
 <span class="doccomment">/// Given an `n: usize`, return a UTF-8 character that best depicts this number. If `n &lt; 9`, then
@@ -908,17 +909,17 @@
 /// `*`.
 </span><span class="kw">pub fn </span>unicode_num(n: usize) -&gt; char {
     <span class="kw">match </span>n {
-        <span class="number">0 </span>=&gt; <span class="string">&#39; &#39;</span>,
-        <span class="number">1 </span>=&gt; <span class="string">&#39;·&#39;</span>,
-        <span class="number">2 </span>=&gt; <span class="string">&#39;:&#39;</span>,
-        <span class="number">3 </span>=&gt; <span class="string">&#39;∴&#39;</span>,
-        <span class="number">4 </span>=&gt; <span class="string">&#39;⁘&#39;</span>,
-        <span class="number">5 </span>=&gt; <span class="string">&#39;⁙&#39;</span>,
-        <span class="number">6 </span>=&gt; <span class="string">&#39;⠿&#39;</span>,
-        <span class="number">7 </span>=&gt; <span class="string">&#39;⡿&#39;</span>,
-        <span class="number">8 </span>=&gt; <span class="string">&#39;⣿&#39;</span>,
-        <span class="number">9 </span>=&gt; <span class="string">&#39;9&#39;</span>,
-        <span class="kw">_ </span>=&gt; <span class="string">&#39;*&#39;</span>,
+        <span class="number">0 </span>=&gt; <span class="string">' '</span>,
+        <span class="number">1 </span>=&gt; <span class="string">'·'</span>,
+        <span class="number">2 </span>=&gt; <span class="string">':'</span>,
+        <span class="number">3 </span>=&gt; <span class="string">'∴'</span>,
+        <span class="number">4 </span>=&gt; <span class="string">'⁘'</span>,
+        <span class="number">5 </span>=&gt; <span class="string">'⁙'</span>,
+        <span class="number">6 </span>=&gt; <span class="string">'⠿'</span>,
+        <span class="number">7 </span>=&gt; <span class="string">'⡿'</span>,
+        <span class="number">8 </span>=&gt; <span class="string">'⣿'</span>,
+        <span class="number">9 </span>=&gt; <span class="string">'9'</span>,
+        <span class="kw">_ </span>=&gt; <span class="string">'*'</span>,
     }
 }
 
@@ -926,9 +927,9 @@
 /// [here](../index.html#module-specification) for details on the propmt format.
 ///
 /// # Arguments
-/// - `prompt`: The prompt used to query the user for the module. This is `&quot;Module&quot;` when invoked
-///   through [`query_module`], but the user may want to use something more specific, e.g. `&quot;Source
-///   module&quot;`.
+/// - `prompt`: The prompt used to query the user for the module. This is `"Module"` when invoked
+///   through [`query_module`], but the user may want to use something more specific, e.g. `"Source
+///   module"`.
 /// - `algebra`: The Steenrod algebra basis allowed. Some applications only support using one of
 ///   the two basis, and specifying this parameter forbids the user from specifying the other
 ///   basis.
@@ -944,7 +945,7 @@
     algebra: <span class="prelude-ty">Option</span>&lt;AlgebraType&gt;,
     load_quasi_inverse: bool,
 ) -&gt; anyhow::Result&lt;QueryModuleResolution&gt; {
-    <span class="kw">let </span>(name, module): (String, Config) = query::with_default(prompt, <span class="string">&quot;S_2&quot;</span>, |s| {
+    <span class="kw">let </span>(name, module): (String, Config) = query::with_default(prompt, <span class="string">"S_2"</span>, |s| {
         <span class="prelude-ty">Result</span>::&lt;<span class="kw">_</span>, anyhow::Error&gt;::Ok((
             s.to_owned(),
             <span class="kw">match </span>algebra {
@@ -954,24 +955,24 @@
         ))
     });
 
-    <span class="kw">let </span>save_dir = query::optional(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;{prompt} save directory&quot;</span>), |x| {
+    <span class="kw">let </span>save_dir = query::optional(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{prompt} save directory"</span>), |x| {
         core::result::Result::&lt;PathBuf, std::convert::Infallible&gt;::Ok(PathBuf::from(x))
     });
 
     <span class="kw">let </span><span class="kw-2">mut </span>resolution =
-        construct(module, save_dir).context(<span class="string">&quot;Failed to load module from save file&quot;</span>)<span class="question-mark">?</span>;
+        construct(module, save_dir).context(<span class="string">"Failed to load module from save file"</span>)<span class="question-mark">?</span>;
 
     <span class="kw">let </span>load_quasi_inverse = load_quasi_inverse &amp;&amp; resolution.save_dir().is_none();
 
-    <span class="attr">#[cfg(not(feature = <span class="string">&quot;nassau&quot;</span>))]
+    <span class="attr">#[cfg(not(feature = <span class="string">"nassau"</span>))]
     </span>{
         resolution.load_quasi_inverse = load_quasi_inverse;
     }
 
-    <span class="attr">#[cfg(feature = <span class="string">&quot;nassau&quot;</span>)]
+    <span class="attr">#[cfg(feature = <span class="string">"nassau"</span>)]
     </span><span class="macro">assert!</span>(
         !load_quasi_inverse,
-        <span class="string">&quot;Quasi inverse loading not support with Nassau. Please use a save directory instead&quot;
+        <span class="string">"Quasi inverse loading not support with Nassau. Please use a save directory instead"
     </span>);
 
     resolution.set_name(name);
@@ -981,24 +982,24 @@
 
 <span class="doccomment">/// Query the user for a module and a bidegree, and return a resolution resolved up to said
 /// bidegree. This is mainly a wrapper around [`query_module_only`] that also asks for the bidegree
-/// to resolve up to as well. The prompt of [`query_module_only`] is always set to `&quot;Module&quot;` when
+/// to resolve up to as well. The prompt of [`query_module_only`] is always set to `"Module"` when
 /// invoked through this function.
 </span><span class="kw">pub fn </span>query_module(
     algebra: <span class="prelude-ty">Option</span>&lt;AlgebraType&gt;,
     load_quasi_inverse: bool,
 ) -&gt; anyhow::Result&lt;QueryModuleResolution&gt; {
-    <span class="kw">let </span>resolution = query_module_only(<span class="string">&quot;Module&quot;</span>, algebra, load_quasi_inverse)<span class="question-mark">?</span>;
+    <span class="kw">let </span>resolution = query_module_only(<span class="string">"Module"</span>, algebra, load_quasi_inverse)<span class="question-mark">?</span>;
 
     <span class="kw">let </span><span class="kw-2">mut </span>max = Bidegree::n_s(
-        query::with_default(<span class="string">&quot;Max n&quot;</span>, <span class="string">&quot;30&quot;</span>, str::parse),
-        query::with_default(<span class="string">&quot;Max s&quot;</span>, <span class="string">&quot;7&quot;</span>, str::parse),
+        query::with_default(<span class="string">"Max n"</span>, <span class="string">"30"</span>, str::parse),
+        query::with_default(<span class="string">"Max s"</span>, <span class="string">"7"</span>, str::parse),
     );
 
     <span class="kw">if let </span><span class="prelude-val">Some</span>(s) = secondary_job() {
         <span class="kw">if </span>s &lt;= max.s() {
             max = Bidegree::n_s(max.n(), std::cmp::min(s + <span class="number">1</span>, max.s()));
         } <span class="kw">else </span>{
-            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(<span class="string">&quot;SECONDARY_JOB is larger than max_s&quot;</span>));
+            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(<span class="string">"SECONDARY_JOB is larger than max_s"</span>));
         }
     }
 
@@ -1008,7 +1009,7 @@
 }
 
 <span class="kw">pub fn </span>query_unstable_module_only() -&gt; anyhow::Result&lt;SteenrodModule&gt; {
-    <span class="kw">let </span>spec: Config = query::raw(<span class="string">&quot;Module&quot;</span>, |x| x.try_into());
+    <span class="kw">let </span>spec: Config = query::raw(<span class="string">"Module"</span>, |x| x.try_into());
     <span class="kw">let </span>algebra = Arc::new(SteenrodAlgebra::from_json(
         <span class="kw-2">&amp;</span>spec.module,
         spec.algebra,
@@ -1021,7 +1022,7 @@
     <span class="kw">let </span>module = Arc::new(query_unstable_module_only()<span class="question-mark">?</span>);
     <span class="kw">let </span>cc = Arc::new(FiniteChainComplex::ccdz(module));
 
-    <span class="kw">let </span>save_dir = query::optional(<span class="string">&quot;Module save directory&quot;</span>, |x| {
+    <span class="kw">let </span>save_dir = query::optional(<span class="string">"Module save directory"</span>, |x| {
         core::result::Result::&lt;PathBuf, std::convert::Infallible&gt;::Ok(PathBuf::from(x))
     });
 
@@ -1042,18 +1043,18 @@
     <span class="kw">let </span>unit = <span class="kw">if </span>is_unit {
         Arc::clone(<span class="kw-2">&amp;</span>resolution)
     } <span class="kw">else </span>{
-        <span class="kw">let </span>save_dir = query::optional(<span class="string">&quot;Unit save directory&quot;</span>, |x| {
+        <span class="kw">let </span>save_dir = query::optional(<span class="string">"Unit save directory"</span>, |x| {
             core::result::Result::&lt;PathBuf, std::convert::Infallible&gt;::Ok(PathBuf::from(x))
         });
 
         <span class="kw">let </span>algebra = resolution.algebra();
         <span class="kw">let </span>module = FDModule::new(
             algebra,
-            String::from(<span class="string">&quot;unit&quot;</span>),
+            String::from(<span class="string">"unit"</span>),
             bivec::BiVec::from_vec(<span class="number">0</span>, <span class="macro">vec!</span>[<span class="number">1</span>]),
         );
 
-        <span class="attr">#[cfg(feature = <span class="string">&quot;nassau&quot;</span>)]
+        <span class="attr">#[cfg(feature = <span class="string">"nassau"</span>)]
         </span>{
             Arc::new(<span class="kw">crate</span>::nassau::Resolution::new_with_save(
                 Arc::new(module),
@@ -1061,7 +1062,7 @@
             )<span class="question-mark">?</span>)
         }
 
-        <span class="attr">#[cfg(not(feature = <span class="string">&quot;nassau&quot;</span>))]
+        <span class="attr">#[cfg(not(feature = <span class="string">"nassau"</span>))]
         </span>{
             <span class="kw">let </span>cc = FiniteChainComplex::ccdz(Arc::new(Box::new(module) <span class="kw">as </span>SteenrodModule));
             Arc::new(Resolution::new_with_save(Arc::new(cc), save_dir)<span class="question-mark">?</span>)
@@ -1071,7 +1072,7 @@
     <span class="prelude-val">Ok</span>((is_unit, unit))
 }
 
-<span class="attr">#[cfg(feature = <span class="string">&quot;logging&quot;</span>)]
+<span class="attr">#[cfg(feature = <span class="string">"logging"</span>)]
 </span><span class="kw">mod </span>logging {
     <span class="kw">use </span>std::io::Write;
     <span class="kw">use </span>std::time::Instant;
@@ -1084,7 +1085,7 @@
     /// # use logging::Timer;
     /// let timer = Timer::start();
     /// // slow_function();
-    /// timer.end(format_args!(&quot;Ran slow_function&quot;));
+    /// timer.end(format_args!("Ran slow_function"));
     /// ```
     </span><span class="kw">pub struct </span>Timer(Instant);
 
@@ -1096,7 +1097,7 @@
         <span class="kw">pub fn </span>end(<span class="self">self</span>, msg: std::fmt::Arguments) {
             <span class="kw">let </span>duration = <span class="self">self</span>.<span class="number">0</span>.elapsed();
             <span class="macro">eprintln!</span>(
-                <span class="string">&quot;[{:&gt;6}.{:&gt;06} s] {msg}&quot;</span>,
+                <span class="string">"[{:&gt;6}.{:&gt;06} s] {msg}"</span>,
                 duration.as_secs(),
                 duration.subsec_micros(),
             );
@@ -1138,12 +1139,12 @@
             <span class="kw">let </span>mib = <span class="self">self</span>.bytes <span class="kw">as </span>f64 / (<span class="number">1024 </span>* <span class="number">1024</span>) <span class="kw">as </span>f64;
             <span class="kw">let </span>mib_per_second = mib / duration.as_secs_f64();
             <span class="self">self</span>.timer
-                .end(<span class="macro">format_args!</span>(<span class="string">&quot;[{mib_per_second:&gt;9.3} MiB/s] {msg}&quot;</span>));
+                .end(<span class="macro">format_args!</span>(<span class="string">"[{mib_per_second:&gt;9.3} MiB/s] {msg}"</span>));
         }
     }
 }
 
-<span class="attr">#[cfg(not(feature = <span class="string">&quot;logging&quot;</span>))]
+<span class="attr">#[cfg(not(feature = <span class="string">"logging"</span>))]
 </span><span class="kw">mod </span>logging {
     <span class="kw">use </span>std::io::Write;
 
@@ -1186,11 +1187,11 @@
 /// `s` is the `shift_s` of the [`SecondaryLift`](crate::secondary::SecondaryLift) and the maximum
 /// value (inclusive) is the maximum `s` of the resolution.
 </span><span class="kw">pub fn </span>secondary_job() -&gt; <span class="prelude-ty">Option</span>&lt;u32&gt; {
-    <span class="kw">let </span>val = std::env::var(<span class="string">&quot;SECONDARY_JOB&quot;</span>).ok()<span class="question-mark">?</span>;
+    <span class="kw">let </span>val = std::env::var(<span class="string">"SECONDARY_JOB"</span>).ok()<span class="question-mark">?</span>;
     <span class="kw">let </span>parsed: <span class="prelude-ty">Option</span>&lt;u32&gt; = str::parse(<span class="kw-2">&amp;</span>val).ok();
     <span class="kw">if </span>parsed.is_none() {
         <span class="macro">eprintln!</span>(
-            <span class="string">&quot;Invalid argument for `SECONDARY_JOB`. Expected non-negative integer but found {val}&quot;
+            <span class="string">"Invalid argument for `SECONDARY_JOB`. Expected non-negative integer but found {val}"
         </span>);
     }
     parsed

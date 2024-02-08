@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/fp/src/vector/vector_generic.rs`."><title>vector_generic.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-9ee3a5e31a2afa3e.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="fp" data-themes="" data-resource-suffix="" data-rustdoc-version="1.75.0 (82e1608df 2023-12-21)" data-channel="1.75.0" data-search-js="search-8fbf244ebcf71464.js" data-settings-js="settings-74424d7eec62a23e.js" ><script src="../../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-9dd44ab47b99a0fb.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/fp/src/vector/vector_generic.rs`."><title>vector_generic.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-ac92e1bbe349e143.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="fp" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0 (07dca489a 2024-02-04)" data-channel="1.76.0" data-search-js="search-2b6ce74ff89ae146.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../../static.files/storage-f2adc0d6ca4d09fb.js"></script><script defer src="../../../static.files/src-script-39ed315d46fb705f.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-305769736d49e732.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-feafe1bb7466e4bd.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
 <!-- The loading of KaTeX is deferred to speed up page rendering -->
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.js" integrity="sha384-Bi8OWqMXO1ta+a4EPkZv7bYGIes7C3krGSZoTGNTAnAn5eYQc7IIXrJ/7ck1drAi" crossorigin="anonymous"></script>
 <!-- To automatically render math in text elements, include the auto-render extension: -->
@@ -23,7 +23,8 @@
     });
 </script>
 
-</head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+</head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><div class="sidebar-resizer"></div>
+    <main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" tabindex="-1"><a href="../../../help.html" title="help">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -535,7 +536,7 @@
                 (<span class="self">Self</span>::_5(x), <span class="macro-nonterminal">$other::_5</span>(y)) =&gt; x.<span class="macro-nonterminal">$method</span>(y, $(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>),
                 (<span class="self">Self</span>::_7(x), <span class="macro-nonterminal">$other::_7</span>(y)) =&gt; x.<span class="macro-nonterminal">$method</span>(y, $(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>),
                 (l, r) =&gt; {
-                    <span class="macro">panic!</span>(<span class="string">&quot;Applying {} to vectors over different primes ({} and {})&quot;</span>, <span class="macro">stringify!</span>(<span class="macro-nonterminal">$method</span>), l.prime(), r.prime());
+                    <span class="macro">panic!</span>(<span class="string">"Applying {} to vectors over different primes ({} and {})"</span>, <span class="macro">stringify!</span>(<span class="macro-nonterminal">$method</span>), l.prime(), r.prime());
                 }
             }
         }
@@ -549,7 +550,7 @@
                 (<span class="self">Self</span>::_5(x), <span class="macro-nonterminal">$other::_5</span>(y)) =&gt; x.<span class="macro-nonterminal">$method</span>(y, $(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>),
                 (<span class="self">Self</span>::_7(x), <span class="macro-nonterminal">$other::_7</span>(y)) =&gt; x.<span class="macro-nonterminal">$method</span>(y, $(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>),
                 (l, r) =&gt; {
-                    <span class="macro">panic!</span>(<span class="string">&quot;Applying {} to vectors over different primes ({} and {})&quot;</span>, <span class="macro">stringify!</span>(<span class="macro-nonterminal">$method</span>), l.prime(), r.prime());
+                    <span class="macro">panic!</span>(<span class="string">"Applying {} to vectors over different primes ({} and {})"</span>, <span class="macro">stringify!</span>(<span class="macro-nonterminal">$method</span>), l.prime(), r.prime());
                 }
             }
         }
@@ -562,7 +563,7 @@
                 (<span class="self">Self</span>::_5(x), <span class="macro-nonterminal">$other::_5</span>(y)) =&gt; x.<span class="macro-nonterminal">$method</span>(y, $(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>),
                 (<span class="self">Self</span>::_7(x), <span class="macro-nonterminal">$other::_7</span>(y)) =&gt; x.<span class="macro-nonterminal">$method</span>(y, $(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>),
                 (l, r) =&gt; {
-                    <span class="macro">panic!</span>(<span class="string">&quot;Applying {} to vectors over different primes ({} and {})&quot;</span>, <span class="macro">stringify!</span>(<span class="macro-nonterminal">$method</span>), l.prime(), r.prime());
+                    <span class="macro">panic!</span>(<span class="string">"Applying {} to vectors over different primes ({} and {})"</span>, <span class="macro">stringify!</span>(<span class="macro-nonterminal">$method</span>), l.prime(), r.prime());
                 }
             }
         }
@@ -665,7 +666,7 @@
             <span class="number">3 </span>=&gt; <span class="self">Self</span>::_3($(<span class="macro-nonterminal">$val</span>)<span class="kw-2">*</span>),
             <span class="number">5 </span>=&gt; <span class="self">Self</span>::_5($(<span class="macro-nonterminal">$val</span>)<span class="kw-2">*</span>),
             <span class="number">7 </span>=&gt; <span class="self">Self</span>::_7($(<span class="macro-nonterminal">$val</span>)<span class="kw-2">*</span>),
-            <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">&quot;Prime not supported: {}&quot;</span>, <span class="kw-2">*</span><span class="macro-nonterminal">$p</span>)
+            <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"Prime not supported: {}"</span>, <span class="kw-2">*</span><span class="macro-nonterminal">$p</span>)
         }
     }
 }
@@ -679,26 +680,26 @@
 }
 
 <span class="attr">#[derive(Debug, Copy, Clone)]
-</span><span class="kw">pub enum </span>Slice&lt;<span class="lifetime">&#39;a</span>&gt; {
-    _2(SliceP&lt;<span class="lifetime">&#39;a</span>, <span class="number">2</span>&gt;),
-    _3(SliceP&lt;<span class="lifetime">&#39;a</span>, <span class="number">3</span>&gt;),
-    _5(SliceP&lt;<span class="lifetime">&#39;a</span>, <span class="number">5</span>&gt;),
-    _7(SliceP&lt;<span class="lifetime">&#39;a</span>, <span class="number">7</span>&gt;),
+</span><span class="kw">pub enum </span>Slice&lt;<span class="lifetime">'a</span>&gt; {
+    _2(SliceP&lt;<span class="lifetime">'a</span>, <span class="number">2</span>&gt;),
+    _3(SliceP&lt;<span class="lifetime">'a</span>, <span class="number">3</span>&gt;),
+    _5(SliceP&lt;<span class="lifetime">'a</span>, <span class="number">5</span>&gt;),
+    _7(SliceP&lt;<span class="lifetime">'a</span>, <span class="number">7</span>&gt;),
 }
 
 <span class="attr">#[derive(Debug)]
-</span><span class="kw">pub enum </span>SliceMut&lt;<span class="lifetime">&#39;a</span>&gt; {
-    _2(SliceMutP&lt;<span class="lifetime">&#39;a</span>, <span class="number">2</span>&gt;),
-    _3(SliceMutP&lt;<span class="lifetime">&#39;a</span>, <span class="number">3</span>&gt;),
-    _5(SliceMutP&lt;<span class="lifetime">&#39;a</span>, <span class="number">5</span>&gt;),
-    _7(SliceMutP&lt;<span class="lifetime">&#39;a</span>, <span class="number">7</span>&gt;),
+</span><span class="kw">pub enum </span>SliceMut&lt;<span class="lifetime">'a</span>&gt; {
+    _2(SliceMutP&lt;<span class="lifetime">'a</span>, <span class="number">2</span>&gt;),
+    _3(SliceMutP&lt;<span class="lifetime">'a</span>, <span class="number">3</span>&gt;),
+    _5(SliceMutP&lt;<span class="lifetime">'a</span>, <span class="number">5</span>&gt;),
+    _7(SliceMutP&lt;<span class="lifetime">'a</span>, <span class="number">7</span>&gt;),
 }
 
-<span class="kw">pub enum </span>FpVectorNonZeroIterator&lt;<span class="lifetime">&#39;a</span>&gt; {
-    _2(FpVectorNonZeroIteratorP&lt;<span class="lifetime">&#39;a</span>, <span class="number">2</span>&gt;),
-    _3(FpVectorNonZeroIteratorP&lt;<span class="lifetime">&#39;a</span>, <span class="number">3</span>&gt;),
-    _5(FpVectorNonZeroIteratorP&lt;<span class="lifetime">&#39;a</span>, <span class="number">5</span>&gt;),
-    _7(FpVectorNonZeroIteratorP&lt;<span class="lifetime">&#39;a</span>, <span class="number">7</span>&gt;),
+<span class="kw">pub enum </span>FpVectorNonZeroIterator&lt;<span class="lifetime">'a</span>&gt; {
+    _2(FpVectorNonZeroIteratorP&lt;<span class="lifetime">'a</span>, <span class="number">2</span>&gt;),
+    _3(FpVectorNonZeroIteratorP&lt;<span class="lifetime">'a</span>, <span class="number">3</span>&gt;),
+    _5(FpVectorNonZeroIteratorP&lt;<span class="lifetime">'a</span>, <span class="number">5</span>&gt;),
+    _7(FpVectorNonZeroIteratorP&lt;<span class="lifetime">'a</span>, <span class="number">7</span>&gt;),
 }
 
 <span class="kw">impl </span>FpVector {
@@ -725,7 +726,7 @@
     <span class="kw">pub fn </span>update_from_bytes(<span class="kw-2">&amp;mut </span><span class="self">self</span>, data: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Read) -&gt; std::io::Result&lt;()&gt; {
         <span class="kw">let </span>limbs = <span class="self">self</span>.limbs_mut();
 
-        <span class="kw">if </span><span class="macro">cfg!</span>(target_endian = <span class="string">&quot;little&quot;</span>) {
+        <span class="kw">if </span><span class="macro">cfg!</span>(target_endian = <span class="string">"little"</span>) {
             <span class="kw">let </span>num_bytes = std::mem::size_of_val(limbs);
             <span class="kw">unsafe </span>{
                 <span class="kw">let </span>buf: <span class="kw-2">&amp;mut </span>[u8] =
@@ -753,7 +754,7 @@
         // necessary ones.
         </span><span class="kw">let </span>num_limbs = <span class="self">Self</span>::num_limbs(<span class="self">self</span>.prime(), <span class="self">self</span>.len());
 
-        <span class="kw">if </span><span class="macro">cfg!</span>(target_endian = <span class="string">&quot;little&quot;</span>) {
+        <span class="kw">if </span><span class="macro">cfg!</span>(target_endian = <span class="string">"little"</span>) {
             <span class="kw">let </span>num_bytes = num_limbs * size_of::&lt;Limb&gt;();
             <span class="kw">unsafe </span>{
                 <span class="kw">let </span>buf: <span class="kw-2">&amp;</span>[u8] =
@@ -806,21 +807,21 @@
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; Slice&lt;<span class="lifetime">&#39;a</span>&gt; {
+<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; Slice&lt;<span class="lifetime">'a</span>&gt; {
     <span class="macro">dispatch_vector! </span>{
         <span class="kw">pub fn </span>prime(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ValidPrime;
         <span class="kw">pub fn </span>len(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize;
         <span class="kw">pub fn </span>is_empty(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool;
         <span class="kw">pub fn </span>entry(<span class="kw-2">&amp;</span><span class="self">self</span>, index: usize) -&gt; u32;
-        <span class="kw">pub fn </span>iter(<span class="self">self</span>) -&gt; (FpVectorIterator&lt;<span class="lifetime">&#39;a</span>&gt;);
-        <span class="kw">pub fn </span>iter_nonzero(<span class="self">self</span>) -&gt; (dispatch FpVectorNonZeroIterator <span class="lifetime">&#39;a</span>);
+        <span class="kw">pub fn </span>iter(<span class="self">self</span>) -&gt; (FpVectorIterator&lt;<span class="lifetime">'a</span>&gt;);
+        <span class="kw">pub fn </span>iter_nonzero(<span class="self">self</span>) -&gt; (dispatch FpVectorNonZeroIterator <span class="lifetime">'a</span>);
         <span class="kw">pub fn </span>is_zero(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool;
-        <span class="kw">pub fn </span>slice(<span class="self">self</span>, start: usize, end: usize) -&gt; (dispatch Slice <span class="lifetime">&#39;a</span>);
+        <span class="kw">pub fn </span>slice(<span class="self">self</span>, start: usize, end: usize) -&gt; (dispatch Slice <span class="lifetime">'a</span>);
         <span class="kw">pub fn </span>to_owned(<span class="self">self</span>) -&gt; (dispatch FpVector);
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; SliceMut&lt;<span class="lifetime">&#39;a</span>&gt; {
+<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; SliceMut&lt;<span class="lifetime">'a</span>&gt; {
     <span class="macro">dispatch_vector! </span>{
         <span class="kw">pub fn </span>prime(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ValidPrime;
         <span class="kw">pub fn </span>scale(<span class="kw-2">&amp;mut </span><span class="self">self</span>, c: u32);
@@ -843,13 +844,13 @@
             (SliceMut::_5(x), Slice::_5(y), Slice::_5(z)) =&gt; x.add_tensor(offset, coeff, y, z),
             (SliceMut::_7(x), Slice::_7(y), Slice::_7(z)) =&gt; x.add_tensor(offset, coeff, y, z),
             <span class="kw">_ </span>=&gt; {
-                <span class="macro">panic!</span>(<span class="string">&quot;Applying add_tensor to vectors over different primes&quot;</span>);
+                <span class="macro">panic!</span>(<span class="string">"Applying add_tensor to vectors over different primes"</span>);
             }
         }
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; FpVectorNonZeroIterator&lt;<span class="lifetime">&#39;a</span>&gt; {
+<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; FpVectorNonZeroIterator&lt;<span class="lifetime">'a</span>&gt; {
     <span class="macro">dispatch_vector! </span>{
         <span class="kw">fn </span>next(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; (<span class="prelude-ty">Option</span>&lt;(usize, u32)&gt;);
     }
@@ -861,23 +862,23 @@
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; std::fmt::Display <span class="kw">for </span>Slice&lt;<span class="lifetime">&#39;a</span>&gt; {
+<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; std::fmt::Display <span class="kw">for </span>Slice&lt;<span class="lifetime">'a</span>&gt; {
     <span class="doccomment">/// # Example
     /// ```
     /// # use fp::vector::FpVector;
     /// # use fp::prime::ValidPrime;
     /// let v = FpVector::from_slice(ValidPrime::new(2), &amp;[0, 1, 0]);
-    /// assert_eq!(&amp;format!(&quot;{v}&quot;), &quot;[0, 1, 0]&quot;);
-    /// assert_eq!(&amp;format!(&quot;{v:#}&quot;), &quot;010&quot;);
+    /// assert_eq!(&amp;format!("{v}"), "[0, 1, 0]");
+    /// assert_eq!(&amp;format!("{v:#}"), "010");
     /// ```
     </span><span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter) -&gt; std::fmt::Result {
         <span class="kw">if </span>f.alternate() {
             <span class="kw">for </span>v <span class="kw">in </span><span class="self">self</span>.iter() {
-                <span class="macro">write!</span>(f, <span class="string">&quot;{v}&quot;</span>)<span class="question-mark">?</span>;
+                <span class="macro">write!</span>(f, <span class="string">"{v}"</span>)<span class="question-mark">?</span>;
             }
             <span class="prelude-val">Ok</span>(())
         } <span class="kw">else </span>{
-            <span class="macro">write!</span>(f, <span class="string">&quot;[{}]&quot;</span>, <span class="self">self</span>.iter().format(<span class="string">&quot;, &quot;</span>))
+            <span class="macro">write!</span>(f, <span class="string">"[{}]"</span>, <span class="self">self</span>.iter().format(<span class="string">", "</span>))
         }
     }
 }
@@ -894,7 +895,7 @@
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; Iterator <span class="kw">for </span>FpVectorNonZeroIterator&lt;<span class="lifetime">&#39;a</span>&gt; {
+<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; Iterator <span class="kw">for </span>FpVectorNonZeroIterator&lt;<span class="lifetime">'a</span>&gt; {
     <span class="kw">type </span>Item = (usize, u32);
 
     <span class="kw">fn </span>next(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="self">Self</span>::Item&gt; {
@@ -902,8 +903,8 @@
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; IntoIterator <span class="kw">for </span><span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>FpVector {
-    <span class="kw">type </span>IntoIter = FpVectorIterator&lt;<span class="lifetime">&#39;a</span>&gt;;
+<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; IntoIterator <span class="kw">for </span><span class="kw-2">&amp;</span><span class="lifetime">'a </span>FpVector {
+    <span class="kw">type </span>IntoIter = FpVectorIterator&lt;<span class="lifetime">'a</span>&gt;;
     <span class="kw">type </span>Item = u32;
 
     <span class="kw">fn </span>into_iter(<span class="self">self</span>) -&gt; <span class="self">Self</span>::IntoIter {
@@ -913,10 +914,10 @@
 
 <span class="macro">macro_rules! </span>impl_try_into {
     (<span class="macro-nonterminal">$var</span>:tt, <span class="macro-nonterminal">$p</span>:literal) =&gt; {
-        <span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; TryInto&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="kw-2">mut </span>FpVectorP&lt;<span class="macro-nonterminal">$p</span>&gt;&gt; <span class="kw">for </span><span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="kw-2">mut </span>FpVector {
+        <span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; TryInto&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>FpVectorP&lt;<span class="macro-nonterminal">$p</span>&gt;&gt; <span class="kw">for </span><span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>FpVector {
             <span class="kw">type </span>Error = ();
 
-            <span class="kw">fn </span>try_into(<span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="kw-2">mut </span>FpVectorP&lt;<span class="macro-nonterminal">$p</span>&gt;, ()&gt; {
+            <span class="kw">fn </span>try_into(<span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>FpVectorP&lt;<span class="macro-nonterminal">$p</span>&gt;, ()&gt; {
                 <span class="kw">match </span><span class="self">self </span>{
                     FpVector::<span class="macro-nonterminal">$var</span>(x) =&gt; <span class="prelude-val">Ok</span>(x),
                     <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(()),
@@ -940,42 +941,42 @@
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">&#39;de</span>&gt; Deserialize&lt;<span class="lifetime">&#39;de</span>&gt; <span class="kw">for </span>FpVector {
+<span class="kw">impl</span>&lt;<span class="lifetime">'de</span>&gt; Deserialize&lt;<span class="lifetime">'de</span>&gt; <span class="kw">for </span>FpVector {
     <span class="kw">fn </span>deserialize&lt;D&gt;(_deserializer: D) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, D::Error&gt;
     <span class="kw">where
-        </span>D: Deserializer&lt;<span class="lifetime">&#39;de</span>&gt;,
+        </span>D: Deserializer&lt;<span class="lifetime">'de</span>&gt;,
     {
-        <span class="macro">panic!</span>(<span class="string">&quot;Deserializing FpVector not supported&quot;</span>);
+        <span class="macro">panic!</span>(<span class="string">"Deserializing FpVector not supported"</span>);
         <span class="comment">// This is needed for ext-websocket/actions to be happy
     </span>}
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>, <span class="lifetime">&#39;b</span>&gt; From&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="kw-2">mut </span>SliceMut&lt;<span class="lifetime">&#39;b</span>&gt;&gt; <span class="kw">for </span>SliceMut&lt;<span class="lifetime">&#39;a</span>&gt; {
-    <span class="kw">fn </span>from(slice: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="kw-2">mut </span>SliceMut&lt;<span class="lifetime">&#39;b</span>&gt;) -&gt; SliceMut&lt;<span class="lifetime">&#39;a</span>&gt; {
+<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, <span class="lifetime">'b</span>&gt; From&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>SliceMut&lt;<span class="lifetime">'b</span>&gt;&gt; <span class="kw">for </span>SliceMut&lt;<span class="lifetime">'a</span>&gt; {
+    <span class="kw">fn </span>from(slice: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>SliceMut&lt;<span class="lifetime">'b</span>&gt;) -&gt; SliceMut&lt;<span class="lifetime">'a</span>&gt; {
         slice.copy()
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>, <span class="lifetime">&#39;b</span>&gt; From&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Slice&lt;<span class="lifetime">&#39;b</span>&gt;&gt; <span class="kw">for </span>Slice&lt;<span class="lifetime">&#39;a</span>&gt; {
-    <span class="kw">fn </span>from(slice: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Slice&lt;<span class="lifetime">&#39;b</span>&gt;) -&gt; Slice&lt;<span class="lifetime">&#39;a</span>&gt; {
+<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, <span class="lifetime">'b</span>&gt; From&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span>Slice&lt;<span class="lifetime">'b</span>&gt;&gt; <span class="kw">for </span>Slice&lt;<span class="lifetime">'a</span>&gt; {
+    <span class="kw">fn </span>from(slice: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>Slice&lt;<span class="lifetime">'b</span>&gt;) -&gt; Slice&lt;<span class="lifetime">'a</span>&gt; {
         <span class="kw-2">*</span>slice
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>, <span class="lifetime">&#39;b</span>&gt; From&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>SliceMut&lt;<span class="lifetime">&#39;b</span>&gt;&gt; <span class="kw">for </span>Slice&lt;<span class="lifetime">&#39;a</span>&gt; {
-    <span class="kw">fn </span>from(slice: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>SliceMut&lt;<span class="lifetime">&#39;b</span>&gt;) -&gt; Slice&lt;<span class="lifetime">&#39;a</span>&gt; {
+<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, <span class="lifetime">'b</span>&gt; From&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span>SliceMut&lt;<span class="lifetime">'b</span>&gt;&gt; <span class="kw">for </span>Slice&lt;<span class="lifetime">'a</span>&gt; {
+    <span class="kw">fn </span>from(slice: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>SliceMut&lt;<span class="lifetime">'b</span>&gt;) -&gt; Slice&lt;<span class="lifetime">'a</span>&gt; {
         slice.as_slice()
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; From&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>FpVector&gt; <span class="kw">for </span>Slice&lt;<span class="lifetime">&#39;a</span>&gt; {
-    <span class="kw">fn </span>from(v: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>FpVector) -&gt; Slice&lt;<span class="lifetime">&#39;a</span>&gt; {
+<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; From&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span>FpVector&gt; <span class="kw">for </span>Slice&lt;<span class="lifetime">'a</span>&gt; {
+    <span class="kw">fn </span>from(v: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>FpVector) -&gt; Slice&lt;<span class="lifetime">'a</span>&gt; {
         v.as_slice()
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; From&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="kw-2">mut </span>FpVector&gt; <span class="kw">for </span>SliceMut&lt;<span class="lifetime">&#39;a</span>&gt; {
-    <span class="kw">fn </span>from(v: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="kw-2">mut </span>FpVector) -&gt; SliceMut&lt;<span class="lifetime">&#39;a</span>&gt; {
+<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; From&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>FpVector&gt; <span class="kw">for </span>SliceMut&lt;<span class="lifetime">'a</span>&gt; {
+    <span class="kw">fn </span>from(v: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>FpVector) -&gt; SliceMut&lt;<span class="lifetime">'a</span>&gt; {
         v.as_slice_mut()
     }
 }

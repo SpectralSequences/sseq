@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/algebra/src/steenrod_parser.rs`."><title>steenrod_parser.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-9ee3a5e31a2afa3e.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="algebra" data-themes="" data-resource-suffix="" data-rustdoc-version="1.75.0 (82e1608df 2023-12-21)" data-channel="1.75.0" data-search-js="search-8fbf244ebcf71464.js" data-settings-js="settings-74424d7eec62a23e.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-9dd44ab47b99a0fb.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/algebra/src/steenrod_parser.rs`."><title>steenrod_parser.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-ac92e1bbe349e143.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="algebra" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0 (07dca489a 2024-02-04)" data-channel="1.76.0" data-search-js="search-2b6ce74ff89ae146.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-f2adc0d6ca4d09fb.js"></script><script defer src="../../static.files/src-script-39ed315d46fb705f.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-305769736d49e732.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-feafe1bb7466e4bd.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
 <!-- The loading of KaTeX is deferred to speed up page rendering -->
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.js" integrity="sha384-Bi8OWqMXO1ta+a4EPkZv7bYGIes7C3krGSZoTGNTAnAn5eYQc7IIXrJ/7ck1drAi" crossorigin="anonymous"></script>
 <!-- To automatically render math in text elements, include the auto-render extension: -->
@@ -23,7 +23,8 @@
     });
 </script>
 
-</head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+</head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><div class="sidebar-resizer"></div>
+    <main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" tabindex="-1"><a href="../../help.html" title="help">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -408,17 +409,17 @@
 <span class="kw">pub type </span>ModuleNode = Vec&lt;(AlgebraNode, String)&gt;;
 
 <span class="doccomment">/// Pad both ends with whitespace
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>space&lt;<span class="lifetime">&#39;a</span>, O, E: ParseError&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str&gt;, F: Parser&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str, O, E&gt;&gt;(
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>space&lt;<span class="lifetime">'a</span>, O, E: ParseError&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span>str&gt;, F: Parser&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span>str, O, E&gt;&gt;(
     f: F,
-) -&gt; <span class="kw">impl </span>FnMut(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str) -&gt; IResultBase&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str, O, E&gt; {
+) -&gt; <span class="kw">impl </span>FnMut(<span class="kw-2">&amp;</span><span class="lifetime">'a </span>str) -&gt; IResultBase&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span>str, O, E&gt; {
     delimited(space0, f, space0)
 }
 
 <span class="doccomment">/// Surround with brackets
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>brackets&lt;<span class="lifetime">&#39;a</span>, O, E: ParseError&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str&gt;, F: Parser&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str, O, E&gt;&gt;(
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>brackets&lt;<span class="lifetime">'a</span>, O, E: ParseError&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span>str&gt;, F: Parser&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span>str, O, E&gt;&gt;(
     f: F,
-) -&gt; <span class="kw">impl </span>FnMut(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str) -&gt; IResultBase&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str, O, E&gt; {
-    delimited(char(<span class="string">&#39;(&#39;</span>), f, char(<span class="string">&#39;)&#39;</span>))
+) -&gt; <span class="kw">impl </span>FnMut(<span class="kw-2">&amp;</span><span class="lifetime">'a </span>str) -&gt; IResultBase&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span>str, O, E&gt; {
+    delimited(char(<span class="string">'('</span>), f, char(<span class="string">')'</span>))
 }
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>digits&lt;T: FromStr + Copy&gt;(i: <span class="kw-2">&amp;</span>str) -&gt; IResult&lt;<span class="kw-2">&amp;</span>str, T&gt; {
@@ -426,7 +427,7 @@
 }
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>p_or_sq(i: <span class="kw-2">&amp;</span>str) -&gt; IResult&lt;<span class="kw-2">&amp;</span>str, <span class="kw-2">&amp;</span>str&gt; {
-    alt((tag(<span class="string">&quot;P&quot;</span>), tag(<span class="string">&quot;Sq&quot;</span>)))(i)
+    alt((tag(<span class="string">"P"</span>), tag(<span class="string">"Sq"</span>)))(i)
 }
 
 <span class="kw">fn </span>fold_separated&lt;I: Clone, OS, O, E&gt;(
@@ -491,21 +492,21 @@
 
 <span class="kw">fn </span>algebra_generator(i: <span class="kw-2">&amp;</span>str) -&gt; IResult&lt;<span class="kw-2">&amp;</span>str, AlgebraBasisElt&gt; {
     alt((
-        map(char(<span class="string">&#39;b&#39;</span>), |<span class="kw">_</span>| AlgebraBasisElt::Q(<span class="number">0</span>)),
-        map(preceded(char(<span class="string">&#39;Q&#39;</span>), digits), AlgebraBasisElt::Q),
+        map(char(<span class="string">'b'</span>), |<span class="kw">_</span>| AlgebraBasisElt::Q(<span class="number">0</span>)),
+        map(preceded(char(<span class="string">'Q'</span>), digits), AlgebraBasisElt::Q),
         map(preceded(p_or_sq, digits), AlgebraBasisElt::P),
         map(
             alt((
-                preceded(p_or_sq, brackets(separated_list1(char(<span class="string">&#39;,&#39;</span>), digits))),
-                preceded(char(<span class="string">&#39;M&#39;</span>), brackets(many0(digits))),
+                preceded(p_or_sq, brackets(separated_list1(char(<span class="string">','</span>), digits))),
+                preceded(char(<span class="string">'M'</span>), brackets(many0(digits))),
             )),
             AlgebraBasisElt::PList,
         ),
         map(
             preceded(
-                char(<span class="string">&#39;A&#39;</span>),
+                char(<span class="string">'A'</span>),
                 brackets(many0(alt((
-                    map(char(<span class="string">&#39;b&#39;</span>), |<span class="kw">_</span>| BocksteinOrSq::Bockstein),
+                    map(char(<span class="string">'b'</span>), |<span class="kw">_</span>| BocksteinOrSq::Bockstein),
                     map(digits, BocksteinOrSq::Sq),
                 )))),
             ),
@@ -517,8 +518,8 @@
 <span class="kw">fn </span>scalar(i: <span class="kw-2">&amp;</span>str) -&gt; IResult&lt;<span class="kw-2">&amp;</span>str, i32&gt; {
     alt((
         digits,
-        preceded(char(<span class="string">&#39;+&#39;</span>), digits),
-        map(preceded(char(<span class="string">&#39;-&#39;</span>), digits), |x: i32| -x),
+        preceded(char(<span class="string">'+'</span>), digits),
+        map(preceded(char(<span class="string">'-'</span>), digits), |x: i32| -x),
     ))(i)
 }
 
@@ -531,13 +532,13 @@
 }
 
 <span class="kw">fn </span>algebra_term(i: <span class="kw-2">&amp;</span>str) -&gt; IResult&lt;<span class="kw-2">&amp;</span>str, AlgebraNode&gt; {
-    <span class="kw">let </span>(i, sign) = opt(alt((char(<span class="string">&#39;+&#39;</span>), char(<span class="string">&#39;-&#39;</span>))))(i)<span class="question-mark">?</span>;
+    <span class="kw">let </span>(i, sign) = opt(alt((char(<span class="string">'+'</span>), char(<span class="string">'-'</span>))))(i)<span class="question-mark">?</span>;
 
-    <span class="kw">let </span>(i, <span class="kw-2">mut </span>res) = fold_separated(char(<span class="string">&#39;*&#39;</span>), algebra_factor, |acc, val| {
+    <span class="kw">let </span>(i, <span class="kw-2">mut </span>res) = fold_separated(char(<span class="string">'*'</span>), algebra_factor, |acc, val| {
         AlgebraNode::Product(Box::new(acc), Box::new(val))
     })(i)<span class="question-mark">?</span>;
 
-    <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="string">&#39;-&#39;</span>) = sign {
+    <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="string">'-'</span>) = sign {
         res = AlgebraNode::Product(Box::new(AlgebraNode::Scalar(-<span class="number">1</span>)), Box::new(res));
     }
     <span class="prelude-val">Ok</span>((i, res))
@@ -545,7 +546,7 @@
 
 <span class="kw">fn </span>algebra_expr(i: <span class="kw-2">&amp;</span>str) -&gt; IResult&lt;<span class="kw-2">&amp;</span>str, AlgebraNode&gt; {
     fold_separated(
-        peek(alt((char(<span class="string">&#39;+&#39;</span>), char(<span class="string">&#39;-&#39;</span>)))),
+        peek(alt((char(<span class="string">'+'</span>), char(<span class="string">'-'</span>)))),
         space(algebra_term),
         |acc, val| AlgebraNode::Sum(Box::new(acc), Box::new(val)),
     )(i)
@@ -553,12 +554,12 @@
 
 <span class="kw">fn </span>module_generator(i: <span class="kw-2">&amp;</span>str) -&gt; IResult&lt;<span class="kw-2">&amp;</span>str, String&gt; {
     <span class="kw">let </span>(rest, (a, more_str)) = pair(alpha1, alphanumeric0)(i)<span class="question-mark">?</span>;
-    <span class="kw">if </span>a.starts_with(<span class="string">&quot;Sq&quot;</span>) || a.starts_with(<span class="string">&#39;P&#39;</span>) || a.starts_with(<span class="string">&#39;Q&#39;</span>) {
+    <span class="kw">if </span>a.starts_with(<span class="string">"Sq"</span>) || a.starts_with(<span class="string">'P'</span>) || a.starts_with(<span class="string">'Q'</span>) {
         <span class="kw">return </span><span class="prelude-val">Err</span>(nom::Err::Failure(VerboseError {
             errors: <span class="macro">vec!</span>[(
                 <span class="kw-2">&amp;</span>i[<span class="number">0</span>..a.len()],
                 VerboseErrorKind::Context(
-                    <span class="string">&quot;Module generators are not allowed to start with P, Q, or Sq&quot;</span>,
+                    <span class="string">"Module generators are not allowed to start with P, Q, or Sq"</span>,
                 ),
             )],
         }));
@@ -570,9 +571,9 @@
     <span class="kw">use </span>AlgebraNode::<span class="kw-2">*</span>;
 
     <span class="kw">let </span>(i, prefix) = opt(alt((
-        map(pair(space(algebra_term), char(<span class="string">&#39;*&#39;</span>)), |(a, <span class="kw">_</span>)| a),
-        map(char(<span class="string">&#39;-&#39;</span>), |<span class="kw">_</span>| Scalar(-<span class="number">1</span>)),
-        map(char(<span class="string">&#39;+&#39;</span>), |<span class="kw">_</span>| Scalar(<span class="number">1</span>)),
+        map(pair(space(algebra_term), char(<span class="string">'*'</span>)), |(a, <span class="kw">_</span>)| a),
+        map(char(<span class="string">'-'</span>), |<span class="kw">_</span>| Scalar(-<span class="number">1</span>)),
+        map(char(<span class="string">'+'</span>), |<span class="kw">_</span>| Scalar(<span class="number">1</span>)),
     )))(i)
     .unwrap();
 
@@ -583,7 +584,7 @@
         <span class="prelude-val">Err</span>(e) =&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(e),
     }
 
-    <span class="kw">let </span>(i, expr) = context(<span class="string">&quot;Parsing bracketed expression&quot;</span>, space(brackets(module_expr)))(i)<span class="question-mark">?</span>;
+    <span class="kw">let </span>(i, expr) = context(<span class="string">"Parsing bracketed expression"</span>, space(brackets(module_expr)))(i)<span class="question-mark">?</span>;
     <span class="prelude-val">Ok</span>((
         i,
         <span class="kw">match </span>prefix {
@@ -598,7 +599,7 @@
 
 <span class="kw">fn </span>module_expr(i: <span class="kw-2">&amp;</span>str) -&gt; IResult&lt;<span class="kw-2">&amp;</span>str, ModuleNode&gt; {
     fold_separated(
-        peek(alt((char(<span class="string">&#39;+&#39;</span>), char(<span class="string">&#39;-&#39;</span>)))),
+        peek(alt((char(<span class="string">'+'</span>), char(<span class="string">'-'</span>)))),
         module_term,
         |<span class="kw-2">mut </span>a, b| {
             a.extend_from_slice(<span class="kw-2">&amp;</span>b);
@@ -607,11 +608,11 @@
     )(i)
 }
 
-<span class="kw">fn </span>convert_error(i: <span class="kw-2">&amp;</span>str) -&gt; <span class="kw">impl </span>FnOnce(nom::Err&lt;VerboseError&lt;<span class="kw-2">&amp;</span>str&gt;&gt;) -&gt; anyhow::Error + <span class="lifetime">&#39;_ </span>{
+<span class="kw">fn </span>convert_error(i: <span class="kw-2">&amp;</span>str) -&gt; <span class="kw">impl </span>FnOnce(nom::Err&lt;VerboseError&lt;<span class="kw-2">&amp;</span>str&gt;&gt;) -&gt; anyhow::Error + <span class="lifetime">'_ </span>{
     <span class="kw">move </span>|err| {
         <span class="macro">anyhow!</span>(<span class="kw">match </span>err {
             nom::Err::Error(e) | nom::Err::Failure(e) =&gt; nom::error::convert_error(i, e),
-            <span class="kw">_ </span>=&gt; <span class="macro">format!</span>(<span class="string">&quot;{err:#}&quot;</span>),
+            <span class="kw">_ </span>=&gt; <span class="macro">format!</span>(<span class="string">"{err:#}"</span>),
         })
     }
 }
@@ -619,12 +620,12 @@
 <span class="kw">pub fn </span>parse_algebra(i: <span class="kw-2">&amp;</span>str) -&gt; anyhow::Result&lt;AlgebraNode&gt; {
     <span class="kw">let </span>(rest, parse_tree) = algebra_expr(i)
         .map_err(convert_error(i))
-        .with_context(|| <span class="macro">format!</span>(<span class="string">&quot;Error when parsing algebra string {i}&quot;</span>))<span class="question-mark">?</span>;
+        .with_context(|| <span class="macro">format!</span>(<span class="string">"Error when parsing algebra string {i}"</span>))<span class="question-mark">?</span>;
     <span class="kw">if </span>rest.is_empty() {
         <span class="prelude-val">Ok</span>(parse_tree)
     } <span class="kw">else </span>{
         <span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(
-            <span class="string">&quot;Failed to consume all of input. Remaining: &#39;{rest}&#39;&quot;
+            <span class="string">"Failed to consume all of input. Remaining: '{rest}'"
         </span>))
     }
 }
@@ -632,12 +633,12 @@
 <span class="kw">pub fn </span>parse_module(i: <span class="kw-2">&amp;</span>str) -&gt; anyhow::Result&lt;ModuleNode&gt; {
     <span class="kw">let </span>(rest, parse_tree) = module_expr(i)
         .map_err(convert_error(i))
-        .with_context(|| <span class="macro">format!</span>(<span class="string">&quot;Error when parsing module string {i}&quot;</span>))<span class="question-mark">?</span>;
+        .with_context(|| <span class="macro">format!</span>(<span class="string">"Error when parsing module string {i}"</span>))<span class="question-mark">?</span>;
     <span class="kw">if </span>rest.is_empty() {
         <span class="prelude-val">Ok</span>(parse_tree)
     } <span class="kw">else </span>{
         <span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(
-            <span class="string">&quot;Failed to consume all of input. Remaining: &#39;{rest}&#39;&quot;
+            <span class="string">"Failed to consume all of input. Remaining: '{rest}'"
         </span>))
     }
 }
@@ -650,13 +651,13 @@
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_parse_algebra() {
         <span class="kw">let </span>check = |input, output: Expect| {
-            output.assert_eq(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;{:?}&quot;</span>, parse_algebra(input).unwrap()));
+            output.assert_eq(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{:?}"</span>, parse_algebra(input).unwrap()));
         };
 
         check(
-            <span class="string">&quot;b * Q3 * (Sq1 * A(2 b 5) + M(0 0 2) * P(0, 1) * Sq(1, 0))&quot;</span>,
+            <span class="string">"b * Q3 * (Sq1 * A(2 b 5) + M(0 0 2) * P(0, 1) * Sq(1, 0))"</span>,
             <span class="macro">expect!</span>[[
-                <span class="string">r#&quot;Product(Product(BasisElt(Q(0)), BasisElt(Q(3))), Sum(Product(BasisElt(P(1)), BasisElt(AList([Sq(2), Bockstein, Sq(5)]))), Product(Product(BasisElt(PList([0, 0, 2])), BasisElt(PList([0, 1]))), BasisElt(PList([1, 0])))))&quot;#
+                <span class="string">r#"Product(Product(BasisElt(Q(0)), BasisElt(Q(3))), Sum(Product(BasisElt(P(1)), BasisElt(AList([Sq(2), Bockstein, Sq(5)]))), Product(Product(BasisElt(PList([0, 0, 2])), BasisElt(PList([0, 1]))), BasisElt(PList([1, 0])))))"#
             </span>]],
         );
     }
@@ -664,39 +665,39 @@
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_parse_module() {
         <span class="kw">let </span>check = |input, output: Expect| {
-            output.assert_eq(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;{:?}&quot;</span>, parse_module(input).unwrap()));
+            output.assert_eq(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{:?}"</span>, parse_module(input).unwrap()));
         };
 
-        check(<span class="string">&quot;x0&quot;</span>, <span class="macro">expect!</span>[[<span class="string">r#&quot;[(Scalar(1), &quot;x0&quot;)]&quot;#</span>]]);
+        check(<span class="string">"x0"</span>, <span class="macro">expect!</span>[[<span class="string">r#"[(Scalar(1), "x0")]"#</span>]]);
 
-        check(<span class="string">&quot;Sq2 * x0&quot;</span>, <span class="macro">expect!</span>[[<span class="string">r#&quot;[(BasisElt(P(2)), &quot;x0&quot;)]&quot;#</span>]]);
+        check(<span class="string">"Sq2 * x0"</span>, <span class="macro">expect!</span>[[<span class="string">r#"[(BasisElt(P(2)), "x0")]"#</span>]]);
 
         check(
-            <span class="string">&quot;Sq1 * x0 + x1&quot;</span>,
-            <span class="macro">expect!</span>[[<span class="string">r#&quot;[(BasisElt(P(1)), &quot;x0&quot;), (Scalar(1), &quot;x1&quot;)]&quot;#</span>]],
+            <span class="string">"Sq1 * x0 + x1"</span>,
+            <span class="macro">expect!</span>[[<span class="string">r#"[(BasisElt(P(1)), "x0"), (Scalar(1), "x1")]"#</span>]],
         );
 
         check(
-            <span class="string">&quot;(Sq3 + Sq2 * Sq1) * x0&quot;</span>,
-            <span class="macro">expect!</span>[[<span class="string">r#&quot;[(Sum(BasisElt(P(3)), Product(BasisElt(P(2)), BasisElt(P(1)))), &quot;x0&quot;)]&quot;#</span>]],
+            <span class="string">"(Sq3 + Sq2 * Sq1) * x0"</span>,
+            <span class="macro">expect!</span>[[<span class="string">r#"[(Sum(BasisElt(P(3)), Product(BasisElt(P(2)), BasisElt(P(1)))), "x0")]"#</span>]],
         );
 
         check(
-            <span class="string">&quot;Sq3 * x0 + Sq2 * x1&quot;</span>,
-            <span class="macro">expect!</span>[[<span class="string">r#&quot;[(BasisElt(P(3)), &quot;x0&quot;), (BasisElt(P(2)), &quot;x1&quot;)]&quot;#</span>]],
+            <span class="string">"Sq3 * x0 + Sq2 * x1"</span>,
+            <span class="macro">expect!</span>[[<span class="string">r#"[(BasisElt(P(3)), "x0"), (BasisElt(P(2)), "x1")]"#</span>]],
         );
 
         check(
-            <span class="string">&quot;(Sq3 - Sq2 * Sq1) * (Sq1 * x0 + x1)&quot;</span>,
+            <span class="string">"(Sq3 - Sq2 * Sq1) * (Sq1 * x0 + x1)"</span>,
             <span class="macro">expect!</span>[[
-                <span class="string">r#&quot;[(Product(Sum(BasisElt(P(3)), Product(Scalar(-1), Product(BasisElt(P(2)), BasisElt(P(1))))), BasisElt(P(1))), &quot;x0&quot;), (Product(Sum(BasisElt(P(3)), Product(Scalar(-1), Product(BasisElt(P(2)), BasisElt(P(1))))), Scalar(1)), &quot;x1&quot;)]&quot;#
+                <span class="string">r#"[(Product(Sum(BasisElt(P(3)), Product(Scalar(-1), Product(BasisElt(P(2)), BasisElt(P(1))))), BasisElt(P(1))), "x0"), (Product(Sum(BasisElt(P(3)), Product(Scalar(-1), Product(BasisElt(P(2)), BasisElt(P(1))))), Scalar(1)), "x1")]"#
             </span>]],
         );
 
         check(
-            <span class="string">&quot;x3 - (Sq3 * x0 + Sq1 * x2)&quot;</span>,
+            <span class="string">"x3 - (Sq3 * x0 + Sq1 * x2)"</span>,
             <span class="macro">expect!</span>[[
-                <span class="string">r#&quot;[(Scalar(1), &quot;x3&quot;), (Product(Scalar(-1), BasisElt(P(3))), &quot;x0&quot;), (Product(Scalar(-1), BasisElt(P(1))), &quot;x2&quot;)]&quot;#
+                <span class="string">r#"[(Scalar(1), "x3"), (Product(Scalar(-1), BasisElt(P(3))), "x0"), (Product(Scalar(-1), BasisElt(P(1))), "x2")]"#
             </span>]],
         );
     }
@@ -708,9 +709,9 @@
             <span class="macro">assert!</span>(parse_module(input).is_err());
         };
 
-        check(<span class="string">&quot;x0 + &quot;</span>);
-        check(<span class="string">&quot;2 * (x1 + Sq1 * x0&quot;</span>);
-        check(<span class="string">&quot;Sqx&quot;</span>);
+        check(<span class="string">"x0 + "</span>);
+        check(<span class="string">"2 * (x1 + Sq1 * x0"</span>);
+        check(<span class="string">"Sqx"</span>);
     }
 }
 </code></pre></div></section></main></body></html>
