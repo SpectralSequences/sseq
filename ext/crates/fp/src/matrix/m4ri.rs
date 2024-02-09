@@ -1,10 +1,12 @@
-use crate::constants::BITS_PER_LIMB;
-use crate::limb::{number, Limb};
-use crate::matrix::Matrix;
-use crate::prime::P2;
-use crate::simd;
-
 use itertools::Itertools;
+
+use crate::{
+    constants::BITS_PER_LIMB,
+    limb::{number, Limb},
+    matrix::Matrix,
+    prime::P2,
+    simd,
+};
 
 #[derive(Debug, Default)]
 /// M4RI works as follows --- first row reduce k rows using the naive algorithm. We then construct

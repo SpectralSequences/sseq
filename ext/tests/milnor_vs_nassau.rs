@@ -1,5 +1,7 @@
-use ext::chain_complex::{ChainComplex, FreeChainComplex};
-use ext::utils::{construct_nassau, construct_standard};
+use ext::{
+    chain_complex::{ChainComplex, FreeChainComplex},
+    utils::{construct_nassau, construct_standard},
+};
 use rstest::rstest;
 use sseq::coordinates::Bidegree;
 

@@ -1,12 +1,13 @@
 use std::sync::Arc;
 
 use bivec::BiVec;
-
-use crate::algebra::Field;
-use crate::module::block_structure::BlockStructure;
-use crate::module::{FreeModule, Module};
 use fp::vector::SliceMut;
 use once::OnceBiVec;
+
+use crate::{
+    algebra::Field,
+    module::{block_structure::BlockStructure, FreeModule, Module},
+};
 
 /// Given a module N and a free module M, this is the module Hom(M, N) as a module over the ground
 /// field. This requires N to be bounded, and is graded *opposite* to the usual grading so that
@@ -121,8 +122,7 @@ impl<M: Module> Module for HomModule<M> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::module::FDModule;
-    use crate::MilnorAlgebra;
+    use crate::{module::FDModule, MilnorAlgebra};
 
     #[test]
     fn test_hom_dim() {

@@ -1,20 +1,21 @@
-use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-use sseq::coordinates::Bidegree;
-use std::collections::HashSet;
-use std::fs::File;
-use std::io::{BufRead, BufReader, BufWriter, Error, ErrorKind, Read, Write};
-use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+use std::{
+    collections::HashSet,
+    fs::File,
+    io::{BufRead, BufReader, BufWriter, Error, ErrorKind, Read, Write},
+    path::PathBuf,
+    sync::{Arc, Mutex},
+};
 
 use algebra::Algebra;
 use anyhow::Context;
+use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+use sseq::coordinates::Bidegree;
 
 /// A DashSet<PathBuf>> of files that are currently opened and being written to. When calling this
 /// function for the first time, we set the ctrlc handler to delete currently opened files, then
 /// exit.
 fn open_files() -> &'static Mutex<HashSet<PathBuf>> {
-    use std::mem::MaybeUninit;
-    use std::sync::Once;
+    use std::{mem::MaybeUninit, sync::Once};
 
     static mut OPEN_FILES: MaybeUninit<Mutex<HashSet<PathBuf>>> = MaybeUninit::uninit();
     static ONCE: Once = Once::new();

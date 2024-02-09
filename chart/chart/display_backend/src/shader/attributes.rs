@@ -1,6 +1,7 @@
-use std::convert::{TryInto, TryFrom};
-use web_sys::{WebGl2RenderingContext, WebGlVertexArrayObject, WebGlBuffer, WebGlProgram};
+use std::convert::{TryFrom, TryInto};
+
 use wasm_bindgen::JsValue;
+use web_sys::{WebGl2RenderingContext, WebGlBuffer, WebGlProgram, WebGlVertexArrayObject};
 
 use crate::webgl_wrapper::WebGlWrapper;
 
@@ -8,10 +9,10 @@ use crate::webgl_wrapper::WebGlWrapper;
 pub enum Type {
     F32,
     U32,
-    I16, U16,
+    I16,
+    U16,
     U8,
 }
-
 
 impl Type {
     fn size(self) -> i32 {
@@ -44,7 +45,6 @@ impl Type {
         }
     }
 }
-
 
 #[derive(Copy, Clone, Debug)]
 pub enum NumChannels {
@@ -95,7 +95,6 @@ impl Format {
             Format(Type::U32, NumChannels::Three) => WebGl2RenderingContext::RGB32UI,
             Format(Type::U32, NumChannels::Four) => WebGl2RenderingContext::RGBA32UI,
 
-
             Format(Type::I16, NumChannels::One) => WebGl2RenderingContext::R16I,
             Format(Type::I16, NumChannels::Two) => WebGl2RenderingContext::RG16I,
             Format(Type::I16, NumChannels::Three) => WebGl2RenderingContext::RGB16I,
@@ -127,64 +126,74 @@ impl Format {
     }
 }
 
-
 pub struct Attribute {
-    name : &'static str,
-    size : usize,
-    ty : Type,
+    name: &'static str,
+    size: usize,
+    ty: Type,
 }
 
 impl Attribute {
-    pub const fn new(name : &'static str, size : usize, ty : Type) -> Self {
-        Self {
-            name, size, ty
-        }
+    pub const fn new(name: &'static str, size: usize, ty: Type) -> Self {
+        Self { name, size, ty }
     }
 }
 
-
 pub struct Attributes {
-    attributes : &'static [Attribute]
+    attributes: &'static [Attribute],
 }
 
 impl Attributes {
-    pub const fn new(attributes : &'static [Attribute]) -> Self {
-        Self {
-            attributes
-        }
+    pub const fn new(attributes: &'static [Attribute]) -> Self {
+        Self { attributes }
     }
 
-    fn offset(&self, idx : usize) -> i32 {
-        self.attributes[..idx].iter().map(|&Attribute {size, ty, ..}|
-            ty.size() * (size as i32)
-        ).sum()
+    fn offset(&self, idx: usize) -> i32 {
+        self.attributes[..idx]
+            .iter()
+            .map(|&Attribute { size, ty, .. }| ty.size() * (size as i32))
+            .sum()
     }
 
     fn stride(&self) -> i32 {
         self.offset(self.attributes.len())
     }
 
-    pub fn set_up_vertex_array(&self, webgl : &WebGlWrapper, program : &WebGlProgram, attribute_state : Option<&WebGlVertexArrayObject>, attributes_buffer : Option<&WebGlBuffer>) -> Result<(), JsValue> {
+    pub fn set_up_vertex_array(
+        &self,
+        webgl: &WebGlWrapper,
+        program: &WebGlProgram,
+        attribute_state: Option<&WebGlVertexArrayObject>,
+        attributes_buffer: Option<&WebGlBuffer>,
+    ) -> Result<(), JsValue> {
         webgl.bind_vertex_array(attribute_state);
         // IMPORTANT: Must bind_buffer here!!!!
         // vertex_attrib_pointer uses the current bound buffer implicitly.
         webgl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, attributes_buffer);
 
         let stride = self.stride();
-        for (idx, &Attribute {name, size, ty}) in self.attributes.iter().enumerate() {
+        for (idx, &Attribute { name, size, ty }) in self.attributes.iter().enumerate() {
             let size = size as i32;
-            let loc = webgl.get_attrib_location(program, name).try_into().map_err(|_| name.to_string())?;
+            let loc = webgl
+                .get_attrib_location(program, name)
+                .try_into()
+                .map_err(|_| name.to_string())?;
             let offset = self.offset(idx);
             webgl.enable_vertex_attrib_array(loc);
             match ty {
-                Type::F32 => {webgl.vertex_attrib_pointer_with_i32(loc, size, ty.webgl_type(), false, stride, offset)},
-                Type::U32 | Type::I16 | Type::U16 | Type::U8
-                    => {webgl.vertex_attrib_i_pointer_with_i32(loc, size, ty.webgl_type(), stride, offset)}
+                Type::F32 => webgl.vertex_attrib_pointer_with_i32(
+                    loc,
+                    size,
+                    ty.webgl_type(),
+                    false,
+                    stride,
+                    offset,
+                ),
+                Type::U32 | Type::I16 | Type::U16 | Type::U8 => webgl
+                    .vertex_attrib_i_pointer_with_i32(loc, size, ty.webgl_type(), stride, offset),
             };
             webgl.vertex_attrib_divisor(loc, 1);
         }
         webgl.bind_vertex_array(None);
         Ok(())
     }
-
 }

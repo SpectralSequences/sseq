@@ -1,9 +1,11 @@
-use auto_impl::auto_impl;
-use itertools::Itertools;
 use std::sync::Arc;
 
-use fp::prime::ValidPrime;
-use fp::vector::{Slice, SliceMut};
+use auto_impl::auto_impl;
+use fp::{
+    prime::ValidPrime,
+    vector::{Slice, SliceMut},
+};
+use itertools::Itertools;
 
 use crate::algebra::Algebra;
 

@@ -1,9 +1,12 @@
 use std::sync::Arc;
 
+use fp::{
+    matrix::{AugmentedMatrix, Matrix, MatrixSliceMut, QuasiInverse, Subspace},
+    prime::ValidPrime,
+    vector::{Slice, SliceMut},
+};
+
 use crate::module::Module;
-use fp::matrix::{AugmentedMatrix, Matrix, MatrixSliceMut, QuasiInverse, Subspace};
-use fp::prime::ValidPrime;
-use fp::vector::{Slice, SliceMut};
 
 mod free_module_homomorphism;
 mod full_module_homomorphism;
@@ -17,10 +20,9 @@ pub use free_module_homomorphism::{
 pub use full_module_homomorphism::FullModuleHomomorphism;
 pub use generic_zero_homomorphism::GenericZeroHomomorphism;
 pub use hom_pullback::HomPullback;
-pub use quotient_homomorphism::{QuotientHomomorphism, QuotientHomomorphismSource};
-
 #[allow(unused_imports)]
 use maybe_rayon::prelude::*;
+pub use quotient_homomorphism::{QuotientHomomorphism, QuotientHomomorphismSource};
 
 /// Each `ModuleHomomorphism` may come with auxiliary data, namely the kernel, image and
 /// quasi_inverse at each degree (the quasi-inverse is a map that is a right inverse when

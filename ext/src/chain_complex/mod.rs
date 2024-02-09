@@ -1,22 +1,28 @@
 mod chain_homotopy;
 mod finite_chain_complex;
 
-use crate::utils::unicode_num;
-use algebra::module::homomorphism::{ModuleHomomorphism, MuFreeModuleHomomorphism};
-use algebra::module::{Module, MuFreeModule};
-use algebra::{Algebra, MuAlgebra};
-use bivec::BiVec;
-use fp::matrix::Matrix;
-use fp::prime::ValidPrime;
-use fp::vector::{Slice, SliceMut};
-use sseq::coordinates::{Bidegree, BidegreeElement, BidegreeGenerator};
 use std::sync::Arc;
 
-use itertools::Itertools;
-
+use algebra::{
+    module::{
+        homomorphism::{ModuleHomomorphism, MuFreeModuleHomomorphism},
+        Module, MuFreeModule,
+    },
+    Algebra, MuAlgebra,
+};
+use bivec::BiVec;
 // pub use hom_complex::HomComplex;
 pub use chain_homotopy::ChainHomotopy;
 pub use finite_chain_complex::{FiniteAugmentedChainComplex, FiniteChainComplex};
+use fp::{
+    matrix::Matrix,
+    prime::ValidPrime,
+    vector::{Slice, SliceMut},
+};
+use itertools::Itertools;
+use sseq::coordinates::{Bidegree, BidegreeElement, BidegreeGenerator};
+
+use crate::utils::unicode_num;
 
 pub enum ChainComplexGrading {
     Homological,

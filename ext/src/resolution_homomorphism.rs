@@ -1,24 +1,27 @@
 //! This module defines [`MuResolutionHomomorphism`], which is a chain map from a
 //! [`FreeChainComplex`].
-use std::ops::Range;
-use std::path::PathBuf;
-use std::sync::Arc;
+use std::{ops::Range, path::PathBuf, sync::Arc};
 
-use crate::chain_complex::{
-    AugmentedChainComplex, BoundedChainComplex, ChainComplex, FreeChainComplex,
+use algebra::{
+    module::{
+        homomorphism::{ModuleHomomorphism, MuFreeModuleHomomorphism},
+        Module,
+    },
+    MuAlgebra,
 };
-use crate::save::SaveKind;
-use algebra::module::homomorphism::{ModuleHomomorphism, MuFreeModuleHomomorphism};
-use algebra::module::Module;
-use algebra::MuAlgebra;
-use fp::matrix::Matrix;
-use fp::vector::{FpVector, SliceMut};
+use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+use fp::{
+    matrix::Matrix,
+    vector::{FpVector, SliceMut},
+};
+use maybe_rayon::prelude::*;
 use once::OnceBiVec;
 use sseq::coordinates::{Bidegree, BidegreeGenerator, BidegreeRange};
 
-use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-
-use maybe_rayon::prelude::*;
+use crate::{
+    chain_complex::{AugmentedChainComplex, BoundedChainComplex, ChainComplex, FreeChainComplex},
+    save::SaveKind,
+};
 
 pub type ResolutionHomomorphism<CC1, CC2> = MuResolutionHomomorphism<false, CC1, CC2>;
 pub type UnstableResolutionHomomorphism<CC1, CC2> = MuResolutionHomomorphism<true, CC1, CC2>;
@@ -426,7 +429,8 @@ where
         let shift = Bidegree::s_t(0, f.degree_shift());
 
         let max_degree = source_module.max_generator_degree().expect(
-            "MuResolutionHomomorphism::from_module_homomorphism requires finite max_generator_degree",
+            "MuResolutionHomomorphism::from_module_homomorphism requires finite \
+             max_generator_degree",
         );
 
         let hom = Self::new(name, source, target, shift);

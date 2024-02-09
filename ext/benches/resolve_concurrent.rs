@@ -1,10 +1,9 @@
 #[cfg(feature = "concurrent")]
 fn benchmark(algebra: &str) {
-    use ext::chain_complex::ChainComplex;
-    use ext::utils::construct;
+    use std::{io::Write, time::Instant};
+
+    use ext::{chain_complex::ChainComplex, utils::construct};
     use sseq::coordinates::Bidegree;
-    use std::io::Write;
-    use std::time::Instant;
 
     let resolution = construct(("S_2", algebra), None).unwrap();
 

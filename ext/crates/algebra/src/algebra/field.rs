@@ -1,8 +1,11 @@
 //! Finite fields over a prime.
 
+use fp::{
+    prime::ValidPrime,
+    vector::{Slice, SliceMut},
+};
+
 use crate::algebra::{Algebra, Bialgebra};
-use fp::prime::ValidPrime;
-use fp::vector::{Slice, SliceMut};
 
 /// $\mathbb{F}_p$, viewed as an [`Algebra`] over itself.
 ///
@@ -72,6 +75,7 @@ impl Bialgebra for Field {
     fn coproduct(&self, _op_deg: i32, _op_idx: usize) -> Vec<(i32, usize, i32, usize)> {
         vec![(1, 0, 1, 0)]
     }
+
     fn decompose(&self, _op_deg: i32, _op_idx: usize) -> Vec<(i32, usize)> {
         vec![(1, 0)]
     }

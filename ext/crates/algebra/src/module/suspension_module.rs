@@ -1,5 +1,6 @@
-use crate::module::{Module, ZeroModule};
 use std::sync::Arc;
+
+use crate::module::{Module, ZeroModule};
 
 pub struct SuspensionModule<M: Module> {
     inner: Arc<M>,

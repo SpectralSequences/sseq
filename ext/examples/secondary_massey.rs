@@ -19,16 +19,17 @@
 
 use std::sync::Arc;
 
-use algebra::module::Module;
-use algebra::pair_algebra::PairAlgebra;
-use fp::matrix::{Matrix, Subspace};
-use fp::vector::FpVector;
-
-use ext::chain_complex::{ChainComplex, ChainHomotopy, FreeChainComplex};
-use ext::resolution_homomorphism::ResolutionHomomorphism;
-use ext::secondary::*;
-use ext::utils::{query_module, QueryModuleResolution};
-
+use algebra::{module::Module, pair_algebra::PairAlgebra};
+use ext::{
+    chain_complex::{ChainComplex, ChainHomotopy, FreeChainComplex},
+    resolution_homomorphism::ResolutionHomomorphism,
+    secondary::*,
+    utils::{query_module, QueryModuleResolution},
+};
+use fp::{
+    matrix::{Matrix, Subspace},
+    vector::FpVector,
+};
 use itertools::Itertools;
 use sseq::coordinates::{Bidegree, BidegreeElement};
 
@@ -123,7 +124,10 @@ fn get_hom(
 }
 
 fn main() -> anyhow::Result<()> {
-    eprintln!("We are going to compute <-, b, a> for all (-), where a is an element in Ext(M, k) and b and (-) are elements in Ext(k, k).");
+    eprintln!(
+        "We are going to compute <-, b, a> for all (-), where a is an element in Ext(M, k) and b \
+         and (-) are elements in Ext(k, k)."
+    );
 
     let resolution = Arc::new(query_module(Some(algebra::AlgebraType::Milnor), true)?);
 

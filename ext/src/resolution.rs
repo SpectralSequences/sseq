@@ -1,28 +1,33 @@
 //! This module exports the [`Resolution`] object, which is a chain complex resolving a module. In
 //! particular, this contains the core logic that compute minimal resolutions.
-use std::sync::{Arc, Mutex};
+use std::{
+    path::{Path, PathBuf},
+    sync::{mpsc, Arc, Mutex},
+};
 
-use crate::chain_complex::{AugmentedChainComplex, ChainComplex};
-use crate::save::SaveKind;
-use crate::utils::Timer;
-
-use algebra::module::homomorphism::{ModuleHomomorphism, MuFreeModuleHomomorphism};
-use algebra::module::{Module, MuFreeModule};
-use algebra::{Algebra, MuAlgebra};
-use fp::matrix::{AugmentedMatrix, QuasiInverse, Subspace};
-use fp::vector::{FpVector, Slice, SliceMut};
-use once::OnceVec;
-use sseq::coordinates::Bidegree;
-
-use std::path::{Path, PathBuf};
-
+use algebra::{
+    module::{
+        homomorphism::{ModuleHomomorphism, MuFreeModuleHomomorphism},
+        Module, MuFreeModule,
+    },
+    Algebra, MuAlgebra,
+};
 use anyhow::Context;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use dashmap::DashMap;
-
+use fp::{
+    matrix::{AugmentedMatrix, QuasiInverse, Subspace},
+    vector::{FpVector, Slice, SliceMut},
+};
 use itertools::Itertools;
+use once::OnceVec;
+use sseq::coordinates::Bidegree;
 
-use std::sync::mpsc;
+use crate::{
+    chain_complex::{AugmentedChainComplex, ChainComplex},
+    save::SaveKind,
+    utils::Timer,
+};
 
 /// In [`MuResolution::compute_through_stem`] and [`MuResolution::compute_through_bidegree`], we pass
 /// this struct around to inform the supervisor what bidegrees have been computed. We use an
@@ -827,8 +832,8 @@ where
     CC::Algebra: MuAlgebra<U>,
 {
     type Algebra = CC::Algebra;
-    type Module = MuFreeModule<U, Self::Algebra>;
     type Homomorphism = MuFreeModuleHomomorphism<U, MuFreeModule<U, Self::Algebra>>;
+    type Module = MuFreeModule<U, Self::Algebra>;
 
     fn algebra(&self) -> Arc<Self::Algebra> {
         self.target().algebra()
@@ -895,8 +900,8 @@ impl<const U: bool, CC: ChainComplex> AugmentedChainComplex for MuResolution<U, 
 where
     CC::Algebra: MuAlgebra<U>,
 {
-    type TargetComplex = CC;
     type ChainMap = MuFreeModuleHomomorphism<U, CC::Module>;
+    type TargetComplex = CC;
 
     fn target(&self) -> Arc<Self::TargetComplex> {
         Arc::clone(&self.complex)
@@ -909,9 +914,10 @@ where
 
 #[cfg(test)]
 mod test {
+    use expect_test::expect;
+
     use super::*;
     use crate::{chain_complex::FreeChainComplex, utils::construct_standard};
-    use expect_test::expect;
 
     #[test]
     fn test_restart_stem() {

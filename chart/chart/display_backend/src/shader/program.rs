@@ -1,71 +1,70 @@
-use crate::vector::{Vec4};
-use lyon::geom::math::{Point, Vector, Transform};
-
+use lyon::geom::math::{Point, Transform, Vector};
 use wasm_bindgen::JsValue;
-use crate::webgl_wrapper::WebGlWrapper;
-use web_sys::{
-    WebGl2RenderingContext, WebGlProgram, WebGlShader,
-};
+use web_sys::{WebGl2RenderingContext, WebGlProgram, WebGlShader};
+
+use crate::{vector::Vec4, webgl_wrapper::WebGlWrapper};
 
 pub struct Program {
-    pub webgl : WebGlWrapper,
-    pub program : WebGlProgram
+    pub webgl: WebGlWrapper,
+    pub program: WebGlProgram,
 }
 
 impl Program {
-    pub fn new(webgl : WebGlWrapper, vertex_shader : &str, fragment_shader : &str) -> Result<Self, JsValue> {
-        let vert_shader = compile_shader(
-            &webgl,
-            WebGl2RenderingContext::VERTEX_SHADER,
-            vertex_shader
-        )?;
+    pub fn new(
+        webgl: WebGlWrapper,
+        vertex_shader: &str,
+        fragment_shader: &str,
+    ) -> Result<Self, JsValue> {
+        let vert_shader =
+            compile_shader(&webgl, WebGl2RenderingContext::VERTEX_SHADER, vertex_shader)?;
         let frag_shader = compile_shader(
             &webgl,
             WebGl2RenderingContext::FRAGMENT_SHADER,
-            fragment_shader
+            fragment_shader,
         )?;
         let program = link_program(&webgl, &vert_shader, &frag_shader)?;
-        Ok(Program {
-            webgl,
-            program
-        })
+        Ok(Program { webgl, program })
     }
 
-    pub fn use_program(&self){
+    pub fn use_program(&self) {
         self.webgl.use_program(Some(&self.program));
     }
 
-    pub fn set_uniform_float(&self, name : &str, x : f32) {
+    pub fn set_uniform_float(&self, name: &str, x: f32) {
         let loc = self.webgl.get_uniform_location(&self.program, name);
         self.webgl.uniform1f(loc.as_ref(), x);
     }
 
-    pub fn set_uniform_texture_unit(&self, name : &str, x : u32) {
+    pub fn set_uniform_texture_unit(&self, name: &str, x: u32) {
         let loc = self.webgl.get_uniform_location(&self.program, name);
-        self.webgl.uniform1iv_with_i32_array(loc.as_ref(), &[x as i32]);
+        self.webgl
+            .uniform1iv_with_i32_array(loc.as_ref(), &[x as i32]);
     }
 
-    pub fn set_uniform_point(&self, name : &str, v2 : Point) {
+    pub fn set_uniform_point(&self, name: &str, v2: Point) {
         let loc = self.webgl.get_uniform_location(&self.program, name);
-        self.webgl.uniform2fv_with_f32_array(loc.as_ref(), &v2.to_array());
+        self.webgl
+            .uniform2fv_with_f32_array(loc.as_ref(), &v2.to_array());
     }
 
-    pub fn set_uniform_vector(&self, name : &str, v2 : Vector) {
+    pub fn set_uniform_vector(&self, name: &str, v2: Vector) {
         let loc = self.webgl.get_uniform_location(&self.program, name);
-        self.webgl.uniform2fv_with_f32_array(loc.as_ref(), &v2.to_array());
+        self.webgl
+            .uniform2fv_with_f32_array(loc.as_ref(), &v2.to_array());
     }
 
-    pub fn set_uniform_vec4(&self, name : &str, v4 : Vec4) {
+    pub fn set_uniform_vec4(&self, name: &str, v4: Vec4) {
         let loc = self.webgl.get_uniform_location(&self.program, name);
-        self.webgl.uniform4fv_with_f32_array(loc.as_ref(), &[v4.x, v4.y, v4.z, v4.w]);
+        self.webgl
+            .uniform4fv_with_f32_array(loc.as_ref(), &[v4.x, v4.y, v4.z, v4.w]);
     }
 
-    pub fn set_uniform_transform(&self, name : &str, transform : Transform) {
+    pub fn set_uniform_transform(&self, name: &str, transform: Transform) {
         let loc = self.webgl.get_uniform_location(&self.program, name);
-        self.webgl.uniform_matrix3x2fv_with_f32_array(loc.as_ref(), false, &transform.to_array());
+        self.webgl
+            .uniform_matrix3x2fv_with_f32_array(loc.as_ref(), false, &transform.to_array());
     }
 }
-
 
 fn compile_shader(
     webgl: &WebGlWrapper,

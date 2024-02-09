@@ -1,14 +1,13 @@
 use itertools::Itertools;
 
+use super::{
+    inner::{FpVectorP, SliceMutP, SliceP},
+    iter::{FpVectorIterator, FpVectorNonZeroIteratorP},
+};
 use crate::{
     limb::{self, Limb},
     prime::{Prime, ValidPrime},
     simd,
-};
-
-use super::{
-    inner::{FpVectorP, SliceMutP, SliceP},
-    iter::{FpVectorIterator, FpVectorNonZeroIteratorP},
 };
 
 impl<P: Prime> FpVectorP<P> {

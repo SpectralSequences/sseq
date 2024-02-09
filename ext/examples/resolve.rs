@@ -13,7 +13,6 @@
 //! · ·   ·       ·               ·
 //! ·
 //! ```
-//!
 
 use ext::chain_complex::{ChainComplex, FreeChainComplex};
 use sseq::coordinates::Bidegree;

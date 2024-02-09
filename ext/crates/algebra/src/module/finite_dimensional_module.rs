@@ -1,17 +1,14 @@
-use crate::algebra::Algebra;
-use crate::module::{Module, ZeroModule};
+use std::{fmt::Write as _, sync::Arc};
+
+use anyhow::{anyhow, Context};
 use bivec::BiVec;
 use fp::vector::{FpVector, SliceMut};
+use serde::Deserialize;
+use serde_json::{json, value::Value};
 
-use std::fmt::Write as _;
-use std::sync::Arc;
-
-use {
-    crate::algebra::GeneratedAlgebra,
-    crate::module::ModuleFailedRelationError,
-    anyhow::{anyhow, Context},
-    serde::Deserialize,
-    serde_json::{json, value::Value},
+use crate::{
+    algebra::{Algebra, GeneratedAlgebra},
+    module::{Module, ModuleFailedRelationError, ZeroModule},
 };
 
 pub struct FiniteDimensionalModule<A: Algebra> {
@@ -70,11 +67,11 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
                 }
             }
             if !disagreements.is_empty() {
-                return Err(format!("Graded dimensions disagree in positions {:?}. Left has graded dimensions:\n    {:?}\nRight has graded dimension:\n    {:?}\n",
-                disagreements,
-                self.graded_dimension,
-                other.graded_dimension
-            ));
+                return Err(format!(
+                    "Graded dimensions disagree in positions {:?}. Left has graded \
+                        dimensions:\n    {:?}\nRight has graded dimension:\n    {:?}\n",
+                    disagreements, self.graded_dimension, other.graded_dimension
+                ));
             }
         }
         let max_degree = std::cmp::min(self.actions.len(), other.actions.len());
@@ -681,9 +678,10 @@ impl<A: GeneratedAlgebra> FiniteDimensionalModule<A> {
 
 #[cfg(test)]
 mod tests {
+    use bivec::BiVec;
+
     use super::*;
     use crate::algebra::AdemAlgebra;
-    use bivec::BiVec;
 
     #[test]
     fn test_module_check_validity() {

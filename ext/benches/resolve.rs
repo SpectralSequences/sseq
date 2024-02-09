@@ -1,8 +1,7 @@
-use ext::chain_complex::ChainComplex;
-use ext::utils::construct;
+use std::{io::Write, time::Instant};
+
+use ext::{chain_complex::ChainComplex, utils::construct};
 use sseq::coordinates::Bidegree;
-use std::io::Write;
-use std::time::Instant;
 
 fn benchmark(module_name: &str, max_degree: i32, algebra: &str, n_times: u128) {
     print!("benchmark  {algebra:6}  {module_name}  {max_degree}:    ");

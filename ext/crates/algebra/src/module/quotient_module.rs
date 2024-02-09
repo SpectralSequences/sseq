@@ -1,8 +1,12 @@
-use crate::module::{Module, ZeroModule};
-use bivec::BiVec;
-use fp::matrix::Subspace;
-use fp::vector::{FpVector, Slice, SliceMut};
 use std::sync::Arc;
+
+use bivec::BiVec;
+use fp::{
+    matrix::Subspace,
+    vector::{FpVector, Slice, SliceMut},
+};
+
+use crate::module::{Module, ZeroModule};
 
 /// A quotient of a module truncated below a fix degree.
 pub struct QuotientModule<M: Module> {
@@ -133,6 +137,7 @@ impl<M: Module> QuotientModule<M> {
 
 impl<M: Module> Module for QuotientModule<M> {
     type Algebra = M::Algebra;
+
     fn algebra(&self) -> Arc<Self::Algebra> {
         self.module.algebra()
     }

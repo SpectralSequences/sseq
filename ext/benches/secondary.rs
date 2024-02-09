@@ -1,12 +1,10 @@
 //! This example uses secondary.rs to compute d_2 on x_{65, 4}. The code is similar to that in the
 //! secondary command, but with hardcoded values. I also use this for performance benchmarking.
 
-use ext::chain_complex::ChainComplex;
-use ext::secondary::*;
-use ext::utils::construct;
+use std::{sync::Arc, time::Instant};
+
+use ext::{chain_complex::ChainComplex, secondary::*, utils::construct};
 use sseq::coordinates::Bidegree;
-use std::sync::Arc;
-use std::time::Instant;
 
 fn main() {
     // Attempt to load a resolution of S_2 from resolution_milnor.save, and generates one from

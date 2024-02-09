@@ -1,18 +1,19 @@
-use rustc_hash::FxHashMap as HashMap;
-use std::io::{stderr, Write};
-use std::sync::Arc;
+use std::{
+    io::{stderr, Write},
+    sync::Arc,
+};
 
-use serde_json::json;
-use serde_json::Value;
-
-use algebra::module::FDModule;
-use algebra::steenrod_evaluator::SteenrodEvaluator;
-use algebra::{AdemAlgebra, Algebra, GeneratedAlgebra};
-use bivec::BiVec;
-use fp::prime::{Prime, ValidPrime};
-use fp::vector::FpVector;
-
+use algebra::{
+    module::FDModule, steenrod_evaluator::SteenrodEvaluator, AdemAlgebra, Algebra, GeneratedAlgebra,
+};
 use anyhow::anyhow;
+use bivec::BiVec;
+use fp::{
+    prime::{Prime, ValidPrime},
+    vector::FpVector,
+};
+use rustc_hash::FxHashMap as HashMap;
+use serde_json::{json, Value};
 
 pub fn get_gens() -> anyhow::Result<BiVec<Vec<String>>> {
     // Query for generators
@@ -108,7 +109,11 @@ pub fn interactive_module_define_fdmodule(
         }
     }
 
-    eprintln!("Input actions. Write the value of the action in the form 'a x0 + b x1 + ...' where a, b are non-negative integers and x0, x1 are names of the generators. The coefficient can be omitted if it is 1");
+    eprintln!(
+        "Input actions. Write the value of the action in the form 'a x0 + b x1 + ...' where a, b \
+         are non-negative integers and x0, x1 are names of the generators. The coefficient can be \
+         omitted if it is 1"
+    );
 
     let len = gens.len();
     for input_deg in gens.range().rev() {
@@ -188,7 +193,10 @@ pub fn interactive_module_define_fpmodule(
     eprintln!("Input relations");
     match p.as_u32() {
         2 => eprintln!("Write relations in the form 'Sq6 * Sq2 * x + Sq7 * y'"),
-        _ => eprintln!("Write relations in the form 'Q5 * P(5) * x + 2 * P(1, 3) * Q2 * y', where P(...) and Qi are Milnor basis elements."),
+        _ => eprintln!(
+            "Write relations in the form 'Q5 * P(5) * x + 2 * P(1, 3) * Q2 * y', where P(...) and \
+             Qi are Milnor basis elements."
+        ),
     }
 
     let mut degree_lookup = HashMap::default();
@@ -274,12 +282,13 @@ pub fn interactive_module_define_fpmodule(
 
 fn main() -> anyhow::Result<()> {
     let module_type = query::with_default(
-        "Input module type (default 'finite dimensional module'):\n (fd) - finite dimensional module \n (fp) - finitely presented module\n",
+        "Input module type (default 'finite dimensional module'):\n (fd) - finite dimensional \
+         module \n (fp) - finitely presented module\n",
         "fd",
         |x| match x {
             "fd" | "fp" => Ok(x.to_string()),
-            _ => Err(format!("Invalid type '{x}'. Type must be 'fd' or 'fp'"))
-        }
+            _ => Err(format!("Invalid type '{x}'. Type must be 'fd' or 'fp'")),
+        },
     );
 
     let p: ValidPrime = query::with_default("p", "2", str::parse);

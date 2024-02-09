@@ -18,11 +18,15 @@
 
 use std::{path::PathBuf, sync::Arc};
 
-use algebra::module::{Module, SuspensionModule};
-use algebra::Algebra;
+use algebra::{
+    module::{Module, SuspensionModule},
+    Algebra,
+};
 use chart::{Backend, Orientation, TikzBackend};
-use ext::chain_complex::{FiniteChainComplex, FreeChainComplex};
-use ext::resolution::UnstableResolution;
+use ext::{
+    chain_complex::{FiniteChainComplex, FreeChainComplex},
+    resolution::UnstableResolution,
+};
 use sseq::coordinates::Bidegree;
 
 fn main() -> anyhow::Result<()> {

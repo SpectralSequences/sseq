@@ -6,11 +6,13 @@
 //! To keep the pair algebra business contained, we put the implementation of the Milnor algebra as
 //! a pair algebra in this file instead of `milnor_algebra.rs`.
 
-use crate::combinatorics;
-use crate::Algebra;
-use fp::prime::TWO;
-use fp::vector::{FpVector, Slice, SliceMut};
+use fp::{
+    prime::TWO,
+    vector::{FpVector, Slice, SliceMut},
+};
 use rustc_hash::FxHasher;
+
+use crate::{combinatorics, Algebra};
 
 type HashMap<K, V> = hashbrown::HashMap<K, V, std::hash::BuildHasherDefault<FxHasher>>;
 
@@ -88,9 +90,12 @@ pub trait PairAlgebra: Algebra {
     ) -> std::io::Result<Self::Element>;
 }
 
-use crate::milnor_algebra::{MilnorBasisElement as MilnorElt, PPartAllocation, PPartMultiplier};
-use crate::MilnorAlgebra;
 use std::cell::RefCell;
+
+use crate::{
+    milnor_algebra::{MilnorBasisElement as MilnorElt, PPartAllocation, PPartMultiplier},
+    MilnorAlgebra,
+};
 
 macro_rules! sub {
     ($elt:ident, $k:expr, $n:expr) => {
@@ -429,9 +434,10 @@ fn a_y_inner(algebra: &MilnorAlgebra, a: &MilnorElt, k: usize, l: usize) -> FpVe
 
 #[cfg(test)]
 mod test {
+    use expect_test::{expect, Expect};
+
     use super::*;
     use crate::milnor_algebra::PPartEntry;
-    use expect_test::{expect, Expect};
 
     fn from_p_part(p_part: &[PPartEntry]) -> MilnorElt {
         let degree = p_part

@@ -23,14 +23,13 @@
 use std::sync::Arc;
 
 use algebra::module::Module;
-use fp::matrix::Matrix;
-use fp::vector::FpVector;
-
-use ext::chain_complex::{ChainComplex, FreeChainComplex};
-use ext::resolution_homomorphism::ResolutionHomomorphism;
-use ext::secondary::*;
-use ext::utils::query_module;
-
+use ext::{
+    chain_complex::{ChainComplex, FreeChainComplex},
+    resolution_homomorphism::ResolutionHomomorphism,
+    secondary::*,
+    utils::query_module,
+};
+use fp::{matrix::Matrix, vector::FpVector};
 use itertools::Itertools;
 use sseq::coordinates::{Bidegree, BidegreeElement, BidegreeGenerator};
 

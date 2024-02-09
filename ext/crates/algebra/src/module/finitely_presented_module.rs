@@ -1,12 +1,17 @@
 use std::sync::Arc;
 
-use crate::algebra::Algebra;
-use crate::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
-use crate::module::{FreeModule, Module, ZeroModule};
 use fp::vector::{FpVector, SliceMut};
+use itertools::Itertools;
 use once::OnceBiVec;
+use serde_json::Value;
 
-use {itertools::Itertools, serde_json::Value};
+use crate::{
+    algebra::Algebra,
+    module::{
+        homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism},
+        FreeModule, Module, ZeroModule,
+    },
+};
 
 struct FPMIndexTable {
     gen_idx_to_fp_idx: Vec<isize>,
@@ -96,9 +101,10 @@ impl<A: Algebra> FinitelyPresentedModule<A> {
 
 impl<A: Algebra> FinitelyPresentedModule<A> {
     pub fn from_json(algebra: Arc<A>, json: &Value) -> anyhow::Result<Self> {
-        use crate::steenrod_parser::digits;
         use anyhow::anyhow;
         use nom::combinator::opt;
+
+        use crate::steenrod_parser::digits;
 
         let p = algebra.prime();
         let name = json["name"].as_str().unwrap_or("").to_string();
@@ -136,15 +142,16 @@ impl<A: Algebra> FinitelyPresentedModule<A> {
                         result.generators.compute_basis(deg);
                         v.set_scratch_vector_size(result.generators.dimension(deg));
                     } else if op_deg + gen_deg != deg {
-                        return Err(anyhow!("Relation has inconsistent degree. Expected {deg} but {term} has degree {}", op_deg + gen_deg));
+                        return Err(anyhow!(
+                            "Relation has inconsistent degree. Expected {deg} but {term} has \
+                             degree {}",
+                            op_deg + gen_deg
+                        ));
                     }
 
-                    let idx = result.generators.operation_generator_to_index(
-                         op_deg,
-                         op_idx,
-                         gen_deg,
-                         gen_idx,
-                    );
+                    let idx = result
+                        .generators
+                        .operation_generator_to_index(op_deg, op_idx, gen_deg, gen_idx);
 
                     v.add_basis_element(idx, coef);
                 }

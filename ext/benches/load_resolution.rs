@@ -1,6 +1,5 @@
 use algebra::Algebra;
-use ext::chain_complex::ChainComplex;
-use ext::utils::construct;
+use ext::{chain_complex::ChainComplex, utils::construct};
 use sseq::coordinates::Bidegree;
 
 fn main() {

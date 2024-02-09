@@ -1,8 +1,8 @@
-use super::{Bidegree, BidegreeElement};
-
 use std::fmt::{self, Display, Formatter};
 
 use serde::{Deserialize, Serialize};
+
+use super::{Bidegree, BidegreeElement};
 
 /// A *basis* element of a bigraded vector space. Most commonly used to index elements of spectral
 /// sequences.
@@ -21,9 +21,11 @@ impl BidegreeGenerator {
             idx,
         }
     }
+
     pub fn s_t(s: u32, t: i32, idx: usize) -> BidegreeGenerator {
         Self::new(Bidegree::s_t(s, t), idx)
     }
+
     pub fn n_s(n: i32, s: u32, idx: usize) -> BidegreeGenerator {
         Self::new(Bidegree::n_s(n, s), idx)
     }

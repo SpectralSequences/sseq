@@ -1,10 +1,13 @@
-use super::Matrix;
-use crate::prime::ValidPrime;
-use crate::vector::{FpVector, Slice, SliceMut};
-use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::io::{Read, Write};
 
+use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use itertools::Itertools;
+
+use super::Matrix;
+use crate::{
+    prime::ValidPrime,
+    vector::{FpVector, Slice, SliceMut},
+};
 
 /// Given a matrix M, a quasi-inverse Q is a map from the co-domain to the domain such that xQM = x
 /// for all x in the image (recall our matrices act on the right).

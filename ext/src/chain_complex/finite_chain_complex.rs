@@ -1,8 +1,12 @@
-use crate::chain_complex::{AugmentedChainComplex, BoundedChainComplex, ChainComplex};
-use algebra::module::homomorphism::{FullModuleHomomorphism, ModuleHomomorphism, ZeroHomomorphism};
-use algebra::module::{Module, ZeroModule};
-use sseq::coordinates::Bidegree;
 use std::sync::Arc;
+
+use algebra::module::{
+    homomorphism::{FullModuleHomomorphism, ModuleHomomorphism, ZeroHomomorphism},
+    Module, ZeroModule,
+};
+use sseq::coordinates::Bidegree;
+
+use crate::chain_complex::{AugmentedChainComplex, BoundedChainComplex, ChainComplex};
 
 pub struct FiniteChainComplex<M, F = FullModuleHomomorphism<M>>
 where
@@ -122,12 +126,13 @@ where
     F: ModuleHomomorphism<Source = M, Target = M>,
 {
     type Algebra = M::Algebra;
-    type Module = M;
     type Homomorphism = F;
+    type Module = M;
 
     fn algebra(&self) -> Arc<Self::Algebra> {
         self.zero_module.algebra()
     }
+
     fn min_degree(&self) -> i32 {
         self.zero_module.min_degree()
     }
@@ -196,8 +201,8 @@ where
     F2: ModuleHomomorphism<Source = M, Target = CC::Module>,
 {
     type Algebra = M::Algebra;
-    type Module = M;
     type Homomorphism = F1;
+    type Module = M;
 
     fn algebra(&self) -> Arc<M::Algebra> {
         self.cc.algebra()
@@ -271,8 +276,8 @@ where
     F1: ModuleHomomorphism<Source = M, Target = M>,
     F2: ModuleHomomorphism<Source = M, Target = CC::Module>,
 {
-    type TargetComplex = CC;
     type ChainMap = F2;
+    type TargetComplex = CC;
 
     fn target(&self) -> Arc<Self::TargetComplex> {
         Arc::clone(&self.target_cc)

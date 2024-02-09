@@ -1,5 +1,3 @@
-use crate::coordinates::{Bidegree, BidegreeGenerator};
-
 use std::fmt::{self, Display, Formatter};
 
 use algebra::{
@@ -7,6 +5,8 @@ use algebra::{
     MuAlgebra,
 };
 use fp::vector::Slice;
+
+use crate::coordinates::{Bidegree, BidegreeGenerator};
 
 /// An element of a bigraded vector space. Most commonly used to index elements of spectral
 /// sequences.

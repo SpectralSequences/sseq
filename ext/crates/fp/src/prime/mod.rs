@@ -107,6 +107,7 @@ macro_rules! def_prime_static {
             fn as_i32(self) -> i32 {
                 $p
             }
+
             #[inline]
             fn to_dyn(self) -> ValidPrime {
                 ValidPrime::new($p)

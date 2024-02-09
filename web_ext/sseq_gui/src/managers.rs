@@ -1,18 +1,14 @@
-use crate::actions::*;
-use crate::sseq::SseqWrapper;
-
-use crate::resolution_wrapper::Resolution;
-use algebra::module::Module;
-use algebra::Algebra;
-use ext::chain_complex::{BoundedChainComplex, ChainComplex};
-use ext::utils::load_module_json;
-use ext::CCC;
-
+use algebra::{module::Module, Algebra};
 use anyhow::{anyhow, Context};
+use ext::{
+    chain_complex::{BoundedChainComplex, ChainComplex},
+    utils::load_module_json,
+    CCC,
+};
 use serde_json::json;
 use sseq::coordinates::Bidegree;
 
-use crate::Sender;
+use crate::{actions::*, resolution_wrapper::Resolution, sseq::SseqWrapper, Sender};
 
 /// ResolutionManager is a struct that manipulates a Resolution. It is constructed with a "sender"
 /// which is used to relay the results of the computation. This sender should send all messages to

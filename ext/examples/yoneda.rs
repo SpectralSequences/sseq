@@ -1,10 +1,12 @@
-use algebra::module::Module;
-use ext::chain_complex::{ChainComplex, FreeChainComplex};
-use ext::utils;
-use ext::yoneda::yoneda_representative_element;
-use sseq::coordinates::Bidegree;
-
 use std::sync::Arc;
+
+use algebra::module::Module;
+use ext::{
+    chain_complex::{ChainComplex, FreeChainComplex},
+    utils,
+    yoneda::yoneda_representative_element,
+};
+use sseq::coordinates::Bidegree;
 
 fn main() -> anyhow::Result<()> {
     let resolution = Arc::new(utils::query_module_only("Module", None, false)?);

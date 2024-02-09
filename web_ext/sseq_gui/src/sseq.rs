@@ -1,16 +1,15 @@
-use crate::actions::*;
-use crate::Sender;
+use std::{cmp::max, collections::BTreeMap};
+
 use bivec::BiVec;
-use fp::prime::ValidPrime;
-use fp::vector::FpVector;
 use fp::{
     matrix::{Matrix, Subquotient},
-    vector::Slice,
+    prime::ValidPrime,
+    vector::{FpVector, Slice},
 };
 use serde::{Deserialize, Serialize};
 use sseq::{Adams, Sseq, SseqProfile};
-use std::cmp::max;
-use std::collections::BTreeMap;
+
+use crate::{actions::*, Sender};
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub enum ClassState {

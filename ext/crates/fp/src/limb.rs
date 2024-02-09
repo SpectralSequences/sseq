@@ -1,7 +1,6 @@
 use std::ops::Range;
 
 pub(crate) use crate::constants::Limb;
-
 use crate::{constants::BITS_PER_LIMB, prime::Prime};
 
 /// A struct containing the information required to access a specific entry in an array of `Limb`s.

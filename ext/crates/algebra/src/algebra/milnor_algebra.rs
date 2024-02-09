@@ -1,15 +1,15 @@
-use fp::prime::Prime;
-use itertools::Itertools;
-use rustc_hash::FxHashMap as HashMap;
 use std::cell::Cell;
 
-use crate::algebra::combinatorics;
-use crate::algebra::{Algebra, Bialgebra, GeneratedAlgebra, UnstableAlgebra};
-use fp::prime::{factor_pk, iter::BitflagIterator, Binomial, ValidPrime};
-use fp::vector::{FpVector, Slice, SliceMut};
+use fp::{
+    prime::{factor_pk, iter::BitflagIterator, Binomial, Prime, ValidPrime},
+    vector::{FpVector, Slice, SliceMut},
+};
+use itertools::Itertools;
 use once::OnceVec;
+use rustc_hash::FxHashMap as HashMap;
+use serde::{Deserialize, Serialize};
 
-use {serde::Deserialize, serde::Serialize};
+use crate::algebra::{combinatorics, Algebra, Bialgebra, GeneratedAlgebra, UnstableAlgebra};
 
 // This is here so that the Python bindings can use modules defined for AdemAlgebraT with their own algebra enum.
 // In order for things to work AdemAlgebraT cannot implement Algebra.
@@ -581,7 +581,6 @@ impl Algebra for MilnorAlgebra {
     }
 
     fn basis_element_from_string(&self, elt: &str) -> Option<(i32, usize)> {
-        use crate::steenrod_parser::{brackets, digits, p_or_sq};
         use nom::{
             branch::alt,
             bytes::complete::tag,
@@ -590,6 +589,8 @@ impl Algebra for MilnorAlgebra {
             multi::{many0, separated_list1},
             sequence::{preceded, tuple},
         };
+
+        use crate::steenrod_parser::{brackets, digits, p_or_sq};
 
         let p = self.prime();
 
@@ -1793,6 +1794,7 @@ impl Bialgebra for MilnorAlgebra {
         }
         result
     }
+
     fn decompose(&self, op_deg: i32, op_idx: usize) -> Vec<(i32, usize)> {
         vec![(op_deg, op_idx)]
     }
@@ -1800,11 +1802,12 @@ impl Bialgebra for MilnorAlgebra {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use std::fmt::Write as _; // Needed for write! macro for String
 
     use expect_test::expect;
     use rstest::rstest;
-    use std::fmt::Write as _; // Needed for write! macro for String
+
+    use super::*;
 
     #[rstest]
     #[trace]

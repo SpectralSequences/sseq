@@ -2,21 +2,23 @@
 
 use std::fmt;
 
-use itertools::Itertools;
-use rustc_hash::FxHashMap as HashMap;
-
-use fp::prime::{
-    iter::{BinomialIterator, BitflagIterator},
-    Prime, ValidPrime,
+use fp::{
+    prime::{
+        iter::{BinomialIterator, BitflagIterator},
+        Prime, ValidPrime,
+    },
+    vector::{FpVector, SliceMut},
 };
-use fp::vector::{FpVector, SliceMut};
+use itertools::Itertools;
 use once::OnceVec;
-
-use crate::algebra::combinatorics::{self, MAX_XI_TAU};
-use crate::algebra::{Algebra, Bialgebra, GeneratedAlgebra, UnstableAlgebra};
+use rustc_hash::FxHashMap as HashMap;
 
 #[cfg(doc)]
 use crate::algebra::SteenrodAlgebra;
+use crate::algebra::{
+    combinatorics::{self, MAX_XI_TAU},
+    Algebra, Bialgebra, GeneratedAlgebra, UnstableAlgebra,
+};
 
 /// An algebra that can be viewed as an Adem algebra.
 ///
@@ -288,8 +290,9 @@ impl Algebra for AdemAlgebra {
     }
 
     fn basis_element_from_string(&self, mut elt: &str) -> Option<(i32, usize)> {
-        use crate::steenrod_parser::{digits, p_or_sq};
         use nom::sequence::preceded;
+
+        use crate::steenrod_parser::{digits, p_or_sq};
 
         let q = self.q();
 
@@ -1432,9 +1435,11 @@ impl Bialgebra for AdemAlgebra {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use rstest::rstest;
     use std::fmt::Write as _; // Needed for write! macro for String
+
+    use rstest::rstest;
+
+    use super::*;
 
     #[rstest(p, max_degree, case(2, 32), case(3, 120))]
     #[trace]

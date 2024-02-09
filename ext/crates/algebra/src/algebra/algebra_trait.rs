@@ -1,10 +1,11 @@
-use fp::prime::ValidPrime;
-use fp::vector::{Slice, SliceMut};
-
 use std::fmt::Write as _; // Needed for write! macro for String
 
 #[cfg(doc)]
 use fp::vector::FpVector;
+use fp::{
+    prime::ValidPrime,
+    vector::{Slice, SliceMut},
+};
 
 /// A graded algebra over $\mathbb{F}_p$.
 ///
@@ -532,7 +533,7 @@ pub trait GeneratedAlgebra: Algebra {
 
 #[macro_export]
 macro_rules! dispatch_algebra {
-    ($struct:ty, $dispatch_macro: ident) => {
+    ($struct:ty, $dispatch_macro:ident) => {
         impl Algebra for $struct {
             $dispatch_macro! {
                 fn prefix(&self) -> &str;

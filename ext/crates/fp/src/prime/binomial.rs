@@ -1,9 +1,8 @@
+use super::{Prime, ValidPrime};
 use crate::{
     constants::{BINOMIAL4_TABLE, BINOMIAL4_TABLE_SIZE, BINOMIAL_TABLE},
     PRIME_TO_INDEX_MAP,
 };
-
-use super::{Prime, ValidPrime};
 
 /// This uses a lookup table for n choose k when n and k are both less than p.
 /// Lucas's theorem reduces general binomial coefficients to this case.
@@ -35,7 +34,6 @@ pub trait Binomial: Sized {
     /// This is easy to verify using the fact that
     ///
     ///    (x + y)^{2^k} = x^{2^k} + 2 x^{2^{k - 1}} y^{2^{k - 1}} + y^{2^k}
-    ///
     fn binomial4(n: Self, k: Self) -> Self;
 
     /// Compute binomial coefficients mod 4 using the recursion relation in the documentation of
@@ -102,6 +100,7 @@ macro_rules! impl_binomial {
                     0
                 }
             }
+
             #[inline]
             fn multinomial_odd(p_: ValidPrime, l: &mut [Self]) -> Self {
                 let p = p_.as_u32() as Self;
@@ -179,6 +178,7 @@ macro_rules! impl_binomial {
                 }
                 false
             }
+
             fn binomial4(n: Self, j: Self) -> Self {
                 if (n as usize) < BINOMIAL4_TABLE_SIZE {
                     return BINOMIAL4_TABLE[n as usize][j as usize] as Self;

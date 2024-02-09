@@ -10,11 +10,12 @@
 //! The "normal" usage mode is to not supply any command line arguments and just use the second
 //! functionality. However, the first is useful for testing and batch processing.
 
-use std::fmt::Display;
-use std::io::{stderr, stdin, Write};
-
-use std::cell::RefCell;
-use std::env::Args;
+use std::{
+    cell::RefCell,
+    env::Args,
+    fmt::Display,
+    io::{stderr, stdin, Write},
+};
 
 thread_local! {
     static ARGV: RefCell<Args> = {

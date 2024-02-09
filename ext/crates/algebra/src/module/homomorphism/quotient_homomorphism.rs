@@ -1,8 +1,8 @@
-use crate::module::{Module, QuotientModule};
-use fp::vector::{FpVector, SliceMut};
 use std::sync::Arc;
 
-use crate::module::homomorphism::ModuleHomomorphism;
+use fp::vector::{FpVector, SliceMut};
+
+use crate::module::{homomorphism::ModuleHomomorphism, Module, QuotientModule};
 
 pub struct QuotientHomomorphism<F: ModuleHomomorphism> {
     f: Arc<F>,
@@ -27,9 +27,11 @@ impl<F: ModuleHomomorphism> ModuleHomomorphism for QuotientHomomorphism<F> {
     fn source(&self) -> Arc<Self::Source> {
         Arc::clone(&self.s)
     }
+
     fn target(&self) -> Arc<Self::Target> {
         Arc::clone(&self.t)
     }
+
     fn degree_shift(&self) -> i32 {
         self.f.degree_shift()
     }

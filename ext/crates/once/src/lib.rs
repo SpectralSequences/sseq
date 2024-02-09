@@ -1,14 +1,17 @@
 extern crate alloc;
 
-use core::ops::{Index, IndexMut};
-use std::cmp::{Eq, PartialEq};
-use std::collections::BTreeSet;
-use std::fmt;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Mutex, MutexGuard};
-
 use alloc::alloc::Layout;
-use std::ptr::NonNull;
+use core::ops::{Index, IndexMut};
+use std::{
+    cmp::{Eq, PartialEq},
+    collections::BTreeSet,
+    fmt,
+    ptr::NonNull,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Mutex, MutexGuard,
+    },
+};
 
 use maybe_rayon::prelude::*;
 
@@ -49,6 +52,7 @@ impl<T> Page<T> {
         )
         .unwrap()
     }
+
     fn allocated(&self) -> bool {
         self.0.is_some()
     }
@@ -244,7 +248,7 @@ impl<T> OnceVec<T> {
     /// let v = vec![1, 3, 5, 2];
     /// let w = OnceVec::from_vec(v.clone());
     /// assert_eq!(w.len(), 4);
-    /// for i in 0 .. 4 {
+    /// for i in 0..4 {
     ///     assert_eq!(v[i], w[i]);
     /// }
     /// ```
@@ -616,6 +620,7 @@ impl<T: Send + Sync> OnceVec<T> {
 
 impl<T> Index<usize> for OnceVec<T> {
     type Output = T;
+
     fn index(&self, index: usize) -> &T {
         self.get(index).unwrap_or_else(|| {
             panic!(
@@ -637,6 +642,7 @@ impl<T> IndexMut<usize> for OnceVec<T> {
 
 impl<T> Index<u32> for OnceVec<T> {
     type Output = T;
+
     fn index(&self, index: u32) -> &T {
         self.index(index as usize)
     }
@@ -841,6 +847,7 @@ impl<T: Send + Sync> OnceBiVec<T> {
 
 impl<T> Index<i32> for OnceBiVec<T> {
     type Output = T;
+
     fn index(&self, i: i32) -> &T {
         assert!(
             i >= self.min_degree(),
