@@ -83,11 +83,6 @@ fn zech_logs<P: Prime>(fq: SmallFq<P>) -> Arc<ZechTable> {
                 SmallFqElement(poly_to_power.get(&cur_plus_1).as_deref().cloned()),
             );
         }
-        for x in table.iter() {
-            let (a, b) = x.pair();
-            println!("{a} + 1 = {b}");
-        }
-
         Arc::new(table)
     });
     Arc::clone(&table)
@@ -179,7 +174,11 @@ impl<P: Prime> Field for SmallFq<P> {
     }
 
     fn inv(self, a: Self::Element) -> Option<Self::Element> {
-        Some(SmallFqElement(Some((self.characteristic() - 1) - a.0?)))
+        let complement = match a.0? {
+            0 => 0,
+            x => self.q() - 1 - x,
+        };
+        Some(SmallFqElement(Some(complement)))
     }
 
     fn frobenius(self, a: Self::Element) -> Self::Element {

@@ -5,11 +5,9 @@ use self::limb::LimbMethods;
 pub(crate) mod limb;
 
 pub mod fp;
-// pub mod largefq;
 pub mod smallfq;
 
 pub use fp::Fp;
-// pub use largefq::LargeFq;
 pub use smallfq::SmallFq;
 
 pub trait FieldElement: Clone {
