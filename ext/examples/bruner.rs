@@ -17,9 +17,18 @@
 //! <https://archive.sigma2.no/pages/public/datasetDetail.jsf?id=10.11582/2022.00015>
 //! while the descirption of his save file is at <https://arxiv.org/abs/2109.13117>.
 
+use std::{
+    fs::File,
+    io::{BufRead, BufReader},
+    path::{Path, PathBuf},
+    str::FromStr,
+    sync::Arc,
+};
+
 use algebra::{
-    milnor_algebra::MilnorBasisElement, module::homomorphism::FreeModuleHomomorphism as FMH,
-    module::FreeModule as FM, module::Module, Algebra, MilnorAlgebra,
+    milnor_algebra::MilnorBasisElement,
+    module::{homomorphism::FreeModuleHomomorphism as FMH, FreeModule as FM, Module},
+    Algebra, MilnorAlgebra,
 };
 use anyhow::{Context, Error, Result};
 use ext::{
@@ -28,13 +37,6 @@ use ext::{
 };
 use fp::{matrix::Matrix, prime::TWO, vector::FpVector};
 use sseq::coordinates::{Bidegree, BidegreeGenerator};
-use std::{
-    fs::File,
-    io::{BufRead, BufReader},
-    path::{Path, PathBuf},
-    str::FromStr,
-    sync::Arc,
-};
 
 #[cfg(feature = "nassau")]
 type FreeModule = FM<MilnorAlgebra>;

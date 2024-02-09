@@ -1,9 +1,12 @@
 use std::sync::Arc;
 
-use crate::algebra::MuAlgebra;
-use crate::module::{Module, ZeroModule};
 use fp::vector::{Slice, SliceMut};
 use once::{OnceBiVec, OnceVec};
+
+use crate::{
+    algebra::MuAlgebra,
+    module::{Module, ZeroModule},
+};
 
 #[derive(Clone, Debug)]
 pub struct OperationGeneratorPair {

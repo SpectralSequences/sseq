@@ -1,12 +1,16 @@
 use std::sync::Arc;
 
-use crate::module::block_structure::GeneratorBasisEltPair;
-use crate::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
-use crate::module::HomModule;
-use crate::module::{FreeModule, Module};
-use fp::matrix::{QuasiInverse, Subspace};
-use fp::vector::SliceMut;
+use fp::{
+    matrix::{QuasiInverse, Subspace},
+    vector::SliceMut,
+};
 use once::OnceBiVec;
+
+use crate::module::{
+    block_structure::GeneratorBasisEltPair,
+    homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism},
+    FreeModule, HomModule, Module,
+};
 
 /// Given a map $\mathtt{map}: A \to B$ and hom modules $\mathtt{source} = \Hom(B, X)$, $\mathtt{target} = \Hom(A, X)$, produce the induced pullback map $\Hom(B, X) \to \Hom(A, X)$.
 pub struct HomPullback<M: Module> {
@@ -137,12 +141,11 @@ impl<M: Module> ModuleHomomorphism for HomPullback<M> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::module::FDModule;
-    use crate::MilnorAlgebra;
     use bivec::BiVec;
-    use fp::matrix::Matrix;
-    use fp::vector::FpVector;
+    use fp::{matrix::Matrix, vector::FpVector};
+
+    use super::*;
+    use crate::{module::FDModule, MilnorAlgebra};
 
     #[test]
     fn test_pullback_id() {

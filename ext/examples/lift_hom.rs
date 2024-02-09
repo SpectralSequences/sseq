@@ -39,16 +39,17 @@
 //! $H^*(-)$ are contravariant functors. The words "source" and "target" refer to the map between
 //! Steenrod modules.
 
+use std::{path::PathBuf, sync::Arc};
+
 use algebra::module::Module;
 use anyhow::{anyhow, Context};
-use ext::chain_complex::{AugmentedChainComplex, ChainComplex, FreeChainComplex};
-use ext::resolution_homomorphism::ResolutionHomomorphism;
-use ext::utils;
+use ext::{
+    chain_complex::{AugmentedChainComplex, ChainComplex, FreeChainComplex},
+    resolution_homomorphism::ResolutionHomomorphism,
+    utils,
+};
 use fp::matrix::Matrix;
 use sseq::coordinates::{Bidegree, BidegreeGenerator};
-
-use std::path::PathBuf;
-use std::sync::Arc;
 
 fn main() -> anyhow::Result<()> {
     let source = Arc::new(utils::query_module_only("Source module", None, true)?);

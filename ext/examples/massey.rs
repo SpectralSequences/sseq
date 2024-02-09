@@ -3,11 +3,14 @@
 //! This is optimized to compute <a, b, -> for fixed a, b and all -, where a and b have small
 //! degree.
 
-use ext::chain_complex::{ChainComplex, ChainHomotopy, FreeChainComplex};
-use ext::resolution_homomorphism::ResolutionHomomorphism;
+use std::sync::Arc;
+
+use ext::{
+    chain_complex::{ChainComplex, ChainHomotopy, FreeChainComplex},
+    resolution_homomorphism::ResolutionHomomorphism,
+};
 use fp::matrix::{AugmentedMatrix, Matrix};
 use sseq::coordinates::{Bidegree, BidegreeElement, BidegreeGenerator};
-use std::sync::Arc;
 
 fn main() -> anyhow::Result<()> {
     let resolution = Arc::new(ext::utils::query_module(None, true)?);

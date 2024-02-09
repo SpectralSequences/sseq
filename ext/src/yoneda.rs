@@ -1,24 +1,30 @@
-use crate::chain_complex::{
-    AugmentedChainComplex, BoundedChainComplex, ChainComplex, ChainMap,
-    FiniteAugmentedChainComplex, FiniteChainComplex, FreeChainComplex,
-};
-use crate::resolution_homomorphism::ResolutionHomomorphism;
-use algebra::module::homomorphism::{
-    FreeModuleHomomorphism, FullModuleHomomorphism, IdentityHomomorphism, ModuleHomomorphism,
-};
-use algebra::module::homomorphism::{QuotientHomomorphism, QuotientHomomorphismSource};
-use algebra::module::QuotientModule as QM;
-use algebra::module::{FDModule, FreeModule, Module};
-use algebra::{AdemAlgebra, Algebra, GeneratedAlgebra, MilnorAlgebra, SteenrodAlgebra};
+use std::sync::Arc;
 
-use fp::matrix::{AugmentedMatrix, Matrix, Subspace};
-use fp::vector::FpVector;
-
+use algebra::{
+    module::{
+        homomorphism::{
+            FreeModuleHomomorphism, FullModuleHomomorphism, IdentityHomomorphism,
+            ModuleHomomorphism, QuotientHomomorphism, QuotientHomomorphismSource,
+        },
+        FDModule, FreeModule, Module, QuotientModule as QM,
+    },
+    AdemAlgebra, Algebra, GeneratedAlgebra, MilnorAlgebra, SteenrodAlgebra,
+};
 use bivec::BiVec;
-
+use fp::{
+    matrix::{AugmentedMatrix, Matrix, Subspace},
+    vector::FpVector,
+};
 use rustc_hash::FxHashSet as HashSet;
 use sseq::coordinates::Bidegree;
-use std::sync::Arc;
+
+use crate::{
+    chain_complex::{
+        AugmentedChainComplex, BoundedChainComplex, ChainComplex, ChainMap,
+        FiniteAugmentedChainComplex, FiniteChainComplex, FreeChainComplex,
+    },
+    resolution_homomorphism::ResolutionHomomorphism,
+};
 
 const PENALTY_UNIT: i32 = 10000;
 

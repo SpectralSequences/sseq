@@ -1,10 +1,11 @@
+use std::{fs::File, sync::Arc};
+
 use algebra::Algebra;
 use chart::{Backend as _, TikzBackend as Backend};
 use ext::{
     chain_complex::{ChainComplex, FreeChainComplex},
     secondary::{SecondaryLift, SecondaryResolution},
 };
-use std::{fs::File, sync::Arc};
 
 fn main() -> anyhow::Result<()> {
     let resolution = Arc::new(ext::utils::query_module(

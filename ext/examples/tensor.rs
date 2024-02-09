@@ -1,11 +1,13 @@
-use algebra::module::{steenrod_module, FDModule, TensorModule};
-use algebra::{AdemAlgebra, SteenrodAlgebra};
+use std::sync::Arc;
+
+use algebra::{
+    module::{steenrod_module, FDModule, TensorModule},
+    AdemAlgebra, SteenrodAlgebra,
+};
+use anyhow::anyhow;
 use ext::utils::parse_module_name;
 use fp::prime::{Prime, ValidPrime};
-
-use anyhow::anyhow;
 use serde_json::json;
-use std::sync::Arc;
 
 fn main() -> anyhow::Result<()> {
     let left = query::with_default("Left module", "S_2", parse_module_name);

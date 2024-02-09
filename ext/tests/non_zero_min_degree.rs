@@ -1,6 +1,8 @@
 use algebra::module::Module;
-use ext::chain_complex::{AugmentedChainComplex, ChainComplex};
-use ext::utils::construct;
+use ext::{
+    chain_complex::{AugmentedChainComplex, ChainComplex},
+    utils::construct,
+};
 use sseq::coordinates::Bidegree;
 
 #[test]

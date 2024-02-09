@@ -1,15 +1,20 @@
-use crate::algebra::{
-    AdemAlgebra, AdemAlgebraT, Algebra, Bialgebra, GeneratedAlgebra, MilnorAlgebra, MilnorAlgebraT,
-};
-use crate::dispatch_algebra;
-use fp::prime::ValidPrime;
-use fp::vector::{Slice, SliceMut};
-
-use anyhow::anyhow;
-
 use std::io::{Read, Write};
 
-use {serde::Deserialize, serde_json::Value};
+use anyhow::anyhow;
+use fp::{
+    prime::ValidPrime,
+    vector::{Slice, SliceMut},
+};
+use serde::Deserialize;
+use serde_json::Value;
+
+use crate::{
+    algebra::{
+        AdemAlgebra, AdemAlgebraT, Algebra, Bialgebra, GeneratedAlgebra, MilnorAlgebra,
+        MilnorAlgebraT,
+    },
+    dispatch_algebra,
+};
 
 // This is here so that the Python bindings can use modules defined aor SteenrodAlgebraT with their own algebra enum.
 // In order for things to work SteenrodAlgebraT cannot implement Algebra.
@@ -105,6 +110,7 @@ impl<A: SteenrodAlgebraT> MilnorAlgebraT for A {
 
 impl<'a> TryInto<&'a AdemAlgebra> for &'a SteenrodAlgebra {
     type Error = anyhow::Error;
+
     fn try_into(self) -> Result<&'a AdemAlgebra, Self::Error> {
         match self {
             SteenrodAlgebra::AdemAlgebra(a) => Ok(a),
@@ -117,6 +123,7 @@ impl<'a> TryInto<&'a AdemAlgebra> for &'a SteenrodAlgebra {
 
 impl<'a> TryInto<&'a MilnorAlgebra> for &'a SteenrodAlgebra {
     type Error = anyhow::Error;
+
     fn try_into(self) -> Result<&'a MilnorAlgebra, Self::Error> {
         match self {
             SteenrodAlgebra::MilnorAlgebra(a) => Ok(a),
@@ -273,13 +280,6 @@ impl crate::pair_algebra::PairAlgebra for AdemAlgebra {
 impl crate::pair_algebra::PairAlgebra for SteenrodAlgebra {
     type Element = crate::pair_algebra::MilnorPairElement;
 
-    fn element_is_zero(elt: &Self::Element) -> bool {
-        MilnorAlgebra::element_is_zero(elt)
-    }
-    fn finalize_element(elt: &mut Self::Element) {
-        MilnorAlgebra::finalize_element(elt);
-    }
-
     dispatch_steenrod! {
         fn p_tilde(&self) -> usize;
         fn new_pair_element(&self, degree: i32) -> Self::Element;
@@ -288,6 +288,14 @@ impl crate::pair_algebra::PairAlgebra for SteenrodAlgebra {
         fn a_multiply(&self, result: SliceMut, coeff: u32, r_degree: i32, r: Slice, s_degree: i32, s: &Self::Element);
         fn element_to_bytes(&self, elt: &Self::Element, buffer: &mut impl Write) -> std::io::Result<()>;
         fn element_from_bytes(&self, degree: i32, buffer: &mut impl Read) -> std::io::Result<Self::Element>;
+    }
+
+    fn element_is_zero(elt: &Self::Element) -> bool {
+        MilnorAlgebra::element_is_zero(elt)
+    }
+
+    fn finalize_element(elt: &mut Self::Element) {
+        MilnorAlgebra::finalize_element(elt);
     }
 }
 

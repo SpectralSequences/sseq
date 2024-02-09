@@ -1,5 +1,3 @@
-use crate::resolution_wrapper::Resolution;
-use crate::sseq::{ClassState, ProductItem, SseqWrapper};
 use algebra::module::Module;
 use bivec::BiVec;
 use enum_dispatch::enum_dispatch;
@@ -8,6 +6,11 @@ use fp::vector::FpVector;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use sseq::coordinates::{Bidegree, BidegreeGenerator};
+
+use crate::{
+    resolution_wrapper::Resolution,
+    sseq::{ClassState, ProductItem, SseqWrapper},
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Message {

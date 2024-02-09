@@ -1,13 +1,15 @@
 //! This saves a resolution to Bruner's format. This saves the resulting files to the current
 //! working directory. It is recommended that you run this in a dedicated subdirectory.
 
-use algebra::module::Module;
-use algebra::{Algebra, AlgebraType, MilnorAlgebra};
+use std::{
+    fmt::Write as _,
+    fs::File,
+    io::{BufWriter, Write as _},
+};
+
+use algebra::{module::Module, Algebra, AlgebraType, MilnorAlgebra};
 use ext::{chain_complex::ChainComplex, utils::query_module};
 use itertools::Itertools;
-use std::fmt::Write as _;
-use std::fs::File;
-use std::io::{BufWriter, Write as _};
 
 fn main() -> anyhow::Result<()> {
     let resolution = query_module(Some(AlgebraType::Milnor), false)?;

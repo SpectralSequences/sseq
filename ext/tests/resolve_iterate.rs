@@ -1,7 +1,8 @@
 use algebra::AlgebraType;
-use ext::chain_complex::{ChainComplex, FreeChainComplex};
-use ext::utils::construct;
-use ext::utils::load_module_json;
+use ext::{
+    chain_complex::{ChainComplex, FreeChainComplex},
+    utils::{construct, load_module_json},
+};
 use rstest::rstest;
 use sseq::coordinates::Bidegree;
 

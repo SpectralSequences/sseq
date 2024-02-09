@@ -1,19 +1,20 @@
+use std::sync::Arc;
+
+use algebra::{
+    module::{homomorphism::FreeModuleHomomorphism, FreeModule, Module},
+    Algebra,
+};
+use ext::{
+    chain_complex::{AugmentedChainComplex, ChainComplex, FreeChainComplex},
+    resolution::Resolution as ResolutionInner,
+    resolution_homomorphism::ResolutionHomomorphism as ResolutionHomomorphism_,
+};
+use fp::{matrix::Matrix, prime::ValidPrime};
+use once::{OnceBiVec, OnceVec};
 use rustc_hash::FxHashSet as HashSet;
 use serde::Deserialize;
 use serde_json::Value;
 use sseq::coordinates::Bidegree;
-use std::sync::Arc;
-
-use algebra::module::homomorphism::FreeModuleHomomorphism;
-use algebra::module::{FreeModule, Module};
-use algebra::Algebra;
-use ext::chain_complex::{AugmentedChainComplex, ChainComplex, FreeChainComplex};
-use ext::resolution::Resolution as ResolutionInner;
-use fp::matrix::Matrix;
-use fp::prime::ValidPrime;
-use once::{OnceBiVec, OnceVec};
-
-use ext::resolution_homomorphism::ResolutionHomomorphism as ResolutionHomomorphism_;
 
 use crate::actions::{Action, Message};
 pub type ResolutionHomomorphism<CC> =

@@ -1,12 +1,16 @@
-use crate::algebra::adem_algebra::AdemBasisElement;
-use crate::algebra::{AdemAlgebra, Algebra, MilnorAlgebra};
-use crate::milnor_algebra::{MilnorBasisElement, PPartEntry};
-use crate::steenrod_parser::*;
-use fp::prime::{Prime, ValidPrime};
-use fp::vector::FpVector;
+use std::collections::BTreeMap;
 
 use anyhow::anyhow;
-use std::collections::BTreeMap;
+use fp::{
+    prime::{Prime, ValidPrime},
+    vector::FpVector,
+};
+
+use crate::{
+    algebra::{adem_algebra::AdemBasisElement, AdemAlgebra, Algebra, MilnorAlgebra},
+    milnor_algebra::{MilnorBasisElement, PPartEntry},
+    steenrod_parser::*,
+};
 
 pub struct SteenrodEvaluator {
     pub adem: AdemAlgebra,
@@ -388,10 +392,11 @@ impl SteenrodEvaluator {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use expect_test::{expect, Expect};
     use fp::prime::ValidPrime;
     use rstest::rstest;
+
+    use super::*;
 
     #[test]
     fn test_evaluate_2() {

@@ -1,9 +1,12 @@
-use super::Matrix;
-use crate::prime::ValidPrime;
-use crate::vector::{FpVector, Slice, SliceMut};
+use std::io::{Read, Write};
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-use std::io::{Read, Write};
+
+use super::Matrix;
+use crate::{
+    prime::ValidPrime,
+    vector::{FpVector, Slice, SliceMut},
+};
 
 /// A subspace of a vector space.
 ///

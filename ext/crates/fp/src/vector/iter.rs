@@ -1,9 +1,8 @@
+use super::inner::SliceP;
 use crate::{
     limb::{self, Limb},
     prime::Prime,
 };
-
-use super::inner::SliceP;
 
 pub struct FpVectorIterator<'a> {
     limbs: &'a [Limb],
@@ -84,6 +83,7 @@ impl<'a> FpVectorIterator<'a> {
 
 impl<'a> Iterator for FpVectorIterator<'a> {
     type Item = u32;
+
     fn next(&mut self) -> Option<Self::Item> {
         if self.counter == 0 {
             return None;
@@ -157,6 +157,7 @@ impl<'a, P: Prime> FpVectorNonZeroIteratorP<'a, P> {
 
 impl<'a, P: Prime> Iterator for FpVectorNonZeroIteratorP<'a, P> {
     type Item = (usize, u32);
+
     fn next(&mut self) -> Option<Self::Item> {
         let bit_length: usize = limb::bit_length(self.p);
         let bitmask: Limb = limb::bitmask(self.p);

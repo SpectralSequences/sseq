@@ -1,5 +1,6 @@
-use once::OnceBiVec;
 use std::cmp::Ordering::*;
+
+use once::OnceBiVec;
 
 pub struct DenseBigradedModule {
     dimensions: OnceBiVec<OnceBiVec<usize>>,
