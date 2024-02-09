@@ -68,7 +68,7 @@
 </pre></div><pre class="rust"><code><span class="kw">use </span>algebra::module::{steenrod_module, FDModule, TensorModule};
 <span class="kw">use </span>algebra::{AdemAlgebra, SteenrodAlgebra};
 <span class="kw">use </span>ext::utils::parse_module_name;
-<span class="kw">use </span>fp::prime::ValidPrime;
+<span class="kw">use </span>fp::prime::{Prime, ValidPrime};
 
 <span class="kw">use </span>anyhow::anyhow;
 <span class="kw">use </span>serde_json::json;
@@ -99,7 +99,7 @@
     tensor.name = String::new();
 
     <span class="kw">let </span><span class="kw-2">mut </span>output = <span class="macro">json!</span>({
-        <span class="string">"p"</span>: <span class="kw-2">*</span>p,
+        <span class="string">"p"</span>: p.as_u32(),
     });
     tensor.to_json(<span class="kw-2">&amp;mut </span>output);
 

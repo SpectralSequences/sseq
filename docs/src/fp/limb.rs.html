@@ -191,22 +191,11 @@
 <a href="#165" id="165">165</a>
 <a href="#166" id="166">166</a>
 <a href="#167" id="167">167</a>
-<a href="#168" id="168">168</a>
-<a href="#169" id="169">169</a>
-<a href="#170" id="170">170</a>
-<a href="#171" id="171">171</a>
-<a href="#172" id="172">172</a>
-<a href="#173" id="173">173</a>
-<a href="#174" id="174">174</a>
-<a href="#175" id="175">175</a>
-<a href="#176" id="176">176</a>
-<a href="#177" id="177">177</a>
-<a href="#178" id="178">178</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::ops::Range;
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span><span class="kw">crate</span>::constants::Limb;
 
-<span class="kw">use crate</span>::{constants::BITS_PER_LIMB, prime::ValidPrime};
+<span class="kw">use crate</span>::{constants::BITS_PER_LIMB, prime::Prime};
 
 <span class="doccomment">/// A struct containing the information required to access a specific entry in an array of `Limb`s.
 </span><span class="attr">#[derive(Copy, Clone)]
@@ -216,51 +205,38 @@
 }
 
 <span class="doccomment">/// Return the number of bits an element of $\mathbb{F}_P$ occupies in a limb.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const fn </span>bit_length(p: ValidPrime) -&gt; usize {
-    <span class="kw">let </span>p = p.value();
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>bit_length&lt;P: Prime&gt;(p: P) -&gt; usize {
+    <span class="kw">let </span>p = p.as_u32() <span class="kw">as </span>u64;
     <span class="kw">match </span>p {
         <span class="number">2 </span>=&gt; <span class="number">1</span>,
-        <span class="kw">_ </span>=&gt; (<span class="number">32 </span>- (p * (p - <span class="number">1</span>)).leading_zeros()) <span class="kw">as </span>usize,
-    }
-}
-
-<span class="doccomment">/// Return the number of bits an element of $\mathbb{F}_P$ occupies in a limb.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const fn </span>bit_length_const&lt;<span class="kw">const </span>P: u32&gt;() -&gt; usize {
-    <span class="kw">match </span>P {
-        <span class="number">2 </span>=&gt; <span class="number">1</span>,
-        <span class="kw">_ </span>=&gt; (<span class="number">32 </span>- (P * (P - <span class="number">1</span>)).leading_zeros()) <span class="kw">as </span>usize,
+        <span class="kw">_ </span>=&gt; (BITS_PER_LIMB <span class="kw">as </span>u32 - (p * (p - <span class="number">1</span>)).leading_zeros()) <span class="kw">as </span>usize,
     }
 }
 
 <span class="doccomment">/// If `l` is a limb of elements of $\\mathbb{F}_p$, then `l &amp; bitmask::&lt;P&gt;()` is the value of the
 /// first entry of `l`.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const fn </span>bitmask&lt;<span class="kw">const </span>P: u32&gt;() -&gt; Limb {
-    (<span class="number">1 </span>&lt;&lt; bit_length_const::&lt;P&gt;()) - <span class="number">1
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>bitmask&lt;P: Prime&gt;(p: P) -&gt; Limb {
+    (<span class="number">1 </span>&lt;&lt; bit_length(p)) - <span class="number">1
 </span>}
 
 <span class="comment">// this function is never called if `odd-primes` is disabled
 </span><span class="attr">#[allow(dead_code)]
 </span><span class="doccomment">/// The number of elements of $\\mathbb{F}_p$ that fit in a single limb.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const fn </span>entries_per_limb(p: ValidPrime) -&gt; usize {
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>entries_per_limb&lt;P: Prime&gt;(p: P) -&gt; usize {
     BITS_PER_LIMB / bit_length(p)
 }
 
-<span class="doccomment">/// The number of elements of $\\mathbb{F}_p$ that fit in a single limb.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const fn </span>entries_per_limb_const&lt;<span class="kw">const </span>P: u32&gt;() -&gt; usize {
-    BITS_PER_LIMB / bit_length_const::&lt;P&gt;()
-}
-
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const fn </span>limb_bit_index_pair&lt;<span class="kw">const </span>P: u32&gt;(idx: usize) -&gt; LimbBitIndexPair {
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>limb_bit_index_pair&lt;P: Prime&gt;(p: P, idx: usize) -&gt; LimbBitIndexPair {
     LimbBitIndexPair {
-        limb: idx / entries_per_limb_const::&lt;P&gt;(),
-        bit_index: (idx % entries_per_limb_const::&lt;P&gt;() * bit_length_const::&lt;P&gt;()),
+        limb: idx / entries_per_limb(p),
+        bit_index: (idx % entries_per_limb(p) * bit_length(p)),
     }
 }
 
 <span class="doccomment">/// Return the `Limb` whose `i`th entry is `limb_a[i] + coeff * limb_b[i]` mod P. Both `limb_a` and
 /// `limb_b` are assumed to be reduced.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const fn </span>add&lt;<span class="kw">const </span>P: u32&gt;(limb_a: Limb, limb_b: Limb, coeff: u32) -&gt; Limb {
-    <span class="kw">if </span>P == <span class="number">2 </span>{
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>add&lt;P: Prime&gt;(p: P, limb_a: Limb, limb_b: Limb, coeff: u32) -&gt; Limb {
+    <span class="kw">if </span>p == <span class="number">2 </span>{
         limb_a ^ (coeff <span class="kw">as </span>Limb * limb_b)
     } <span class="kw">else </span>{
         limb_a + (coeff <span class="kw">as </span>Limb) * limb_b
@@ -270,8 +246,8 @@
 <span class="doccomment">/// Return the `Limb` whose entries are the entries of `limb` reduced modulo `P`.
 ///
 /// Contributed by Robert Burklund.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>reduce&lt;<span class="kw">const </span>P: u32&gt;(limb: Limb) -&gt; Limb {
-    <span class="kw">match </span>P {
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>reduce&lt;P: Prime&gt;(p: P, limb: Limb) -&gt; Limb {
+    <span class="kw">match </span>p.as_u32() {
         <span class="number">2 </span>=&gt; limb,
         <span class="number">3 </span>=&gt; {
             <span class="comment">// Set top bit to 1 in every limb
@@ -295,14 +271,14 @@
             <span class="kw">let </span>d = m &amp; BOTTOM_THREE_BITS;
             d + c - BOTTOM_TWO_BITS
         }
-        <span class="kw">_ </span>=&gt; pack::&lt;<span class="kw">_</span>, P&gt;(unpack::&lt;P&gt;(limb).map(|x| x % P)),
+        <span class="kw">_ </span>=&gt; pack(p, unpack(p, limb).map(|x| (x % (p.as_u32() <span class="kw">as </span>u64)) <span class="kw">as </span>u32)),
     }
 }
 
 <span class="doccomment">/// Check whether or not a limb is reduced, i.e. whether every entry is a value in the range `0..P`.
 /// This is currently **not** faster than calling [`reduce`] directly.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_reduced&lt;<span class="kw">const </span>P: u32&gt;(limb: Limb) -&gt; bool {
-    limb == reduce::&lt;P&gt;(limb)
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_reduced&lt;P: Prime&gt;(p: P, limb: Limb) -&gt; bool {
+    limb == reduce(p, limb)
 }
 
 <span class="doccomment">/// Given an interator of `u32`'s, pack all of them into a single limb in order.
@@ -311,8 +287,8 @@
 ///  - The values of the iterator fit into a single limb
 ///
 /// If these assumptions are violated, the result will be nonsense.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>pack&lt;T: Iterator&lt;Item = u32&gt;, <span class="kw">const </span>P: u32&gt;(entries: T) -&gt; Limb {
-    <span class="kw">let </span>bit_length = bit_length_const::&lt;P&gt;();
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>pack&lt;T: Iterator&lt;Item = u32&gt;, P: Prime&gt;(p: P, entries: T) -&gt; Limb {
+    <span class="kw">let </span>bit_length = bit_length(p);
     <span class="kw">let </span><span class="kw-2">mut </span>result: Limb = <span class="number">0</span>;
     <span class="kw">let </span><span class="kw-2">mut </span>shift = <span class="number">0</span>;
     <span class="kw">for </span>entry <span class="kw">in </span>entries {
@@ -322,34 +298,36 @@
     result
 }
 
-<span class="doccomment">/// Give an iterator over the entries of `limb`.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>unpack&lt;<span class="kw">const </span>P: u32&gt;(<span class="kw-2">mut </span>limb: Limb) -&gt; <span class="kw">impl </span>Iterator&lt;Item = u32&gt; {
-    <span class="kw">let </span>entries = entries_per_limb_const::&lt;P&gt;();
-    <span class="kw">let </span>bit_length = bit_length_const::&lt;P&gt;();
-    <span class="kw">let </span>bit_mask = bitmask::&lt;P&gt;();
+<span class="doccomment">/// Give an iterator over the entries of `limb`. We return `u64` instead of `u32` because the
+/// entries might not be reduced. In general we can only guarantee that the entries are less than p
+/// * (p - 1), so they might not fit into a single `u32`.
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>unpack&lt;P: Prime&gt;(p: P, <span class="kw-2">mut </span>limb: Limb) -&gt; <span class="kw">impl </span>Iterator&lt;Item = u64&gt; {
+    <span class="kw">let </span>entries = entries_per_limb(p);
+    <span class="kw">let </span>bit_length = bit_length(p);
+    <span class="kw">let </span>bit_mask = bitmask(p);
 
     (<span class="number">0</span>..entries).map(<span class="kw">move </span>|<span class="kw">_</span>| {
-        <span class="kw">let </span>result = (limb &amp; bit_mask) <span class="kw">as </span>u32;
+        <span class="kw">let </span>result = limb &amp; bit_mask;
         limb &gt;&gt;= bit_length;
         result
     })
 }
 
 <span class="doccomment">/// Return the number of limbs required to hold `dim` entries.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const fn </span>number&lt;<span class="kw">const </span>P: u32&gt;(dim: usize) -&gt; usize {
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>number&lt;P: Prime&gt;(p: P, dim: usize) -&gt; usize {
     <span class="kw">if </span>dim == <span class="number">0 </span>{
         <span class="number">0
     </span>} <span class="kw">else </span>{
-        limb_bit_index_pair::&lt;P&gt;(dim - <span class="number">1</span>).limb + <span class="number">1
+        limb_bit_index_pair(p, dim - <span class="number">1</span>).limb + <span class="number">1
     </span>}
 }
 
 <span class="doccomment">/// Return the `Range&lt;usize&gt;` starting at the index of the limb containing the `start`th entry, and
 /// ending at the index of the limb containing the `end`th entry (including the latter).
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const fn </span>range&lt;<span class="kw">const </span>P: u32&gt;(start: usize, end: usize) -&gt; Range&lt;usize&gt; {
-    <span class="kw">let </span>min = limb_bit_index_pair::&lt;P&gt;(start).limb;
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>range&lt;P: Prime&gt;(p: P, start: usize, end: usize) -&gt; Range&lt;usize&gt; {
+    <span class="kw">let </span>min = limb_bit_index_pair(p, start).limb;
     <span class="kw">let </span>max = <span class="kw">if </span>end &gt; <span class="number">0 </span>{
-        limb_bit_index_pair::&lt;P&gt;(end - <span class="number">1</span>).limb + <span class="number">1
+        limb_bit_index_pair(p, end - <span class="number">1</span>).limb + <span class="number">1
     </span>} <span class="kw">else </span>{
         <span class="number">0
     </span>};
@@ -373,8 +351,8 @@
 }
 
 <span class="doccomment">/// Return either `Some(sum)` if no carries happen in the limb, or `None` if some carry does happen.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>truncate&lt;<span class="kw">const </span>P: u32&gt;(sum: Limb) -&gt; <span class="prelude-ty">Option</span>&lt;Limb&gt; {
-    <span class="kw">if </span>is_reduced::&lt;P&gt;(sum) {
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>truncate&lt;P: Prime&gt;(p: P, sum: Limb) -&gt; <span class="prelude-ty">Option</span>&lt;Limb&gt; {
+    <span class="kw">if </span>is_reduced(p, sum) {
         <span class="prelude-val">Some</span>(sum)
     } <span class="kw">else </span>{
         <span class="prelude-val">None

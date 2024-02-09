@@ -954,7 +954,7 @@
             }
             <span class="comment">// Now do the -1 part of the null-homotopy of bc.
             </span>{
-                <span class="kw">let </span>sign = <span class="kw-2">*</span>p * <span class="kw-2">*</span>p - <span class="number">1</span>;
+                <span class="kw">let </span>sign = p * p - <span class="number">1</span>;
                 <span class="kw">let </span>out = b.product_nullhomotopy(b_tau.as_deref(), <span class="kw-2">&amp;</span>unit_sseq, c, gen);
                 <span class="kw">for </span>(i, v) <span class="kw">in </span>out.iter_nonzero() {
                     scratch0
@@ -965,11 +965,11 @@
             }
 
             <span class="kw">for </span>(i, v) <span class="kw">in </span>scratch0.iter().enumerate() {
-                <span class="kw">let </span>extra = <span class="kw-2">*</span>v / <span class="kw-2">*</span>p;
-                scratch1.add(<span class="kw-2">&amp;</span>mp[i], extra % <span class="kw-2">*</span>p);
+                <span class="kw">let </span>extra = <span class="kw-2">*</span>v / p;
+                scratch1.add(<span class="kw-2">&amp;</span>mp[i], extra % p);
             }
 
-            <span class="macro">print!</span>(<span class="string">"[{}]"</span>, scratch0.iter().map(|x| x % <span class="kw-2">*</span>p).format(<span class="string">", "</span>));
+            <span class="macro">print!</span>(<span class="string">"[{}]"</span>, scratch0.iter().map(|x| <span class="kw-2">*</span>x % p).format(<span class="string">", "</span>));
 
             <span class="comment">// Then deal with the rest of the null-homotopy of bc. This is just the null-homotopy
             // of 2.
@@ -983,7 +983,7 @@
                     .for_each(|(a, b)| <span class="kw-2">*</span>a += v * b);
             }
             <span class="kw">for </span>(i, v) <span class="kw">in </span>scratch0.iter().enumerate() {
-                <span class="kw">let </span>extra = (v / <span class="kw-2">*</span>p) % <span class="kw-2">*</span>p;
+                <span class="kw">let </span>extra = (<span class="kw-2">*</span>v / p) % p;
                 <span class="kw">if </span>extra == <span class="number">0 </span>{
                     <span class="kw">continue</span>;
                 }

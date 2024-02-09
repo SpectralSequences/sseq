@@ -331,7 +331,7 @@
 <span class="kw">use </span>algebra::steenrod_evaluator::SteenrodEvaluator;
 <span class="kw">use </span>algebra::{AdemAlgebra, Algebra, GeneratedAlgebra};
 <span class="kw">use </span>bivec::BiVec;
-<span class="kw">use </span>fp::prime::ValidPrime;
+<span class="kw">use </span>fp::prime::{Prime, ValidPrime};
 <span class="kw">use </span>fp::vector::FpVector;
 
 <span class="kw">use </span>anyhow::anyhow;
@@ -408,7 +408,7 @@
     output_json: <span class="kw-2">&amp;mut </span>Value,
     p: ValidPrime,
 ) -&gt; anyhow::Result&lt;()&gt; {
-    output_json[<span class="string">"p"</span>] = Value::from(<span class="kw-2">*</span>p);
+    output_json[<span class="string">"p"</span>] = Value::from(p.as_u32());
     <span class="kw">let </span>algebra = Arc::new(AdemAlgebra::new(p, <span class="bool-val">false</span>));
 
     <span class="kw">let </span>gens = get_gens()<span class="question-mark">?</span>;
@@ -508,7 +508,7 @@
     }
 
     <span class="macro">eprintln!</span>(<span class="string">"Input relations"</span>);
-    <span class="kw">match </span><span class="kw-2">*</span>p {
+    <span class="kw">match </span>p.as_u32() {
         <span class="number">2 </span>=&gt; <span class="macro">eprintln!</span>(<span class="string">"Write relations in the form 'Sq6 * Sq2 * x + Sq7 * y'"</span>),
         <span class="kw">_ </span>=&gt; <span class="macro">eprintln!</span>(<span class="string">"Write relations in the form 'Q5 * P(5) * x + 2 * P(1, 3) * Q2 * y', where P(...) and Qi are Milnor basis elements."</span>),
     }
@@ -582,7 +582,7 @@
         }
     }
 
-    output_json[<span class="string">"p"</span>] = Value::from(<span class="kw-2">*</span>p);
+    output_json[<span class="string">"p"</span>] = Value::from(p.as_u32());
     output_json[<span class="string">"type"</span>] = Value::String(<span class="string">"finitely presented module"</span>.to_owned());
     <span class="kw">for </span>(i, deg_i_gens) <span class="kw">in </span>gens.iter_enum() {
         <span class="kw">for </span>gen <span class="kw">in </span>deg_i_gens {

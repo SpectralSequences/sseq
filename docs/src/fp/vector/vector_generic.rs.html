@@ -502,6 +502,29 @@
 <a href="#476" id="476">476</a>
 <a href="#477" id="477">477</a>
 <a href="#478" id="478">478</a>
+<a href="#479" id="479">479</a>
+<a href="#480" id="480">480</a>
+<a href="#481" id="481">481</a>
+<a href="#482" id="482">482</a>
+<a href="#483" id="483">483</a>
+<a href="#484" id="484">484</a>
+<a href="#485" id="485">485</a>
+<a href="#486" id="486">486</a>
+<a href="#487" id="487">487</a>
+<a href="#488" id="488">488</a>
+<a href="#489" id="489">489</a>
+<a href="#490" id="490">490</a>
+<a href="#491" id="491">491</a>
+<a href="#492" id="492">492</a>
+<a href="#493" id="493">493</a>
+<a href="#494" id="494">494</a>
+<a href="#495" id="495">495</a>
+<a href="#496" id="496">496</a>
+<a href="#497" id="497">497</a>
+<a href="#498" id="498">498</a>
+<a href="#499" id="499">499</a>
+<a href="#500" id="500">500</a>
+<a href="#501" id="501">501</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! This module is provides wrappers around the contents of [`crate::vector::inner`]. The main
 //! purpose is to put [`FpVectorP`] for different `p` into a single enum. It does the same for the
 //! various slice structs.
@@ -520,7 +543,7 @@
 <span class="kw">use </span>serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 <span class="kw">use </span><span class="kw">crate</span>::limb::{entries_per_limb, Limb};
-<span class="kw">use </span><span class="kw">crate</span>::prime::ValidPrime;
+<span class="kw">use </span><span class="kw">crate</span>::prime::{primes::<span class="kw-2">*</span>, Prime, ValidPrime};
 <span class="kw">use </span><span class="kw">crate</span>::vector::inner::{FpVectorP, SliceMutP, SliceP};
 
 <span class="kw">use </span><span class="kw">super</span>::iter::{FpVectorIterator, FpVectorNonZeroIteratorP};
@@ -535,6 +558,7 @@
                 (<span class="self">Self</span>::_3(x), <span class="macro-nonterminal">$other::_3</span>(y)) =&gt; x.<span class="macro-nonterminal">$method</span>(y, $(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>),
                 (<span class="self">Self</span>::_5(x), <span class="macro-nonterminal">$other::_5</span>(y)) =&gt; x.<span class="macro-nonterminal">$method</span>(y, $(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>),
                 (<span class="self">Self</span>::_7(x), <span class="macro-nonterminal">$other::_7</span>(y)) =&gt; x.<span class="macro-nonterminal">$method</span>(y, $(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>),
+                (<span class="self">Self</span>::Big(x), <span class="macro-nonterminal">$other::Big</span>(y)) =&gt; x.<span class="macro-nonterminal">$method</span>(y, $(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>),
                 (l, r) =&gt; {
                     <span class="macro">panic!</span>(<span class="string">"Applying {} to vectors over different primes ({} and {})"</span>, <span class="macro">stringify!</span>(<span class="macro-nonterminal">$method</span>), l.prime(), r.prime());
                 }
@@ -549,6 +573,7 @@
                 (<span class="self">Self</span>::_3(x), <span class="macro-nonterminal">$other::_3</span>(y)) =&gt; x.<span class="macro-nonterminal">$method</span>(y, $(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>),
                 (<span class="self">Self</span>::_5(x), <span class="macro-nonterminal">$other::_5</span>(y)) =&gt; x.<span class="macro-nonterminal">$method</span>(y, $(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>),
                 (<span class="self">Self</span>::_7(x), <span class="macro-nonterminal">$other::_7</span>(y)) =&gt; x.<span class="macro-nonterminal">$method</span>(y, $(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>),
+                (<span class="self">Self</span>::Big(x), <span class="macro-nonterminal">$other::Big</span>(y)) =&gt; x.<span class="macro-nonterminal">$method</span>(y, $(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>),
                 (l, r) =&gt; {
                     <span class="macro">panic!</span>(<span class="string">"Applying {} to vectors over different primes ({} and {})"</span>, <span class="macro">stringify!</span>(<span class="macro-nonterminal">$method</span>), l.prime(), r.prime());
                 }
@@ -562,6 +587,7 @@
                 (<span class="self">Self</span>::_3(x), <span class="macro-nonterminal">$other::_3</span>(y)) =&gt; x.<span class="macro-nonterminal">$method</span>(y, $(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>),
                 (<span class="self">Self</span>::_5(x), <span class="macro-nonterminal">$other::_5</span>(y)) =&gt; x.<span class="macro-nonterminal">$method</span>(y, $(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>),
                 (<span class="self">Self</span>::_7(x), <span class="macro-nonterminal">$other::_7</span>(y)) =&gt; x.<span class="macro-nonterminal">$method</span>(y, $(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>),
+                (<span class="self">Self</span>::Big(x), <span class="macro-nonterminal">$other::Big</span>(y)) =&gt; x.<span class="macro-nonterminal">$method</span>(y, $(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>),
                 (l, r) =&gt; {
                     <span class="macro">panic!</span>(<span class="string">"Applying {} to vectors over different primes ({} and {})"</span>, <span class="macro">stringify!</span>(<span class="macro-nonterminal">$method</span>), l.prime(), r.prime());
                 }
@@ -576,6 +602,7 @@
                 <span class="self">Self</span>::_3(x) =&gt; <span class="macro-nonterminal">$ret::_3</span>(x.<span class="macro-nonterminal">$method</span>($(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>)),
                 <span class="self">Self</span>::_5(x) =&gt; <span class="macro-nonterminal">$ret::_5</span>(x.<span class="macro-nonterminal">$method</span>($(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>)),
                 <span class="self">Self</span>::_7(x) =&gt; <span class="macro-nonterminal">$ret::_7</span>(x.<span class="macro-nonterminal">$method</span>($(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>)),
+                <span class="self">Self</span>::Big(x) =&gt; <span class="macro-nonterminal">$ret::Big</span>(x.<span class="macro-nonterminal">$method</span>($(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>)),
             }
         }
     };
@@ -587,6 +614,7 @@
                 <span class="self">Self</span>::_3(x) =&gt; <span class="macro-nonterminal">$ret::_3</span>(x.<span class="macro-nonterminal">$method</span>($(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>)),
                 <span class="self">Self</span>::_5(x) =&gt; <span class="macro-nonterminal">$ret::_5</span>(x.<span class="macro-nonterminal">$method</span>($(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>)),
                 <span class="self">Self</span>::_7(x) =&gt; <span class="macro-nonterminal">$ret::_7</span>(x.<span class="macro-nonterminal">$method</span>($(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>)),
+                <span class="self">Self</span>::Big(x) =&gt; <span class="macro-nonterminal">$ret::Big</span>(x.<span class="macro-nonterminal">$method</span>($(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>)),
             }
         }
     };
@@ -598,6 +626,7 @@
                 <span class="self">Self</span>::_3(x) =&gt; <span class="macro-nonterminal">$ret::_3</span>(x.<span class="macro-nonterminal">$method</span>($(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>)),
                 <span class="self">Self</span>::_5(x) =&gt; <span class="macro-nonterminal">$ret::_5</span>(x.<span class="macro-nonterminal">$method</span>($(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>)),
                 <span class="self">Self</span>::_7(x) =&gt; <span class="macro-nonterminal">$ret::_7</span>(x.<span class="macro-nonterminal">$method</span>($(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>)),
+                <span class="self">Self</span>::Big(x) =&gt; <span class="macro-nonterminal">$ret::Big</span>(x.<span class="macro-nonterminal">$method</span>($(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>)),
             }
         }
     };
@@ -610,6 +639,7 @@
                 <span class="self">Self</span>::_3(x) =&gt; <span class="macro-nonterminal">$ret::_3</span>(x.<span class="macro-nonterminal">$method</span>($(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>)),
                 <span class="self">Self</span>::_5(x) =&gt; <span class="macro-nonterminal">$ret::_5</span>(x.<span class="macro-nonterminal">$method</span>($(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>)),
                 <span class="self">Self</span>::_7(x) =&gt; <span class="macro-nonterminal">$ret::_7</span>(x.<span class="macro-nonterminal">$method</span>($(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>)),
+                <span class="self">Self</span>::Big(x) =&gt; <span class="macro-nonterminal">$ret::Big</span>(x.<span class="macro-nonterminal">$method</span>($(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>)),
             }
         }
     };
@@ -622,6 +652,7 @@
                 <span class="self">Self</span>::_3(x) =&gt; x.<span class="macro-nonterminal">$method</span>($(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>),
                 <span class="self">Self</span>::_5(x) =&gt; x.<span class="macro-nonterminal">$method</span>($(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>),
                 <span class="self">Self</span>::_7(x) =&gt; x.<span class="macro-nonterminal">$method</span>($(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>),
+                <span class="self">Self</span>::Big(x) =&gt; x.<span class="macro-nonterminal">$method</span>($(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>),
             }
         }
     };
@@ -633,6 +664,7 @@
                 <span class="self">Self</span>::_3(x) =&gt; x.<span class="macro-nonterminal">$method</span>($(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>),
                 <span class="self">Self</span>::_5(x) =&gt; x.<span class="macro-nonterminal">$method</span>($(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>),
                 <span class="self">Self</span>::_7(x) =&gt; x.<span class="macro-nonterminal">$method</span>($(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>),
+                <span class="self">Self</span>::Big(x) =&gt; x.<span class="macro-nonterminal">$method</span>($(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>),
             }
         }
     };
@@ -644,6 +676,7 @@
                 <span class="self">Self</span>::_3(x) =&gt; x.<span class="macro-nonterminal">$method</span>($(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>),
                 <span class="self">Self</span>::_5(x) =&gt; x.<span class="macro-nonterminal">$method</span>($(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>),
                 <span class="self">Self</span>::_7(x) =&gt; x.<span class="macro-nonterminal">$method</span>($(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>),
+                <span class="self">Self</span>::Big(x) =&gt; x.<span class="macro-nonterminal">$method</span>($(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>),
             }
         }
     }
@@ -659,60 +692,70 @@
     }
 }
 
-<span class="macro">macro_rules! </span>match_p {
-    (<span class="macro-nonterminal">$p</span>:ident, $(<span class="macro-nonterminal">$val</span>:tt)<span class="kw-2">*</span>) =&gt; {
-        <span class="kw">match </span><span class="kw-2">*</span><span class="macro-nonterminal">$p </span>{
-            <span class="number">2 </span>=&gt; <span class="self">Self</span>::_2($(<span class="macro-nonterminal">$val</span>)<span class="kw-2">*</span>),
-            <span class="number">3 </span>=&gt; <span class="self">Self</span>::_3($(<span class="macro-nonterminal">$val</span>)<span class="kw-2">*</span>),
-            <span class="number">5 </span>=&gt; <span class="self">Self</span>::_5($(<span class="macro-nonterminal">$val</span>)<span class="kw-2">*</span>),
-            <span class="number">7 </span>=&gt; <span class="self">Self</span>::_7($(<span class="macro-nonterminal">$val</span>)<span class="kw-2">*</span>),
-            <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"Prime not supported: {}"</span>, <span class="kw-2">*</span><span class="macro-nonterminal">$p</span>)
-        }
-    }
-}
-
 <span class="attr">#[derive(Debug, Hash, Eq, PartialEq, Clone)]
 </span><span class="kw">pub enum </span>FpVector {
-    _2(FpVectorP&lt;<span class="number">2</span>&gt;),
-    _3(FpVectorP&lt;<span class="number">3</span>&gt;),
-    _5(FpVectorP&lt;<span class="number">5</span>&gt;),
-    _7(FpVectorP&lt;<span class="number">7</span>&gt;),
+    _2(FpVectorP&lt;P2&gt;),
+    _3(FpVectorP&lt;P3&gt;),
+    _5(FpVectorP&lt;P5&gt;),
+    _7(FpVectorP&lt;P7&gt;),
+    Big(FpVectorP&lt;ValidPrime&gt;),
 }
 
 <span class="attr">#[derive(Debug, Copy, Clone)]
 </span><span class="kw">pub enum </span>Slice&lt;<span class="lifetime">'a</span>&gt; {
-    _2(SliceP&lt;<span class="lifetime">'a</span>, <span class="number">2</span>&gt;),
-    _3(SliceP&lt;<span class="lifetime">'a</span>, <span class="number">3</span>&gt;),
-    _5(SliceP&lt;<span class="lifetime">'a</span>, <span class="number">5</span>&gt;),
-    _7(SliceP&lt;<span class="lifetime">'a</span>, <span class="number">7</span>&gt;),
+    _2(SliceP&lt;<span class="lifetime">'a</span>, P2&gt;),
+    _3(SliceP&lt;<span class="lifetime">'a</span>, P3&gt;),
+    _5(SliceP&lt;<span class="lifetime">'a</span>, P5&gt;),
+    _7(SliceP&lt;<span class="lifetime">'a</span>, P7&gt;),
+    Big(SliceP&lt;<span class="lifetime">'a</span>, ValidPrime&gt;),
 }
 
 <span class="attr">#[derive(Debug)]
 </span><span class="kw">pub enum </span>SliceMut&lt;<span class="lifetime">'a</span>&gt; {
-    _2(SliceMutP&lt;<span class="lifetime">'a</span>, <span class="number">2</span>&gt;),
-    _3(SliceMutP&lt;<span class="lifetime">'a</span>, <span class="number">3</span>&gt;),
-    _5(SliceMutP&lt;<span class="lifetime">'a</span>, <span class="number">5</span>&gt;),
-    _7(SliceMutP&lt;<span class="lifetime">'a</span>, <span class="number">7</span>&gt;),
+    _2(SliceMutP&lt;<span class="lifetime">'a</span>, P2&gt;),
+    _3(SliceMutP&lt;<span class="lifetime">'a</span>, P3&gt;),
+    _5(SliceMutP&lt;<span class="lifetime">'a</span>, P5&gt;),
+    _7(SliceMutP&lt;<span class="lifetime">'a</span>, P7&gt;),
+    Big(SliceMutP&lt;<span class="lifetime">'a</span>, ValidPrime&gt;),
 }
 
 <span class="kw">pub enum </span>FpVectorNonZeroIterator&lt;<span class="lifetime">'a</span>&gt; {
-    _2(FpVectorNonZeroIteratorP&lt;<span class="lifetime">'a</span>, <span class="number">2</span>&gt;),
-    _3(FpVectorNonZeroIteratorP&lt;<span class="lifetime">'a</span>, <span class="number">3</span>&gt;),
-    _5(FpVectorNonZeroIteratorP&lt;<span class="lifetime">'a</span>, <span class="number">5</span>&gt;),
-    _7(FpVectorNonZeroIteratorP&lt;<span class="lifetime">'a</span>, <span class="number">7</span>&gt;),
+    _2(FpVectorNonZeroIteratorP&lt;<span class="lifetime">'a</span>, P2&gt;),
+    _3(FpVectorNonZeroIteratorP&lt;<span class="lifetime">'a</span>, P3&gt;),
+    _5(FpVectorNonZeroIteratorP&lt;<span class="lifetime">'a</span>, P5&gt;),
+    _7(FpVectorNonZeroIteratorP&lt;<span class="lifetime">'a</span>, P7&gt;),
+    Big(FpVectorNonZeroIteratorP&lt;<span class="lifetime">'a</span>, ValidPrime&gt;),
 }
 
 <span class="kw">impl </span>FpVector {
-    <span class="kw">pub fn </span>new(p: ValidPrime, len: usize) -&gt; FpVector {
-        <span class="macro">match_p!</span>(p, FpVectorP::new_(len))
+    <span class="kw">pub fn </span>new&lt;P: Prime&gt;(p: P, len: usize) -&gt; FpVector {
+        <span class="kw">match </span>p.as_u32() {
+            <span class="number">2 </span>=&gt; FpVector::_2(FpVectorP::new(P2, len)),
+            <span class="number">3 </span>=&gt; FpVector::_3(FpVectorP::new(P3, len)),
+            <span class="number">5 </span>=&gt; FpVector::_5(FpVectorP::new(P5, len)),
+            <span class="number">7 </span>=&gt; FpVector::_7(FpVectorP::new(P7, len)),
+            <span class="kw">_ </span>=&gt; FpVector::Big(FpVectorP::new(p.to_dyn(), len)),
+        }
     }
 
-    <span class="kw">pub fn </span>new_with_capacity(p: ValidPrime, len: usize, capacity: usize) -&gt; FpVector {
-        <span class="macro">match_p!</span>(p, FpVectorP::new_with_capacity_(len, capacity))
+    <span class="kw">pub fn </span>new_with_capacity&lt;P: Prime&gt;(p: P, len: usize, capacity: usize) -&gt; FpVector {
+        <span class="kw">match </span>p.as_u32() {
+            <span class="number">2 </span>=&gt; FpVector::_2(FpVectorP::new_with_capacity(P2, len, capacity)),
+            <span class="number">3 </span>=&gt; FpVector::_3(FpVectorP::new_with_capacity(P3, len, capacity)),
+            <span class="number">5 </span>=&gt; FpVector::_5(FpVectorP::new_with_capacity(P5, len, capacity)),
+            <span class="number">7 </span>=&gt; FpVector::_7(FpVectorP::new_with_capacity(P7, len, capacity)),
+            <span class="kw">_ </span>=&gt; FpVector::Big(FpVectorP::new_with_capacity(p.to_dyn(), len, capacity)),
+        }
     }
 
-    <span class="kw">pub fn </span>from_slice(p: ValidPrime, slice: <span class="kw-2">&amp;</span>[u32]) -&gt; <span class="self">Self </span>{
-        <span class="macro">match_p!</span>(p, FpVectorP::from(<span class="kw-2">&amp;</span>slice))
+    <span class="kw">pub fn </span>from_slice&lt;P: Prime&gt;(p: P, slice: <span class="kw-2">&amp;</span>[u32]) -&gt; <span class="self">Self </span>{
+        <span class="kw">match </span>p.as_u32() {
+            <span class="number">2 </span>=&gt; FpVector::_2(FpVectorP::from((P2, <span class="kw-2">&amp;</span>slice))),
+            <span class="number">3 </span>=&gt; FpVector::_3(FpVectorP::from((P3, <span class="kw-2">&amp;</span>slice))),
+            <span class="number">5 </span>=&gt; FpVector::_5(FpVectorP::from((P5, <span class="kw-2">&amp;</span>slice))),
+            <span class="number">7 </span>=&gt; FpVector::_7(FpVectorP::from((P7, <span class="kw-2">&amp;</span>slice))),
+            <span class="kw">_ </span>=&gt; FpVector::Big(FpVectorP::from((p.to_dyn(), <span class="kw-2">&amp;</span>slice))),
+        }
     }
 
     <span class="kw">pub fn </span>num_limbs(p: ValidPrime, len: usize) -&gt; usize {
@@ -843,6 +886,7 @@
             (SliceMut::_3(x), Slice::_3(y), Slice::_3(z)) =&gt; x.add_tensor(offset, coeff, y, z),
             (SliceMut::_5(x), Slice::_5(y), Slice::_5(z)) =&gt; x.add_tensor(offset, coeff, y, z),
             (SliceMut::_7(x), Slice::_7(y), Slice::_7(z)) =&gt; x.add_tensor(offset, coeff, y, z),
+            (SliceMut::Big(x), Slice::Big(y), Slice::Big(z)) =&gt; x.add_tensor(offset, coeff, y, z),
             <span class="kw">_ </span>=&gt; {
                 <span class="macro">panic!</span>(<span class="string">"Applying add_tensor to vectors over different primes"</span>);
             }
@@ -874,7 +918,8 @@
     </span><span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter) -&gt; std::fmt::Result {
         <span class="kw">if </span>f.alternate() {
             <span class="kw">for </span>v <span class="kw">in </span><span class="self">self</span>.iter() {
-                <span class="macro">write!</span>(f, <span class="string">"{v}"</span>)<span class="question-mark">?</span>;
+                <span class="comment">// If self.p &gt;= 11, this will look funky
+                </span><span class="macro">write!</span>(f, <span class="string">"{v}"</span>)<span class="question-mark">?</span>;
             }
             <span class="prelude-val">Ok</span>(())
         } <span class="kw">else </span>{
@@ -913,7 +958,7 @@
 }
 
 <span class="macro">macro_rules! </span>impl_try_into {
-    (<span class="macro-nonterminal">$var</span>:tt, <span class="macro-nonterminal">$p</span>:literal) =&gt; {
+    (<span class="macro-nonterminal">$var</span>:tt, <span class="macro-nonterminal">$p</span>:ty) =&gt; {
         <span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; TryInto&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>FpVectorP&lt;<span class="macro-nonterminal">$p</span>&gt;&gt; <span class="kw">for </span><span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>FpVector {
             <span class="kw">type </span>Error = ();
 
@@ -927,10 +972,11 @@
     };
 }
 
-<span class="macro">impl_try_into!</span>(_2, <span class="number">2</span>);
-<span class="macro">impl_try_into!</span>(_3, <span class="number">3</span>);
-<span class="macro">impl_try_into!</span>(_5, <span class="number">5</span>);
-<span class="macro">impl_try_into!</span>(_7, <span class="number">7</span>);
+<span class="macro">impl_try_into!</span>(_2, P2);
+<span class="macro">impl_try_into!</span>(_3, P3);
+<span class="macro">impl_try_into!</span>(_5, P5);
+<span class="macro">impl_try_into!</span>(_7, P7);
+<span class="macro">impl_try_into!</span>(Big, ValidPrime);
 
 <span class="kw">impl </span>Serialize <span class="kw">for </span>FpVector {
     <span class="kw">fn </span>serialize&lt;S&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, serializer: S) -&gt; <span class="prelude-ty">Result</span>&lt;S::Ok, S::Error&gt;

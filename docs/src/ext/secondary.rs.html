@@ -1992,7 +1992,7 @@
             <span class="comment">// Check that we indeed had a lift
             </span><span class="kw">let </span>d = target.differential(target_b.s());
             <span class="kw">for </span>(src, tgt) <span class="kw">in </span>std::iter::zip(<span class="kw-2">&amp;</span>results, <span class="kw-2">&amp;mut </span>intermediates) {
-                d.apply(tgt.as_slice_mut(), <span class="kw-2">*</span>p - <span class="number">1</span>, target_b.t(), src.as_slice());
+                d.apply(tgt.as_slice_mut(), p - <span class="number">1</span>, target_b.t(), src.as_slice());
                 <span class="macro">assert!</span>(
                     tgt.is_zero(),
                     <span class="string">"secondary: Failed to lift at {b}. This likely indicates an invalid input."
@@ -2295,7 +2295,7 @@
     }
 
     <span class="kw">fn </span>composite(<span class="kw-2">&amp;</span><span class="self">self</span>, s: u32) -&gt; CompositeData&lt;<span class="self">Self</span>::Algebra&gt; {
-        <span class="kw">let </span>p = <span class="kw-2">*</span><span class="self">self</span>.prime();
+        <span class="kw">let </span>p = <span class="self">self</span>.prime();
         <span class="comment">// This is -1 mod p^2
         </span><span class="kw">let </span>neg_1 = p * p - <span class="number">1</span>;
 
@@ -2313,7 +2313,7 @@
 
     <span class="kw">fn </span>compute_intermediate(<span class="kw-2">&amp;</span><span class="self">self</span>, gen: BidegreeGenerator) -&gt; FpVector {
         <span class="kw">let </span>p = <span class="self">self</span>.prime();
-        <span class="kw">let </span>neg_1 = <span class="kw-2">*</span>p - <span class="number">1</span>;
+        <span class="kw">let </span>neg_1 = p - <span class="number">1</span>;
         <span class="kw">let </span>shifted_b = gen.degree() - <span class="self">self</span>.shift();
         <span class="kw">let </span>target = <span class="self">self</span>.target().module(shifted_b.s() - <span class="number">1</span>);
 
@@ -2427,11 +2427,11 @@
         );
 
         <span class="kw">let </span>sign = <span class="kw">if </span>(<span class="self">self</span>.underlying.shift.s() <span class="kw">as </span>i32 * b.t()) % <span class="number">2 </span>== <span class="number">1 </span>{
-            <span class="kw-2">*</span>p * <span class="kw-2">*</span>p - <span class="number">1
+            p * p - <span class="number">1
         </span>} <span class="kw">else </span>{
             <span class="number">1
         </span>};
-        <span class="kw">let </span>filtration_one_sign = <span class="kw">if </span>(b.t() % <span class="number">2</span>) == <span class="number">1 </span>{ <span class="kw-2">*</span>p - <span class="number">1 </span>} <span class="kw">else </span>{ <span class="number">1 </span>};
+        <span class="kw">let </span>filtration_one_sign = <span class="kw">if </span>(b.t() % <span class="number">2</span>) == <span class="number">1 </span>{ p - <span class="number">1 </span>} <span class="kw">else </span>{ <span class="number">1 </span>};
 
         <span class="kw">let </span>page_data = sseq.map(|sseq| {
             <span class="kw">let </span>d = sseq.page_data(tau_source.n(), tau_source.s() <span class="kw">as </span>i32);
@@ -2448,14 +2448,14 @@
                     .zip_eq(<span class="kw-2">&amp;</span>m0[i])
                     .for_each(|(a, b)| <span class="kw-2">*</span>a += v * b * sign);
                 out.slice_mut(source_num_gens, source_num_gens + tau_num_gens)
-                    .add(m1[i].as_slice(), (v * sign) % <span class="kw-2">*</span>p);
+                    .add(m1[i].as_slice(), (v * sign) % p);
             }
             <span class="kw">for </span>(i, v) <span class="kw">in </span>scratch0.iter().enumerate() {
-                out.add_basis_element(i, <span class="kw-2">*</span>v % <span class="kw-2">*</span>p);
+                out.add_basis_element(i, <span class="kw-2">*</span>v % p);
 
-                <span class="kw">let </span>extra = <span class="kw-2">*</span>v / <span class="kw-2">*</span>p;
+                <span class="kw">let </span>extra = <span class="kw-2">*</span>v / p;
                 out.slice_mut(source_num_gens, source_num_gens + tau_num_gens)
-                    .add(mp[i].as_slice(), (extra * filtration_one_sign) % <span class="kw-2">*</span>p);
+                    .add(mp[i].as_slice(), (extra * filtration_one_sign) % p);
             }
             <span class="kw">if let </span><span class="prelude-val">Some</span>(page_data) = page_data {
                 page_data.reduce_by_quotient(
@@ -2640,7 +2640,7 @@
 
     <span class="kw">fn </span>compute_intermediate(<span class="kw-2">&amp;</span><span class="self">self</span>, gen: BidegreeGenerator) -&gt; FpVector {
         <span class="kw">let </span>p = <span class="self">self</span>.prime();
-        <span class="kw">let </span>neg_1 = <span class="kw-2">*</span>p - <span class="number">1</span>;
+        <span class="kw">let </span>neg_1 = p - <span class="number">1</span>;
         <span class="kw">let </span>shifted_b = gen.degree() - <span class="self">self</span>.shift();
 
         <span class="kw">let </span>target = <span class="self">self</span>.target().module(shifted_b.s() - <span class="number">1</span>);
@@ -2732,7 +2732,7 @@
     }
 
     <span class="kw">fn </span>composite(<span class="kw-2">&amp;</span><span class="self">self</span>, s: u32) -&gt; CompositeData&lt;S::Algebra&gt; {
-        <span class="kw">let </span>p = <span class="kw-2">*</span><span class="self">self</span>.prime();
+        <span class="kw">let </span>p = <span class="self">self</span>.prime();
         <span class="comment">// This is -1 mod p^2
         </span><span class="kw">let </span>neg_1 = p * p - <span class="number">1</span>;
 

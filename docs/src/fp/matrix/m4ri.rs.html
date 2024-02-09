@@ -149,9 +149,11 @@
 <a href="#123" id="123">123</a>
 <a href="#124" id="124">124</a>
 <a href="#125" id="125">125</a>
+<a href="#126" id="126">126</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::constants::BITS_PER_LIMB;
 <span class="kw">use </span><span class="kw">crate</span>::limb::{number, Limb};
 <span class="kw">use </span><span class="kw">crate</span>::matrix::Matrix;
+<span class="kw">use </span><span class="kw">crate</span>::prime::P2;
 <span class="kw">use </span><span class="kw">crate</span>::simd;
 
 <span class="kw">use </span>itertools::Itertools;
@@ -186,7 +188,7 @@
 <span class="kw">impl </span>M4riTable {
     <span class="doccomment">/// Create a table with space for `k` vectors, each with `cols` columns.
     </span><span class="kw">pub fn </span>new(k: usize, cols: usize) -&gt; <span class="self">Self </span>{
-        <span class="kw">let </span>num_limbs = number::&lt;<span class="number">2</span>&gt;(cols);
+        <span class="kw">let </span>num_limbs = number(P2, cols);
         <span class="self">Self </span>{
             rows: Vec::with_capacity(k),
             columns: Vec::with_capacity(k),

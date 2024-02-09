@@ -114,7 +114,7 @@
 <span class="kw">fn </span>main() -&gt; anyhow::Result&lt;()&gt; {
     <span class="kw">let </span>resolution = query_module(<span class="prelude-val">Some</span>(AlgebraType::Milnor), <span class="bool-val">false</span>)<span class="question-mark">?</span>;
 
-    <span class="macro">assert_eq!</span>(<span class="kw-2">*</span>resolution.prime(), <span class="number">2</span>);
+    <span class="macro">assert_eq!</span>(resolution.prime(), <span class="number">2</span>);
     <span class="kw">let </span>algebra = resolution.algebra();
     <span class="kw">let </span>algebra: <span class="kw-2">&amp;</span>MilnorAlgebra = algebra.as_ref().try_into()<span class="question-mark">?</span>;
 

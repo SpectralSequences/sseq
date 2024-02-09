@@ -291,7 +291,7 @@
             <span class="kw">if </span>c != <span class="number">0 </span>{
                 elt.add(
                     <span class="self">self</span>.gens.matrix.row(<span class="self">self</span>.gens.pivots()[i] <span class="kw">as </span>usize),
-                    ((<span class="kw-2">*</span>elt.prime() - <span class="number">1</span>) * c) % <span class="kw-2">*</span>elt.prime(),
+                    ((elt.prime() - <span class="number">1</span>) * c) % elt.prime(),
                 );
             }
         }

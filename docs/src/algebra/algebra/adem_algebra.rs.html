@@ -1590,6 +1590,8 @@
 <a href="#1564" id="1564">1564</a>
 <a href="#1565" id="1565">1565</a>
 <a href="#1566" id="1566">1566</a>
+<a href="#1567" id="1567">1567</a>
+<a href="#1568" id="1568">1568</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! The Steenrod algebra using the Adem basis.
 
 </span><span class="kw">use </span>std::fmt;
@@ -1597,7 +1599,10 @@
 <span class="kw">use </span>itertools::Itertools;
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
 
-<span class="kw">use </span>fp::prime::{BinomialIterator, BitflagIterator, ValidPrime};
+<span class="kw">use </span>fp::prime::{
+    iter::{BinomialIterator, BitflagIterator},
+    Prime, ValidPrime,
+};
 <span class="kw">use </span>fp::vector::{FpVector, SliceMut};
 <span class="kw">use </span>once::OnceVec;
 
@@ -1675,11 +1680,10 @@
     <span class="kw">fn </span>excess(<span class="kw-2">&amp;</span><span class="self">self</span>, p: ValidPrime) -&gt; u32 {
         <span class="kw">if </span><span class="self">self</span>.degree &lt; <span class="number">2 </span>{
             <span class="self">self</span>.degree <span class="kw">as </span>u32 <span class="comment">// special case these so that self.ps[0] is defined
-        </span>} <span class="kw">else if </span><span class="kw-2">*</span>p == <span class="number">2 </span>{
+        </span>} <span class="kw">else if </span>p == <span class="number">2 </span>{
             <span class="number">2 </span>* <span class="self">self</span>.ps[<span class="number">0</span>] - <span class="self">self</span>.ps.iter().sum::&lt;u32&gt;()
         } <span class="kw">else </span>{
-            <span class="number">2 </span>* (<span class="kw-2">*</span>p * <span class="self">self</span>.ps[<span class="number">0</span>] - (<span class="kw-2">*</span>p - <span class="number">1</span>) * <span class="self">self</span>.ps.iter().sum::&lt;u32&gt;())
-                + <span class="number">2 </span>* (<span class="self">self</span>.bocksteins &amp; <span class="number">1</span>)
+            <span class="number">2 </span>* (p * <span class="self">self</span>.ps[<span class="number">0</span>] - (p - <span class="number">1</span>) * <span class="self">self</span>.ps.iter().sum::&lt;u32&gt;()) + <span class="number">2 </span>* (<span class="self">self</span>.bocksteins &amp; <span class="number">1</span>)
                 - <span class="self">self</span>.bocksteins.count_ones()
         }
     }
@@ -1773,9 +1777,9 @@
 
     <span class="kw">fn </span>magic(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u32 {
         <span class="kw">if </span><span class="self">self</span>.unstable_enabled {
-            <span class="number">1 </span>+ (<span class="kw-2">*</span><span class="self">self</span>.prime() &lt;&lt; <span class="number">16</span>)
+            <span class="number">1 </span>+ (<span class="self">self</span>.prime() &lt;&lt; <span class="number">16</span>)
         } <span class="kw">else </span>{
-            <span class="kw-2">*</span><span class="self">self</span>.prime() &lt;&lt; <span class="number">16
+            <span class="self">self</span>.prime() &lt;&lt; <span class="number">16
         </span>}
     }
 
@@ -1792,19 +1796,19 @@
                     degree: <span class="number">1</span>,
                     bocksteins: <span class="number">1</span>,
                     ps: <span class="macro">vec!</span>[],
-                    p_or_sq: <span class="kw-2">*</span><span class="self">self</span>.prime() != <span class="number">2</span>,
+                    p_or_sq: <span class="self">self</span>.prime() != <span class="number">2</span>,
                 },
             ));
             products.push((
                 <span class="string">"h_0"</span>.to_string(),
                 AdemBasisElement {
-                    degree: (<span class="number">2 </span>* (<span class="kw-2">*</span><span class="self">self</span>.prime()) - <span class="number">2</span>) <span class="kw">as </span>i32,
+                    degree: (<span class="number">2 </span>* <span class="self">self</span>.prime() - <span class="number">2</span>) <span class="kw">as </span>i32,
                     bocksteins: <span class="number">0</span>,
                     ps: <span class="macro">vec!</span>[<span class="number">1</span>],
-                    p_or_sq: <span class="kw-2">*</span><span class="self">self</span>.prime() != <span class="number">2</span>,
+                    p_or_sq: <span class="self">self</span>.prime() != <span class="number">2</span>,
                 },
             ));
-            (<span class="number">2 </span>* (<span class="kw-2">*</span><span class="self">self</span>.prime()) - <span class="number">2</span>) <span class="kw">as </span>i32
+            (<span class="number">2 </span>* <span class="self">self</span>.prime() - <span class="number">2</span>) <span class="kw">as </span>i32
         } <span class="kw">else </span>{
             <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..<span class="number">4 </span>{
                 <span class="kw">let </span>degree = <span class="number">1 </span>&lt;&lt; i; <span class="comment">// degree is 2^hi
@@ -1815,7 +1819,7 @@
                         degree,
                         bocksteins: <span class="number">0</span>,
                         ps,
-                        p_or_sq: <span class="kw-2">*</span><span class="self">self</span>.prime() != <span class="number">2</span>,
+                        p_or_sq: <span class="self">self</span>.prime() != <span class="number">2</span>,
                     },
                 ));
             }
@@ -1925,7 +1929,7 @@
             <span class="kw">if </span>degree == <span class="number">1 </span>{
                 <span class="string">"b"</span>.to_string()
             } <span class="kw">else </span>{
-                <span class="macro">format!</span>(<span class="string">"P{}"</span>, degree <span class="kw">as </span>u32 / (<span class="number">2 </span>* (<span class="kw-2">*</span><span class="self">self</span>.prime()) - <span class="number">2</span>))
+                <span class="macro">format!</span>(<span class="string">"P{}"</span>, degree <span class="kw">as </span>u32 / (<span class="number">2 </span>* <span class="self">self</span>.prime() - <span class="number">2</span>))
             }
         } <span class="kw">else </span>{
             <span class="macro">format!</span>(<span class="string">"Sq{degree}"</span>)
@@ -1933,7 +1937,7 @@
     }
 
     <span class="kw">fn </span>generators(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32) -&gt; Vec&lt;usize&gt; {
-        <span class="kw">let </span>p = <span class="kw-2">*</span><span class="self">self</span>.prime();
+        <span class="kw">let </span>p = <span class="self">self</span>.prime();
         <span class="kw">if </span>degree == <span class="number">0 </span>{
             <span class="kw">return </span><span class="macro">vec!</span>[];
         }
@@ -1957,7 +1961,7 @@
                 degree,
                 bocksteins: <span class="number">0</span>,
                 ps: <span class="macro">vec!</span>[degree <span class="kw">as </span>u32 / (<span class="number">2 </span>* p - <span class="number">2</span>)],
-                p_or_sq: <span class="kw-2">*</span><span class="self">self</span>.prime() != <span class="number">2</span>,
+                p_or_sq: <span class="self">self</span>.prime() != <span class="number">2</span>,
             });
             <span class="macro">vec!</span>[idx]
         } <span class="kw">else </span>{
@@ -1969,7 +1973,7 @@
                 degree,
                 bocksteins: <span class="number">0</span>,
                 ps: <span class="macro">vec!</span>[degree <span class="kw">as </span>u32],
-                p_or_sq: <span class="kw-2">*</span><span class="self">self</span>.prime() != <span class="number">2</span>,
+                p_or_sq: <span class="self">self</span>.prime() != <span class="number">2</span>,
             });
             <span class="macro">vec!</span>[idx]
         }
@@ -2004,14 +2008,14 @@
             <span class="comment">// Adem relation
             </span><span class="kw">let </span>first_sq = <span class="self">self</span>.beps_pn(<span class="number">0</span>, x);
             <span class="kw">let </span>second_sq = <span class="self">self</span>.beps_pn(b, y);
-            relation.push((<span class="kw-2">*</span>p - <span class="number">1</span>, first_sq, second_sq));
+            relation.push((p - <span class="number">1</span>, first_sq, second_sq));
             <span class="kw">for </span>e1 <span class="kw">in </span><span class="number">0</span>..=b {
                 <span class="kw">let </span>e2 = b - e1;
                 <span class="comment">// e1 and e2 determine where a bockstein shows up.
                 // e1 determines if a bockstein shows up in front
                 // e2 determines if a bockstein shows up in middle
                 // So our output term looks like b^{e1} P^{x+y-j} b^{e2} P^{j}
-                </span><span class="kw">for </span>j <span class="kw">in </span><span class="number">0</span>..=x / <span class="kw-2">*</span>p {
+                </span><span class="kw">for </span>j <span class="kw">in </span><span class="number">0</span>..=x / p {
                     <span class="kw">let </span>c = combinatorics::adem_relation_coefficient(p, x, y, j, e1, e2);
                     <span class="kw">if </span>c == <span class="number">0 </span>{
                         <span class="kw">continue</span>;
@@ -2024,7 +2028,7 @@
                             <span class="macro">vec!</span>[x + y - j, j]
                         },
                         bocksteins: e1 | (e2 &lt;&lt; <span class="number">1</span>),
-                        p_or_sq: <span class="kw-2">*</span><span class="self">self</span>.prime() != <span class="number">2</span>,
+                        p_or_sq: <span class="self">self</span>.prime() != <span class="number">2</span>,
                     });
                     relation.push((c, (degree, idx), (<span class="number">0</span>, <span class="number">0</span>)));
                 }
@@ -2079,7 +2083,7 @@
         <span class="kw">let </span>excess_table = OnceVec::new();
         <span class="self">Self </span>{
             p,
-            generic: <span class="kw-2">*</span>p != <span class="number">2</span>,
+            generic: p != <span class="number">2</span>,
             unstable_enabled,
             even_basis_table,
             basis_table,
@@ -2095,7 +2099,7 @@
 
     <span class="kw">pub fn </span>q(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; i32 {
         <span class="kw">if </span><span class="self">self</span>.generic {
-            <span class="number">2 </span>* (<span class="kw-2">*</span><span class="self">self</span>.prime() <span class="kw">as </span>i32 - <span class="number">1</span>)
+            <span class="number">2 </span>* (<span class="self">self</span>.prime().as_i32() - <span class="number">1</span>)
         } <span class="kw">else </span>{
             <span class="number">1
         </span>}
@@ -2109,7 +2113,7 @@
                 degree: <span class="number">0</span>,
                 bocksteins: <span class="kw">if </span><span class="self">self</span>.generic { u32::MAX &lt;&lt; <span class="number">1 </span>} <span class="kw">else </span>{ <span class="number">0 </span>},
                 ps: <span class="macro">vec!</span>[],
-                p_or_sq: <span class="kw-2">*</span>p != <span class="number">2</span>,
+                p_or_sq: p != <span class="number">2</span>,
             }]
         });
 
@@ -2122,7 +2126,7 @@
                 degree: n,
                 bocksteins: <span class="kw">if </span><span class="self">self</span>.generic { u32::MAX &lt;&lt; <span class="number">2 </span>} <span class="kw">else </span>{ <span class="number">0 </span>},
                 ps: <span class="macro">vec!</span>[n <span class="kw">as </span>u32],
-                p_or_sq: <span class="kw-2">*</span><span class="self">self</span>.prime() != <span class="number">2</span>,
+                p_or_sq: <span class="self">self</span>.prime() != <span class="number">2</span>,
             });
 
             <span class="comment">// last = last term. We append (last,) to the end of
@@ -2132,12 +2136,12 @@
             // or (p+1) * last &lt;= n or last &lt;= n/(p+1). We order the squares in decreasing
             // order of their last element so that as we walk over the previous basis
             // when we find a square whose end is too small, we can break.
-            </span><span class="kw">for </span>last <span class="kw">in </span>(<span class="number">1</span>..=n / (<span class="kw-2">*</span>p <span class="kw">as </span>i32 + <span class="number">1</span>)).rev() {
+            </span><span class="kw">for </span>last <span class="kw">in </span>(<span class="number">1</span>..=n / (p.as_i32() + <span class="number">1</span>)).rev() {
                 <span class="kw">let </span>previous_basis = <span class="kw-2">&amp;</span><span class="self">self</span>.even_basis_table[(n - last) <span class="kw">as </span>usize];
                 <span class="kw">for </span>prev_elt <span class="kw">in </span>previous_basis {
                     <span class="kw">let </span>prev_elt_p_len = prev_elt.ps.len();
                     <span class="kw">let </span>old_last_sq = prev_elt.ps[prev_elt_p_len - <span class="number">1</span>] <span class="kw">as </span>i32;
-                    <span class="kw">if </span>old_last_sq &lt; <span class="kw-2">*</span>p <span class="kw">as </span>i32 * last {
+                    <span class="kw">if </span>old_last_sq &lt; p.as_i32() * last {
                         <span class="kw">break</span>;
                     }
                     <span class="comment">// Write new basis element to basis element buffer
@@ -2147,7 +2151,7 @@
                     // A bit in bocksteins shall be set if it's illegal for a bockstein to occur there.
                     </span><span class="kw">let </span><span class="kw-2">mut </span>bocksteins = prev_elt.bocksteins;
                     <span class="kw">if </span><span class="self">self</span>.generic {
-                        bocksteins |= <span class="kw">if </span>old_last_sq == <span class="kw-2">*</span>p <span class="kw">as </span>i32 * last {
+                        bocksteins |= <span class="kw">if </span>old_last_sq == p.as_i32() * last {
                             <span class="number">1 </span>&lt;&lt; prev_elt_p_len
                         } <span class="kw">else </span>{
                             <span class="number">0
@@ -2161,7 +2165,7 @@
                         degree,
                         bocksteins,
                         ps,
-                        p_or_sq: <span class="kw-2">*</span>p != <span class="number">2</span>,
+                        p_or_sq: p != <span class="number">2</span>,
                     });
                 }
             }
@@ -2185,7 +2189,7 @@
         <span class="self">self</span>.generate_basis_even(max_degree);
 
         <span class="kw">let </span>p = <span class="self">self</span>.prime();
-        <span class="kw">let </span>q = <span class="number">2 </span>* (<span class="kw-2">*</span>p <span class="kw">as </span>i32 - <span class="number">1</span>);
+        <span class="kw">let </span>q = <span class="number">2 </span>* (p.as_i32() - <span class="number">1</span>);
         <span class="self">self</span>.basis_table.extend(max_degree <span class="kw">as </span>usize, |n| {
             <span class="kw">let </span>n = n <span class="kw">as </span>i32;
             <span class="kw">let </span>residue = n % q;
@@ -2218,7 +2222,7 @@
                             degree: n,
                             bocksteins,
                             ps: elt.ps.clone(),
-                            p_or_sq: <span class="kw-2">*</span>p != <span class="number">2</span>,
+                            p_or_sq: p != <span class="number">2</span>,
                         });
                         <span class="comment">// BinomialIterator does not have a stopping condition, so we need to stop
                         // manually here
@@ -2370,7 +2374,7 @@
     <span class="kw">fn </span>generate_multiplication_table_generic(<span class="kw-2">&amp;</span><span class="self">self</span>, max_degree: i32) {
         <span class="self">self</span>.multiplication_table.extend(<span class="number">0</span>, |<span class="kw">_</span>| Vec::new());
 
-        <span class="kw">let </span>q = <span class="number">2 </span>* (<span class="kw-2">*</span><span class="self">self</span>.prime()) <span class="kw">as </span>i32 - <span class="number">2</span>;
+        <span class="kw">let </span>q = <span class="number">2 </span>* <span class="self">self</span>.prime().as_i32() - <span class="number">2</span>;
         <span class="self">self</span>.multiplication_table.extend(max_degree <span class="kw">as </span>usize, |n| {
             <span class="kw">let </span>n = n <span class="kw">as </span>i32;
             <span class="kw">let </span><span class="kw-2">mut </span>table: Vec&lt;Vec&lt;FpVector&gt;&gt; = Vec::with_capacity(<span class="number">2 </span>* (n / q + <span class="number">1</span>) <span class="kw">as </span>usize);
@@ -2413,7 +2417,7 @@
         x: i32,
         idx: usize,
     ) -&gt; FpVector {
-        <span class="kw">let </span>p: i32 = <span class="kw-2">*</span><span class="self">self</span>.prime() <span class="kw">as </span>i32; <span class="comment">// we use p for the i32 version and self.p for the u32 version
+        <span class="kw">let </span>p: i32 = <span class="self">self</span>.prime().as_i32(); <span class="comment">// we use p for the i32 version and self.p for the u32 version
         </span><span class="kw">let </span>q: i32 = <span class="number">2 </span>* p - <span class="number">2</span>;
 
         <span class="kw">let </span>x: u32 = x <span class="kw">as </span>u32;
@@ -2456,7 +2460,7 @@
             .clone();
 
         <span class="kw">let </span>b: u32 = working_elt.bocksteins &amp; <span class="number">1</span>;
-        <span class="kw">if </span>working_elt.ps.is_empty() || i &gt;= (<span class="kw-2">*</span><span class="self">self</span>.prime()) * working_elt.ps[<span class="number">0</span>] + b {
+        <span class="kw">if </span>working_elt.ps.is_empty() || i &gt;= <span class="self">self</span>.prime() * working_elt.ps[<span class="number">0</span>] + b {
             working_elt.ps.insert(<span class="number">0</span>, i);
             working_elt.bocksteins &lt;&lt;= <span class="number">1</span>;
             working_elt.degree = n;
@@ -2473,7 +2477,7 @@
 
         <span class="kw">if </span>b == <span class="number">0 </span>{
             <span class="comment">// We use P^i P^j = \sum ... P^{i + j - k} P^k
-            </span><span class="kw">for </span>k <span class="kw">in </span><span class="number">0</span>..=i / (<span class="kw-2">*</span><span class="self">self</span>.prime()) {
+            </span><span class="kw">for </span>k <span class="kw">in </span><span class="number">0</span>..=i / <span class="self">self</span>.prime() {
                 <span class="kw">let </span>c = combinatorics::adem_relation_coefficient(<span class="self">self</span>.prime(), i, j, k, <span class="number">0</span>, <span class="number">0</span>);
                 <span class="kw">if </span>c == <span class="number">0 </span>{
                     <span class="kw">continue</span>;
@@ -2491,7 +2495,7 @@
                     [(n - q * (i + j - k) <span class="kw">as </span>i32) <span class="kw">as </span>usize][<span class="number">2 </span>* k <span class="kw">as </span>usize][tail_idx];
                 <span class="kw">for </span>(id, coeff) <span class="kw">in </span>rest_reduced.iter().enumerate() {
                     <span class="kw">let </span>source = <span class="kw-2">&amp;</span>table[<span class="number">2 </span>* (i + j - k) <span class="kw">as </span>usize][id];
-                    result.add(source, (c * coeff) % <span class="kw-2">*</span><span class="self">self</span>.prime());
+                    result.add(source, (c * coeff) % <span class="self">self</span>.prime());
                 }
             }
         } <span class="kw">else </span>{
@@ -2511,7 +2515,7 @@
                 result.add_basis_element(index, c);
             }
 
-            <span class="kw">for </span>k <span class="kw">in </span><span class="number">1</span>..=i / (<span class="kw-2">*</span><span class="self">self</span>.prime()) {
+            <span class="kw">for </span>k <span class="kw">in </span><span class="number">1</span>..=i / <span class="self">self</span>.prime() {
                 <span class="comment">// \beta P^{i + j - k} P^k
                 </span><span class="kw">let </span>c = combinatorics::adem_relation_coefficient(<span class="self">self</span>.prime(), i, j, k, <span class="number">1</span>, <span class="number">0</span>);
                 <span class="kw">if </span>c != <span class="number">0 </span>{
@@ -2519,7 +2523,7 @@
                         [(n - q * (i + j - k) <span class="kw">as </span>i32 - <span class="number">1</span>) <span class="kw">as </span>usize][<span class="number">2 </span>* k <span class="kw">as </span>usize][tail_idx];
                     <span class="kw">for </span>(id, coeff) <span class="kw">in </span>rest_reduced.iter().enumerate() {
                         <span class="kw">let </span>source = <span class="kw-2">&amp;</span>table[<span class="number">1 </span>+ <span class="number">2 </span>* (i + j - k) <span class="kw">as </span>usize][id];
-                        result.add(source, (c * coeff) % <span class="kw-2">*</span><span class="self">self</span>.prime());
+                        result.add(source, (c * coeff) % <span class="self">self</span>.prime());
                     }
                 }
 
@@ -2530,7 +2534,7 @@
                         [(n - q * (i + j - k) <span class="kw">as </span>i32) <span class="kw">as </span>usize][<span class="number">1 </span>+ <span class="number">2 </span>* k <span class="kw">as </span>usize][tail_idx];
                     <span class="kw">for </span>(id, coeff) <span class="kw">in </span>rest_reduced.iter().enumerate() {
                         <span class="kw">let </span>source = <span class="kw-2">&amp;</span>table[<span class="number">2 </span>* (i + j - k) <span class="kw">as </span>usize][id];
-                        result.add(source, (c * coeff) % <span class="kw-2">*</span><span class="self">self</span>.prime());
+                        result.add(source, (c * coeff) % <span class="self">self</span>.prime());
                     }
                 }
             }
@@ -2567,7 +2571,7 @@
             degree: r.degree + s.degree,
             bocksteins: <span class="number">0</span>,
             ps: Vec::with_capacity(r.ps.len() + s.ps.len()),
-            p_or_sq: <span class="kw-2">*</span><span class="self">self</span>.prime() != <span class="number">2</span>,
+            p_or_sq: <span class="self">self</span>.prime() != <span class="number">2</span>,
         };
         <span class="kw">if </span><span class="self">self</span>.generic &amp;&amp; (r.bocksteins &gt;&gt; r.ps.len()) &amp; s.bocksteins &amp; <span class="number">1 </span>== <span class="number">1 </span>{
             <span class="comment">// If there is a bockstein at the end of r and one at the beginning of s, these run into each other
@@ -2618,7 +2622,7 @@
         excess: i32,
     ) {
         <span class="kw">let </span>q = <span class="kw">if </span><span class="self">self</span>.generic {
-            <span class="number">2 </span>* (<span class="kw-2">*</span><span class="self">self</span>.prime()) - <span class="number">2
+            <span class="number">2 </span>* <span class="self">self</span>.prime() - <span class="number">2
         </span>} <span class="kw">else </span>{
             <span class="number">1
         </span>};
@@ -2687,7 +2691,7 @@
             degree: monomial.degree,
             bocksteins: <span class="number">0</span>,
             ps: monomial.ps[<span class="number">0</span>..idx].to_vec(),
-            p_or_sq: <span class="kw-2">*</span><span class="self">self</span>.prime() != <span class="number">2</span>,
+            p_or_sq: <span class="self">self</span>.prime() != <span class="number">2</span>,
         };
 
         <span class="kw">for </span>(it_idx, _value) <span class="kw">in </span>reduced_tail.iter_nonzero() {
@@ -2715,7 +2719,7 @@
         excess: i32,
         stop_early: bool,
     ) {
-        <span class="kw">let </span>p = <span class="kw-2">*</span><span class="self">self</span>.prime();
+        <span class="kw">let </span>p = <span class="self">self</span>.prime();
         <span class="kw">let </span>q = <span class="number">2 </span>* p - <span class="number">2</span>;
         <span class="comment">// Check for admissibility
         </span><span class="kw">let </span>b1 = <span class="kw">if </span>idx &gt;= <span class="number">0 </span>{
@@ -2752,7 +2756,7 @@
             degree: monomial.degree,
             bocksteins: <span class="number">0</span>,
             ps: monomial.ps[<span class="number">0</span>..idx].to_vec(),
-            p_or_sq: <span class="kw-2">*</span><span class="self">self</span>.prime() != <span class="number">2</span>,
+            p_or_sq: <span class="self">self</span>.prime() != <span class="number">2</span>,
         };
 
         <span class="kw">for </span>(it_idx, it_value) <span class="kw">in </span>reduced_tail.iter_nonzero() {
@@ -2788,13 +2792,13 @@
                 degree: degree_first,
                 bocksteins: <span class="number">0</span>,
                 ps: <span class="macro">vec!</span>[b.ps[<span class="number">0</span>]],
-                p_or_sq: <span class="kw-2">*</span><span class="self">self</span>.prime() != <span class="number">2</span>,
+                p_or_sq: <span class="self">self</span>.prime() != <span class="number">2</span>,
             });
             <span class="kw">let </span>idx_rest = <span class="self">self</span>.basis_element_to_index(<span class="kw-2">&amp;</span>AdemBasisElement {
                 degree: degree_rest,
                 bocksteins: <span class="number">0</span>,
                 ps: ps_rest,
-                p_or_sq: <span class="kw-2">*</span><span class="self">self</span>.prime() != <span class="number">2</span>,
+                p_or_sq: <span class="self">self</span>.prime() != <span class="number">2</span>,
             });
             <span class="kw">return </span><span class="macro">vec!</span>[(<span class="number">1</span>, (degree_first, idx_first), (degree_rest, idx_rest))];
         }
@@ -2808,13 +2812,13 @@
             degree: first_degree,
             bocksteins: <span class="number">0</span>,
             ps: <span class="macro">vec!</span>[first_sq],
-            p_or_sq: <span class="kw-2">*</span><span class="self">self</span>.prime() != <span class="number">2</span>,
+            p_or_sq: <span class="self">self</span>.prime() != <span class="number">2</span>,
         });
         <span class="kw">let </span>second_idx = <span class="self">self</span>.basis_element_to_index(<span class="kw-2">&amp;</span>AdemBasisElement {
             degree: second_degree,
             bocksteins: <span class="number">0</span>,
             ps: <span class="macro">vec!</span>[second_sq],
-            p_or_sq: <span class="kw-2">*</span><span class="self">self</span>.prime() != <span class="number">2</span>,
+            p_or_sq: <span class="self">self</span>.prime() != <span class="number">2</span>,
         });
         <span class="kw">let </span><span class="kw-2">mut </span>out_vec = FpVector::new(fp::prime::TWO, <span class="self">self</span>.dimension(degree));
         <span class="self">self</span>.multiply_basis_elements(
@@ -2852,7 +2856,7 @@
             <span class="kw">return </span><span class="macro">vec!</span>[(<span class="number">1</span>, (first_degree, first_idx), (rest_degree, rest_idx))];
         }
         <span class="kw">if </span>b.bocksteins != <span class="number">0 </span>|| b.ps.len() != <span class="number">1 </span>{
-            <span class="kw">let </span>first_degree = (b.ps[<span class="number">0</span>] * <span class="number">2 </span>* (<span class="kw-2">*</span>p - <span class="number">1</span>)) <span class="kw">as </span>i32;
+            <span class="kw">let </span>first_degree = (b.ps[<span class="number">0</span>] * <span class="number">2 </span>* (p - <span class="number">1</span>)) <span class="kw">as </span>i32;
             <span class="kw">let </span>rest_degree = b.degree - first_degree;
             <span class="kw">let </span>ps_first = <span class="macro">vec!</span>[b.ps[<span class="number">0</span>]];
             <span class="kw">let </span>ps_rest = b.ps[<span class="number">1</span>..].to_vec();
@@ -2860,13 +2864,13 @@
                 degree: first_degree,
                 bocksteins: <span class="number">0</span>,
                 ps: ps_first,
-                p_or_sq: <span class="kw-2">*</span><span class="self">self</span>.prime() != <span class="number">2</span>,
+                p_or_sq: <span class="self">self</span>.prime() != <span class="number">2</span>,
             };
             <span class="kw">let </span>rest = AdemBasisElement {
                 degree: rest_degree,
                 bocksteins: b.bocksteins &gt;&gt; <span class="number">1</span>,
                 ps: ps_rest,
-                p_or_sq: <span class="kw-2">*</span><span class="self">self</span>.prime() != <span class="number">2</span>,
+                p_or_sq: <span class="self">self</span>.prime() != <span class="number">2</span>,
             };
             <span class="kw">let </span>first_idx = <span class="self">self</span>.basis_element_to_index(<span class="kw-2">&amp;</span>first);
             <span class="kw">let </span>rest_idx = <span class="self">self</span>.basis_element_to_index(<span class="kw-2">&amp;</span>rest);
@@ -2877,27 +2881,27 @@
         <span class="kw">let </span><span class="kw-2">mut </span>pow = <span class="number">1</span>;
         {
             <span class="kw">let </span><span class="kw-2">mut </span>temp_sq = sq;
-            <span class="kw">while </span>temp_sq % <span class="kw-2">*</span>p == <span class="number">0 </span>{
-                temp_sq /= <span class="kw-2">*</span>p;
-                pow <span class="kw-2">*</span>= <span class="kw-2">*</span>p;
+            <span class="kw">while </span>temp_sq % p == <span class="number">0 </span>{
+                temp_sq /= p;
+                pow <span class="kw-2">*</span>= p;
             }
         }
 
         <span class="kw">let </span>first_sq = pow;
         <span class="kw">let </span>second_sq = sq - first_sq;
-        <span class="kw">let </span>first_degree = (first_sq * <span class="number">2 </span>* (<span class="kw-2">*</span>p - <span class="number">1</span>)) <span class="kw">as </span>i32;
-        <span class="kw">let </span>second_degree = (second_sq * <span class="number">2 </span>* (<span class="kw-2">*</span>p - <span class="number">1</span>)) <span class="kw">as </span>i32;
+        <span class="kw">let </span>first_degree = (first_sq * <span class="number">2 </span>* (p - <span class="number">1</span>)) <span class="kw">as </span>i32;
+        <span class="kw">let </span>second_degree = (second_sq * <span class="number">2 </span>* (p - <span class="number">1</span>)) <span class="kw">as </span>i32;
         <span class="kw">let </span>first_idx = <span class="self">self</span>.basis_element_to_index(<span class="kw-2">&amp;</span>AdemBasisElement {
             degree: first_degree,
             bocksteins: <span class="number">0</span>,
             ps: <span class="macro">vec!</span>[first_sq],
-            p_or_sq: <span class="kw-2">*</span><span class="self">self</span>.prime() != <span class="number">2</span>,
+            p_or_sq: <span class="self">self</span>.prime() != <span class="number">2</span>,
         });
         <span class="kw">let </span>second_idx = <span class="self">self</span>.basis_element_to_index(<span class="kw-2">&amp;</span>AdemBasisElement {
             degree: second_degree,
             bocksteins: <span class="number">0</span>,
             ps: <span class="macro">vec!</span>[second_sq],
-            p_or_sq: <span class="kw-2">*</span><span class="self">self</span>.prime() != <span class="number">2</span>,
+            p_or_sq: <span class="self">self</span>.prime() != <span class="number">2</span>,
         });
         <span class="kw">let </span><span class="kw-2">mut </span>out_vec = FpVector::new(p, <span class="self">self</span>.dimension(degree));
         <span class="self">self</span>.multiply_basis_elements(
@@ -2911,16 +2915,16 @@
         <span class="kw">let </span><span class="kw-2">mut </span>result = Vec::new();
         <span class="kw">let </span>c = out_vec.entry(idx);
         <span class="macro">assert!</span>(c != <span class="number">0</span>);
-        <span class="kw">let </span>c_inv = fp::prime::inverse(p, <span class="kw-2">*</span>p - c);
+        <span class="kw">let </span>c_inv = fp::prime::inverse(p, p - c);
         result.push((
-            ((<span class="kw-2">*</span>p - <span class="number">1</span>) * c_inv) % <span class="kw-2">*</span>p,
+            ((p - <span class="number">1</span>) * c_inv) % p,
             (first_degree, first_idx),
             (second_degree, second_idx),
         ));
         out_vec.set_entry(idx, <span class="number">0</span>);
         <span class="kw">for </span>(i, v) <span class="kw">in </span>out_vec.iter_nonzero() {
             <span class="kw">let </span>(c, t1, t2) = <span class="self">self</span>.decompose_basis_element_generic(degree, i)[<span class="number">0</span>];
-            result.push(((c_inv * c * v) % <span class="kw-2">*</span>p, t1, t2));
+            result.push(((c_inv * c * v) % p, t1, t2));
         }
         result
     }
@@ -2932,14 +2936,14 @@
             <span class="kw">return </span>(<span class="number">0</span>, <span class="number">0</span>);
         }
 
-        <span class="kw">let </span>p = <span class="kw-2">*</span><span class="self">self</span>.prime();
+        <span class="kw">let </span>p = <span class="self">self</span>.prime();
         <span class="kw">let </span>q = <span class="kw">if </span><span class="self">self</span>.generic { <span class="number">2 </span>* p - <span class="number">2 </span>} <span class="kw">else </span>{ <span class="number">1 </span>};
         <span class="kw">let </span>degree = (x * q + e) <span class="kw">as </span>i32;
         <span class="kw">let </span>index = <span class="self">self</span>.basis_element_to_index(<span class="kw-2">&amp;</span>AdemBasisElement {
             degree,
             bocksteins: e,
             ps: <span class="macro">vec!</span>[x],
-            p_or_sq: <span class="kw-2">*</span><span class="self">self</span>.prime() != <span class="number">2</span>,
+            p_or_sq: <span class="self">self</span>.prime() != <span class="number">2</span>,
         });
         (degree, index)
     }
@@ -2999,7 +3003,7 @@
             <span class="kw">if </span>op_deg == <span class="number">1 </span>{
                 <span class="macro">vec!</span>[(<span class="number">1</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>), (<span class="number">0</span>, <span class="number">0</span>, <span class="number">1</span>, <span class="number">0</span>)]
             } <span class="kw">else </span>{
-                <span class="kw">let </span>q = <span class="kw-2">*</span><span class="self">self</span>.prime() * <span class="number">2 </span>- <span class="number">2</span>;
+                <span class="kw">let </span>q = <span class="self">self</span>.prime() * <span class="number">2 </span>- <span class="number">2</span>;
                 <span class="kw">let </span>op_deg = op_deg <span class="kw">as </span>u32;
                 <span class="macro">assert_eq!</span>(op_deg % q, <span class="number">0</span>);
 

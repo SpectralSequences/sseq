@@ -360,7 +360,7 @@
                 }
             }
             <span class="kw">if </span>c != <span class="number">0 </span>{
-                target.add(<span class="self">self</span>.preimage[row].as_slice(), (coeff * c) % <span class="kw-2">*</span>p);
+                target.add(<span class="self">self</span>.preimage[row].as_slice(), (coeff * c) % p);
             }
             row += <span class="number">1</span>;
         }

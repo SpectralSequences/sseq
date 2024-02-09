@@ -381,11 +381,19 @@
 <a href="#355" id="355">355</a>
 <a href="#356" id="356">356</a>
 <a href="#357" id="357">357</a>
+<a href="#358" id="358">358</a>
+<a href="#359" id="359">359</a>
+<a href="#360" id="360">360</a>
+<a href="#361" id="361">361</a>
+<a href="#362" id="362">362</a>
+<a href="#363" id="363">363</a>
+<a href="#364" id="364">364</a>
+<a href="#365" id="365">365</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>itertools::Itertools;
 
 <span class="kw">use crate</span>::{
     limb::{<span class="self">self</span>, Limb},
-    prime::ValidPrime,
+    prime::{Prime, ValidPrime},
     simd,
 };
 
@@ -394,24 +402,25 @@
     iter::{FpVectorIterator, FpVectorNonZeroIteratorP},
 };
 
-<span class="kw">impl</span>&lt;<span class="kw">const </span>P: u32&gt; FpVectorP&lt;P&gt; {
-    <span class="kw">pub fn </span>new_(len: usize) -&gt; <span class="self">Self </span>{
-        <span class="kw">let </span>number_of_limbs = limb::number::&lt;P&gt;(len);
+<span class="kw">impl</span>&lt;P: Prime&gt; FpVectorP&lt;P&gt; {
+    <span class="kw">pub fn </span>new(p: P, len: usize) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>number_of_limbs = limb::number(p, len);
         <span class="self">Self </span>{
+            p,
             len,
             limbs: <span class="macro">vec!</span>[<span class="number">0</span>; number_of_limbs],
         }
     }
 
-    <span class="kw">pub fn </span>from_raw_parts(len: usize, limbs: Vec&lt;Limb&gt;) -&gt; <span class="self">Self </span>{
-        <span class="macro">debug_assert_eq!</span>(limbs.len(), limb::number::&lt;P&gt;(len));
-        <span class="self">Self </span>{ len, limbs }
+    <span class="kw">pub fn </span>from_raw_parts(p: P, len: usize, limbs: Vec&lt;Limb&gt;) -&gt; <span class="self">Self </span>{
+        <span class="macro">debug_assert_eq!</span>(limbs.len(), limb::number(p, len));
+        <span class="self">Self </span>{ p, len, limbs }
     }
 
-    <span class="kw">pub fn </span>new_with_capacity_(len: usize, capacity: usize) -&gt; <span class="self">Self </span>{
-        <span class="kw">let </span><span class="kw-2">mut </span>limbs = Vec::with_capacity(limb::number::&lt;P&gt;(capacity));
-        limbs.resize(limb::number::&lt;P&gt;(len), <span class="number">0</span>);
-        <span class="self">Self </span>{ len, limbs }
+    <span class="kw">pub fn </span>new_with_capacity(p: P, len: usize, capacity: usize) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span><span class="kw-2">mut </span>limbs = Vec::with_capacity(limb::number(p, capacity));
+        limbs.resize(limb::number(p, len), <span class="number">0</span>);
+        <span class="self">Self </span>{ p, len, limbs }
     }
 
     <span class="kw">pub const fn </span>len(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
@@ -422,14 +431,15 @@
         <span class="self">self</span>.len == <span class="number">0
     </span>}
 
-    <span class="kw">pub const fn </span>prime(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ValidPrime {
-        ValidPrime::new(P)
+    <span class="kw">pub fn </span>prime(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ValidPrime {
+        <span class="self">self</span>.p.to_dyn()
     }
 
     <span class="attr">#[must_use]
     </span><span class="kw">pub fn </span>slice(<span class="kw-2">&amp;</span><span class="self">self</span>, start: usize, end: usize) -&gt; SliceP&lt;<span class="lifetime">'_</span>, P&gt; {
         <span class="macro">assert!</span>(start &lt;= end &amp;&amp; end &lt;= <span class="self">self</span>.len);
         SliceP {
+            p: <span class="self">self</span>.p,
             limbs: <span class="kw-2">&amp;</span><span class="self">self</span>.limbs,
             start,
             end,
@@ -440,6 +450,7 @@
     </span><span class="kw">pub fn </span>slice_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>, start: usize, end: usize) -&gt; SliceMutP&lt;<span class="lifetime">'_</span>, P&gt; {
         <span class="macro">assert!</span>(start &lt;= end &amp;&amp; end &lt;= <span class="self">self</span>.len);
         SliceMutP {
+            p: <span class="self">self</span>.p,
             limbs: <span class="kw-2">&amp;mut </span><span class="self">self</span>.limbs,
             start,
             end,
@@ -485,7 +496,7 @@
     }
 
     <span class="kw">pub fn </span>scale(<span class="kw-2">&amp;mut </span><span class="self">self</span>, c: u32) {
-        <span class="kw">match </span>P {
+        <span class="kw">match </span><span class="self">self</span>.p.as_u32() {
             <span class="number">2 </span>=&gt; {
                 <span class="kw">if </span>c == <span class="number">0 </span>{
                     <span class="self">self</span>.set_to_zero()
@@ -493,12 +504,16 @@
             }
             <span class="number">3 </span>| <span class="number">5 </span>=&gt; {
                 <span class="kw">for </span>limb <span class="kw">in </span><span class="kw-2">&amp;mut </span><span class="self">self</span>.limbs {
-                    <span class="kw-2">*</span>limb = limb::reduce::&lt;P&gt;(<span class="kw-2">*</span>limb * c <span class="kw">as </span>Limb);
+                    <span class="kw-2">*</span>limb = limb::reduce(<span class="self">self</span>.p, <span class="kw-2">*</span>limb * c <span class="kw">as </span>Limb);
                 }
             }
             <span class="kw">_ </span>=&gt; {
                 <span class="kw">for </span>limb <span class="kw">in </span><span class="kw-2">&amp;mut </span><span class="self">self</span>.limbs {
-                    <span class="kw-2">*</span>limb = limb::pack::&lt;<span class="kw">_</span>, P&gt;(limb::unpack::&lt;P&gt;(<span class="kw-2">*</span>limb).map(|x| (x * c) % P));
+                    <span class="comment">// We can cast x to u32 because we assume the limbs are reduced, so x &lt; p &lt; 2^31.
+                    </span><span class="kw-2">*</span>limb = limb::pack(
+                        <span class="self">self</span>.p,
+                        limb::unpack(<span class="self">self</span>.p, <span class="kw-2">*</span>limb).map(|x| <span class="self">self</span>.p.product(x <span class="kw">as </span>u32, c)),
+                    );
                 }
             }
         }
@@ -508,17 +523,17 @@
     /// empty.
     </span><span class="kw">pub fn </span>add_offset(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: <span class="kw-2">&amp;</span>FpVectorP&lt;P&gt;, c: u32, offset: usize) {
         <span class="macro">assert_eq!</span>(<span class="self">self</span>.len(), other.len());
-        <span class="kw">let </span>min_limb = offset / limb::entries_per_limb_const::&lt;P&gt;();
-        <span class="kw">if </span>P == <span class="number">2 </span>{
+        <span class="kw">let </span>min_limb = offset / limb::entries_per_limb(<span class="self">self</span>.p);
+        <span class="kw">if </span><span class="self">self</span>.p == <span class="number">2 </span>{
             <span class="kw">if </span>c != <span class="number">0 </span>{
                 simd::add_simd(<span class="kw-2">&amp;mut </span><span class="self">self</span>.limbs, <span class="kw-2">&amp;</span>other.limbs, min_limb);
             }
         } <span class="kw">else </span>{
             <span class="kw">for </span>(left, right) <span class="kw">in </span><span class="self">self</span>.limbs.iter_mut().zip_eq(<span class="kw-2">&amp;</span>other.limbs).skip(min_limb) {
-                <span class="kw-2">*</span>left = limb::add::&lt;P&gt;(<span class="kw-2">*</span>left, <span class="kw-2">*</span>right, c);
+                <span class="kw-2">*</span>left = limb::add(<span class="self">self</span>.p, <span class="kw-2">*</span>left, <span class="kw-2">*</span>right, c);
             }
             <span class="kw">for </span>limb <span class="kw">in </span><span class="kw-2">&amp;mut </span><span class="self">self</span>.limbs[min_limb..] {
-                <span class="kw-2">*</span>limb = limb::reduce::&lt;P&gt;(<span class="kw-2">*</span>limb);
+                <span class="kw-2">*</span>limb = limb::reduce(<span class="self">self</span>.p, <span class="kw-2">*</span>limb);
             }
         }
     }
@@ -527,8 +542,8 @@
     /// empty.
     </span><span class="kw">pub fn </span>add_offset_nosimd(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: <span class="kw-2">&amp;</span>FpVectorP&lt;P&gt;, c: u32, offset: usize) {
         <span class="macro">assert_eq!</span>(<span class="self">self</span>.len(), other.len());
-        <span class="kw">let </span>min_limb = offset / limb::entries_per_limb_const::&lt;P&gt;();
-        <span class="kw">if </span>P == <span class="number">2 </span>{
+        <span class="kw">let </span>min_limb = offset / limb::entries_per_limb(<span class="self">self</span>.p);
+        <span class="kw">if </span><span class="self">self</span>.p == <span class="number">2 </span>{
             <span class="kw">if </span>c != <span class="number">0 </span>{
                 <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..<span class="self">self</span>.limbs.len() {
                     <span class="self">self</span>.limbs[i] ^= other.limbs[i];
@@ -536,10 +551,10 @@
             }
         } <span class="kw">else </span>{
             <span class="kw">for </span>(left, right) <span class="kw">in </span><span class="self">self</span>.limbs.iter_mut().zip_eq(<span class="kw-2">&amp;</span>other.limbs).skip(min_limb) {
-                <span class="kw-2">*</span>left = limb::add::&lt;P&gt;(<span class="kw-2">*</span>left, <span class="kw-2">*</span>right, c);
+                <span class="kw-2">*</span>left = limb::add(<span class="self">self</span>.p, <span class="kw-2">*</span>left, <span class="kw-2">*</span>right, c);
             }
             <span class="kw">for </span>limb <span class="kw">in </span><span class="kw-2">&amp;mut </span><span class="self">self</span>.limbs[min_limb..] {
-                <span class="kw-2">*</span>limb = limb::reduce::&lt;P&gt;(<span class="kw-2">*</span>limb);
+                <span class="kw-2">*</span>limb = limb::reduce(<span class="self">self</span>.p, <span class="kw-2">*</span>limb);
             }
         }
     }
@@ -585,14 +600,14 @@
             <span class="kw">return</span>;
         }
         <span class="self">self</span>.len = len;
-        <span class="self">self</span>.limbs.resize(limb::number::&lt;P&gt;(len), <span class="number">0</span>);
+        <span class="self">self</span>.limbs.resize(limb::number(<span class="self">self</span>.p, len), <span class="number">0</span>);
     }
 
     <span class="doccomment">/// This clears the vector and sets the length to `len`. This is useful for reusing
     /// allocations of temporary vectors.
     </span><span class="kw">pub fn </span>set_scratch_vector_size(<span class="kw-2">&amp;mut </span><span class="self">self</span>, len: usize) {
         <span class="self">self</span>.limbs.clear();
-        <span class="self">self</span>.limbs.resize(limb::number::&lt;P&gt;(len), <span class="number">0</span>);
+        <span class="self">self</span>.limbs.resize(limb::number(<span class="self">self</span>.p, len), <span class="number">0</span>);
         <span class="self">self</span>.len = len;
     }
 
@@ -604,8 +619,8 @@
         <span class="self">self</span>.limbs.clear();
         <span class="self">self</span>.limbs.extend(
             slice
-                .chunks(limb::entries_per_limb_const::&lt;P&gt;())
-                .map(|x| limb::pack::&lt;<span class="kw">_</span>, P&gt;(x.iter().copied())),
+                .chunks(limb::entries_per_limb(<span class="self">self</span>.p))
+                .map(|x| limb::pack(<span class="self">self</span>.p, x.iter().copied())),
         );
     }
 
@@ -613,7 +628,7 @@
     /// the number of entries per limb
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>trim_start(<span class="kw-2">&amp;mut </span><span class="self">self</span>, n: usize) {
         <span class="macro">assert!</span>(n &lt;= <span class="self">self</span>.len);
-        <span class="kw">let </span>entries_per = limb::entries_per_limb_const::&lt;P&gt;();
+        <span class="kw">let </span>entries_per = limb::entries_per_limb(<span class="self">self</span>.p);
         <span class="macro">assert_eq!</span>(n % entries_per, <span class="number">0</span>);
         <span class="kw">let </span>num_limbs = n / entries_per;
         <span class="self">self</span>.limbs.drain(<span class="number">0</span>..num_limbs);
@@ -621,7 +636,7 @@
     }
 
     <span class="kw">pub fn </span>sign_rule(<span class="kw-2">&amp;</span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; bool {
-        <span class="macro">assert_eq!</span>(P, <span class="number">2</span>);
+        <span class="macro">assert_eq!</span>(<span class="self">self</span>.p, <span class="number">2</span>);
         <span class="kw">let </span><span class="kw-2">mut </span>result = <span class="number">0</span>;
         <span class="kw">for </span>target_limb_idx <span class="kw">in </span><span class="number">0</span>..<span class="self">self</span>.limbs.len() {
             <span class="kw">let </span>target_limb = other.limbs[target_limb_idx];
@@ -639,8 +654,8 @@
 
     <span class="kw">pub fn </span>add_truncate(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>, c: u32) -&gt; <span class="prelude-ty">Option</span>&lt;()&gt; {
         <span class="kw">for </span>(left, right) <span class="kw">in </span><span class="self">self</span>.limbs.iter_mut().zip_eq(<span class="kw-2">&amp;</span>other.limbs) {
-            <span class="kw-2">*</span>left = limb::add::&lt;P&gt;(<span class="kw-2">*</span>left, <span class="kw-2">*</span>right, c);
-            <span class="kw-2">*</span>left = limb::truncate::&lt;P&gt;(<span class="kw-2">*</span>left)<span class="question-mark">?</span>;
+            <span class="kw-2">*</span>left = limb::add(<span class="self">self</span>.p, <span class="kw-2">*</span>left, <span class="kw-2">*</span>right, c);
+            <span class="kw-2">*</span>left = limb::truncate(<span class="self">self</span>.p, <span class="kw-2">*</span>left)<span class="question-mark">?</span>;
         }
         <span class="prelude-val">Some</span>(())
     }
@@ -649,7 +664,7 @@
     <span class="kw">where
         for</span>&lt;<span class="lifetime">'a</span>&gt; <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>T: TryInto&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span><span class="self">Self</span>&gt;,
     {
-        <span class="kw">if </span>P == <span class="number">2 </span>{
+        <span class="kw">if </span><span class="self">self</span>.p == <span class="number">2 </span>{
             <span class="kw">if </span>c == <span class="number">0 </span>{
                 <span class="kw">return </span><span class="bool-val">false</span>;
             }
@@ -689,9 +704,9 @@
 
     <span class="doccomment">/// Find the index and value of the first non-zero entry of the vector. `None` if the vector is zero.
     </span><span class="kw">pub fn </span>first_nonzero(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;(usize, u32)&gt; {
-        <span class="kw">let </span>entries_per_limb = limb::entries_per_limb_const::&lt;P&gt;();
-        <span class="kw">let </span>bit_length = limb::bit_length_const::&lt;P&gt;();
-        <span class="kw">let </span>bitmask = limb::bitmask::&lt;P&gt;();
+        <span class="kw">let </span>entries_per_limb = limb::entries_per_limb(<span class="self">self</span>.p);
+        <span class="kw">let </span>bit_length = limb::bit_length(<span class="self">self</span>.p);
+        <span class="kw">let </span>bitmask = limb::bitmask(<span class="self">self</span>.p);
         <span class="kw">for </span>(i, <span class="kw-2">&amp;</span>limb) <span class="kw">in </span><span class="self">self</span>.limbs.iter().enumerate() {
             <span class="kw">if </span>limb == <span class="number">0 </span>{
                 <span class="kw">continue</span>;
@@ -706,7 +721,7 @@
     </span>}
 
     <span class="kw">pub fn </span>density(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; f32 {
-        <span class="kw">let </span>num_nonzero = <span class="kw">if </span>P == <span class="number">2 </span>{
+        <span class="kw">let </span>num_nonzero = <span class="kw">if </span><span class="self">self</span>.p == <span class="number">2 </span>{
             <span class="self">self</span>.limbs
                 .iter()
                 .copied()
@@ -719,21 +734,22 @@
     }
 }
 
-<span class="kw">impl</span>&lt;T: AsRef&lt;[u32]&gt;, <span class="kw">const </span>P: u32&gt; From&lt;<span class="kw-2">&amp;</span>T&gt; <span class="kw">for </span>FpVectorP&lt;P&gt; {
-    <span class="kw">fn </span>from(slice: <span class="kw-2">&amp;</span>T) -&gt; <span class="self">Self </span>{
-        <span class="kw">let </span><span class="kw-2">mut </span>v = <span class="self">Self</span>::new_(slice.as_ref().len());
+<span class="kw">impl</span>&lt;T: AsRef&lt;[u32]&gt;, P: Prime&gt; From&lt;(P, <span class="kw-2">&amp;</span>T)&gt; <span class="kw">for </span>FpVectorP&lt;P&gt; {
+    <span class="kw">fn </span>from(data: (P, <span class="kw-2">&amp;</span>T)) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>(p, slice) = data;
+        <span class="kw">let </span><span class="kw-2">mut </span>v = <span class="self">Self</span>::new(p, slice.as_ref().len());
         v.limbs.clear();
         v.limbs.extend(
             slice
                 .as_ref()
-                .chunks(limb::entries_per_limb_const::&lt;P&gt;())
-                .map(|x| limb::pack::&lt;<span class="kw">_</span>, P&gt;(x.iter().copied())),
+                .chunks(limb::entries_per_limb(p))
+                .map(|x| limb::pack(p, x.iter().copied())),
         );
         v
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="kw">const </span>P: u32&gt; From&lt;<span class="kw-2">&amp;</span>FpVectorP&lt;P&gt;&gt; <span class="kw">for </span>Vec&lt;u32&gt; {
+<span class="kw">impl</span>&lt;P: Prime&gt; From&lt;<span class="kw-2">&amp;</span>FpVectorP&lt;P&gt;&gt; <span class="kw">for </span>Vec&lt;u32&gt; {
     <span class="kw">fn </span>from(vec: <span class="kw-2">&amp;</span>FpVectorP&lt;P&gt;) -&gt; Vec&lt;u32&gt; {
         vec.iter().collect()
     }

@@ -1405,7 +1405,7 @@
             }
         }
 
-        <span class="kw">let </span>neg_1 = <span class="kw-2">*</span><span class="self">self</span>.p - <span class="number">1</span>;
+        <span class="kw">let </span>neg_1 = <span class="self">self</span>.p - <span class="number">1</span>;
 
         <span class="kw">let </span>target_r = target_product
             .map(|prod| P::differential_length(x + prod.x - source_x, y + prod.y - source_y))

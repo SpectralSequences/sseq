@@ -177,10 +177,11 @@
 <a href="#151" id="151">151</a>
 <a href="#152" id="152">152</a>
 <a href="#153" id="153">153</a>
+<a href="#154" id="154">154</a>
 </pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
     constants,
     limb::{<span class="self">self</span>, Limb},
-    prime::ValidPrime,
+    prime::{Prime, ValidPrime},
 };
 
 <span class="kw">use super</span>::{
@@ -190,9 +191,9 @@
 
 <span class="comment">// Public methods
 
-</span><span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, <span class="kw">const </span>P: u32&gt; SliceP&lt;<span class="lifetime">'a</span>, P&gt; {
+</span><span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, P: Prime&gt; SliceP&lt;<span class="lifetime">'a</span>, P&gt; {
     <span class="kw">pub fn </span>prime(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ValidPrime {
-        ValidPrime::new(P)
+        <span class="self">self</span>.p.to_dyn()
     }
 
     <span class="kw">pub fn </span>len(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
@@ -210,8 +211,8 @@
             index,
             <span class="self">self</span>.len()
         );
-        <span class="kw">let </span>bit_mask = limb::bitmask::&lt;P&gt;();
-        <span class="kw">let </span>limb_index = limb::limb_bit_index_pair::&lt;P&gt;(index + <span class="self">self</span>.start);
+        <span class="kw">let </span>bit_mask = limb::bitmask(<span class="self">self</span>.p);
+        <span class="kw">let </span>limb_index = limb::limb_bit_index_pair(<span class="self">self</span>.p, index + <span class="self">self</span>.start);
         <span class="kw">let </span><span class="kw-2">mut </span>result = <span class="self">self</span>.limbs[limb_index.limb];
         result &gt;&gt;= limb_index.bit_index;
         result &amp;= bit_mask;
@@ -251,6 +252,7 @@
         <span class="macro">assert!</span>(start &lt;= end &amp;&amp; end &lt;= <span class="self">self</span>.len());
 
         SliceP {
+            p: <span class="self">self</span>.p,
             limbs: <span class="self">self</span>.limbs,
             start: <span class="self">self</span>.start + start,
             end: <span class="self">self</span>.start + end,
@@ -260,8 +262,8 @@
     <span class="doccomment">/// Converts a slice to an owned FpVectorP. This is vastly more efficient if the start of the vector is aligned.
     </span><span class="attr">#[must_use]
     </span><span class="kw">pub fn </span>to_owned(<span class="self">self</span>) -&gt; FpVectorP&lt;P&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>new = FpVectorP::&lt;P&gt;::new_(<span class="self">self</span>.len());
-        <span class="kw">if </span><span class="self">self</span>.start % limb::entries_per_limb_const::&lt;P&gt;() == <span class="number">0 </span>{
+        <span class="kw">let </span><span class="kw-2">mut </span>new = FpVectorP::new(<span class="self">self</span>.p, <span class="self">self</span>.len());
+        <span class="kw">if </span><span class="self">self</span>.start % limb::entries_per_limb(<span class="self">self</span>.p) == <span class="number">0 </span>{
             <span class="kw">let </span>limb_range = <span class="self">self</span>.limb_range();
             new.limbs[<span class="number">0</span>..limb_range.len()].copy_from_slice(<span class="kw-2">&amp;</span><span class="self">self</span>.limbs[limb_range]);
             <span class="kw">if </span>!new.limbs.is_empty() {
@@ -276,17 +278,17 @@
 }
 
 <span class="comment">// Limb methods
-</span><span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, <span class="kw">const </span>P: u32&gt; SliceP&lt;<span class="lifetime">'a</span>, P&gt; {
+</span><span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, P: Prime&gt; SliceP&lt;<span class="lifetime">'a</span>, P&gt; {
     <span class="attr">#[inline]
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>offset(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
-        <span class="kw">let </span>bit_length = limb::bit_length_const::&lt;P&gt;();
-        <span class="kw">let </span>entries_per_limb = limb::entries_per_limb_const::&lt;P&gt;();
+        <span class="kw">let </span>bit_length = limb::bit_length(<span class="self">self</span>.p);
+        <span class="kw">let </span>entries_per_limb = limb::entries_per_limb(<span class="self">self</span>.p);
         (<span class="self">self</span>.start % entries_per_limb) * bit_length
     }
 
     <span class="attr">#[inline]
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>limb_range(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; std::ops::Range&lt;usize&gt; {
-        limb::range::&lt;P&gt;(<span class="self">self</span>.start, <span class="self">self</span>.end)
+        limb::range(<span class="self">self</span>.p, <span class="self">self</span>.start, <span class="self">self</span>.end)
     }
 
     <span class="doccomment">/// This function underflows if `self.end == 0`, which happens if and only if we are taking a
@@ -306,8 +308,8 @@
 
     <span class="attr">#[inline(always)]
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>max_limb_mask(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Limb {
-        <span class="kw">let </span>num_entries = <span class="number">1 </span>+ (<span class="self">self</span>.end - <span class="number">1</span>) % limb::entries_per_limb_const::&lt;P&gt;();
-        <span class="kw">let </span>bit_max = num_entries * limb::bit_length_const::&lt;P&gt;();
+        <span class="kw">let </span>num_entries = <span class="number">1 </span>+ (<span class="self">self</span>.end - <span class="number">1</span>) % limb::entries_per_limb(<span class="self">self</span>.p);
+        <span class="kw">let </span>bit_max = num_entries * limb::bit_length(<span class="self">self</span>.p);
 
         (!<span class="number">0</span>) &gt;&gt; (constants::BITS_PER_LIMB - bit_max)
     }
@@ -325,7 +327,7 @@
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, <span class="kw">const </span>P: u32&gt; From&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span>FpVectorP&lt;P&gt;&gt; <span class="kw">for </span>SliceP&lt;<span class="lifetime">'a</span>, P&gt; {
+<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, P: Prime&gt; From&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span>FpVectorP&lt;P&gt;&gt; <span class="kw">for </span>SliceP&lt;<span class="lifetime">'a</span>, P&gt; {
     <span class="kw">fn </span>from(v: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>FpVectorP&lt;P&gt;) -&gt; <span class="self">Self </span>{
         v.slice(<span class="number">0</span>, v.len)
     }

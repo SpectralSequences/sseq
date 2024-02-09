@@ -363,7 +363,7 @@
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
 <span class="kw">use </span>std::fmt;
 
-<span class="kw">use </span>fp::prime::ValidPrime;
+<span class="kw">use </span>fp::prime::{Prime, ValidPrime};
 <span class="kw">use </span>fp::vector::{FpVector, SliceMut};
 <span class="kw">use </span>once::OnceVec;
 
@@ -484,7 +484,7 @@
     }
 
     <span class="kw">fn </span>frobenius_monomial(<span class="kw-2">&amp;</span><span class="self">self</span>, target: <span class="kw-2">&amp;mut </span>FpVector, source: <span class="kw-2">&amp;</span>FpVector) {
-        <span class="kw">let </span>p = <span class="kw-2">*</span><span class="self">self</span>.prime() <span class="kw">as </span>i32;
+        <span class="kw">let </span>p = <span class="self">self</span>.prime().as_i32();
         <span class="kw">for </span>(i, c) <span class="kw">in </span>source.iter_nonzero() {
             <span class="kw">let </span>(gen_degree, gen_index) = <span class="self">self</span>.polynomial_monomials().internal_idx_to_gen_deg(i);
             <span class="kw">let </span>frob = <span class="self">self</span>.frobenius_on_generator(gen_degree, gen_index);
@@ -502,7 +502,7 @@
         target: <span class="kw-2">&amp;mut </span>PolynomialAlgebraMonomial,
         source: <span class="kw-2">&amp;</span>PolynomialAlgebraMonomial,
     ) -&gt; <span class="prelude-ty">Option</span>&lt;u32&gt; {
-        <span class="kw">let </span>minus_one = <span class="kw-2">*</span><span class="self">self</span>.prime() - <span class="number">1</span>;
+        <span class="kw">let </span>minus_one = <span class="self">self</span>.prime() - <span class="number">1</span>;
         <span class="self">self</span>.set_monomial_degree(target, target.degree + source.degree);
         <span class="kw">let </span><span class="kw-2">mut </span>temp_source_ext = source.ext.clone();
         temp_source_ext.set_scratch_vector_size(target.ext.len());
@@ -538,7 +538,7 @@
         right_degree: i32,
         right: <span class="kw-2">&amp;</span>FpVector,
     ) {
-        <span class="kw">let </span>p = <span class="kw-2">*</span><span class="self">self</span>.prime();
+        <span class="kw">let </span>p = <span class="self">self</span>.prime();
         target.set_scratch_vector_size(<span class="self">self</span>.dimension(left_degree + right_degree));
         <span class="kw">for </span>(left_idx, left_entry) <span class="kw">in </span>left.iter_nonzero() {
             <span class="kw">for </span>(right_idx, right_entry) <span class="kw">in </span>right.iter_nonzero() {
@@ -561,7 +561,7 @@
         left: <span class="kw-2">&amp;</span>FpVector,
         right_mono: <span class="kw-2">&amp;</span>PolynomialAlgebraMonomial,
     ) {
-        <span class="kw">let </span>p = <span class="kw-2">*</span><span class="self">self</span>.prime();
+        <span class="kw">let </span>p = <span class="self">self</span>.prime();
         target.extend_len(<span class="self">self</span>.dimension(left_degree + right_mono.degree));
         <span class="kw">for </span>(left_idx, left_entry) <span class="kw">in </span>left.iter_nonzero() {
             <span class="kw">let </span><span class="kw-2">mut </span>target_mono = <span class="self">self</span>.index_to_monomial(left_degree, left_idx).clone(); <span class="comment">// Could reduce cloning a bit but probably best not to worry.
@@ -582,7 +582,7 @@
         right_degree: i32,
         right: <span class="kw-2">&amp;</span>FpVector,
     ) {
-        <span class="kw">let </span>p = <span class="kw-2">*</span><span class="self">self</span>.prime();
+        <span class="kw">let </span>p = <span class="self">self</span>.prime();
         target.extend_len(<span class="self">self</span>.dimension(right_degree + left_mono.degree));
         <span class="kw">for </span>(right_idx, right_entry) <span class="kw">in </span>right.iter_nonzero() {
             <span class="kw">let </span><span class="kw-2">mut </span>target_mono = left_mono.clone(); <span class="comment">// Could reduce cloning a bit but probably best not to worry.

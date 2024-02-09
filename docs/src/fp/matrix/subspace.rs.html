@@ -357,7 +357,7 @@
         <span class="kw">for </span>(col, row) <span class="kw">in </span>iter {
             <span class="kw">let </span>c = vector.as_slice().entry(col);
             <span class="kw">if </span>c != <span class="number">0 </span>{
-                vector.add(row, <span class="kw-2">*</span>p - c);
+                vector.add(row, p - c);
             }
         }
     }

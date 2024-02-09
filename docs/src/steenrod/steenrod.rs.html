@@ -1060,7 +1060,7 @@
     <span class="kw">let </span>module = resolution.target().module(<span class="number">0</span>);
     <span class="kw">let </span>p = resolution.prime();
 
-    <span class="kw">if </span>resolution.target().max_s() != <span class="number">1 </span>|| !module.is_unit() || <span class="kw-2">*</span>p != <span class="number">2 </span>{
+    <span class="kw">if </span>resolution.target().max_s() != <span class="number">1 </span>|| !module.is_unit() || p != <span class="number">2 </span>{
         <span class="macro">panic!</span>(<span class="string">"Can only run Steenrod on the sphere"</span>);
     }
 

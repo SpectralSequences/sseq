@@ -453,7 +453,7 @@
     for</span>&lt;<span class="lifetime">'a</span>&gt; <span class="kw-2">&amp;</span><span class="lifetime">'a </span>A: TryInto&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span>SteenrodAlgebra&gt;,
 {
     <span class="kw">pub fn </span>new(algebra: Arc&lt;A&gt;, min: i32, max: <span class="prelude-ty">Option</span>&lt;i32&gt;, clear_bottom: bool) -&gt; <span class="self">Self </span>{
-        <span class="macro">assert_eq!</span>(<span class="kw-2">*</span>algebra.prime(), <span class="number">2</span>);
+        <span class="macro">assert_eq!</span>(algebra.prime(), <span class="number">2</span>);
         <span class="macro">assert!</span>(
             (<span class="kw-2">&amp;*</span>algebra).try_into().is_ok(),
             <span class="string">"Real Projective Space only supports Steenrod Algebra"

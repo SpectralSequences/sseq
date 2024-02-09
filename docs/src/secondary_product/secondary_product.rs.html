@@ -298,7 +298,7 @@
             sum.iter_mut().zip_eq(d2).for_each(|(a, b)| <span class="kw-2">*</span>a += x * b);
         }
         <span class="macro">assert!</span>(
-            sum.iter().all(|x| x % <span class="kw-2">*</span>p == <span class="number">0</span>),
+            sum.iter().all(|x| <span class="kw-2">*</span>x % p == <span class="number">0</span>),
             <span class="string">"Class supports a non-zero d2"
         </span>);
     }

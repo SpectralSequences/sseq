@@ -64,7 +64,7 @@
 
 <span class="kw">fn </span>main() -&gt; anyhow::Result&lt;()&gt; {
     <span class="kw">let </span>resolution = query_module(<span class="prelude-val">None</span>, <span class="bool-val">false</span>)<span class="question-mark">?</span>;
-    <span class="macro">assert_eq!</span>(<span class="kw-2">*</span>resolution.prime(), <span class="number">2</span>);
+    <span class="macro">assert_eq!</span>(resolution.prime(), <span class="number">2</span>);
 
     <span class="kw">for </span>b <span class="kw">in </span>resolution.iter_stem() {
         <span class="kw">let </span><span class="kw-2">mut </span>i = <span class="number">0</span>;

@@ -344,7 +344,7 @@
         <span class="kw">for </span>(i, v) <span class="kw">in </span>input.iter_nonzero() {
             <span class="self">self</span>.act_on_basis(
                 result.copy(),
-                (coeff * v) % <span class="kw-2">*</span>p,
+                (coeff * v) % p,
                 op_degree,
                 op_index,
                 input_degree,
@@ -368,7 +368,7 @@
         <span class="kw">for </span>(i, v) <span class="kw">in </span>op.iter_nonzero() {
             <span class="self">self</span>.act(
                 result.copy(),
-                (coeff * v) % <span class="kw-2">*</span>p,
+                (coeff * v) % p,
                 op_degree,
                 i,
                 input_degree,
@@ -391,7 +391,7 @@
         <span class="kw">for </span>(i, v) <span class="kw">in </span>op.iter_nonzero() {
             <span class="self">self</span>.act_on_basis(
                 result.copy(),
-                (coeff * v) % <span class="kw-2">*</span>p,
+                (coeff * v) % p,
                 op_degree,
                 i,
                 input_degree,

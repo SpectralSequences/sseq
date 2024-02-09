@@ -267,7 +267,7 @@
     <span class="kw">fn </span>apply(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut </span>result: SliceMut, coeff: u32, input_degree: i32, input: Slice) {
         <span class="kw">let </span>p = <span class="self">self</span>.prime();
         <span class="kw">for </span>(i, v) <span class="kw">in </span>input.iter_nonzero() {
-            <span class="self">self</span>.apply_to_basis_element(result.copy(), (coeff * v) % <span class="kw-2">*</span>p, input_degree, i);
+            <span class="self">self</span>.apply_to_basis_element(result.copy(), (coeff * v) % p, input_degree, i);
         }
     }
 

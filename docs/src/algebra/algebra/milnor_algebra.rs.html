@@ -2113,13 +2113,14 @@
 <a href="#2087" id="2087">2087</a>
 <a href="#2088" id="2088">2088</a>
 <a href="#2089" id="2089">2089</a>
-</pre></div><pre class="rust"><code><span class="kw">use </span>itertools::Itertools;
+</pre></div><pre class="rust"><code><span class="kw">use </span>fp::prime::Prime;
+<span class="kw">use </span>itertools::Itertools;
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
 <span class="kw">use </span>std::cell::Cell;
 
 <span class="kw">use </span><span class="kw">crate</span>::algebra::combinatorics;
 <span class="kw">use </span><span class="kw">crate</span>::algebra::{Algebra, Bialgebra, GeneratedAlgebra, UnstableAlgebra};
-<span class="kw">use </span>fp::prime::{factor_pk, integer_power, Binomial, BitflagIterator, ValidPrime};
+<span class="kw">use </span>fp::prime::{factor_pk, iter::BitflagIterator, Binomial, ValidPrime};
 <span class="kw">use </span>fp::vector::{FpVector, Slice, SliceMut};
 <span class="kw">use </span>once::OnceVec;
 
@@ -2245,7 +2246,7 @@
     }
 
     <span class="kw">fn </span>excess(<span class="kw-2">&amp;</span><span class="self">self</span>, p: ValidPrime) -&gt; u32 {
-        <span class="kw">if </span><span class="kw-2">*</span>p == <span class="number">2 </span>{
+        <span class="kw">if </span>p == <span class="number">2 </span>{
             <span class="self">self</span>.p_part.iter().sum::&lt;PPartEntry&gt;()
         } <span class="kw">else </span>{
             <span class="self">self</span>.q_part.count_ones() + <span class="number">2 </span>* <span class="self">self</span>.p_part.iter().sum::&lt;PPartEntry&gt;()
@@ -2261,7 +2262,7 @@
 
     <span class="doccomment">/// Update the degree component to the correct degree
     </span><span class="kw">pub fn </span>compute_degree(<span class="kw-2">&amp;mut </span><span class="self">self</span>, p: ValidPrime) {
-        <span class="kw">let </span>q = <span class="kw">if </span><span class="kw-2">*</span>p == <span class="number">2 </span>{ <span class="number">1 </span>} <span class="kw">else </span>{ <span class="number">2 </span>* (<span class="kw-2">*</span>p <span class="kw">as </span>i32 - <span class="number">1</span>) };
+        <span class="kw">let </span>q = <span class="kw">if </span>p == <span class="number">2 </span>{ <span class="number">1 </span>} <span class="kw">else </span>{ <span class="number">2 </span>* (p.as_i32() - <span class="number">1</span>) };
         <span class="kw">let </span>xi_degrees = combinatorics::xi_degrees(p);
         <span class="kw">let </span>tau_degrees = combinatorics::tau_degrees(p);
 
@@ -2413,7 +2414,7 @@
         <span class="self">Self </span>{
             p,
             <span class="attr">#[cfg(feature = <span class="string">"odd-primes"</span>)]
-            </span>generic: <span class="kw-2">*</span>p != <span class="number">2</span>,
+            </span>generic: p != <span class="number">2</span>,
             unstable_enabled,
             profile,
             ppart_table: OnceVec::new(),
@@ -2440,7 +2441,7 @@
 
     <span class="kw">pub fn </span>q(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; i32 {
         <span class="kw">if </span><span class="self">self</span>.generic() {
-            <span class="number">2 </span>* (<span class="kw-2">*</span><span class="self">self</span>.prime() <span class="kw">as </span>i32 - <span class="number">1</span>)
+            <span class="number">2 </span>* (<span class="self">self</span>.prime().as_i32() - <span class="number">1</span>)
         } <span class="kw">else </span>{
             <span class="number">1
         </span>}
@@ -2477,7 +2478,7 @@
     </span>}
 
     <span class="kw">fn </span>magic(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u32 {
-        (<span class="kw-2">*</span><span class="self">self</span>.p &lt;&lt; <span class="number">16</span>)
+        (<span class="self">self</span>.p &lt;&lt; <span class="number">16</span>)
             + <span class="kw">if </span><span class="self">self</span>.profile.is_trivial() {
                 <span class="number">0x8000
             </span>} <span class="kw">else </span>{
@@ -2509,13 +2510,13 @@
                 products.push((
                     <span class="string">"h_0"</span>.to_string(),
                     MilnorBasisElement {
-                        degree: (<span class="number">2 </span>* (<span class="kw-2">*</span><span class="self">self</span>.prime()) - <span class="number">2</span>) <span class="kw">as </span>i32,
+                        degree: (<span class="number">2 </span>* <span class="self">self</span>.prime() - <span class="number">2</span>) <span class="kw">as </span>i32,
                         q_part: <span class="number">0</span>,
                         p_part: <span class="macro">vec!</span>[<span class="number">1</span>],
                     },
                 ));
             }
-            max_degree = (<span class="number">2 </span>* (<span class="kw-2">*</span><span class="self">self</span>.prime()) - <span class="number">2</span>) <span class="kw">as </span>i32;
+            max_degree = (<span class="number">2 </span>* <span class="self">self</span>.prime() - <span class="number">2</span>) <span class="kw">as </span>i32;
         } <span class="kw">else </span>{
             <span class="kw">let </span><span class="kw-2">mut </span>max = <span class="number">4</span>;
             <span class="kw">if </span>!<span class="self">self</span>.profile.p_part.is_empty() {
@@ -2655,7 +2656,7 @@
             <span class="kw">for </span>(i, v) <span class="kw">in </span>s.iter_nonzero() {
                 allocation = <span class="self">self</span>.multiply_with_allocation(
                     result.copy(),
-                    (coeff * v) % <span class="kw-2">*</span>p,
+                    (coeff * v) % p,
                     r,
                     <span class="self">self</span>.basis_element_from_index(s_degree, i),
                     i32::MAX,
@@ -2827,7 +2828,7 @@
             <span class="kw">return </span><span class="macro">vec!</span>[<span class="number">0</span>]; <span class="comment">// Q_0
         </span>}
 
-        <span class="kw">let </span>p = <span class="kw-2">*</span><span class="self">self</span>.prime();
+        <span class="kw">let </span>p = <span class="self">self</span>.prime();
 
         <span class="comment">// Check for the Q_k
         </span><span class="kw">if </span><span class="self">self</span>.generic() &amp;&amp; degree % <span class="number">2 </span>== <span class="number">1 </span>{
@@ -2921,7 +2922,7 @@
                 <span class="kw">let </span>(first_degree, first_index) = <span class="self">self</span>.try_beps_pn(<span class="number">0</span>, x <span class="kw">as </span>PPartEntry)<span class="question-mark">?</span>;
                 <span class="kw">let </span>(second_degree, second_index) = <span class="self">self</span>.try_beps_pn(b, y <span class="kw">as </span>PPartEntry)<span class="question-mark">?</span>;
                 relation.push((
-                    <span class="kw-2">*</span>p - <span class="number">1</span>,
+                    p - <span class="number">1</span>,
                     (first_degree, first_index),
                     (second_degree, second_index),
                 ));
@@ -2931,7 +2932,7 @@
                     // e1 determines whether a bockstein shows up in front
                     // e2 determines whether a bockstein shows up in middle
                     // So our output term looks like b^{e1} P^{x+y-j} b^{e2} P^{j}
-                    </span><span class="kw">for </span>j <span class="kw">in </span><span class="number">0</span>..=x / <span class="kw-2">*</span>p {
+                    </span><span class="kw">for </span>j <span class="kw">in </span><span class="number">0</span>..=x / p {
                         <span class="kw">let </span>c = combinatorics::adem_relation_coefficient(p, x, y, j, e1, e2);
                         <span class="kw">if </span>c == <span class="number">0 </span>{
                             <span class="kw">continue</span>;
@@ -2962,7 +2963,7 @@
     <span class="kw">fn </span>compute_ppart(<span class="kw-2">&amp;</span><span class="self">self</span>, max_degree: i32) {
         <span class="self">self</span>.ppart_table.extend(<span class="number">0</span>, |<span class="kw">_</span>| <span class="macro">vec!</span>[Vec::new()]);
 
-        <span class="kw">let </span>p = <span class="kw-2">*</span><span class="self">self</span>.prime() <span class="kw">as </span>i32;
+        <span class="kw">let </span>p = <span class="self">self</span>.prime().as_i32();
         <span class="kw">let </span>q = <span class="kw">if </span>p == <span class="number">2 </span>{ <span class="number">1 </span>} <span class="kw">else </span>{ <span class="number">2 </span>* p - <span class="number">2 </span>};
         <span class="kw">let </span>new_deg = max_degree / q;
 
@@ -2970,8 +2971,7 @@
         <span class="kw">let </span><span class="kw-2">mut </span>profile_list = Vec::with_capacity(xi_degrees.len());
         <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..xi_degrees.len() {
             <span class="kw">if </span>i &lt; <span class="self">self</span>.profile.p_part.len() {
-                profile_list
-                    .push((integer_power(<span class="kw-2">*</span><span class="self">self</span>.prime(), <span class="self">self</span>.profile.p_part[i]) - <span class="number">1</span>) <span class="kw">as </span>PPartEntry);
+                profile_list.push((<span class="self">self</span>.prime().pow(<span class="self">self</span>.profile.p_part[i]) - <span class="number">1</span>) <span class="kw">as </span>PPartEntry);
             } <span class="kw">else if </span><span class="self">self</span>.profile.truncated {
                 profile_list.push(<span class="number">0</span>);
             } <span class="kw">else </span>{
@@ -3013,7 +3013,7 @@
     }
 
     <span class="kw">fn </span>generate_basis_generic(<span class="kw-2">&amp;</span><span class="self">self</span>, max_degree: i32) {
-        <span class="kw">let </span>q = <span class="number">2 </span>* (<span class="kw-2">*</span><span class="self">self</span>.prime()) - <span class="number">2</span>;
+        <span class="kw">let </span>q = <span class="number">2 </span>* <span class="self">self</span>.prime() - <span class="number">2</span>;
         <span class="kw">let </span>tau_degrees = combinatorics::tau_degrees(<span class="self">self</span>.prime());
 
         <span class="self">self</span>.basis_table.extend(max_degree <span class="kw">as </span>usize, |d| {
@@ -3119,7 +3119,7 @@
 
         <span class="kw">for </span>k <span class="kw">in </span>BitflagIterator::set_bit_iterator(f <span class="kw">as </span>u64) {
             <span class="kw">let </span>k = k <span class="kw">as </span>u32;
-            <span class="kw">let </span>pk = integer_power(<span class="kw-2">*</span><span class="self">self</span>.p, k) <span class="kw">as </span>PPartEntry;
+            <span class="kw">let </span>pk = <span class="self">self</span>.p.pow(k) <span class="kw">as </span>PPartEntry;
             std::mem::swap(<span class="kw-2">&amp;mut </span>new_result, <span class="kw-2">&amp;mut </span>old_result);
             new_result.clear();
 
@@ -3163,7 +3163,7 @@
                     <span class="kw">let </span>c = <span class="kw">if </span>larger_q % <span class="number">2 </span>== <span class="number">0 </span>{
                         <span class="kw-2">*</span>coef
                     } <span class="kw">else </span>{
-                        <span class="kw-2">*</span>coef * (<span class="kw-2">*</span><span class="self">self</span>.prime() - <span class="number">1</span>)
+                        <span class="kw-2">*</span>coef * (<span class="self">self</span>.prime() - <span class="number">1</span>)
                     };
 
                     new_result.push((c, m));
@@ -3386,7 +3386,7 @@
         degree: i32,
     ) -&gt; <span class="self">Self </span>{
         <span class="kw">if </span>MOD4 {
-            <span class="macro">assert_eq!</span>(<span class="kw-2">*</span>p, <span class="number">2</span>);
+            <span class="macro">assert_eq!</span>(p, <span class="number">2</span>);
         }
         <span class="kw">let </span>rows = r.len() + <span class="number">1</span>;
         <span class="kw">let </span>cols = s.len() + <span class="number">1</span>;
@@ -3442,7 +3442,7 @@
     ///
     /// TODO: Improve odd prime performance
     </span><span class="kw">fn </span>next_val(<span class="kw-2">&amp;</span><span class="self">self</span>, sum: PPartEntry, k: PPartEntry, max: PPartEntry) -&gt; PPartEntry {
-        <span class="kw">match </span><span class="kw-2">*</span><span class="self">self</span>.prime() {
+        <span class="kw">match </span><span class="self">self</span>.prime().as_u32() {
             <span class="number">2 </span>=&gt; {
                 <span class="kw">if </span>MOD4 {
                     <span class="comment">// x.count_ones() + y.count_ones() - (x + y).count_ones() is the number of
@@ -3484,7 +3484,7 @@
             </span><span class="kw">let </span><span class="kw-2">mut </span>total = <span class="self">self</span>.M[i][<span class="number">0</span>];
             <span class="kw">let </span><span class="kw-2">mut </span>p_to_the_j = <span class="number">1</span>;
             <span class="kw">for </span>j <span class="kw">in </span><span class="number">1</span>..<span class="self">self</span>.cols {
-                p_to_the_j <span class="kw-2">*</span>= <span class="kw-2">*</span><span class="self">self</span>.prime() <span class="kw">as </span>PPartEntry;
+                p_to_the_j <span class="kw-2">*</span>= <span class="self">self</span>.prime().as_u32() <span class="kw">as </span>PPartEntry;
                 <span class="kw">if </span>total &lt; p_to_the_j {
                     <span class="comment">// We don't have enough weight left in the entries above this one in the column to increment this cell.
                     // Add the weight from this cell to the total, we can use it to increment a cell lower down.
@@ -3545,7 +3545,7 @@
     <span class="kw">type </span>Item = u32;
 
     <span class="kw">fn </span>next(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;u32&gt; {
-        <span class="kw">let </span>p = <span class="kw-2">*</span><span class="self">self</span>.prime() <span class="kw">as </span>PPartEntry;
+        <span class="kw">let </span>p = <span class="self">self</span>.prime().as_u32() <span class="kw">as </span>PPartEntry;
         <span class="lifetime">'outer</span>: <span class="kw">loop </span>{
             <span class="self">self</span>.ans.p_part.clear();
             <span class="kw">let </span><span class="kw-2">mut </span>coef = <span class="number">1</span>;
@@ -3598,7 +3598,7 @@
                     <span class="kw">let </span>i_max = std::cmp::min(<span class="number">1 </span>+ diag_idx, <span class="self">self</span>.rows);
                     <span class="kw">let </span><span class="kw-2">mut </span>sum = <span class="number">0</span>;
 
-                    <span class="kw">if </span><span class="kw-2">*</span><span class="self">self</span>.prime() == <span class="number">2 </span>{
+                    <span class="kw">if </span><span class="self">self</span>.prime() == <span class="number">2 </span>{
                         <span class="kw">if </span>MOD4 {
                             <span class="kw">for </span>i <span class="kw">in </span>i_min..i_max {
                                 <span class="kw">let </span>entry = <span class="self">self</span>.M[i][diag_idx - i];
@@ -3665,10 +3665,10 @@
         </span><span class="kw">let </span>i = basis.q_part.trailing_zeros();
         <span class="comment">// If the basis element is just Q_{k+1}, we decompose Q_{k+1} = P(p^k) Q_k - Q_k P(p^k).
         </span><span class="kw">if </span>basis.q_part == <span class="number">1 </span>&lt;&lt; i &amp;&amp; basis.p_part.is_empty() {
-            <span class="kw">let </span>ppow = fp::prime::integer_power(<span class="kw-2">*</span><span class="self">self</span>.prime(), i - <span class="number">1</span>);
+            <span class="kw">let </span>ppow = <span class="self">self</span>.prime().pow(i - <span class="number">1</span>);
 
             <span class="kw">let </span>q_degree = (<span class="number">2 </span>* ppow - <span class="number">1</span>) <span class="kw">as </span>i32;
-            <span class="kw">let </span>p_degree = (ppow * (<span class="number">2 </span>* (<span class="kw-2">*</span><span class="self">self</span>.prime()) - <span class="number">2</span>)) <span class="kw">as </span>i32;
+            <span class="kw">let </span>p_degree = (ppow * (<span class="number">2 </span>* <span class="self">self</span>.prime() - <span class="number">2</span>)) <span class="kw">as </span>i32;
 
             <span class="kw">let </span>p_idx = <span class="self">self
                 </span>.basis_element_to_index(<span class="kw-2">&amp;</span>MilnorBasisElement::from_p(
@@ -3687,7 +3687,7 @@
 
             <span class="macro">vec!</span>[
                 (<span class="number">1</span>, (p_degree, p_idx), (q_degree, q_idx)),
-                (<span class="kw-2">*</span><span class="self">self</span>.prime() - <span class="number">1</span>, (q_degree, q_idx), (p_degree, p_idx)),
+                (<span class="self">self</span>.prime() - <span class="number">1</span>, (q_degree, q_idx), (p_degree, p_idx)),
             ]
         } <span class="kw">else </span>{
             <span class="comment">// Otherwise, separate out the first Q_k.
@@ -3731,7 +3731,7 @@
 
         <span class="comment">// out_vec is the remaining items we have to kill. We are done when this hits zero.
         </span><span class="kw">let </span><span class="kw-2">mut </span>out_vec = FpVector::new(p, <span class="self">self</span>.dimension(degree));
-        out_vec.set_entry(idx, <span class="kw-2">*</span>p - <span class="number">1</span>);
+        out_vec.set_entry(idx, p - <span class="number">1</span>);
 
         <span class="kw">while let </span><span class="prelude-val">Some</span>((idx, c)) = out_vec.iter_nonzero().next() {
             <span class="kw">let </span>b = <span class="self">self</span>.basis_element_from_index(degree, idx);
@@ -3740,12 +3740,12 @@
             <span class="kw">if </span>b.p_part[<span class="number">0</span>..len - <span class="number">1</span>].iter().all(|<span class="kw-2">&amp;</span>x| x == <span class="number">0</span>) {
                 <span class="comment">// There is only one entry
                 </span><span class="kw">let </span>entry = b.p_part[len - <span class="number">1</span>];
-                <span class="kw">let </span>(k, m) = factor_pk(<span class="kw-2">*</span>p, entry);
+                <span class="kw">let </span>(k, m) = factor_pk(p, entry);
 
                 <span class="comment">// This is a power of p
                 </span><span class="kw">if </span>m == <span class="number">1 </span>{
                     <span class="kw">if </span>len == <span class="number">1 </span>|| !<span class="self">self</span>.profile.is_an(<span class="self">self</span>.generic()) {
-                        buffer.extend([(<span class="kw-2">*</span>p - c, (degree, idx), (<span class="number">0</span>, <span class="number">0</span>))]);
+                        buffer.extend([(p - c, (degree, idx), (<span class="number">0</span>, <span class="number">0</span>))]);
                     } <span class="kw">else </span>{
                         <span class="comment">// Write this as [P(p^(len + k - 1)), P(0, .., 0, P^k)] plus higher order
                         // terms.
@@ -3770,7 +3770,7 @@
                             degree: r_degree,
                         });
                         buffer.extend(<span class="macro">vec!</span>[
-                            (<span class="kw-2">*</span>p - c, (l_degree, l_index), (r_degree, r_index)),
+                            (p - c, (l_degree, l_index), (r_degree, r_index)),
                             (c, (r_degree, r_index), (l_degree, l_index)),
                         ])
                     }
@@ -3796,7 +3796,7 @@
                     <span class="kw">let </span>second = (elt.degree, <span class="self">self</span>.basis_element_to_index(<span class="kw-2">&amp;</span>elt));
 
                     <span class="kw">let </span>coef =
-                        <span class="kw-2">*</span>p - fp::prime::inverse(p, PPartEntry::binomial(p, pk + rem_entry, pk));
+                        p - fp::prime::inverse(p, PPartEntry::binomial(p, pk + rem_entry, pk));
                     buffer.extend([(coef, first, second)])
                 }
             } <span class="kw">else </span>{
@@ -3818,7 +3818,7 @@
                     elt.p_part.pop();
                 }
                 <span class="kw">let </span>second = (elt.degree, <span class="self">self</span>.basis_element_to_index(<span class="kw-2">&amp;</span>elt));
-                buffer.extend([(<span class="kw-2">*</span>p - c, first, second)]);
+                buffer.extend([(p - c, first, second)]);
             };
             <span class="kw">for </span>(c, first, second) <span class="kw">in </span><span class="kw-2">&amp;</span>buffer {
                 <span class="self">self</span>.multiply_basis_elements(
@@ -3853,7 +3853,7 @@
 
 <span class="kw">impl </span>Bialgebra <span class="kw">for </span>MilnorAlgebra {
     <span class="kw">fn </span>coproduct(<span class="kw-2">&amp;</span><span class="self">self</span>, op_deg: i32, op_idx: usize) -&gt; Vec&lt;(i32, usize, i32, usize)&gt; {
-        <span class="macro">assert_eq!</span>(<span class="kw-2">*</span><span class="self">self</span>.prime(), <span class="number">2</span>, <span class="string">"Coproduct at odd primes not supported"</span>);
+        <span class="macro">assert_eq!</span>(<span class="self">self</span>.prime(), <span class="number">2</span>, <span class="string">"Coproduct at odd primes not supported"</span>);
         <span class="kw">if </span>op_deg == <span class="number">0 </span>{
             <span class="kw">return </span><span class="macro">vec!</span>[(<span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>)];
         }

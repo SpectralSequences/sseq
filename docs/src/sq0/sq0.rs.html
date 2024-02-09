@@ -539,7 +539,7 @@
 <span class="kw">fn </span>main() -&gt; anyhow::Result&lt;()&gt; {
     <span class="kw">let </span>res = utils::query_module(<span class="prelude-val">None</span>, <span class="bool-val">true</span>)<span class="question-mark">?</span>;
     <span class="macro">assert!</span>(
-        <span class="kw-2">*</span>res.prime() == <span class="number">2 </span>&amp;&amp; res.target().max_s() == <span class="number">1 </span>&amp;&amp; res.target().module(<span class="number">0</span>).is_unit(),
+        res.prime() == <span class="number">2 </span>&amp;&amp; res.target().max_s() == <span class="number">1 </span>&amp;&amp; res.target().module(<span class="number">0</span>).is_unit(),
         <span class="string">"Sq^0 can only be computed for the sphere at the prime 2"
     </span>);
 

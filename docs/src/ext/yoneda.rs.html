@@ -729,7 +729,7 @@
 
 <span class="attr">#[allow(dead_code)]
 </span><span class="kw">fn </span>operation_drop(algebra: <span class="kw-2">&amp;</span>AdemAlgebra, deg: i32, idx: usize) -&gt; i32 {
-    <span class="kw">if </span><span class="kw-2">*</span>algebra.prime() != <span class="number">2 </span>{
+    <span class="kw">if </span>algebra.prime() != <span class="number">2 </span>{
         <span class="kw">return </span><span class="number">1</span>;
     }
     <span class="kw">let </span>elt = algebra.basis_element_from_index(deg, idx);

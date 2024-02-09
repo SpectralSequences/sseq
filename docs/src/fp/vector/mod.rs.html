@@ -1072,6 +1072,29 @@
 <a href="#1046" id="1046">1046</a>
 <a href="#1047" id="1047">1047</a>
 <a href="#1048" id="1048">1048</a>
+<a href="#1049" id="1049">1049</a>
+<a href="#1050" id="1050">1050</a>
+<a href="#1051" id="1051">1051</a>
+<a href="#1052" id="1052">1052</a>
+<a href="#1053" id="1053">1053</a>
+<a href="#1054" id="1054">1054</a>
+<a href="#1055" id="1055">1055</a>
+<a href="#1056" id="1056">1056</a>
+<a href="#1057" id="1057">1057</a>
+<a href="#1058" id="1058">1058</a>
+<a href="#1059" id="1059">1059</a>
+<a href="#1060" id="1060">1060</a>
+<a href="#1061" id="1061">1061</a>
+<a href="#1062" id="1062">1062</a>
+<a href="#1063" id="1063">1063</a>
+<a href="#1064" id="1064">1064</a>
+<a href="#1065" id="1065">1065</a>
+<a href="#1066" id="1066">1066</a>
+<a href="#1067" id="1067">1067</a>
+<a href="#1068" id="1068">1068</a>
+<a href="#1069" id="1069">1069</a>
+<a href="#1070" id="1070">1070</a>
+<a href="#1071" id="1071">1071</a>
 </pre></div><pre class="rust"><code><span class="attr">#[cfg(not(feature = <span class="string">"odd-primes"</span>))]
 </span><span class="kw">pub mod </span>vector_2;
 <span class="attr">#[cfg(not(feature = <span class="string">"odd-primes"</span>))]
@@ -1091,13 +1114,15 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>test {
+    <span class="kw">use </span>std::sync::OnceLock;
+
     <span class="kw">use </span>itertools::Itertools;
     <span class="kw">use </span>proptest::prelude::<span class="kw-2">*</span>;
     <span class="kw">use </span>rstest::rstest;
 
     <span class="kw">use super</span>::{inner::FpVectorP, <span class="kw-2">*</span>};
-    <span class="kw">use </span><span class="kw">crate</span>::limb;
-    <span class="kw">use </span><span class="kw">crate</span>::prime::ValidPrime;
+    <span class="kw">use </span><span class="kw">crate</span>::limb::{<span class="self">self</span>, bit_length};
+    <span class="kw">use </span><span class="kw">crate</span>::prime::{Prime, ValidPrime, P2};
 
     <span class="kw">pub struct </span>VectorDiffEntry {
         <span class="kw">pub </span>index: usize,
@@ -1174,14 +1199,30 @@
         (<span class="number">0</span>..dimension).map(|<span class="kw">_</span>| rng.gen_range(<span class="number">0</span>..p)).collect()
     }
 
-    <span class="doccomment">/// An arbitrary `ValidPrime`
+    <span class="doccomment">/// An arbitrary `ValidPrime` in the range `2..(1 &lt;&lt; 24)`, plus the largest prime that we support.
     </span><span class="kw">fn </span>arb_prime() -&gt; <span class="kw">impl </span>Strategy&lt;Value = ValidPrime&gt; {
-        <span class="macro">prop_oneof!</span>[
-            Just(ValidPrime::new(<span class="number">2</span>)),
-            Just(ValidPrime::new(<span class="number">3</span>)),
-            Just(ValidPrime::new(<span class="number">5</span>)),
-            Just(ValidPrime::new(<span class="number">7</span>)),
-        ]
+        <span class="kw">static </span>TEST_PRIMES: OnceLock&lt;Vec&lt;ValidPrime&gt;&gt; = OnceLock::new();
+        <span class="kw">let </span>test_primes = TEST_PRIMES.get_or_init(|| {
+            <span class="comment">// Sieve of erathosthenes
+            </span><span class="kw">const </span>MAX: usize = <span class="number">1 </span>&lt;&lt; <span class="number">24</span>;
+            <span class="kw">let </span><span class="kw-2">mut </span>is_prime = Vec::new();
+            is_prime.resize_with(MAX, || <span class="bool-val">true</span>);
+            is_prime[<span class="number">0</span>] = <span class="bool-val">false</span>;
+            is_prime[<span class="number">1</span>] = <span class="bool-val">false</span>;
+            <span class="kw">for </span>i <span class="kw">in </span><span class="number">2</span>..MAX {
+                <span class="kw">if </span>is_prime[i] {
+                    <span class="kw">for </span>j <span class="kw">in </span>((<span class="number">2 </span>* i)..MAX).step_by(i) {
+                        is_prime[j] = <span class="bool-val">false</span>;
+                    }
+                }
+            }
+            (<span class="number">0</span>..MAX)
+                .filter(|<span class="kw-2">&amp;</span>i| is_prime[i])
+                .map(|p| ValidPrime::new_unchecked(p <span class="kw">as </span>u32))
+                .chain(std::iter::once(ValidPrime::new_unchecked(<span class="number">2147483647</span>)))
+                .collect()
+        });
+        (<span class="number">0</span>..test_primes.len()).prop_map(|i| test_primes[i])
     }
 
     <span class="doccomment">/// An arbitrary (prime, dimension) pair
@@ -1209,7 +1250,7 @@
     /// take in a `Vec&lt;u32&gt;` instead of an `FpVector` directly because they will usually apply some
     /// operation on both the `FpVector` and the original `Vec&lt;u32&gt;` and then compare the results.
     </span><span class="kw">fn </span>arb_vec_u32(p: ValidPrime, dimension: usize) -&gt; <span class="kw">impl </span>Strategy&lt;Value = Vec&lt;u32&gt;&gt; {
-        proptest::collection::vec(<span class="number">0</span>..<span class="kw-2">*</span>p, dimension)
+        proptest::collection::vec(<span class="number">0</span>..p.as_u32(), dimension)
     }
 
     <span class="doccomment">/// A pair of a prime `p` and a vector containing values in the range `0..p`. In other
@@ -1268,6 +1309,11 @@
         })]
 
         #[test]
+        </span><span class="kw">fn </span>test_bit_length(p <span class="kw">in </span>arb_prime()) {
+            <span class="macro">prop_assert!</span>(bit_length(p) &lt;= <span class="number">63</span>);
+        }
+
+        <span class="attr">#[test]
         </span><span class="kw">fn </span>test_serialize((p, v_arr) <span class="kw">in </span>arb_vec()) {
             <span class="kw">use </span>std::io::{Seek, Cursor};
 
@@ -1289,19 +1335,19 @@
             v.add(<span class="kw-2">&amp;</span>w, <span class="number">1</span>);
 
             <span class="kw">for </span>(v_element, w_element) <span class="kw">in </span>v_arr.iter_mut().zip(w_arr.iter()) {
-                <span class="kw-2">*</span>v_element = (<span class="kw-2">*</span>v_element + <span class="kw-2">*</span>w_element) % <span class="kw-2">*</span>p;
+                <span class="kw-2">*</span>v_element = (<span class="kw-2">*</span>v_element + <span class="kw-2">*</span>w_element) % p;
             }
             v.assert_list_eq(<span class="kw-2">&amp;</span>v_arr);
         }
 
         <span class="attr">#[test]
         </span><span class="kw">fn </span>test_scale((p, <span class="kw-2">mut </span>v_arr, c) <span class="kw">in </span>arb_prime_dim().prop_flat_map(|(p, dim)| {
-            (Just(p), arb_vec_u32(p, dim), <span class="number">0u32</span>..<span class="kw-2">*</span>p)
+            (Just(p), arb_vec_u32(p, dim), <span class="number">0</span>..p.as_u32())
         })) {
             <span class="kw">let </span><span class="kw-2">mut </span>v = FpVector::from_slice(p, <span class="kw-2">&amp;</span>v_arr);
             v.scale(c);
             <span class="kw">for </span>entry <span class="kw">in </span><span class="kw-2">&amp;mut </span>v_arr {
-                <span class="kw-2">*</span>entry = (<span class="kw-2">*</span>entry * c) % <span class="kw-2">*</span>p;
+                <span class="kw-2">*</span>entry = p.product(<span class="kw-2">*</span>entry, c);
             }
             v.assert_list_eq(<span class="kw-2">&amp;</span>v_arr);
         }
@@ -1309,14 +1355,14 @@
         <span class="attr">#[test]
         </span><span class="kw">fn </span>test_scale_slice((p, <span class="kw-2">mut </span>v_arr, (slice_start, slice_end), c) <span class="kw">in
             </span>arb_prime_dim().prop_flat_map(|(p, dim)| {
-                (Just(p), arb_vec_u32(p, dim), arb_slice(dim), <span class="number">0u32</span>..<span class="kw-2">*</span>p)
+                (Just(p), arb_vec_u32(p, dim), arb_slice(dim), <span class="number">0</span>..p.as_u32())
             })
         ) {
             <span class="kw">let </span><span class="kw-2">mut </span>v = FpVector::from_slice(p, <span class="kw-2">&amp;</span>v_arr);
             v.slice_mut(slice_start, slice_end).scale(c);
 
             <span class="kw">for </span>entry <span class="kw">in </span><span class="kw-2">&amp;mut </span>v_arr[slice_start..slice_end] {
-                <span class="kw-2">*</span>entry = (<span class="kw-2">*</span>entry * c) % <span class="kw-2">*</span>p;
+                <span class="kw-2">*</span>entry = p.product(<span class="kw-2">*</span>entry, c);
             }
             v.assert_list_eq(<span class="kw-2">&amp;</span>v_arr);
         }
@@ -1405,7 +1451,7 @@
                 .add(w.slice(slice_start, slice_end), <span class="number">1</span>);
 
             <span class="kw">for </span>i <span class="kw">in </span>slice_start..slice_end {
-                v_arr[i] = (v_arr[i] + w_arr[i]) % <span class="kw-2">*</span>p;
+                v_arr[i] = (v_arr[i] + w_arr[i]) % p;
             }
             v.assert_list_eq(<span class="kw-2">&amp;</span>v_arr);
         }
@@ -1463,7 +1509,7 @@
                 .iter_mut()
                 .zip(w_arr[slice2_start..slice2_end].iter())
             {
-                <span class="kw-2">*</span>v_element = (<span class="kw-2">*</span>v_element + <span class="kw-2">*</span>w_element) % <span class="kw-2">*</span>p;
+                <span class="kw-2">*</span>v_element = (<span class="kw-2">*</span>v_element + <span class="kw-2">*</span>w_element) % p;
             }
             v.assert_list_eq(<span class="kw-2">&amp;</span>v_arr);
         }
@@ -1477,7 +1523,7 @@
 
             <span class="kw">for </span>(i, x) <span class="kw">in </span>v_small.iter_mut().enumerate() {
                 <span class="kw-2">*</span>x += v_big[mask[i]];
-                <span class="kw-2">*</span>x %= <span class="kw-2">*</span>p;
+                <span class="kw-2">*</span>x %= p;
             }
 
             v.assert_list_eq(<span class="kw-2">&amp;</span>v_small);
@@ -1491,7 +1537,7 @@
             v.as_slice_mut().add_unmasked(w.as_slice(), <span class="number">1</span>, <span class="kw-2">&amp;</span>mask);
             <span class="kw">for </span>(i, <span class="kw-2">&amp;</span>x) <span class="kw">in </span>v_small.iter().enumerate() {
                 v_big[mask[i]] += x;
-                v_big[mask[i]] %= <span class="kw-2">*</span>p;
+                v_big[mask[i]] %= p;
             }
             v.assert_list_eq(<span class="kw-2">&amp;</span>v_big);
         }
@@ -1601,7 +1647,7 @@
 
         <span class="kw">let </span>p = ValidPrime::new(p);
         <span class="kw">const </span>E_MAX: usize = <span class="number">4</span>;
-        <span class="kw">let </span>pto_the_e_max = (<span class="kw-2">*</span>p * <span class="kw-2">*</span>p * <span class="kw-2">*</span>p * <span class="kw-2">*</span>p) * <span class="kw-2">*</span>p;
+        <span class="kw">let </span>pto_the_e_max = (p * p * p * p) * p;
         <span class="kw">let </span><span class="kw-2">mut </span>v = Vec::with_capacity(E_MAX + <span class="number">1</span>);
         <span class="kw">let </span><span class="kw-2">mut </span>w = Vec::with_capacity(E_MAX + <span class="number">1</span>);
         <span class="kw">for _ in </span><span class="number">0</span>..=E_MAX {
@@ -1614,10 +1660,10 @@
             <span class="kw">let </span><span class="kw-2">mut </span>ev = v_arr[i];
             <span class="kw">let </span><span class="kw-2">mut </span>ew = w_arr[i];
             <span class="kw">for </span>e <span class="kw">in </span><span class="number">0</span>..=E_MAX {
-                v[e].set_entry(i, ev % <span class="kw-2">*</span>p);
-                w[e].set_entry(i, ew % <span class="kw-2">*</span>p);
-                ev /= <span class="kw-2">*</span>p;
-                ew /= <span class="kw-2">*</span>p;
+                v[e].set_entry(i, ev % p);
+                w[e].set_entry(i, ew % p);
+                ev /= p;
+                ew /= p;
             }
         }
 
@@ -1641,7 +1687,7 @@
         <span class="kw">let </span><span class="kw-2">mut </span>vec_result = <span class="macro">vec!</span>[<span class="number">0</span>; dim];
         <span class="kw">for </span>(i, entry) <span class="kw">in </span>vec_result.iter_mut().enumerate() {
             <span class="kw">for </span>e <span class="kw">in </span>(<span class="number">0</span>..=E_MAX).rev() {
-                <span class="kw-2">*</span>entry <span class="kw-2">*</span>= <span class="kw-2">*</span>p;
+                <span class="kw-2">*</span>entry <span class="kw-2">*</span>= p;
                 <span class="kw-2">*</span>entry += v[e].entry(i);
             }
         }
@@ -1683,8 +1729,8 @@
     <span class="attr">#[test]
     #[ignore]
     </span><span class="kw">fn </span>test_sign_rule() {
-        <span class="kw">let </span><span class="kw-2">mut </span>in1 = FpVectorP::&lt;<span class="number">2</span>&gt;::new_(<span class="number">128</span>);
-        <span class="kw">let </span><span class="kw-2">mut </span>in2 = FpVectorP::&lt;<span class="number">2</span>&gt;::new_(<span class="number">128</span>);
+        <span class="kw">let </span><span class="kw-2">mut </span>in1 = FpVectorP::new(P2, <span class="number">128</span>);
+        <span class="kw">let </span><span class="kw-2">mut </span>in2 = FpVectorP::new(P2, <span class="number">128</span>);
         <span class="kw">let </span>tests = [
             (
                 <span class="number">0x181e20846a820820</span>,

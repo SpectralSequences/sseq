@@ -701,7 +701,7 @@
         <span class="kw">for </span>(i, v) <span class="kw">in </span>s.iter_nonzero() {
             <span class="self">self</span>.multiply_basis_elements(
                 result.copy(),
-                (coeff * v) % <span class="kw-2">*</span>p,
+                (coeff * v) % p,
                 r_degree,
                 r_idx,
                 s_degree,
@@ -727,7 +727,7 @@
         <span class="kw">for </span>(i, v) <span class="kw">in </span>r.iter_nonzero() {
             <span class="self">self</span>.multiply_basis_elements(
                 result.copy(),
-                (coeff * v) % <span class="kw-2">*</span>p,
+                (coeff * v) % p,
                 r_degree,
                 i,
                 s_degree,
@@ -753,7 +753,7 @@
         <span class="kw">for </span>(i, v) <span class="kw">in </span>s.iter_nonzero() {
             <span class="self">self</span>.multiply_element_by_basis_element(
                 result.copy(),
-                (coeff * v) % <span class="kw-2">*</span>p,
+                (coeff * v) % p,
                 r_degree,
                 r,
                 s_degree,
@@ -840,7 +840,7 @@
         <span class="kw">for </span>(i, v) <span class="kw">in </span>s.iter_nonzero() {
             <span class="self">self</span>.multiply_basis_elements_unstable(
                 result.copy(),
-                (coeff * v) % <span class="kw-2">*</span>p,
+                (coeff * v) % p,
                 r_degree,
                 r_idx,
                 s_degree,
@@ -868,7 +868,7 @@
         <span class="kw">for </span>(i, v) <span class="kw">in </span>r.iter_nonzero() {
             <span class="self">self</span>.multiply_basis_elements_unstable(
                 result.copy(),
-                (coeff * v) % <span class="kw-2">*</span>p,
+                (coeff * v) % p,
                 r_degree,
                 i,
                 s_degree,
@@ -896,7 +896,7 @@
         <span class="kw">for </span>(i, v) <span class="kw">in </span>s.iter_nonzero() {
             <span class="self">self</span>.multiply_element_by_basis_element_unstable(
                 result.copy(),
-                (coeff * v) % <span class="kw-2">*</span>p,
+                (coeff * v) % p,
                 r_degree,
                 r,
                 s_degree,

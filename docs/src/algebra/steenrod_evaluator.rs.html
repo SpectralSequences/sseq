@@ -534,7 +534,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::algebra::{AdemAlgebra, Algebra, MilnorAlgebra};
 <span class="kw">use </span><span class="kw">crate</span>::milnor_algebra::{MilnorBasisElement, PPartEntry};
 <span class="kw">use </span><span class="kw">crate</span>::steenrod_parser::<span class="kw-2">*</span>;
-<span class="kw">use </span>fp::prime::ValidPrime;
+<span class="kw">use </span>fp::prime::{Prime, ValidPrime};
 <span class="kw">use </span>fp::vector::FpVector;
 
 <span class="kw">use </span>anyhow::anyhow;
@@ -556,14 +556,14 @@
     <span class="kw">pub fn </span>milnor_to_adem(<span class="kw-2">&amp;</span><span class="self">self</span>, result: <span class="kw-2">&amp;mut </span>FpVector, coeff: u32, degree: i32, input: <span class="kw-2">&amp;</span>FpVector) {
         <span class="kw">let </span>p = <span class="self">self</span>.prime();
         <span class="kw">for </span>(i, v) <span class="kw">in </span>input.iter_nonzero() {
-            <span class="self">self</span>.milnor_to_adem_on_basis(result, (coeff * v) % <span class="kw-2">*</span>p, degree, i);
+            <span class="self">self</span>.milnor_to_adem_on_basis(result, (coeff * v) % p, degree, i);
         }
     }
 
     <span class="kw">pub fn </span>adem_to_milnor(<span class="kw-2">&amp;</span><span class="self">self</span>, result: <span class="kw-2">&amp;mut </span>FpVector, coeff: u32, degree: i32, input: <span class="kw-2">&amp;</span>FpVector) {
         <span class="kw">let </span>p = <span class="self">self</span>.prime();
         <span class="kw">for </span>(i, v) <span class="kw">in </span>input.iter_nonzero() {
-            <span class="self">self</span>.adem_to_milnor_on_basis(result, (coeff * v) % <span class="kw-2">*</span>p, degree, i);
+            <span class="self">self</span>.adem_to_milnor_on_basis(result, (coeff * v) % p, degree, i);
         }
     }
 
@@ -663,7 +663,7 @@
                     }
                 }
                 <span class="kw">let </span><span class="kw-2">mut </span>result = FpVector::new(p, <span class="number">1</span>);
-                result.set_entry(<span class="number">0</span>, x.rem_euclid(<span class="kw-2">*</span>p <span class="kw">as </span>i32) <span class="kw">as </span>u32);
+                result.set_entry(<span class="number">0</span>, x.rem_euclid(p.as_i32()) <span class="kw">as </span>u32);
                 <span class="prelude-val">Ok</span>((<span class="number">0</span>, result))
             }
         }
@@ -806,7 +806,7 @@
             degree,
             bocksteins: <span class="number">0</span>,
             ps: t,
-            p_or_sq: <span class="kw-2">*</span>p != <span class="number">2</span>,
+            p_or_sq: p != <span class="number">2</span>,
         });
         <span class="kw">let </span><span class="kw-2">mut </span>tmp_vector_a = FpVector::new(p, dim);
         <span class="self">self</span>.adem_to_milnor_on_basis(<span class="kw-2">&amp;mut </span>tmp_vector_a, <span class="number">1</span>, degree, t_idx);
@@ -847,19 +847,19 @@
             } <span class="kw">else </span>{
                 <span class="number">0
             </span>};
-            t[i] = p_part + ((elt.q_part &gt;&gt; (i + <span class="number">1</span>)) &amp; <span class="number">1</span>) + <span class="kw-2">*</span>p * t[i + <span class="number">1</span>];
+            t[i] = p_part + ((elt.q_part &gt;&gt; (i + <span class="number">1</span>)) &amp; <span class="number">1</span>) + p * t[i + <span class="number">1</span>];
         }
         <span class="kw">let </span>t_idx = <span class="self">self</span>.adem.basis_element_to_index(<span class="kw-2">&amp;</span>AdemBasisElement {
             degree,
             bocksteins: elt.q_part,
             ps: t,
-            p_or_sq: <span class="kw-2">*</span>p != <span class="number">2</span>,
+            p_or_sq: p != <span class="number">2</span>,
         });
         <span class="kw">let </span><span class="kw-2">mut </span>tmp_vector_a = FpVector::new(p, dim);
         <span class="self">self</span>.adem_to_milnor_on_basis(<span class="kw-2">&amp;mut </span>tmp_vector_a, <span class="number">1</span>, degree, t_idx);
         <span class="macro">assert!</span>(tmp_vector_a.entry(idx) == <span class="number">1</span>);
         tmp_vector_a.set_entry(idx, <span class="number">0</span>);
-        tmp_vector_a.scale(<span class="kw-2">*</span>p - <span class="number">1</span>);
+        tmp_vector_a.scale(p - <span class="number">1</span>);
         <span class="self">self</span>.milnor_to_adem(result, coeff, degree, <span class="kw-2">&amp;</span>tmp_vector_a);
         result.add_basis_element(t_idx, coeff);
     }

@@ -517,11 +517,10 @@
 <a href="#491" id="491">491</a>
 <a href="#492" id="492">492</a>
 <a href="#493" id="493">493</a>
-<a href="#494" id="494">494</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>fp::vector::FpVector;
 <span class="kw">use </span>once::OnceVec;
 
-<span class="kw">use </span>fp::prime::{minus_one_to_the_n, Binomial, ValidPrime};
+<span class="kw">use </span>fp::prime::{minus_one_to_the_n, Binomial, Prime, ValidPrime};
 <span class="kw">use </span>fp::{const_for, MAX_MULTINOMIAL_LEN, NUM_PRIMES, PRIMES, PRIME_TO_INDEX_MAP};
 
 <span class="kw">pub const </span>MAX_XI_TAU: usize = MAX_MULTINOMIAL_LEN;
@@ -559,7 +558,7 @@
 };
 
 <span class="kw">pub fn </span>adem_relation_coefficient(p: ValidPrime, x: u32, y: u32, j: u32, e1: u32, e2: u32) -&gt; u32 {
-    <span class="kw">let </span>pi32 = <span class="kw-2">*</span>p <span class="kw">as </span>i32;
+    <span class="kw">let </span>pi32 = p.as_i32();
     <span class="kw">let </span>x = x <span class="kw">as </span>i32;
     <span class="kw">let </span>y = y <span class="kw">as </span>i32;
     <span class="kw">let </span>j = j <span class="kw">as </span>i32;
@@ -569,12 +568,11 @@
     <span class="kw">if </span>c == <span class="number">0 </span>{
         <span class="kw">return </span><span class="number">0</span>;
     }
-    c <span class="kw-2">*</span>= minus_one_to_the_n(<span class="kw-2">*</span>p, (x + j) + e2);
-    c % <span class="kw-2">*</span>p
+    c <span class="kw-2">*</span>= minus_one_to_the_n(p, (x + j) + e2);
+    c % p
 }
 
 <span class="kw">pub fn </span>inadmissible_pairs(p: ValidPrime, generic: bool, degree: i32) -&gt; Vec&lt;(u32, u32, u32)&gt; {
-    <span class="kw">let </span>p = <span class="kw-2">*</span>p;
     <span class="kw">let </span>degree = degree <span class="kw">as </span>u32;
     <span class="kw">let </span>q = <span class="kw">if </span>generic { <span class="number">2 </span>* p - <span class="number">2 </span>} <span class="kw">else </span>{ <span class="number">1 </span>};
     <span class="comment">// (i, b, j) means P^i P^j if b = 0, or P^i b P^j if b = 1.
@@ -603,11 +601,11 @@
 }
 
 <span class="kw">pub fn </span>tau_degrees(p: ValidPrime) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'static </span>[i32] {
-    <span class="kw-2">&amp;</span>TAU_DEGREES[PRIME_TO_INDEX_MAP[<span class="kw-2">*</span>p <span class="kw">as </span>usize]]
+    <span class="kw-2">&amp;</span>TAU_DEGREES[PRIME_TO_INDEX_MAP[p.as_usize()]]
 }
 
 <span class="kw">pub fn </span>xi_degrees(p: ValidPrime) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'static </span>[i32] {
-    <span class="kw-2">&amp;</span>XI_DEGREES[PRIME_TO_INDEX_MAP[<span class="kw-2">*</span>p <span class="kw">as </span>usize]]
+    <span class="kw-2">&amp;</span>XI_DEGREES[PRIME_TO_INDEX_MAP[p.as_usize()]]
 }
 
 <span class="kw">pub struct </span>TruncatedPolynomialMonomialBasis {
@@ -662,7 +660,7 @@
 
     <span class="kw">pub fn </span>add_gens_and_calculate_parts(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32, new_gens: usize) {
         <span class="macro">assert!</span>(degree <span class="kw">as </span>usize == <span class="self">self</span>.gens.len());
-        <span class="kw">let </span>p = <span class="kw-2">*</span><span class="self">self</span>.p;
+        <span class="kw">let </span>p = <span class="self">self</span>.p;
         <span class="kw">let </span>idx = <span class="self">self</span>.gens[degree <span class="kw">as </span>usize - <span class="number">1</span>].<span class="number">0 </span>+ <span class="self">self</span>.gens[degree <span class="kw">as </span>usize - <span class="number">1</span>].<span class="number">1</span>;
         <span class="self">self</span>.gens.push((idx, new_gens));
         <span class="kw">let </span><span class="kw-2">mut </span>new_parts_by_max = Vec::new();
