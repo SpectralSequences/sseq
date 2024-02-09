@@ -1,6 +1,6 @@
 use algebra::milnor_algebra::{PPartAllocation, PPartEntry, PPartMultiplier};
 use bencher::{benchmark_group, benchmark_main, Bencher};
-use fp::prime::ValidPrime;
+use fp::prime::{Prime, ValidPrime};
 
 fn ppart_inner<const MOD4: bool>(
     bench: &mut Bencher,
@@ -24,7 +24,7 @@ fn ppart_inner<const MOD4: bool>(
             if MOD4 {
                 assert!(c < 4);
             } else {
-                assert!(c < *p);
+                assert!(c < p.as_u32());
             }
         }
     });

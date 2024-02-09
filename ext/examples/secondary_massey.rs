@@ -438,7 +438,7 @@ fn main() -> anyhow::Result<()> {
             }
             // Now do the -1 part of the null-homotopy of bc.
             {
-                let sign = *p * *p - 1;
+                let sign = p * p - 1;
                 let out = b.product_nullhomotopy(b_tau.as_deref(), &unit_sseq, c, gen);
                 for (i, v) in out.iter_nonzero() {
                     scratch0
@@ -449,11 +449,11 @@ fn main() -> anyhow::Result<()> {
             }
 
             for (i, v) in scratch0.iter().enumerate() {
-                let extra = *v / *p;
-                scratch1.add(&mp[i], extra % *p);
+                let extra = *v / p;
+                scratch1.add(&mp[i], extra % p);
             }
 
-            print!("[{}]", scratch0.iter().map(|x| x % *p).format(", "));
+            print!("[{}]", scratch0.iter().map(|x| *x % p).format(", "));
 
             // Then deal with the rest of the null-homotopy of bc. This is just the null-homotopy
             // of 2.
@@ -467,7 +467,7 @@ fn main() -> anyhow::Result<()> {
                     .for_each(|(a, b)| *a += v * b);
             }
             for (i, v) in scratch0.iter().enumerate() {
-                let extra = (v / *p) % *p;
+                let extra = (*v / p) % p;
                 if extra == 0 {
                     continue;
                 }

@@ -129,7 +129,7 @@ impl Subspace {
         for (col, row) in iter {
             let c = vector.as_slice().entry(col);
             if c != 0 {
-                vector.add(row, *p - c);
+                vector.add(row, p - c);
             }
         }
     }

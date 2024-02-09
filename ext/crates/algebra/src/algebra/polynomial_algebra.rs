@@ -2,7 +2,7 @@ use itertools::Itertools;
 use rustc_hash::FxHashMap as HashMap;
 use std::fmt;
 
-use fp::prime::ValidPrime;
+use fp::prime::{Prime, ValidPrime};
 use fp::vector::{FpVector, SliceMut};
 use once::OnceVec;
 
@@ -123,7 +123,7 @@ pub trait PolynomialAlgebra: std::fmt::Display + Sized + Send + Sync + 'static {
     }
 
     fn frobenius_monomial(&self, target: &mut FpVector, source: &FpVector) {
-        let p = *self.prime() as i32;
+        let p = self.prime().as_i32();
         for (i, c) in source.iter_nonzero() {
             let (gen_degree, gen_index) = self.polynomial_monomials().internal_idx_to_gen_deg(i);
             let frob = self.frobenius_on_generator(gen_degree, gen_index);
@@ -141,7 +141,7 @@ pub trait PolynomialAlgebra: std::fmt::Display + Sized + Send + Sync + 'static {
         target: &mut PolynomialAlgebraMonomial,
         source: &PolynomialAlgebraMonomial,
     ) -> Option<u32> {
-        let minus_one = *self.prime() - 1;
+        let minus_one = self.prime() - 1;
         self.set_monomial_degree(target, target.degree + source.degree);
         let mut temp_source_ext = source.ext.clone();
         temp_source_ext.set_scratch_vector_size(target.ext.len());
@@ -177,7 +177,7 @@ pub trait PolynomialAlgebra: std::fmt::Display + Sized + Send + Sync + 'static {
         right_degree: i32,
         right: &FpVector,
     ) {
-        let p = *self.prime();
+        let p = self.prime();
         target.set_scratch_vector_size(self.dimension(left_degree + right_degree));
         for (left_idx, left_entry) in left.iter_nonzero() {
             for (right_idx, right_entry) in right.iter_nonzero() {
@@ -200,7 +200,7 @@ pub trait PolynomialAlgebra: std::fmt::Display + Sized + Send + Sync + 'static {
         left: &FpVector,
         right_mono: &PolynomialAlgebraMonomial,
     ) {
-        let p = *self.prime();
+        let p = self.prime();
         target.extend_len(self.dimension(left_degree + right_mono.degree));
         for (left_idx, left_entry) in left.iter_nonzero() {
             let mut target_mono = self.index_to_monomial(left_degree, left_idx).clone(); // Could reduce cloning a bit but probably best not to worry.
@@ -221,7 +221,7 @@ pub trait PolynomialAlgebra: std::fmt::Display + Sized + Send + Sync + 'static {
         right_degree: i32,
         right: &FpVector,
     ) {
-        let p = *self.prime();
+        let p = self.prime();
         target.extend_len(self.dimension(right_degree + left_mono.degree));
         for (right_idx, right_entry) in right.iter_nonzero() {
             let mut target_mono = left_mono.clone(); // Could reduce cloning a bit but probably best not to worry.

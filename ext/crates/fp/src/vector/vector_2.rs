@@ -8,40 +8,36 @@ use itertools::Itertools;
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use crate::limb::{entries_per_limb_const, Limb};
-use crate::prime::ValidPrime;
+use crate::limb::{entries_per_limb, Limb};
+use crate::prime::{Prime, ValidPrime, P2};
 use crate::vector::inner::{FpVectorP, SliceMutP, SliceP};
 
 use super::iter::{FpVectorIterator, FpVectorNonZeroIteratorP};
 
-pub type FpVector = FpVectorP<2>;
-pub type Slice<'a> = SliceP<'a, 2>;
-pub type SliceMut<'a> = SliceMutP<'a, 2>;
-pub type FpVectorNonZeroIterator<'a> = FpVectorNonZeroIteratorP<'a, 2>;
+pub type FpVector = FpVectorP<P2>;
+pub type Slice<'a> = SliceP<'a, P2>;
+pub type SliceMut<'a> = SliceMutP<'a, P2>;
+pub type FpVectorNonZeroIterator<'a> = FpVectorNonZeroIteratorP<'a, P2>;
 
 // `FpVector` implementations
 
 impl FpVector {
-    pub fn new(_p: ValidPrime, len: usize) -> FpVector {
-        FpVector::new_(len)
-    }
-
-    pub fn new_with_capacity(_p: ValidPrime, len: usize, capacity: usize) -> FpVector {
-        FpVector::new_with_capacity_(len, capacity)
-    }
-
-    pub fn from_slice(_p: ValidPrime, slice: &[u32]) -> Self {
-        Self::from(&slice)
+    pub fn from_slice<P: Prime>(p: P, slice: &[u32]) -> Self {
+        if p == 2 {
+            Self::from((P2, &slice))
+        } else {
+            panic!("Only p = 2 is supported")
+        }
     }
 
     pub fn num_limbs(_p: ValidPrime, len: usize) -> usize {
-        let entries_per_limb = entries_per_limb_const::<2>();
+        let entries_per_limb = entries_per_limb(P2);
         (len + entries_per_limb - 1) / entries_per_limb
     }
 
     #[allow(dead_code)]
     pub(crate) fn padded_len(p: ValidPrime, len: usize) -> usize {
-        Self::num_limbs(p, len) * entries_per_limb_const::<2>()
+        Self::num_limbs(p, len) * entries_per_limb(P2)
     }
 
     pub fn update_from_bytes(&mut self, data: &mut impl Read) -> std::io::Result<()> {

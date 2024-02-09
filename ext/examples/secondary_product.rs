@@ -83,7 +83,7 @@ fn main() -> anyhow::Result<()> {
             sum.iter_mut().zip_eq(d2).for_each(|(a, b)| *a += x * b);
         }
         assert!(
-            sum.iter().all(|x| x % *p == 0),
+            sum.iter().all(|x| *x % p == 0),
             "Class supports a non-zero d2"
         );
     }

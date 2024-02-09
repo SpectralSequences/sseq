@@ -16,7 +16,7 @@ use itertools::Itertools;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::limb::{entries_per_limb, Limb};
-use crate::prime::ValidPrime;
+use crate::prime::{primes::*, Prime, ValidPrime};
 use crate::vector::inner::{FpVectorP, SliceMutP, SliceP};
 
 use super::iter::{FpVectorIterator, FpVectorNonZeroIteratorP};
@@ -31,6 +31,7 @@ macro_rules! dispatch_vector_inner {
                 (Self::_3(x), $other::_3(y)) => x.$method(y, $($arg),*),
                 (Self::_5(x), $other::_5(y)) => x.$method(y, $($arg),*),
                 (Self::_7(x), $other::_7(y)) => x.$method(y, $($arg),*),
+                (Self::Big(x), $other::Big(y)) => x.$method(y, $($arg),*),
                 (l, r) => {
                     panic!("Applying {} to vectors over different primes ({} and {})", stringify!($method), l.prime(), r.prime());
                 }
@@ -45,6 +46,7 @@ macro_rules! dispatch_vector_inner {
                 (Self::_3(x), $other::_3(y)) => x.$method(y, $($arg),*),
                 (Self::_5(x), $other::_5(y)) => x.$method(y, $($arg),*),
                 (Self::_7(x), $other::_7(y)) => x.$method(y, $($arg),*),
+                (Self::Big(x), $other::Big(y)) => x.$method(y, $($arg),*),
                 (l, r) => {
                     panic!("Applying {} to vectors over different primes ({} and {})", stringify!($method), l.prime(), r.prime());
                 }
@@ -58,6 +60,7 @@ macro_rules! dispatch_vector_inner {
                 (Self::_3(x), $other::_3(y)) => x.$method(y, $($arg),*),
                 (Self::_5(x), $other::_5(y)) => x.$method(y, $($arg),*),
                 (Self::_7(x), $other::_7(y)) => x.$method(y, $($arg),*),
+                (Self::Big(x), $other::Big(y)) => x.$method(y, $($arg),*),
                 (l, r) => {
                     panic!("Applying {} to vectors over different primes ({} and {})", stringify!($method), l.prime(), r.prime());
                 }
@@ -72,6 +75,7 @@ macro_rules! dispatch_vector_inner {
                 Self::_3(x) => $ret::_3(x.$method($($arg),*)),
                 Self::_5(x) => $ret::_5(x.$method($($arg),*)),
                 Self::_7(x) => $ret::_7(x.$method($($arg),*)),
+                Self::Big(x) => $ret::Big(x.$method($($arg),*)),
             }
         }
     };
@@ -83,6 +87,7 @@ macro_rules! dispatch_vector_inner {
                 Self::_3(x) => $ret::_3(x.$method($($arg),*)),
                 Self::_5(x) => $ret::_5(x.$method($($arg),*)),
                 Self::_7(x) => $ret::_7(x.$method($($arg),*)),
+                Self::Big(x) => $ret::Big(x.$method($($arg),*)),
             }
         }
     };
@@ -94,6 +99,7 @@ macro_rules! dispatch_vector_inner {
                 Self::_3(x) => $ret::_3(x.$method($($arg),*)),
                 Self::_5(x) => $ret::_5(x.$method($($arg),*)),
                 Self::_7(x) => $ret::_7(x.$method($($arg),*)),
+                Self::Big(x) => $ret::Big(x.$method($($arg),*)),
             }
         }
     };
@@ -106,6 +112,7 @@ macro_rules! dispatch_vector_inner {
                 Self::_3(x) => $ret::_3(x.$method($($arg),*)),
                 Self::_5(x) => $ret::_5(x.$method($($arg),*)),
                 Self::_7(x) => $ret::_7(x.$method($($arg),*)),
+                Self::Big(x) => $ret::Big(x.$method($($arg),*)),
             }
         }
     };
@@ -118,6 +125,7 @@ macro_rules! dispatch_vector_inner {
                 Self::_3(x) => x.$method($($arg),*),
                 Self::_5(x) => x.$method($($arg),*),
                 Self::_7(x) => x.$method($($arg),*),
+                Self::Big(x) => x.$method($($arg),*),
             }
         }
     };
@@ -129,6 +137,7 @@ macro_rules! dispatch_vector_inner {
                 Self::_3(x) => x.$method($($arg),*),
                 Self::_5(x) => x.$method($($arg),*),
                 Self::_7(x) => x.$method($($arg),*),
+                Self::Big(x) => x.$method($($arg),*),
             }
         }
     };
@@ -140,6 +149,7 @@ macro_rules! dispatch_vector_inner {
                 Self::_3(x) => x.$method($($arg),*),
                 Self::_5(x) => x.$method($($arg),*),
                 Self::_7(x) => x.$method($($arg),*),
+                Self::Big(x) => x.$method($($arg),*),
             }
         }
     }
@@ -155,60 +165,70 @@ macro_rules! dispatch_vector {
     }
 }
 
-macro_rules! match_p {
-    ($p:ident, $($val:tt)*) => {
-        match *$p {
-            2 => Self::_2($($val)*),
-            3 => Self::_3($($val)*),
-            5 => Self::_5($($val)*),
-            7 => Self::_7($($val)*),
-            _ => panic!("Prime not supported: {}", *$p)
-        }
-    }
-}
-
 #[derive(Debug, Hash, Eq, PartialEq, Clone)]
 pub enum FpVector {
-    _2(FpVectorP<2>),
-    _3(FpVectorP<3>),
-    _5(FpVectorP<5>),
-    _7(FpVectorP<7>),
+    _2(FpVectorP<P2>),
+    _3(FpVectorP<P3>),
+    _5(FpVectorP<P5>),
+    _7(FpVectorP<P7>),
+    Big(FpVectorP<ValidPrime>),
 }
 
 #[derive(Debug, Copy, Clone)]
 pub enum Slice<'a> {
-    _2(SliceP<'a, 2>),
-    _3(SliceP<'a, 3>),
-    _5(SliceP<'a, 5>),
-    _7(SliceP<'a, 7>),
+    _2(SliceP<'a, P2>),
+    _3(SliceP<'a, P3>),
+    _5(SliceP<'a, P5>),
+    _7(SliceP<'a, P7>),
+    Big(SliceP<'a, ValidPrime>),
 }
 
 #[derive(Debug)]
 pub enum SliceMut<'a> {
-    _2(SliceMutP<'a, 2>),
-    _3(SliceMutP<'a, 3>),
-    _5(SliceMutP<'a, 5>),
-    _7(SliceMutP<'a, 7>),
+    _2(SliceMutP<'a, P2>),
+    _3(SliceMutP<'a, P3>),
+    _5(SliceMutP<'a, P5>),
+    _7(SliceMutP<'a, P7>),
+    Big(SliceMutP<'a, ValidPrime>),
 }
 
 pub enum FpVectorNonZeroIterator<'a> {
-    _2(FpVectorNonZeroIteratorP<'a, 2>),
-    _3(FpVectorNonZeroIteratorP<'a, 3>),
-    _5(FpVectorNonZeroIteratorP<'a, 5>),
-    _7(FpVectorNonZeroIteratorP<'a, 7>),
+    _2(FpVectorNonZeroIteratorP<'a, P2>),
+    _3(FpVectorNonZeroIteratorP<'a, P3>),
+    _5(FpVectorNonZeroIteratorP<'a, P5>),
+    _7(FpVectorNonZeroIteratorP<'a, P7>),
+    Big(FpVectorNonZeroIteratorP<'a, ValidPrime>),
 }
 
 impl FpVector {
-    pub fn new(p: ValidPrime, len: usize) -> FpVector {
-        match_p!(p, FpVectorP::new_(len))
+    pub fn new<P: Prime>(p: P, len: usize) -> FpVector {
+        match p.as_u32() {
+            2 => FpVector::_2(FpVectorP::new(P2, len)),
+            3 => FpVector::_3(FpVectorP::new(P3, len)),
+            5 => FpVector::_5(FpVectorP::new(P5, len)),
+            7 => FpVector::_7(FpVectorP::new(P7, len)),
+            _ => FpVector::Big(FpVectorP::new(p.to_dyn(), len)),
+        }
     }
 
-    pub fn new_with_capacity(p: ValidPrime, len: usize, capacity: usize) -> FpVector {
-        match_p!(p, FpVectorP::new_with_capacity_(len, capacity))
+    pub fn new_with_capacity<P: Prime>(p: P, len: usize, capacity: usize) -> FpVector {
+        match p.as_u32() {
+            2 => FpVector::_2(FpVectorP::new_with_capacity(P2, len, capacity)),
+            3 => FpVector::_3(FpVectorP::new_with_capacity(P3, len, capacity)),
+            5 => FpVector::_5(FpVectorP::new_with_capacity(P5, len, capacity)),
+            7 => FpVector::_7(FpVectorP::new_with_capacity(P7, len, capacity)),
+            _ => FpVector::Big(FpVectorP::new_with_capacity(p.to_dyn(), len, capacity)),
+        }
     }
 
-    pub fn from_slice(p: ValidPrime, slice: &[u32]) -> Self {
-        match_p!(p, FpVectorP::from(&slice))
+    pub fn from_slice<P: Prime>(p: P, slice: &[u32]) -> Self {
+        match p.as_u32() {
+            2 => FpVector::_2(FpVectorP::from((P2, &slice))),
+            3 => FpVector::_3(FpVectorP::from((P3, &slice))),
+            5 => FpVector::_5(FpVectorP::from((P5, &slice))),
+            7 => FpVector::_7(FpVectorP::from((P7, &slice))),
+            _ => FpVector::Big(FpVectorP::from((p.to_dyn(), &slice))),
+        }
     }
 
     pub fn num_limbs(p: ValidPrime, len: usize) -> usize {
@@ -339,6 +359,7 @@ impl<'a> SliceMut<'a> {
             (SliceMut::_3(x), Slice::_3(y), Slice::_3(z)) => x.add_tensor(offset, coeff, y, z),
             (SliceMut::_5(x), Slice::_5(y), Slice::_5(z)) => x.add_tensor(offset, coeff, y, z),
             (SliceMut::_7(x), Slice::_7(y), Slice::_7(z)) => x.add_tensor(offset, coeff, y, z),
+            (SliceMut::Big(x), Slice::Big(y), Slice::Big(z)) => x.add_tensor(offset, coeff, y, z),
             _ => {
                 panic!("Applying add_tensor to vectors over different primes");
             }
@@ -370,6 +391,7 @@ impl<'a> std::fmt::Display for Slice<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         if f.alternate() {
             for v in self.iter() {
+                // If self.p >= 11, this will look funky
                 write!(f, "{v}")?;
             }
             Ok(())
@@ -409,7 +431,7 @@ impl<'a> IntoIterator for &'a FpVector {
 }
 
 macro_rules! impl_try_into {
-    ($var:tt, $p:literal) => {
+    ($var:tt, $p:ty) => {
         impl<'a> TryInto<&'a mut FpVectorP<$p>> for &'a mut FpVector {
             type Error = ();
 
@@ -423,10 +445,11 @@ macro_rules! impl_try_into {
     };
 }
 
-impl_try_into!(_2, 2);
-impl_try_into!(_3, 3);
-impl_try_into!(_5, 5);
-impl_try_into!(_7, 7);
+impl_try_into!(_2, P2);
+impl_try_into!(_3, P3);
+impl_try_into!(_5, P5);
+impl_try_into!(_7, P7);
+impl_try_into!(Big, ValidPrime);
 
 impl Serialize for FpVector {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>

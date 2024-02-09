@@ -2,7 +2,7 @@ use itertools::Itertools;
 
 use crate::{
     limb::{self, Limb},
-    prime::ValidPrime,
+    prime::{Prime, ValidPrime},
     simd,
 };
 
@@ -11,24 +11,25 @@ use super::{
     iter::{FpVectorIterator, FpVectorNonZeroIteratorP},
 };
 
-impl<const P: u32> FpVectorP<P> {
-    pub fn new_(len: usize) -> Self {
-        let number_of_limbs = limb::number::<P>(len);
+impl<P: Prime> FpVectorP<P> {
+    pub fn new(p: P, len: usize) -> Self {
+        let number_of_limbs = limb::number(p, len);
         Self {
+            p,
             len,
             limbs: vec![0; number_of_limbs],
         }
     }
 
-    pub fn from_raw_parts(len: usize, limbs: Vec<Limb>) -> Self {
-        debug_assert_eq!(limbs.len(), limb::number::<P>(len));
-        Self { len, limbs }
+    pub fn from_raw_parts(p: P, len: usize, limbs: Vec<Limb>) -> Self {
+        debug_assert_eq!(limbs.len(), limb::number(p, len));
+        Self { p, len, limbs }
     }
 
-    pub fn new_with_capacity_(len: usize, capacity: usize) -> Self {
-        let mut limbs = Vec::with_capacity(limb::number::<P>(capacity));
-        limbs.resize(limb::number::<P>(len), 0);
-        Self { len, limbs }
+    pub fn new_with_capacity(p: P, len: usize, capacity: usize) -> Self {
+        let mut limbs = Vec::with_capacity(limb::number(p, capacity));
+        limbs.resize(limb::number(p, len), 0);
+        Self { p, len, limbs }
     }
 
     pub const fn len(&self) -> usize {
@@ -39,14 +40,15 @@ impl<const P: u32> FpVectorP<P> {
         self.len == 0
     }
 
-    pub const fn prime(&self) -> ValidPrime {
-        ValidPrime::new(P)
+    pub fn prime(&self) -> ValidPrime {
+        self.p.to_dyn()
     }
 
     #[must_use]
     pub fn slice(&self, start: usize, end: usize) -> SliceP<'_, P> {
         assert!(start <= end && end <= self.len);
         SliceP {
+            p: self.p,
             limbs: &self.limbs,
             start,
             end,
@@ -57,6 +59,7 @@ impl<const P: u32> FpVectorP<P> {
     pub fn slice_mut(&mut self, start: usize, end: usize) -> SliceMutP<'_, P> {
         assert!(start <= end && end <= self.len);
         SliceMutP {
+            p: self.p,
             limbs: &mut self.limbs,
             start,
             end,
@@ -102,7 +105,7 @@ impl<const P: u32> FpVectorP<P> {
     }
 
     pub fn scale(&mut self, c: u32) {
-        match P {
+        match self.p.as_u32() {
             2 => {
                 if c == 0 {
                     self.set_to_zero()
@@ -110,12 +113,16 @@ impl<const P: u32> FpVectorP<P> {
             }
             3 | 5 => {
                 for limb in &mut self.limbs {
-                    *limb = limb::reduce::<P>(*limb * c as Limb);
+                    *limb = limb::reduce(self.p, *limb * c as Limb);
                 }
             }
             _ => {
                 for limb in &mut self.limbs {
-                    *limb = limb::pack::<_, P>(limb::unpack::<P>(*limb).map(|x| (x * c) % P));
+                    // We can cast x to u32 because we assume the limbs are reduced, so x < p < 2^31.
+                    *limb = limb::pack(
+                        self.p,
+                        limb::unpack(self.p, *limb).map(|x| self.p.product(x as u32, c)),
+                    );
                 }
             }
         }
@@ -125,17 +132,17 @@ impl<const P: u32> FpVectorP<P> {
     /// empty.
     pub fn add_offset(&mut self, other: &FpVectorP<P>, c: u32, offset: usize) {
         assert_eq!(self.len(), other.len());
-        let min_limb = offset / limb::entries_per_limb_const::<P>();
-        if P == 2 {
+        let min_limb = offset / limb::entries_per_limb(self.p);
+        if self.p == 2 {
             if c != 0 {
                 simd::add_simd(&mut self.limbs, &other.limbs, min_limb);
             }
         } else {
             for (left, right) in self.limbs.iter_mut().zip_eq(&other.limbs).skip(min_limb) {
-                *left = limb::add::<P>(*left, *right, c);
+                *left = limb::add(self.p, *left, *right, c);
             }
             for limb in &mut self.limbs[min_limb..] {
-                *limb = limb::reduce::<P>(*limb);
+                *limb = limb::reduce(self.p, *limb);
             }
         }
     }
@@ -144,8 +151,8 @@ impl<const P: u32> FpVectorP<P> {
     /// empty.
     pub fn add_offset_nosimd(&mut self, other: &FpVectorP<P>, c: u32, offset: usize) {
         assert_eq!(self.len(), other.len());
-        let min_limb = offset / limb::entries_per_limb_const::<P>();
-        if P == 2 {
+        let min_limb = offset / limb::entries_per_limb(self.p);
+        if self.p == 2 {
             if c != 0 {
                 for i in 0..self.limbs.len() {
                     self.limbs[i] ^= other.limbs[i];
@@ -153,10 +160,10 @@ impl<const P: u32> FpVectorP<P> {
             }
         } else {
             for (left, right) in self.limbs.iter_mut().zip_eq(&other.limbs).skip(min_limb) {
-                *left = limb::add::<P>(*left, *right, c);
+                *left = limb::add(self.p, *left, *right, c);
             }
             for limb in &mut self.limbs[min_limb..] {
-                *limb = limb::reduce::<P>(*limb);
+                *limb = limb::reduce(self.p, *limb);
             }
         }
     }
@@ -202,14 +209,14 @@ impl<const P: u32> FpVectorP<P> {
             return;
         }
         self.len = len;
-        self.limbs.resize(limb::number::<P>(len), 0);
+        self.limbs.resize(limb::number(self.p, len), 0);
     }
 
     /// This clears the vector and sets the length to `len`. This is useful for reusing
     /// allocations of temporary vectors.
     pub fn set_scratch_vector_size(&mut self, len: usize) {
         self.limbs.clear();
-        self.limbs.resize(limb::number::<P>(len), 0);
+        self.limbs.resize(limb::number(self.p, len), 0);
         self.len = len;
     }
 
@@ -221,8 +228,8 @@ impl<const P: u32> FpVectorP<P> {
         self.limbs.clear();
         self.limbs.extend(
             slice
-                .chunks(limb::entries_per_limb_const::<P>())
-                .map(|x| limb::pack::<_, P>(x.iter().copied())),
+                .chunks(limb::entries_per_limb(self.p))
+                .map(|x| limb::pack(self.p, x.iter().copied())),
         );
     }
 
@@ -230,7 +237,7 @@ impl<const P: u32> FpVectorP<P> {
     /// the number of entries per limb
     pub(crate) fn trim_start(&mut self, n: usize) {
         assert!(n <= self.len);
-        let entries_per = limb::entries_per_limb_const::<P>();
+        let entries_per = limb::entries_per_limb(self.p);
         assert_eq!(n % entries_per, 0);
         let num_limbs = n / entries_per;
         self.limbs.drain(0..num_limbs);
@@ -238,7 +245,7 @@ impl<const P: u32> FpVectorP<P> {
     }
 
     pub fn sign_rule(&self, other: &Self) -> bool {
-        assert_eq!(P, 2);
+        assert_eq!(self.p, 2);
         let mut result = 0;
         for target_limb_idx in 0..self.limbs.len() {
             let target_limb = other.limbs[target_limb_idx];
@@ -256,8 +263,8 @@ impl<const P: u32> FpVectorP<P> {
 
     pub fn add_truncate(&mut self, other: &Self, c: u32) -> Option<()> {
         for (left, right) in self.limbs.iter_mut().zip_eq(&other.limbs) {
-            *left = limb::add::<P>(*left, *right, c);
-            *left = limb::truncate::<P>(*left)?;
+            *left = limb::add(self.p, *left, *right, c);
+            *left = limb::truncate(self.p, *left)?;
         }
         Some(())
     }
@@ -266,7 +273,7 @@ impl<const P: u32> FpVectorP<P> {
     where
         for<'a> &'a mut T: TryInto<&'a mut Self>,
     {
-        if P == 2 {
+        if self.p == 2 {
             if c == 0 {
                 return false;
             }
@@ -306,9 +313,9 @@ impl<const P: u32> FpVectorP<P> {
 
     /// Find the index and value of the first non-zero entry of the vector. `None` if the vector is zero.
     pub fn first_nonzero(&self) -> Option<(usize, u32)> {
-        let entries_per_limb = limb::entries_per_limb_const::<P>();
-        let bit_length = limb::bit_length_const::<P>();
-        let bitmask = limb::bitmask::<P>();
+        let entries_per_limb = limb::entries_per_limb(self.p);
+        let bit_length = limb::bit_length(self.p);
+        let bitmask = limb::bitmask(self.p);
         for (i, &limb) in self.limbs.iter().enumerate() {
             if limb == 0 {
                 continue;
@@ -323,7 +330,7 @@ impl<const P: u32> FpVectorP<P> {
     }
 
     pub fn density(&self) -> f32 {
-        let num_nonzero = if P == 2 {
+        let num_nonzero = if self.p == 2 {
             self.limbs
                 .iter()
                 .copied()
@@ -336,21 +343,22 @@ impl<const P: u32> FpVectorP<P> {
     }
 }
 
-impl<T: AsRef<[u32]>, const P: u32> From<&T> for FpVectorP<P> {
-    fn from(slice: &T) -> Self {
-        let mut v = Self::new_(slice.as_ref().len());
+impl<T: AsRef<[u32]>, P: Prime> From<(P, &T)> for FpVectorP<P> {
+    fn from(data: (P, &T)) -> Self {
+        let (p, slice) = data;
+        let mut v = Self::new(p, slice.as_ref().len());
         v.limbs.clear();
         v.limbs.extend(
             slice
                 .as_ref()
-                .chunks(limb::entries_per_limb_const::<P>())
-                .map(|x| limb::pack::<_, P>(x.iter().copied())),
+                .chunks(limb::entries_per_limb(p))
+                .map(|x| limb::pack(p, x.iter().copied())),
         );
         v
     }
 }
 
-impl<const P: u32> From<&FpVectorP<P>> for Vec<u32> {
+impl<P: Prime> From<&FpVectorP<P>> for Vec<u32> {
     fn from(vec: &FpVectorP<P>) -> Vec<u32> {
         vec.iter().collect()
     }

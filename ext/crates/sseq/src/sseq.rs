@@ -423,7 +423,7 @@ impl<P: SseqProfile> Sseq<P> {
             }
         }
 
-        let neg_1 = *self.p - 1;
+        let neg_1 = self.p - 1;
 
         let target_r = target_product
             .map(|prod| P::differential_length(x + prod.x - source_x, y + prod.y - source_y))

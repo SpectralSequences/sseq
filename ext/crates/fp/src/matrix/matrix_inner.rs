@@ -393,7 +393,7 @@ impl Matrix {
             return;
         }
         let (target, source) = self.split_borrow(target, source);
-        target.add_offset(source, *prime - coef, pivot_column);
+        target.add_offset(source, prime - coef, pivot_column);
     }
 
     /// A version of [`Matrix::row_op`] without the zero assumption.
@@ -413,7 +413,7 @@ impl Matrix {
             return;
         }
         let (target, source) = self.split_borrow(target, source);
-        target.add(source, *prime - coef);
+        target.add(source, prime - coef);
     }
 
     /// Mutably borrows `x[i]` and `x[j]`.
@@ -516,7 +516,7 @@ impl Matrix {
 
         let mut empty_rows = Vec::with_capacity(self.rows());
 
-        if *self.p == 2 {
+        if self.p == 2 {
             // the m4ri C library uses a similar formula but with a hard cap of 7 instead of 8
             let k = std::cmp::min(8, crate::prime::log2(1 + self.rows()) * 3 / 4);
             let mut table = M4riTable::new(k, self.columns());
@@ -882,7 +882,7 @@ impl Matrix {
         for i in 0..input.len() {
             result.add(
                 self.vectors[i].as_slice(),
-                (coeff * input.entry(i)) % *self.p,
+                (coeff * input.entry(i)) % self.p,
             );
         }
     }
@@ -919,7 +919,7 @@ impl std::ops::Mul for &Matrix {
 impl std::ops::MulAssign<u32> for Matrix {
     fn mul_assign(&mut self, rhs: u32) {
         #[allow(clippy::suspicious_op_assign_impl)]
-        let rhs = rhs % *self.p;
+        let rhs = rhs % self.p;
         for row in self.iter_mut() {
             row.scale(rhs);
         }

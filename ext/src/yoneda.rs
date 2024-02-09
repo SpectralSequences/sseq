@@ -65,7 +65,7 @@ fn rate_adem_operation(algebra: &AdemAlgebra, deg: i32, idx: usize) -> i32 {
 
 #[allow(dead_code)]
 fn operation_drop(algebra: &AdemAlgebra, deg: i32, idx: usize) -> i32 {
-    if *algebra.prime() != 2 {
+    if algebra.prime() != 2 {
         return 1;
     }
     let elt = algebra.basis_element_from_index(deg, idx);

@@ -138,7 +138,7 @@ impl QuasiInverse {
                 }
             }
             if c != 0 {
-                target.add(self.preimage[row].as_slice(), (coeff * c) % *p);
+                target.add(self.preimage[row].as_slice(), (coeff * c) % p);
             }
             row += 1;
         }

@@ -133,7 +133,7 @@ fn main() -> anyhow::Result<()> {
                 if i != 0 {
                     print!(", ");
                 }
-                print!("{}", entry % *p);
+                print!("{}", entry % p);
             }
             println!("]");
         }
