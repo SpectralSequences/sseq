@@ -24,7 +24,7 @@ use crate::{
 pub(crate) struct M4riTable {
     /// The indices of new rows in the table
     rows: Vec<usize>,
-    /// The list of pivot columns of the rows, in the format (limb, bit)
+    /// The list of pivot columns of the rows
     columns: Vec<LimbBitIndexPair>,
     /// The 2^k linear combinations of the k rows, apart from the first one which is identically
     /// zero.
