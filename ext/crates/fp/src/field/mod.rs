@@ -1,6 +1,5 @@
-use crate::prime::Prime;
-
 use self::limb::LimbMethods;
+use crate::prime::Prime;
 
 pub(crate) mod limb;
 
@@ -54,9 +53,8 @@ pub trait Field: LimbMethods + Sized {
 // TODO: Figure out better tests
 #[cfg(test)]
 mod test {
-    use crate::prime::{P2, P3};
-
     use super::{Field, SmallFq};
+    use crate::prime::{P2, P3};
 
     #[test]
     fn test_f_4() {

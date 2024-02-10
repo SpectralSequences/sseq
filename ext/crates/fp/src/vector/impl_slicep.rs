@@ -1,13 +1,12 @@
+use super::{
+    inner::{FqVectorP, SliceP},
+    iter::{FpVectorIteratorP, FpVectorNonZeroIteratorP},
+};
 use crate::{
     constants,
     field::Field,
     limb::Limb,
     prime::{Prime, ValidPrime},
-};
-
-use super::{
-    inner::{FqVectorP, SliceP},
-    iter::{FpVectorIteratorP, FpVectorNonZeroIteratorP},
 };
 
 // Public methods
@@ -68,6 +67,7 @@ impl<'a, F: Field> SliceP<'a, F> {
         }
         true
     }
+
     #[must_use]
     pub fn slice(self, start: usize, end: usize) -> SliceP<'a, F> {
         assert!(start <= end && end <= self.len());

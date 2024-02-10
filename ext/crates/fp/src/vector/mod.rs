@@ -24,10 +24,11 @@ mod test {
     use rstest::rstest;
 
     use super::{inner::FqVectorP, *};
-    use crate::field::limb::LimbMethods;
-    use crate::field::Fp;
-    use crate::limb;
-    use crate::prime::{Prime, ValidPrime, P2};
+    use crate::{
+        field::{limb::LimbMethods, Fp},
+        limb,
+        prime::{Prime, ValidPrime, P2},
+    };
 
     pub struct VectorDiffEntry {
         pub index: usize,
@@ -1064,7 +1065,8 @@ mod test {
                 .iter()
                 .format_with("\n", |(tuple, popcnts, res, test_res), f| {
                     f(&format_args!(
-                        "   Inputs: {tuple:x?}\n      expected {res:?}, got {test_res:?}. popcnts: {popcnts:?}"
+                        "   Inputs: {tuple:x?}\n      expected {res:?}, got {test_res:?}. \
+                         popcnts: {popcnts:?}"
                     ))
                 });
             panic!("\nFailed test cases:\n {formatter}");

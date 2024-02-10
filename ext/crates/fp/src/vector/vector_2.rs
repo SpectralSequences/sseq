@@ -1,20 +1,21 @@
 //! This module replaces `vector` when `odd-primes` is disabled. Instead of producing enum
 //! wrappers, it simply rexports `FooP<2>` as `Foo`.
 
-use std::io::{Read, Write};
-use std::mem::size_of;
+use std::{
+    io::{Read, Write},
+    mem::size_of,
+};
 
 use itertools::Itertools;
-
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use crate::field::limb::LimbMethods;
-use crate::field::Fp;
-use crate::limb::Limb;
-use crate::prime::{Prime, ValidPrime, P2};
-use crate::vector::inner::{FqVectorP, SliceMutP, SliceP};
-
 use super::iter::{FpVectorIteratorP, FpVectorNonZeroIteratorP};
+use crate::{
+    field::{limb::LimbMethods, Fp},
+    limb::Limb,
+    prime::{Prime, ValidPrime, P2},
+    vector::inner::{FqVectorP, SliceMutP, SliceP},
+};
 
 static F2: Fp<P2> = Fp(P2);
 

@@ -2,14 +2,13 @@ use std::cmp::Ordering;
 
 use itertools::Itertools;
 
+use super::inner::{FqVectorP, SliceMutP, SliceP};
 use crate::{
     constants,
     field::{Field, FieldElement},
     limb::Limb,
     prime::{Prime, ValidPrime},
 };
-
-use super::inner::{FqVectorP, SliceMutP, SliceP};
 
 impl<'a, F: Field> SliceMutP<'a, F> {
     pub fn prime(&self) -> ValidPrime {

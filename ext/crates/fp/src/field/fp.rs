@@ -1,6 +1,5 @@
-use crate::{constants::BITS_PER_LIMB, limb::Limb, prime::Prime};
-
 use super::{limb::LimbMethods, Field, FieldElement};
+use crate::{constants::BITS_PER_LIMB, limb::Limb, prime::Prime};
 
 /// A prime field. This is just a wrapper around a prime.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]

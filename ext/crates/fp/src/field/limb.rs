@@ -10,12 +10,11 @@
 
 use std::ops::Range;
 
+use super::FieldElement;
 use crate::{
     constants::BITS_PER_LIMB,
     limb::{Limb, LimbBitIndexPair},
 };
-
-use super::FieldElement;
 
 /// Methods that lets us interact with the underlying `Limb` type.
 ///

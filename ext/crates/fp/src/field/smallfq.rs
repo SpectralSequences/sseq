@@ -3,6 +3,7 @@ use std::sync::Arc;
 use dashmap::DashMap as HashMap;
 use once_cell::sync::Lazy;
 
+use super::{limb::LimbMethods, Field, FieldElement, Fp};
 use crate::{
     constants::BITS_PER_LIMB,
     limb::Limb,
@@ -10,8 +11,6 @@ use crate::{
     vector::FpVector,
     PRIME_TO_INDEX_MAP,
 };
-
-use super::{limb::LimbMethods, Field, FieldElement, Fp};
 
 static SMALL_CONWAY_POLYS: [[[u32; 17]; 15]; 54] = include!("small_conway_polys.txt");
 

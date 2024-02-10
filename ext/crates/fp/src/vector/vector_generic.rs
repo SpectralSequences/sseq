@@ -7,20 +7,22 @@
 //!
 //! This module is only used when the `odd-primes` feature is enabled.
 
-use std::convert::TryInto;
-use std::io::{Read, Write};
-use std::mem::size_of;
+use std::{
+    convert::TryInto,
+    io::{Read, Write},
+    mem::size_of,
+};
 
 use itertools::Itertools;
-
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use crate::field::{limb::LimbMethods, Fp};
-use crate::limb::Limb;
-use crate::prime::{primes::*, Prime, ValidPrime};
-use crate::vector::inner::{FqVectorP, SliceMutP, SliceP};
-
 use super::iter::{FpVectorIteratorP, FpVectorNonZeroIteratorP};
+use crate::{
+    field::{limb::LimbMethods, Fp},
+    limb::Limb,
+    prime::{primes::*, Prime, ValidPrime},
+    vector::inner::{FqVectorP, SliceMutP, SliceP},
+};
 
 macro_rules! dispatch_vector_inner {
     // other is a type, but marking it as a :ty instead of :tt means we cannot use it to access its
@@ -210,6 +212,40 @@ pub enum FpVectorNonZeroIterator<'a> {
 }
 
 impl FpVector {
+    dispatch_vector! {
+        pub fn prime(&self) -> ValidPrime;
+        pub fn len(&self) -> usize;
+        pub fn is_empty(&self) -> bool;
+        pub fn scale(&mut self, c: u32);
+        pub fn set_to_zero(&mut self);
+        pub fn entry(&self, index: usize) -> u32;
+        pub fn set_entry(&mut self, index: usize, value: u32);
+        pub fn assign(&mut self, other: &Self);
+        pub fn assign_partial(&mut self, other: &Self);
+        pub fn add(&mut self, other: &Self, c: u32);
+        pub fn add_offset(&mut self, other: &Self, c: u32, offset: usize);
+        pub fn slice(&self, start: usize, end: usize) -> (dispatch Slice);
+        pub fn as_slice(&self) -> (dispatch Slice);
+        pub fn slice_mut(&mut self, start: usize, end: usize) -> (dispatch SliceMut);
+        pub fn as_slice_mut(&mut self) -> (dispatch SliceMut);
+        pub fn is_zero(&self) -> bool;
+        pub fn iter(&self) -> (dispatch FpVectorIterator);
+        pub fn iter_nonzero(&self) -> (dispatch FpVectorNonZeroIterator);
+        pub fn extend_len(&mut self, dim: usize);
+        pub fn set_scratch_vector_size(&mut self, dim: usize);
+        pub fn add_basis_element(&mut self, index: usize, value: u32);
+        pub fn copy_from_slice(&mut self, slice: &[u32]);
+        pub(crate) fn trim_start(&mut self, n: usize);
+        pub fn add_truncate(&mut self, other: &Self, c: u32) -> (Option<()>);
+        pub fn sign_rule(&self, other: &Self) -> bool;
+        pub fn add_carry(&mut self, other: &Self, c: u32, rest: &mut [FpVector]) -> bool;
+        pub fn first_nonzero(&self) -> (Option<(usize, u32)>);
+        pub fn density(&self) -> f32;
+
+        pub(crate) fn limbs(&self) -> (&[Limb]);
+        pub(crate) fn limbs_mut(&mut self) -> (&mut [Limb]);
+    }
+
     pub fn new<P: Prime>(p: P, len: usize) -> FpVector {
         match p.as_u32() {
             2 => FpVector::_2(FqVectorP::new(Fp(P2), len)),
@@ -244,6 +280,7 @@ impl FpVector {
         let entries_per_limb = Fp(p).entries_per_limb();
         (len + entries_per_limb - 1) / entries_per_limb
     }
+
     pub(crate) fn padded_len(p: ValidPrime, len: usize) -> usize {
         Self::num_limbs(p, len) * Fp(p).entries_per_limb()
     }
@@ -293,40 +330,6 @@ impl FpVector {
             }
         }
         Ok(())
-    }
-
-    dispatch_vector! {
-        pub fn prime(&self) -> ValidPrime;
-        pub fn len(&self) -> usize;
-        pub fn is_empty(&self) -> bool;
-        pub fn scale(&mut self, c: u32);
-        pub fn set_to_zero(&mut self);
-        pub fn entry(&self, index: usize) -> u32;
-        pub fn set_entry(&mut self, index: usize, value: u32);
-        pub fn assign(&mut self, other: &Self);
-        pub fn assign_partial(&mut self, other: &Self);
-        pub fn add(&mut self, other: &Self, c: u32);
-        pub fn add_offset(&mut self, other: &Self, c: u32, offset: usize);
-        pub fn slice(&self, start: usize, end: usize) -> (dispatch Slice);
-        pub fn as_slice(&self) -> (dispatch Slice);
-        pub fn slice_mut(&mut self, start: usize, end: usize) -> (dispatch SliceMut);
-        pub fn as_slice_mut(&mut self) -> (dispatch SliceMut);
-        pub fn is_zero(&self) -> bool;
-        pub fn iter(&self) -> (dispatch FpVectorIterator);
-        pub fn iter_nonzero(&self) -> (dispatch FpVectorNonZeroIterator);
-        pub fn extend_len(&mut self, dim: usize);
-        pub fn set_scratch_vector_size(&mut self, dim: usize);
-        pub fn add_basis_element(&mut self, index: usize, value: u32);
-        pub fn copy_from_slice(&mut self, slice: &[u32]);
-        pub(crate) fn trim_start(&mut self, n: usize);
-        pub fn add_truncate(&mut self, other: &Self, c: u32) -> (Option<()>);
-        pub fn sign_rule(&self, other: &Self) -> bool;
-        pub fn add_carry(&mut self, other: &Self, c: u32, rest: &mut [FpVector]) -> bool;
-        pub fn first_nonzero(&self) -> (Option<(usize, u32)>);
-        pub fn density(&self) -> f32;
-
-        pub(crate) fn limbs(&self) -> (&[Limb]);
-        pub(crate) fn limbs_mut(&mut self) -> (&mut [Limb]);
     }
 }
 
