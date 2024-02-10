@@ -119,6 +119,10 @@
 <a href="#93" id="93">93</a>
 <a href="#94" id="94">94</a>
 <a href="#95" id="95">95</a>
+<a href="#96" id="96">96</a>
+<a href="#97" id="97">97</a>
+<a href="#98" id="98">98</a>
+<a href="#99" id="99">99</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Computes the suspension map between different unstable Ext groups.
 //!
 //! Given an unstable Steenrod module $M$, compute the unstable Ext groups of $\Sigma^k M$ for all
@@ -139,11 +143,15 @@
 
 </span><span class="kw">use </span>std::{path::PathBuf, sync::Arc};
 
-<span class="kw">use </span>algebra::module::{Module, SuspensionModule};
-<span class="kw">use </span>algebra::Algebra;
+<span class="kw">use </span>algebra::{
+    module::{Module, SuspensionModule},
+    Algebra,
+};
 <span class="kw">use </span>chart::{Backend, Orientation, TikzBackend};
-<span class="kw">use </span>ext::chain_complex::{FiniteChainComplex, FreeChainComplex};
-<span class="kw">use </span>ext::resolution::UnstableResolution;
+<span class="kw">use </span>ext::{
+    chain_complex::{FiniteChainComplex, FreeChainComplex},
+    resolution::UnstableResolution,
+};
 <span class="kw">use </span>sseq::coordinates::Bidegree;
 
 <span class="kw">fn </span>main() -&gt; anyhow::Result&lt;()&gt; {

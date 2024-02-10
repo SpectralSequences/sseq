@@ -1592,25 +1592,32 @@
 <a href="#1566" id="1566">1566</a>
 <a href="#1567" id="1567">1567</a>
 <a href="#1568" id="1568">1568</a>
+<a href="#1569" id="1569">1569</a>
+<a href="#1570" id="1570">1570</a>
+<a href="#1571" id="1571">1571</a>
+<a href="#1572" id="1572">1572</a>
+<a href="#1573" id="1573">1573</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! The Steenrod algebra using the Adem basis.
 
 </span><span class="kw">use </span>std::fmt;
 
-<span class="kw">use </span>itertools::Itertools;
-<span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
-
-<span class="kw">use </span>fp::prime::{
-    iter::{BinomialIterator, BitflagIterator},
-    Prime, ValidPrime,
+<span class="kw">use </span>fp::{
+    prime::{
+        iter::{BinomialIterator, BitflagIterator},
+        Prime, ValidPrime,
+    },
+    vector::{FpVector, SliceMut},
 };
-<span class="kw">use </span>fp::vector::{FpVector, SliceMut};
+<span class="kw">use </span>itertools::Itertools;
 <span class="kw">use </span>once::OnceVec;
-
-<span class="kw">use </span><span class="kw">crate</span>::algebra::combinatorics::{<span class="self">self</span>, MAX_XI_TAU};
-<span class="kw">use </span><span class="kw">crate</span>::algebra::{Algebra, Bialgebra, GeneratedAlgebra, UnstableAlgebra};
+<span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
 
 <span class="attr">#[cfg(doc)]
 </span><span class="kw">use </span><span class="kw">crate</span>::algebra::SteenrodAlgebra;
+<span class="kw">use </span><span class="kw">crate</span>::algebra::{
+    combinatorics::{<span class="self">self</span>, MAX_XI_TAU},
+    Algebra, Bialgebra, GeneratedAlgebra, UnstableAlgebra,
+};
 
 <span class="doccomment">/// An algebra that can be viewed as an Adem algebra.
 ///
@@ -1882,8 +1889,9 @@
     }
 
     <span class="kw">fn </span>basis_element_from_string(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut </span>elt: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;(i32, usize)&gt; {
-        <span class="kw">use </span><span class="kw">crate</span>::steenrod_parser::{digits, p_or_sq};
         <span class="kw">use </span>nom::sequence::preceded;
+
+        <span class="kw">use </span><span class="kw">crate</span>::steenrod_parser::{digits, p_or_sq};
 
         <span class="kw">let </span>q = <span class="self">self</span>.q();
 
@@ -3026,11 +3034,13 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
-    <span class="kw">use super</span>::<span class="kw-2">*</span>;
-    <span class="kw">use </span>rstest::rstest;
     <span class="kw">use </span>std::fmt::Write <span class="kw">as _</span>; <span class="comment">// Needed for write! macro for String
 
-    </span><span class="attr">#[rstest(p, max_degree, case(<span class="number">2</span>, <span class="number">32</span>), case(<span class="number">3</span>, <span class="number">120</span>))]
+    </span><span class="kw">use </span>rstest::rstest;
+
+    <span class="kw">use super</span>::<span class="kw-2">*</span>;
+
+    <span class="attr">#[rstest(p, max_degree, case(<span class="number">2</span>, <span class="number">32</span>), case(<span class="number">3</span>, <span class="number">120</span>))]
     #[trace]
     </span><span class="kw">fn </span>test_adem_decompose(p: u32, max_degree: i32) {
         <span class="kw">let </span>p = ValidPrime::new(p);

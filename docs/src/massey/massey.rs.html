@@ -167,16 +167,22 @@
 <a href="#141" id="141">141</a>
 <a href="#142" id="142">142</a>
 <a href="#143" id="143">143</a>
+<a href="#144" id="144">144</a>
+<a href="#145" id="145">145</a>
+<a href="#146" id="146">146</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Computes the triple Massey product up to a sign
 //!
 //! This is optimized to compute &lt;a, b, -&gt; for fixed a, b and all -, where a and b have small
 //! degree.
 
-</span><span class="kw">use </span>ext::chain_complex::{ChainComplex, ChainHomotopy, FreeChainComplex};
-<span class="kw">use </span>ext::resolution_homomorphism::ResolutionHomomorphism;
+</span><span class="kw">use </span>std::sync::Arc;
+
+<span class="kw">use </span>ext::{
+    chain_complex::{ChainComplex, ChainHomotopy, FreeChainComplex},
+    resolution_homomorphism::ResolutionHomomorphism,
+};
 <span class="kw">use </span>fp::matrix::{AugmentedMatrix, Matrix};
 <span class="kw">use </span>sseq::coordinates::{Bidegree, BidegreeElement, BidegreeGenerator};
-<span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">fn </span>main() -&gt; anyhow::Result&lt;()&gt; {
     <span class="kw">let </span>resolution = Arc::new(ext::utils::query_module(<span class="prelude-val">None</span>, <span class="bool-val">true</span>)<span class="question-mark">?</span>);

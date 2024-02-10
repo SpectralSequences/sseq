@@ -550,18 +550,16 @@
 <a href="#524" id="524">524</a>
 <a href="#525" id="525">525</a>
 <a href="#526" id="526">526</a>
-<a href="#527" id="527">527</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::cmp::Ordering;
 
 <span class="kw">use </span>itertools::Itertools;
 
+<span class="kw">use </span><span class="kw">super</span>::inner::{FpVectorP, SliceMutP, SliceP};
 <span class="kw">use crate</span>::{
     constants,
     limb::{<span class="self">self</span>, Limb},
     prime::{Prime, ValidPrime, P2},
 };
-
-<span class="kw">use </span><span class="kw">super</span>::inner::{FpVectorP, SliceMutP, SliceP};
 
 <span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, P: Prime&gt; SliceMutP&lt;<span class="lifetime">'a</span>, P&gt; {
     <span class="kw">pub fn </span>prime(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ValidPrime {

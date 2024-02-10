@@ -116,7 +116,6 @@
 <a href="#90" id="90">90</a>
 <a href="#91" id="91">91</a>
 <a href="#92" id="92">92</a>
-<a href="#93" id="93">93</a>
 </pre></div><pre class="rust"><code><span class="kw">pub mod </span>bidegree;
 <span class="kw">pub mod </span>element;
 <span class="kw">pub mod </span>generator;
@@ -125,9 +124,8 @@
 <span class="kw">pub use </span>bidegree::Bidegree;
 <span class="kw">pub use </span>element::BidegreeElement;
 <span class="kw">pub use </span>generator::BidegreeGenerator;
-<span class="kw">pub use </span>range::BidegreeRange;
-
 <span class="kw">use </span>maybe_rayon::prelude::<span class="kw-2">*</span>;
+<span class="kw">pub use </span>range::BidegreeRange;
 
 <span class="doccomment">/// Given a function `f(s, t)`, compute it for every `s` in `[min_s, max_s]` and every `t` in
 /// `[min_t, max_t(s)]`.  Further, we only compute `f(s, t)` when `f(s - 1, t')` has been computed

@@ -286,15 +286,22 @@
 <a href="#260" id="260">260</a>
 <a href="#261" id="261">261</a>
 <a href="#262" id="262">262</a>
+<a href="#263" id="263">263</a>
+<a href="#264" id="264">264</a>
+<a href="#265" id="265">265</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
 
-<span class="kw">use </span><span class="kw">crate</span>::module::block_structure::GeneratorBasisEltPair;
-<span class="kw">use </span><span class="kw">crate</span>::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
-<span class="kw">use </span><span class="kw">crate</span>::module::HomModule;
-<span class="kw">use </span><span class="kw">crate</span>::module::{FreeModule, Module};
-<span class="kw">use </span>fp::matrix::{QuasiInverse, Subspace};
-<span class="kw">use </span>fp::vector::SliceMut;
+<span class="kw">use </span>fp::{
+    matrix::{QuasiInverse, Subspace},
+    vector::SliceMut,
+};
 <span class="kw">use </span>once::OnceBiVec;
+
+<span class="kw">use </span><span class="kw">crate</span>::module::{
+    block_structure::GeneratorBasisEltPair,
+    homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism},
+    FreeModule, HomModule, Module,
+};
 
 <span class="doccomment">/// Given a map $\mathtt{map}: A \to B$ and hom modules $\mathtt{source} = \Hom(B, X)$, $\mathtt{target} = \Hom(A, X)$, produce the induced pullback map $\Hom(B, X) \to \Hom(A, X)$.
 </span><span class="kw">pub struct </span>HomPullback&lt;M: Module&gt; {
@@ -425,12 +432,11 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
-    <span class="kw">use super</span>::<span class="kw-2">*</span>;
-    <span class="kw">use </span><span class="kw">crate</span>::module::FDModule;
-    <span class="kw">use </span><span class="kw">crate</span>::MilnorAlgebra;
     <span class="kw">use </span>bivec::BiVec;
-    <span class="kw">use </span>fp::matrix::Matrix;
-    <span class="kw">use </span>fp::vector::FpVector;
+    <span class="kw">use </span>fp::{matrix::Matrix, vector::FpVector};
+
+    <span class="kw">use super</span>::<span class="kw-2">*</span>;
+    <span class="kw">use crate</span>::{module::FDModule, MilnorAlgebra};
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_pullback_id() {

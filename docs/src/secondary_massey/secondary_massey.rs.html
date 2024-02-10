@@ -514,6 +514,10 @@
 <a href="#488" id="488">488</a>
 <a href="#489" id="489">489</a>
 <a href="#490" id="490">490</a>
+<a href="#491" id="491">491</a>
+<a href="#492" id="492">492</a>
+<a href="#493" id="493">493</a>
+<a href="#494" id="494">494</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Computes massey products in $\Mod_{C\tau^2}$.
 //!
 //! # Usage
@@ -535,16 +539,17 @@
 
 </span><span class="kw">use </span>std::sync::Arc;
 
-<span class="kw">use </span>algebra::module::Module;
-<span class="kw">use </span>algebra::pair_algebra::PairAlgebra;
-<span class="kw">use </span>fp::matrix::{Matrix, Subspace};
-<span class="kw">use </span>fp::vector::FpVector;
-
-<span class="kw">use </span>ext::chain_complex::{ChainComplex, ChainHomotopy, FreeChainComplex};
-<span class="kw">use </span>ext::resolution_homomorphism::ResolutionHomomorphism;
-<span class="kw">use </span>ext::secondary::<span class="kw-2">*</span>;
-<span class="kw">use </span>ext::utils::{query_module, QueryModuleResolution};
-
+<span class="kw">use </span>algebra::{module::Module, pair_algebra::PairAlgebra};
+<span class="kw">use </span>ext::{
+    chain_complex::{ChainComplex, ChainHomotopy, FreeChainComplex},
+    resolution_homomorphism::ResolutionHomomorphism,
+    secondary::<span class="kw-2">*</span>,
+    utils::{query_module, QueryModuleResolution},
+};
+<span class="kw">use </span>fp::{
+    matrix::{Matrix, Subspace},
+    vector::FpVector,
+};
 <span class="kw">use </span>itertools::Itertools;
 <span class="kw">use </span>sseq::coordinates::{Bidegree, BidegreeElement};
 
@@ -639,7 +644,10 @@
 }
 
 <span class="kw">fn </span>main() -&gt; anyhow::Result&lt;()&gt; {
-    <span class="macro">eprintln!</span>(<span class="string">"We are going to compute &lt;-, b, a&gt; for all (-), where a is an element in Ext(M, k) and b and (-) are elements in Ext(k, k)."</span>);
+    <span class="macro">eprintln!</span>(
+        <span class="string">"We are going to compute &lt;-, b, a&gt; for all (-), where a is an element in Ext(M, k) and b \
+         and (-) are elements in Ext(k, k)."
+    </span>);
 
     <span class="kw">let </span>resolution = Arc::new(query_module(<span class="prelude-val">Some</span>(algebra::AlgebraType::Milnor), <span class="bool-val">true</span>)<span class="question-mark">?</span>);
 

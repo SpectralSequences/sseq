@@ -525,6 +525,9 @@
 <a href="#499" id="499">499</a>
 <a href="#500" id="500">500</a>
 <a href="#501" id="501">501</a>
+<a href="#502" id="502">502</a>
+<a href="#503" id="503">503</a>
+<a href="#504" id="504">504</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! This module is provides wrappers around the contents of [`crate::vector::inner`]. The main
 //! purpose is to put [`FpVectorP`] for different `p` into a single enum. It does the same for the
 //! various slice structs.
@@ -534,19 +537,21 @@
 //!
 //! This module is only used when the `odd-primes` feature is enabled.
 
-</span><span class="kw">use </span>std::convert::TryInto;
-<span class="kw">use </span>std::io::{Read, Write};
-<span class="kw">use </span>std::mem::size_of;
+</span><span class="kw">use </span>std::{
+    convert::TryInto,
+    io::{Read, Write},
+    mem::size_of,
+};
 
 <span class="kw">use </span>itertools::Itertools;
-
 <span class="kw">use </span>serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-<span class="kw">use </span><span class="kw">crate</span>::limb::{entries_per_limb, Limb};
-<span class="kw">use </span><span class="kw">crate</span>::prime::{primes::<span class="kw-2">*</span>, Prime, ValidPrime};
-<span class="kw">use </span><span class="kw">crate</span>::vector::inner::{FpVectorP, SliceMutP, SliceP};
-
 <span class="kw">use </span><span class="kw">super</span>::iter::{FpVectorIterator, FpVectorNonZeroIteratorP};
+<span class="kw">use crate</span>::{
+    limb::{entries_per_limb, Limb},
+    prime::{primes::<span class="kw-2">*</span>, Prime, ValidPrime},
+    vector::inner::{FpVectorP, SliceMutP, SliceP},
+};
 
 <span class="macro">macro_rules! </span>dispatch_vector_inner {
     <span class="comment">// other is a type, but marking it as a :ty instead of :tt means we cannot use it to access its
@@ -728,6 +733,42 @@
 }
 
 <span class="kw">impl </span>FpVector {
+    <span class="macro">dispatch_vector! </span>{
+        <span class="kw">pub fn </span>prime(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ValidPrime;
+        <span class="kw">pub fn </span>len(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize;
+        <span class="kw">pub fn </span>is_empty(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool;
+        <span class="kw">pub fn </span>scale(<span class="kw-2">&amp;mut </span><span class="self">self</span>, c: u32);
+        <span class="kw">pub fn </span>set_to_zero(<span class="kw-2">&amp;mut </span><span class="self">self</span>);
+        <span class="kw">pub fn </span>entry(<span class="kw-2">&amp;</span><span class="self">self</span>, index: usize) -&gt; u32;
+        <span class="kw">pub fn </span>set_entry(<span class="kw-2">&amp;mut </span><span class="self">self</span>, index: usize, value: u32);
+        <span class="kw">pub fn </span>assign(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>);
+        <span class="kw">pub fn </span>assign_partial(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>);
+        <span class="kw">pub fn </span>add(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>, c: u32);
+        <span class="kw">pub fn </span>add_nosimd(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>, c: u32);
+        <span class="kw">pub fn </span>add_offset(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>, c: u32, offset: usize);
+        <span class="kw">pub fn </span>add_offset_nosimd(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>, c: u32, offset: usize);
+        <span class="kw">pub fn </span>slice(<span class="kw-2">&amp;</span><span class="self">self</span>, start: usize, end: usize) -&gt; (dispatch Slice);
+        <span class="kw">pub fn </span>as_slice(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; (dispatch Slice);
+        <span class="kw">pub fn </span>slice_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>, start: usize, end: usize) -&gt; (dispatch SliceMut);
+        <span class="kw">pub fn </span>as_slice_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; (dispatch SliceMut);
+        <span class="kw">pub fn </span>is_zero(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool;
+        <span class="kw">pub fn </span>iter(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; FpVectorIterator;
+        <span class="kw">pub fn </span>iter_nonzero(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; (dispatch FpVectorNonZeroIterator);
+        <span class="kw">pub fn </span>extend_len(<span class="kw-2">&amp;mut </span><span class="self">self</span>, dim: usize);
+        <span class="kw">pub fn </span>set_scratch_vector_size(<span class="kw-2">&amp;mut </span><span class="self">self</span>, dim: usize);
+        <span class="kw">pub fn </span>add_basis_element(<span class="kw-2">&amp;mut </span><span class="self">self</span>, index: usize, value: u32);
+        <span class="kw">pub fn </span>copy_from_slice(<span class="kw-2">&amp;mut </span><span class="self">self</span>, slice: <span class="kw-2">&amp;</span>[u32]);
+        <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>trim_start(<span class="kw-2">&amp;mut </span><span class="self">self</span>, n: usize);
+        <span class="kw">pub fn </span>add_truncate(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>, c: u32) -&gt; (<span class="prelude-ty">Option</span>&lt;()&gt;);
+        <span class="kw">pub fn </span>sign_rule(<span class="kw-2">&amp;</span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; bool;
+        <span class="kw">pub fn </span>add_carry(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>, c: u32, rest: <span class="kw-2">&amp;mut </span>[FpVector]) -&gt; bool;
+        <span class="kw">pub fn </span>first_nonzero(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; (<span class="prelude-ty">Option</span>&lt;(usize, u32)&gt;);
+        <span class="kw">pub fn </span>density(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; f32;
+
+        <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>limbs(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; (<span class="kw-2">&amp;</span>[Limb]);
+        <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>limbs_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; (<span class="kw-2">&amp;mut </span>[Limb]);
+    }
+
     <span class="kw">pub fn </span>new&lt;P: Prime&gt;(p: P, len: usize) -&gt; FpVector {
         <span class="kw">match </span>p.as_u32() {
             <span class="number">2 </span>=&gt; FpVector::_2(FpVectorP::new(P2, len)),
@@ -762,6 +803,7 @@
         <span class="kw">let </span>entries_per_limb = entries_per_limb(p);
         (len + entries_per_limb - <span class="number">1</span>) / entries_per_limb
     }
+
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>padded_len(p: ValidPrime, len: usize) -&gt; usize {
         <span class="self">Self</span>::num_limbs(p, len) * entries_per_limb(p)
     }
@@ -811,42 +853,6 @@
             }
         }
         <span class="prelude-val">Ok</span>(())
-    }
-
-    <span class="macro">dispatch_vector! </span>{
-        <span class="kw">pub fn </span>prime(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ValidPrime;
-        <span class="kw">pub fn </span>len(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize;
-        <span class="kw">pub fn </span>is_empty(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool;
-        <span class="kw">pub fn </span>scale(<span class="kw-2">&amp;mut </span><span class="self">self</span>, c: u32);
-        <span class="kw">pub fn </span>set_to_zero(<span class="kw-2">&amp;mut </span><span class="self">self</span>);
-        <span class="kw">pub fn </span>entry(<span class="kw-2">&amp;</span><span class="self">self</span>, index: usize) -&gt; u32;
-        <span class="kw">pub fn </span>set_entry(<span class="kw-2">&amp;mut </span><span class="self">self</span>, index: usize, value: u32);
-        <span class="kw">pub fn </span>assign(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>);
-        <span class="kw">pub fn </span>assign_partial(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>);
-        <span class="kw">pub fn </span>add(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>, c: u32);
-        <span class="kw">pub fn </span>add_nosimd(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>, c: u32);
-        <span class="kw">pub fn </span>add_offset(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>, c: u32, offset: usize);
-        <span class="kw">pub fn </span>add_offset_nosimd(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>, c: u32, offset: usize);
-        <span class="kw">pub fn </span>slice(<span class="kw-2">&amp;</span><span class="self">self</span>, start: usize, end: usize) -&gt; (dispatch Slice);
-        <span class="kw">pub fn </span>as_slice(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; (dispatch Slice);
-        <span class="kw">pub fn </span>slice_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>, start: usize, end: usize) -&gt; (dispatch SliceMut);
-        <span class="kw">pub fn </span>as_slice_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; (dispatch SliceMut);
-        <span class="kw">pub fn </span>is_zero(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool;
-        <span class="kw">pub fn </span>iter(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; FpVectorIterator;
-        <span class="kw">pub fn </span>iter_nonzero(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; (dispatch FpVectorNonZeroIterator);
-        <span class="kw">pub fn </span>extend_len(<span class="kw-2">&amp;mut </span><span class="self">self</span>, dim: usize);
-        <span class="kw">pub fn </span>set_scratch_vector_size(<span class="kw-2">&amp;mut </span><span class="self">self</span>, dim: usize);
-        <span class="kw">pub fn </span>add_basis_element(<span class="kw-2">&amp;mut </span><span class="self">self</span>, index: usize, value: u32);
-        <span class="kw">pub fn </span>copy_from_slice(<span class="kw-2">&amp;mut </span><span class="self">self</span>, slice: <span class="kw-2">&amp;</span>[u32]);
-        <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>trim_start(<span class="kw-2">&amp;mut </span><span class="self">self</span>, n: usize);
-        <span class="kw">pub fn </span>add_truncate(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>, c: u32) -&gt; (<span class="prelude-ty">Option</span>&lt;()&gt;);
-        <span class="kw">pub fn </span>sign_rule(<span class="kw-2">&amp;</span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; bool;
-        <span class="kw">pub fn </span>add_carry(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>, c: u32, rest: <span class="kw-2">&amp;mut </span>[FpVector]) -&gt; bool;
-        <span class="kw">pub fn </span>first_nonzero(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; (<span class="prelude-ty">Option</span>&lt;(usize, u32)&gt;);
-        <span class="kw">pub fn </span>density(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; f32;
-
-        <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>limbs(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; (<span class="kw-2">&amp;</span>[Limb]);
-        <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>limbs_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; (<span class="kw-2">&amp;mut </span>[Limb]);
     }
 }
 

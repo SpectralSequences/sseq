@@ -328,9 +328,6 @@
 <a href="#302" id="302">302</a>
 <a href="#303" id="303">303</a>
 <a href="#304" id="304">304</a>
-<a href="#305" id="305">305</a>
-<a href="#306" id="306">306</a>
-<a href="#307" id="307">307</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Computes algebraic Mahowald invariants (aka algebraic root invariants).
 //!
 //! Sample output (with `Max k = 7`):
@@ -377,10 +374,13 @@
 //! [mahowald--ravenel]: https://www.sciencedirect.com/science/article/pii/004093839390055Z
 //! [bruner--greenlees]: https://projecteuclid.org/journals/experimental-mathematics/volume-4/issue-4/The-Bredon-L%C3%B6ffler-conjecture/em/1047674389.full
 
-</span><span class="kw">use </span>algebra::{
+</span><span class="kw">use </span>std::{fmt, iter, num::NonZeroU32, path::PathBuf, sync::Arc};
+
+<span class="kw">use </span>algebra::{
     module::{homomorphism::ModuleHomomorphism, Module},
     AlgebraType, SteenrodAlgebra,
 };
+<span class="kw">use </span>anyhow::Result;
 <span class="kw">use </span>ext::{
     chain_complex::{ChainComplex, FiniteChainComplex, FreeChainComplex},
     resolution::MuResolution,
@@ -388,15 +388,8 @@
     utils,
 };
 <span class="kw">use </span>fp::{matrix::Matrix, prime::TWO, vector::FpVector};
-
-<span class="kw">use </span>anyhow::Result;
 <span class="kw">use </span>serde_json::json;
 <span class="kw">use </span>sseq::coordinates::{Bidegree, BidegreeElement, BidegreeGenerator};
-<span class="kw">use </span>std::fmt;
-<span class="kw">use </span>std::iter;
-<span class="kw">use </span>std::num::NonZeroU32;
-<span class="kw">use </span>std::path::PathBuf;
-<span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">fn </span>main() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
     <span class="kw">let </span>s_2_path: <span class="prelude-ty">Option</span>&lt;PathBuf&gt; = query::optional(<span class="string">"Save directory for S_2"</span>, str::parse);
@@ -607,8 +600,9 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
-    <span class="kw">use super</span>::<span class="kw-2">*</span>;
     <span class="kw">use </span>rstest::rstest;
+
+    <span class="kw">use super</span>::<span class="kw-2">*</span>;
 
     <span class="attr">#[rstest]
     #[case(<span class="number">1</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="macro">vec!</span>[<span class="number">1</span>]</span>, <span class="number">0</span>)]

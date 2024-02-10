@@ -616,13 +616,15 @@
 <a href="#590" id="590">590</a>
 <a href="#591" id="591">591</a>
 <a href="#592" id="592">592</a>
-</pre></div><pre class="rust"><code><span class="kw">use </span>fp::prime::ValidPrime;
-<span class="kw">use </span>fp::vector::{Slice, SliceMut};
-
-<span class="kw">use </span>std::fmt::Write <span class="kw">as _</span>; <span class="comment">// Needed for write! macro for String
+<a href="#593" id="593">593</a>
+</pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Write <span class="kw">as _</span>; <span class="comment">// Needed for write! macro for String
 
 </span><span class="attr">#[cfg(doc)]
 </span><span class="kw">use </span>fp::vector::FpVector;
+<span class="kw">use </span>fp::{
+    prime::ValidPrime,
+    vector::{Slice, SliceMut},
+};
 
 <span class="doccomment">/// A graded algebra over $\mathbb{F}_p$.
 ///
@@ -1150,7 +1152,7 @@
 
 <span class="attr">#[macro_export]
 </span><span class="macro">macro_rules! </span>dispatch_algebra {
-    (<span class="macro-nonterminal">$</span><span class="kw">struct</span>:<span class="macro-nonterminal">ty</span>, <span class="macro-nonterminal">$dispatch_macro</span>: ident) =&gt; {
+    (<span class="macro-nonterminal">$</span><span class="kw">struct</span>:<span class="macro-nonterminal">ty</span>, <span class="macro-nonterminal">$dispatch_macro</span>:ident) =&gt; {
         <span class="kw">impl </span>Algebra <span class="kw">for </span><span class="macro-nonterminal">$</span><span class="kw">struct </span>{
             <span class="macro-nonterminal">$</span><span class="macro">dispatch_macro! </span>{
                 <span class="kw">fn </span><span class="macro-nonterminal">prefix</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>str;

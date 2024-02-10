@@ -338,16 +338,22 @@
 <a href="#312" id="312">312</a>
 <a href="#313" id="313">313</a>
 <a href="#314" id="314">314</a>
-</pre></div><pre class="rust"><code><span class="kw">use </span>bivec::BiVec;
+<a href="#315" id="315">315</a>
+<a href="#316" id="316">316</a>
+<a href="#317" id="317">317</a>
+</pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
+
+<span class="kw">use </span>bivec::BiVec;
+<span class="kw">use </span>fp::{
+    prime::minus_one_to_the_n,
+    vector::{FpVector, Slice, SliceMut},
+};
 <span class="kw">use </span>once::OnceBiVec;
 
-<span class="kw">use </span><span class="kw">crate</span>::algebra::{Algebra, Bialgebra};
-<span class="kw">use </span><span class="kw">crate</span>::module::block_structure::BlockStructure;
-<span class="kw">use </span><span class="kw">crate</span>::module::{Module, ZeroModule};
-<span class="kw">use </span>fp::prime::minus_one_to_the_n;
-<span class="kw">use </span>fp::vector::{FpVector, Slice, SliceMut};
-
-<span class="kw">use </span>std::sync::Arc;
+<span class="kw">use crate</span>::{
+    algebra::{Algebra, Bialgebra},
+    module::{block_structure::BlockStructure, Module, ZeroModule},
+};
 
 <span class="comment">// This really only makes sense when the algebra is a bialgebra, but associated type bounds are
 // unstable. Since the methods are only defined when A is a bialgebra, this is not too much of a

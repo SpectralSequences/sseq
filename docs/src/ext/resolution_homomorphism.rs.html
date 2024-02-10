@@ -506,27 +506,34 @@
 <a href="#480" id="480">480</a>
 <a href="#481" id="481">481</a>
 <a href="#482" id="482">482</a>
+<a href="#483" id="483">483</a>
+<a href="#484" id="484">484</a>
+<a href="#485" id="485">485</a>
+<a href="#486" id="486">486</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! This module defines [`MuResolutionHomomorphism`], which is a chain map from a
 //! [`FreeChainComplex`].
-</span><span class="kw">use </span>std::ops::Range;
-<span class="kw">use </span>std::path::PathBuf;
-<span class="kw">use </span>std::sync::Arc;
+</span><span class="kw">use </span>std::{ops::Range, path::PathBuf, sync::Arc};
 
-<span class="kw">use </span><span class="kw">crate</span>::chain_complex::{
-    AugmentedChainComplex, BoundedChainComplex, ChainComplex, FreeChainComplex,
+<span class="kw">use </span>algebra::{
+    module::{
+        homomorphism::{ModuleHomomorphism, MuFreeModuleHomomorphism},
+        Module,
+    },
+    MuAlgebra,
 };
-<span class="kw">use </span><span class="kw">crate</span>::save::SaveKind;
-<span class="kw">use </span>algebra::module::homomorphism::{ModuleHomomorphism, MuFreeModuleHomomorphism};
-<span class="kw">use </span>algebra::module::Module;
-<span class="kw">use </span>algebra::MuAlgebra;
-<span class="kw">use </span>fp::matrix::Matrix;
-<span class="kw">use </span>fp::vector::{FpVector, SliceMut};
+<span class="kw">use </span>byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+<span class="kw">use </span>fp::{
+    matrix::Matrix,
+    vector::{FpVector, SliceMut},
+};
+<span class="kw">use </span>maybe_rayon::prelude::<span class="kw-2">*</span>;
 <span class="kw">use </span>once::OnceBiVec;
 <span class="kw">use </span>sseq::coordinates::{Bidegree, BidegreeGenerator, BidegreeRange};
 
-<span class="kw">use </span>byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-
-<span class="kw">use </span>maybe_rayon::prelude::<span class="kw-2">*</span>;
+<span class="kw">use crate</span>::{
+    chain_complex::{AugmentedChainComplex, BoundedChainComplex, ChainComplex, FreeChainComplex},
+    save::SaveKind,
+};
 
 <span class="kw">pub type </span>ResolutionHomomorphism&lt;CC1, CC2&gt; = MuResolutionHomomorphism&lt;<span class="bool-val">false</span>, CC1, CC2&gt;;
 <span class="kw">pub type </span>UnstableResolutionHomomorphism&lt;CC1, CC2&gt; = MuResolutionHomomorphism&lt;<span class="bool-val">true</span>, CC1, CC2&gt;;
@@ -934,7 +941,8 @@
         <span class="kw">let </span>shift = Bidegree::s_t(<span class="number">0</span>, f.degree_shift());
 
         <span class="kw">let </span>max_degree = source_module.max_generator_degree().expect(
-            <span class="string">"MuResolutionHomomorphism::from_module_homomorphism requires finite max_generator_degree"</span>,
+            <span class="string">"MuResolutionHomomorphism::from_module_homomorphism requires finite \
+             max_generator_degree"</span>,
         );
 
         <span class="kw">let </span>hom = <span class="self">Self</span>::new(name, source, target, shift);

@@ -610,23 +610,27 @@
 <a href="#584" id="584">584</a>
 <a href="#585" id="585">585</a>
 <a href="#586" id="586">586</a>
+<a href="#587" id="587">587</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! A module containing various utility functions related to user interaction in some way.
-</span><span class="kw">use </span><span class="kw">crate</span>::chain_complex::{
-    AugmentedChainComplex, BoundedChainComplex, ChainComplex, FiniteChainComplex,
+</span><span class="kw">use </span>std::{
+    convert::{TryFrom, TryInto},
+    path::PathBuf,
+    sync::Arc,
 };
 
-<span class="kw">use </span><span class="kw">crate</span>::resolution::{Resolution, UnstableResolution};
-<span class="kw">use </span><span class="kw">crate</span>::CCC;
-<span class="kw">use </span>algebra::module::{steenrod_module, FDModule, Module, SteenrodModule};
-<span class="kw">use </span>algebra::{AlgebraType, MilnorAlgebra, SteenrodAlgebra};
-
+<span class="kw">use </span>algebra::{
+    module::{steenrod_module, FDModule, Module, SteenrodModule},
+    AlgebraType, MilnorAlgebra, SteenrodAlgebra,
+};
 <span class="kw">use </span>anyhow::{anyhow, Context};
 <span class="kw">use </span>serde_json::Value;
 <span class="kw">use </span>sseq::coordinates::{Bidegree, BidegreeGenerator};
 
-<span class="kw">use </span>std::convert::{TryFrom, TryInto};
-<span class="kw">use </span>std::path::PathBuf;
-<span class="kw">use </span>std::sync::Arc;
+<span class="kw">use crate</span>::{
+    chain_complex::{AugmentedChainComplex, BoundedChainComplex, ChainComplex, FiniteChainComplex},
+    resolution::{Resolution, UnstableResolution},
+    CCC,
+};
 
 <span class="comment">// We build docs with --all-features so the docs are at the feature = "nassau" version
 </span><span class="attr">#[cfg(not(feature = <span class="string">"nassau"</span>))]
@@ -828,9 +832,9 @@
     <span class="kw">let </span>cofiber = <span class="kw-2">&amp;</span>json[<span class="string">"cofiber"</span>];
     <span class="kw">if </span>!cofiber.is_null() {
         <span class="macro">assert!</span>(!U, <span class="string">"Cofiber not supported for unstable resolution"</span>);
-        <span class="kw">use </span><span class="kw">crate</span>::chain_complex::ChainMap;
-        <span class="kw">use </span><span class="kw">crate</span>::yoneda::yoneda_representative;
         <span class="kw">use </span>algebra::module::homomorphism::FreeModuleHomomorphism;
+
+        <span class="kw">use crate</span>::{chain_complex::ChainMap, yoneda::yoneda_representative};
 
         <span class="kw">let </span>shift = json[<span class="string">"shift"</span>].as_i64().unwrap_or(<span class="number">0</span>) <span class="kw">as </span>i32;
 
@@ -1074,8 +1078,7 @@
 
 <span class="attr">#[cfg(feature = <span class="string">"logging"</span>)]
 </span><span class="kw">mod </span>logging {
-    <span class="kw">use </span>std::io::Write;
-    <span class="kw">use </span>std::time::Instant;
+    <span class="kw">use </span>std::{io::Write, time::Instant};
 
     <span class="doccomment">/// If the `logging` feature is enabled, this can be used to time how long an operation takes.
     /// If the `logging` features is disabled, this is a no-op.
@@ -1179,8 +1182,7 @@
     }
 }
 
-<span class="kw">pub use </span>logging::LogWriter;
-<span class="kw">pub use </span>logging::Timer;
+<span class="kw">pub use </span>logging::{LogWriter, Timer};
 
 <span class="doccomment">/// The value of the SECONDARY_JOB environment variable. This is used for distributing the
 /// `secondary`. If set, only data with `s = SECONDARY_JOB` will be computed. The minimum value of

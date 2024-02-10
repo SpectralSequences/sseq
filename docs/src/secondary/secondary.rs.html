@@ -117,6 +117,8 @@
 <a href="#91" id="91">91</a>
 <a href="#92" id="92">92</a>
 <a href="#93" id="93">93</a>
+<a href="#94" id="94">94</a>
+<a href="#95" id="95">95</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! This computes $d_2$ differentials in the Adams spectral sequence. This only works for fairly
 //! specific modules, but tends to cover most cases of interest.
 //!
@@ -164,13 +166,15 @@
 //! target/debug/examples/secondary S_2 /tmp/save 40 20;
 //! ```
 
-</span><span class="kw">use </span>algebra::module::Module;
-<span class="kw">use </span>sseq::coordinates::{Bidegree, BidegreeGenerator};
-<span class="kw">use </span>std::sync::Arc;
+</span><span class="kw">use </span>std::sync::Arc;
 
-<span class="kw">use </span>ext::chain_complex::{ChainComplex, FreeChainComplex};
-<span class="kw">use </span>ext::secondary::<span class="kw-2">*</span>;
-<span class="kw">use </span>ext::utils::query_module;
+<span class="kw">use </span>algebra::module::Module;
+<span class="kw">use </span>ext::{
+    chain_complex::{ChainComplex, FreeChainComplex},
+    secondary::<span class="kw-2">*</span>,
+    utils::query_module,
+};
+<span class="kw">use </span>sseq::coordinates::{Bidegree, BidegreeGenerator};
 
 <span class="kw">fn </span>main() -&gt; anyhow::Result&lt;()&gt; {
     <span class="kw">let </span>resolution = Arc::new(query_module(<span class="prelude-val">Some</span>(algebra::AlgebraType::Milnor), <span class="bool-val">true</span>)<span class="question-mark">?</span>);

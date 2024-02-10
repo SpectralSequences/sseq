@@ -267,18 +267,28 @@
 <a href="#241" id="241">241</a>
 <a href="#242" id="242">242</a>
 <a href="#243" id="243">243</a>
-</pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::algebra::{
-    adem_algebra::AdemBasisElement,
-    milnor_algebra::{MilnorBasisElement, PPartEntry},
-    AdemAlgebra, Algebra, MilnorAlgebra, SteenrodAlgebra,
+<a href="#244" id="244">244</a>
+<a href="#245" id="245">245</a>
+<a href="#246" id="246">246</a>
+<a href="#247" id="247">247</a>
+<a href="#248" id="248">248</a>
+</pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
+
+<span class="kw">use </span>fp::{
+    prime::{Binomial, TWO},
+    vector::SliceMut,
 };
-<span class="kw">use </span><span class="kw">crate</span>::module::{Module, ZeroModule};
-<span class="kw">use </span>fp::prime::{Binomial, TWO};
-<span class="kw">use </span>fp::vector::SliceMut;
+<span class="kw">use </span>serde::Deserialize;
+<span class="kw">use </span>serde_json::Value;
 
-<span class="kw">use </span>std::sync::Arc;
-
-<span class="kw">use </span>{serde::Deserialize, serde_json::Value};
+<span class="kw">use crate</span>::{
+    algebra::{
+        adem_algebra::AdemBasisElement,
+        milnor_algebra::{MilnorBasisElement, PPartEntry},
+        AdemAlgebra, Algebra, MilnorAlgebra, SteenrodAlgebra,
+    },
+    module::{Module, ZeroModule},
+};
 
 <span class="doccomment">/// This is $\mathbb{RP}_{\mathrm{min}}^{\mathrm{max}}$. The cohomology is the subquotient of
 /// $\mathbb{F}_2[x^\pm]$ given by elements of degree between min and max (inclusive)

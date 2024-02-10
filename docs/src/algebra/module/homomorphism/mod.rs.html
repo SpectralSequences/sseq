@@ -194,12 +194,17 @@
 <a href="#168" id="168">168</a>
 <a href="#169" id="169">169</a>
 <a href="#170" id="170">170</a>
+<a href="#171" id="171">171</a>
+<a href="#172" id="172">172</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
 
+<span class="kw">use </span>fp::{
+    matrix::{AugmentedMatrix, Matrix, MatrixSliceMut, QuasiInverse, Subspace},
+    prime::ValidPrime,
+    vector::{Slice, SliceMut},
+};
+
 <span class="kw">use </span><span class="kw">crate</span>::module::Module;
-<span class="kw">use </span>fp::matrix::{AugmentedMatrix, Matrix, MatrixSliceMut, QuasiInverse, Subspace};
-<span class="kw">use </span>fp::prime::ValidPrime;
-<span class="kw">use </span>fp::vector::{Slice, SliceMut};
 
 <span class="kw">mod </span>free_module_homomorphism;
 <span class="kw">mod </span>full_module_homomorphism;
@@ -213,10 +218,9 @@
 <span class="kw">pub use </span>full_module_homomorphism::FullModuleHomomorphism;
 <span class="kw">pub use </span>generic_zero_homomorphism::GenericZeroHomomorphism;
 <span class="kw">pub use </span>hom_pullback::HomPullback;
-<span class="kw">pub use </span>quotient_homomorphism::{QuotientHomomorphism, QuotientHomomorphismSource};
-
 <span class="attr">#[allow(unused_imports)]
 </span><span class="kw">use </span>maybe_rayon::prelude::<span class="kw-2">*</span>;
+<span class="kw">pub use </span>quotient_homomorphism::{QuotientHomomorphism, QuotientHomomorphismSource};
 
 <span class="doccomment">/// Each `ModuleHomomorphism` may come with auxiliary data, namely the kernel, image and
 /// quasi_inverse at each degree (the quasi-inverse is a map that is a right inverse when

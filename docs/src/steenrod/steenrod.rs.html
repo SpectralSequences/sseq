@@ -1039,21 +1039,33 @@
 <a href="#1013" id="1013">1013</a>
 <a href="#1014" id="1014">1014</a>
 <a href="#1015" id="1015">1015</a>
-</pre></div><pre class="rust"><code><span class="kw">use </span>algebra::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
-<span class="kw">use </span>algebra::module::Module;
-<span class="kw">use </span>ext::chain_complex::{
-    AugmentedChainComplex, BoundedChainComplex, ChainComplex, FreeChainComplex,
+<a href="#1016" id="1016">1016</a>
+<a href="#1017" id="1017">1017</a>
+<a href="#1018" id="1018">1018</a>
+<a href="#1019" id="1019">1019</a>
+<a href="#1020" id="1020">1020</a>
+<a href="#1021" id="1021">1021</a>
+<a href="#1022" id="1022">1022</a>
+<a href="#1023" id="1023">1023</a>
+<a href="#1024" id="1024">1024</a>
+</pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+    io::{stderr, stdout, Write},
+    sync::Arc,
 };
-<span class="kw">use </span>ext::utils;
-<span class="kw">use </span>ext::yoneda::yoneda_representative_element;
-<span class="kw">use </span>fp::matrix::Matrix;
-<span class="kw">use </span>fp::vector::FpVector;
+
+<span class="kw">use </span>algebra::module::{
+    homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism},
+    Module,
+};
+<span class="kw">use </span>ext::{
+    chain_complex::{AugmentedChainComplex, BoundedChainComplex, ChainComplex, FreeChainComplex},
+    utils,
+    yoneda::yoneda_representative_element,
+};
+<span class="kw">use </span>fp::{matrix::Matrix, vector::FpVector};
 <span class="kw">use </span>itertools::Itertools;
 <span class="kw">use </span>sseq::coordinates::{Bidegree, BidegreeElement};
 <span class="kw">use </span>tensor_product_chain_complex::TensorChainComplex;
-
-<span class="kw">use </span>std::io::{stderr, stdout, Write};
-<span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">fn </span>main() -&gt; anyhow::Result&lt;()&gt; {
     <span class="kw">let </span>resolution = Arc::new(utils::query_module_only(<span class="string">"Module"</span>, <span class="prelude-val">None</span>, <span class="bool-val">false</span>)<span class="question-mark">?</span>);
@@ -1323,14 +1335,15 @@
 }
 
 <span class="kw">mod </span>sum_module {
-    <span class="kw">use </span>bivec::BiVec;
-    <span class="kw">use </span>once::OnceBiVec;
-
-    <span class="kw">use </span>algebra::module::block_structure::{BlockStructure, GeneratorBasisEltPair};
-    <span class="kw">use </span>algebra::module::{Module, ZeroModule};
-    <span class="kw">use </span>fp::vector::SliceMut;
-
     <span class="kw">use </span>std::sync::Arc;
+
+    <span class="kw">use </span>algebra::module::{
+        block_structure::{BlockStructure, GeneratorBasisEltPair},
+        Module, ZeroModule,
+    };
+    <span class="kw">use </span>bivec::BiVec;
+    <span class="kw">use </span>fp::vector::SliceMut;
+    <span class="kw">use </span>once::OnceBiVec;
 
     <span class="kw">pub struct </span>SumModule&lt;M: Module&gt; {
         <span class="comment">// We need these because modules might be empty
@@ -1468,10 +1481,9 @@
     </span><span class="kw">mod </span>tests {
         <span class="attr">#![allow(non_snake_case)]
 
-        </span><span class="kw">use super</span>::<span class="kw-2">*</span>;
+        </span><span class="kw">use </span>algebra::{module::FDModule, AdemAlgebra};
 
-        <span class="kw">use </span>algebra::module::FDModule;
-        <span class="kw">use </span>algebra::AdemAlgebra;
+        <span class="kw">use super</span>::<span class="kw-2">*</span>;
 
         <span class="attr">#[test]
         </span><span class="kw">fn </span>test_sum_modules() {
@@ -1513,17 +1525,21 @@
 }
 
 <span class="kw">mod </span>tensor_product_chain_complex {
-    <span class="kw">use </span><span class="kw">super</span>::sum_module::SumModule;
-    <span class="kw">use </span>algebra::module::homomorphism::ModuleHomomorphism;
-    <span class="kw">use </span>algebra::module::{Module, TensorModule, ZeroModule};
-    <span class="kw">use </span>algebra::{Algebra, Bialgebra};
-    <span class="kw">use </span>ext::chain_complex::ChainComplex;
-    <span class="kw">use </span>fp::matrix::AugmentedMatrix;
-    <span class="kw">use </span>fp::vector::{FpVector, Slice, SliceMut};
-    <span class="kw">use </span>sseq::coordinates::Bidegree;
     <span class="kw">use </span>std::sync::Arc;
 
+    <span class="kw">use </span>algebra::{
+        module::{homomorphism::ModuleHomomorphism, Module, TensorModule, ZeroModule},
+        Algebra, Bialgebra,
+    };
+    <span class="kw">use </span>ext::chain_complex::ChainComplex;
+    <span class="kw">use </span>fp::{
+        matrix::AugmentedMatrix,
+        vector::{FpVector, Slice, SliceMut},
+    };
     <span class="kw">use </span>once::{OnceBiVec, OnceVec};
+    <span class="kw">use </span>sseq::coordinates::Bidegree;
+
+    <span class="kw">use </span><span class="kw">super</span>::sum_module::SumModule;
 
     <span class="kw">pub type </span>Stm&lt;M, N&gt; = SumModule&lt;TensorModule&lt;M, N&gt;&gt;;
 
@@ -1630,8 +1646,8 @@
         CC2: ChainComplex&lt;Algebra = A&gt;,
     {
         <span class="kw">type </span>Algebra = A;
-        <span class="kw">type </span>Module = Stm&lt;CC1::Module, CC2::Module&gt;;
         <span class="kw">type </span>Homomorphism = TensorChainMap&lt;A, CC1, CC2&gt;;
+        <span class="kw">type </span>Module = Stm&lt;CC1::Module, CC2::Module&gt;;
 
         <span class="kw">fn </span>algebra(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Arc&lt;A&gt; {
             <span class="self">self</span>.left_cc.algebra()
@@ -1744,9 +1760,11 @@
         <span class="kw">fn </span>source(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Arc&lt;<span class="self">Self</span>::Source&gt; {
             Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.source)
         }
+
         <span class="kw">fn </span>target(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Arc&lt;<span class="self">Self</span>::Target&gt; {
             Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.target)
         }
+
         <span class="kw">fn </span>degree_shift(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; i32 {
             <span class="number">0
         </span>}
@@ -2003,13 +2021,13 @@
 
     <span class="attr">#[cfg(test)]
     </span><span class="kw">mod </span>tests {
-        <span class="kw">use super</span>::<span class="kw-2">*</span>;
-
-        <span class="kw">use </span>ext::resolution_homomorphism::ResolutionHomomorphism;
-        <span class="kw">use </span>ext::utils::construct;
-        <span class="kw">use </span>ext::yoneda::yoneda_representative_element;
-
+        <span class="kw">use </span>ext::{
+            resolution_homomorphism::ResolutionHomomorphism, utils::construct,
+            yoneda::yoneda_representative_element,
+        };
         <span class="kw">use </span>rstest::rstest;
+
+        <span class="kw">use super</span>::<span class="kw-2">*</span>;
 
         <span class="attr">#[rstest]
         #[trace]

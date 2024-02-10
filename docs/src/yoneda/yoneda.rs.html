@@ -60,13 +60,17 @@
 <a href="#34" id="34">34</a>
 <a href="#35" id="35">35</a>
 <a href="#36" id="36">36</a>
-</pre></div><pre class="rust"><code><span class="kw">use </span>algebra::module::Module;
-<span class="kw">use </span>ext::chain_complex::{ChainComplex, FreeChainComplex};
-<span class="kw">use </span>ext::utils;
-<span class="kw">use </span>ext::yoneda::yoneda_representative_element;
-<span class="kw">use </span>sseq::coordinates::Bidegree;
+<a href="#37" id="37">37</a>
+<a href="#38" id="38">38</a>
+</pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
 
-<span class="kw">use </span>std::sync::Arc;
+<span class="kw">use </span>algebra::module::Module;
+<span class="kw">use </span>ext::{
+    chain_complex::{ChainComplex, FreeChainComplex},
+    utils,
+    yoneda::yoneda_representative_element,
+};
+<span class="kw">use </span>sseq::coordinates::Bidegree;
 
 <span class="kw">fn </span>main() -&gt; anyhow::Result&lt;()&gt; {
     <span class="kw">let </span>resolution = Arc::new(utils::query_module_only(<span class="string">"Module"</span>, <span class="prelude-val">None</span>, <span class="bool-val">false</span>)<span class="question-mark">?</span>);

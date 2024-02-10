@@ -311,21 +311,29 @@
 <a href="#285" id="285">285</a>
 <a href="#286" id="286">286</a>
 <a href="#287" id="287">287</a>
-</pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::chain_complex::{ChainComplex, FreeChainComplex};
-<span class="kw">use </span><span class="kw">crate</span>::resolution_homomorphism::ResolutionHomomorphism;
-<span class="kw">use </span><span class="kw">crate</span>::save::SaveKind;
-<span class="kw">use </span>algebra::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
-<span class="kw">use </span>algebra::module::Module;
-<span class="kw">use </span>fp::prime::ValidPrime;
-<span class="kw">use </span>fp::vector::FpVector;
+<a href="#288" id="288">288</a>
+<a href="#289" id="289">289</a>
+<a href="#290" id="290">290</a>
+<a href="#291" id="291">291</a>
+</pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+    path::{Path, PathBuf},
+    sync::{Arc, Mutex},
+};
+
+<span class="kw">use </span>algebra::module::{
+    homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism},
+    Module,
+};
+<span class="kw">use </span>fp::{prime::ValidPrime, vector::FpVector};
+<span class="kw">use </span>maybe_rayon::prelude::<span class="kw-2">*</span>;
 <span class="kw">use </span>once::OnceBiVec;
 <span class="kw">use </span>sseq::coordinates::{Bidegree, BidegreeRange};
 
-<span class="kw">use </span>std::path::{Path, PathBuf};
-<span class="kw">use </span>std::sync::Arc;
-<span class="kw">use </span>std::sync::Mutex;
-
-<span class="kw">use </span>maybe_rayon::prelude::<span class="kw-2">*</span>;
+<span class="kw">use crate</span>::{
+    chain_complex::{ChainComplex, FreeChainComplex},
+    resolution_homomorphism::ResolutionHomomorphism,
+    save::SaveKind,
+};
 
 <span class="comment">// Another instance of https://github.com/rust-lang/rust/issues/91380
 </span><span class="doccomment">/// A chain homotopy from $f to g$, or equivalently a null-homotopy of $h = f - g$. A chain map is

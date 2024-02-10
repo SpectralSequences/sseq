@@ -316,15 +316,29 @@
 <a href="#290" id="290">290</a>
 <a href="#291" id="291">291</a>
 <a href="#292" id="292">292</a>
+<a href="#293" id="293">293</a>
+<a href="#294" id="294">294</a>
+<a href="#295" id="295">295</a>
+<a href="#296" id="296">296</a>
+<a href="#297" id="297">297</a>
+<a href="#298" id="298">298</a>
+<a href="#299" id="299">299</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
 
-<span class="kw">use </span><span class="kw">crate</span>::algebra::MuAlgebra;
-<span class="kw">use </span><span class="kw">crate</span>::module::free_module::OperationGeneratorPair;
-<span class="kw">use </span><span class="kw">crate</span>::module::homomorphism::{ModuleHomomorphism, ZeroHomomorphism};
-<span class="kw">use </span><span class="kw">crate</span>::module::{Module, MuFreeModule};
-<span class="kw">use </span>fp::matrix::{MatrixSliceMut, QuasiInverse, Subspace};
-<span class="kw">use </span>fp::vector::{FpVector, Slice, SliceMut};
+<span class="kw">use </span>fp::{
+    matrix::{MatrixSliceMut, QuasiInverse, Subspace},
+    vector::{FpVector, Slice, SliceMut},
+};
 <span class="kw">use </span>once::OnceBiVec;
+
+<span class="kw">use crate</span>::{
+    algebra::MuAlgebra,
+    module::{
+        free_module::OperationGeneratorPair,
+        homomorphism::{ModuleHomomorphism, ZeroHomomorphism},
+        Module, MuFreeModule,
+    },
+};
 
 <span class="kw">pub type </span>FreeModuleHomomorphism&lt;M&gt; = MuFreeModuleHomomorphism&lt;<span class="bool-val">false</span>, M&gt;;
 <span class="kw">pub type </span>UnstableFreeModuleHomomorphism&lt;M&gt; = MuFreeModuleHomomorphism&lt;<span class="bool-val">true</span>, M&gt;;

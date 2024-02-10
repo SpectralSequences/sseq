@@ -71,13 +71,15 @@
 <a href="#45" id="45">45</a>
 <a href="#46" id="46">46</a>
 <a href="#47" id="47">47</a>
-</pre></div><pre class="rust"><code><span class="kw">use </span>algebra::Algebra;
+<a href="#48" id="48">48</a>
+</pre></div><pre class="rust"><code><span class="kw">use </span>std::{fs::File, sync::Arc};
+
+<span class="kw">use </span>algebra::Algebra;
 <span class="kw">use </span>chart::{Backend <span class="kw">as _</span>, TikzBackend <span class="kw">as </span>Backend};
 <span class="kw">use </span>ext::{
     chain_complex::{ChainComplex, FreeChainComplex},
     secondary::{SecondaryLift, SecondaryResolution},
 };
-<span class="kw">use </span>std::{fs::File, sync::Arc};
 
 <span class="kw">fn </span>main() -&gt; anyhow::Result&lt;()&gt; {
     <span class="kw">let </span>resolution = Arc::new(ext::utils::query_module(

@@ -169,6 +169,7 @@
 <a href="#143" id="143">143</a>
 <a href="#144" id="144">144</a>
 <a href="#145" id="145">145</a>
+<a href="#146" id="146">146</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Given an element in $\Ext(M, N)$, this computes the induced map $\Ext(N, k) \to \Ext(M, k)$
 //! given by composition.
 //!
@@ -210,16 +211,17 @@
 //! $H^*(-)$ are contravariant functors. The words "source" and "target" refer to the map between
 //! Steenrod modules.
 
-</span><span class="kw">use </span>algebra::module::Module;
+</span><span class="kw">use </span>std::{path::PathBuf, sync::Arc};
+
+<span class="kw">use </span>algebra::module::Module;
 <span class="kw">use </span>anyhow::{anyhow, Context};
-<span class="kw">use </span>ext::chain_complex::{AugmentedChainComplex, ChainComplex, FreeChainComplex};
-<span class="kw">use </span>ext::resolution_homomorphism::ResolutionHomomorphism;
-<span class="kw">use </span>ext::utils;
+<span class="kw">use </span>ext::{
+    chain_complex::{AugmentedChainComplex, ChainComplex, FreeChainComplex},
+    resolution_homomorphism::ResolutionHomomorphism,
+    utils,
+};
 <span class="kw">use </span>fp::matrix::Matrix;
 <span class="kw">use </span>sseq::coordinates::{Bidegree, BidegreeGenerator};
-
-<span class="kw">use </span>std::path::PathBuf;
-<span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">fn </span>main() -&gt; anyhow::Result&lt;()&gt; {
     <span class="kw">let </span>source = Arc::new(utils::query_module_only(<span class="string">"Source module"</span>, <span class="prelude-val">None</span>, <span class="bool-val">true</span>)<span class="question-mark">?</span>);

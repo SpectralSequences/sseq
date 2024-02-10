@@ -150,13 +150,17 @@
 <a href="#124" id="124">124</a>
 <a href="#125" id="125">125</a>
 <a href="#126" id="126">126</a>
-</pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::constants::BITS_PER_LIMB;
-<span class="kw">use </span><span class="kw">crate</span>::limb::{number, Limb};
-<span class="kw">use </span><span class="kw">crate</span>::matrix::Matrix;
-<span class="kw">use </span><span class="kw">crate</span>::prime::P2;
-<span class="kw">use </span><span class="kw">crate</span>::simd;
+<a href="#127" id="127">127</a>
+<a href="#128" id="128">128</a>
+</pre></div><pre class="rust"><code><span class="kw">use </span>itertools::Itertools;
 
-<span class="kw">use </span>itertools::Itertools;
+<span class="kw">use crate</span>::{
+    constants::BITS_PER_LIMB,
+    limb::{number, Limb},
+    matrix::Matrix,
+    prime::P2,
+    simd,
+};
 
 <span class="attr">#[derive(Debug, Default)]
 </span><span class="doccomment">/// M4RI works as follows --- first row reduce k rows using the naive algorithm. We then construct

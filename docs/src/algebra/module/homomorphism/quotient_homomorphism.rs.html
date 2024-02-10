@@ -124,11 +124,13 @@
 <a href="#98" id="98">98</a>
 <a href="#99" id="99">99</a>
 <a href="#100" id="100">100</a>
-</pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::module::{Module, QuotientModule};
-<span class="kw">use </span>fp::vector::{FpVector, SliceMut};
-<span class="kw">use </span>std::sync::Arc;
+<a href="#101" id="101">101</a>
+<a href="#102" id="102">102</a>
+</pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
 
-<span class="kw">use </span><span class="kw">crate</span>::module::homomorphism::ModuleHomomorphism;
+<span class="kw">use </span>fp::vector::{FpVector, SliceMut};
+
+<span class="kw">use </span><span class="kw">crate</span>::module::{homomorphism::ModuleHomomorphism, Module, QuotientModule};
 
 <span class="kw">pub struct </span>QuotientHomomorphism&lt;F: ModuleHomomorphism&gt; {
     f: Arc&lt;F&gt;,
@@ -153,9 +155,11 @@
     <span class="kw">fn </span>source(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Arc&lt;<span class="self">Self</span>::Source&gt; {
         Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.s)
     }
+
     <span class="kw">fn </span>target(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Arc&lt;<span class="self">Self</span>::Target&gt; {
         Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.t)
     }
+
     <span class="kw">fn </span>degree_shift(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; i32 {
         <span class="self">self</span>.f.degree_shift()
     }

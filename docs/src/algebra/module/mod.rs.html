@@ -54,7 +54,6 @@
 <a href="#28" id="28">28</a>
 <a href="#29" id="29">29</a>
 <a href="#30" id="30">30</a>
-<a href="#31" id="31">31</a>
 </pre></div><pre class="rust"><code><span class="kw">mod </span>finite_dimensional_module;
 <span class="kw">mod </span>finitely_presented_module;
 <span class="kw">mod </span>free_module;
@@ -77,13 +76,12 @@
 <span class="kw">pub use </span>free_module::{
     FreeModule, GeneratorData, MuFreeModule, OperationGeneratorPair, UnstableFreeModule,
 };
+<span class="kw">pub use </span>hom_module::HomModule;
 <span class="kw">pub use </span>module_trait::{Module, ModuleFailedRelationError};
+<span class="kw">pub use </span>quotient_module::QuotientModule;
 <span class="kw">pub use </span>rpn::RealProjectiveSpace;
 <span class="kw">pub use </span>steenrod_module::SteenrodModule;
+<span class="kw">pub use </span>suspension_module::SuspensionModule;
+<span class="kw">pub use </span>tensor_module::TensorModule;
 <span class="kw">pub use </span>zero_module::ZeroModule;
-
-<span class="kw">pub use </span>{
-    hom_module::HomModule, quotient_module::QuotientModule, suspension_module::SuspensionModule,
-    tensor_module::TensorModule,
-};
 </code></pre></div></section></main></body></html>

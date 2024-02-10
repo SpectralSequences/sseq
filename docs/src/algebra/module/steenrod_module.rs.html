@@ -70,16 +70,18 @@
 <a href="#44" id="44">44</a>
 <a href="#45" id="45">45</a>
 <a href="#46" id="46">46</a>
+<a href="#47" id="47">47</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::algebra::SteenrodAlgebra;
 
 <span class="kw">pub type </span>SteenrodModule = Box&lt;<span class="kw">dyn </span>Module&lt;Algebra = SteenrodAlgebra&gt;&gt;;
 
 <span class="kw">mod </span>json {
-    <span class="kw">use super</span>::<span class="kw-2">*</span>;
-
-    <span class="kw">use </span><span class="kw">crate</span>::module::{FDModule, FPModule, RealProjectiveSpace, SuspensionModule};
-    <span class="kw">use </span>anyhow::anyhow;
     <span class="kw">use </span>std::sync::Arc;
+
+    <span class="kw">use </span>anyhow::anyhow;
+
+    <span class="kw">use super</span>::<span class="kw-2">*</span>;
+    <span class="kw">use </span><span class="kw">crate</span>::module::{FDModule, FPModule, RealProjectiveSpace, SuspensionModule};
 
     <span class="kw">pub fn </span>from_json(
         algebra: Arc&lt;SteenrodAlgebra&gt;,

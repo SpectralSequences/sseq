@@ -65,14 +65,18 @@
 <a href="#39" id="39">39</a>
 <a href="#40" id="40">40</a>
 <a href="#41" id="41">41</a>
-</pre></div><pre class="rust"><code><span class="kw">use </span>algebra::module::{steenrod_module, FDModule, TensorModule};
-<span class="kw">use </span>algebra::{AdemAlgebra, SteenrodAlgebra};
+<a href="#42" id="42">42</a>
+<a href="#43" id="43">43</a>
+</pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
+
+<span class="kw">use </span>algebra::{
+    module::{steenrod_module, FDModule, TensorModule},
+    AdemAlgebra, SteenrodAlgebra,
+};
+<span class="kw">use </span>anyhow::anyhow;
 <span class="kw">use </span>ext::utils::parse_module_name;
 <span class="kw">use </span>fp::prime::{Prime, ValidPrime};
-
-<span class="kw">use </span>anyhow::anyhow;
 <span class="kw">use </span>serde_json::json;
-<span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">fn </span>main() -&gt; anyhow::Result&lt;()&gt; {
     <span class="kw">let </span>left = query::with_default(<span class="string">"Left module"</span>, <span class="string">"S_2"</span>, parse_module_name);

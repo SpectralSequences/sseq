@@ -2113,18 +2113,21 @@
 <a href="#2087" id="2087">2087</a>
 <a href="#2088" id="2088">2088</a>
 <a href="#2089" id="2089">2089</a>
-</pre></div><pre class="rust"><code><span class="kw">use </span>fp::prime::Prime;
+<a href="#2090" id="2090">2090</a>
+<a href="#2091" id="2091">2091</a>
+<a href="#2092" id="2092">2092</a>
+</pre></div><pre class="rust"><code><span class="kw">use </span>std::cell::Cell;
+
+<span class="kw">use </span>fp::{
+    prime::{factor_pk, iter::BitflagIterator, Binomial, Prime, ValidPrime},
+    vector::{FpVector, Slice, SliceMut},
+};
 <span class="kw">use </span>itertools::Itertools;
-<span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
-<span class="kw">use </span>std::cell::Cell;
-
-<span class="kw">use </span><span class="kw">crate</span>::algebra::combinatorics;
-<span class="kw">use </span><span class="kw">crate</span>::algebra::{Algebra, Bialgebra, GeneratedAlgebra, UnstableAlgebra};
-<span class="kw">use </span>fp::prime::{factor_pk, iter::BitflagIterator, Binomial, ValidPrime};
-<span class="kw">use </span>fp::vector::{FpVector, Slice, SliceMut};
 <span class="kw">use </span>once::OnceVec;
+<span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
+<span class="kw">use </span>serde::{Deserialize, Serialize};
 
-<span class="kw">use </span>{serde::Deserialize, serde::Serialize};
+<span class="kw">use </span><span class="kw">crate</span>::algebra::{combinatorics, Algebra, Bialgebra, GeneratedAlgebra, UnstableAlgebra};
 
 <span class="comment">// This is here so that the Python bindings can use modules defined for AdemAlgebraT with their own algebra enum.
 // In order for things to work AdemAlgebraT cannot implement Algebra.
@@ -2696,7 +2699,6 @@
     }
 
     <span class="kw">fn </span>basis_element_from_string(<span class="kw-2">&amp;</span><span class="self">self</span>, elt: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;(i32, usize)&gt; {
-        <span class="kw">use </span><span class="kw">crate</span>::steenrod_parser::{brackets, digits, p_or_sq};
         <span class="kw">use </span>nom::{
             branch::alt,
             bytes::complete::tag,
@@ -2705,6 +2707,8 @@
             multi::{many0, separated_list1},
             sequence::{preceded, tuple},
         };
+
+        <span class="kw">use </span><span class="kw">crate</span>::steenrod_parser::{brackets, digits, p_or_sq};
 
         <span class="kw">let </span>p = <span class="self">self</span>.prime();
 
@@ -3908,6 +3912,7 @@
         }
         result
     }
+
     <span class="kw">fn </span>decompose(<span class="kw-2">&amp;</span><span class="self">self</span>, op_deg: i32, op_idx: usize) -&gt; Vec&lt;(i32, usize)&gt; {
         <span class="macro">vec!</span>[(op_deg, op_idx)]
     }
@@ -3915,13 +3920,14 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
-    <span class="kw">use super</span>::<span class="kw-2">*</span>;
-
-    <span class="kw">use </span>expect_test::expect;
-    <span class="kw">use </span>rstest::rstest;
     <span class="kw">use </span>std::fmt::Write <span class="kw">as _</span>; <span class="comment">// Needed for write! macro for String
 
-    </span><span class="attr">#[rstest]
+    </span><span class="kw">use </span>expect_test::expect;
+    <span class="kw">use </span>rstest::rstest;
+
+    <span class="kw">use super</span>::<span class="kw-2">*</span>;
+
+    <span class="attr">#[rstest]
     #[trace]
     #[case(<span class="number">2</span>, <span class="number">32</span>, <span class="prelude-val">None</span>)]
     #[case(<span class="number">2</span>, <span class="number">32</span>, <span class="prelude-val">Some</span>(MilnorProfile { q_part: !<span class="number">0</span>, p_part: <span class="macro">vec!</span>(<span class="number">3</span>, <span class="number">2</span>, <span class="number">1</span>), truncated: <span class="bool-val">true </span>}))]

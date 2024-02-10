@@ -213,6 +213,7 @@
 <a href="#187" id="187">187</a>
 <a href="#188" id="188">188</a>
 <a href="#189" id="189">189</a>
+<a href="#190" id="190">190</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! `ext-rs` is a collection of libraries for doing homological algebra over $\F_p$. The
 //! main and original purpose is to compute Ext of a Steenrod module, but the library is written to
 //! be sufficiently generic to deal with more general applications.
@@ -391,8 +392,9 @@
 
 <span class="kw">pub mod </span>yoneda;
 
-<span class="kw">use </span><span class="kw">crate</span>::chain_complex::FiniteChainComplex;
 <span class="kw">use </span>algebra::module::SteenrodModule;
+
+<span class="kw">use </span><span class="kw">crate</span>::chain_complex::FiniteChainComplex;
 <span class="kw">pub type </span>CCC = FiniteChainComplex&lt;SteenrodModule&gt;;
 
 <span class="kw">pub mod </span>nassau;

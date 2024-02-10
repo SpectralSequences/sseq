@@ -137,11 +137,15 @@
 <a href="#111" id="111">111</a>
 <a href="#112" id="112">112</a>
 <a href="#113" id="113">113</a>
-</pre></div><pre class="rust"><code><span class="kw">use </span>algebra::{module::Module, Algebra};
+<a href="#114" id="114">114</a>
+<a href="#115" id="115">115</a>
+<a href="#116" id="116">116</a>
+</pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
+
+<span class="kw">use </span>algebra::{module::Module, Algebra};
 <span class="kw">use </span>ext::chain_complex::ChainComplex;
 <span class="kw">use </span>hom_cochain_complex::HomCochainComplex;
 <span class="kw">use </span>sseq::coordinates::Bidegree;
-<span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">fn </span>main() -&gt; anyhow::Result&lt;()&gt; {
     <span class="macro">eprintln!</span>(<span class="string">"This script computes Ext(M, N)"</span>);
@@ -185,14 +189,16 @@
 }
 
 <span class="kw">mod </span>hom_cochain_complex {
-    <span class="kw">use </span>algebra::module::homomorphism::{HomPullback, ModuleHomomorphism};
-    <span class="kw">use </span>algebra::module::{HomModule, Module};
+    <span class="kw">use </span>std::sync::Arc;
+
+    <span class="kw">use </span>algebra::module::{
+        homomorphism::{HomPullback, ModuleHomomorphism},
+        HomModule, Module,
+    };
     <span class="kw">use </span>ext::chain_complex::FreeChainComplex;
     <span class="kw">use </span>fp::matrix::Subquotient;
     <span class="kw">use </span>once::OnceVec;
     <span class="kw">use </span>sseq::coordinates::Bidegree;
-
-    <span class="kw">use </span>std::sync::Arc;
 
     <span class="kw">pub struct </span>HomCochainComplex&lt;CC: FreeChainComplex, M: Module&lt;Algebra = CC::Algebra&gt;&gt; {
         source: Arc&lt;CC&gt;,

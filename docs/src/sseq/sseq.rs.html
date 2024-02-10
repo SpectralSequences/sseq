@@ -980,15 +980,21 @@
 <a href="#954" id="954">954</a>
 <a href="#955" id="955">955</a>
 <a href="#956" id="956">956</a>
-</pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::bigraded::DenseBigradedModule;
-<span class="kw">use </span><span class="kw">crate</span>::differential::Differential;
+<a href="#957" id="957">957</a>
+<a href="#958" id="958">958</a>
+<a href="#959" id="959">959</a>
+<a href="#960" id="960">960</a>
+<a href="#961" id="961">961</a>
+</pre></div><pre class="rust"><code><span class="kw">use </span>std::{marker::PhantomData, sync::Arc};
+
 <span class="kw">use </span>bivec::BiVec;
 <span class="kw">use </span>fp::{
     matrix::{Matrix, Subquotient, Subspace},
     prime::ValidPrime,
     vector::{FpVector, Slice},
 };
-<span class="kw">use </span>std::{marker::PhantomData, sync::Arc};
+
+<span class="kw">use crate</span>::{bigraded::DenseBigradedModule, differential::Differential};
 
 <span class="doccomment">/// The direction of the differentials
 </span><span class="kw">pub trait </span>SseqProfile {
@@ -1002,12 +1008,15 @@
 
 <span class="kw">impl </span>SseqProfile <span class="kw">for </span>Adams {
     <span class="kw">const </span>MIN_R: i32 = <span class="number">2</span>;
+
     <span class="kw">fn </span>profile(r: i32, x: i32, y: i32) -&gt; (i32, i32) {
         (x - <span class="number">1</span>, y + r)
     }
+
     <span class="kw">fn </span>profile_inverse(r: i32, x: i32, y: i32) -&gt; (i32, i32) {
         (x + <span class="number">1</span>, y - r)
     }
+
     <span class="kw">fn </span>differential_length(_diff_x: i32, diff_y: i32) -&gt; i32 {
         diff_y
     }
@@ -1557,8 +1566,9 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
-    <span class="kw">use super</span>::<span class="kw-2">*</span>;
     <span class="kw">use </span>expect_test::{expect, Expect};
+
+    <span class="kw">use super</span>::<span class="kw-2">*</span>;
 
     <span class="attr">#[test]
     #[allow(clippy::cognitive_complexity)]

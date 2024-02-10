@@ -662,27 +662,39 @@
 <a href="#636" id="636">636</a>
 <a href="#637" id="637">637</a>
 <a href="#638" id="638">638</a>
-</pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::chain_complex::{
-    AugmentedChainComplex, BoundedChainComplex, ChainComplex, ChainMap,
-    FiniteAugmentedChainComplex, FiniteChainComplex, FreeChainComplex,
-};
-<span class="kw">use </span><span class="kw">crate</span>::resolution_homomorphism::ResolutionHomomorphism;
-<span class="kw">use </span>algebra::module::homomorphism::{
-    FreeModuleHomomorphism, FullModuleHomomorphism, IdentityHomomorphism, ModuleHomomorphism,
-};
-<span class="kw">use </span>algebra::module::homomorphism::{QuotientHomomorphism, QuotientHomomorphismSource};
-<span class="kw">use </span>algebra::module::QuotientModule <span class="kw">as </span>QM;
-<span class="kw">use </span>algebra::module::{FDModule, FreeModule, Module};
-<span class="kw">use </span>algebra::{AdemAlgebra, Algebra, GeneratedAlgebra, MilnorAlgebra, SteenrodAlgebra};
+<a href="#639" id="639">639</a>
+<a href="#640" id="640">640</a>
+<a href="#641" id="641">641</a>
+<a href="#642" id="642">642</a>
+<a href="#643" id="643">643</a>
+<a href="#644" id="644">644</a>
+</pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
 
-<span class="kw">use </span>fp::matrix::{AugmentedMatrix, Matrix, Subspace};
-<span class="kw">use </span>fp::vector::FpVector;
-
+<span class="kw">use </span>algebra::{
+    module::{
+        homomorphism::{
+            FreeModuleHomomorphism, FullModuleHomomorphism, IdentityHomomorphism,
+            ModuleHomomorphism, QuotientHomomorphism, QuotientHomomorphismSource,
+        },
+        FDModule, FreeModule, Module, QuotientModule <span class="kw">as </span>QM,
+    },
+    AdemAlgebra, Algebra, GeneratedAlgebra, MilnorAlgebra, SteenrodAlgebra,
+};
 <span class="kw">use </span>bivec::BiVec;
-
+<span class="kw">use </span>fp::{
+    matrix::{AugmentedMatrix, Matrix, Subspace},
+    vector::FpVector,
+};
 <span class="kw">use </span>rustc_hash::FxHashSet <span class="kw">as </span>HashSet;
 <span class="kw">use </span>sseq::coordinates::Bidegree;
-<span class="kw">use </span>std::sync::Arc;
+
+<span class="kw">use crate</span>::{
+    chain_complex::{
+        AugmentedChainComplex, BoundedChainComplex, ChainComplex, ChainMap,
+        FiniteAugmentedChainComplex, FiniteChainComplex, FreeChainComplex,
+    },
+    resolution_homomorphism::ResolutionHomomorphism,
+};
 
 <span class="kw">const </span>PENALTY_UNIT: i32 = <span class="number">10000</span>;
 

@@ -224,11 +224,20 @@
 <a href="#198" id="198">198</a>
 <a href="#199" id="199">199</a>
 <a href="#200" id="200">200</a>
-</pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::module::{Module, ZeroModule};
+<a href="#201" id="201">201</a>
+<a href="#202" id="202">202</a>
+<a href="#203" id="203">203</a>
+<a href="#204" id="204">204</a>
+<a href="#205" id="205">205</a>
+</pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
+
 <span class="kw">use </span>bivec::BiVec;
-<span class="kw">use </span>fp::matrix::Subspace;
-<span class="kw">use </span>fp::vector::{FpVector, Slice, SliceMut};
-<span class="kw">use </span>std::sync::Arc;
+<span class="kw">use </span>fp::{
+    matrix::Subspace,
+    vector::{FpVector, Slice, SliceMut},
+};
+
+<span class="kw">use </span><span class="kw">crate</span>::module::{Module, ZeroModule};
 
 <span class="doccomment">/// A quotient of a module truncated below a fix degree.
 </span><span class="kw">pub struct </span>QuotientModule&lt;M: Module&gt; {
@@ -359,6 +368,7 @@
 
 <span class="kw">impl</span>&lt;M: Module&gt; Module <span class="kw">for </span>QuotientModule&lt;M&gt; {
     <span class="kw">type </span>Algebra = M::Algebra;
+
     <span class="kw">fn </span>algebra(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Arc&lt;<span class="self">Self</span>::Algebra&gt; {
         <span class="self">self</span>.module.algebra()
     }

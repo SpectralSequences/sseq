@@ -181,12 +181,13 @@
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>bivec::BiVec;
-
-<span class="kw">use </span><span class="kw">crate</span>::algebra::Field;
-<span class="kw">use </span><span class="kw">crate</span>::module::block_structure::BlockStructure;
-<span class="kw">use </span><span class="kw">crate</span>::module::{FreeModule, Module};
 <span class="kw">use </span>fp::vector::SliceMut;
 <span class="kw">use </span>once::OnceBiVec;
+
+<span class="kw">use crate</span>::{
+    algebra::Field,
+    module::{block_structure::BlockStructure, FreeModule, Module},
+};
 
 <span class="doccomment">/// Given a module N and a free module M, this is the module Hom(M, N) as a module over the ground
 /// field. This requires N to be bounded, and is graded *opposite* to the usual grading so that
@@ -301,8 +302,7 @@
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
-    <span class="kw">use </span><span class="kw">crate</span>::module::FDModule;
-    <span class="kw">use </span><span class="kw">crate</span>::MilnorAlgebra;
+    <span class="kw">use crate</span>::{module::FDModule, MilnorAlgebra};
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_hom_dim() {

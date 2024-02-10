@@ -359,16 +359,18 @@
 <a href="#333" id="333">333</a>
 <a href="#334" id="334">334</a>
 <a href="#335" id="335">335</a>
-</pre></div><pre class="rust"><code><span class="kw">use </span>itertools::Itertools;
-<span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
-<span class="kw">use </span>std::fmt;
+<a href="#336" id="336">336</a>
+</pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt;
 
-<span class="kw">use </span>fp::prime::{Prime, ValidPrime};
-<span class="kw">use </span>fp::vector::{FpVector, SliceMut};
+<span class="kw">use </span>fp::{
+    prime::{Prime, ValidPrime},
+    vector::{FpVector, SliceMut},
+};
+<span class="kw">use </span>itertools::Itertools;
 <span class="kw">use </span>once::OnceVec;
+<span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
 
-<span class="kw">use </span><span class="kw">crate</span>::algebra::combinatorics::TruncatedPolynomialMonomialBasis;
-<span class="kw">use </span><span class="kw">crate</span>::algebra::Algebra;
+<span class="kw">use </span><span class="kw">crate</span>::algebra::{combinatorics::TruncatedPolynomialMonomialBasis, Algebra};
 
 <span class="attr">#[derive(Clone, Debug, Eq, PartialEq)]
 </span><span class="kw">pub struct </span>PolynomialAlgebraMonomial {

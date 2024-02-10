@@ -1280,18 +1280,23 @@
 <a href="#1254" id="1254">1254</a>
 <a href="#1255" id="1255">1255</a>
 <a href="#1256" id="1256">1256</a>
-</pre></div><pre class="rust"><code><span class="kw">use super</span>::{QuasiInverse, Subspace};
-<span class="kw">use </span><span class="kw">crate</span>::matrix::m4ri::M4riTable;
-<span class="kw">use </span><span class="kw">crate</span>::prime::{<span class="self">self</span>, ValidPrime};
-<span class="kw">use </span><span class="kw">crate</span>::vector::{FpVector, Slice, SliceMut};
-
-<span class="kw">use </span>std::fmt;
-<span class="kw">use </span>std::io::{Read, Write};
-<span class="kw">use </span>std::ops::{Index, IndexMut};
+<a href="#1257" id="1257">1257</a>
+<a href="#1258" id="1258">1258</a>
+</pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+    fmt,
+    io::{Read, Write},
+    ops::{Index, IndexMut},
+};
 
 <span class="kw">use </span>itertools::Itertools;
-
 <span class="kw">use </span>maybe_rayon::prelude::<span class="kw-2">*</span>;
+
+<span class="kw">use super</span>::{QuasiInverse, Subspace};
+<span class="kw">use crate</span>::{
+    matrix::m4ri::M4riTable,
+    prime::{<span class="self">self</span>, ValidPrime},
+    vector::{FpVector, Slice, SliceMut},
+};
 
 <span class="doccomment">/// A matrix! In particular, a matrix with values in F_p. The way we store matrices means it is
 /// easier to perform row operations than column operations, and the way we use matrices means we
@@ -1455,10 +1460,10 @@
     /// # use fp::prime::ValidPrime;
     /// let p = ValidPrime::new(7);
     /// # use fp::matrix::Matrix;
-    /// let input  = [vec![1, 3, 6],
-    ///               vec![0, 3, 4]];
+    /// let input = [vec![1, 3, 6], vec![0, 3, 4]];
     ///
     /// let m = Matrix::from_vec(p, &amp;input);
+    /// ```
     </span><span class="kw">pub fn </span>from_vec(p: ValidPrime, input: <span class="kw-2">&amp;</span>[Vec&lt;u32&gt;]) -&gt; Matrix {
         <span class="kw">let </span>rows = input.len();
         <span class="kw">if </span>rows == <span class="number">0 </span>{
@@ -1571,8 +1576,8 @@
 }
 
 <span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; IntoIterator <span class="kw">for </span><span class="kw-2">&amp;</span><span class="lifetime">'a </span>Matrix {
-    <span class="kw">type </span>Item = <span class="kw-2">&amp;</span><span class="lifetime">'a </span>FpVector;
     <span class="kw">type </span>IntoIter = std::slice::Iter&lt;<span class="lifetime">'a</span>, FpVector&gt;;
+    <span class="kw">type </span>Item = <span class="kw-2">&amp;</span><span class="lifetime">'a </span>FpVector;
 
     <span class="kw">fn </span>into_iter(<span class="self">self</span>) -&gt; <span class="self">Self</span>::IntoIter {
         <span class="self">self</span>.iter()
@@ -1580,8 +1585,8 @@
 }
 
 <span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; IntoIterator <span class="kw">for </span><span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>Matrix {
-    <span class="kw">type </span>Item = <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>FpVector;
     <span class="kw">type </span>IntoIter = std::slice::IterMut&lt;<span class="lifetime">'a</span>, FpVector&gt;;
+    <span class="kw">type </span>Item = <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>FpVector;
 
     <span class="kw">fn </span>into_iter(<span class="self">self</span>) -&gt; <span class="self">Self</span>::IntoIter {
         <span class="self">self</span>.iter_mut()
@@ -1593,11 +1598,7 @@
     /// ```
     /// # use fp::matrix::Matrix;
     /// # use fp::prime::ValidPrime;
-    /// let m = Matrix::from_vec(ValidPrime::new(2),
-    ///    &amp;[
-    ///         vec![0, 1, 0],
-    ///         vec![1, 1, 0],
-    ///     ]);
+    /// let m = Matrix::from_vec(ValidPrime::new(2), &amp;[vec![0, 1, 0], vec![1, 1, 0]]);
     /// assert_eq!(&amp;format!("{m}"), "[\n    [0, 1, 0],\n    [1, 1, 0]\n]");
     /// assert_eq!(&amp;format!("{m:#}"), "010\n110");
     /// ```
@@ -1630,6 +1631,7 @@
     </span>Vec&lt;FpVector&gt;: Index&lt;I&gt;,
 {
     <span class="kw">type </span>Output = &lt;Vec&lt;FpVector&gt; <span class="kw">as </span>Index&lt;I&gt;&gt;::Output;
+
     <span class="doccomment">/// Returns the ith row of the matrix
     </span><span class="kw">fn </span>index(<span class="kw-2">&amp;</span><span class="self">self</span>, i: I) -&gt; <span class="kw-2">&amp;</span><span class="self">Self</span>::Output {
         <span class="kw-2">&amp;</span><span class="self">self</span>.vectors[i]
@@ -1781,11 +1783,9 @@
     /// let p = ValidPrime::new(7);
     /// # use fp::matrix::Matrix;
     ///
-    /// let input  = [vec![1, 3, 6],
-    ///               vec![0, 3, 4]];
+    /// let input = [vec![1, 3, 6], vec![0, 3, 4]];
     ///
-    /// let result = [vec![1, 0, 2],
-    ///               vec![0, 1, 6]];
+    /// let result = [vec![1, 0, 2], vec![0, 1, 6]];
     ///
     /// let mut m = Matrix::from_vec(p, &amp;input);
     /// m.row_reduce();
@@ -1903,16 +1903,17 @@
     /// let p = ValidPrime::new(3);
     /// # use fp::matrix::Matrix;
     /// # use fp::vector::FpVector;
-    /// let input  = [vec![1, 2, 1, 1, 0],
-    ///               vec![1, 0, 2, 1, 1],
-    ///               vec![2, 2, 0, 2, 1]];
+    /// let input = [
+    ///     vec![1, 2, 1, 1, 0],
+    ///     vec![1, 0, 2, 1, 1],
+    ///     vec![2, 2, 0, 2, 1],
+    /// ];
     ///
     /// let (padded_cols, mut m) = Matrix::augmented_from_vec(p, &amp;input);
     /// m.row_reduce();
     /// let qi = m.compute_quasi_inverse(input[0].len(), padded_cols);
     ///
-    /// let preimage = [vec![0, 1, 0],
-    ///                 vec![0, 2, 2]];
+    /// let preimage = [vec![0, 1, 0], vec![0, 2, 2]];
     /// assert_eq!(qi.preimage(), &amp;Matrix::from_vec(p, &amp;preimage));
     /// ```
     </span><span class="kw">pub fn </span>compute_quasi_inverse(
@@ -1946,17 +1947,18 @@
     /// let p = ValidPrime::new(3);
     /// # use fp::matrix::Matrix;
     /// # use fp::vector::FpVector;
-    /// let input  = [vec![1, 2, 1, 1, 0],
-    ///               vec![1, 0, 2, 1, 1],
-    ///               vec![2, 2, 0, 2, 1]];
+    /// let input = [
+    ///     vec![1, 2, 1, 1, 0],
+    ///     vec![1, 0, 2, 1, 1],
+    ///     vec![2, 2, 0, 2, 1],
+    /// ];
     ///
     /// let (padded_cols, mut m) = Matrix::augmented_from_vec(p, &amp;input);
     /// m.row_reduce();
     ///
     /// let computed_image = m.compute_image(input[0].len(), padded_cols);
     ///
-    /// let image = [vec![1, 0, 2, 1, 1],
-    ///              vec![0, 1, 1, 0, 1]];
+    /// let image = [vec![1, 0, 2, 1, 1], vec![0, 1, 1, 0, 1]];
     /// assert_eq!(computed_image.matrix, Matrix::from_vec(p, &amp;image));
     /// assert_eq!(computed_image.pivots(), &amp;vec![0, 1, -1, -1, -1]);
     /// ```
@@ -1997,9 +1999,11 @@
     /// let p = ValidPrime::new(3);
     /// # use fp::matrix::Matrix;
     /// # use fp::vector::FpVector;
-    /// let input  = [vec![1, 2, 1, 1, 0],
-    ///               vec![1, 0, 2, 1, 1],
-    ///               vec![2, 2, 0, 2, 1]];
+    /// let input = [
+    ///     vec![1, 2, 1, 1, 0],
+    ///     vec![1, 0, 2, 1, 1],
+    ///     vec![2, 2, 0, 2, 1],
+    /// ];
     ///
     /// let (padded_cols, mut m) = Matrix::augmented_from_vec(p, &amp;input);
     /// m.row_reduce();
@@ -2149,8 +2153,7 @@
     /// let p = ValidPrime::new(7);
     /// # use fp::matrix::Matrix;
     /// # use fp::vector::FpVector;
-    /// let input  = [vec![1, 3, 6],
-    ///               vec![0, 3, 4]];
+    /// let input = [vec![1, 3, 6], vec![0, 3, 4]];
     ///
     /// let m = Matrix::from_vec(p, &amp;input);
     /// let v = FpVector::from_slice(p, &amp;vec![3, 1]);
@@ -2370,6 +2373,7 @@
             end: [<span class="self">self</span>.end[<span class="number">1</span>] - offset, <span class="self">self</span>.end[<span class="number">2</span>] - offset],
         }
     }
+
     <span class="doccomment">/// This function computes quasi-inverses for matrices A, B given a reduced row echelon form of
     /// [A|0|B|0|I] such that A is surjective. Moreover, if Q is the quasi-inverse of A, it is
     /// guaranteed that the image of QB and B|_{ker A} are disjoint.

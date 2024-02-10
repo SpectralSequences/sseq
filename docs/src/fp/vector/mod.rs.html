@@ -1095,6 +1095,9 @@
 <a href="#1069" id="1069">1069</a>
 <a href="#1070" id="1070">1070</a>
 <a href="#1071" id="1071">1071</a>
+<a href="#1072" id="1072">1072</a>
+<a href="#1073" id="1073">1073</a>
+<a href="#1074" id="1074">1074</a>
 </pre></div><pre class="rust"><code><span class="attr">#[cfg(not(feature = <span class="string">"odd-primes"</span>))]
 </span><span class="kw">pub mod </span>vector_2;
 <span class="attr">#[cfg(not(feature = <span class="string">"odd-primes"</span>))]
@@ -1121,8 +1124,10 @@
     <span class="kw">use </span>rstest::rstest;
 
     <span class="kw">use super</span>::{inner::FpVectorP, <span class="kw-2">*</span>};
-    <span class="kw">use </span><span class="kw">crate</span>::limb::{<span class="self">self</span>, bit_length};
-    <span class="kw">use </span><span class="kw">crate</span>::prime::{Prime, ValidPrime, P2};
+    <span class="kw">use crate</span>::{
+        limb::{<span class="self">self</span>, bit_length},
+        prime::{Prime, ValidPrime, P2},
+    };
 
     <span class="kw">pub struct </span>VectorDiffEntry {
         <span class="kw">pub </span>index: usize,
@@ -2159,7 +2164,8 @@
                 .iter()
                 .format_with(<span class="string">"\n"</span>, |(tuple, popcnts, res, test_res), f| {
                     f(<span class="kw-2">&amp;</span><span class="macro">format_args!</span>(
-                        <span class="string">"   Inputs: {tuple:x?}\n      expected {res:?}, got {test_res:?}. popcnts: {popcnts:?}"
+                        <span class="string">"   Inputs: {tuple:x?}\n      expected {res:?}, got {test_res:?}. \
+                         popcnts: {popcnts:?}"
                     </span>))
                 });
             <span class="macro">panic!</span>(<span class="string">"\nFailed test cases:\n {formatter}"</span>);

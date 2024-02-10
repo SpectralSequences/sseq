@@ -104,11 +104,13 @@
 <a href="#78" id="78">78</a>
 <a href="#79" id="79">79</a>
 <a href="#80" id="80">80</a>
-</pre></div><pre class="rust"><code><span class="kw">use super</span>::{Bidegree, BidegreeElement};
-
-<span class="kw">use </span>std::fmt::{<span class="self">self</span>, Display, Formatter};
+<a href="#81" id="81">81</a>
+<a href="#82" id="82">82</a>
+</pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::{<span class="self">self</span>, Display, Formatter};
 
 <span class="kw">use </span>serde::{Deserialize, Serialize};
+
+<span class="kw">use super</span>::{Bidegree, BidegreeElement};
 
 <span class="doccomment">/// A *basis* element of a bigraded vector space. Most commonly used to index elements of spectral
 /// sequences.
@@ -127,9 +129,11 @@
             idx,
         }
     }
+
     <span class="kw">pub fn </span>s_t(s: u32, t: i32, idx: usize) -&gt; BidegreeGenerator {
         <span class="self">Self</span>::new(Bidegree::s_t(s, t), idx)
     }
+
     <span class="kw">pub fn </span>n_s(n: i32, s: u32, idx: usize) -&gt; BidegreeGenerator {
         <span class="self">Self</span>::new(Bidegree::n_s(n, s), idx)
     }

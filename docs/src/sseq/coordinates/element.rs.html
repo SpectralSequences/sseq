@@ -134,15 +134,15 @@
 <a href="#108" id="108">108</a>
 <a href="#109" id="109">109</a>
 <a href="#110" id="110">110</a>
-</pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::coordinates::{Bidegree, BidegreeGenerator};
-
-<span class="kw">use </span>std::fmt::{<span class="self">self</span>, Display, Formatter};
+</pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::{<span class="self">self</span>, Display, Formatter};
 
 <span class="kw">use </span>algebra::{
     module::{Module, MuFreeModule},
     MuAlgebra,
 };
 <span class="kw">use </span>fp::vector::Slice;
+
+<span class="kw">use </span><span class="kw">crate</span>::coordinates::{Bidegree, BidegreeGenerator};
 
 <span class="doccomment">/// An element of a bigraded vector space. Most commonly used to index elements of spectral
 /// sequences.

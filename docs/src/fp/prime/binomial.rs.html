@@ -243,12 +243,11 @@
 <a href="#217" id="217">217</a>
 <a href="#218" id="218">218</a>
 <a href="#219" id="219">219</a>
-</pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
+</pre></div><pre class="rust"><code><span class="kw">use super</span>::{Prime, ValidPrime};
+<span class="kw">use crate</span>::{
     constants::{BINOMIAL4_TABLE, BINOMIAL4_TABLE_SIZE, BINOMIAL_TABLE},
     PRIME_TO_INDEX_MAP,
 };
-
-<span class="kw">use super</span>::{Prime, ValidPrime};
 
 <span class="doccomment">/// This uses a lookup table for n choose k when n and k are both less than p.
 /// Lucas's theorem reduces general binomial coefficients to this case.
@@ -280,7 +279,6 @@
     /// This is easy to verify using the fact that
     ///
     ///    (x + y)^{2^k} = x^{2^k} + 2 x^{2^{k - 1}} y^{2^{k - 1}} + y^{2^k}
-    ///
     </span><span class="kw">fn </span>binomial4(n: <span class="self">Self</span>, k: <span class="self">Self</span>) -&gt; <span class="self">Self</span>;
 
     <span class="doccomment">/// Compute binomial coefficients mod 4 using the recursion relation in the documentation of
@@ -347,6 +345,7 @@
                     <span class="number">0
                 </span>}
             }
+
             <span class="attr">#[inline]
             </span><span class="kw">fn </span>multinomial_odd(p_: ValidPrime, l: <span class="kw-2">&amp;mut </span>[<span class="self">Self</span>]) -&gt; <span class="self">Self </span>{
                 <span class="kw">let </span>p = p_.as_u32() <span class="kw">as </span><span class="self">Self</span>;
@@ -424,6 +423,7 @@
                 }
                 <span class="bool-val">false
             </span>}
+
             <span class="kw">fn </span>binomial4(n: <span class="self">Self</span>, j: <span class="self">Self</span>) -&gt; <span class="self">Self </span>{
                 <span class="kw">if </span>(n <span class="kw">as </span>usize) &lt; BINOMIAL4_TABLE_SIZE {
                     <span class="kw">return </span>BINOMIAL4_TABLE[n <span class="kw">as </span>usize][j <span class="kw">as </span>usize] <span class="kw">as </span><span class="self">Self</span>;

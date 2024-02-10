@@ -930,17 +930,27 @@
 <a href="#904" id="904">904</a>
 <a href="#905" id="905">905</a>
 <a href="#906" id="906">906</a>
+<a href="#907" id="907">907</a>
+<a href="#908" id="908">908</a>
+<a href="#909" id="909">909</a>
+<a href="#910" id="910">910</a>
+<a href="#911" id="911">911</a>
+<a href="#912" id="912">912</a>
+<a href="#913" id="913">913</a>
 </pre></div><pre class="rust"><code><span class="kw">extern crate </span>alloc;
 
-<span class="kw">use </span>core::ops::{Index, IndexMut};
-<span class="kw">use </span>std::cmp::{Eq, PartialEq};
-<span class="kw">use </span>std::collections::BTreeSet;
-<span class="kw">use </span>std::fmt;
-<span class="kw">use </span>std::sync::atomic::{AtomicUsize, Ordering};
-<span class="kw">use </span>std::sync::{Mutex, MutexGuard};
-
 <span class="kw">use </span>alloc::alloc::Layout;
-<span class="kw">use </span>std::ptr::NonNull;
+<span class="kw">use </span>core::ops::{Index, IndexMut};
+<span class="kw">use </span>std::{
+    cmp::{Eq, PartialEq},
+    collections::BTreeSet,
+    fmt,
+    ptr::NonNull,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Mutex, MutexGuard,
+    },
+};
 
 <span class="kw">use </span>maybe_rayon::prelude::<span class="kw-2">*</span>;
 
@@ -981,6 +991,7 @@
         )
         .unwrap()
     }
+
     <span class="kw">fn </span>allocated(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
         <span class="self">self</span>.<span class="number">0</span>.is_some()
     }
@@ -1176,7 +1187,7 @@
     /// let v = vec![1, 3, 5, 2];
     /// let w = OnceVec::from_vec(v.clone());
     /// assert_eq!(w.len(), 4);
-    /// for i in 0 .. 4 {
+    /// for i in 0..4 {
     ///     assert_eq!(v[i], w[i]);
     /// }
     /// ```
@@ -1548,6 +1559,7 @@
 
 <span class="kw">impl</span>&lt;T&gt; Index&lt;usize&gt; <span class="kw">for </span>OnceVec&lt;T&gt; {
     <span class="kw">type </span>Output = T;
+
     <span class="kw">fn </span>index(<span class="kw-2">&amp;</span><span class="self">self</span>, index: usize) -&gt; <span class="kw-2">&amp;</span>T {
         <span class="self">self</span>.get(index).unwrap_or_else(|| {
             <span class="macro">panic!</span>(
@@ -1569,6 +1581,7 @@
 
 <span class="kw">impl</span>&lt;T&gt; Index&lt;u32&gt; <span class="kw">for </span>OnceVec&lt;T&gt; {
     <span class="kw">type </span>Output = T;
+
     <span class="kw">fn </span>index(<span class="kw-2">&amp;</span><span class="self">self</span>, index: u32) -&gt; <span class="kw-2">&amp;</span>T {
         <span class="self">self</span>.index(index <span class="kw">as </span>usize)
     }
@@ -1773,6 +1786,7 @@
 
 <span class="kw">impl</span>&lt;T&gt; Index&lt;i32&gt; <span class="kw">for </span>OnceBiVec&lt;T&gt; {
     <span class="kw">type </span>Output = T;
+
     <span class="kw">fn </span>index(<span class="kw-2">&amp;</span><span class="self">self</span>, i: i32) -&gt; <span class="kw-2">&amp;</span>T {
         <span class="macro">assert!</span>(
             i &gt;= <span class="self">self</span>.min_degree(),

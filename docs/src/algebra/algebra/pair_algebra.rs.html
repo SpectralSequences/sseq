@@ -496,6 +496,12 @@
 <a href="#470" id="470">470</a>
 <a href="#471" id="471">471</a>
 <a href="#472" id="472">472</a>
+<a href="#473" id="473">473</a>
+<a href="#474" id="474">474</a>
+<a href="#475" id="475">475</a>
+<a href="#476" id="476">476</a>
+<a href="#477" id="477">477</a>
+<a href="#478" id="478">478</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! This implements the notion of a split pair algebra in the sense of
 //! &lt;https://arxiv.org/abs/2105.07628&gt;, whose notation we will use throughout. The Steenrod algebra
 //! admits a lift to a split pair algebra, which can be used to compute d2 differentials
@@ -504,11 +510,13 @@
 //! To keep the pair algebra business contained, we put the implementation of the Milnor algebra as
 //! a pair algebra in this file instead of `milnor_algebra.rs`.
 
-</span><span class="kw">use </span><span class="kw">crate</span>::combinatorics;
-<span class="kw">use </span><span class="kw">crate</span>::Algebra;
-<span class="kw">use </span>fp::prime::TWO;
-<span class="kw">use </span>fp::vector::{FpVector, Slice, SliceMut};
+</span><span class="kw">use </span>fp::{
+    prime::TWO,
+    vector::{FpVector, Slice, SliceMut},
+};
 <span class="kw">use </span>rustc_hash::FxHasher;
+
+<span class="kw">use crate</span>::{combinatorics, Algebra};
 
 <span class="kw">type </span>HashMap&lt;K, V&gt; = hashbrown::HashMap&lt;K, V, std::hash::BuildHasherDefault&lt;FxHasher&gt;&gt;;
 
@@ -586,9 +594,12 @@
     ) -&gt; std::io::Result&lt;<span class="self">Self</span>::Element&gt;;
 }
 
-<span class="kw">use </span><span class="kw">crate</span>::milnor_algebra::{MilnorBasisElement <span class="kw">as </span>MilnorElt, PPartAllocation, PPartMultiplier};
-<span class="kw">use </span><span class="kw">crate</span>::MilnorAlgebra;
 <span class="kw">use </span>std::cell::RefCell;
+
+<span class="kw">use crate</span>::{
+    milnor_algebra::{MilnorBasisElement <span class="kw">as </span>MilnorElt, PPartAllocation, PPartMultiplier},
+    MilnorAlgebra,
+};
 
 <span class="macro">macro_rules! </span>sub {
     (<span class="macro-nonterminal">$elt</span>:ident, <span class="macro-nonterminal">$k</span>:expr, <span class="macro-nonterminal">$n</span>:expr) =&gt; {
@@ -927,9 +938,10 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>test {
+    <span class="kw">use </span>expect_test::{expect, Expect};
+
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
     <span class="kw">use </span><span class="kw">crate</span>::milnor_algebra::PPartEntry;
-    <span class="kw">use </span>expect_test::{expect, Expect};
 
     <span class="kw">fn </span>from_p_part(p_part: <span class="kw-2">&amp;</span>[PPartEntry]) -&gt; MilnorElt {
         <span class="kw">let </span>degree = p_part

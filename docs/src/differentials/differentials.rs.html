@@ -42,10 +42,14 @@
 <a href="#16" id="16">16</a>
 <a href="#17" id="17">17</a>
 <a href="#18" id="18">18</a>
+<a href="#19" id="19">19</a>
+<a href="#20" id="20">20</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! This prints all the differentials in the resolution.
 
-</span><span class="kw">use </span>ext::chain_complex::{ChainComplex, FreeChainComplex};
-<span class="kw">use </span>ext::utils::query_module;
+</span><span class="kw">use </span>ext::{
+    chain_complex::{ChainComplex, FreeChainComplex},
+    utils::query_module,
+};
 <span class="kw">use </span>sseq::coordinates::BidegreeGenerator;
 
 <span class="kw">fn </span>main() -&gt; anyhow::Result&lt;()&gt; {

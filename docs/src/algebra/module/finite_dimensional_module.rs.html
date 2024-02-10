@@ -730,22 +730,17 @@
 <a href="#704" id="704">704</a>
 <a href="#705" id="705">705</a>
 <a href="#706" id="706">706</a>
-<a href="#707" id="707">707</a>
-<a href="#708" id="708">708</a>
-</pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::algebra::Algebra;
-<span class="kw">use </span><span class="kw">crate</span>::module::{Module, ZeroModule};
+</pre></div><pre class="rust"><code><span class="kw">use </span>std::{fmt::Write <span class="kw">as _</span>, sync::Arc};
+
+<span class="kw">use </span>anyhow::{anyhow, Context};
 <span class="kw">use </span>bivec::BiVec;
 <span class="kw">use </span>fp::vector::{FpVector, SliceMut};
+<span class="kw">use </span>serde::Deserialize;
+<span class="kw">use </span>serde_json::{json, value::Value};
 
-<span class="kw">use </span>std::fmt::Write <span class="kw">as _</span>;
-<span class="kw">use </span>std::sync::Arc;
-
-<span class="kw">use </span>{
-    <span class="kw">crate</span>::algebra::GeneratedAlgebra,
-    <span class="kw">crate</span>::module::ModuleFailedRelationError,
-    anyhow::{anyhow, Context},
-    serde::Deserialize,
-    serde_json::{json, value::Value},
+<span class="kw">use crate</span>::{
+    algebra::{Algebra, GeneratedAlgebra},
+    module::{Module, ModuleFailedRelationError, ZeroModule},
 };
 
 <span class="kw">pub struct </span>FiniteDimensionalModule&lt;A: Algebra&gt; {
@@ -804,11 +799,11 @@
                 }
             }
             <span class="kw">if </span>!disagreements.is_empty() {
-                <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(<span class="string">"Graded dimensions disagree in positions {:?}. Left has graded dimensions:\n    {:?}\nRight has graded dimension:\n    {:?}\n"</span>,
-                disagreements,
-                <span class="self">self</span>.graded_dimension,
-                other.graded_dimension
-            ));
+                <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(
+                    <span class="string">"Graded dimensions disagree in positions {:?}. Left has graded \
+                        dimensions:\n    {:?}\nRight has graded dimension:\n    {:?}\n"</span>,
+                    disagreements, <span class="self">self</span>.graded_dimension, other.graded_dimension
+                ));
             }
         }
         <span class="kw">let </span>max_degree = std::cmp::min(<span class="self">self</span>.actions.len(), other.actions.len());
@@ -1415,9 +1410,10 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
+    <span class="kw">use </span>bivec::BiVec;
+
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
     <span class="kw">use </span><span class="kw">crate</span>::algebra::AdemAlgebra;
-    <span class="kw">use </span>bivec::BiVec;
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_module_check_validity() {

@@ -327,25 +327,37 @@
 <a href="#301" id="301">301</a>
 <a href="#302" id="302">302</a>
 <a href="#303" id="303">303</a>
+<a href="#304" id="304">304</a>
+<a href="#305" id="305">305</a>
+<a href="#306" id="306">306</a>
+<a href="#307" id="307">307</a>
+<a href="#308" id="308">308</a>
+<a href="#309" id="309">309</a>
 </pre></div><pre class="rust"><code><span class="kw">mod </span>chain_homotopy;
 <span class="kw">mod </span>finite_chain_complex;
 
-<span class="kw">use </span><span class="kw">crate</span>::utils::unicode_num;
-<span class="kw">use </span>algebra::module::homomorphism::{ModuleHomomorphism, MuFreeModuleHomomorphism};
-<span class="kw">use </span>algebra::module::{Module, MuFreeModule};
-<span class="kw">use </span>algebra::{Algebra, MuAlgebra};
-<span class="kw">use </span>bivec::BiVec;
-<span class="kw">use </span>fp::matrix::Matrix;
-<span class="kw">use </span>fp::prime::ValidPrime;
-<span class="kw">use </span>fp::vector::{Slice, SliceMut};
-<span class="kw">use </span>sseq::coordinates::{Bidegree, BidegreeElement, BidegreeGenerator};
 <span class="kw">use </span>std::sync::Arc;
 
-<span class="kw">use </span>itertools::Itertools;
-
+<span class="kw">use </span>algebra::{
+    module::{
+        homomorphism::{ModuleHomomorphism, MuFreeModuleHomomorphism},
+        Module, MuFreeModule,
+    },
+    Algebra, MuAlgebra,
+};
+<span class="kw">use </span>bivec::BiVec;
 <span class="comment">// pub use hom_complex::HomComplex;
 </span><span class="kw">pub use </span>chain_homotopy::ChainHomotopy;
 <span class="kw">pub use </span>finite_chain_complex::{FiniteAugmentedChainComplex, FiniteChainComplex};
+<span class="kw">use </span>fp::{
+    matrix::Matrix,
+    prime::ValidPrime,
+    vector::{Slice, SliceMut},
+};
+<span class="kw">use </span>itertools::Itertools;
+<span class="kw">use </span>sseq::coordinates::{Bidegree, BidegreeElement, BidegreeGenerator};
+
+<span class="kw">use </span><span class="kw">crate</span>::utils::unicode_num;
 
 <span class="kw">pub enum </span>ChainComplexGrading {
     Homological,

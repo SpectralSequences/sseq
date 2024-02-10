@@ -237,10 +237,15 @@
 <a href="#211" id="211">211</a>
 <a href="#212" id="212">212</a>
 <a href="#213" id="213">213</a>
+<a href="#214" id="214">214</a>
+<a href="#215" id="215">215</a>
+<a href="#216" id="216">216</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">super</span>::Subspace;
-<span class="kw">use </span><span class="kw">crate</span>::matrix::Matrix;
-<span class="kw">use </span><span class="kw">crate</span>::prime::ValidPrime;
-<span class="kw">use </span><span class="kw">crate</span>::vector::{FpVector, Slice, SliceMut};
+<span class="kw">use crate</span>::{
+    matrix::Matrix,
+    prime::ValidPrime,
+    vector::{FpVector, Slice, SliceMut},
+};
 
 <span class="attr">#[derive(Clone)]
 </span><span class="kw">pub struct </span>Subquotient {
@@ -416,8 +421,9 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>test {
-    <span class="kw">use super</span>::<span class="kw-2">*</span>;
     <span class="kw">use </span>expect_test::expect;
+
+    <span class="kw">use super</span>::<span class="kw-2">*</span>;
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_add_gen() {

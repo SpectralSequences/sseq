@@ -226,12 +226,18 @@
 <a href="#200" id="200">200</a>
 <a href="#201" id="201">201</a>
 <a href="#202" id="202">202</a>
-</pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">super</span>::Matrix;
-<span class="kw">use </span><span class="kw">crate</span>::prime::ValidPrime;
-<span class="kw">use </span><span class="kw">crate</span>::vector::{FpVector, Slice, SliceMut};
+<a href="#203" id="203">203</a>
+<a href="#204" id="204">204</a>
+<a href="#205" id="205">205</a>
+</pre></div><pre class="rust"><code><span class="kw">use </span>std::io::{Read, Write};
 
 <span class="kw">use </span>byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-<span class="kw">use </span>std::io::{Read, Write};
+
+<span class="kw">use </span><span class="kw">super</span>::Matrix;
+<span class="kw">use crate</span>::{
+    prime::ValidPrime,
+    vector::{FpVector, Slice, SliceMut},
+};
 
 <span class="doccomment">/// A subspace of a vector space.
 ///

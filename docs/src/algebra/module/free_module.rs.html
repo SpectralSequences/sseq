@@ -664,12 +664,18 @@
 <a href="#638" id="638">638</a>
 <a href="#639" id="639">639</a>
 <a href="#640" id="640">640</a>
+<a href="#641" id="641">641</a>
+<a href="#642" id="642">642</a>
+<a href="#643" id="643">643</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
 
-<span class="kw">use </span><span class="kw">crate</span>::algebra::MuAlgebra;
-<span class="kw">use </span><span class="kw">crate</span>::module::{Module, ZeroModule};
 <span class="kw">use </span>fp::vector::{Slice, SliceMut};
 <span class="kw">use </span>once::{OnceBiVec, OnceVec};
+
+<span class="kw">use crate</span>::{
+    algebra::MuAlgebra,
+    module::{Module, ZeroModule},
+};
 
 <span class="attr">#[derive(Clone, Debug)]
 </span><span class="kw">pub struct </span>OperationGeneratorPair {

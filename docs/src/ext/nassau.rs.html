@@ -1295,6 +1295,11 @@
 <a href="#1269" id="1269">1269</a>
 <a href="#1270" id="1270">1270</a>
 <a href="#1271" id="1271">1271</a>
+<a href="#1272" id="1272">1272</a>
+<a href="#1273" id="1273">1273</a>
+<a href="#1274" id="1274">1274</a>
+<a href="#1275" id="1275">1275</a>
+<a href="#1276" id="1276">1276</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! This module implements [Nassau's algorithm](https://arxiv.org/abs/1910.04063). The main export
 //! is the [`Resolution`] object, which is a resolution of the sphere at the prime 2 using Nassau's
 //! algorithm. It aims to provide an API similar to
@@ -1309,33 +1314,38 @@
 //! features, we find that this the easiest way to make all scripts support both types of
 //! resolutions.
 
-</span><span class="kw">use </span>std::fmt::Display;
-<span class="kw">use </span>std::io::{Read, Write};
-<span class="kw">use </span>std::path::PathBuf;
-<span class="kw">use </span>std::sync::{Arc, Mutex};
+</span><span class="kw">use </span>std::{
+    fmt::Display,
+    io::{Read, Write},
+    path::PathBuf,
+    sync::{mpsc, Arc, Mutex},
+};
 
-<span class="kw">use </span><span class="kw">crate</span>::chain_complex::{
-    AugmentedChainComplex, ChainComplex, FiniteChainComplex, FreeChainComplex,
+<span class="kw">use </span>algebra::{
+    combinatorics,
+    milnor_algebra::{MilnorAlgebra, PPartEntry},
+    module::{
+        homomorphism::{FreeModuleHomomorphism, FullModuleHomomorphism, ModuleHomomorphism},
+        FreeModule, GeneratorData, Module, ZeroModule,
+    },
+    Algebra,
 };
-<span class="kw">use </span><span class="kw">crate</span>::utils::Timer;
-<span class="kw">use crate</span>::{save::SaveKind, utils::LogWriter};
-<span class="kw">use </span>algebra::combinatorics;
-<span class="kw">use </span>algebra::milnor_algebra::{MilnorAlgebra, PPartEntry};
-<span class="kw">use </span>algebra::module::homomorphism::{
-    FreeModuleHomomorphism, FullModuleHomomorphism, ModuleHomomorphism,
-};
-<span class="kw">use </span>algebra::module::{FreeModule, GeneratorData, Module, ZeroModule};
-<span class="kw">use </span>algebra::Algebra;
 <span class="kw">use </span>anyhow::anyhow;
 <span class="kw">use </span>byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-<span class="kw">use </span>fp::matrix::{AugmentedMatrix, Matrix};
-<span class="kw">use </span>fp::prime::{ValidPrime, TWO};
-<span class="kw">use </span>fp::vector::{FpVector, Slice, SliceMut};
+<span class="kw">use </span>fp::{
+    matrix::{AugmentedMatrix, Matrix},
+    prime::{ValidPrime, TWO},
+    vector::{FpVector, Slice, SliceMut},
+};
 <span class="kw">use </span>itertools::Itertools;
 <span class="kw">use </span>once::OnceVec;
 <span class="kw">use </span>sseq::coordinates::Bidegree;
 
-<span class="kw">use </span>std::sync::mpsc;
+<span class="kw">use crate</span>::{
+    chain_complex::{AugmentedChainComplex, ChainComplex, FiniteChainComplex, FreeChainComplex},
+    save::SaveKind,
+    utils::{LogWriter, Timer},
+};
 
 <span class="doccomment">/// See [`resolution::SenderData`](../resolution/struct.SenderData.html). This differs by not having the `new` field.
 </span><span class="kw">struct </span>SenderData {
@@ -1852,13 +1862,12 @@
     ) -&gt; anyhow::Result&lt;()&gt; {
         <span class="kw">let </span>timer = Timer::start();
         <span class="kw">let </span>end = || {
-            timer.end(
-                <span class="macro">format_args!</span>(
-                    <span class="string">"Computed bidegree {b} with {subalgebra}, num new gens = {num_new_gens}, density = {density:.2}%"</span>,
-                    num_new_gens = <span class="self">self</span>.number_of_gens_in_bidegree(b),
-                    density = <span class="self">self</span>.differentials[b.s()].differential_density(b.t()) * <span class="number">100.0</span>,
-                ),
-            );
+            timer.end(<span class="macro">format_args!</span>(
+                <span class="string">"Computed bidegree {b} with {subalgebra}, num new gens = {num_new_gens}, density \
+                 = {density:.2}%"</span>,
+                num_new_gens = <span class="self">self</span>.number_of_gens_in_bidegree(b),
+                density = <span class="self">self</span>.differentials[b.s()].differential_density(b.t()) * <span class="number">100.0</span>,
+            ));
         };
 
         <span class="kw">let </span>p = <span class="self">self</span>.prime();
@@ -2240,8 +2249,8 @@
 
 <span class="kw">impl</span>&lt;M: ZeroModule&lt;Algebra = MilnorAlgebra&gt;&gt; ChainComplex <span class="kw">for </span>Resolution&lt;M&gt; {
     <span class="kw">type </span>Algebra = MilnorAlgebra;
-    <span class="kw">type </span>Module = FreeModule&lt;<span class="self">Self</span>::Algebra&gt;;
     <span class="kw">type </span>Homomorphism = FreeModuleHomomorphism&lt;FreeModule&lt;<span class="self">Self</span>::Algebra&gt;&gt;;
+    <span class="kw">type </span>Module = FreeModule&lt;<span class="self">Self</span>::Algebra&gt;;
 
     <span class="kw">fn </span>algebra(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Arc&lt;<span class="self">Self</span>::Algebra&gt; {
         <span class="self">self</span>.zero_module.algebra()
@@ -2465,8 +2474,8 @@
 }
 
 <span class="kw">impl</span>&lt;M: ZeroModule&lt;Algebra = MilnorAlgebra&gt;&gt; AugmentedChainComplex <span class="kw">for </span>Resolution&lt;M&gt; {
-    <span class="kw">type </span>TargetComplex = FiniteChainComplex&lt;M, FullModuleHomomorphism&lt;M, M&gt;&gt;;
     <span class="kw">type </span>ChainMap = FreeModuleHomomorphism&lt;M&gt;;
+    <span class="kw">type </span>TargetComplex = FiniteChainComplex&lt;M, FullModuleHomomorphism&lt;M, M&gt;&gt;;
 
     <span class="kw">fn </span>target(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Arc&lt;<span class="self">Self</span>::TargetComplex&gt; {
         Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.target)
@@ -2479,9 +2488,10 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>test {
+    <span class="kw">use </span>expect_test::expect;
+
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
     <span class="kw">use </span><span class="kw">crate</span>::chain_complex::FreeChainComplex;
-    <span class="kw">use </span>expect_test::expect;
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_restart_stem() {

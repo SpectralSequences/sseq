@@ -178,15 +178,14 @@
 <a href="#152" id="152">152</a>
 <a href="#153" id="153">153</a>
 <a href="#154" id="154">154</a>
-</pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
+</pre></div><pre class="rust"><code><span class="kw">use super</span>::{
+    inner::{FpVectorP, SliceP},
+    iter::{FpVectorIterator, FpVectorNonZeroIteratorP},
+};
+<span class="kw">use crate</span>::{
     constants,
     limb::{<span class="self">self</span>, Limb},
     prime::{Prime, ValidPrime},
-};
-
-<span class="kw">use super</span>::{
-    inner::{FpVectorP, SliceP},
-    iter::{FpVectorIterator, FpVectorNonZeroIteratorP},
 };
 
 <span class="comment">// Public methods
@@ -247,6 +246,7 @@
         }
         <span class="bool-val">true
     </span>}
+
     <span class="attr">#[must_use]
     </span><span class="kw">pub fn </span>slice(<span class="self">self</span>, start: usize, end: usize) -&gt; SliceP&lt;<span class="lifetime">'a</span>, P&gt; {
         <span class="macro">assert!</span>(start &lt;= end &amp;&amp; end &lt;= <span class="self">self</span>.len());

@@ -100,16 +100,20 @@
 <a href="#74" id="74">74</a>
 <a href="#75" id="75">75</a>
 <a href="#76" id="76">76</a>
+<a href="#77" id="77">77</a>
+<a href="#78" id="78">78</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! This saves a resolution to Bruner's format. This saves the resulting files to the current
 //! working directory. It is recommended that you run this in a dedicated subdirectory.
 
-</span><span class="kw">use </span>algebra::module::Module;
-<span class="kw">use </span>algebra::{Algebra, AlgebraType, MilnorAlgebra};
+</span><span class="kw">use </span>std::{
+    fmt::Write <span class="kw">as _</span>,
+    fs::File,
+    io::{BufWriter, Write <span class="kw">as _</span>},
+};
+
+<span class="kw">use </span>algebra::{module::Module, Algebra, AlgebraType, MilnorAlgebra};
 <span class="kw">use </span>ext::{chain_complex::ChainComplex, utils::query_module};
 <span class="kw">use </span>itertools::Itertools;
-<span class="kw">use </span>std::fmt::Write <span class="kw">as _</span>;
-<span class="kw">use </span>std::fs::File;
-<span class="kw">use </span>std::io::{BufWriter, Write <span class="kw">as _</span>};
 
 <span class="kw">fn </span>main() -&gt; anyhow::Result&lt;()&gt; {
     <span class="kw">let </span>resolution = query_module(<span class="prelude-val">Some</span>(AlgebraType::Milnor), <span class="bool-val">false</span>)<span class="question-mark">?</span>;

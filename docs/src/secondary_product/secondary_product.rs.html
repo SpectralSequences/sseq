@@ -212,7 +212,6 @@
 <a href="#186" id="186">186</a>
 <a href="#187" id="187">187</a>
 <a href="#188" id="188">188</a>
-<a href="#189" id="189">189</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Computes products in $\Mod_{C\tau^2}$.
 //!
 //! # Usage
@@ -238,14 +237,13 @@
 </span><span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>algebra::module::Module;
-<span class="kw">use </span>fp::matrix::Matrix;
-<span class="kw">use </span>fp::vector::FpVector;
-
-<span class="kw">use </span>ext::chain_complex::{ChainComplex, FreeChainComplex};
-<span class="kw">use </span>ext::resolution_homomorphism::ResolutionHomomorphism;
-<span class="kw">use </span>ext::secondary::<span class="kw-2">*</span>;
-<span class="kw">use </span>ext::utils::query_module;
-
+<span class="kw">use </span>ext::{
+    chain_complex::{ChainComplex, FreeChainComplex},
+    resolution_homomorphism::ResolutionHomomorphism,
+    secondary::<span class="kw-2">*</span>,
+    utils::query_module,
+};
+<span class="kw">use </span>fp::{matrix::Matrix, vector::FpVector};
 <span class="kw">use </span>itertools::Itertools;
 <span class="kw">use </span>sseq::coordinates::{Bidegree, BidegreeElement, BidegreeGenerator};
 
