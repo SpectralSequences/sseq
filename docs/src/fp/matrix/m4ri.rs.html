@@ -150,13 +150,10 @@
 <a href="#124" id="124">124</a>
 <a href="#125" id="125">125</a>
 <a href="#126" id="126">126</a>
-<a href="#127" id="127">127</a>
-<a href="#128" id="128">128</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>itertools::Itertools;
 
 <span class="kw">use crate</span>::{
-    constants::BITS_PER_LIMB,
-    limb::{number, Limb},
+    limb::{<span class="self">self</span>, Limb, LimbBitIndexPair},
     matrix::Matrix,
     prime::P2,
     simd,
@@ -180,7 +177,7 @@
     <span class="doccomment">/// The indices of new rows in the table
     </span>rows: Vec&lt;usize&gt;,
     <span class="doccomment">/// The list of pivot columns of the rows, in the format (limb, bit)
-    </span>columns: Vec&lt;(usize, usize)&gt;,
+    </span>columns: Vec&lt;LimbBitIndexPair&gt;,
     <span class="doccomment">/// The 2^k linear combinations of the k rows, apart from the first one which is identically
     /// zero.
     </span>data: Vec&lt;Limb&gt;,
@@ -192,7 +189,7 @@
 <span class="kw">impl </span>M4riTable {
     <span class="doccomment">/// Create a table with space for `k` vectors, each with `cols` columns.
     </span><span class="kw">pub fn </span>new(k: usize, cols: usize) -&gt; <span class="self">Self </span>{
-        <span class="kw">let </span>num_limbs = number(P2, cols);
+        <span class="kw">let </span>num_limbs = limb::number(P2, cols);
         <span class="self">Self </span>{
             rows: Vec::with_capacity(k),
             columns: Vec::with_capacity(k),
@@ -223,8 +220,7 @@
     ///  - `column`: pivot column of the row
     ///  - `row`: index of the row
     </span><span class="kw">pub fn </span>add(<span class="kw-2">&amp;mut </span><span class="self">self</span>, column: usize, row: usize) {
-        <span class="self">self</span>.columns
-            .push((column / BITS_PER_LIMB, column % BITS_PER_LIMB));
+        <span class="self">self</span>.columns.push(limb::limb_bit_index_pair(P2, column));
         <span class="self">self</span>.rows.push(row);
     }
 
@@ -248,10 +244,10 @@
                 simd::add_simd(
                     <span class="kw-2">&amp;mut </span><span class="self">self</span>.data[i * num_limbs..(i + <span class="number">1</span>) * num_limbs],
                     matrix[r].limbs(),
-                    c.<span class="number">0</span>,
+                    c.limb,
                 );
             }
-            <span class="self">self</span>.min_limb = std::cmp::min(<span class="self">self</span>.min_limb, c.<span class="number">0</span>);
+            <span class="self">self</span>.min_limb = std::cmp::min(<span class="self">self</span>.min_limb, c.limb);
         }
     }
 
@@ -259,10 +255,10 @@
         <span class="kw">for </span>(<span class="kw-2">&amp;</span>row, col) <span class="kw">in </span><span class="self">self</span>.rows.iter().zip_eq(<span class="kw-2">&amp;</span><span class="self">self</span>.columns) {
             <span class="macro">assert!</span>(target != row);
             <span class="kw">unsafe </span>{
-                <span class="kw">let </span>coef = (matrix[target].limbs()[col.<span class="number">0</span>] &gt;&gt; col.<span class="number">1</span>) &amp; <span class="number">1</span>;
+                <span class="kw">let </span>coef = (matrix[target].limbs()[col.limb] &gt;&gt; col.bit_index) &amp; <span class="number">1</span>;
                 <span class="kw">if </span>coef != <span class="number">0 </span>{
                     <span class="kw">let </span>(target, source) = matrix.split_borrow(target, row);
-                    simd::add_simd(target.limbs_mut(), source.limbs(), col.<span class="number">0</span>)
+                    simd::add_simd(target.limbs_mut(), source.limbs(), col.limb)
                 }
             }
         }
@@ -273,7 +269,7 @@
         <span class="kw">let </span><span class="kw-2">mut </span>index: usize = <span class="number">0</span>;
         <span class="kw">for </span><span class="kw-2">&amp;</span>col <span class="kw">in </span><span class="self">self</span>.columns.iter().rev() {
             index &lt;&lt;= <span class="number">1</span>;
-            index += ((v[col.<span class="number">0</span>] &gt;&gt; col.<span class="number">1</span>) &amp; <span class="number">1</span>) <span class="kw">as </span>usize;
+            index += ((v[col.limb] &gt;&gt; col.bit_index) &amp; <span class="number">1</span>) <span class="kw">as </span>usize;
         }
         <span class="kw">if </span>index != <span class="number">0 </span>{
             simd::add_simd(v, <span class="kw-2">&amp;</span><span class="self">self</span>.data[(index - <span class="number">1</span>) * num_limbs..], <span class="self">self</span>.min_limb);

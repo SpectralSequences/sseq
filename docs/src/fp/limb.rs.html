@@ -196,7 +196,7 @@
 <span class="kw">use crate</span>::{constants::BITS_PER_LIMB, prime::Prime};
 
 <span class="doccomment">/// A struct containing the information required to access a specific entry in an array of `Limb`s.
-</span><span class="attr">#[derive(Copy, Clone)]
+</span><span class="attr">#[derive(Debug, Copy, Clone)]
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>LimbBitIndexPair {
     <span class="kw">pub</span>(<span class="kw">crate</span>) limb: usize,
     <span class="kw">pub</span>(<span class="kw">crate</span>) bit_index: usize,
