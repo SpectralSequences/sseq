@@ -1,12 +1,13 @@
-use crate::bigraded::DenseBigradedModule;
-use crate::differential::Differential;
+use std::{marker::PhantomData, sync::Arc};
+
 use bivec::BiVec;
 use fp::{
     matrix::{Matrix, Subquotient, Subspace},
     prime::ValidPrime,
     vector::{FpVector, Slice},
 };
-use std::{marker::PhantomData, sync::Arc};
+
+use crate::{bigraded::DenseBigradedModule, differential::Differential};
 
 /// The direction of the differentials
 pub trait SseqProfile {
@@ -20,12 +21,15 @@ pub struct Adams;
 
 impl SseqProfile for Adams {
     const MIN_R: i32 = 2;
+
     fn profile(r: i32, x: i32, y: i32) -> (i32, i32) {
         (x - 1, y + r)
     }
+
     fn profile_inverse(r: i32, x: i32, y: i32) -> (i32, i32) {
         (x + 1, y - r)
     }
+
     fn differential_length(_diff_x: i32, diff_y: i32) -> i32 {
         diff_y
     }
@@ -575,8 +579,9 @@ impl<P: SseqProfile> Sseq<P> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use expect_test::{expect, Expect};
+
+    use super::*;
 
     #[test]
     #[allow(clippy::cognitive_complexity)]

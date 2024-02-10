@@ -91,13 +91,8 @@ jobs:
     env:
       RUST_BACKTRACE: 1
       RUSTFLAGS: "-D warnings"
-      RUSTUP_TOOLCHAIN: ${{ matrix.toolchain }}
+      RUSTUP_TOOLCHAIN: nightly
 
-    strategy:
-      matrix:
-        toolchain: ["stable", "beta", "nightly"]
-
-    continue-on-error: ${{ matrix.toolchain != 'stable' }}
     steps:
       - uses: actions/checkout@v2
 
@@ -105,7 +100,7 @@ jobs:
         id: rustup
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: ${{ matrix.toolchain }}
+          toolchain: nightly
           components: clippy, rustfmt
 
       # Install black from pip3 to ensure latest version

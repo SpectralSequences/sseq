@@ -1,12 +1,16 @@
-use algebra::module::homomorphism::ModuleHomomorphism;
-use ext::chain_complex::{ChainComplex, FreeChainComplex};
-use ext::save::SaveKind;
-use ext::secondary::{SecondaryLift, SecondaryResolution};
-use ext::utils::construct_standard;
-use sseq::coordinates::Bidegree;
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use algebra::module::homomorphism::ModuleHomomorphism;
+use ext::{
+    chain_complex::{ChainComplex, FreeChainComplex},
+    save::SaveKind,
+    secondary::{SecondaryLift, SecondaryResolution},
+    utils::construct_standard,
+};
+use sseq::coordinates::Bidegree;
 
 fn set_readonly(p: &Path, readonly: bool) {
     let mut perm = p.metadata().unwrap().permissions();
@@ -236,8 +240,10 @@ fn test_load_secondary() {
 #[test]
 #[should_panic]
 fn test_checksum() {
-    use std::fs::OpenOptions;
-    use std::io::{Seek, SeekFrom, Write};
+    use std::{
+        fs::OpenOptions,
+        io::{Seek, SeekFrom, Write},
+    };
 
     let tempdir = tempfile::TempDir::new().unwrap();
 

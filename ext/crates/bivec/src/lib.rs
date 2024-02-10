@@ -1,9 +1,10 @@
-use core::ops::Index;
-use core::ops::IndexMut;
+use core::ops::{Index, IndexMut};
+use std::{
+    fmt,
+    slice::{Iter, IterMut},
+};
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use std::fmt;
-use std::slice::{Iter, IterMut};
 
 /// A BiVec is like a Vec, except we allow indices to be negative. It has a min_degree
 /// property which tells us where the starting index is.
@@ -127,6 +128,7 @@ impl<T> BiVec<T> {
     pub fn last(&self) -> Option<&T> {
         self.data.last()
     }
+
     pub fn iter(&self) -> Iter<T> {
         self.data.iter()
     }
@@ -210,8 +212,8 @@ impl<T> BiVec<T> {
 }
 
 impl<T> IntoIterator for BiVec<T> {
-    type Item = T;
     type IntoIter = std::vec::IntoIter<T>;
+    type Item = T;
 
     fn into_iter(self) -> Self::IntoIter {
         self.data.into_iter()
@@ -219,8 +221,8 @@ impl<T> IntoIterator for BiVec<T> {
 }
 
 impl<'a, T> IntoIterator for &'a BiVec<T> {
-    type Item = &'a T;
     type IntoIter = std::slice::Iter<'a, T>;
+    type Item = &'a T;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
@@ -228,8 +230,8 @@ impl<'a, T> IntoIterator for &'a BiVec<T> {
 }
 
 impl<'a, T> IntoIterator for &'a mut BiVec<T> {
-    type Item = &'a mut T;
     type IntoIter = std::slice::IterMut<'a, T>;
+    type Item = &'a mut T;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter_mut()
@@ -265,6 +267,7 @@ impl<'de, T: Deserialize<'de>> Deserialize<'de> for BiVec<T> {
 
 impl<T> Index<i32> for BiVec<T> {
     type Output = T;
+
     fn index(&self, i: i32) -> &T {
         assert!(
             i >= self.min_degree(),

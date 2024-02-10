@@ -4,7 +4,7 @@ build_const!("constants");
 
 #[macro_export]
 macro_rules! const_for {
-    ($i:ident in $a:literal .. $b:ident $contents:block) => {
+    ($i:ident in $a:literal.. $b:ident $contents:block) => {
         let mut $i = $a;
         while $i < $b {
             $contents;

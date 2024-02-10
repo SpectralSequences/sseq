@@ -26,6 +26,7 @@ impl BitflagIterator {
 
 impl Iterator for BitflagIterator {
     type Item = bool;
+
     fn next(&mut self) -> Option<Self::Item> {
         if self.remaining > 64 && self.flag == 0 || self.remaining == 0 {
             None
@@ -54,6 +55,7 @@ impl BinomialIterator {
 
 impl Iterator for BinomialIterator {
     type Item = u32;
+
     fn next(&mut self) -> Option<Self::Item> {
         let v = self.value;
         let c = v & v.wrapping_neg();

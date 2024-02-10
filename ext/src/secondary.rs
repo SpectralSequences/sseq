@@ -1,27 +1,36 @@
-use crate::chain_complex::{ChainComplex, ChainHomotopy, FreeChainComplex};
-use crate::resolution_homomorphism::ResolutionHomomorphism;
-use crate::save::{SaveFile, SaveKind};
-use crate::utils::Timer;
+use std::{
+    io::{Read, Write},
+    path::Path,
+    sync::Arc,
+};
 
-use algebra::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
-use algebra::module::{FreeModule, Module};
-use algebra::pair_algebra::PairAlgebra;
-use algebra::Algebra;
+use algebra::{
+    module::{
+        homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism},
+        FreeModule, Module,
+    },
+    pair_algebra::PairAlgebra,
+    Algebra,
+};
 use bivec::BiVec;
-use fp::matrix::Matrix;
-use fp::prime::ValidPrime;
-use fp::vector::{FpVector, Slice, SliceMut};
+use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+use dashmap::DashMap;
+use fp::{
+    matrix::Matrix,
+    prime::ValidPrime,
+    vector::{FpVector, Slice, SliceMut},
+};
+use itertools::Itertools;
+use maybe_rayon::prelude::*;
 use once::OnceBiVec;
 use sseq::coordinates::{Bidegree, BidegreeGenerator, BidegreeRange};
 
-use std::io::{Read, Write};
-use std::path::Path;
-use std::sync::Arc;
-
-use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-use dashmap::DashMap;
-use itertools::Itertools;
-use maybe_rayon::prelude::*;
+use crate::{
+    chain_complex::{ChainComplex, ChainHomotopy, FreeChainComplex},
+    resolution_homomorphism::ResolutionHomomorphism,
+    save::{SaveFile, SaveKind},
+    utils::Timer,
+};
 
 pub static TAU_BIDEGREE: Bidegree = Bidegree::n_s(0, 1);
 
@@ -1150,6 +1159,7 @@ where
     type Source = S;
     type Target = U;
     type Underlying = ChainHomotopy<S, T, U>;
+
     const HIT_GENERATOR: bool = true;
 
     fn underlying(&self) -> Arc<Self::Underlying> {
@@ -1379,9 +1389,10 @@ where
 
 #[cfg(test)]
 mod test {
+    use serde_json::json;
+
     use super::*;
     use crate::utils;
-    use serde_json::json;
 
     #[test]
     #[should_panic(

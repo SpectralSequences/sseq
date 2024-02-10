@@ -1,7 +1,9 @@
 use algebra::Algebra;
 use chart::SvgBackend;
-use ext::chain_complex::{ChainComplex, FreeChainComplex};
-use ext::utils::query_module;
+use ext::{
+    chain_complex::{ChainComplex, FreeChainComplex},
+    utils::query_module,
+};
 
 fn main() -> anyhow::Result<()> {
     let resolution = query_module(None, false)?;

@@ -44,10 +44,13 @@
 //! [mahowald--ravenel]: https://www.sciencedirect.com/science/article/pii/004093839390055Z
 //! [bruner--greenlees]: https://projecteuclid.org/journals/experimental-mathematics/volume-4/issue-4/The-Bredon-L%C3%B6ffler-conjecture/em/1047674389.full
 
+use std::{fmt, iter, num::NonZeroU32, path::PathBuf, sync::Arc};
+
 use algebra::{
     module::{homomorphism::ModuleHomomorphism, Module},
     AlgebraType, SteenrodAlgebra,
 };
+use anyhow::Result;
 use ext::{
     chain_complex::{ChainComplex, FiniteChainComplex, FreeChainComplex},
     resolution::MuResolution,
@@ -55,15 +58,8 @@ use ext::{
     utils,
 };
 use fp::{matrix::Matrix, prime::TWO, vector::FpVector};
-
-use anyhow::Result;
 use serde_json::json;
 use sseq::coordinates::{Bidegree, BidegreeElement, BidegreeGenerator};
-use std::fmt;
-use std::iter;
-use std::num::NonZeroU32;
-use std::path::PathBuf;
-use std::sync::Arc;
 
 fn main() -> Result<()> {
     let s_2_path: Option<PathBuf> = query::optional("Save directory for S_2", str::parse);
@@ -274,8 +270,9 @@ impl fmt::Display for MahowaldInvariant {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use rstest::rstest;
+
+    use super::*;
 
     #[rstest]
     #[case(1, 0, 0, 0, 0, vec![1], 0)]

@@ -1,11 +1,10 @@
 use std::sync::OnceLock;
 
-use proptest::prelude::*;
-
 use fp::{
     matrix::Matrix,
     prime::{Prime, ValidPrime},
 };
+use proptest::prelude::*;
 
 /// An arbitrary `ValidPrime` in the range `2..(1 << 24)`, plus the largest prime that we support.
 fn arb_prime() -> impl Strategy<Value = ValidPrime> {

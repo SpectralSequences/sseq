@@ -1,7 +1,11 @@
-use crate::module::homomorphism::{ModuleHomomorphism, ZeroHomomorphism};
-use crate::module::Module;
-use fp::vector::SliceMut;
 use std::sync::Arc;
+
+use fp::vector::SliceMut;
+
+use crate::module::{
+    homomorphism::{ModuleHomomorphism, ZeroHomomorphism},
+    Module,
+};
 
 pub struct GenericZeroHomomorphism<S: Module, T: Module<Algebra = S::Algebra>> {
     source: Arc<S>,

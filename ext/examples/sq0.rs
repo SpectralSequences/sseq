@@ -2,11 +2,11 @@ use std::sync::Arc;
 
 use algebra::module::Module;
 use double::DoubleChainComplex;
-use ext::chain_complex::{
-    AugmentedChainComplex, BoundedChainComplex, ChainComplex, FreeChainComplex,
+use ext::{
+    chain_complex::{AugmentedChainComplex, BoundedChainComplex, ChainComplex, FreeChainComplex},
+    resolution_homomorphism::ResolutionHomomorphism,
+    utils,
 };
-use ext::resolution_homomorphism::ResolutionHomomorphism;
-use ext::utils;
 use fp::vector::FpVector;
 use itertools::Itertools;
 use sseq::coordinates::{Bidegree, BidegreeGenerator};
@@ -132,14 +132,15 @@ mod double {
     }
 
     pub mod double_module {
-        use super::DoubleAlgebra;
+        use std::sync::Arc;
 
         use algebra::module::{homomorphism::ModuleHomomorphism, Module};
         use fp::{
             matrix::{Matrix, MatrixSliceMut, QuasiInverse, Subspace},
             vector::{Slice, SliceMut},
         };
-        use std::sync::Arc;
+
+        use super::DoubleAlgebra;
 
         pub struct DoubleModule<M: Module> {
             inner: Arc<M>,
@@ -427,8 +428,8 @@ mod double {
             CC::Algebra: DoubleAlgebra,
         {
             type Algebra = CC::Algebra;
-            type Module = DoubleModule<CC::Module>;
             type Homomorphism = DoubleModuleHomomorphism<CC::Homomorphism>;
+            type Module = DoubleModule<CC::Module>;
 
             fn algebra(&self) -> Arc<Self::Algebra> {
                 self.inner.algebra()

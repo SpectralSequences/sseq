@@ -1,7 +1,9 @@
 //! This prints all the differentials in the resolution.
 
-use ext::chain_complex::{ChainComplex, FreeChainComplex};
-use ext::utils::query_module;
+use ext::{
+    chain_complex::{ChainComplex, FreeChainComplex},
+    utils::query_module,
+};
 use sseq::coordinates::BidegreeGenerator;
 
 fn main() -> anyhow::Result<()> {

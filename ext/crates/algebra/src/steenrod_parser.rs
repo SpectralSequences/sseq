@@ -1,12 +1,13 @@
 //! This module includes code for parsing an expression in the Steenrod algebra into an abstract
 //! syntax tree.
 
+use std::str::FromStr;
+
 use anyhow::{anyhow, Context};
 use nom::{
     branch::alt,
     bytes::complete::tag,
-    character::complete::{alpha1, alphanumeric0, char},
-    character::complete::{digit1 as digit, space0},
+    character::complete::{alpha1, alphanumeric0, char, digit1 as digit, space0},
     combinator::{map, map_res, opt, peek},
     error::{context, ParseError, VerboseError, VerboseErrorKind},
     multi::{many0, separated_list1},
@@ -15,7 +16,6 @@ use nom::{
 };
 
 use crate::{adem_algebra::AdemBasisElement, algebra::milnor_algebra::PPart};
-use std::str::FromStr;
 
 type IResult<I, O> = IResultBase<I, O, VerboseError<I>>;
 
@@ -274,8 +274,9 @@ pub fn parse_module(i: &str) -> anyhow::Result<ModuleNode> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use expect_test::{expect, Expect};
+
+    use super::*;
 
     #[test]
     fn test_parse_algebra() {

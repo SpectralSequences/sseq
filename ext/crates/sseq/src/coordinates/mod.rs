@@ -6,9 +6,8 @@ pub mod range;
 pub use bidegree::Bidegree;
 pub use element::BidegreeElement;
 pub use generator::BidegreeGenerator;
-pub use range::BidegreeRange;
-
 use maybe_rayon::prelude::*;
+pub use range::BidegreeRange;
 
 /// Given a function `f(s, t)`, compute it for every `s` in `[min_s, max_s]` and every `t` in
 /// `[min_t, max_t(s)]`.  Further, we only compute `f(s, t)` when `f(s - 1, t')` has been computed

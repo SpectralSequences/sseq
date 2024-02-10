@@ -1,7 +1,4 @@
-use std::collections::HashMap;
-use std::fmt::Display;
-use std::io::Write;
-use std::result::Result;
+use std::{collections::HashMap, fmt::Display, io::Write, result::Result};
 
 #[rustfmt::skip]
 const PATTERNS: [(f32, &[(f32, f32)]); 12] = [
@@ -114,6 +111,8 @@ pub struct SvgBackend<T: Write> {
 }
 
 impl<T: Write> SvgBackend<T> {
+    const GRID_WIDTH: i32 = 20;
+    const MARGIN: i32 = 30;
     const STYLES: &'static str = r#"
     circle {
         fill: black;
@@ -146,9 +145,6 @@ impl<T: Write> SvgBackend<T> {
      dominant-baseline: middle;
     }
     "#;
-
-    const GRID_WIDTH: i32 = 20;
-    const MARGIN: i32 = 30;
 
     /// Print the legend for node patterns
     pub fn legend(mut out: T) -> std::io::Result<()> {
@@ -204,6 +200,7 @@ impl<T: Write> SvgBackend<T> {
 
 impl<T: Write> Backend for SvgBackend<T> {
     type Error = std::io::Error;
+
     const EXT: &'static str = "svg";
 
     fn header(&mut self, max_x: i32, max_y: i32) -> Result<(), Self::Error> {
@@ -353,6 +350,7 @@ impl<T: Write> TikzBackend<T> {
 
 impl<T: Write> Backend for TikzBackend<T> {
     type Error = std::io::Error;
+
     const EXT: &'static str = "tex";
 
     fn header(&mut self, max_x: i32, max_y: i32) -> Result<(), Self::Error> {
@@ -440,8 +438,9 @@ impl<T: Write> Drop for TikzBackend<T> {
 
 #[cfg(test)]
 mod test {
-    use super::*;
     use expect_test::expect_file;
+
+    use super::*;
 
     #[test]
     fn test_legend() {

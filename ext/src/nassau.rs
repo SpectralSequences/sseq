@@ -12,33 +12,38 @@
 //! features, we find that this the easiest way to make all scripts support both types of
 //! resolutions.
 
-use std::fmt::Display;
-use std::io::{Read, Write};
-use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+use std::{
+    fmt::Display,
+    io::{Read, Write},
+    path::PathBuf,
+    sync::{mpsc, Arc, Mutex},
+};
 
-use crate::chain_complex::{
-    AugmentedChainComplex, ChainComplex, FiniteChainComplex, FreeChainComplex,
+use algebra::{
+    combinatorics,
+    milnor_algebra::{MilnorAlgebra, PPartEntry},
+    module::{
+        homomorphism::{FreeModuleHomomorphism, FullModuleHomomorphism, ModuleHomomorphism},
+        FreeModule, GeneratorData, Module, ZeroModule,
+    },
+    Algebra,
 };
-use crate::utils::Timer;
-use crate::{save::SaveKind, utils::LogWriter};
-use algebra::combinatorics;
-use algebra::milnor_algebra::{MilnorAlgebra, PPartEntry};
-use algebra::module::homomorphism::{
-    FreeModuleHomomorphism, FullModuleHomomorphism, ModuleHomomorphism,
-};
-use algebra::module::{FreeModule, GeneratorData, Module, ZeroModule};
-use algebra::Algebra;
 use anyhow::anyhow;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-use fp::matrix::{AugmentedMatrix, Matrix};
-use fp::prime::{ValidPrime, TWO};
-use fp::vector::{FpVector, Slice, SliceMut};
+use fp::{
+    matrix::{AugmentedMatrix, Matrix},
+    prime::{ValidPrime, TWO},
+    vector::{FpVector, Slice, SliceMut},
+};
 use itertools::Itertools;
 use once::OnceVec;
 use sseq::coordinates::Bidegree;
 
-use std::sync::mpsc;
+use crate::{
+    chain_complex::{AugmentedChainComplex, ChainComplex, FiniteChainComplex, FreeChainComplex},
+    save::SaveKind,
+    utils::{LogWriter, Timer},
+};
 
 /// See [`resolution::SenderData`](../resolution/struct.SenderData.html). This differs by not having the `new` field.
 struct SenderData {
@@ -555,13 +560,12 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
     ) -> anyhow::Result<()> {
         let timer = Timer::start();
         let end = || {
-            timer.end(
-                format_args!(
-                    "Computed bidegree {b} with {subalgebra}, num new gens = {num_new_gens}, density = {density:.2}%",
-                    num_new_gens = self.number_of_gens_in_bidegree(b),
-                    density = self.differentials[b.s()].differential_density(b.t()) * 100.0,
-                ),
-            );
+            timer.end(format_args!(
+                "Computed bidegree {b} with {subalgebra}, num new gens = {num_new_gens}, density \
+                 = {density:.2}%",
+                num_new_gens = self.number_of_gens_in_bidegree(b),
+                density = self.differentials[b.s()].differential_density(b.t()) * 100.0,
+            ));
         };
 
         let p = self.prime();
@@ -943,8 +947,8 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
 
 impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
     type Algebra = MilnorAlgebra;
-    type Module = FreeModule<Self::Algebra>;
     type Homomorphism = FreeModuleHomomorphism<FreeModule<Self::Algebra>>;
+    type Module = FreeModule<Self::Algebra>;
 
     fn algebra(&self) -> Arc<Self::Algebra> {
         self.zero_module.algebra()
@@ -1168,8 +1172,8 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
 }
 
 impl<M: ZeroModule<Algebra = MilnorAlgebra>> AugmentedChainComplex for Resolution<M> {
-    type TargetComplex = FiniteChainComplex<M, FullModuleHomomorphism<M, M>>;
     type ChainMap = FreeModuleHomomorphism<M>;
+    type TargetComplex = FiniteChainComplex<M, FullModuleHomomorphism<M, M>>;
 
     fn target(&self) -> Arc<Self::TargetComplex> {
         Arc::clone(&self.target)
@@ -1182,9 +1186,10 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> AugmentedChainComplex for Resolutio
 
 #[cfg(test)]
 mod test {
+    use expect_test::expect;
+
     use super::*;
     use crate::chain_complex::FreeChainComplex;
-    use expect_test::expect;
 
     #[test]
     fn test_restart_stem() {

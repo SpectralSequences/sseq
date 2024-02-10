@@ -1,18 +1,21 @@
-use algebra::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
-use algebra::module::Module;
-use ext::chain_complex::{
-    AugmentedChainComplex, BoundedChainComplex, ChainComplex, FreeChainComplex,
+use std::{
+    io::{stderr, stdout, Write},
+    sync::Arc,
 };
-use ext::utils;
-use ext::yoneda::yoneda_representative_element;
-use fp::matrix::Matrix;
-use fp::vector::FpVector;
+
+use algebra::module::{
+    homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism},
+    Module,
+};
+use ext::{
+    chain_complex::{AugmentedChainComplex, BoundedChainComplex, ChainComplex, FreeChainComplex},
+    utils,
+    yoneda::yoneda_representative_element,
+};
+use fp::{matrix::Matrix, vector::FpVector};
 use itertools::Itertools;
 use sseq::coordinates::{Bidegree, BidegreeElement};
 use tensor_product_chain_complex::TensorChainComplex;
-
-use std::io::{stderr, stdout, Write};
-use std::sync::Arc;
 
 fn main() -> anyhow::Result<()> {
     let resolution = Arc::new(utils::query_module_only("Module", None, false)?);
@@ -282,14 +285,15 @@ fn main() -> anyhow::Result<()> {
 }
 
 mod sum_module {
-    use bivec::BiVec;
-    use once::OnceBiVec;
-
-    use algebra::module::block_structure::{BlockStructure, GeneratorBasisEltPair};
-    use algebra::module::{Module, ZeroModule};
-    use fp::vector::SliceMut;
-
     use std::sync::Arc;
+
+    use algebra::module::{
+        block_structure::{BlockStructure, GeneratorBasisEltPair},
+        Module, ZeroModule,
+    };
+    use bivec::BiVec;
+    use fp::vector::SliceMut;
+    use once::OnceBiVec;
 
     pub struct SumModule<M: Module> {
         // We need these because modules might be empty
@@ -427,10 +431,9 @@ mod sum_module {
     mod tests {
         #![allow(non_snake_case)]
 
-        use super::*;
+        use algebra::{module::FDModule, AdemAlgebra};
 
-        use algebra::module::FDModule;
-        use algebra::AdemAlgebra;
+        use super::*;
 
         #[test]
         fn test_sum_modules() {
@@ -472,17 +475,21 @@ mod sum_module {
 }
 
 mod tensor_product_chain_complex {
-    use super::sum_module::SumModule;
-    use algebra::module::homomorphism::ModuleHomomorphism;
-    use algebra::module::{Module, TensorModule, ZeroModule};
-    use algebra::{Algebra, Bialgebra};
-    use ext::chain_complex::ChainComplex;
-    use fp::matrix::AugmentedMatrix;
-    use fp::vector::{FpVector, Slice, SliceMut};
-    use sseq::coordinates::Bidegree;
     use std::sync::Arc;
 
+    use algebra::{
+        module::{homomorphism::ModuleHomomorphism, Module, TensorModule, ZeroModule},
+        Algebra, Bialgebra,
+    };
+    use ext::chain_complex::ChainComplex;
+    use fp::{
+        matrix::AugmentedMatrix,
+        vector::{FpVector, Slice, SliceMut},
+    };
     use once::{OnceBiVec, OnceVec};
+    use sseq::coordinates::Bidegree;
+
+    use super::sum_module::SumModule;
 
     pub type Stm<M, N> = SumModule<TensorModule<M, N>>;
 
@@ -589,8 +596,8 @@ mod tensor_product_chain_complex {
         CC2: ChainComplex<Algebra = A>,
     {
         type Algebra = A;
-        type Module = Stm<CC1::Module, CC2::Module>;
         type Homomorphism = TensorChainMap<A, CC1, CC2>;
+        type Module = Stm<CC1::Module, CC2::Module>;
 
         fn algebra(&self) -> Arc<A> {
             self.left_cc.algebra()
@@ -703,9 +710,11 @@ mod tensor_product_chain_complex {
         fn source(&self) -> Arc<Self::Source> {
             Arc::clone(&self.source)
         }
+
         fn target(&self) -> Arc<Self::Target> {
             Arc::clone(&self.target)
         }
+
         fn degree_shift(&self) -> i32 {
             0
         }
@@ -962,13 +971,13 @@ mod tensor_product_chain_complex {
 
     #[cfg(test)]
     mod tests {
-        use super::*;
-
-        use ext::resolution_homomorphism::ResolutionHomomorphism;
-        use ext::utils::construct;
-        use ext::yoneda::yoneda_representative_element;
-
+        use ext::{
+            resolution_homomorphism::ResolutionHomomorphism, utils::construct,
+            yoneda::yoneda_representative_element,
+        };
         use rstest::rstest;
+
+        use super::*;
 
         #[rstest]
         #[trace]

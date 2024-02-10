@@ -1,7 +1,9 @@
 use super::Subspace;
-use crate::matrix::Matrix;
-use crate::prime::ValidPrime;
-use crate::vector::{FpVector, Slice, SliceMut};
+use crate::{
+    matrix::Matrix,
+    prime::ValidPrime,
+    vector::{FpVector, Slice, SliceMut},
+};
 
 #[derive(Clone)]
 pub struct Subquotient {
@@ -177,8 +179,9 @@ impl Subquotient {
 
 #[cfg(test)]
 mod test {
-    use super::*;
     use expect_test::expect;
+
+    use super::*;
 
     #[test]
     fn test_add_gen() {

@@ -1,13 +1,14 @@
-use itertools::Itertools;
-use rustc_hash::FxHashMap as HashMap;
 use std::fmt;
 
-use fp::prime::{Prime, ValidPrime};
-use fp::vector::{FpVector, SliceMut};
+use fp::{
+    prime::{Prime, ValidPrime},
+    vector::{FpVector, SliceMut},
+};
+use itertools::Itertools;
 use once::OnceVec;
+use rustc_hash::FxHashMap as HashMap;
 
-use crate::algebra::combinatorics::TruncatedPolynomialMonomialBasis;
-use crate::algebra::Algebra;
+use crate::algebra::{combinatorics::TruncatedPolynomialMonomialBasis, Algebra};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PolynomialAlgebraMonomial {

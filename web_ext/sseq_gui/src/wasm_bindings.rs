@@ -1,7 +1,7 @@
-use crate::actions::*;
-use crate::managers::*;
 use js_sys::Function;
 use wasm_bindgen::prelude::*;
+
+use crate::{actions::*, managers::*};
 
 #[derive(Clone)]
 pub struct Sender {

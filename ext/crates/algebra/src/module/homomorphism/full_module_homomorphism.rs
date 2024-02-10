@@ -1,12 +1,19 @@
 use std::sync::Arc;
 
-use crate::algebra::Algebra;
-use crate::module::homomorphism::{IdentityHomomorphism, ModuleHomomorphism, ZeroHomomorphism};
-use crate::module::Module;
 use bivec::BiVec;
-use fp::matrix::{Matrix, QuasiInverse, Subspace};
-use fp::vector::SliceMut;
+use fp::{
+    matrix::{Matrix, QuasiInverse, Subspace},
+    vector::SliceMut,
+};
 use once::OnceBiVec;
+
+use crate::{
+    algebra::Algebra,
+    module::{
+        homomorphism::{IdentityHomomorphism, ModuleHomomorphism, ZeroHomomorphism},
+        Module,
+    },
+};
 
 /// A ModuleHomomorphism that simply records the matrix of the homomorphism in every degree.
 /// This is currently rather bare bones.

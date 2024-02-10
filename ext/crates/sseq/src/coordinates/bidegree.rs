@@ -18,9 +18,11 @@ impl Bidegree {
     pub const fn s_t(s: u32, t: i32) -> Self {
         Self { s, t }
     }
+
     pub const fn t_s(t: i32, s: u32) -> Self {
         Self::s_t(s, t)
     }
+
     pub const fn n_s(n: i32, s: u32) -> Self {
         Self::s_t(s, n + s as i32)
     }

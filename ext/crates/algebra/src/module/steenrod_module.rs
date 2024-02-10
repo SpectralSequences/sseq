@@ -3,11 +3,12 @@ use crate::algebra::SteenrodAlgebra;
 pub type SteenrodModule = Box<dyn Module<Algebra = SteenrodAlgebra>>;
 
 mod json {
-    use super::*;
-
-    use crate::module::{FDModule, FPModule, RealProjectiveSpace, SuspensionModule};
-    use anyhow::anyhow;
     use std::sync::Arc;
+
+    use anyhow::anyhow;
+
+    use super::*;
+    use crate::module::{FDModule, FPModule, RealProjectiveSpace, SuspensionModule};
 
     pub fn from_json(
         algebra: Arc<SteenrodAlgebra>,

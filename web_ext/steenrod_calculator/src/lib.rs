@@ -1,5 +1,4 @@
-use algebra::steenrod_evaluator::SteenrodEvaluator;
-use algebra::Algebra;
+use algebra::{steenrod_evaluator::SteenrodEvaluator, Algebra};
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]

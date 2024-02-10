@@ -1,8 +1,10 @@
-use fp::vector::FpVector;
+use fp::{
+    const_for,
+    prime::{minus_one_to_the_n, Binomial, Prime, ValidPrime},
+    vector::FpVector,
+    MAX_MULTINOMIAL_LEN, NUM_PRIMES, PRIMES, PRIME_TO_INDEX_MAP,
+};
 use once::OnceVec;
-
-use fp::prime::{minus_one_to_the_n, Binomial, Prime, ValidPrime};
-use fp::{const_for, MAX_MULTINOMIAL_LEN, NUM_PRIMES, PRIMES, PRIME_TO_INDEX_MAP};
 
 pub const MAX_XI_TAU: usize = MAX_MULTINOMIAL_LEN;
 
@@ -293,6 +295,7 @@ impl<'a> PartitionIterator<'a> {
 
 impl<'a> Iterator for PartitionIterator<'a> {
     type Item = (i32, &'a Vec<u32>);
+
     fn next(&mut self) -> Option<Self::Item> {
         let found;
         if self.initial {

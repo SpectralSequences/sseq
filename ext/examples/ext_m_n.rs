@@ -1,8 +1,9 @@
+use std::sync::Arc;
+
 use algebra::{module::Module, Algebra};
 use ext::chain_complex::ChainComplex;
 use hom_cochain_complex::HomCochainComplex;
 use sseq::coordinates::Bidegree;
-use std::sync::Arc;
 
 fn main() -> anyhow::Result<()> {
     eprintln!("This script computes Ext(M, N)");
@@ -46,14 +47,16 @@ fn main() -> anyhow::Result<()> {
 }
 
 mod hom_cochain_complex {
-    use algebra::module::homomorphism::{HomPullback, ModuleHomomorphism};
-    use algebra::module::{HomModule, Module};
+    use std::sync::Arc;
+
+    use algebra::module::{
+        homomorphism::{HomPullback, ModuleHomomorphism},
+        HomModule, Module,
+    };
     use ext::chain_complex::FreeChainComplex;
     use fp::matrix::Subquotient;
     use once::OnceVec;
     use sseq::coordinates::Bidegree;
-
-    use std::sync::Arc;
 
     pub struct HomCochainComplex<CC: FreeChainComplex, M: Module<Algebra = CC::Algebra>> {
         source: Arc<CC>,

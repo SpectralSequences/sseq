@@ -45,13 +45,15 @@
 //! target/debug/examples/secondary S_2 /tmp/save 40 20;
 //! ```
 
-use algebra::module::Module;
-use sseq::coordinates::{Bidegree, BidegreeGenerator};
 use std::sync::Arc;
 
-use ext::chain_complex::{ChainComplex, FreeChainComplex};
-use ext::secondary::*;
-use ext::utils::query_module;
+use algebra::module::Module;
+use ext::{
+    chain_complex::{ChainComplex, FreeChainComplex},
+    secondary::*,
+    utils::query_module,
+};
+use sseq::coordinates::{Bidegree, BidegreeGenerator};
 
 fn main() -> anyhow::Result<()> {
     let resolution = Arc::new(query_module(Some(algebra::AlgebraType::Milnor), true)?);

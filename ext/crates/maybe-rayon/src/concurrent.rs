@@ -1,7 +1,6 @@
 pub mod prelude {
-    use rayon::prelude::*;
-
     pub use rayon::iter::{IndexedParallelIterator, ParallelIterator};
+    use rayon::prelude::*;
 
     pub trait MaybeParallelIterator: ParallelIterator {}
 

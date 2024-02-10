@@ -1,13 +1,16 @@
+use std::sync::Arc;
+
 use bivec::BiVec;
+use fp::{
+    prime::minus_one_to_the_n,
+    vector::{FpVector, Slice, SliceMut},
+};
 use once::OnceBiVec;
 
-use crate::algebra::{Algebra, Bialgebra};
-use crate::module::block_structure::BlockStructure;
-use crate::module::{Module, ZeroModule};
-use fp::prime::minus_one_to_the_n;
-use fp::vector::{FpVector, Slice, SliceMut};
-
-use std::sync::Arc;
+use crate::{
+    algebra::{Algebra, Bialgebra},
+    module::{block_structure::BlockStructure, Module, ZeroModule},
+};
 
 // This really only makes sense when the algebra is a bialgebra, but associated type bounds are
 // unstable. Since the methods are only defined when A is a bialgebra, this is not too much of a

@@ -1,15 +1,18 @@
-use algebra::module::homomorphism::{FullModuleHomomorphism, IdentityHomomorphism};
-use algebra::module::Module;
-use ext::chain_complex::{AugmentedChainComplex, ChainComplex};
-use ext::resolution_homomorphism::ResolutionHomomorphism;
-use ext::utils::{construct, Config};
+use std::{convert::TryInto, sync::Arc};
+
+use algebra::module::{
+    homomorphism::{FullModuleHomomorphism, IdentityHomomorphism},
+    Module,
+};
+use ext::{
+    chain_complex::{AugmentedChainComplex, ChainComplex},
+    resolution_homomorphism::ResolutionHomomorphism,
+    utils::{construct, Config},
+};
 use fp::vector::FpVector;
+use rstest::rstest;
 use serde_json::json;
 use sseq::coordinates::Bidegree;
-use std::convert::TryInto;
-use std::sync::Arc;
-
-use rstest::rstest;
 
 #[rstest]
 #[trace]

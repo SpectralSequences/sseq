@@ -1,15 +1,20 @@
-use crate::algebra::{
-    adem_algebra::AdemBasisElement,
-    milnor_algebra::{MilnorBasisElement, PPartEntry},
-    AdemAlgebra, Algebra, MilnorAlgebra, SteenrodAlgebra,
-};
-use crate::module::{Module, ZeroModule};
-use fp::prime::{Binomial, TWO};
-use fp::vector::SliceMut;
-
 use std::sync::Arc;
 
-use {serde::Deserialize, serde_json::Value};
+use fp::{
+    prime::{Binomial, TWO},
+    vector::SliceMut,
+};
+use serde::Deserialize;
+use serde_json::Value;
+
+use crate::{
+    algebra::{
+        adem_algebra::AdemBasisElement,
+        milnor_algebra::{MilnorBasisElement, PPartEntry},
+        AdemAlgebra, Algebra, MilnorAlgebra, SteenrodAlgebra,
+    },
+    module::{Module, ZeroModule},
+};
 
 /// This is $\mathbb{RP}_{\mathrm{min}}^{\mathrm{max}}$. The cohomology is the subquotient of
 /// $\mathbb{F}_2[x^\pm]$ given by elements of degree between min and max (inclusive)

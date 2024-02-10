@@ -1,18 +1,22 @@
-use crate::chain_complex::{ChainComplex, FreeChainComplex};
-use crate::resolution_homomorphism::ResolutionHomomorphism;
-use crate::save::SaveKind;
-use algebra::module::homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism};
-use algebra::module::Module;
-use fp::prime::ValidPrime;
-use fp::vector::FpVector;
+use std::{
+    path::{Path, PathBuf},
+    sync::{Arc, Mutex},
+};
+
+use algebra::module::{
+    homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism},
+    Module,
+};
+use fp::{prime::ValidPrime, vector::FpVector};
+use maybe_rayon::prelude::*;
 use once::OnceBiVec;
 use sseq::coordinates::{Bidegree, BidegreeRange};
 
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
-use std::sync::Mutex;
-
-use maybe_rayon::prelude::*;
+use crate::{
+    chain_complex::{ChainComplex, FreeChainComplex},
+    resolution_homomorphism::ResolutionHomomorphism,
+    save::SaveKind,
+};
 
 // Another instance of https://github.com/rust-lang/rust/issues/91380
 /// A chain homotopy from $f to g$, or equivalently a null-homotopy of $h = f - g$. A chain map is

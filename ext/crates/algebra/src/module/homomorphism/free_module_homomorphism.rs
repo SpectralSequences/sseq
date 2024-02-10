@@ -1,12 +1,19 @@
 use std::sync::Arc;
 
-use crate::algebra::MuAlgebra;
-use crate::module::free_module::OperationGeneratorPair;
-use crate::module::homomorphism::{ModuleHomomorphism, ZeroHomomorphism};
-use crate::module::{Module, MuFreeModule};
-use fp::matrix::{MatrixSliceMut, QuasiInverse, Subspace};
-use fp::vector::{FpVector, Slice, SliceMut};
+use fp::{
+    matrix::{MatrixSliceMut, QuasiInverse, Subspace},
+    vector::{FpVector, Slice, SliceMut},
+};
 use once::OnceBiVec;
+
+use crate::{
+    algebra::MuAlgebra,
+    module::{
+        free_module::OperationGeneratorPair,
+        homomorphism::{ModuleHomomorphism, ZeroHomomorphism},
+        Module, MuFreeModule,
+    },
+};
 
 pub type FreeModuleHomomorphism<M> = MuFreeModuleHomomorphism<false, M>;
 pub type UnstableFreeModuleHomomorphism<M> = MuFreeModuleHomomorphism<true, M>;

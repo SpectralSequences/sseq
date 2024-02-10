@@ -3,8 +3,10 @@
 //!
 //! We omit outputs where the target bidegree is zero (or not yet computed)
 
-use ext::chain_complex::{ChainComplex, FreeChainComplex};
-use ext::utils::query_module;
+use ext::{
+    chain_complex::{ChainComplex, FreeChainComplex},
+    utils::query_module,
+};
 use sseq::coordinates::{Bidegree, BidegreeGenerator};
 
 fn main() -> anyhow::Result<()> {

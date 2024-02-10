@@ -11,25 +11,22 @@ mod vector;
 
 mod arrow;
 
-mod webgl_wrapper;
 mod shader;
+mod webgl_wrapper;
 
-mod coordinate_system;
 mod canvas;
+mod coordinate_system;
 
-mod stroke_tessellation;
 mod glyph;
+mod stroke_tessellation;
+
+use wasm_bindgen::prelude::*;
+use web_sys::WebGl2RenderingContext;
 
 use crate::canvas::Canvas;
 
-
-use wasm_bindgen::prelude::*;
-
-
-use web_sys::{WebGl2RenderingContext};
-
 #[wasm_bindgen]
-pub fn get_rust_canvas(context : &WebGl2RenderingContext) -> Result<Canvas, JsValue> {
+pub fn get_rust_canvas(context: &WebGl2RenderingContext) -> Result<Canvas, JsValue> {
     console_error_panic_hook::set_once();
     Ok(Canvas::new(context)?)
 }
