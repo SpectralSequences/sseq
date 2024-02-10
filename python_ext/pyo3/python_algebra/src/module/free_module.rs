@@ -26,7 +26,7 @@ wrapper_type!(OperationGeneratorPair, OperationGeneratorPairRust);
 
 rc_wrapper_type!(FreeModule, FreeModuleRust<AlgebraRust>);
 
-py_repr!(FreeModule, "FreedFreeModule", {
+py_repr!(FreeModule, inner, "FreedFreeModule", {
     Ok(format!(
         "FreeModule(p={})",
         inner.prime()
@@ -96,7 +96,7 @@ impl FreeModule {
     }
 
     pub fn element_to_json(&self, degree: i32, elt: &FpVector) -> PyResult<String> {
-        Ok(self.inner()?.element_to_json(degree, elt.inner()?).to_string())
+        Ok(self.inner()?.element_to_json(degree, elt.inner()?.as_slice()).to_string())
     }
 
     pub fn extend_table_entries(&self, degree: i32) -> PyResult<()> {
@@ -113,15 +113,4 @@ impl FreeModule {
         self.inner()?.add_generators(degree, num_gens, names);
         Ok(())
     }
-
-    pub fn add_generators_immediate(
-        &self,
-        degree: i32,
-        num_gens: usize,
-        gen_names: Option<Vec<String>>,
-    ) -> PyResult<()> {
-        self.inner()?.add_generators_immediate(degree, num_gens, gen_names);
-        Ok(())
-    }
-    
 }

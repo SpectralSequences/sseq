@@ -1,8 +1,6 @@
-use std::sync::Arc;
 
 use ext::resolution_homomorphism::{
     ResolutionHomomorphism as ResolutionHomomorphismRust, 
-    ResolutionHomomorphismToUnit as ResolutionHomomorphismToUnitRust
 };
 
 use pyo3::prelude::*;
@@ -10,8 +8,6 @@ use pyo3::prelude::*;
 use python_fp::vector::FpVector;
 use python_fp::matrix::Matrix;
 use crate::resolution::{CCRust, Resolution};
-
-python_utils::rc_wrapper_type!(ResolutionHomomorphism, ResolutionHomomorphismToUnitRust<CCRust>);
 
 #[pymethods]
 impl ResolutionHomomorphism {
@@ -23,8 +19,8 @@ impl ResolutionHomomorphism {
     ) -> PyResult<Self> {
         Ok(ResolutionHomomorphism::box_and_wrap(ResolutionHomomorphismRust::new(
             name, 
-            Arc::downgrade(&source.to_arc()?), 
-            Arc::downgrade(&target.to_arc()?),
+            source.to_arc(), 
+            target.to_arc(),
             homological_degree_shift,
             internal_degree_shift
         )))

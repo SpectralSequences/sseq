@@ -4,7 +4,7 @@ use std::hash::{Hash, Hasher};
 
 
 use pyo3::prelude::*;
-use ext::resolution::ResolutionInner as ResolutionRust;
+use ext::resolution::Resolution as ResolutionRust;
 use ext::chain_complex::{AugmentedChainComplex, ChainComplex, FiniteChainComplex, FreeChainComplex};//, ChainMap};
 
 use python_algebra::module::{
@@ -31,41 +31,15 @@ impl Resolution {
         Ok(Resolution::box_and_wrap(ResolutionRust::new(Arc::clone(&chain_complex))))
     }
 
-    pub fn extended_degree(&self) -> PyResult<(u32, i32)> {
-        Ok(self.inner()?.extended_degree())
-    }
 
-    pub fn extend_through_degree(&self, max_s : u32, max_t : i32) -> PyResult<()> {
-        let (old_max_s, old_max_t) = self.extended_degree()?;
-        self.inner()?.extend_through_degree(old_max_s, max_s, old_max_t, max_t);
-        Ok(())
-    }
+    // pub fn extend_through_degree(&self, max_s : u32, max_t : i32) -> PyResult<()> {
+    //     let (old_max_s, old_max_t) = self.extended_degree()?;
+    //     self.inner()?.extend_through_degree(old_max_s, max_s, old_max_t, max_t);
+    //     Ok(())
+    // }
 
-    pub fn graded_dimension_string(&self, max_degree : i32 , max_hom_deg : u32) -> PyResult<String> {
-        Ok(self.inner()?.graded_dimension_string(max_degree, max_hom_deg))
-    }
-
-    pub fn step_resolution(&self, s : u32, t : i32) -> PyResult<()> {
-        let self_inner = self.inner()?;
-        let (max_s, max_t) = self_inner.extended_degree();
-        if max_s <= s || max_t <= t {
-            return Err(python_utils::exception!(ValueError,
-                "You need to run res.extend_degree(>={}, >={}) before res.step_resolution({}, {})",
-                s,t,s,t
-            ));
-        }
-        let next_t = self_inner.differential(s).next_degree();
-        if next_t > t {
-            // Already computed this degree.
-            return Ok(())
-        } 
-        // if next_t < t {
-        //     return Err(python_utils::exception!(ValueError,
-        //         "Out of order step_resolution."
-        //     ))
-        // }
-        python_utils::release_gil!(self_inner.step_resolution(s, t));
-        Ok(())
+    pub fn graded_dimension_string(&self) -> PyResult<String> {
+        Ok(self.inner()?.graded_dimension_string())
     }
 
     pub fn check_has_computed_bidegree(&self, hom_deg : u32, int_deg : i32) -> PyResult<()> {
@@ -121,9 +95,9 @@ impl Resolution {
         Ok(self.inner()?.module(homological_degree).number_of_gens_in_degree(internal_degree))
     }
 
-    pub fn prime(&self) -> PyResult<u32> {
-        Ok(*self.inner()?.complex().prime())
-    }
+    // pub fn prime(&self) -> PyResult<u32> {
+    //     Ok(*self.inner()?.complex.prime())
+    // }
 
     pub fn module(&self, homological_degree : u32) -> PyResult<FreeModule> {
         Ok(FreeModule::wrap_immutable(self.inner()?.module(homological_degree)))
@@ -145,12 +119,3 @@ impl Resolution {
 }
 
 
-use python_algebra::module::FreeUnstableModule;
-use python_algebra::algebra::{AdemAlgebra, AlgebraRust};
-pub fn test() -> PyResult<()> {
-    let a = Arc::new(AdemAlgebra::new(2, false, true, None)?);
-    let b = a.to_arc()?.clone();
-    let m = FreeUnstableModule::new(AlgebraRust::into_py_object(b), "i".to_string(), 0)?;
-    Resolution::new(ModuleRust::into_py_object(m.to_arc()?.clone()))?;
-    Ok(())
-}

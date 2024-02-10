@@ -160,11 +160,11 @@ impl Matrix {
         self.pivots.resize(self.columns, -1);
     }
 
-    pub fn pivots(&self) -> &[isize] {
+    pub fn pivots(&self) -> &Vec<isize> {
         &self.pivots
     }
 
-    pub fn pivots_mut(&mut self) -> &mut [isize] {
+    pub fn pivots_mut(&mut self) -> &mut Vec<isize> {
         &mut self.pivots
     }
 

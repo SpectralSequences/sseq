@@ -138,7 +138,7 @@ impl FreeModuleHomomorphism {
     }
 
     pub fn extend_by_zero(&self, degree: i32) -> PyResult<()> {
-        fmh_dispatch!(extend_by_zero_safe, self, degree)?;
+        fmh_dispatch!(extend_by_zero, self, degree)?;
         Ok(())
     }
 
@@ -149,7 +149,7 @@ impl FreeModuleHomomorphism {
         input_degree: i32,
         input_index: usize,
     ) -> PyResult<()> {
-        fmh_dispatch!(apply_to_basis_element, self, result.inner_mut()?, coeff, input_degree, input_index)?;
+        fmh_dispatch!(apply_to_basis_element, self, result.inner_mut()?.as_slice_mut(), coeff, input_degree, input_index)?;
         Ok(())
     }
 
@@ -158,16 +158,18 @@ impl FreeModuleHomomorphism {
         Ok(())
     }
 
-    fn quasi_inverse(&self, degree: i32) -> PyResult<QuasiInverse> {
-        Ok(QuasiInverse::wrap_immutable(fmh_dispatch!(quasi_inverse, self, degree)?, self.owner()?))
+    fn quasi_inverse(&self, degree: i32) -> PyResult<Option<QuasiInverse>> {
+        let owner = self.owner()?;
+        Ok(fmh_dispatch!(quasi_inverse, self, degree)?.map(|x| QuasiInverse::wrap_immutable(x, owner)))
     }
 
-    fn kernel(&self, degree: i32) -> PyResult<Subspace> {
-        Ok(Subspace::wrap_immutable(fmh_dispatch!(kernel, self, degree)?, self.owner()?))
+    fn kernel(&self, degree: i32) -> PyResult<Option<Subspace>> {
+        let owner = self.owner()?;
+        Ok(fmh_dispatch!(kernel, self, degree)?.map(|x| Subspace::wrap_immutable(x, owner)))
     }
 
     pub fn get_matrix(&self, matrix: &mut Matrix, degree: i32) -> PyResult<()> {
-        fmh_dispatch!(get_matrix, self, matrix.inner_mut()?, degree)?;
+        fmh_dispatch!(get_matrix, self, matrix.inner_mut()?.as_slice_mut(), degree)?;
         Ok(())
     }
 

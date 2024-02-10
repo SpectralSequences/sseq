@@ -2,7 +2,6 @@
 
 pub mod algebra;
 pub mod module;
-pub mod dense_bigraded_algebra;
 
 
 use pyo3::{
@@ -25,7 +24,6 @@ fn algebra(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<algebra::PythonAlgebra>()?;
     m.add_class::<algebra::PythonElement>()?;
 
-    m.add_class::<dense_bigraded_algebra::DenseBigradedAlgebra>()?;
     Ok(())
 }
 
@@ -34,10 +32,10 @@ fn module(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<module::FDModule>()?;
     m.add_class::<module::RealProjectiveSpace>()?;
     m.add_class::<module::FreeModule>()?;
-    m.add_class::<module::FreeUnstableModule>()?;
-    m.add_class::<module::KFpn>()?;
-    m.add_class::<module::BCp>()?;
-    m.add_class::<module::Dickson2>()?;
+    // m.add_class::<module::FreeUnstableModule>()?;
+    // m.add_class::<module::KFpn>()?;
+    // m.add_class::<module::BCp>()?;
+    // m.add_class::<module::Dickson2>()?;
     Ok(())
 }
 

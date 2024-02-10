@@ -12,9 +12,9 @@ use crate::module::module_rust::ModuleRust;
 use algebra::{Algebra as AlgebraT, AdemAlgebraT};
 use algebra::module::{KFpn as KFpnRust, Module};
 
-crate::module_bindings!(KFpn, KFpnRust);
+crate::module_bindings!(KFpn, KFpnRust, KFpnElement);
 
-python_utils::py_repr!(KFpn, "FreedKFpn", {
+python_utils::py_repr!(KFpn, inner, "FreedKFpn", {
     Ok(format!(
         "KF{}{}", *inner.algebra().prime(), inner.n
     ))

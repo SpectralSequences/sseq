@@ -13,7 +13,6 @@ use python_utils::{
     get_from_kwargs
 };
 
-use fp::vector::FpVectorT;
 use python_fp::vector::FpVector;
 use python_fp::prime::new_valid_prime;
 
@@ -28,7 +27,7 @@ use crate::algebra::{
 
 wrapper_type!(AdemBasisElement, AdemBasisElementRust);
 
-py_repr!(AdemBasisElement, "FreedAdemBasisElement", {
+py_repr!(AdemBasisElement, inner, "FreedAdemBasisElement", {
     Ok(format!(
         "AdemBasisElement({})",
         inner
@@ -79,7 +78,7 @@ impl AdemBasisElement {
 
 crate::algebra_bindings!(AdemAlgebra, AdemAlgebraRust, AdemElement, "AdemElement");
 
-py_repr!(AdemAlgebra, "FreedAdemAlgebra", {
+py_repr!(AdemAlgebra, inner, "FreedAdemAlgebra", {
     let p = *inner.prime();
     let mut generic_str = "";    
     if inner.generic != (p!=2) {
@@ -89,15 +88,10 @@ py_repr!(AdemAlgebra, "FreedAdemAlgebra", {
             generic_str = ", generic=False";
         }
     }
-    let mut unstable_str = "";
-    if inner.unstable {
-        unstable_str = ", unstable=True";
-    }    
     Ok(format!(
-        "AdemAlgebra(p={}{}{})",
+        "AdemAlgebra(p={}{})",
         inner.prime(),
         generic_str,
-        unstable_str
     ))
 });
 
@@ -129,11 +123,6 @@ impl AdemAlgebra {
     }
 
     #[getter]
-    pub fn get_unstable(&self) -> PyResult<bool> {
-        Ok(self.inner()?.unstable)
-    }
-
-    #[getter]
     pub fn get_unstable_enabled(&self) -> PyResult<bool> {
         Ok(self.inner()?.unstable_enabled)
     }
@@ -146,7 +135,7 @@ impl AdemAlgebra {
         r_degree : i32, r_index : usize, 
         s_degree : i32, s_index : usize, excess : i32
     ) -> PyResult<()> {
-        self.inner()?.multiply_basis_elements_unstable(result.inner_mut()?, coeff, r_degree, r_index, s_degree, s_index, excess, &|_,_|true);
+        self.inner()?.multiply_basis_elements_unstable(result.inner_mut()?.as_slice_mut(), coeff, r_degree, r_index, s_degree, s_index, excess);
         Ok(())
     }
 
@@ -181,7 +170,7 @@ impl AdemAlgebra {
         // TODO: this is insufficient to prevent a panic: we would need validity checking on monomial.
         // What if it is lying about its degree?
         // Should add check_reduced_monomial() and check_not_necessarily_reduced_monomial()?
-        self.inner_unchkd().make_mono_admissible(result.inner_mut()?, coeff, &mut monomial_inner, excess, unstable, &|_,_|true);
+        self.inner_unchkd().make_mono_admissible(result.inner_mut()?.as_slice_mut(), coeff, &mut monomial_inner, excess, unstable);
         Ok(())
     }
 }

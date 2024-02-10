@@ -7,13 +7,13 @@ use pyo3::{
 use python_utils;
 use python_utils::{
     py_repr, 
+    py_repr_with_self,
     // rc_wrapper_type,
     // wrapper_type, 
     wrapper_type,
     get_from_kwargs,
 };
 
-use fp::vector::FpVectorT;
 use python_fp::vector::FpVector;
 use python_fp::prime::new_valid_prime;
 
@@ -29,7 +29,7 @@ use crate::algebra::{
 
 wrapper_type!(MilnorBasisElement, MilnorBasisElementRust);
 
-py_repr!(MilnorBasisElement, "FreedMilnorBasisElement", {
+py_repr!(MilnorBasisElement, inner, "FreedMilnorBasisElement", {
     Ok(format!(
         "MilnorBasisElement({})",
         inner
@@ -73,7 +73,7 @@ impl MilnorBasisElement {
 
 wrapper_type!(MilnorProfile, MilnorProfileRust);
 
-py_repr!(MilnorProfile, "FreedMilnorProfile", {
+py_repr_with_self!(MilnorProfile, inner, self, "FreedMilnorProfile", {
     self.name()
 });
 
@@ -138,11 +138,11 @@ impl MilnorProfile {
 
 crate::algebra_bindings!(MilnorAlgebra, MilnorAlgebraRust, MilnorElement, "MilnorElement");
 
-py_repr!(MilnorAlgebra, "FreedMilnorAlgebra", {
+py_repr_with_self!(MilnorAlgebra, inner, self, "FreedMilnorAlgebra", {
     let p = *inner.prime();
     let mut generic_str = "";
-    if inner.generic != (p!=2) {
-        if inner.generic {
+    if inner.generic() != (p!=2) {
+        if inner.generic() {
             generic_str = ", generic=True";
         } else {
             generic_str = ", generic=False";

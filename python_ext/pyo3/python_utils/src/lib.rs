@@ -176,21 +176,30 @@ pub fn get_from_kwargs<'a, T : pyo3::FromPyObject<'a>>(
           .unwrap_or(Ok(default))
 }
 
+
+
 #[macro_export]
-macro_rules! py_repr {
-    ( $wrapper : ty, $freed_str : expr, $repr_block : block) => {
+macro_rules! py_repr_with_self {
+    ( $wrapper : ty, $inner:ident, $selfid:ident, $freed_str : expr, $repr_block : block) => {
         #[pyproto]
         #[allow(unused_variables)]
         impl PyObjectProtocol for $wrapper {
-            fn __repr__(&self) -> PyResult<String> {
-                if self.is_null() {
+            fn __repr__(&$selfid) -> PyResult<String> {
+                if $selfid.is_null() {
                     Ok(format!($freed_str))
                 } else {
-                    let inner = self.inner_unchkd();
+                    let $inner = $selfid.inner_unchkd();
                     $repr_block
                 }
             }
         }
+    }
+}
+
+#[macro_export]
+macro_rules! py_repr {
+    ( $wrapper : ty, $inner:ident, $freed_str : expr, $repr_block : block) => {
+        $crate::py_repr_with_self!($wrapper, $inner, self, $freed_str, $repr_block);
     }
 }
 
@@ -607,7 +616,7 @@ macro_rules! rc_wrapper_type_helper {
             fn replace_with_null(&mut self) -> $enum_name {
                 std::mem::replace(&mut self.inner,
                     $enum_name::Mut($mut_wrapper {
-                        ptr : std::ptr::null_mut(),
+                        ptr : std::ptr::null_mut::<$inner>(),
                         owned : None,
                         freed : std::sync::Weak::new()
                     })
