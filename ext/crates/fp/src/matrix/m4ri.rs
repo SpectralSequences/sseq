@@ -1,8 +1,7 @@
 use itertools::Itertools;
 
 use crate::{
-    constants::BITS_PER_LIMB,
-    limb::{number, Limb},
+    limb::{self, Limb, LimbBitIndexPair},
     matrix::Matrix,
     prime::P2,
     simd,
@@ -26,7 +25,7 @@ pub(crate) struct M4riTable {
     /// The indices of new rows in the table
     rows: Vec<usize>,
     /// The list of pivot columns of the rows, in the format (limb, bit)
-    columns: Vec<(usize, usize)>,
+    columns: Vec<LimbBitIndexPair>,
     /// The 2^k linear combinations of the k rows, apart from the first one which is identically
     /// zero.
     data: Vec<Limb>,
@@ -38,7 +37,7 @@ pub(crate) struct M4riTable {
 impl M4riTable {
     /// Create a table with space for `k` vectors, each with `cols` columns.
     pub fn new(k: usize, cols: usize) -> Self {
-        let num_limbs = number(P2, cols);
+        let num_limbs = limb::number(P2, cols);
         Self {
             rows: Vec::with_capacity(k),
             columns: Vec::with_capacity(k),
@@ -69,8 +68,7 @@ impl M4riTable {
     ///  - `column`: pivot column of the row
     ///  - `row`: index of the row
     pub fn add(&mut self, column: usize, row: usize) {
-        self.columns
-            .push((column / BITS_PER_LIMB, column % BITS_PER_LIMB));
+        self.columns.push(limb::limb_bit_index_pair(P2, column));
         self.rows.push(row);
     }
 
@@ -94,10 +92,10 @@ impl M4riTable {
                 simd::add_simd(
                     &mut self.data[i * num_limbs..(i + 1) * num_limbs],
                     matrix[r].limbs(),
-                    c.0,
+                    c.limb,
                 );
             }
-            self.min_limb = std::cmp::min(self.min_limb, c.0);
+            self.min_limb = std::cmp::min(self.min_limb, c.limb);
         }
     }
 
@@ -105,10 +103,10 @@ impl M4riTable {
         for (&row, col) in self.rows.iter().zip_eq(&self.columns) {
             assert!(target != row);
             unsafe {
-                let coef = (matrix[target].limbs()[col.0] >> col.1) & 1;
+                let coef = (matrix[target].limbs()[col.limb] >> col.bit_index) & 1;
                 if coef != 0 {
                     let (target, source) = matrix.split_borrow(target, row);
-                    simd::add_simd(target.limbs_mut(), source.limbs(), col.0)
+                    simd::add_simd(target.limbs_mut(), source.limbs(), col.limb)
                 }
             }
         }
@@ -119,7 +117,7 @@ impl M4riTable {
         let mut index: usize = 0;
         for &col in self.columns.iter().rev() {
             index <<= 1;
-            index += ((v[col.0] >> col.1) & 1) as usize;
+            index += ((v[col.limb] >> col.bit_index) & 1) as usize;
         }
         if index != 0 {
             simd::add_simd(v, &self.data[(index - 1) * num_limbs..], self.min_limb);
