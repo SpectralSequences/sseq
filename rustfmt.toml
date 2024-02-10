@@ -1,0 +1,9 @@
+unstable_features = true
+format_code_in_doc_comments = true
+format_macro_matchers = true
+format_macro_bodies = true
+format_strings = true
+imports_granularity = "crate"
+reorder_impl_items = true
+reorder_imports = true
+group_imports = "StdExternalCrate"
