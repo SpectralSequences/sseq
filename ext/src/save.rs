@@ -343,18 +343,23 @@ impl<A: Algebra> SaveFile<A> {
         Ok(())
     }
 
+    fn get_save_directory(&self, mut dir: PathBuf) -> PathBuf {
+        dir.push(format!("{name}s/{s}/", name = self.kind.name(), s = self.s));
+        dir
+    }
+
     /// This panics if there is no save dir
-    fn get_save_path(&self, mut dir: PathBuf) -> PathBuf {
+    fn add_save_path(&self, mut dir: PathBuf) -> PathBuf {
         if let Some(idx) = self.idx {
             dir.push(format!(
-                "{name}s/{s}_{t}_{idx}_{name}",
+                "{s}_{t}_{idx}_{name}",
                 name = self.kind.name(),
                 s = self.b.s(),
                 t = self.b.t()
             ));
         } else {
             dir.push(format!(
-                "{name}s/{s}_{t}_{name}",
+                "{s}_{t}_{name}",
                 name = self.kind.name(),
                 s = self.b.s(),
                 t = self.b.t()
@@ -363,15 +368,21 @@ impl<A: Algebra> SaveFile<A> {
         dir
     }
 
+    fn get_full_save_path(&self, mut dir: PathBuf) -> PathBuf {
+        dir = self.get_save_directory(dir);
+        dir = self.add_save_path(dir);
+        dir
+    }
+
     pub fn open_file(&self, dir: PathBuf) -> Option<Box<dyn Read>> {
-        let mut f = open_file(self.get_save_path(dir))?;
+        let mut f = open_file(self.get_full_save_path(dir))?;
         self.validate_header(&mut f).unwrap();
         Some(f)
     }
 
     pub fn exists(&self, dir: PathBuf) -> bool {
         #[allow(unused_mut)]
-        let mut path = self.get_save_path(dir);
+        let mut path = self.get_full_save_path(dir);
         if path.exists() {
             return true;
         }
@@ -386,18 +397,29 @@ impl<A: Algebra> SaveFile<A> {
     }
 
     pub fn delete_file(&self, dir: PathBuf) -> std::io::Result<()> {
-        let p = self.get_save_path(dir);
-        match std::fs::remove_file(p) {
-            Ok(()) => Ok(()),
-            Err(e) if e.kind() == ErrorKind::NotFound => Ok(()),
-            Err(e) => Err(e),
+        let dir = self.get_save_directory(dir);
+        let p = self.add_save_path(dir.clone());
+        if let Err(e) = std::fs::remove_file(p) {
+            if e.kind() != ErrorKind::NotFound {
+                return Err(e);
+            }
+        };
+        if std::fs::read_dir(&dir)?.next().is_none() {
+            std::fs::remove_dir(dir)?
         }
+        Ok(())
     }
 
     /// # Arguments
     ///  - `overwrite`: Whether to overwrite a file if it already exists.
     pub fn create_file(&self, dir: PathBuf, overwrite: bool) -> impl Write {
-        let p = self.get_save_path(dir);
+        let p = self.get_save_directory(dir);
+
+        std::fs::create_dir_all(&p)
+            .with_context(|| format!("Failed to create directories containing {p:?}"))
+            .unwrap();
+
+        let p = self.add_save_path(p);
 
         // We need to do this before creating any file. The ctrlc handler does not block other threads
         // from running, but it does lock [`open_files()`]. So this ensures we do not open new files
