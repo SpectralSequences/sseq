@@ -39,7 +39,7 @@ impl<M: Module> QuotientModule<M> {
 
         for t in min_degree..=truncation {
             let dim = module.dimension(t);
-            subspaces.push(Subspace::new(p, dim + 1, dim));
+            subspaces.push(Subspace::new(p, dim));
             basis_list.push((0..dim).collect());
         }
         QuotientModule {

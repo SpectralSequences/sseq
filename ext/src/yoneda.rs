@@ -275,13 +275,10 @@ where
                         curr.reduce(t, row.as_slice_mut());
                     }
 
-                    differentials.row_reduce();
+                    let mut result = Subspace::from_matrix(differentials);
 
-                    let mut result = Subspace {
-                        matrix: differentials,
-                    };
                     let dim = result.dimension();
-                    result.matrix.trim(0, dim, 0);
+                    result.matrix_mut().trim(0, dim, 0);
                     result
                 });
             }
@@ -365,8 +362,11 @@ where
 
                     source.quotient_basis_elements(t, start..end);
 
+                    let mut diff_im_matrix = diff_im.matrix_mut();
+
                     macro_rules! revert {
                         () => {
+                            drop(diff_im_matrix);
                             for t in gen_deg..=t {
                                 if prev_differentials[t].is_none() {
                                     continue;
@@ -379,15 +379,15 @@ where
                         };
                     }
 
-                    for row in diff_im.matrix.iter_mut() {
+                    for row in diff_im_matrix.iter_mut() {
                         source.reduce(t, row.as_slice_mut());
                         if row.is_zero() {
                             revert!();
                         }
                     }
 
-                    diff_im.matrix.row_reduce();
-                    if diff_im.matrix.row(diff_im.matrix.rows() - 1).is_zero() {
+                    diff_im_matrix.row_reduce();
+                    if diff_im_matrix.row(diff_im_matrix.rows() - 1).is_zero() {
                         revert!();
                     }
                 }
