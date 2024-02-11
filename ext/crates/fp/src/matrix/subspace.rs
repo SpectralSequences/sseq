@@ -4,6 +4,7 @@ use std::{
 };
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+use itertools::Itertools;
 
 use super::Matrix;
 use crate::{
@@ -214,13 +215,19 @@ impl Subspace {
 impl std::fmt::Display for Subspace {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let dim = self.dimension();
-        for row in self.matrix.iter().take(dim) {
-            if f.alternate() {
-                writeln!(f, "{row:#}")?;
-            } else {
-                writeln!(f, "{row}")?;
-            }
-        }
+        let mut rows = self.matrix.iter().take(dim);
+
+        let output = if f.alternate() {
+            rows.join(", ")
+        } else {
+            rows.fold(String::new(), |mut output, row| {
+                use std::fmt::Write;
+                let _ = writeln!(output, "{}", row);
+                output
+            })
+        };
+
+        write!(f, "{output}")?;
         Ok(())
     }
 }
