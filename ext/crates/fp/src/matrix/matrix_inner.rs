@@ -168,6 +168,16 @@ impl Matrix {
         &mut self.pivots
     }
 
+    pub fn from_rows(p: ValidPrime, rows: Vec<FpVector>) -> Matrix {
+        let columns = rows.first().map(FpVector::len).unwrap_or(0);
+        Matrix {
+            p,
+            columns,
+            vectors: rows,
+            pivots: Vec::new(),
+        }
+    }
+
     /// Produces a Matrix from an `&[Vec<u32>]` object. If the number of rows is 0, the number
     /// of columns is also assumed to be zero.
     ///
@@ -288,6 +298,15 @@ impl Matrix {
         &mut self,
     ) -> impl MaybeIndexedParallelIterator<Item = &mut FpVector> + '_ {
         self.vectors.maybe_par_iter_mut()
+    }
+}
+
+impl IntoIterator for Matrix {
+    type IntoIter = std::vec::IntoIter<FpVector>;
+    type Item = FpVector;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.vectors.into_iter()
     }
 }
 

@@ -168,6 +168,10 @@ impl Subspace {
         vector.is_zero()
     }
 
+    pub fn contains_space(&self, other: &Self) -> bool {
+        other.iter().all(|row| self.contains(row))
+    }
+
     pub fn dimension(&self) -> usize {
         self.pivots()
             .iter()
@@ -212,6 +216,16 @@ impl Subspace {
             .iter()
             .map(FpVector::as_slice)
             .take(self.dimension())
+    }
+
+    pub fn sum(&self, other: &Self) -> Self {
+        let self_rows = self.matrix.clone().into_iter();
+        let other_rows = other.matrix.clone().into_iter();
+        let new_rows = self_rows.chain(other_rows).collect();
+
+        let mut ret = Self::from_matrix(Matrix::from_rows(self.prime(), new_rows));
+        ret.matrix.trim(0, self.matrix.columns() + 1, 0);
+        ret
     }
 }
 
