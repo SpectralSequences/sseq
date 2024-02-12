@@ -213,6 +213,25 @@ impl Subspace {
 }
 
 impl std::fmt::Display for Subspace {
+    /// # Example
+    /// ```
+    /// # use expect_test::expect;
+    /// # use fp::matrix::Subspace;
+    /// # use fp::prime::TWO;
+    /// let subspace = Subspace::entire_space(TWO, 3);
+    ///
+    /// expect![[r#"
+    ///     [1, 0, 0]
+    ///     [0, 1, 0]
+    ///     [0, 0, 1]
+    /// "#]]
+    /// .assert_eq(&format!("{}", subspace));
+    ///
+    /// assert_eq!(
+    ///     "[1, 0, 0], [0, 1, 0], [0, 0, 1]",
+    ///     &format!("{:#}", subspace)
+    /// );
+    /// ```
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let dim = self.dimension();
         let mut rows = self.matrix.iter().take(dim);
