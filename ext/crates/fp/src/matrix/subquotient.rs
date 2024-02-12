@@ -105,11 +105,11 @@ impl Subquotient {
     pub fn quotient(&mut self, elt: Slice) {
         self.quotient.add_vector(elt);
 
-        let mut gens_matrix = self.gens.matrix_mut();
-        for elt in gens_matrix.iter_mut().take(self.dimension) {
-            self.quotient.reduce(elt.as_slice_mut());
-        }
-        drop(gens_matrix);
+        self.gens.update_then_row_reduce(|gens_matrix| {
+            for elt in gens_matrix.iter_mut().take(self.dimension) {
+                self.quotient.reduce(elt.as_slice_mut());
+            }
+        });
 
         self.dimension = self.gens.dimension();
     }
@@ -136,12 +136,11 @@ impl Subquotient {
     }
 
     pub fn add_gen(&mut self, gen: Slice) {
-        let mut gens_matrix = self.gens.matrix_mut();
-
-        let mut new_row = gens_matrix.row_mut(self.dimension);
-        new_row.assign(gen);
-        self.quotient.reduce(new_row);
-        drop(gens_matrix);
+        self.gens.update_then_row_reduce(|gens_matrix| {
+            let mut new_row = gens_matrix.row_mut(self.dimension);
+            new_row.assign(gen);
+            self.quotient.reduce(new_row);
+        });
         self.dimension = self.gens.dimension();
     }
 
@@ -166,12 +165,13 @@ impl Subquotient {
     ///  * `subspace` - If this is None, it is empty
     pub fn from_parts(mut sub: Subspace, quotient: Subspace) -> Self {
         let dim = sub.dimension();
-        let mut sub_matrix = sub.matrix_mut();
 
-        for row in sub_matrix.iter_mut().take(dim) {
-            quotient.reduce(row.as_slice_mut());
-        }
-        drop(sub_matrix);
+        sub.update_then_row_reduce(|sub_matrix| {
+            for row in sub_matrix.iter_mut().take(dim) {
+                quotient.reduce(row.as_slice_mut());
+            }
+        });
+
         Self {
             dimension: sub.dimension(),
             gens: sub,

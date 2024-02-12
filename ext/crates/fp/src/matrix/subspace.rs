@@ -1,6 +1,6 @@
 use std::{
     io::{Read, Write},
-    ops::{Deref, DerefMut},
+    ops::Deref,
 };
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
@@ -53,8 +53,11 @@ impl Subspace {
         Self { matrix }
     }
 
-    pub fn matrix_mut(&mut self) -> SubspaceMut {
-        SubspaceMut(&mut self.matrix)
+    /// Run a closure on the matrix and then ensure it is row-reduced.
+    pub fn update_then_row_reduce<T, F: FnOnce(&mut Matrix) -> T>(&mut self, f: F) -> T {
+        let ret = f(&mut self.matrix);
+        self.matrix.row_reduce();
+        ret
     }
 
     pub fn prime(&self) -> ValidPrime {
@@ -248,29 +251,5 @@ impl std::fmt::Display for Subspace {
 
         write!(f, "{output}")?;
         Ok(())
-    }
-}
-
-/// RAII guard for mutating the matrix representing a subspace. This ensures that the subspace
-/// always contains a row-reduced matrix.
-pub struct SubspaceMut<'a>(&'a mut Matrix);
-
-impl<'a> Deref for SubspaceMut<'a> {
-    type Target = &'a mut Matrix;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for SubspaceMut<'_> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-impl Drop for SubspaceMut<'_> {
-    fn drop(&mut self) {
-        self.0.row_reduce();
     }
 }

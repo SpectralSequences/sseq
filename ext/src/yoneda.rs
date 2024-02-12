@@ -278,7 +278,7 @@ where
                     let mut result = Subspace::from_matrix(differentials);
 
                     let dim = result.dimension();
-                    result.matrix_mut().trim(0, dim, 0);
+                    result.update_then_row_reduce(|result_matrix| result_matrix.trim(0, dim, 0));
                     result
                 });
             }
@@ -362,33 +362,31 @@ where
 
                     source.quotient_basis_elements(t, start..end);
 
-                    let mut diff_im_matrix = diff_im.matrix_mut();
-
-                    macro_rules! revert {
-                        () => {
-                            drop(diff_im_matrix);
-                            for t in gen_deg..=t {
-                                if prev_differentials[t].is_none() {
-                                    continue;
-                                }
-                                differential_images[t] = prev_differentials[t].take().unwrap();
-                                source.subspaces[t] = prev_subspaces[t].take().unwrap();
-                                source.basis_list[t] = prev_basis_list[t].take().unwrap();
+                    let needs_to_revert = diff_im.update_then_row_reduce(|diff_im_matrix| {
+                        for row in diff_im_matrix.iter_mut() {
+                            source.reduce(t, row.as_slice_mut());
+                            if row.as_slice().is_zero() {
+                                return true;
                             }
-                            continue 'gen_loop;
-                        };
-                    }
-
-                    for row in diff_im_matrix.iter_mut() {
-                        source.reduce(t, row.as_slice_mut());
-                        if row.is_zero() {
-                            revert!();
                         }
-                    }
 
-                    diff_im_matrix.row_reduce();
-                    if diff_im_matrix.row(diff_im_matrix.rows() - 1).is_zero() {
-                        revert!();
+                        diff_im_matrix.row_reduce();
+                        if diff_im_matrix.row(diff_im_matrix.rows() - 1).is_zero() {
+                            return true;
+                        }
+                        false
+                    });
+
+                    if needs_to_revert {
+                        for t in gen_deg..=t {
+                            if prev_differentials[t].is_none() {
+                                continue;
+                            }
+                            differential_images[t] = prev_differentials[t].take().unwrap();
+                            source.subspaces[t] = prev_subspaces[t].take().unwrap();
+                            source.basis_list[t] = prev_basis_list[t].take().unwrap();
+                        }
+                        continue 'gen_loop;
                     }
                 }
 
