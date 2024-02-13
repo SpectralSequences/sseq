@@ -9,7 +9,7 @@ pub struct AffineSubspace {
 
 impl AffineSubspace {
     pub fn new(mut offset: FpVector, linear_part: Subspace) -> Self {
-        assert_eq!(offset.len(), linear_part.dimension());
+        assert_eq!(offset.len(), linear_part.ambient_dimension());
         linear_part.reduce(offset.as_slice_mut());
         Self {
             offset,
@@ -56,6 +56,18 @@ impl From<Subspace> for AffineSubspace {
 }
 
 impl std::fmt::Display for AffineSubspace {
+    /// # Example
+    /// ```
+    /// # use fp::{matrix::{AffineSubspace, Matrix, Subspace}, prime::TWO, vector::FpVector};
+    /// let linear_part = Subspace::from_matrix(Matrix::from_vec(TWO, &[vec![0, 1, 0], vec![0, 0, 1]]));
+    /// let offset = FpVector::from_slice(TWO, &[1, 0, 0]);
+    /// let subspace = AffineSubspace::new(offset, linear_part);
+    ///
+    /// assert_eq!(
+    ///     format!("{}", subspace),
+    ///     "[1, 0, 0] + {[0, 1, 0], [0, 0, 1]}"
+    /// );
+    /// ```
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{} + {{{:#}}}", self.offset, self.linear_part)
     }
