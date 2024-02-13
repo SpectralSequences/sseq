@@ -1282,6 +1282,7 @@
 <a href="#1256" id="1256">1256</a>
 <a href="#1257" id="1257">1257</a>
 <a href="#1258" id="1258">1258</a>
+<a href="#1259" id="1259">1259</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     fmt,
     io::{Read, Write},
@@ -1959,7 +1960,7 @@
     /// let computed_image = m.compute_image(input[0].len(), padded_cols);
     ///
     /// let image = [vec![1, 0, 2, 1, 1], vec![0, 1, 1, 0, 1]];
-    /// assert_eq!(computed_image.matrix, Matrix::from_vec(p, &amp;image));
+    /// assert_eq!(*computed_image, Matrix::from_vec(p, &amp;image));
     /// assert_eq!(computed_image.pivots(), &amp;vec![0, 1, -1, -1, -1]);
     /// ```
     </span><span class="kw">pub fn </span>compute_image(<span class="kw-2">&amp;</span><span class="self">self</span>, last_target_col: usize, first_source_col: usize) -&gt; Subspace {
@@ -1972,9 +1973,7 @@
                 .assign(<span class="self">self</span>[i].slice(<span class="number">0</span>, last_target_col));
         }
         image_matrix.pivots = <span class="self">self</span>.pivots()[..last_target_col].to_vec();
-        Subspace {
-            matrix: image_matrix,
-        }
+        Subspace::from_matrix(image_matrix)
     }
 
     <span class="doccomment">/// Computes the kernel from an augmented matrix in rref. To compute the kernel of a matrix
@@ -2010,7 +2009,7 @@
     /// let ker = m.compute_kernel(padded_cols);
     ///
     /// let mut target = vec![0; 3];
-    /// assert_eq!(Vec::&lt;u32&gt;::from(&amp;ker.matrix[0]), vec![1, 1, 2]);
+    /// assert_eq!(ker.row(0).iter().collect::&lt;Vec&lt;u32&gt;&gt;(), vec![1, 1, 2]);
     /// ```
     </span><span class="kw">pub fn </span>compute_kernel(<span class="kw-2">&amp;</span><span class="self">self</span>, first_source_column: usize) -&gt; Subspace {
         <span class="kw">let </span>p = <span class="self">self</span>.p;
@@ -2027,7 +2026,7 @@
         kernel.initialize_pivots();
 
         <span class="kw">if </span>kernel_dimension == <span class="number">0 </span>{
-            <span class="kw">return </span>Subspace { matrix: kernel };
+            <span class="kw">return </span>Subspace::from_matrix(kernel);
         }
 
         <span class="comment">// Write pivots into kernel
@@ -2043,7 +2042,7 @@
                     .slice(first_source_column, first_source_column + source_dimension),
             );
         }
-        Subspace { matrix: kernel }
+        Subspace::from_matrix(kernel)
     }
 
     <span class="kw">pub fn </span>extend_column_dimension(<span class="kw-2">&amp;mut </span><span class="self">self</span>, columns: usize) {
@@ -2130,12 +2129,15 @@
             }
             <span class="comment">// Look up the cycle that we're missing and add a generator hitting it.
             </span><span class="kw">let </span>kernel_vector_row = desired_pivots[i - start_column] <span class="kw">as </span>usize;
-            <span class="kw">let </span>new_image = desired_image.matrix.row(kernel_vector_row);
+            <span class="kw">let </span>new_image = desired_image.row(kernel_vector_row);
 
             <span class="kw">let </span><span class="kw-2">mut </span>new_row =
                 FpVector::new_with_capacity(<span class="self">self</span>.prime(), columns, columns + extra_column_capacity);
             new_row
-                .slice_mut(start_column, start_column + desired_image.matrix.columns)
+                .slice_mut(
+                    start_column,
+                    start_column + desired_image.ambient_dimension(),
+                )
                 .assign(new_image);
 
             <span class="self">self</span>.vectors.push(new_row);

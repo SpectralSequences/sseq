@@ -1119,7 +1119,7 @@
         <span class="self">self</span>.differentials[x].push(BiVec::new(P::MIN_R));
         <span class="self">self</span>.page_data[x].push(BiVec::new(P::MIN_R));
         <span class="self">self</span>.page_data[x][y].push(Subquotient::new_full(<span class="self">self</span>.p, dim));
-        <span class="self">self</span>.permanent_classes[x].push(Subspace::new(<span class="self">self</span>.p, dim + <span class="number">1</span>, dim));
+        <span class="self">self</span>.permanent_classes[x].push(Subspace::new(<span class="self">self</span>.p, dim));
         <span class="self">self</span>.invalid[x].push(<span class="bool-val">false</span>);
     }
 

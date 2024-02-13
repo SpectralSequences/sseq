@@ -270,7 +270,7 @@
 
         <span class="kw">for </span>t <span class="kw">in </span>min_degree..=truncation {
             <span class="kw">let </span>dim = module.dimension(t);
-            subspaces.push(Subspace::new(p, dim + <span class="number">1</span>, dim));
+            subspaces.push(Subspace::new(p, dim));
             basis_list.push((<span class="number">0</span>..dim).collect());
         }
         QuotientModule {

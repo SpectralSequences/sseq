@@ -240,6 +240,13 @@
 <a href="#214" id="214">214</a>
 <a href="#215" id="215">215</a>
 <a href="#216" id="216">216</a>
+<a href="#217" id="217">217</a>
+<a href="#218" id="218">218</a>
+<a href="#219" id="219">219</a>
+<a href="#220" id="220">220</a>
+<a href="#221" id="221">221</a>
+<a href="#222" id="222">222</a>
+<a href="#223" id="223">223</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">super</span>::Subspace;
 <span class="kw">use crate</span>::{
     matrix::Matrix,
@@ -266,8 +273,8 @@
     /// subspace.
     </span><span class="kw">pub fn </span>new(p: ValidPrime, dim: usize) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
-            gens: Subspace::new(p, dim + <span class="number">1</span>, dim),
-            quotient: Subspace::new(p, dim + <span class="number">1</span>, dim),
+            gens: Subspace::new(p, dim),
+            quotient: Subspace::new(p, dim),
             dimension: <span class="number">0</span>,
         }
     }
@@ -295,7 +302,7 @@
             result.push(c);
             <span class="kw">if </span>c != <span class="number">0 </span>{
                 elt.add(
-                    <span class="self">self</span>.gens.matrix.row(<span class="self">self</span>.gens.pivots()[i] <span class="kw">as </span>usize),
+                    <span class="self">self</span>.gens.row(<span class="self">self</span>.gens.pivots()[i] <span class="kw">as </span>usize),
                     ((elt.prime() - <span class="number">1</span>) * c) % elt.prime(),
                 );
             }
@@ -346,10 +353,13 @@
 
     <span class="kw">pub fn </span>quotient(<span class="kw-2">&amp;mut </span><span class="self">self</span>, elt: Slice) {
         <span class="self">self</span>.quotient.add_vector(elt);
-        <span class="kw">for </span>elt <span class="kw">in </span><span class="self">self</span>.gens.matrix.iter_mut().take(<span class="self">self</span>.dimension) {
-            <span class="self">self</span>.quotient.reduce(elt.as_slice_mut());
-        }
-        <span class="self">self</span>.gens.matrix.row_reduce();
+
+        <span class="self">self</span>.gens.update_then_row_reduce(|gens_matrix| {
+            <span class="kw">for </span>elt <span class="kw">in </span>gens_matrix.iter_mut().take(<span class="self">self</span>.dimension) {
+                <span class="self">self</span>.quotient.reduce(elt.as_slice_mut());
+            }
+        });
+
         <span class="self">self</span>.dimension = <span class="self">self</span>.gens.dimension();
     }
 
@@ -375,10 +385,11 @@
     }
 
     <span class="kw">pub fn </span>add_gen(<span class="kw-2">&amp;mut </span><span class="self">self</span>, gen: Slice) {
-        <span class="kw">let </span><span class="kw-2">mut </span>new_row = <span class="self">self</span>.gens.matrix.row_mut(<span class="self">self</span>.dimension);
-        new_row.assign(gen);
-        <span class="self">self</span>.quotient.reduce(new_row);
-        <span class="self">self</span>.gens.matrix.row_reduce();
+        <span class="self">self</span>.gens.update_then_row_reduce(|gens_matrix| {
+            <span class="kw">let </span><span class="kw-2">mut </span>new_row = gens_matrix.row_mut(<span class="self">self</span>.dimension);
+            new_row.assign(gen);
+            <span class="self">self</span>.quotient.reduce(new_row);
+        });
         <span class="self">self</span>.dimension = <span class="self">self</span>.gens.dimension();
     }
 
@@ -403,10 +414,13 @@
     ///  * `subspace` - If this is None, it is empty
     </span><span class="kw">pub fn </span>from_parts(<span class="kw-2">mut </span>sub: Subspace, quotient: Subspace) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>dim = sub.dimension();
-        <span class="kw">for </span>row <span class="kw">in </span>sub.matrix.iter_mut().take(dim) {
-            quotient.reduce(row.as_slice_mut());
-        }
-        sub.matrix.row_reduce();
+
+        sub.update_then_row_reduce(|sub_matrix| {
+            <span class="kw">for </span>row <span class="kw">in </span>sub_matrix.iter_mut().take(dim) {
+                quotient.reduce(row.as_slice_mut());
+            }
+        });
+
         <span class="self">Self </span>{
             dimension: sub.dimension(),
             gens: sub,
