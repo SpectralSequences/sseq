@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["m4ri","matrix_inner","quasi_inverse","subquotient","subspace"],"struct":["AugmentedMatrix","Matrix","MatrixSliceMut","QuasiInverse","Subquotient","Subspace"]};
+window.SIDEBAR_ITEMS = {"mod":["affine","m4ri","matrix_inner","quasi_inverse","subquotient","subspace"],"struct":["AffineSubspace","AugmentedMatrix","Matrix","MatrixSliceMut","QuasiInverse","Subquotient","Subspace"]};

@@ -279,6 +279,20 @@
 <a href="#253" id="253">253</a>
 <a href="#254" id="254">254</a>
 <a href="#255" id="255">255</a>
+<a href="#256" id="256">256</a>
+<a href="#257" id="257">257</a>
+<a href="#258" id="258">258</a>
+<a href="#259" id="259">259</a>
+<a href="#260" id="260">260</a>
+<a href="#261" id="261">261</a>
+<a href="#262" id="262">262</a>
+<a href="#263" id="263">263</a>
+<a href="#264" id="264">264</a>
+<a href="#265" id="265">265</a>
+<a href="#266" id="266">266</a>
+<a href="#267" id="267">267</a>
+<a href="#268" id="268">268</a>
+<a href="#269" id="269">269</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     io::{Read, Write},
     ops::Deref,
@@ -449,6 +463,10 @@
         vector.is_zero()
     }
 
+    <span class="kw">pub fn </span>contains_space(<span class="kw-2">&amp;</span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; bool {
+        other.iter().all(|row| <span class="self">self</span>.contains(row))
+    }
+
     <span class="kw">pub fn </span>dimension(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
         <span class="self">self</span>.pivots()
             .iter()
@@ -493,6 +511,16 @@
             .iter()
             .map(FpVector::as_slice)
             .take(<span class="self">self</span>.dimension())
+    }
+
+    <span class="kw">pub fn </span>sum(<span class="kw-2">&amp;</span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>self_rows = <span class="self">self</span>.matrix.clone().into_iter();
+        <span class="kw">let </span>other_rows = other.matrix.clone().into_iter();
+        <span class="kw">let </span>new_rows = self_rows.chain(other_rows).collect();
+
+        <span class="kw">let </span><span class="kw-2">mut </span>ret = <span class="self">Self</span>::from_matrix(Matrix::from_rows(<span class="self">self</span>.prime(), new_rows));
+        ret.matrix.trim(<span class="number">0</span>, <span class="self">self</span>.matrix.columns() + <span class="number">1</span>, <span class="number">0</span>);
+        ret
     }
 }
 
