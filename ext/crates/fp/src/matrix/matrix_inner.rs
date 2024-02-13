@@ -675,7 +675,7 @@ impl Matrix {
     /// let computed_image = m.compute_image(input[0].len(), padded_cols);
     ///
     /// let image = [vec![1, 0, 2, 1, 1], vec![0, 1, 1, 0, 1]];
-    /// assert_eq!(computed_image.matrix, Matrix::from_vec(p, &image));
+    /// assert_eq!(*computed_image, Matrix::from_vec(p, &image));
     /// assert_eq!(computed_image.pivots(), &vec![0, 1, -1, -1, -1]);
     /// ```
     pub fn compute_image(&self, last_target_col: usize, first_source_col: usize) -> Subspace {
@@ -688,9 +688,7 @@ impl Matrix {
                 .assign(self[i].slice(0, last_target_col));
         }
         image_matrix.pivots = self.pivots()[..last_target_col].to_vec();
-        Subspace {
-            matrix: image_matrix,
-        }
+        Subspace::from_matrix(image_matrix)
     }
 
     /// Computes the kernel from an augmented matrix in rref. To compute the kernel of a matrix
@@ -726,7 +724,7 @@ impl Matrix {
     /// let ker = m.compute_kernel(padded_cols);
     ///
     /// let mut target = vec![0; 3];
-    /// assert_eq!(Vec::<u32>::from(&ker.matrix[0]), vec![1, 1, 2]);
+    /// assert_eq!(ker.row(0).iter().collect::<Vec<u32>>(), vec![1, 1, 2]);
     /// ```
     pub fn compute_kernel(&self, first_source_column: usize) -> Subspace {
         let p = self.p;
@@ -743,7 +741,7 @@ impl Matrix {
         kernel.initialize_pivots();
 
         if kernel_dimension == 0 {
-            return Subspace { matrix: kernel };
+            return Subspace::from_matrix(kernel);
         }
 
         // Write pivots into kernel
@@ -759,7 +757,7 @@ impl Matrix {
                     .slice(first_source_column, first_source_column + source_dimension),
             );
         }
-        Subspace { matrix: kernel }
+        Subspace::from_matrix(kernel)
     }
 
     pub fn extend_column_dimension(&mut self, columns: usize) {
@@ -846,12 +844,15 @@ impl Matrix {
             }
             // Look up the cycle that we're missing and add a generator hitting it.
             let kernel_vector_row = desired_pivots[i - start_column] as usize;
-            let new_image = desired_image.matrix.row(kernel_vector_row);
+            let new_image = desired_image.row(kernel_vector_row);
 
             let mut new_row =
                 FpVector::new_with_capacity(self.prime(), columns, columns + extra_column_capacity);
             new_row
-                .slice_mut(start_column, start_column + desired_image.matrix.columns)
+                .slice_mut(
+                    start_column,
+                    start_column + desired_image.ambient_dimension(),
+                )
                 .assign(new_image);
 
             self.vectors.push(new_row);

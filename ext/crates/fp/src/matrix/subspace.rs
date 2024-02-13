@@ -1,6 +1,10 @@
-use std::io::{Read, Write};
+use std::{
+    io::{Read, Write},
+    ops::Deref,
+};
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+use itertools::Itertools;
 
 use super::Matrix;
 use crate::{
@@ -11,9 +15,8 @@ use crate::{
 /// A subspace of a vector space.
 ///
 /// In general, a method is defined on the [`Subspace`] if it is a meaningful property of the
-/// subspace itself. Otherwise, users are expected to access the matrix object directly. When the
-/// user directly modifies the matrix, they are expected to ensure the matrix is row reduced after
-/// the operations conclude.
+/// subspace itself. Otherwise, users can dereference the subspace to gain read-only access to the
+/// underlying matrix object.
 ///
 /// # Fields
 ///  * `matrix` - A matrix in reduced row echelon, whose number of columns is the dimension of the
@@ -21,14 +24,40 @@ use crate::{
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[repr(transparent)]
 pub struct Subspace {
-    pub matrix: Matrix,
+    matrix: Matrix,
+}
+
+// We implement `Deref` to make it easier to access the methods of the underlying matrix. Since we
+// don't implement `DerefMut`, we still ensure that the matrix stays row reduced.
+impl Deref for Subspace {
+    type Target = Matrix;
+
+    fn deref(&self) -> &Self::Target {
+        &self.matrix
+    }
 }
 
 impl Subspace {
-    pub fn new(p: ValidPrime, rows: usize, columns: usize) -> Self {
-        let mut matrix = Matrix::new(p, rows, columns);
+    pub fn new(p: ValidPrime, dim: usize) -> Self {
+        // We add an extra row to the matrix to allow for adding vectors to the subspace. This way,
+        // even if the subspace is already the entire ambient space, we still have the space to add
+        // one more vector, which will then be reduced to zero by the row reduction.
+        let mut matrix = Matrix::new(p, dim + 1, dim);
         matrix.initialize_pivots();
+        Self::from_matrix(matrix)
+    }
+
+    /// Create a new subspace from a matrix. The matrix does not have to be in row echelon form.
+    pub fn from_matrix(mut matrix: Matrix) -> Self {
+        matrix.row_reduce();
         Self { matrix }
+    }
+
+    /// Run a closure on the matrix and then ensure it is row-reduced.
+    pub fn update_then_row_reduce<T, F: FnOnce(&mut Matrix) -> T>(&mut self, f: F) -> T {
+        let ret = f(&mut self.matrix);
+        self.matrix.row_reduce();
+        ret
     }
 
     pub fn prime(&self) -> ValidPrime {
@@ -58,12 +87,8 @@ impl Subspace {
         Matrix::write_pivot(self.pivots(), buffer)
     }
 
-    pub fn empty_space(p: ValidPrime, dim: usize) -> Self {
-        Self::new(p, 0, dim)
-    }
-
     pub fn entire_space(p: ValidPrime, dim: usize) -> Self {
-        let mut result = Self::new(p, dim, dim);
+        let mut result = Self::new(p, dim);
         for i in 0..dim {
             result.matrix.row_mut(i).set_entry(i, 1);
             result.matrix.pivots_mut()[i] = i as isize;
@@ -191,15 +216,40 @@ impl Subspace {
 }
 
 impl std::fmt::Display for Subspace {
+    /// # Example
+    /// ```
+    /// # use expect_test::expect;
+    /// # use fp::matrix::Subspace;
+    /// # use fp::prime::TWO;
+    /// let subspace = Subspace::entire_space(TWO, 3);
+    ///
+    /// expect![[r#"
+    ///     [1, 0, 0]
+    ///     [0, 1, 0]
+    ///     [0, 0, 1]
+    /// "#]]
+    /// .assert_eq(&format!("{}", subspace));
+    ///
+    /// assert_eq!(
+    ///     "[1, 0, 0], [0, 1, 0], [0, 0, 1]",
+    ///     &format!("{:#}", subspace)
+    /// );
+    /// ```
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let dim = self.dimension();
-        for row in self.matrix.iter().take(dim) {
-            if f.alternate() {
-                writeln!(f, "{row:#}")?;
-            } else {
-                writeln!(f, "{row}")?;
-            }
-        }
+        let mut rows = self.matrix.iter().take(dim);
+
+        let output = if f.alternate() {
+            rows.join(", ")
+        } else {
+            rows.fold(String::new(), |mut output, row| {
+                use std::fmt::Write;
+                let _ = writeln!(output, "{}", row);
+                output
+            })
+        };
+
+        write!(f, "{output}")?;
         Ok(())
     }
 }
