@@ -24,12 +24,12 @@ use itertools::Itertools;
 use maybe_rayon::prelude::*;
 use once::OnceBiVec;
 use sseq::coordinates::{Bidegree, BidegreeGenerator, BidegreeRange};
+use tracing::Level;
 
 use crate::{
     chain_complex::{ChainComplex, ChainHomotopy, FreeChainComplex},
     resolution_homomorphism::ResolutionHomomorphism,
     save::{SaveFile, SaveKind},
-    utils::Timer,
 };
 
 pub static TAU_BIDEGREE: Bidegree = Bidegree::n_s(0, 1);
@@ -236,6 +236,7 @@ impl<A: PairAlgebra + Send + Sync> SecondaryHomotopy<A> {
     }
 
     /// Add composites up to and including the specified degree
+    #[tracing::instrument(skip(self, maps, dir), fields(source = %self.source, target = %self.target))]
     pub fn add_composite(&self, s: u32, degree: i32, maps: CompositeData<A>, dir: Option<&Path>) {
         for (_, d1, d0) in &maps {
             assert!(Arc::ptr_eq(&d1.target(), &d0.source()));
@@ -269,14 +270,12 @@ impl<A: PairAlgebra + Send + Sync> SecondaryHomotopy<A> {
                 self.hit_generator,
             );
 
-            let timer = Timer::start();
-
-            for (coef, d1, d0) in &maps {
-                composite.add_composite(*coef, gen.t(), gen.idx(), d1, d0);
-            }
-            composite.finalize();
-
-            timer.end(format_args!("Computed secondary composite for x_{gen}"));
+            tracing::info_span!("computing_composite", gen = %gen).in_scope(|| {
+                for (coef, d1, d0) in &maps {
+                    composite.add_composite(*coef, gen.t(), gen.idx(), d1, d0);
+                }
+                composite.finalize();
+            });
 
             if let Some(dir) = dir {
                 let mut f = save_file.create_file(dir.to_owned(), false);
@@ -404,6 +403,7 @@ pub trait SecondaryLift: Sync + Sized {
         self.homotopies().range().into_maybe_par_iter().for_each(f);
     }
 
+    #[tracing::instrument(skip(self), ret(Display, level = Level::DEBUG), fields(gen = %gen))]
     fn get_intermediate(&self, gen: BidegreeGenerator) -> FpVector {
         if let Some((_, v)) = self.intermediates().remove(&gen) {
             return v;
@@ -424,9 +424,7 @@ pub trait SecondaryLift: Sync + Sized {
             }
         }
 
-        let timer = Timer::start();
         let result = self.compute_intermediate(gen);
-        timer.end(format_args!("Computed secondary intermediate for x_{gen}"));
 
         if let Some(dir) = self.save_dir() {
             let mut f = save_file.create_file(dir.to_owned(), false);
@@ -626,6 +624,7 @@ pub trait SecondaryLift: Sync + Sized {
         sseq::coordinates::iter_s_t(&|b| self.compute_homotopy_step(b), min, max);
     }
 
+    #[tracing::instrument(skip(self))]
     fn extend_all(&self) {
         self.initialize_homotopies();
         self.compute_composites();

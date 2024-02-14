@@ -23,6 +23,8 @@ use ext::chain_complex::FreeChainComplex;
 use sseq::coordinates::Bidegree;
 
 fn main() -> anyhow::Result<()> {
+    ext::utils::init_logging();
+
     let res = ext::utils::query_module_only("Module", None, false)?;
 
     let max = Bidegree::n_s(

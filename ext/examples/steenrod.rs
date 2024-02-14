@@ -18,6 +18,8 @@ use sseq::coordinates::{Bidegree, BidegreeElement};
 use tensor_product_chain_complex::TensorChainComplex;
 
 fn main() -> anyhow::Result<()> {
+    ext::utils::init_logging();
+
     let resolution = Arc::new(utils::query_module_only("Module", None, false)?);
     let module = resolution.target().module(0);
     let p = resolution.prime();
@@ -54,14 +56,14 @@ fn main() -> anyhow::Result<()> {
     ));
     let doubled_b = b + b;
 
-    let timer = utils::Timer::start();
-    square.compute_through_bidegree(doubled_b);
-    for s in 0..=doubled_b.s() {
-        square
-            .differential(s)
-            .compute_auxiliary_data_through_degree(doubled_b.t());
-    }
-    timer.end(format_args!("Computed quasi-inverses"));
+    tracing::info_span!("Computing quasi-inverses").in_scope(|| {
+        square.compute_through_bidegree(doubled_b);
+        for s in 0..=doubled_b.s() {
+            square
+                .differential(s)
+                .compute_auxiliary_data_through_degree(doubled_b.t());
+        }
+    });
 
     eprintln!("Computing Steenrod operations: ");
 
@@ -91,7 +93,8 @@ fn main() -> anyhow::Result<()> {
     #[cfg(feature = "concurrent")]
     let mut handles: Vec<Vec<JoinHandle<()>>> = Vec::with_capacity(s as usize + 1);*/
 
-    let timer = utils::Timer::start();
+    let tracing_span = tracing::info_span!("Computing Steenrod operations");
+    let _tracing_guard = tracing_span.enter();
 
     // We use the formula d Δ_i + Δ_i d = Δ_{i-1} + τΔ_{i-1}
     for i in 0..=b.s() {
@@ -280,7 +283,6 @@ fn main() -> anyhow::Result<()> {
         println!();
     }*/
 
-    timer.end(format_args!("Computed Steenrod operations"));
     Ok(())
 }
 
