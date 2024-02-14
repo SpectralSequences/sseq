@@ -189,6 +189,7 @@ where
 }
 
 #[allow(clippy::cognitive_complexity)]
+#[tracing::instrument(skip_all)]
 pub fn yoneda_representative_with_strategy<CC>(
     cc: Arc<CC>,
     map: ChainMap<FreeModuleHomomorphism<impl Module<Algebra = CC::Algebra>>>,
@@ -255,7 +256,8 @@ where
         .collect::<Vec<_>>();
 
     for s in (1..=s_max).rev() {
-        let timer = crate::utils::Timer::start();
+        let span = tracing::info_span!("Cleaning yoneda representative", s);
+        let _tracing_guard = span.enter();
         let t_max = t_max[s as usize];
         let mut differential_images: BiVec<Subspace> = {
             let mut result = BiVec::new(t_min);
@@ -501,8 +503,6 @@ where
                 check!(t);
             }
         }
-
-        timer.end(format_args!("Cleaned yoneda representative for s = {s}"));
     }
 
     let modules = modules.into_iter().map(Arc::new).collect::<Vec<_>>();
