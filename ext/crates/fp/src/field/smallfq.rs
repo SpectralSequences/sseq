@@ -97,8 +97,13 @@ pub struct SmallFq<P> {
 
 impl<P: Prime> SmallFq<P> {
     pub fn new(p: P, d: u32) -> Self {
-        assert!(d > 1);
-        assert!(log2(p.pow(d) as usize) < 16);
+        assert!(d > 1, "Use Fp for prime fields");
+        assert!(log2(p.pow(d) as usize) < 16, "Field too large");
+
+        // This assert will fail if we are trying to create a field of odd characteristic with the
+        // `odd-primes` feature disabled.
+        assert!(crate::prime::is_prime(p.as_u32()), "Invalid prime: {p}");
+
         Self { p, d }
     }
 
