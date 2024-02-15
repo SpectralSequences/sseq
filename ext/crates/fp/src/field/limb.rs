@@ -16,14 +16,14 @@ use crate::{
     limb::{Limb, LimbBitIndexPair},
 };
 
-/// Methods that lets us interact with the underlying `Limb` type.
+/// Methods that let us interact with the underlying `Limb` type.
 ///
 /// In practice this is an extension trait of a `Field`, so we treat it as such. We can't make it a
 /// supertrait of `Field` because `Field` is already a supertrait of `LimbMethods`.
 pub trait LimbMethods: Clone + Copy + Sized {
     type Element: FieldElement;
 
-    /// Encode a field element into a `Limb`. The limbs of an `FpVectorP<Self>` will consist of the
+    /// Encode a field element into a `Limb`. The limbs of an `FqVectorP<Self>` will consist of the
     /// coordinates of the vector, packed together using this method. It is assumed that the output
     /// value occupies at most `self.bit_length()` bits with the rest padded with zeros, and that
     /// the limb is reduced.
@@ -43,7 +43,14 @@ pub trait LimbMethods: Clone + Copy + Sized {
     /// reduced.
     fn fma_limb(self, limb_a: Limb, limb_b: Limb, coeff: Self::Element) -> Limb;
 
-    /// Return the `Limb` whose entries are the entries of `limb` reduced modulo `P`.
+    /// Reduce a limb, i.e. make it "canonical". For example, in [`Fp`](super::Fp), this replaces
+    /// every entry by its value modulo p.
+    ///
+    /// Many functions assume that the input limbs are reduced, but it's useful to allow the
+    /// existence of non-reduced limbs for performance reasons. Some functions like `fma_limb` can
+    /// be very quick compared to the reduction step, so finishing a computation by reducing all
+    /// limbs in sequence may allow the compiler to play some tricks with, for example, loop
+    /// unrolling and SIMD.
     fn reduce(self, limb: Limb) -> Limb;
 
     /// If `l` is a limb of `Self::Element`s, then `l & F.bitmask()` is the value of the
@@ -64,18 +71,15 @@ pub trait LimbMethods: Clone + Copy + Sized {
         }
     }
 
-    /// Check whether or not a limb is reduced, i.e. whether every entry is a value in the range `0..P`.
-    /// This is currently **not** faster than calling [`reduce`] directly.
+    /// Check whether or not a limb is reduced. This may potentially not be faster than calling
+    /// [`reduce`] directly.
     fn is_reduced(self, limb: Limb) -> bool {
         limb == self.reduce(limb)
     }
 
-    /// Given an interator of `Self::Element`s, pack all of them into a single limb in order.
-    /// It is assumed that
-    ///  - The values of the iterator are less than P
-    ///  - The values of the iterator fit into a single limb
-    ///
-    /// If these assumptions are violated, the result will be nonsense.
+    /// Given an interator of `Self::Element`s, pack all of them into a single limb in order. It is
+    /// assumed that the values of the iterator fit into a single limb. If this assumption is
+    /// violated, the result will be nonsense.
     fn pack<T: Iterator<Item = Self::Element>>(self, entries: T) -> Limb {
         let bit_length = self.bit_length();
         let mut result: Limb = 0;

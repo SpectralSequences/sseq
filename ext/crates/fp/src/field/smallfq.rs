@@ -36,9 +36,8 @@ fn zech_logs<P: Prime>(fq: SmallFq<P>) -> Arc<ZechTable> {
             FpVector::from_slice(fq.characteristic(), &v)
         };
         let mul_by_a = |cur: FpVector| {
-            // Shift all entries to the right by one. We're assuming that cur is a polynomial
-            // representing an element of the field, so the leading coefficient is zero, and there
-            // is no overflow.
+            // Shift all entries up by one. We're assuming that cur is a polynomial representing an
+            // element of the field, so the top coefficient is zero, and there is no overflow.
             let mut next = FpVector::from_slice(
                 cur.prime(),
                 &std::iter::once(0)
@@ -64,7 +63,7 @@ fn zech_logs<P: Prime>(fq: SmallFq<P>) -> Arc<ZechTable> {
         }
 
         // Loop over all elements again, but now recording logarithms.
-        let table = HashMap::new();
+        let table = ZechTable::new();
         table.insert(fq.zero(), fq.one());
 
         let mut cur = FpVector::new(fq.characteristic(), conway_poly.len());
@@ -75,12 +74,12 @@ fn zech_logs<P: Prime>(fq: SmallFq<P>) -> Arc<ZechTable> {
                 cur_plus_1.add_basis_element(0, 1);
                 cur_plus_1
             };
-            cur = mul_by_a(cur);
-
             table.insert(
                 SmallFqElement(Some(i)),
                 SmallFqElement(poly_to_power.get(&cur_plus_1).as_deref().cloned()),
             );
+
+            cur = mul_by_a(cur);
         }
         Arc::new(table)
     });
