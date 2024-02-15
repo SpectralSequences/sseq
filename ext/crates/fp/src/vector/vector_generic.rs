@@ -19,7 +19,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use super::iter::{FpVectorIterator, FpVectorNonZeroIteratorP};
 use crate::{
     limb::{entries_per_limb, Limb},
-    prime::{primes::*, Prime, ValidPrime},
+    prime::{Prime, ValidPrime, P2, P3, P5, P7},
     vector::inner::{FpVectorP, SliceMutP, SliceP},
 };
 
