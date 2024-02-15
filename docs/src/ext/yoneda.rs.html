@@ -857,6 +857,7 @@
 }
 
 <span class="attr">#[allow(clippy::cognitive_complexity)]
+#[tracing::instrument(skip_all)]
 </span><span class="kw">pub fn </span>yoneda_representative_with_strategy&lt;CC&gt;(
     cc: Arc&lt;CC&gt;,
     map: ChainMap&lt;FreeModuleHomomorphism&lt;<span class="kw">impl </span>Module&lt;Algebra = CC::Algebra&gt;&gt;&gt;,
@@ -923,7 +924,8 @@
         .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
 
     <span class="kw">for </span>s <span class="kw">in </span>(<span class="number">1</span>..=s_max).rev() {
-        <span class="kw">let </span>timer = <span class="kw">crate</span>::utils::Timer::start();
+        <span class="kw">let </span>span = <span class="macro">tracing::info_span!</span>(<span class="string">"Cleaning yoneda representative"</span>, s);
+        <span class="kw">let </span>_tracing_guard = span.enter();
         <span class="kw">let </span>t_max = t_max[s <span class="kw">as </span>usize];
         <span class="kw">let </span><span class="kw-2">mut </span>differential_images: BiVec&lt;Subspace&gt; = {
             <span class="kw">let </span><span class="kw-2">mut </span>result = BiVec::new(t_min);
@@ -1169,8 +1171,6 @@
                 <span class="macro">check!</span>(t);
             }
         }
-
-        timer.end(<span class="macro">format_args!</span>(<span class="string">"Cleaned yoneda representative for s = {s}"</span>));
     }
 
     <span class="kw">let </span>modules = modules.into_iter().map(Arc::new).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();

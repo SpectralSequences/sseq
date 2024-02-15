@@ -644,6 +644,8 @@
 }
 
 <span class="kw">fn </span>main() -&gt; anyhow::Result&lt;()&gt; {
+    ext::utils::init_logging();
+
     <span class="macro">eprintln!</span>(
         <span class="string">"We are going to compute &lt;-, b, a&gt; for all (-), where a is an element in Ext(M, k) and b \
          and (-) are elements in Ext(k, k)."
@@ -755,9 +757,7 @@
         <span class="kw">return </span><span class="prelude-val">Ok</span>(());
     }
 
-    <span class="kw">let </span>timer = ext::utils::Timer::start();
     ch_lift.extend_all();
-    timer.end(<span class="macro">format_args!</span>(<span class="string">"Total computation time"</span>));
 
     <span class="kw">fn </span>get_page_data(sseq: <span class="kw-2">&amp;</span>sseq::Sseq, b: Bidegree) -&gt; <span class="kw-2">&amp;</span>fp::matrix::Subquotient {
         <span class="kw">let </span>d = sseq.page_data(b.n(), b.s() <span class="kw">as </span>i32);

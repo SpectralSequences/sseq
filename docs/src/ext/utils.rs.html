@@ -582,35 +582,6 @@
 <a href="#556" id="556">556</a>
 <a href="#557" id="557">557</a>
 <a href="#558" id="558">558</a>
-<a href="#559" id="559">559</a>
-<a href="#560" id="560">560</a>
-<a href="#561" id="561">561</a>
-<a href="#562" id="562">562</a>
-<a href="#563" id="563">563</a>
-<a href="#564" id="564">564</a>
-<a href="#565" id="565">565</a>
-<a href="#566" id="566">566</a>
-<a href="#567" id="567">567</a>
-<a href="#568" id="568">568</a>
-<a href="#569" id="569">569</a>
-<a href="#570" id="570">570</a>
-<a href="#571" id="571">571</a>
-<a href="#572" id="572">572</a>
-<a href="#573" id="573">573</a>
-<a href="#574" id="574">574</a>
-<a href="#575" id="575">575</a>
-<a href="#576" id="576">576</a>
-<a href="#577" id="577">577</a>
-<a href="#578" id="578">578</a>
-<a href="#579" id="579">579</a>
-<a href="#580" id="580">580</a>
-<a href="#581" id="581">581</a>
-<a href="#582" id="582">582</a>
-<a href="#583" id="583">583</a>
-<a href="#584" id="584">584</a>
-<a href="#585" id="585">585</a>
-<a href="#586" id="586">586</a>
-<a href="#587" id="587">587</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! A module containing various utility functions related to user interaction in some way.
 </span><span class="kw">use </span>std::{
     convert::{TryFrom, TryInto},
@@ -1076,41 +1047,13 @@
     <span class="prelude-val">Ok</span>((is_unit, unit))
 }
 
-<span class="attr">#[cfg(feature = <span class="string">"logging"</span>)]
-</span><span class="kw">mod </span>logging {
-    <span class="kw">use </span>std::{io::Write, time::Instant};
-
-    <span class="doccomment">/// If the `logging` feature is enabled, this can be used to time how long an operation takes.
-    /// If the `logging` features is disabled, this is a no-op.
-    ///
-    /// # Example
-    /// ```
-    /// # use logging::Timer;
-    /// let timer = Timer::start();
-    /// // slow_function();
-    /// timer.end(format_args!("Ran slow_function"));
-    /// ```
-    </span><span class="kw">pub struct </span>Timer(Instant);
-
-    <span class="kw">impl </span>Timer {
-        <span class="kw">pub fn </span>start() -&gt; <span class="self">Self </span>{
-            <span class="self">Self</span>(Instant::now())
-        }
-
-        <span class="kw">pub fn </span>end(<span class="self">self</span>, msg: std::fmt::Arguments) {
-            <span class="kw">let </span>duration = <span class="self">self</span>.<span class="number">0</span>.elapsed();
-            <span class="macro">eprintln!</span>(
-                <span class="string">"[{:&gt;6}.{:&gt;06} s] {msg}"</span>,
-                duration.as_secs(),
-                duration.subsec_micros(),
-            );
-        }
-    }
+<span class="kw">mod </span>logging {
+    <span class="kw">use </span>std::io::Write;
 
     <span class="kw">pub struct </span>LogWriter&lt;T&gt; {
         writer: T,
         bytes: u64,
-        timer: Timer,
+        start: std::time::Instant,
     }
 
     <span class="kw">impl</span>&lt;T: Write&gt; Write <span class="kw">for </span>LogWriter&lt;T&gt; {
@@ -1130,59 +1073,58 @@
             LogWriter {
                 writer,
                 bytes: <span class="number">0</span>,
-                timer: Timer::start(),
+                start: std::time::Instant::now(),
             }
         }
     }
 
+    <span class="kw">pub struct </span>Throughput(f64);
+
+    <span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>Throughput {
+        <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
+            <span class="macro">write!</span>(f, <span class="string">"{:.2} MiB/s"</span>, <span class="self">self</span>.<span class="number">0</span>)
+        }
+    }
+
     <span class="kw">impl</span>&lt;T: Write&gt; LogWriter&lt;T&gt; {
-        <span class="kw">pub fn </span>finalize(<span class="kw-2">mut </span><span class="self">self</span>, msg: std::fmt::Arguments) {
+        <span class="doccomment">/// Return the throughput in MiB/s
+        </span><span class="kw">pub fn </span>into_throughput(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; Throughput {
             <span class="self">self</span>.writer.flush().unwrap();
-            <span class="kw">let </span>duration = <span class="self">self</span>.timer.<span class="number">0</span>.elapsed();
+            <span class="kw">let </span>duration = <span class="self">self</span>.start.elapsed();
             <span class="kw">let </span>mib = <span class="self">self</span>.bytes <span class="kw">as </span>f64 / (<span class="number">1024 </span>* <span class="number">1024</span>) <span class="kw">as </span>f64;
-            <span class="kw">let </span>mib_per_second = mib / duration.as_secs_f64();
-            <span class="self">self</span>.timer
-                .end(<span class="macro">format_args!</span>(<span class="string">"[{mib_per_second:&gt;9.3} MiB/s] {msg}"</span>));
+            Throughput(mib / duration.as_secs_f64())
         }
+    }
+
+    <span class="attr">#[cfg(feature = <span class="string">"logging"</span>)]
+    </span><span class="kw">pub fn </span>ext_tracing_subscriber() -&gt; <span class="kw">impl </span>tracing::Subscriber {
+        <span class="kw">use </span>tracing_subscriber::{
+            filter::EnvFilter,
+            fmt::{format::FmtSpan, Subscriber},
+        };
+
+        Subscriber::builder()
+            .pretty()
+            .with_writer(std::io::stdout)
+            .with_max_level(tracing::Level::INFO)
+            .with_span_events(FmtSpan::NEW | FmtSpan::CLOSE)
+            .with_thread_ids(<span class="bool-val">true</span>)
+            .with_env_filter(EnvFilter::try_from_default_env().unwrap())
+            .finish()
+    }
+
+    <span class="attr">#[cfg(not(feature = <span class="string">"logging"</span>))]
+    </span><span class="kw">pub fn </span>ext_tracing_subscriber() -&gt; <span class="kw">impl </span>tracing::Subscriber {
+        tracing::subscriber::NoSubscriber::new()
+    }
+
+    <span class="kw">pub fn </span>init_logging() {
+        tracing::subscriber::set_global_default(ext_tracing_subscriber())
+            .expect(<span class="string">"Failed to enable logging"</span>);
     }
 }
 
-<span class="attr">#[cfg(not(feature = <span class="string">"logging"</span>))]
-</span><span class="kw">mod </span>logging {
-    <span class="kw">use </span>std::io::Write;
-
-    <span class="kw">pub struct </span>Timer;
-
-    <span class="kw">impl </span>Timer {
-        <span class="kw">pub fn </span>start() -&gt; <span class="self">Self </span>{
-            <span class="self">Self </span>{}
-        }
-
-        <span class="kw">pub fn </span>end(<span class="self">self</span>, _msg: std::fmt::Arguments) {}
-    }
-
-    <span class="kw">pub struct </span>LogWriter&lt;T&gt;(T);
-
-    <span class="kw">impl</span>&lt;T: Write&gt; Write <span class="kw">for </span>LogWriter&lt;T&gt; {
-        <span class="kw">fn </span>write(<span class="kw-2">&amp;mut </span><span class="self">self</span>, buf: <span class="kw-2">&amp;</span>[u8]) -&gt; std::io::Result&lt;usize&gt; {
-            <span class="self">self</span>.<span class="number">0</span>.write(buf)
-        }
-
-        <span class="kw">fn </span>flush(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; std::io::Result&lt;()&gt; {
-            <span class="self">self</span>.<span class="number">0</span>.flush()
-        }
-    }
-
-    <span class="kw">impl</span>&lt;T&gt; LogWriter&lt;T&gt; {
-        <span class="kw">pub fn </span>new(writer: T) -&gt; <span class="self">Self </span>{
-            LogWriter(writer)
-        }
-
-        <span class="kw">pub fn </span>finalize(<span class="self">self</span>, _msg: std::fmt::Arguments) {}
-    }
-}
-
-<span class="kw">pub use </span>logging::{LogWriter, Timer};
+<span class="kw">pub use </span>logging::{ext_tracing_subscriber, init_logging, LogWriter};
 
 <span class="doccomment">/// The value of the SECONDARY_JOB environment variable. This is used for distributing the
 /// `secondary`. If set, only data with `s = SECONDARY_JOB` will be computed. The minimum value of

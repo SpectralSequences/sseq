@@ -985,6 +985,10 @@
 <a href="#959" id="959">959</a>
 <a href="#960" id="960">960</a>
 <a href="#961" id="961">961</a>
+<a href="#962" id="962">962</a>
+<a href="#963" id="963">963</a>
+<a href="#964" id="964">964</a>
+<a href="#965" id="965">965</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! This module exports the [`Resolution`] object, which is a chain complex resolving a module. In
 //! particular, this contains the core logic that compute minimal resolutions.
 </span><span class="kw">use </span>std::{
@@ -1013,7 +1017,6 @@
 <span class="kw">use crate</span>::{
     chain_complex::{AugmentedChainComplex, ChainComplex},
     save::SaveKind,
-    utils::Timer,
 };
 
 <span class="doccomment">/// In [`MuResolution::compute_through_stem`] and [`MuResolution::compute_through_bidegree`], we pass
@@ -1174,6 +1177,7 @@
     /// we simply retrieve the value (and remove it from the cache). Otherwise, we compute the
     /// kernel. This requires the differential to be computed at $(s, t - 1)$, but not $(s, t)$
     /// itself. Indeed, the new generators added to $(s, t)$ are by construction not in the kernel.
+    </span><span class="attr">#[tracing::instrument(skip(<span class="self">self</span>), fields(b = %b))]
     </span><span class="kw">fn </span>get_kernel(<span class="kw-2">&amp;</span><span class="self">self</span>, b: Bidegree) -&gt; Subspace {
         <span class="kw">if let </span><span class="prelude-val">Some</span>((<span class="kw">_</span>, v)) = <span class="self">self</span>.kernels.remove(<span class="kw-2">&amp;</span>b) {
             <span class="kw">return </span>v;
@@ -1193,7 +1197,6 @@
             }
         }
 
-        <span class="kw">let </span>timer = Timer::start();
         <span class="kw">let </span>complex = <span class="self">self</span>.target();
         complex.compute_through_bidegree(b);
 
@@ -1223,8 +1226,6 @@
         matrix.row_reduce();
 
         <span class="kw">let </span>kernel = matrix.compute_kernel();
-
-        timer.end(<span class="macro">format_args!</span>(<span class="string">"Computed kernel for bidegree {b}"</span>));
 
         <span class="kw">if </span><span class="self">self</span>.should_save {
             <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = <span class="kw-2">&amp;</span><span class="self">self</span>.save_dir {
@@ -1309,6 +1310,7 @@
     /// To run `step_resolution(s, t)`, we must have already had run `step_resolution(s, t - 1)`
     /// and `step_resolution(s - 1, t - 1)`. It is more efficient if we have in fact run
     /// `step_resolution(s - 1, t)`, so try your best to arrange calls to be run in this order.
+    </span><span class="attr">#[tracing::instrument(skip(<span class="self">self</span>), fields(b = %b, num_new_gens, density))]
     </span><span class="kw">fn </span>step_resolution(<span class="kw-2">&amp;</span><span class="self">self</span>, b: Bidegree) {
         <span class="kw">if </span>b.s() == <span class="number">0 </span>{
             <span class="self">self</span>.zero_module.extend_by_zero(b.t());
@@ -1440,8 +1442,6 @@
                 <span class="kw">return</span>;
             }
         }
-
-        <span class="kw">let </span>timer = Timer::start();
 
         <span class="kw">let </span><span class="kw-2">mut </span>matrix = AugmentedMatrix::&lt;<span class="number">3</span>&gt;::new_with_capacity(
             p,
@@ -1613,10 +1613,11 @@
         }
         <span class="kw">let </span>(cm_qi, res_qi) = matrix.compute_quasi_inverses();
 
-        timer.end(<span class="macro">format_args!</span>(
-            <span class="string">"Computed bidegree {b}, num new gens = {num_new_gens}, density = {density:.2}%"</span>,
-            density = current_differential.differential_density(b.t()) * <span class="number">100.0
-        </span>));
+        tracing::Span::current().record(<span class="string">"num_new_gens"</span>, num_new_gens);
+        tracing::Span::current().record(
+            <span class="string">"density"</span>,
+            current_differential.differential_density(b.t()) * <span class="number">100.0</span>,
+        );
 
         <span class="kw">if </span><span class="self">self</span>.should_save {
             <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = <span class="kw-2">&amp;</span><span class="self">self</span>.save_dir {
@@ -1742,6 +1743,7 @@
     }
 
     <span class="doccomment">/// This function resolves up till a fixed stem instead of a fixed t.
+    </span><span class="attr">#[tracing::instrument(skip(<span class="self">self</span>), fields(<span class="self">self </span>= %<span class="self">self</span>.name, max = %max))]
     </span><span class="kw">pub fn </span>compute_through_stem(<span class="kw-2">&amp;</span><span class="self">self</span>, max: Bidegree) {
         <span class="self">self</span>.compute_through_stem_with_callback(max, |<span class="kw">_</span>| ());
     }
@@ -1754,7 +1756,10 @@
         <span class="self">self</span>.extend_through_degree(max.s());
         <span class="self">self</span>.algebra().compute_basis(max.t() - min_degree);
 
+        <span class="kw">let </span>tracing_span = tracing::Span::current();
         maybe_rayon::in_place_scope(|scope| {
+            <span class="kw">let </span>_tracing_guard = tracing_span.enter();
+
             <span class="comment">// Things that we have finished computing.
             </span><span class="kw">let </span><span class="kw-2">mut </span>progress: Vec&lt;i32&gt; = <span class="macro">vec!</span>[min_degree - <span class="number">1</span>; max.s() <span class="kw">as </span>usize + <span class="number">1</span>];
             <span class="comment">// We will kickstart the process by pretending we have computed (0, min_degree - 1). So
@@ -1768,7 +1773,9 @@
                 <span class="kw">if </span><span class="self">self</span>.has_computed_bidegree(b) {
                     SenderData::send(b, <span class="bool-val">false</span>, sender);
                 } <span class="kw">else </span>{
+                    <span class="kw">let </span>tracing_span = tracing_span.clone();
                     scope.spawn(<span class="kw">move </span>|<span class="kw">_</span>| {
+                        <span class="kw">let </span>_tracing_guard = tracing_span.enter();
                         <span class="self">self</span>.step_resolution(b);
                         SenderData::send(b, <span class="bool-val">true</span>, sender);
                     });
@@ -1846,7 +1853,8 @@
         Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.differentials[s <span class="kw">as </span>usize])
     }
 
-    <span class="kw">fn </span>compute_through_bidegree(<span class="kw-2">&amp;</span><span class="self">self</span>, b: Bidegree) {
+    <span class="attr">#[tracing::instrument(skip(<span class="self">self</span>), fields(<span class="self">self </span>= %<span class="self">self</span>.name, b = %b))]
+    </span><span class="kw">fn </span>compute_through_bidegree(<span class="kw-2">&amp;</span><span class="self">self</span>, b: Bidegree) {
         <span class="self">self</span>.compute_through_bidegree_with_callback(b, |<span class="kw">_</span>| ())
     }
 

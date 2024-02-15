@@ -510,6 +510,9 @@
 <a href="#484" id="484">484</a>
 <a href="#485" id="485">485</a>
 <a href="#486" id="486">486</a>
+<a href="#487" id="487">487</a>
+<a href="#488" id="488">488</a>
+<a href="#489" id="489">489</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! This module defines [`MuResolutionHomomorphism`], which is a chain map from a
 //! [`FreeChainComplex`].
 </span><span class="kw">use </span>std::{ops::Range, path::PathBuf, sync::Arc};
@@ -626,6 +629,7 @@
     /// This assumes in yet-uncomputed bidegrees, the homology of the source consists only of
     /// decomposables (e.g. it is trivial). More precisely, we assume
     /// [`MuResolutionHomomorphism::extend_step_raw`] can be called with `extra_images = None`.
+    </span><span class="attr">#[tracing::instrument(fields(<span class="self">self </span>= <span class="self">self</span>.name, max = %max))]
     </span><span class="kw">pub fn </span>extend(<span class="kw-2">&amp;</span><span class="self">self</span>, max: Bidegree) {
         <span class="self">self</span>.extend_profile(BidegreeRange::new(<span class="kw-2">&amp;</span>(), max.s() + <span class="number">1</span>, <span class="kw-2">&amp;</span>|<span class="kw">_</span>, <span class="kw">_</span>| max.t() + <span class="number">1</span>))
     }
@@ -636,6 +640,7 @@
     /// This assumes in yet-uncomputed bidegrees, the homology of the source consists only of
     /// decomposables (e.g. it is trivial). More precisely, we assume
     /// [`MuResolutionHomomorphism::extend_step_raw`] can be called with `extra_images = None`.
+    </span><span class="attr">#[tracing::instrument(fields(<span class="self">self </span>= <span class="self">self</span>.name, max = %max))]
     </span><span class="kw">pub fn </span>extend_through_stem(<span class="kw-2">&amp;</span><span class="self">self</span>, max: Bidegree) {
         <span class="self">self</span>.extend_profile(BidegreeRange::new(<span class="kw-2">&amp;</span>(), max.s() + <span class="number">1</span>, <span class="kw-2">&amp;</span>|<span class="kw">_</span>, s| {
             max.n() + s <span class="kw">as </span>i32 + <span class="number">1
@@ -648,6 +653,7 @@
     /// This assumes in yet-uncomputed bidegrees, the homology of the source consists only of
     /// decomposables (e.g. it is trivial). More precisely, we assume
     /// [`MuResolutionHomomorphism::extend_step_raw`] can be called with `extra_images = None`.
+    </span><span class="attr">#[tracing::instrument(fields(<span class="self">self </span>= <span class="self">self</span>.name))]
     </span><span class="kw">pub fn </span>extend_all(<span class="kw-2">&amp;</span><span class="self">self</span>) {
         <span class="self">self</span>.extend_profile(BidegreeRange::new(
             <span class="self">self</span>,

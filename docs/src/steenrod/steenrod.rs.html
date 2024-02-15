@@ -1048,6 +1048,8 @@
 <a href="#1022" id="1022">1022</a>
 <a href="#1023" id="1023">1023</a>
 <a href="#1024" id="1024">1024</a>
+<a href="#1025" id="1025">1025</a>
+<a href="#1026" id="1026">1026</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     io::{stderr, stdout, Write},
     sync::Arc,
@@ -1068,6 +1070,8 @@
 <span class="kw">use </span>tensor_product_chain_complex::TensorChainComplex;
 
 <span class="kw">fn </span>main() -&gt; anyhow::Result&lt;()&gt; {
+    ext::utils::init_logging();
+
     <span class="kw">let </span>resolution = Arc::new(utils::query_module_only(<span class="string">"Module"</span>, <span class="prelude-val">None</span>, <span class="bool-val">false</span>)<span class="question-mark">?</span>);
     <span class="kw">let </span>module = resolution.target().module(<span class="number">0</span>);
     <span class="kw">let </span>p = resolution.prime();
@@ -1104,14 +1108,14 @@
     ));
     <span class="kw">let </span>doubled_b = b + b;
 
-    <span class="kw">let </span>timer = utils::Timer::start();
-    square.compute_through_bidegree(doubled_b);
-    <span class="kw">for </span>s <span class="kw">in </span><span class="number">0</span>..=doubled_b.s() {
-        square
-            .differential(s)
-            .compute_auxiliary_data_through_degree(doubled_b.t());
-    }
-    timer.end(<span class="macro">format_args!</span>(<span class="string">"Computed quasi-inverses"</span>));
+    <span class="macro">tracing::info_span!</span>(<span class="string">"Computing quasi-inverses"</span>).in_scope(|| {
+        square.compute_through_bidegree(doubled_b);
+        <span class="kw">for </span>s <span class="kw">in </span><span class="number">0</span>..=doubled_b.s() {
+            square
+                .differential(s)
+                .compute_auxiliary_data_through_degree(doubled_b.t());
+        }
+    });
 
     <span class="macro">eprintln!</span>(<span class="string">"Computing Steenrod operations: "</span>);
 
@@ -1141,7 +1145,8 @@
     #[cfg(feature = "concurrent")]
     let mut handles: Vec&lt;Vec&lt;JoinHandle&lt;()&gt;&gt;&gt; = Vec::with_capacity(s as usize + 1);*/
 
-    </span><span class="kw">let </span>timer = utils::Timer::start();
+    </span><span class="kw">let </span>tracing_span = <span class="macro">tracing::info_span!</span>(<span class="string">"Computing Steenrod operations"</span>);
+    <span class="kw">let </span>_tracing_guard = tracing_span.enter();
 
     <span class="comment">// We use the formula d Δ_i + Δ_i d = Δ_{i-1} + τΔ_{i-1}
     </span><span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..=b.s() {
@@ -1330,8 +1335,7 @@
         println!();
     }*/
 
-    </span>timer.end(<span class="macro">format_args!</span>(<span class="string">"Computed Steenrod operations"</span>));
-    <span class="prelude-val">Ok</span>(())
+    </span><span class="prelude-val">Ok</span>(())
 }
 
 <span class="kw">mod </span>sum_module {

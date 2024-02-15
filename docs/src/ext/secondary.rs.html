@@ -1439,7 +1439,6 @@
 <a href="#1413" id="1413">1413</a>
 <a href="#1414" id="1414">1414</a>
 <a href="#1415" id="1415">1415</a>
-<a href="#1416" id="1416">1416</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     io::{Read, Write},
     path::Path,
@@ -1466,12 +1465,12 @@
 <span class="kw">use </span>maybe_rayon::prelude::<span class="kw-2">*</span>;
 <span class="kw">use </span>once::OnceBiVec;
 <span class="kw">use </span>sseq::coordinates::{Bidegree, BidegreeGenerator, BidegreeRange};
+<span class="kw">use </span>tracing::Level;
 
 <span class="kw">use crate</span>::{
     chain_complex::{ChainComplex, ChainHomotopy, FreeChainComplex},
     resolution_homomorphism::ResolutionHomomorphism,
     save::{SaveFile, SaveKind},
-    utils::Timer,
 };
 
 <span class="kw">pub static </span>TAU_BIDEGREE: Bidegree = Bidegree::n_s(<span class="number">0</span>, <span class="number">1</span>);
@@ -1678,6 +1677,7 @@
     }
 
     <span class="doccomment">/// Add composites up to and including the specified degree
+    </span><span class="attr">#[tracing::instrument(skip(<span class="self">self</span>, maps, dir), fields(source = %<span class="self">self</span>.source, target = %<span class="self">self</span>.target))]
     </span><span class="kw">pub fn </span>add_composite(<span class="kw-2">&amp;</span><span class="self">self</span>, s: u32, degree: i32, maps: CompositeData&lt;A&gt;, dir: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Path&gt;) {
         <span class="kw">for </span>(<span class="kw">_</span>, d1, d0) <span class="kw">in </span><span class="kw-2">&amp;</span>maps {
             <span class="macro">assert!</span>(Arc::ptr_eq(<span class="kw-2">&amp;</span>d1.target(), <span class="kw-2">&amp;</span>d0.source()));
@@ -1711,14 +1711,12 @@
                 <span class="self">self</span>.hit_generator,
             );
 
-            <span class="kw">let </span>timer = Timer::start();
-
-            <span class="kw">for </span>(coef, d1, d0) <span class="kw">in </span><span class="kw-2">&amp;</span>maps {
-                composite.add_composite(<span class="kw-2">*</span>coef, gen.t(), gen.idx(), d1, d0);
-            }
-            composite.finalize();
-
-            timer.end(<span class="macro">format_args!</span>(<span class="string">"Computed secondary composite for x_{gen}"</span>));
+            <span class="macro">tracing::info_span!</span>(<span class="string">"computing_composite"</span>, gen = %gen).in_scope(|| {
+                <span class="kw">for </span>(coef, d1, d0) <span class="kw">in </span><span class="kw-2">&amp;</span>maps {
+                    composite.add_composite(<span class="kw-2">*</span>coef, gen.t(), gen.idx(), d1, d0);
+                }
+                composite.finalize();
+            });
 
             <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = dir {
                 <span class="kw">let </span><span class="kw-2">mut </span>f = save_file.create_file(dir.to_owned(), <span class="bool-val">false</span>);
@@ -1846,7 +1844,8 @@
         <span class="self">self</span>.homotopies().range().into_maybe_par_iter().for_each(f);
     }
 
-    <span class="kw">fn </span>get_intermediate(<span class="kw-2">&amp;</span><span class="self">self</span>, gen: BidegreeGenerator) -&gt; FpVector {
+    <span class="attr">#[tracing::instrument(skip(<span class="self">self</span>), ret(Display, level = Level::DEBUG), fields(gen = %gen))]
+    </span><span class="kw">fn </span>get_intermediate(<span class="kw-2">&amp;</span><span class="self">self</span>, gen: BidegreeGenerator) -&gt; FpVector {
         <span class="kw">if let </span><span class="prelude-val">Some</span>((<span class="kw">_</span>, v)) = <span class="self">self</span>.intermediates().remove(<span class="kw-2">&amp;</span>gen) {
             <span class="kw">return </span>v;
         }
@@ -1866,9 +1865,7 @@
             }
         }
 
-        <span class="kw">let </span>timer = Timer::start();
         <span class="kw">let </span>result = <span class="self">self</span>.compute_intermediate(gen);
-        timer.end(<span class="macro">format_args!</span>(<span class="string">"Computed secondary intermediate for x_{gen}"</span>));
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = <span class="self">self</span>.save_dir() {
             <span class="kw">let </span><span class="kw-2">mut </span>f = save_file.create_file(dir.to_owned(), <span class="bool-val">false</span>);
@@ -2068,7 +2065,8 @@
         sseq::coordinates::iter_s_t(<span class="kw-2">&amp;</span>|b| <span class="self">self</span>.compute_homotopy_step(b), min, max);
     }
 
-    <span class="kw">fn </span>extend_all(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+    <span class="attr">#[tracing::instrument(skip(<span class="self">self</span>))]
+    </span><span class="kw">fn </span>extend_all(<span class="kw-2">&amp;</span><span class="self">self</span>) {
         <span class="self">self</span>.initialize_homotopies();
         <span class="self">self</span>.compute_composites();
         <span class="self">self</span>.compute_intermediates();

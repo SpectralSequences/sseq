@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["LogWriter","Timer"]};
+window.SIDEBAR_ITEMS = {"fn":["ext_tracing_subscriber","init_logging"],"struct":["LogWriter","Throughput"]};

@@ -1300,6 +1300,8 @@
 <a href="#1274" id="1274">1274</a>
 <a href="#1275" id="1275">1275</a>
 <a href="#1276" id="1276">1276</a>
+<a href="#1277" id="1277">1277</a>
+<a href="#1278" id="1278">1278</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! This module implements [Nassau's algorithm](https://arxiv.org/abs/1910.04063). The main export
 //! is the [`Resolution`] object, which is a resolution of the sphere at the prime 2 using Nassau's
 //! algorithm. It aims to provide an API similar to
@@ -1344,7 +1346,7 @@
 <span class="kw">use crate</span>::{
     chain_complex::{AugmentedChainComplex, ChainComplex, FiniteChainComplex, FreeChainComplex},
     save::SaveKind,
-    utils::{LogWriter, Timer},
+    utils::LogWriter,
 };
 
 <span class="doccomment">/// See [`resolution::SenderData`](../resolution/struct.SenderData.html). This differs by not having the `new` field.
@@ -1782,10 +1784,9 @@
         });
     }
 
-    <span class="kw">fn </span>write_qi(
+    <span class="attr">#[tracing::instrument(skip_all, fields(signature = <span class="question-mark">?</span>signature, throughput))]
+    </span><span class="kw">fn </span>write_qi(
         f: <span class="kw-2">&amp;mut </span><span class="prelude-ty">Option</span>&lt;<span class="kw">impl </span>Write&gt;,
-        b: Bidegree,
-        subalgebra: <span class="kw-2">&amp;</span>MilnorSubalgebra,
         scratch: <span class="kw-2">&amp;mut </span>FpVector,
         signature: <span class="kw-2">&amp;</span>[PPartEntry],
         next_mask: <span class="kw-2">&amp;</span>[usize],
@@ -1829,9 +1830,10 @@
             scratch.to_bytes(f)<span class="question-mark">?</span>;
         }
 
-        own_f.finalize(<span class="macro">format_args!</span>(
-            <span class="string">"Written quasi-inverse for bidegree {b} and signature {signature:?}, with {subalgebra}"
-        </span>));
+        tracing::Span::current().record(
+            <span class="string">"throughput"</span>,
+            tracing::field::display(own_f.into_throughput()),
+        );
         <span class="prelude-val">Ok</span>(())
     }
 
@@ -1855,19 +1857,18 @@
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">fn </span>step_resolution_with_subalgebra(
+    <span class="attr">#[tracing::instrument(skip(<span class="self">self</span>), fields(b = %b, subalgebra = %subalgebra, num_new_gens, density))]
+    </span><span class="kw">fn </span>step_resolution_with_subalgebra(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         b: Bidegree,
         subalgebra: MilnorSubalgebra,
     ) -&gt; anyhow::Result&lt;()&gt; {
-        <span class="kw">let </span>timer = Timer::start();
         <span class="kw">let </span>end = || {
-            timer.end(<span class="macro">format_args!</span>(
-                <span class="string">"Computed bidegree {b} with {subalgebra}, num new gens = {num_new_gens}, density \
-                 = {density:.2}%"</span>,
-                num_new_gens = <span class="self">self</span>.number_of_gens_in_bidegree(b),
-                density = <span class="self">self</span>.differentials[b.s()].differential_density(b.t()) * <span class="number">100.0</span>,
-            ));
+            tracing::Span::current().record(<span class="string">"num_new_gens"</span>, <span class="self">self</span>.number_of_gens_in_bidegree(b));
+            tracing::Span::current().record(
+                <span class="string">"density"</span>,
+                <span class="self">self</span>.differentials[b.s()].differential_density(b.t()) * <span class="number">100.0</span>,
+            );
         };
 
         <span class="kw">let </span>p = <span class="self">self</span>.prime();
@@ -1917,8 +1918,6 @@
 
         <span class="self">Self</span>::write_qi(
             <span class="kw-2">&amp;mut </span>f,
-            b,
-            <span class="kw-2">&amp;</span>subalgebra,
             <span class="kw-2">&amp;mut </span>scratch,
             <span class="kw-2">&amp;</span>zero_sig,
             <span class="kw-2">&amp;</span>next_mask,
@@ -2001,8 +2000,6 @@
             }
             <span class="self">Self</span>::write_qi(
                 <span class="kw-2">&amp;mut </span>f,
-                b,
-                <span class="kw-2">&amp;</span>subalgebra,
                 <span class="kw-2">&amp;mut </span>scratch,
                 <span class="kw-2">&amp;</span>signature,
                 <span class="kw-2">&amp;</span>next_mask,
@@ -2193,13 +2190,17 @@
     }
 
     <span class="doccomment">/// This function resolves up till a fixed stem instead of a fixed t.
+    </span><span class="attr">#[tracing::instrument(skip(<span class="self">self</span>), fields(<span class="self">self </span>= <span class="self">self</span>.name, max = %max))]
     </span><span class="kw">pub fn </span>compute_through_stem(<span class="kw-2">&amp;</span><span class="self">self</span>, max: Bidegree) {
         <span class="kw">let </span>_lock = <span class="self">self</span>.lock.lock();
 
         <span class="self">self</span>.extend_through_degree(max.s());
         <span class="self">self</span>.algebra().compute_basis(max.t());
 
+        <span class="kw">let </span>tracing_span = tracing::Span::current();
         maybe_rayon::in_place_scope(|scope| {
+            <span class="kw">let </span>_tracing_guard = tracing_span.enter();
+
             <span class="comment">// This algorithm is not optimal, as we compute (s, t) only after computing (s - 1, t)
             // and (s, t - 1). In theory, it suffices to wait for (s, t - 1) and (s - 1, t - 1),
             // but having the dimensions of the modules change halfway through the computation is
@@ -2218,7 +2219,9 @@
                 <span class="kw">if </span><span class="self">self</span>.has_computed_bidegree(b) {
                     SenderData::send(b, sender);
                 } <span class="kw">else </span>{
+                    <span class="kw">let </span>tracing_span = tracing_span.clone();
                     scope.spawn(<span class="kw">move </span>|<span class="kw">_</span>| {
+                        <span class="kw">let </span>_tracing_guard = tracing_span.enter();
                         <span class="self">self</span>.step_resolution(b);
                         SenderData::send(b, sender);
                     });
@@ -2276,7 +2279,8 @@
         Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.differentials[s <span class="kw">as </span>usize])
     }
 
-    <span class="kw">fn </span>compute_through_bidegree(<span class="kw-2">&amp;</span><span class="self">self</span>, max: Bidegree) {
+    <span class="attr">#[tracing::instrument(skip(<span class="self">self</span>), fields(<span class="self">self </span>= <span class="self">self</span>.name, max = %max))]
+    </span><span class="kw">fn </span>compute_through_bidegree(<span class="kw-2">&amp;</span><span class="self">self</span>, max: Bidegree) {
         <span class="kw">let </span>_lock = <span class="self">self</span>.lock.lock();
 
         <span class="self">self</span>.extend_through_degree(max.s());

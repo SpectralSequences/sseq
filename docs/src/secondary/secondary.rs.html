@@ -177,6 +177,8 @@
 <span class="kw">use </span>sseq::coordinates::{Bidegree, BidegreeGenerator};
 
 <span class="kw">fn </span>main() -&gt; anyhow::Result&lt;()&gt; {
+    ext::utils::init_logging();
+
     <span class="kw">let </span>resolution = Arc::new(query_module(<span class="prelude-val">Some</span>(algebra::AlgebraType::Milnor), <span class="bool-val">true</span>)<span class="question-mark">?</span>);
 
     <span class="kw">let </span>lift = SecondaryResolution::new(Arc::clone(<span class="kw-2">&amp;</span>resolution));
@@ -185,9 +187,7 @@
         <span class="kw">return </span><span class="prelude-val">Ok</span>(());
     }
 
-    <span class="kw">let </span>timer = ext::utils::Timer::start();
     lift.extend_all();
-    timer.end(<span class="macro">format_args!</span>(<span class="string">"Total computation time"</span>));
 
     <span class="kw">let </span>d2_shift = Bidegree::n_s(-<span class="number">1</span>, <span class="number">2</span>);
 

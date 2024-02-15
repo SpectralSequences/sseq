@@ -62,6 +62,8 @@
 <a href="#36" id="36">36</a>
 <a href="#37" id="37">37</a>
 <a href="#38" id="38">38</a>
+<a href="#39" id="39">39</a>
+<a href="#40" id="40">40</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Resolves a module up to an $(n, s)$ and prints an ASCII depiction of the Ext groups:
 //! ```text
 //! ·
@@ -87,6 +89,8 @@
 <span class="kw">use </span>sseq::coordinates::Bidegree;
 
 <span class="kw">fn </span>main() -&gt; anyhow::Result&lt;()&gt; {
+    ext::utils::init_logging();
+
     <span class="kw">let </span>res = ext::utils::query_module_only(<span class="string">"Module"</span>, <span class="prelude-val">None</span>, <span class="bool-val">false</span>)<span class="question-mark">?</span>;
 
     <span class="kw">let </span>max = Bidegree::n_s(
