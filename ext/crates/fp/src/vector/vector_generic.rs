@@ -33,7 +33,7 @@ macro_rules! dispatch_vector_inner {
                 (Self::_3(x), $other::_3(y)) => x.$method(y, $($arg),*),
                 (Self::_5(x), $other::_5(y)) => x.$method(y, $($arg),*),
                 (Self::_7(x), $other::_7(y)) => x.$method(y, $($arg),*),
-                (Self::Big(x), $other::Big(y)) => x.$method(y, $($arg),*),
+                (Self::Big(x), $other::Big(y)) if x.prime() == y.prime() => x.$method(y, $($arg),*),
                 (l, r) => {
                     panic!("Applying {} to vectors over different primes ({} and {})", stringify!($method), l.prime(), r.prime());
                 }
@@ -48,7 +48,7 @@ macro_rules! dispatch_vector_inner {
                 (Self::_3(x), $other::_3(y)) => x.$method(y, $($arg),*),
                 (Self::_5(x), $other::_5(y)) => x.$method(y, $($arg),*),
                 (Self::_7(x), $other::_7(y)) => x.$method(y, $($arg),*),
-                (Self::Big(x), $other::Big(y)) => x.$method(y, $($arg),*),
+                (Self::Big(x), $other::Big(y)) if x.prime() == y.prime() => x.$method(y, $($arg),*),
                 (l, r) => {
                     panic!("Applying {} to vectors over different primes ({} and {})", stringify!($method), l.prime(), r.prime());
                 }
@@ -62,7 +62,7 @@ macro_rules! dispatch_vector_inner {
                 (Self::_3(x), $other::_3(y)) => x.$method(y, $($arg),*),
                 (Self::_5(x), $other::_5(y)) => x.$method(y, $($arg),*),
                 (Self::_7(x), $other::_7(y)) => x.$method(y, $($arg),*),
-                (Self::Big(x), $other::Big(y)) => x.$method(y, $($arg),*),
+                (Self::Big(x), $other::Big(y)) if x.prime() == y.prime() => x.$method(y, $($arg),*),
                 (l, r) => {
                     panic!("Applying {} to vectors over different primes ({} and {})", stringify!($method), l.prime(), r.prime());
                 }
