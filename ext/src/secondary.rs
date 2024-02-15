@@ -244,7 +244,9 @@ impl<A: PairAlgebra + Send + Sync> SecondaryHomotopy<A> {
             assert_eq!(d1.degree_shift() + d0.degree_shift(), self.shift_t);
         }
 
+        let tracing_span = tracing::Span::current();
         let f = |t, idx| {
+            let _tracing_guard = tracing_span.enter();
             let gen = BidegreeGenerator::s_t(s, t, idx);
             let save_file = SaveFile {
                 algebra: self.target.algebra(),
@@ -270,7 +272,7 @@ impl<A: PairAlgebra + Send + Sync> SecondaryHomotopy<A> {
                 self.hit_generator,
             );
 
-            tracing::info_span!("computing_composite", gen = %gen).in_scope(|| {
+            tracing::info_span!("Computing composite", gen = %gen).in_scope(|| {
                 for (coef, d1, d0) in &maps {
                     composite.add_composite(*coef, gen.t(), gen.idx(), d1, d0);
                 }
@@ -374,6 +376,7 @@ pub trait SecondaryLift: Sync + Sized {
     fn compute_intermediate(&self, gen: BidegreeGenerator) -> FpVector;
     fn composite(&self, s: u32) -> CompositeData<Self::Algebra>;
 
+    #[tracing::instrument(skip(self))]
     fn initialize_homotopies(&self) {
         let shift = self.shift();
         let max = self.max();
@@ -389,8 +392,11 @@ pub trait SecondaryLift: Sync + Sized {
         });
     }
 
+    #[tracing::instrument(skip(self))]
     fn compute_composites(&self) {
+        let tracing_span = tracing::Span::current();
         let f = |s| {
+            let _tracing_guard = tracing_span.enter();
             let s = s as u32;
             self.homotopies()[s as i32].add_composite(
                 s,
@@ -435,6 +441,7 @@ pub trait SecondaryLift: Sync + Sized {
         result
     }
 
+    #[tracing::instrument(skip(self))]
     fn compute_partial(&self, s: u32) {
         self.initialize_homotopies();
         let homotopies = self.homotopies();
@@ -467,8 +474,12 @@ pub trait SecondaryLift: Sync + Sized {
         }
     }
 
+    #[tracing::instrument(skip(self))]
     fn compute_intermediates(&self) {
+        let tracing_span = tracing::Span::current();
         let f = |gen: BidegreeGenerator| {
+            let _tracing_guard = tracing_span.enter();
+
             // If we already have homotopies, we don't need to compute intermediate
             if self.homotopies()[gen.s() as i32].homotopies.next_degree() >= gen.t() {
                 return;
@@ -507,6 +518,7 @@ pub trait SecondaryLift: Sync + Sized {
             })
     }
 
+    #[tracing::instrument(skip(self), fields(b = %b))]
     fn compute_homotopy_step(&self, b: Bidegree) -> std::ops::Range<i32> {
         let homotopy = &self.homotopies()[b.s() as i32];
         if homotopy.homotopies.next_degree() > b.t() {
@@ -541,7 +553,10 @@ pub trait SecondaryLift: Sync + Sized {
             }
         }
 
+        let tracing_span = tracing::Span::current();
         let get_intermediate = |i| {
+            let _tracing_guard = tracing_span.enter();
+
             let gen = BidegreeGenerator::new(b, i);
             let mut v = self.get_intermediate(gen);
             if gen.s() > shift.s() + 1 {
@@ -608,7 +623,9 @@ pub trait SecondaryLift: Sync + Sized {
             .add_generators_from_rows_ooo(b.t(), results)
     }
 
+    #[tracing::instrument(skip(self))]
     fn compute_homotopies(&self) {
+        let tracing_span = tracing::Span::current();
         let shift = self.shift();
 
         // When s = shift_s, the homotopies are just zero
@@ -621,7 +638,14 @@ pub trait SecondaryLift: Sync + Sized {
         let s_range = self.homotopies().range();
         let min = Bidegree::s_t(s_range.start as u32 + 1, min_t);
         let max = self.max().restrict(s_range.end as u32);
-        sseq::coordinates::iter_s_t(&|b| self.compute_homotopy_step(b), min, max);
+        sseq::coordinates::iter_s_t(
+            &|b| {
+                let _tracing_guard = tracing_span.enter();
+                self.compute_homotopy_step(b)
+            },
+            min,
+            max,
+        );
     }
 
     #[tracing::instrument(skip(self))]
