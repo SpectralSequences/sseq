@@ -1439,6 +1439,30 @@
 <a href="#1413" id="1413">1413</a>
 <a href="#1414" id="1414">1414</a>
 <a href="#1415" id="1415">1415</a>
+<a href="#1416" id="1416">1416</a>
+<a href="#1417" id="1417">1417</a>
+<a href="#1418" id="1418">1418</a>
+<a href="#1419" id="1419">1419</a>
+<a href="#1420" id="1420">1420</a>
+<a href="#1421" id="1421">1421</a>
+<a href="#1422" id="1422">1422</a>
+<a href="#1423" id="1423">1423</a>
+<a href="#1424" id="1424">1424</a>
+<a href="#1425" id="1425">1425</a>
+<a href="#1426" id="1426">1426</a>
+<a href="#1427" id="1427">1427</a>
+<a href="#1428" id="1428">1428</a>
+<a href="#1429" id="1429">1429</a>
+<a href="#1430" id="1430">1430</a>
+<a href="#1431" id="1431">1431</a>
+<a href="#1432" id="1432">1432</a>
+<a href="#1433" id="1433">1433</a>
+<a href="#1434" id="1434">1434</a>
+<a href="#1435" id="1435">1435</a>
+<a href="#1436" id="1436">1436</a>
+<a href="#1437" id="1437">1437</a>
+<a href="#1438" id="1438">1438</a>
+<a href="#1439" id="1439">1439</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     io::{Read, Write},
     path::Path,
@@ -1685,7 +1709,9 @@
             <span class="macro">assert_eq!</span>(d1.degree_shift() + d0.degree_shift(), <span class="self">self</span>.shift_t);
         }
 
+        <span class="kw">let </span>tracing_span = tracing::Span::current();
         <span class="kw">let </span>f = |t, idx| {
+            <span class="kw">let </span>_tracing_guard = tracing_span.enter();
             <span class="kw">let </span>gen = BidegreeGenerator::s_t(s, t, idx);
             <span class="kw">let </span>save_file = SaveFile {
                 algebra: <span class="self">self</span>.target.algebra(),
@@ -1711,7 +1737,7 @@
                 <span class="self">self</span>.hit_generator,
             );
 
-            <span class="macro">tracing::info_span!</span>(<span class="string">"computing_composite"</span>, gen = %gen).in_scope(|| {
+            <span class="macro">tracing::info_span!</span>(<span class="string">"Computing composite"</span>, gen = %gen).in_scope(|| {
                 <span class="kw">for </span>(coef, d1, d0) <span class="kw">in </span><span class="kw-2">&amp;</span>maps {
                     composite.add_composite(<span class="kw-2">*</span>coef, gen.t(), gen.idx(), d1, d0);
                 }
@@ -1815,7 +1841,8 @@
     <span class="kw">fn </span>compute_intermediate(<span class="kw-2">&amp;</span><span class="self">self</span>, gen: BidegreeGenerator) -&gt; FpVector;
     <span class="kw">fn </span>composite(<span class="kw-2">&amp;</span><span class="self">self</span>, s: u32) -&gt; CompositeData&lt;<span class="self">Self</span>::Algebra&gt;;
 
-    <span class="kw">fn </span>initialize_homotopies(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+    <span class="attr">#[tracing::instrument(skip(<span class="self">self</span>))]
+    </span><span class="kw">fn </span>initialize_homotopies(<span class="kw-2">&amp;</span><span class="self">self</span>) {
         <span class="kw">let </span>shift = <span class="self">self</span>.shift();
         <span class="kw">let </span>max = <span class="self">self</span>.max();
 
@@ -1830,8 +1857,11 @@
         });
     }
 
-    <span class="kw">fn </span>compute_composites(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+    <span class="attr">#[tracing::instrument(skip(<span class="self">self</span>))]
+    </span><span class="kw">fn </span>compute_composites(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+        <span class="kw">let </span>tracing_span = tracing::Span::current();
         <span class="kw">let </span>f = |s| {
+            <span class="kw">let </span>_tracing_guard = tracing_span.enter();
             <span class="kw">let </span>s = s <span class="kw">as </span>u32;
             <span class="self">self</span>.homotopies()[s <span class="kw">as </span>i32].add_composite(
                 s,
@@ -1876,7 +1906,8 @@
         result
     }
 
-    <span class="kw">fn </span>compute_partial(<span class="kw-2">&amp;</span><span class="self">self</span>, s: u32) {
+    <span class="attr">#[tracing::instrument(skip(<span class="self">self</span>))]
+    </span><span class="kw">fn </span>compute_partial(<span class="kw-2">&amp;</span><span class="self">self</span>, s: u32) {
         <span class="self">self</span>.initialize_homotopies();
         <span class="kw">let </span>homotopies = <span class="self">self</span>.homotopies();
 
@@ -1908,8 +1939,12 @@
         }
     }
 
-    <span class="kw">fn </span>compute_intermediates(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+    <span class="attr">#[tracing::instrument(skip(<span class="self">self</span>))]
+    </span><span class="kw">fn </span>compute_intermediates(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+        <span class="kw">let </span>tracing_span = tracing::Span::current();
         <span class="kw">let </span>f = |gen: BidegreeGenerator| {
+            <span class="kw">let </span>_tracing_guard = tracing_span.enter();
+
             <span class="comment">// If we already have homotopies, we don't need to compute intermediate
             </span><span class="kw">if </span><span class="self">self</span>.homotopies()[gen.s() <span class="kw">as </span>i32].homotopies.next_degree() &gt;= gen.t() {
                 <span class="kw">return</span>;
@@ -1948,7 +1983,8 @@
             })
     }
 
-    <span class="kw">fn </span>compute_homotopy_step(<span class="kw-2">&amp;</span><span class="self">self</span>, b: Bidegree) -&gt; std::ops::Range&lt;i32&gt; {
+    <span class="attr">#[tracing::instrument(skip(<span class="self">self</span>), fields(b = %b))]
+    </span><span class="kw">fn </span>compute_homotopy_step(<span class="kw-2">&amp;</span><span class="self">self</span>, b: Bidegree) -&gt; std::ops::Range&lt;i32&gt; {
         <span class="kw">let </span>homotopy = <span class="kw-2">&amp;</span><span class="self">self</span>.homotopies()[b.s() <span class="kw">as </span>i32];
         <span class="kw">if </span>homotopy.homotopies.next_degree() &gt; b.t() {
             <span class="kw">return </span>b.t()..b.t() + <span class="number">1</span>;
@@ -1982,7 +2018,10 @@
             }
         }
 
+        <span class="kw">let </span>tracing_span = tracing::Span::current();
         <span class="kw">let </span>get_intermediate = |i| {
+            <span class="kw">let </span>_tracing_guard = tracing_span.enter();
+
             <span class="kw">let </span>gen = BidegreeGenerator::new(b, i);
             <span class="kw">let </span><span class="kw-2">mut </span>v = <span class="self">self</span>.get_intermediate(gen);
             <span class="kw">if </span>gen.s() &gt; shift.s() + <span class="number">1 </span>{
@@ -2049,7 +2088,9 @@
             .add_generators_from_rows_ooo(b.t(), results)
     }
 
-    <span class="kw">fn </span>compute_homotopies(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+    <span class="attr">#[tracing::instrument(skip(<span class="self">self</span>))]
+    </span><span class="kw">fn </span>compute_homotopies(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+        <span class="kw">let </span>tracing_span = tracing::Span::current();
         <span class="kw">let </span>shift = <span class="self">self</span>.shift();
 
         <span class="comment">// When s = shift_s, the homotopies are just zero
@@ -2062,7 +2103,14 @@
         <span class="kw">let </span>s_range = <span class="self">self</span>.homotopies().range();
         <span class="kw">let </span>min = Bidegree::s_t(s_range.start <span class="kw">as </span>u32 + <span class="number">1</span>, min_t);
         <span class="kw">let </span>max = <span class="self">self</span>.max().restrict(s_range.end <span class="kw">as </span>u32);
-        sseq::coordinates::iter_s_t(<span class="kw-2">&amp;</span>|b| <span class="self">self</span>.compute_homotopy_step(b), min, max);
+        sseq::coordinates::iter_s_t(
+            <span class="kw-2">&amp;</span>|b| {
+                <span class="kw">let </span>_tracing_guard = tracing_span.enter();
+                <span class="self">self</span>.compute_homotopy_step(b)
+            },
+            min,
+            max,
+        );
     }
 
     <span class="attr">#[tracing::instrument(skip(<span class="self">self</span>))]
