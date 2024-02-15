@@ -563,7 +563,7 @@
                 (<span class="self">Self</span>::_3(x), <span class="macro-nonterminal">$other::_3</span>(y)) =&gt; x.<span class="macro-nonterminal">$method</span>(y, $(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>),
                 (<span class="self">Self</span>::_5(x), <span class="macro-nonterminal">$other::_5</span>(y)) =&gt; x.<span class="macro-nonterminal">$method</span>(y, $(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>),
                 (<span class="self">Self</span>::_7(x), <span class="macro-nonterminal">$other::_7</span>(y)) =&gt; x.<span class="macro-nonterminal">$method</span>(y, $(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>),
-                (<span class="self">Self</span>::Big(x), <span class="macro-nonterminal">$other::Big</span>(y)) =&gt; x.<span class="macro-nonterminal">$method</span>(y, $(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>),
+                (<span class="self">Self</span>::Big(x), <span class="macro-nonterminal">$other::Big</span>(y)) <span class="kw">if </span>x.prime() == y.prime() =&gt; x.<span class="macro-nonterminal">$method</span>(y, $(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>),
                 (l, r) =&gt; {
                     <span class="macro">panic!</span>(<span class="string">"Applying {} to vectors over different primes ({} and {})"</span>, <span class="macro">stringify!</span>(<span class="macro-nonterminal">$method</span>), l.prime(), r.prime());
                 }
@@ -578,7 +578,7 @@
                 (<span class="self">Self</span>::_3(x), <span class="macro-nonterminal">$other::_3</span>(y)) =&gt; x.<span class="macro-nonterminal">$method</span>(y, $(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>),
                 (<span class="self">Self</span>::_5(x), <span class="macro-nonterminal">$other::_5</span>(y)) =&gt; x.<span class="macro-nonterminal">$method</span>(y, $(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>),
                 (<span class="self">Self</span>::_7(x), <span class="macro-nonterminal">$other::_7</span>(y)) =&gt; x.<span class="macro-nonterminal">$method</span>(y, $(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>),
-                (<span class="self">Self</span>::Big(x), <span class="macro-nonterminal">$other::Big</span>(y)) =&gt; x.<span class="macro-nonterminal">$method</span>(y, $(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>),
+                (<span class="self">Self</span>::Big(x), <span class="macro-nonterminal">$other::Big</span>(y)) <span class="kw">if </span>x.prime() == y.prime() =&gt; x.<span class="macro-nonterminal">$method</span>(y, $(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>),
                 (l, r) =&gt; {
                     <span class="macro">panic!</span>(<span class="string">"Applying {} to vectors over different primes ({} and {})"</span>, <span class="macro">stringify!</span>(<span class="macro-nonterminal">$method</span>), l.prime(), r.prime());
                 }
@@ -592,7 +592,7 @@
                 (<span class="self">Self</span>::_3(x), <span class="macro-nonterminal">$other::_3</span>(y)) =&gt; x.<span class="macro-nonterminal">$method</span>(y, $(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>),
                 (<span class="self">Self</span>::_5(x), <span class="macro-nonterminal">$other::_5</span>(y)) =&gt; x.<span class="macro-nonterminal">$method</span>(y, $(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>),
                 (<span class="self">Self</span>::_7(x), <span class="macro-nonterminal">$other::_7</span>(y)) =&gt; x.<span class="macro-nonterminal">$method</span>(y, $(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>),
-                (<span class="self">Self</span>::Big(x), <span class="macro-nonterminal">$other::Big</span>(y)) =&gt; x.<span class="macro-nonterminal">$method</span>(y, $(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>),
+                (<span class="self">Self</span>::Big(x), <span class="macro-nonterminal">$other::Big</span>(y)) <span class="kw">if </span>x.prime() == y.prime() =&gt; x.<span class="macro-nonterminal">$method</span>(y, $(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>),
                 (l, r) =&gt; {
                     <span class="macro">panic!</span>(<span class="string">"Applying {} to vectors over different primes ({} and {})"</span>, <span class="macro">stringify!</span>(<span class="macro-nonterminal">$method</span>), l.prime(), r.prime());
                 }
