@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["is_prime"],"struct":["P2","P3","P5","P7","ValidPrime"]};
