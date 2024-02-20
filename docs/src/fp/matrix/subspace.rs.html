@@ -285,14 +285,6 @@
 <a href="#259" id="259">259</a>
 <a href="#260" id="260">260</a>
 <a href="#261" id="261">261</a>
-<a href="#262" id="262">262</a>
-<a href="#263" id="263">263</a>
-<a href="#264" id="264">264</a>
-<a href="#265" id="265">265</a>
-<a href="#266" id="266">266</a>
-<a href="#267" id="267">267</a>
-<a href="#268" id="268">268</a>
-<a href="#269" id="269">269</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     io::{Read, Write},
     ops::Deref,
@@ -353,14 +345,6 @@
         <span class="kw">let </span>ret = f(<span class="kw-2">&amp;mut </span><span class="self">self</span>.matrix);
         <span class="self">self</span>.matrix.row_reduce();
         ret
-    }
-
-    <span class="kw">pub fn </span>prime(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ValidPrime {
-        <span class="self">self</span>.matrix.prime()
-    }
-
-    <span class="kw">pub fn </span>pivots(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[isize] {
-        <span class="self">self</span>.matrix.pivots()
     }
 
     <span class="kw">pub fn </span>from_bytes(p: ValidPrime, data: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Read) -&gt; std::io::Result&lt;<span class="self">Self</span>&gt; {
