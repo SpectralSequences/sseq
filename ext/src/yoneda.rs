@@ -189,6 +189,7 @@ where
 }
 
 #[allow(clippy::cognitive_complexity)]
+#[tracing::instrument(skip_all)]
 pub fn yoneda_representative_with_strategy<CC>(
     cc: Arc<CC>,
     map: ChainMap<FreeModuleHomomorphism<impl Module<Algebra = CC::Algebra>>>,
@@ -255,7 +256,8 @@ where
         .collect::<Vec<_>>();
 
     for s in (1..=s_max).rev() {
-        let timer = crate::utils::Timer::start();
+        let span = tracing::info_span!("Cleaning yoneda representative", s);
+        let _tracing_guard = span.enter();
         let t_max = t_max[s as usize];
         let mut differential_images: BiVec<Subspace> = {
             let mut result = BiVec::new(t_min);
@@ -275,13 +277,10 @@ where
                         curr.reduce(t, row.as_slice_mut());
                     }
 
-                    differentials.row_reduce();
+                    let mut result = Subspace::from_matrix(differentials);
 
-                    let mut result = Subspace {
-                        matrix: differentials,
-                    };
                     let dim = result.dimension();
-                    result.matrix.trim(0, dim, 0);
+                    result.update_then_row_reduce(|result_matrix| result_matrix.trim(0, dim, 0));
                     result
                 });
             }
@@ -365,30 +364,31 @@ where
 
                     source.quotient_basis_elements(t, start..end);
 
-                    macro_rules! revert {
-                        () => {
-                            for t in gen_deg..=t {
-                                if prev_differentials[t].is_none() {
-                                    continue;
-                                }
-                                differential_images[t] = prev_differentials[t].take().unwrap();
-                                source.subspaces[t] = prev_subspaces[t].take().unwrap();
-                                source.basis_list[t] = prev_basis_list[t].take().unwrap();
+                    let needs_to_revert = diff_im.update_then_row_reduce(|diff_im_matrix| {
+                        for row in diff_im_matrix.iter_mut() {
+                            source.reduce(t, row.as_slice_mut());
+                            if row.as_slice().is_zero() {
+                                return true;
                             }
-                            continue 'gen_loop;
-                        };
-                    }
-
-                    for row in diff_im.matrix.iter_mut() {
-                        source.reduce(t, row.as_slice_mut());
-                        if row.is_zero() {
-                            revert!();
                         }
-                    }
 
-                    diff_im.matrix.row_reduce();
-                    if diff_im.matrix.row(diff_im.matrix.rows() - 1).is_zero() {
-                        revert!();
+                        diff_im_matrix.row_reduce();
+                        if diff_im_matrix.row(diff_im_matrix.rows() - 1).is_zero() {
+                            return true;
+                        }
+                        false
+                    });
+
+                    if needs_to_revert {
+                        for t in gen_deg..=t {
+                            if prev_differentials[t].is_none() {
+                                continue;
+                            }
+                            differential_images[t] = prev_differentials[t].take().unwrap();
+                            source.subspaces[t] = prev_subspaces[t].take().unwrap();
+                            source.basis_list[t] = prev_basis_list[t].take().unwrap();
+                        }
+                        continue 'gen_loop;
                     }
                 }
 
@@ -503,8 +503,6 @@ where
                 check!(t);
             }
         }
-
-        timer.end(format_args!("Cleaned yoneda representative for s = {s}"));
     }
 
     let modules = modules.into_iter().map(Arc::new).collect::<Vec<_>>();

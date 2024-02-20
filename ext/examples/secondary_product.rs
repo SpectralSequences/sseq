@@ -34,6 +34,8 @@ use itertools::Itertools;
 use sseq::coordinates::{Bidegree, BidegreeElement, BidegreeGenerator};
 
 fn main() -> anyhow::Result<()> {
+    ext::utils::init_logging();
+
     let resolution = Arc::new(query_module(Some(algebra::AlgebraType::Milnor), true)?);
 
     let (is_unit, unit) = ext::utils::get_unit(Arc::clone(&resolution))?;
@@ -108,11 +110,7 @@ fn main() -> anyhow::Result<()> {
         return Ok(());
     }
 
-    let timer = ext::utils::Timer::start();
-
     hom_lift.extend_all();
-
-    timer.end(format_args!("Total computation time"));
 
     // Compute E3 page
     let res_sseq = Arc::new(res_lift.e3_page());

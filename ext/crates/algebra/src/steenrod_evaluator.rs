@@ -393,7 +393,6 @@ impl SteenrodEvaluator {
 #[cfg(test)]
 mod tests {
     use expect_test::{expect, Expect};
-    use fp::prime::ValidPrime;
     use rstest::rstest;
 
     use super::*;

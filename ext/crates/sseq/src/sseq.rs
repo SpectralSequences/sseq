@@ -132,7 +132,7 @@ impl<P: SseqProfile> Sseq<P> {
         self.differentials[x].push(BiVec::new(P::MIN_R));
         self.page_data[x].push(BiVec::new(P::MIN_R));
         self.page_data[x][y].push(Subquotient::new_full(self.p, dim));
-        self.permanent_classes[x].push(Subspace::new(self.p, dim + 1, dim));
+        self.permanent_classes[x].push(Subspace::new(self.p, dim));
         self.invalid[x].push(false);
     }
 

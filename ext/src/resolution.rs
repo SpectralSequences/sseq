@@ -26,7 +26,6 @@ use sseq::coordinates::Bidegree;
 use crate::{
     chain_complex::{AugmentedChainComplex, ChainComplex},
     save::SaveKind,
-    utils::Timer,
 };
 
 /// In [`MuResolution::compute_through_stem`] and [`MuResolution::compute_through_bidegree`], we pass
@@ -187,6 +186,7 @@ where
     /// we simply retrieve the value (and remove it from the cache). Otherwise, we compute the
     /// kernel. This requires the differential to be computed at $(s, t - 1)$, but not $(s, t)$
     /// itself. Indeed, the new generators added to $(s, t)$ are by construction not in the kernel.
+    #[tracing::instrument(skip(self), fields(b = %b))]
     fn get_kernel(&self, b: Bidegree) -> Subspace {
         if let Some((_, v)) = self.kernels.remove(&b) {
             return v;
@@ -206,7 +206,6 @@ where
             }
         }
 
-        let timer = Timer::start();
         let complex = self.target();
         complex.compute_through_bidegree(b);
 
@@ -236,8 +235,6 @@ where
         matrix.row_reduce();
 
         let kernel = matrix.compute_kernel();
-
-        timer.end(format_args!("Computed kernel for bidegree {b}"));
 
         if self.should_save {
             if let Some(dir) = &self.save_dir {
@@ -322,6 +319,7 @@ where
     /// To run `step_resolution(s, t)`, we must have already had run `step_resolution(s, t - 1)`
     /// and `step_resolution(s - 1, t - 1)`. It is more efficient if we have in fact run
     /// `step_resolution(s - 1, t)`, so try your best to arrange calls to be run in this order.
+    #[tracing::instrument(skip(self), fields(b = %b, num_new_gens, density))]
     fn step_resolution(&self, b: Bidegree) {
         if b.s() == 0 {
             self.zero_module.extend_by_zero(b.t());
@@ -453,8 +451,6 @@ where
                 return;
             }
         }
-
-        let timer = Timer::start();
 
         let mut matrix = AugmentedMatrix::<3>::new_with_capacity(
             p,
@@ -626,10 +622,11 @@ where
         }
         let (cm_qi, res_qi) = matrix.compute_quasi_inverses();
 
-        timer.end(format_args!(
-            "Computed bidegree {b}, num new gens = {num_new_gens}, density = {density:.2}%",
-            density = current_differential.differential_density(b.t()) * 100.0
-        ));
+        tracing::Span::current().record("num_new_gens", num_new_gens);
+        tracing::Span::current().record(
+            "density",
+            current_differential.differential_density(b.t()) * 100.0,
+        );
 
         if self.should_save {
             if let Some(dir) = &self.save_dir {
@@ -755,6 +752,7 @@ where
     }
 
     /// This function resolves up till a fixed stem instead of a fixed t.
+    #[tracing::instrument(skip(self), fields(self = %self.name, max = %max))]
     pub fn compute_through_stem(&self, max: Bidegree) {
         self.compute_through_stem_with_callback(max, |_| ());
     }
@@ -767,7 +765,10 @@ where
         self.extend_through_degree(max.s());
         self.algebra().compute_basis(max.t() - min_degree);
 
+        let tracing_span = tracing::Span::current();
         maybe_rayon::in_place_scope(|scope| {
+            let _tracing_guard = tracing_span.enter();
+
             // Things that we have finished computing.
             let mut progress: Vec<i32> = vec![min_degree - 1; max.s() as usize + 1];
             // We will kickstart the process by pretending we have computed (0, min_degree - 1). So
@@ -781,7 +782,9 @@ where
                 if self.has_computed_bidegree(b) {
                     SenderData::send(b, false, sender);
                 } else {
+                    let tracing_span = tracing_span.clone();
                     scope.spawn(move |_| {
+                        let _tracing_guard = tracing_span.enter();
                         self.step_resolution(b);
                         SenderData::send(b, true, sender);
                     });
@@ -859,6 +862,7 @@ where
         Arc::clone(&self.differentials[s as usize])
     }
 
+    #[tracing::instrument(skip(self), fields(self = %self.name, b = %b))]
     fn compute_through_bidegree(&self, b: Bidegree) {
         self.compute_through_bidegree_with_callback(b, |_| ())
     }

@@ -678,8 +678,6 @@ impl<A: GeneratedAlgebra> FiniteDimensionalModule<A> {
 
 #[cfg(test)]
 mod tests {
-    use bivec::BiVec;
-
     use super::*;
     use crate::algebra::AdemAlgebra;
 

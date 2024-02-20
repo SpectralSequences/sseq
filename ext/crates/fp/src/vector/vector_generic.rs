@@ -8,7 +8,6 @@
 //! This module is only used when the `odd-primes` feature is enabled.
 
 use std::{
-    convert::TryInto,
     io::{Read, Write},
     mem::size_of,
 };
@@ -20,7 +19,7 @@ use super::iter::{FpVectorIteratorP, FpVectorNonZeroIteratorP};
 use crate::{
     field::{limb::LimbMethods, Fp},
     limb::Limb,
-    prime::{primes::*, Prime, ValidPrime},
+    prime::{Prime, ValidPrime, P2, P3, P5, P7},
     vector::inner::{FqVectorP, SliceMutP, SliceP},
 };
 
@@ -34,7 +33,7 @@ macro_rules! dispatch_vector_inner {
                 (Self::_3(x), $other::_3(y)) => x.$method(y, $($arg),*),
                 (Self::_5(x), $other::_5(y)) => x.$method(y, $($arg),*),
                 (Self::_7(x), $other::_7(y)) => x.$method(y, $($arg),*),
-                (Self::Big(x), $other::Big(y)) => x.$method(y, $($arg),*),
+                (Self::Big(x), $other::Big(y)) if x.prime() == y.prime() => x.$method(y, $($arg),*),
                 (l, r) => {
                     panic!("Applying {} to vectors over different primes ({} and {})", stringify!($method), l.prime(), r.prime());
                 }
@@ -49,7 +48,7 @@ macro_rules! dispatch_vector_inner {
                 (Self::_3(x), $other::_3(y)) => x.$method(y, $($arg),*),
                 (Self::_5(x), $other::_5(y)) => x.$method(y, $($arg),*),
                 (Self::_7(x), $other::_7(y)) => x.$method(y, $($arg),*),
-                (Self::Big(x), $other::Big(y)) => x.$method(y, $($arg),*),
+                (Self::Big(x), $other::Big(y)) if x.prime() == y.prime() => x.$method(y, $($arg),*),
                 (l, r) => {
                     panic!("Applying {} to vectors over different primes ({} and {})", stringify!($method), l.prime(), r.prime());
                 }
@@ -63,7 +62,7 @@ macro_rules! dispatch_vector_inner {
                 (Self::_3(x), $other::_3(y)) => x.$method(y, $($arg),*),
                 (Self::_5(x), $other::_5(y)) => x.$method(y, $($arg),*),
                 (Self::_7(x), $other::_7(y)) => x.$method(y, $($arg),*),
-                (Self::Big(x), $other::Big(y)) => x.$method(y, $($arg),*),
+                (Self::Big(x), $other::Big(y)) if x.prime() == y.prime() => x.$method(y, $($arg),*),
                 (l, r) => {
                     panic!("Applying {} to vectors over different primes ({} and {})", stringify!($method), l.prime(), r.prime());
                 }

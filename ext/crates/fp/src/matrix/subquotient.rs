@@ -24,8 +24,8 @@ impl Subquotient {
     /// subspace.
     pub fn new(p: ValidPrime, dim: usize) -> Self {
         Self {
-            gens: Subspace::new(p, dim + 1, dim),
-            quotient: Subspace::new(p, dim + 1, dim),
+            gens: Subspace::new(p, dim),
+            quotient: Subspace::new(p, dim),
             dimension: 0,
         }
     }
@@ -53,7 +53,7 @@ impl Subquotient {
             result.push(c);
             if c != 0 {
                 elt.add(
-                    self.gens.matrix.row(self.gens.pivots()[i] as usize),
+                    self.gens.row(self.gens.pivots()[i] as usize),
                     ((elt.prime() - 1) * c) % elt.prime(),
                 );
             }
@@ -104,10 +104,13 @@ impl Subquotient {
 
     pub fn quotient(&mut self, elt: Slice) {
         self.quotient.add_vector(elt);
-        for elt in self.gens.matrix.iter_mut().take(self.dimension) {
-            self.quotient.reduce(elt.as_slice_mut());
-        }
-        self.gens.matrix.row_reduce();
+
+        self.gens.update_then_row_reduce(|gens_matrix| {
+            for elt in gens_matrix.iter_mut().take(self.dimension) {
+                self.quotient.reduce(elt.as_slice_mut());
+            }
+        });
+
         self.dimension = self.gens.dimension();
     }
 
@@ -133,10 +136,11 @@ impl Subquotient {
     }
 
     pub fn add_gen(&mut self, gen: Slice) {
-        let mut new_row = self.gens.matrix.row_mut(self.dimension);
-        new_row.assign(gen);
-        self.quotient.reduce(new_row);
-        self.gens.matrix.row_reduce();
+        self.gens.update_then_row_reduce(|gens_matrix| {
+            let mut new_row = gens_matrix.row_mut(self.dimension);
+            new_row.assign(gen);
+            self.quotient.reduce(new_row);
+        });
         self.dimension = self.gens.dimension();
     }
 
@@ -161,10 +165,13 @@ impl Subquotient {
     ///  * `subspace` - If this is None, it is empty
     pub fn from_parts(mut sub: Subspace, quotient: Subspace) -> Self {
         let dim = sub.dimension();
-        for row in sub.matrix.iter_mut().take(dim) {
-            quotient.reduce(row.as_slice_mut());
-        }
-        sub.matrix.row_reduce();
+
+        sub.update_then_row_reduce(|sub_matrix| {
+            for row in sub_matrix.iter_mut().take(dim) {
+                quotient.reduce(row.as_slice_mut());
+            }
+        });
+
         Self {
             dimension: sub.dimension(),
             gens: sub,

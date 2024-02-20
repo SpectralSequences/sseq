@@ -1,9 +1,5 @@
 //! A module containing various utility functions related to user interaction in some way.
-use std::{
-    convert::{TryFrom, TryInto},
-    path::PathBuf,
-    sync::Arc,
-};
+use std::{path::PathBuf, sync::Arc};
 
 use algebra::{
     module::{steenrod_module, FDModule, Module, SteenrodModule},
@@ -463,41 +459,13 @@ pub fn get_unit(
     Ok((is_unit, unit))
 }
 
-#[cfg(feature = "logging")]
 mod logging {
-    use std::{io::Write, time::Instant};
-
-    /// If the `logging` feature is enabled, this can be used to time how long an operation takes.
-    /// If the `logging` features is disabled, this is a no-op.
-    ///
-    /// # Example
-    /// ```
-    /// # use logging::Timer;
-    /// let timer = Timer::start();
-    /// // slow_function();
-    /// timer.end(format_args!("Ran slow_function"));
-    /// ```
-    pub struct Timer(Instant);
-
-    impl Timer {
-        pub fn start() -> Self {
-            Self(Instant::now())
-        }
-
-        pub fn end(self, msg: std::fmt::Arguments) {
-            let duration = self.0.elapsed();
-            eprintln!(
-                "[{:>6}.{:>06} s] {msg}",
-                duration.as_secs(),
-                duration.subsec_micros(),
-            );
-        }
-    }
+    use std::io::Write;
 
     pub struct LogWriter<T> {
         writer: T,
         bytes: u64,
-        timer: Timer,
+        start: std::time::Instant,
     }
 
     impl<T: Write> Write for LogWriter<T> {
@@ -517,59 +485,58 @@ mod logging {
             LogWriter {
                 writer,
                 bytes: 0,
-                timer: Timer::start(),
+                start: std::time::Instant::now(),
             }
         }
     }
 
+    pub struct Throughput(f64);
+
+    impl std::fmt::Display for Throughput {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "{:.2} MiB/s", self.0)
+        }
+    }
+
     impl<T: Write> LogWriter<T> {
-        pub fn finalize(mut self, msg: std::fmt::Arguments) {
+        /// Return the throughput in MiB/s
+        pub fn into_throughput(mut self) -> Throughput {
             self.writer.flush().unwrap();
-            let duration = self.timer.0.elapsed();
+            let duration = self.start.elapsed();
             let mib = self.bytes as f64 / (1024 * 1024) as f64;
-            let mib_per_second = mib / duration.as_secs_f64();
-            self.timer
-                .end(format_args!("[{mib_per_second:>9.3} MiB/s] {msg}"));
+            Throughput(mib / duration.as_secs_f64())
         }
+    }
+
+    #[cfg(feature = "logging")]
+    pub fn ext_tracing_subscriber() -> impl tracing::Subscriber {
+        use tracing_subscriber::{
+            filter::EnvFilter,
+            fmt::{format::FmtSpan, Subscriber},
+        };
+
+        Subscriber::builder()
+            .pretty()
+            .with_writer(std::io::stdout)
+            .with_max_level(tracing::Level::INFO)
+            .with_span_events(FmtSpan::NEW | FmtSpan::CLOSE)
+            .with_thread_ids(true)
+            .with_env_filter(EnvFilter::try_from_default_env().unwrap())
+            .finish()
+    }
+
+    #[cfg(not(feature = "logging"))]
+    pub fn ext_tracing_subscriber() -> impl tracing::Subscriber {
+        tracing::subscriber::NoSubscriber::new()
+    }
+
+    pub fn init_logging() {
+        tracing::subscriber::set_global_default(ext_tracing_subscriber())
+            .expect("Failed to enable logging");
     }
 }
 
-#[cfg(not(feature = "logging"))]
-mod logging {
-    use std::io::Write;
-
-    pub struct Timer;
-
-    impl Timer {
-        pub fn start() -> Self {
-            Self {}
-        }
-
-        pub fn end(self, _msg: std::fmt::Arguments) {}
-    }
-
-    pub struct LogWriter<T>(T);
-
-    impl<T: Write> Write for LogWriter<T> {
-        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-            self.0.write(buf)
-        }
-
-        fn flush(&mut self) -> std::io::Result<()> {
-            self.0.flush()
-        }
-    }
-
-    impl<T> LogWriter<T> {
-        pub fn new(writer: T) -> Self {
-            LogWriter(writer)
-        }
-
-        pub fn finalize(self, _msg: std::fmt::Arguments) {}
-    }
-}
-
-pub use logging::{LogWriter, Timer};
+pub use logging::{ext_tracing_subscriber, init_logging, LogWriter};
 
 /// The value of the SECONDARY_JOB environment variable. This is used for distributing the
 /// `secondary`. If set, only data with `s = SECONDARY_JOB` will be computed. The minimum value of

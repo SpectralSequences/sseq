@@ -31,6 +31,8 @@ itertools = { version = "0.10.0", default-features = false, features = [
 ] }
 rustc-hash = "1.1.0"
 serde_json = { version = "1.0.0", features = ["preserve_order"] }
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 
 zstd = { version = "0.9.0", optional = true }
 

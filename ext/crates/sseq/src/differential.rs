@@ -83,7 +83,7 @@ impl Differential {
 
     /// Given a subspace of the target space, project the target vectors to the complement.
     pub fn reduce_target(&mut self, zeros: &Subspace) {
-        assert_eq!(zeros.matrix.columns(), self.target_dim);
+        assert_eq!(zeros.ambient_dimension(), self.target_dim);
 
         for row in self.matrix.iter_mut() {
             zeros.reduce(row.slice_mut(self.source_dim, self.source_dim + self.target_dim));

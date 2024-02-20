@@ -124,6 +124,8 @@ fn get_hom(
 }
 
 fn main() -> anyhow::Result<()> {
+    ext::utils::init_logging();
+
     eprintln!(
         "We are going to compute <-, b, a> for all (-), where a is an element in Ext(M, k) and b \
          and (-) are elements in Ext(k, k)."
@@ -235,9 +237,7 @@ fn main() -> anyhow::Result<()> {
         return Ok(());
     }
 
-    let timer = ext::utils::Timer::start();
     ch_lift.extend_all();
-    timer.end(format_args!("Total computation time"));
 
     fn get_page_data(sseq: &sseq::Sseq, b: Bidegree) -> &fp::matrix::Subquotient {
         let d = sseq.page_data(b.n(), b.s() as i32);

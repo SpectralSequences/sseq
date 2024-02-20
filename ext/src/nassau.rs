@@ -42,7 +42,7 @@ use sseq::coordinates::Bidegree;
 use crate::{
     chain_complex::{AugmentedChainComplex, ChainComplex, FiniteChainComplex, FreeChainComplex},
     save::SaveKind,
-    utils::{LogWriter, Timer},
+    utils::LogWriter,
 };
 
 /// See [`resolution::SenderData`](../resolution/struct.SenderData.html). This differs by not having the `new` field.
@@ -480,10 +480,9 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         });
     }
 
+    #[tracing::instrument(skip_all, fields(signature = ?signature, throughput))]
     fn write_qi(
         f: &mut Option<impl Write>,
-        b: Bidegree,
-        subalgebra: &MilnorSubalgebra,
         scratch: &mut FpVector,
         signature: &[PPartEntry],
         next_mask: &[usize],
@@ -527,9 +526,10 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             scratch.to_bytes(f)?;
         }
 
-        own_f.finalize(format_args!(
-            "Written quasi-inverse for bidegree {b} and signature {signature:?}, with {subalgebra}"
-        ));
+        tracing::Span::current().record(
+            "throughput",
+            tracing::field::display(own_f.into_throughput()),
+        );
         Ok(())
     }
 
@@ -553,19 +553,18 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         Ok(())
     }
 
+    #[tracing::instrument(skip(self), fields(b = %b, subalgebra = %subalgebra, num_new_gens, density))]
     fn step_resolution_with_subalgebra(
         &self,
         b: Bidegree,
         subalgebra: MilnorSubalgebra,
     ) -> anyhow::Result<()> {
-        let timer = Timer::start();
         let end = || {
-            timer.end(format_args!(
-                "Computed bidegree {b} with {subalgebra}, num new gens = {num_new_gens}, density \
-                 = {density:.2}%",
-                num_new_gens = self.number_of_gens_in_bidegree(b),
-                density = self.differentials[b.s()].differential_density(b.t()) * 100.0,
-            ));
+            tracing::Span::current().record("num_new_gens", self.number_of_gens_in_bidegree(b));
+            tracing::Span::current().record(
+                "density",
+                self.differentials[b.s()].differential_density(b.t()) * 100.0,
+            );
         };
 
         let p = self.prime();
@@ -615,8 +614,6 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
 
         Self::write_qi(
             &mut f,
-            b,
-            &subalgebra,
             &mut scratch,
             &zero_sig,
             &next_mask,
@@ -699,8 +696,6 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             }
             Self::write_qi(
                 &mut f,
-                b,
-                &subalgebra,
                 &mut scratch,
                 &signature,
                 &next_mask,
@@ -891,13 +886,17 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
     }
 
     /// This function resolves up till a fixed stem instead of a fixed t.
+    #[tracing::instrument(skip(self), fields(self = self.name, max = %max))]
     pub fn compute_through_stem(&self, max: Bidegree) {
         let _lock = self.lock.lock();
 
         self.extend_through_degree(max.s());
         self.algebra().compute_basis(max.t());
 
+        let tracing_span = tracing::Span::current();
         maybe_rayon::in_place_scope(|scope| {
+            let _tracing_guard = tracing_span.enter();
+
             // This algorithm is not optimal, as we compute (s, t) only after computing (s - 1, t)
             // and (s, t - 1). In theory, it suffices to wait for (s, t - 1) and (s - 1, t - 1),
             // but having the dimensions of the modules change halfway through the computation is
@@ -916,7 +915,9 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
                 if self.has_computed_bidegree(b) {
                     SenderData::send(b, sender);
                 } else {
+                    let tracing_span = tracing_span.clone();
                     scope.spawn(move |_| {
+                        let _tracing_guard = tracing_span.enter();
                         self.step_resolution(b);
                         SenderData::send(b, sender);
                     });
@@ -974,6 +975,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
         Arc::clone(&self.differentials[s as usize])
     }
 
+    #[tracing::instrument(skip(self), fields(self = self.name, max = %max))]
     fn compute_through_bidegree(&self, max: Bidegree) {
         let _lock = self.lock.lock();
 
@@ -1189,7 +1191,6 @@ mod test {
     use expect_test::expect;
 
     use super::*;
-    use crate::chain_complex::FreeChainComplex;
 
     #[test]
     fn test_restart_stem() {

@@ -56,6 +56,8 @@ use ext::{
 use sseq::coordinates::{Bidegree, BidegreeGenerator};
 
 fn main() -> anyhow::Result<()> {
+    ext::utils::init_logging();
+
     let resolution = Arc::new(query_module(Some(algebra::AlgebraType::Milnor), true)?);
 
     let lift = SecondaryResolution::new(Arc::clone(&resolution));
@@ -64,9 +66,7 @@ fn main() -> anyhow::Result<()> {
         return Ok(());
     }
 
-    let timer = ext::utils::Timer::start();
     lift.extend_all();
-    timer.end(format_args!("Total computation time"));
 
     let d2_shift = Bidegree::n_s(-1, 2);
 

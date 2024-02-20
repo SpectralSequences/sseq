@@ -220,6 +220,28 @@ mod test {
         }
 
         #[test]
+        fn test_incompatible_primes((p1, p2) in (arb_prime(), arb_prime())) {
+            prop_assume!(p1 != p2);
+
+            macro_rules! assert_panic {
+                ($function:ident $(, $($args:expr),*)?) => {
+                    let panic = std::panic::catch_unwind(|| {
+                        FpVector::new(p1, 10).$function(&FpVector::new(p2, 10) $(, $($args),*)?)
+                    });
+                    prop_assert!(panic.is_err());
+                };
+            }
+
+            assert_panic!(assign);
+            assert_panic!(assign_partial);
+            assert_panic!(add, 1);
+            assert_panic!(add_offset, 1, 5);
+            assert_panic!(add_truncate, 1);
+            assert_panic!(sign_rule);
+            assert_panic!(add_carry, 1, &mut []);
+        }
+
+        #[test]
         fn test_serialize((p, v_arr) in arb_vec()) {
             use std::io::{Seek, Cursor};
 

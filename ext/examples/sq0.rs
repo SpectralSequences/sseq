@@ -290,7 +290,7 @@ mod double {
                 inner: Arc<F>,
             ) -> Self {
                 Self {
-                    trivial_subspace: Subspace::new(source.prime(), 0, 0),
+                    trivial_subspace: Subspace::new(source.prime(), 0),
                     trivial_qi: QuasiInverse::new(None, Matrix::new(source.prime(), 0, 0)),
                     source,
                     target,
