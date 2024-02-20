@@ -60,14 +60,6 @@ impl Subspace {
         ret
     }
 
-    pub fn prime(&self) -> ValidPrime {
-        self.matrix.prime()
-    }
-
-    pub fn pivots(&self) -> &[isize] {
-        self.matrix.pivots()
-    }
-
     pub fn from_bytes(p: ValidPrime, data: &mut impl Read) -> std::io::Result<Self> {
         let rows = data.read_u64::<LittleEndian>()? as usize;
         let ambient_dimension = data.read_u64::<LittleEndian>()? as usize;
