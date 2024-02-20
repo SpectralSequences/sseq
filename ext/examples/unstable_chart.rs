@@ -22,7 +22,7 @@ use algebra::{
     module::{Module, SuspensionModule},
     Algebra,
 };
-use chart::{Backend, Orientation, TikzBackend};
+use chart::{Backend, ChartmakerBackend, Orientation};
 use ext::{
     chain_complex::{FiniteChainComplex, FreeChainComplex},
     resolution::UnstableResolution,
@@ -50,10 +50,11 @@ fn main() -> anyhow::Result<()> {
         query::raw("Max s", str::parse),
     );
 
-    let disp_template: String = query::raw(
-        "LaTeX name template (replace % with min degree)",
-        str::parse,
-    );
+    let disp_template = "";
+    // let disp_template: String = query::raw(
+    //     "LaTeX name template (replace % with min degree)",
+    //     str::parse,
+    // );
 
     let products = module.algebra().default_filtration_one_products();
 
@@ -70,7 +71,7 @@ fn main() -> anyhow::Result<()> {
 
         res.compute_through_stem(max + shift);
 
-        println!("\\begin{{figure}}[p]\\centering");
+        // println!("\\begin{{figure}}[p]\\centering");
 
         let sseq = res.to_sseq();
         let products = products
@@ -81,7 +82,9 @@ fn main() -> anyhow::Result<()> {
             .collect::<Vec<_>>();
 
         sseq.write_to_graph(
-            TikzBackend::new(std::io::stdout()),
+            ChartmakerBackend::new(
+                std::fs::File::create(&format!("{module}_{shift_t}.csv")).unwrap(),
+            ),
             2,
             false,
             products.iter(),
@@ -95,7 +98,7 @@ fn main() -> anyhow::Result<()> {
             },
         )?;
 
-        println!("\\end{{figure}}");
+        // println!("\\end{{figure}}");
     }
     Ok(())
 }
