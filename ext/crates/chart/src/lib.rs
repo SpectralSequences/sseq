@@ -1,4 +1,8 @@
-use std::{collections::HashMap, fmt::Display, io::Write};
+use std::{
+    collections::{BTreeMap, HashMap},
+    fmt::Display,
+    io::Write,
+};
 
 #[rustfmt::skip]
 const PATTERNS: [(f32, &[(f32, f32)]); 12] = [
@@ -433,6 +437,129 @@ impl<T: Write> Backend for TikzBackend<T> {
 impl<T: Write> Drop for TikzBackend<T> {
     fn drop(&mut self) {
         writeln!(self.out, r#"\end{{tikzpicture}}"#).unwrap();
+    }
+}
+
+pub struct NodeMetadata {
+    pub index: String,
+    pub s: i32,
+    pub f: i32,
+    pub shift: i32,
+    pub h0target: Vec<String>,
+    pub h1target: Vec<String>,
+    pub h2target: Vec<String>,
+    pub h3target: Vec<String>,
+}
+
+pub struct ChartmakerBackend<T: Write> {
+    out: T,
+    indices: BTreeMap<(i32, i32, usize), NodeMetadata>,
+}
+
+impl<T: Write> ChartmakerBackend<T> {
+    pub fn new(out: T) -> Self {
+        Self {
+            out,
+            indices: BTreeMap::new(),
+        }
+    }
+}
+
+impl<T: Write> Backend for ChartmakerBackend<T> {
+    type Error = std::io::Error;
+
+    const EXT: &'static str = ".csv";
+
+    fn header(&mut self, _max_x: i32, _max_y: i32) -> Result<(), Self::Error> {
+        writeln!(
+            self.out,
+            "index,s,f,shift,h0target,h1target,h2target,h3target,XX"
+        )?;
+        Ok(())
+    }
+
+    fn line(
+        &mut self,
+        _start_x: i32,
+        _end_x: i32,
+        _start_y: i32,
+        _end_y: i32,
+        _style: &str,
+    ) -> Result<(), Self::Error> {
+        Ok(())
+    }
+
+    fn text(
+        &mut self,
+        _x: i32,
+        _y: i32,
+        _content: impl Display,
+        _orientation: Orientation,
+    ) -> Result<(), Self::Error> {
+        Ok(())
+    }
+
+    fn node(&mut self, x: i32, y: i32, n: usize) -> Result<(), Self::Error> {
+        let n = n as i32;
+        for i in 0..n {
+            let index = format!("{x}_{y}_{i}");
+            let metadata = NodeMetadata {
+                index,
+                s: x,
+                f: y,
+                shift: 2 * i + 1 - n,
+                h0target: vec![],
+                h1target: vec![],
+                h2target: vec![],
+                h3target: vec![],
+            };
+            self.indices.insert((x, y, i as usize), metadata);
+        }
+        Ok(())
+    }
+
+    fn structline(
+        &mut self,
+        source: (i32, i32, usize),
+        target: (i32, i32, usize),
+        _style: Option<&str>,
+    ) -> Result<(), Self::Error> {
+        let target_index = self.indices.get(&target).unwrap().index.clone();
+        let source_metadata = self.indices.get_mut(&source).unwrap();
+        match (target.0 - source.0, target.1 - source.1) {
+            (0, 1) => source_metadata.h0target.push(target_index),
+            (1, 1) => source_metadata.h1target.push(target_index),
+            (3, 1) => source_metadata.h2target.push(target_index),
+            (7, 1) => source_metadata.h3target.push(target_index),
+            _ => panic!("Invalid structline"),
+        }
+        Ok(())
+    }
+
+    fn init(&mut self, max_x: i32, max_y: i32) -> Result<(), Self::Error> {
+        self.header(max_x, max_y)?;
+        Ok(())
+    }
+}
+
+impl<T: Write> Drop for ChartmakerBackend<T> {
+    fn drop(&mut self) {
+        for metadata in self.indices.values() {
+            writeln!(
+                self.out,
+                "{},{},{},{},{},{},{},{},",
+                metadata.index,
+                metadata.s,
+                metadata.f,
+                metadata.shift,
+                metadata.h0target.join(";"),
+                metadata.h1target.join(";"),
+                metadata.h2target.join(";"),
+                metadata.h3target.join(";"),
+            )
+            .unwrap();
+        }
+        self.out.flush().unwrap();
     }
 }
 
