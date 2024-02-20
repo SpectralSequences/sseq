@@ -1191,7 +1191,6 @@ mod test {
     use expect_test::expect;
 
     use super::*;
-    use crate::chain_complex::FreeChainComplex;
 
     #[test]
     fn test_restart_stem() {

@@ -1,9 +1,5 @@
 //! A module containing various utility functions related to user interaction in some way.
-use std::{
-    convert::{TryFrom, TryInto},
-    path::PathBuf,
-    sync::Arc,
-};
+use std::{path::PathBuf, sync::Arc};
 
 use algebra::{
     module::{steenrod_module, FDModule, Module, SteenrodModule},

@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt::Display, io::Write, result::Result};
+use std::{collections::HashMap, fmt::Display, io::Write};
 
 #[rustfmt::skip]
 const PATTERNS: [(f32, &[(f32, f32)]); 12] = [

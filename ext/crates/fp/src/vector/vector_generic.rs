@@ -8,7 +8,6 @@
 //! This module is only used when the `odd-primes` feature is enabled.
 
 use std::{
-    convert::TryInto,
     io::{Read, Write},
     mem::size_of,
 };

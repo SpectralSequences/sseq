@@ -1,4 +1,4 @@
-use std::{convert::TryInto, sync::Arc};
+use std::sync::Arc;
 
 use algebra::module::{
     homomorphism::{FullModuleHomomorphism, IdentityHomomorphism},
