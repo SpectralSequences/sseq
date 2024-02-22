@@ -83,16 +83,6 @@ fn main() -> anyhow::Result<()> {
         delta.push(maps);
     }
 
-    /* #[cfg(feature = "concurrent")]
-    let mut prev_i_receivers: Vec<Option<Receiver<()>>> = Vec::new();
-    #[cfg(feature = "concurrent")]
-    for _ in 0..=2 * s {
-        prev_i_receivers.push(None);
-    }
-
-    #[cfg(feature = "concurrent")]
-    let mut handles: Vec<Vec<JoinHandle<()>>> = Vec::with_capacity(s as usize + 1);*/
-
     let tracing_span = tracing::info_span!("Computing Steenrod operations");
     let _tracing_guard = tracing_span.enter();
 
@@ -100,18 +90,8 @@ fn main() -> anyhow::Result<()> {
     for i in 0..=b.s() {
         let shift_s = Bidegree::s_t(i, 0);
         // Δ_i is a map C_s -> C_{s + i}. So to hit C_{2s}, we only need to compute up to 2
-        // * s - i
-        //        #[cfg(not(feature = "concurrent"))]
+        // * s - i.
         let start = std::time::Instant::now();
-
-        /* #[cfg(feature = "concurrent")]
-        let mut handles_inner: Vec<JoinHandle<()>> = Vec::with_capacity((2 * s - i + 1) as usize);
-
-        #[cfg(feature = "concurrent")]
-        let mut last_receiver: Option<Receiver<()>> = None;
-
-        #[cfg(feature = "concurrent")]
-        let top_s = 2 * s - i;*/
 
         for s in 0..=(doubled_b - shift_s).s() {
             if i == 0 && s == 0 {
@@ -145,143 +125,63 @@ fn main() -> anyhow::Result<()> {
                 _ => Some(Arc::clone(&delta[i as usize - 1][s as usize])),
             };
 
-            /* #[cfg(feature = "concurrent")]
-            let (sender, new_receiver) = unbounded();
-            #[cfg(feature = "concurrent")]
-            let (prev_i_sender, new_prev_i_receiver) = unbounded();
+            for t in 0..=doubled_b.t() {
+                let b = Bidegree::s_t(s, t);
 
+                let num_gens = source.number_of_gens_in_degree(t);
 
-            #[cfg(feature = "concurrent")]
-            let prev_i_receiver =
-                std::mem::replace(&mut prev_i_receivers[s as usize], Some(new_prev_i_receiver));*/
+                let fx_dim = target.dimension(t);
+                let fdx_dim = dtarget_module.dimension(t);
 
-            // Define this as a closure so that we can easily switch between threaded and
-            // un-threaded
-            let fun = move || {
-                /* #[cfg(feature = "concurrent")]
-                let mut token = bucket.take_token();*/
-
-                for t in 0..=doubled_b.t() {
-                    let b = Bidegree::s_t(s, t);
-                    /* #[cfg(feature = "concurrent")]
-                    {
-                        token = bucket.recv2_or_release(token, &last_receiver, &prev_i_receiver);
-                    }*/
-
-                    let num_gens = source.number_of_gens_in_degree(t);
-
-                    let fx_dim = target.dimension(t);
-                    let fdx_dim = dtarget_module.dimension(t);
-
-                    if fx_dim == 0 || fdx_dim == 0 || num_gens == 0 {
-                        map.extend_by_zero(t);
-
-                        /* #[cfg(feature = "concurrent")]
-                        {
-                            if s < top_s {
-                                sender.send(()).unwrap();
-                                prev_i_sender.send(()).unwrap();
-                            }
-                        }*/
-
-                        continue;
-                    }
-
-                    let mut output_matrix = Matrix::new(p, num_gens, fx_dim);
-                    let mut result = FpVector::new(p, fdx_dim);
-                    for j in 0..num_gens {
-                        if let Some(m) = &prev_delta {
-                            // Δ_{i-1} x
-                            let prevd = m.output(t, j);
-
-                            // τ Δ_{i-1}x
-                            square.swap(&mut result, prevd, b + shift_s - Bidegree::s_t(1, 0));
-                            result += prevd;
-                        }
-
-                        if let Some(m) = &prev_map {
-                            let dx = d_res.output(t, j);
-                            m.apply(result.as_slice_mut(), 1, t, dx.as_slice());
-                        }
-                        assert!(d_target.apply_quasi_inverse(
-                            output_matrix[j].as_slice_mut(),
-                            t,
-                            result.as_slice(),
-                        ));
-
-                        result.set_to_zero();
-                    }
-                    map.add_generators_from_matrix_rows(t, output_matrix.as_slice_mut());
-
-                    /* #[cfg(feature = "concurrent")]
-                    {
-                        if s < top_s {
-                            sender.send(()).unwrap();
-                            prev_i_sender.send(()).unwrap();
-                        }
-                    }*/
+                if fx_dim == 0 || fdx_dim == 0 || num_gens == 0 {
+                    map.extend_by_zero(t);
+                    continue;
                 }
-            };
 
-            /* #[cfg(feature = "concurrent")]
-            {
-                let handle = thread::Builder::new()
-                    .name(format!("D_{}, s = {}", i, s))
-                    .spawn(fun);
-                last_receiver = Some(new_receiver);
-                handles_inner.push(handle.unwrap());
-            }*/
-            // #[cfg(not(feature = "concurrent"))]
-            fun();
+                let mut output_matrix = Matrix::new(p, num_gens, fx_dim);
+                let mut result = FpVector::new(p, fdx_dim);
+                for j in 0..num_gens {
+                    if let Some(m) = &prev_delta {
+                        // Δ_{i-1} x
+                        let prevd = m.output(t, j);
+
+                        // τ Δ_{i-1}x
+                        square.swap(&mut result, prevd, b + shift_s - Bidegree::s_t(1, 0));
+                        result += prevd;
+                    }
+
+                    if let Some(m) = &prev_map {
+                        let dx = d_res.output(t, j);
+                        m.apply(result.as_slice_mut(), 1, t, dx.as_slice());
+                    }
+                    assert!(d_target.apply_quasi_inverse(
+                        output_matrix[j].as_slice_mut(),
+                        t,
+                        result.as_slice(),
+                    ));
+
+                    result.set_to_zero();
+                }
+                map.add_generators_from_matrix_rows(t, output_matrix.as_slice_mut());
+            }
         }
-        /* #[cfg(feature = "concurrent")]
-        handles.push(handles_inner); */
 
-        // #[cfg(not(feature = "concurrent"))]
-        {
-            let final_map = &delta[i as usize][(doubled_b - shift_s).s() as usize];
-            let num_gens = resolution.number_of_gens_in_bidegree(doubled_b - shift_s);
-            print!(
-                "Sq^{} {basis_string} = [{result}]",
-                (b - shift_s).s(),
-                basis_string = BidegreeElement::new(b, FpVector::from_slice(p, &class).as_slice())
-                    .to_basis_string(),
-                result = (0..num_gens)
-                    .map(|k| format!("{}", final_map.output(doubled_b.t(), k).entry(0)))
-                    .format(", "),
-            );
-            stdout().flush().unwrap();
-            eprint!(" ({:?})", start.elapsed());
-            stderr().flush().unwrap();
-            println!();
-        }
-    }
-
-    /* #[cfg(feature = "concurrent")]
-    for (i, handle_inner) in handles.into_iter().enumerate() {
-        let i = i as u32;
-
-        for handle in handle_inner {
-            handle.join().unwrap();
-        }
-        let final_map = &delta[i as usize][(2 * s - i) as usize];
-        let num_gens = resolution.number_of_gens_in_bidegree(2 * s - i, 2 * t);
+        let final_map = &delta[i as usize][(doubled_b - shift_s).s() as usize];
+        let num_gens = resolution.number_of_gens_in_bidegree(doubled_b - shift_s);
         print!(
-            "Sq^{} x_({}, {}, {}) = [{}]",
-            s - i,
-            t - s as i32,
-            s,
-            idx,
-            (0..num_gens)
-                .map(|k| format!("{}", final_map.output(2 * t, k).entry(0)))
-                .collect::<Vec<_>>()
-                .join(", "),
+            "Sq^{} {basis_string} = [{result}]",
+            (b - shift_s).s(),
+            basis_string = BidegreeElement::new(b, FpVector::from_slice(p, &class).as_slice())
+                .to_basis_string(),
+            result = (0..num_gens)
+                .map(|k| format!("{}", final_map.output(doubled_b.t(), k).entry(0)))
+                .format(", "),
         );
         stdout().flush().unwrap();
-        eprint!(" ({:?} total)", start.elapsed());
+        eprint!(" ({:?})", start.elapsed());
         stderr().flush().unwrap();
         println!();
-    }*/
+    }
 
     Ok(())
 }
