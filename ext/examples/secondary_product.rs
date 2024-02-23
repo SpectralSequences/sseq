@@ -178,7 +178,7 @@ fn main() -> anyhow::Result<()> {
                 "{name} [{basis_string}] = {} + τ {}",
                 output.slice(0, target_num_gens),
                 output.slice(target_num_gens, target_num_gens + tau_num_gens),
-                basis_string = BidegreeElement::new(b, gen).to_basis_string(),
+                basis_string = BidegreeElement::new(b, gen.to_owned()).to_basis_string(),
             );
         }
     }

@@ -4,22 +4,22 @@ use algebra::{
     module::{Module, MuFreeModule},
     MuAlgebra,
 };
-use fp::vector::Slice;
+use fp::vector::{FpVector, Slice};
 
 use crate::coordinates::{Bidegree, BidegreeGenerator};
 
 /// An element of a bigraded vector space. Most commonly used to index elements of spectral
 /// sequences.
 #[derive(Debug, Clone)]
-pub struct BidegreeElement<'a> {
+pub struct BidegreeElement {
     /// Bidegree of the element
     degree: Bidegree,
     /// Representing vector
-    vec: Slice<'a>,
+    vec: FpVector,
 }
 
-impl<'a> BidegreeElement<'a> {
-    pub fn new(degree: Bidegree, vec: Slice) -> BidegreeElement {
+impl BidegreeElement {
+    pub fn new(degree: Bidegree, vec: FpVector) -> BidegreeElement {
         BidegreeElement { degree, vec }
     }
 
@@ -40,6 +40,10 @@ impl<'a> BidegreeElement<'a> {
     }
 
     pub fn vec(&self) -> Slice {
+        self.vec.as_slice()
+    }
+
+    pub fn into_vec(self) -> FpVector {
         self.vec
     }
 
@@ -103,7 +107,7 @@ impl<'a> BidegreeElement<'a> {
     }
 }
 
-impl Display for BidegreeElement<'_> {
+impl Display for BidegreeElement {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "({}, {}, {})", self.n(), self.s(), self.vec())
     }

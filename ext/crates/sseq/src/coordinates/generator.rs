@@ -68,7 +68,7 @@ impl From<(Bidegree, usize)> for BidegreeGenerator {
     }
 }
 
-impl TryFrom<BidegreeElement<'_>> for BidegreeGenerator {
+impl TryFrom<BidegreeElement> for BidegreeGenerator {
     type Error = ();
 
     fn try_from(value: BidegreeElement) -> Result<Self, Self::Error> {

@@ -140,7 +140,7 @@ where
         let target = d.target();
         let result_vector = d.output(gen.t(), gen.idx());
 
-        BidegreeElement::new(gen.degree(), result_vector.as_slice())
+        BidegreeElement::new(gen.degree(), result_vector.clone())
             .to_string_module(&*target, compact)
     }
 }
