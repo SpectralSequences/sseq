@@ -14,6 +14,14 @@ pub mod prelude {
         fn maybe_par_iter_mut(&'data mut self) -> Self::Iter;
     }
 
+    pub type MaybeIterBridge<I> = rayon::iter::IterBridge<I>;
+
+    pub trait MaybeParallelBridge: ParallelBridge {
+        fn maybe_par_bridge(self) -> MaybeIterBridge<Self> {
+            self.par_bridge()
+        }
+    }
+
     // Implementations
 
     impl<I: ParallelIterator> MaybeParallelIterator for I {}
@@ -33,6 +41,8 @@ pub mod prelude {
             self.par_iter_mut()
         }
     }
+
+    impl<I: ParallelBridge> MaybeParallelBridge for I {}
 }
 
 pub fn join<A, B, RA, RB>(oper_a: A, oper_b: B) -> (RA, RB)
