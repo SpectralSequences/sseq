@@ -395,7 +395,8 @@ fn main() -> anyhow::Result<()> {
                     if ext_part.iter_nonzero().count() > 0 {
                         print!(
                             "[{basis_string}]",
-                            basis_string = BidegreeElement::new(c, ext_part).to_basis_string()
+                            basis_string =
+                                BidegreeElement::new(c, ext_part.to_owned()).to_basis_string()
                         );
                         true
                     } else {
@@ -413,7 +414,7 @@ fn main() -> anyhow::Result<()> {
 
                     let basis_string = BidegreeElement::new(
                         c + TAU_BIDEGREE,
-                        gen.slice(target_num_gens, target_all_gens),
+                        gen.slice(target_num_gens, target_all_gens).to_owned(),
                     )
                     .to_basis_string();
                     if num_entries == 1 {

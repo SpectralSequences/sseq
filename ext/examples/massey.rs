@@ -122,7 +122,7 @@ fn main() -> anyhow::Result<()> {
         let kernel = product.compute_kernel();
 
         for row in kernel.iter() {
-            let c_element = BidegreeElement::new(c, row);
+            let c_element = BidegreeElement::new(c, row.to_owned());
             print!(
                 "<a, b, {c_string}> = [",
                 c_string = c_element.to_basis_string()

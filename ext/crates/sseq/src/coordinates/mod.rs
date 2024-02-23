@@ -80,10 +80,10 @@ mod test {
         let b = Bidegree::n_s(23, 9);
         let mut vec = FpVector::new(ValidPrime::new(2), 2);
         vec.set_entry(1, 1);
-        let h1_pd0 = BidegreeElement::new(b, vec.as_slice());
+        let h1_pd0 = BidegreeElement::new(b, vec.clone());
         assert_eq!(Ok(BidegreeGenerator::new(b, 1)), h1_pd0.try_into());
         vec.set_entry(0, 1);
-        let h0_squared_i = BidegreeElement::new(b, vec.as_slice());
+        let h0_squared_i = BidegreeElement::new(b, vec.clone());
         assert_eq!(
             Result::<BidegreeGenerator, ()>::Err(()),
             h0_squared_i.try_into()
