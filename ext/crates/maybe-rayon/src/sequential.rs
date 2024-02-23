@@ -15,6 +15,14 @@ pub mod prelude {
         fn maybe_par_iter_mut(&'data mut self) -> Self::Iter;
     }
 
+    pub struct MaybeIterBridge<Iter>(Iter);
+
+    pub trait MaybeParallelBridge: Sized {
+        fn maybe_par_bridge(self) -> MaybeIterBridge<Self> {
+            MaybeIterBridge(self)
+        }
+    }
+
     // Implementations
 
     impl<I: Iterator> MaybeParallelIterator for I {}
@@ -39,6 +47,16 @@ pub mod prelude {
             self.into_iter()
         }
     }
+
+    impl<Iter: Iterator> Iterator for MaybeIterBridge<Iter> {
+        type Item = Iter::Item;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            self.0.next()
+        }
+    }
+
+    impl<T: Iterator> MaybeParallelBridge for T {}
 }
 
 #[allow(dead_code)]
