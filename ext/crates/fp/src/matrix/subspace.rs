@@ -210,6 +210,43 @@ impl Subspace {
             .take(self.dimension())
     }
 
+    /// Iterate over all vectors in the subspace.
+    /// ```
+    /// # use fp::{prime::ValidPrime, matrix::{Matrix, Subspace}, vector::FpVector};
+    /// let subspace = Subspace::from_matrix(Matrix::from_vec(
+    ///     ValidPrime::new(3),
+    ///     &[vec![1, 0, 0], vec![0, 1, 2]],
+    /// ));
+    /// let all_vectors = subspace
+    ///     .iter_all_vectors()
+    ///     .map(|v| (&v).into())
+    ///     .collect::<Vec<Vec<u32>>>();
+    ///
+    /// assert_eq!(
+    ///     all_vectors,
+    ///     vec![
+    ///         vec![0, 0, 0],
+    ///         vec![0, 1, 2],
+    ///         vec![0, 2, 1],
+    ///         vec![1, 0, 0],
+    ///         vec![1, 1, 2],
+    ///         vec![1, 2, 1],
+    ///         vec![2, 0, 0],
+    ///         vec![2, 1, 2],
+    ///         vec![2, 2, 1],
+    ///     ]
+    /// );
+    /// ```
+    pub fn iter_all_vectors(&self) -> impl Iterator<Item = FpVector> + '_ {
+        crate::prime::iter::combinations(self.prime(), self.dimension()).map(|combination| {
+            let mut vector = FpVector::new(self.prime(), self.ambient_dimension());
+            for (i, &v) in combination.iter().enumerate() {
+                vector.add(&self.matrix[i], v);
+            }
+            vector
+        })
+    }
+
     pub fn sum(&self, other: &Self) -> Self {
         let self_rows = self.matrix.clone().into_iter();
         let other_rows = other.matrix.clone().into_iter();
