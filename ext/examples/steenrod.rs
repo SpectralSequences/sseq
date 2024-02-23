@@ -171,8 +171,8 @@ fn main() -> anyhow::Result<()> {
         print!(
             "Sq^{} {basis_string} = [{result}]",
             (b - shift_s).s(),
-            basis_string = BidegreeElement::new(b, FpVector::from_slice(p, &class).as_slice())
-                .to_basis_string(),
+            basis_string =
+                BidegreeElement::new(b, FpVector::from_slice(p, &class)).to_basis_string(),
             result = (0..num_gens)
                 .map(|k| format!("{}", final_map.output(doubled_b.t(), k).entry(0)))
                 .format(", "),

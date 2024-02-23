@@ -243,7 +243,7 @@ impl fmt::Display for MahowaldInvariant {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
         let output_t = self.output_t;
         let f2_vec_to_sum = |v: &FpVector| {
-            let elt = BidegreeElement::new(Bidegree::s_t(self.gen.s(), output_t), v.as_slice());
+            let elt = BidegreeElement::new(Bidegree::s_t(self.gen.s(), output_t), v.clone());
             elt.to_basis_string()
         };
         let indeterminacy_info = if self.indeterminacy_basis.is_empty() {
