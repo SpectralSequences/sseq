@@ -1815,6 +1815,7 @@ mod tests {
     #[case(2, 32, Some(MilnorProfile { q_part: !0, p_part: vec!(3, 2, 1), truncated: true }))]
     #[case(2, 32, Some(MilnorProfile { q_part: !0, p_part: vec!(2, 2, 1), truncated: true }))]
     #[case(2, 32, Some(MilnorProfile { q_part: !0, p_part: vec!(0), truncated: false }))]
+    #[allow(clippy::duplicated_attributes)] // False positive
     #[case(3, 106, None)]
     #[case(3, 106, Some(MilnorProfile { q_part: 0b1111, p_part: vec!(3, 2, 1), truncated: true }))]
     #[case(3, 106, Some(MilnorProfile { q_part: 0b1111, p_part: vec!(2, 2, 1), truncated: true }))]
