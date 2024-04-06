@@ -296,7 +296,7 @@ impl<'a> PartitionIterator<'a> {
 impl<'a> Iterator for PartitionIterator<'a> {
     type Item = (i32, &'a Vec<u32>);
 
-    fn next(&mut self) -> Option<Self::Item> {
+    fn next<'b>(&'b mut self) -> Option<Self::Item> {
         let found;
         if self.initial {
             if self.remaining < 0 {
@@ -308,7 +308,15 @@ impl<'a> Iterator for PartitionIterator<'a> {
             found = self.search();
         }
         if found {
-            Some(unsafe { std::mem::transmute::<_, Self::Item>((self.remaining, &self.partition)) })
+            // SAFETY: We are returning a reference to a field of `self`, which is valid as long as
+            // `self` is alive. In other words, we know that `'b: 'a`, but we can't tell that to the
+            // compiler because the signature of `next` doesn't allow it.
+            Some(unsafe {
+                std::mem::transmute::<(i32, &'b Vec<u32>), Self::Item>((
+                    self.remaining,
+                    &self.partition,
+                ))
+            })
         } else {
             None
         }
