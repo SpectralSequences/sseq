@@ -331,8 +331,6 @@ mod sum_module {
 
     #[cfg(test)]
     mod tests {
-        #![allow(non_snake_case)]
-
         use algebra::{module::FDModule, AdemAlgebra};
 
         use super::*;
@@ -352,24 +350,24 @@ mod sum_module {
             test_sum_module(vec![c2, ceta], c2sumceta);
         }
 
-        fn test_sum_module(M: Vec<&str>, S: &str) {
+        fn test_sum_module(modules: Vec<&str>, desc: &str) {
             let p = fp::prime::ValidPrime::new(2);
-            let A = Arc::new(AdemAlgebra::new(p, false));
+            let algebra = Arc::new(AdemAlgebra::new(p, false));
 
-            let M: Vec<Arc<FDModule<AdemAlgebra>>> = M
+            let modules: Vec<Arc<FDModule<AdemAlgebra>>> = modules
                 .into_iter()
                 .map(|s| {
                     let m = serde_json::from_str(s).unwrap();
-                    Arc::new(FDModule::from_json(Arc::clone(&A), &m).unwrap())
+                    Arc::new(FDModule::from_json(Arc::clone(&algebra), &m).unwrap())
                 })
                 .collect::<Vec<_>>();
 
-            let sum = FDModule::from(&SumModule::new(Arc::clone(&A), M, 0));
+            let sum_1 = FDModule::from(&SumModule::new(Arc::clone(&algebra), modules, 0));
 
-            let S = serde_json::from_str(S).unwrap();
-            let S = FDModule::from_json(Arc::clone(&A), &S).unwrap();
+            let desc = serde_json::from_str(desc).unwrap();
+            let sum_2 = FDModule::from_json(Arc::clone(&algebra), &desc).unwrap();
 
-            if let Err(msg) = sum.test_equal(&S) {
+            if let Err(msg) = sum_1.test_equal(&sum_2) {
                 panic!("Test case failed. {msg}");
             }
         }
