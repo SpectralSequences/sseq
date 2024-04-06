@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"trait":["IndexedParallelIterator","IntoMaybeParallelIterator","MaybeIndexedParallelIterator","MaybeIntoParallelRefMutIterator","MaybeParallelIterator","ParallelIterator"]};
+window.SIDEBAR_ITEMS = {"trait":["IndexedParallelIterator","IntoMaybeParallelIterator","MaybeIndexedParallelIterator","MaybeIntoParallelRefMutIterator","MaybeParallelBridge","MaybeParallelIterator","ParallelIterator"],"type":["MaybeIterBridge"]};
