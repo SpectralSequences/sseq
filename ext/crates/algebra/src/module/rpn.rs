@@ -69,7 +69,7 @@ where
     }
 
     fn max_computed_degree(&self) -> i32 {
-        i32::max_value()
+        i32::MAX
     }
 
     fn dimension(&self, degree: i32) -> usize {

@@ -134,7 +134,7 @@ impl<A: Algebra> Module for FiniteDimensionalModule<A> {
     }
 
     fn max_computed_degree(&self) -> i32 {
-        i32::max_value()
+        i32::MAX
     }
 
     fn compute_basis(&self, _degree: i32) {}

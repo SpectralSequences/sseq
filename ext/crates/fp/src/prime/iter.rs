@@ -6,7 +6,7 @@ pub struct BitflagIterator {
 impl BitflagIterator {
     pub fn new(flag: u64) -> Self {
         Self {
-            remaining: u8::max_value(),
+            remaining: u8::MAX,
             flag,
         }
     }
