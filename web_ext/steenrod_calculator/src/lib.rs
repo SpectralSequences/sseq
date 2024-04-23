@@ -6,7 +6,7 @@ pub struct SteenrodCalculator(SteenrodEvaluator);
 
 #[wasm_bindgen]
 impl SteenrodCalculator {
-    pub fn new(p: u32) -> Option<Self> {
+    pub fn new(p: u32) -> Option<SteenrodCalculator> {
         Some(Self(SteenrodEvaluator::new(p.try_into().ok()?)))
     }
 
