@@ -225,15 +225,7 @@ where
     T: PartialEq,
 {
     fn eq(&self, other: &OnceVec<T>) -> bool {
-        if self.len() != other.len() {
-            return false;
-        }
-        for i in 0..self.len() {
-            if self[i] != other[i] {
-                return false;
-            }
-        }
-        true
+        self.len() == other.len() && self.iter().eq(other.iter())
     }
 }
 
