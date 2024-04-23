@@ -502,15 +502,15 @@ mod test {
 
         #[test]
         fn test_iterator((p, v_arr) in arb_vec()) {
-                let v = FpVector::from_slice(p, &v_arr);
+            let v = FpVector::from_slice(p, &v_arr);
 
-                let w = v.iter();
-                let mut counter = 0;
-                for (i, x) in w.enumerate() {
-                    prop_assert_eq!(v.entry(i), x);
-                    counter += 1;
-                }
-                prop_assert_eq!(counter, v.len());
+            let w = v.iter();
+            let mut counter = 0;
+            for (i, x) in w.enumerate() {
+                prop_assert_eq!(v.entry(i), x);
+                counter += 1;
+            }
+            prop_assert_eq!(counter, v.len());
         }
 
         #[test]

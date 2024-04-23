@@ -31,7 +31,7 @@ impl ResolutionManager {
     /// # Arguments
     ///  * `sender` - The `sender` object to send messages to.
     pub fn new(sender: Sender) -> Self {
-        ResolutionManager {
+        Self {
             sender,
             resolution: None,
             is_unit: false,
@@ -212,7 +212,7 @@ impl SseqManager {
     /// # Arguments
     ///  * `sender` - The `Sender` object to send messages to.
     pub fn new(sender: Sender) -> Self {
-        SseqManager {
+        Self {
             sender,
             sseq: None,
             unit_sseq: None,

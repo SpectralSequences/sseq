@@ -19,8 +19,8 @@ pub struct BidegreeElement {
 }
 
 impl BidegreeElement {
-    pub fn new(degree: Bidegree, vec: FpVector) -> BidegreeElement {
-        BidegreeElement { degree, vec }
+    pub fn new(degree: Bidegree, vec: FpVector) -> Self {
+        Self { degree, vec }
     }
 
     pub fn s(&self) -> u32 {

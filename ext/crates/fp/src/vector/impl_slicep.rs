@@ -68,10 +68,10 @@ impl<'a, P: Prime> SliceP<'a, P> {
     }
 
     #[must_use]
-    pub fn slice(self, start: usize, end: usize) -> SliceP<'a, P> {
+    pub fn slice(self, start: usize, end: usize) -> Self {
         assert!(start <= end && end <= self.len());
 
-        SliceP {
+        Self {
             p: self.p,
             limbs: self.limbs,
             start: self.start + start,

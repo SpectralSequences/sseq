@@ -129,7 +129,7 @@ impl<P: Prime> FpVectorP<P> {
 
     /// Add `other` to `self` on the assumption that the first `offset` entries of `other` are
     /// empty.
-    pub fn add_offset(&mut self, other: &FpVectorP<P>, c: u32, offset: usize) {
+    pub fn add_offset(&mut self, other: &Self, c: u32, offset: usize) {
         assert_eq!(self.len(), other.len());
         let min_limb = offset / limb::entries_per_limb(self.p);
         if self.p == 2 {
@@ -148,7 +148,7 @@ impl<P: Prime> FpVectorP<P> {
 
     /// Add `other` to `self` on the assumption that the first `offset` entries of `other` are
     /// empty.
-    pub fn add_offset_nosimd(&mut self, other: &FpVectorP<P>, c: u32, offset: usize) {
+    pub fn add_offset_nosimd(&mut self, other: &Self, c: u32, offset: usize) {
         assert_eq!(self.len(), other.len());
         let min_limb = offset / limb::entries_per_limb(self.p);
         if self.p == 2 {
@@ -167,11 +167,11 @@ impl<P: Prime> FpVectorP<P> {
         }
     }
 
-    pub fn add(&mut self, other: &FpVectorP<P>, c: u32) {
+    pub fn add(&mut self, other: &Self, c: u32) {
         self.add_offset(other, c, 0);
     }
 
-    pub fn add_nosimd(&mut self, other: &FpVectorP<P>, c: u32) {
+    pub fn add_nosimd(&mut self, other: &Self, c: u32) {
         self.add_offset_nosimd(other, c, 0);
     }
 

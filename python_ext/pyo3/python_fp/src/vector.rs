@@ -238,7 +238,7 @@ impl FpVector {
     #[staticmethod]
     pub fn from_list(p : u32, l : PyObject) -> PyResult<Self> {
         let vec = vec_from_pyobj(p, l)?;
-        Ok(FpVector::box_and_wrap(FpVectorRust::from_vec(new_valid_prime(p)?, &vec)))
+        Ok(Self::box_and_wrap(FpVectorRust::from_vec(new_valid_prime(p)?, &vec)))
     }
 
     
@@ -255,7 +255,7 @@ impl FpVector {
     }
 
     #[args(c=1)]
-    pub fn add(&mut self, other : &FpVector, c : i32) -> PyResult<()> {
+    pub fn add(&mut self, other : &Self, c : i32) -> PyResult<()> {
         self.check_not_null()?;
         other.check_not_null()?;
         if self.equal(other) {

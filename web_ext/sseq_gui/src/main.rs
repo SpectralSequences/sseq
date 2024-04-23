@@ -215,7 +215,7 @@ impl Handler for Server {
 
 impl Server {
     pub fn new(out: WsSender) -> Self {
-        Server {
+        Self {
             manager: None,
             out: Some(out),
         }
