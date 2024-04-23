@@ -23,7 +23,7 @@ pub struct Canvas {
 #[wasm_bindgen]
 impl Canvas {
     #[wasm_bindgen(constructor)]
-    pub fn new(webgl_context: &WebGl2RenderingContext) -> Result<Self, JsValue> {
+    pub fn new(webgl_context: &WebGl2RenderingContext) -> Result<Canvas, JsValue> {
         let webgl = WebGlWrapper::new(webgl_context.clone());
         let canvas = webgl.canvas()?;
         let chart_shaders = ChartShaders::new(webgl.clone())?;
