@@ -664,7 +664,7 @@ impl<T: fmt::Debug> fmt::Debug for OnceBiVec<T> {
 
 impl<T> OnceBiVec<T> {
     pub fn new(min_degree: i32) -> Self {
-        OnceBiVec {
+        Self {
             data: OnceVec::new(),
             min_degree,
         }

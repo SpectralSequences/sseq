@@ -35,7 +35,7 @@ pub const fn is_prime(p: u32) -> bool {
 }
 
 impl ValidPrime {
-    pub const fn new(p: u32) -> ValidPrime {
+    pub const fn new(p: u32) -> Self {
         // We need the size restriction for a few reasons.
         //
         // First, we need `bit_length(p)` to be smaller than 64. Otherwise, shifting a u64 by 64
@@ -48,11 +48,11 @@ impl ValidPrime {
         // but it doesn't seem worth it for now.
         assert!(p < (1 << 31), "Tried to construct a prime larger than 2^31");
         assert!(is_prime(p), "Tried to construct a composite dynamic prime");
-        ValidPrime { p }
+        Self { p }
     }
 
-    pub const fn new_unchecked(p: u32) -> ValidPrime {
-        ValidPrime { p }
+    pub const fn new_unchecked(p: u32) -> Self {
+        Self { p }
     }
 }
 
@@ -61,7 +61,7 @@ impl Prime for ValidPrime {
         self.p as i32
     }
 
-    fn to_dyn(self) -> ValidPrime {
+    fn to_dyn(self) -> Self {
         self
     }
 }
@@ -73,7 +73,7 @@ impl TryFrom<u32> for ValidPrime {
 
     fn try_from(p: u32) -> Result<Self, PrimeError> {
         if is_prime(p) {
-            Ok(ValidPrime { p })
+            Ok(Self { p })
         } else {
             Err(PrimeError::InvalidPrime(p))
         }
@@ -85,7 +85,7 @@ impl FromStr for ValidPrime {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let p: u32 = s.parse().map_err(PrimeError::NotAnInteger)?;
-        ValidPrime::try_from(p)
+        Self::try_from(p)
     }
 }
 
@@ -104,6 +104,6 @@ impl<'de> Deserialize<'de> for ValidPrime {
         D: Deserializer<'de>,
     {
         let p: u32 = u32::deserialize(deserializer)?;
-        ValidPrime::try_from(p).map_err(D::Error::custom)
+        Self::try_from(p).map_err(D::Error::custom)
     }
 }
