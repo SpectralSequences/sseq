@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/fp/src/prime/primes_generic.rs`."><title>primes_generic.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-5bc39a1768837dd0.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="fp" data-themes="" data-resource-suffix="" data-rustdoc-version="1.77.1 (7cf61ebde 2024-03-27)" data-channel="1.77.1" data-search-js="search-dd67cee4cfa65049.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../../static.files/storage-4c98445ec4002617.js"></script><script defer src="../../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-48f368f3872407c8.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-04d5337699b92874.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/fp/src/prime/primes_generic.rs`."><title>primes_generic.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-5bc39a1768837dd0.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="fp" data-themes="" data-resource-suffix="" data-rustdoc-version="1.77.2 (25ef9e3d8 2024-04-09)" data-channel="1.77.2" data-search-js="search-dd67cee4cfa65049.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../../static.files/storage-4c98445ec4002617.js"></script><script defer src="../../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-48f368f3872407c8.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-04d5337699b92874.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
 <!-- The loading of KaTeX is deferred to speed up page rendering -->
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.js" integrity="sha384-Bi8OWqMXO1ta+a4EPkZv7bYGIes7C3krGSZoTGNTAnAn5eYQc7IIXrJ/7ck1drAi" crossorigin="anonymous"></script>
 <!-- To automatically render math in text elements, include the auto-render extension: -->
@@ -171,7 +171,7 @@
 </span>}
 
 <span class="kw">impl </span>ValidPrime {
-    <span class="kw">pub const fn </span>new(p: u32) -&gt; ValidPrime {
+    <span class="kw">pub const fn </span>new(p: u32) -&gt; <span class="self">Self </span>{
         <span class="comment">// We need the size restriction for a few reasons.
         //
         // First, we need `bit_length(p)` to be smaller than 64. Otherwise, shifting a u64 by 64
@@ -184,11 +184,11 @@
         // but it doesn't seem worth it for now.
         </span><span class="macro">assert!</span>(p &lt; (<span class="number">1 </span>&lt;&lt; <span class="number">31</span>), <span class="string">"Tried to construct a prime larger than 2^31"</span>);
         <span class="macro">assert!</span>(is_prime(p), <span class="string">"Tried to construct a composite dynamic prime"</span>);
-        ValidPrime { p }
+        <span class="self">Self </span>{ p }
     }
 
-    <span class="kw">pub const fn </span>new_unchecked(p: u32) -&gt; ValidPrime {
-        ValidPrime { p }
+    <span class="kw">pub const fn </span>new_unchecked(p: u32) -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{ p }
     }
 }
 
@@ -197,7 +197,7 @@
         <span class="self">self</span>.p <span class="kw">as </span>i32
     }
 
-    <span class="kw">fn </span>to_dyn(<span class="self">self</span>) -&gt; ValidPrime {
+    <span class="kw">fn </span>to_dyn(<span class="self">self</span>) -&gt; <span class="self">Self </span>{
         <span class="self">self
     </span>}
 }
@@ -209,7 +209,7 @@
 
     <span class="kw">fn </span>try_from(p: u32) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, PrimeError&gt; {
         <span class="kw">if </span>is_prime(p) {
-            <span class="prelude-val">Ok</span>(ValidPrime { p })
+            <span class="prelude-val">Ok</span>(<span class="self">Self </span>{ p })
         } <span class="kw">else </span>{
             <span class="prelude-val">Err</span>(PrimeError::InvalidPrime(p))
         }
@@ -221,7 +221,7 @@
 
     <span class="kw">fn </span>from_str(s: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, <span class="self">Self</span>::Err&gt; {
         <span class="kw">let </span>p: u32 = s.parse().map_err(PrimeError::NotAnInteger)<span class="question-mark">?</span>;
-        ValidPrime::try_from(p)
+        <span class="self">Self</span>::try_from(p)
     }
 }
 
@@ -240,7 +240,7 @@
         </span>D: Deserializer&lt;<span class="lifetime">'de</span>&gt;,
     {
         <span class="kw">let </span>p: u32 = u32::deserialize(deserializer)<span class="question-mark">?</span>;
-        ValidPrime::try_from(p).map_err(D::Error::custom)
+        <span class="self">Self</span>::try_from(p).map_err(D::Error::custom)
     }
 }
 </code></pre></div></section></main></body></html>

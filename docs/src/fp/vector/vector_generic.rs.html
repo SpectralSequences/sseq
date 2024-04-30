@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/fp/src/vector/vector_generic.rs`."><title>vector_generic.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-5bc39a1768837dd0.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="fp" data-themes="" data-resource-suffix="" data-rustdoc-version="1.77.1 (7cf61ebde 2024-03-27)" data-channel="1.77.1" data-search-js="search-dd67cee4cfa65049.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../../static.files/storage-4c98445ec4002617.js"></script><script defer src="../../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-48f368f3872407c8.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-04d5337699b92874.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/fp/src/vector/vector_generic.rs`."><title>vector_generic.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-5bc39a1768837dd0.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="fp" data-themes="" data-resource-suffix="" data-rustdoc-version="1.77.2 (25ef9e3d8 2024-04-09)" data-channel="1.77.2" data-search-js="search-dd67cee4cfa65049.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../../static.files/storage-4c98445ec4002617.js"></script><script defer src="../../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-48f368f3872407c8.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-04d5337699b92874.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
 <!-- The loading of KaTeX is deferred to speed up page rendering -->
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.js" integrity="sha384-Bi8OWqMXO1ta+a4EPkZv7bYGIes7C3krGSZoTGNTAnAn5eYQc7IIXrJ/7ck1drAi" crossorigin="anonymous"></script>
 <!-- To automatically render math in text elements, include the auto-render extension: -->
@@ -760,7 +760,7 @@
         <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>trim_start(<span class="kw-2">&amp;mut </span><span class="self">self</span>, n: usize);
         <span class="kw">pub fn </span>add_truncate(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>, c: u32) -&gt; (<span class="prelude-ty">Option</span>&lt;()&gt;);
         <span class="kw">pub fn </span>sign_rule(<span class="kw-2">&amp;</span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; bool;
-        <span class="kw">pub fn </span>add_carry(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>, c: u32, rest: <span class="kw-2">&amp;mut </span>[FpVector]) -&gt; bool;
+        <span class="kw">pub fn </span>add_carry(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>, c: u32, rest: <span class="kw-2">&amp;mut </span>[<span class="self">Self</span>]) -&gt; bool;
         <span class="kw">pub fn </span>first_nonzero(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; (<span class="prelude-ty">Option</span>&lt;(usize, u32)&gt;);
         <span class="kw">pub fn </span>density(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; f32;
 
@@ -768,33 +768,33 @@
         <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>limbs_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; (<span class="kw-2">&amp;mut </span>[Limb]);
     }
 
-    <span class="kw">pub fn </span>new&lt;P: Prime&gt;(p: P, len: usize) -&gt; FpVector {
+    <span class="kw">pub fn </span>new&lt;P: Prime&gt;(p: P, len: usize) -&gt; <span class="self">Self </span>{
         <span class="kw">match </span>p.as_u32() {
-            <span class="number">2 </span>=&gt; FpVector::_2(FpVectorP::new(P2, len)),
-            <span class="number">3 </span>=&gt; FpVector::_3(FpVectorP::new(P3, len)),
-            <span class="number">5 </span>=&gt; FpVector::_5(FpVectorP::new(P5, len)),
-            <span class="number">7 </span>=&gt; FpVector::_7(FpVectorP::new(P7, len)),
-            <span class="kw">_ </span>=&gt; FpVector::Big(FpVectorP::new(p.to_dyn(), len)),
+            <span class="number">2 </span>=&gt; <span class="self">Self</span>::_2(FpVectorP::new(P2, len)),
+            <span class="number">3 </span>=&gt; <span class="self">Self</span>::_3(FpVectorP::new(P3, len)),
+            <span class="number">5 </span>=&gt; <span class="self">Self</span>::_5(FpVectorP::new(P5, len)),
+            <span class="number">7 </span>=&gt; <span class="self">Self</span>::_7(FpVectorP::new(P7, len)),
+            <span class="kw">_ </span>=&gt; <span class="self">Self</span>::Big(FpVectorP::new(p.to_dyn(), len)),
         }
     }
 
     <span class="kw">pub fn </span>new_with_capacity&lt;P: Prime&gt;(p: P, len: usize, capacity: usize) -&gt; FpVector {
         <span class="kw">match </span>p.as_u32() {
-            <span class="number">2 </span>=&gt; FpVector::_2(FpVectorP::new_with_capacity(P2, len, capacity)),
-            <span class="number">3 </span>=&gt; FpVector::_3(FpVectorP::new_with_capacity(P3, len, capacity)),
-            <span class="number">5 </span>=&gt; FpVector::_5(FpVectorP::new_with_capacity(P5, len, capacity)),
-            <span class="number">7 </span>=&gt; FpVector::_7(FpVectorP::new_with_capacity(P7, len, capacity)),
-            <span class="kw">_ </span>=&gt; FpVector::Big(FpVectorP::new_with_capacity(p.to_dyn(), len, capacity)),
+            <span class="number">2 </span>=&gt; <span class="self">Self</span>::_2(FpVectorP::new_with_capacity(P2, len, capacity)),
+            <span class="number">3 </span>=&gt; <span class="self">Self</span>::_3(FpVectorP::new_with_capacity(P3, len, capacity)),
+            <span class="number">5 </span>=&gt; <span class="self">Self</span>::_5(FpVectorP::new_with_capacity(P5, len, capacity)),
+            <span class="number">7 </span>=&gt; <span class="self">Self</span>::_7(FpVectorP::new_with_capacity(P7, len, capacity)),
+            <span class="kw">_ </span>=&gt; <span class="self">Self</span>::Big(FpVectorP::new_with_capacity(p.to_dyn(), len, capacity)),
         }
     }
 
     <span class="kw">pub fn </span>from_slice&lt;P: Prime&gt;(p: P, slice: <span class="kw-2">&amp;</span>[u32]) -&gt; <span class="self">Self </span>{
         <span class="kw">match </span>p.as_u32() {
-            <span class="number">2 </span>=&gt; FpVector::_2(FpVectorP::from((P2, <span class="kw-2">&amp;</span>slice))),
-            <span class="number">3 </span>=&gt; FpVector::_3(FpVectorP::from((P3, <span class="kw-2">&amp;</span>slice))),
-            <span class="number">5 </span>=&gt; FpVector::_5(FpVectorP::from((P5, <span class="kw-2">&amp;</span>slice))),
-            <span class="number">7 </span>=&gt; FpVector::_7(FpVectorP::from((P7, <span class="kw-2">&amp;</span>slice))),
-            <span class="kw">_ </span>=&gt; FpVector::Big(FpVectorP::from((p.to_dyn(), <span class="kw-2">&amp;</span>slice))),
+            <span class="number">2 </span>=&gt; <span class="self">Self</span>::_2(FpVectorP::from((P2, <span class="kw-2">&amp;</span>slice))),
+            <span class="number">3 </span>=&gt; <span class="self">Self</span>::_3(FpVectorP::from((P3, <span class="kw-2">&amp;</span>slice))),
+            <span class="number">5 </span>=&gt; <span class="self">Self</span>::_5(FpVectorP::from((P5, <span class="kw-2">&amp;</span>slice))),
+            <span class="number">7 </span>=&gt; <span class="self">Self</span>::_7(FpVectorP::from((P7, <span class="kw-2">&amp;</span>slice))),
+            <span class="kw">_ </span>=&gt; <span class="self">Self</span>::Big(FpVectorP::from((p.to_dyn(), <span class="kw-2">&amp;</span>slice))),
         }
     }
 
@@ -887,11 +887,11 @@
 
     <span class="kw">pub fn </span>add_tensor(<span class="kw-2">&amp;mut </span><span class="self">self</span>, offset: usize, coeff: u32, left: Slice, right: Slice) {
         <span class="kw">match </span>(<span class="self">self</span>, left, right) {
-            (SliceMut::_2(x), Slice::_2(y), Slice::_2(z)) =&gt; x.add_tensor(offset, coeff, y, z),
-            (SliceMut::_3(x), Slice::_3(y), Slice::_3(z)) =&gt; x.add_tensor(offset, coeff, y, z),
-            (SliceMut::_5(x), Slice::_5(y), Slice::_5(z)) =&gt; x.add_tensor(offset, coeff, y, z),
-            (SliceMut::_7(x), Slice::_7(y), Slice::_7(z)) =&gt; x.add_tensor(offset, coeff, y, z),
-            (SliceMut::Big(x), Slice::Big(y), Slice::Big(z)) =&gt; x.add_tensor(offset, coeff, y, z),
+            (<span class="self">Self</span>::_2(x), Slice::_2(y), Slice::_2(z)) =&gt; x.add_tensor(offset, coeff, y, z),
+            (<span class="self">Self</span>::_3(x), Slice::_3(y), Slice::_3(z)) =&gt; x.add_tensor(offset, coeff, y, z),
+            (<span class="self">Self</span>::_5(x), Slice::_5(y), Slice::_5(z)) =&gt; x.add_tensor(offset, coeff, y, z),
+            (<span class="self">Self</span>::_7(x), Slice::_7(y), Slice::_7(z)) =&gt; x.add_tensor(offset, coeff, y, z),
+            (<span class="self">Self</span>::Big(x), Slice::Big(y), Slice::Big(z)) =&gt; x.add_tensor(offset, coeff, y, z),
             <span class="kw">_ </span>=&gt; {
                 <span class="macro">panic!</span>(<span class="string">"Applying add_tensor to vectors over different primes"</span>);
             }
