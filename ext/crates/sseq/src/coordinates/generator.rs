@@ -15,18 +15,18 @@ pub struct BidegreeGenerator {
 }
 
 impl BidegreeGenerator {
-    pub fn new<T: Into<Bidegree>>(degree: T, idx: usize) -> BidegreeGenerator {
-        BidegreeGenerator {
+    pub fn new<T: Into<Bidegree>>(degree: T, idx: usize) -> Self {
+        Self {
             degree: degree.into(),
             idx,
         }
     }
 
-    pub fn s_t(s: u32, t: i32, idx: usize) -> BidegreeGenerator {
+    pub fn s_t(s: u32, t: i32, idx: usize) -> Self {
         Self::new(Bidegree::s_t(s, t), idx)
     }
 
-    pub fn n_s(n: i32, s: u32, idx: usize) -> BidegreeGenerator {
+    pub fn n_s(n: i32, s: u32, idx: usize) -> Self {
         Self::new(Bidegree::n_s(n, s), idx)
     }
 

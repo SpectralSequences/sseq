@@ -50,7 +50,7 @@ mod test {
             result
         }
 
-        pub fn diff_vec(&self, other: &FpVector) -> Vec<VectorDiffEntry> {
+        pub fn diff_vec(&self, other: &Self) -> Vec<VectorDiffEntry> {
             assert!(self.len() == other.len());
             let mut result = Vec::new();
             for index in 0..self.len() {
@@ -81,11 +81,11 @@ mod test {
                 "assert {} == {:?}\n{}",
                 self,
                 other,
-                FpVector::format_diff(diff)
+                Self::format_diff(diff)
             );
         }
 
-        pub fn assert_vec_eq(&self, other: &FpVector) {
+        pub fn assert_vec_eq(&self, other: &Self) {
             let diff = self.diff_vec(other);
             if diff.is_empty() {
                 return;
@@ -94,7 +94,7 @@ mod test {
                 "assert {} == {:?}\n{}",
                 self,
                 other,
-                FpVector::format_diff(diff)
+                Self::format_diff(diff)
             );
         }
     }
@@ -502,15 +502,15 @@ mod test {
 
         #[test]
         fn test_iterator((p, v_arr) in arb_vec()) {
-                let v = FpVector::from_slice(p, &v_arr);
+            let v = FpVector::from_slice(p, &v_arr);
 
-                let w = v.iter();
-                let mut counter = 0;
-                for (i, x) in w.enumerate() {
-                    prop_assert_eq!(v.entry(i), x);
-                    counter += 1;
-                }
-                prop_assert_eq!(counter, v.len());
+            let w = v.iter();
+            let mut counter = 0;
+            for (i, x) in w.enumerate() {
+                prop_assert_eq!(v.entry(i), x);
+                counter += 1;
+            }
+            prop_assert_eq!(counter, v.len());
         }
 
         #[test]

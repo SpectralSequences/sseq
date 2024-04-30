@@ -15,7 +15,7 @@ pub struct Differential {
 impl Differential {
     pub fn new(p: ValidPrime, source_dim: usize, target_dim: usize) -> Self {
         // Leave more rows to make room for inconsistent differentials
-        Differential {
+        Self {
             matrix: Matrix::new(p, source_dim + target_dim + 1, source_dim + target_dim),
             source_dim,
             target_dim,

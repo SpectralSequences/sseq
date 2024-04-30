@@ -230,7 +230,7 @@ impl FpVector {
         pub(crate) fn trim_start(&mut self, n: usize);
         pub fn add_truncate(&mut self, other: &Self, c: u32) -> (Option<()>);
         pub fn sign_rule(&self, other: &Self) -> bool;
-        pub fn add_carry(&mut self, other: &Self, c: u32, rest: &mut [FpVector]) -> bool;
+        pub fn add_carry(&mut self, other: &Self, c: u32, rest: &mut [Self]) -> bool;
         pub fn first_nonzero(&self) -> (Option<(usize, u32)>);
         pub fn density(&self) -> f32;
 
@@ -238,33 +238,33 @@ impl FpVector {
         pub(crate) fn limbs_mut(&mut self) -> (&mut [Limb]);
     }
 
-    pub fn new<P: Prime>(p: P, len: usize) -> FpVector {
+    pub fn new<P: Prime>(p: P, len: usize) -> Self {
         match p.as_u32() {
-            2 => FpVector::_2(FpVectorP::new(P2, len)),
-            3 => FpVector::_3(FpVectorP::new(P3, len)),
-            5 => FpVector::_5(FpVectorP::new(P5, len)),
-            7 => FpVector::_7(FpVectorP::new(P7, len)),
-            _ => FpVector::Big(FpVectorP::new(p.to_dyn(), len)),
+            2 => Self::_2(FpVectorP::new(P2, len)),
+            3 => Self::_3(FpVectorP::new(P3, len)),
+            5 => Self::_5(FpVectorP::new(P5, len)),
+            7 => Self::_7(FpVectorP::new(P7, len)),
+            _ => Self::Big(FpVectorP::new(p.to_dyn(), len)),
         }
     }
 
     pub fn new_with_capacity<P: Prime>(p: P, len: usize, capacity: usize) -> FpVector {
         match p.as_u32() {
-            2 => FpVector::_2(FpVectorP::new_with_capacity(P2, len, capacity)),
-            3 => FpVector::_3(FpVectorP::new_with_capacity(P3, len, capacity)),
-            5 => FpVector::_5(FpVectorP::new_with_capacity(P5, len, capacity)),
-            7 => FpVector::_7(FpVectorP::new_with_capacity(P7, len, capacity)),
-            _ => FpVector::Big(FpVectorP::new_with_capacity(p.to_dyn(), len, capacity)),
+            2 => Self::_2(FpVectorP::new_with_capacity(P2, len, capacity)),
+            3 => Self::_3(FpVectorP::new_with_capacity(P3, len, capacity)),
+            5 => Self::_5(FpVectorP::new_with_capacity(P5, len, capacity)),
+            7 => Self::_7(FpVectorP::new_with_capacity(P7, len, capacity)),
+            _ => Self::Big(FpVectorP::new_with_capacity(p.to_dyn(), len, capacity)),
         }
     }
 
     pub fn from_slice<P: Prime>(p: P, slice: &[u32]) -> Self {
         match p.as_u32() {
-            2 => FpVector::_2(FpVectorP::from((P2, &slice))),
-            3 => FpVector::_3(FpVectorP::from((P3, &slice))),
-            5 => FpVector::_5(FpVectorP::from((P5, &slice))),
-            7 => FpVector::_7(FpVectorP::from((P7, &slice))),
-            _ => FpVector::Big(FpVectorP::from((p.to_dyn(), &slice))),
+            2 => Self::_2(FpVectorP::from((P2, &slice))),
+            3 => Self::_3(FpVectorP::from((P3, &slice))),
+            5 => Self::_5(FpVectorP::from((P5, &slice))),
+            7 => Self::_7(FpVectorP::from((P7, &slice))),
+            _ => Self::Big(FpVectorP::from((p.to_dyn(), &slice))),
         }
     }
 
@@ -357,11 +357,11 @@ impl<'a> SliceMut<'a> {
 
     pub fn add_tensor(&mut self, offset: usize, coeff: u32, left: Slice, right: Slice) {
         match (self, left, right) {
-            (SliceMut::_2(x), Slice::_2(y), Slice::_2(z)) => x.add_tensor(offset, coeff, y, z),
-            (SliceMut::_3(x), Slice::_3(y), Slice::_3(z)) => x.add_tensor(offset, coeff, y, z),
-            (SliceMut::_5(x), Slice::_5(y), Slice::_5(z)) => x.add_tensor(offset, coeff, y, z),
-            (SliceMut::_7(x), Slice::_7(y), Slice::_7(z)) => x.add_tensor(offset, coeff, y, z),
-            (SliceMut::Big(x), Slice::Big(y), Slice::Big(z)) => x.add_tensor(offset, coeff, y, z),
+            (Self::_2(x), Slice::_2(y), Slice::_2(z)) => x.add_tensor(offset, coeff, y, z),
+            (Self::_3(x), Slice::_3(y), Slice::_3(z)) => x.add_tensor(offset, coeff, y, z),
+            (Self::_5(x), Slice::_5(y), Slice::_5(z)) => x.add_tensor(offset, coeff, y, z),
+            (Self::_7(x), Slice::_7(y), Slice::_7(z)) => x.add_tensor(offset, coeff, y, z),
+            (Self::Big(x), Slice::Big(y), Slice::Big(z)) => x.add_tensor(offset, coeff, y, z),
             _ => {
                 panic!("Applying add_tensor to vectors over different primes");
             }

@@ -48,7 +48,7 @@ impl Basis {
 impl Basis {
     #[new]
     pub fn new(p: u32, dimension : usize) -> PyResult<Self> {
-        Ok(Basis::box_and_wrap(BasisRust::new(new_valid_prime(p)?, dimension)))
+        Ok(Self::box_and_wrap(BasisRust::new(new_valid_prime(p)?, dimension)))
     }
 
     #[getter]

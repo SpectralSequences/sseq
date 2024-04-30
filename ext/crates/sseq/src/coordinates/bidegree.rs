@@ -74,7 +74,7 @@ impl Display for Bidegree {
 impl Add for Bidegree {
     type Output = Self;
 
-    fn add(self, other: Bidegree) -> Self {
+    fn add(self, other: Self) -> Self {
         Self {
             s: self.s + other.s,
             t: self.t + other.t,
@@ -85,7 +85,7 @@ impl Add for Bidegree {
 impl Sub for Bidegree {
     type Output = Self;
 
-    fn sub(self, other: Bidegree) -> Self {
+    fn sub(self, other: Self) -> Self {
         Self {
             s: self.s - other.s,
             t: self.t - other.t,

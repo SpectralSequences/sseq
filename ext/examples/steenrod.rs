@@ -221,7 +221,7 @@ mod sum_module {
 
     impl<M: Module> SumModule<M> {
         pub fn new(algebra: Arc<M::Algebra>, modules: Vec<Arc<M>>, min_degree: i32) -> Self {
-            SumModule {
+            Self {
                 algebra,
                 modules,
                 min_degree,
@@ -325,7 +325,7 @@ mod sum_module {
 
     impl<M: Module> ZeroModule for SumModule<M> {
         fn zero_module(algebra: Arc<M::Algebra>, min_degree: i32) -> Self {
-            SumModule::new(algebra, vec![], min_degree)
+            Self::new(algebra, vec![], min_degree)
         }
     }
 
