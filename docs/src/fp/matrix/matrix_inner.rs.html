@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/fp/src/matrix/matrix_inner.rs`."><title>matrix_inner.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-5bc39a1768837dd0.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="fp" data-themes="" data-resource-suffix="" data-rustdoc-version="1.77.2 (25ef9e3d8 2024-04-09)" data-channel="1.77.2" data-search-js="search-dd67cee4cfa65049.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../../static.files/storage-4c98445ec4002617.js"></script><script defer src="../../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-48f368f3872407c8.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-04d5337699b92874.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/fp/src/matrix/matrix_inner.rs`."><title>matrix_inner.rs - source</title><script> if (window.location.protocol !== "file:") document.write(`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2">`)</script><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-e935ef01ae1c1829.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="fp" data-themes="" data-resource-suffix="" data-rustdoc-version="1.78.0 (9b00956e5 2024-04-29)" data-channel="1.78.0" data-search-js="search-42d8da7a6b9792c2.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../../static.files/storage-4c98445ec4002617.js"></script><script defer src="../../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-12cf3b4f4f9dc36d.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-04d5337699b92874.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
 <!-- The loading of KaTeX is deferred to speed up page rendering -->
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.js" integrity="sha384-Bi8OWqMXO1ta+a4EPkZv7bYGIes7C3krGSZoTGNTAnAn5eYQc7IIXrJ/7ck1drAi" crossorigin="anonymous"></script>
 <!-- To automatically render math in text elements, include the auto-render extension: -->
@@ -1344,12 +1344,12 @@
 <span class="kw">impl </span>Matrix {
     <span class="doccomment">/// Produces a new matrix over F_p with the specified number of rows and columns, initialized
     /// to the 0 matrix.
-    </span><span class="kw">pub fn </span>new(p: ValidPrime, rows: usize, columns: usize) -&gt; Matrix {
+    </span><span class="kw">pub fn </span>new(p: ValidPrime, rows: usize, columns: usize) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span><span class="kw-2">mut </span>vectors: Vec&lt;FpVector&gt; = Vec::with_capacity(rows);
         <span class="kw">for _ in </span><span class="number">0</span>..rows {
             vectors.push(FpVector::new(p, columns));
         }
-        Matrix {
+        <span class="self">Self </span>{
             p,
             columns,
             vectors,
@@ -1363,12 +1363,12 @@
         columns: usize,
         rows_capacity: usize,
         columns_capacity: usize,
-    ) -&gt; Matrix {
+    ) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span><span class="kw-2">mut </span>vectors: Vec&lt;FpVector&gt; = Vec::with_capacity(rows_capacity);
         <span class="kw">for _ in </span><span class="number">0</span>..rows {
             vectors.push(FpVector::new_with_capacity(p, columns, columns_capacity));
         }
-        Matrix {
+        <span class="self">Self </span>{
             p,
             columns,
             vectors,
@@ -1387,12 +1387,12 @@
         rows: usize,
         columns: usize,
         data: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Read,
-    ) -&gt; std::io::Result&lt;Matrix&gt; {
+    ) -&gt; std::io::Result&lt;<span class="self">Self</span>&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>vectors: Vec&lt;FpVector&gt; = Vec::with_capacity(rows);
         <span class="kw">for _ in </span><span class="number">0</span>..rows {
             vectors.push(FpVector::from_bytes(p, columns, data)<span class="question-mark">?</span>);
         }
-        <span class="prelude-val">Ok</span>(Matrix {
+        <span class="prelude-val">Ok</span>(<span class="self">Self </span>{
             p,
             columns,
             vectors,
@@ -1473,9 +1473,9 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>.pivots
     }
 
-    <span class="kw">pub fn </span>from_rows(p: ValidPrime, rows: Vec&lt;FpVector&gt;) -&gt; Matrix {
+    <span class="kw">pub fn </span>from_rows(p: ValidPrime, rows: Vec&lt;FpVector&gt;) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>columns = rows.first().map(FpVector::len).unwrap_or(<span class="number">0</span>);
-        Matrix {
+        <span class="self">Self </span>{
             p,
             columns,
             vectors: rows,
@@ -1495,17 +1495,17 @@
     ///
     /// let m = Matrix::from_vec(p, &amp;input);
     /// ```
-    </span><span class="kw">pub fn </span>from_vec(p: ValidPrime, input: <span class="kw-2">&amp;</span>[Vec&lt;u32&gt;]) -&gt; Matrix {
+    </span><span class="kw">pub fn </span>from_vec(p: ValidPrime, input: <span class="kw-2">&amp;</span>[Vec&lt;u32&gt;]) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>rows = input.len();
         <span class="kw">if </span>rows == <span class="number">0 </span>{
-            <span class="kw">return </span>Matrix::new(p, <span class="number">0</span>, <span class="number">0</span>);
+            <span class="kw">return </span><span class="self">Self</span>::new(p, <span class="number">0</span>, <span class="number">0</span>);
         }
         <span class="kw">let </span>columns = input[<span class="number">0</span>].len();
         <span class="kw">let </span><span class="kw-2">mut </span>vectors = Vec::with_capacity(rows);
         <span class="kw">for </span>row <span class="kw">in </span>input {
             vectors.push(FpVector::from_slice(p, row));
         }
-        Matrix {
+        <span class="self">Self </span>{
             p,
             columns,
             vectors,
@@ -1531,11 +1531,11 @@
     ///
     /// let (n, m) = Matrix::augmented_from_vec(p, &amp;input);
     /// assert!(n &gt;= input[0].len());
-    </span><span class="kw">pub fn </span>augmented_from_vec(p: ValidPrime, input: <span class="kw-2">&amp;</span>[Vec&lt;u32&gt;]) -&gt; (usize, Matrix) {
+    </span><span class="kw">pub fn </span>augmented_from_vec(p: ValidPrime, input: <span class="kw-2">&amp;</span>[Vec&lt;u32&gt;]) -&gt; (usize, <span class="self">Self</span>) {
         <span class="kw">let </span>rows = input.len();
         <span class="kw">let </span>cols = input[<span class="number">0</span>].len();
         <span class="kw">let </span>padded_cols = FpVector::padded_len(p, cols);
-        <span class="kw">let </span><span class="kw-2">mut </span>m = Matrix::new(p, rows, padded_cols + rows);
+        <span class="kw">let </span><span class="kw-2">mut </span>m = <span class="self">Self</span>::new(p, rows, padded_cols + rows);
 
         <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..rows {
             <span class="kw">for </span>j <span class="kw">in </span><span class="number">0</span>..cols {
@@ -1557,7 +1557,7 @@
         }
     }
 
-    <span class="kw">pub fn </span>assign(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: <span class="kw-2">&amp;</span>Matrix) {
+    <span class="kw">pub fn </span>assign(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>) {
         <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..<span class="self">self</span>.rows() {
             <span class="self">self</span>[i].assign(<span class="kw-2">&amp;</span>other[i]);
         }
@@ -1965,7 +1965,7 @@
         <span class="kw">let </span>columns = <span class="self">self</span>.columns();
         <span class="kw">let </span>source_columns = columns - first_source_col;
         <span class="kw">let </span>first_kernel_row = <span class="self">self</span>.find_first_row_in_block(first_source_col);
-        <span class="kw">let </span><span class="kw-2">mut </span>preimage = Matrix::new(p, first_kernel_row, source_columns);
+        <span class="kw">let </span><span class="kw-2">mut </span>preimage = <span class="self">Self</span>::new(p, first_kernel_row, source_columns);
         <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..first_kernel_row {
             preimage[i]
                 .as_slice_mut()
@@ -2005,7 +2005,7 @@
     </span><span class="kw">pub fn </span>compute_image(<span class="kw-2">&amp;</span><span class="self">self</span>, last_target_col: usize, first_source_col: usize) -&gt; Subspace {
         <span class="kw">let </span>p = <span class="self">self</span>.prime();
         <span class="kw">let </span>first_kernel_row = <span class="self">self</span>.find_first_row_in_block(first_source_col);
-        <span class="kw">let </span><span class="kw-2">mut </span>image_matrix = Matrix::new(p, first_kernel_row, last_target_col);
+        <span class="kw">let </span><span class="kw-2">mut </span>image_matrix = <span class="self">Self</span>::new(p, first_kernel_row, last_target_col);
         <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..first_kernel_row {
             image_matrix[i]
                 .as_slice_mut()
@@ -2061,7 +2061,7 @@
         </span><span class="kw">let </span>first_kernel_row = <span class="self">self</span>.find_first_row_in_block(first_source_column);
         <span class="comment">// Every row after the first kernel row is also a kernel row, so now we know how big it is and can allocate space.
         </span><span class="kw">let </span>kernel_dimension = rows - first_kernel_row;
-        <span class="kw">let </span><span class="kw-2">mut </span>kernel = Matrix::new(p, kernel_dimension, source_dimension);
+        <span class="kw">let </span><span class="kw-2">mut </span>kernel = <span class="self">Self</span>::new(p, kernel_dimension, source_dimension);
         kernel.initialize_pivots();
 
         <span class="kw">if </span>kernel_dimension == <span class="number">0 </span>{
@@ -2252,8 +2252,8 @@
     }
 }
 
-<span class="kw">impl </span>std::ops::AddAssign&lt;<span class="kw-2">&amp;</span>Matrix&gt; <span class="kw">for </span>Matrix {
-    <span class="kw">fn </span>add_assign(<span class="kw-2">&amp;mut </span><span class="self">self</span>, rhs: <span class="kw-2">&amp;</span>Matrix) {
+<span class="kw">impl </span>std::ops::AddAssign&lt;<span class="kw-2">&amp;</span><span class="self">Self</span>&gt; <span class="kw">for </span>Matrix {
+    <span class="kw">fn </span>add_assign(<span class="kw-2">&amp;mut </span><span class="self">self</span>, rhs: <span class="kw-2">&amp;</span><span class="self">Self</span>) {
         <span class="macro">assert_eq!</span>(<span class="self">self</span>.prime(), rhs.prime());
         <span class="macro">assert_eq!</span>(<span class="self">self</span>.columns(), rhs.columns());
         <span class="macro">assert_eq!</span>(<span class="self">self</span>.rows(), rhs.rows());
