@@ -1,3 +1,5 @@
+#![deny(clippy::use_self)]
+
 #[cfg(feature = "concurrent")]
 pub mod concurrent;
 #[cfg(feature = "concurrent")]

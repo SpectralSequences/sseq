@@ -1,3 +1,5 @@
+#![deny(clippy::use_self)]
+
 use core::ops::{Index, IndexMut};
 use std::{
     fmt,
@@ -66,7 +68,7 @@ impl<T> BiVec<T> {
         Self { data, min_degree }
     }
 
-    pub fn into_vec(self: BiVec<T>) -> Vec<T> {
+    pub fn into_vec(self) -> Vec<T> {
         self.data
     }
 

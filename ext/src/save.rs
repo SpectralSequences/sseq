@@ -108,19 +108,19 @@ impl SaveKind {
         }
     }
 
-    pub fn resolution_data() -> impl Iterator<Item = SaveKind> {
+    pub fn resolution_data() -> impl Iterator<Item = Self> {
         use SaveKind::*;
         static KINDS: [SaveKind; 4] = [Kernel, Differential, ResQi, AugmentationQi];
         KINDS.iter().copied()
     }
 
-    pub fn nassau_data() -> impl Iterator<Item = SaveKind> {
+    pub fn nassau_data() -> impl Iterator<Item = Self> {
         use SaveKind::*;
         static KINDS: [SaveKind; 2] = [NassauDifferential, NassauQi];
         KINDS.iter().copied()
     }
 
-    pub fn secondary_data() -> impl Iterator<Item = SaveKind> {
+    pub fn secondary_data() -> impl Iterator<Item = Self> {
         use SaveKind::*;
         static KINDS: [SaveKind; 3] =
             [SecondaryComposite, SecondaryIntermediate, SecondaryHomotopy];

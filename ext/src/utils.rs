@@ -73,7 +73,7 @@ impl TryFrom<&str> for Config {
             None => AlgebraType::Milnor,
         };
 
-        Ok(Config {
+        Ok(Self {
             module: parse_module_name(module_name)
                 .with_context(|| format!("Failed to load module: {module_name}"))?,
             algebra,
@@ -97,7 +97,7 @@ where
                 return Err(anyhow!("Invalid algebra supplied. Must be {}", algebra));
             }
         }
-        Ok(Config {
+        Ok(Self {
             module: parse_module_name(spec.0)?,
             algebra,
         })
@@ -108,7 +108,7 @@ impl<T: TryInto<AlgebraType>> TryFrom<(Value, T)> for Config {
     type Error = T::Error;
 
     fn try_from(spec: (Value, T)) -> Result<Self, Self::Error> {
-        Ok(Config {
+        Ok(Self {
             module: spec.0,
             algebra: spec.1.try_into()?,
         })
@@ -482,7 +482,7 @@ mod logging {
 
     impl<T> LogWriter<T> {
         pub fn new(writer: T) -> Self {
-            LogWriter {
+            Self {
                 writer,
                 bytes: 0,
                 start: std::time::Instant::now(),

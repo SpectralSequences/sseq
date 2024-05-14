@@ -248,7 +248,7 @@ impl FpVector {
         }
     }
 
-    pub fn new_with_capacity<P: Prime>(p: P, len: usize, capacity: usize) -> FpVector {
+    pub fn new_with_capacity<P: Prime>(p: P, len: usize, capacity: usize) -> Self {
         match p.as_u32() {
             2 => Self::_2(FpVectorP::new_with_capacity(P2, len, capacity)),
             3 => Self::_3(FpVectorP::new_with_capacity(P3, len, capacity)),
@@ -404,13 +404,13 @@ impl<'a> std::fmt::Display for Slice<'a> {
 }
 
 impl From<&FpVector> for Vec<u32> {
-    fn from(v: &FpVector) -> Vec<u32> {
+    fn from(v: &FpVector) -> Self {
         v.iter().collect()
     }
 }
 
-impl std::ops::AddAssign<&FpVector> for FpVector {
-    fn add_assign(&mut self, other: &FpVector) {
+impl std::ops::AddAssign<&Self> for FpVector {
+    fn add_assign(&mut self, other: &Self) {
         self.add(other, 1);
     }
 }
@@ -473,31 +473,31 @@ impl<'de> Deserialize<'de> for FpVector {
 }
 
 impl<'a, 'b> From<&'a mut SliceMut<'b>> for SliceMut<'a> {
-    fn from(slice: &'a mut SliceMut<'b>) -> SliceMut<'a> {
+    fn from(slice: &'a mut SliceMut<'b>) -> Self {
         slice.copy()
     }
 }
 
 impl<'a, 'b> From<&'a Slice<'b>> for Slice<'a> {
-    fn from(slice: &'a Slice<'b>) -> Slice<'a> {
+    fn from(slice: &'a Slice<'b>) -> Self {
         *slice
     }
 }
 
 impl<'a, 'b> From<&'a SliceMut<'b>> for Slice<'a> {
-    fn from(slice: &'a SliceMut<'b>) -> Slice<'a> {
+    fn from(slice: &'a SliceMut<'b>) -> Self {
         slice.as_slice()
     }
 }
 
 impl<'a> From<&'a FpVector> for Slice<'a> {
-    fn from(v: &'a FpVector) -> Slice<'a> {
+    fn from(v: &'a FpVector) -> Self {
         v.as_slice()
     }
 }
 
 impl<'a> From<&'a mut FpVector> for SliceMut<'a> {
-    fn from(v: &'a mut FpVector) -> SliceMut<'a> {
+    fn from(v: &'a mut FpVector) -> Self {
         v.as_slice_mut()
     }
 }
