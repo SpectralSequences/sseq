@@ -65,7 +65,7 @@ pub struct Scope<'scope>(&'scope ());
 impl<'scope> Scope<'scope> {
     pub fn spawn<BODY>(&self, body: BODY)
     where
-        BODY: FnOnce(&Scope<'scope>) + Send + 'scope,
+        BODY: FnOnce(&Self) + Send + 'scope,
     {
         body(self)
     }

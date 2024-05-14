@@ -45,7 +45,7 @@ impl Bidegree {
 
     /// Returns difference as a bidegree if the difference in homological degrees is nonnegative,
     /// otherwise returns None.
-    pub fn try_subtract(&self, smaller: Bidegree) -> Option<Bidegree> {
+    pub fn try_subtract(&self, smaller: Self) -> Option<Self> {
         if self.s >= smaller.s {
             Some(*self - smaller)
         } else {
@@ -58,9 +58,9 @@ impl Bidegree {
     /// # Panics
     /// Panics if every element is in homological degree 0. This is the only case that would result
     /// in a bidegree in negative homological degree.
-    pub fn massey_bidegree(a: Bidegree, b: Bidegree, c: Bidegree) -> Bidegree {
+    pub fn massey_bidegree(a: Self, b: Self, c: Self) -> Self {
         (a + b + c)
-            .try_subtract(Bidegree::s_t(1, 0))
+            .try_subtract(Self::s_t(1, 0))
             .expect("Trying to compute Massey product of elements in s = 0")
     }
 }

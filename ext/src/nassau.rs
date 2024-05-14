@@ -185,8 +185,8 @@ impl MilnorSubalgebra {
             .sum()
     }
 
-    fn optimal_for(b: Bidegree) -> MilnorSubalgebra {
-        let mut result = MilnorSubalgebra::zero_algebra();
+    fn optimal_for(b: Bidegree) -> Self {
+        let mut result = Self::zero_algebra();
         for subalgebra in SubalgebraIterator::new() {
             let coeff = (1 << subalgebra.profile.len()) - 1;
             if b.t() < coeff * (b.s() as i32 + 1) + subalgebra.top_degree() {

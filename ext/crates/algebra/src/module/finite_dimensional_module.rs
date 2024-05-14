@@ -202,8 +202,8 @@ impl<A: Algebra> FiniteDimensionalModule<A> {
             }
             gen_names.push(names);
         }
-        let actions = FiniteDimensionalModule::allocate_actions(&algebra, &graded_dimension);
-        FiniteDimensionalModule {
+        let actions = Self::allocate_actions(&algebra, &graded_dimension);
+        Self {
             algebra,
             name,
             graded_dimension,

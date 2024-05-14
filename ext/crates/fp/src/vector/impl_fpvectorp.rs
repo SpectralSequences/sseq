@@ -358,7 +358,7 @@ impl<T: AsRef<[u32]>, P: Prime> From<(P, &T)> for FpVectorP<P> {
 }
 
 impl<P: Prime> From<&FpVectorP<P>> for Vec<u32> {
-    fn from(vec: &FpVectorP<P>) -> Vec<u32> {
+    fn from(vec: &FpVectorP<P>) -> Self {
         vec.iter().collect()
     }
 }

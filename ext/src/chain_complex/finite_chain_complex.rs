@@ -296,7 +296,7 @@ where
     F1: ModuleHomomorphism<Source = M, Target = M>,
     F2: ModuleHomomorphism<Source = M, Target = CC::Module>,
 {
-    fn from(c: FiniteAugmentedChainComplex<M, F1, F2, CC>) -> FiniteChainComplex<M, F1> {
+    fn from(c: FiniteAugmentedChainComplex<M, F1, F2, CC>) -> Self {
         c.cc
     }
 }

@@ -3,6 +3,8 @@
 
 // TODO: Write descriptions of each module therein.
 
+#![deny(clippy::use_self)]
+
 pub mod module;
 pub mod steenrod_evaluator;
 pub(crate) mod steenrod_parser;

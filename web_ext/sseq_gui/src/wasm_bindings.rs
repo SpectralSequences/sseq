@@ -10,7 +10,7 @@ pub struct Sender {
 
 impl Sender {
     pub fn new(f: Function) -> Self {
-        Sender { f }
+        Self { f }
     }
 
     pub fn send(&self, msg: Message) -> anyhow::Result<()> {

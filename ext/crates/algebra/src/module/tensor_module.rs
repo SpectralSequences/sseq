@@ -34,7 +34,7 @@ where
     N: Module<Algebra = A>,
 {
     pub fn new(left: Arc<M>, right: Arc<N>) -> Self {
-        TensorModule {
+        Self {
             block_structures: OnceBiVec::new(left.min_degree() + right.min_degree()),
             left,
             right,
@@ -309,7 +309,7 @@ where
     N: Module<Algebra = A> + ZeroModule,
 {
     fn zero_module(algebra: Arc<A>, min_degree: i32) -> Self {
-        TensorModule::new(
+        Self::new(
             Arc::new(M::zero_module(Arc::clone(&algebra), min_degree)),
             Arc::new(N::zero_module(algebra, min_degree)),
         )

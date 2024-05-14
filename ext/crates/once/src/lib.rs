@@ -1,3 +1,5 @@
+#![deny(clippy::use_self)]
+
 extern crate alloc;
 
 use alloc::alloc::Layout;
@@ -224,7 +226,7 @@ impl<T> PartialEq for OnceVec<T>
 where
     T: PartialEq,
 {
-    fn eq(&self, other: &OnceVec<T>) -> bool {
+    fn eq(&self, other: &Self) -> bool {
         self.len() == other.len() && self.iter().eq(other.iter())
     }
 }

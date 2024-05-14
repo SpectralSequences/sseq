@@ -16,7 +16,7 @@ impl<F: ModuleHomomorphism> QuotientHomomorphism<F> {
         s: Arc<QuotientModule<F::Source>>,
         t: Arc<QuotientModule<F::Target>>,
     ) -> Self {
-        QuotientHomomorphism { f, s, t }
+        Self { f, s, t }
     }
 }
 
@@ -65,7 +65,7 @@ pub struct QuotientHomomorphismSource<F: ModuleHomomorphism> {
 
 impl<F: ModuleHomomorphism> QuotientHomomorphismSource<F> {
     pub fn new(f: Arc<F>, s: Arc<QuotientModule<F::Source>>) -> Self {
-        QuotientHomomorphismSource { f, s }
+        Self { f, s }
     }
 }
 

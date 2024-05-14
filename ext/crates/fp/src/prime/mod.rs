@@ -96,8 +96,8 @@ pub enum PrimeError {
 impl std::fmt::Display for PrimeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            PrimeError::NotAnInteger(s) => write!(f, "Not an integer: {}", s),
-            PrimeError::InvalidPrime(p) => write!(f, "{} is not a valid prime", p),
+            Self::NotAnInteger(s) => write!(f, "Not an integer: {}", s),
+            Self::InvalidPrime(p) => write!(f, "{} is not a valid prime", p),
         }
     }
 }

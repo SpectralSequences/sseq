@@ -92,7 +92,7 @@ pub enum BocksteinOrSq {
 impl BocksteinOrSq {
     pub(crate) fn to_adem_basis_elt(self, q: i32) -> AdemBasisElement {
         match self {
-            BocksteinOrSq::Bockstein => {
+            Self::Bockstein => {
                 if q == 1 {
                     AdemBasisElement {
                         degree: 1,
@@ -109,7 +109,7 @@ impl BocksteinOrSq {
                     }
                 }
             }
-            BocksteinOrSq::Sq(x) => AdemBasisElement {
+            Self::Sq(x) => AdemBasisElement {
                 degree: x as i32 * q,
                 bocksteins: 0,
                 ps: vec![x],
