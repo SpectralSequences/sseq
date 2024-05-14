@@ -247,7 +247,7 @@ impl<CC: ChainComplex> Resolution<CC> {
         }
     }
 
-    pub fn unit_resolution(&self) -> &Resolution<CC> {
+    pub fn unit_resolution(&self) -> &Self {
         match &self.unit_resolution {
             UnitResolution::None => panic!("No unit resolution set"),
             UnitResolution::Own => self,
@@ -255,7 +255,7 @@ impl<CC: ChainComplex> Resolution<CC> {
         }
     }
 
-    pub fn unit_resolution_mut(&mut self) -> &mut Resolution<CC> {
+    pub fn unit_resolution_mut(&mut self) -> &mut Self {
         // This diversion is needed to get around weird borrowing issues.
         if matches!(self.unit_resolution, UnitResolution::Own) {
             self
@@ -268,7 +268,7 @@ impl<CC: ChainComplex> Resolution<CC> {
         }
     }
 
-    pub fn set_unit_resolution(&mut self, unit_res: Resolution<CC>) {
+    pub fn set_unit_resolution(&mut self, unit_res: Self) {
         assert!(
             self.chain_maps_to_unit_resolution.is_empty(),
             "Cannot change unit resolution after you start computing products"
