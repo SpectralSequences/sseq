@@ -211,31 +211,26 @@ impl Subspace {
     }
 
     /// Iterate over all vectors in the subspace.
+    ///
+    /// # Example
     /// ```
     /// # use fp::{prime::ValidPrime, matrix::{Matrix, Subspace}, vector::FpVector};
     /// let subspace = Subspace::from_matrix(Matrix::from_vec(
     ///     ValidPrime::new(3),
     ///     &[vec![1, 0, 0], vec![0, 1, 2]],
     /// ));
-    /// let all_vectors = subspace
-    ///     .iter_all_vectors()
-    ///     .map(|v| (&v).into())
-    ///     .collect::<Vec<Vec<u32>>>();
+    /// let mut all_vectors = subspace.iter_all_vectors().map(|v| (&v).into());
     ///
-    /// assert_eq!(
-    ///     all_vectors,
-    ///     vec![
-    ///         vec![0, 0, 0],
-    ///         vec![0, 1, 2],
-    ///         vec![0, 2, 1],
-    ///         vec![1, 0, 0],
-    ///         vec![1, 1, 2],
-    ///         vec![1, 2, 1],
-    ///         vec![2, 0, 0],
-    ///         vec![2, 1, 2],
-    ///         vec![2, 2, 1],
-    ///     ]
-    /// );
+    /// assert_eq!(all_vectors.next(), Some(vec![0, 0, 0]));
+    /// assert_eq!(all_vectors.next(), Some(vec![0, 1, 2]));
+    /// assert_eq!(all_vectors.next(), Some(vec![0, 2, 1]));
+    /// assert_eq!(all_vectors.next(), Some(vec![1, 0, 0]));
+    /// assert_eq!(all_vectors.next(), Some(vec![1, 1, 2]));
+    /// assert_eq!(all_vectors.next(), Some(vec![1, 2, 1]));
+    /// assert_eq!(all_vectors.next(), Some(vec![2, 0, 0]));
+    /// assert_eq!(all_vectors.next(), Some(vec![2, 1, 2]));
+    /// assert_eq!(all_vectors.next(), Some(vec![2, 2, 1]));
+    /// assert_eq!(all_vectors.next(), None);
     /// ```
     pub fn iter_all_vectors(&self) -> impl Iterator<Item = FpVector> + '_ {
         crate::prime::iter::combinations(self.prime(), self.dimension()).map(|combination| {
