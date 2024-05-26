@@ -521,7 +521,7 @@ mod logging {
             .with_max_level(tracing::Level::INFO)
             .with_span_events(FmtSpan::NEW | FmtSpan::CLOSE)
             .with_thread_ids(true)
-            .with_env_filter(EnvFilter::try_from_default_env().unwrap())
+            .with_env_filter(EnvFilter::try_from_default_env().unwrap_or_default())
             .finish()
     }
 
