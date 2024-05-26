@@ -712,7 +712,10 @@ where
         self.extend_through_degree(max.s());
         self.algebra().compute_basis(max.t() - min_degree);
 
+        let tracing_span = tracing::Span::current();
         maybe_rayon::in_place_scope(|scope| {
+            let _tracing_guard = tracing_span.enter();
+
             // Things that we have finished computing.
             let mut progress: Vec<i32> = vec![min_degree - 1; max.s() as usize + 1];
             // We will kickstart the process by pretending we have computed (0, min_degree - 1). So
@@ -726,7 +729,9 @@ where
                 if self.has_computed_bidegree(b) {
                     SenderData::send(b, false, sender);
                 } else {
+                    let tracing_span = tracing_span.clone();
                     scope.spawn(move |_| {
+                        let _tracing_guard = tracing_span.enter();
                         self.step_resolution(b);
                         SenderData::send(b, true, sender);
                     });
