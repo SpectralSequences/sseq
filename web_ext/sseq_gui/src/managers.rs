@@ -17,7 +17,7 @@ use crate::{actions::*, resolution_wrapper::Resolution, sseq::SseqWrapper, Sende
 /// # Fields
 ///  * `sender` : A Sender object.
 ///  * `is_unit` : Whether this resolution is a resolution of the unit. This is useful for adding
-///  products etc.
+///    products etc.
 ///  * `resolution` : The resolution object itself.
 pub struct ResolutionManager {
     sender: Sender,

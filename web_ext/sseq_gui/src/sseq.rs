@@ -20,7 +20,7 @@ pub enum ClassState {
 
 /// # Fields
 ///  * `matrices[x][y]` : This encodes the matrix of the product. If it is None, it means the
-///  target of the product has dimension 0.
+///    target of the product has dimension 0.
 pub struct Product {
     inner: sseq::Product,
     /// whether the product was specified by the user or the module. Products specified by the module are assumed to be permanent
@@ -44,8 +44,8 @@ const EDGE_FLAG: u8 = 2;
 
 /// Here are some blanket assumptions we make about the order in which we add things.
 ///  * If we add a class at (x, y), then all classes to the left and below of (x, y) have been
-///  computed. Moreover, every class at (x + 1, y - r) for r >= 1 have been computed. If these have
-///  not been set, the class is assumed to be zero.
+///    computed. Moreover, every class at (x + 1, y - r) for r >= 1 have been computed. If these have
+///    not been set, the class is assumed to be zero.
 ///  * The same is true for products, where the grading of a product is that of its source.
 ///  * Whenever a product v . x is set, the target is already set.
 pub struct SseqWrapper<P: SseqProfile = Adams> {

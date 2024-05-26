@@ -14,9 +14,9 @@ use crate::{
 ///
 /// # Fields
 ///  * `image` - The image of the original matrix. If the image is omitted, it is assumed to be
-///  everything (with the standard basis).
+///    everything (with the standard basis).
 ///  * `preimage` - The actual quasi-inverse, where the basis of the image is that given by
-///  `image`.
+///    `image`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct QuasiInverse {
     image: Option<Vec<isize>>,

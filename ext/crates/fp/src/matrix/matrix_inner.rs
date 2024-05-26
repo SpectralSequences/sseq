@@ -510,7 +510,7 @@ impl Matrix {
     ///
     /// # Arguments
     ///  * `column_to_pivot_row` - A vector for the function to write the pivots into. The length
-    ///  should be at least as long as the number of columns (and the extra entries are ignored).
+    ///    should be at least as long as the number of columns (and the extra entries are ignored).
     ///
     /// # Example
     /// ```
@@ -800,8 +800,8 @@ impl Matrix {
     ///
     /// # Arguments
     ///  * `first_empty_row` - The first row in the matrix that is empty. This is where we will add
-    ///  our new rows. This is a mutable borrow and by the end of the function, `first_empty_row`
-    ///  will be updated to the new first empty row.
+    ///    our new rows. This is a mutable borrow and by the end of the function, `first_empty_row`
+    ///    will be updated to the new first empty row.
     ///  * `current_pivots` - The current pivots of the matrix.
     ///
     /// # Panics
