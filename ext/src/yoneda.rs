@@ -109,7 +109,7 @@ where
 
     let target = FDModule::new(cc.algebra(), "".to_string(), BiVec::from_vec(0, vec![1]));
     let map = FreeModuleHomomorphism::new(cc.module(b.s()), Arc::new(target), b.t());
-    let mut rows = vec![FpVector::new(p, 1); cc.module(b.s()).number_of_gens_in_degree(b.t())];
+    let mut rows = vec![FpVector::new(p, 1); cc.number_of_gens_in_bidegree(b)];
     for (&i, row) in std::iter::zip(class, &mut rows) {
         row.set_entry(0, i);
     }

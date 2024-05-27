@@ -10,7 +10,7 @@ fn main() -> anyhow::Result<()> {
     let resolution = query_module(None, false)?;
 
     for b in resolution.iter_stem() {
-        for i in 0..resolution.module(b.s()).number_of_gens_in_degree(b.t()) {
+        for i in 0..resolution.number_of_gens_in_bidegree(b) {
             let gen = BidegreeGenerator::new(b, i);
             let cocycle = resolution.cocycle_string(gen, true);
             println!("d x_{gen:#} = {cocycle}");

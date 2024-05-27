@@ -2,19 +2,23 @@
 fn benchmark(algebra: &str) {
     use std::{io::Write, time::Instant};
 
-    use ext::{chain_complex::ChainComplex, utils::construct};
+    use ext::{
+        chain_complex::{ChainComplex, FreeChainComplex},
+        utils::construct,
+    };
     use sseq::coordinates::Bidegree;
 
     let resolution = construct(("S_2", algebra), None).unwrap();
+    let b = Bidegree::s_t(80, 80);
 
     print!("benchmark  {:6}  S_2  80:    ", algebra,);
     std::io::stdout().flush().unwrap();
 
     let start = Instant::now();
-    resolution.compute_through_bidegree(Bidegree::s_t(80, 80));
+    resolution.compute_through_bidegree(b);
     let dur = start.elapsed();
 
-    assert!(resolution.module(80).number_of_gens_in_degree(80) < 1000);
+    assert!(resolution.number_of_gens_in_bidegree(b) < 1000);
 
     println!("{} ms / iter", dur.as_millis());
 }

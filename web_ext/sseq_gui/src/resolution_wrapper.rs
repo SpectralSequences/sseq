@@ -341,7 +341,7 @@ impl<CC: ChainComplex> Resolution<CC> {
         if b.t() < self.chain_maps_to_unit_resolution[s_idx].len() {
             return;
         }
-        let num_gens = self.module(b.s()).number_of_gens_in_degree(b.t());
+        let num_gens = self.inner.number_of_gens_in_bidegree(b);
         let mut maps = Vec::with_capacity(num_gens);
 
         if num_gens > 0 {
