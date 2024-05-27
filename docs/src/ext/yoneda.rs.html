@@ -778,7 +778,7 @@
 
     <span class="kw">let </span>target = FDModule::new(cc.algebra(), <span class="string">""</span>.to_string(), BiVec::from_vec(<span class="number">0</span>, <span class="macro">vec!</span>[<span class="number">1</span>]));
     <span class="kw">let </span>map = FreeModuleHomomorphism::new(cc.module(b.s()), Arc::new(target), b.t());
-    <span class="kw">let </span><span class="kw-2">mut </span>rows = <span class="macro">vec!</span>[FpVector::new(p, <span class="number">1</span>); cc.module(b.s()).number_of_gens_in_degree(b.t())];
+    <span class="kw">let </span><span class="kw-2">mut </span>rows = <span class="macro">vec!</span>[FpVector::new(p, <span class="number">1</span>); cc.number_of_gens_in_bidegree(b)];
     <span class="kw">for </span>(<span class="kw-2">&amp;</span>i, row) <span class="kw">in </span>std::iter::zip(class, <span class="kw-2">&amp;mut </span>rows) {
         row.set_entry(<span class="number">0</span>, i);
     }

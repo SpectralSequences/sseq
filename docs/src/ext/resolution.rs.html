@@ -990,6 +990,11 @@
 <a href="#963" id="963">963</a>
 <a href="#964" id="964">964</a>
 <a href="#965" id="965">965</a>
+<a href="#966" id="966">966</a>
+<a href="#967" id="967">967</a>
+<a href="#968" id="968">968</a>
+<a href="#969" id="969">969</a>
+<a href="#970" id="970">970</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! This module exports the [`Resolution`] object, which is a chain complex resolving a module. In
 //! particular, this contains the core logic that compute minimal resolutions.
 </span><span class="kw">use </span>std::{
@@ -1704,7 +1709,10 @@
         <span class="self">self</span>.extend_through_degree(max.s());
         <span class="self">self</span>.algebra().compute_basis(max.t() - min_degree);
 
+        <span class="kw">let </span>tracing_span = tracing::Span::current();
         maybe_rayon::in_place_scope(|scope| {
+            <span class="kw">let </span>_tracing_guard = tracing_span.enter();
+
             <span class="comment">// Things that we have finished computing.
             </span><span class="kw">let </span><span class="kw-2">mut </span>progress: Vec&lt;i32&gt; = <span class="macro">vec!</span>[min_degree - <span class="number">1</span>; max.s() <span class="kw">as </span>usize + <span class="number">1</span>];
             <span class="comment">// We will kickstart the process by pretending we have computed (0, min_degree - 1). So
@@ -1718,7 +1726,9 @@
                 <span class="kw">if </span><span class="self">self</span>.has_computed_bidegree(b) {
                     SenderData::send(b, <span class="bool-val">false</span>, sender);
                 } <span class="kw">else </span>{
+                    <span class="kw">let </span>tracing_span = tracing_span.clone();
                     scope.spawn(<span class="kw">move </span>|<span class="kw">_</span>| {
+                        <span class="kw">let </span>_tracing_guard = tracing_span.enter();
                         <span class="self">self</span>.step_resolution(b);
                         SenderData::send(b, <span class="bool-val">true</span>, sender);
                     });
