@@ -1,0 +1,1 @@
+searchState.loadedDescShard("massey", 0, "Computes the triple Massey product up to a sign")

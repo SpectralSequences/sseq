@@ -1,0 +1,1 @@
+searchState.loadedDescShard("save_bruner", 0, "This saves a resolution to Bruner’s format. This saves …")

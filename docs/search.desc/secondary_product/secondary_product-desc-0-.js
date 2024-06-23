@@ -1,0 +1,1 @@
+searchState.loadedDescShard("secondary_product", 0, "Computes products in $\\Mod_{C\\tau^2}$.")

@@ -1,0 +1,1 @@
+searchState.loadedDescShard("chart", 0, "If the backend writes to a file, this is the extension …\nReturns the argument unchanged.\nReturns the argument unchanged.\nReturns the argument unchanged.\nReturns r, x, y\nReturns r, x, y\nCalls <code>U::from(self)</code>.\nCalls <code>U::from(self)</code>.\nCalls <code>U::from(self)</code>.\nPrint the legend for node patterns")

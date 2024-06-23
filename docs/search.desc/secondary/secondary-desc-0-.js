@@ -1,0 +1,1 @@
+searchState.loadedDescShard("secondary", 0, "This computes $d_2$ differentials in the Adams spectral …")
