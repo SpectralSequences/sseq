@@ -1,3 +1,5 @@
+use itertools::Itertools;
+
 pub struct BitflagIterator {
     remaining: u8,
     flag: u64,
@@ -37,6 +39,29 @@ impl Iterator for BitflagIterator {
             Some(result)
         }
     }
+}
+
+/// Iterates through all combinations of numbers from 0 to `p - 1` of length `len`.
+///
+/// # Example
+/// ```
+/// # use fp::prime::{iter::combinations, ValidPrime};
+/// let mut iter = combinations(ValidPrime::new(3), 2);
+///
+/// assert_eq!(iter.next(), Some(vec![0, 0]));
+/// assert_eq!(iter.next(), Some(vec![0, 1]));
+/// assert_eq!(iter.next(), Some(vec![0, 2]));
+/// assert_eq!(iter.next(), Some(vec![1, 0]));
+/// assert_eq!(iter.next(), Some(vec![1, 1]));
+/// assert_eq!(iter.next(), Some(vec![1, 2]));
+/// assert_eq!(iter.next(), Some(vec![2, 0]));
+/// assert_eq!(iter.next(), Some(vec![2, 1]));
+/// assert_eq!(iter.next(), Some(vec![2, 2]));
+/// assert_eq!(iter.next(), None);
+/// ```
+pub fn combinations(p: impl Into<u32>, len: usize) -> impl Iterator<Item = Vec<u32>> {
+    let p = p.into();
+    (0..len).map(|_| 0..p).multi_cartesian_product()
 }
 
 /// Iterates through all numbers with the same number of bits. It may panic or return nonsense
