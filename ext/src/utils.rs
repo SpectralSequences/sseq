@@ -187,7 +187,7 @@ where
     let algebra = Arc::new(MilnorAlgebra::new(fp::prime::TWO, false));
     let module = Arc::new(FDModule::from_json(Arc::clone(&algebra), &json)?);
 
-    if !json["confiber"].is_null() {
+    if !json["cofiber"].is_null() {
         return Err(anyhow!("Nassau's algorithm does not support cofiber"));
     }
     crate::nassau::Resolution::new_with_save(module, save_dir)
