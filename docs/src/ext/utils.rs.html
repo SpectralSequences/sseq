@@ -765,7 +765,7 @@
     <span class="kw">let </span>algebra = Arc::new(MilnorAlgebra::new(fp::prime::TWO, <span class="bool-val">false</span>));
     <span class="kw">let </span>module = Arc::new(FDModule::from_json(Arc::clone(<span class="kw-2">&amp;</span>algebra), <span class="kw-2">&amp;</span>json)<span class="question-mark">?</span>);
 
-    <span class="kw">if </span>!json[<span class="string">"confiber"</span>].is_null() {
+    <span class="kw">if </span>!json[<span class="string">"cofiber"</span>].is_null() {
         <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">anyhow!</span>(<span class="string">"Nassau's algorithm does not support cofiber"</span>));
     }
     <span class="kw">crate</span>::nassau::Resolution::new_with_save(module, save_dir)
