@@ -2365,7 +2365,7 @@
         }
         <span class="macro">assert_eq!</span>(k.degree, <span class="self">self</span>.degree);
         <span class="macro">assert!</span>(
-            <span class="macro">matches!</span>(<span class="self">self</span>.inner.insert(<span class="self">Self</span>::code(<span class="kw-2">&amp;</span>k), v), <span class="prelude-val">None</span>),
+            <span class="self">self</span>.inner.insert(<span class="self">Self</span>::code(<span class="kw-2">&amp;</span>k), v).is_none(),
             <span class="string">"Duplicate entry for {k}"
         </span>);
     }
