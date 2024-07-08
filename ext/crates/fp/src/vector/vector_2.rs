@@ -96,8 +96,8 @@ impl std::fmt::Display for FpVector {
     }
 }
 
-impl std::ops::AddAssign<&FpVector> for FpVector {
-    fn add_assign(&mut self, other: &FpVector) {
+impl std::ops::AddAssign<&Self> for FpVector {
+    fn add_assign(&mut self, other: &Self) {
         self.add(other, 1);
     }
 }
@@ -148,19 +148,19 @@ impl<'a> std::fmt::Display for Slice<'a> {
 // Type conversions
 
 impl<'a, 'b> From<&'a mut SliceMut<'b>> for SliceMut<'a> {
-    fn from(slice: &'a mut SliceMut<'b>) -> SliceMut<'a> {
+    fn from(slice: &'a mut SliceMut<'b>) -> Self {
         slice.copy()
     }
 }
 
 impl<'a, 'b> From<&'a Slice<'b>> for Slice<'a> {
-    fn from(slice: &'a Slice<'b>) -> Slice<'a> {
+    fn from(slice: &'a Slice<'b>) -> Self {
         *slice
     }
 }
 
 impl<'a, 'b> From<&'a SliceMut<'b>> for Slice<'a> {
-    fn from(slice: &'a SliceMut<'b>) -> Slice<'a> {
+    fn from(slice: &'a SliceMut<'b>) -> Self {
         slice.as_slice()
     }
 }

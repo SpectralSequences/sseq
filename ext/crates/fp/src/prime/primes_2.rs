@@ -13,17 +13,17 @@ pub const fn is_prime(p: u32) -> bool {
 }
 
 impl ValidPrime {
-    pub const fn new(_p: u32) -> ValidPrime {
+    pub const fn new(_p: u32) -> Self {
         // Disregard the argument, assume the prime is 2. This has the advantage of us being
         // able to use the same tests independently of whether odd-primes is enabled or not.
         //
         // This is sound but can cause some problems for the user that could be hard to
         // diagnose. Maybe use debug_assert! and fix the tests?
-        P2
+        Self
     }
 
-    pub const fn new_unchecked(_p: u32) -> ValidPrime {
-        P2
+    pub const fn new_unchecked(_p: u32) -> Self {
+        Self
     }
 }
 
@@ -33,7 +33,7 @@ impl FromStr for ValidPrime {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let p = s.parse().map_err(PrimeError::NotAnInteger)?;
         if p == 2 {
-            Ok(P2)
+            Ok(Self)
         } else {
             Err(PrimeError::InvalidPrime(p))
         }

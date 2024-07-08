@@ -247,7 +247,7 @@ impl<V> MilnorHashMap<V> {
         }
         assert_eq!(k.degree, self.degree);
         assert!(
-            matches!(self.inner.insert(Self::code(&k), v), None),
+            self.inner.insert(Self::code(&k), v).is_none(),
             "Duplicate entry for {k}"
         );
     }
