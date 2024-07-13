@@ -1,4 +1,8 @@
-use super::{limb::LimbMethods, Field, FieldElement};
+use super::{
+    element::{FieldElement, FieldElementContainer},
+    field_internal::FieldInternal,
+    Field,
+};
 use crate::{constants::BITS_PER_LIMB, limb::Limb, prime::Prime};
 
 /// A prime field. This is just a wrapper around a prime.
@@ -6,10 +10,8 @@ use crate::{constants::BITS_PER_LIMB, limb::Limb, prime::Prime};
 pub struct Fp<P>(pub(crate) P);
 
 impl<P: Prime> Field for Fp<P> {
-    #[cfg(feature = "odd-primes")]
     type Characteristic = P;
 
-    #[cfg(feature = "odd-primes")]
     fn characteristic(self) -> Self::Characteristic {
         self.0
     }
@@ -18,52 +20,56 @@ impl<P: Prime> Field for Fp<P> {
         1
     }
 
-    fn zero(self) -> Self::Element {
-        0
+    fn zero(self) -> FieldElement<Self> {
+        self.el(0)
     }
 
-    fn one(self) -> Self::Element {
-        1
-    }
-
-    fn add(self, a: Self::Element, b: Self::Element) -> Self::Element {
-        self.0.sum(a, b)
-    }
-
-    fn mul(self, a: Self::Element, b: Self::Element) -> Self::Element {
-        self.0.product(a, b)
-    }
-
-    fn inv(self, a: Self::Element) -> Option<Self::Element> {
-        if a == 0 {
-            None
-        } else {
-            Some(crate::prime::inverse(self.0, a))
-        }
-    }
-
-    fn neg(self, a: Self::Element) -> Self::Element {
-        if a > 0 {
-            self.0.as_u32() - a
-        } else {
-            0
-        }
-    }
-
-    fn frobenius(self, a: Self::Element) -> Self::Element {
-        a
+    fn one(self) -> FieldElement<Self> {
+        self.el(1)
     }
 }
 
-impl<P: Prime> LimbMethods for Fp<P> {
-    type Element = u32;
+impl<P: Prime> FieldInternal for Fp<P> {
+    type ElementContainer = u32;
 
-    fn encode(self, element: Self::Element) -> Limb {
-        element as Limb
+    fn el(self, value: Self::ElementContainer) -> FieldElement<Self> {
+        FieldElement::new(self, value % self.0.as_u32())
     }
 
-    fn decode(self, element: Limb) -> Self::Element {
-        (element % self.0.as_u32() as Limb) as u32
+    fn add_assign(self, a: &mut FieldElement<Self>, b: FieldElement<Self>) {
+        a.value = self.0.sum(**a, *b);
+    }
+
+    fn mul_assign(self, a: &mut FieldElement<Self>, b: FieldElement<Self>) {
+        a.value = self.0.product(**a, *b);
+    }
+
+    fn inv(self, a: FieldElement<Self>) -> Option<FieldElement<Self>> {
+        if *a == 0 {
+            None
+        } else {
+            Some(self.el(crate::prime::inverse(self.0, *a)))
+        }
+    }
+
+    fn neg(self, a: FieldElement<Self>) -> FieldElement<Self> {
+        self.el(if *a > 0 { self.0.as_u32() - *a } else { 0 })
+    }
+
+    fn frobenius(self, a: FieldElement<Self>) -> FieldElement<Self> {
+        a
+    }
+
+    fn encode(self, element: FieldElement<Self>) -> Limb {
+        element.value as Limb
+    }
+
+    fn decode(self, element: Limb) -> FieldElement<Self> {
+        // We have to pass in the already reduced value to `Self::el` because we have no guarantee
+        // that this Limb fits in a u32. For example, `element` could be the result of `fma_limb(0,
+        // 1_000_000, 1_000_000)`, if the prime is large enough.
+        let prime_limb = self.0.as_u32() as Limb;
+        self.el((element % prime_limb) as u32)
     }
 
     fn bit_length(self) -> usize {
@@ -74,11 +80,11 @@ impl<P: Prime> LimbMethods for Fp<P> {
         }
     }
 
-    fn fma_limb(self, limb_a: Limb, limb_b: Limb, coeff: Self::Element) -> Limb {
+    fn fma_limb(self, limb_a: Limb, limb_b: Limb, coeff: FieldElement<Self>) -> Limb {
         if self.characteristic() == 2 {
-            limb_a ^ (coeff as Limb * limb_b)
+            limb_a ^ (coeff.value as Limb * limb_b)
         } else {
-            limb_a + (coeff as Limb) * limb_b
+            limb_a + (coeff.value as Limb) * limb_b
         }
     }
 
@@ -127,8 +133,10 @@ impl<P: Prime> From<P> for Fp<P> {
     }
 }
 
-impl FieldElement for u32 {
-    fn is_zero(&self) -> bool {
-        *self == 0
+impl FieldElementContainer for u32 {}
+
+impl<P: Prime> From<FieldElement<Fp<P>>> for u32 {
+    fn from(element: FieldElement<Fp<P>>) -> Self {
+        element.value
     }
 }

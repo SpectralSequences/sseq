@@ -1,5 +1,6 @@
 use std::{
     fmt::{Debug, Display},
+    hash::Hash,
     ops::{
         Add, AddAssign, Div, DivAssign, Mul, MulAssign, Rem, RemAssign, Shl, ShlAssign, Shr,
         ShrAssign, Sub, SubAssign,
@@ -41,6 +42,7 @@ pub trait Prime:
     + Clone
     + Copy
     + Display
+    + Hash
     + PartialEq
     + Eq
     + PartialEq<u32>

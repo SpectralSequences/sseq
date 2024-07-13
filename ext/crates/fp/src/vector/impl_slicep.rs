@@ -1,10 +1,10 @@
 use super::{
-    inner::{FqVectorP, SliceP},
-    iter::{FpVectorIteratorP, FpVectorNonZeroIteratorP},
+    inner::{FqVector, SliceP},
+    iter::{FqVectorIteratorP, FqVectorNonZeroIteratorP},
 };
 use crate::{
     constants,
-    field::Field,
+    field::{element::FieldElement, Field},
     limb::Limb,
     prime::{Prime, ValidPrime},
 };
@@ -24,7 +24,7 @@ impl<'a, F: Field> SliceP<'a, F> {
         self.start == self.end
     }
 
-    pub fn entry(&self, index: usize) -> F::Element {
+    pub fn entry(&self, index: usize) -> FieldElement<F> {
         debug_assert!(
             index < self.len(),
             "Index {} too large, length of vector is only {}.",
@@ -40,12 +40,12 @@ impl<'a, F: Field> SliceP<'a, F> {
     }
 
     /// TODO: implement prime 2 version
-    pub fn iter(self) -> FpVectorIteratorP<'a, F> {
-        FpVectorIteratorP::new(self)
+    pub fn iter(self) -> FqVectorIteratorP<'a, F> {
+        FqVectorIteratorP::new(self)
     }
 
-    pub fn iter_nonzero(self) -> FpVectorNonZeroIteratorP<'a, F> {
-        FpVectorNonZeroIteratorP::new(self)
+    pub fn iter_nonzero(self) -> FqVectorNonZeroIteratorP<'a, F> {
+        FqVectorNonZeroIteratorP::new(self)
     }
 
     pub fn is_zero(&self) -> bool {
@@ -80,10 +80,10 @@ impl<'a, F: Field> SliceP<'a, F> {
         }
     }
 
-    /// Converts a slice to an owned FpVectorP. This is vastly more efficient if the start of the vector is aligned.
+    /// Converts a slice to an owned FqVector. This is vastly more efficient if the start of the vector is aligned.
     #[must_use]
-    pub fn to_owned(self) -> FqVectorP<F> {
-        let mut new = FqVectorP::new(self.fq, self.len());
+    pub fn to_owned(self) -> FqVector<F> {
+        let mut new = FqVector::new(self.fq, self.len());
         if self.start % self.fq.entries_per_limb() == 0 {
             let limb_range = self.limb_range();
             new.limbs[0..limb_range.len()].copy_from_slice(&self.limbs[limb_range]);
@@ -148,8 +148,8 @@ impl<'a, F: Field> SliceP<'a, F> {
     }
 }
 
-impl<'a, F: Field> From<&'a FqVectorP<F>> for SliceP<'a, F> {
-    fn from(v: &'a FqVectorP<F>) -> Self {
+impl<'a, F: Field> From<&'a FqVector<F>> for SliceP<'a, F> {
+    fn from(v: &'a FqVector<F>) -> Self {
         v.slice(0, v.len)
     }
 }

@@ -1,19 +1,12 @@
-#[cfg(not(feature = "odd-primes"))]
-pub mod vector_2;
-#[cfg(not(feature = "odd-primes"))]
-pub use vector_2::*;
-
-#[cfg(feature = "odd-primes")]
-pub mod vector_generic;
-#[cfg(feature = "odd-primes")]
-pub use vector_generic::*;
-
 pub(crate) mod inner;
 
-mod impl_fpvectorp;
+mod fp_wrapper;
+mod impl_fqvector;
 mod impl_slicemutp;
 mod impl_slicep;
 mod iter;
+
+pub use fp_wrapper::*;
 
 #[cfg(test)]
 mod tests {
@@ -23,9 +16,9 @@ mod tests {
     use proptest::prelude::*;
     use rstest::rstest;
 
-    use super::{inner::FqVectorP, *};
+    use super::{inner::FqVector, *};
     use crate::{
-        field::{limb::LimbMethods, Fp},
+        field::{field_internal::FieldInternal, Fp},
         limb,
         prime::{Prime, ValidPrime, P2},
     };
@@ -219,6 +212,7 @@ mod tests {
             prop_assert!(Fp(p).bit_length() <= 63);
         }
 
+        #[cfg(feature = "odd-primes")]
         #[test]
         fn test_incompatible_primes((p1, p2) in (arb_prime(), arb_prime())) {
             prop_assume!(p1 != p2);
@@ -657,8 +651,8 @@ mod tests {
     #[test]
     #[ignore]
     fn test_sign_rule() {
-        let mut in1 = FqVectorP::<Fp<P2>>::new(P2, 128);
-        let mut in2 = FqVectorP::<Fp<P2>>::new(P2, 128);
+        let mut in1 = FqVector::new(Fp(P2), 128);
+        let mut in2 = FqVector::new(Fp(P2), 128);
         let tests = [
             (
                 0x181e20846a820820,

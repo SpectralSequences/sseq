@@ -1,19 +1,17 @@
 use itertools::Itertools;
 
 use super::{
-    inner::{FqVectorP, SliceMutP, SliceP},
-    iter::{FpVectorIteratorP, FpVectorNonZeroIteratorP},
+    inner::{FqVector, SliceMutP, SliceP},
+    iter::{FqVectorIteratorP, FqVectorNonZeroIteratorP},
 };
 use crate::{
-    field::{Field, FieldElement},
-    limb::{self, Limb},
+    field::{element::FieldElement, Field},
+    limb::Limb,
     prime::{Prime, ValidPrime},
-    simd,
 };
 
-impl<F: Field> FqVectorP<F> {
-    pub fn new(fq: impl Into<F>, len: usize) -> Self {
-        let fq = fq.into();
+impl<F: Field> FqVector<F> {
+    pub fn new(fq: F, len: usize) -> Self {
         let number_of_limbs = fq.number(len);
         Self {
             fq,
@@ -27,11 +25,17 @@ impl<F: Field> FqVectorP<F> {
         Self { fq, len, limbs }
     }
 
-    pub fn new_with_capacity(fq: impl Into<F>, len: usize, capacity: usize) -> Self {
-        let fq = fq.into();
+    pub fn new_with_capacity(fq: F, len: usize, capacity: usize) -> Self {
         let mut limbs = Vec::with_capacity(fq.number(capacity));
         limbs.resize(fq.number(len), 0);
         Self { fq, len, limbs }
+    }
+
+    pub fn from_slice(fq: F, slice: &[FieldElement<F>]) -> Self {
+        let len = slice.len();
+        let mut v = Self::new(fq, len);
+        v.copy_from_slice(slice);
+        v
     }
 
     pub const fn len(&self) -> usize {
@@ -80,23 +84,23 @@ impl<F: Field> FqVectorP<F> {
         self.into()
     }
 
-    pub fn add_basis_element(&mut self, index: usize, value: F::Element) {
+    pub fn add_basis_element(&mut self, index: usize, value: FieldElement<F>) {
         self.as_slice_mut().add_basis_element(index, value);
     }
 
-    pub fn entry(&self, index: usize) -> F::Element {
+    pub fn entry(&self, index: usize) -> FieldElement<F> {
         self.as_slice().entry(index)
     }
 
-    pub fn set_entry(&mut self, index: usize, value: F::Element) {
+    pub fn set_entry(&mut self, index: usize, value: FieldElement<F>) {
         self.as_slice_mut().set_entry(index, value);
     }
 
-    pub fn iter(&self) -> FpVectorIteratorP<'_, F> {
+    pub fn iter(&self) -> FqVectorIteratorP<'_, F> {
         self.as_slice().iter()
     }
 
-    pub fn iter_nonzero(&self) -> FpVectorNonZeroIteratorP<'_, F> {
+    pub fn iter_nonzero(&self) -> FqVectorNonZeroIteratorP<'_, F> {
         self.as_slice().iter_nonzero()
     }
 
@@ -107,12 +111,11 @@ impl<F: Field> FqVectorP<F> {
         }
     }
 
-    pub fn scale(&mut self, c: F::Element) {
-        if self.fq.characteristic() == 2 {
-            if c.is_zero() {
-                self.set_to_zero();
-            }
-        } else {
+    pub fn scale(&mut self, c: FieldElement<F>) {
+        if c == self.fq.zero() {
+            self.set_to_zero();
+        }
+        if self.fq.q() != 2 {
             for limb in &mut self.limbs {
                 *limb = self.fq.reduce(self.fq.fma_limb(0, *limb, c.clone()));
             }
@@ -121,13 +124,13 @@ impl<F: Field> FqVectorP<F> {
 
     /// Add `other` to `self` on the assumption that the first `offset` entries of `other` are
     /// empty.
-    pub fn add_offset(&mut self, other: &Self, c: F::Element, offset: usize) {
+    pub fn add_offset(&mut self, other: &Self, c: FieldElement<F>, offset: usize) {
         assert_eq!(self.len(), other.len());
         let fq = self.fq;
         let min_limb = offset / fq.entries_per_limb();
-        if fq.characteristic() == 2 && fq.degree() == 1 {
-            if !c.is_zero() {
-                simd::add_simd(&mut self.limbs, &other.limbs, min_limb);
+        if fq.q() == 2 {
+            if c != fq.zero() {
+                crate::simd::add_simd(&mut self.limbs, &other.limbs, min_limb);
             }
         } else {
             for (left, right) in self.limbs.iter_mut().zip_eq(&other.limbs).skip(min_limb) {
@@ -139,7 +142,7 @@ impl<F: Field> FqVectorP<F> {
         }
     }
 
-    pub fn add(&mut self, other: &Self, c: F::Element) {
+    pub fn add(&mut self, other: &Self, c: FieldElement<F>) {
         self.add_offset(other, c, 0);
     }
 
@@ -148,7 +151,7 @@ impl<F: Field> FqVectorP<F> {
         self.limbs.copy_from_slice(&other.limbs)
     }
 
-    /// A version of [`FpVectorP::assign`] that allows `other` to be shorter than `self`.
+    /// A version of [`FqVector::assign`] that allows `other` to be shorter than `self`.
     pub fn assign_partial(&mut self, other: &Self) {
         debug_assert!(other.len() <= self.len());
         self.limbs[0..other.limbs.len()].copy_from_slice(&other.limbs);
@@ -189,7 +192,7 @@ impl<F: Field> FqVectorP<F> {
 
     /// This replaces the contents of the vector with the contents of the slice. The two must have
     /// the same length.
-    pub fn copy_from_slice(&mut self, slice: &[F::Element]) {
+    pub fn copy_from_slice(&mut self, slice: &[FieldElement<F>]) {
         assert_eq!(self.len, slice.len());
 
         self.limbs.clear();
@@ -212,14 +215,13 @@ impl<F: Field> FqVectorP<F> {
     }
 
     pub fn sign_rule(&self, other: &Self) -> bool {
-        assert_eq!(self.fq.characteristic(), 2);
-        assert_eq!(self.fq.degree(), 1);
+        assert_eq!(self.fq.q(), 2);
 
         let mut result = 0;
         for target_limb_idx in 0..self.limbs.len() {
             let target_limb = other.limbs[target_limb_idx];
             let source_limb = self.limbs[target_limb_idx];
-            result ^= limb::sign_rule(target_limb, source_limb);
+            result ^= crate::limb::sign_rule(target_limb, source_limb);
             if target_limb.count_ones() % 2 == 0 {
                 continue;
             }
@@ -230,7 +232,7 @@ impl<F: Field> FqVectorP<F> {
         result == 1
     }
 
-    pub fn add_truncate(&mut self, other: &Self, c: F::Element) -> Option<()> {
+    pub fn add_truncate(&mut self, other: &Self, c: FieldElement<F>) -> Option<()> {
         for (left, right) in self.limbs.iter_mut().zip_eq(&other.limbs) {
             *left = self.fq.fma_limb(*left, *right, c.clone());
             *left = self.fq.truncate(*left)?;
@@ -238,11 +240,17 @@ impl<F: Field> FqVectorP<F> {
         Some(())
     }
 
-    fn add_carry_limb<T>(&mut self, idx: usize, source: Limb, c: F::Element, rest: &mut [T]) -> bool
+    fn add_carry_limb<T>(
+        &mut self,
+        idx: usize,
+        source: Limb,
+        c: FieldElement<F>,
+        rest: &mut [T],
+    ) -> bool
     where
         for<'a> &'a mut T: TryInto<&'a mut Self>,
     {
-        if self.fq.characteristic() == 2 && self.fq.degree() == 1 {
+        if self.fq.q() == 2 {
             let c = self.fq.encode(c);
             if c == 0 {
                 return false;
@@ -270,7 +278,7 @@ impl<F: Field> FqVectorP<F> {
         }
     }
 
-    pub fn add_carry<T>(&mut self, other: &Self, c: F::Element, rest: &mut [T]) -> bool
+    pub fn add_carry<T>(&mut self, other: &Self, c: FieldElement<F>, rest: &mut [T]) -> bool
     where
         for<'a> &'a mut T: TryInto<&'a mut Self>,
     {
@@ -282,7 +290,7 @@ impl<F: Field> FqVectorP<F> {
     }
 
     /// Find the index and value of the first non-zero entry of the vector. `None` if the vector is zero.
-    pub fn first_nonzero(&self) -> Option<(usize, F::Element)> {
+    pub fn first_nonzero(&self) -> Option<(usize, FieldElement<F>)> {
         let entries_per_limb = self.fq.entries_per_limb();
         let bit_length = self.fq.bit_length();
         let bitmask = self.fq.bitmask();
@@ -300,7 +308,7 @@ impl<F: Field> FqVectorP<F> {
     }
 
     pub fn density(&self) -> f32 {
-        let num_nonzero = if self.fq.characteristic() == 2 {
+        let num_nonzero = if self.fq.q() == 2 {
             self.limbs
                 .iter()
                 .copied()
@@ -313,23 +321,17 @@ impl<F: Field> FqVectorP<F> {
     }
 }
 
-impl<T: AsRef<[F::Element]>, F: Field> From<(F, T)> for FqVectorP<F> {
+impl<T: AsRef<[FieldElement<F>]>, F: Field> From<(F, T)> for FqVector<F> {
     fn from(data: (F, T)) -> Self {
         let (fq, slice) = data;
         let mut v = Self::new(fq, slice.as_ref().len());
-        v.limbs.clear();
-        v.limbs.extend(
-            slice
-                .as_ref()
-                .chunks(fq.entries_per_limb())
-                .map(|x| fq.pack(x.iter().cloned())),
-        );
+        v.copy_from_slice(slice.as_ref());
         v
     }
 }
 
-impl<F: Field> From<&FqVectorP<F>> for Vec<F::Element> {
-    fn from(vec: &FqVectorP<F>) -> Self {
+impl<F: Field> From<&FqVector<F>> for Vec<FieldElement<F>> {
+    fn from(vec: &FqVector<F>) -> Self {
         vec.iter().collect()
     }
 }

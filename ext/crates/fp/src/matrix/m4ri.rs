@@ -1,7 +1,7 @@
 use itertools::Itertools;
 
 use crate::{
-    field::{limb::LimbMethods, Fp},
+    field::{field_internal::FieldInternal, Fp},
     limb::{Limb, LimbBitIndexPair},
     matrix::Matrix,
     prime::P2,

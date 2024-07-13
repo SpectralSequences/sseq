@@ -2,10 +2,10 @@ use std::cmp::Ordering;
 
 use itertools::Itertools;
 
-use super::inner::{FqVectorP, SliceMutP, SliceP};
+use super::inner::{FqVector, SliceMutP, SliceP};
 use crate::{
     constants,
-    field::{Field, FieldElement},
+    field::{element::FieldElement, Field},
     limb::Limb,
     prime::{Prime, ValidPrime},
 };
@@ -15,21 +15,18 @@ impl<'a, F: Field> SliceMutP<'a, F> {
         self.fq.characteristic().to_dyn()
     }
 
-    pub fn add_basis_element(&mut self, index: usize, value: F::Element) {
-        if self.fq.characteristic() == 2 && self.fq.degree() == 1 {
-            // This is a special case for F_2, where we can use the fact that the basis elements are
-            // 0 and 1. However, `value` (which in this case is equal to its encoded value) comes
-            // from outside the crate and might not be reduced mod 2 yet, so we do that ourselves.
+    pub fn add_basis_element(&mut self, index: usize, value: FieldElement<F>) {
+        if self.fq.q() == 2 {
             let pair = self.fq.limb_bit_index_pair(index + self.start);
-            self.limbs[pair.limb] ^= (self.fq.encode(value) % 2) << pair.bit_index;
+            self.limbs[pair.limb] ^= self.fq.encode(value) << pair.bit_index;
         } else {
             let mut x = self.as_slice().entry(index);
-            x = self.fq.add(x, value);
+            x += value;
             self.set_entry(index, x);
         }
     }
 
-    pub fn set_entry(&mut self, index: usize, value: F::Element) {
+    pub fn set_entry(&mut self, index: usize, value: FieldElement<F>) {
         debug_assert!(index < self.as_slice().len());
         let bit_mask = self.fq.bitmask();
         let limb_index = self.fq.limb_bit_index_pair(index + self.start);
@@ -40,7 +37,7 @@ impl<'a, F: Field> SliceMutP<'a, F> {
     }
 
     fn reduce_limbs(&mut self) {
-        if self.fq.characteristic() != 2 {
+        if self.fq.q() != 2 {
             let limb_range = self.as_slice().limb_range();
 
             for limb in &mut self.limbs[limb_range] {
@@ -49,9 +46,9 @@ impl<'a, F: Field> SliceMutP<'a, F> {
         }
     }
 
-    pub fn scale(&mut self, c: F::Element) {
-        if self.fq.characteristic() == 2 {
-            if c.is_zero() {
+    pub fn scale(&mut self, c: FieldElement<F>) {
+        if self.fq.q() == 2 {
+            if c == self.fq.zero() {
                 self.set_to_zero();
             }
             return;
@@ -96,13 +93,13 @@ impl<'a, F: Field> SliceMutP<'a, F> {
         self.limbs[limb_range.end - 1] &= !max_mask;
     }
 
-    pub fn add(&mut self, other: SliceP<'_, F>, c: F::Element) {
+    pub fn add(&mut self, other: SliceP<'_, F>, c: FieldElement<F>) {
         if self.as_slice().is_empty() {
             return;
         }
 
-        if self.fq.characteristic() == 2 {
-            if !c.is_zero() {
+        if self.fq.q() == 2 {
+            if c != self.fq.zero() {
                 match self.as_slice().offset().cmp(&other.offset()) {
                     Ordering::Equal => self.add_shift_none(other, self.fq.one()),
                     Ordering::Less => self.add_shift_left(other, self.fq.one()),
@@ -123,14 +120,14 @@ impl<'a, F: Field> SliceMutP<'a, F> {
     pub fn add_tensor(
         &mut self,
         offset: usize,
-        coeff: F::Element,
+        coeff: FieldElement<F>,
         left: SliceP<F>,
         right: SliceP<F>,
     ) {
         let right_dim = right.len();
 
         for (i, v) in left.iter_nonzero() {
-            let entry = self.fq.mul(v, coeff.clone());
+            let entry = v * coeff.clone();
             self.slice_mut(offset + i * right_dim, offset + (i + 1) * right_dim)
                 .add(right, entry);
         }
@@ -168,7 +165,7 @@ impl<'a, F: Field> SliceMutP<'a, F> {
     }
 
     /// Adds `c` * `other` to `self`. `other` must have the same length, offset, and prime as self.
-    pub fn add_shift_none(&mut self, other: SliceP<'_, F>, c: F::Element) {
+    pub fn add_shift_none(&mut self, other: SliceP<'_, F>, c: FieldElement<F>) {
         let target_range = self.as_slice().limb_range();
         let source_range = other.limb_range();
 
@@ -203,7 +200,7 @@ impl<'a, F: Field> SliceMutP<'a, F> {
         }
     }
 
-    fn add_shift_left(&mut self, other: SliceP<'_, F>, c: F::Element) {
+    fn add_shift_left(&mut self, other: SliceP<'_, F>, c: FieldElement<F>) {
         struct AddShiftLeftData {
             offset_shift: usize,
             tail_shift: usize,
@@ -323,7 +320,7 @@ impl<'a, F: Field> SliceMutP<'a, F> {
         }
     }
 
-    fn add_shift_right(&mut self, other: SliceP<'_, F>, c: F::Element) {
+    fn add_shift_right(&mut self, other: SliceP<'_, F>, c: FieldElement<F>) {
         struct AddShiftRightData {
             offset_shift: usize,
             tail_shift: usize,
@@ -457,22 +454,22 @@ impl<'a, F: Field> SliceMutP<'a, F> {
     }
 
     /// Given a mask v, add the `v[i]`th entry of `other` to the `i`th entry of `self`.
-    pub fn add_masked(&mut self, other: SliceP<'_, F>, c: F::Element, mask: &[usize]) {
+    pub fn add_masked(&mut self, other: SliceP<'_, F>, c: FieldElement<F>, mask: &[usize]) {
         // TODO: If this ends up being a bottleneck, try to use PDEP/PEXT
         assert_eq!(self.as_slice().len(), mask.len());
         for (i, &x) in mask.iter().enumerate() {
             let entry = other.entry(x);
-            if !entry.is_zero() {
-                self.add_basis_element(i, self.fq.mul(entry, c.clone()));
+            if entry != self.fq.zero() {
+                self.add_basis_element(i, entry * c.clone());
             }
         }
     }
 
     /// Given a mask v, add the `i`th entry of `other` to the `v[i]`th entry of `self`.
-    pub fn add_unmasked(&mut self, other: SliceP<'_, F>, c: F::Element, mask: &[usize]) {
+    pub fn add_unmasked(&mut self, other: SliceP<'_, F>, c: FieldElement<F>, mask: &[usize]) {
         assert!(other.len() <= mask.len());
         for (i, v) in other.iter_nonzero() {
-            self.add_basis_element(mask[i], self.fq.mul(v, c.clone()));
+            self.add_basis_element(mask[i], v * c.clone());
         }
     }
 
@@ -511,8 +508,8 @@ impl<'a, F: Field> SliceMutP<'a, F> {
     }
 }
 
-impl<'a, F: Field> From<&'a mut FqVectorP<F>> for SliceMutP<'a, F> {
-    fn from(v: &'a mut FqVectorP<F>) -> Self {
+impl<'a, F: Field> From<&'a mut FqVector<F>> for SliceMutP<'a, F> {
+    fn from(v: &'a mut FqVector<F>) -> Self {
         v.slice_mut(0, v.len)
     }
 }
