@@ -311,7 +311,7 @@
         <span class="kw">let </span>algebra = Arc::new(MilnorAlgebra::new(fp::prime::TWO, <span class="bool-val">false</span>));
         <span class="kw">let </span>f = Arc::new(FreeModule::new(Arc::clone(<span class="kw-2">&amp;</span>algebra), <span class="string">"F0"</span>.to_string(), <span class="number">0</span>));
         <span class="kw">let </span>m = Arc::new(
-            FDModule::from_json(Arc::clone(<span class="kw-2">&amp;</span>algebra), <span class="kw-2">&amp;</span><span class="kw">crate</span>::test::joker_json()).unwrap(),
+            FDModule::from_json(Arc::clone(<span class="kw-2">&amp;</span>algebra), <span class="kw-2">&amp;</span><span class="kw">crate</span>::tests::joker_json()).unwrap(),
         );
 
         <span class="kw">for </span>(deg, num_gens) <span class="kw">in </span>NUM_GENS.into_iter().enumerate() {
