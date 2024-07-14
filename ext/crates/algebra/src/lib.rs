@@ -57,7 +57,7 @@ pub(crate) fn module_gens_from_json(
 }
 
 #[cfg(test)]
-pub mod test {
+pub mod tests {
     pub fn joker_json() -> serde_json::Value {
         use serde_json::json;
 

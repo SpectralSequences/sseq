@@ -70,7 +70,7 @@ pub fn iter_s_t<T: Sync>(
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use fp::{prime::ValidPrime, vector::FpVector};
 
     use super::{Bidegree, BidegreeElement, BidegreeGenerator};

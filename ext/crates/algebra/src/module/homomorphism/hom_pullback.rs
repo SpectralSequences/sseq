@@ -162,7 +162,7 @@ mod tests {
             SHIFT,
         ));
         let m = Arc::new(
-            FDModule::from_json(Arc::clone(&algebra), &crate::test::joker_json()).unwrap(),
+            FDModule::from_json(Arc::clone(&algebra), &crate::tests::joker_json()).unwrap(),
         );
 
         let d = Arc::new(FreeModuleHomomorphism::new(
@@ -216,7 +216,7 @@ mod tests {
             SHIFT,
         ));
         let m = Arc::new(
-            FDModule::from_json(Arc::clone(&algebra), &crate::test::joker_json()).unwrap(),
+            FDModule::from_json(Arc::clone(&algebra), &crate::tests::joker_json()).unwrap(),
         );
 
         let d = Arc::new(FreeModuleHomomorphism::new(

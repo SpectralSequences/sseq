@@ -185,7 +185,7 @@ impl Subquotient {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use expect_test::expect;
 
     use super::*;

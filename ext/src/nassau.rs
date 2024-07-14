@@ -1187,7 +1187,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> AugmentedChainComplex for Resolutio
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use expect_test::expect;
 
     use super::*;

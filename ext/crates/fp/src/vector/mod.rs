@@ -16,7 +16,7 @@ mod impl_slicep;
 mod iter;
 
 #[cfg(test)]
-mod test {
+mod tests {
     use std::sync::OnceLock;
 
     use itertools::Itertools;

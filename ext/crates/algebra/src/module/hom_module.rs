@@ -132,7 +132,7 @@ mod tests {
         let algebra = Arc::new(MilnorAlgebra::new(fp::prime::TWO, false));
         let f = Arc::new(FreeModule::new(Arc::clone(&algebra), "F0".to_string(), 0));
         let m = Arc::new(
-            FDModule::from_json(Arc::clone(&algebra), &crate::test::joker_json()).unwrap(),
+            FDModule::from_json(Arc::clone(&algebra), &crate::tests::joker_json()).unwrap(),
         );
 
         for (deg, num_gens) in NUM_GENS.into_iter().enumerate() {

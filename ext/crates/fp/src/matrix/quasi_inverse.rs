@@ -149,7 +149,7 @@ impl QuasiInverse {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
 
     #[test]

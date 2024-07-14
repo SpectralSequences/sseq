@@ -439,7 +439,7 @@ impl<T: Write> Drop for TikzBackend<T> {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use expect_test::expect_file;
 
     use super::*;

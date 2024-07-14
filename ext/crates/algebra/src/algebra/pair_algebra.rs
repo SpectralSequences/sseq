@@ -433,7 +433,7 @@ fn a_y_inner(algebra: &MilnorAlgebra, a: &MilnorElt, k: usize, l: usize) -> FpVe
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use expect_test::{expect, Expect};
 
     use super::*;
