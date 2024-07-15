@@ -18,9 +18,9 @@ mod tests {
 
     use super::{inner::FqVector, *};
     use crate::{
-        field::{field_internal::FieldInternal, Fp},
+        field::{field_internal::FieldInternal, fp::F2, Fp},
         limb,
-        prime::{Prime, ValidPrime, P2},
+        prime::{Prime, ValidPrime},
     };
 
     pub struct VectorDiffEntry {
@@ -209,7 +209,7 @@ mod tests {
 
         #[test]
         fn test_bit_length(p in arb_prime()) {
-            prop_assert!(Fp(p).bit_length() <= 63);
+            prop_assert!(Fp::new(p).bit_length() <= 63);
         }
 
         #[cfg(feature = "odd-primes")]
@@ -651,8 +651,8 @@ mod tests {
     #[test]
     #[ignore]
     fn test_sign_rule() {
-        let mut in1 = FqVector::new(Fp(P2), 128);
-        let mut in2 = FqVector::new(Fp(P2), 128);
+        let mut in1 = FqVector::new(F2, 128);
+        let mut in2 = FqVector::new(F2, 128);
         let tests = [
             (
                 0x181e20846a820820,

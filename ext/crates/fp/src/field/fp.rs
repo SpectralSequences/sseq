@@ -3,11 +3,19 @@ use super::{
     field_internal::FieldInternal,
     Field,
 };
+// Reexport the prime fields in a more logical place
+pub use crate::prime::fp::*;
 use crate::{constants::BITS_PER_LIMB, limb::Limb, prime::Prime};
 
 /// A prime field. This is just a wrapper around a prime.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub struct Fp<P>(pub(crate) P);
+pub struct Fp<P>(P);
+
+impl<P> Fp<P> {
+    pub const fn new(p: P) -> Self {
+        Self(p)
+    }
+}
 
 impl<P: Prime> Field for Fp<P> {
     type Characteristic = P;

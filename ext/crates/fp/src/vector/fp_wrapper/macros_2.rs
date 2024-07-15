@@ -1,6 +1,9 @@
 macro_rules! use_primes {
     () => {
-        use crate::prime::{ValidPrime, P2};
+        use crate::{
+            field::fp::F2,
+            prime::{ValidPrime, P2},
+        };
     };
 }
 
@@ -101,7 +104,7 @@ macro_rules! dispatch_vector {
     // Special-case the constructors
     ($vis:vis fn $method:ident <P: Prime> (p: P $(, $arg:ident: $ty:ty )*) -> (from $fq_name:tt); $($tail:tt)*) => {
         $vis fn $method<P: Prime>(_p: P, $($arg: $ty),*) -> Self {
-            Self($fq_name::$method(Fp(P2), $($arg),*))
+            Self($fq_name::$method(F2, $($arg),*))
         }
         dispatch_vector!{$($tail)*}
     }

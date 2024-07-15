@@ -119,7 +119,7 @@ impl FpVector {
 
     // Convenient for some matrix methods
     pub(crate) fn padded_len(p: ValidPrime, len: usize) -> usize {
-        Self::num_limbs(p, len) * Fp(p).entries_per_limb()
+        Self::num_limbs(p, len) * Fp::new(p).entries_per_limb()
     }
 
     pub fn update_from_bytes(&mut self, data: &mut impl Read) -> std::io::Result<()> {

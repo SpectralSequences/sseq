@@ -32,7 +32,7 @@ static ZECH_LOGS: Lazy<HashMap<(ValidPrime, u32), Arc<ZechTable>>> = Lazy::new(H
 /// The initialization might be fairly expensive (several ms).
 fn zech_logs<P: Prime>(fq: SmallFq<P>) -> Arc<ZechTable> {
     let table = ZECH_LOGS.entry((fq.p.to_dyn(), fq.d)).or_insert_with(|| {
-        let prime_field = Fp(fq.characteristic());
+        let prime_field = Fp::new(fq.characteristic());
         let conway_poly = {
             let v = SMALL_CONWAY_POLYS[PRIME_TO_INDEX_MAP[fq.p.as_usize()]][fq.d as usize - 2]
                 .iter()

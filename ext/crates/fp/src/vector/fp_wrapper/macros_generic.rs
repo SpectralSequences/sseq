@@ -2,7 +2,10 @@
 /// primes other than P2 and ValidPrime (which happen to be the same type) do not exist.
 macro_rules! use_primes {
     () => {
-        use crate::prime::{ValidPrime, P2, P3, P5, P7};
+        use crate::{
+            field::fp::{F2, F3, F5, F7},
+            prime::{ValidPrime, P2, P3, P5, P7},
+        };
     };
 }
 
@@ -189,11 +192,11 @@ macro_rules! dispatch_vector {
     ($vis:vis fn $method:ident <P: Prime> (p: P $(, $arg:ident: $ty:ty )*) -> (from $fq_name:tt); $($tail:tt)*) => {
         $vis fn $method<P: Prime>(p: P, $($arg: $ty),*) -> Self {
             match p.as_u32() {
-                2 => Self::_2($fq_name::$method(Fp(P2), $($arg),*)),
-                3 => Self::_3($fq_name::$method(Fp(P3), $($arg),*)),
-                5 => Self::_5($fq_name::$method(Fp(P5), $($arg),*)),
-                7 => Self::_7($fq_name::$method(Fp(P7), $($arg),*)),
-                _ => Self::Big($fq_name::$method(Fp(p.to_dyn()), $($arg),*)),
+                2 => Self::_2($fq_name::$method(F2, $($arg),*)),
+                3 => Self::_3($fq_name::$method(F3, $($arg),*)),
+                5 => Self::_5($fq_name::$method(F5, $($arg),*)),
+                7 => Self::_7($fq_name::$method(F7, $($arg),*)),
+                _ => Self::Big($fq_name::$method(Fp::new(p.to_dyn()), $($arg),*)),
             }
         }
         dispatch_vector!{$($tail)*}
