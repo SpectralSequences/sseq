@@ -155,6 +155,7 @@ pub trait FieldInternal: Copy + PartialEq + Eq + Hash + Sized {
         LimbIterator {
             fq: self,
             limb,
+            entries: self.entries_per_limb(),
             bit_length: self.bit_length(),
             bit_mask: self.bitmask(),
         }
@@ -194,6 +195,7 @@ pub trait FieldInternal: Copy + PartialEq + Eq + Hash + Sized {
 pub(crate) struct LimbIterator<F> {
     fq: F,
     limb: Limb,
+    entries: usize,
     bit_length: usize,
     bit_mask: Limb,
 }
@@ -202,9 +204,10 @@ impl<F: FieldInternal> Iterator for LimbIterator<F> {
     type Item = FieldElement<F>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.limb == 0 {
+        if self.entries == 0 {
             return None;
         }
+        self.entries -= 1;
         let result = self.limb & self.bit_mask;
         self.limb >>= self.bit_length;
         Some(self.fq.decode(result))
