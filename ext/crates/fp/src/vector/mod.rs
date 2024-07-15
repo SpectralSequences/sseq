@@ -1,4 +1,4 @@
-pub(crate) mod inner;
+pub mod inner;
 
 mod fp_wrapper;
 mod impl_fqvector;
@@ -7,6 +7,7 @@ mod impl_slicep;
 mod iter;
 
 pub use fp_wrapper::*;
+pub use inner::*;
 
 #[cfg(test)]
 mod tests {
