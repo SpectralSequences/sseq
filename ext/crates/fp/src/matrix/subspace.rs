@@ -235,8 +235,8 @@ impl Subspace {
     pub fn iter_all_vectors(&self) -> impl Iterator<Item = FpVector> + '_ {
         crate::prime::iter::combinations(self.prime(), self.dimension()).map(|combination| {
             let mut vector = FpVector::new(self.prime(), self.ambient_dimension());
-            for (i, &v) in combination.iter().enumerate() {
-                vector.add(&self.matrix[i], v);
+            for (&c, v) in combination.iter().zip(self.matrix.iter()) {
+                vector.add(v, c);
             }
             vector
         })
