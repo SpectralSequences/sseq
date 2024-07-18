@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["BinomialIterator","BitflagIterator"]};
+window.SIDEBAR_ITEMS = {"fn":["combinations"],"struct":["BinomialIterator","BitflagIterator"]};
