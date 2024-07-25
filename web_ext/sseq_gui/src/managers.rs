@@ -229,7 +229,7 @@ impl SseqManager {
                 | Action::AddProduct(_)
                 | Action::Complete(_)
                 | Action::QueryTableResult(_)
-                | Action::QueryCocycleStringResult(_)
+                | Action::QueryBoundaryStringResult(_)
                 | Action::Resolving(_)
         )
     }
@@ -248,7 +248,7 @@ impl SseqManager {
             Action::Resolving(_) => self.resolving(msg)?,
             Action::Complete(_) => self.relay(msg)?,
             Action::QueryTableResult(_) => self.relay(msg)?,
-            Action::QueryCocycleStringResult(_) => self.relay(msg)?,
+            Action::QueryBoundaryStringResult(_) => self.relay(msg)?,
             Action::Error(_) => self.relay(msg)?,
             _ => {
                 if let Some(sseq) = self.get_sseq(msg.sseq) {
