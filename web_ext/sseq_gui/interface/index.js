@@ -62,17 +62,17 @@ if (params.module || params.module_json) {
 
     const action = params.module
         ? {
-              Construct: {
-                  algebra_name: algebra,
-                  module_name: params.module,
-              },
-          }
+            Construct: {
+                algebra_name: algebra,
+                module_name: params.module,
+            },
+        }
         : {
-              ConstructJson: {
-                  algebra_name: 'milnor',
-                  data: params.module_json,
-              },
-          };
+            ConstructJson: {
+                algebra_name: 'milnor',
+                data: params.module_json,
+            },
+        };
 
     // Record this for the save functionality, since the wasm version modifies it
     window.constructCommand = {
@@ -252,7 +252,7 @@ messageHandler.Complete = () => {
     }
 };
 
-messageHandler.QueryCocycleStringResult = m => {
+messageHandler.QueryBoundaryStringResult = m => {
     console.log(
         `Cocyle string for (t - s, s, idx) = (${m.t - m.s}, ${m.s}, ${m.idx}):`,
     );
@@ -269,7 +269,7 @@ messageHandler.Error = m => {
     dialog(
         'Fatal error encountered',
         `<section><pre>${m.message}</pre></section>`,
-        () => {},
+        () => { },
         'OK',
     );
 };

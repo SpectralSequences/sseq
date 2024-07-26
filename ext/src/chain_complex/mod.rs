@@ -135,7 +135,8 @@ where
         self.module(b.s()).number_of_gens_in_degree(b.t())
     }
 
-    fn cocycle_string(&self, gen: BidegreeGenerator, compact: bool) -> String {
+    /// Get a string representation of d(gen), where d is the differential of the resolution.
+    fn boundary_string(&self, gen: BidegreeGenerator, compact: bool) -> String {
         let d = self.differential(gen.s());
         let target = d.target();
         let result_vector = d.output(gen.t(), gen.idx());

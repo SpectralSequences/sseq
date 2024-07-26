@@ -73,8 +73,8 @@ pub enum Action {
     // Queries
     QueryTable,
     QueryTableResult,
-    QueryCocycleString,
-    QueryCocycleStringResult,
+    QueryBoundaryString,
+    QueryBoundaryStringResult,
 
     // Error
     Error,
@@ -386,10 +386,10 @@ pub struct QueryTableResult {
 impl ActionT for QueryTableResult {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct QueryCocycleString {
+pub struct QueryBoundaryString {
     g: BidegreeGenerator,
 }
-impl ActionT for QueryCocycleString {
+impl ActionT for QueryBoundaryString {
     fn act_resolution(&self, resolution: &mut Resolution<CCC>) -> Option<Message> {
         // Ensure bidegree is defined
         let module = resolution.module(self.g.s());
@@ -400,21 +400,21 @@ impl ActionT for QueryCocycleString {
             return None;
         }
 
-        let string = resolution.inner.cocycle_string(self.g, true);
+        let string = resolution.inner.boundary_string(self.g, true);
         Some(Message {
             recipients: vec![],
             sseq: SseqChoice::Main, // This will be overwritten
-            action: Action::from(QueryCocycleStringResult { g: self.g, string }),
+            action: Action::from(QueryBoundaryStringResult { g: self.g, string }),
         })
     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct QueryCocycleStringResult {
+pub struct QueryBoundaryStringResult {
     g: BidegreeGenerator,
     string: String,
 }
-impl ActionT for QueryCocycleStringResult {}
+impl ActionT for QueryBoundaryStringResult {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Error {
