@@ -11,7 +11,7 @@ import { dialog } from './utils.js';
 
 export const STATE_ADD_DIFFERENTIAL = 1;
 export const STATE_QUERY_TABLE = 2;
-export const STATE_QUERY_COCYCLE_STRING = 3;
+export const STATE_QUERY_BOUNDARY_STRING = 3;
 
 export class MainDisplay {
     constructor(container, sseq, isUnit) {
@@ -108,7 +108,7 @@ export class MainDisplay {
                 this.state = STATE_QUERY_TABLE;
                 break;
             case 'x':
-                this.state = STATE_QUERY_COCYCLE_STRING;
+                this.state = STATE_QUERY_BOUNDARY_STRING;
                 break;
             case 'n':
                 if (!this.sseq.selected) break;
@@ -153,8 +153,8 @@ export class MainDisplay {
                 this.sseq.queryTable(...this.sseq.selected);
                 this.state = null;
                 break;
-            case STATE_QUERY_COCYCLE_STRING:
-                this.sseq.queryCocycleString(...this.sseq.selected);
+            case STATE_QUERY_BOUNDARY_STRING:
+                this.sseq.queryBoundaryString(...this.sseq.selected);
                 this.state = null;
                 break;
             case STATE_ADD_DIFFERENTIAL:
@@ -243,7 +243,7 @@ export class UnitDisplay {
                 dialog(
                     `Add differential at (${oldSelected[0]}, ${oldSelected[1]})`,
                     '<section>Invalid target for differential</section>',
-                    () => {},
+                    () => { },
                     'OK',
                 );
             }
