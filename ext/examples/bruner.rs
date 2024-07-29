@@ -236,11 +236,10 @@ fn main() {
     });
 
     #[cfg(feature = "nassau")]
-    if save_dir.is_none() {
-        panic!(
-            "A save directory is required for comparison between Bruner and Nassau resolutions."
-        );
-    }
+    assert!(
+        save_dir.is_some(),
+        "A save directory is required for comparison between Bruner and Nassau resolutions."
+    );
 
     let resolution = ext::utils::construct("S_2@milnor", save_dir).unwrap();
 
