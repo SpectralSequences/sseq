@@ -1,7 +1,6 @@
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 use dashmap::DashMap as HashMap;
-use once_cell::sync::Lazy;
 
 use super::{
     element::{FieldElement, FieldElementContainer},
@@ -26,7 +25,8 @@ type Polynomial<P> = FqVector<Fp<P>>;
 /// Key is the field, value is a fully initialized table of Zech logarithms.
 ///
 /// [zech_logs]: https://en.wikipedia.org/wiki/Zech%27s_logarithm
-static ZECH_LOGS: Lazy<HashMap<(ValidPrime, u32), Arc<ZechTable>>> = Lazy::new(HashMap::new);
+static ZECH_LOGS: LazyLock<HashMap<(ValidPrime, u32), Arc<ZechTable>>> =
+    LazyLock::new(HashMap::new);
 
 /// Return the Zech logarithm table for the given field. If it does not exist yet, initialize it.
 /// The initialization might be fairly expensive (several ms).
