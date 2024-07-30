@@ -653,7 +653,7 @@ unsafe impl<T: Sync> Sync for OnceVec<T> {}
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct OnceBiVec<T> {
-    pub data: OnceVec<T>,
+    data: OnceVec<T>,
     min_degree: i32,
 }
 

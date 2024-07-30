@@ -16,7 +16,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 /// v[1], v[2]` but not `v[3]`.
 #[derive(Clone, PartialEq, Eq)]
 pub struct BiVec<T> {
-    pub data: Vec<T>,
+    data: Vec<T>,
     min_degree: i32,
 }
 
