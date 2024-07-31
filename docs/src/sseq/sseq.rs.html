@@ -983,7 +983,6 @@
 <a href="#958" id="958">958</a>
 <a href="#959" id="959">959</a>
 <a href="#960" id="960">960</a>
-<a href="#961" id="961">961</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::{marker::PhantomData, sync::Arc};
 
 <span class="kw">use </span>bivec::BiVec;
@@ -1570,7 +1569,6 @@
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
 
     <span class="attr">#[test]
-    #[allow(clippy::cognitive_complexity)]
     </span><span class="kw">fn </span>test_sseq_differential() {
         <span class="kw">let </span>p = ValidPrime::new(<span class="number">3</span>);
         <span class="kw">let </span><span class="kw-2">mut </span>sseq = Sseq::&lt;Adams&gt;::new(p, <span class="number">0</span>, <span class="number">0</span>);

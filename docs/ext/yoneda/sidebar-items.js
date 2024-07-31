@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["PENALTY_UNIT"],"fn":["compute_kernel_image","operation_drop","rate_adem_operation","rate_milnor_operation","rate_operation","split_mut_borrow","yoneda_representative","yoneda_representative_element","yoneda_representative_with_strategy"],"type":["Yoneda"]};
+window.SIDEBAR_ITEMS = {"constant":["PENALTY_UNIT"],"fn":["compute_kernel_image","rate_adem_operation","rate_milnor_operation","rate_operation","split_mut_borrow","yoneda_representative","yoneda_representative_element","yoneda_representative_with_strategy"],"type":["Yoneda"]};

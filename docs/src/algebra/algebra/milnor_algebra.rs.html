@@ -2113,9 +2113,6 @@
 <a href="#2088" id="2088">2088</a>
 <a href="#2089" id="2089">2089</a>
 <a href="#2090" id="2090">2090</a>
-<a href="#2091" id="2091">2091</a>
-<a href="#2092" id="2092">2092</a>
-<a href="#2093" id="2093">2093</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::cell::Cell;
 
 <span class="kw">use </span>fp::{
@@ -3379,8 +3376,7 @@
         <span class="self">self</span>.p
     }
 
-    <span class="attr">#[allow(clippy::ptr_arg)]
-    #[allow(unused_mut)] </span><span class="comment">// Mut is only used with odd primes
+    <span class="attr">#[allow(unused_mut)] </span><span class="comment">// Mut is only used with odd primes
     </span><span class="kw">pub fn </span>new_from_allocation(
         p: ValidPrime,
         r: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>PPart,
@@ -3714,8 +3710,7 @@
         }
     }
 
-    <span class="attr">#[allow(clippy::useless_let_if_seq)]
-    </span><span class="kw">fn </span>decompose_basis_element_ppart(
+    <span class="kw">fn </span>decompose_basis_element_ppart(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         degree: i32,
         idx: usize,
@@ -3933,8 +3928,7 @@
     #[case(<span class="number">2</span>, <span class="number">32</span>, <span class="prelude-val">Some</span>(MilnorProfile { q_part: !<span class="number">0</span>, p_part: <span class="macro">vec!</span>(<span class="number">3</span>, <span class="number">2</span>, <span class="number">1</span>), truncated: <span class="bool-val">true </span>}))]
     #[case(<span class="number">2</span>, <span class="number">32</span>, <span class="prelude-val">Some</span>(MilnorProfile { q_part: !<span class="number">0</span>, p_part: <span class="macro">vec!</span>(<span class="number">2</span>, <span class="number">2</span>, <span class="number">1</span>), truncated: <span class="bool-val">true </span>}))]
     #[case(<span class="number">2</span>, <span class="number">32</span>, <span class="prelude-val">Some</span>(MilnorProfile { q_part: !<span class="number">0</span>, p_part: <span class="macro">vec!</span>(<span class="number">0</span>), truncated: <span class="bool-val">false </span>}))]
-    #[allow(clippy::duplicated_attributes)] </span><span class="comment">// False positive
-    </span><span class="attr">#[case(<span class="number">3</span>, <span class="number">106</span>, <span class="prelude-val">None</span>)]
+    #[case(<span class="number">3</span>, <span class="number">106</span>, <span class="prelude-val">None</span>)]
     #[case(<span class="number">3</span>, <span class="number">106</span>, <span class="prelude-val">Some</span>(MilnorProfile { q_part: <span class="number">0b1111</span>, p_part: <span class="macro">vec!</span>(<span class="number">3</span>, <span class="number">2</span>, <span class="number">1</span>), truncated: <span class="bool-val">true </span>}))]
     #[case(<span class="number">3</span>, <span class="number">106</span>, <span class="prelude-val">Some</span>(MilnorProfile { q_part: <span class="number">0b1111</span>, p_part: <span class="macro">vec!</span>(<span class="number">2</span>, <span class="number">2</span>, <span class="number">1</span>), truncated: <span class="bool-val">true </span>}))]
     </span><span class="kw">fn </span>test_milnor_decompose(

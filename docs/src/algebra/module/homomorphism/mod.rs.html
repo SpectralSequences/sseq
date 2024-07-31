@@ -195,6 +195,10 @@
 <a href="#170" id="170">170</a>
 <a href="#171" id="171">171</a>
 <a href="#172" id="172">172</a>
+<a href="#173" id="173">173</a>
+<a href="#174" id="174">174</a>
+<a href="#175" id="175">175</a>
+<a href="#176" id="176">176</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>fp::{
@@ -217,7 +221,11 @@
 <span class="kw">pub use </span>full_module_homomorphism::FullModuleHomomorphism;
 <span class="kw">pub use </span>generic_zero_homomorphism::GenericZeroHomomorphism;
 <span class="kw">pub use </span>hom_pullback::HomPullback;
-<span class="attr">#[allow(unused_imports)]
+<span class="comment">// If `concurrent` is disabled, `MaybeIndexedParallelIterator` implements `Iterator`, and so has an
+// `enumerate` method. However, if it is disabled, it does *not* implement `Iterator`, and the
+// `enumerate` method is provided by `rayon::prelude::IndexedParallelIterator`, which is loaded in
+// the `maybe_rayon` prelude.
+</span><span class="attr">#[allow(unused_imports)]
 </span><span class="kw">use </span>maybe_rayon::prelude::<span class="kw-2">*</span>;
 <span class="kw">pub use </span>quotient_homomorphism::{QuotientHomomorphism, QuotientHomomorphismSource};
 
