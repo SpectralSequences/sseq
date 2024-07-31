@@ -69,25 +69,6 @@ fn rate_adem_operation(algebra: &AdemAlgebra, deg: i32, idx: usize) -> i32 {
     elt.ps.iter().map(|&r| r.count_ones()).sum::<u32>() as i32
 }
 
-#[allow(dead_code)]
-fn operation_drop(algebra: &AdemAlgebra, deg: i32, idx: usize) -> i32 {
-    if algebra.prime() != 2 {
-        return 1;
-    }
-    let elt = algebra.basis_element_from_index(deg, idx);
-    if elt.ps.is_empty() {
-        return 0;
-    }
-
-    let mut first = elt.ps[0];
-    let mut drop = 1;
-    while first & 1 == 0 {
-        first >>= 1;
-        drop *= 2;
-    }
-    deg - drop
-}
-
 fn split_mut_borrow<T>(v: &mut [T], i: usize, j: usize) -> (&mut T, &mut T) {
     assert!(i < j);
     let (first, second) = v.split_at_mut(j);
@@ -188,7 +169,6 @@ where
     )
 }
 
-#[allow(clippy::cognitive_complexity)]
 #[tracing::instrument(skip_all)]
 pub fn yoneda_representative_with_strategy<CC>(
     cc: Arc<CC>,

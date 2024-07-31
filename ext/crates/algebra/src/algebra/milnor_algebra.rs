@@ -1261,7 +1261,6 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
         self.p
     }
 
-    #[allow(clippy::ptr_arg)]
     #[allow(unused_mut)] // Mut is only used with odd primes
     pub fn new_from_allocation(
         p: ValidPrime,
@@ -1596,7 +1595,6 @@ impl MilnorAlgebra {
         }
     }
 
-    #[allow(clippy::useless_let_if_seq)]
     fn decompose_basis_element_ppart(
         &self,
         degree: i32,
@@ -1815,7 +1813,6 @@ mod tests {
     #[case(2, 32, Some(MilnorProfile { q_part: !0, p_part: vec!(3, 2, 1), truncated: true }))]
     #[case(2, 32, Some(MilnorProfile { q_part: !0, p_part: vec!(2, 2, 1), truncated: true }))]
     #[case(2, 32, Some(MilnorProfile { q_part: !0, p_part: vec!(0), truncated: false }))]
-    #[allow(clippy::duplicated_attributes)] // False positive
     #[case(3, 106, None)]
     #[case(3, 106, Some(MilnorProfile { q_part: 0b1111, p_part: vec!(3, 2, 1), truncated: true }))]
     #[case(3, 106, Some(MilnorProfile { q_part: 0b1111, p_part: vec!(2, 2, 1), truncated: true }))]

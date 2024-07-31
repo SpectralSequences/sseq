@@ -221,7 +221,6 @@ impl Server {
         }
     }
 
-    #[allow(unknown_lints)] // `result_large_err` only introduced in 1.64
     #[allow(clippy::result_large_err)]
     pub fn serve_files(&self, request_path: &str) -> WsResult<Response> {
         println!("Request path: {request_path}");

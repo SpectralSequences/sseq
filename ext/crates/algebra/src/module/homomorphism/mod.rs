@@ -20,6 +20,10 @@ pub use free_module_homomorphism::{
 pub use full_module_homomorphism::FullModuleHomomorphism;
 pub use generic_zero_homomorphism::GenericZeroHomomorphism;
 pub use hom_pullback::HomPullback;
+// If `concurrent` is disabled, `MaybeIndexedParallelIterator` implements `Iterator`, and so has an
+// `enumerate` method. However, if it is disabled, it does *not* implement `Iterator`, and the
+// `enumerate` method is provided by `rayon::prelude::IndexedParallelIterator`, which is loaded in
+// the `maybe_rayon` prelude.
 #[allow(unused_imports)]
 use maybe_rayon::prelude::*;
 pub use quotient_homomorphism::{QuotientHomomorphism, QuotientHomomorphismSource};

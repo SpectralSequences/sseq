@@ -584,7 +584,6 @@ mod tests {
     use super::*;
 
     #[test]
-    #[allow(clippy::cognitive_complexity)]
     fn test_sseq_differential() {
         let p = ValidPrime::new(3);
         let mut sseq = Sseq::<Adams>::new(p, 0, 0);

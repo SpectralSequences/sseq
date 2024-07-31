@@ -244,9 +244,7 @@ impl<T: Read> std::ops::Drop for ChecksumReader<T> {
 
 /// Open the file pointed to by `path` as a `Box<dyn Read>`. If the file does not exist, look for
 /// compressed versions.
-// When zstd is disabled, we don't mutate path
-#[allow(unused_mut)]
-fn open_file(mut path: PathBuf) -> Option<Box<dyn Read>> {
+fn open_file(path: PathBuf) -> Option<Box<dyn Read>> {
     // We should try in decreasing order of access speed.
     match File::open(&path) {
         Ok(f) => {
@@ -272,6 +270,7 @@ fn open_file(mut path: PathBuf) -> Option<Box<dyn Read>> {
 
     #[cfg(feature = "zstd")]
     {
+        let mut path = path;
         path.set_extension("zst");
         match File::open(&path) {
             Ok(f) => {
@@ -370,13 +369,13 @@ impl<A: Algebra> SaveFile<A> {
     }
 
     pub fn exists(&self, dir: PathBuf) -> bool {
-        #[allow(unused_mut)]
-        let mut path = self.get_save_path(dir);
+        let path = self.get_save_path(dir);
         if path.exists() {
             return true;
         }
         #[cfg(not(target_arch = "wasm32"))]
         {
+            let mut path = path;
             path.set_extension("zst");
             if path.exists() {
                 return true;

@@ -52,7 +52,6 @@ impl PolynomialAlgebraTableEntry {
     }
 }
 
-#[allow(clippy::derived_hash_with_manual_eq)]
 impl std::hash::Hash for PolynomialAlgebraMonomial {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.poly.hash(state);
