@@ -1,6 +1,5 @@
 use std::{
     io::{Read, Write},
-    path::Path,
     sync::Arc,
 };
 
@@ -29,7 +28,7 @@ use tracing::Level;
 use crate::{
     chain_complex::{ChainComplex, ChainHomotopy, FreeChainComplex},
     resolution_homomorphism::ResolutionHomomorphism,
-    save::{SaveFile, SaveKind},
+    save::{SaveDirectory, SaveFile, SaveKind},
 };
 
 pub static TAU_BIDEGREE: Bidegree = Bidegree::n_s(0, 1);
@@ -237,7 +236,7 @@ impl<A: PairAlgebra + Send + Sync> SecondaryHomotopy<A> {
 
     /// Add composites up to and including the specified degree
     #[tracing::instrument(skip(self, maps, dir), fields(source = %self.source, target = %self.target))]
-    pub fn add_composite(&self, s: u32, degree: i32, maps: CompositeData<A>, dir: Option<&Path>) {
+    pub fn add_composite(&self, s: u32, degree: i32, maps: CompositeData<A>, dir: &SaveDirectory) {
         for (_, d1, d0) in &maps {
             assert!(Arc::ptr_eq(&d1.target(), &d0.source()));
             assert!(Arc::ptr_eq(&d0.target(), &self.target));
@@ -254,7 +253,7 @@ impl<A: PairAlgebra + Send + Sync> SecondaryHomotopy<A> {
                 b: gen.degree(),
                 idx: Some(gen.idx()),
             };
-            if let Some(dir) = dir {
+            if let Some(dir) = dir.read() {
                 if let Some(mut f) = save_file.open_file(dir.to_owned()) {
                     return SecondaryComposite::from_bytes(
                         Arc::clone(&self.target),
@@ -279,7 +278,7 @@ impl<A: PairAlgebra + Send + Sync> SecondaryHomotopy<A> {
                 composite.finalize();
             });
 
-            if let Some(dir) = dir {
+            if let Some(dir) = dir.write() {
                 let mut f = save_file.create_file(dir.to_owned(), false);
                 composite.to_bytes(&mut f).unwrap();
             }
@@ -371,7 +370,7 @@ pub trait SecondaryLift: Sync + Sized {
     fn homotopies(&self) -> &OnceBiVec<SecondaryHomotopy<Self::Algebra>>;
     fn intermediates(&self) -> &DashMap<BidegreeGenerator, FpVector>;
 
-    fn save_dir(&self) -> Option<&Path>;
+    fn save_dir(&self) -> &SaveDirectory;
 
     fn compute_intermediate(&self, gen: BidegreeGenerator) -> FpVector;
     fn composite(&self, s: u32) -> CompositeData<Self::Algebra>;
@@ -422,7 +421,7 @@ pub trait SecondaryLift: Sync + Sized {
             idx: Some(gen.idx()),
         };
 
-        if let Some(dir) = self.save_dir() {
+        if let Some(dir) = self.save_dir().read() {
             if let Some(mut f) = save_file.open_file(dir.to_owned()) {
                 // The target dimension can depend on whether we resolved to stem
                 let dim = f.read_u64::<LittleEndian>().unwrap() as usize;
@@ -432,7 +431,7 @@ pub trait SecondaryLift: Sync + Sized {
 
         let result = self.compute_intermediate(gen);
 
-        if let Some(dir) = self.save_dir() {
+        if let Some(dir) = self.save_dir().write() {
             let mut f = save_file.create_file(dir.to_owned(), false);
             f.write_u64::<LittleEndian>(result.len() as u64).unwrap();
             result.to_bytes(&mut f).unwrap();
@@ -485,7 +484,7 @@ pub trait SecondaryLift: Sync + Sized {
                 return;
             }
             // Check if we have a saved homotopy
-            if let Some(dir) = self.save_dir() {
+            if let Some(dir) = self.save_dir().read() {
                 let save_file = SaveFile {
                     algebra: self.algebra(),
                     kind: SaveKind::SecondaryHomotopy,
@@ -534,7 +533,7 @@ pub trait SecondaryLift: Sync + Sized {
         let num_gens = source.number_of_gens_in_degree(b.t());
         let target_dim = target.module(target_b.s()).dimension(target_b.t());
 
-        if let Some(dir) = self.save_dir() {
+        if let Some(dir) = self.save_dir().read() {
             let save_file = SaveFile {
                 algebra: self.algebra(),
                 kind: SaveKind::SecondaryHomotopy,
@@ -591,7 +590,7 @@ pub trait SecondaryLift: Sync + Sized {
             }
         }
 
-        if let Some(dir) = self.save_dir() {
+        if let Some(dir) = self.save_dir().write() {
             let save_file = SaveFile {
                 algebra: self.algebra(),
                 kind: SaveKind::SecondaryHomotopy,
@@ -717,7 +716,7 @@ where
         &self.intermediates
     }
 
-    fn save_dir(&self) -> Option<&Path> {
+    fn save_dir(&self) -> &SaveDirectory {
         self.underlying.save_dir()
     }
 
@@ -748,7 +747,7 @@ where
     CC::Algebra: PairAlgebra,
 {
     pub fn new(cc: Arc<CC>) -> Self {
-        if let Some(p) = cc.save_dir() {
+        if let Some(p) = cc.save_dir().write() {
             for subdir in SaveKind::secondary_data() {
                 subdir.create_dir(p).unwrap();
             }
@@ -891,7 +890,7 @@ where
         &self.intermediates
     }
 
-    fn save_dir(&self) -> Option<&Path> {
+    fn save_dir(&self) -> &SaveDirectory {
         self.underlying.save_dir()
     }
 
@@ -966,7 +965,7 @@ where
         assert!(Arc::ptr_eq(&underlying.source, &source.underlying));
         assert!(Arc::ptr_eq(&underlying.target, &target.underlying));
 
-        if let Some(p) = underlying.save_dir() {
+        if let Some(p) = underlying.save_dir().write() {
             for subdir in SaveKind::secondary_data() {
                 subdir.create_dir(p).unwrap();
             }
@@ -1236,7 +1235,7 @@ where
         &self.intermediates
     }
 
-    fn save_dir(&self) -> Option<&Path> {
+    fn save_dir(&self) -> &SaveDirectory {
         self.underlying.save_dir()
     }
 
@@ -1392,7 +1391,7 @@ where
             assert_eq!(right_tau.shift, underlying.right().shift + TAU_BIDEGREE);
         }
 
-        if let Some(p) = underlying.save_dir() {
+        if let Some(p) = underlying.save_dir().write() {
             for subdir in SaveKind::secondary_data() {
                 subdir.create_dir(p).unwrap();
             }

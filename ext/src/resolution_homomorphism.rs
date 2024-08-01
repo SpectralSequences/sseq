@@ -1,6 +1,6 @@
 //! This module defines [`MuResolutionHomomorphism`], which is a chain map from a
 //! [`FreeChainComplex`].
-use std::{ops::Range, path::PathBuf, sync::Arc};
+use std::{ops::Range, sync::Arc};
 
 use algebra::{
     module::{
@@ -20,7 +20,7 @@ use sseq::coordinates::{Bidegree, BidegreeGenerator, BidegreeRange};
 
 use crate::{
     chain_complex::{AugmentedChainComplex, BoundedChainComplex, ChainComplex, FreeChainComplex},
-    save::SaveKind,
+    save::{SaveDirectory, SaveKind},
 };
 
 pub type ResolutionHomomorphism<CC1, CC2> = MuResolutionHomomorphism<false, CC1, CC2>;
@@ -39,7 +39,7 @@ where
     pub target: Arc<CC2>,
     maps: OnceBiVec<Arc<MuFreeModuleHomomorphism<U, CC2::Module>>>,
     pub shift: Bidegree,
-    save_dir: Option<PathBuf>,
+    save_dir: SaveDirectory,
 }
 
 impl<const U: bool, CC1, CC2> MuResolutionHomomorphism<U, CC1, CC2>
@@ -50,12 +50,14 @@ where
 {
     pub fn new(name: String, source: Arc<CC1>, target: Arc<CC2>, shift: Bidegree) -> Self {
         let save_dir = if source.save_dir().is_some() && !name.is_empty() {
-            let mut path = source.save_dir().unwrap().to_owned();
-            path.push(format!("products/{name}"));
-            SaveKind::ChainMap.create_dir(&path).unwrap();
-            Some(path)
+            let mut save_dir = source.save_dir().clone();
+            save_dir.push(format!("products/{name}"));
+            SaveKind::ChainMap
+                .create_dir(save_dir.write().unwrap())
+                .unwrap();
+            save_dir
         } else {
-            None
+            SaveDirectory::None
         };
 
         Self {
@@ -97,8 +99,8 @@ where
         Arc::clone(&self.maps[input_s as i32])
     }
 
-    pub fn save_dir(&self) -> Option<&std::path::Path> {
-        self.save_dir.as_deref()
+    pub fn save_dir(&self) -> &SaveDirectory {
+        &self.save_dir
     }
 }
 
@@ -228,7 +230,7 @@ where
             );
         }
 
-        if let Some(dir) = &self.save_dir {
+        if let Some(dir) = self.save_dir.read() {
             let mut outputs = Vec::with_capacity(num_gens);
 
             if let Some(mut f) = self
@@ -248,7 +250,7 @@ where
             let outputs =
                 extra_images.unwrap_or_else(|| vec![FpVector::new(p, fx_dimension); num_gens]);
 
-            if let Some(dir) = &self.save_dir {
+            if let Some(dir) = self.save_dir.write() {
                 let mut f = self
                     .source
                     .save_file(SaveKind::ChainMap, input)
@@ -323,7 +325,7 @@ where
                 .apply_quasi_inverse(&mut qi_outputs, output, &fdx_vectors));
         }
 
-        if let Some(dir) = &self.save_dir {
+        if let Some(dir) = self.save_dir.write() {
             let mut f = self
                 .source
                 .save_file(SaveKind::ChainMap, input)

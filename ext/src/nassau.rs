@@ -15,7 +15,6 @@
 use std::{
     fmt::Display,
     io::{Read, Write},
-    path::PathBuf,
     sync::{mpsc, Arc, Mutex},
 };
 
@@ -41,7 +40,7 @@ use sseq::coordinates::Bidegree;
 
 use crate::{
     chain_complex::{AugmentedChainComplex, ChainComplex, FiniteChainComplex, FreeChainComplex},
-    save::SaveKind,
+    save::{SaveDirectory, SaveKind},
     utils::LogWriter,
 };
 
@@ -396,7 +395,7 @@ pub struct Resolution<M: ZeroModule<Algebra = MilnorAlgebra>> {
     differentials: OnceVec<Arc<FreeModuleHomomorphism<FreeModule<MilnorAlgebra>>>>,
     target: Arc<FiniteChainComplex<M>>,
     chain_maps: OnceVec<Arc<FreeModuleHomomorphism<M>>>,
-    save_dir: Option<PathBuf>,
+    save_dir: SaveDirectory,
 }
 
 impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
@@ -416,13 +415,17 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         Self::new_with_save(module, None).unwrap()
     }
 
-    pub fn new_with_save(module: Arc<M>, save_dir: Option<PathBuf>) -> anyhow::Result<Self> {
+    pub fn new_with_save(
+        module: Arc<M>,
+        save_dir: impl Into<SaveDirectory>,
+    ) -> anyhow::Result<Self> {
+        let save_dir = save_dir.into();
         let max_degree = module
             .max_degree()
             .ok_or_else(|| anyhow!("Nassau's algorithm requires bounded module"))?;
         let target = Arc::new(FiniteChainComplex::ccdz(module));
 
-        if let Some(p) = &save_dir {
+        if let Some(p) = save_dir.write() {
             for subdir in SaveKind::nassau_data() {
                 subdir.create_dir(p)?;
             }
@@ -539,7 +542,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         num_new_gens: usize,
         target_dim: usize,
     ) -> anyhow::Result<()> {
-        if let Some(dir) = &self.save_dir {
+        if let Some(dir) = self.save_dir.write() {
             let mut f = self
                 .save_file(SaveKind::NassauDifferential, b)
                 .create_file(dir.clone(), false);
@@ -584,7 +587,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         let next = &self.modules[b.s() - 2];
         next.compute_basis(b.t());
 
-        let mut f = if let Some(dir) = self.save_dir() {
+        let mut f = if let Some(dir) = self.save_dir().write() {
             let mut f = self
                 .save_file(SaveKind::NassauQi, b - Bidegree::s_t(1, 0))
                 .create_file(dir.to_owned(), true);
@@ -836,7 +839,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             return Ok(());
         }
 
-        if let Some(dir) = &self.save_dir {
+        if let Some(dir) = self.save_dir.read() {
             if let Some(mut f) = self
                 .save_file(SaveKind::NassauDifferential, b)
                 .open_file(dir.clone())
@@ -997,8 +1000,8 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
         self.modules.len() as u32
     }
 
-    fn save_dir(&self) -> Option<&std::path::Path> {
-        self.save_dir.as_deref()
+    fn save_dir(&self) -> &SaveDirectory {
+        &self.save_dir
     }
 
     fn apply_quasi_inverse<T, S>(&self, results: &mut [T], b: Bidegree, inputs: &[S]) -> bool
@@ -1006,7 +1009,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
         for<'a> &'a mut T: Into<SliceMut<'a>>,
         for<'a> &'a S: Into<Slice<'a>>,
     {
-        let mut f = if let Some(dir) = &self.save_dir {
+        let mut f = if let Some(dir) = self.save_dir.read() {
             if let Some(f) = self.save_file(SaveKind::NassauQi, b).open_file(dir.clone()) {
                 f
             } else {

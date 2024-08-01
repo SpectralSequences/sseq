@@ -1,9 +1,6 @@
 //! This module exports the [`Resolution`] object, which is a chain complex resolving a module. In
 //! particular, this contains the core logic that compute minimal resolutions.
-use std::{
-    path::{Path, PathBuf},
-    sync::{mpsc, Arc, Mutex},
-};
+use std::sync::{mpsc, Arc, Mutex};
 
 use algebra::{
     module::{
@@ -25,7 +22,7 @@ use sseq::coordinates::Bidegree;
 
 use crate::{
     chain_complex::{AugmentedChainComplex, ChainComplex},
-    save::SaveKind,
+    save::{SaveDirectory, SaveKind},
 };
 
 /// In [`MuResolution::compute_through_stem`] and [`MuResolution::compute_through_bidegree`], we pass
@@ -81,7 +78,7 @@ where
     ///  returned by `generate_old_kernel_and_compute_new_kernel`, to be used if we run
     ///  compute_through_degree again.
     kernels: DashMap<Bidegree, Subspace>,
-    save_dir: Option<PathBuf>,
+    save_dir: SaveDirectory,
 
     /// Whether we should save newly computed data to the disk. This has no effect if there is no
     /// save file. Defaults to `self.save_dir.is_some()`.
@@ -109,12 +106,16 @@ where
         Self::new_with_save(complex, None).unwrap()
     }
 
-    pub fn new_with_save(complex: Arc<CC>, save_dir: Option<PathBuf>) -> anyhow::Result<Self> {
+    pub fn new_with_save(
+        complex: Arc<CC>,
+        save_dir: impl Into<SaveDirectory>,
+    ) -> anyhow::Result<Self> {
+        let save_dir = save_dir.into();
         let algebra = complex.algebra();
         let min_degree = complex.min_degree();
         let zero_module = Arc::new(MuFreeModule::new(algebra, "F_{-1}".to_string(), min_degree));
 
-        if let Some(p) = &save_dir {
+        if let Some(p) = save_dir.write() {
             for subdir in SaveKind::resolution_data() {
                 subdir.create_dir(p)?;
             }
@@ -198,7 +199,7 @@ where
 
         let p = self.prime();
 
-        if let Some(dir) = &self.save_dir {
+        if let Some(dir) = self.save_dir.read() {
             if let Some(mut f) = self.save_file(SaveKind::Kernel, b).open_file(dir.clone()) {
                 return Subspace::from_bytes(p, &mut f)
                     .with_context(|| format!("Failed to read kernel at {b}"))
@@ -237,7 +238,7 @@ where
         let kernel = matrix.compute_kernel();
 
         if self.should_save {
-            if let Some(dir) = &self.save_dir {
+            if let Some(dir) = self.save_dir.write() {
                 let mut f = self
                     .save_file(SaveKind::Kernel, b)
                     .create_file(dir.clone(), true);
@@ -369,7 +370,7 @@ where
         target_res.compute_basis(b.t());
         let target_res_dimension = target_res.dimension(b.t());
 
-        if let Some(dir) = &self.save_dir {
+        if let Some(dir) = self.save_dir.read() {
             if let Some(mut f) = self
                 .save_file(SaveKind::Differential, b)
                 .open_file(dir.clone())
@@ -470,7 +471,7 @@ where
         if !self.has_computed_bidegree(b + Bidegree::s_t(1, 0)) {
             let kernel = matrix.compute_kernel();
             if self.should_save {
-                if let Some(dir) = &self.save_dir {
+                if let Some(dir) = self.save_dir.write() {
                     let mut f = self
                         .save_file(SaveKind::Kernel, b)
                         .create_file(dir.clone(), true);
@@ -629,7 +630,7 @@ where
         );
 
         if self.should_save {
-            if let Some(dir) = &self.save_dir {
+            if let Some(dir) = self.save_dir.write() {
                 // Write differentials last, because if we were terminated halfway, we want the
                 // differentials to exist iff everything has been written. However, we start by
                 // opening the differentials first to make sure we are not overwriting anything.
@@ -817,7 +818,7 @@ where
                         && (self.save_dir.is_none()
                             || !self
                                 .save_file(SaveKind::Differential, b + Bidegree::s_t(1, 1))
-                                .exists(self.save_dir.clone().unwrap()))
+                                .exists(self.save_dir.read().cloned().unwrap()))
                     {
                         scope.spawn(move |_| {
                             self.kernels.insert(next_b, self.get_kernel(next_b));
@@ -888,7 +889,7 @@ where
                 qi.apply(result.into(), 1, input.into());
             }
             true
-        } else if let Some(dir) = &self.save_dir {
+        } else if let Some(dir) = self.save_dir.read() {
             if let Some(mut f) = self.save_file(SaveKind::ResQi, b).open_file(dir.clone()) {
                 QuasiInverse::stream_quasi_inverse(self.prime(), &mut f, results, inputs).unwrap();
                 true
@@ -900,8 +901,8 @@ where
         }
     }
 
-    fn save_dir(&self) -> Option<&Path> {
-        self.save_dir.as_deref()
+    fn save_dir(&self) -> &SaveDirectory {
+        &self.save_dir
     }
 }
 
