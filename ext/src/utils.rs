@@ -12,6 +12,7 @@ use sseq::coordinates::{Bidegree, BidegreeGenerator};
 use crate::{
     chain_complex::{AugmentedChainComplex, BoundedChainComplex, ChainComplex, FiniteChainComplex},
     resolution::{Resolution, UnstableResolution},
+    save::SaveDirectory,
     CCC,
 };
 
@@ -136,7 +137,7 @@ impl<T: TryInto<AlgebraType>> TryFrom<(Value, T)> for Config {
 /// the `nassau` feature is enabled.
 pub fn construct<T, E>(
     module_spec: T,
-    save_dir: Option<PathBuf>,
+    save_dir: impl Into<SaveDirectory>,
 ) -> anyhow::Result<QueryModuleResolution>
 where
     anyhow::Error: From<E>,
@@ -156,7 +157,7 @@ where
 /// See [`construct`]
 pub fn construct_nassau<T, E>(
     module_spec: T,
-    save_dir: Option<PathBuf>,
+    save_dir: impl Into<SaveDirectory>,
 ) -> anyhow::Result<crate::nassau::Resolution<FDModule<MilnorAlgebra>>>
 where
     anyhow::Error: From<E>,
@@ -196,7 +197,7 @@ where
 /// See [`construct`]
 pub fn construct_standard<const U: bool, T, E>(
     module_spec: T,
-    save_dir: Option<PathBuf>,
+    save_dir: impl Into<SaveDirectory>,
 ) -> anyhow::Result<crate::resolution::MuResolution<U, CCC>>
 where
     anyhow::Error: From<E>,

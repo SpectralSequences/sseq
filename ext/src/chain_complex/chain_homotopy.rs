@@ -1,7 +1,4 @@
-use std::{
-    path::{Path, PathBuf},
-    sync::{Arc, Mutex},
-};
+use std::sync::{Arc, Mutex};
 
 use algebra::module::{
     homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism},
@@ -15,7 +12,7 @@ use sseq::coordinates::{Bidegree, BidegreeRange};
 use crate::{
     chain_complex::{ChainComplex, FreeChainComplex},
     resolution_homomorphism::ResolutionHomomorphism,
-    save::SaveKind,
+    save::{SaveDirectory, SaveKind},
 };
 
 // Another instance of https://github.com/rust-lang/rust/issues/91380
@@ -34,7 +31,7 @@ pub struct ChainHomotopy<
     lock: Mutex<()>,
     /// Homotopies, indexed by the filtration of the target of f - g.
     homotopies: OnceBiVec<Arc<FreeModuleHomomorphism<U::Module>>>,
-    save_dir: Option<PathBuf>,
+    save_dir: SaveDirectory,
 }
 
 impl<
@@ -51,14 +48,16 @@ impl<
             && !left.name().is_empty()
             && !right.name().is_empty()
         {
-            let mut path = left.source.save_dir().unwrap().to_owned();
-            path.push(format!("massey/{},{}/", left.name(), right.name(),));
+            let mut save_dir = left.source.save_dir().clone();
+            save_dir.push(format!("massey/{},{}/", left.name(), right.name()));
 
-            SaveKind::ChainHomotopy.create_dir(&path).unwrap();
+            SaveKind::ChainHomotopy
+                .create_dir(save_dir.write().unwrap())
+                .unwrap();
 
-            Some(path)
+            save_dir
         } else {
-            None
+            SaveDirectory::None
         };
 
         assert!(Arc::ptr_eq(&left.target, &right.source));
@@ -181,7 +180,7 @@ impl<
                 .add_generators_from_rows_ooo(source.t(), outputs);
         }
 
-        if let Some(dir) = &self.save_dir {
+        if let Some(dir) = self.save_dir.read() {
             if let Some(mut f) = self
                 .left
                 .source
@@ -268,7 +267,7 @@ impl<
             &scratches,
         ));
 
-        if let Some(dir) = &self.save_dir {
+        if let Some(dir) = self.save_dir.write() {
             let mut f = self
                 .left
                 .source
@@ -285,7 +284,7 @@ impl<
         Arc::clone(&self.homotopies[source_s as i32])
     }
 
-    pub fn save_dir(&self) -> Option<&Path> {
-        self.save_dir.as_deref()
+    pub fn save_dir(&self) -> &SaveDirectory {
+        &self.save_dir
     }
 }

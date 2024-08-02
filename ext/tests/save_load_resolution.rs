@@ -6,7 +6,7 @@ use std::{
 use algebra::module::homomorphism::ModuleHomomorphism;
 use ext::{
     chain_complex::{ChainComplex, FreeChainComplex},
-    save::SaveKind,
+    save::{SaveDirectory, SaveKind},
     secondary::{SecondaryLift, SecondaryResolution},
     utils::construct_standard,
 };
@@ -162,6 +162,43 @@ fn test_save_load_resume() {
         resolution2.graded_dimension_string()
     );
     unlock_tempdir(tempdir.path());
+}
+
+#[test]
+fn test_save_load_split() {
+    let tempdir_read = tempfile::TempDir::new().unwrap();
+    let tempdir_write = tempfile::TempDir::new().unwrap();
+
+    let resolution = construct_standard::<false, _, _>(
+        "S_2",
+        SaveDirectory::Combined(tempdir_read.path().into()),
+    )
+    .unwrap();
+    resolution.compute_through_stem(Bidegree::n_s(14, 8));
+    lock_tempdir(tempdir_read.path());
+
+    let resolution = construct_standard::<false, _, _>(
+        "S_2",
+        SaveDirectory::Split {
+            read: tempdir_read.path().into(),
+            write: tempdir_write.path().into(),
+        },
+    )
+    .unwrap();
+    resolution.compute_through_stem(Bidegree::n_s(14, 8));
+
+    let contains_only_dirs = |p: &Path| {
+        p.read_dir().unwrap().all(|dir| {
+            let dir = dir.unwrap();
+            dir.file_type().unwrap().is_dir() && dir.path().read_dir().unwrap().next().is_none()
+        })
+    };
+
+    assert!(contains_only_dirs(tempdir_write.path()));
+
+    resolution.compute_through_stem(Bidegree::n_s(19, 5));
+
+    assert!(!contains_only_dirs(tempdir_write.path()));
 }
 
 #[test]

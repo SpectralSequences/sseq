@@ -22,7 +22,7 @@ use fp::{
 use itertools::Itertools;
 use sseq::coordinates::{Bidegree, BidegreeElement, BidegreeGenerator};
 
-use crate::utils::unicode_num;
+use crate::{save::SaveDirectory, utils::unicode_num};
 
 pub enum ChainComplexGrading {
     Homological,
@@ -227,8 +227,8 @@ pub trait ChainComplex: Send + Sync {
     }
 
     /// A directory used to save information about the chain complex.
-    fn save_dir(&self) -> Option<&std::path::Path> {
-        None
+    fn save_dir(&self) -> &SaveDirectory {
+        &SaveDirectory::None
     }
 
     /// Get the save file of a bidegree

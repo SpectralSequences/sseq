@@ -2,7 +2,7 @@ use std::{
     collections::HashSet,
     fs::File,
     io::{BufRead, BufReader, BufWriter, Error, ErrorKind, Read, Write},
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::{Arc, Mutex},
 };
 
@@ -10,6 +10,61 @@ use algebra::Algebra;
 use anyhow::Context;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use sseq::coordinates::Bidegree;
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub enum SaveDirectory {
+    None,
+    Combined(PathBuf),
+    Split { read: PathBuf, write: PathBuf },
+}
+
+impl SaveDirectory {
+    pub fn read(&self) -> Option<&PathBuf> {
+        match self {
+            Self::None => None,
+            Self::Combined(x) => Some(x),
+            Self::Split { read, .. } => Some(read),
+        }
+    }
+
+    pub fn write(&self) -> Option<&PathBuf> {
+        match self {
+            Self::None => None,
+            Self::Combined(x) => Some(x),
+            Self::Split { write, .. } => Some(write),
+        }
+    }
+
+    pub fn push<P: AsRef<Path>>(&mut self, p: P) {
+        match self {
+            Self::None => {}
+            Self::Combined(d) => {
+                d.push(p);
+            }
+            Self::Split { read, write } => {
+                read.push(&p);
+                write.push(p);
+            }
+        }
+    }
+
+    pub fn is_none(&self) -> bool {
+        matches!(self, Self::None)
+    }
+
+    pub fn is_some(&self) -> bool {
+        !self.is_none()
+    }
+}
+
+impl From<Option<PathBuf>> for SaveDirectory {
+    fn from(x: Option<PathBuf>) -> Self {
+        match x {
+            None => Self::None,
+            Some(x) => Self::Combined(x),
+        }
+    }
+}
 
 /// A DashSet<PathBuf>> of files that are currently opened and being written to. When calling this
 /// function for the first time, we set the ctrlc handler to delete currently opened files, then
