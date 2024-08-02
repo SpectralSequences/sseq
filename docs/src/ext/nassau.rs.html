@@ -1300,6 +1300,9 @@
 <a href="#1275" id="1275">1275</a>
 <a href="#1276" id="1276">1276</a>
 <a href="#1277" id="1277">1277</a>
+<a href="#1278" id="1278">1278</a>
+<a href="#1279" id="1279">1279</a>
+<a href="#1280" id="1280">1280</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! This module implements [Nassau's algorithm](https://arxiv.org/abs/1910.04063). The main export
 //! is the [`Resolution`] object, which is a resolution of the sphere at the prime 2 using Nassau's
 //! algorithm. It aims to provide an API similar to
@@ -1317,7 +1320,6 @@
 </span><span class="kw">use </span>std::{
     fmt::Display,
     io::{Read, Write},
-    path::PathBuf,
     sync::{mpsc, Arc, Mutex},
 };
 
@@ -1343,7 +1345,7 @@
 
 <span class="kw">use crate</span>::{
     chain_complex::{AugmentedChainComplex, ChainComplex, FiniteChainComplex, FreeChainComplex},
-    save::SaveKind,
+    save::{SaveDirectory, SaveKind},
     utils::LogWriter,
 };
 
@@ -1698,7 +1700,7 @@
     differentials: OnceVec&lt;Arc&lt;FreeModuleHomomorphism&lt;FreeModule&lt;MilnorAlgebra&gt;&gt;&gt;&gt;,
     target: Arc&lt;FiniteChainComplex&lt;M&gt;&gt;,
     chain_maps: OnceVec&lt;Arc&lt;FreeModuleHomomorphism&lt;M&gt;&gt;&gt;,
-    save_dir: <span class="prelude-ty">Option</span>&lt;PathBuf&gt;,
+    save_dir: SaveDirectory,
 }
 
 <span class="kw">impl</span>&lt;M: ZeroModule&lt;Algebra = MilnorAlgebra&gt;&gt; Resolution&lt;M&gt; {
@@ -1718,13 +1720,17 @@
         <span class="self">Self</span>::new_with_save(module, <span class="prelude-val">None</span>).unwrap()
     }
 
-    <span class="kw">pub fn </span>new_with_save(module: Arc&lt;M&gt;, save_dir: <span class="prelude-ty">Option</span>&lt;PathBuf&gt;) -&gt; anyhow::Result&lt;<span class="self">Self</span>&gt; {
+    <span class="kw">pub fn </span>new_with_save(
+        module: Arc&lt;M&gt;,
+        save_dir: <span class="kw">impl </span>Into&lt;SaveDirectory&gt;,
+    ) -&gt; anyhow::Result&lt;<span class="self">Self</span>&gt; {
+        <span class="kw">let </span>save_dir = save_dir.into();
         <span class="kw">let </span>max_degree = module
             .max_degree()
             .ok_or_else(|| <span class="macro">anyhow!</span>(<span class="string">"Nassau's algorithm requires bounded module"</span>))<span class="question-mark">?</span>;
         <span class="kw">let </span>target = Arc::new(FiniteChainComplex::ccdz(module));
 
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(p) = <span class="kw-2">&amp;</span>save_dir {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(p) = save_dir.write() {
             <span class="kw">for </span>subdir <span class="kw">in </span>SaveKind::nassau_data() {
                 subdir.create_dir(p)<span class="question-mark">?</span>;
             }
@@ -1841,7 +1847,7 @@
         num_new_gens: usize,
         target_dim: usize,
     ) -&gt; anyhow::Result&lt;()&gt; {
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = <span class="kw-2">&amp;</span><span class="self">self</span>.save_dir {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = <span class="self">self</span>.save_dir.write() {
             <span class="kw">let </span><span class="kw-2">mut </span>f = <span class="self">self
                 </span>.save_file(SaveKind::NassauDifferential, b)
                 .create_file(dir.clone(), <span class="bool-val">false</span>);
@@ -1886,7 +1892,7 @@
         <span class="kw">let </span>next = <span class="kw-2">&amp;</span><span class="self">self</span>.modules[b.s() - <span class="number">2</span>];
         next.compute_basis(b.t());
 
-        <span class="kw">let </span><span class="kw-2">mut </span>f = <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = <span class="self">self</span>.save_dir() {
+        <span class="kw">let </span><span class="kw-2">mut </span>f = <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = <span class="self">self</span>.save_dir().write() {
             <span class="kw">let </span><span class="kw-2">mut </span>f = <span class="self">self
                 </span>.save_file(SaveKind::NassauQi, b - Bidegree::s_t(<span class="number">1</span>, <span class="number">0</span>))
                 .create_file(dir.to_owned(), <span class="bool-val">true</span>);
@@ -2138,7 +2144,7 @@
             <span class="kw">return </span><span class="prelude-val">Ok</span>(());
         }
 
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = <span class="kw-2">&amp;</span><span class="self">self</span>.save_dir {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = <span class="self">self</span>.save_dir.read() {
             <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">mut </span>f) = <span class="self">self
                 </span>.save_file(SaveKind::NassauDifferential, b)
                 .open_file(dir.clone())
@@ -2299,8 +2305,8 @@
         <span class="self">self</span>.modules.len() <span class="kw">as </span>u32
     }
 
-    <span class="kw">fn </span>save_dir(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>std::path::Path&gt; {
-        <span class="self">self</span>.save_dir.as_deref()
+    <span class="kw">fn </span>save_dir(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>SaveDirectory {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.save_dir
     }
 
     <span class="kw">fn </span>apply_quasi_inverse&lt;T, S&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, results: <span class="kw-2">&amp;mut </span>[T], b: Bidegree, inputs: <span class="kw-2">&amp;</span>[S]) -&gt; bool
@@ -2308,7 +2314,7 @@
         for</span>&lt;<span class="lifetime">'a</span>&gt; <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>T: Into&lt;SliceMut&lt;<span class="lifetime">'a</span>&gt;&gt;,
         <span class="kw">for</span>&lt;<span class="lifetime">'a</span>&gt; <span class="kw-2">&amp;</span><span class="lifetime">'a </span>S: Into&lt;Slice&lt;<span class="lifetime">'a</span>&gt;&gt;,
     {
-        <span class="kw">let </span><span class="kw-2">mut </span>f = <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = <span class="kw-2">&amp;</span><span class="self">self</span>.save_dir {
+        <span class="kw">let </span><span class="kw-2">mut </span>f = <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = <span class="self">self</span>.save_dir.read() {
             <span class="kw">if let </span><span class="prelude-val">Some</span>(f) = <span class="self">self</span>.save_file(SaveKind::NassauQi, b).open_file(dir.clone()) {
                 f
             } <span class="kw">else </span>{

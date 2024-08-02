@@ -1461,10 +1461,8 @@
 <a href="#1436" id="1436">1436</a>
 <a href="#1437" id="1437">1437</a>
 <a href="#1438" id="1438">1438</a>
-<a href="#1439" id="1439">1439</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     io::{Read, Write},
-    path::Path,
     sync::Arc,
 };
 
@@ -1493,7 +1491,7 @@
 <span class="kw">use crate</span>::{
     chain_complex::{ChainComplex, ChainHomotopy, FreeChainComplex},
     resolution_homomorphism::ResolutionHomomorphism,
-    save::{SaveFile, SaveKind},
+    save::{SaveDirectory, SaveFile, SaveKind},
 };
 
 <span class="kw">pub static </span>TAU_BIDEGREE: Bidegree = Bidegree::n_s(<span class="number">0</span>, <span class="number">1</span>);
@@ -1701,7 +1699,7 @@
 
     <span class="doccomment">/// Add composites up to and including the specified degree
     </span><span class="attr">#[tracing::instrument(skip(<span class="self">self</span>, maps, dir), fields(source = %<span class="self">self</span>.source, target = %<span class="self">self</span>.target))]
-    </span><span class="kw">pub fn </span>add_composite(<span class="kw-2">&amp;</span><span class="self">self</span>, s: u32, degree: i32, maps: CompositeData&lt;A&gt;, dir: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Path&gt;) {
+    </span><span class="kw">pub fn </span>add_composite(<span class="kw-2">&amp;</span><span class="self">self</span>, s: u32, degree: i32, maps: CompositeData&lt;A&gt;, dir: <span class="kw-2">&amp;</span>SaveDirectory) {
         <span class="kw">for </span>(<span class="kw">_</span>, d1, d0) <span class="kw">in </span><span class="kw-2">&amp;</span>maps {
             <span class="macro">assert!</span>(Arc::ptr_eq(<span class="kw-2">&amp;</span>d1.target(), <span class="kw-2">&amp;</span>d0.source()));
             <span class="macro">assert!</span>(Arc::ptr_eq(<span class="kw-2">&amp;</span>d0.target(), <span class="kw-2">&amp;</span><span class="self">self</span>.target));
@@ -1718,7 +1716,7 @@
                 b: gen.degree(),
                 idx: <span class="prelude-val">Some</span>(gen.idx()),
             };
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = dir {
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = dir.read() {
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">mut </span>f) = save_file.open_file(dir.to_owned()) {
                     <span class="kw">return </span>SecondaryComposite::from_bytes(
                         Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.target),
@@ -1743,7 +1741,7 @@
                 composite.finalize();
             });
 
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = dir {
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = dir.write() {
                 <span class="kw">let </span><span class="kw-2">mut </span>f = save_file.create_file(dir.to_owned(), <span class="bool-val">false</span>);
                 composite.to_bytes(<span class="kw-2">&amp;mut </span>f).unwrap();
             }
@@ -1835,7 +1833,7 @@
     <span class="kw">fn </span>homotopies(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>OnceBiVec&lt;SecondaryHomotopy&lt;<span class="self">Self</span>::Algebra&gt;&gt;;
     <span class="kw">fn </span>intermediates(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>DashMap&lt;BidegreeGenerator, FpVector&gt;;
 
-    <span class="kw">fn </span>save_dir(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Path&gt;;
+    <span class="kw">fn </span>save_dir(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>SaveDirectory;
 
     <span class="kw">fn </span>compute_intermediate(<span class="kw-2">&amp;</span><span class="self">self</span>, gen: BidegreeGenerator) -&gt; FpVector;
     <span class="kw">fn </span>composite(<span class="kw-2">&amp;</span><span class="self">self</span>, s: u32) -&gt; CompositeData&lt;<span class="self">Self</span>::Algebra&gt;;
@@ -1886,7 +1884,7 @@
             idx: <span class="prelude-val">Some</span>(gen.idx()),
         };
 
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = <span class="self">self</span>.save_dir() {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = <span class="self">self</span>.save_dir().read() {
             <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">mut </span>f) = save_file.open_file(dir.to_owned()) {
                 <span class="comment">// The target dimension can depend on whether we resolved to stem
                 </span><span class="kw">let </span>dim = f.read_u64::&lt;LittleEndian&gt;().unwrap() <span class="kw">as </span>usize;
@@ -1896,7 +1894,7 @@
 
         <span class="kw">let </span>result = <span class="self">self</span>.compute_intermediate(gen);
 
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = <span class="self">self</span>.save_dir() {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = <span class="self">self</span>.save_dir().write() {
             <span class="kw">let </span><span class="kw-2">mut </span>f = save_file.create_file(dir.to_owned(), <span class="bool-val">false</span>);
             f.write_u64::&lt;LittleEndian&gt;(result.len() <span class="kw">as </span>u64).unwrap();
             result.to_bytes(<span class="kw-2">&amp;mut </span>f).unwrap();
@@ -1949,7 +1947,7 @@
                 <span class="kw">return</span>;
             }
             <span class="comment">// Check if we have a saved homotopy
-            </span><span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = <span class="self">self</span>.save_dir() {
+            </span><span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = <span class="self">self</span>.save_dir().read() {
                 <span class="kw">let </span>save_file = SaveFile {
                     algebra: <span class="self">self</span>.algebra(),
                     kind: SaveKind::SecondaryHomotopy,
@@ -1998,7 +1996,7 @@
         <span class="kw">let </span>num_gens = source.number_of_gens_in_degree(b.t());
         <span class="kw">let </span>target_dim = target.module(target_b.s()).dimension(target_b.t());
 
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = <span class="self">self</span>.save_dir() {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = <span class="self">self</span>.save_dir().read() {
             <span class="kw">let </span>save_file = SaveFile {
                 algebra: <span class="self">self</span>.algebra(),
                 kind: SaveKind::SecondaryHomotopy,
@@ -2055,7 +2053,7 @@
             }
         }
 
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = <span class="self">self</span>.save_dir() {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = <span class="self">self</span>.save_dir().write() {
             <span class="kw">let </span>save_file = SaveFile {
                 algebra: <span class="self">self</span>.algebra(),
                 kind: SaveKind::SecondaryHomotopy,
@@ -2181,7 +2179,7 @@
         <span class="kw-2">&amp;</span><span class="self">self</span>.intermediates
     }
 
-    <span class="kw">fn </span>save_dir(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Path&gt; {
+    <span class="kw">fn </span>save_dir(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>SaveDirectory {
         <span class="self">self</span>.underlying.save_dir()
     }
 
@@ -2212,7 +2210,7 @@
     </span>CC::Algebra: PairAlgebra,
 {
     <span class="kw">pub fn </span>new(cc: Arc&lt;CC&gt;) -&gt; <span class="self">Self </span>{
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(p) = cc.save_dir() {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(p) = cc.save_dir().write() {
             <span class="kw">for </span>subdir <span class="kw">in </span>SaveKind::secondary_data() {
                 subdir.create_dir(p).unwrap();
             }
@@ -2355,7 +2353,7 @@
         <span class="kw-2">&amp;</span><span class="self">self</span>.intermediates
     }
 
-    <span class="kw">fn </span>save_dir(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Path&gt; {
+    <span class="kw">fn </span>save_dir(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>SaveDirectory {
         <span class="self">self</span>.underlying.save_dir()
     }
 
@@ -2430,7 +2428,7 @@
         <span class="macro">assert!</span>(Arc::ptr_eq(<span class="kw-2">&amp;</span>underlying.source, <span class="kw-2">&amp;</span>source.underlying));
         <span class="macro">assert!</span>(Arc::ptr_eq(<span class="kw-2">&amp;</span>underlying.target, <span class="kw-2">&amp;</span>target.underlying));
 
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(p) = underlying.save_dir() {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(p) = underlying.save_dir().write() {
             <span class="kw">for </span>subdir <span class="kw">in </span>SaveKind::secondary_data() {
                 subdir.create_dir(p).unwrap();
             }
@@ -2700,7 +2698,7 @@
         <span class="kw-2">&amp;</span><span class="self">self</span>.intermediates
     }
 
-    <span class="kw">fn </span>save_dir(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Path&gt; {
+    <span class="kw">fn </span>save_dir(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>SaveDirectory {
         <span class="self">self</span>.underlying.save_dir()
     }
 
@@ -2856,7 +2854,7 @@
             <span class="macro">assert_eq!</span>(right_tau.shift, underlying.right().shift + TAU_BIDEGREE);
         }
 
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(p) = underlying.save_dir() {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(p) = underlying.save_dir().write() {
             <span class="kw">for </span>subdir <span class="kw">in </span>SaveKind::secondary_data() {
                 subdir.create_dir(p).unwrap();
             }

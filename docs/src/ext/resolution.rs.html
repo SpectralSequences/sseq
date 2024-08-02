@@ -993,12 +993,10 @@
 <a href="#968" id="968">968</a>
 <a href="#969" id="969">969</a>
 <a href="#970" id="970">970</a>
+<a href="#971" id="971">971</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! This module exports the [`Resolution`] object, which is a chain complex resolving a module. In
 //! particular, this contains the core logic that compute minimal resolutions.
-</span><span class="kw">use </span>std::{
-    path::{Path, PathBuf},
-    sync::{mpsc, Arc, Mutex},
-};
+</span><span class="kw">use </span>std::sync::{mpsc, Arc, Mutex};
 
 <span class="kw">use </span>algebra::{
     module::{
@@ -1020,7 +1018,7 @@
 
 <span class="kw">use crate</span>::{
     chain_complex::{AugmentedChainComplex, ChainComplex},
-    save::SaveKind,
+    save::{SaveDirectory, SaveKind},
 };
 
 <span class="doccomment">/// In [`MuResolution::compute_through_stem`] and [`MuResolution::compute_through_bidegree`], we pass
@@ -1076,7 +1074,7 @@
     ///  returned by `generate_old_kernel_and_compute_new_kernel`, to be used if we run
     ///  compute_through_degree again.
     </span>kernels: DashMap&lt;Bidegree, Subspace&gt;,
-    save_dir: <span class="prelude-ty">Option</span>&lt;PathBuf&gt;,
+    save_dir: SaveDirectory,
 
     <span class="doccomment">/// Whether we should save newly computed data to the disk. This has no effect if there is no
     /// save file. Defaults to `self.save_dir.is_some()`.
@@ -1104,12 +1102,16 @@
         </span><span class="self">Self</span>::new_with_save(complex, <span class="prelude-val">None</span>).unwrap()
     }
 
-    <span class="kw">pub fn </span>new_with_save(complex: Arc&lt;CC&gt;, save_dir: <span class="prelude-ty">Option</span>&lt;PathBuf&gt;) -&gt; anyhow::Result&lt;<span class="self">Self</span>&gt; {
+    <span class="kw">pub fn </span>new_with_save(
+        complex: Arc&lt;CC&gt;,
+        save_dir: <span class="kw">impl </span>Into&lt;SaveDirectory&gt;,
+    ) -&gt; anyhow::Result&lt;<span class="self">Self</span>&gt; {
+        <span class="kw">let </span>save_dir = save_dir.into();
         <span class="kw">let </span>algebra = complex.algebra();
         <span class="kw">let </span>min_degree = complex.min_degree();
         <span class="kw">let </span>zero_module = Arc::new(MuFreeModule::new(algebra, <span class="string">"F_{-1}"</span>.to_string(), min_degree));
 
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(p) = <span class="kw-2">&amp;</span>save_dir {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(p) = save_dir.write() {
             <span class="kw">for </span>subdir <span class="kw">in </span>SaveKind::resolution_data() {
                 subdir.create_dir(p)<span class="question-mark">?</span>;
             }
@@ -1193,7 +1195,7 @@
 
         <span class="kw">let </span>p = <span class="self">self</span>.prime();
 
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = <span class="kw-2">&amp;</span><span class="self">self</span>.save_dir {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = <span class="self">self</span>.save_dir.read() {
             <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">mut </span>f) = <span class="self">self</span>.save_file(SaveKind::Kernel, b).open_file(dir.clone()) {
                 <span class="kw">return </span>Subspace::from_bytes(p, <span class="kw-2">&amp;mut </span>f)
                     .with_context(|| <span class="macro">format!</span>(<span class="string">"Failed to read kernel at {b}"</span>))
@@ -1232,7 +1234,7 @@
         <span class="kw">let </span>kernel = matrix.compute_kernel();
 
         <span class="kw">if </span><span class="self">self</span>.should_save {
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = <span class="kw-2">&amp;</span><span class="self">self</span>.save_dir {
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = <span class="self">self</span>.save_dir.write() {
                 <span class="kw">let </span><span class="kw-2">mut </span>f = <span class="self">self
                     </span>.save_file(SaveKind::Kernel, b)
                     .create_file(dir.clone(), <span class="bool-val">true</span>);
@@ -1364,7 +1366,7 @@
         target_res.compute_basis(b.t());
         <span class="kw">let </span>target_res_dimension = target_res.dimension(b.t());
 
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = <span class="kw-2">&amp;</span><span class="self">self</span>.save_dir {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = <span class="self">self</span>.save_dir.read() {
             <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">mut </span>f) = <span class="self">self
                 </span>.save_file(SaveKind::Differential, b)
                 .open_file(dir.clone())
@@ -1465,7 +1467,7 @@
         <span class="kw">if </span>!<span class="self">self</span>.has_computed_bidegree(b + Bidegree::s_t(<span class="number">1</span>, <span class="number">0</span>)) {
             <span class="kw">let </span>kernel = matrix.compute_kernel();
             <span class="kw">if </span><span class="self">self</span>.should_save {
-                <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = <span class="kw-2">&amp;</span><span class="self">self</span>.save_dir {
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = <span class="self">self</span>.save_dir.write() {
                     <span class="kw">let </span><span class="kw-2">mut </span>f = <span class="self">self
                         </span>.save_file(SaveKind::Kernel, b)
                         .create_file(dir.clone(), <span class="bool-val">true</span>);
@@ -1624,7 +1626,7 @@
         );
 
         <span class="kw">if </span><span class="self">self</span>.should_save {
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = <span class="kw-2">&amp;</span><span class="self">self</span>.save_dir {
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = <span class="self">self</span>.save_dir.write() {
                 <span class="comment">// Write differentials last, because if we were terminated halfway, we want the
                 // differentials to exist iff everything has been written. However, we start by
                 // opening the differentials first to make sure we are not overwriting anything.
@@ -1812,7 +1814,7 @@
                         &amp;&amp; (<span class="self">self</span>.save_dir.is_none()
                             || !<span class="self">self
                                 </span>.save_file(SaveKind::Differential, b + Bidegree::s_t(<span class="number">1</span>, <span class="number">1</span>))
-                                .exists(<span class="self">self</span>.save_dir.clone().unwrap()))
+                                .exists(<span class="self">self</span>.save_dir.read().cloned().unwrap()))
                     {
                         scope.spawn(<span class="kw">move </span>|<span class="kw">_</span>| {
                             <span class="self">self</span>.kernels.insert(next_b, <span class="self">self</span>.get_kernel(next_b));
@@ -1883,7 +1885,7 @@
                 qi.apply(result.into(), <span class="number">1</span>, input.into());
             }
             <span class="bool-val">true
-        </span>} <span class="kw">else if let </span><span class="prelude-val">Some</span>(dir) = <span class="kw-2">&amp;</span><span class="self">self</span>.save_dir {
+        </span>} <span class="kw">else if let </span><span class="prelude-val">Some</span>(dir) = <span class="self">self</span>.save_dir.read() {
             <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">mut </span>f) = <span class="self">self</span>.save_file(SaveKind::ResQi, b).open_file(dir.clone()) {
                 QuasiInverse::stream_quasi_inverse(<span class="self">self</span>.prime(), <span class="kw-2">&amp;mut </span>f, results, inputs).unwrap();
                 <span class="bool-val">true
@@ -1895,8 +1897,8 @@
         </span>}
     }
 
-    <span class="kw">fn </span>save_dir(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Path&gt; {
-        <span class="self">self</span>.save_dir.as_deref()
+    <span class="kw">fn </span>save_dir(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>SaveDirectory {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.save_dir
     }
 }
 

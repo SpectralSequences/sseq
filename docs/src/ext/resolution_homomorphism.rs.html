@@ -512,9 +512,11 @@
 <a href="#487" id="487">487</a>
 <a href="#488" id="488">488</a>
 <a href="#489" id="489">489</a>
+<a href="#490" id="490">490</a>
+<a href="#491" id="491">491</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! This module defines [`MuResolutionHomomorphism`], which is a chain map from a
 //! [`FreeChainComplex`].
-</span><span class="kw">use </span>std::{ops::Range, path::PathBuf, sync::Arc};
+</span><span class="kw">use </span>std::{ops::Range, sync::Arc};
 
 <span class="kw">use </span>algebra::{
     module::{
@@ -534,7 +536,7 @@
 
 <span class="kw">use crate</span>::{
     chain_complex::{AugmentedChainComplex, BoundedChainComplex, ChainComplex, FreeChainComplex},
-    save::SaveKind,
+    save::{SaveDirectory, SaveKind},
 };
 
 <span class="kw">pub type </span>ResolutionHomomorphism&lt;CC1, CC2&gt; = MuResolutionHomomorphism&lt;<span class="bool-val">false</span>, CC1, CC2&gt;;
@@ -553,7 +555,7 @@
     <span class="kw">pub </span>target: Arc&lt;CC2&gt;,
     maps: OnceBiVec&lt;Arc&lt;MuFreeModuleHomomorphism&lt;U, CC2::Module&gt;&gt;&gt;,
     <span class="kw">pub </span>shift: Bidegree,
-    save_dir: <span class="prelude-ty">Option</span>&lt;PathBuf&gt;,
+    save_dir: SaveDirectory,
 }
 
 <span class="kw">impl</span>&lt;<span class="kw">const </span>U: bool, CC1, CC2&gt; MuResolutionHomomorphism&lt;U, CC1, CC2&gt;
@@ -564,13 +566,15 @@
 {
     <span class="kw">pub fn </span>new(name: String, source: Arc&lt;CC1&gt;, target: Arc&lt;CC2&gt;, shift: Bidegree) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>save_dir = <span class="kw">if </span>source.save_dir().is_some() &amp;&amp; !name.is_empty() {
-            <span class="kw">let </span><span class="kw-2">mut </span>path = source.save_dir().unwrap().to_owned();
-            path.push(<span class="macro">format!</span>(<span class="string">"products/{name}"</span>));
-            SaveKind::ChainMap.create_dir(<span class="kw-2">&amp;</span>path).unwrap();
-            <span class="prelude-val">Some</span>(path)
+            <span class="kw">let </span><span class="kw-2">mut </span>save_dir = source.save_dir().clone();
+            save_dir.push(<span class="macro">format!</span>(<span class="string">"products/{name}"</span>));
+            SaveKind::ChainMap
+                .create_dir(save_dir.write().unwrap())
+                .unwrap();
+            save_dir
         } <span class="kw">else </span>{
-            <span class="prelude-val">None
-        </span>};
+            SaveDirectory::None
+        };
 
         <span class="self">Self </span>{
             name,
@@ -611,8 +615,8 @@
         Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.maps[input_s <span class="kw">as </span>i32])
     }
 
-    <span class="kw">pub fn </span>save_dir(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>std::path::Path&gt; {
-        <span class="self">self</span>.save_dir.as_deref()
+    <span class="kw">pub fn </span>save_dir(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>SaveDirectory {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.save_dir
     }
 }
 
@@ -742,7 +746,7 @@
             );
         }
 
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = <span class="kw-2">&amp;</span><span class="self">self</span>.save_dir {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = <span class="self">self</span>.save_dir.read() {
             <span class="kw">let </span><span class="kw-2">mut </span>outputs = Vec::with_capacity(num_gens);
 
             <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">mut </span>f) = <span class="self">self
@@ -762,7 +766,7 @@
             <span class="kw">let </span>outputs =
                 extra_images.unwrap_or_else(|| <span class="macro">vec!</span>[FpVector::new(p, fx_dimension); num_gens]);
 
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = <span class="kw-2">&amp;</span><span class="self">self</span>.save_dir {
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = <span class="self">self</span>.save_dir.write() {
                 <span class="kw">let </span><span class="kw-2">mut </span>f = <span class="self">self
                     </span>.source
                     .save_file(SaveKind::ChainMap, input)
@@ -837,7 +841,7 @@
                 .apply_quasi_inverse(<span class="kw-2">&amp;mut </span>qi_outputs, output, <span class="kw-2">&amp;</span>fdx_vectors));
         }
 
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = <span class="kw-2">&amp;</span><span class="self">self</span>.save_dir {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = <span class="self">self</span>.save_dir.write() {
             <span class="kw">let </span><span class="kw-2">mut </span>f = <span class="self">self
                 </span>.source
                 .save_file(SaveKind::ChainMap, input)

@@ -313,11 +313,7 @@
 <a href="#288" id="288">288</a>
 <a href="#289" id="289">289</a>
 <a href="#290" id="290">290</a>
-<a href="#291" id="291">291</a>
-</pre></div><pre class="rust"><code><span class="kw">use </span>std::{
-    path::{Path, PathBuf},
-    sync::{Arc, Mutex},
-};
+</pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::{Arc, Mutex};
 
 <span class="kw">use </span>algebra::module::{
     homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism},
@@ -331,7 +327,7 @@
 <span class="kw">use crate</span>::{
     chain_complex::{ChainComplex, FreeChainComplex},
     resolution_homomorphism::ResolutionHomomorphism,
-    save::SaveKind,
+    save::{SaveDirectory, SaveKind},
 };
 
 <span class="comment">// Another instance of https://github.com/rust-lang/rust/issues/91380
@@ -350,7 +346,7 @@
     lock: Mutex&lt;()&gt;,
     <span class="doccomment">/// Homotopies, indexed by the filtration of the target of f - g.
     </span>homotopies: OnceBiVec&lt;Arc&lt;FreeModuleHomomorphism&lt;U::Module&gt;&gt;&gt;,
-    save_dir: <span class="prelude-ty">Option</span>&lt;PathBuf&gt;,
+    save_dir: SaveDirectory,
 }
 
 <span class="kw">impl</span>&lt;
@@ -367,15 +363,17 @@
             &amp;&amp; !left.name().is_empty()
             &amp;&amp; !right.name().is_empty()
         {
-            <span class="kw">let </span><span class="kw-2">mut </span>path = left.source.save_dir().unwrap().to_owned();
-            path.push(<span class="macro">format!</span>(<span class="string">"massey/{},{}/"</span>, left.name(), right.name(),));
+            <span class="kw">let </span><span class="kw-2">mut </span>save_dir = left.source.save_dir().clone();
+            save_dir.push(<span class="macro">format!</span>(<span class="string">"massey/{},{}/"</span>, left.name(), right.name()));
 
-            SaveKind::ChainHomotopy.create_dir(<span class="kw-2">&amp;</span>path).unwrap();
+            SaveKind::ChainHomotopy
+                .create_dir(save_dir.write().unwrap())
+                .unwrap();
 
-            <span class="prelude-val">Some</span>(path)
+            save_dir
         } <span class="kw">else </span>{
-            <span class="prelude-val">None
-        </span>};
+            SaveDirectory::None
+        };
 
         <span class="macro">assert!</span>(Arc::ptr_eq(<span class="kw-2">&amp;</span>left.target, <span class="kw-2">&amp;</span>right.source));
         <span class="self">Self </span>{
@@ -497,7 +495,7 @@
                 .add_generators_from_rows_ooo(source.t(), outputs);
         }
 
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = <span class="kw-2">&amp;</span><span class="self">self</span>.save_dir {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = <span class="self">self</span>.save_dir.read() {
             <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">mut </span>f) = <span class="self">self
                 </span>.left
                 .source
@@ -584,7 +582,7 @@
             <span class="kw-2">&amp;</span>scratches,
         ));
 
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = <span class="kw-2">&amp;</span><span class="self">self</span>.save_dir {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = <span class="self">self</span>.save_dir.write() {
             <span class="kw">let </span><span class="kw-2">mut </span>f = <span class="self">self
                 </span>.left
                 .source
@@ -601,8 +599,8 @@
         Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.homotopies[source_s <span class="kw">as </span>i32])
     }
 
-    <span class="kw">pub fn </span>save_dir(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Path&gt; {
-        <span class="self">self</span>.save_dir.as_deref()
+    <span class="kw">pub fn </span>save_dir(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>SaveDirectory {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.save_dir
     }
 }
 </code></pre></div></section></main></body></html>

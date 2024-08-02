@@ -576,6 +576,7 @@
 <a href="#551" id="551">551</a>
 <a href="#552" id="552">552</a>
 <a href="#553" id="553">553</a>
+<a href="#554" id="554">554</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! A module containing various utility functions related to user interaction in some way.
 </span><span class="kw">use </span>std::{path::PathBuf, sync::Arc};
 
@@ -590,6 +591,7 @@
 <span class="kw">use crate</span>::{
     chain_complex::{AugmentedChainComplex, BoundedChainComplex, ChainComplex, FiniteChainComplex},
     resolution::{Resolution, UnstableResolution},
+    save::SaveDirectory,
     CCC,
 };
 
@@ -714,7 +716,7 @@
 /// the `nassau` feature is enabled.
 </span><span class="kw">pub fn </span>construct&lt;T, E&gt;(
     module_spec: T,
-    save_dir: <span class="prelude-ty">Option</span>&lt;PathBuf&gt;,
+    save_dir: <span class="kw">impl </span>Into&lt;SaveDirectory&gt;,
 ) -&gt; anyhow::Result&lt;QueryModuleResolution&gt;
 <span class="kw">where
     </span>anyhow::Error: From&lt;E&gt;,
@@ -734,7 +736,7 @@
 <span class="doccomment">/// See [`construct`]
 </span><span class="kw">pub fn </span>construct_nassau&lt;T, E&gt;(
     module_spec: T,
-    save_dir: <span class="prelude-ty">Option</span>&lt;PathBuf&gt;,
+    save_dir: <span class="kw">impl </span>Into&lt;SaveDirectory&gt;,
 ) -&gt; anyhow::Result&lt;<span class="kw">crate</span>::nassau::Resolution&lt;FDModule&lt;MilnorAlgebra&gt;&gt;&gt;
 <span class="kw">where
     </span>anyhow::Error: From&lt;E&gt;,
@@ -774,7 +776,7 @@
 <span class="doccomment">/// See [`construct`]
 </span><span class="kw">pub fn </span>construct_standard&lt;<span class="kw">const </span>U: bool, T, E&gt;(
     module_spec: T,
-    save_dir: <span class="prelude-ty">Option</span>&lt;PathBuf&gt;,
+    save_dir: <span class="kw">impl </span>Into&lt;SaveDirectory&gt;,
 ) -&gt; anyhow::Result&lt;<span class="kw">crate</span>::resolution::MuResolution&lt;U, CCC&gt;&gt;
 <span class="kw">where
     </span>anyhow::Error: From&lt;E&gt;,
