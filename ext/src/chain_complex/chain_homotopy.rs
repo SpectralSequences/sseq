@@ -55,7 +55,7 @@ impl<
                 .create_dir(save_dir.write().unwrap())
                 .unwrap();
 
-            left.source.save_dir().clone()
+            save_dir
         } else {
             SaveDirectory::None
         };
