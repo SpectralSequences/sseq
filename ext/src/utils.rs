@@ -516,7 +516,7 @@ mod logging {
         };
 
         Subscriber::builder()
-            .with_writer(std::io::stdout)
+            .with_writer(std::io::stderr)
             .with_max_level(tracing::Level::INFO)
             .with_span_events(FmtSpan::NEW | FmtSpan::CLOSE)
             .with_thread_ids(true)
