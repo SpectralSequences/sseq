@@ -8,6 +8,8 @@ use ext::{
 };
 
 fn main() -> anyhow::Result<()> {
+    ext::utils::init_logging();
+
     let resolution = Arc::new(ext::utils::query_module(
         Some(algebra::AlgebraType::Milnor),
         true,

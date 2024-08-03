@@ -223,6 +223,8 @@ fn read_bruner_resolution(data_dir: &Path, max_n: i32) -> Result<(u32, FiniteCha
 }
 
 fn main() {
+    ext::utils::init_logging();
+
     let data_dir = Path::new(file!()).parent().unwrap().join("bruner_data");
     let max_n: i32 = query::with_default("Max n", "20", str::parse);
 

@@ -10,6 +10,8 @@ use fp::prime::{Prime, ValidPrime};
 use serde_json::json;
 
 fn main() -> anyhow::Result<()> {
+    ext::utils::init_logging();
+
     let left = query::with_default("Left module", "S_2", parse_module_name);
     let p = left["p"].as_u64().unwrap();
 

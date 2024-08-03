@@ -5,6 +5,8 @@ use ext::{
 };
 
 fn main() -> anyhow::Result<()> {
+    ext::utils::init_logging();
+
     let resolution = query_module(None, false)?;
 
     for b in resolution.iter_stem() {

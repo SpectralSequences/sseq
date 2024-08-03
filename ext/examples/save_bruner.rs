@@ -12,6 +12,8 @@ use ext::{chain_complex::ChainComplex, utils::query_module};
 use itertools::Itertools;
 
 fn main() -> anyhow::Result<()> {
+    ext::utils::init_logging();
+
     let resolution = query_module(Some(AlgebraType::Milnor), false)?;
 
     assert_eq!(resolution.prime(), 2);

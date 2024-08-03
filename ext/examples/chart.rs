@@ -6,6 +6,8 @@ use ext::{
 };
 
 fn main() -> anyhow::Result<()> {
+    ext::utils::init_logging();
+
     let resolution = query_module(None, false)?;
 
     let sseq = resolution.to_sseq();

@@ -52,6 +52,8 @@ use fp::matrix::Matrix;
 use sseq::coordinates::{Bidegree, BidegreeGenerator};
 
 fn main() -> anyhow::Result<()> {
+    ext::utils::init_logging();
+
     let source = Arc::new(utils::query_module_only("Source module", None, true)?);
     let b = Bidegree::n_s(
         query::with_default("Max source n", "30", str::parse),

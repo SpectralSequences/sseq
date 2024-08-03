@@ -9,6 +9,8 @@ use ext::{
 use sseq::coordinates::Bidegree;
 
 fn main() -> anyhow::Result<()> {
+    ext::utils::init_logging();
+
     let resolution = Arc::new(utils::query_module_only("Module", None, false)?);
 
     let b = Bidegree::n_s(

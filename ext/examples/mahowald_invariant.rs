@@ -62,6 +62,8 @@ use serde_json::json;
 use sseq::coordinates::{Bidegree, BidegreeElement, BidegreeGenerator};
 
 fn main() -> Result<()> {
+    ext::utils::init_logging();
+
     let s_2_path: Option<PathBuf> = query::optional("Save directory for S_2", str::parse);
     let p_k_prefix: Option<PathBuf> = query::optional(
         "Directory containing save directories for RP_-k_inf's",

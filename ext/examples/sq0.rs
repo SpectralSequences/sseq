@@ -12,6 +12,8 @@ use itertools::Itertools;
 use sseq::coordinates::{Bidegree, BidegreeGenerator};
 
 fn main() -> anyhow::Result<()> {
+    ext::utils::init_logging();
+
     let res = utils::query_module(None, true)?;
     assert!(
         res.prime() == 2 && res.target().max_s() == 1 && res.target().module(0).is_unit(),

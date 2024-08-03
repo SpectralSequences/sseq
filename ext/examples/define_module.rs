@@ -16,6 +16,8 @@ use rustc_hash::FxHashMap as HashMap;
 use serde_json::{json, Value};
 
 pub fn get_gens() -> anyhow::Result<BiVec<Vec<String>>> {
+    ext::utils::init_logging();
+
     // Query for generators
     eprintln!("Input generators. Press return to finish.");
     stderr().flush()?;

@@ -30,6 +30,8 @@ use ext::{
 use sseq::coordinates::Bidegree;
 
 fn main() -> anyhow::Result<()> {
+    ext::utils::init_logging();
+
     let module = Arc::new(ext::utils::query_unstable_module_only()?);
     let save_dir = {
         let base = query::optional("Module save directory", |x| {
