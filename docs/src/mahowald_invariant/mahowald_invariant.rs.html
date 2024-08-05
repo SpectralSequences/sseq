@@ -327,6 +327,8 @@
 <a href="#302" id="302">302</a>
 <a href="#303" id="303">303</a>
 <a href="#304" id="304">304</a>
+<a href="#305" id="305">305</a>
+<a href="#306" id="306">306</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Computes algebraic Mahowald invariants (aka algebraic root invariants).
 //!
 //! Sample output (with `Max k = 7`):
@@ -391,6 +393,8 @@
 <span class="kw">use </span>sseq::coordinates::{Bidegree, BidegreeElement, BidegreeGenerator};
 
 <span class="kw">fn </span>main() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+    ext::utils::init_logging();
+
     <span class="kw">let </span>s_2_path: <span class="prelude-ty">Option</span>&lt;PathBuf&gt; = query::optional(<span class="string">"Save directory for S_2"</span>, str::parse);
     <span class="kw">let </span>p_k_prefix: <span class="prelude-ty">Option</span>&lt;PathBuf&gt; = query::optional(
         <span class="string">"Directory containing save directories for RP_-k_inf's"</span>,

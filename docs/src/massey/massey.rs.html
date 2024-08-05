@@ -169,6 +169,8 @@
 <a href="#144" id="144">144</a>
 <a href="#145" id="145">145</a>
 <a href="#146" id="146">146</a>
+<a href="#147" id="147">147</a>
+<a href="#148" id="148">148</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Computes the triple Massey product up to a sign
 //!
 //! This is optimized to compute &lt;a, b, -&gt; for fixed a, b and all -, where a and b have small
@@ -184,6 +186,8 @@
 <span class="kw">use </span>sseq::coordinates::{Bidegree, BidegreeElement, BidegreeGenerator};
 
 <span class="kw">fn </span>main() -&gt; anyhow::Result&lt;()&gt; {
+    ext::utils::init_logging();
+
     <span class="kw">let </span>resolution = Arc::new(ext::utils::query_module(<span class="prelude-val">None</span>, <span class="bool-val">true</span>)<span class="question-mark">?</span>);
     <span class="kw">let </span>p = resolution.prime();
 

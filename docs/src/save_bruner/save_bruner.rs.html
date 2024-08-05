@@ -101,6 +101,8 @@
 <a href="#76" id="76">76</a>
 <a href="#77" id="77">77</a>
 <a href="#78" id="78">78</a>
+<a href="#79" id="79">79</a>
+<a href="#80" id="80">80</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! This saves a resolution to Bruner's format. This saves the resulting files to the current
 //! working directory. It is recommended that you run this in a dedicated subdirectory.
 
@@ -115,6 +117,8 @@
 <span class="kw">use </span>itertools::Itertools;
 
 <span class="kw">fn </span>main() -&gt; anyhow::Result&lt;()&gt; {
+    ext::utils::init_logging();
+
     <span class="kw">let </span>resolution = query_module(<span class="prelude-val">Some</span>(AlgebraType::Milnor), <span class="bool-val">false</span>)<span class="question-mark">?</span>;
 
     <span class="macro">assert_eq!</span>(resolution.prime(), <span class="number">2</span>);

@@ -122,6 +122,8 @@
 <a href="#97" id="97">97</a>
 <a href="#98" id="98">98</a>
 <a href="#99" id="99">99</a>
+<a href="#100" id="100">100</a>
+<a href="#101" id="101">101</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Computes the suspension map between different unstable Ext groups.
 //!
 //! Given an unstable Steenrod module $M$, compute the unstable Ext groups of $\Sigma^k M$ for all
@@ -154,6 +156,8 @@
 <span class="kw">use </span>sseq::coordinates::Bidegree;
 
 <span class="kw">fn </span>main() -&gt; anyhow::Result&lt;()&gt; {
+    ext::utils::init_logging();
+
     <span class="kw">let </span>module = Arc::new(ext::utils::query_unstable_module_only()<span class="question-mark">?</span>);
     <span class="kw">let </span>save_dir = {
         <span class="kw">let </span>base = query::optional(<span class="string">"Module save directory"</span>, |x| {

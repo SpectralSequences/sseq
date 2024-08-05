@@ -43,6 +43,8 @@
 <a href="#18" id="18">18</a>
 <a href="#19" id="19">19</a>
 <a href="#20" id="20">20</a>
+<a href="#21" id="21">21</a>
+<a href="#22" id="22">22</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! This prints all the differentials in the resolution.
 
 </span><span class="kw">use </span>ext::{
@@ -52,6 +54,8 @@
 <span class="kw">use </span>sseq::coordinates::BidegreeGenerator;
 
 <span class="kw">fn </span>main() -&gt; anyhow::Result&lt;()&gt; {
+    ext::utils::init_logging();
+
     <span class="kw">let </span>resolution = query_module(<span class="prelude-val">None</span>, <span class="bool-val">false</span>)<span class="question-mark">?</span>;
 
     <span class="kw">for </span>b <span class="kw">in </span>resolution.iter_stem() {

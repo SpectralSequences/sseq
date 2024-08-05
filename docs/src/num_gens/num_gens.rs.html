@@ -42,6 +42,8 @@
 <a href="#17" id="17">17</a>
 <a href="#18" id="18">18</a>
 <a href="#19" id="19">19</a>
+<a href="#20" id="20">20</a>
+<a href="#21" id="21">21</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! This prints the number of generators in each $\Ext^{s, n + s}$ in the format `n,s,num_gens`.
 </span><span class="kw">use </span>ext::{
     chain_complex::{ChainComplex, FreeChainComplex},
@@ -49,6 +51,8 @@
 };
 
 <span class="kw">fn </span>main() -&gt; anyhow::Result&lt;()&gt; {
+    ext::utils::init_logging();
+
     <span class="kw">let </span>resolution = query_module(<span class="prelude-val">None</span>, <span class="bool-val">false</span>)<span class="question-mark">?</span>;
 
     <span class="kw">for </span>b <span class="kw">in </span>resolution.iter_stem() {

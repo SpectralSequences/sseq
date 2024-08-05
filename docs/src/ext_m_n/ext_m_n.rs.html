@@ -139,6 +139,8 @@
 <a href="#114" id="114">114</a>
 <a href="#115" id="115">115</a>
 <a href="#116" id="116">116</a>
+<a href="#117" id="117">117</a>
+<a href="#118" id="118">118</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>algebra::{module::Module, Algebra};
@@ -147,6 +149,8 @@
 <span class="kw">use </span>sseq::coordinates::Bidegree;
 
 <span class="kw">fn </span>main() -&gt; anyhow::Result&lt;()&gt; {
+    ext::utils::init_logging();
+
     <span class="macro">eprintln!</span>(<span class="string">"This script computes Ext(M, N)"</span>);
     <span class="kw">let </span>res = ext::utils::query_module_only(<span class="string">"Module M"</span>, <span class="prelude-val">None</span>, <span class="bool-val">false</span>)<span class="question-mark">?</span>;
     <span class="kw">let </span>module_spec = query::raw(<span class="string">"Module N"</span>, ext::utils::parse_module_name);

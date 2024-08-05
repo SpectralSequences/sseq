@@ -328,6 +328,8 @@
 <a href="#303" id="303">303</a>
 <a href="#304" id="304">304</a>
 <a href="#305" id="305">305</a>
+<a href="#306" id="306">306</a>
+<a href="#307" id="307">307</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     io::{stderr, Write},
     sync::Arc,
@@ -346,6 +348,8 @@
 <span class="kw">use </span>serde_json::{json, Value};
 
 <span class="kw">pub fn </span>get_gens() -&gt; anyhow::Result&lt;BiVec&lt;Vec&lt;String&gt;&gt;&gt; {
+    ext::utils::init_logging();
+
     <span class="comment">// Query for generators
     </span><span class="macro">eprintln!</span>(<span class="string">"Input generators. Press return to finish."</span>);
     stderr().flush()<span class="question-mark">?</span>;

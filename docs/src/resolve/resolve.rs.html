@@ -55,6 +55,7 @@
 <a href="#30" id="30">30</a>
 <a href="#31" id="31">31</a>
 <a href="#32" id="32">32</a>
+<a href="#33" id="33">33</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Resolves a module up to a fixed $(s, t)$ and prints an ASCII depiction of the Ext groups:
 //! ```text
 //! ·                                     ·
@@ -76,6 +77,7 @@
 
 <span class="kw">fn </span>main() -&gt; anyhow::Result&lt;()&gt; {
     ext::utils::init_logging();
+
     <span class="kw">let </span>res = ext::utils::query_module_only(<span class="string">"Module"</span>, <span class="prelude-val">None</span>, <span class="bool-val">false</span>)<span class="question-mark">?</span>;
 
     <span class="kw">let </span>max = Bidegree::t_s(
