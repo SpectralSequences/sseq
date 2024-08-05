@@ -10,33 +10,33 @@ All integers are stored in little-endian.
 We have the following goals:
 
 - Modularity: Each piece of data pertinent to each bidegree is contained in
-   its own file. This gives the possibility of sharding large workloads and
-   only loading the relevant data for each computation.
+  its own file. This gives the possibility of sharding large workloads and
+  only loading the relevant data for each computation.
 
 - Zero-copy deserialization: For large data structures (e.g. quasi-inverses),
-   it should be possible to `mmap` the save file and use the pointer directly.
-   In particular, the data should be 64 bit-aligned. This use case ties in with
-   modularity, since each such data structure should be contained in exactly
-   one file in order to do RAII properly.
+  it should be possible to `mmap` the save file and use the pointer directly.
+  In particular, the data should be 64 bit-aligned. This use case ties in with
+  modularity, since each such data structure should be contained in exactly
+  one file in order to do RAII properly.
 
-   Of course, we only get true zero-copy deserializaion on little-endian 64-bit
-   machines.
+  Of course, we only get true zero-copy deserializaion on little-endian 64-bit
+  machines.
 
 - Incrementality: We should be able to save data incrementally in case the
-   program crashes, and resume old computations to push them further without
-   too much additional cost.
+  program crashes, and resume old computations to push them further without
+  too much additional cost.
 
 - Robustness: It should be easy to detect and correct for data corruption,
-   possibly due to the program crashing halfway through a write. Here "correct"
-   would largely mean deleting the corrupted file and recomputing the data, but
-   modularity helps with minimizing the amount we need to recompute.
+  possibly due to the program crashing halfway through a write. Here "correct"
+  would largely mean deleting the corrupted file and recomputing the data, but
+  modularity helps with minimizing the amount we need to recompute.
 
 - Space and time efficiency: We should be able to compress the saved data to
-   limit disk usage. If we run this over a cluster, we would be reading files
-   over the network, and space efficiency would be even more important. On the
-   other hand, decompression should not be too slow either. This is necessarily
-   at odds with zero-copy deserialization, and the user should be able to
-   choose whether or not to compress.
+  limit disk usage. If we run this over a cluster, we would be reading files
+  over the network, and space efficiency would be even more important. On the
+  other hand, decompression should not be too slow either. This is necessarily
+  at odds with zero-copy deserialization, and the user should be able to
+  choose whether or not to compress.
 
 ## Overview
 
@@ -237,25 +237,25 @@ machine is the zero signature. Each command of this state machine starts with a
 u64, which is to be interpreted as follows:
 
 - (-1) indicates the end of the program. There should be no bytes after this
-   program (apart from checksums).
+  program (apart from checksums).
 
 - (-2) indicates a change of signature. We should read in a
-   `[u16; subalgebra_profile_length]` which will be the new signature.
+  `[u16; subalgebra_profile_length]` which will be the new signature.
 
 - (-3) instructs the machine to perform a "differential fix" --- when
-   resolving up to a stem, at the boundary, we compute the quasi-inverse before
-   computing the source itself. This means the quasi-inverse is missing the
-   parts that come from the new generator.
+  resolving up to a stem, at the boundary, we compute the quasi-inverse before
+  computing the source itself. This means the quasi-inverse is missing the
+  parts that come from the new generator.
 
-   Since a generator has zero signature, this only affects zero signature part,
-   and this command is encountered at the end of the instructions for the zero
-   signature. Note that data has to be collected for the fix before this
-   command is encountered. The machine must detect beforehand whether the fix
-   is needed. This instruction merely indicates *when* the fix is to be
-   performed.
+  Since a generator has zero signature, this only affects zero signature part,
+  and this command is encountered at the end of the instructions for the zero
+  signature. Note that data has to be collected for the fix before this
+  command is encountered. The machine must detect beforehand whether the fix
+  is needed. This instruction merely indicates *when* the fix is to be
+  performed.
 
 - Any other number is a pivot column. The upcoming data gives an element that
-   hits this pivot column and the image of this element under the differential.
-   The pivot column and the image are expressed in terms of the original basis,
-   while the lift is expressed in terms of the masked basis under the current
-   signature. The latter measure is done in order to save space.
+  hits this pivot column and the image of this element under the differential.
+  The pivot column and the image are expressed in terms of the original basis,
+  while the lift is expressed in terms of the masked basis under the current
+  signature. The latter measure is done in order to save space.

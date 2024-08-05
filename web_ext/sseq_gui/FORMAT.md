@@ -20,17 +20,17 @@ used to read the data.
 The (decompressed) segments in the history file are as follows:
 
 * The first segment contains "permanent data". This is data of the spectral
-   sequence that remains the same throughout the calculation, e.g. names of
-   classes. This is stored as a stringified JSON.
+  sequence that remains the same throughout the calculation, e.g. names of
+  classes. This is stored as a stringified JSON.
 
 * The second segment is a list of actions. It is stored as a newline-separated
-   list of stringified JSON, and the ith entry of the list parses to the list
-   of actions of the ith step.
+  list of stringified JSON, and the ith entry of the list parses to the list
+  of actions of the ith step.
 
 * Afterwards, every segment contains data about a step of the calculation.
-   These data are known as "changing data", as the data changes with each step.
-   For example, this includes the list of differentials. The segments are
-   listed in the same order as the steps.
+  These data are known as "changing data", as the data changes with each step.
+  For example, this includes the list of differentials. The segments are
+  listed in the same order as the steps.
 
 At the moment, the JS library does not work correctly with big-endian machines,
 since it always uses the system endianness. (That said, files produced by the
