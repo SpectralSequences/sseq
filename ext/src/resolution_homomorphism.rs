@@ -201,6 +201,7 @@ where
     /// The user should call this function explicitly to manually define the chain map where the
     /// chain complex is not exact, and then call [`MuResolutionHomomorphism::extend_all`] to extend
     /// the rest by exactness.
+    #[tracing::instrument(skip(self, extra_images), fields(self = self.name, %input))]
     pub fn extend_step_raw(
         &self,
         input: Bidegree,
