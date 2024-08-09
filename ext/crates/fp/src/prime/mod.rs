@@ -1,5 +1,6 @@
 use std::{
-    fmt::Debug,
+    fmt::{Debug, Display},
+    hash::Hash,
     ops::{
         Add, AddAssign, Div, DivAssign, Mul, MulAssign, Rem, RemAssign, Shl, ShlAssign, Shr,
         ShrAssign, Sub, SubAssign,
@@ -38,7 +39,10 @@ pub const TWO: ValidPrime = ValidPrime::new(2);
 /// chosen at runtime.
 pub trait Prime:
     Debug
+    + Clone
     + Copy
+    + Display
+    + Hash
     + PartialEq
     + Eq
     + PartialEq<u32>
@@ -64,9 +68,26 @@ pub trait Prime:
         self.as_u32() as usize
     }
 
+    /// Computes the sum mod p. This takes care of overflow.
+    fn sum(self, n1: u32, n2: u32) -> u32 {
+        let n1 = n1 as u64;
+        let n2 = n2 as u64;
+        let p = self.as_u32() as u64;
+        let sum = (n1 + n2) % p;
+        sum as u32
+    }
+
     /// Computes the product mod p. This takes care of overflow.
     fn product(self, n1: u32, n2: u32) -> u32 {
-        ((n1 as u64) * (n2 as u64) % (self.as_u32() as u64)) as u32
+        let n1 = n1 as u64;
+        let n2 = n2 as u64;
+        let p = self.as_u32() as u64;
+        let product = (n1 * n2) % p;
+        product as u32
+    }
+
+    fn inverse(self, k: u32) -> u32 {
+        inverse(self, k)
     }
 
     fn pow(self, exp: u32) -> u32 {

@@ -8,6 +8,13 @@ impl_try_from!(P2, P2);
 
 pub type ValidPrime = P2;
 
+pub(crate) mod fp {
+    use super::P2;
+    use crate::field::Fp;
+
+    pub const F2: Fp<P2> = Fp::new(P2);
+}
+
 pub const fn is_prime(p: u32) -> bool {
     p == 2
 }

@@ -1,9 +1,9 @@
 use itertools::Itertools;
 
 use crate::{
-    limb::{self, Limb, LimbBitIndexPair},
+    field::{field_internal::FieldInternal, fp::F2},
+    limb::{Limb, LimbBitIndexPair},
     matrix::Matrix,
-    prime::P2,
     simd,
 };
 
@@ -37,7 +37,7 @@ pub(crate) struct M4riTable {
 impl M4riTable {
     /// Create a table with space for `k` vectors, each with `cols` columns.
     pub fn new(k: usize, cols: usize) -> Self {
-        let num_limbs = limb::number(P2, cols);
+        let num_limbs = F2.number(cols);
         Self {
             rows: Vec::with_capacity(k),
             columns: Vec::with_capacity(k),
@@ -68,7 +68,7 @@ impl M4riTable {
     ///  - `column`: pivot column of the row
     ///  - `row`: index of the row
     pub fn add(&mut self, column: usize, row: usize) {
-        self.columns.push(limb::limb_bit_index_pair(P2, column));
+        self.columns.push(F2.limb_bit_index_pair(column));
         self.rows.push(row);
     }
 

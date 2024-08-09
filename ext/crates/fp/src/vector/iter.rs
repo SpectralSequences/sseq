@@ -1,10 +1,11 @@
 use super::inner::SliceP;
 use crate::{
-    limb::{self, Limb},
-    prime::Prime,
+    field::{element::FieldElement, Field},
+    limb::Limb,
 };
 
-pub struct FpVectorIterator<'a> {
+pub struct FqVectorIteratorP<'a, F> {
+    fq: F,
     limbs: &'a [Limb],
     bit_length: usize,
     bit_mask: Limb,
@@ -15,13 +16,14 @@ pub struct FpVectorIterator<'a> {
     counter: usize,
 }
 
-impl<'a> FpVectorIterator<'a> {
-    pub(super) fn new<P: Prime>(vec: SliceP<'a, P>) -> Self {
+impl<'a, F: Field> FqVectorIteratorP<'a, F> {
+    pub(super) fn new(vec: SliceP<'a, F>) -> Self {
         let counter = vec.len();
-        let limbs = &vec.limbs;
+        let limbs = vec.limbs;
 
         if counter == 0 {
             return Self {
+                fq: vec.fq,
                 limbs,
                 bit_length: 0,
                 entries_per_limb_m_1: 0,
@@ -32,17 +34,18 @@ impl<'a> FpVectorIterator<'a> {
                 counter,
             };
         }
-        let pair = limb::limb_bit_index_pair(vec.p, vec.start);
+        let pair = vec.fq.limb_bit_index_pair(vec.start);
 
-        let bit_length = limb::bit_length(vec.p);
+        let bit_length = vec.fq.bit_length();
         let cur_limb = limbs[pair.limb] >> pair.bit_index;
 
-        let entries_per_limb = limb::entries_per_limb(vec.p);
+        let entries_per_limb = vec.fq.entries_per_limb();
         Self {
+            fq: vec.fq,
             limbs,
             bit_length,
             entries_per_limb_m_1: entries_per_limb - 1,
-            bit_mask: limb::bitmask(vec.p),
+            bit_mask: vec.fq.bitmask(),
             limb_index: pair.limb,
             entries_left: entries_per_limb - (vec.start % entries_per_limb),
             cur_limb,
@@ -81,8 +84,8 @@ impl<'a> FpVectorIterator<'a> {
     }
 }
 
-impl<'a> Iterator for FpVectorIterator<'a> {
-    type Item = u32;
+impl<'a, F: Field> Iterator for FqVectorIteratorP<'a, F> {
+    type Item = FieldElement<F>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.counter == 0 {
@@ -95,24 +98,24 @@ impl<'a> Iterator for FpVectorIterator<'a> {
             self.entries_left -= 1;
         }
 
-        let result = (self.cur_limb & self.bit_mask) as u32;
+        let result = self.cur_limb & self.bit_mask;
         self.counter -= 1;
         self.cur_limb >>= self.bit_length;
 
-        Some(result)
+        Some(self.fq.decode(result))
     }
 }
 
-impl<'a> ExactSizeIterator for FpVectorIterator<'a> {
+impl<'a, F: Field> ExactSizeIterator for FqVectorIteratorP<'a, F> {
     fn len(&self) -> usize {
         self.counter
     }
 }
 
-/// Iterator over non-zero entries of an FpVector. This is monomorphized over P for significant
-/// performance gains.
-pub struct FpVectorNonZeroIteratorP<'a, P> {
-    p: P,
+/// Iterator over non-zero entries of an FpVector. This is monomorphized over the ground field for
+/// significant performance gains.
+pub struct FqVectorNonZeroIteratorP<'a, F> {
+    fq: F,
     limbs: &'a [Limb],
     limb_index: usize,
     cur_limb_entries_left: usize,
@@ -121,16 +124,16 @@ pub struct FpVectorNonZeroIteratorP<'a, P> {
     dim: usize,
 }
 
-impl<'a, P: Prime> FpVectorNonZeroIteratorP<'a, P> {
-    pub(super) fn new(vec: SliceP<'a, P>) -> Self {
-        let entries_per_limb = limb::entries_per_limb(vec.p);
+impl<'a, F: Field> FqVectorNonZeroIteratorP<'a, F> {
+    pub(super) fn new(vec: SliceP<'a, F>) -> Self {
+        let entries_per_limb = vec.fq.entries_per_limb();
 
         let dim = vec.len();
         let limbs = vec.limbs;
 
         if dim == 0 {
             return Self {
-                p: vec.p,
+                fq: vec.fq,
                 limbs,
                 limb_index: 0,
                 cur_limb_entries_left: 0,
@@ -140,11 +143,11 @@ impl<'a, P: Prime> FpVectorNonZeroIteratorP<'a, P> {
             };
         }
         let min_index = vec.start;
-        let pair = limb::limb_bit_index_pair(vec.p, min_index);
+        let pair = vec.fq.limb_bit_index_pair(min_index);
         let cur_limb = limbs[pair.limb] >> pair.bit_index;
         let cur_limb_entries_left = entries_per_limb - (min_index % entries_per_limb);
         Self {
-            p: vec.p,
+            fq: vec.fq,
             limbs,
             limb_index: pair.limb,
             cur_limb_entries_left,
@@ -155,13 +158,13 @@ impl<'a, P: Prime> FpVectorNonZeroIteratorP<'a, P> {
     }
 }
 
-impl<'a, P: Prime> Iterator for FpVectorNonZeroIteratorP<'a, P> {
-    type Item = (usize, u32);
+impl<'a, F: Field> Iterator for FqVectorNonZeroIteratorP<'a, F> {
+    type Item = (usize, FieldElement<F>);
 
     fn next(&mut self) -> Option<Self::Item> {
-        let bit_length: usize = limb::bit_length(self.p);
-        let bitmask: Limb = limb::bitmask(self.p);
-        let entries_per_limb: usize = limb::entries_per_limb(self.p);
+        let bit_length: usize = self.fq.bit_length();
+        let bitmask: Limb = self.fq.bitmask();
+        let entries_per_limb: usize = self.fq.entries_per_limb();
         loop {
             let bits_left = (self.cur_limb_entries_left * bit_length) as u32;
             #[allow(clippy::unnecessary_cast)]
@@ -186,7 +189,7 @@ impl<'a, P: Prime> Iterator for FpVectorNonZeroIteratorP<'a, P> {
                 break;
             }
         }
-        let result = (self.idx, (self.cur_limb & bitmask) as u32);
+        let result = (self.idx, self.fq.decode(self.cur_limb & bitmask));
         self.idx += 1;
         self.cur_limb_entries_left -= 1;
         self.cur_limb >>= bit_length;

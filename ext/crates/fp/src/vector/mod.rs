@@ -1,19 +1,13 @@
-#[cfg(not(feature = "odd-primes"))]
-pub mod vector_2;
-#[cfg(not(feature = "odd-primes"))]
-pub use vector_2::*;
+pub mod inner;
 
-#[cfg(feature = "odd-primes")]
-pub mod vector_generic;
-#[cfg(feature = "odd-primes")]
-pub use vector_generic::*;
-
-mod inner;
-
-mod impl_fpvectorp;
+mod fp_wrapper;
+mod impl_fqvector;
 mod impl_slicemutp;
 mod impl_slicep;
 mod iter;
+
+pub use fp_wrapper::*;
+pub use inner::*;
 
 #[cfg(test)]
 mod tests {
@@ -23,10 +17,11 @@ mod tests {
     use proptest::prelude::*;
     use rstest::rstest;
 
-    use super::{inner::FpVectorP, *};
+    use super::{inner::FqVector, *};
     use crate::{
-        limb::{self, bit_length},
-        prime::{Prime, ValidPrime, P2},
+        field::{field_internal::FieldInternal, fp::F2, Fp},
+        limb,
+        prime::{Prime, ValidPrime},
     };
 
     pub struct VectorDiffEntry {
@@ -215,9 +210,10 @@ mod tests {
 
         #[test]
         fn test_bit_length(p in arb_prime()) {
-            prop_assert!(bit_length(p) <= 63);
+            prop_assert!(Fp::new(p).bit_length() <= 63);
         }
 
+        #[cfg(feature = "odd-primes")]
         #[test]
         fn test_incompatible_primes((p1, p2) in (arb_prime(), arb_prime())) {
             prop_assume!(p1 != p2);
@@ -656,8 +652,8 @@ mod tests {
     #[test]
     #[ignore]
     fn test_sign_rule() {
-        let mut in1 = FpVectorP::new(P2, 128);
-        let mut in2 = FpVectorP::new(P2, 128);
+        let mut in1 = FqVector::new(F2, 128);
+        let mut in2 = FqVector::new(F2, 128);
         let tests = [
             (
                 0x181e20846a820820,
