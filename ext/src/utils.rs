@@ -511,12 +511,15 @@ mod logging {
 
     #[cfg(feature = "logging")]
     pub fn ext_tracing_subscriber() -> impl tracing::Subscriber {
+        use std::io::IsTerminal;
+
         use tracing_subscriber::{
             filter::EnvFilter,
             fmt::{format::FmtSpan, Subscriber},
         };
 
         Subscriber::builder()
+            .with_ansi(std::io::stderr().is_terminal())
             .with_writer(std::io::stderr)
             .with_max_level(tracing::Level::INFO)
             .with_span_events(FmtSpan::NEW | FmtSpan::CLOSE)
