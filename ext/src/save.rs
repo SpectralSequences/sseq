@@ -79,10 +79,12 @@ fn open_files() -> &'static Mutex<HashSet<PathBuf>> {
             OPEN_FILES.write(Default::default());
             #[cfg(unix)]
             ctrlc::set_handler(move || {
+                tracing::warn!("Ctrl-C detected. Deleting open files and exiting.");
                 let files = open_files().lock().unwrap();
                 for file in &*files {
                     std::fs::remove_file(file)
                         .unwrap_or_else(|_| panic!("Error when deleting {file:?}"));
+                    tracing::warn!("Deleted {}", file.to_string_lossy());
                 }
                 std::process::exit(130);
             })
@@ -418,9 +420,16 @@ impl<A: Algebra> SaveFile<A> {
     }
 
     pub fn open_file(&self, dir: PathBuf) -> Option<Box<dyn Read>> {
-        let mut f = open_file(self.get_save_path(dir))?;
-        self.validate_header(&mut f).unwrap();
-        Some(f)
+        let file_path = self.get_save_path(dir);
+        let path_string = file_path.to_string_lossy().into_owned();
+        if let Some(mut f) = open_file(file_path) {
+            self.validate_header(&mut f).unwrap();
+            tracing::info!("success open_read: {}", path_string);
+            Some(f)
+        } else {
+            tracing::info!("failed open_read: {}", path_string);
+            None
+        }
     }
 
     pub fn exists(&self, dir: PathBuf) -> bool {
@@ -452,6 +461,7 @@ impl<A: Algebra> SaveFile<A> {
     ///  - `overwrite`: Whether to overwrite a file if it already exists.
     pub fn create_file(&self, dir: PathBuf, overwrite: bool) -> impl Write {
         let p = self.get_save_path(dir);
+        tracing::info!("open_write: {}", p.to_string_lossy());
 
         // We need to do this before creating any file. The ctrlc handler does not block other threads
         // from running, but it does lock [`open_files()`]. So this ensures we do not open new files
