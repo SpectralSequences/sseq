@@ -499,6 +499,16 @@
 <a href="#474" id="474">474</a>
 <a href="#475" id="475">475</a>
 <a href="#476" id="476">476</a>
+<a href="#477" id="477">477</a>
+<a href="#478" id="478">478</a>
+<a href="#479" id="479">479</a>
+<a href="#480" id="480">480</a>
+<a href="#481" id="481">481</a>
+<a href="#482" id="482">482</a>
+<a href="#483" id="483">483</a>
+<a href="#484" id="484">484</a>
+<a href="#485" id="485">485</a>
+<a href="#486" id="486">486</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     collections::HashSet,
     fs::File,
@@ -580,10 +590,12 @@
             OPEN_FILES.write(Default::default());
             <span class="attr">#[cfg(unix)]
             </span>ctrlc::set_handler(<span class="kw">move </span>|| {
+                <span class="macro">tracing::warn!</span>(<span class="string">"Ctrl-C detected. Deleting open files and exiting."</span>);
                 <span class="kw">let </span>files = open_files().lock().unwrap();
                 <span class="kw">for </span>file <span class="kw">in </span><span class="kw-2">&amp;*</span>files {
                     std::fs::remove_file(file)
                         .unwrap_or_else(|<span class="kw">_</span>| <span class="macro">panic!</span>(<span class="string">"Error when deleting {file:?}"</span>));
+                    <span class="macro">tracing::warn!</span>(<span class="string">"Deleted {}"</span>, file.to_string_lossy());
                 }
                 std::process::exit(<span class="number">130</span>);
             })
@@ -919,9 +931,16 @@
     }
 
     <span class="kw">pub fn </span>open_file(<span class="kw-2">&amp;</span><span class="self">self</span>, dir: PathBuf) -&gt; <span class="prelude-ty">Option</span>&lt;Box&lt;<span class="kw">dyn </span>Read&gt;&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>f = open_file(<span class="self">self</span>.get_save_path(dir))<span class="question-mark">?</span>;
-        <span class="self">self</span>.validate_header(<span class="kw-2">&amp;mut </span>f).unwrap();
-        <span class="prelude-val">Some</span>(f)
+        <span class="kw">let </span>file_path = <span class="self">self</span>.get_save_path(dir);
+        <span class="kw">let </span>path_string = file_path.to_string_lossy().into_owned();
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">mut </span>f) = open_file(file_path) {
+            <span class="self">self</span>.validate_header(<span class="kw-2">&amp;mut </span>f).unwrap();
+            <span class="macro">tracing::info!</span>(<span class="string">"success open_read: {}"</span>, path_string);
+            <span class="prelude-val">Some</span>(f)
+        } <span class="kw">else </span>{
+            <span class="macro">tracing::info!</span>(<span class="string">"failed open_read: {}"</span>, path_string);
+            <span class="prelude-val">None
+        </span>}
     }
 
     <span class="kw">pub fn </span>exists(<span class="kw-2">&amp;</span><span class="self">self</span>, dir: PathBuf) -&gt; bool {
@@ -953,6 +972,7 @@
     ///  - `overwrite`: Whether to overwrite a file if it already exists.
     </span><span class="kw">pub fn </span>create_file(<span class="kw-2">&amp;</span><span class="self">self</span>, dir: PathBuf, overwrite: bool) -&gt; <span class="kw">impl </span>Write {
         <span class="kw">let </span>p = <span class="self">self</span>.get_save_path(dir);
+        <span class="macro">tracing::info!</span>(<span class="string">"open_write: {}"</span>, p.to_string_lossy());
 
         <span class="comment">// We need to do this before creating any file. The ctrlc handler does not block other threads
         // from running, but it does lock [`open_files()`]. So this ensures we do not open new files
