@@ -577,6 +577,9 @@
 <a href="#552" id="552">552</a>
 <a href="#553" id="553">553</a>
 <a href="#554" id="554">554</a>
+<a href="#555" id="555">555</a>
+<a href="#556" id="556">556</a>
+<a href="#557" id="557">557</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! A module containing various utility functions related to user interaction in some way.
 </span><span class="kw">use </span>std::{path::PathBuf, sync::Arc};
 
@@ -1090,12 +1093,15 @@
 
     <span class="attr">#[cfg(feature = <span class="string">"logging"</span>)]
     </span><span class="kw">pub fn </span>ext_tracing_subscriber() -&gt; <span class="kw">impl </span>tracing::Subscriber {
+        <span class="kw">use </span>std::io::IsTerminal;
+
         <span class="kw">use </span>tracing_subscriber::{
             filter::EnvFilter,
             fmt::{format::FmtSpan, Subscriber},
         };
 
         Subscriber::builder()
+            .with_ansi(std::io::stderr().is_terminal())
             .with_writer(std::io::stderr)
             .with_max_level(tracing::Level::INFO)
             .with_span_events(FmtSpan::NEW | FmtSpan::CLOSE)
