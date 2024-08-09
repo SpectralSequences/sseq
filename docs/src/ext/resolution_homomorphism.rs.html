@@ -514,6 +514,7 @@
 <a href="#489" id="489">489</a>
 <a href="#490" id="490">490</a>
 <a href="#491" id="491">491</a>
+<a href="#492" id="492">492</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! This module defines [`MuResolutionHomomorphism`], which is a chain map from a
 //! [`FreeChainComplex`].
 </span><span class="kw">use </span>std::{ops::Range, sync::Arc};
@@ -717,6 +718,7 @@
     /// The user should call this function explicitly to manually define the chain map where the
     /// chain complex is not exact, and then call [`MuResolutionHomomorphism::extend_all`] to extend
     /// the rest by exactness.
+    </span><span class="attr">#[tracing::instrument(skip(<span class="self">self</span>, extra_images), fields(<span class="self">self </span>= <span class="self">self</span>.name, %input))]
     </span><span class="kw">pub fn </span>extend_step_raw(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         input: Bidegree,
