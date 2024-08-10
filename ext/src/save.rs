@@ -1,7 +1,7 @@
 use std::{
     collections::HashSet,
     fs::File,
-    io::{BufRead, BufReader, BufWriter, Error, ErrorKind, Read, Write},
+    io::{BufRead, BufReader, BufWriter, Cursor, Error, ErrorKind, Read, Write},
     path::{Path, PathBuf},
     sync::{Arc, Mutex},
 };
@@ -300,8 +300,35 @@ impl<T: Read> std::ops::Drop for ChecksumReader<T> {
 }
 
 /// Open the file pointed to by `path` as a `Box<dyn Read>`. If the file does not exist, look for
-/// compressed versions.
-fn open_file(path: PathBuf) -> Option<Box<dyn Read>> {
+/// compressed versions. If `early_check` is true, we check the checksum before returning the file.
+fn open_file(path: PathBuf, early_check: bool) -> Option<Box<dyn Read>> {
+    fn do_early_check<T: Read>(path: PathBuf, mut reader: T) -> Option<Box<dyn Read>> {
+        let mut file_contents = Vec::new();
+        let num_bytes = std::io::copy(&mut reader, &mut file_contents)
+            .unwrap_or_else(|e| panic!("Error when reading from {path:?}: {e}"));
+        if num_bytes < 4 {
+            tracing::warn!("File {path:?} is too short to contain a checksum. Deleting file.");
+            std::fs::remove_file(&path)
+                .unwrap_or_else(|e| panic!("Error when deleting {path:?}: {e}"));
+            return None;
+        }
+
+        let checksum_pos = num_bytes as usize - 4;
+        let (content_bytes, mut check_bytes) = file_contents.split_at(checksum_pos);
+        let mut adler = adler::Adler32::new();
+        adler.write_slice(content_bytes); // Everything except the 32-bit checksum
+        let checksum = check_bytes.read_u32::<LittleEndian>().unwrap();
+
+        if adler.checksum() == checksum {
+            Some(Box::new(Cursor::new(file_contents)))
+        } else {
+            tracing::warn!("Checksum mismatch for {path:?}. Deleting file.");
+            std::fs::remove_file(&path)
+                .unwrap_or_else(|e| panic!("Error when deleting {path:?}: {e}"));
+            None
+        }
+    }
+
     // We should try in decreasing order of access speed.
     match File::open(&path) {
         Ok(f) => {
@@ -316,7 +343,11 @@ fn open_file(path: PathBuf) -> Option<Box<dyn Read>> {
                     .unwrap_or_else(|e| panic!("Error when deleting empty file {path:?}: {e}"));
                 return None;
             }
-            return Some(Box::new(ChecksumReader::new(reader)));
+            return if early_check {
+                do_early_check(path, reader)
+            } else {
+                Some(Box::new(ChecksumReader::new(reader)))
+            };
         }
         Err(e) => {
             if e.kind() != ErrorKind::NotFound {
@@ -331,9 +362,12 @@ fn open_file(path: PathBuf) -> Option<Box<dyn Read>> {
         path.set_extension("zst");
         match File::open(&path) {
             Ok(f) => {
-                return Some(Box::new(ChecksumReader::new(
-                    zstd::stream::Decoder::new(f).unwrap(),
-                )))
+                let reader = zstd::stream::Decoder::new(f).unwrap();
+                return if early_check {
+                    do_early_check(path, reader)
+                } else {
+                    Some(Box::new(ChecksumReader::new(reader)))
+                };
             }
             Err(e) => {
                 if e.kind() != ErrorKind::NotFound {
@@ -399,6 +433,17 @@ impl<A: Algebra> SaveFile<A> {
         Ok(())
     }
 
+    /// Whether we should load the file in memory and check the checksum before returning it. This
+    /// only returns false for quasi-inverses because they are our largest files by far. This is a
+    /// function of `SaveFile` and not just `SaveKind` because we may want to change the behavior
+    /// depending on the stem or some other heuristic.
+    fn should_check_early(&self) -> bool {
+        !matches!(
+            self.kind,
+            SaveKind::AugmentationQi | SaveKind::NassauQi | SaveKind::ResQi
+        )
+    }
+
     /// This panics if there is no save dir
     fn get_save_path(&self, mut dir: PathBuf) -> PathBuf {
         if let Some(idx) = self.idx {
@@ -422,7 +467,7 @@ impl<A: Algebra> SaveFile<A> {
     pub fn open_file(&self, dir: PathBuf) -> Option<Box<dyn Read>> {
         let file_path = self.get_save_path(dir);
         let path_string = file_path.to_string_lossy().into_owned();
-        if let Some(mut f) = open_file(file_path) {
+        if let Some(mut f) = open_file(file_path, self.should_check_early()) {
             self.validate_header(&mut f).unwrap();
             tracing::info!("success open_read: {}", path_string);
             Some(f)
