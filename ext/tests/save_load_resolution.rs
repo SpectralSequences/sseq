@@ -41,7 +41,7 @@ fn unlock_tempdir(dir: &Path) {
 }
 
 #[test]
-#[should_panic]
+#[should_panic(expected = "Permission denied")]
 fn test_tempdir_lock() {
     let tempdir = tempfile::TempDir::new().unwrap();
     let resolution1 =
@@ -100,7 +100,7 @@ fn test_save_load() {
 }
 
 #[test]
-#[should_panic]
+#[should_panic(expected = "Invalid header: algebra was 0x20000 but expected 0x28000")]
 fn wrong_algebra() {
     let tempdir = tempfile::TempDir::new().unwrap();
     let resolution1 =
@@ -275,7 +275,7 @@ fn test_load_secondary() {
 }
 
 #[test]
-#[should_panic]
+#[should_panic(expected = "Invalid file checksum")]
 fn test_checksum() {
     use std::{
         fs::OpenOptions,
