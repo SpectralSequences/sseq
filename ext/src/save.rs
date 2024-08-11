@@ -302,7 +302,7 @@ impl<T: Read> std::ops::Drop for ChecksumReader<T> {
 /// Open the file pointed to by `path` as a `Box<dyn Read>`. If the file does not exist, look for
 /// compressed versions. If `early_check` is true, we check the checksum before returning the file.
 fn open_file(path: PathBuf, early_check: bool) -> Option<Box<dyn Read>> {
-    fn do_early_check<T: Read>(path: PathBuf, mut reader: T) -> Option<Box<dyn Read>> {
+    fn do_early_check(path: PathBuf, mut reader: impl Read) -> Option<Box<dyn Read>> {
         let mut file_contents = Vec::new();
         let num_bytes = std::io::copy(&mut reader, &mut file_contents)
             .unwrap_or_else(|e| panic!("Error when reading from {path:?}: {e}"));
@@ -314,10 +314,10 @@ fn open_file(path: PathBuf, early_check: bool) -> Option<Box<dyn Read>> {
         }
 
         let checksum_pos = num_bytes as usize - 4;
-        let (content_bytes, mut check_bytes) = file_contents.split_at(checksum_pos);
+        let (content_bytes, mut checksum_bytes) = file_contents.split_at(checksum_pos);
         let mut adler = adler::Adler32::new();
-        adler.write_slice(content_bytes); // Everything except the 32-bit checksum
-        let checksum = check_bytes.read_u32::<LittleEndian>().unwrap();
+        adler.write_slice(content_bytes);
+        let checksum = checksum_bytes.read_u32::<LittleEndian>().unwrap();
 
         if adler.checksum() == checksum {
             Some(Box::new(Cursor::new(file_contents)))
