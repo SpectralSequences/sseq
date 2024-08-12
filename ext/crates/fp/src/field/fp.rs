@@ -9,11 +9,13 @@ use crate::{constants::BITS_PER_LIMB, limb::Limb, prime::Prime};
 
 /// A prime field. This is just a wrapper around a prime.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub struct Fp<P>(P);
+pub struct Fp<P> {
+    p: P,
+}
 
 impl<P> Fp<P> {
     pub const fn new(p: P) -> Self {
-        Self(p)
+        Self { p }
     }
 }
 
@@ -21,7 +23,7 @@ impl<P: Prime> Field for Fp<P> {
     type Characteristic = P;
 
     fn characteristic(self) -> Self::Characteristic {
-        self.0
+        self.p
     }
 
     fn degree(self) -> u32 {
@@ -41,27 +43,27 @@ impl<P: Prime> FieldInternal for Fp<P> {
     type ElementContainer = u32;
 
     fn el(self, value: Self::ElementContainer) -> FieldElement<Self> {
-        FieldElement::new(self, value % self.0.as_u32())
+        FieldElement::new(self, value % self.p.as_u32())
     }
 
     fn add_assign(self, a: &mut FieldElement<Self>, b: FieldElement<Self>) {
-        a.value = self.0.sum(**a, *b);
+        a.value = self.p.sum(**a, *b);
     }
 
     fn mul_assign(self, a: &mut FieldElement<Self>, b: FieldElement<Self>) {
-        a.value = self.0.product(**a, *b);
+        a.value = self.p.product(**a, *b);
     }
 
     fn inv(self, a: FieldElement<Self>) -> Option<FieldElement<Self>> {
         if *a == 0 {
             None
         } else {
-            Some(self.el(crate::prime::inverse(self.0, *a)))
+            Some(self.el(crate::prime::inverse(self.p, *a)))
         }
     }
 
     fn neg(self, a: FieldElement<Self>) -> FieldElement<Self> {
-        self.el(if *a == 0 { 0 } else { self.0.as_u32() - *a })
+        self.el(if *a == 0 { 0 } else { self.p.as_u32() - *a })
     }
 
     fn frobenius(self, a: FieldElement<Self>) -> FieldElement<Self> {
@@ -76,7 +78,7 @@ impl<P: Prime> FieldInternal for Fp<P> {
         // We have to pass in the already reduced value to `Self::el` because we have no guarantee
         // that this Limb fits in a u32. For example, `element` could be the result of `fma_limb(0,
         // 1_000_000, 1_000_000)`, if the prime is large enough.
-        let prime_limb = self.0.as_u32() as Limb;
+        let prime_limb = self.p.as_u32() as Limb;
         self.el((element % prime_limb) as u32)
     }
 
@@ -133,13 +135,13 @@ impl<P> std::ops::Deref for Fp<P> {
     type Target = P;
 
     fn deref(&self) -> &Self::Target {
-        &self.0
+        &self.p
     }
 }
 
 impl<P: Prime> From<P> for Fp<P> {
     fn from(p: P) -> Self {
-        Self(p)
+        Self { p }
     }
 }
 
