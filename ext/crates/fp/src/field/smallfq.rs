@@ -1,4 +1,4 @@
-use std::sync::{Arc, LazyLock};
+use std::sync::LazyLock;
 
 use dashmap::DashMap as HashMap;
 
@@ -25,7 +25,7 @@ type Polynomial<P> = FqVector<Fp<P>>;
 /// Key is the field, value is a fully initialized table of Zech logarithms.
 ///
 /// [zech_logs]: https://en.wikipedia.org/wiki/Zech%27s_logarithm
-static ZECH_LOGS: LazyLock<HashMap<(ValidPrime, u32), Arc<ZechTable>>> =
+static ZECH_LOGS: LazyLock<HashMap<(ValidPrime, u32), &'static ZechTable>> =
     LazyLock::new(HashMap::new);
 
 fn mul_by_a<P: Prime>(conway_poly: &Polynomial<P>, poly: Polynomial<P>) -> Polynomial<P> {
@@ -47,12 +47,12 @@ fn mul_by_a<P: Prime>(conway_poly: &Polynomial<P>, poly: Polynomial<P>) -> Polyn
     next
 }
 
-fn make_zech_log_table<P: Prime>(fq: SmallFq<P>) -> ZechTable {
-    let prime_field = Fp::new(fq.characteristic());
+fn make_zech_log_table<P: Prime>(p: P, d: u32) -> ZechTable {
+    let prime_field = Fp::new(p);
     let conway_poly = {
-        let v = SMALL_CONWAY_POLYS[PRIME_TO_INDEX_MAP[fq.p.as_usize()]][fq.d as usize - 2]
+        let v = SMALL_CONWAY_POLYS[PRIME_TO_INDEX_MAP[p.as_usize()]][d as usize - 2]
             .iter()
-            .take(fq.d as usize + 1)
+            .take(d as usize + 1)
             .map(|c| prime_field.el(*c))
             .collect::<Vec<_>>();
         Polynomial::from_slice(prime_field, &v)
@@ -66,18 +66,19 @@ fn make_zech_log_table<P: Prime>(fq: SmallFq<P>) -> ZechTable {
     current.set_entry(0, prime_field.one());
     poly_to_power.insert(current.clone(), 0);
 
-    for i in 1..fq.q() - 1 {
+    let q = p.pow(d);
+    for i in 1..q - 1 {
         current = mul_by_a(current);
         poly_to_power.insert(current.clone(), i);
     }
 
     // Loop over all elements again, but now recording logarithms.
     let table = ZechTable::new();
-    table.insert(fq.zero().val(), fq.one().val());
+    table.insert(SmallFqElement(None), SmallFqElement(Some(0)));
 
     let mut current = Polynomial::new(prime_field, conway_poly.len());
     current.set_entry(0, prime_field.one());
-    for i in 0..fq.q() - 1 {
+    for i in 0..q - 1 {
         let mut current_plus_1 = current.clone();
         current_plus_1.add_basis_element(0, prime_field.one());
         table.insert(
@@ -92,19 +93,26 @@ fn make_zech_log_table<P: Prime>(fq: SmallFq<P>) -> ZechTable {
 
 /// Return the Zech logarithm table for the given field. If it does not exist yet, initialize it.
 /// The initialization might be fairly expensive (several ms).
-fn zech_logs<P: Prime>(fq: SmallFq<P>) -> Arc<ZechTable> {
-    let table = ZECH_LOGS
-        .entry((fq.p.to_dyn(), fq.d))
-        .or_insert_with(|| Arc::new(make_zech_log_table(fq)));
-    Arc::clone(&table)
+fn zech_logs<P: Prime>(p: P, d: u32) -> &'static ZechTable {
+    let table = ZECH_LOGS.entry((p.to_dyn(), d)).or_insert_with(|| {
+        // From the documentation for `Box::leak`: "This function is mainly useful for data that
+        // lives for the remainder of the program's life". Zech tables are initialized once and
+        // then never mutated, so even storing an immutable reference is fine.
+        Box::leak(Box::new(make_zech_log_table(p, d)))
+    });
+    *table
 }
 
 /// A field of order `q = p^d`, where `q < 2^16` and `d > 1`. Fields of that size are small enough
 /// that we can cache their Zech logarithms.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+///
+/// Note: This populates the Zech logarithm table eagerly, which can be rather expensive (several
+/// milliseconds). Only construct these fields if you're going to use them.
+#[derive(Debug, Copy, Clone)]
 pub struct SmallFq<P> {
     p: P,
     d: u32,
+    table: &'static ZechTable,
 }
 
 impl<P: Prime> SmallFq<P> {
@@ -112,7 +120,11 @@ impl<P: Prime> SmallFq<P> {
         assert!(d > 1, "Use Fp for prime fields");
         assert!(log2(p.pow(d) as usize) < 16, "Field too large");
 
-        Self { p, d }
+        Self {
+            p,
+            d,
+            table: zech_logs(p, d),
+        }
     }
 
     /// Return the element `-1`. If `p = 2`, this is `a^0 = 1`. Otherwise, it is `a^((q - 1) / 2)`.
@@ -124,6 +136,21 @@ impl<P: Prime> SmallFq<P> {
     /// The distinguished primitive element that generates the multiplicative group of the field.
     pub fn a(self) -> FieldElement<Self> {
         self.el(SmallFqElement(Some(1)))
+    }
+}
+
+impl<P: Prime> PartialEq for SmallFq<P> {
+    fn eq(&self, other: &Self) -> bool {
+        self.p == other.p && self.d == other.d
+    }
+}
+
+impl<P: Prime> Eq for SmallFq<P> {}
+
+impl<P: Prime> std::hash::Hash for SmallFq<P> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.p.hash(state);
+        self.d.hash(state);
     }
 }
 
@@ -173,9 +200,8 @@ impl<P: Prime> FieldInternal for SmallFq<P> {
             (a, SmallFqElement(None)) => a,
             (SmallFqElement(Some(a)), SmallFqElement(Some(b))) => {
                 // a^m + a^n = a^m (1 + a^(n - m)) = a^(m + Zech(n - m))
-                let table = zech_logs(self);
                 let (a, b) = if a >= b { (a, b) } else { (b, a) };
-                let zech = table.get(&SmallFqElement(Some(a - b))).unwrap();
+                let zech = self.table.get(&SmallFqElement(Some(a - b))).unwrap();
                 if let Some(zech) = zech.0 {
                     SmallFqElement(Some(b + zech))
                 } else {
