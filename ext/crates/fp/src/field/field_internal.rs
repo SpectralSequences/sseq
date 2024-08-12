@@ -179,6 +179,7 @@ pub trait FieldInternal: Copy + PartialEq + Eq + Hash + Sized {
     }
 
     /// Return either `Some(sum)` if no carries happen in the limb, or `None` if some carry does happen.
+    // TODO: maybe name this something clearer
     fn truncate(self, sum: Limb) -> Option<Limb> {
         if self.is_reduced(sum) {
             Some(sum)
