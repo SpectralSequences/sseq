@@ -28,64 +28,68 @@ type Polynomial<P> = FqVector<Fp<P>>;
 static ZECH_LOGS: LazyLock<HashMap<(ValidPrime, u32), Arc<ZechTable>>> =
     LazyLock::new(HashMap::new);
 
+fn make_zech_log_table<P: Prime>(fq: SmallFq<P>) -> ZechTable {
+    let prime_field = Fp::new(fq.characteristic());
+    let conway_poly = {
+        let v = SMALL_CONWAY_POLYS[PRIME_TO_INDEX_MAP[fq.p.as_usize()]][fq.d as usize - 2]
+            .iter()
+            .take(fq.d as usize + 1)
+            .map(|c| prime_field.el(*c))
+            .collect::<Vec<_>>();
+        Polynomial::from_slice(prime_field, &v)
+    };
+    let mul_by_a = |current: Polynomial<P>| {
+        // Shift all entries up by one. We're assuming that cur is a polynomial representing an
+        // element of the field, so the top coefficient is zero, and there is no overflow.
+        let mut next = Polynomial::from_slice(
+            prime_field,
+            &std::iter::once(prime_field.zero())
+                .chain(current.iter())
+                .take(current.len())
+                .collect::<Vec<_>>(),
+        );
+        let leading_coeff = next.entry(next.len() - 1);
+        next.add(&conway_poly, -leading_coeff);
+        next
+    };
+
+    // Generate a lookup table. For every element represented as a polynomial, we store the
+    // power of `a` that corresponds to it.
+    let poly_to_power: HashMap<Polynomial<P>, u32> = HashMap::new();
+    let mut current = Polynomial::new(prime_field, conway_poly.len());
+    current.set_entry(0, prime_field.one());
+    poly_to_power.insert(current.clone(), 0);
+
+    for i in 1..fq.q() - 1 {
+        current = mul_by_a(current);
+        poly_to_power.insert(current.clone(), i);
+    }
+
+    // Loop over all elements again, but now recording logarithms.
+    let table = ZechTable::new();
+    table.insert(fq.zero().val(), fq.one().val());
+
+    let mut current = Polynomial::new(prime_field, conway_poly.len());
+    current.set_entry(0, prime_field.one());
+    for i in 0..fq.q() - 1 {
+        let mut current_plus_1 = current.clone();
+        current_plus_1.add_basis_element(0, prime_field.one());
+        table.insert(
+            SmallFqElement(Some(i)),
+            SmallFqElement(poly_to_power.get(&current_plus_1).as_deref().copied()),
+        );
+
+        current = mul_by_a(current);
+    }
+    table
+}
+
 /// Return the Zech logarithm table for the given field. If it does not exist yet, initialize it.
 /// The initialization might be fairly expensive (several ms).
 fn zech_logs<P: Prime>(fq: SmallFq<P>) -> Arc<ZechTable> {
-    let table = ZECH_LOGS.entry((fq.p.to_dyn(), fq.d)).or_insert_with(|| {
-        let prime_field = Fp::new(fq.characteristic());
-        let conway_poly = {
-            let v = SMALL_CONWAY_POLYS[PRIME_TO_INDEX_MAP[fq.p.as_usize()]][fq.d as usize - 2]
-                .iter()
-                .take(fq.d as usize + 1)
-                .map(|c| prime_field.el(*c))
-                .collect::<Vec<_>>();
-            Polynomial::from_slice(prime_field, &v)
-        };
-        let mul_by_a = |current: Polynomial<P>| {
-            // Shift all entries up by one. We're assuming that cur is a polynomial representing an
-            // element of the field, so the top coefficient is zero, and there is no overflow.
-            let mut next = Polynomial::from_slice(
-                prime_field,
-                &std::iter::once(prime_field.zero())
-                    .chain(current.iter())
-                    .take(current.len())
-                    .collect::<Vec<_>>(),
-            );
-            let leading_coeff = next.entry(next.len() - 1);
-            next.add(&conway_poly, -leading_coeff);
-            next
-        };
-
-        // Generate a lookup table. For every element represented as a polynomial, we store the
-        // power of `a` that corresponds to it.
-        let poly_to_power: HashMap<Polynomial<P>, u32> = HashMap::new();
-        let mut current = Polynomial::new(prime_field, conway_poly.len());
-        current.set_entry(0, prime_field.one());
-        poly_to_power.insert(current.clone(), 0);
-
-        for i in 1..fq.q() - 1 {
-            current = mul_by_a(current);
-            poly_to_power.insert(current.clone(), i);
-        }
-
-        // Loop over all elements again, but now recording logarithms.
-        let table = ZechTable::new();
-        table.insert(fq.zero().val(), fq.one().val());
-
-        let mut current = Polynomial::new(prime_field, conway_poly.len());
-        current.set_entry(0, prime_field.one());
-        for i in 0..fq.q() - 1 {
-            let mut current_plus_1 = current.clone();
-            current_plus_1.add_basis_element(0, prime_field.one());
-            table.insert(
-                SmallFqElement(Some(i)),
-                SmallFqElement(poly_to_power.get(&current_plus_1).as_deref().copied()),
-            );
-
-            current = mul_by_a(current);
-        }
-        Arc::new(table)
-    });
+    let table = ZECH_LOGS
+        .entry((fq.p.to_dyn(), fq.d))
+        .or_insert_with(|| Arc::new(make_zech_log_table(fq)));
     Arc::clone(&table)
 }
 
