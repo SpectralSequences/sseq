@@ -61,7 +61,7 @@ impl<P: Prime> FieldInternal for Fp<P> {
     }
 
     fn neg(self, a: FieldElement<Self>) -> FieldElement<Self> {
-        self.el(if *a > 0 { self.0.as_u32() - *a } else { 0 })
+        self.el(if *a == 0 { 0 } else { self.0.as_u32() - *a })
     }
 
     fn frobenius(self, a: FieldElement<Self>) -> FieldElement<Self> {
@@ -83,6 +83,7 @@ impl<P: Prime> FieldInternal for Fp<P> {
     fn bit_length(self) -> usize {
         let p = self.characteristic().as_u32() as u64;
         match p {
+            // 2 is a special case b/c bitwise xor does the add and reduce together so we only need enough bits to fit p-1.
             2 => 1,
             _ => (BITS_PER_LIMB as u32 - (p * (p - 1)).leading_zeros()) as usize,
         }
@@ -122,6 +123,7 @@ impl<P: Prime> FieldInternal for Fp<P> {
                 let d = m & BOTTOM_THREE_BITS;
                 d + c - BOTTOM_TWO_BITS
             }
+            // Slow generic fallback. If anyone cares enough about some larger prime, they can add a faster implementation
             _ => self.pack(self.unpack(limb)),
         }
     }

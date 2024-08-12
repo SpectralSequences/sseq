@@ -174,11 +174,7 @@ pub trait FieldInternal: Copy + PartialEq + Eq + Hash + Sized {
     /// ending at the index of the limb containing the `end`th entry (including the latter).
     fn range(self, start: usize, end: usize) -> Range<usize> {
         let min = self.limb_bit_index_pair(start).limb;
-        let max = if end > 0 {
-            self.limb_bit_index_pair(end - 1).limb + 1
-        } else {
-            0
-        };
+        let max = self.number(end);
         min..max
     }
 
