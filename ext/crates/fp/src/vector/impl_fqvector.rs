@@ -38,6 +38,10 @@ impl<F: Field> FqVector<F> {
         v
     }
 
+    pub fn fq(&self) -> F {
+        self.fq
+    }
+
     pub const fn len(&self) -> usize {
         self.len
     }

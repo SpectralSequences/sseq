@@ -28,6 +28,25 @@ type Polynomial<P> = FqVector<Fp<P>>;
 static ZECH_LOGS: LazyLock<HashMap<(ValidPrime, u32), Arc<ZechTable>>> =
     LazyLock::new(HashMap::new);
 
+fn mul_by_a<P: Prime>(conway_poly: &Polynomial<P>, poly: Polynomial<P>) -> Polynomial<P> {
+    let prime_field = conway_poly.fq();
+
+    // Shift all entries up by one. We're assuming that `poly` is a polynomial representing an
+    // element of the field, so the top coefficient is zero, and there is no overflow.
+    // TODO: If we ever implement a way to shift the coefficients of a vector in-place, this would
+    // be a good place to use it.
+    let mut next = Polynomial::from_slice(
+        prime_field,
+        &std::iter::once(prime_field.zero())
+            .chain(poly.iter())
+            .take(poly.len())
+            .collect::<Vec<_>>(),
+    );
+    let leading_coeff = next.entry(next.len() - 1);
+    next.add(conway_poly, -leading_coeff);
+    next
+}
+
 fn make_zech_log_table<P: Prime>(fq: SmallFq<P>) -> ZechTable {
     let prime_field = Fp::new(fq.characteristic());
     let conway_poly = {
@@ -38,20 +57,7 @@ fn make_zech_log_table<P: Prime>(fq: SmallFq<P>) -> ZechTable {
             .collect::<Vec<_>>();
         Polynomial::from_slice(prime_field, &v)
     };
-    let mul_by_a = |current: Polynomial<P>| {
-        // Shift all entries up by one. We're assuming that cur is a polynomial representing an
-        // element of the field, so the top coefficient is zero, and there is no overflow.
-        let mut next = Polynomial::from_slice(
-            prime_field,
-            &std::iter::once(prime_field.zero())
-                .chain(current.iter())
-                .take(current.len())
-                .collect::<Vec<_>>(),
-        );
-        let leading_coeff = next.entry(next.len() - 1);
-        next.add(&conway_poly, -leading_coeff);
-        next
-    };
+    let mul_by_a = |current| mul_by_a(&conway_poly, current);
 
     // Generate a lookup table. For every element represented as a polynomial, we store the
     // power of `a` that corresponds to it.
