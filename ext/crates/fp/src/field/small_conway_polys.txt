@@ -1,3 +1,12 @@
+// Adapted from the lists at
+// https://www.math.rwth-aachen.de/~Frank.Luebeck/data/ConwayPol/index.html
+//
+// The ordering is nth prime -> degree -> polynomial. The polynomials are in the form of a list of
+// coefficients, with the first element being the constant term. We support fields of size less than
+// 2^16 and degree at least 2, so we only need to hardcode the polynomials for primes up to 256,
+// i.e. the first 54 primes. Most of the entries are zero because the prime 2 requires 15
+// polynomials, with the largest number of coefficients being 17. The padding makes this a nice even
+// `[[[u32; 17]; 15]; 54]`.
 [[[1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   [1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   [1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
