@@ -36,9 +36,8 @@ fn zech_logs<P: Prime>(fq: SmallFq<P>) -> Arc<ZechTable> {
         let conway_poly = {
             let v = SMALL_CONWAY_POLYS[PRIME_TO_INDEX_MAP[fq.p.as_usize()]][fq.d as usize - 2]
                 .iter()
-                .copied()
                 .take(fq.d as usize + 1)
-                .map(|c| prime_field.el(c))
+                .map(|c| prime_field.el(*c))
                 .collect::<Vec<_>>();
             Polynomial::from_slice(prime_field, &v)
         };
