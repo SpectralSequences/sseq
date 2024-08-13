@@ -329,12 +329,42 @@ pub fn minus_one_to_the_n<P: Prime>(p: P, i: i32) -> u32 {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
+    use std::sync::OnceLock;
+
+    use proptest::prelude::*;
+
     use super::{binomial::Binomial, inverse, iter::BinomialIterator, Prime, ValidPrime};
     use crate::{
         constants::PRIMES,
         prime::{is_prime, PrimeError},
     };
+
+    /// An arbitrary `ValidPrime` in the range `2..(1 << 24)`, plus the largest prime that we support.
+    pub(crate) fn arb_prime() -> impl Strategy<Value = ValidPrime> {
+        static TEST_PRIMES: OnceLock<Vec<ValidPrime>> = OnceLock::new();
+        let test_primes = TEST_PRIMES.get_or_init(|| {
+            // Sieve of erathosthenes
+            const MAX: usize = 1 << 24;
+            let mut is_prime = Vec::new();
+            is_prime.resize_with(MAX, || true);
+            is_prime[0] = false;
+            is_prime[1] = false;
+            for i in 2..MAX {
+                if is_prime[i] {
+                    for j in ((2 * i)..MAX).step_by(i) {
+                        is_prime[j] = false;
+                    }
+                }
+            }
+            (0..MAX)
+                .filter(|&i| is_prime[i])
+                .map(|p| ValidPrime::new_unchecked(p as u32))
+                .chain(std::iter::once(ValidPrime::new_unchecked(2147483647)))
+                .collect()
+        });
+        (0..test_primes.len()).prop_map(|i| test_primes[i])
+    }
 
     #[test]
     fn validprime_test() {
