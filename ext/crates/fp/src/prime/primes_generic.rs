@@ -17,6 +17,16 @@ impl_try_from!(P3, P3);
 impl_try_from!(P5, P5);
 impl_try_from!(P7, P7);
 
+pub(crate) mod fp {
+    use super::{P2, P3, P5, P7};
+    use crate::field::Fp;
+
+    pub const F2: Fp<P2> = Fp::new(P2);
+    pub const F3: Fp<P3> = Fp::new(P3);
+    pub const F5: Fp<P5> = Fp::new(P5);
+    pub const F7: Fp<P7> = Fp::new(P7);
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ValidPrime {
     p: u32,

@@ -9,16 +9,19 @@ edition = "2021"
 build_const = "0.2.2"
 byteorder = "1.4.3"
 cfg-if = "1.0.0"
+dashmap = "5"
 itertools = { version = "0.10.0", default-features = false }
 serde = "1.0.0"
 serde_json = "1.0.0"
 
 maybe-rayon = { path = "../maybe-rayon" }
+paste = "1.0.15"
 
 [dev-dependencies]
-criterion = { version = "0.3.5", features = ["html_reports"] }
+criterion = { version = "0.5", features = ["html_reports"] }
 expect-test = "1.1.0"
 iai = "0.1.1"
+pprof = { version = "0.13.0", features = ["criterion", "flamegraph"] }
 proptest = "1.2"
 rand = "0.8.4"
 rstest = "0.17.0"
@@ -31,10 +34,10 @@ default = ["odd-primes"]
 concurrent = ["maybe-rayon/concurrent"]
 odd-primes = []
 
-[[bench]]
-name = "criterion"
-harness = false
+# [[bench]]
+# name = "criterion"
+# harness = false
 
 [[bench]]
-name = "iai"
+name = "smallfq"
 harness = false

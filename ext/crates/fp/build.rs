@@ -5,8 +5,12 @@ use build_const::ConstWriter;
 type Limb = u64;
 
 fn main() -> Result<(), Error> {
-    let num_primes = 8;
-    let primes = first_n_primes(num_primes);
+    // We want primes up to 2^8 - 1, because those will be the characteristics of the fields that
+    // have degree at least 2 and order at most 2^16 - 1. We will use PRIME_TO_INDEX_MAP when
+    // computing Zech logarithms.
+    let prime_bound = u8::MAX;
+    let primes = primes_up_to(prime_bound);
+    let num_primes = primes.len();
     let max_prime = *primes.last().unwrap();
     let not_a_prime: usize = u32::MAX as usize; // Hack for 32-bit architectures
     let max_multinomial_len = 10;
@@ -55,16 +59,8 @@ fn main() -> Result<(), Error> {
     Ok(())
 }
 
-fn first_n_primes(n: usize) -> Vec<u32> {
-    let mut acc = vec![];
-    let mut i = 2;
-    while acc.len() < n {
-        if is_prime(i) {
-            acc.push(i);
-        }
-        i += 1;
-    }
-    acc
+fn primes_up_to(n: impl Into<u32>) -> Vec<u32> {
+    (2..=n.into()).filter(|&i| is_prime(i)).collect()
 }
 
 fn is_prime(i: u32) -> bool {
