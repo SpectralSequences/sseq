@@ -17,7 +17,7 @@ use crate::{
 
 static SMALL_CONWAY_POLYS: [[[u32; 17]; 15]; 54] = include!("small_conway_polys.txt");
 
-type ZechTable = Vec<SmallFqElement>;
+type ZechTable = &'static [SmallFqElement];
 type Polynomial<P> = FqVector<Fp<P>>;
 
 /// A table of lazily initialized [Zech logarithms][zech_logs].
@@ -25,8 +25,7 @@ type Polynomial<P> = FqVector<Fp<P>>;
 /// Key is the field, value is a fully initialized table of Zech logarithms.
 ///
 /// [zech_logs]: https://en.wikipedia.org/wiki/Zech%27s_logarithm
-static ZECH_LOGS: LazyLock<HashMap<(ValidPrime, u32), &'static ZechTable>> =
-    LazyLock::new(HashMap::new);
+static ZECH_LOGS: LazyLock<HashMap<(ValidPrime, u32), ZechTable>> = LazyLock::new(HashMap::new);
 
 fn mul_by_a<P: Prime>(conway_poly: &Polynomial<P>, poly: Polynomial<P>) -> Polynomial<P> {
     let prime_field = conway_poly.fq();
@@ -83,18 +82,18 @@ fn make_zech_log_table<P: Prime>(p: P, d: u32) -> ZechTable {
 
         current = mul_by_a(current);
     }
-    table
+    // From the documentation for `Box::leak`: "This function is mainly useful for data that lives
+    // for the remainder of the program's life". Zech tables are initialized once and then never
+    // mutated, so even storing an immutable reference is fine.
+    Box::leak(table.into_boxed_slice())
 }
 
 /// Return the Zech logarithm table for the given field. If it does not exist yet, initialize it.
 /// The initialization might be fairly expensive (several ms).
-fn zech_logs<P: Prime>(p: P, d: u32) -> &'static ZechTable {
-    let table = ZECH_LOGS.entry((p.to_dyn(), d)).or_insert_with(|| {
-        // From the documentation for `Box::leak`: "This function is mainly useful for data that
-        // lives for the remainder of the program's life". Zech tables are initialized once and
-        // then never mutated, so even storing an immutable reference is fine.
-        Box::leak(Box::new(make_zech_log_table(p, d)))
-    });
+fn zech_logs<P: Prime>(p: P, d: u32) -> ZechTable {
+    let table = ZECH_LOGS
+        .entry((p.to_dyn(), d))
+        .or_insert_with(|| make_zech_log_table(p, d));
     *table
 }
 
@@ -108,7 +107,7 @@ pub struct SmallFq<P> {
     p: P,
     d: u32,
     q: u32,
-    table: &'static ZechTable,
+    table: ZechTable,
 }
 
 impl<P: Prime> SmallFq<P> {
