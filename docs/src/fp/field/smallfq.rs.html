@@ -318,7 +318,6 @@
 <a href="#293" id="293">293</a>
 <a href="#294" id="294">294</a>
 <a href="#295" id="295">295</a>
-<a href="#296" id="296">296</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::LazyLock;
 
 <span class="kw">use </span>dashmap::DashMap <span class="kw">as </span>HashMap;
@@ -338,7 +337,7 @@
 
 <span class="kw">static </span>SMALL_CONWAY_POLYS: [[[u32; <span class="number">17</span>]; <span class="number">15</span>]; <span class="number">54</span>] = <span class="macro">include!</span>(<span class="string">"small_conway_polys.txt"</span>);
 
-<span class="kw">type </span>ZechTable = Vec&lt;SmallFqElement&gt;;
+<span class="kw">type </span>ZechTable = <span class="kw-2">&amp;</span><span class="lifetime">'static </span>[SmallFqElement];
 <span class="kw">type </span>Polynomial&lt;P&gt; = FqVector&lt;Fp&lt;P&gt;&gt;;
 
 <span class="doccomment">/// A table of lazily initialized [Zech logarithms][zech_logs].
@@ -346,8 +345,7 @@
 /// Key is the field, value is a fully initialized table of Zech logarithms.
 ///
 /// [zech_logs]: https://en.wikipedia.org/wiki/Zech%27s_logarithm
-</span><span class="kw">static </span>ZECH_LOGS: LazyLock&lt;HashMap&lt;(ValidPrime, u32), <span class="kw-2">&amp;</span><span class="lifetime">'static </span>ZechTable&gt;&gt; =
-    LazyLock::new(HashMap::new);
+</span><span class="kw">static </span>ZECH_LOGS: LazyLock&lt;HashMap&lt;(ValidPrime, u32), ZechTable&gt;&gt; = LazyLock::new(HashMap::new);
 
 <span class="kw">fn </span>mul_by_a&lt;P: Prime&gt;(conway_poly: <span class="kw-2">&amp;</span>Polynomial&lt;P&gt;, poly: Polynomial&lt;P&gt;) -&gt; Polynomial&lt;P&gt; {
     <span class="kw">let </span>prime_field = conway_poly.fq();
@@ -404,18 +402,18 @@
 
         current = mul_by_a(current);
     }
-    table
+    <span class="comment">// From the documentation for `Box::leak`: "This function is mainly useful for data that lives
+    // for the remainder of the program's life". Zech tables are initialized once and then never
+    // mutated, so even storing an immutable reference is fine.
+    </span>Box::leak(table.into_boxed_slice())
 }
 
 <span class="doccomment">/// Return the Zech logarithm table for the given field. If it does not exist yet, initialize it.
 /// The initialization might be fairly expensive (several ms).
-</span><span class="kw">fn </span>zech_logs&lt;P: Prime&gt;(p: P, d: u32) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'static </span>ZechTable {
-    <span class="kw">let </span>table = ZECH_LOGS.entry((p.to_dyn(), d)).or_insert_with(|| {
-        <span class="comment">// From the documentation for `Box::leak`: "This function is mainly useful for data that
-        // lives for the remainder of the program's life". Zech tables are initialized once and
-        // then never mutated, so even storing an immutable reference is fine.
-        </span>Box::leak(Box::new(make_zech_log_table(p, d)))
-    });
+</span><span class="kw">fn </span>zech_logs&lt;P: Prime&gt;(p: P, d: u32) -&gt; ZechTable {
+    <span class="kw">let </span>table = ZECH_LOGS
+        .entry((p.to_dyn(), d))
+        .or_insert_with(|| make_zech_log_table(p, d));
     <span class="kw-2">*</span>table
 }
 
@@ -429,7 +427,7 @@
     p: P,
     d: u32,
     q: u32,
-    table: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>ZechTable,
+    table: ZechTable,
 }
 
 <span class="kw">impl</span>&lt;P: Prime&gt; SmallFq&lt;P&gt; {
