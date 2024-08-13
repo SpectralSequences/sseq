@@ -177,21 +177,23 @@
 <a href="#152" id="152">152</a>
 <a href="#153" id="153">153</a>
 <a href="#154" id="154">154</a>
+<a href="#155" id="155">155</a>
 </pre></div><pre class="rust"><code><span class="kw">use super</span>::{
-    inner::{FpVectorP, SliceP},
-    iter::{FpVectorIterator, FpVectorNonZeroIteratorP},
+    inner::{FqVector, SliceP},
+    iter::{FqVectorIteratorP, FqVectorNonZeroIteratorP},
 };
 <span class="kw">use crate</span>::{
     constants,
-    limb::{<span class="self">self</span>, Limb},
+    field::{element::FieldElement, Field},
+    limb::Limb,
     prime::{Prime, ValidPrime},
 };
 
 <span class="comment">// Public methods
 
-</span><span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, P: Prime&gt; SliceP&lt;<span class="lifetime">'a</span>, P&gt; {
+</span><span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, F: Field&gt; SliceP&lt;<span class="lifetime">'a</span>, F&gt; {
     <span class="kw">pub fn </span>prime(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ValidPrime {
-        <span class="self">self</span>.p.to_dyn()
+        <span class="self">self</span>.fq.characteristic().to_dyn()
     }
 
     <span class="kw">pub fn </span>len(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
@@ -202,28 +204,28 @@
         <span class="self">self</span>.start == <span class="self">self</span>.end
     }
 
-    <span class="kw">pub fn </span>entry(<span class="kw-2">&amp;</span><span class="self">self</span>, index: usize) -&gt; u32 {
+    <span class="kw">pub fn </span>entry(<span class="kw-2">&amp;</span><span class="self">self</span>, index: usize) -&gt; FieldElement&lt;F&gt; {
         <span class="macro">debug_assert!</span>(
             index &lt; <span class="self">self</span>.len(),
             <span class="string">"Index {} too large, length of vector is only {}."</span>,
             index,
             <span class="self">self</span>.len()
         );
-        <span class="kw">let </span>bit_mask = limb::bitmask(<span class="self">self</span>.p);
-        <span class="kw">let </span>limb_index = limb::limb_bit_index_pair(<span class="self">self</span>.p, index + <span class="self">self</span>.start);
+        <span class="kw">let </span>bit_mask = <span class="self">self</span>.fq.bitmask();
+        <span class="kw">let </span>limb_index = <span class="self">self</span>.fq.limb_bit_index_pair(index + <span class="self">self</span>.start);
         <span class="kw">let </span><span class="kw-2">mut </span>result = <span class="self">self</span>.limbs[limb_index.limb];
         result &gt;&gt;= limb_index.bit_index;
         result &amp;= bit_mask;
-        result <span class="kw">as </span>u32
+        <span class="self">self</span>.fq.decode(result)
     }
 
     <span class="doccomment">/// TODO: implement prime 2 version
-    </span><span class="kw">pub fn </span>iter(<span class="self">self</span>) -&gt; FpVectorIterator&lt;<span class="lifetime">'a</span>&gt; {
-        FpVectorIterator::new(<span class="self">self</span>)
+    </span><span class="kw">pub fn </span>iter(<span class="self">self</span>) -&gt; FqVectorIteratorP&lt;<span class="lifetime">'a</span>, F&gt; {
+        FqVectorIteratorP::new(<span class="self">self</span>)
     }
 
-    <span class="kw">pub fn </span>iter_nonzero(<span class="self">self</span>) -&gt; FpVectorNonZeroIteratorP&lt;<span class="lifetime">'a</span>, P&gt; {
-        FpVectorNonZeroIteratorP::new(<span class="self">self</span>)
+    <span class="kw">pub fn </span>iter_nonzero(<span class="self">self</span>) -&gt; FqVectorNonZeroIteratorP&lt;<span class="lifetime">'a</span>, F&gt; {
+        FqVectorNonZeroIteratorP::new(<span class="self">self</span>)
     }
 
     <span class="kw">pub fn </span>is_zero(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
@@ -250,19 +252,19 @@
     </span><span class="kw">pub fn </span>slice(<span class="self">self</span>, start: usize, end: usize) -&gt; <span class="self">Self </span>{
         <span class="macro">assert!</span>(start &lt;= end &amp;&amp; end &lt;= <span class="self">self</span>.len());
 
-        <span class="self">Self </span>{
-            p: <span class="self">self</span>.p,
+        SliceP {
+            fq: <span class="self">self</span>.fq,
             limbs: <span class="self">self</span>.limbs,
             start: <span class="self">self</span>.start + start,
             end: <span class="self">self</span>.start + end,
         }
     }
 
-    <span class="doccomment">/// Converts a slice to an owned FpVectorP. This is vastly more efficient if the start of the vector is aligned.
+    <span class="doccomment">/// Converts a slice to an owned FqVector. This is vastly more efficient if the start of the vector is aligned.
     </span><span class="attr">#[must_use]
-    </span><span class="kw">pub fn </span>to_owned(<span class="self">self</span>) -&gt; FpVectorP&lt;P&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>new = FpVectorP::new(<span class="self">self</span>.p, <span class="self">self</span>.len());
-        <span class="kw">if </span><span class="self">self</span>.start % limb::entries_per_limb(<span class="self">self</span>.p) == <span class="number">0 </span>{
+    </span><span class="kw">pub fn </span>to_owned(<span class="self">self</span>) -&gt; FqVector&lt;F&gt; {
+        <span class="kw">let </span><span class="kw-2">mut </span>new = FqVector::new(<span class="self">self</span>.fq, <span class="self">self</span>.len());
+        <span class="kw">if </span><span class="self">self</span>.start % <span class="self">self</span>.fq.entries_per_limb() == <span class="number">0 </span>{
             <span class="kw">let </span>limb_range = <span class="self">self</span>.limb_range();
             new.limbs[<span class="number">0</span>..limb_range.len()].copy_from_slice(<span class="kw-2">&amp;</span><span class="self">self</span>.limbs[limb_range]);
             <span class="kw">if </span>!new.limbs.is_empty() {
@@ -277,17 +279,17 @@
 }
 
 <span class="comment">// Limb methods
-</span><span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, P: Prime&gt; SliceP&lt;<span class="lifetime">'a</span>, P&gt; {
+</span><span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, F: Field&gt; SliceP&lt;<span class="lifetime">'a</span>, F&gt; {
     <span class="attr">#[inline]
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>offset(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
-        <span class="kw">let </span>bit_length = limb::bit_length(<span class="self">self</span>.p);
-        <span class="kw">let </span>entries_per_limb = limb::entries_per_limb(<span class="self">self</span>.p);
+        <span class="kw">let </span>bit_length = <span class="self">self</span>.fq.bit_length();
+        <span class="kw">let </span>entries_per_limb = <span class="self">self</span>.fq.entries_per_limb();
         (<span class="self">self</span>.start % entries_per_limb) * bit_length
     }
 
     <span class="attr">#[inline]
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>limb_range(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; std::ops::Range&lt;usize&gt; {
-        limb::range(<span class="self">self</span>.p, <span class="self">self</span>.start, <span class="self">self</span>.end)
+        <span class="self">self</span>.fq.range(<span class="self">self</span>.start, <span class="self">self</span>.end)
     }
 
     <span class="doccomment">/// This function underflows if `self.end == 0`, which happens if and only if we are taking a
@@ -307,8 +309,8 @@
 
     <span class="attr">#[inline(always)]
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>max_limb_mask(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Limb {
-        <span class="kw">let </span>num_entries = <span class="number">1 </span>+ (<span class="self">self</span>.end - <span class="number">1</span>) % limb::entries_per_limb(<span class="self">self</span>.p);
-        <span class="kw">let </span>bit_max = num_entries * limb::bit_length(<span class="self">self</span>.p);
+        <span class="kw">let </span>num_entries = <span class="number">1 </span>+ (<span class="self">self</span>.end - <span class="number">1</span>) % <span class="self">self</span>.fq.entries_per_limb();
+        <span class="kw">let </span>bit_max = num_entries * <span class="self">self</span>.fq.bit_length();
 
         (!<span class="number">0</span>) &gt;&gt; (constants::BITS_PER_LIMB - bit_max)
     }
@@ -326,8 +328,8 @@
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, P: Prime&gt; From&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span>FpVectorP&lt;P&gt;&gt; <span class="kw">for </span>SliceP&lt;<span class="lifetime">'a</span>, P&gt; {
-    <span class="kw">fn </span>from(v: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>FpVectorP&lt;P&gt;) -&gt; <span class="self">Self </span>{
+<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, F: Field&gt; From&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span>FqVector&lt;F&gt;&gt; <span class="kw">for </span>SliceP&lt;<span class="lifetime">'a</span>, F&gt; {
+    <span class="kw">fn </span>from(v: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>FqVector&lt;F&gt;) -&gt; <span class="self">Self </span>{
         v.slice(<span class="number">0</span>, v.len)
     }
 }

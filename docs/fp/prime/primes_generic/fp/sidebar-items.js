@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["F2","F3","F5","F7"]};

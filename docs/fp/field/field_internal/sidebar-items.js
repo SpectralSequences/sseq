@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"macro":["normal_from_assign"],"struct":["LimbIterator"],"trait":["FieldInternal"]};

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["add","bit_length","bitmask","entries_per_limb","is_reduced","limb_bit_index_pair","number","pack","range","reduce","sign_rule","truncate","unpack"],"struct":["LimbBitIndexPair"]};
+window.SIDEBAR_ITEMS = {"fn":["sign_rule"],"struct":["LimbBitIndexPair"]};

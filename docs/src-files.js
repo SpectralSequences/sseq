@@ -10,7 +10,7 @@ var srcIndex = new Map(JSON.parse('[\
 ["ext",["",[["chain_complex",[],["chain_homotopy.rs","finite_chain_complex.rs","mod.rs"]]],["lib.rs","nassau.rs","resolution.rs","resolution_homomorphism.rs","save.rs","secondary.rs","utils.rs","yoneda.rs"]]],\
 ["ext_m_n",["",[],["ext_m_n.rs"]]],\
 ["filtration_one",["",[],["filtration_one.rs"]]],\
-["fp",["",[["matrix",[],["affine.rs","m4ri.rs","matrix_inner.rs","mod.rs","quasi_inverse.rs","subquotient.rs","subspace.rs"]],["prime",[],["binomial.rs","iter.rs","mod.rs","primes_generic.rs"]],["simd",[],["mod.rs","x86_64.rs"]],["vector",[],["impl_fpvectorp.rs","impl_slicemutp.rs","impl_slicep.rs","inner.rs","iter.rs","mod.rs","vector_generic.rs"]]],["constants.rs","lib.rs","limb.rs"]]],\
+["fp",["",[["field",[],["element.rs","field_internal.rs","fp.rs","mod.rs","smallfq.rs"]],["matrix",[],["affine.rs","m4ri.rs","matrix_inner.rs","mod.rs","quasi_inverse.rs","subquotient.rs","subspace.rs"]],["prime",[],["binomial.rs","iter.rs","mod.rs","primes_generic.rs"]],["simd",[],["mod.rs","x86_64.rs"]],["vector",[["fp_wrapper",[],["helpers.rs","macros_generic.rs","mod.rs"]]],["impl_fqvector.rs","impl_slicemutp.rs","impl_slicep.rs","inner.rs","iter.rs","mod.rs"]]],["constants.rs","lib.rs","limb.rs"]]],\
 ["lift_hom",["",[],["lift_hom.rs"]]],\
 ["mahowald_invariant",["",[],["mahowald_invariant.rs"]]],\
 ["massey",["",[],["massey.rs"]]],\

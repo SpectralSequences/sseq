@@ -538,75 +538,62 @@
 <a href="#513" id="513">513</a>
 <a href="#514" id="514">514</a>
 <a href="#515" id="515">515</a>
-<a href="#516" id="516">516</a>
-<a href="#517" id="517">517</a>
-<a href="#518" id="518">518</a>
-<a href="#519" id="519">519</a>
-<a href="#520" id="520">520</a>
-<a href="#521" id="521">521</a>
-<a href="#522" id="522">522</a>
-<a href="#523" id="523">523</a>
-<a href="#524" id="524">524</a>
-<a href="#525" id="525">525</a>
-<a href="#526" id="526">526</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::cmp::Ordering;
 
 <span class="kw">use </span>itertools::Itertools;
 
-<span class="kw">use </span><span class="kw">super</span>::inner::{FpVectorP, SliceMutP, SliceP};
+<span class="kw">use </span><span class="kw">super</span>::inner::{FqVector, SliceMutP, SliceP};
 <span class="kw">use crate</span>::{
     constants,
-    limb::{<span class="self">self</span>, Limb},
-    prime::{Prime, ValidPrime, P2},
+    field::{element::FieldElement, Field},
+    limb::Limb,
+    prime::{Prime, ValidPrime},
 };
 
-<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, P: Prime&gt; SliceMutP&lt;<span class="lifetime">'a</span>, P&gt; {
+<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, F: Field&gt; SliceMutP&lt;<span class="lifetime">'a</span>, F&gt; {
     <span class="kw">pub fn </span>prime(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ValidPrime {
-        <span class="self">self</span>.p.to_dyn()
+        <span class="self">self</span>.fq.characteristic().to_dyn()
     }
 
-    <span class="kw">pub fn </span>add_basis_element(<span class="kw-2">&amp;mut </span><span class="self">self</span>, index: usize, value: u32) {
-        <span class="kw">if </span><span class="self">self</span>.p == <span class="number">2 </span>{
-            <span class="comment">// Checking for value % 2 == 0 appears to be less performant
-            </span><span class="kw">let </span>pair = limb::limb_bit_index_pair(P2, index + <span class="self">self</span>.start);
-            <span class="self">self</span>.limbs[pair.limb] ^= (value <span class="kw">as </span>Limb % <span class="number">2</span>) &lt;&lt; pair.bit_index;
+    <span class="kw">pub fn </span>add_basis_element(<span class="kw-2">&amp;mut </span><span class="self">self</span>, index: usize, value: FieldElement&lt;F&gt;) {
+        <span class="kw">if </span><span class="self">self</span>.fq.q() == <span class="number">2 </span>{
+            <span class="kw">let </span>pair = <span class="self">self</span>.fq.limb_bit_index_pair(index + <span class="self">self</span>.start);
+            <span class="self">self</span>.limbs[pair.limb] ^= <span class="self">self</span>.fq.encode(value) &lt;&lt; pair.bit_index;
         } <span class="kw">else </span>{
             <span class="kw">let </span><span class="kw-2">mut </span>x = <span class="self">self</span>.as_slice().entry(index);
             x += value;
-            x %= <span class="self">self</span>.p.as_u32();
             <span class="self">self</span>.set_entry(index, x);
         }
     }
 
-    <span class="kw">pub fn </span>set_entry(<span class="kw-2">&amp;mut </span><span class="self">self</span>, index: usize, value: u32) {
+    <span class="kw">pub fn </span>set_entry(<span class="kw-2">&amp;mut </span><span class="self">self</span>, index: usize, value: FieldElement&lt;F&gt;) {
         <span class="macro">debug_assert!</span>(index &lt; <span class="self">self</span>.as_slice().len());
-        <span class="kw">let </span>bit_mask = limb::bitmask(<span class="self">self</span>.p);
-        <span class="kw">let </span>limb_index = limb::limb_bit_index_pair(<span class="self">self</span>.p, index + <span class="self">self</span>.start);
+        <span class="kw">let </span>bit_mask = <span class="self">self</span>.fq.bitmask();
+        <span class="kw">let </span>limb_index = <span class="self">self</span>.fq.limb_bit_index_pair(index + <span class="self">self</span>.start);
         <span class="kw">let </span><span class="kw-2">mut </span>result = <span class="self">self</span>.limbs[limb_index.limb];
         result &amp;= !(bit_mask &lt;&lt; limb_index.bit_index);
-        result |= (value <span class="kw">as </span>Limb) &lt;&lt; limb_index.bit_index;
+        result |= <span class="self">self</span>.fq.encode(value) &lt;&lt; limb_index.bit_index;
         <span class="self">self</span>.limbs[limb_index.limb] = result;
     }
 
     <span class="kw">fn </span>reduce_limbs(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-        <span class="kw">if </span><span class="self">self</span>.p != <span class="number">2 </span>{
+        <span class="kw">if </span><span class="self">self</span>.fq.q() != <span class="number">2 </span>{
             <span class="kw">let </span>limb_range = <span class="self">self</span>.as_slice().limb_range();
 
             <span class="kw">for </span>limb <span class="kw">in </span><span class="kw-2">&amp;mut </span><span class="self">self</span>.limbs[limb_range] {
-                <span class="kw-2">*</span>limb = limb::reduce(<span class="self">self</span>.p, <span class="kw-2">*</span>limb);
+                <span class="kw-2">*</span>limb = <span class="self">self</span>.fq.reduce(<span class="kw-2">*</span>limb);
             }
         }
     }
 
-    <span class="kw">pub fn </span>scale(<span class="kw-2">&amp;mut </span><span class="self">self</span>, c: u32) {
-        <span class="kw">if </span><span class="self">self</span>.p == <span class="number">2 </span>{
-            <span class="kw">if </span>c == <span class="number">0 </span>{
+    <span class="kw">pub fn </span>scale(<span class="kw-2">&amp;mut </span><span class="self">self</span>, c: FieldElement&lt;F&gt;) {
+        <span class="kw">if </span><span class="self">self</span>.fq.q() == <span class="number">2 </span>{
+            <span class="kw">if </span>c == <span class="self">self</span>.fq.zero() {
                 <span class="self">self</span>.set_to_zero();
             }
             <span class="kw">return</span>;
         }
 
-        <span class="kw">let </span>c = c <span class="kw">as </span>Limb;
         <span class="kw">let </span>limb_range = <span class="self">self</span>.as_slice().limb_range();
         <span class="kw">if </span>limb_range.is_empty() {
             <span class="kw">return</span>;
@@ -616,17 +603,17 @@
         <span class="kw">let </span>limb = <span class="self">self</span>.limbs[limb_range.start];
         <span class="kw">let </span>masked_limb = limb &amp; min_mask;
         <span class="kw">let </span>rest_limb = limb &amp; !min_mask;
-        <span class="self">self</span>.limbs[limb_range.start] = (masked_limb * c) | rest_limb;
+        <span class="self">self</span>.limbs[limb_range.start] = <span class="self">self</span>.fq.fma_limb(<span class="number">0</span>, masked_limb, c.clone()) | rest_limb;
 
         <span class="kw">let </span>inner_range = <span class="self">self</span>.as_slice().limb_range_inner();
         <span class="kw">for </span>limb <span class="kw">in </span><span class="kw-2">&amp;mut </span><span class="self">self</span>.limbs[inner_range] {
-            <span class="kw-2">*</span>limb <span class="kw-2">*</span>= c;
+            <span class="kw-2">*</span>limb = <span class="self">self</span>.fq.fma_limb(<span class="number">0</span>, <span class="kw-2">*</span>limb, c.clone());
         }
         <span class="kw">if </span>limb_range.len() &gt; <span class="number">1 </span>{
             <span class="kw">let </span>full_limb = <span class="self">self</span>.limbs[limb_range.end - <span class="number">1</span>];
             <span class="kw">let </span>masked_limb = full_limb &amp; max_mask;
             <span class="kw">let </span>rest_limb = full_limb &amp; !max_mask;
-            <span class="self">self</span>.limbs[limb_range.end - <span class="number">1</span>] = (masked_limb * c) | rest_limb;
+            <span class="self">self</span>.limbs[limb_range.end - <span class="number">1</span>] = <span class="self">self</span>.fq.fma_limb(<span class="number">0</span>, masked_limb, c) | rest_limb;
         }
         <span class="self">self</span>.reduce_limbs();
     }
@@ -646,18 +633,17 @@
         <span class="self">self</span>.limbs[limb_range.end - <span class="number">1</span>] &amp;= !max_mask;
     }
 
-    <span class="kw">pub fn </span>add(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: SliceP&lt;<span class="lifetime">'_</span>, P&gt;, c: u32) {
-        <span class="macro">debug_assert!</span>(<span class="self">self</span>.p &gt; c);
+    <span class="kw">pub fn </span>add(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: SliceP&lt;<span class="lifetime">'_</span>, F&gt;, c: FieldElement&lt;F&gt;) {
         <span class="kw">if </span><span class="self">self</span>.as_slice().is_empty() {
             <span class="kw">return</span>;
         }
 
-        <span class="kw">if </span><span class="self">self</span>.p == <span class="number">2 </span>{
-            <span class="kw">if </span>c != <span class="number">0 </span>{
+        <span class="kw">if </span><span class="self">self</span>.fq.q() == <span class="number">2 </span>{
+            <span class="kw">if </span>c != <span class="self">self</span>.fq.zero() {
                 <span class="kw">match </span><span class="self">self</span>.as_slice().offset().cmp(<span class="kw-2">&amp;</span>other.offset()) {
-                    Ordering::Equal =&gt; <span class="self">self</span>.add_shift_none(other, <span class="number">1</span>),
-                    Ordering::Less =&gt; <span class="self">self</span>.add_shift_left(other, <span class="number">1</span>),
-                    Ordering::Greater =&gt; <span class="self">self</span>.add_shift_right(other, <span class="number">1</span>),
+                    Ordering::Equal =&gt; <span class="self">self</span>.add_shift_none(other, <span class="self">self</span>.fq.one()),
+                    Ordering::Less =&gt; <span class="self">self</span>.add_shift_left(other, <span class="self">self</span>.fq.one()),
+                    Ordering::Greater =&gt; <span class="self">self</span>.add_shift_right(other, <span class="self">self</span>.fq.one()),
                 };
             }
         } <span class="kw">else </span>{
@@ -671,21 +657,27 @@
 
     <span class="doccomment">/// `coeff` need not be reduced mod p.
     /// Adds v otimes w to self.
-    </span><span class="kw">pub fn </span>add_tensor(<span class="kw-2">&amp;mut </span><span class="self">self</span>, offset: usize, coeff: u32, left: SliceP&lt;P&gt;, right: SliceP&lt;P&gt;) {
+    </span><span class="kw">pub fn </span>add_tensor(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        offset: usize,
+        coeff: FieldElement&lt;F&gt;,
+        left: SliceP&lt;F&gt;,
+        right: SliceP&lt;F&gt;,
+    ) {
         <span class="kw">let </span>right_dim = right.len();
 
         <span class="kw">for </span>(i, v) <span class="kw">in </span>left.iter_nonzero() {
-            <span class="kw">let </span>entry = (v * coeff) % <span class="self">self</span>.prime();
+            <span class="kw">let </span>entry = v * coeff.clone();
             <span class="self">self</span>.slice_mut(offset + i * right_dim, offset + (i + <span class="number">1</span>) * right_dim)
                 .add(right, entry);
         }
     }
 
     <span class="doccomment">/// TODO: improve efficiency
-    </span><span class="kw">pub fn </span>assign(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: SliceP&lt;<span class="lifetime">'_</span>, P&gt;) {
+    </span><span class="kw">pub fn </span>assign(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: SliceP&lt;<span class="lifetime">'_</span>, F&gt;) {
         <span class="kw">if </span><span class="self">self</span>.as_slice().offset() != other.offset() {
             <span class="self">self</span>.set_to_zero();
-            <span class="self">self</span>.add(other, <span class="number">1</span>);
+            <span class="self">self</span>.add(other, <span class="self">self</span>.fq.one());
             <span class="kw">return</span>;
         }
         <span class="kw">let </span>target_range = <span class="self">self</span>.as_slice().limb_range();
@@ -712,20 +704,19 @@
         <span class="self">self</span>.limbs[target_range.end - <span class="number">1</span>] |= result;
     }
 
-    <span class="doccomment">/// Adds `c` * `other` to `self`. `other` must have the same length, offset, and prime as self, and `c` must be between `0` and `p - 1`.
-    </span><span class="kw">pub fn </span>add_shift_none(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: SliceP&lt;<span class="lifetime">'_</span>, P&gt;, c: u32) {
+    <span class="doccomment">/// Adds `c` * `other` to `self`. `other` must have the same length, offset, and prime as self.
+    </span><span class="kw">pub fn </span>add_shift_none(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: SliceP&lt;<span class="lifetime">'_</span>, F&gt;, c: FieldElement&lt;F&gt;) {
         <span class="kw">let </span>target_range = <span class="self">self</span>.as_slice().limb_range();
         <span class="kw">let </span>source_range = other.limb_range();
 
         <span class="kw">let </span>(min_mask, max_mask) = other.limb_masks();
 
-        <span class="self">self</span>.limbs[target_range.start] = limb::add(
-            <span class="self">self</span>.p,
+        <span class="self">self</span>.limbs[target_range.start] = <span class="self">self</span>.fq.fma_limb(
             <span class="self">self</span>.limbs[target_range.start],
             other.limbs[source_range.start] &amp; min_mask,
-            c,
+            c.clone(),
         );
-        <span class="self">self</span>.limbs[target_range.start] = limb::reduce(<span class="self">self</span>.p, <span class="self">self</span>.limbs[target_range.start]);
+        <span class="self">self</span>.limbs[target_range.start] = <span class="self">self</span>.fq.reduce(<span class="self">self</span>.limbs[target_range.start]);
 
         <span class="kw">let </span>target_inner_range = <span class="self">self</span>.as_slice().limb_range_inner();
         <span class="kw">let </span>source_inner_range = other.limb_range_inner();
@@ -734,24 +725,22 @@
                 .iter_mut()
                 .zip_eq(<span class="kw-2">&amp;</span>other.limbs[source_inner_range])
             {
-                <span class="kw-2">*</span>left = limb::add(<span class="self">self</span>.p, <span class="kw-2">*</span>left, <span class="kw-2">*</span>right, c);
-                <span class="kw-2">*</span>left = limb::reduce(<span class="self">self</span>.p, <span class="kw-2">*</span>left);
+                <span class="kw-2">*</span>left = <span class="self">self</span>.fq.fma_limb(<span class="kw-2">*</span>left, <span class="kw-2">*</span>right, c.clone());
+                <span class="kw-2">*</span>left = <span class="self">self</span>.fq.reduce(<span class="kw-2">*</span>left);
             }
         }
         <span class="kw">if </span>source_range.len() &gt; <span class="number">1 </span>{
             <span class="comment">// The first and last limbs are distinct, so we process the last.
-            </span><span class="self">self</span>.limbs[target_range.end - <span class="number">1</span>] = limb::add(
-                <span class="self">self</span>.p,
+            </span><span class="self">self</span>.limbs[target_range.end - <span class="number">1</span>] = <span class="self">self</span>.fq.fma_limb(
                 <span class="self">self</span>.limbs[target_range.end - <span class="number">1</span>],
                 other.limbs[source_range.end - <span class="number">1</span>] &amp; max_mask,
                 c,
             );
-            <span class="self">self</span>.limbs[target_range.end - <span class="number">1</span>] =
-                limb::reduce(<span class="self">self</span>.p, <span class="self">self</span>.limbs[target_range.end - <span class="number">1</span>]);
+            <span class="self">self</span>.limbs[target_range.end - <span class="number">1</span>] = <span class="self">self</span>.fq.reduce(<span class="self">self</span>.limbs[target_range.end - <span class="number">1</span>]);
         }
     }
 
-    <span class="kw">fn </span>add_shift_left(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: SliceP&lt;<span class="lifetime">'_</span>, P&gt;, c: u32) {
+    <span class="kw">fn </span>add_shift_left(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: SliceP&lt;<span class="lifetime">'_</span>, F&gt;, c: FieldElement&lt;F&gt;) {
         <span class="kw">struct </span>AddShiftLeftData {
             offset_shift: usize,
             tail_shift: usize,
@@ -765,7 +754,7 @@
         }
 
         <span class="kw">impl </span>AddShiftLeftData {
-            <span class="kw">fn </span>new&lt;P: Prime&gt;(p: P, target: SliceP&lt;<span class="lifetime">'_</span>, P&gt;, source: SliceP&lt;<span class="lifetime">'_</span>, P&gt;) -&gt; <span class="self">Self </span>{
+            <span class="kw">fn </span>new&lt;F: Field&gt;(fq: F, target: SliceP&lt;<span class="lifetime">'_</span>, F&gt;, source: SliceP&lt;<span class="lifetime">'_</span>, F&gt;) -&gt; <span class="self">Self </span>{
                 <span class="macro">debug_assert!</span>(target.prime() == source.prime());
                 <span class="macro">debug_assert!</span>(target.offset() &lt;= source.offset());
                 <span class="macro">debug_assert!</span>(
@@ -775,8 +764,8 @@
                     source.len()
                 );
                 <span class="kw">let </span>offset_shift = source.offset() - target.offset();
-                <span class="kw">let </span>bit_length = limb::bit_length(p);
-                <span class="kw">let </span>entries_per_limb = limb::entries_per_limb(p);
+                <span class="kw">let </span>bit_length = fq.bit_length();
+                <span class="kw">let </span>entries_per_limb = fq.entries_per_limb();
                 <span class="kw">let </span>usable_bits_per_limb = bit_length * entries_per_limb;
                 <span class="kw">let </span>tail_shift = usable_bits_per_limb - offset_shift;
                 <span class="kw">let </span>zero_bits = constants::BITS_PER_LIMB - usable_bits_per_limb;
@@ -801,82 +790,77 @@
                 }
             }
 
-            <span class="kw">fn </span>mask_first_limb&lt;P: Prime&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, other: SliceP&lt;<span class="lifetime">'_</span>, P&gt;, i: usize) -&gt; Limb {
+            <span class="kw">fn </span>mask_first_limb&lt;F: Field&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, other: SliceP&lt;<span class="lifetime">'_</span>, F&gt;, i: usize) -&gt; Limb {
                 (other.limbs[i] &amp; <span class="self">self</span>.min_mask) &gt;&gt; <span class="self">self</span>.offset_shift
             }
 
-            <span class="kw">fn </span>mask_middle_limb_a&lt;P: Prime&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, other: SliceP&lt;<span class="lifetime">'_</span>, P&gt;, i: usize) -&gt; Limb {
+            <span class="kw">fn </span>mask_middle_limb_a&lt;F: Field&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, other: SliceP&lt;<span class="lifetime">'_</span>, F&gt;, i: usize) -&gt; Limb {
                 other.limbs[i] &gt;&gt; <span class="self">self</span>.offset_shift
             }
 
-            <span class="kw">fn </span>mask_middle_limb_b&lt;P: Prime&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, other: SliceP&lt;<span class="lifetime">'_</span>, P&gt;, i: usize) -&gt; Limb {
+            <span class="kw">fn </span>mask_middle_limb_b&lt;F: Field&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, other: SliceP&lt;<span class="lifetime">'_</span>, F&gt;, i: usize) -&gt; Limb {
                 (other.limbs[i] &lt;&lt; (<span class="self">self</span>.tail_shift + <span class="self">self</span>.zero_bits)) &gt;&gt; <span class="self">self</span>.zero_bits
             }
 
-            <span class="kw">fn </span>mask_last_limb_a&lt;P: Prime&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, other: SliceP&lt;<span class="lifetime">'_</span>, P&gt;, i: usize) -&gt; Limb {
+            <span class="kw">fn </span>mask_last_limb_a&lt;F: Field&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, other: SliceP&lt;<span class="lifetime">'_</span>, F&gt;, i: usize) -&gt; Limb {
                 <span class="kw">let </span>source_limb_masked = other.limbs[i] &amp; <span class="self">self</span>.max_mask;
                 source_limb_masked &lt;&lt; <span class="self">self</span>.tail_shift
             }
 
-            <span class="kw">fn </span>mask_last_limb_b&lt;P: Prime&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, other: SliceP&lt;<span class="lifetime">'_</span>, P&gt;, i: usize) -&gt; Limb {
+            <span class="kw">fn </span>mask_last_limb_b&lt;F: Field&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, other: SliceP&lt;<span class="lifetime">'_</span>, F&gt;, i: usize) -&gt; Limb {
                 <span class="kw">let </span>source_limb_masked = other.limbs[i] &amp; <span class="self">self</span>.max_mask;
                 source_limb_masked &gt;&gt; <span class="self">self</span>.offset_shift
             }
         }
 
-        <span class="kw">let </span>dat = AddShiftLeftData::new(<span class="self">self</span>.p, <span class="self">self</span>.as_slice(), other);
+        <span class="kw">let </span>dat = AddShiftLeftData::new(<span class="self">self</span>.fq, <span class="self">self</span>.as_slice(), other);
         <span class="kw">let </span><span class="kw-2">mut </span>i = <span class="number">0</span>;
         {
-            <span class="self">self</span>.limbs[i + dat.min_target_limb] = limb::add(
-                <span class="self">self</span>.p,
+            <span class="self">self</span>.limbs[i + dat.min_target_limb] = <span class="self">self</span>.fq.fma_limb(
                 <span class="self">self</span>.limbs[i + dat.min_target_limb],
                 dat.mask_first_limb(other, i + dat.min_source_limb),
-                c,
+                c.clone(),
             );
         }
         <span class="kw">for </span>i <span class="kw">in </span><span class="number">1</span>..dat.number_of_source_limbs - <span class="number">1 </span>{
-            <span class="self">self</span>.limbs[i + dat.min_target_limb] = limb::add(
-                <span class="self">self</span>.p,
+            <span class="self">self</span>.limbs[i + dat.min_target_limb] = <span class="self">self</span>.fq.fma_limb(
                 <span class="self">self</span>.limbs[i + dat.min_target_limb],
                 dat.mask_middle_limb_a(other, i + dat.min_source_limb),
-                c,
+                c.clone(),
             );
-            <span class="self">self</span>.limbs[i + dat.min_target_limb - <span class="number">1</span>] = limb::add(
-                <span class="self">self</span>.p,
+            <span class="self">self</span>.limbs[i + dat.min_target_limb - <span class="number">1</span>] = <span class="self">self</span>.fq.fma_limb(
                 <span class="self">self</span>.limbs[i + dat.min_target_limb - <span class="number">1</span>],
                 dat.mask_middle_limb_b(other, i + dat.min_source_limb),
-                c,
+                c.clone(),
             );
             <span class="self">self</span>.limbs[i + dat.min_target_limb - <span class="number">1</span>] =
-                limb::reduce(<span class="self">self</span>.p, <span class="self">self</span>.limbs[i + dat.min_target_limb - <span class="number">1</span>]);
+                <span class="self">self</span>.fq.reduce(<span class="self">self</span>.limbs[i + dat.min_target_limb - <span class="number">1</span>]);
         }
         i = dat.number_of_source_limbs - <span class="number">1</span>;
         <span class="kw">if </span>i &gt; <span class="number">0 </span>{
-            <span class="self">self</span>.limbs[i + dat.min_target_limb - <span class="number">1</span>] = limb::add(
-                <span class="self">self</span>.p,
+            <span class="self">self</span>.limbs[i + dat.min_target_limb - <span class="number">1</span>] = <span class="self">self</span>.fq.fma_limb(
                 <span class="self">self</span>.limbs[i + dat.min_target_limb - <span class="number">1</span>],
                 dat.mask_last_limb_a(other, i + dat.min_source_limb),
-                c,
+                c.clone(),
             );
             <span class="self">self</span>.limbs[i + dat.min_target_limb - <span class="number">1</span>] =
-                limb::reduce(<span class="self">self</span>.p, <span class="self">self</span>.limbs[i + dat.min_target_limb - <span class="number">1</span>]);
+                <span class="self">self</span>.fq.reduce(<span class="self">self</span>.limbs[i + dat.min_target_limb - <span class="number">1</span>]);
             <span class="kw">if </span>dat.number_of_source_limbs == dat.number_of_target_limbs {
-                <span class="self">self</span>.limbs[i + dat.min_target_limb] = limb::add(
-                    <span class="self">self</span>.p,
+                <span class="self">self</span>.limbs[i + dat.min_target_limb] = <span class="self">self</span>.fq.fma_limb(
                     <span class="self">self</span>.limbs[i + dat.min_target_limb],
                     dat.mask_last_limb_b(other, i + dat.min_source_limb),
                     c,
                 );
                 <span class="self">self</span>.limbs[i + dat.min_target_limb] =
-                    limb::reduce(<span class="self">self</span>.p, <span class="self">self</span>.limbs[i + dat.min_target_limb]);
+                    <span class="self">self</span>.fq.reduce(<span class="self">self</span>.limbs[i + dat.min_target_limb]);
             }
         } <span class="kw">else </span>{
             <span class="self">self</span>.limbs[i + dat.min_target_limb] =
-                limb::reduce(<span class="self">self</span>.p, <span class="self">self</span>.limbs[i + dat.min_target_limb]);
+                <span class="self">self</span>.fq.reduce(<span class="self">self</span>.limbs[i + dat.min_target_limb]);
         }
     }
 
-    <span class="kw">fn </span>add_shift_right(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: SliceP&lt;<span class="lifetime">'_</span>, P&gt;, c: u32) {
+    <span class="kw">fn </span>add_shift_right(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: SliceP&lt;<span class="lifetime">'_</span>, F&gt;, c: FieldElement&lt;F&gt;) {
         <span class="kw">struct </span>AddShiftRightData {
             offset_shift: usize,
             tail_shift: usize,
@@ -890,7 +874,7 @@
         }
 
         <span class="kw">impl </span>AddShiftRightData {
-            <span class="kw">fn </span>new&lt;P: Prime&gt;(p: P, target: SliceP&lt;<span class="lifetime">'_</span>, P&gt;, source: SliceP&lt;<span class="lifetime">'_</span>, P&gt;) -&gt; <span class="self">Self </span>{
+            <span class="kw">fn </span>new&lt;F: Field&gt;(fq: F, target: SliceP&lt;<span class="lifetime">'_</span>, F&gt;, source: SliceP&lt;<span class="lifetime">'_</span>, F&gt;) -&gt; <span class="self">Self </span>{
                 <span class="macro">debug_assert!</span>(target.prime() == source.prime());
                 <span class="macro">debug_assert!</span>(target.offset() &gt;= source.offset());
                 <span class="macro">debug_assert!</span>(
@@ -900,8 +884,8 @@
                     source.len()
                 );
                 <span class="kw">let </span>offset_shift = target.offset() - source.offset();
-                <span class="kw">let </span>bit_length = limb::bit_length(p);
-                <span class="kw">let </span>entries_per_limb = limb::entries_per_limb(p);
+                <span class="kw">let </span>bit_length = fq.bit_length();
+                <span class="kw">let </span>entries_per_limb = fq.entries_per_limb();
                 <span class="kw">let </span>usable_bits_per_limb = bit_length * entries_per_limb;
                 <span class="kw">let </span>tail_shift = usable_bits_per_limb - offset_shift;
                 <span class="kw">let </span>zero_bits = constants::BITS_PER_LIMB - usable_bits_per_limb;
@@ -925,121 +909,115 @@
                 }
             }
 
-            <span class="kw">fn </span>mask_first_limb_a&lt;P: Prime&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, other: SliceP&lt;<span class="lifetime">'_</span>, P&gt;, i: usize) -&gt; Limb {
+            <span class="kw">fn </span>mask_first_limb_a&lt;F: Field&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, other: SliceP&lt;<span class="lifetime">'_</span>, F&gt;, i: usize) -&gt; Limb {
                 <span class="kw">let </span>source_limb_masked = other.limbs[i] &amp; <span class="self">self</span>.min_mask;
                 (source_limb_masked &lt;&lt; (<span class="self">self</span>.offset_shift + <span class="self">self</span>.zero_bits)) &gt;&gt; <span class="self">self</span>.zero_bits
             }
 
-            <span class="kw">fn </span>mask_first_limb_b&lt;P: Prime&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, other: SliceP&lt;<span class="lifetime">'_</span>, P&gt;, i: usize) -&gt; Limb {
+            <span class="kw">fn </span>mask_first_limb_b&lt;F: Field&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, other: SliceP&lt;<span class="lifetime">'_</span>, F&gt;, i: usize) -&gt; Limb {
                 <span class="kw">let </span>source_limb_masked = other.limbs[i] &amp; <span class="self">self</span>.min_mask;
                 source_limb_masked &gt;&gt; <span class="self">self</span>.tail_shift
             }
 
-            <span class="kw">fn </span>mask_middle_limb_a&lt;P: Prime&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, other: SliceP&lt;<span class="lifetime">'_</span>, P&gt;, i: usize) -&gt; Limb {
+            <span class="kw">fn </span>mask_middle_limb_a&lt;F: Field&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, other: SliceP&lt;<span class="lifetime">'_</span>, F&gt;, i: usize) -&gt; Limb {
                 (other.limbs[i] &lt;&lt; (<span class="self">self</span>.offset_shift + <span class="self">self</span>.zero_bits)) &gt;&gt; <span class="self">self</span>.zero_bits
             }
 
-            <span class="kw">fn </span>mask_middle_limb_b&lt;P: Prime&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, other: SliceP&lt;<span class="lifetime">'_</span>, P&gt;, i: usize) -&gt; Limb {
+            <span class="kw">fn </span>mask_middle_limb_b&lt;F: Field&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, other: SliceP&lt;<span class="lifetime">'_</span>, F&gt;, i: usize) -&gt; Limb {
                 other.limbs[i] &gt;&gt; <span class="self">self</span>.tail_shift
             }
 
-            <span class="kw">fn </span>mask_last_limb_a&lt;P: Prime&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, other: SliceP&lt;<span class="lifetime">'_</span>, P&gt;, i: usize) -&gt; Limb {
+            <span class="kw">fn </span>mask_last_limb_a&lt;F: Field&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, other: SliceP&lt;<span class="lifetime">'_</span>, F&gt;, i: usize) -&gt; Limb {
                 <span class="kw">let </span>source_limb_masked = other.limbs[i] &amp; <span class="self">self</span>.max_mask;
                 source_limb_masked &lt;&lt; <span class="self">self</span>.offset_shift
             }
 
-            <span class="kw">fn </span>mask_last_limb_b&lt;P: Prime&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, other: SliceP&lt;<span class="lifetime">'_</span>, P&gt;, i: usize) -&gt; Limb {
+            <span class="kw">fn </span>mask_last_limb_b&lt;F: Field&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, other: SliceP&lt;<span class="lifetime">'_</span>, F&gt;, i: usize) -&gt; Limb {
                 <span class="kw">let </span>source_limb_masked = other.limbs[i] &amp; <span class="self">self</span>.max_mask;
                 source_limb_masked &gt;&gt; <span class="self">self</span>.tail_shift
             }
         }
 
-        <span class="kw">let </span>dat = AddShiftRightData::new(<span class="self">self</span>.p, <span class="self">self</span>.as_slice(), other);
+        <span class="kw">let </span>dat = AddShiftRightData::new(<span class="self">self</span>.fq, <span class="self">self</span>.as_slice(), other);
         <span class="kw">let </span><span class="kw-2">mut </span>i = <span class="number">0</span>;
         {
-            <span class="self">self</span>.limbs[i + dat.min_target_limb] = limb::add(
-                <span class="self">self</span>.p,
+            <span class="self">self</span>.limbs[i + dat.min_target_limb] = <span class="self">self</span>.fq.fma_limb(
                 <span class="self">self</span>.limbs[i + dat.min_target_limb],
                 dat.mask_first_limb_a(other, i + dat.min_source_limb),
-                c,
+                c.clone(),
             );
             <span class="self">self</span>.limbs[i + dat.min_target_limb] =
-                limb::reduce(<span class="self">self</span>.p, <span class="self">self</span>.limbs[i + dat.min_target_limb]);
+                <span class="self">self</span>.fq.reduce(<span class="self">self</span>.limbs[i + dat.min_target_limb]);
             <span class="kw">if </span>dat.number_of_target_limbs &gt; <span class="number">1 </span>{
-                <span class="self">self</span>.limbs[i + dat.min_target_limb + <span class="number">1</span>] = limb::add(
-                    <span class="self">self</span>.p,
+                <span class="self">self</span>.limbs[i + dat.min_target_limb + <span class="number">1</span>] = <span class="self">self</span>.fq.fma_limb(
                     <span class="self">self</span>.limbs[i + dat.min_target_limb + <span class="number">1</span>],
                     dat.mask_first_limb_b(other, i + dat.min_source_limb),
-                    c,
+                    c.clone(),
                 );
             }
         }
         <span class="kw">for </span>i <span class="kw">in </span><span class="number">1</span>..dat.number_of_source_limbs - <span class="number">1 </span>{
-            <span class="self">self</span>.limbs[i + dat.min_target_limb] = limb::add(
-                <span class="self">self</span>.p,
+            <span class="self">self</span>.limbs[i + dat.min_target_limb] = <span class="self">self</span>.fq.fma_limb(
                 <span class="self">self</span>.limbs[i + dat.min_target_limb],
                 dat.mask_middle_limb_a(other, i + dat.min_source_limb),
-                c,
+                c.clone(),
             );
             <span class="self">self</span>.limbs[i + dat.min_target_limb] =
-                limb::reduce(<span class="self">self</span>.p, <span class="self">self</span>.limbs[i + dat.min_target_limb]);
-            <span class="self">self</span>.limbs[i + dat.min_target_limb + <span class="number">1</span>] = limb::add(
-                <span class="self">self</span>.p,
+                <span class="self">self</span>.fq.reduce(<span class="self">self</span>.limbs[i + dat.min_target_limb]);
+            <span class="self">self</span>.limbs[i + dat.min_target_limb + <span class="number">1</span>] = <span class="self">self</span>.fq.fma_limb(
                 <span class="self">self</span>.limbs[i + dat.min_target_limb + <span class="number">1</span>],
                 dat.mask_middle_limb_b(other, i + dat.min_source_limb),
-                c,
+                c.clone(),
             );
         }
         i = dat.number_of_source_limbs - <span class="number">1</span>;
         <span class="kw">if </span>i &gt; <span class="number">0 </span>{
-            <span class="self">self</span>.limbs[i + dat.min_target_limb] = limb::add(
-                <span class="self">self</span>.p,
+            <span class="self">self</span>.limbs[i + dat.min_target_limb] = <span class="self">self</span>.fq.fma_limb(
                 <span class="self">self</span>.limbs[i + dat.min_target_limb],
                 dat.mask_last_limb_a(other, i + dat.min_source_limb),
-                c,
+                c.clone(),
             );
             <span class="self">self</span>.limbs[i + dat.min_target_limb] =
-                limb::reduce(<span class="self">self</span>.p, <span class="self">self</span>.limbs[i + dat.min_target_limb]);
+                <span class="self">self</span>.fq.reduce(<span class="self">self</span>.limbs[i + dat.min_target_limb]);
             <span class="kw">if </span>dat.number_of_target_limbs &gt; dat.number_of_source_limbs {
-                <span class="self">self</span>.limbs[i + dat.min_target_limb + <span class="number">1</span>] = limb::add(
-                    <span class="self">self</span>.p,
+                <span class="self">self</span>.limbs[i + dat.min_target_limb + <span class="number">1</span>] = <span class="self">self</span>.fq.fma_limb(
                     <span class="self">self</span>.limbs[i + dat.min_target_limb + <span class="number">1</span>],
                     dat.mask_last_limb_b(other, i + dat.min_source_limb),
-                    c,
+                    c.clone(),
                 );
             }
         }
         <span class="kw">if </span>dat.number_of_target_limbs &gt; dat.number_of_source_limbs {
             <span class="self">self</span>.limbs[i + dat.min_target_limb + <span class="number">1</span>] =
-                limb::reduce(<span class="self">self</span>.p, <span class="self">self</span>.limbs[i + dat.min_target_limb + <span class="number">1</span>]);
+                <span class="self">self</span>.fq.reduce(<span class="self">self</span>.limbs[i + dat.min_target_limb + <span class="number">1</span>]);
         }
     }
 
     <span class="doccomment">/// Given a mask v, add the `v[i]`th entry of `other` to the `i`th entry of `self`.
-    </span><span class="kw">pub fn </span>add_masked(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: SliceP&lt;<span class="lifetime">'_</span>, P&gt;, c: u32, mask: <span class="kw-2">&amp;</span>[usize]) {
+    </span><span class="kw">pub fn </span>add_masked(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: SliceP&lt;<span class="lifetime">'_</span>, F&gt;, c: FieldElement&lt;F&gt;, mask: <span class="kw-2">&amp;</span>[usize]) {
         <span class="comment">// TODO: If this ends up being a bottleneck, try to use PDEP/PEXT
         </span><span class="macro">assert_eq!</span>(<span class="self">self</span>.as_slice().len(), mask.len());
         <span class="kw">for </span>(i, <span class="kw-2">&amp;</span>x) <span class="kw">in </span>mask.iter().enumerate() {
             <span class="kw">let </span>entry = other.entry(x);
-            <span class="kw">if </span>entry != <span class="number">0 </span>{
-                <span class="self">self</span>.add_basis_element(i, entry * c);
+            <span class="kw">if </span>entry != <span class="self">self</span>.fq.zero() {
+                <span class="self">self</span>.add_basis_element(i, entry * c.clone());
             }
         }
     }
 
     <span class="doccomment">/// Given a mask v, add the `i`th entry of `other` to the `v[i]`th entry of `self`.
-    </span><span class="kw">pub fn </span>add_unmasked(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: SliceP&lt;<span class="lifetime">'_</span>, P&gt;, c: u32, mask: <span class="kw-2">&amp;</span>[usize]) {
+    </span><span class="kw">pub fn </span>add_unmasked(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: SliceP&lt;<span class="lifetime">'_</span>, F&gt;, c: FieldElement&lt;F&gt;, mask: <span class="kw-2">&amp;</span>[usize]) {
         <span class="macro">assert!</span>(other.len() &lt;= mask.len());
         <span class="kw">for </span>(i, v) <span class="kw">in </span>other.iter_nonzero() {
-            <span class="self">self</span>.add_basis_element(mask[i], v * c);
+            <span class="self">self</span>.add_basis_element(mask[i], v * c.clone());
         }
     }
 
-    <span class="kw">pub fn </span>slice_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>, start: usize, end: usize) -&gt; SliceMutP&lt;<span class="lifetime">'_</span>, P&gt; {
+    <span class="kw">pub fn </span>slice_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>, start: usize, end: usize) -&gt; SliceMutP&lt;<span class="lifetime">'_</span>, F&gt; {
         <span class="macro">assert!</span>(start &lt;= end &amp;&amp; end &lt;= <span class="self">self</span>.as_slice().len());
 
         SliceMutP {
-            p: <span class="self">self</span>.p,
+            fq: <span class="self">self</span>.fq,
             limbs: <span class="kw-2">&amp;mut *</span><span class="self">self</span>.limbs,
             start: <span class="self">self</span>.start + start,
             end: <span class="self">self</span>.start + end,
@@ -1048,9 +1026,9 @@
 
     <span class="attr">#[inline]
     #[must_use]
-    </span><span class="kw">pub fn </span>as_slice(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; SliceP&lt;<span class="lifetime">'_</span>, P&gt; {
+    </span><span class="kw">pub fn </span>as_slice(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; SliceP&lt;<span class="lifetime">'_</span>, F&gt; {
         SliceP {
-            p: <span class="self">self</span>.p,
+            fq: <span class="self">self</span>.fq,
             limbs: <span class="kw-2">&amp;*</span><span class="self">self</span>.limbs,
             start: <span class="self">self</span>.start,
             end: <span class="self">self</span>.end,
@@ -1060,9 +1038,9 @@
     <span class="doccomment">/// Generates a version of itself with a shorter lifetime
     </span><span class="attr">#[inline]
     #[must_use]
-    </span><span class="kw">pub fn </span>copy(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; SliceMutP&lt;<span class="lifetime">'_</span>, P&gt; {
+    </span><span class="kw">pub fn </span>copy(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; SliceMutP&lt;<span class="lifetime">'_</span>, F&gt; {
         SliceMutP {
-            p: <span class="self">self</span>.p,
+            fq: <span class="self">self</span>.fq,
             limbs: <span class="self">self</span>.limbs,
             start: <span class="self">self</span>.start,
             end: <span class="self">self</span>.end,
@@ -1070,8 +1048,8 @@
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, P: Prime&gt; From&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>FpVectorP&lt;P&gt;&gt; <span class="kw">for </span>SliceMutP&lt;<span class="lifetime">'a</span>, P&gt; {
-    <span class="kw">fn </span>from(v: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>FpVectorP&lt;P&gt;) -&gt; <span class="self">Self </span>{
+<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, F: Field&gt; From&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>FqVector&lt;F&gt;&gt; <span class="kw">for </span>SliceMutP&lt;<span class="lifetime">'a</span>, F&gt; {
+    <span class="kw">fn </span>from(v: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>FqVector&lt;F&gt;) -&gt; <span class="self">Self </span>{
         v.slice_mut(<span class="number">0</span>, v.len)
     }
 }

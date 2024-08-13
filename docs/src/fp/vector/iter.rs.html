@@ -218,13 +218,17 @@
 <a href="#193" id="193">193</a>
 <a href="#194" id="194">194</a>
 <a href="#195" id="195">195</a>
+<a href="#196" id="196">196</a>
+<a href="#197" id="197">197</a>
+<a href="#198" id="198">198</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">super</span>::inner::SliceP;
 <span class="kw">use crate</span>::{
-    limb::{<span class="self">self</span>, Limb},
-    prime::Prime,
+    field::{element::FieldElement, Field},
+    limb::Limb,
 };
 
-<span class="kw">pub struct </span>FpVectorIterator&lt;<span class="lifetime">'a</span>&gt; {
+<span class="kw">pub struct </span>FqVectorIteratorP&lt;<span class="lifetime">'a</span>, F&gt; {
+    fq: F,
     limbs: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>[Limb],
     bit_length: usize,
     bit_mask: Limb,
@@ -235,13 +239,14 @@
     counter: usize,
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; FpVectorIterator&lt;<span class="lifetime">'a</span>&gt; {
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>new&lt;P: Prime&gt;(vec: SliceP&lt;<span class="lifetime">'a</span>, P&gt;) -&gt; <span class="self">Self </span>{
+<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, F: Field&gt; FqVectorIteratorP&lt;<span class="lifetime">'a</span>, F&gt; {
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>new(vec: SliceP&lt;<span class="lifetime">'a</span>, F&gt;) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>counter = vec.len();
-        <span class="kw">let </span>limbs = <span class="kw-2">&amp;</span>vec.limbs;
+        <span class="kw">let </span>limbs = vec.limbs;
 
         <span class="kw">if </span>counter == <span class="number">0 </span>{
             <span class="kw">return </span><span class="self">Self </span>{
+                fq: vec.fq,
                 limbs,
                 bit_length: <span class="number">0</span>,
                 entries_per_limb_m_1: <span class="number">0</span>,
@@ -252,17 +257,18 @@
                 counter,
             };
         }
-        <span class="kw">let </span>pair = limb::limb_bit_index_pair(vec.p, vec.start);
+        <span class="kw">let </span>pair = vec.fq.limb_bit_index_pair(vec.start);
 
-        <span class="kw">let </span>bit_length = limb::bit_length(vec.p);
+        <span class="kw">let </span>bit_length = vec.fq.bit_length();
         <span class="kw">let </span>cur_limb = limbs[pair.limb] &gt;&gt; pair.bit_index;
 
-        <span class="kw">let </span>entries_per_limb = limb::entries_per_limb(vec.p);
+        <span class="kw">let </span>entries_per_limb = vec.fq.entries_per_limb();
         <span class="self">Self </span>{
+            fq: vec.fq,
             limbs,
             bit_length,
             entries_per_limb_m_1: entries_per_limb - <span class="number">1</span>,
-            bit_mask: limb::bitmask(vec.p),
+            bit_mask: vec.fq.bitmask(),
             limb_index: pair.limb,
             entries_left: entries_per_limb - (vec.start % entries_per_limb),
             cur_limb,
@@ -301,8 +307,8 @@
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; Iterator <span class="kw">for </span>FpVectorIterator&lt;<span class="lifetime">'a</span>&gt; {
-    <span class="kw">type </span>Item = u32;
+<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, F: Field&gt; Iterator <span class="kw">for </span>FqVectorIteratorP&lt;<span class="lifetime">'a</span>, F&gt; {
+    <span class="kw">type </span>Item = FieldElement&lt;F&gt;;
 
     <span class="kw">fn </span>next(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="self">Self</span>::Item&gt; {
         <span class="kw">if </span><span class="self">self</span>.counter == <span class="number">0 </span>{
@@ -315,24 +321,24 @@
             <span class="self">self</span>.entries_left -= <span class="number">1</span>;
         }
 
-        <span class="kw">let </span>result = (<span class="self">self</span>.cur_limb &amp; <span class="self">self</span>.bit_mask) <span class="kw">as </span>u32;
+        <span class="kw">let </span>result = <span class="self">self</span>.cur_limb &amp; <span class="self">self</span>.bit_mask;
         <span class="self">self</span>.counter -= <span class="number">1</span>;
         <span class="self">self</span>.cur_limb &gt;&gt;= <span class="self">self</span>.bit_length;
 
-        <span class="prelude-val">Some</span>(result)
+        <span class="prelude-val">Some</span>(<span class="self">self</span>.fq.decode(result))
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; ExactSizeIterator <span class="kw">for </span>FpVectorIterator&lt;<span class="lifetime">'a</span>&gt; {
+<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, F: Field&gt; ExactSizeIterator <span class="kw">for </span>FqVectorIteratorP&lt;<span class="lifetime">'a</span>, F&gt; {
     <span class="kw">fn </span>len(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
         <span class="self">self</span>.counter
     }
 }
 
-<span class="doccomment">/// Iterator over non-zero entries of an FpVector. This is monomorphized over P for significant
-/// performance gains.
-</span><span class="kw">pub struct </span>FpVectorNonZeroIteratorP&lt;<span class="lifetime">'a</span>, P&gt; {
-    p: P,
+<span class="doccomment">/// Iterator over non-zero entries of an FpVector. This is monomorphized over the ground field for
+/// significant performance gains.
+</span><span class="kw">pub struct </span>FqVectorNonZeroIteratorP&lt;<span class="lifetime">'a</span>, F&gt; {
+    fq: F,
     limbs: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>[Limb],
     limb_index: usize,
     cur_limb_entries_left: usize,
@@ -341,16 +347,16 @@
     dim: usize,
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, P: Prime&gt; FpVectorNonZeroIteratorP&lt;<span class="lifetime">'a</span>, P&gt; {
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>new(vec: SliceP&lt;<span class="lifetime">'a</span>, P&gt;) -&gt; <span class="self">Self </span>{
-        <span class="kw">let </span>entries_per_limb = limb::entries_per_limb(vec.p);
+<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, F: Field&gt; FqVectorNonZeroIteratorP&lt;<span class="lifetime">'a</span>, F&gt; {
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>new(vec: SliceP&lt;<span class="lifetime">'a</span>, F&gt;) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>entries_per_limb = vec.fq.entries_per_limb();
 
         <span class="kw">let </span>dim = vec.len();
         <span class="kw">let </span>limbs = vec.limbs;
 
         <span class="kw">if </span>dim == <span class="number">0 </span>{
             <span class="kw">return </span><span class="self">Self </span>{
-                p: vec.p,
+                fq: vec.fq,
                 limbs,
                 limb_index: <span class="number">0</span>,
                 cur_limb_entries_left: <span class="number">0</span>,
@@ -360,11 +366,11 @@
             };
         }
         <span class="kw">let </span>min_index = vec.start;
-        <span class="kw">let </span>pair = limb::limb_bit_index_pair(vec.p, min_index);
+        <span class="kw">let </span>pair = vec.fq.limb_bit_index_pair(min_index);
         <span class="kw">let </span>cur_limb = limbs[pair.limb] &gt;&gt; pair.bit_index;
         <span class="kw">let </span>cur_limb_entries_left = entries_per_limb - (min_index % entries_per_limb);
         <span class="self">Self </span>{
-            p: vec.p,
+            fq: vec.fq,
             limbs,
             limb_index: pair.limb,
             cur_limb_entries_left,
@@ -375,13 +381,13 @@
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, P: Prime&gt; Iterator <span class="kw">for </span>FpVectorNonZeroIteratorP&lt;<span class="lifetime">'a</span>, P&gt; {
-    <span class="kw">type </span>Item = (usize, u32);
+<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, F: Field&gt; Iterator <span class="kw">for </span>FqVectorNonZeroIteratorP&lt;<span class="lifetime">'a</span>, F&gt; {
+    <span class="kw">type </span>Item = (usize, FieldElement&lt;F&gt;);
 
     <span class="kw">fn </span>next(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="self">Self</span>::Item&gt; {
-        <span class="kw">let </span>bit_length: usize = limb::bit_length(<span class="self">self</span>.p);
-        <span class="kw">let </span>bitmask: Limb = limb::bitmask(<span class="self">self</span>.p);
-        <span class="kw">let </span>entries_per_limb: usize = limb::entries_per_limb(<span class="self">self</span>.p);
+        <span class="kw">let </span>bit_length: usize = <span class="self">self</span>.fq.bit_length();
+        <span class="kw">let </span>bitmask: Limb = <span class="self">self</span>.fq.bitmask();
+        <span class="kw">let </span>entries_per_limb: usize = <span class="self">self</span>.fq.entries_per_limb();
         <span class="kw">loop </span>{
             <span class="kw">let </span>bits_left = (<span class="self">self</span>.cur_limb_entries_left * bit_length) <span class="kw">as </span>u32;
             <span class="attr">#[allow(clippy::unnecessary_cast)]
@@ -406,7 +412,7 @@
                 <span class="kw">break</span>;
             }
         }
-        <span class="kw">let </span>result = (<span class="self">self</span>.idx, (<span class="self">self</span>.cur_limb &amp; bitmask) <span class="kw">as </span>u32);
+        <span class="kw">let </span>result = (<span class="self">self</span>.idx, <span class="self">self</span>.fq.decode(<span class="self">self</span>.cur_limb &amp; bitmask));
         <span class="self">self</span>.idx += <span class="number">1</span>;
         <span class="self">self</span>.cur_limb_entries_left -= <span class="number">1</span>;
         <span class="self">self</span>.cur_limb &gt;&gt;= bit_length;

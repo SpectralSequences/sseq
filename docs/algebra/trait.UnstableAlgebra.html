@@ -28,7 +28,7 @@
     fn <a href="#tymethod.dimension_unstable" class="fn">dimension_unstable</a>(&amp;self, degree: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.i32.html">i32</a>, excess: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.i32.html">i32</a>) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.usize.html">usize</a>;
 <span class="item-spacer"></span>    fn <a href="#tymethod.multiply_basis_elements_unstable" class="fn">multiply_basis_elements_unstable</a>(
         &amp;self,
-        result: <a class="enum" href="../fp/vector/vector_generic/enum.SliceMut.html" title="enum fp::vector::vector_generic::SliceMut">SliceMut</a>&lt;'_&gt;,
+        result: <a class="enum" href="../fp/vector/fp_wrapper/enum.SliceMut.html" title="enum fp::vector::fp_wrapper::SliceMut">SliceMut</a>&lt;'_&gt;,
         coeff: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.u32.html">u32</a>,
         r_degree: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.i32.html">i32</a>,
         r_index: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.usize.html">usize</a>,
@@ -40,37 +40,37 @@
     // Provided methods
     fn <a href="#method.multiply_basis_element_by_element_unstable" class="fn">multiply_basis_element_by_element_unstable</a>(
         &amp;self,
-        result: <a class="enum" href="../fp/vector/vector_generic/enum.SliceMut.html" title="enum fp::vector::vector_generic::SliceMut">SliceMut</a>&lt;'_&gt;,
+        result: <a class="enum" href="../fp/vector/fp_wrapper/enum.SliceMut.html" title="enum fp::vector::fp_wrapper::SliceMut">SliceMut</a>&lt;'_&gt;,
         coeff: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.u32.html">u32</a>,
         r_degree: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.i32.html">i32</a>,
         r_idx: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.usize.html">usize</a>,
         s_degree: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.i32.html">i32</a>,
-        s: <a class="enum" href="../fp/vector/vector_generic/enum.Slice.html" title="enum fp::vector::vector_generic::Slice">Slice</a>&lt;'_&gt;,
+        s: <a class="enum" href="../fp/vector/fp_wrapper/enum.Slice.html" title="enum fp::vector::fp_wrapper::Slice">Slice</a>&lt;'_&gt;,
         excess: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.i32.html">i32</a>,
     ) { ... }
 <span class="item-spacer"></span>    fn <a href="#method.multiply_element_by_basis_element_unstable" class="fn">multiply_element_by_basis_element_unstable</a>(
         &amp;self,
-        result: <a class="enum" href="../fp/vector/vector_generic/enum.SliceMut.html" title="enum fp::vector::vector_generic::SliceMut">SliceMut</a>&lt;'_&gt;,
+        result: <a class="enum" href="../fp/vector/fp_wrapper/enum.SliceMut.html" title="enum fp::vector::fp_wrapper::SliceMut">SliceMut</a>&lt;'_&gt;,
         coeff: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.u32.html">u32</a>,
         r_degree: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.i32.html">i32</a>,
-        r: <a class="enum" href="../fp/vector/vector_generic/enum.Slice.html" title="enum fp::vector::vector_generic::Slice">Slice</a>&lt;'_&gt;,
+        r: <a class="enum" href="../fp/vector/fp_wrapper/enum.Slice.html" title="enum fp::vector::fp_wrapper::Slice">Slice</a>&lt;'_&gt;,
         s_degree: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.i32.html">i32</a>,
         s_idx: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.usize.html">usize</a>,
         excess: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.i32.html">i32</a>,
     ) { ... }
 <span class="item-spacer"></span>    fn <a href="#method.multiply_element_by_element_unstable" class="fn">multiply_element_by_element_unstable</a>(
         &amp;self,
-        result: <a class="enum" href="../fp/vector/vector_generic/enum.SliceMut.html" title="enum fp::vector::vector_generic::SliceMut">SliceMut</a>&lt;'_&gt;,
+        result: <a class="enum" href="../fp/vector/fp_wrapper/enum.SliceMut.html" title="enum fp::vector::fp_wrapper::SliceMut">SliceMut</a>&lt;'_&gt;,
         coeff: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.u32.html">u32</a>,
         r_degree: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.i32.html">i32</a>,
-        r: <a class="enum" href="../fp/vector/vector_generic/enum.Slice.html" title="enum fp::vector::vector_generic::Slice">Slice</a>&lt;'_&gt;,
+        r: <a class="enum" href="../fp/vector/fp_wrapper/enum.Slice.html" title="enum fp::vector::fp_wrapper::Slice">Slice</a>&lt;'_&gt;,
         s_degree: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.i32.html">i32</a>,
-        s: <a class="enum" href="../fp/vector/vector_generic/enum.Slice.html" title="enum fp::vector::vector_generic::Slice">Slice</a>&lt;'_&gt;,
+        s: <a class="enum" href="../fp/vector/fp_wrapper/enum.Slice.html" title="enum fp::vector::fp_wrapper::Slice">Slice</a>&lt;'_&gt;,
         excess: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.i32.html">i32</a>,
     ) { ... }
 }</code></pre><h2 id="required-methods" class="section-header">Required Methods<a href="#required-methods" class="anchor">§</a></h2><div class="methods"><section id="tymethod.dimension_unstable" class="method"><a class="src rightside" href="../src/algebra/algebra/algebra_trait.rs.html#195">source</a><h4 class="code-header">fn <a href="#tymethod.dimension_unstable" class="fn">dimension_unstable</a>(&amp;self, degree: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.i32.html">i32</a>, excess: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.i32.html">i32</a>) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.usize.html">usize</a></h4></section><section id="tymethod.multiply_basis_elements_unstable" class="method"><a class="src rightside" href="../src/algebra/algebra/algebra_trait.rs.html#197-206">source</a><h4 class="code-header">fn <a href="#tymethod.multiply_basis_elements_unstable" class="fn">multiply_basis_elements_unstable</a>(
     &amp;self,
-    result: <a class="enum" href="../fp/vector/vector_generic/enum.SliceMut.html" title="enum fp::vector::vector_generic::SliceMut">SliceMut</a>&lt;'_&gt;,
+    result: <a class="enum" href="../fp/vector/fp_wrapper/enum.SliceMut.html" title="enum fp::vector::fp_wrapper::SliceMut">SliceMut</a>&lt;'_&gt;,
     coeff: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.u32.html">u32</a>,
     r_degree: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.i32.html">i32</a>,
     r_index: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.usize.html">usize</a>,
@@ -79,22 +79,22 @@
     excess: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.i32.html">i32</a>,
 )</h4></section></div><h2 id="provided-methods" class="section-header">Provided Methods<a href="#provided-methods" class="anchor">§</a></h2><div class="methods"><details class="toggle method-toggle" open><summary><section id="method.multiply_basis_element_by_element_unstable" class="method"><a class="src rightside" href="../src/algebra/algebra/algebra_trait.rs.html#212-234">source</a><h4 class="code-header">fn <a href="#method.multiply_basis_element_by_element_unstable" class="fn">multiply_basis_element_by_element_unstable</a>(
     &amp;self,
-    result: <a class="enum" href="../fp/vector/vector_generic/enum.SliceMut.html" title="enum fp::vector::vector_generic::SliceMut">SliceMut</a>&lt;'_&gt;,
+    result: <a class="enum" href="../fp/vector/fp_wrapper/enum.SliceMut.html" title="enum fp::vector::fp_wrapper::SliceMut">SliceMut</a>&lt;'_&gt;,
     coeff: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.u32.html">u32</a>,
     r_degree: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.i32.html">i32</a>,
     r_idx: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.usize.html">usize</a>,
     s_degree: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.i32.html">i32</a>,
-    s: <a class="enum" href="../fp/vector/vector_generic/enum.Slice.html" title="enum fp::vector::vector_generic::Slice">Slice</a>&lt;'_&gt;,
+    s: <a class="enum" href="../fp/vector/fp_wrapper/enum.Slice.html" title="enum fp::vector::fp_wrapper::Slice">Slice</a>&lt;'_&gt;,
     excess: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.i32.html">i32</a>,
 )</h4></section></summary><div class="docblock"><p>Computes the product <code>r * s</code> of a basis element <code>r</code> and a general element <code>s</code>, and adds the
 result to <code>result</code>.</p>
 <p>Neither <code>result</code> nor <code>s</code> must be aligned.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.multiply_element_by_basis_element_unstable" class="method"><a class="src rightside" href="../src/algebra/algebra/algebra_trait.rs.html#240-262">source</a><h4 class="code-header">fn <a href="#method.multiply_element_by_basis_element_unstable" class="fn">multiply_element_by_basis_element_unstable</a>(
     &amp;self,
-    result: <a class="enum" href="../fp/vector/vector_generic/enum.SliceMut.html" title="enum fp::vector::vector_generic::SliceMut">SliceMut</a>&lt;'_&gt;,
+    result: <a class="enum" href="../fp/vector/fp_wrapper/enum.SliceMut.html" title="enum fp::vector::fp_wrapper::SliceMut">SliceMut</a>&lt;'_&gt;,
     coeff: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.u32.html">u32</a>,
     r_degree: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.i32.html">i32</a>,
-    r: <a class="enum" href="../fp/vector/vector_generic/enum.Slice.html" title="enum fp::vector::vector_generic::Slice">Slice</a>&lt;'_&gt;,
+    r: <a class="enum" href="../fp/vector/fp_wrapper/enum.Slice.html" title="enum fp::vector::fp_wrapper::Slice">Slice</a>&lt;'_&gt;,
     s_degree: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.i32.html">i32</a>,
     s_idx: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.usize.html">usize</a>,
     excess: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.i32.html">i32</a>,
@@ -103,12 +103,12 @@ result to <code>result</code>.</p>
 <p>Neither <code>result</code> nor <code>r</code> must be aligned.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.multiply_element_by_element_unstable" class="method"><a class="src rightside" href="../src/algebra/algebra/algebra_trait.rs.html#268-290">source</a><h4 class="code-header">fn <a href="#method.multiply_element_by_element_unstable" class="fn">multiply_element_by_element_unstable</a>(
     &amp;self,
-    result: <a class="enum" href="../fp/vector/vector_generic/enum.SliceMut.html" title="enum fp::vector::vector_generic::SliceMut">SliceMut</a>&lt;'_&gt;,
+    result: <a class="enum" href="../fp/vector/fp_wrapper/enum.SliceMut.html" title="enum fp::vector::fp_wrapper::SliceMut">SliceMut</a>&lt;'_&gt;,
     coeff: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.u32.html">u32</a>,
     r_degree: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.i32.html">i32</a>,
-    r: <a class="enum" href="../fp/vector/vector_generic/enum.Slice.html" title="enum fp::vector::vector_generic::Slice">Slice</a>&lt;'_&gt;,
+    r: <a class="enum" href="../fp/vector/fp_wrapper/enum.Slice.html" title="enum fp::vector::fp_wrapper::Slice">Slice</a>&lt;'_&gt;,
     s_degree: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.i32.html">i32</a>,
-    s: <a class="enum" href="../fp/vector/vector_generic/enum.Slice.html" title="enum fp::vector::vector_generic::Slice">Slice</a>&lt;'_&gt;,
+    s: <a class="enum" href="../fp/vector/fp_wrapper/enum.Slice.html" title="enum fp::vector::fp_wrapper::Slice">Slice</a>&lt;'_&gt;,
     excess: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.i32.html">i32</a>,
 )</h4></section></summary><div class="docblock"><p>Computes the product <code>r * s</code> of two general elements, and adds the
 result to <code>result</code>.</p>

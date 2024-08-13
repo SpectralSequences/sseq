@@ -1115,26 +1115,16 @@
 <a href="#1090" id="1090">1090</a>
 <a href="#1091" id="1091">1091</a>
 <a href="#1092" id="1092">1092</a>
-<a href="#1093" id="1093">1093</a>
-<a href="#1094" id="1094">1094</a>
-<a href="#1095" id="1095">1095</a>
-<a href="#1096" id="1096">1096</a>
-</pre></div><pre class="rust"><code><span class="attr">#[cfg(not(feature = <span class="string">"odd-primes"</span>))]
-</span><span class="kw">pub mod </span>vector_2;
-<span class="attr">#[cfg(not(feature = <span class="string">"odd-primes"</span>))]
-</span><span class="kw">pub use </span>vector_2::<span class="kw-2">*</span>;
+</pre></div><pre class="rust"><code><span class="kw">pub mod </span>inner;
 
-<span class="attr">#[cfg(feature = <span class="string">"odd-primes"</span>)]
-</span><span class="kw">pub mod </span>vector_generic;
-<span class="attr">#[cfg(feature = <span class="string">"odd-primes"</span>)]
-</span><span class="kw">pub use </span>vector_generic::<span class="kw-2">*</span>;
-
-<span class="kw">mod </span>inner;
-
-<span class="kw">mod </span>impl_fpvectorp;
+<span class="kw">mod </span>fp_wrapper;
+<span class="kw">mod </span>impl_fqvector;
 <span class="kw">mod </span>impl_slicemutp;
 <span class="kw">mod </span>impl_slicep;
 <span class="kw">mod </span>iter;
+
+<span class="kw">pub use </span>fp_wrapper::<span class="kw-2">*</span>;
+<span class="kw">pub use </span>inner::<span class="kw-2">*</span>;
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
@@ -1144,10 +1134,11 @@
     <span class="kw">use </span>proptest::prelude::<span class="kw-2">*</span>;
     <span class="kw">use </span>rstest::rstest;
 
-    <span class="kw">use super</span>::{inner::FpVectorP, <span class="kw-2">*</span>};
+    <span class="kw">use super</span>::{inner::FqVector, <span class="kw-2">*</span>};
     <span class="kw">use crate</span>::{
-        limb::{<span class="self">self</span>, bit_length},
-        prime::{Prime, ValidPrime, P2},
+        field::{field_internal::FieldInternal, fp::F2, Fp},
+        limb,
+        prime::{Prime, ValidPrime},
     };
 
     <span class="kw">pub struct </span>VectorDiffEntry {
@@ -1336,10 +1327,11 @@
 
         #[test]
         </span><span class="kw">fn </span>test_bit_length(p <span class="kw">in </span>arb_prime()) {
-            <span class="macro">prop_assert!</span>(bit_length(p) &lt;= <span class="number">63</span>);
+            <span class="macro">prop_assert!</span>(Fp::new(p).bit_length() &lt;= <span class="number">63</span>);
         }
 
-        <span class="attr">#[test]
+        <span class="attr">#[cfg(feature = <span class="string">"odd-primes"</span>)]
+        #[test]
         </span><span class="kw">fn </span>test_incompatible_primes((p1, p2) <span class="kw">in </span>(arb_prime(), arb_prime())) {
             <span class="macro">prop_assume!</span>(p1 != p2);
 
@@ -1777,8 +1769,8 @@
     <span class="attr">#[test]
     #[ignore]
     </span><span class="kw">fn </span>test_sign_rule() {
-        <span class="kw">let </span><span class="kw-2">mut </span>in1 = FpVectorP::new(P2, <span class="number">128</span>);
-        <span class="kw">let </span><span class="kw-2">mut </span>in2 = FpVectorP::new(P2, <span class="number">128</span>);
+        <span class="kw">let </span><span class="kw-2">mut </span>in1 = FqVector::new(F2, <span class="number">128</span>);
+        <span class="kw">let </span><span class="kw-2">mut </span>in2 = FqVector::new(F2, <span class="number">128</span>);
         <span class="kw">let </span>tests = [
             (
                 <span class="number">0x181e20846a820820</span>,

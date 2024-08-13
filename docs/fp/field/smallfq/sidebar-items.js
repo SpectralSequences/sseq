@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["make_zech_log_table","mul_by_a","zech_logs"],"static":["SMALL_CONWAY_POLYS","ZECH_LOGS"],"struct":["SmallFq","SmallFqElement"],"type":["Polynomial","ZechTable"]};

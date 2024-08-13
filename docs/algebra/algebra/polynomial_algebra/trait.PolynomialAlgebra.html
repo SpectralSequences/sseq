@@ -45,7 +45,7 @@
         degree: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.i32.html">i32</a>,
         index: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.usize.html">usize</a>,
     ) -&gt; &amp;<a class="struct" href="struct.PolynomialAlgebraMonomial.html" title="struct algebra::algebra::polynomial_algebra::PolynomialAlgebraMonomial">PolynomialAlgebraMonomial</a> { ... }
-<span class="item-spacer"></span>    fn <a href="#method.frobenius_monomial" class="fn">frobenius_monomial</a>(&amp;self, target: &amp;mut <a class="enum" href="../../../fp/vector/vector_generic/enum.FpVector.html" title="enum fp::vector::vector_generic::FpVector">FpVector</a>, source: &amp;<a class="enum" href="../../../fp/vector/vector_generic/enum.FpVector.html" title="enum fp::vector::vector_generic::FpVector">FpVector</a>) { ... }
+<span class="item-spacer"></span>    fn <a href="#method.frobenius_monomial" class="fn">frobenius_monomial</a>(&amp;self, target: &amp;mut <a class="enum" href="../../../fp/vector/fp_wrapper/enum.FpVector.html" title="enum fp::vector::fp_wrapper::FpVector">FpVector</a>, source: &amp;<a class="enum" href="../../../fp/vector/fp_wrapper/enum.FpVector.html" title="enum fp::vector::fp_wrapper::FpVector">FpVector</a>) { ... }
 <span class="item-spacer"></span>    fn <a href="#method.multiply_monomials" class="fn">multiply_monomials</a>(
         &amp;self,
         target: &amp;mut <a class="struct" href="struct.PolynomialAlgebraMonomial.html" title="struct algebra::algebra::polynomial_algebra::PolynomialAlgebraMonomial">PolynomialAlgebraMonomial</a>,
@@ -53,28 +53,28 @@
     ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.80.1/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.u32.html">u32</a>&gt; { ... }
 <span class="item-spacer"></span>    fn <a href="#method.multiply_polynomials" class="fn">multiply_polynomials</a>(
         &amp;self,
-        target: &amp;mut <a class="enum" href="../../../fp/vector/vector_generic/enum.FpVector.html" title="enum fp::vector::vector_generic::FpVector">FpVector</a>,
+        target: &amp;mut <a class="enum" href="../../../fp/vector/fp_wrapper/enum.FpVector.html" title="enum fp::vector::fp_wrapper::FpVector">FpVector</a>,
         coeff: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.u32.html">u32</a>,
         left_degree: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.i32.html">i32</a>,
-        left: &amp;<a class="enum" href="../../../fp/vector/vector_generic/enum.FpVector.html" title="enum fp::vector::vector_generic::FpVector">FpVector</a>,
+        left: &amp;<a class="enum" href="../../../fp/vector/fp_wrapper/enum.FpVector.html" title="enum fp::vector::fp_wrapper::FpVector">FpVector</a>,
         right_degree: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.i32.html">i32</a>,
-        right: &amp;<a class="enum" href="../../../fp/vector/vector_generic/enum.FpVector.html" title="enum fp::vector::vector_generic::FpVector">FpVector</a>,
+        right: &amp;<a class="enum" href="../../../fp/vector/fp_wrapper/enum.FpVector.html" title="enum fp::vector::fp_wrapper::FpVector">FpVector</a>,
     ) { ... }
 <span class="item-spacer"></span>    fn <a href="#method.multiply_polynomial_by_monomial" class="fn">multiply_polynomial_by_monomial</a>(
         &amp;self,
-        target: &amp;mut <a class="enum" href="../../../fp/vector/vector_generic/enum.FpVector.html" title="enum fp::vector::vector_generic::FpVector">FpVector</a>,
+        target: &amp;mut <a class="enum" href="../../../fp/vector/fp_wrapper/enum.FpVector.html" title="enum fp::vector::fp_wrapper::FpVector">FpVector</a>,
         coeff: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.u32.html">u32</a>,
         left_degree: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.i32.html">i32</a>,
-        left: &amp;<a class="enum" href="../../../fp/vector/vector_generic/enum.FpVector.html" title="enum fp::vector::vector_generic::FpVector">FpVector</a>,
+        left: &amp;<a class="enum" href="../../../fp/vector/fp_wrapper/enum.FpVector.html" title="enum fp::vector::fp_wrapper::FpVector">FpVector</a>,
         right_mono: &amp;<a class="struct" href="struct.PolynomialAlgebraMonomial.html" title="struct algebra::algebra::polynomial_algebra::PolynomialAlgebraMonomial">PolynomialAlgebraMonomial</a>,
     ) { ... }
 <span class="item-spacer"></span>    fn <a href="#method.multiply_monomial_by_polynomial" class="fn">multiply_monomial_by_polynomial</a>(
         &amp;self,
-        target: &amp;mut <a class="enum" href="../../../fp/vector/vector_generic/enum.FpVector.html" title="enum fp::vector::vector_generic::FpVector">FpVector</a>,
+        target: &amp;mut <a class="enum" href="../../../fp/vector/fp_wrapper/enum.FpVector.html" title="enum fp::vector::fp_wrapper::FpVector">FpVector</a>,
         coeff: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.u32.html">u32</a>,
         left_mono: &amp;<a class="struct" href="struct.PolynomialAlgebraMonomial.html" title="struct algebra::algebra::polynomial_algebra::PolynomialAlgebraMonomial">PolynomialAlgebraMonomial</a>,
         right_degree: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.i32.html">i32</a>,
-        right: &amp;<a class="enum" href="../../../fp/vector/vector_generic/enum.FpVector.html" title="enum fp::vector::vector_generic::FpVector">FpVector</a>,
+        right: &amp;<a class="enum" href="../../../fp/vector/fp_wrapper/enum.FpVector.html" title="enum fp::vector::fp_wrapper::FpVector">FpVector</a>,
     ) { ... }
 <span class="item-spacer"></span>    fn <a href="#method.set_monomial_degree" class="fn">set_monomial_degree</a>(
         &amp;self,
@@ -86,30 +86,30 @@
     &amp;self,
     degree: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.i32.html">i32</a>,
     index: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.usize.html">usize</a>,
-) -&gt; &amp;<a class="struct" href="struct.PolynomialAlgebraMonomial.html" title="struct algebra::algebra::polynomial_algebra::PolynomialAlgebraMonomial">PolynomialAlgebraMonomial</a></h4></section><section id="method.frobenius_monomial" class="method"><a class="src rightside" href="../../../src/algebra/algebra/polynomial_algebra.rs.html#125-137">source</a><h4 class="code-header">fn <a href="#method.frobenius_monomial" class="fn">frobenius_monomial</a>(&amp;self, target: &amp;mut <a class="enum" href="../../../fp/vector/vector_generic/enum.FpVector.html" title="enum fp::vector::vector_generic::FpVector">FpVector</a>, source: &amp;<a class="enum" href="../../../fp/vector/vector_generic/enum.FpVector.html" title="enum fp::vector::vector_generic::FpVector">FpVector</a>)</h4></section><section id="method.multiply_monomials" class="method"><a class="src rightside" href="../../../src/algebra/algebra/polynomial_algebra.rs.html#139-169">source</a><h4 class="code-header">fn <a href="#method.multiply_monomials" class="fn">multiply_monomials</a>(
+) -&gt; &amp;<a class="struct" href="struct.PolynomialAlgebraMonomial.html" title="struct algebra::algebra::polynomial_algebra::PolynomialAlgebraMonomial">PolynomialAlgebraMonomial</a></h4></section><section id="method.frobenius_monomial" class="method"><a class="src rightside" href="../../../src/algebra/algebra/polynomial_algebra.rs.html#125-137">source</a><h4 class="code-header">fn <a href="#method.frobenius_monomial" class="fn">frobenius_monomial</a>(&amp;self, target: &amp;mut <a class="enum" href="../../../fp/vector/fp_wrapper/enum.FpVector.html" title="enum fp::vector::fp_wrapper::FpVector">FpVector</a>, source: &amp;<a class="enum" href="../../../fp/vector/fp_wrapper/enum.FpVector.html" title="enum fp::vector::fp_wrapper::FpVector">FpVector</a>)</h4></section><section id="method.multiply_monomials" class="method"><a class="src rightside" href="../../../src/algebra/algebra/polynomial_algebra.rs.html#139-169">source</a><h4 class="code-header">fn <a href="#method.multiply_monomials" class="fn">multiply_monomials</a>(
     &amp;self,
     target: &amp;mut <a class="struct" href="struct.PolynomialAlgebraMonomial.html" title="struct algebra::algebra::polynomial_algebra::PolynomialAlgebraMonomial">PolynomialAlgebraMonomial</a>,
     source: &amp;<a class="struct" href="struct.PolynomialAlgebraMonomial.html" title="struct algebra::algebra::polynomial_algebra::PolynomialAlgebraMonomial">PolynomialAlgebraMonomial</a>,
 ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.80.1/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.u32.html">u32</a>&gt;</h4></section><section id="method.multiply_polynomials" class="method"><a class="src rightside" href="../../../src/algebra/algebra/polynomial_algebra.rs.html#171-193">source</a><h4 class="code-header">fn <a href="#method.multiply_polynomials" class="fn">multiply_polynomials</a>(
     &amp;self,
-    target: &amp;mut <a class="enum" href="../../../fp/vector/vector_generic/enum.FpVector.html" title="enum fp::vector::vector_generic::FpVector">FpVector</a>,
+    target: &amp;mut <a class="enum" href="../../../fp/vector/fp_wrapper/enum.FpVector.html" title="enum fp::vector::fp_wrapper::FpVector">FpVector</a>,
     coeff: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.u32.html">u32</a>,
     left_degree: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.i32.html">i32</a>,
-    left: &amp;<a class="enum" href="../../../fp/vector/vector_generic/enum.FpVector.html" title="enum fp::vector::vector_generic::FpVector">FpVector</a>,
+    left: &amp;<a class="enum" href="../../../fp/vector/fp_wrapper/enum.FpVector.html" title="enum fp::vector::fp_wrapper::FpVector">FpVector</a>,
     right_degree: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.i32.html">i32</a>,
-    right: &amp;<a class="enum" href="../../../fp/vector/vector_generic/enum.FpVector.html" title="enum fp::vector::vector_generic::FpVector">FpVector</a>,
+    right: &amp;<a class="enum" href="../../../fp/vector/fp_wrapper/enum.FpVector.html" title="enum fp::vector::fp_wrapper::FpVector">FpVector</a>,
 )</h4></section><section id="method.multiply_polynomial_by_monomial" class="method"><a class="src rightside" href="../../../src/algebra/algebra/polynomial_algebra.rs.html#195-213">source</a><h4 class="code-header">fn <a href="#method.multiply_polynomial_by_monomial" class="fn">multiply_polynomial_by_monomial</a>(
     &amp;self,
-    target: &amp;mut <a class="enum" href="../../../fp/vector/vector_generic/enum.FpVector.html" title="enum fp::vector::vector_generic::FpVector">FpVector</a>,
+    target: &amp;mut <a class="enum" href="../../../fp/vector/fp_wrapper/enum.FpVector.html" title="enum fp::vector::fp_wrapper::FpVector">FpVector</a>,
     coeff: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.u32.html">u32</a>,
     left_degree: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.i32.html">i32</a>,
-    left: &amp;<a class="enum" href="../../../fp/vector/vector_generic/enum.FpVector.html" title="enum fp::vector::vector_generic::FpVector">FpVector</a>,
+    left: &amp;<a class="enum" href="../../../fp/vector/fp_wrapper/enum.FpVector.html" title="enum fp::vector::fp_wrapper::FpVector">FpVector</a>,
     right_mono: &amp;<a class="struct" href="struct.PolynomialAlgebraMonomial.html" title="struct algebra::algebra::polynomial_algebra::PolynomialAlgebraMonomial">PolynomialAlgebraMonomial</a>,
 )</h4></section><section id="method.multiply_monomial_by_polynomial" class="method"><a class="src rightside" href="../../../src/algebra/algebra/polynomial_algebra.rs.html#216-235">source</a><h4 class="code-header">fn <a href="#method.multiply_monomial_by_polynomial" class="fn">multiply_monomial_by_polynomial</a>(
     &amp;self,
-    target: &amp;mut <a class="enum" href="../../../fp/vector/vector_generic/enum.FpVector.html" title="enum fp::vector::vector_generic::FpVector">FpVector</a>,
+    target: &amp;mut <a class="enum" href="../../../fp/vector/fp_wrapper/enum.FpVector.html" title="enum fp::vector::fp_wrapper::FpVector">FpVector</a>,
     coeff: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.u32.html">u32</a>,
     left_mono: &amp;<a class="struct" href="struct.PolynomialAlgebraMonomial.html" title="struct algebra::algebra::polynomial_algebra::PolynomialAlgebraMonomial">PolynomialAlgebraMonomial</a>,
     right_degree: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.i32.html">i32</a>,
-    right: &amp;<a class="enum" href="../../../fp/vector/vector_generic/enum.FpVector.html" title="enum fp::vector::vector_generic::FpVector">FpVector</a>,
+    right: &amp;<a class="enum" href="../../../fp/vector/fp_wrapper/enum.FpVector.html" title="enum fp::vector::fp_wrapper::FpVector">FpVector</a>,
 )</h4></section><section id="method.set_monomial_degree" class="method"><a class="src rightside" href="../../../src/algebra/algebra/polynomial_algebra.rs.html#237-247">source</a><h4 class="code-header">fn <a href="#method.set_monomial_degree" class="fn">set_monomial_degree</a>(&amp;self, mono: &amp;mut <a class="struct" href="struct.PolynomialAlgebraMonomial.html" title="struct algebra::algebra::polynomial_algebra::PolynomialAlgebraMonomial">PolynomialAlgebraMonomial</a>, degree: <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.i32.html">i32</a>)</h4></section><section id="method.max_computed_degree" class="method"><a class="src rightside" href="../../../src/algebra/algebra/polynomial_algebra.rs.html#249-251">source</a><h4 class="code-header">fn <a href="#method.max_computed_degree" class="fn">max_computed_degree</a>(&amp;self) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.80.1/std/primitive.i32.html">i32</a></h4></section></div><h2 id="object-safety" class="section-header">Object Safety<a href="#object-safety" class="anchor">§</a></h2><div class="object-safety-info">This trait is <b>not</b> <a href="https://doc.rust-lang.org/1.80.1/reference/items/traits.html#object-safety">object safe</a>.</div><h2 id="implementors" class="section-header">Implementors<a href="#implementors" class="anchor">§</a></h2><div id="implementors-list"></div><script src="../../../trait.impl/algebra/algebra/polynomial_algebra/trait.PolynomialAlgebra.js" async></script></section></div></main></body></html>

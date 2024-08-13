@@ -152,9 +152,9 @@
 </pre></div><pre class="rust"><code><span class="kw">use </span>itertools::Itertools;
 
 <span class="kw">use crate</span>::{
-    limb::{<span class="self">self</span>, Limb, LimbBitIndexPair},
+    field::{field_internal::FieldInternal, fp::F2},
+    limb::{Limb, LimbBitIndexPair},
     matrix::Matrix,
-    prime::P2,
     simd,
 };
 
@@ -188,7 +188,7 @@
 <span class="kw">impl </span>M4riTable {
     <span class="doccomment">/// Create a table with space for `k` vectors, each with `cols` columns.
     </span><span class="kw">pub fn </span>new(k: usize, cols: usize) -&gt; <span class="self">Self </span>{
-        <span class="kw">let </span>num_limbs = limb::number(P2, cols);
+        <span class="kw">let </span>num_limbs = F2.number(cols);
         <span class="self">Self </span>{
             rows: Vec::with_capacity(k),
             columns: Vec::with_capacity(k),
@@ -219,7 +219,7 @@
     ///  - `column`: pivot column of the row
     ///  - `row`: index of the row
     </span><span class="kw">pub fn </span>add(<span class="kw-2">&amp;mut </span><span class="self">self</span>, column: usize, row: usize) {
-        <span class="self">self</span>.columns.push(limb::limb_bit_index_pair(P2, column));
+        <span class="self">self</span>.columns.push(F2.limb_bit_index_pair(column));
         <span class="self">self</span>.rows.push(row);
     }
 

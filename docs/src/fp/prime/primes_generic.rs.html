@@ -132,6 +132,16 @@
 <a href="#107" id="107">107</a>
 <a href="#108" id="108">108</a>
 <a href="#109" id="109">109</a>
+<a href="#110" id="110">110</a>
+<a href="#111" id="111">111</a>
+<a href="#112" id="112">112</a>
+<a href="#113" id="113">113</a>
+<a href="#114" id="114">114</a>
+<a href="#115" id="115">115</a>
+<a href="#116" id="116">116</a>
+<a href="#117" id="117">117</a>
+<a href="#118" id="118">118</a>
+<a href="#119" id="119">119</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::str::FromStr;
 
 <span class="kw">use super</span>::<span class="kw-2">*</span>;
@@ -150,6 +160,16 @@
 <span class="macro">impl_try_from!</span>(P3, P3);
 <span class="macro">impl_try_from!</span>(P5, P5);
 <span class="macro">impl_try_from!</span>(P7, P7);
+
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>fp {
+    <span class="kw">use super</span>::{P2, P3, P5, P7};
+    <span class="kw">use </span><span class="kw">crate</span>::field::Fp;
+
+    <span class="kw">pub const </span>F2: Fp&lt;P2&gt; = Fp::new(P2);
+    <span class="kw">pub const </span>F3: Fp&lt;P3&gt; = Fp::new(P3);
+    <span class="kw">pub const </span>F5: Fp&lt;P5&gt; = Fp::new(P5);
+    <span class="kw">pub const </span>F7: Fp&lt;P7&gt; = Fp::new(P7);
+}
 
 <span class="attr">#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 </span><span class="kw">pub struct </span>ValidPrime {

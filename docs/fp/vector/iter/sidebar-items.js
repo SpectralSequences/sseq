@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["FpVectorIterator","FpVectorNonZeroIteratorP"]};
+window.SIDEBAR_ITEMS = {"struct":["FqVectorIteratorP","FqVectorNonZeroIteratorP"]};

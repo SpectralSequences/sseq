@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"macro":["impl_arith"],"struct":["FieldElement"],"trait":["FieldElementContainer"]};

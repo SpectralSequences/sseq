@@ -449,8 +449,30 @@
 <a href="#424" id="424">424</a>
 <a href="#425" id="425">425</a>
 <a href="#426" id="426">426</a>
+<a href="#427" id="427">427</a>
+<a href="#428" id="428">428</a>
+<a href="#429" id="429">429</a>
+<a href="#430" id="430">430</a>
+<a href="#431" id="431">431</a>
+<a href="#432" id="432">432</a>
+<a href="#433" id="433">433</a>
+<a href="#434" id="434">434</a>
+<a href="#435" id="435">435</a>
+<a href="#436" id="436">436</a>
+<a href="#437" id="437">437</a>
+<a href="#438" id="438">438</a>
+<a href="#439" id="439">439</a>
+<a href="#440" id="440">440</a>
+<a href="#441" id="441">441</a>
+<a href="#442" id="442">442</a>
+<a href="#443" id="443">443</a>
+<a href="#444" id="444">444</a>
+<a href="#445" id="445">445</a>
+<a href="#446" id="446">446</a>
+<a href="#447" id="447">447</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::{
-    fmt::Debug,
+    fmt::{Debug, Display},
+    hash::Hash,
     ops::{
         Add, AddAssign, Div, DivAssign, Mul, MulAssign, Rem, RemAssign, Shl, ShlAssign, Shr,
         ShrAssign, Sub, SubAssign,
@@ -489,7 +511,10 @@
 /// chosen at runtime.
 </span><span class="kw">pub trait </span>Prime:
     Debug
+    + Clone
     + Copy
+    + Display
+    + Hash
     + PartialEq
     + Eq
     + PartialEq&lt;u32&gt;
@@ -515,9 +540,26 @@
         <span class="self">self</span>.as_u32() <span class="kw">as </span>usize
     }
 
+    <span class="doccomment">/// Computes the sum mod p. This takes care of overflow.
+    </span><span class="kw">fn </span>sum(<span class="self">self</span>, n1: u32, n2: u32) -&gt; u32 {
+        <span class="kw">let </span>n1 = n1 <span class="kw">as </span>u64;
+        <span class="kw">let </span>n2 = n2 <span class="kw">as </span>u64;
+        <span class="kw">let </span>p = <span class="self">self</span>.as_u32() <span class="kw">as </span>u64;
+        <span class="kw">let </span>sum = (n1 + n2) % p;
+        sum <span class="kw">as </span>u32
+    }
+
     <span class="doccomment">/// Computes the product mod p. This takes care of overflow.
     </span><span class="kw">fn </span>product(<span class="self">self</span>, n1: u32, n2: u32) -&gt; u32 {
-        ((n1 <span class="kw">as </span>u64) * (n2 <span class="kw">as </span>u64) % (<span class="self">self</span>.as_u32() <span class="kw">as </span>u64)) <span class="kw">as </span>u32
+        <span class="kw">let </span>n1 = n1 <span class="kw">as </span>u64;
+        <span class="kw">let </span>n2 = n2 <span class="kw">as </span>u64;
+        <span class="kw">let </span>p = <span class="self">self</span>.as_u32() <span class="kw">as </span>u64;
+        <span class="kw">let </span>product = (n1 * n2) % p;
+        product <span class="kw">as </span>u32
+    }
+
+    <span class="kw">fn </span>inverse(<span class="self">self</span>, k: u32) -&gt; u32 {
+        inverse(<span class="self">self</span>, k)
     }
 
     <span class="kw">fn </span>pow(<span class="self">self</span>, exp: u32) -&gt; u32 {
