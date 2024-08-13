@@ -33,9 +33,9 @@ default = ["odd-primes"]
 concurrent = ["maybe-rayon/concurrent"]
 odd-primes = []
 
-# [[bench]]
-# name = "criterion"
-# harness = false
+[[bench]]
+name = "criterion"
+harness = false
 
 [[bench]]
 name = "smallfq"
