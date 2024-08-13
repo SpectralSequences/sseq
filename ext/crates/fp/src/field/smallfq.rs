@@ -107,6 +107,7 @@ fn zech_logs<P: Prime>(p: P, d: u32) -> &'static ZechTable {
 pub struct SmallFq<P> {
     p: P,
     d: u32,
+    q: u32,
     table: &'static ZechTable,
 }
 
@@ -118,6 +119,7 @@ impl<P: Prime> SmallFq<P> {
         Self {
             p,
             d,
+            q: p.pow(d),
             table: zech_logs(p, d),
         }
     }
@@ -164,6 +166,11 @@ impl<P: Prime> Field for SmallFq<P> {
 
     fn degree(self) -> u32 {
         self.d
+    }
+
+    // We cache the value of `q` because it's the bottleneck for `FieldInternal::el`
+    fn q(self) -> u32 {
+        self.q
     }
 
     fn zero(self) -> FieldElement<Self> {
