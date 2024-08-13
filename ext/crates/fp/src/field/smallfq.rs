@@ -17,7 +17,7 @@ use crate::{
 
 static SMALL_CONWAY_POLYS: [[[u32; 17]; 15]; 54] = include!("small_conway_polys.txt");
 
-type ZechTable = HashMap<SmallFqElement, SmallFqElement>;
+type ZechTable = Vec<SmallFqElement>;
 type Polynomial<P> = FqVector<Fp<P>>;
 
 /// A table of lazily initialized [Zech logarithms][zech_logs].
@@ -73,18 +73,13 @@ fn make_zech_log_table<P: Prime>(p: P, d: u32) -> ZechTable {
     }
 
     // Loop over all elements again, but now recording logarithms.
-    let table = ZechTable::new();
-    table.insert(SmallFqElement(None), SmallFqElement(Some(0)));
-
+    let mut table = vec![SmallFqElement(None); q as usize - 1];
     let mut current = Polynomial::new(prime_field, conway_poly.len());
     current.set_entry(0, prime_field.one());
     for i in 0..q - 1 {
         let mut current_plus_1 = current.clone();
         current_plus_1.add_basis_element(0, prime_field.one());
-        table.insert(
-            SmallFqElement(Some(i)),
-            SmallFqElement(poly_to_power.get(&current_plus_1).as_deref().copied()),
-        );
+        table[i as usize] = SmallFqElement(poly_to_power.get(&current_plus_1).as_deref().copied());
 
         current = mul_by_a(current);
     }
@@ -201,7 +196,7 @@ impl<P: Prime> FieldInternal for SmallFq<P> {
             (SmallFqElement(Some(a)), SmallFqElement(Some(b))) => {
                 // a^m + a^n = a^m (1 + a^(n - m)) = a^(m + Zech(n - m))
                 let (a, b) = if a >= b { (a, b) } else { (b, a) };
-                let zech = self.table.get(&SmallFqElement(Some(a - b))).unwrap();
+                let zech = self.table[(a - b) as usize];
                 if let Some(zech) = zech.0 {
                     SmallFqElement(Some(b + zech))
                 } else {
