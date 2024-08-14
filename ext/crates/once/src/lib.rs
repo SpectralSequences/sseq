@@ -904,4 +904,15 @@ mod tests {
         v.push_ooo(6, 7);
         drop(v);
     }
+
+    // This is just so that MIRI can check for UB when we panic
+    #[test]
+    #[should_panic]
+    fn test_drop_panic() {
+        let v: OnceVec<u32> = OnceVec::new();
+        v.push(4);
+        v.push(3);
+        v.push_ooo(6, 7);
+        panic!();
+    }
 }
