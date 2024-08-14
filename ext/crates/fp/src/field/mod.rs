@@ -26,9 +26,8 @@ pub trait Field: FieldInternal + Sized {
     fn one(self) -> FieldElement<Self>;
 }
 
-// TODO: Figure out better tests
 #[cfg(test)]
-mod test {
+mod tests {
     use super::{Field, SmallFq};
     use crate::prime::P2;
 
@@ -137,5 +136,89 @@ mod test {
         ];
 
         assert_eq!(elements, expansions);
+    }
+
+    /// Given a function that generates elements of a field, test the field axioms and good behavior
+    /// of the Frobenius endomorphism. The function should have signature
+    ///
+    /// ```ignore
+    /// fn arb_elements<const N: usize>() -> impl Strategy<Value = (F, [FieldElement<F>; N])>
+    /// ```
+    #[macro_export]
+    macro_rules! field_tests {
+        () => {
+            proptest! {
+                #[test]
+                fn test_addition_associative((_, [a, b, c]) in arb_elements()) {
+                    prop_assert_eq!((a + b) + c, a + (b + c));
+                }
+
+                #[test]
+                fn test_addition_identity((f, [a]) in arb_elements()) {
+                    prop_assert_eq!(a + f.zero(), a);
+                }
+
+                #[test]
+                fn test_addition_inverse((f, [a]) in arb_elements()) {
+                    prop_assert_eq!(a + (-a), f.zero());
+                }
+
+                #[test]
+                fn test_addition_commutative((_, [a, b]) in arb_elements()) {
+                    prop_assert_eq!(a + b, b + a);
+                }
+
+                #[test]
+                fn test_multiplication_associative((_, [a, b, c]) in arb_elements()) {
+                    prop_assert_eq!((a * b) * c, a * (b * c));
+                }
+
+                #[test]
+                fn test_multiplication_identity((f, [a]) in arb_elements()) {
+                    prop_assert_eq!(a * f.one(), a);
+                }
+
+                #[test]
+                fn test_multiplication_inverse((f, [a]) in arb_elements()) {
+                    if a != f.zero() {
+                        prop_assert_eq!(a * a.inv().unwrap(), f.one());
+                    }
+                }
+
+                #[test]
+                fn test_multiplication_commutative((_, [a, b]) in arb_elements()) {
+                    prop_assert_eq!(a * b, b * a);
+                }
+
+                #[test]
+                fn test_division_is_multiplication_by_inverse((f, [a, b]) in arb_elements()) {
+                    if b != f.zero() {
+                        prop_assert_eq!((a / b).unwrap(), a * b.inv().unwrap());
+                    }
+                }
+
+                #[test]
+                fn test_distributive((_, [a, b, c]) in arb_elements()) {
+                    prop_assert_eq!(a * (b + c), a * b + a * c);
+                }
+
+                #[test]
+                fn test_frobenius_is_pth_power((f, [a]) in arb_elements()) {
+                    let a_frob = a.frobenius();
+                    let a_pth_power = (0..f.characteristic().as_u32()).fold(f.one(), |acc, _| acc * a);
+                    prop_assert_eq!(a_frob, a_pth_power);
+                }
+
+                #[test]
+                fn test_frobenius_additive((_, [a, b]) in arb_elements()) {
+                    prop_assert_eq!((a + b).frobenius(), a.frobenius() + b.frobenius());
+                }
+
+                #[test]
+                fn test_frobenius_multiplicative((_, [a, b]) in arb_elements()) {
+                    prop_assert_eq!((a * b).frobenius(), a.frobenius() * b.frobenius());
+                }
+            }
+        }
     }
 }

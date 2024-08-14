@@ -13,9 +13,13 @@ pub struct Fp<P> {
     p: P,
 }
 
-impl<P> Fp<P> {
+impl<P: Prime> Fp<P> {
     pub const fn new(p: P) -> Self {
         Self { p }
+    }
+
+    pub fn element(&self, value: u32) -> FieldElement<Self> {
+        self.el(value)
     }
 }
 
@@ -151,4 +155,72 @@ impl<P: Prime> From<FieldElement<Fp<P>>> for u32 {
     fn from(element: FieldElement<Fp<P>>) -> Self {
         element.value
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use proptest::prelude::*;
+
+    use super::Fp;
+    use crate::{
+        field::{element::FieldElement, Field},
+        prime::Prime,
+    };
+
+    fn arb_element<P: Prime>(f: Fp<P>) -> impl Strategy<Value = FieldElement<Fp<P>>> {
+        (0..f.characteristic().as_u32()).prop_map(move |v| f.element(v))
+    }
+
+    fn arb_elements<P: Prime, const N: usize>(
+        p: P,
+    ) -> impl Strategy<Value = (Fp<P>, [FieldElement<Fp<P>>; N])> {
+        let f = Fp::new(p);
+
+        let elements: [_; N] = (0..N)
+            .map(|_| arb_element(f))
+            .collect::<Vec<_>>()
+            .try_into()
+            .unwrap();
+        (Just(f), elements)
+    }
+
+    mod validprime {
+        use super::*;
+        use crate::{field_tests, prime::ValidPrime};
+
+        fn arb_elements<const N: usize>(
+        ) -> impl Strategy<Value = (Fp<ValidPrime>, [FieldElement<Fp<ValidPrime>>; N])> {
+            crate::prime::tests::arb_prime().prop_flat_map(super::arb_elements)
+        }
+
+        field_tests!();
+    }
+
+    macro_rules! static_fp_tests {
+        ($p:tt) => {
+            paste::paste! {
+                static_fp_tests!(@ [<$p:lower>], $p, $p, $p);
+            }
+        };
+        (@ $mod_name:ident, $p_expr:expr, $p_ident:ident, $p_ty:ty) => {
+            mod $mod_name {
+                use super::*;
+                use crate::{field_tests, prime::$p_ident};
+
+                fn arb_elements<const N: usize>(
+                ) -> impl Strategy<Value = (Fp<$p_ty>, [FieldElement<Fp<$p_ty>>; N])> {
+                    super::arb_elements($p_expr)
+                }
+
+                field_tests!();
+            }
+        };
+    }
+
+    static_fp_tests!(P2);
+    cfg_if::cfg_if! { if #[cfg(feature = "odd-primes")] {
+        static_fp_tests!(P3);
+        static_fp_tests!(P5);
+        static_fp_tests!(P7);
+    }}
 }

@@ -40,6 +40,14 @@ impl<F: FieldInternal> FieldElement<F> {
     pub(crate) fn val(self) -> F::ElementContainer {
         self.value
     }
+
+    pub fn inv(self) -> Option<Self> {
+        self.field.inv(self)
+    }
+
+    pub fn frobenius(self) -> Self {
+        self.field.frobenius(self)
+    }
 }
 
 // Allows us to access methods on `F::Element` directly

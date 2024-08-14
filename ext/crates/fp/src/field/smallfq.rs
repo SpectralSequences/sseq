@@ -293,3 +293,96 @@ impl std::fmt::Display for SmallFqElement {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use proptest::prelude::*;
+
+    use super::{SmallFq, SmallFqElement};
+    use crate::{
+        field::{element::FieldElement, field_internal::FieldInternal, Field},
+        prime::Prime,
+    };
+
+    fn largest_degree(p: impl Prime) -> u32 {
+        let mut d = 2;
+        while p.pow(d) < 1 << 16 {
+            d += 1;
+        }
+        d - 1
+    }
+
+    fn arb_field<P: Prime>(p: P) -> impl Strategy<Value = SmallFq<P>> {
+        (2..=largest_degree(p)).prop_map(move |d| SmallFq::new(p, d))
+    }
+
+    /// Return the `i`th element of the field, where the 0th element is zero and the others are the
+    /// corresponding powers of `a`. Note that this includes 1 if `i` is q - 1, so that this
+    /// function called with all i in 0..q gives all elements of the field.
+    fn ith_element<P: Prime>(f: SmallFq<P>, i: u32) -> FieldElement<SmallFq<P>> {
+        f.el(SmallFqElement(if i == 0 { None } else { Some(i) }))
+    }
+
+    fn arb_element<P: Prime>(f: SmallFq<P>) -> impl Strategy<Value = FieldElement<SmallFq<P>>> {
+        (0..f.q()).prop_map(move |i| ith_element(f, i))
+    }
+
+    fn arb_elements<P: Prime, const N: usize>(
+        p: P,
+    ) -> impl Strategy<Value = (SmallFq<P>, [FieldElement<SmallFq<P>>; N])> {
+        arb_field(p).prop_flat_map(|f| {
+            let elements: [_; N] = (0..N)
+                .map(|_| arb_element(f))
+                .collect::<Vec<_>>()
+                .try_into()
+                .unwrap();
+            (Just(f), elements)
+        })
+    }
+
+    mod validprime {
+        use super::*;
+        use crate::{field_tests, prime::ValidPrime, PRIMES};
+
+        fn arb_smallfq_prime() -> impl Strategy<Value = ValidPrime> {
+            (0..PRIMES.len()).prop_map(|i| ValidPrime::new(PRIMES[i]))
+        }
+
+        fn arb_elements<const N: usize>(
+        ) -> impl Strategy<Value = (SmallFq<ValidPrime>, [FieldElement<SmallFq<ValidPrime>>; N])>
+        {
+            arb_smallfq_prime().prop_flat_map(super::arb_elements)
+        }
+
+        field_tests!();
+    }
+
+    macro_rules! static_smallfq_tests {
+        ($p:tt) => {
+            paste::paste! {
+                static_smallfq_tests!(@ [<$p:lower>], $p, $p, $p);
+            }
+        };
+        (@ $mod_name:ident, $p_expr:expr, $p_ident:ident, $p_ty:ty) => {
+            mod $mod_name {
+                use super::*;
+                use crate::{field_tests, prime::$p_ident};
+
+                fn arb_elements<const N: usize>(
+                ) -> impl Strategy<Value = (SmallFq<$p_ty>, [FieldElement<SmallFq<$p_ty>>; N])>
+                {
+                    super::arb_elements($p_expr)
+                }
+
+                field_tests!();
+            }
+        };
+    }
+
+    static_smallfq_tests!(P2);
+    cfg_if::cfg_if! { if #[cfg(feature = "odd-primes")] {
+        static_smallfq_tests!(P3);
+        static_smallfq_tests!(P5);
+        static_smallfq_tests!(P7);
+    }}
+}
