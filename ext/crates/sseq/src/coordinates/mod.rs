@@ -30,6 +30,13 @@ pub fn iter_s_t<T: Sync>(
     min: Bidegree,
     max: BidegreeRange<T>,
 ) {
+    // Track `tracing` spans correctly
+    let tracing_span = tracing::Span::current();
+    let f = &|b| {
+        let _tracing_guard = tracing_span.enter();
+        f(b)
+    };
+
     maybe_rayon::scope(|scope| {
         // Rust does not support recursive closures, so we have to pass everything along as
         // arguments.

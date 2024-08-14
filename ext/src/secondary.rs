@@ -624,7 +624,6 @@ pub trait SecondaryLift: Sync + Sized {
 
     #[tracing::instrument(skip(self))]
     fn compute_homotopies(&self) {
-        let tracing_span = tracing::Span::current();
         let shift = self.shift();
 
         // When s = shift_s, the homotopies are just zero
@@ -637,14 +636,7 @@ pub trait SecondaryLift: Sync + Sized {
         let s_range = self.homotopies().range();
         let min = Bidegree::s_t(s_range.start as u32 + 1, min_t);
         let max = self.max().restrict(s_range.end as u32);
-        sseq::coordinates::iter_s_t(
-            &|b| {
-                let _tracing_guard = tracing_span.enter();
-                self.compute_homotopy_step(b)
-            },
-            min,
-            max,
-        );
+        sseq::coordinates::iter_s_t(&|b| self.compute_homotopy_step(b), min, max);
     }
 
     #[tracing::instrument(skip(self))]
