@@ -13,9 +13,13 @@ pub struct Fp<P> {
     p: P,
 }
 
-impl<P> Fp<P> {
+impl<P: Prime> Fp<P> {
     pub const fn new(p: P) -> Self {
         Self { p }
+    }
+
+    pub fn element(&self, value: u32) -> FieldElement<Self> {
+        self.el(value)
     }
 }
 
