@@ -351,7 +351,7 @@ mod tests {
         fn arb_elements<const N: usize>(
         ) -> impl Strategy<Value = (SmallFq<ValidPrime>, [FieldElement<SmallFq<ValidPrime>>; N])>
         {
-            arb_smallfq_prime().prop_flat_map(|p| super::arb_elements(p))
+            arb_smallfq_prime().prop_flat_map(super::arb_elements)
         }
 
         field_tests!();
@@ -380,7 +380,9 @@ mod tests {
     }
 
     static_smallfq_tests!(P2);
-    static_smallfq_tests!(P3);
-    static_smallfq_tests!(P5);
-    static_smallfq_tests!(P7);
+    cfg_if::cfg_if! { if #[cfg(feature = "odd-primes")] {
+        static_smallfq_tests!(P3);
+        static_smallfq_tests!(P5);
+        static_smallfq_tests!(P7);
+    }}
 }

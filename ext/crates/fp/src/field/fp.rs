@@ -190,7 +190,7 @@ mod tests {
 
         fn arb_elements<const N: usize>(
         ) -> impl Strategy<Value = (Fp<ValidPrime>, [FieldElement<Fp<ValidPrime>>; N])> {
-            crate::prime::tests::arb_prime().prop_flat_map(|p| super::arb_elements(p))
+            crate::prime::tests::arb_prime().prop_flat_map(super::arb_elements)
         }
 
         field_tests!();
@@ -218,7 +218,9 @@ mod tests {
     }
 
     static_fp_tests!(P2);
-    static_fp_tests!(P3);
-    static_fp_tests!(P5);
-    static_fp_tests!(P7);
+    cfg_if::cfg_if! { if #[cfg(feature = "odd-primes")] {
+        static_fp_tests!(P3);
+        static_fp_tests!(P5);
+        static_fp_tests!(P7);
+    }}
 }
