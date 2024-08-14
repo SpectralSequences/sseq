@@ -12,10 +12,10 @@ impl_prime_ops!(P3);
 impl_prime_ops!(P5);
 impl_prime_ops!(P7);
 
-impl_try_from!(P2, P2);
-impl_try_from!(P3, P3);
-impl_try_from!(P5, P5);
-impl_try_from!(P7, P7);
+impl_try_from!(P2);
+impl_try_from!(P3);
+impl_try_from!(P5);
+impl_try_from!(P7);
 
 pub(crate) mod fp {
     use super::{P2, P3, P5, P7};

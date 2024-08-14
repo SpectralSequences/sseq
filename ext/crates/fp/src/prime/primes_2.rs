@@ -4,7 +4,7 @@ use super::*;
 
 def_prime_static!(P2, 2);
 impl_prime_ops!(P2);
-impl_try_from!(P2, P2);
+impl_try_from!(P2);
 
 pub type ValidPrime = P2;
 

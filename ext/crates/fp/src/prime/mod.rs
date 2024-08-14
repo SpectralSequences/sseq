@@ -232,8 +232,11 @@ macro_rules! impl_prime_ops {
 }
 
 macro_rules! impl_try_from {
+    ($p:tt) => {
+        impl_try_from!(@ $p, $p);
+    };
     // We need the type both as a type and as an expression.
-    ($pn:ty, $pn_ex:expr) => {
+    (@ $pn:ty, $pn_ex:expr) => {
         impl std::convert::TryFrom<u32> for $pn {
             type Error = PrimeError;
 
