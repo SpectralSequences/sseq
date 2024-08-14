@@ -1087,34 +1087,6 @@
 <a href="#1062" id="1062">1062</a>
 <a href="#1063" id="1063">1063</a>
 <a href="#1064" id="1064">1064</a>
-<a href="#1065" id="1065">1065</a>
-<a href="#1066" id="1066">1066</a>
-<a href="#1067" id="1067">1067</a>
-<a href="#1068" id="1068">1068</a>
-<a href="#1069" id="1069">1069</a>
-<a href="#1070" id="1070">1070</a>
-<a href="#1071" id="1071">1071</a>
-<a href="#1072" id="1072">1072</a>
-<a href="#1073" id="1073">1073</a>
-<a href="#1074" id="1074">1074</a>
-<a href="#1075" id="1075">1075</a>
-<a href="#1076" id="1076">1076</a>
-<a href="#1077" id="1077">1077</a>
-<a href="#1078" id="1078">1078</a>
-<a href="#1079" id="1079">1079</a>
-<a href="#1080" id="1080">1080</a>
-<a href="#1081" id="1081">1081</a>
-<a href="#1082" id="1082">1082</a>
-<a href="#1083" id="1083">1083</a>
-<a href="#1084" id="1084">1084</a>
-<a href="#1085" id="1085">1085</a>
-<a href="#1086" id="1086">1086</a>
-<a href="#1087" id="1087">1087</a>
-<a href="#1088" id="1088">1088</a>
-<a href="#1089" id="1089">1089</a>
-<a href="#1090" id="1090">1090</a>
-<a href="#1091" id="1091">1091</a>
-<a href="#1092" id="1092">1092</a>
 </pre></div><pre class="rust"><code><span class="kw">pub mod </span>inner;
 
 <span class="kw">mod </span>fp_wrapper;
@@ -1128,8 +1100,6 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
-    <span class="kw">use </span>std::sync::OnceLock;
-
     <span class="kw">use </span>itertools::Itertools;
     <span class="kw">use </span>proptest::prelude::<span class="kw-2">*</span>;
     <span class="kw">use </span>rstest::rstest;
@@ -1138,7 +1108,7 @@
     <span class="kw">use crate</span>::{
         field::{field_internal::FieldInternal, fp::F2, Fp},
         limb,
-        prime::{Prime, ValidPrime},
+        prime::{tests::arb_prime, Prime, ValidPrime},
     };
 
     <span class="kw">pub struct </span>VectorDiffEntry {
@@ -1214,32 +1184,6 @@
     <span class="kw">fn </span>random_vector(p: u32, dimension: usize) -&gt; Vec&lt;u32&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>rng = rand::thread_rng();
         (<span class="number">0</span>..dimension).map(|<span class="kw">_</span>| rng.gen_range(<span class="number">0</span>..p)).collect()
-    }
-
-    <span class="doccomment">/// An arbitrary `ValidPrime` in the range `2..(1 &lt;&lt; 24)`, plus the largest prime that we support.
-    </span><span class="kw">fn </span>arb_prime() -&gt; <span class="kw">impl </span>Strategy&lt;Value = ValidPrime&gt; {
-        <span class="kw">static </span>TEST_PRIMES: OnceLock&lt;Vec&lt;ValidPrime&gt;&gt; = OnceLock::new();
-        <span class="kw">let </span>test_primes = TEST_PRIMES.get_or_init(|| {
-            <span class="comment">// Sieve of erathosthenes
-            </span><span class="kw">const </span>MAX: usize = <span class="number">1 </span>&lt;&lt; <span class="number">24</span>;
-            <span class="kw">let </span><span class="kw-2">mut </span>is_prime = Vec::new();
-            is_prime.resize_with(MAX, || <span class="bool-val">true</span>);
-            is_prime[<span class="number">0</span>] = <span class="bool-val">false</span>;
-            is_prime[<span class="number">1</span>] = <span class="bool-val">false</span>;
-            <span class="kw">for </span>i <span class="kw">in </span><span class="number">2</span>..MAX {
-                <span class="kw">if </span>is_prime[i] {
-                    <span class="kw">for </span>j <span class="kw">in </span>((<span class="number">2 </span>* i)..MAX).step_by(i) {
-                        is_prime[j] = <span class="bool-val">false</span>;
-                    }
-                }
-            }
-            (<span class="number">0</span>..MAX)
-                .filter(|<span class="kw-2">&amp;</span>i| is_prime[i])
-                .map(|p| ValidPrime::new_unchecked(p <span class="kw">as </span>u32))
-                .chain(std::iter::once(ValidPrime::new_unchecked(<span class="number">2147483647</span>)))
-                .collect()
-        });
-        (<span class="number">0</span>..test_primes.len()).prop_map(|i| test_primes[i])
     }
 
     <span class="doccomment">/// An arbitrary (prime, dimension) pair
