@@ -115,6 +115,13 @@
 <a href="#90" id="90">90</a>
 <a href="#91" id="91">91</a>
 <a href="#92" id="92">92</a>
+<a href="#93" id="93">93</a>
+<a href="#94" id="94">94</a>
+<a href="#95" id="95">95</a>
+<a href="#96" id="96">96</a>
+<a href="#97" id="97">97</a>
+<a href="#98" id="98">98</a>
+<a href="#99" id="99">99</a>
 </pre></div><pre class="rust"><code><span class="kw">pub mod </span>bidegree;
 <span class="kw">pub mod </span>element;
 <span class="kw">pub mod </span>generator;
@@ -147,6 +154,13 @@
     min: Bidegree,
     max: BidegreeRange&lt;T&gt;,
 ) {
+    <span class="comment">// Track `tracing` spans correctly
+    </span><span class="kw">let </span>tracing_span = tracing::Span::current();
+    <span class="kw">let </span>f = <span class="kw-2">&amp;</span>|b| {
+        <span class="kw">let </span>_tracing_guard = tracing_span.enter();
+        f(b)
+    };
+
     maybe_rayon::scope(|scope| {
         <span class="comment">// Rust does not support recursive closures, so we have to pass everything along as
         // arguments.
