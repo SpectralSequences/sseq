@@ -323,3 +323,194 @@ impl<'a> From<&'a mut FpVector> for FpSliceMut<'a> {
         v.as_slice_mut()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use itertools::Itertools;
+    use proptest::prelude::*;
+    use rand::Rng;
+    use rstest::rstest;
+
+    use crate::{
+        prime::{Prime, ValidPrime},
+        vector::{tests::MAX_TEST_VEC_LEN, FpVector},
+    };
+
+    pub struct VectorDiffEntry {
+        pub index: usize,
+        pub left: u32,
+        pub right: u32,
+    }
+
+    impl FpVector {
+        pub fn diff_list(&self, other: &[u32]) -> Vec<VectorDiffEntry> {
+            assert!(self.len() == other.len());
+            let mut result = Vec::new();
+            #[allow(clippy::needless_range_loop)]
+            for index in 0..self.len() {
+                let left = self.entry(index);
+                let right = other[index].clone();
+                if left != right {
+                    result.push(VectorDiffEntry { index, left, right });
+                }
+            }
+            result
+        }
+
+        pub fn diff_vec(&self, other: &Self) -> Vec<VectorDiffEntry> {
+            assert!(self.len() == other.len());
+            let mut result = Vec::new();
+            for index in 0..self.len() {
+                let left = self.entry(index);
+                let right = other.entry(index);
+                if left != right {
+                    result.push(VectorDiffEntry { index, left, right });
+                }
+            }
+            result
+        }
+
+        pub fn format_diff(diff: Vec<VectorDiffEntry>) -> String {
+            let data_formatter =
+                diff.iter()
+                    .format_with("\n ", |VectorDiffEntry { index, left, right }, f| {
+                        f(&format_args!("  At index {index}: {left}!={right}"))
+                    });
+            format!("{data_formatter}")
+        }
+
+        pub fn assert_list_eq(&self, other: &[u32]) {
+            let diff = self.diff_list(other);
+            if diff.is_empty() {
+                return;
+            }
+            panic!(
+                "assert {} == {:?}\n{}",
+                self,
+                other,
+                Self::format_diff(diff)
+            );
+        }
+
+        pub fn assert_vec_eq(&self, other: &Self) {
+            let diff = self.diff_vec(other);
+            if diff.is_empty() {
+                return;
+            }
+            panic!(
+                "assert {} == {:?}\n{}",
+                self,
+                other,
+                Self::format_diff(diff)
+            );
+        }
+    }
+
+    fn random_vector(p: u32, dimension: usize) -> Vec<u32> {
+        let mut rng = rand::thread_rng();
+        (0..dimension).map(|_| rng.gen_range(0..p)).collect()
+    }
+
+    fn arb_vec_u32() -> impl Strategy<Value = (ValidPrime, Vec<u32>)> {
+        any::<ValidPrime>().prop_flat_map(|p| {
+            (
+                Just(p),
+                proptest::collection::vec(0..p.as_u32(), 1..=MAX_TEST_VEC_LEN),
+            )
+        })
+    }
+
+    proptest! {
+        #[test]
+        fn test_serialize((p, v_arr) in arb_vec_u32()) {
+            use std::io::{Seek, Cursor};
+
+            let v = FpVector::from_slice(p, &v_arr);
+
+            let mut cursor = Cursor::new(Vec::<u8>::new());
+            v.to_bytes(&mut cursor).unwrap();
+            cursor.rewind().unwrap();
+
+            let w = FpVector::from_bytes(v.prime(), v.len(), &mut cursor).unwrap();
+            v.assert_vec_eq(&w);
+        }
+    }
+
+    #[rstest]
+    #[trace]
+    fn test_add_carry(#[values(2)] p: u32, #[values(10, 20, 70, 100, 1000)] dim: usize) {
+        use std::fmt::Write;
+
+        let p = ValidPrime::new(p);
+        const E_MAX: usize = 4;
+        let pto_the_e_max = (p * p * p * p) * p;
+        let mut v = Vec::with_capacity(E_MAX + 1);
+        let mut w = Vec::with_capacity(E_MAX + 1);
+        for _ in 0..=E_MAX {
+            v.push(FpVector::new(p, dim));
+            w.push(FpVector::new(p, dim));
+        }
+        let v_arr = random_vector(pto_the_e_max, dim);
+        let w_arr = random_vector(pto_the_e_max, dim);
+        for i in 0..dim {
+            let mut ev = v_arr[i];
+            let mut ew = w_arr[i];
+            for e in 0..=E_MAX {
+                v[e].set_entry(i, ev % p);
+                w[e].set_entry(i, ew % p);
+                ev /= p;
+                ew /= p;
+            }
+        }
+
+        println!("in  : {v_arr:?}");
+        for (e, val) in v.iter().enumerate() {
+            println!("in {e}: {val}");
+        }
+        println!();
+
+        println!("in  : {w_arr:?}");
+        for (e, val) in w.iter().enumerate() {
+            println!("in {e}: {val}");
+        }
+        println!();
+
+        for e in 0..=E_MAX {
+            let (first, rest) = v[e..].split_at_mut(1);
+            first[0].add_carry(&w[e], 1, rest);
+        }
+
+        let mut vec_result = vec![0; dim];
+        for (i, entry) in vec_result.iter_mut().enumerate() {
+            for e in (0..=E_MAX).rev() {
+                *entry *= p;
+                *entry += v[e].entry(i);
+            }
+        }
+
+        for (e, val) in v.iter().enumerate() {
+            println!("out{e}: {val}");
+        }
+        println!();
+
+        let mut comparison_result = vec![0; dim];
+        for i in 0..dim {
+            comparison_result[i] = (v_arr[i] + w_arr[i]) % pto_the_e_max;
+        }
+        println!("out : {comparison_result:?}");
+
+        let mut diffs = Vec::new();
+        let mut diffs_str = String::new();
+        for i in 0..dim {
+            if vec_result[i] != comparison_result[i] {
+                diffs.push((i, comparison_result[i], vec_result[i]));
+                let _ = write!(
+                    diffs_str,
+                    "\nIn position {} expected {} got {}. v[i] = {}, w[i] = {}.",
+                    i, comparison_result[i], vec_result[i], v_arr[i], w_arr[i]
+                );
+            }
+        }
+        assert!(diffs.is_empty(), "{}", diffs_str);
+    }
+}
