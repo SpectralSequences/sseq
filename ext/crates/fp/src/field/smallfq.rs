@@ -189,6 +189,18 @@ impl<P: Prime> Field for SmallFq<P> {
     fn one(self) -> FieldElement<Self> {
         self.el(SmallFqElement(Some(0)))
     }
+
+    #[cfg(feature = "proptest")]
+    fn arb_element(self) -> impl proptest::strategy::Strategy<Value = FieldElement<Self>> {
+        use proptest::prelude::*;
+
+        (0..self.q()).prop_map(move |i| {
+            // Note that, mathematically, the elements of SmallFq<P> are 0 and a^i for i in [0,q-1).
+            // Since a^(q-1) = 1 = a^0, we can use i == 0 to represent the zero element. Thanks to
+            // `FieldInternal::el`, the exponent of q - 1 will be reduced to 0.
+            self.el(SmallFqElement(if i == 0 { None } else { Some(i) }))
+        })
+    }
 }
 
 impl<P: Prime> FieldInternal for SmallFq<P> {
@@ -286,6 +298,32 @@ impl<P: Prime> FieldInternal for SmallFq<P> {
     }
 }
 
+#[cfg(feature = "proptest")]
+impl<P: Prime> proptest::arbitrary::Arbitrary for SmallFq<P> {
+    type Parameters = ();
+    type Strategy = proptest::strategy::BoxedStrategy<Self>;
+
+    fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+        use proptest::prelude::*;
+
+        // Can't be a closure because the return value refenrences this function, and a closure
+        // would not live long enough
+        fn largest_degree(p: impl Prime) -> u32 {
+            let mut d = 2;
+            while p.pow(d) < 1 << 16 {
+                d += 1;
+            }
+            d - 1
+        }
+
+        any_with::<P>(std::num::NonZeroU32::new(256)) // prime is at most 256
+            .prop_flat_map(|p| (2..=largest_degree(p)).prop_map(move |d| Self::new(p, d)))
+            .boxed()
+    }
+}
+
+impl<P: Prime> crate::MaybeArbitrary<()> for SmallFq<P> {}
+
 /// A field element, stored as the exponent of a distinguished generator of the group of units.
 /// `None` if the element is zero.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -305,86 +343,29 @@ impl std::fmt::Display for SmallFqElement {
 }
 
 #[cfg(test)]
-mod tests {
-    use proptest::prelude::*;
-
-    use super::{SmallFq, SmallFqElement};
-    use crate::{
-        field::{element::FieldElement, field_internal::FieldInternal, Field},
-        prime::Prime,
-    };
-
-    fn largest_degree(p: impl Prime) -> u32 {
-        let mut d = 2;
-        while p.pow(d) < 1 << 16 {
-            d += 1;
-        }
-        d - 1
-    }
-
-    fn arb_field<P: Prime>(p: P) -> impl Strategy<Value = SmallFq<P>> {
-        (2..=largest_degree(p)).prop_map(move |d| SmallFq::new(p, d))
-    }
-
-    /// Return the `i`th element of the field, where the 0th element is zero and the others are the
-    /// corresponding powers of `a`. Note that this includes 1 if `i` is q - 1, so that this
-    /// function called with all i in 0..q gives all elements of the field.
-    fn ith_element<P: Prime>(f: SmallFq<P>, i: u32) -> FieldElement<SmallFq<P>> {
-        f.el(SmallFqElement(if i == 0 { None } else { Some(i) }))
-    }
-
-    fn arb_element<P: Prime>(f: SmallFq<P>) -> impl Strategy<Value = FieldElement<SmallFq<P>>> {
-        (0..f.q()).prop_map(move |i| ith_element(f, i))
-    }
-
-    fn arb_elements<P: Prime, const N: usize>(
-        p: P,
-    ) -> impl Strategy<Value = (SmallFq<P>, [FieldElement<SmallFq<P>>; N])> {
-        arb_field(p).prop_flat_map(|f| {
-            let elements: [_; N] = (0..N)
-                .map(|_| arb_element(f))
-                .collect::<Vec<_>>()
-                .try_into()
-                .unwrap();
-            (Just(f), elements)
-        })
-    }
+pub(crate) mod tests {
+    use super::SmallFq;
+    use crate::field::tests::field_tests;
 
     mod validprime {
         use super::*;
-        use crate::{field_tests, prime::ValidPrime, PRIMES};
+        use crate::prime::ValidPrime;
 
-        fn arb_smallfq_prime() -> impl Strategy<Value = ValidPrime> {
-            (0..PRIMES.len()).prop_map(|i| ValidPrime::new(PRIMES[i]))
-        }
-
-        fn arb_elements<const N: usize>(
-        ) -> impl Strategy<Value = (SmallFq<ValidPrime>, [FieldElement<SmallFq<ValidPrime>>; N])>
-        {
-            arb_smallfq_prime().prop_flat_map(super::arb_elements)
-        }
-
-        field_tests!();
+        field_tests!(SmallFq<ValidPrime>);
     }
 
     macro_rules! static_smallfq_tests {
         ($p:tt) => {
             paste::paste! {
-                static_smallfq_tests!(@ [<$p:lower>], $p, $p, $p);
+                static_smallfq_tests!(@ [<$p:lower>], $p, $p);
             }
         };
-        (@ $mod_name:ident, $p_expr:expr, $p_ident:ident, $p_ty:ty) => {
+        (@ $mod_name:ident, $p_ident:ident, $p_ty:ty) => {
             mod $mod_name {
                 use super::*;
-                use crate::{field_tests, prime::$p_ident};
+                use crate::prime::$p_ident;
 
-                fn arb_elements<const N: usize>(
-                ) -> impl Strategy<Value = (SmallFq<$p_ty>, [FieldElement<SmallFq<$p_ty>>; N])>
-                {
-                    super::arb_elements($p_expr)
-                }
-
-                field_tests!();
+                field_tests!(SmallFq<$p_ty>);
             }
         };
     }

@@ -117,3 +117,50 @@ impl<'de> Deserialize<'de> for ValidPrime {
         Self::try_from(p).map_err(D::Error::custom)
     }
 }
+
+#[cfg(feature = "proptest")]
+impl proptest::arbitrary::Arbitrary for ValidPrime {
+    type Parameters = Option<std::num::NonZeroU32>;
+    type Strategy = proptest::sample::Select<Self>;
+
+    /// An arbitrary `ValidPrime` in the range `2..(1 << 24)`, plus the largest prime that we
+    /// support. If `max` is specified, the primes are restricted to be less than `max`.
+    fn arbitrary_with(max: Self::Parameters) -> Self::Strategy {
+        use std::sync::OnceLock;
+
+        static TEST_PRIMES: OnceLock<Vec<ValidPrime>> = OnceLock::new();
+        let test_primes = TEST_PRIMES.get_or_init(|| {
+            // Sieve of erathosthenes
+            const MAX: usize = 1 << 24;
+            let mut is_prime = Vec::new();
+            is_prime.resize_with(MAX, || true);
+            is_prime[0] = false;
+            is_prime[1] = false;
+            for i in 2..MAX {
+                if is_prime[i] {
+                    for j in ((2 * i)..MAX).step_by(i) {
+                        is_prime[j] = false;
+                    }
+                }
+            }
+            (0..MAX)
+                .filter(|&i| is_prime[i])
+                .map(|p| Self::new_unchecked(p as u32))
+                .chain(std::iter::once(Self::new_unchecked(2147483647)))
+                .collect()
+        });
+        let restricted_slice = if let Some(max) = max {
+            let max_index = test_primes
+                .iter()
+                .position(|&p| p >= max.get())
+                .unwrap_or(test_primes.len());
+
+            &test_primes[..max_index]
+        } else {
+            test_primes
+        };
+        proptest::sample::select(restricted_slice)
+    }
+}
+
+impl crate::MaybeArbitrary<Option<NonZeroU32>> for ValidPrime {}

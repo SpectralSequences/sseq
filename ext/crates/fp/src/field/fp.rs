@@ -41,6 +41,13 @@ impl<P: Prime> Field for Fp<P> {
     fn one(self) -> FieldElement<Self> {
         self.el(1)
     }
+
+    #[cfg(feature = "proptest")]
+    fn arb_element(self) -> impl proptest::strategy::Strategy<Value = FieldElement<Self>> {
+        use proptest::prelude::*;
+
+        (0..self.characteristic().as_u32()).prop_map(move |v| self.element(v))
+    }
 }
 
 impl<P: Prime> FieldInternal for Fp<P> {
@@ -135,6 +142,20 @@ impl<P: Prime> FieldInternal for Fp<P> {
     }
 }
 
+#[cfg(feature = "proptest")]
+impl<P: Prime> proptest::arbitrary::Arbitrary for Fp<P> {
+    type Parameters = ();
+    type Strategy = proptest::strategy::BoxedStrategy<Self>;
+
+    fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+        use proptest::prelude::*;
+
+        any::<P>().prop_map(Self::new).boxed()
+    }
+}
+
+impl<P: Prime> crate::MaybeArbitrary<()> for Fp<P> {}
+
 impl<P> std::ops::Deref for Fp<P> {
     type Target = P;
 
@@ -159,60 +180,28 @@ impl<P: Prime> From<FieldElement<Fp<P>>> for u32 {
 
 #[cfg(test)]
 mod tests {
-    use proptest::prelude::*;
-
     use super::Fp;
-    use crate::{
-        field::{element::FieldElement, Field},
-        prime::Prime,
-    };
-
-    fn arb_element<P: Prime>(f: Fp<P>) -> impl Strategy<Value = FieldElement<Fp<P>>> {
-        (0..f.characteristic().as_u32()).prop_map(move |v| f.element(v))
-    }
-
-    fn arb_elements<P: Prime, const N: usize>(
-        p: P,
-    ) -> impl Strategy<Value = (Fp<P>, [FieldElement<Fp<P>>; N])> {
-        let f = Fp::new(p);
-
-        let elements: [_; N] = (0..N)
-            .map(|_| arb_element(f))
-            .collect::<Vec<_>>()
-            .try_into()
-            .unwrap();
-        (Just(f), elements)
-    }
+    use crate::field::tests::field_tests;
 
     mod validprime {
         use super::*;
-        use crate::{field_tests, prime::ValidPrime};
+        use crate::prime::ValidPrime;
 
-        fn arb_elements<const N: usize>(
-        ) -> impl Strategy<Value = (Fp<ValidPrime>, [FieldElement<Fp<ValidPrime>>; N])> {
-            crate::prime::tests::arb_prime().prop_flat_map(super::arb_elements)
-        }
-
-        field_tests!();
+        field_tests!(Fp<ValidPrime>);
     }
 
     macro_rules! static_fp_tests {
         ($p:tt) => {
             paste::paste! {
-                static_fp_tests!(@ [<$p:lower>], $p, $p, $p);
+                static_fp_tests!(@ [<$p:lower>], $p, $p);
             }
         };
-        (@ $mod_name:ident, $p_expr:expr, $p_ident:ident, $p_ty:ty) => {
+        (@ $mod_name:ident, $p_ident:ident, $p_ty:ty) => {
             mod $mod_name {
                 use super::*;
-                use crate::{field_tests, prime::$p_ident};
+                use crate::prime::$p_ident;
 
-                fn arb_elements<const N: usize>(
-                ) -> impl Strategy<Value = (Fp<$p_ty>, [FieldElement<Fp<$p_ty>>; N])> {
-                    super::arb_elements($p_expr)
-                }
-
-                field_tests!();
+                field_tests!(Fp<$p_ty>);
             }
         };
     }
