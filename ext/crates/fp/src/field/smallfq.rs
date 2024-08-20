@@ -102,7 +102,7 @@ fn zech_logs<P: Prime>(p: P, d: u32) -> ZechTable {
 ///
 /// Note: This populates the Zech logarithm table eagerly, which can be rather expensive (several
 /// milliseconds). Only construct these fields if you're going to use them.
-#[derive(Debug, Copy, Clone)]
+#[derive(Copy, Clone)]
 pub struct SmallFq<P> {
     p: P,
     d: u32,
@@ -132,6 +132,16 @@ impl<P: Prime> SmallFq<P> {
     /// The distinguished primitive element that generates the multiplicative group of the field.
     pub fn a(self) -> FieldElement<Self> {
         self.el(SmallFqElement(Some(1)))
+    }
+}
+
+// Custom debug implementation to avoid printing `q` and the Zech table
+impl<P: Prime> std::fmt::Debug for SmallFq<P> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SmallFq")
+            .field("p", &self.p)
+            .field("d", &self.d)
+            .finish()
     }
 }
 
