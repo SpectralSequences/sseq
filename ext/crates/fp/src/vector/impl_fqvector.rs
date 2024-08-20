@@ -339,3 +339,9 @@ impl<F: Field> From<&FqVector<F>> for Vec<FieldElement<F>> {
         vec.iter().collect()
     }
 }
+
+impl<F: Field> std::fmt::Display for FqVector<F> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        self.as_slice().fmt(f)
+    }
+}

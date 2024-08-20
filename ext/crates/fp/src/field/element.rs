@@ -7,7 +7,10 @@ use super::{field_internal::FieldInternal, Field};
 
 /// This just ensures that the containers are "nice enough", in the sense that they are cloneable,
 /// hashable, etc. We may add more custom methods in the future.
-pub trait FieldElementContainer: Clone + PartialEq + Eq + Hash {}
+pub trait FieldElementContainer:
+    std::fmt::Debug + std::fmt::Display + Clone + PartialEq + Eq + Hash
+{
+}
 
 /// An element of a field. This contains the field itself so that it knows how to do arithmetic
 /// operations. We want this to be a _struct_ rather than a trait, which means that we want the
@@ -94,5 +97,11 @@ impl<F: Field> Neg for FieldElement<F> {
 
     fn neg(self) -> Self::Output {
         self.field.neg(self)
+    }
+}
+
+impl<F: Field> std::fmt::Display for FieldElement<F> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.value)
     }
 }

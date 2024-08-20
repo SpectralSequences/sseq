@@ -1,3 +1,5 @@
+use itertools::Itertools;
+
 use super::{
     inner::{FqVector, SliceP},
     iter::{FqVectorIteratorP, FqVectorNonZeroIteratorP},
@@ -151,5 +153,31 @@ impl<'a, F: Field> SliceP<'a, F> {
 impl<'a, F: Field> From<&'a FqVector<F>> for SliceP<'a, F> {
     fn from(v: &'a FqVector<F>) -> Self {
         v.slice(0, v.len)
+    }
+}
+
+impl<'a, F: Field> std::fmt::Display for SliceP<'a, F> {
+    /// # Example
+    /// ```
+    /// # use fp::field::{Field, SmallFq};
+    /// # use fp::prime::{P2, ValidPrime};
+    /// # use fp::vector::FqVector;
+    /// let fq = SmallFq::new(P2, 3);
+    /// let v = FqVector::from_slice(fq, &[fq.zero(), fq.one(), fq.a(), fq.a() * fq.a()]);
+    /// assert_eq!(&format!("{v}"), "[0, 1, a, a^2]");
+    ///
+    /// // This only looks reasonable over prime fields of order less than 10
+    /// assert_eq!(&format!("{v:#}"), "01aa^2");
+    /// ```
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        if f.alternate() {
+            for v in self.iter() {
+                // If self.p >= 11, this will look funky
+                write!(f, "{v}")?;
+            }
+            Ok(())
+        } else {
+            write!(f, "[{}]", self.iter().format(", "))
+        }
     }
 }
