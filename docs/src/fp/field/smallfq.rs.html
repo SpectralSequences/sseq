@@ -411,6 +411,16 @@
 <a href="#386" id="386">386</a>
 <a href="#387" id="387">387</a>
 <a href="#388" id="388">388</a>
+<a href="#389" id="389">389</a>
+<a href="#390" id="390">390</a>
+<a href="#391" id="391">391</a>
+<a href="#392" id="392">392</a>
+<a href="#393" id="393">393</a>
+<a href="#394" id="394">394</a>
+<a href="#395" id="395">395</a>
+<a href="#396" id="396">396</a>
+<a href="#397" id="397">397</a>
+<a href="#398" id="398">398</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::LazyLock;
 
 <span class="kw">use </span>dashmap::DashMap <span class="kw">as </span>HashMap;
@@ -515,7 +525,7 @@
 ///
 /// Note: This populates the Zech logarithm table eagerly, which can be rather expensive (several
 /// milliseconds). Only construct these fields if you're going to use them.
-</span><span class="attr">#[derive(Debug, Copy, Clone)]
+</span><span class="attr">#[derive(Copy, Clone)]
 </span><span class="kw">pub struct </span>SmallFq&lt;P&gt; {
     p: P,
     d: u32,
@@ -545,6 +555,16 @@
     <span class="doccomment">/// The distinguished primitive element that generates the multiplicative group of the field.
     </span><span class="kw">pub fn </span>a(<span class="self">self</span>) -&gt; FieldElement&lt;<span class="self">Self</span>&gt; {
         <span class="self">self</span>.el(SmallFqElement(<span class="prelude-val">Some</span>(<span class="number">1</span>)))
+    }
+}
+
+<span class="comment">// Custom debug implementation to avoid printing `q` and the Zech table
+</span><span class="kw">impl</span>&lt;P: Prime&gt; std::fmt::Debug <span class="kw">for </span>SmallFq&lt;P&gt; {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
+        f.debug_struct(<span class="string">"SmallFq"</span>)
+            .field(<span class="string">"p"</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.p)
+            .field(<span class="string">"d"</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.d)
+            .finish()
     }
 }
 
