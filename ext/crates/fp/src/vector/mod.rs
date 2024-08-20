@@ -19,7 +19,7 @@ mod tests {
     use crate::{
         field::{field_internal::FieldInternal, fp::F2, Fp},
         limb,
-        prime::{tests::arb_prime, Prime, ValidPrime},
+        prime::{Prime, ValidPrime},
     };
 
     pub struct VectorDiffEntry {
@@ -99,7 +99,7 @@ mod tests {
 
     /// An arbitrary (prime, dimension) pair
     fn arb_prime_dim() -> impl Strategy<Value = (ValidPrime, usize)> {
-        arb_prime().prop_flat_map(|p| (Just(p), 0usize..=10_000))
+        any::<ValidPrime>().prop_flat_map(|p| (Just(p), 0usize..=10_000))
     }
 
     /// The start and end positions of an arbitrary slice of a vector of length `dimension`
@@ -160,7 +160,7 @@ mod tests {
     /// the sense of [`FpVector::add_masked`] and [`FpVector::add_unmasked`])
     fn arb_vec_pair_and_mask() -> impl Strategy<Value = (ValidPrime, Vec<u32>, Vec<u32>, Vec<usize>)>
     {
-        arb_prime()
+        any::<ValidPrime>()
             .prop_flat_map(|p| (Just(p), arb_slice(10_000)))
             .prop_flat_map(|(p, (dim_small, dim_large))| {
                 (
@@ -181,13 +181,13 @@ mod tests {
         })]
 
         #[test]
-        fn test_bit_length(p in arb_prime()) {
+        fn test_bit_length(p in any::<ValidPrime>()) {
             prop_assert!(Fp::new(p).bit_length() <= 63);
         }
 
         #[cfg(feature = "odd-primes")]
         #[test]
-        fn test_incompatible_primes((p1, p2) in (arb_prime(), arb_prime())) {
+        fn test_incompatible_primes((p1, p2) in (any::<ValidPrime>(), any::<ValidPrime>())) {
             prop_assume!(p1 != p2);
 
             macro_rules! assert_panic {
