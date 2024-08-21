@@ -16,6 +16,7 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
     }
 
     pub fn add_basis_element(&mut self, index: usize, value: FieldElement<F>) {
+        assert_eq!(self.fq, value.field());
         if self.fq.q() == 2 {
             let pair = self.fq.limb_bit_index_pair(index + self.start);
             self.limbs[pair.limb] ^= self.fq.encode(value) << pair.bit_index;
@@ -27,7 +28,8 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
     }
 
     pub fn set_entry(&mut self, index: usize, value: FieldElement<F>) {
-        debug_assert!(index < self.as_slice().len());
+        assert_eq!(self.fq, value.field());
+        assert!(index < self.as_slice().len());
         let bit_mask = self.fq.bitmask();
         let limb_index = self.fq.limb_bit_index_pair(index + self.start);
         let mut result = self.limbs[limb_index.limb];
@@ -47,6 +49,7 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
     }
 
     pub fn scale(&mut self, c: FieldElement<F>) {
+        assert_eq!(self.fq, c.field());
         if self.fq.q() == 2 {
             if c == self.fq.zero() {
                 self.set_to_zero();
@@ -94,6 +97,9 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
     }
 
     pub fn add(&mut self, other: FqSlice<'_, F>, c: FieldElement<F>) {
+        assert_eq!(self.fq, c.field());
+        assert_eq!(self.fq, other.fq);
+
         if self.as_slice().is_empty() {
             return;
         }
@@ -123,6 +129,10 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
         left: FqSlice<F>,
         right: FqSlice<F>,
     ) {
+        assert_eq!(self.fq, coeff.field());
+        assert_eq!(self.fq, left.fq);
+        assert_eq!(self.fq, right.fq);
+
         let right_dim = right.len();
 
         for (i, v) in left.iter_nonzero() {
@@ -134,6 +144,7 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
 
     /// TODO: improve efficiency
     pub fn assign(&mut self, other: FqSlice<'_, F>) {
+        assert_eq!(self.fq, other.fq);
         if self.as_slice().offset() != other.offset() {
             self.set_to_zero();
             self.add(other, self.fq.one());
@@ -165,6 +176,9 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
 
     /// Adds `c` * `other` to `self`. `other` must have the same length, offset, and prime as self.
     pub fn add_shift_none(&mut self, other: FqSlice<'_, F>, c: FieldElement<F>) {
+        assert_eq!(self.fq, c.field());
+        assert_eq!(self.fq, other.fq);
+
         let target_range = self.as_slice().limb_range();
         let source_range = other.limb_range();
 
@@ -455,6 +469,8 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
     /// Given a mask v, add the `v[i]`th entry of `other` to the `i`th entry of `self`.
     pub fn add_masked(&mut self, other: FqSlice<'_, F>, c: FieldElement<F>, mask: &[usize]) {
         // TODO: If this ends up being a bottleneck, try to use PDEP/PEXT
+        assert_eq!(self.fq, c.field());
+        assert_eq!(self.fq, other.fq);
         assert_eq!(self.as_slice().len(), mask.len());
         for (i, &x) in mask.iter().enumerate() {
             let entry = other.entry(x);
@@ -466,6 +482,8 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
 
     /// Given a mask v, add the `i`th entry of `other` to the `v[i]`th entry of `self`.
     pub fn add_unmasked(&mut self, other: FqSlice<'_, F>, c: FieldElement<F>, mask: &[usize]) {
+        assert_eq!(self.fq, c.field());
+        assert_eq!(self.fq, other.fq);
         assert!(other.len() <= mask.len());
         for (i, v) in other.iter_nonzero() {
             self.add_basis_element(mask[i], v * c.clone());

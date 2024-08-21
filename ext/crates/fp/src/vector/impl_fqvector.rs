@@ -32,6 +32,7 @@ impl<F: Field> FqVector<F> {
     }
 
     pub fn from_slice(fq: F, slice: &[FieldElement<F>]) -> Self {
+        assert!(slice.iter().all(|x| x.field() == fq));
         let len = slice.len();
         let mut v = Self::new(fq, len);
         v.copy_from_slice(slice);
@@ -89,6 +90,7 @@ impl<F: Field> FqVector<F> {
     }
 
     pub fn add_basis_element(&mut self, index: usize, value: FieldElement<F>) {
+        assert_eq!(self.fq, value.field());
         self.as_slice_mut().add_basis_element(index, value);
     }
 
@@ -97,6 +99,7 @@ impl<F: Field> FqVector<F> {
     }
 
     pub fn set_entry(&mut self, index: usize, value: FieldElement<F>) {
+        assert_eq!(self.fq, value.field());
         self.as_slice_mut().set_entry(index, value);
     }
 
@@ -116,6 +119,7 @@ impl<F: Field> FqVector<F> {
     }
 
     pub fn scale(&mut self, c: FieldElement<F>) {
+        assert_eq!(self.fq, c.field());
         if c == self.fq.zero() {
             self.set_to_zero();
         }
@@ -129,6 +133,8 @@ impl<F: Field> FqVector<F> {
     /// Add `other` to `self` on the assumption that the first `offset` entries of `other` are
     /// empty.
     pub fn add_offset(&mut self, other: &Self, c: FieldElement<F>, offset: usize) {
+        assert_eq!(self.fq, c.field());
+        assert_eq!(self.fq, other.fq);
         assert_eq!(self.len(), other.len());
         let fq = self.fq;
         let min_limb = offset / fq.entries_per_limb();
@@ -151,13 +157,15 @@ impl<F: Field> FqVector<F> {
     }
 
     pub fn assign(&mut self, other: &Self) {
-        debug_assert_eq!(self.len(), other.len());
+        assert_eq!(self.fq, other.fq);
+        assert_eq!(self.len(), other.len());
         self.limbs.copy_from_slice(&other.limbs)
     }
 
     /// A version of [`FqVector::assign`] that allows `other` to be shorter than `self`.
     pub fn assign_partial(&mut self, other: &Self) {
-        debug_assert!(other.len() <= self.len());
+        assert_eq!(self.fq, other.fq);
+        assert!(other.len() <= self.len());
         self.limbs[0..other.limbs.len()].copy_from_slice(&other.limbs);
         for limb in self.limbs[other.limbs.len()..].iter_mut() {
             *limb = 0;
@@ -197,6 +205,7 @@ impl<F: Field> FqVector<F> {
     /// This replaces the contents of the vector with the contents of the slice. The two must have
     /// the same length.
     pub fn copy_from_slice(&mut self, slice: &[FieldElement<F>]) {
+        assert!(slice.iter().all(|x| x.field() == self.fq));
         assert_eq!(self.len, slice.len());
 
         self.limbs.clear();
@@ -219,6 +228,7 @@ impl<F: Field> FqVector<F> {
     }
 
     pub fn sign_rule(&self, other: &Self) -> bool {
+        assert_eq!(self.fq, other.fq);
         assert_eq!(self.fq.q(), 2);
 
         let mut result = 0;
@@ -237,6 +247,7 @@ impl<F: Field> FqVector<F> {
     }
 
     pub fn add_truncate(&mut self, other: &Self, c: FieldElement<F>) -> Option<()> {
+        assert_eq!(self.fq, other.fq);
         for (left, right) in self.limbs.iter_mut().zip_eq(&other.limbs) {
             *left = self.fq.fma_limb(*left, *right, c.clone());
             *left = self.fq.truncate(*left)?;
@@ -254,6 +265,7 @@ impl<F: Field> FqVector<F> {
     where
         for<'a> &'a mut T: TryInto<&'a mut Self>,
     {
+        assert_eq!(self.fq, c.field());
         if self.fq.q() == 2 {
             let c = self.fq.encode(c);
             if c == 0 {
@@ -286,6 +298,7 @@ impl<F: Field> FqVector<F> {
     where
         for<'a> &'a mut T: TryInto<&'a mut Self>,
     {
+        assert_eq!(self.fq, other.fq);
         let mut result = false;
         for i in 0..self.limbs.len() {
             result |= self.add_carry_limb(i, other.limbs[i], c.clone(), rest);
@@ -328,6 +341,7 @@ impl<F: Field> FqVector<F> {
 impl<T: AsRef<[FieldElement<F>]>, F: Field> From<(F, T)> for FqVector<F> {
     fn from(data: (F, T)) -> Self {
         let (fq, slice) = data;
+        assert!(slice.as_ref().iter().all(|x| x.field() == fq));
         let mut v = Self::new(fq, slice.as_ref().len());
         v.copy_from_slice(slice.as_ref());
         v
