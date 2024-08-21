@@ -262,6 +262,20 @@ pub(super) mod tests {
         }
 
         #[test]
+        fn test_serialize((fq, v_arr) in arb_vec::<$field>()) {
+            use std::io::{Seek, Cursor};
+
+            let v = FqVector::from_slice(fq, &v_arr);
+
+            let mut cursor = Cursor::new(Vec::<u8>::new());
+            v.to_bytes(&mut cursor).unwrap();
+            cursor.rewind().unwrap();
+
+            let w = FqVector::from_bytes(v.fq(), v.len(), &mut cursor).unwrap();
+            v.assert_vec_eq(&w);
+        }
+
+        #[test]
         fn test_add((fq, mut v_arr, w_arr) in arb_vec_pair::<$field>()) {
             let mut v = FqVector::from_slice(fq, &v_arr);
             let w = FqVector::from_slice(fq, &w_arr);

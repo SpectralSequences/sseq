@@ -15,7 +15,6 @@
 use std::{
     convert::TryInto,
     io::{Read, Write},
-    mem::size_of,
 };
 
 use itertools::Itertools;
@@ -104,6 +103,10 @@ impl FpVector {
 
         pub fn new<P: Prime>(p: P, len: usize) -> (from FqVector);
         pub fn new_with_capacity<P: Prime>(p: P, len: usize, capacity: usize) -> (from FqVector);
+
+        pub fn update_from_bytes(&mut self, data: &mut impl Read) -> (std::io::Result<()>);
+        pub fn from_bytes<P: Prime>(p: P, len: usize, data: &mut impl Read) -> (from io FqVector);
+        pub fn to_bytes(&self, buffer: &mut impl Write) -> (std::io::Result<()>);
     }
 
     pub fn from_slice<P: Prime>(p: P, slice: &[u32]) -> Self {
@@ -120,53 +123,6 @@ impl FpVector {
     // Convenient for some matrix methods
     pub(crate) fn padded_len(p: ValidPrime, len: usize) -> usize {
         Self::num_limbs(p, len) * Fp::new(p).entries_per_limb()
-    }
-
-    pub fn update_from_bytes(&mut self, data: &mut impl Read) -> std::io::Result<()> {
-        let limbs = self.limbs_mut();
-
-        if cfg!(target_endian = "little") {
-            let num_bytes = std::mem::size_of_val(limbs);
-            unsafe {
-                let buf: &mut [u8] =
-                    std::slice::from_raw_parts_mut(limbs.as_mut_ptr() as *mut u8, num_bytes);
-                data.read_exact(buf).unwrap();
-            }
-        } else {
-            for entry in limbs {
-                let mut bytes: [u8; size_of::<Limb>()] = [0; size_of::<Limb>()];
-                data.read_exact(&mut bytes)?;
-                *entry = Limb::from_le_bytes(bytes);
-            }
-        };
-        Ok(())
-    }
-
-    pub fn from_bytes(p: ValidPrime, len: usize, data: &mut impl Read) -> std::io::Result<Self> {
-        let mut v = Self::new(p, len);
-        v.update_from_bytes(data)?;
-        Ok(v)
-    }
-
-    pub fn to_bytes(&self, buffer: &mut impl Write) -> std::io::Result<()> {
-        // self.limbs is allowed to have more limbs than necessary, but we only save the
-        // necessary ones.
-        let num_limbs = Self::num_limbs(self.prime(), self.len());
-
-        if cfg!(target_endian = "little") {
-            let num_bytes = num_limbs * size_of::<Limb>();
-            unsafe {
-                let buf: &[u8] =
-                    std::slice::from_raw_parts_mut(self.limbs().as_ptr() as *mut u8, num_bytes);
-                buffer.write_all(buf)?;
-            }
-        } else {
-            for limb in &self.limbs()[0..num_limbs] {
-                let bytes = limb.to_le_bytes();
-                buffer.write_all(&bytes)?;
-            }
-        }
-        Ok(())
     }
 }
 
@@ -326,114 +282,14 @@ impl<'a> From<&'a mut FpVector> for FpSliceMut<'a> {
 
 #[cfg(test)]
 mod tests {
-    use itertools::Itertools;
-    use proptest::prelude::*;
     use rand::Rng;
     use rstest::rstest;
 
-    use crate::{
-        prime::{Prime, ValidPrime},
-        vector::{tests::MAX_TEST_VEC_LEN, FpVector},
-    };
-
-    pub struct VectorDiffEntry {
-        pub index: usize,
-        pub left: u32,
-        pub right: u32,
-    }
-
-    impl FpVector {
-        pub fn diff_list(&self, other: &[u32]) -> Vec<VectorDiffEntry> {
-            assert!(self.len() == other.len());
-            let mut result = Vec::new();
-            #[allow(clippy::needless_range_loop)]
-            for index in 0..self.len() {
-                let left = self.entry(index);
-                let right = other[index].clone();
-                if left != right {
-                    result.push(VectorDiffEntry { index, left, right });
-                }
-            }
-            result
-        }
-
-        pub fn diff_vec(&self, other: &Self) -> Vec<VectorDiffEntry> {
-            assert!(self.len() == other.len());
-            let mut result = Vec::new();
-            for index in 0..self.len() {
-                let left = self.entry(index);
-                let right = other.entry(index);
-                if left != right {
-                    result.push(VectorDiffEntry { index, left, right });
-                }
-            }
-            result
-        }
-
-        pub fn format_diff(diff: Vec<VectorDiffEntry>) -> String {
-            let data_formatter =
-                diff.iter()
-                    .format_with("\n ", |VectorDiffEntry { index, left, right }, f| {
-                        f(&format_args!("  At index {index}: {left}!={right}"))
-                    });
-            format!("{data_formatter}")
-        }
-
-        pub fn assert_list_eq(&self, other: &[u32]) {
-            let diff = self.diff_list(other);
-            if diff.is_empty() {
-                return;
-            }
-            panic!(
-                "assert {} == {:?}\n{}",
-                self,
-                other,
-                Self::format_diff(diff)
-            );
-        }
-
-        pub fn assert_vec_eq(&self, other: &Self) {
-            let diff = self.diff_vec(other);
-            if diff.is_empty() {
-                return;
-            }
-            panic!(
-                "assert {} == {:?}\n{}",
-                self,
-                other,
-                Self::format_diff(diff)
-            );
-        }
-    }
+    use crate::{prime::ValidPrime, vector::FpVector};
 
     fn random_vector(p: u32, dimension: usize) -> Vec<u32> {
         let mut rng = rand::thread_rng();
         (0..dimension).map(|_| rng.gen_range(0..p)).collect()
-    }
-
-    fn arb_vec_u32() -> impl Strategy<Value = (ValidPrime, Vec<u32>)> {
-        any::<ValidPrime>().prop_flat_map(|p| {
-            (
-                Just(p),
-                proptest::collection::vec(0..p.as_u32(), 1..=MAX_TEST_VEC_LEN),
-            )
-        })
-    }
-
-    proptest! {
-        #[test]
-        fn test_serialize((p, v_arr) in arb_vec_u32()) {
-            use std::io::{Seek, Cursor};
-
-            let v = FpVector::from_slice(p, &v_arr);
-
-            let mut cursor = Cursor::new(Vec::<u8>::new());
-            v.to_bytes(&mut cursor).unwrap();
-            cursor.rewind().unwrap();
-
-            let w = FpVector::from_bytes(v.prime(), v.len(), &mut cursor).unwrap();
-            v.assert_vec_eq(&w);
-        }
     }
 
     #[rstest]

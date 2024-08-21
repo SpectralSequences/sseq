@@ -1,3 +1,5 @@
+use std::io;
+
 use itertools::Itertools;
 
 use super::{
@@ -37,6 +39,53 @@ impl<F: Field> FqVector<F> {
         let mut v = Self::new(fq, len);
         v.copy_from_slice(slice);
         v
+    }
+
+    pub fn from_bytes(fq: F, len: usize, data: &mut impl io::Read) -> io::Result<Self> {
+        let mut v = Self::new(fq, len);
+        v.update_from_bytes(data)?;
+        Ok(v)
+    }
+
+    pub fn update_from_bytes(&mut self, data: &mut impl io::Read) -> io::Result<()> {
+        let limbs = self.limbs_mut();
+
+        if cfg!(target_endian = "little") {
+            let num_bytes = std::mem::size_of_val(limbs);
+            unsafe {
+                let buf: &mut [u8] =
+                    std::slice::from_raw_parts_mut(limbs.as_mut_ptr() as *mut u8, num_bytes);
+                data.read_exact(buf).unwrap();
+            }
+        } else {
+            for entry in limbs {
+                let mut bytes: [u8; size_of::<Limb>()] = [0; size_of::<Limb>()];
+                data.read_exact(&mut bytes)?;
+                *entry = Limb::from_le_bytes(bytes);
+            }
+        };
+        Ok(())
+    }
+
+    pub fn to_bytes(&self, buffer: &mut impl io::Write) -> io::Result<()> {
+        // self.limbs is allowed to have more limbs than necessary, but we only save the
+        // necessary ones.
+        let num_limbs = self.fq.number(self.len());
+
+        if cfg!(target_endian = "little") {
+            let num_bytes = num_limbs * size_of::<Limb>();
+            unsafe {
+                let buf: &[u8] =
+                    std::slice::from_raw_parts_mut(self.limbs().as_ptr() as *mut u8, num_bytes);
+                buffer.write_all(buf)?;
+            }
+        } else {
+            for limb in &self.limbs()[0..num_limbs] {
+                let bytes = limb.to_le_bytes();
+                buffer.write_all(&bytes)?;
+            }
+        }
+        Ok(())
     }
 
     pub fn fq(&self) -> F {

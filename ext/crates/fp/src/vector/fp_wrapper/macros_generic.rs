@@ -200,6 +200,19 @@ macro_rules! dispatch_vector {
             }
         }
         dispatch_vector!{$($tail)*}
+    };
+    // Special-case update_from_bytes
+    ($vis:vis fn $method:ident <P: Prime> (p: P $(, $arg:ident: $ty:ty )*) -> (from io $fq_name:tt); $($tail:tt)*) => {
+        $vis fn $method<P: Prime>(p: P, $($arg: $ty),*) -> std::io::Result<Self> {
+            Ok(match p.as_u32() {
+                2 => Self::_2($fq_name::$method(F2, $($arg),*)?),
+                3 => Self::_3($fq_name::$method(F3, $($arg),*)?),
+                5 => Self::_5($fq_name::$method(F5, $($arg),*)?),
+                7 => Self::_7($fq_name::$method(F7, $($arg),*)?),
+                _ => Self::Big($fq_name::$method(Fp::new(p.to_dyn()), $($arg),*)?),
+            })
+        }
+        dispatch_vector!{$($tail)*}
     }
 }
 
