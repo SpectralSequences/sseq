@@ -145,14 +145,7 @@ mod tests {
 
     pub(super) fn arb_elements<F: Field, const N: usize>(
     ) -> impl Strategy<Value = (F, [FieldElement<F>; N])> {
-        any::<F>().prop_flat_map(move |f| {
-            let elements: [_; N] = (0..N)
-                .map(|_| f.arb_element())
-                .collect::<Vec<_>>()
-                .try_into()
-                .unwrap();
-            (Just(f), elements)
-        })
+        any::<F>().prop_flat_map(move |f| (Just(f), std::array::from_fn(|_| f.arb_element())))
     }
 
     /// Test the field axioms and good behavior of the Frobenius endomorphism.
