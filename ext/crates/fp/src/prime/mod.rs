@@ -170,7 +170,9 @@ macro_rules! def_prime_static {
 
             fn arbitrary_with(_max: Self::Parameters) -> Self::Strategy {
                 // This doesn't honor the max parameter, but that should be fine as long as the
-                // static primes are small enough and/or the max is large enough.
+                // static primes are small enough and/or the max is large enough. There's no such
+                // thing as an empty strategy, so the best we could do is return a strategy that
+                // always rejects. This would cause local failures that may make tests fail.
                 proptest::strategy::Just($pn)
             }
         }
