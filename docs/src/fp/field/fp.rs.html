@@ -238,17 +238,6 @@
 <a href="#213" id="213">213</a>
 <a href="#214" id="214">214</a>
 <a href="#215" id="215">215</a>
-<a href="#216" id="216">216</a>
-<a href="#217" id="217">217</a>
-<a href="#218" id="218">218</a>
-<a href="#219" id="219">219</a>
-<a href="#220" id="220">220</a>
-<a href="#221" id="221">221</a>
-<a href="#222" id="222">222</a>
-<a href="#223" id="223">223</a>
-<a href="#224" id="224">224</a>
-<a href="#225" id="225">225</a>
-<a href="#226" id="226">226</a>
 </pre></div><pre class="rust"><code><span class="kw">use super</span>::{
     element::{FieldElement, FieldElementContainer},
     field_internal::FieldInternal,
@@ -291,6 +280,13 @@
 
     <span class="kw">fn </span>one(<span class="self">self</span>) -&gt; FieldElement&lt;<span class="self">Self</span>&gt; {
         <span class="self">self</span>.el(<span class="number">1</span>)
+    }
+
+    <span class="attr">#[cfg(feature = <span class="string">"proptest"</span>)]
+    </span><span class="kw">fn </span>arb_element(<span class="self">self</span>) -&gt; <span class="kw">impl </span>proptest::strategy::Strategy&lt;Value = FieldElement&lt;<span class="self">Self</span>&gt;&gt; {
+        <span class="kw">use </span>proptest::prelude::<span class="kw-2">*</span>;
+
+        (<span class="number">0</span>..<span class="self">self</span>.characteristic().as_u32()).prop_map(<span class="kw">move </span>|v| <span class="self">self</span>.element(v))
     }
 }
 
@@ -386,6 +382,20 @@
     }
 }
 
+<span class="attr">#[cfg(feature = <span class="string">"proptest"</span>)]
+</span><span class="kw">impl</span>&lt;P: Prime&gt; proptest::arbitrary::Arbitrary <span class="kw">for </span>Fp&lt;P&gt; {
+    <span class="kw">type </span>Parameters = ();
+    <span class="kw">type </span>Strategy = proptest::strategy::BoxedStrategy&lt;<span class="self">Self</span>&gt;;
+
+    <span class="kw">fn </span>arbitrary_with(_args: <span class="self">Self</span>::Parameters) -&gt; <span class="self">Self</span>::Strategy {
+        <span class="kw">use </span>proptest::prelude::<span class="kw-2">*</span>;
+
+        any::&lt;P&gt;().prop_map(<span class="self">Self</span>::new).boxed()
+    }
+}
+
+<span class="kw">impl</span>&lt;P: Prime&gt; <span class="kw">crate</span>::MaybeArbitrary&lt;()&gt; <span class="kw">for </span>Fp&lt;P&gt; {}
+
 <span class="kw">impl</span>&lt;P&gt; std::ops::Deref <span class="kw">for </span>Fp&lt;P&gt; {
     <span class="kw">type </span>Target = P;
 
@@ -410,60 +420,28 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
-    <span class="kw">use </span>proptest::prelude::<span class="kw-2">*</span>;
-
     <span class="kw">use </span><span class="kw">super</span>::Fp;
-    <span class="kw">use crate</span>::{
-        field::{element::FieldElement, Field},
-        prime::Prime,
-    };
-
-    <span class="kw">fn </span>arb_element&lt;P: Prime&gt;(f: Fp&lt;P&gt;) -&gt; <span class="kw">impl </span>Strategy&lt;Value = FieldElement&lt;Fp&lt;P&gt;&gt;&gt; {
-        (<span class="number">0</span>..f.characteristic().as_u32()).prop_map(<span class="kw">move </span>|v| f.element(v))
-    }
-
-    <span class="kw">fn </span>arb_elements&lt;P: Prime, <span class="kw">const </span>N: usize&gt;(
-        p: P,
-    ) -&gt; <span class="kw">impl </span>Strategy&lt;Value = (Fp&lt;P&gt;, [FieldElement&lt;Fp&lt;P&gt;&gt;; N])&gt; {
-        <span class="kw">let </span>f = Fp::new(p);
-
-        <span class="kw">let </span>elements: [<span class="kw">_</span>; N] = (<span class="number">0</span>..N)
-            .map(|<span class="kw">_</span>| arb_element(f))
-            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;()
-            .try_into()
-            .unwrap();
-        (Just(f), elements)
-    }
+    <span class="kw">use </span><span class="kw">crate</span>::field::tests::field_tests;
 
     <span class="kw">mod </span>validprime {
         <span class="kw">use super</span>::<span class="kw-2">*</span>;
-        <span class="kw">use crate</span>::{field_tests, prime::ValidPrime};
+        <span class="kw">use </span><span class="kw">crate</span>::prime::ValidPrime;
 
-        <span class="kw">fn </span>arb_elements&lt;<span class="kw">const </span>N: usize&gt;(
-        ) -&gt; <span class="kw">impl </span>Strategy&lt;Value = (Fp&lt;ValidPrime&gt;, [FieldElement&lt;Fp&lt;ValidPrime&gt;&gt;; N])&gt; {
-            <span class="kw">crate</span>::prime::tests::arb_prime().prop_flat_map(<span class="kw">super</span>::arb_elements)
-        }
-
-        <span class="macro">field_tests!</span>();
+        <span class="macro">field_tests!</span>(Fp&lt;ValidPrime&gt;);
     }
 
     <span class="macro">macro_rules!</span> static_fp_tests {
         (<span class="macro-nonterminal">$p</span>:tt) =&gt; {
             <span class="macro">paste::paste!</span> {
-                <span class="macro">static_fp_tests!</span>(@ [&lt;<span class="macro-nonterminal">$p</span>:lower&gt;], <span class="macro-nonterminal">$p</span>, <span class="macro-nonterminal">$p</span>, <span class="macro-nonterminal">$p</span>);
+                <span class="macro">static_fp_tests!</span>(@ [&lt;<span class="macro-nonterminal">$p</span>:lower&gt;], <span class="macro-nonterminal">$p</span>, <span class="macro-nonterminal">$p</span>);
             }
         };
-        (@ <span class="macro-nonterminal">$mod_name</span>:ident, <span class="macro-nonterminal">$p_expr</span>:expr, <span class="macro-nonterminal">$p_ident</span>:ident, <span class="macro-nonterminal">$p_ty</span>:ty) =&gt; {
+        (@ <span class="macro-nonterminal">$mod_name</span>:ident, <span class="macro-nonterminal">$p_ident</span>:ident, <span class="macro-nonterminal">$p_ty</span>:ty) =&gt; {
             <span class="kw">mod </span><span class="macro-nonterminal">$mod_name </span>{
                 <span class="kw">use super</span>::<span class="kw-2">*</span>;
-                <span class="kw">use crate</span>::{field_tests, prime::<span class="macro-nonterminal">$p_ident</span>};
+                <span class="kw">use </span><span class="kw">crate</span>::prime::<span class="macro-nonterminal">$p_ident</span>;
 
-                <span class="kw">fn </span>arb_elements&lt;<span class="kw">const </span>N: usize&gt;(
-                ) -&gt; <span class="kw">impl </span>Strategy&lt;Value = (Fp&lt;<span class="macro-nonterminal">$p_ty</span>&gt;, [FieldElement&lt;Fp&lt;<span class="macro-nonterminal">$p_ty</span>&gt;&gt;; N])&gt; {
-                    <span class="kw">super</span>::arb_elements(<span class="macro-nonterminal">$p_expr</span>)
-                }
-
-                <span class="macro">field_tests!</span>();
+                <span class="macro">field_tests!</span>(Fp&lt;<span class="macro-nonterminal">$p_ty</span>&gt;);
             }
         };
     }

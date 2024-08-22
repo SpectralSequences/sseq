@@ -1108,7 +1108,7 @@
     <span class="kw">use crate</span>::{
         field::{field_internal::FieldInternal, fp::F2, Fp},
         limb,
-        prime::{tests::arb_prime, Prime, ValidPrime},
+        prime::{Prime, ValidPrime},
     };
 
     <span class="kw">pub struct </span>VectorDiffEntry {
@@ -1188,7 +1188,7 @@
 
     <span class="doccomment">/// An arbitrary (prime, dimension) pair
     </span><span class="kw">fn </span>arb_prime_dim() -&gt; <span class="kw">impl </span>Strategy&lt;Value = (ValidPrime, usize)&gt; {
-        arb_prime().prop_flat_map(|p| (Just(p), <span class="number">0usize</span>..=<span class="number">10_000</span>))
+        any::&lt;ValidPrime&gt;().prop_flat_map(|p| (Just(p), <span class="number">0usize</span>..=<span class="number">10_000</span>))
     }
 
     <span class="doccomment">/// The start and end positions of an arbitrary slice of a vector of length `dimension`
@@ -1249,7 +1249,7 @@
     /// the sense of [`FpVector::add_masked`] and [`FpVector::add_unmasked`])
     </span><span class="kw">fn </span>arb_vec_pair_and_mask() -&gt; <span class="kw">impl </span>Strategy&lt;Value = (ValidPrime, Vec&lt;u32&gt;, Vec&lt;u32&gt;, Vec&lt;usize&gt;)&gt;
     {
-        arb_prime()
+        any::&lt;ValidPrime&gt;()
             .prop_flat_map(|p| (Just(p), arb_slice(<span class="number">10_000</span>)))
             .prop_flat_map(|(p, (dim_small, dim_large))| {
                 (
@@ -1270,13 +1270,13 @@
         })]
 
         #[test]
-        </span><span class="kw">fn </span>test_bit_length(p <span class="kw">in </span>arb_prime()) {
+        </span><span class="kw">fn </span>test_bit_length(p <span class="kw">in </span>any::&lt;ValidPrime&gt;()) {
             <span class="macro">prop_assert!</span>(Fp::new(p).bit_length() &lt;= <span class="number">63</span>);
         }
 
         <span class="attr">#[cfg(feature = <span class="string">"odd-primes"</span>)]
         #[test]
-        </span><span class="kw">fn </span>test_incompatible_primes((p1, p2) <span class="kw">in </span>(arb_prime(), arb_prime())) {
+        </span><span class="kw">fn </span>test_incompatible_primes((p1, p2) <span class="kw">in </span>(any::&lt;ValidPrime&gt;(), any::&lt;ValidPrime&gt;())) {
             <span class="macro">prop_assume!</span>(p1 != p2);
 
             <span class="macro">macro_rules!</span> assert_panic {

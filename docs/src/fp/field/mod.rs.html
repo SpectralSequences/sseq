@@ -247,6 +247,32 @@
 <a href="#222" id="222">222</a>
 <a href="#223" id="223">223</a>
 <a href="#224" id="224">224</a>
+<a href="#225" id="225">225</a>
+<a href="#226" id="226">226</a>
+<a href="#227" id="227">227</a>
+<a href="#228" id="228">228</a>
+<a href="#229" id="229">229</a>
+<a href="#230" id="230">230</a>
+<a href="#231" id="231">231</a>
+<a href="#232" id="232">232</a>
+<a href="#233" id="233">233</a>
+<a href="#234" id="234">234</a>
+<a href="#235" id="235">235</a>
+<a href="#236" id="236">236</a>
+<a href="#237" id="237">237</a>
+<a href="#238" id="238">238</a>
+<a href="#239" id="239">239</a>
+<a href="#240" id="240">240</a>
+<a href="#241" id="241">241</a>
+<a href="#242" id="242">242</a>
+<a href="#243" id="243">243</a>
+<a href="#244" id="244">244</a>
+<a href="#245" id="245">245</a>
+<a href="#246" id="246">246</a>
+<a href="#247" id="247">247</a>
+<a href="#248" id="248">248</a>
+<a href="#249" id="249">249</a>
+<a href="#250" id="250">250</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span><span class="self">self</span>::field_internal::FieldInternal;
 <span class="kw">use </span><span class="kw">crate</span>::prime::Prime;
 
@@ -273,11 +299,16 @@
 
     <span class="kw">fn </span>zero(<span class="self">self</span>) -&gt; FieldElement&lt;<span class="self">Self</span>&gt;;
     <span class="kw">fn </span>one(<span class="self">self</span>) -&gt; FieldElement&lt;<span class="self">Self</span>&gt;;
+
+    <span class="attr">#[cfg(feature = <span class="string">"proptest"</span>)]
+    </span><span class="kw">fn </span>arb_element(<span class="self">self</span>) -&gt; <span class="kw">impl </span>proptest::strategy::Strategy&lt;Value = FieldElement&lt;<span class="self">Self</span>&gt;&gt;;
 }
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
-    <span class="kw">use super</span>::{Field, SmallFq};
+    <span class="kw">use </span>proptest::prelude::<span class="kw-2">*</span>;
+
+    <span class="kw">use super</span>::{element::FieldElement, Field, SmallFq};
     <span class="kw">use </span><span class="kw">crate</span>::prime::P2;
 
     <span class="attr">#[test]
@@ -387,16 +418,35 @@
         <span class="macro">assert_eq!</span>(elements, expansions);
     }
 
-    <span class="doccomment">/// Given a function that generates elements of a field, test the field axioms and good behavior
-    /// of the Frobenius endomorphism. The function should have signature
-    ///
-    /// ```ignore
-    /// fn arb_elements&lt;const N: usize&gt;() -&gt; impl Strategy&lt;Value = (F, [FieldElement&lt;F&gt;; N])&gt;
-    /// ```
-    </span><span class="attr">#[macro_export]
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>arb_elements&lt;F: Field, <span class="kw">const </span>N: usize&gt;(
+    ) -&gt; <span class="kw">impl </span>Strategy&lt;Value = (F, [FieldElement&lt;F&gt;; N])&gt; {
+        any::&lt;F&gt;().prop_flat_map(<span class="kw">move </span>|f| (Just(f), std::array::from_fn(|<span class="kw">_</span>| f.arb_element())))
+    }
+
+    <span class="doccomment">/// Test the field axioms and good behavior of the Frobenius endomorphism.
     </span><span class="macro">macro_rules!</span> field_tests {
-        () =&gt; {
+        (<span class="macro-nonterminal">$field</span>:ty) =&gt; {
+            <span class="kw">use </span>proptest::prelude::<span class="kw-2">*</span>;
+
+            <span class="kw">use crate</span>::{
+                field::{element::FieldElement, Field},
+                prime::Prime,
+            };
+
+            <span class="comment">// We shadow the `arb_elements` function with one that is specialized to the concrete
+            // field type we're working with
+            </span><span class="kw">fn </span>arb_elements&lt;<span class="kw">const </span>N: usize&gt;(
+            ) -&gt; <span class="kw">impl </span>Strategy&lt;Value = (<span class="macro-nonterminal">$field</span>, [FieldElement&lt;<span class="macro-nonterminal">$field</span>&gt;; N])&gt; {
+                <span class="kw">crate</span>::field::tests::arb_elements()
+            }
+
             <span class="macro">proptest!</span> {
+                <span class="attr">#[test]
+                </span><span class="kw">fn </span>test_bit_length((f, []) <span class="kw">in </span>arb_elements()) {
+                    <span class="kw">use </span><span class="kw">crate</span>::field::field_internal::FieldInternal;
+                    <span class="macro">prop_assert!</span>(f.bit_length() &lt;= <span class="number">63</span>);
+                }
+
                 <span class="attr">#[test]
                 </span><span class="kw">fn </span>test_addition_associative((<span class="kw">_</span>, [a, b, c]) <span class="kw">in </span>arb_elements()) {
                     <span class="macro">prop_assert_eq!</span>((a + b) + c, a + (b + c));
@@ -468,7 +518,9 @@
                     <span class="macro">prop_assert_eq!</span>((a * b).frobenius(), a.frobenius() * b.frobenius());
                 }
             }
-        }
+        };
     }
+
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">use </span>field_tests;
 }
 </code></pre></div></section></main></body></html>

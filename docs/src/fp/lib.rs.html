@@ -41,6 +41,17 @@
 <a href="#16" id="16">16</a>
 <a href="#17" id="17">17</a>
 <a href="#18" id="18">18</a>
+<a href="#19" id="19">19</a>
+<a href="#20" id="20">20</a>
+<a href="#21" id="21">21</a>
+<a href="#22" id="22">22</a>
+<a href="#23" id="23">23</a>
+<a href="#24" id="24">24</a>
+<a href="#25" id="25">25</a>
+<a href="#26" id="26">26</a>
+<a href="#27" id="27">27</a>
+<a href="#28" id="28">28</a>
+<a href="#29" id="29">29</a>
 </pre></div><pre class="rust"><code><span class="attr">#![deny(clippy::use_self)]
 
 </span><span class="kw">mod </span>constants;
@@ -54,6 +65,17 @@
 <span class="kw">pub mod </span>vector;
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>simd;
+
+<span class="comment">// This is useful for traits that want to implement `Arbitrary`. This lets us specify that they
+// should be subtraits of `Arbitrary` iff the `proptest` feature is enabled.
+</span><span class="attr">#[cfg(not(feature = <span class="string">"proptest"</span>))]
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">trait </span>MaybeArbitrary&lt;Params&gt; {}
+
+<span class="attr">#[cfg(feature = <span class="string">"proptest"</span>)]
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">trait </span>MaybeArbitrary&lt;Params&gt;:
+    proptest::arbitrary::Arbitrary&lt;Parameters = Params&gt;
+{
+}
 
 <span class="attr">#[cfg(feature = <span class="string">"odd-primes"</span>)]
 </span><span class="kw">pub const </span>ODD_PRIMES: bool = <span class="bool-val">true</span>;

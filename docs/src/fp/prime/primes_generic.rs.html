@@ -142,6 +142,53 @@
 <a href="#117" id="117">117</a>
 <a href="#118" id="118">118</a>
 <a href="#119" id="119">119</a>
+<a href="#120" id="120">120</a>
+<a href="#121" id="121">121</a>
+<a href="#122" id="122">122</a>
+<a href="#123" id="123">123</a>
+<a href="#124" id="124">124</a>
+<a href="#125" id="125">125</a>
+<a href="#126" id="126">126</a>
+<a href="#127" id="127">127</a>
+<a href="#128" id="128">128</a>
+<a href="#129" id="129">129</a>
+<a href="#130" id="130">130</a>
+<a href="#131" id="131">131</a>
+<a href="#132" id="132">132</a>
+<a href="#133" id="133">133</a>
+<a href="#134" id="134">134</a>
+<a href="#135" id="135">135</a>
+<a href="#136" id="136">136</a>
+<a href="#137" id="137">137</a>
+<a href="#138" id="138">138</a>
+<a href="#139" id="139">139</a>
+<a href="#140" id="140">140</a>
+<a href="#141" id="141">141</a>
+<a href="#142" id="142">142</a>
+<a href="#143" id="143">143</a>
+<a href="#144" id="144">144</a>
+<a href="#145" id="145">145</a>
+<a href="#146" id="146">146</a>
+<a href="#147" id="147">147</a>
+<a href="#148" id="148">148</a>
+<a href="#149" id="149">149</a>
+<a href="#150" id="150">150</a>
+<a href="#151" id="151">151</a>
+<a href="#152" id="152">152</a>
+<a href="#153" id="153">153</a>
+<a href="#154" id="154">154</a>
+<a href="#155" id="155">155</a>
+<a href="#156" id="156">156</a>
+<a href="#157" id="157">157</a>
+<a href="#158" id="158">158</a>
+<a href="#159" id="159">159</a>
+<a href="#160" id="160">160</a>
+<a href="#161" id="161">161</a>
+<a href="#162" id="162">162</a>
+<a href="#163" id="163">163</a>
+<a href="#164" id="164">164</a>
+<a href="#165" id="165">165</a>
+<a href="#166" id="166">166</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::str::FromStr;
 
 <span class="kw">use super</span>::<span class="kw-2">*</span>;
@@ -261,4 +308,51 @@
         <span class="self">Self</span>::try_from(p).map_err(D::Error::custom)
     }
 }
+
+<span class="attr">#[cfg(feature = <span class="string">"proptest"</span>)]
+</span><span class="kw">impl </span>proptest::arbitrary::Arbitrary <span class="kw">for </span>ValidPrime {
+    <span class="kw">type </span>Parameters = <span class="prelude-ty">Option</span>&lt;std::num::NonZeroU32&gt;;
+    <span class="kw">type </span>Strategy = proptest::sample::Select&lt;<span class="self">Self</span>&gt;;
+
+    <span class="doccomment">/// An arbitrary `ValidPrime` in the range `2..(1 &lt;&lt; 24)`, plus the largest prime that we
+    /// support. If `max` is specified, the primes are restricted to be less than `max`.
+    </span><span class="kw">fn </span>arbitrary_with(max: <span class="self">Self</span>::Parameters) -&gt; <span class="self">Self</span>::Strategy {
+        <span class="kw">use </span>std::sync::OnceLock;
+
+        <span class="kw">static </span>TEST_PRIMES: OnceLock&lt;Vec&lt;ValidPrime&gt;&gt; = OnceLock::new();
+        <span class="kw">let </span>test_primes = TEST_PRIMES.get_or_init(|| {
+            <span class="comment">// Sieve of Eratosthenes
+            </span><span class="kw">const </span>MAX: usize = <span class="number">1 </span>&lt;&lt; <span class="number">24</span>;
+            <span class="kw">let </span><span class="kw-2">mut </span>is_prime = Vec::new();
+            is_prime.resize_with(MAX, || <span class="bool-val">true</span>);
+            is_prime[<span class="number">0</span>] = <span class="bool-val">false</span>;
+            is_prime[<span class="number">1</span>] = <span class="bool-val">false</span>;
+            <span class="kw">for </span>i <span class="kw">in </span><span class="number">2</span>..MAX {
+                <span class="kw">if </span>is_prime[i] {
+                    <span class="kw">for </span>j <span class="kw">in </span>((<span class="number">2 </span>* i)..MAX).step_by(i) {
+                        is_prime[j] = <span class="bool-val">false</span>;
+                    }
+                }
+            }
+            (<span class="number">0</span>..MAX)
+                .filter(|<span class="kw-2">&amp;</span>i| is_prime[i])
+                .map(|p| <span class="self">Self</span>::new_unchecked(p <span class="kw">as </span>u32))
+                .chain(std::iter::once(<span class="self">Self</span>::new_unchecked(<span class="number">2147483647</span>)))
+                .collect()
+        });
+        <span class="kw">let </span>restricted_slice = <span class="kw">if let </span><span class="prelude-val">Some</span>(max) = max {
+            <span class="kw">let </span>max_index = test_primes
+                .iter()
+                .position(|<span class="kw-2">&amp;</span>p| p &gt;= max.get())
+                .unwrap_or(test_primes.len());
+
+            <span class="kw-2">&amp;</span>test_primes[..max_index]
+        } <span class="kw">else </span>{
+            test_primes
+        };
+        proptest::sample::select(restricted_slice)
+    }
+}
+
+<span class="kw">impl </span><span class="kw">crate</span>::MaybeArbitrary&lt;<span class="prelude-ty">Option</span>&lt;NonZeroU32&gt;&gt; <span class="kw">for </span>ValidPrime {}
 </code></pre></div></section></main></body></html>
