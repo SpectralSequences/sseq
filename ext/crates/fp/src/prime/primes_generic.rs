@@ -130,7 +130,7 @@ impl proptest::arbitrary::Arbitrary for ValidPrime {
 
         static TEST_PRIMES: OnceLock<Vec<ValidPrime>> = OnceLock::new();
         let test_primes = TEST_PRIMES.get_or_init(|| {
-            // Sieve of erathosthenes
+            // Sieve of Eratosthenes
             const MAX: usize = 1 << 24;
             let mut is_prime = Vec::new();
             is_prime.resize_with(MAX, || true);

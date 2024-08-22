@@ -306,7 +306,7 @@ impl<P: Prime> proptest::arbitrary::Arbitrary for SmallFq<P> {
     fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
         use proptest::prelude::*;
 
-        // Can't be a closure because the return value refenrences this function, and a closure
+        // Can't be a closure because the return value references this function, and a closure
         // would not live long enough
         fn largest_degree(p: impl Prime) -> u32 {
             let mut d = 2;
