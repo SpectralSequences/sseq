@@ -1,6 +1,7 @@
 use std::{
     fmt::{Debug, Display},
     hash::Hash,
+    num::NonZeroU32,
     ops::{
         Add, AddAssign, Div, DivAssign, Mul, MulAssign, Rem, RemAssign, Shl, ShlAssign, Shr,
         ShrAssign, Sub, SubAssign,
@@ -37,6 +38,7 @@ pub const TWO: ValidPrime = ValidPrime::new(2);
 /// == 2` (or even better, just `p == 2`) will reduce to `true` at compile time, and allow the
 /// compiler to eliminate an entire branch, while also leaving that check in for when the prime is
 /// chosen at runtime.
+#[allow(private_bounds)]
 pub trait Prime:
     Debug
     + Clone
@@ -56,6 +58,8 @@ pub trait Prime:
     + Shr<u32, Output = u32>
     + Serialize
     + for<'de> Deserialize<'de>
+    + crate::MaybeArbitrary<Option<NonZeroU32>>
+    + 'static
 {
     fn as_i32(self) -> i32;
     fn to_dyn(self) -> ValidPrime;
@@ -158,6 +162,22 @@ macro_rules! def_prime_static {
                 $pn::try_from(p).map_err(D::Error::custom)
             }
         }
+
+        #[cfg(feature = "proptest")]
+        impl proptest::arbitrary::Arbitrary for $pn {
+            type Parameters = Option<NonZeroU32>;
+            type Strategy = proptest::strategy::Just<$pn>;
+
+            fn arbitrary_with(_max: Self::Parameters) -> Self::Strategy {
+                // This doesn't honor the max parameter, but that should be fine as long as the
+                // static primes are small enough and/or the max is large enough. There's no such
+                // thing as an empty strategy, so the best we could do is return a strategy that
+                // always rejects. This would cause local failures that may make tests fail.
+                proptest::strategy::Just($pn)
+            }
+        }
+
+        impl crate::MaybeArbitrary<Option<NonZeroU32>> for $pn {}
     };
 }
 
@@ -333,41 +353,11 @@ pub fn minus_one_to_the_n<P: Prime>(p: P, i: i32) -> u32 {
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use std::sync::OnceLock;
-
-    use proptest::prelude::*;
-
     use super::{binomial::Binomial, inverse, iter::BinomialIterator, Prime, ValidPrime};
     use crate::{
         constants::PRIMES,
         prime::{is_prime, PrimeError},
     };
-
-    /// An arbitrary `ValidPrime` in the range `2..(1 << 24)`, plus the largest prime that we support.
-    pub(crate) fn arb_prime() -> impl Strategy<Value = ValidPrime> {
-        static TEST_PRIMES: OnceLock<Vec<ValidPrime>> = OnceLock::new();
-        let test_primes = TEST_PRIMES.get_or_init(|| {
-            // Sieve of erathosthenes
-            const MAX: usize = 1 << 24;
-            let mut is_prime = Vec::new();
-            is_prime.resize_with(MAX, || true);
-            is_prime[0] = false;
-            is_prime[1] = false;
-            for i in 2..MAX {
-                if is_prime[i] {
-                    for j in ((2 * i)..MAX).step_by(i) {
-                        is_prime[j] = false;
-                    }
-                }
-            }
-            (0..MAX)
-                .filter(|&i| is_prime[i])
-                .map(|p| ValidPrime::new_unchecked(p as u32))
-                .chain(std::iter::once(ValidPrime::new_unchecked(2147483647)))
-                .collect()
-        });
-        (0..test_primes.len()).prop_map(|i| test_primes[i])
-    }
 
     #[test]
     fn validprime_test() {

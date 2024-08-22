@@ -1,36 +1,8 @@
-use std::sync::OnceLock;
-
 use fp::{
     matrix::Matrix,
     prime::{Prime, ValidPrime},
 };
 use proptest::prelude::*;
-
-/// An arbitrary `ValidPrime` in the range `2..(1 << 24)`, plus the largest prime that we support.
-fn arb_prime() -> impl Strategy<Value = ValidPrime> {
-    static TEST_PRIMES: OnceLock<Vec<ValidPrime>> = OnceLock::new();
-    let test_primes = TEST_PRIMES.get_or_init(|| {
-        // Sieve of erathosthenes
-        const MAX: usize = 1 << 24;
-        let mut is_prime = Vec::new();
-        is_prime.resize_with(MAX, || true);
-        is_prime[0] = false;
-        is_prime[1] = false;
-        for i in 2..MAX {
-            if is_prime[i] {
-                for j in ((2 * i)..MAX).step_by(i) {
-                    is_prime[j] = false;
-                }
-            }
-        }
-        (0..MAX)
-            .filter(|&i| is_prime[i])
-            .map(|p| ValidPrime::new_unchecked(p as u32))
-            .chain(std::iter::once(ValidPrime::new_unchecked(2147483647)))
-            .collect()
-    });
-    (0..test_primes.len()).prop_map(|i| test_primes[i])
-}
 
 /// An increasing sequence of numbers between 0 and `cols`, where the sequence has a length between
 /// 1 and the smaller of `rows` and `cols`. Similar in spirit to a Young tableau / diagram.
@@ -98,7 +70,7 @@ prop_compose! {
     /// sequence of row operations, which both depend on those values. The documentation for
     /// [`prop_compose`] has more information.
     fn arb_reduced_nonreduced_pair()
-        (p in arb_prime(), rows in 2usize..100, cols in 2usize..100)
+        (p in any::<ValidPrime>(), rows in 2usize..100, cols in 2usize..100)
         (reduced_matrix in arb_rref_matrix(p, rows, cols),
          row_ops in arb_coeff_row_pair_seq(p, rows)) -> (Matrix, Matrix)
     {

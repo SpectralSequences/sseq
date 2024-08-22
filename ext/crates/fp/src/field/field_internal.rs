@@ -45,7 +45,8 @@ macro_rules! normal_from_assign {
 /// The fact that each field defines its own element type means that we can define a single struct
 /// that packages both a field and one of its elements, and this struct will be how we expose field
 /// operations to the outside world.
-pub trait FieldInternal: Copy + PartialEq + Eq + Hash + Sized {
+#[allow(private_bounds)]
+pub trait FieldInternal: Copy + PartialEq + Eq + Hash + Sized + crate::MaybeArbitrary<()> {
     /// The internal representation of a field element.
     type ElementContainer: FieldElementContainer;
 

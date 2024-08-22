@@ -24,11 +24,16 @@ pub trait Field: FieldInternal + Sized {
 
     fn zero(self) -> FieldElement<Self>;
     fn one(self) -> FieldElement<Self>;
+
+    #[cfg(feature = "proptest")]
+    fn arb_element(self) -> impl proptest::strategy::Strategy<Value = FieldElement<Self>>;
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{Field, SmallFq};
+    use proptest::prelude::*;
+
+    use super::{element::FieldElement, Field, SmallFq};
     use crate::prime::P2;
 
     #[test]
@@ -138,16 +143,35 @@ mod tests {
         assert_eq!(elements, expansions);
     }
 
-    /// Given a function that generates elements of a field, test the field axioms and good behavior
-    /// of the Frobenius endomorphism. The function should have signature
-    ///
-    /// ```ignore
-    /// fn arb_elements<const N: usize>() -> impl Strategy<Value = (F, [FieldElement<F>; N])>
-    /// ```
-    #[macro_export]
+    pub(super) fn arb_elements<F: Field, const N: usize>(
+    ) -> impl Strategy<Value = (F, [FieldElement<F>; N])> {
+        any::<F>().prop_flat_map(move |f| (Just(f), std::array::from_fn(|_| f.arb_element())))
+    }
+
+    /// Test the field axioms and good behavior of the Frobenius endomorphism.
     macro_rules! field_tests {
-        () => {
+        ($field:ty) => {
+            use proptest::prelude::*;
+
+            use crate::{
+                field::{element::FieldElement, Field},
+                prime::Prime,
+            };
+
+            // We shadow the `arb_elements` function with one that is specialized to the concrete
+            // field type we're working with
+            fn arb_elements<const N: usize>(
+            ) -> impl Strategy<Value = ($field, [FieldElement<$field>; N])> {
+                crate::field::tests::arb_elements()
+            }
+
             proptest! {
+                #[test]
+                fn test_bit_length((f, []) in arb_elements()) {
+                    use crate::field::field_internal::FieldInternal;
+                    prop_assert!(f.bit_length() <= 63);
+                }
+
                 #[test]
                 fn test_addition_associative((_, [a, b, c]) in arb_elements()) {
                     prop_assert_eq!((a + b) + c, a + (b + c));
@@ -219,6 +243,8 @@ mod tests {
                     prop_assert_eq!((a * b).frobenius(), a.frobenius() * b.frobenius());
                 }
             }
-        }
+        };
     }
+
+    pub(super) use field_tests;
 }
