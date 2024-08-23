@@ -6,7 +6,7 @@ use itertools::Itertools;
 use super::Matrix;
 use crate::{
     prime::ValidPrime,
-    vector::{FpVector, Slice, SliceMut},
+    vector::{FpSlice, FpSliceMut, FpVector},
 };
 
 /// Given a matrix M, a quasi-inverse Q is a map from the co-domain to the domain such that xQM = x
@@ -84,8 +84,8 @@ impl QuasiInverse {
         inputs: &[S],
     ) -> std::io::Result<()>
     where
-        for<'a> &'a mut T: Into<SliceMut<'a>>,
-        for<'a> &'a S: Into<Slice<'a>>,
+        for<'a> &'a mut T: Into<FpSliceMut<'a>>,
+        for<'a> &'a S: Into<FpSlice<'a>>,
     {
         let source_dim = data.read_u64::<LittleEndian>()? as usize;
         let target_dim = data.read_u64::<LittleEndian>()? as usize;
@@ -131,7 +131,7 @@ impl QuasiInverse {
     ///  * `target` - The output vector
     ///  * `coeff` - The constant multiple above
     ///  * `input` - The input vector, expressed in the basis of the ambient space
-    pub fn apply(&self, mut target: SliceMut, coeff: u32, input: Slice) {
+    pub fn apply(&self, mut target: FpSliceMut, coeff: u32, input: FpSlice) {
         let p = self.prime();
         let mut row = 0;
         for (i, c) in input.iter().enumerate() {

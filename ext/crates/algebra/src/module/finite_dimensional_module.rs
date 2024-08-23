@@ -2,7 +2,7 @@ use std::{fmt::Write as _, sync::Arc};
 
 use anyhow::{anyhow, Context};
 use bivec::BiVec;
-use fp::vector::{FpVector, SliceMut};
+use fp::vector::{FpSliceMut, FpVector};
 use serde::Deserialize;
 use serde_json::{json, value::Value};
 
@@ -155,7 +155,7 @@ impl<A: Algebra> Module for FiniteDimensionalModule<A> {
 
     fn act_on_basis(
         &self,
-        mut result: SliceMut,
+        mut result: FpSliceMut,
         coeff: u32,
         op_degree: i32,
         op_index: usize,

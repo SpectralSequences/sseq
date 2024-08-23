@@ -7,7 +7,7 @@ use fp::{
         iter::{BinomialIterator, BitflagIterator},
         Prime, ValidPrime,
     },
-    vector::{FpVector, SliceMut},
+    vector::{FpSliceMut, FpVector},
 };
 use itertools::Itertools;
 use once::OnceVec;
@@ -267,7 +267,7 @@ impl Algebra for AdemAlgebra {
 
     fn multiply_basis_elements(
         &self,
-        result: SliceMut,
+        result: FpSliceMut,
         coeff: u32,
         r_degree: i32,
         r_index: usize,
@@ -461,7 +461,7 @@ impl UnstableAlgebra for AdemAlgebra {
 
     fn multiply_basis_elements_unstable(
         &self,
-        mut result: SliceMut,
+        mut result: FpSliceMut,
         coeff: u32,
         r_degree: i32,
         r_index: usize,
@@ -953,7 +953,7 @@ impl AdemAlgebra {
 
     pub fn multiply_inner(
         &self,
-        mut result: SliceMut,
+        mut result: FpSliceMut,
         coeff: u32,
         r_degree: i32,
         r_index: usize,
@@ -1025,7 +1025,7 @@ impl AdemAlgebra {
 
     pub fn make_mono_admissible(
         &self,
-        result: SliceMut,
+        result: FpSliceMut,
         coeff: u32,
         monomial: &mut AdemBasisElement,
         excess: i32,
@@ -1065,7 +1065,7 @@ impl AdemAlgebra {
     ///  * `leading_degree` - the degree of the squares between 0 and idx (so of length idx + 1)
     fn make_mono_admissible_2(
         &self,
-        mut result: SliceMut,
+        mut result: FpSliceMut,
         monomial: &mut AdemBasisElement,
         mut idx: i32,
         mut leading_degree: i32,
@@ -1120,7 +1120,7 @@ impl AdemAlgebra {
 
     fn make_mono_admissible_generic(
         &self,
-        mut result: SliceMut,
+        mut result: FpSliceMut,
         coeff: u32,
         monomial: &mut AdemBasisElement,
         mut idx: i32,

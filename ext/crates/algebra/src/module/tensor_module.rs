@@ -3,7 +3,7 @@ use std::sync::Arc;
 use bivec::BiVec;
 use fp::{
     prime::minus_one_to_the_n,
-    vector::{FpVector, Slice, SliceMut},
+    vector::{FpSlice, FpSliceMut, FpVector},
 };
 use once::OnceBiVec;
 
@@ -55,12 +55,12 @@ where
 
     fn act_helper(
         &self,
-        mut result: SliceMut,
+        mut result: FpSliceMut,
         coeff: u32,
         op_degree: i32,
         op_index: usize,
         mod_degree: i32,
-        input: Slice,
+        input: FpSlice,
     ) {
         let algebra = self.algebra();
         let p = self.prime();
@@ -192,7 +192,7 @@ where
 
     fn act_on_basis(
         &self,
-        result: SliceMut,
+        result: FpSliceMut,
         coeff: u32,
         op_degree: i32,
         op_index: usize,
@@ -214,12 +214,12 @@ where
 
     fn act(
         &self,
-        mut result: SliceMut,
+        mut result: FpSliceMut,
         coeff: u32,
         op_degree: i32,
         op_index: usize,
         mod_degree: i32,
-        input: Slice,
+        input: FpSlice,
     ) {
         if op_degree == 0 {
             result.add(input, coeff);

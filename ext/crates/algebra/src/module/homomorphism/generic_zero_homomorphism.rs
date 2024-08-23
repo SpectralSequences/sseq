@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use fp::vector::SliceMut;
+use fp::vector::FpSliceMut;
 
 use crate::module::{
     homomorphism::{ModuleHomomorphism, ZeroHomomorphism},
@@ -41,7 +41,7 @@ impl<S: Module, T: Module<Algebra = S::Algebra>> ModuleHomomorphism
         self.degree_shift
     }
 
-    fn apply_to_basis_element(&self, _: SliceMut, _: u32, _: i32, _: usize) {}
+    fn apply_to_basis_element(&self, _: FpSliceMut, _: u32, _: i32, _: usize) {}
 }
 
 impl<S: Module, T: Module<Algebra = S::Algebra>> ZeroHomomorphism<S, T>

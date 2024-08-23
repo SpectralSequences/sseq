@@ -3,7 +3,7 @@ use std::sync::Arc;
 use auto_impl::auto_impl;
 use fp::{
     prime::ValidPrime,
-    vector::{Slice, SliceMut},
+    vector::{FpSlice, FpSliceMut},
 };
 use itertools::Itertools;
 
@@ -50,7 +50,7 @@ pub trait Module: std::fmt::Display + std::any::Any + Send + Sync {
     fn dimension(&self, degree: i32) -> usize;
     fn act_on_basis(
         &self,
-        result: SliceMut,
+        result: FpSliceMut,
         coeff: u32,
         op_degree: i32,
         op_index: usize,
@@ -100,12 +100,12 @@ pub trait Module: std::fmt::Display + std::any::Any + Send + Sync {
     /// what generators will be added in degree `t` yet.
     fn act(
         &self,
-        mut result: SliceMut,
+        mut result: FpSliceMut,
         coeff: u32,
         op_degree: i32,
         op_index: usize,
         input_degree: i32,
-        input: Slice,
+        input: FpSlice,
     ) {
         assert!(input.len() <= self.dimension(input_degree));
         let p = self.prime();
@@ -123,12 +123,12 @@ pub trait Module: std::fmt::Display + std::any::Any + Send + Sync {
 
     fn act_by_element(
         &self,
-        mut result: SliceMut,
+        mut result: FpSliceMut,
         coeff: u32,
         op_degree: i32,
-        op: Slice,
+        op: FpSlice,
         input_degree: i32,
-        input: Slice,
+        input: FpSlice,
     ) {
         assert_eq!(input.len(), self.dimension(input_degree));
         assert_eq!(op.len(), self.algebra().dimension(op_degree));
@@ -147,10 +147,10 @@ pub trait Module: std::fmt::Display + std::any::Any + Send + Sync {
 
     fn act_by_element_on_basis(
         &self,
-        mut result: SliceMut,
+        mut result: FpSliceMut,
         coeff: u32,
         op_degree: i32,
-        op: Slice,
+        op: FpSlice,
         input_degree: i32,
         input_index: usize,
     ) {
@@ -170,7 +170,7 @@ pub trait Module: std::fmt::Display + std::any::Any + Send + Sync {
 
     /// Gives the name of an element. The default implementation is derived from
     /// [`Module::basis_element_to_string`] in the obvious way.
-    fn element_to_string(&self, degree: i32, element: Slice) -> String {
+    fn element_to_string(&self, degree: i32, element: FpSlice) -> String {
         let result = element
             .iter_nonzero()
             .map(|(idx, value)| {

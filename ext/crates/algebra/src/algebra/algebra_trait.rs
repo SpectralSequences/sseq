@@ -4,7 +4,7 @@ use std::fmt::Write as _; // Needed for write! macro for String
 use fp::vector::FpVector;
 use fp::{
     prime::ValidPrime,
-    vector::{Slice, SliceMut},
+    vector::{FpSlice, FpSliceMut},
 };
 
 /// A graded algebra over $\mathbb{F}_p$.
@@ -59,7 +59,7 @@ pub trait Algebra: std::fmt::Display + Send + Sync + 'static {
     /// `result` is not required to be aligned.
     fn multiply_basis_elements(
         &self,
-        result: SliceMut,
+        result: FpSliceMut,
         coeff: u32,
         r_degree: i32,
         r_idx: usize,
@@ -73,12 +73,12 @@ pub trait Algebra: std::fmt::Display + Send + Sync + 'static {
     /// Neither `result` nor `s` must be aligned.
     fn multiply_basis_element_by_element(
         &self,
-        mut result: SliceMut,
+        mut result: FpSliceMut,
         coeff: u32,
         r_degree: i32,
         r_idx: usize,
         s_degree: i32,
-        s: Slice,
+        s: FpSlice,
     ) {
         let p = self.prime();
         for (i, v) in s.iter_nonzero() {
@@ -99,10 +99,10 @@ pub trait Algebra: std::fmt::Display + Send + Sync + 'static {
     /// Neither `result` nor `r` must be aligned.
     fn multiply_element_by_basis_element(
         &self,
-        mut result: SliceMut,
+        mut result: FpSliceMut,
         coeff: u32,
         r_degree: i32,
-        r: Slice,
+        r: FpSlice,
         s_degree: i32,
         s_idx: usize,
     ) {
@@ -125,12 +125,12 @@ pub trait Algebra: std::fmt::Display + Send + Sync + 'static {
     /// Neither `result`, `s`, nor `r` must be aligned.
     fn multiply_element_by_element(
         &self,
-        mut result: SliceMut,
+        mut result: FpSliceMut,
         coeff: u32,
         r_degree: i32,
-        r: Slice,
+        r: FpSlice,
         s_degree: i32,
-        s: Slice,
+        s: FpSlice,
     ) {
         let p = self.prime();
         for (i, v) in s.iter_nonzero() {
@@ -168,7 +168,7 @@ pub trait Algebra: std::fmt::Display + Send + Sync + 'static {
     fn basis_element_from_string(&self, elt: &str) -> Option<(i32, usize)>;
 
     /// Converts a general element into a string for display.
-    fn element_to_string(&self, degree: i32, element: Slice) -> String {
+    fn element_to_string(&self, degree: i32, element: FpSlice) -> String {
         let mut result = String::new();
         let mut zero = true;
         for (idx, value) in element.iter_nonzero() {
@@ -196,7 +196,7 @@ pub trait UnstableAlgebra: Algebra {
 
     fn multiply_basis_elements_unstable(
         &self,
-        result: SliceMut,
+        result: FpSliceMut,
         coeff: u32,
         r_degree: i32,
         r_index: usize,
@@ -211,12 +211,12 @@ pub trait UnstableAlgebra: Algebra {
     /// Neither `result` nor `s` must be aligned.
     fn multiply_basis_element_by_element_unstable(
         &self,
-        mut result: SliceMut,
+        mut result: FpSliceMut,
         coeff: u32,
         r_degree: i32,
         r_idx: usize,
         s_degree: i32,
-        s: Slice,
+        s: FpSlice,
         excess: i32,
     ) {
         let p = self.prime();
@@ -239,10 +239,10 @@ pub trait UnstableAlgebra: Algebra {
     /// Neither `result` nor `r` must be aligned.
     fn multiply_element_by_basis_element_unstable(
         &self,
-        mut result: SliceMut,
+        mut result: FpSliceMut,
         coeff: u32,
         r_degree: i32,
-        r: Slice,
+        r: FpSlice,
         s_degree: i32,
         s_idx: usize,
         excess: i32,
@@ -267,12 +267,12 @@ pub trait UnstableAlgebra: Algebra {
     /// Neither `result`, `s`, nor `r` must be aligned.
     fn multiply_element_by_element_unstable(
         &self,
-        mut result: SliceMut,
+        mut result: FpSliceMut,
         coeff: u32,
         r_degree: i32,
-        r: Slice,
+        r: FpSlice,
         s_degree: i32,
-        s: Slice,
+        s: FpSlice,
         excess: i32,
     ) {
         let p = self.prime();
@@ -298,7 +298,7 @@ pub trait MuAlgebra<const U: bool>: Algebra {
 
     fn multiply_basis_elements_unstable(
         &self,
-        result: SliceMut,
+        result: FpSliceMut,
         coeff: u32,
         r_degree: i32,
         r_index: usize,
@@ -309,12 +309,12 @@ pub trait MuAlgebra<const U: bool>: Algebra {
 
     fn multiply_basis_element_by_element_unstable(
         &self,
-        result: SliceMut,
+        result: FpSliceMut,
         coeff: u32,
         r_degree: i32,
         r_idx: usize,
         s_degree: i32,
-        s: Slice,
+        s: FpSlice,
         excess: i32,
     );
 
@@ -324,10 +324,10 @@ pub trait MuAlgebra<const U: bool>: Algebra {
     /// Neither `result` nor `r` must be aligned.
     fn multiply_element_by_basis_element_unstable(
         &self,
-        result: SliceMut,
+        result: FpSliceMut,
         coeff: u32,
         r_degree: i32,
-        r: Slice,
+        r: FpSlice,
         s_degree: i32,
         s_idx: usize,
         excess: i32,
@@ -339,12 +339,12 @@ pub trait MuAlgebra<const U: bool>: Algebra {
     /// Neither `result`, `s`, nor `r` must be aligned.
     fn multiply_element_by_element_unstable(
         &self,
-        result: SliceMut,
+        result: FpSliceMut,
         coeff: u32,
         r_degree: i32,
-        r: Slice,
+        r: FpSlice,
         s_degree: i32,
-        s: Slice,
+        s: FpSlice,
         excess: i32,
     );
 }
@@ -356,7 +356,7 @@ impl<A: Algebra> MuAlgebra<false> for A {
 
     fn multiply_basis_elements_unstable(
         &self,
-        result: SliceMut,
+        result: FpSliceMut,
         coeff: u32,
         r_degree: i32,
         r_index: usize,
@@ -369,12 +369,12 @@ impl<A: Algebra> MuAlgebra<false> for A {
 
     fn multiply_basis_element_by_element_unstable(
         &self,
-        result: SliceMut,
+        result: FpSliceMut,
         coeff: u32,
         r_degree: i32,
         r_idx: usize,
         s_degree: i32,
-        s: Slice,
+        s: FpSlice,
         _excess: i32,
     ) {
         self.multiply_basis_element_by_element(result, coeff, r_degree, r_idx, s_degree, s)
@@ -382,10 +382,10 @@ impl<A: Algebra> MuAlgebra<false> for A {
 
     fn multiply_element_by_basis_element_unstable(
         &self,
-        result: SliceMut,
+        result: FpSliceMut,
         coeff: u32,
         r_degree: i32,
-        r: Slice,
+        r: FpSlice,
         s_degree: i32,
         s_idx: usize,
         _excess: i32,
@@ -395,12 +395,12 @@ impl<A: Algebra> MuAlgebra<false> for A {
 
     fn multiply_element_by_element_unstable(
         &self,
-        result: SliceMut,
+        result: FpSliceMut,
         coeff: u32,
         r_degree: i32,
-        r: Slice,
+        r: FpSlice,
         s_degree: i32,
-        s: Slice,
+        s: FpSlice,
         _excess: i32,
     ) {
         self.multiply_element_by_element(result, coeff, r_degree, r, s_degree, s)
@@ -414,7 +414,7 @@ impl<A: UnstableAlgebra> MuAlgebra<true> for A {
 
     fn multiply_basis_elements_unstable(
         &self,
-        result: SliceMut,
+        result: FpSliceMut,
         coeff: u32,
         r_degree: i32,
         r_index: usize,
@@ -429,12 +429,12 @@ impl<A: UnstableAlgebra> MuAlgebra<true> for A {
 
     fn multiply_basis_element_by_element_unstable(
         &self,
-        result: SliceMut,
+        result: FpSliceMut,
         coeff: u32,
         r_degree: i32,
         r_idx: usize,
         s_degree: i32,
-        s: Slice,
+        s: FpSlice,
         excess: i32,
     ) {
         UnstableAlgebra::multiply_basis_element_by_element_unstable(
@@ -444,10 +444,10 @@ impl<A: UnstableAlgebra> MuAlgebra<true> for A {
 
     fn multiply_element_by_basis_element_unstable(
         &self,
-        result: SliceMut,
+        result: FpSliceMut,
         coeff: u32,
         r_degree: i32,
-        r: Slice,
+        r: FpSlice,
         s_degree: i32,
         s_idx: usize,
         excess: i32,
@@ -459,12 +459,12 @@ impl<A: UnstableAlgebra> MuAlgebra<true> for A {
 
     fn multiply_element_by_element_unstable(
         &self,
-        result: SliceMut,
+        result: FpSliceMut,
         coeff: u32,
         r_degree: i32,
-        r: Slice,
+        r: FpSlice,
         s_degree: i32,
-        s: Slice,
+        s: FpSlice,
         excess: i32,
     ) {
         UnstableAlgebra::multiply_element_by_element_unstable(
@@ -543,7 +543,7 @@ macro_rules! dispatch_algebra {
                 fn dimension(&self, degree: i32) -> usize;
                 fn multiply_basis_elements(
                     &self,
-                    result: SliceMut,
+                    result: FpSliceMut,
                     coeff: u32,
                     r_degree: i32,
                     r_idx: usize,
@@ -553,32 +553,32 @@ macro_rules! dispatch_algebra {
 
                 fn multiply_basis_element_by_element(
                     &self,
-                    result: SliceMut,
+                    result: FpSliceMut,
                     coeff: u32,
                     r_degree: i32,
                     r_idx: usize,
                     s_degree: i32,
-                    s: Slice,
+                    s: FpSlice,
                 );
 
                 fn multiply_element_by_basis_element(
                     &self,
-                    result: SliceMut,
+                    result: FpSliceMut,
                     coeff: u32,
                     r_degree: i32,
-                    r: Slice,
+                    r: FpSlice,
                     s_degree: i32,
                     s_idx: usize,
                 );
 
                 fn multiply_element_by_element(
                     &self,
-                    result: SliceMut,
+                    result: FpSliceMut,
                     coeff: u32,
                     r_degree: i32,
-                    r: Slice,
+                    r: FpSlice,
                     s_degree: i32,
-                    s: Slice,
+                    s: FpSlice,
                 );
 
                 fn default_filtration_one_products(&self) -> Vec<(String, i32, usize)>;
@@ -586,7 +586,7 @@ macro_rules! dispatch_algebra {
                 fn basis_element_to_string(&self, degree: i32, idx: usize) -> String;
                 fn basis_element_from_string(&self, elt: &str) -> Option<(i32, usize)>;
 
-                fn element_to_string(&self, degree: i32, element: Slice) -> String;
+                fn element_to_string(&self, degree: i32, element: FpSlice) -> String;
             }
         }
     };

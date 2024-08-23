@@ -2,7 +2,7 @@
 
 use fp::{
     prime::ValidPrime,
-    vector::{Slice, SliceMut},
+    vector::{FpSlice, FpSliceMut},
 };
 
 use crate::algebra::{Algebra, Bialgebra};
@@ -42,7 +42,7 @@ impl Algebra for Field {
 
     fn multiply_basis_elements(
         &self,
-        mut result: SliceMut,
+        mut result: FpSliceMut,
         coeff: u32,
         _r_degree: i32,
         _r_idx: usize,
@@ -61,7 +61,7 @@ impl Algebra for Field {
         "1".to_string()
     }
 
-    fn element_to_string(&self, degree: i32, element: Slice) -> String {
+    fn element_to_string(&self, degree: i32, element: FpSlice) -> String {
         assert!(degree == 0);
         format!("{}", element.entry(0))
     }

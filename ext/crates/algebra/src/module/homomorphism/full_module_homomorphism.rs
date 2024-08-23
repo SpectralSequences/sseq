@@ -3,7 +3,7 @@ use std::sync::Arc;
 use bivec::BiVec;
 use fp::{
     matrix::{Matrix, QuasiInverse, Subspace},
-    vector::SliceMut,
+    vector::FpSliceMut,
 };
 use once::OnceBiVec;
 
@@ -62,7 +62,7 @@ impl<S: Module, T: Module<Algebra = S::Algebra>> ModuleHomomorphism
 
     fn apply_to_basis_element(
         &self,
-        mut result: SliceMut,
+        mut result: FpSliceMut,
         coeff: u32,
         input_degree: i32,
         input_idx: usize,

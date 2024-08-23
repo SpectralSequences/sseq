@@ -4,7 +4,7 @@ use bivec::BiVec;
 use fp::{
     matrix::{Matrix, Subquotient, Subspace},
     prime::ValidPrime,
-    vector::{FpVector, Slice},
+    vector::{FpSlice, FpVector},
 };
 
 use crate::{bigraded::DenseBigradedModule, differential::Differential};
@@ -161,7 +161,7 @@ impl<P: SseqProfile> Sseq<P> {
     /// # Returns
     ///
     /// Whether a new permanent class was added
-    pub fn add_permanent_class(&mut self, x: i32, y: i32, class: Slice) -> bool {
+    pub fn add_permanent_class(&mut self, x: i32, y: i32, class: FpSlice) -> bool {
         let old_dim = self.permanent_classes[x][y].dimension();
         let new_dim = self.permanent_classes[x][y].add_vector(class);
         if old_dim != new_dim {
@@ -214,8 +214,8 @@ impl<P: SseqProfile> Sseq<P> {
         r: i32,
         x: i32,
         y: i32,
-        source: Slice,
-        target: Slice,
+        source: FpSlice,
+        target: FpSlice,
     ) -> bool {
         let (tx, ty) = P::profile(r, x, y);
 
@@ -382,7 +382,7 @@ impl<P: SseqProfile> Sseq<P> {
         &self,
         x: i32,
         y: i32,
-        class: Slice,
+        class: FpSlice,
         prod: &Product,
     ) -> Option<(i32, i32, FpVector)> {
         let mut result = FpVector::new(self.p, self.classes.get_dimension(x + prod.x, y + prod.y)?);
@@ -412,7 +412,7 @@ impl<P: SseqProfile> Sseq<P> {
         r: i32,
         x: i32,
         y: i32,
-        class: Slice,
+        class: FpSlice,
         source_product: &Product,
         target_product: Option<&Product>,
     ) -> Option<(i32, i32, i32, FpVector)> {

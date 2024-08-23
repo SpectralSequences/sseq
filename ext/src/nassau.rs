@@ -32,7 +32,7 @@ use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use fp::{
     matrix::{AugmentedMatrix, Matrix},
     prime::{ValidPrime, TWO},
-    vector::{FpVector, Slice, SliceMut},
+    vector::{FpSlice, FpSliceMut, FpVector},
 };
 use itertools::Itertools;
 use once::OnceVec;
@@ -1006,8 +1006,8 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
 
     fn apply_quasi_inverse<T, S>(&self, results: &mut [T], b: Bidegree, inputs: &[S]) -> bool
     where
-        for<'a> &'a mut T: Into<SliceMut<'a>>,
-        for<'a> &'a S: Into<Slice<'a>>,
+        for<'a> &'a mut T: Into<FpSliceMut<'a>>,
+        for<'a> &'a S: Into<FpSlice<'a>>,
     {
         let mut f = if let Some(dir) = self.save_dir.read() {
             if let Some(f) = self.save_file(SaveKind::NassauQi, b).open_file(dir.clone()) {

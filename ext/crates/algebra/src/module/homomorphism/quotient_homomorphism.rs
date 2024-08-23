@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use fp::vector::{FpVector, SliceMut};
+use fp::vector::{FpSliceMut, FpVector};
 
 use crate::module::{homomorphism::ModuleHomomorphism, Module, QuotientModule};
 
@@ -38,7 +38,7 @@ impl<F: ModuleHomomorphism> ModuleHomomorphism for QuotientHomomorphism<F> {
 
     fn apply_to_basis_element(
         &self,
-        result: SliceMut,
+        result: FpSliceMut,
         coeff: u32,
         input_degree: i32,
         input_idx: usize,
@@ -87,7 +87,7 @@ impl<F: ModuleHomomorphism> ModuleHomomorphism for QuotientHomomorphismSource<F>
 
     fn apply_to_basis_element(
         &self,
-        result: SliceMut,
+        result: FpSliceMut,
         coeff: u32,
         input_degree: i32,
         input_idx: usize,

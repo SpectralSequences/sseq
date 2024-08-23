@@ -14,7 +14,7 @@
 
 use itertools::Itertools;
 
-use super::{FqVector, FqVectorIteratorP, FqVectorNonZeroIteratorP, SliceMutP, SliceP};
+use super::{FpSliceMutP, FpSliceP, FqVector, FqVectorIteratorP, FqVectorNonZeroIteratorP};
 use crate::field::Field;
 
 impl<F: Field> FqVector<F> {
@@ -76,18 +76,18 @@ impl<F: Field> FqVector<F> {
     }
 }
 
-impl<'a, F: Field> SliceP<'a, F> {
+impl<'a, F: Field> FpSliceP<'a, F> {
     pub(super) fn entry_helper(&self, index: usize) -> F::ElementContainer {
         self.entry(index).val()
     }
 }
 
-impl<'a, F: Field> SliceMutP<'a, F> {
+impl<'a, F: Field> FpSliceMutP<'a, F> {
     pub(super) fn scale_helper(&mut self, c: F::ElementContainer) {
         self.scale(self.fq.el(c))
     }
 
-    pub(super) fn add_helper(&mut self, other: SliceP<F>, c: F::ElementContainer) {
+    pub(super) fn add_helper(&mut self, other: FpSliceP<F>, c: F::ElementContainer) {
         self.add(other, self.fq.el(c))
     }
 
@@ -101,7 +101,7 @@ impl<'a, F: Field> SliceMutP<'a, F> {
 
     pub(super) fn add_masked_helper(
         &mut self,
-        other: SliceP<F>,
+        other: FpSliceP<F>,
         c: F::ElementContainer,
         mask: &[usize],
     ) {
@@ -110,7 +110,7 @@ impl<'a, F: Field> SliceMutP<'a, F> {
 
     pub(super) fn add_unmasked_helper(
         &mut self,
-        other: SliceP<F>,
+        other: FpSliceP<F>,
         c: F::ElementContainer,
         mask: &[usize],
     ) {
@@ -121,8 +121,8 @@ impl<'a, F: Field> SliceMutP<'a, F> {
         &mut self,
         offset: usize,
         coeff: F::ElementContainer,
-        left: SliceP<F>,
-        right: SliceP<F>,
+        left: FpSliceP<F>,
+        right: FpSliceP<F>,
     ) {
         self.add_tensor(offset, self.fq.el(coeff), left, right)
     }

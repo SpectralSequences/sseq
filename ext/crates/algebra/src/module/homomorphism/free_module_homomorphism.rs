@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use fp::{
     matrix::{MatrixSliceMut, QuasiInverse, Subspace},
-    vector::{FpVector, Slice, SliceMut},
+    vector::{FpSlice, FpSliceMut, FpVector},
 };
 use once::OnceBiVec;
 
@@ -54,7 +54,7 @@ where
 
     fn apply_to_basis_element(
         &self,
-        result: SliceMut,
+        result: FpSliceMut,
         coeff: u32,
         input_degree: i32,
         input_index: usize,
@@ -184,7 +184,7 @@ where
         });
     }
 
-    pub fn add_generators_from_big_vector(&self, degree: i32, outputs_vectors: Slice) {
+    pub fn add_generators_from_big_vector(&self, degree: i32, outputs_vectors: FpSlice) {
         let p = self.prime();
         let new_generators = self.source.number_of_gens_in_degree(degree);
         let target_dimension = self.target.dimension(degree - self.degree_shift);
@@ -204,7 +204,7 @@ where
         self.outputs.push_checked(new_outputs, degree);
     }
 
-    /// A MatrixSlice will do but there is no applicaiton of this struct, so it doesn't exist
+    /// A MatrixFpSlice will do but there is no applicaiton of this struct, so it doesn't exist
     /// yet...
     pub fn add_generators_from_matrix_rows(&self, degree: i32, mut matrix: MatrixSliceMut) {
         let p = self.prime();

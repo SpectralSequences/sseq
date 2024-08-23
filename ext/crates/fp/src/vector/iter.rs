@@ -1,4 +1,4 @@
-use super::inner::SliceP;
+use super::inner::FpSliceP;
 use crate::{
     field::{element::FieldElement, Field},
     limb::Limb,
@@ -17,7 +17,7 @@ pub struct FqVectorIteratorP<'a, F> {
 }
 
 impl<'a, F: Field> FqVectorIteratorP<'a, F> {
-    pub(super) fn new(vec: SliceP<'a, F>) -> Self {
+    pub(super) fn new(vec: FpSliceP<'a, F>) -> Self {
         let counter = vec.len();
         let limbs = vec.limbs;
 
@@ -125,7 +125,7 @@ pub struct FqVectorNonZeroIteratorP<'a, F> {
 }
 
 impl<'a, F: Field> FqVectorNonZeroIteratorP<'a, F> {
-    pub(super) fn new(vec: SliceP<'a, F>) -> Self {
+    pub(super) fn new(vec: FpSliceP<'a, F>) -> Self {
         let entries_per_limb = vec.fq.entries_per_limb();
 
         let dim = vec.len();

@@ -14,7 +14,7 @@ use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use dashmap::DashMap;
 use fp::{
     matrix::{AugmentedMatrix, QuasiInverse, Subspace},
-    vector::{FpVector, Slice, SliceMut},
+    vector::{FpSlice, FpSliceMut, FpVector},
 };
 use itertools::Itertools;
 use once::OnceVec;
@@ -879,8 +879,8 @@ where
 
     fn apply_quasi_inverse<T, S>(&self, results: &mut [T], b: Bidegree, inputs: &[S]) -> bool
     where
-        for<'a> &'a mut T: Into<SliceMut<'a>>,
-        for<'a> &'a S: Into<Slice<'a>>,
+        for<'a> &'a mut T: Into<FpSliceMut<'a>>,
+        for<'a> &'a S: Into<FpSlice<'a>>,
     {
         assert_eq!(results.len(), inputs.len());
 

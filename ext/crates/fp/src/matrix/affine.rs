@@ -1,5 +1,5 @@
 use super::Subspace;
-use crate::vector::{FpVector, Slice};
+use crate::vector::{FpSlice, FpVector};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AffineSubspace {
@@ -34,7 +34,7 @@ impl AffineSubspace {
         Self::new(offset, linear_part)
     }
 
-    pub fn contains(&self, vector: Slice) -> bool {
+    pub fn contains(&self, vector: FpSlice) -> bool {
         let mut vector = vector.to_owned();
         vector.add(&self.offset, vector.prime() - 1);
         self.linear_part.contains(vector.as_slice())

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use fp::vector::{FpVector, SliceMut};
+use fp::vector::{FpSliceMut, FpVector};
 use itertools::Itertools;
 use once::OnceBiVec;
 use serde_json::Value;
@@ -216,7 +216,7 @@ impl<A: Algebra> Module for FinitelyPresentedModule<A> {
 
     fn act_on_basis(
         &self,
-        mut result: SliceMut,
+        mut result: FpSliceMut,
         coeff: u32,
         op_degree: i32,
         op_index: usize,

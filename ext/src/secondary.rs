@@ -17,7 +17,7 @@ use dashmap::DashMap;
 use fp::{
     matrix::Matrix,
     prime::ValidPrime,
-    vector::{FpVector, Slice, SliceMut},
+    vector::{FpSlice, FpSliceMut, FpVector},
 };
 use itertools::Itertools;
 use maybe_rayon::prelude::*;
@@ -165,7 +165,7 @@ impl<A: PairAlgebra> SecondaryComposite<A> {
         }
     }
 
-    pub fn act(&self, mut result: SliceMut, coeff: u32, op_degree: i32, op: Slice) {
+    pub fn act(&self, mut result: FpSliceMut, coeff: u32, op_degree: i32, op: FpSlice) {
         let algebra = self.algebra();
         for (gen_deg, row) in self.composite.iter_enum() {
             let module_op_deg = self.degree - gen_deg;
@@ -299,7 +299,14 @@ impl<A: PairAlgebra + Send + Sync> SecondaryHomotopy<A> {
     ///
     /// # Arguments
     ///  - full: Whether to include the action of the homotopy part as well
-    pub fn act(&self, mut result: SliceMut, coeff: u32, elt_degree: i32, elt: Slice, full: bool) {
+    pub fn act(
+        &self,
+        mut result: FpSliceMut,
+        coeff: u32,
+        elt_degree: i32,
+        elt: FpSlice,
+        full: bool,
+    ) {
         for (gen_deg, gen_idx, op_deg, slice) in self.source.iter_slices(elt_degree, elt) {
             if gen_deg < self.composites.min_degree() {
                 continue;
@@ -991,8 +998,8 @@ where
         tau_part: Option<&ResolutionHomomorphism<CC1, CC2>>,
         sseq: Option<&sseq::Sseq>,
         b: Bidegree,
-        inputs: impl Iterator<Item = Slice<'a>>,
-        outputs: impl Iterator<Item = SliceMut<'a>>,
+        inputs: impl Iterator<Item = FpSlice<'a>>,
+        outputs: impl Iterator<Item = FpSliceMut<'a>>,
     ) {
         let source = b + self.shift() - Bidegree::s_t(1, 0);
         let tau_source = source + TAU_BIDEGREE;
@@ -1058,7 +1065,7 @@ where
     }
 
     /// Compute the induced map on Mod_{C\tau^2} homotopy groups. This only computes it on
-    /// standard lifts on elements in Ext. `outputs` is an iterator of `SliceMut`s whose lengths
+    /// standard lifts on elements in Ext. `outputs` is an iterator of `FpSliceMut`s whose lengths
     /// are equal to the total dimension of `(s + shift_s, t + shift_t)` and `(s + shift_s + 1, t +
     /// shift_t + 1)`. The first chunk records the Ext part of the result, and the second chunk
     /// records the τ part of the result.
@@ -1072,8 +1079,8 @@ where
         &self,
         sseq: Option<&sseq::Sseq>,
         b: Bidegree,
-        inputs: impl Iterator<Item = Slice<'a>>,
-        outputs: impl Iterator<Item = SliceMut<'a>>,
+        inputs: impl Iterator<Item = FpSlice<'a>>,
+        outputs: impl Iterator<Item = FpSliceMut<'a>>,
     ) {
         self.hom_k_with(None, sseq, b, inputs, outputs);
     }
@@ -1088,7 +1095,7 @@ where
         tau_part: Option<&ResolutionHomomorphism<CC1, CC2>>,
         sseq: &sseq::Sseq,
         b: Bidegree,
-        class: Slice,
+        class: FpSlice,
     ) -> FpVector {
         let p = self.prime();
         let shift = self.underlying.shift;

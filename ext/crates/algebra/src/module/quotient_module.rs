@@ -3,7 +3,7 @@ use std::sync::Arc;
 use bivec::BiVec;
 use fp::{
     matrix::Subspace,
-    vector::{FpVector, Slice, SliceMut},
+    vector::{FpSlice, FpSliceMut, FpVector},
 };
 
 use crate::module::{Module, ZeroModule};
@@ -50,7 +50,7 @@ impl<M: Module> QuotientModule<M> {
         }
     }
 
-    pub fn quotient(&mut self, degree: i32, element: Slice) {
+    pub fn quotient(&mut self, degree: i32, element: FpSlice) {
         if degree <= self.truncation {
             self.subspaces[degree].add_vector(element);
             self.flush(degree);
@@ -72,7 +72,7 @@ impl<M: Module> QuotientModule<M> {
     pub fn quotient_vectors(
         &mut self,
         degree: i32,
-        vecs: impl for<'a> FnMut(SliceMut<'a>) -> Option<()>,
+        vecs: impl for<'a> FnMut(FpSliceMut<'a>) -> Option<()>,
     ) {
         if degree > self.truncation {
             return;
@@ -99,7 +99,7 @@ impl<M: Module> QuotientModule<M> {
 
     pub fn act_on_original_basis(
         &self,
-        mut result: SliceMut,
+        mut result: FpSliceMut,
         coeff: u32,
         op_degree: i32,
         op_index: usize,
@@ -120,7 +120,7 @@ impl<M: Module> QuotientModule<M> {
         self.reduce(op_degree + mod_degree, result)
     }
 
-    pub fn reduce(&self, degree: i32, mut vec: SliceMut) {
+    pub fn reduce(&self, degree: i32, mut vec: FpSliceMut) {
         if degree > self.truncation {
             vec.set_to_zero()
         } else {
@@ -128,7 +128,7 @@ impl<M: Module> QuotientModule<M> {
         }
     }
 
-    pub fn old_basis_to_new(&self, degree: i32, mut new: SliceMut, old: Slice) {
+    pub fn old_basis_to_new(&self, degree: i32, mut new: FpSliceMut, old: FpSlice) {
         for (i, idx) in self.basis_list[degree].iter().enumerate() {
             new.add_basis_element(i, old.entry(*idx));
         }
@@ -160,7 +160,7 @@ impl<M: Module> Module for QuotientModule<M> {
 
     fn act_on_basis(
         &self,
-        result: SliceMut,
+        result: FpSliceMut,
         coeff: u32,
         op_degree: i32,
         op_index: usize,

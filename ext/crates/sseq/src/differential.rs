@@ -1,7 +1,7 @@
 use fp::{
     matrix::{Matrix, Subspace},
     prime::ValidPrime,
-    vector::{FpVector, Slice, SliceMut},
+    vector::{FpSlice, FpSliceMut, FpVector},
 };
 
 pub struct Differential {
@@ -40,7 +40,7 @@ impl Differential {
     ///  - `source`: The source of the differential
     ///  - `target`: The target of the differential. If `None`, the differential is zero. This
     ///     should be reduced by the known images of earlier differentials.
-    pub fn add(&mut self, source: Slice, target: Option<Slice>) -> bool {
+    pub fn add(&mut self, source: FpSlice, target: Option<FpSlice>) -> bool {
         let source_dim = self.source_dim;
         let target_dim = self.target_dim;
         let next_row = &mut self.matrix[self.first_empty_row];
@@ -105,7 +105,7 @@ impl Differential {
     /// of the differential matrix has zero differential. This may or may not be actually true
     /// (e.g. if we only know d(a + b) = c, it might be that d(a) = c and d(b) = 0, or vice versa,
     /// or neither. Here we assume d(a) = c and d(b) = 0.
-    pub fn evaluate(&self, source: Slice, mut target: SliceMut) {
+    pub fn evaluate(&self, source: FpSlice, mut target: FpSliceMut) {
         for (i, c) in source.iter_nonzero() {
             let row = self.matrix.pivots()[i];
             if row < 0 {
@@ -134,7 +134,7 @@ impl Differential {
     ///
     /// This computes the quasi-inverse from scratch and allocates two matrices, and should not be
     /// used in a hot path.
-    pub fn quasi_inverse(&self, result: SliceMut, value: Slice) {
+    pub fn quasi_inverse(&self, result: FpSliceMut, value: FpSlice) {
         let mut matrix = Matrix::new(
             self.matrix.prime(),
             self.source_dim,

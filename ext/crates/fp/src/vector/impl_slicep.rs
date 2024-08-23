@@ -1,7 +1,7 @@
 use itertools::Itertools;
 
 use super::{
-    inner::{FqVector, SliceP},
+    inner::{FpSliceP, FqVector},
     iter::{FqVectorIteratorP, FqVectorNonZeroIteratorP},
 };
 use crate::{
@@ -13,7 +13,7 @@ use crate::{
 
 // Public methods
 
-impl<'a, F: Field> SliceP<'a, F> {
+impl<'a, F: Field> FpSliceP<'a, F> {
     pub fn prime(&self) -> ValidPrime {
         self.fq.characteristic().to_dyn()
     }
@@ -74,7 +74,7 @@ impl<'a, F: Field> SliceP<'a, F> {
     pub fn slice(self, start: usize, end: usize) -> Self {
         assert!(start <= end && end <= self.len());
 
-        SliceP {
+        FpSliceP {
             fq: self.fq,
             limbs: self.limbs,
             start: self.start + start,
@@ -101,7 +101,7 @@ impl<'a, F: Field> SliceP<'a, F> {
 }
 
 // Limb methods
-impl<'a, F: Field> SliceP<'a, F> {
+impl<'a, F: Field> FpSliceP<'a, F> {
     #[inline]
     pub(super) fn offset(&self) -> usize {
         let bit_length = self.fq.bit_length();
@@ -150,13 +150,13 @@ impl<'a, F: Field> SliceP<'a, F> {
     }
 }
 
-impl<'a, F: Field> From<&'a FqVector<F>> for SliceP<'a, F> {
+impl<'a, F: Field> From<&'a FqVector<F>> for FpSliceP<'a, F> {
     fn from(v: &'a FqVector<F>) -> Self {
         v.slice(0, v.len)
     }
 }
 
-impl<'a, F: Field> std::fmt::Display for SliceP<'a, F> {
+impl<'a, F: Field> std::fmt::Display for FpSliceP<'a, F> {
     /// # Example
     /// ```
     /// # use fp::field::{Field, SmallFq};

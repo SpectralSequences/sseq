@@ -2,7 +2,7 @@ use std::cell::Cell;
 
 use fp::{
     prime::{factor_pk, iter::BitflagIterator, Binomial, Prime, ValidPrime},
-    vector::{FpVector, Slice, SliceMut},
+    vector::{FpSlice, FpSliceMut, FpVector},
 };
 use itertools::Itertools;
 use once::OnceVec;
@@ -494,7 +494,7 @@ impl Algebra for MilnorAlgebra {
     #[cfg(not(feature = "cache-multiplication"))]
     fn multiply_basis_elements(
         &self,
-        result: SliceMut,
+        result: FpSliceMut,
         coef: u32,
         r_degree: i32,
         r_idx: usize,
@@ -512,7 +512,7 @@ impl Algebra for MilnorAlgebra {
     #[cfg(feature = "cache-multiplication")]
     fn multiply_basis_elements(
         &self,
-        mut result: SliceMut,
+        mut result: FpSliceMut,
         coef: u32,
         r_degree: i32,
         r_idx: usize,
@@ -528,12 +528,12 @@ impl Algebra for MilnorAlgebra {
 
     fn multiply_basis_element_by_element(
         &self,
-        mut result: SliceMut,
+        mut result: FpSliceMut,
         coeff: u32,
         r_degree: i32,
         r_idx: usize,
         s_degree: i32,
-        s: Slice,
+        s: FpSlice,
     ) {
         let p = self.prime();
         let r = self.basis_element_from_index(r_degree, r_idx);
@@ -554,12 +554,12 @@ impl Algebra for MilnorAlgebra {
 
     fn multiply_element_by_element(
         &self,
-        mut res: SliceMut,
+        mut res: FpSliceMut,
         coef: u32,
         r_deg: i32,
-        r: Slice,
+        r: FpSlice,
         s_deg: i32,
-        s: Slice,
+        s: FpSlice,
     ) {
         PPartAllocation::with_local(|mut allocation| {
             for (i, c) in r.iter_nonzero() {
@@ -657,7 +657,7 @@ impl UnstableAlgebra for MilnorAlgebra {
 
     fn multiply_basis_elements_unstable(
         &self,
-        result: SliceMut,
+        result: FpSliceMut,
         coeff: u32,
         r_degree: i32,
         r_index: usize,
@@ -1061,7 +1061,7 @@ impl MilnorAlgebra {
 
     pub fn multiply(
         &self,
-        res: SliceMut,
+        res: FpSliceMut,
         coef: u32,
         m1: &MilnorBasisElement,
         m2: &MilnorBasisElement,
@@ -1073,7 +1073,7 @@ impl MilnorAlgebra {
 
     pub fn multiply_with_allocation(
         &self,
-        mut res: SliceMut,
+        mut res: FpSliceMut,
         coef: u32,
         m1: &MilnorBasisElement,
         m2: &MilnorBasisElement,
@@ -1124,11 +1124,11 @@ impl MilnorAlgebra {
 
     pub fn multiply_basis_by_element(
         &self,
-        res: SliceMut,
+        res: FpSliceMut,
         coef: u32,
         m1: &MilnorBasisElement,
         s_deg: i32,
-        s: Slice,
+        s: FpSlice,
     ) {
         PPartAllocation::with_local(|allocation| {
             self.multiply_basis_by_element_with_allocation(res, coef, m1, s_deg, s, allocation)
@@ -1137,11 +1137,11 @@ impl MilnorAlgebra {
 
     fn multiply_basis_by_element_with_allocation(
         &self,
-        mut res: SliceMut,
+        mut res: FpSliceMut,
         coef: u32,
         m1: &MilnorBasisElement,
         s_deg: i32,
-        s: Slice,
+        s: FpSlice,
         mut allocation: PPartAllocation,
     ) -> PPartAllocation {
         for (i, c) in s.iter_nonzero() {

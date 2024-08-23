@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use fp::vector::{Slice, SliceMut};
+use fp::vector::{FpSlice, FpSliceMut};
 use once::{OnceBiVec, OnceVec};
 
 use crate::{
@@ -139,7 +139,7 @@ impl<const U: bool, A: MuAlgebra<U>> Module for MuFreeModule<U, A> {
 
     fn act_on_basis(
         &self,
-        mut result: SliceMut,
+        mut result: FpSliceMut,
         coeff: u32,
         op_degree: i32,
         op_index: usize,
@@ -179,12 +179,12 @@ impl<const U: bool, A: MuAlgebra<U>> Module for MuFreeModule<U, A> {
 
     fn act(
         &self,
-        mut result: SliceMut,
+        mut result: FpSliceMut,
         coeff: u32,
         op_degree: i32,
         op_index: usize,
         input_degree: i32,
-        input: Slice,
+        input: FpSlice,
     ) {
         for GeneratorData {
             gen_deg,
@@ -210,7 +210,7 @@ impl<const U: bool, A: MuAlgebra<U>> Module for MuFreeModule<U, A> {
 
     // Will need specialization
     /*    #[cfg(not(feature = "cache-multiplication"))]
-    fn act(&self, result : SliceMut, coeff : u32, op_degree : i32, op_index : usize, input_degree : i32, input : Slice){
+    fn act(&self, result : FpSliceMut, coeff : u32, op_degree : i32, op_index : usize, input_degree : i32, input : FpSlice){
         if *self.prime() == 2 {
             if let SteenrodAlgebra::MilnorAlgebra(m) = &*self.algebra() {
                 self.custom_milnor_act(m, result, coeff, op_degree, op_index, input_degree, input);
@@ -358,8 +358,8 @@ impl<const U: bool, A: MuAlgebra<U>> MuFreeModule<U, A> {
         degree: i32,
         gen_degree: i32,
         gen_index: usize,
-        v: Slice<'a>,
-    ) -> Slice<'a> {
+        v: FpSlice<'a>,
+    ) -> FpSlice<'a> {
         let start = self.generator_offset(degree, gen_degree, gen_index);
         let len = self
             .algebra()
@@ -376,8 +376,8 @@ impl<const U: bool, A: MuAlgebra<U>> MuFreeModule<U, A> {
     pub fn iter_slices<'a>(
         &'a self,
         degree: i32,
-        slice: Slice<'a>,
-    ) -> impl Iterator<Item = (i32, usize, i32, Slice<'a>)> + 'a {
+        slice: FpSlice<'a>,
+    ) -> impl Iterator<Item = (i32, usize, i32, FpSlice<'a>)> + 'a {
         (self.min_degree..=degree)
             .flat_map(|t| (0..self.num_gens.get(t).copied().unwrap_or(0)).map(move |n| (t, n)))
             .map(move |(t, n)| (t, n, degree - t, self.slice_vector(degree, t, n, slice)))
@@ -432,7 +432,7 @@ impl<'a, const U: bool, A: MuAlgebra<U>, T: Iterator<Item = i32> + 'a, const N: 
 /*
 #[cfg(not(feature = "cache-multiplication"))]
 impl<A: Algebra> MuFreeModule<A> {
-    fn standard_act(&self, result : SliceMut, coeff : u32, op_degree : i32, op_index : usize, input_degree : i32, input : Slice) {
+    fn standard_act(&self, result : FpSliceMut, coeff : u32, op_degree : i32, op_index : usize, input_degree : i32, input : FpSlice) {
         assert!(input.dimension() == self.dimension(input_degree));
         let p = *self.prime();
         for (i, v) in input.iter_nonzer() {
@@ -452,7 +452,7 @@ impl<A: Algebra> MuFreeModule<A> {
     /// contributes to $\mathrm{Sq}(R) \mathrm{Sq}(S^{(k)})$ iff the column sum is at most
     /// $s_{j}^{(k)}$. There are also some bitwise disjointness conditions we have to check to
     /// ensure the coefficient is non-zero.
-    fn custom_milnor_act(&self, algebra: &MilnorAlgebra, result : SliceMut, coeff : u32, op_degree : i32, op_index : usize, input_degree : i32, input : Slice) {
+    fn custom_milnor_act(&self, algebra: &MilnorAlgebra, result : FpSliceMut, coeff : u32, op_degree : i32, op_index : usize, input_degree : i32, input : FpSlice) {
         if coeff % 2 == 0 {
             return;
         }

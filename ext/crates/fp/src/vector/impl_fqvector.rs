@@ -1,7 +1,7 @@
 use itertools::Itertools;
 
 use super::{
-    inner::{FqVector, SliceMutP, SliceP},
+    inner::{FpSliceMutP, FpSliceP, FqVector},
     iter::{FqVectorIteratorP, FqVectorNonZeroIteratorP},
 };
 use crate::{
@@ -55,9 +55,9 @@ impl<F: Field> FqVector<F> {
     }
 
     #[must_use]
-    pub fn slice(&self, start: usize, end: usize) -> SliceP<'_, F> {
+    pub fn slice(&self, start: usize, end: usize) -> FpSliceP<'_, F> {
         assert!(start <= end && end <= self.len);
-        SliceP {
+        FpSliceP {
             fq: self.fq,
             limbs: &self.limbs,
             start,
@@ -66,9 +66,9 @@ impl<F: Field> FqVector<F> {
     }
 
     #[must_use]
-    pub fn slice_mut(&mut self, start: usize, end: usize) -> SliceMutP<'_, F> {
+    pub fn slice_mut(&mut self, start: usize, end: usize) -> FpSliceMutP<'_, F> {
         assert!(start <= end && end <= self.len);
-        SliceMutP {
+        FpSliceMutP {
             fq: self.fq,
             limbs: &mut self.limbs,
             start,
@@ -78,13 +78,13 @@ impl<F: Field> FqVector<F> {
 
     #[inline]
     #[must_use]
-    pub fn as_slice(&self) -> SliceP<'_, F> {
+    pub fn as_slice(&self) -> FpSliceP<'_, F> {
         self.into()
     }
 
     #[inline]
     #[must_use]
-    pub fn as_slice_mut(&mut self) -> SliceMutP<'_, F> {
+    pub fn as_slice_mut(&mut self) -> FpSliceMutP<'_, F> {
         self.into()
     }
 

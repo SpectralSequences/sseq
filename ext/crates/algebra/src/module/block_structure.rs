@@ -1,7 +1,7 @@
 use std::ops::Range;
 
 use bivec::BiVec;
-use fp::vector::{Slice, SliceMut};
+use fp::vector::{FpSlice, FpSliceMut};
 
 #[derive(Debug)]
 pub struct GeneratorBasisEltPair {
@@ -72,11 +72,11 @@ impl BlockStructure {
     /// Add source vector "source" to the block indicated by (gen_deg, gen_idx).
     pub fn add_block(
         &self,
-        mut target: SliceMut,
+        mut target: FpSliceMut,
         coeff: u32,
         gen_deg: i32,
         gen_idx: usize,
-        source: Slice,
+        source: FpSlice,
     ) {
         let range = &self.blocks[gen_deg][gen_idx];
         assert!(source.len() == range.len());

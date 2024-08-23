@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use fp::{
     matrix::{QuasiInverse, Subspace},
-    vector::SliceMut,
+    vector::FpSliceMut,
 };
 use once::OnceBiVec;
 
@@ -66,7 +66,7 @@ impl<M: Module> ModuleHomomorphism for HomPullback<M> {
 
     fn apply_to_basis_element(
         &self,
-        mut result: SliceMut,
+        mut result: FpSliceMut,
         coeff: u32,
         fn_degree: i32,
         fn_idx: usize,

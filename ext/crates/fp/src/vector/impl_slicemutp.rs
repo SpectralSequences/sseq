@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 
 use itertools::Itertools;
 
-use super::inner::{FqVector, SliceMutP, SliceP};
+use super::inner::{FpSliceMutP, FpSliceP, FqVector};
 use crate::{
     constants,
     field::{element::FieldElement, Field},
@@ -10,7 +10,7 @@ use crate::{
     prime::{Prime, ValidPrime},
 };
 
-impl<'a, F: Field> SliceMutP<'a, F> {
+impl<'a, F: Field> FpSliceMutP<'a, F> {
     pub fn prime(&self) -> ValidPrime {
         self.fq.characteristic().to_dyn()
     }
@@ -93,7 +93,7 @@ impl<'a, F: Field> SliceMutP<'a, F> {
         self.limbs[limb_range.end - 1] &= !max_mask;
     }
 
-    pub fn add(&mut self, other: SliceP<'_, F>, c: FieldElement<F>) {
+    pub fn add(&mut self, other: FpSliceP<'_, F>, c: FieldElement<F>) {
         if self.as_slice().is_empty() {
             return;
         }
@@ -121,8 +121,8 @@ impl<'a, F: Field> SliceMutP<'a, F> {
         &mut self,
         offset: usize,
         coeff: FieldElement<F>,
-        left: SliceP<F>,
-        right: SliceP<F>,
+        left: FpSliceP<F>,
+        right: FpSliceP<F>,
     ) {
         let right_dim = right.len();
 
@@ -134,7 +134,7 @@ impl<'a, F: Field> SliceMutP<'a, F> {
     }
 
     /// TODO: improve efficiency
-    pub fn assign(&mut self, other: SliceP<'_, F>) {
+    pub fn assign(&mut self, other: FpSliceP<'_, F>) {
         if self.as_slice().offset() != other.offset() {
             self.set_to_zero();
             self.add(other, self.fq.one());
@@ -165,7 +165,7 @@ impl<'a, F: Field> SliceMutP<'a, F> {
     }
 
     /// Adds `c` * `other` to `self`. `other` must have the same length, offset, and prime as self.
-    pub fn add_shift_none(&mut self, other: SliceP<'_, F>, c: FieldElement<F>) {
+    pub fn add_shift_none(&mut self, other: FpSliceP<'_, F>, c: FieldElement<F>) {
         let target_range = self.as_slice().limb_range();
         let source_range = other.limb_range();
 
@@ -200,7 +200,7 @@ impl<'a, F: Field> SliceMutP<'a, F> {
         }
     }
 
-    fn add_shift_left(&mut self, other: SliceP<'_, F>, c: FieldElement<F>) {
+    fn add_shift_left(&mut self, other: FpSliceP<'_, F>, c: FieldElement<F>) {
         struct AddShiftLeftData {
             offset_shift: usize,
             tail_shift: usize,
@@ -214,7 +214,7 @@ impl<'a, F: Field> SliceMutP<'a, F> {
         }
 
         impl AddShiftLeftData {
-            fn new<F: Field>(fq: F, target: SliceP<'_, F>, source: SliceP<'_, F>) -> Self {
+            fn new<F: Field>(fq: F, target: FpSliceP<'_, F>, source: FpSliceP<'_, F>) -> Self {
                 debug_assert!(target.prime() == source.prime());
                 debug_assert!(target.offset() <= source.offset());
                 debug_assert!(
@@ -250,24 +250,24 @@ impl<'a, F: Field> SliceMutP<'a, F> {
                 }
             }
 
-            fn mask_first_limb<F: Field>(&self, other: SliceP<'_, F>, i: usize) -> Limb {
+            fn mask_first_limb<F: Field>(&self, other: FpSliceP<'_, F>, i: usize) -> Limb {
                 (other.limbs[i] & self.min_mask) >> self.offset_shift
             }
 
-            fn mask_middle_limb_a<F: Field>(&self, other: SliceP<'_, F>, i: usize) -> Limb {
+            fn mask_middle_limb_a<F: Field>(&self, other: FpSliceP<'_, F>, i: usize) -> Limb {
                 other.limbs[i] >> self.offset_shift
             }
 
-            fn mask_middle_limb_b<F: Field>(&self, other: SliceP<'_, F>, i: usize) -> Limb {
+            fn mask_middle_limb_b<F: Field>(&self, other: FpSliceP<'_, F>, i: usize) -> Limb {
                 (other.limbs[i] << (self.tail_shift + self.zero_bits)) >> self.zero_bits
             }
 
-            fn mask_last_limb_a<F: Field>(&self, other: SliceP<'_, F>, i: usize) -> Limb {
+            fn mask_last_limb_a<F: Field>(&self, other: FpSliceP<'_, F>, i: usize) -> Limb {
                 let source_limb_masked = other.limbs[i] & self.max_mask;
                 source_limb_masked << self.tail_shift
             }
 
-            fn mask_last_limb_b<F: Field>(&self, other: SliceP<'_, F>, i: usize) -> Limb {
+            fn mask_last_limb_b<F: Field>(&self, other: FpSliceP<'_, F>, i: usize) -> Limb {
                 let source_limb_masked = other.limbs[i] & self.max_mask;
                 source_limb_masked >> self.offset_shift
             }
@@ -320,7 +320,7 @@ impl<'a, F: Field> SliceMutP<'a, F> {
         }
     }
 
-    fn add_shift_right(&mut self, other: SliceP<'_, F>, c: FieldElement<F>) {
+    fn add_shift_right(&mut self, other: FpSliceP<'_, F>, c: FieldElement<F>) {
         struct AddShiftRightData {
             offset_shift: usize,
             tail_shift: usize,
@@ -334,7 +334,7 @@ impl<'a, F: Field> SliceMutP<'a, F> {
         }
 
         impl AddShiftRightData {
-            fn new<F: Field>(fq: F, target: SliceP<'_, F>, source: SliceP<'_, F>) -> Self {
+            fn new<F: Field>(fq: F, target: FpSliceP<'_, F>, source: FpSliceP<'_, F>) -> Self {
                 debug_assert!(target.prime() == source.prime());
                 debug_assert!(target.offset() >= source.offset());
                 debug_assert!(
@@ -369,30 +369,30 @@ impl<'a, F: Field> SliceMutP<'a, F> {
                 }
             }
 
-            fn mask_first_limb_a<F: Field>(&self, other: SliceP<'_, F>, i: usize) -> Limb {
+            fn mask_first_limb_a<F: Field>(&self, other: FpSliceP<'_, F>, i: usize) -> Limb {
                 let source_limb_masked = other.limbs[i] & self.min_mask;
                 (source_limb_masked << (self.offset_shift + self.zero_bits)) >> self.zero_bits
             }
 
-            fn mask_first_limb_b<F: Field>(&self, other: SliceP<'_, F>, i: usize) -> Limb {
+            fn mask_first_limb_b<F: Field>(&self, other: FpSliceP<'_, F>, i: usize) -> Limb {
                 let source_limb_masked = other.limbs[i] & self.min_mask;
                 source_limb_masked >> self.tail_shift
             }
 
-            fn mask_middle_limb_a<F: Field>(&self, other: SliceP<'_, F>, i: usize) -> Limb {
+            fn mask_middle_limb_a<F: Field>(&self, other: FpSliceP<'_, F>, i: usize) -> Limb {
                 (other.limbs[i] << (self.offset_shift + self.zero_bits)) >> self.zero_bits
             }
 
-            fn mask_middle_limb_b<F: Field>(&self, other: SliceP<'_, F>, i: usize) -> Limb {
+            fn mask_middle_limb_b<F: Field>(&self, other: FpSliceP<'_, F>, i: usize) -> Limb {
                 other.limbs[i] >> self.tail_shift
             }
 
-            fn mask_last_limb_a<F: Field>(&self, other: SliceP<'_, F>, i: usize) -> Limb {
+            fn mask_last_limb_a<F: Field>(&self, other: FpSliceP<'_, F>, i: usize) -> Limb {
                 let source_limb_masked = other.limbs[i] & self.max_mask;
                 source_limb_masked << self.offset_shift
             }
 
-            fn mask_last_limb_b<F: Field>(&self, other: SliceP<'_, F>, i: usize) -> Limb {
+            fn mask_last_limb_b<F: Field>(&self, other: FpSliceP<'_, F>, i: usize) -> Limb {
                 let source_limb_masked = other.limbs[i] & self.max_mask;
                 source_limb_masked >> self.tail_shift
             }
@@ -454,7 +454,7 @@ impl<'a, F: Field> SliceMutP<'a, F> {
     }
 
     /// Given a mask v, add the `v[i]`th entry of `other` to the `i`th entry of `self`.
-    pub fn add_masked(&mut self, other: SliceP<'_, F>, c: FieldElement<F>, mask: &[usize]) {
+    pub fn add_masked(&mut self, other: FpSliceP<'_, F>, c: FieldElement<F>, mask: &[usize]) {
         // TODO: If this ends up being a bottleneck, try to use PDEP/PEXT
         assert_eq!(self.as_slice().len(), mask.len());
         for (i, &x) in mask.iter().enumerate() {
@@ -466,17 +466,17 @@ impl<'a, F: Field> SliceMutP<'a, F> {
     }
 
     /// Given a mask v, add the `i`th entry of `other` to the `v[i]`th entry of `self`.
-    pub fn add_unmasked(&mut self, other: SliceP<'_, F>, c: FieldElement<F>, mask: &[usize]) {
+    pub fn add_unmasked(&mut self, other: FpSliceP<'_, F>, c: FieldElement<F>, mask: &[usize]) {
         assert!(other.len() <= mask.len());
         for (i, v) in other.iter_nonzero() {
             self.add_basis_element(mask[i], v * c.clone());
         }
     }
 
-    pub fn slice_mut(&mut self, start: usize, end: usize) -> SliceMutP<'_, F> {
+    pub fn slice_mut(&mut self, start: usize, end: usize) -> FpSliceMutP<'_, F> {
         assert!(start <= end && end <= self.as_slice().len());
 
-        SliceMutP {
+        FpSliceMutP {
             fq: self.fq,
             limbs: &mut *self.limbs,
             start: self.start + start,
@@ -486,8 +486,8 @@ impl<'a, F: Field> SliceMutP<'a, F> {
 
     #[inline]
     #[must_use]
-    pub fn as_slice(&self) -> SliceP<'_, F> {
-        SliceP {
+    pub fn as_slice(&self) -> FpSliceP<'_, F> {
+        FpSliceP {
             fq: self.fq,
             limbs: &*self.limbs,
             start: self.start,
@@ -498,8 +498,8 @@ impl<'a, F: Field> SliceMutP<'a, F> {
     /// Generates a version of itself with a shorter lifetime
     #[inline]
     #[must_use]
-    pub fn copy(&mut self) -> SliceMutP<'_, F> {
-        SliceMutP {
+    pub fn copy(&mut self) -> FpSliceMutP<'_, F> {
+        FpSliceMutP {
             fq: self.fq,
             limbs: self.limbs,
             start: self.start,
@@ -508,7 +508,7 @@ impl<'a, F: Field> SliceMutP<'a, F> {
     }
 }
 
-impl<'a, F: Field> From<&'a mut FqVector<F>> for SliceMutP<'a, F> {
+impl<'a, F: Field> From<&'a mut FqVector<F>> for FpSliceMutP<'a, F> {
     fn from(v: &'a mut FqVector<F>) -> Self {
         v.slice_mut(0, v.len)
     }

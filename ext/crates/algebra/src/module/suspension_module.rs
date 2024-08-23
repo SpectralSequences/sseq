@@ -53,12 +53,12 @@ impl<M: Module> Module for SuspensionModule<M> {
 
     fn act(
         &self,
-        result: fp::vector::SliceMut,
+        result: fp::vector::FpSliceMut,
         coeff: u32,
         op_degree: i32,
         op_index: usize,
         input_degree: i32,
-        input: fp::vector::Slice,
+        input: fp::vector::FpSlice,
     ) {
         self.inner.act(
             result,
@@ -72,12 +72,12 @@ impl<M: Module> Module for SuspensionModule<M> {
 
     fn act_by_element(
         &self,
-        result: fp::vector::SliceMut,
+        result: fp::vector::FpSliceMut,
         coeff: u32,
         op_degree: i32,
-        op: fp::vector::Slice,
+        op: fp::vector::FpSlice,
         input_degree: i32,
-        input: fp::vector::Slice,
+        input: fp::vector::FpSlice,
     ) {
         self.inner.act_by_element(
             result,
@@ -91,10 +91,10 @@ impl<M: Module> Module for SuspensionModule<M> {
 
     fn act_by_element_on_basis(
         &self,
-        result: fp::vector::SliceMut,
+        result: fp::vector::FpSliceMut,
         coeff: u32,
         op_degree: i32,
-        op: fp::vector::Slice,
+        op: fp::vector::FpSlice,
         input_degree: i32,
         input_index: usize,
     ) {
@@ -108,7 +108,7 @@ impl<M: Module> Module for SuspensionModule<M> {
         );
     }
 
-    fn element_to_string(&self, degree: i32, element: fp::vector::Slice) -> String {
+    fn element_to_string(&self, degree: i32, element: fp::vector::FpSlice) -> String {
         self.inner.element_to_string(degree - self.shift, element)
     }
 
@@ -130,7 +130,7 @@ impl<M: Module> Module for SuspensionModule<M> {
 
     fn act_on_basis(
         &self,
-        result: fp::vector::SliceMut,
+        result: fp::vector::FpSliceMut,
         coeff: u32,
         op_degree: i32,
         op_index: usize,
