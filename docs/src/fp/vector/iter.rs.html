@@ -221,13 +221,13 @@
 <a href="#196" id="196">196</a>
 <a href="#197" id="197">197</a>
 <a href="#198" id="198">198</a>
-</pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">super</span>::inner::SliceP;
+</pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">super</span>::inner::FqSlice;
 <span class="kw">use crate</span>::{
     field::{element::FieldElement, Field},
     limb::Limb,
 };
 
-<span class="kw">pub struct </span>FqVectorIteratorP&lt;<span class="lifetime">'a</span>, F&gt; {
+<span class="kw">pub struct </span>FqVectorIterator&lt;<span class="lifetime">'a</span>, F&gt; {
     fq: F,
     limbs: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>[Limb],
     bit_length: usize,
@@ -239,8 +239,8 @@
     counter: usize,
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, F: Field&gt; FqVectorIteratorP&lt;<span class="lifetime">'a</span>, F&gt; {
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>new(vec: SliceP&lt;<span class="lifetime">'a</span>, F&gt;) -&gt; <span class="self">Self </span>{
+<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, F: Field&gt; FqVectorIterator&lt;<span class="lifetime">'a</span>, F&gt; {
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>new(vec: FqSlice&lt;<span class="lifetime">'a</span>, F&gt;) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>counter = vec.len();
         <span class="kw">let </span>limbs = vec.limbs;
 
@@ -307,7 +307,7 @@
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, F: Field&gt; Iterator <span class="kw">for </span>FqVectorIteratorP&lt;<span class="lifetime">'a</span>, F&gt; {
+<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, F: Field&gt; Iterator <span class="kw">for </span>FqVectorIterator&lt;<span class="lifetime">'a</span>, F&gt; {
     <span class="kw">type </span>Item = FieldElement&lt;F&gt;;
 
     <span class="kw">fn </span>next(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="self">Self</span>::Item&gt; {
@@ -329,7 +329,7 @@
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, F: Field&gt; ExactSizeIterator <span class="kw">for </span>FqVectorIteratorP&lt;<span class="lifetime">'a</span>, F&gt; {
+<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, F: Field&gt; ExactSizeIterator <span class="kw">for </span>FqVectorIterator&lt;<span class="lifetime">'a</span>, F&gt; {
     <span class="kw">fn </span>len(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
         <span class="self">self</span>.counter
     }
@@ -337,7 +337,7 @@
 
 <span class="doccomment">/// Iterator over non-zero entries of an FpVector. This is monomorphized over the ground field for
 /// significant performance gains.
-</span><span class="kw">pub struct </span>FqVectorNonZeroIteratorP&lt;<span class="lifetime">'a</span>, F&gt; {
+</span><span class="kw">pub struct </span>FqVectorNonZeroIterator&lt;<span class="lifetime">'a</span>, F&gt; {
     fq: F,
     limbs: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>[Limb],
     limb_index: usize,
@@ -347,8 +347,8 @@
     dim: usize,
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, F: Field&gt; FqVectorNonZeroIteratorP&lt;<span class="lifetime">'a</span>, F&gt; {
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>new(vec: SliceP&lt;<span class="lifetime">'a</span>, F&gt;) -&gt; <span class="self">Self </span>{
+<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, F: Field&gt; FqVectorNonZeroIterator&lt;<span class="lifetime">'a</span>, F&gt; {
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>new(vec: FqSlice&lt;<span class="lifetime">'a</span>, F&gt;) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>entries_per_limb = vec.fq.entries_per_limb();
 
         <span class="kw">let </span>dim = vec.len();
@@ -381,7 +381,7 @@
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, F: Field&gt; Iterator <span class="kw">for </span>FqVectorNonZeroIteratorP&lt;<span class="lifetime">'a</span>, F&gt; {
+<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, F: Field&gt; Iterator <span class="kw">for </span>FqVectorNonZeroIterator&lt;<span class="lifetime">'a</span>, F&gt; {
     <span class="kw">type </span>Item = (usize, FieldElement&lt;F&gt;);
 
     <span class="kw">fn </span>next(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="self">Self</span>::Item&gt; {

@@ -668,7 +668,7 @@
 <a href="#643" id="643">643</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
 
-<span class="kw">use </span>fp::vector::{Slice, SliceMut};
+<span class="kw">use </span>fp::vector::{FpSlice, FpSliceMut};
 <span class="kw">use </span>once::{OnceBiVec, OnceVec};
 
 <span class="kw">use crate</span>::{
@@ -807,7 +807,7 @@
 
     <span class="kw">fn </span>act_on_basis(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="kw-2">mut </span>result: SliceMut,
+        <span class="kw-2">mut </span>result: FpSliceMut,
         coeff: u32,
         op_degree: i32,
         op_index: usize,
@@ -847,12 +847,12 @@
 
     <span class="kw">fn </span>act(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="kw-2">mut </span>result: SliceMut,
+        <span class="kw-2">mut </span>result: FpSliceMut,
         coeff: u32,
         op_degree: i32,
         op_index: usize,
         input_degree: i32,
-        input: Slice,
+        input: FpSlice,
     ) {
         <span class="kw">for </span>GeneratorData {
             gen_deg,
@@ -878,7 +878,7 @@
 
     <span class="comment">// Will need specialization
     /*    #[cfg(not(feature = "cache-multiplication"))]
-    fn act(&amp;self, result : SliceMut, coeff : u32, op_degree : i32, op_index : usize, input_degree : i32, input : Slice){
+    fn act(&amp;self, result : FpSliceMut, coeff : u32, op_degree : i32, op_index : usize, input_degree : i32, input : FpSlice){
         if *self.prime() == 2 {
             if let SteenrodAlgebra::MilnorAlgebra(m) = &amp;*self.algebra() {
                 self.custom_milnor_act(m, result, coeff, op_degree, op_index, input_degree, input);
@@ -1026,8 +1026,8 @@
         degree: i32,
         gen_degree: i32,
         gen_index: usize,
-        v: Slice&lt;<span class="lifetime">'a</span>&gt;,
-    ) -&gt; Slice&lt;<span class="lifetime">'a</span>&gt; {
+        v: FpSlice&lt;<span class="lifetime">'a</span>&gt;,
+    ) -&gt; FpSlice&lt;<span class="lifetime">'a</span>&gt; {
         <span class="kw">let </span>start = <span class="self">self</span>.generator_offset(degree, gen_degree, gen_index);
         <span class="kw">let </span>len = <span class="self">self
             </span>.algebra()
@@ -1044,8 +1044,8 @@
     </span><span class="kw">pub fn </span>iter_slices&lt;<span class="lifetime">'a</span>&gt;(
         <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="self">self</span>,
         degree: i32,
-        slice: Slice&lt;<span class="lifetime">'a</span>&gt;,
-    ) -&gt; <span class="kw">impl </span>Iterator&lt;Item = (i32, usize, i32, Slice&lt;<span class="lifetime">'a</span>&gt;)&gt; + <span class="lifetime">'a </span>{
+        slice: FpSlice&lt;<span class="lifetime">'a</span>&gt;,
+    ) -&gt; <span class="kw">impl </span>Iterator&lt;Item = (i32, usize, i32, FpSlice&lt;<span class="lifetime">'a</span>&gt;)&gt; + <span class="lifetime">'a </span>{
         (<span class="self">self</span>.min_degree..=degree)
             .flat_map(|t| (<span class="number">0</span>..<span class="self">self</span>.num_gens.get(t).copied().unwrap_or(<span class="number">0</span>)).map(<span class="kw">move </span>|n| (t, n)))
             .map(<span class="kw">move </span>|(t, n)| (t, n, degree - t, <span class="self">self</span>.slice_vector(degree, t, n, slice)))
@@ -1100,7 +1100,7 @@
 <span class="comment">/*
 #[cfg(not(feature = "cache-multiplication"))]
 impl&lt;A: Algebra&gt; MuFreeModule&lt;A&gt; {
-    fn standard_act(&amp;self, result : SliceMut, coeff : u32, op_degree : i32, op_index : usize, input_degree : i32, input : Slice) {
+    fn standard_act(&amp;self, result : FpSliceMut, coeff : u32, op_degree : i32, op_index : usize, input_degree : i32, input : FpSlice) {
         assert!(input.dimension() == self.dimension(input_degree));
         let p = *self.prime();
         for (i, v) in input.iter_nonzer() {
@@ -1120,7 +1120,7 @@ impl&lt;A: Algebra&gt; MuFreeModule&lt;A&gt; {
     /// contributes to $\mathrm{Sq}(R) \mathrm{Sq}(S^{(k)})$ iff the column sum is at most
     /// $s_{j}^{(k)}$. There are also some bitwise disjointness conditions we have to check to
     /// ensure the coefficient is non-zero.
-    fn custom_milnor_act(&amp;self, algebra: &amp;MilnorAlgebra, result : SliceMut, coeff : u32, op_degree : i32, op_index : usize, input_degree : i32, input : Slice) {
+    fn custom_milnor_act(&amp;self, algebra: &amp;MilnorAlgebra, result : FpSliceMut, coeff : u32, op_degree : i32, op_index : usize, input_degree : i32, input : FpSlice) {
         if coeff % 2 == 0 {
             return;
         }

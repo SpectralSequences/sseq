@@ -622,7 +622,7 @@
 </span><span class="kw">use </span>fp::vector::FpVector;
 <span class="kw">use </span>fp::{
     prime::ValidPrime,
-    vector::{Slice, SliceMut},
+    vector::{FpSlice, FpSliceMut},
 };
 
 <span class="doccomment">/// A graded algebra over $\mathbb{F}_p$.
@@ -677,7 +677,7 @@
     /// `result` is not required to be aligned.
     </span><span class="kw">fn </span>multiply_basis_elements(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        result: SliceMut,
+        result: FpSliceMut,
         coeff: u32,
         r_degree: i32,
         r_idx: usize,
@@ -691,12 +691,12 @@
     /// Neither `result` nor `s` must be aligned.
     </span><span class="kw">fn </span>multiply_basis_element_by_element(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="kw-2">mut </span>result: SliceMut,
+        <span class="kw-2">mut </span>result: FpSliceMut,
         coeff: u32,
         r_degree: i32,
         r_idx: usize,
         s_degree: i32,
-        s: Slice,
+        s: FpSlice,
     ) {
         <span class="kw">let </span>p = <span class="self">self</span>.prime();
         <span class="kw">for </span>(i, v) <span class="kw">in </span>s.iter_nonzero() {
@@ -717,10 +717,10 @@
     /// Neither `result` nor `r` must be aligned.
     </span><span class="kw">fn </span>multiply_element_by_basis_element(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="kw-2">mut </span>result: SliceMut,
+        <span class="kw-2">mut </span>result: FpSliceMut,
         coeff: u32,
         r_degree: i32,
-        r: Slice,
+        r: FpSlice,
         s_degree: i32,
         s_idx: usize,
     ) {
@@ -743,12 +743,12 @@
     /// Neither `result`, `s`, nor `r` must be aligned.
     </span><span class="kw">fn </span>multiply_element_by_element(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="kw-2">mut </span>result: SliceMut,
+        <span class="kw-2">mut </span>result: FpSliceMut,
         coeff: u32,
         r_degree: i32,
-        r: Slice,
+        r: FpSlice,
         s_degree: i32,
-        s: Slice,
+        s: FpSlice,
     ) {
         <span class="kw">let </span>p = <span class="self">self</span>.prime();
         <span class="kw">for </span>(i, v) <span class="kw">in </span>s.iter_nonzero() {
@@ -786,7 +786,7 @@
     </span><span class="kw">fn </span>basis_element_from_string(<span class="kw-2">&amp;</span><span class="self">self</span>, elt: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;(i32, usize)&gt;;
 
     <span class="doccomment">/// Converts a general element into a string for display.
-    </span><span class="kw">fn </span>element_to_string(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32, element: Slice) -&gt; String {
+    </span><span class="kw">fn </span>element_to_string(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32, element: FpSlice) -&gt; String {
         <span class="kw">let </span><span class="kw-2">mut </span>result = String::new();
         <span class="kw">let </span><span class="kw-2">mut </span>zero = <span class="bool-val">true</span>;
         <span class="kw">for </span>(idx, value) <span class="kw">in </span>element.iter_nonzero() {
@@ -814,7 +814,7 @@
 
     <span class="kw">fn </span>multiply_basis_elements_unstable(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        result: SliceMut,
+        result: FpSliceMut,
         coeff: u32,
         r_degree: i32,
         r_index: usize,
@@ -829,12 +829,12 @@
     /// Neither `result` nor `s` must be aligned.
     </span><span class="kw">fn </span>multiply_basis_element_by_element_unstable(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="kw-2">mut </span>result: SliceMut,
+        <span class="kw-2">mut </span>result: FpSliceMut,
         coeff: u32,
         r_degree: i32,
         r_idx: usize,
         s_degree: i32,
-        s: Slice,
+        s: FpSlice,
         excess: i32,
     ) {
         <span class="kw">let </span>p = <span class="self">self</span>.prime();
@@ -857,10 +857,10 @@
     /// Neither `result` nor `r` must be aligned.
     </span><span class="kw">fn </span>multiply_element_by_basis_element_unstable(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="kw-2">mut </span>result: SliceMut,
+        <span class="kw-2">mut </span>result: FpSliceMut,
         coeff: u32,
         r_degree: i32,
-        r: Slice,
+        r: FpSlice,
         s_degree: i32,
         s_idx: usize,
         excess: i32,
@@ -885,12 +885,12 @@
     /// Neither `result`, `s`, nor `r` must be aligned.
     </span><span class="kw">fn </span>multiply_element_by_element_unstable(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="kw-2">mut </span>result: SliceMut,
+        <span class="kw-2">mut </span>result: FpSliceMut,
         coeff: u32,
         r_degree: i32,
-        r: Slice,
+        r: FpSlice,
         s_degree: i32,
-        s: Slice,
+        s: FpSlice,
         excess: i32,
     ) {
         <span class="kw">let </span>p = <span class="self">self</span>.prime();
@@ -916,7 +916,7 @@
 
     <span class="kw">fn </span>multiply_basis_elements_unstable(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        result: SliceMut,
+        result: FpSliceMut,
         coeff: u32,
         r_degree: i32,
         r_index: usize,
@@ -927,12 +927,12 @@
 
     <span class="kw">fn </span>multiply_basis_element_by_element_unstable(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        result: SliceMut,
+        result: FpSliceMut,
         coeff: u32,
         r_degree: i32,
         r_idx: usize,
         s_degree: i32,
-        s: Slice,
+        s: FpSlice,
         excess: i32,
     );
 
@@ -942,10 +942,10 @@
     /// Neither `result` nor `r` must be aligned.
     </span><span class="kw">fn </span>multiply_element_by_basis_element_unstable(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        result: SliceMut,
+        result: FpSliceMut,
         coeff: u32,
         r_degree: i32,
-        r: Slice,
+        r: FpSlice,
         s_degree: i32,
         s_idx: usize,
         excess: i32,
@@ -957,12 +957,12 @@
     /// Neither `result`, `s`, nor `r` must be aligned.
     </span><span class="kw">fn </span>multiply_element_by_element_unstable(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        result: SliceMut,
+        result: FpSliceMut,
         coeff: u32,
         r_degree: i32,
-        r: Slice,
+        r: FpSlice,
         s_degree: i32,
-        s: Slice,
+        s: FpSlice,
         excess: i32,
     );
 }
@@ -974,7 +974,7 @@
 
     <span class="kw">fn </span>multiply_basis_elements_unstable(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        result: SliceMut,
+        result: FpSliceMut,
         coeff: u32,
         r_degree: i32,
         r_index: usize,
@@ -987,12 +987,12 @@
 
     <span class="kw">fn </span>multiply_basis_element_by_element_unstable(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        result: SliceMut,
+        result: FpSliceMut,
         coeff: u32,
         r_degree: i32,
         r_idx: usize,
         s_degree: i32,
-        s: Slice,
+        s: FpSlice,
         _excess: i32,
     ) {
         <span class="self">self</span>.multiply_basis_element_by_element(result, coeff, r_degree, r_idx, s_degree, s)
@@ -1000,10 +1000,10 @@
 
     <span class="kw">fn </span>multiply_element_by_basis_element_unstable(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        result: SliceMut,
+        result: FpSliceMut,
         coeff: u32,
         r_degree: i32,
-        r: Slice,
+        r: FpSlice,
         s_degree: i32,
         s_idx: usize,
         _excess: i32,
@@ -1013,12 +1013,12 @@
 
     <span class="kw">fn </span>multiply_element_by_element_unstable(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        result: SliceMut,
+        result: FpSliceMut,
         coeff: u32,
         r_degree: i32,
-        r: Slice,
+        r: FpSlice,
         s_degree: i32,
-        s: Slice,
+        s: FpSlice,
         _excess: i32,
     ) {
         <span class="self">self</span>.multiply_element_by_element(result, coeff, r_degree, r, s_degree, s)
@@ -1032,7 +1032,7 @@
 
     <span class="kw">fn </span>multiply_basis_elements_unstable(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        result: SliceMut,
+        result: FpSliceMut,
         coeff: u32,
         r_degree: i32,
         r_index: usize,
@@ -1047,12 +1047,12 @@
 
     <span class="kw">fn </span>multiply_basis_element_by_element_unstable(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        result: SliceMut,
+        result: FpSliceMut,
         coeff: u32,
         r_degree: i32,
         r_idx: usize,
         s_degree: i32,
-        s: Slice,
+        s: FpSlice,
         excess: i32,
     ) {
         UnstableAlgebra::multiply_basis_element_by_element_unstable(
@@ -1062,10 +1062,10 @@
 
     <span class="kw">fn </span>multiply_element_by_basis_element_unstable(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        result: SliceMut,
+        result: FpSliceMut,
         coeff: u32,
         r_degree: i32,
-        r: Slice,
+        r: FpSlice,
         s_degree: i32,
         s_idx: usize,
         excess: i32,
@@ -1077,12 +1077,12 @@
 
     <span class="kw">fn </span>multiply_element_by_element_unstable(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        result: SliceMut,
+        result: FpSliceMut,
         coeff: u32,
         r_degree: i32,
-        r: Slice,
+        r: FpSlice,
         s_degree: i32,
-        s: Slice,
+        s: FpSlice,
         excess: i32,
     ) {
         UnstableAlgebra::multiply_element_by_element_unstable(
@@ -1161,7 +1161,7 @@
                 <span class="kw">fn </span>dimension(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32) -&gt; usize;
                 <span class="kw">fn </span>multiply_basis_elements(
                     <span class="kw-2">&amp;</span><span class="self">self</span>,
-                    result: SliceMut,
+                    result: FpSliceMut,
                     coeff: u32,
                     r_degree: i32,
                     r_idx: usize,
@@ -1171,32 +1171,32 @@
 
                 <span class="kw">fn </span>multiply_basis_element_by_element(
                     <span class="kw-2">&amp;</span><span class="self">self</span>,
-                    result: SliceMut,
+                    result: FpSliceMut,
                     coeff: u32,
                     r_degree: i32,
                     r_idx: usize,
                     s_degree: i32,
-                    s: Slice,
+                    s: FpSlice,
                 );
 
                 <span class="kw">fn </span>multiply_element_by_basis_element(
                     <span class="kw-2">&amp;</span><span class="self">self</span>,
-                    result: SliceMut,
+                    result: FpSliceMut,
                     coeff: u32,
                     r_degree: i32,
-                    r: Slice,
+                    r: FpSlice,
                     s_degree: i32,
                     s_idx: usize,
                 );
 
                 <span class="kw">fn </span>multiply_element_by_element(
                     <span class="kw-2">&amp;</span><span class="self">self</span>,
-                    result: SliceMut,
+                    result: FpSliceMut,
                     coeff: u32,
                     r_degree: i32,
-                    r: Slice,
+                    r: FpSlice,
                     s_degree: i32,
-                    s: Slice,
+                    s: FpSlice,
                 );
 
                 <span class="kw">fn </span>default_filtration_one_products(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;(String, i32, usize)&gt;;
@@ -1204,7 +1204,7 @@
                 <span class="kw">fn </span>basis_element_to_string(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32, idx: usize) -&gt; String;
                 <span class="kw">fn </span>basis_element_from_string(<span class="kw-2">&amp;</span><span class="self">self</span>, elt: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;(i32, usize)&gt;;
 
-                <span class="kw">fn </span>element_to_string(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32, element: Slice) -&gt; String;
+                <span class="kw">fn </span>element_to_string(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32, element: FpSlice) -&gt; String;
             }
         }
     };

@@ -731,7 +731,7 @@
 
 <span class="kw">use </span>anyhow::{anyhow, Context};
 <span class="kw">use </span>bivec::BiVec;
-<span class="kw">use </span>fp::vector::{FpVector, SliceMut};
+<span class="kw">use </span>fp::vector::{FpSliceMut, FpVector};
 <span class="kw">use </span>serde::Deserialize;
 <span class="kw">use </span>serde_json::{json, value::Value};
 
@@ -884,7 +884,7 @@
 
     <span class="kw">fn </span>act_on_basis(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="kw-2">mut </span>result: SliceMut,
+        <span class="kw-2">mut </span>result: FpSliceMut,
         coeff: u32,
         op_degree: i32,
         op_index: usize,

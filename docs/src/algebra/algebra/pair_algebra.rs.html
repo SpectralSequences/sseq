@@ -511,7 +511,7 @@
 
 </span><span class="kw">use </span>fp::{
     prime::TWO,
-    vector::{FpVector, Slice, SliceMut},
+    vector::{FpSlice, FpSliceMut, FpVector},
 };
 <span class="kw">use </span>rustc_hash::FxHasher;
 
@@ -554,9 +554,9 @@
         result: <span class="kw-2">&amp;mut </span><span class="self">Self</span>::Element,
         coeff: u32,
         r_degree: i32,
-        r: Slice,
+        r: FpSlice,
         s_degree: i32,
-        s: Slice,
+        s: FpSlice,
     ) {
         <span class="kw">if </span>coeff == <span class="number">0 </span>{
             <span class="kw">return</span>;
@@ -571,10 +571,10 @@
     <span class="doccomment">/// Compute $A(r, s)$ and write the result to `result`.
     </span><span class="kw">fn </span>a_multiply(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        result: SliceMut,
+        result: FpSliceMut,
         coeff: u32,
         r_degree: i32,
-        r: Slice,
+        r: FpSlice,
         s_degree: i32,
         s: <span class="kw-2">&amp;</span><span class="self">Self</span>::Element,
     );
@@ -749,10 +749,10 @@
 
     <span class="kw">fn </span>a_multiply(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="kw-2">mut </span>result: SliceMut,
+        <span class="kw-2">mut </span>result: FpSliceMut,
         coeff: u32,
         r_degree: i32,
-        r: Slice&lt;<span class="lifetime">'_</span>&gt;,
+        r: FpSlice&lt;<span class="lifetime">'_</span>&gt;,
         s_degree: i32,
         s: <span class="kw-2">&amp;</span><span class="self">Self</span>::Element,
     ) {

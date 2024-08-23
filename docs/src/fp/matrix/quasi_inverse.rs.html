@@ -230,7 +230,7 @@
 <span class="kw">use </span><span class="kw">super</span>::Matrix;
 <span class="kw">use crate</span>::{
     prime::ValidPrime,
-    vector::{FpVector, Slice, SliceMut},
+    vector::{FpSlice, FpSliceMut, FpVector},
 };
 
 <span class="doccomment">/// Given a matrix M, a quasi-inverse Q is a map from the co-domain to the domain such that xQM = x
@@ -308,8 +308,8 @@
         inputs: <span class="kw-2">&amp;</span>[S],
     ) -&gt; std::io::Result&lt;()&gt;
     <span class="kw">where
-        for</span>&lt;<span class="lifetime">'a</span>&gt; <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>T: Into&lt;SliceMut&lt;<span class="lifetime">'a</span>&gt;&gt;,
-        <span class="kw">for</span>&lt;<span class="lifetime">'a</span>&gt; <span class="kw-2">&amp;</span><span class="lifetime">'a </span>S: Into&lt;Slice&lt;<span class="lifetime">'a</span>&gt;&gt;,
+        for</span>&lt;<span class="lifetime">'a</span>&gt; <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>T: Into&lt;FpSliceMut&lt;<span class="lifetime">'a</span>&gt;&gt;,
+        <span class="kw">for</span>&lt;<span class="lifetime">'a</span>&gt; <span class="kw-2">&amp;</span><span class="lifetime">'a </span>S: Into&lt;FpSlice&lt;<span class="lifetime">'a</span>&gt;&gt;,
     {
         <span class="kw">let </span>source_dim = data.read_u64::&lt;LittleEndian&gt;()<span class="question-mark">? </span><span class="kw">as </span>usize;
         <span class="kw">let </span>target_dim = data.read_u64::&lt;LittleEndian&gt;()<span class="question-mark">? </span><span class="kw">as </span>usize;
@@ -355,7 +355,7 @@
     ///  * `target` - The output vector
     ///  * `coeff` - The constant multiple above
     ///  * `input` - The input vector, expressed in the basis of the ambient space
-    </span><span class="kw">pub fn </span>apply(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut </span>target: SliceMut, coeff: u32, input: Slice) {
+    </span><span class="kw">pub fn </span>apply(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut </span>target: FpSliceMut, coeff: u32, input: FpSlice) {
         <span class="kw">let </span>p = <span class="self">self</span>.prime();
         <span class="kw">let </span><span class="kw-2">mut </span>row = <span class="number">0</span>;
         <span class="kw">for </span>(i, c) <span class="kw">in </span>input.iter().enumerate() {

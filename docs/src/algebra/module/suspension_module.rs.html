@@ -238,12 +238,12 @@
 
     <span class="kw">fn </span>act(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        result: fp::vector::SliceMut,
+        result: fp::vector::FpSliceMut,
         coeff: u32,
         op_degree: i32,
         op_index: usize,
         input_degree: i32,
-        input: fp::vector::Slice,
+        input: fp::vector::FpSlice,
     ) {
         <span class="self">self</span>.inner.act(
             result,
@@ -257,12 +257,12 @@
 
     <span class="kw">fn </span>act_by_element(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        result: fp::vector::SliceMut,
+        result: fp::vector::FpSliceMut,
         coeff: u32,
         op_degree: i32,
-        op: fp::vector::Slice,
+        op: fp::vector::FpSlice,
         input_degree: i32,
-        input: fp::vector::Slice,
+        input: fp::vector::FpSlice,
     ) {
         <span class="self">self</span>.inner.act_by_element(
             result,
@@ -276,10 +276,10 @@
 
     <span class="kw">fn </span>act_by_element_on_basis(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        result: fp::vector::SliceMut,
+        result: fp::vector::FpSliceMut,
         coeff: u32,
         op_degree: i32,
-        op: fp::vector::Slice,
+        op: fp::vector::FpSlice,
         input_degree: i32,
         input_index: usize,
     ) {
@@ -293,7 +293,7 @@
         );
     }
 
-    <span class="kw">fn </span>element_to_string(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32, element: fp::vector::Slice) -&gt; String {
+    <span class="kw">fn </span>element_to_string(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32, element: fp::vector::FpSlice) -&gt; String {
         <span class="self">self</span>.inner.element_to_string(degree - <span class="self">self</span>.shift, element)
     }
 
@@ -315,7 +315,7 @@
 
     <span class="kw">fn </span>act_on_basis(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        result: fp::vector::SliceMut,
+        result: fp::vector::FpSliceMut,
         coeff: u32,
         op_degree: i32,
         op_index: usize,

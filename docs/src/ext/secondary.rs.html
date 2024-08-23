@@ -1453,6 +1453,13 @@
 <a href="#1428" id="1428">1428</a>
 <a href="#1429" id="1429">1429</a>
 <a href="#1430" id="1430">1430</a>
+<a href="#1431" id="1431">1431</a>
+<a href="#1432" id="1432">1432</a>
+<a href="#1433" id="1433">1433</a>
+<a href="#1434" id="1434">1434</a>
+<a href="#1435" id="1435">1435</a>
+<a href="#1436" id="1436">1436</a>
+<a href="#1437" id="1437">1437</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     io::{Read, Write},
     sync::Arc,
@@ -1472,7 +1479,7 @@
 <span class="kw">use </span>fp::{
     matrix::Matrix,
     prime::ValidPrime,
-    vector::{FpVector, Slice, SliceMut},
+    vector::{FpSlice, FpSliceMut, FpVector},
 };
 <span class="kw">use </span>itertools::Itertools;
 <span class="kw">use </span>maybe_rayon::prelude::<span class="kw-2">*</span>;
@@ -1620,7 +1627,7 @@
         }
     }
 
-    <span class="kw">pub fn </span>act(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut </span>result: SliceMut, coeff: u32, op_degree: i32, op: Slice) {
+    <span class="kw">pub fn </span>act(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut </span>result: FpSliceMut, coeff: u32, op_degree: i32, op: FpSlice) {
         <span class="kw">let </span>algebra = <span class="self">self</span>.algebra();
         <span class="kw">for </span>(gen_deg, row) <span class="kw">in </span><span class="self">self</span>.composite.iter_enum() {
             <span class="kw">let </span>module_op_deg = <span class="self">self</span>.degree - gen_deg;
@@ -1754,7 +1761,14 @@
     ///
     /// # Arguments
     ///  - full: Whether to include the action of the homotopy part as well
-    </span><span class="kw">pub fn </span>act(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut </span>result: SliceMut, coeff: u32, elt_degree: i32, elt: Slice, full: bool) {
+    </span><span class="kw">pub fn </span>act(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        <span class="kw-2">mut </span>result: FpSliceMut,
+        coeff: u32,
+        elt_degree: i32,
+        elt: FpSlice,
+        full: bool,
+    ) {
         <span class="kw">for </span>(gen_deg, gen_idx, op_deg, slice) <span class="kw">in </span><span class="self">self</span>.source.iter_slices(elt_degree, elt) {
             <span class="kw">if </span>gen_deg &lt; <span class="self">self</span>.composites.min_degree() {
                 <span class="kw">continue</span>;
@@ -2446,8 +2460,8 @@
         tau_part: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>ResolutionHomomorphism&lt;CC1, CC2&gt;&gt;,
         sseq: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>sseq::Sseq&gt;,
         b: Bidegree,
-        inputs: <span class="kw">impl </span>Iterator&lt;Item = Slice&lt;<span class="lifetime">'a</span>&gt;&gt;,
-        outputs: <span class="kw">impl </span>Iterator&lt;Item = SliceMut&lt;<span class="lifetime">'a</span>&gt;&gt;,
+        inputs: <span class="kw">impl </span>Iterator&lt;Item = FpSlice&lt;<span class="lifetime">'a</span>&gt;&gt;,
+        outputs: <span class="kw">impl </span>Iterator&lt;Item = FpSliceMut&lt;<span class="lifetime">'a</span>&gt;&gt;,
     ) {
         <span class="kw">let </span>source = b + <span class="self">self</span>.shift() - Bidegree::s_t(<span class="number">1</span>, <span class="number">0</span>);
         <span class="kw">let </span>tau_source = source + TAU_BIDEGREE;
@@ -2513,7 +2527,7 @@
     }
 
     <span class="doccomment">/// Compute the induced map on Mod_{C\tau^2} homotopy groups. This only computes it on
-    /// standard lifts on elements in Ext. `outputs` is an iterator of `SliceMut`s whose lengths
+    /// standard lifts on elements in Ext. `outputs` is an iterator of `FpSliceMut`s whose lengths
     /// are equal to the total dimension of `(s + shift_s, t + shift_t)` and `(s + shift_s + 1, t +
     /// shift_t + 1)`. The first chunk records the Ext part of the result, and the second chunk
     /// records the τ part of the result.
@@ -2527,8 +2541,8 @@
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         sseq: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>sseq::Sseq&gt;,
         b: Bidegree,
-        inputs: <span class="kw">impl </span>Iterator&lt;Item = Slice&lt;<span class="lifetime">'a</span>&gt;&gt;,
-        outputs: <span class="kw">impl </span>Iterator&lt;Item = SliceMut&lt;<span class="lifetime">'a</span>&gt;&gt;,
+        inputs: <span class="kw">impl </span>Iterator&lt;Item = FpSlice&lt;<span class="lifetime">'a</span>&gt;&gt;,
+        outputs: <span class="kw">impl </span>Iterator&lt;Item = FpSliceMut&lt;<span class="lifetime">'a</span>&gt;&gt;,
     ) {
         <span class="self">self</span>.hom_k_with(<span class="prelude-val">None</span>, sseq, b, inputs, outputs);
     }
@@ -2543,7 +2557,7 @@
         tau_part: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>ResolutionHomomorphism&lt;CC1, CC2&gt;&gt;,
         sseq: <span class="kw-2">&amp;</span>sseq::Sseq,
         b: Bidegree,
-        class: Slice,
+        class: FpSlice,
     ) -&gt; FpVector {
         <span class="kw">let </span>p = <span class="self">self</span>.prime();
         <span class="kw">let </span>shift = <span class="self">self</span>.underlying.shift;

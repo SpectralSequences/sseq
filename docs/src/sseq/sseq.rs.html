@@ -989,7 +989,7 @@
 <span class="kw">use </span>fp::{
     matrix::{Matrix, Subquotient, Subspace},
     prime::ValidPrime,
-    vector::{FpVector, Slice},
+    vector::{FpSlice, FpVector},
 };
 
 <span class="kw">use crate</span>::{bigraded::DenseBigradedModule, differential::Differential};
@@ -1146,7 +1146,7 @@
     <span class="doccomment">/// # Returns
     ///
     /// Whether a new permanent class was added
-    </span><span class="kw">pub fn </span>add_permanent_class(<span class="kw-2">&amp;mut </span><span class="self">self</span>, x: i32, y: i32, class: Slice) -&gt; bool {
+    </span><span class="kw">pub fn </span>add_permanent_class(<span class="kw-2">&amp;mut </span><span class="self">self</span>, x: i32, y: i32, class: FpSlice) -&gt; bool {
         <span class="kw">let </span>old_dim = <span class="self">self</span>.permanent_classes[x][y].dimension();
         <span class="kw">let </span>new_dim = <span class="self">self</span>.permanent_classes[x][y].add_vector(class);
         <span class="kw">if </span>old_dim != new_dim {
@@ -1199,8 +1199,8 @@
         r: i32,
         x: i32,
         y: i32,
-        source: Slice,
-        target: Slice,
+        source: FpSlice,
+        target: FpSlice,
     ) -&gt; bool {
         <span class="kw">let </span>(tx, ty) = P::profile(r, x, y);
 
@@ -1367,7 +1367,7 @@
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         x: i32,
         y: i32,
-        class: Slice,
+        class: FpSlice,
         prod: <span class="kw-2">&amp;</span>Product,
     ) -&gt; <span class="prelude-ty">Option</span>&lt;(i32, i32, FpVector)&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>result = FpVector::new(<span class="self">self</span>.p, <span class="self">self</span>.classes.get_dimension(x + prod.x, y + prod.y)<span class="question-mark">?</span>);
@@ -1397,7 +1397,7 @@
         r: i32,
         x: i32,
         y: i32,
-        class: Slice,
+        class: FpSlice,
         source_product: <span class="kw-2">&amp;</span>Product,
         target_product: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Product&gt;,
     ) -&gt; <span class="prelude-ty">Option</span>&lt;(i32, i32, i32, FpVector)&gt; {

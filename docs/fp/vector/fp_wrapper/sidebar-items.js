@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["FpVector","FpVectorIterator","FpVectorNonZeroIterator","Slice","SliceMut"],"mod":["helpers","macros_generic"]};
+window.SIDEBAR_ITEMS = {"enum":["FpSlice","FpSliceMut","FpVector","FpVectorIterator","FpVectorNonZeroIterator"],"mod":["helpers","macros_generic"]};

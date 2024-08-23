@@ -61,6 +61,7 @@
 <a href="#36" id="36">36</a>
 <a href="#37" id="37">37</a>
 <a href="#38" id="38">38</a>
+<a href="#39" id="39">39</a>
 </pre></div><pre class="rust"><code><span class="comment">// This generates better llvm optimization
 </span><span class="attr">#![allow(clippy::int_plus_one)]
 
@@ -68,8 +69,8 @@
 
 <span class="doccomment">/// An `FqVector` is a vector over a finite field.
 ///
-/// Interally, it packs entries of the vectors into limbs. However, this is an abstraction that
-/// must not leave the `fp` library.
+/// Interally, it packs entries of the vectors into limbs. However, this is an abstraction that must
+/// not leave the `fp` library.
 </span><span class="attr">#[derive(Debug, Hash, Eq, PartialEq, Clone)]
 </span><span class="kw">pub struct </span>FqVector&lt;F: Field&gt; {
     <span class="kw">pub</span>(<span class="kw">super</span>) fq: F,
@@ -77,21 +78,22 @@
     <span class="kw">pub</span>(<span class="kw">super</span>) limbs: Vec&lt;Limb&gt;,
 }
 
-<span class="doccomment">/// A `SliceP` is a slice of an `FqVector`. This immutably borrows the vector and implements `Copy`
+<span class="doccomment">/// An `FqSlice` is a slice of an `FqVector`. This immutably borrows the vector and implements
+/// `Copy`
 </span><span class="attr">#[derive(Debug, Copy, Clone)]
-</span><span class="kw">pub struct </span>SliceP&lt;<span class="lifetime">'a</span>, F: Field&gt; {
+</span><span class="kw">pub struct </span>FqSlice&lt;<span class="lifetime">'a</span>, F: Field&gt; {
     <span class="kw">pub</span>(<span class="kw">super</span>) fq: F,
     <span class="kw">pub</span>(<span class="kw">super</span>) limbs: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>[Limb],
     <span class="kw">pub</span>(<span class="kw">super</span>) start: usize,
     <span class="kw">pub</span>(<span class="kw">super</span>) end: usize,
 }
 
-<span class="doccomment">/// A `SliceMutP` is a mutable slice of an `FqVector`. This mutably borrows the vector. Since it
-/// is a mutable borrow, it cannot implement `Copy`. However, it has a [`SliceMutP::copy`] function
-/// that imitates the reborrowing, that mutably borrows `SliceMutP` and returns a `SliceMutP` with
+<span class="doccomment">/// An `FqSliceMut` is a mutable slice of an `FqVector`. This mutably borrows the vector. Since it
+/// is a mutable borrow, it cannot implement `Copy`. However, it has a [`FqSliceMut::copy`] function
+/// that imitates the reborrowing, that mutably borrows `FqSliceMut` and returns a `FqSliceMut` with
 /// a shorter lifetime.
 </span><span class="attr">#[derive(Debug)]
-</span><span class="kw">pub struct </span>SliceMutP&lt;<span class="lifetime">'a</span>, F: Field&gt; {
+</span><span class="kw">pub struct </span>FqSliceMut&lt;<span class="lifetime">'a</span>, F: Field&gt; {
     <span class="kw">pub</span>(<span class="kw">super</span>) fq: F,
     <span class="kw">pub</span>(<span class="kw">super</span>) limbs: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>[Limb],
     <span class="kw">pub</span>(<span class="kw">super</span>) start: usize,

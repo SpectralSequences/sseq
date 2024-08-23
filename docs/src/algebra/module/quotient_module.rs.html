@@ -233,7 +233,7 @@
 <span class="kw">use </span>bivec::BiVec;
 <span class="kw">use </span>fp::{
     matrix::Subspace,
-    vector::{FpVector, Slice, SliceMut},
+    vector::{FpSlice, FpSliceMut, FpVector},
 };
 
 <span class="kw">use </span><span class="kw">crate</span>::module::{Module, ZeroModule};
@@ -280,7 +280,7 @@
         }
     }
 
-    <span class="kw">pub fn </span>quotient(<span class="kw-2">&amp;mut </span><span class="self">self</span>, degree: i32, element: Slice) {
+    <span class="kw">pub fn </span>quotient(<span class="kw-2">&amp;mut </span><span class="self">self</span>, degree: i32, element: FpSlice) {
         <span class="kw">if </span>degree &lt;= <span class="self">self</span>.truncation {
             <span class="self">self</span>.subspaces[degree].add_vector(element);
             <span class="self">self</span>.flush(degree);
@@ -302,7 +302,7 @@
     </span><span class="kw">pub fn </span>quotient_vectors(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         degree: i32,
-        vecs: <span class="kw">impl for</span>&lt;<span class="lifetime">'a</span>&gt; FnMut(SliceMut&lt;<span class="lifetime">'a</span>&gt;) -&gt; <span class="prelude-ty">Option</span>&lt;()&gt;,
+        vecs: <span class="kw">impl for</span>&lt;<span class="lifetime">'a</span>&gt; FnMut(FpSliceMut&lt;<span class="lifetime">'a</span>&gt;) -&gt; <span class="prelude-ty">Option</span>&lt;()&gt;,
     ) {
         <span class="kw">if </span>degree &gt; <span class="self">self</span>.truncation {
             <span class="kw">return</span>;
@@ -329,7 +329,7 @@
 
     <span class="kw">pub fn </span>act_on_original_basis(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="kw-2">mut </span>result: SliceMut,
+        <span class="kw-2">mut </span>result: FpSliceMut,
         coeff: u32,
         op_degree: i32,
         op_index: usize,
@@ -350,7 +350,7 @@
         <span class="self">self</span>.reduce(op_degree + mod_degree, result)
     }
 
-    <span class="kw">pub fn </span>reduce(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32, <span class="kw-2">mut </span>vec: SliceMut) {
+    <span class="kw">pub fn </span>reduce(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32, <span class="kw-2">mut </span>vec: FpSliceMut) {
         <span class="kw">if </span>degree &gt; <span class="self">self</span>.truncation {
             vec.set_to_zero()
         } <span class="kw">else </span>{
@@ -358,7 +358,7 @@
         }
     }
 
-    <span class="kw">pub fn </span>old_basis_to_new(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32, <span class="kw-2">mut </span>new: SliceMut, old: Slice) {
+    <span class="kw">pub fn </span>old_basis_to_new(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32, <span class="kw-2">mut </span>new: FpSliceMut, old: FpSlice) {
         <span class="kw">for </span>(i, idx) <span class="kw">in </span><span class="self">self</span>.basis_list[degree].iter().enumerate() {
             new.add_basis_element(i, old.entry(<span class="kw-2">*</span>idx));
         }
@@ -390,7 +390,7 @@
 
     <span class="kw">fn </span>act_on_basis(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        result: SliceMut,
+        result: FpSliceMut,
         coeff: u32,
         op_degree: i32,
         op_index: usize,

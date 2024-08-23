@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/fp/src/vector/impl_slicemutp.rs`."><title>impl_slicemutp.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-dd39b87e5fcfba68.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="fp" data-themes="" data-resource-suffix="" data-rustdoc-version="1.80.1 (3f5fd8dd4 2024-08-06)" data-channel="1.80.1" data-search-js="search-d52510db62a78183.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../../static.files/storage-118b08c4c78b968e.js"></script><script defer src="../../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-20a3ad099b048cf2.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-df360f571f6edeae.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/fp/src/vector/impl_fqslicemut.rs`."><title>impl_fqslicemut.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-dd39b87e5fcfba68.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="fp" data-themes="" data-resource-suffix="" data-rustdoc-version="1.80.1 (3f5fd8dd4 2024-08-06)" data-channel="1.80.1" data-search-js="search-d52510db62a78183.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../../static.files/storage-118b08c4c78b968e.js"></script><script defer src="../../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-20a3ad099b048cf2.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-df360f571f6edeae.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
 <!-- The loading of KaTeX is deferred to speed up page rendering -->
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.js" integrity="sha384-Bi8OWqMXO1ta+a4EPkZv7bYGIes7C3krGSZoTGNTAnAn5eYQc7IIXrJ/7ck1drAi" crossorigin="anonymous"></script>
 <!-- To automatically render math in text elements, include the auto-render extension: -->
@@ -537,12 +537,11 @@
 <a href="#512" id="512">512</a>
 <a href="#513" id="513">513</a>
 <a href="#514" id="514">514</a>
-<a href="#515" id="515">515</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::cmp::Ordering;
 
 <span class="kw">use </span>itertools::Itertools;
 
-<span class="kw">use </span><span class="kw">super</span>::inner::{FqVector, SliceMutP, SliceP};
+<span class="kw">use </span><span class="kw">super</span>::inner::{FqSlice, FqSliceMut, FqVector};
 <span class="kw">use crate</span>::{
     constants,
     field::{element::FieldElement, Field},
@@ -550,7 +549,7 @@
     prime::{Prime, ValidPrime},
 };
 
-<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, F: Field&gt; SliceMutP&lt;<span class="lifetime">'a</span>, F&gt; {
+<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, F: Field&gt; FqSliceMut&lt;<span class="lifetime">'a</span>, F&gt; {
     <span class="kw">pub fn </span>prime(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ValidPrime {
         <span class="self">self</span>.fq.characteristic().to_dyn()
     }
@@ -633,7 +632,7 @@
         <span class="self">self</span>.limbs[limb_range.end - <span class="number">1</span>] &amp;= !max_mask;
     }
 
-    <span class="kw">pub fn </span>add(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: SliceP&lt;<span class="lifetime">'_</span>, F&gt;, c: FieldElement&lt;F&gt;) {
+    <span class="kw">pub fn </span>add(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: FqSlice&lt;<span class="lifetime">'_</span>, F&gt;, c: FieldElement&lt;F&gt;) {
         <span class="kw">if </span><span class="self">self</span>.as_slice().is_empty() {
             <span class="kw">return</span>;
         }
@@ -655,14 +654,13 @@
         }
     }
 
-    <span class="doccomment">/// `coeff` need not be reduced mod p.
-    /// Adds v otimes w to self.
+    <span class="doccomment">/// Adds v otimes w to self.
     </span><span class="kw">pub fn </span>add_tensor(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         offset: usize,
         coeff: FieldElement&lt;F&gt;,
-        left: SliceP&lt;F&gt;,
-        right: SliceP&lt;F&gt;,
+        left: FqSlice&lt;F&gt;,
+        right: FqSlice&lt;F&gt;,
     ) {
         <span class="kw">let </span>right_dim = right.len();
 
@@ -674,7 +672,7 @@
     }
 
     <span class="doccomment">/// TODO: improve efficiency
-    </span><span class="kw">pub fn </span>assign(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: SliceP&lt;<span class="lifetime">'_</span>, F&gt;) {
+    </span><span class="kw">pub fn </span>assign(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: FqSlice&lt;<span class="lifetime">'_</span>, F&gt;) {
         <span class="kw">if </span><span class="self">self</span>.as_slice().offset() != other.offset() {
             <span class="self">self</span>.set_to_zero();
             <span class="self">self</span>.add(other, <span class="self">self</span>.fq.one());
@@ -705,7 +703,7 @@
     }
 
     <span class="doccomment">/// Adds `c` * `other` to `self`. `other` must have the same length, offset, and prime as self.
-    </span><span class="kw">pub fn </span>add_shift_none(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: SliceP&lt;<span class="lifetime">'_</span>, F&gt;, c: FieldElement&lt;F&gt;) {
+    </span><span class="kw">pub fn </span>add_shift_none(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: FqSlice&lt;<span class="lifetime">'_</span>, F&gt;, c: FieldElement&lt;F&gt;) {
         <span class="kw">let </span>target_range = <span class="self">self</span>.as_slice().limb_range();
         <span class="kw">let </span>source_range = other.limb_range();
 
@@ -740,7 +738,7 @@
         }
     }
 
-    <span class="kw">fn </span>add_shift_left(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: SliceP&lt;<span class="lifetime">'_</span>, F&gt;, c: FieldElement&lt;F&gt;) {
+    <span class="kw">fn </span>add_shift_left(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: FqSlice&lt;<span class="lifetime">'_</span>, F&gt;, c: FieldElement&lt;F&gt;) {
         <span class="kw">struct </span>AddShiftLeftData {
             offset_shift: usize,
             tail_shift: usize,
@@ -754,7 +752,7 @@
         }
 
         <span class="kw">impl </span>AddShiftLeftData {
-            <span class="kw">fn </span>new&lt;F: Field&gt;(fq: F, target: SliceP&lt;<span class="lifetime">'_</span>, F&gt;, source: SliceP&lt;<span class="lifetime">'_</span>, F&gt;) -&gt; <span class="self">Self </span>{
+            <span class="kw">fn </span>new&lt;F: Field&gt;(fq: F, target: FqSlice&lt;<span class="lifetime">'_</span>, F&gt;, source: FqSlice&lt;<span class="lifetime">'_</span>, F&gt;) -&gt; <span class="self">Self </span>{
                 <span class="macro">debug_assert!</span>(target.prime() == source.prime());
                 <span class="macro">debug_assert!</span>(target.offset() &lt;= source.offset());
                 <span class="macro">debug_assert!</span>(
@@ -790,24 +788,24 @@
                 }
             }
 
-            <span class="kw">fn </span>mask_first_limb&lt;F: Field&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, other: SliceP&lt;<span class="lifetime">'_</span>, F&gt;, i: usize) -&gt; Limb {
+            <span class="kw">fn </span>mask_first_limb&lt;F: Field&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, other: FqSlice&lt;<span class="lifetime">'_</span>, F&gt;, i: usize) -&gt; Limb {
                 (other.limbs[i] &amp; <span class="self">self</span>.min_mask) &gt;&gt; <span class="self">self</span>.offset_shift
             }
 
-            <span class="kw">fn </span>mask_middle_limb_a&lt;F: Field&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, other: SliceP&lt;<span class="lifetime">'_</span>, F&gt;, i: usize) -&gt; Limb {
+            <span class="kw">fn </span>mask_middle_limb_a&lt;F: Field&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, other: FqSlice&lt;<span class="lifetime">'_</span>, F&gt;, i: usize) -&gt; Limb {
                 other.limbs[i] &gt;&gt; <span class="self">self</span>.offset_shift
             }
 
-            <span class="kw">fn </span>mask_middle_limb_b&lt;F: Field&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, other: SliceP&lt;<span class="lifetime">'_</span>, F&gt;, i: usize) -&gt; Limb {
+            <span class="kw">fn </span>mask_middle_limb_b&lt;F: Field&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, other: FqSlice&lt;<span class="lifetime">'_</span>, F&gt;, i: usize) -&gt; Limb {
                 (other.limbs[i] &lt;&lt; (<span class="self">self</span>.tail_shift + <span class="self">self</span>.zero_bits)) &gt;&gt; <span class="self">self</span>.zero_bits
             }
 
-            <span class="kw">fn </span>mask_last_limb_a&lt;F: Field&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, other: SliceP&lt;<span class="lifetime">'_</span>, F&gt;, i: usize) -&gt; Limb {
+            <span class="kw">fn </span>mask_last_limb_a&lt;F: Field&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, other: FqSlice&lt;<span class="lifetime">'_</span>, F&gt;, i: usize) -&gt; Limb {
                 <span class="kw">let </span>source_limb_masked = other.limbs[i] &amp; <span class="self">self</span>.max_mask;
                 source_limb_masked &lt;&lt; <span class="self">self</span>.tail_shift
             }
 
-            <span class="kw">fn </span>mask_last_limb_b&lt;F: Field&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, other: SliceP&lt;<span class="lifetime">'_</span>, F&gt;, i: usize) -&gt; Limb {
+            <span class="kw">fn </span>mask_last_limb_b&lt;F: Field&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, other: FqSlice&lt;<span class="lifetime">'_</span>, F&gt;, i: usize) -&gt; Limb {
                 <span class="kw">let </span>source_limb_masked = other.limbs[i] &amp; <span class="self">self</span>.max_mask;
                 source_limb_masked &gt;&gt; <span class="self">self</span>.offset_shift
             }
@@ -860,7 +858,7 @@
         }
     }
 
-    <span class="kw">fn </span>add_shift_right(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: SliceP&lt;<span class="lifetime">'_</span>, F&gt;, c: FieldElement&lt;F&gt;) {
+    <span class="kw">fn </span>add_shift_right(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: FqSlice&lt;<span class="lifetime">'_</span>, F&gt;, c: FieldElement&lt;F&gt;) {
         <span class="kw">struct </span>AddShiftRightData {
             offset_shift: usize,
             tail_shift: usize,
@@ -874,7 +872,7 @@
         }
 
         <span class="kw">impl </span>AddShiftRightData {
-            <span class="kw">fn </span>new&lt;F: Field&gt;(fq: F, target: SliceP&lt;<span class="lifetime">'_</span>, F&gt;, source: SliceP&lt;<span class="lifetime">'_</span>, F&gt;) -&gt; <span class="self">Self </span>{
+            <span class="kw">fn </span>new&lt;F: Field&gt;(fq: F, target: FqSlice&lt;<span class="lifetime">'_</span>, F&gt;, source: FqSlice&lt;<span class="lifetime">'_</span>, F&gt;) -&gt; <span class="self">Self </span>{
                 <span class="macro">debug_assert!</span>(target.prime() == source.prime());
                 <span class="macro">debug_assert!</span>(target.offset() &gt;= source.offset());
                 <span class="macro">debug_assert!</span>(
@@ -909,30 +907,30 @@
                 }
             }
 
-            <span class="kw">fn </span>mask_first_limb_a&lt;F: Field&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, other: SliceP&lt;<span class="lifetime">'_</span>, F&gt;, i: usize) -&gt; Limb {
+            <span class="kw">fn </span>mask_first_limb_a&lt;F: Field&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, other: FqSlice&lt;<span class="lifetime">'_</span>, F&gt;, i: usize) -&gt; Limb {
                 <span class="kw">let </span>source_limb_masked = other.limbs[i] &amp; <span class="self">self</span>.min_mask;
                 (source_limb_masked &lt;&lt; (<span class="self">self</span>.offset_shift + <span class="self">self</span>.zero_bits)) &gt;&gt; <span class="self">self</span>.zero_bits
             }
 
-            <span class="kw">fn </span>mask_first_limb_b&lt;F: Field&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, other: SliceP&lt;<span class="lifetime">'_</span>, F&gt;, i: usize) -&gt; Limb {
+            <span class="kw">fn </span>mask_first_limb_b&lt;F: Field&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, other: FqSlice&lt;<span class="lifetime">'_</span>, F&gt;, i: usize) -&gt; Limb {
                 <span class="kw">let </span>source_limb_masked = other.limbs[i] &amp; <span class="self">self</span>.min_mask;
                 source_limb_masked &gt;&gt; <span class="self">self</span>.tail_shift
             }
 
-            <span class="kw">fn </span>mask_middle_limb_a&lt;F: Field&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, other: SliceP&lt;<span class="lifetime">'_</span>, F&gt;, i: usize) -&gt; Limb {
+            <span class="kw">fn </span>mask_middle_limb_a&lt;F: Field&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, other: FqSlice&lt;<span class="lifetime">'_</span>, F&gt;, i: usize) -&gt; Limb {
                 (other.limbs[i] &lt;&lt; (<span class="self">self</span>.offset_shift + <span class="self">self</span>.zero_bits)) &gt;&gt; <span class="self">self</span>.zero_bits
             }
 
-            <span class="kw">fn </span>mask_middle_limb_b&lt;F: Field&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, other: SliceP&lt;<span class="lifetime">'_</span>, F&gt;, i: usize) -&gt; Limb {
+            <span class="kw">fn </span>mask_middle_limb_b&lt;F: Field&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, other: FqSlice&lt;<span class="lifetime">'_</span>, F&gt;, i: usize) -&gt; Limb {
                 other.limbs[i] &gt;&gt; <span class="self">self</span>.tail_shift
             }
 
-            <span class="kw">fn </span>mask_last_limb_a&lt;F: Field&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, other: SliceP&lt;<span class="lifetime">'_</span>, F&gt;, i: usize) -&gt; Limb {
+            <span class="kw">fn </span>mask_last_limb_a&lt;F: Field&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, other: FqSlice&lt;<span class="lifetime">'_</span>, F&gt;, i: usize) -&gt; Limb {
                 <span class="kw">let </span>source_limb_masked = other.limbs[i] &amp; <span class="self">self</span>.max_mask;
                 source_limb_masked &lt;&lt; <span class="self">self</span>.offset_shift
             }
 
-            <span class="kw">fn </span>mask_last_limb_b&lt;F: Field&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, other: SliceP&lt;<span class="lifetime">'_</span>, F&gt;, i: usize) -&gt; Limb {
+            <span class="kw">fn </span>mask_last_limb_b&lt;F: Field&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, other: FqSlice&lt;<span class="lifetime">'_</span>, F&gt;, i: usize) -&gt; Limb {
                 <span class="kw">let </span>source_limb_masked = other.limbs[i] &amp; <span class="self">self</span>.max_mask;
                 source_limb_masked &gt;&gt; <span class="self">self</span>.tail_shift
             }
@@ -994,7 +992,7 @@
     }
 
     <span class="doccomment">/// Given a mask v, add the `v[i]`th entry of `other` to the `i`th entry of `self`.
-    </span><span class="kw">pub fn </span>add_masked(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: SliceP&lt;<span class="lifetime">'_</span>, F&gt;, c: FieldElement&lt;F&gt;, mask: <span class="kw-2">&amp;</span>[usize]) {
+    </span><span class="kw">pub fn </span>add_masked(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: FqSlice&lt;<span class="lifetime">'_</span>, F&gt;, c: FieldElement&lt;F&gt;, mask: <span class="kw-2">&amp;</span>[usize]) {
         <span class="comment">// TODO: If this ends up being a bottleneck, try to use PDEP/PEXT
         </span><span class="macro">assert_eq!</span>(<span class="self">self</span>.as_slice().len(), mask.len());
         <span class="kw">for </span>(i, <span class="kw-2">&amp;</span>x) <span class="kw">in </span>mask.iter().enumerate() {
@@ -1006,17 +1004,17 @@
     }
 
     <span class="doccomment">/// Given a mask v, add the `i`th entry of `other` to the `v[i]`th entry of `self`.
-    </span><span class="kw">pub fn </span>add_unmasked(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: SliceP&lt;<span class="lifetime">'_</span>, F&gt;, c: FieldElement&lt;F&gt;, mask: <span class="kw-2">&amp;</span>[usize]) {
+    </span><span class="kw">pub fn </span>add_unmasked(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: FqSlice&lt;<span class="lifetime">'_</span>, F&gt;, c: FieldElement&lt;F&gt;, mask: <span class="kw-2">&amp;</span>[usize]) {
         <span class="macro">assert!</span>(other.len() &lt;= mask.len());
         <span class="kw">for </span>(i, v) <span class="kw">in </span>other.iter_nonzero() {
             <span class="self">self</span>.add_basis_element(mask[i], v * c.clone());
         }
     }
 
-    <span class="kw">pub fn </span>slice_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>, start: usize, end: usize) -&gt; SliceMutP&lt;<span class="lifetime">'_</span>, F&gt; {
+    <span class="kw">pub fn </span>slice_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>, start: usize, end: usize) -&gt; FqSliceMut&lt;<span class="lifetime">'_</span>, F&gt; {
         <span class="macro">assert!</span>(start &lt;= end &amp;&amp; end &lt;= <span class="self">self</span>.as_slice().len());
 
-        SliceMutP {
+        FqSliceMut {
             fq: <span class="self">self</span>.fq,
             limbs: <span class="kw-2">&amp;mut *</span><span class="self">self</span>.limbs,
             start: <span class="self">self</span>.start + start,
@@ -1026,8 +1024,8 @@
 
     <span class="attr">#[inline]
     #[must_use]
-    </span><span class="kw">pub fn </span>as_slice(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; SliceP&lt;<span class="lifetime">'_</span>, F&gt; {
-        SliceP {
+    </span><span class="kw">pub fn </span>as_slice(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; FqSlice&lt;<span class="lifetime">'_</span>, F&gt; {
+        FqSlice {
             fq: <span class="self">self</span>.fq,
             limbs: <span class="kw-2">&amp;*</span><span class="self">self</span>.limbs,
             start: <span class="self">self</span>.start,
@@ -1038,8 +1036,8 @@
     <span class="doccomment">/// Generates a version of itself with a shorter lifetime
     </span><span class="attr">#[inline]
     #[must_use]
-    </span><span class="kw">pub fn </span>copy(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; SliceMutP&lt;<span class="lifetime">'_</span>, F&gt; {
-        SliceMutP {
+    </span><span class="kw">pub fn </span>copy(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; FqSliceMut&lt;<span class="lifetime">'_</span>, F&gt; {
+        FqSliceMut {
             fq: <span class="self">self</span>.fq,
             limbs: <span class="self">self</span>.limbs,
             start: <span class="self">self</span>.start,
@@ -1048,7 +1046,7 @@
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, F: Field&gt; From&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>FqVector&lt;F&gt;&gt; <span class="kw">for </span>SliceMutP&lt;<span class="lifetime">'a</span>, F&gt; {
+<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, F: Field&gt; From&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>FqVector&lt;F&gt;&gt; <span class="kw">for </span>FqSliceMut&lt;<span class="lifetime">'a</span>, F&gt; {
     <span class="kw">fn </span>from(v: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>FqVector&lt;F&gt;) -&gt; <span class="self">Self </span>{
         v.slice_mut(<span class="number">0</span>, v.len)
     }

@@ -250,7 +250,7 @@
 <span class="kw">use crate</span>::{
     matrix::Matrix,
     prime::ValidPrime,
-    vector::{FpVector, Slice, SliceMut},
+    vector::{FpSlice, FpSliceMut, FpVector},
 };
 
 <span class="attr">#[derive(Clone)]
@@ -290,7 +290,7 @@
     <span class="doccomment">/// Given a vector `elt`, project `elt` to the complement and express
     /// as a linear combination of the basis. The result is returned as a list of coefficients.
     /// If elt is nonzero afterwards, this means the vector was not in the subspace to begin with.
-    </span><span class="kw">pub fn </span>reduce(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut </span>elt: SliceMut) -&gt; Vec&lt;u32&gt; {
+    </span><span class="kw">pub fn </span>reduce(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut </span>elt: FpSliceMut) -&gt; Vec&lt;u32&gt; {
         <span class="self">self</span>.quotient.reduce(elt.copy());
         <span class="kw">let </span><span class="kw-2">mut </span>result = Vec::with_capacity(<span class="self">self</span>.gens.ambient_dimension());
         <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..<span class="self">self</span>.gens.ambient_dimension() {
@@ -310,7 +310,7 @@
     }
 
     <span class="doccomment">/// Project the vector onto the complement of the quotient part of the subquotient.
-    </span><span class="kw">pub fn </span>reduce_by_quotient(<span class="kw-2">&amp;</span><span class="self">self</span>, elt: SliceMut) {
+    </span><span class="kw">pub fn </span>reduce_by_quotient(<span class="kw-2">&amp;</span><span class="self">self</span>, elt: FpSliceMut) {
         <span class="self">self</span>.quotient.reduce(elt)
     }
 
@@ -324,7 +324,7 @@
         <span class="kw-2">&amp;</span><span class="self">self</span>.quotient
     }
 
-    <span class="kw">pub fn </span>gens(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = Slice&gt; {
+    <span class="kw">pub fn </span>gens(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = FpSlice&gt; {
         <span class="self">self</span>.gens.iter()
     }
 
@@ -338,7 +338,7 @@
     }
 
     <span class="doccomment">/// The generators of the subspace part of the subquotient.
-    </span><span class="kw">pub fn </span>subspace_gens(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = Slice&gt; {
+    </span><span class="kw">pub fn </span>subspace_gens(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = FpSlice&gt; {
         <span class="self">self</span>.gens().chain(<span class="self">self</span>.quotient.iter())
     }
 
@@ -350,7 +350,7 @@
         })
     }
 
-    <span class="kw">pub fn </span>quotient(<span class="kw-2">&amp;mut </span><span class="self">self</span>, elt: Slice) {
+    <span class="kw">pub fn </span>quotient(<span class="kw-2">&amp;mut </span><span class="self">self</span>, elt: FpSlice) {
         <span class="self">self</span>.quotient.add_vector(elt);
 
         <span class="self">self</span>.gens.update_then_row_reduce(|gens_matrix| {
@@ -383,7 +383,7 @@
         <span class="self">self</span>.dimension = <span class="number">0</span>;
     }
 
-    <span class="kw">pub fn </span>add_gen(<span class="kw-2">&amp;mut </span><span class="self">self</span>, gen: Slice) {
+    <span class="kw">pub fn </span>add_gen(<span class="kw-2">&amp;mut </span><span class="self">self</span>, gen: FpSlice) {
         <span class="self">self</span>.gens.update_then_row_reduce(|gens_matrix| {
             <span class="kw">let </span><span class="kw-2">mut </span>new_row = gens_matrix.row_mut(<span class="self">self</span>.dimension);
             new_row.assign(gen);

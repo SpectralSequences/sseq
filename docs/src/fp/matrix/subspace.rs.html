@@ -327,7 +327,7 @@
 <span class="kw">use </span><span class="kw">super</span>::Matrix;
 <span class="kw">use crate</span>::{
     prime::ValidPrime,
-    vector::{FpVector, Slice, SliceMut},
+    vector::{FpSlice, FpSliceMut, FpVector},
 };
 
 <span class="doccomment">/// A subspace of a vector space.
@@ -413,7 +413,7 @@
     ///
     /// # Returns
     /// The new dimension of the subspace
-    </span><span class="kw">pub fn </span>add_vector(<span class="kw-2">&amp;mut </span><span class="self">self</span>, row: Slice) -&gt; usize {
+    </span><span class="kw">pub fn </span>add_vector(<span class="kw-2">&amp;mut </span><span class="self">self</span>, row: FpSlice) -&gt; usize {
         <span class="kw">let </span>last_row = <span class="self">self</span>.matrix.rows() - <span class="number">1</span>;
         <span class="self">self</span>.matrix.row_mut(last_row).assign(row);
         <span class="self">self</span>.matrix.row_reduce()
@@ -422,9 +422,9 @@
     <span class="doccomment">/// This adds some rows to the subspace
     ///
     /// # Arguments
-    ///  - `rows`: A function that writes the row to be added to the given SliceMut. This returns
+    ///  - `rows`: A function that writes the row to be added to the given FpSliceMut. This returns
     ///     `None` if it runs out of rows, `Some(())` otherwise.
-    </span><span class="kw">pub fn </span>add_vectors(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw-2">mut </span>rows: <span class="kw">impl for</span>&lt;<span class="lifetime">'a</span>&gt; FnMut(SliceMut&lt;<span class="lifetime">'a</span>&gt;) -&gt; <span class="prelude-ty">Option</span>&lt;()&gt;) {
+    </span><span class="kw">pub fn </span>add_vectors(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw-2">mut </span>rows: <span class="kw">impl for</span>&lt;<span class="lifetime">'a</span>&gt; FnMut(FpSliceMut&lt;<span class="lifetime">'a</span>&gt;) -&gt; <span class="prelude-ty">Option</span>&lt;()&gt;) {
         <span class="kw">let </span>num_rows = <span class="self">self</span>.matrix.rows();
         <span class="lifetime">'outer</span>: <span class="kw">loop </span>{
             <span class="kw">let </span>first_row = <span class="self">self</span>.dimension();
@@ -451,7 +451,7 @@
 
     <span class="doccomment">/// Projects a vector to a complement of the subspace. The complement is the set of vectors
     /// that have a 0 in every column where there is a pivot in `matrix`
-    </span><span class="kw">pub fn </span>reduce(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut </span>vector: SliceMut) {
+    </span><span class="kw">pub fn </span>reduce(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut </span>vector: FpSliceMut) {
         <span class="macro">assert_eq!</span>(vector.as_slice().len(), <span class="self">self</span>.ambient_dimension());
         <span class="kw">if </span><span class="self">self</span>.matrix.rows() == <span class="number">0 </span>{
             <span class="kw">return</span>;
@@ -472,7 +472,7 @@
         }
     }
 
-    <span class="kw">pub fn </span>contains(<span class="kw-2">&amp;</span><span class="self">self</span>, vector: Slice) -&gt; bool {
+    <span class="kw">pub fn </span>contains(<span class="kw-2">&amp;</span><span class="self">self</span>, vector: FpSlice) -&gt; bool {
         <span class="kw">let </span><span class="kw-2">mut </span>vector: FpVector = vector.to_owned();
         <span class="self">self</span>.reduce(vector.as_slice_mut());
         vector.is_zero()
@@ -521,7 +521,7 @@
         }
     }
 
-    <span class="kw">pub fn </span>iter(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = Slice&gt; {
+    <span class="kw">pub fn </span>iter(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = FpSlice&gt; {
         <span class="self">self</span>.matrix
             .iter()
             .map(FpVector::as_slice)

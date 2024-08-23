@@ -275,7 +275,7 @@
 
 <span class="kw">use </span>fp::{
     prime::{Binomial, TWO},
-    vector::SliceMut,
+    vector::FpSliceMut,
 };
 <span class="kw">use </span>serde::Deserialize;
 <span class="kw">use </span>serde_json::Value;
@@ -374,7 +374,7 @@
 
     <span class="kw">fn </span>act_on_basis(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="kw-2">mut </span>result: SliceMut,
+        <span class="kw-2">mut </span>result: FpSliceMut,
         coeff: u32,
         op_degree: i32,
         op_index: usize,

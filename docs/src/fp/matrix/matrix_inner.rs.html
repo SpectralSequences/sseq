@@ -1314,7 +1314,7 @@
 <span class="kw">use crate</span>::{
     matrix::m4ri::M4riTable,
     prime::{<span class="self">self</span>, ValidPrime},
-    vector::{FpVector, Slice, SliceMut},
+    vector::{FpSlice, FpSliceMut, FpVector},
 };
 
 <span class="doccomment">/// A matrix! In particular, a matrix with values in F_p. The way we store matrices means it is
@@ -1579,11 +1579,11 @@
         }
     }
 
-    <span class="kw">pub fn </span>row(<span class="kw-2">&amp;</span><span class="self">self</span>, row: usize) -&gt; Slice {
+    <span class="kw">pub fn </span>row(<span class="kw-2">&amp;</span><span class="self">self</span>, row: usize) -&gt; FpSlice {
         <span class="self">self</span>.vectors[row].as_slice()
     }
 
-    <span class="kw">pub fn </span>row_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>, row: usize) -&gt; SliceMut {
+    <span class="kw">pub fn </span>row_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>, row: usize) -&gt; FpSliceMut {
         <span class="self">self</span>.vectors[row].as_slice_mut()
     }
 }
@@ -2201,7 +2201,7 @@
     /// m.apply(result.as_slice_mut(), 1, v.as_slice());
     /// assert_eq!(result, desired_result);
     /// ```
-    </span><span class="kw">pub fn </span>apply(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut </span>result: SliceMut, coeff: u32, input: Slice) {
+    </span><span class="kw">pub fn </span>apply(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut </span>result: FpSliceMut, coeff: u32, input: FpSlice) {
         <span class="macro">debug_assert_eq!</span>(input.len(), <span class="self">self</span>.rows());
         <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..input.len() {
             result.add(
@@ -2336,13 +2336,13 @@
         <span class="self">self</span>.slice_mut(<span class="number">0</span>, rows, start, end)
     }
 
-    <span class="kw">pub fn </span>row_segment_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>, i: usize, start: usize, end: usize) -&gt; SliceMut {
+    <span class="kw">pub fn </span>row_segment_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>, i: usize, start: usize, end: usize) -&gt; FpSliceMut {
         <span class="kw">let </span>start_idx = <span class="self">self</span>.start[start];
         <span class="kw">let </span>end_idx = <span class="self">self</span>.end[end];
         <span class="self">self</span>[i].slice_mut(start_idx, end_idx)
     }
 
-    <span class="kw">pub fn </span>row_segment(<span class="kw-2">&amp;</span><span class="self">self</span>, i: usize, start: usize, end: usize) -&gt; Slice {
+    <span class="kw">pub fn </span>row_segment(<span class="kw-2">&amp;</span><span class="self">self</span>, i: usize, start: usize, end: usize) -&gt; FpSlice {
         <span class="kw">let </span>start_idx = <span class="self">self</span>.start[start];
         <span class="kw">let </span>end_idx = <span class="self">self</span>.end[end];
         <span class="self">self</span>[i].slice(start_idx, end_idx)
@@ -2472,13 +2472,13 @@
         }
     }
 
-    <span class="kw">pub fn </span>iter(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = Slice&gt; + <span class="lifetime">'_ </span>{
+    <span class="kw">pub fn </span>iter(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = FpSlice&gt; + <span class="lifetime">'_ </span>{
         <span class="kw">let </span>start = <span class="self">self</span>.col_start;
         <span class="kw">let </span>end = <span class="self">self</span>.col_end;
         <span class="self">self</span>.vectors.iter().map(<span class="kw">move </span>|x| x.slice(start, end))
     }
 
-    <span class="kw">pub fn </span>iter_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = SliceMut&gt; + <span class="lifetime">'_ </span>{
+    <span class="kw">pub fn </span>iter_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = FpSliceMut&gt; + <span class="lifetime">'_ </span>{
         <span class="kw">let </span>start = <span class="self">self</span>.col_start;
         <span class="kw">let </span>end = <span class="self">self</span>.col_end;
         <span class="self">self</span>.vectors
@@ -2488,7 +2488,7 @@
 
     <span class="kw">pub fn </span>maybe_par_iter_mut(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-    ) -&gt; <span class="kw">impl </span>MaybeIndexedParallelIterator&lt;Item = SliceMut&gt; + <span class="lifetime">'_ </span>{
+    ) -&gt; <span class="kw">impl </span>MaybeIndexedParallelIterator&lt;Item = FpSliceMut&gt; + <span class="lifetime">'_ </span>{
         <span class="kw">let </span>start = <span class="self">self</span>.col_start;
         <span class="kw">let </span>end = <span class="self">self</span>.col_end;
         <span class="self">self</span>.vectors
@@ -2496,11 +2496,11 @@
             .map(<span class="kw">move </span>|x| x.slice_mut(start, end))
     }
 
-    <span class="kw">pub fn </span>row(<span class="kw-2">&amp;mut </span><span class="self">self</span>, row: usize) -&gt; Slice {
+    <span class="kw">pub fn </span>row(<span class="kw-2">&amp;mut </span><span class="self">self</span>, row: usize) -&gt; FpSlice {
         <span class="self">self</span>.vectors[row].slice(<span class="self">self</span>.col_start, <span class="self">self</span>.col_end)
     }
 
-    <span class="kw">pub fn </span>row_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>, row: usize) -&gt; SliceMut {
+    <span class="kw">pub fn </span>row_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>, row: usize) -&gt; FpSliceMut {
         <span class="self">self</span>.vectors[row].slice_mut(<span class="self">self</span>.col_start, <span class="self">self</span>.col_end)
     }
 

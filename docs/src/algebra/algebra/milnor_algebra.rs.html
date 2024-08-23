@@ -2117,7 +2117,7 @@
 
 <span class="kw">use </span>fp::{
     prime::{factor_pk, iter::BitflagIterator, Binomial, Prime, ValidPrime},
-    vector::{FpVector, Slice, SliceMut},
+    vector::{FpSlice, FpSliceMut, FpVector},
 };
 <span class="kw">use </span>itertools::Itertools;
 <span class="kw">use </span>once::OnceVec;
@@ -2609,7 +2609,7 @@
     <span class="attr">#[cfg(not(feature = <span class="string">"cache-multiplication"</span>))]
     </span><span class="kw">fn </span>multiply_basis_elements(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        result: SliceMut,
+        result: FpSliceMut,
         coef: u32,
         r_degree: i32,
         r_idx: usize,
@@ -2627,7 +2627,7 @@
     <span class="attr">#[cfg(feature = <span class="string">"cache-multiplication"</span>)]
     </span><span class="kw">fn </span>multiply_basis_elements(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="kw-2">mut </span>result: SliceMut,
+        <span class="kw-2">mut </span>result: FpSliceMut,
         coef: u32,
         r_degree: i32,
         r_idx: usize,
@@ -2643,12 +2643,12 @@
 
     <span class="kw">fn </span>multiply_basis_element_by_element(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="kw-2">mut </span>result: SliceMut,
+        <span class="kw-2">mut </span>result: FpSliceMut,
         coeff: u32,
         r_degree: i32,
         r_idx: usize,
         s_degree: i32,
-        s: Slice,
+        s: FpSlice,
     ) {
         <span class="kw">let </span>p = <span class="self">self</span>.prime();
         <span class="kw">let </span>r = <span class="self">self</span>.basis_element_from_index(r_degree, r_idx);
@@ -2669,12 +2669,12 @@
 
     <span class="kw">fn </span>multiply_element_by_element(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="kw-2">mut </span>res: SliceMut,
+        <span class="kw-2">mut </span>res: FpSliceMut,
         coef: u32,
         r_deg: i32,
-        r: Slice,
+        r: FpSlice,
         s_deg: i32,
-        s: Slice,
+        s: FpSlice,
     ) {
         PPartAllocation::with_local(|<span class="kw-2">mut </span>allocation| {
             <span class="kw">for </span>(i, c) <span class="kw">in </span>r.iter_nonzero() {
@@ -2772,7 +2772,7 @@
 
     <span class="kw">fn </span>multiply_basis_elements_unstable(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        result: SliceMut,
+        result: FpSliceMut,
         coeff: u32,
         r_degree: i32,
         r_index: usize,
@@ -3176,7 +3176,7 @@
 
     <span class="kw">pub fn </span>multiply(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        res: SliceMut,
+        res: FpSliceMut,
         coef: u32,
         m1: <span class="kw-2">&amp;</span>MilnorBasisElement,
         m2: <span class="kw-2">&amp;</span>MilnorBasisElement,
@@ -3188,7 +3188,7 @@
 
     <span class="kw">pub fn </span>multiply_with_allocation(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="kw-2">mut </span>res: SliceMut,
+        <span class="kw-2">mut </span>res: FpSliceMut,
         coef: u32,
         m1: <span class="kw-2">&amp;</span>MilnorBasisElement,
         m2: <span class="kw-2">&amp;</span>MilnorBasisElement,
@@ -3239,11 +3239,11 @@
 
     <span class="kw">pub fn </span>multiply_basis_by_element(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        res: SliceMut,
+        res: FpSliceMut,
         coef: u32,
         m1: <span class="kw-2">&amp;</span>MilnorBasisElement,
         s_deg: i32,
-        s: Slice,
+        s: FpSlice,
     ) {
         PPartAllocation::with_local(|allocation| {
             <span class="self">self</span>.multiply_basis_by_element_with_allocation(res, coef, m1, s_deg, s, allocation)
@@ -3252,11 +3252,11 @@
 
     <span class="kw">fn </span>multiply_basis_by_element_with_allocation(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="kw-2">mut </span>res: SliceMut,
+        <span class="kw-2">mut </span>res: FpSliceMut,
         coef: u32,
         m1: <span class="kw-2">&amp;</span>MilnorBasisElement,
         s_deg: i32,
-        s: Slice,
+        s: FpSlice,
         <span class="kw-2">mut </span>allocation: PPartAllocation,
     ) -&gt; PPartAllocation {
         <span class="kw">for </span>(i, c) <span class="kw">in </span>s.iter_nonzero() {

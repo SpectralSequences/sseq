@@ -529,7 +529,7 @@
 <span class="kw">use </span>byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 <span class="kw">use </span>fp::{
     matrix::Matrix,
-    vector::{FpVector, SliceMut},
+    vector::{FpSliceMut, FpVector},
 };
 <span class="kw">use </span>maybe_rayon::prelude::<span class="kw-2">*</span>;
 <span class="kw">use </span>once::OnceBiVec;
@@ -988,7 +988,7 @@
     <span class="doccomment">/// Given a chain map $f: C \to C'$ between free chain complexes, apply
     /// $$ \Hom(f, k): \Hom(C', k) \to \Hom(C, k) $$
     /// to the specified generator of $\Hom(C', k)$.
-    </span><span class="kw">pub fn </span>act(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut </span>result: SliceMut, coef: u32, gen: BidegreeGenerator) {
+    </span><span class="kw">pub fn </span>act(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut </span>result: FpSliceMut, coef: u32, gen: BidegreeGenerator) {
         <span class="kw">let </span>source = gen.degree() + <span class="self">self</span>.shift;
 
         <span class="macro">assert_eq!</span>(

@@ -338,7 +338,7 @@
 <span class="kw">use </span>anyhow::anyhow;
 <span class="kw">use </span>fp::{
     prime::ValidPrime,
-    vector::{Slice, SliceMut},
+    vector::{FpSlice, FpSliceMut},
 };
 <span class="kw">use </span>serde::Deserialize;
 <span class="kw">use </span>serde_json::Value;
@@ -585,10 +585,10 @@
 
     <span class="kw">fn </span>a_multiply(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        _result: SliceMut,
+        _result: FpSliceMut,
         _coeff: u32,
         _r_degree: i32,
-        _r: Slice,
+        _r: FpSlice,
         _s_degree: i32,
         _s: <span class="kw-2">&amp;</span><span class="self">Self</span>::Element,
     ) {
@@ -619,8 +619,8 @@
         <span class="kw">fn </span>p_tilde(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize;
         <span class="kw">fn </span>new_pair_element(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32) -&gt; <span class="self">Self</span>::Element;
         <span class="kw">fn </span>sigma_multiply_basis(<span class="kw-2">&amp;</span><span class="self">self</span>, result: <span class="kw-2">&amp;mut </span><span class="self">Self</span>::Element, coeff: u32, r_degree: i32, r_idx: usize, s_degree: i32, s_idx: usize);
-        <span class="kw">fn </span>sigma_multiply(<span class="kw-2">&amp;</span><span class="self">self</span>, result: <span class="kw-2">&amp;mut </span><span class="self">Self</span>::Element, coeff: u32, r_degree: i32, r: Slice, s_degree: i32, s: Slice);
-        <span class="kw">fn </span>a_multiply(<span class="kw-2">&amp;</span><span class="self">self</span>, result: SliceMut, coeff: u32, r_degree: i32, r: Slice, s_degree: i32, s: <span class="kw-2">&amp;</span><span class="self">Self</span>::Element);
+        <span class="kw">fn </span>sigma_multiply(<span class="kw-2">&amp;</span><span class="self">self</span>, result: <span class="kw-2">&amp;mut </span><span class="self">Self</span>::Element, coeff: u32, r_degree: i32, r: FpSlice, s_degree: i32, s: FpSlice);
+        <span class="kw">fn </span>a_multiply(<span class="kw-2">&amp;</span><span class="self">self</span>, result: FpSliceMut, coeff: u32, r_degree: i32, r: FpSlice, s_degree: i32, s: <span class="kw-2">&amp;</span><span class="self">Self</span>::Element);
         <span class="kw">fn </span>element_to_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>, elt: <span class="kw-2">&amp;</span><span class="self">Self</span>::Element, buffer: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Write) -&gt; std::io::Result&lt;()&gt;;
         <span class="kw">fn </span>element_from_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32, buffer: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Read) -&gt; std::io::Result&lt;<span class="self">Self</span>::Element&gt;;
     }
@@ -637,10 +637,10 @@
 <span class="kw">impl </span><span class="kw">crate</span>::UnstableAlgebra <span class="kw">for </span>SteenrodAlgebra {
     <span class="macro">dispatch_steenrod!</span> {
         <span class="kw">fn </span>dimension_unstable(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32, excess: i32) -&gt; usize;
-        <span class="kw">fn </span>multiply_basis_elements_unstable(<span class="kw-2">&amp;</span><span class="self">self</span>, result: SliceMut, coeff: u32, r_degree: i32, r_index: usize, s_degree: i32, s_index: usize, excess: i32);
-        <span class="kw">fn </span>multiply_basis_element_by_element_unstable(<span class="kw-2">&amp;</span><span class="self">self</span>, result: SliceMut, coeff: u32, r_degree: i32, r_idx: usize, s_degree: i32, s: Slice, excess: i32);
-        <span class="kw">fn </span>multiply_element_by_basis_element_unstable(<span class="kw-2">&amp;</span><span class="self">self</span>, result: SliceMut, coeff: u32, r_degree: i32, r: Slice, s_degree: i32, s_idx: usize, excess: i32);
-        <span class="kw">fn </span>multiply_element_by_element_unstable(<span class="kw-2">&amp;</span><span class="self">self</span>, result: SliceMut, coeff: u32, r_degree: i32, r: Slice, s_degree: i32, s: Slice, excess: i32);
+        <span class="kw">fn </span>multiply_basis_elements_unstable(<span class="kw-2">&amp;</span><span class="self">self</span>, result: FpSliceMut, coeff: u32, r_degree: i32, r_index: usize, s_degree: i32, s_index: usize, excess: i32);
+        <span class="kw">fn </span>multiply_basis_element_by_element_unstable(<span class="kw-2">&amp;</span><span class="self">self</span>, result: FpSliceMut, coeff: u32, r_degree: i32, r_idx: usize, s_degree: i32, s: FpSlice, excess: i32);
+        <span class="kw">fn </span>multiply_element_by_basis_element_unstable(<span class="kw-2">&amp;</span><span class="self">self</span>, result: FpSliceMut, coeff: u32, r_degree: i32, r: FpSlice, s_degree: i32, s_idx: usize, excess: i32);
+        <span class="kw">fn </span>multiply_element_by_element_unstable(<span class="kw-2">&amp;</span><span class="self">self</span>, result: FpSliceMut, coeff: u32, r_degree: i32, r: FpSlice, s_degree: i32, s: FpSlice, excess: i32);
     }
 }
 </code></pre></div></section></main></body></html>

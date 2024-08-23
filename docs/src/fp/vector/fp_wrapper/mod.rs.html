@@ -371,12 +371,12 @@
 <span class="kw">use </span>itertools::Itertools;
 <span class="kw">use </span>serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-<span class="kw">use </span><span class="kw">super</span>::iter::{FqVectorIteratorP, FqVectorNonZeroIteratorP};
+<span class="kw">use </span><span class="kw">super</span>::iter::{FqVectorIterator, FqVectorNonZeroIterator};
 <span class="kw">use crate</span>::{
     field::{field_internal::FieldInternal, Fp},
     limb::Limb,
     prime::Prime,
-    vector::inner::{FqVector, SliceMutP, SliceP},
+    vector::inner::{FqSlice, FqSliceMut, FqVector},
 };
 
 <span class="kw">mod </span>helpers;
@@ -402,20 +402,20 @@
 
 <span class="macro">dispatch_struct!</span> {
     <span class="attr">#[derive(Debug, Copy, Clone)]
-    </span><span class="kw">pub </span>Slice&lt;<span class="lifetime">'a</span>&gt; from SliceP
+    </span><span class="kw">pub </span>FpSlice&lt;<span class="lifetime">'a</span>&gt; from FqSlice
 }
 
 <span class="macro">dispatch_struct!</span> {
     <span class="attr">#[derive(Debug)]
-    </span><span class="kw">pub </span>SliceMut&lt;<span class="lifetime">'a</span>&gt; from SliceMutP
+    </span><span class="kw">pub </span>FpSliceMut&lt;<span class="lifetime">'a</span>&gt; from FqSliceMut
 }
 
 <span class="macro">dispatch_struct!</span> {
-    <span class="kw">pub </span>FpVectorIterator&lt;<span class="lifetime">'a</span>&gt; from FqVectorIteratorP
+    <span class="kw">pub </span>FpVectorIterator&lt;<span class="lifetime">'a</span>&gt; from FqVectorIterator
 }
 
 <span class="macro">dispatch_struct!</span> {
-    <span class="kw">pub </span>FpVectorNonZeroIterator&lt;<span class="lifetime">'a</span>&gt; from FqVectorNonZeroIteratorP
+    <span class="kw">pub </span>FpVectorNonZeroIterator&lt;<span class="lifetime">'a</span>&gt; from FqVectorNonZeroIterator
 }
 
 <span class="kw">impl </span>FpVector {
@@ -431,10 +431,10 @@
         <span class="kw">pub fn </span>assign_partial(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>);
         <span class="kw">pub fn </span>@add(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>, c: u32);
         <span class="kw">pub fn </span>@add_offset(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>, c: u32, offset: usize);
-        <span class="kw">pub fn </span>slice(<span class="kw-2">&amp;</span><span class="self">self</span>, start: usize, end: usize) -&gt; (dispatch Slice);
-        <span class="kw">pub fn </span>as_slice(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; (dispatch Slice);
-        <span class="kw">pub fn </span>slice_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>, start: usize, end: usize) -&gt; (dispatch SliceMut);
-        <span class="kw">pub fn </span>as_slice_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; (dispatch SliceMut);
+        <span class="kw">pub fn </span>slice(<span class="kw-2">&amp;</span><span class="self">self</span>, start: usize, end: usize) -&gt; (dispatch FpSlice);
+        <span class="kw">pub fn </span>as_slice(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; (dispatch FpSlice);
+        <span class="kw">pub fn </span>slice_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>, start: usize, end: usize) -&gt; (dispatch FpSliceMut);
+        <span class="kw">pub fn </span>as_slice_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; (dispatch FpSliceMut);
         <span class="kw">pub fn </span>is_zero(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool;
         <span class="kw">pub fn </span>iter(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; (dispatch FpVectorIterator);
         <span class="kw">pub fn </span>iter_nonzero(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; (dispatch FpVectorNonZeroIterator);
@@ -520,7 +520,7 @@
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; Slice&lt;<span class="lifetime">'a</span>&gt; {
+<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; FpSlice&lt;<span class="lifetime">'a</span>&gt; {
     <span class="macro">dispatch_vector!</span> {
         <span class="kw">pub fn </span>prime(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ValidPrime;
         <span class="kw">pub fn </span>len(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize;
@@ -529,26 +529,26 @@
         <span class="kw">pub fn </span>iter(<span class="self">self</span>) -&gt; (dispatch FpVectorIterator <span class="lifetime">'a</span>);
         <span class="kw">pub fn </span>iter_nonzero(<span class="self">self</span>) -&gt; (dispatch FpVectorNonZeroIterator <span class="lifetime">'a</span>);
         <span class="kw">pub fn </span>is_zero(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool;
-        <span class="kw">pub fn </span>slice(<span class="self">self</span>, start: usize, end: usize) -&gt; (dispatch Slice <span class="lifetime">'a</span>);
+        <span class="kw">pub fn </span>slice(<span class="self">self</span>, start: usize, end: usize) -&gt; (dispatch FpSlice <span class="lifetime">'a</span>);
         <span class="kw">pub fn </span>to_owned(<span class="self">self</span>) -&gt; (dispatch FpVector);
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; SliceMut&lt;<span class="lifetime">'a</span>&gt; {
+<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; FpSliceMut&lt;<span class="lifetime">'a</span>&gt; {
     <span class="macro">dispatch_vector!</span> {
         <span class="kw">pub fn </span>prime(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ValidPrime;
         <span class="kw">pub fn </span>@scale(<span class="kw-2">&amp;mut </span><span class="self">self</span>, c: u32);
         <span class="kw">pub fn </span>set_to_zero(<span class="kw-2">&amp;mut </span><span class="self">self</span>);
-        <span class="kw">pub fn </span>@add(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: Slice, c: u32);
-        <span class="kw">pub fn </span>assign(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: Slice);
+        <span class="kw">pub fn </span>@add(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: FpSlice, c: u32);
+        <span class="kw">pub fn </span>assign(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: FpSlice);
         <span class="kw">pub fn </span>@set_entry(<span class="kw-2">&amp;mut </span><span class="self">self</span>, index: usize, value: u32);
-        <span class="kw">pub fn </span>as_slice(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; (dispatch Slice);
-        <span class="kw">pub fn </span>slice_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>, start: usize, end: usize) -&gt; (dispatch SliceMut);
+        <span class="kw">pub fn </span>as_slice(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; (dispatch FpSlice);
+        <span class="kw">pub fn </span>slice_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>, start: usize, end: usize) -&gt; (dispatch FpSliceMut);
         <span class="kw">pub fn </span>@add_basis_element(<span class="kw-2">&amp;mut </span><span class="self">self</span>, index: usize, value: u32);
-        <span class="kw">pub fn </span>copy(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; (dispatch SliceMut);
-        <span class="kw">pub fn </span>@add_masked(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: Slice, c: u32, mask: <span class="kw-2">&amp;</span>[usize]);
-        <span class="kw">pub fn </span>@add_unmasked(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: Slice, c: u32, mask: <span class="kw-2">&amp;</span>[usize]);
-        <span class="kw">pub fn </span>@add_tensor(<span class="kw-2">&amp;mut </span><span class="self">self</span>, offset: usize, coeff: u32, @left: Slice, right: Slice);
+        <span class="kw">pub fn </span>copy(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; (dispatch FpSliceMut);
+        <span class="kw">pub fn </span>@add_masked(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: FpSlice, c: u32, mask: <span class="kw-2">&amp;</span>[usize]);
+        <span class="kw">pub fn </span>@add_unmasked(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: FpSlice, c: u32, mask: <span class="kw-2">&amp;</span>[usize]);
+        <span class="kw">pub fn </span>@add_tensor(<span class="kw-2">&amp;mut </span><span class="self">self</span>, offset: usize, coeff: u32, @left: FpSlice, right: FpSlice);
     }
 }
 
@@ -564,7 +564,7 @@
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; std::fmt::Display <span class="kw">for </span>Slice&lt;<span class="lifetime">'a</span>&gt; {
+<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; std::fmt::Display <span class="kw">for </span>FpSlice&lt;<span class="lifetime">'a</span>&gt; {
     <span class="doccomment">/// # Example
     /// ```
     /// # use fp::vector::FpVector;
@@ -644,31 +644,31 @@
     </span>}
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, <span class="lifetime">'b</span>&gt; From&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>SliceMut&lt;<span class="lifetime">'b</span>&gt;&gt; <span class="kw">for </span>SliceMut&lt;<span class="lifetime">'a</span>&gt; {
-    <span class="kw">fn </span>from(slice: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>SliceMut&lt;<span class="lifetime">'b</span>&gt;) -&gt; <span class="self">Self </span>{
+<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, <span class="lifetime">'b</span>&gt; From&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>FpSliceMut&lt;<span class="lifetime">'b</span>&gt;&gt; <span class="kw">for </span>FpSliceMut&lt;<span class="lifetime">'a</span>&gt; {
+    <span class="kw">fn </span>from(slice: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>FpSliceMut&lt;<span class="lifetime">'b</span>&gt;) -&gt; <span class="self">Self </span>{
         slice.copy()
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, <span class="lifetime">'b</span>&gt; From&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span>Slice&lt;<span class="lifetime">'b</span>&gt;&gt; <span class="kw">for </span>Slice&lt;<span class="lifetime">'a</span>&gt; {
-    <span class="kw">fn </span>from(slice: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>Slice&lt;<span class="lifetime">'b</span>&gt;) -&gt; <span class="self">Self </span>{
+<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, <span class="lifetime">'b</span>&gt; From&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span>FpSlice&lt;<span class="lifetime">'b</span>&gt;&gt; <span class="kw">for </span>FpSlice&lt;<span class="lifetime">'a</span>&gt; {
+    <span class="kw">fn </span>from(slice: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>FpSlice&lt;<span class="lifetime">'b</span>&gt;) -&gt; <span class="self">Self </span>{
         <span class="kw-2">*</span>slice
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, <span class="lifetime">'b</span>&gt; From&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span>SliceMut&lt;<span class="lifetime">'b</span>&gt;&gt; <span class="kw">for </span>Slice&lt;<span class="lifetime">'a</span>&gt; {
-    <span class="kw">fn </span>from(slice: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>SliceMut&lt;<span class="lifetime">'b</span>&gt;) -&gt; <span class="self">Self </span>{
+<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, <span class="lifetime">'b</span>&gt; From&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span>FpSliceMut&lt;<span class="lifetime">'b</span>&gt;&gt; <span class="kw">for </span>FpSlice&lt;<span class="lifetime">'a</span>&gt; {
+    <span class="kw">fn </span>from(slice: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>FpSliceMut&lt;<span class="lifetime">'b</span>&gt;) -&gt; <span class="self">Self </span>{
         slice.as_slice()
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; From&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span>FpVector&gt; <span class="kw">for </span>Slice&lt;<span class="lifetime">'a</span>&gt; {
+<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; From&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span>FpVector&gt; <span class="kw">for </span>FpSlice&lt;<span class="lifetime">'a</span>&gt; {
     <span class="kw">fn </span>from(v: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>FpVector) -&gt; <span class="self">Self </span>{
         v.as_slice()
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; From&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>FpVector&gt; <span class="kw">for </span>SliceMut&lt;<span class="lifetime">'a</span>&gt; {
+<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; From&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>FpVector&gt; <span class="kw">for </span>FpSliceMut&lt;<span class="lifetime">'a</span>&gt; {
     <span class="kw">fn </span>from(v: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>FpVector) -&gt; <span class="self">Self </span>{
         v.as_slice_mut()
     }

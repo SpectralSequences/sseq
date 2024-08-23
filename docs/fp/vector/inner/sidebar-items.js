@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["FqVector","SliceMutP","SliceP"]};
+window.SIDEBAR_ITEMS = {"struct":["FqSlice","FqSliceMut","FqVector"]};

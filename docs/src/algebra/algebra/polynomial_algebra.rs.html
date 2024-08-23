@@ -362,7 +362,7 @@
 
 <span class="kw">use </span>fp::{
     prime::{Prime, ValidPrime},
-    vector::{FpVector, SliceMut},
+    vector::{FpSliceMut, FpVector},
 };
 <span class="kw">use </span>itertools::Itertools;
 <span class="kw">use </span>once::OnceVec;
@@ -675,7 +675,7 @@
 
     <span class="kw">fn </span>multiply_basis_elements(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="kw-2">mut </span>result: SliceMut,
+        <span class="kw-2">mut </span>result: FpSliceMut,
         coeff: u32,
         left_degree: i32,
         left_idx: usize,

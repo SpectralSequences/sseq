@@ -666,7 +666,7 @@
         <span class="kw">use </span>algebra::module::{homomorphism::ModuleHomomorphism, Module};
         <span class="kw">use </span>fp::{
             matrix::{Matrix, MatrixSliceMut, QuasiInverse, Subspace},
-            vector::{Slice, SliceMut},
+            vector::{FpSlice, FpSliceMut},
         };
 
         <span class="kw">use </span><span class="kw">super</span>::DoubleAlgebra;
@@ -718,7 +718,7 @@
 
             <span class="kw">fn </span>act_on_basis(
                 <span class="kw-2">&amp;</span><span class="self">self</span>,
-                result: fp::vector::SliceMut,
+                result: fp::vector::FpSliceMut,
                 coeff: u32,
                 op_degree: i32,
                 op_index: usize,
@@ -772,12 +772,12 @@
             /// what generators will be added in degree `t` yet.
             </span><span class="kw">fn </span>act(
                 <span class="kw-2">&amp;</span><span class="self">self</span>,
-                result: SliceMut,
+                result: FpSliceMut,
                 coeff: u32,
                 op_degree: i32,
                 op_index: usize,
                 input_degree: i32,
-                input: Slice,
+                input: FpSlice,
             ) {
                 <span class="kw">if </span>op_degree % <span class="number">2 </span>== <span class="number">1 </span>{
                     <span class="kw">return</span>;
@@ -796,7 +796,7 @@
 
             <span class="doccomment">/// Gives the name of an element. The default implementation is derived from
             /// [`Module::basis_element_to_string`] in the obvious way.
-            </span><span class="kw">fn </span>element_to_string(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32, element: Slice) -&gt; String {
+            </span><span class="kw">fn </span>element_to_string(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32, element: FpSlice) -&gt; String {
                 <span class="self">self</span>.inner.element_to_string(degree, element)
             }
         }
@@ -849,7 +849,7 @@
 
             <span class="kw">fn </span>apply_to_basis_element(
                 <span class="kw-2">&amp;</span><span class="self">self</span>,
-                result: SliceMut,
+                result: FpSliceMut,
                 coeff: u32,
                 input_degree: i32,
                 input_idx: usize,
@@ -858,7 +858,7 @@
                     .apply_to_basis_element(result, coeff, input_degree / <span class="number">2</span>, input_idx)
             }
 
-            <span class="kw">fn </span>apply(<span class="kw-2">&amp;</span><span class="self">self</span>, result: SliceMut, coeff: u32, input_degree: i32, input: Slice) {
+            <span class="kw">fn </span>apply(<span class="kw-2">&amp;</span><span class="self">self</span>, result: FpSliceMut, coeff: u32, input_degree: i32, input: FpSlice) {
                 <span class="kw">if </span>input_degree % <span class="number">2 </span>== <span class="number">0 </span>{
                     <span class="self">self</span>.inner.apply(result, coeff, input_degree / <span class="number">2</span>, input)
                 }
@@ -912,7 +912,7 @@
             <span class="doccomment">/// Attempt to apply quasi inverse to the input. Returns whether the operation was
             /// successful. This is required to either always succeed or always fail for each degree.
             </span><span class="attr">#[must_use]
-            </span><span class="kw">fn </span>apply_quasi_inverse(<span class="kw-2">&amp;</span><span class="self">self</span>, result: SliceMut, degree: i32, input: Slice) -&gt; bool {
+            </span><span class="kw">fn </span>apply_quasi_inverse(<span class="kw-2">&amp;</span><span class="self">self</span>, result: FpSliceMut, degree: i32, input: FpSlice) -&gt; bool {
                 <span class="kw">if </span>degree % <span class="number">2 </span>== <span class="number">0 </span>{
                     <span class="self">self</span>.inner.apply_quasi_inverse(result, degree / <span class="number">2</span>, input)
                 } <span class="kw">else </span>{
@@ -1010,8 +1010,8 @@
                 inputs: <span class="kw-2">&amp;</span>[S],
             ) -&gt; bool
             <span class="kw">where
-                for</span>&lt;<span class="lifetime">'a</span>&gt; <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>T: Into&lt;fp::vector::SliceMut&lt;<span class="lifetime">'a</span>&gt;&gt;,
-                <span class="kw">for</span>&lt;<span class="lifetime">'a</span>&gt; <span class="kw-2">&amp;</span><span class="lifetime">'a </span>S: Into&lt;fp::vector::Slice&lt;<span class="lifetime">'a</span>&gt;&gt;,
+                for</span>&lt;<span class="lifetime">'a</span>&gt; <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>T: Into&lt;fp::vector::FpSliceMut&lt;<span class="lifetime">'a</span>&gt;&gt;,
+                <span class="kw">for</span>&lt;<span class="lifetime">'a</span>&gt; <span class="kw-2">&amp;</span><span class="lifetime">'a </span>S: Into&lt;fp::vector::FpSlice&lt;<span class="lifetime">'a</span>&gt;&gt;,
             {
                 <span class="kw">if </span>b.t() % <span class="number">2 </span>== <span class="number">0 </span>{
                     <span class="kw">let </span>halved_b = Bidegree::s_t(b.s(), b.t() / <span class="number">2</span>);

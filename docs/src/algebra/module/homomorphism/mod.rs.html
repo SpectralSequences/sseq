@@ -204,7 +204,7 @@
 <span class="kw">use </span>fp::{
     matrix::{AugmentedMatrix, Matrix, MatrixSliceMut, QuasiInverse, Subspace},
     prime::ValidPrime,
-    vector::{Slice, SliceMut},
+    vector::{FpSlice, FpSliceMut},
 };
 
 <span class="kw">use </span><span class="kw">crate</span>::module::Module;
@@ -251,7 +251,7 @@
     /// usually the case because of out-of-bounds errors.
     </span><span class="kw">fn </span>apply_to_basis_element(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        result: SliceMut,
+        result: FpSliceMut,
         coeff: u32,
         input_degree: i32,
         input_idx: usize,
@@ -275,7 +275,7 @@
     <span class="attr">#[allow(unused_variables)]
     </span><span class="kw">fn </span>compute_auxiliary_data_through_degree(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32) {}
 
-    <span class="kw">fn </span>apply(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut </span>result: SliceMut, coeff: u32, input_degree: i32, input: Slice) {
+    <span class="kw">fn </span>apply(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut </span>result: FpSliceMut, coeff: u32, input_degree: i32, input: FpSlice) {
         <span class="kw">let </span>p = <span class="self">self</span>.prime();
         <span class="kw">for </span>(i, v) <span class="kw">in </span>input.iter_nonzero() {
             <span class="self">self</span>.apply_to_basis_element(result.copy(), (coeff * v) % p, input_degree, i);
@@ -356,7 +356,7 @@
     <span class="doccomment">/// Attempt to apply quasi inverse to the input. Returns whether the operation was
     /// successful. This is required to either always succeed or always fail for each degree.
     </span><span class="attr">#[must_use]
-    </span><span class="kw">fn </span>apply_quasi_inverse(<span class="kw-2">&amp;</span><span class="self">self</span>, result: SliceMut, degree: i32, input: Slice) -&gt; bool {
+    </span><span class="kw">fn </span>apply_quasi_inverse(<span class="kw-2">&amp;</span><span class="self">self</span>, result: FpSliceMut, degree: i32, input: FpSlice) -&gt; bool {
         <span class="kw">if let </span><span class="prelude-val">Some</span>(qi) = <span class="self">self</span>.quasi_inverse(degree) {
             qi.apply(result, <span class="number">1</span>, input);
             <span class="bool-val">true

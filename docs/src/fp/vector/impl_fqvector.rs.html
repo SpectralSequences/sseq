@@ -373,8 +373,8 @@
 </pre></div><pre class="rust"><code><span class="kw">use </span>itertools::Itertools;
 
 <span class="kw">use super</span>::{
-    inner::{FqVector, SliceMutP, SliceP},
-    iter::{FqVectorIteratorP, FqVectorNonZeroIteratorP},
+    inner::{FqSlice, FqSliceMut, FqVector},
+    iter::{FqVectorIterator, FqVectorNonZeroIterator},
 };
 <span class="kw">use crate</span>::{
     field::{element::FieldElement, Field},
@@ -427,9 +427,9 @@
     }
 
     <span class="attr">#[must_use]
-    </span><span class="kw">pub fn </span>slice(<span class="kw-2">&amp;</span><span class="self">self</span>, start: usize, end: usize) -&gt; SliceP&lt;<span class="lifetime">'_</span>, F&gt; {
+    </span><span class="kw">pub fn </span>slice(<span class="kw-2">&amp;</span><span class="self">self</span>, start: usize, end: usize) -&gt; FqSlice&lt;<span class="lifetime">'_</span>, F&gt; {
         <span class="macro">assert!</span>(start &lt;= end &amp;&amp; end &lt;= <span class="self">self</span>.len);
-        SliceP {
+        FqSlice {
             fq: <span class="self">self</span>.fq,
             limbs: <span class="kw-2">&amp;</span><span class="self">self</span>.limbs,
             start,
@@ -438,9 +438,9 @@
     }
 
     <span class="attr">#[must_use]
-    </span><span class="kw">pub fn </span>slice_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>, start: usize, end: usize) -&gt; SliceMutP&lt;<span class="lifetime">'_</span>, F&gt; {
+    </span><span class="kw">pub fn </span>slice_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>, start: usize, end: usize) -&gt; FqSliceMut&lt;<span class="lifetime">'_</span>, F&gt; {
         <span class="macro">assert!</span>(start &lt;= end &amp;&amp; end &lt;= <span class="self">self</span>.len);
-        SliceMutP {
+        FqSliceMut {
             fq: <span class="self">self</span>.fq,
             limbs: <span class="kw-2">&amp;mut </span><span class="self">self</span>.limbs,
             start,
@@ -450,13 +450,13 @@
 
     <span class="attr">#[inline]
     #[must_use]
-    </span><span class="kw">pub fn </span>as_slice(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; SliceP&lt;<span class="lifetime">'_</span>, F&gt; {
+    </span><span class="kw">pub fn </span>as_slice(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; FqSlice&lt;<span class="lifetime">'_</span>, F&gt; {
         <span class="self">self</span>.into()
     }
 
     <span class="attr">#[inline]
     #[must_use]
-    </span><span class="kw">pub fn </span>as_slice_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; SliceMutP&lt;<span class="lifetime">'_</span>, F&gt; {
+    </span><span class="kw">pub fn </span>as_slice_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; FqSliceMut&lt;<span class="lifetime">'_</span>, F&gt; {
         <span class="self">self</span>.into()
     }
 
@@ -472,11 +472,11 @@
         <span class="self">self</span>.as_slice_mut().set_entry(index, value);
     }
 
-    <span class="kw">pub fn </span>iter(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; FqVectorIteratorP&lt;<span class="lifetime">'_</span>, F&gt; {
+    <span class="kw">pub fn </span>iter(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; FqVectorIterator&lt;<span class="lifetime">'_</span>, F&gt; {
         <span class="self">self</span>.as_slice().iter()
     }
 
-    <span class="kw">pub fn </span>iter_nonzero(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; FqVectorNonZeroIteratorP&lt;<span class="lifetime">'_</span>, F&gt; {
+    <span class="kw">pub fn </span>iter_nonzero(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; FqVectorNonZeroIterator&lt;<span class="lifetime">'_</span>, F&gt; {
         <span class="self">self</span>.as_slice().iter_nonzero()
     }
 

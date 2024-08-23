@@ -1143,7 +1143,7 @@
         Module, ZeroModule,
     };
     <span class="kw">use </span>bivec::BiVec;
-    <span class="kw">use </span>fp::vector::SliceMut;
+    <span class="kw">use </span>fp::vector::FpSliceMut;
     <span class="kw">use </span>once::OnceBiVec;
 
     <span class="kw">pub struct </span>SumModule&lt;M: Module&gt; {
@@ -1227,7 +1227,7 @@
 
         <span class="kw">fn </span>act_on_basis(
             <span class="kw-2">&amp;</span><span class="self">self</span>,
-            <span class="kw-2">mut </span>result: SliceMut,
+            <span class="kw-2">mut </span>result: FpSliceMut,
             coeff: u32,
             op_degree: i32,
             op_index: usize,
@@ -1333,7 +1333,7 @@
     <span class="kw">use </span>ext::chain_complex::ChainComplex;
     <span class="kw">use </span>fp::{
         matrix::AugmentedMatrix,
-        vector::{FpVector, Slice, SliceMut},
+        vector::{FpSlice, FpSliceMut, FpVector},
     };
     <span class="kw">use </span>once::{OnceBiVec, OnceVec};
     <span class="kw">use </span>sseq::coordinates::Bidegree;
@@ -1571,7 +1571,7 @@
         <span class="doccomment">/// At the moment, this is off by a sign. However, we only use this for p = 2
         </span><span class="kw">fn </span>apply_to_basis_element(
             <span class="kw-2">&amp;</span><span class="self">self</span>,
-            <span class="kw-2">mut </span>result: SliceMut,
+            <span class="kw-2">mut </span>result: FpSliceMut,
             coeff: u32,
             degree: i32,
             input_idx: usize,
@@ -1638,7 +1638,7 @@
                 .extend(degree, |i| <span class="self">self</span>.calculate_quasi_inverse(i));
         }
 
-        <span class="kw">fn </span>apply_quasi_inverse(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut </span>result: SliceMut, degree: i32, input: Slice) -&gt; bool {
+        <span class="kw">fn </span>apply_quasi_inverse(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut </span>result: FpSliceMut, degree: i32, input: FpSlice) -&gt; bool {
             <span class="kw">let </span>qis = <span class="kw-2">&amp;</span><span class="self">self</span>.quasi_inverses[degree];
             <span class="macro">assert_eq!</span>(input.len(), qis.len());
 

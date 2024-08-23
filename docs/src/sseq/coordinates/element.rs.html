@@ -143,7 +143,7 @@
     module::{Module, MuFreeModule},
     MuAlgebra,
 };
-<span class="kw">use </span>fp::vector::{FpVector, Slice};
+<span class="kw">use </span>fp::vector::{FpSlice, FpVector};
 
 <span class="kw">use </span><span class="kw">crate</span>::coordinates::{Bidegree, BidegreeGenerator};
 
@@ -178,7 +178,7 @@
         <span class="self">self</span>.degree.n()
     }
 
-    <span class="kw">pub fn </span>vec(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Slice {
+    <span class="kw">pub fn </span>vec(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; FpSlice {
         <span class="self">self</span>.vec.as_slice()
     }
 

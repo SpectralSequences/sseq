@@ -115,7 +115,7 @@
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::ops::Range;
 
 <span class="kw">use </span>bivec::BiVec;
-<span class="kw">use </span>fp::vector::{Slice, SliceMut};
+<span class="kw">use </span>fp::vector::{FpSlice, FpSliceMut};
 
 <span class="attr">#[derive(Debug)]
 </span><span class="kw">pub struct </span>GeneratorBasisEltPair {
@@ -186,11 +186,11 @@
     <span class="doccomment">/// Add source vector "source" to the block indicated by (gen_deg, gen_idx).
     </span><span class="kw">pub fn </span>add_block(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="kw-2">mut </span>target: SliceMut,
+        <span class="kw-2">mut </span>target: FpSliceMut,
         coeff: u32,
         gen_deg: i32,
         gen_idx: usize,
-        source: Slice,
+        source: FpSlice,
     ) {
         <span class="kw">let </span>range = <span class="kw-2">&amp;</span><span class="self">self</span>.blocks[gen_deg][gen_idx];
         <span class="macro">assert!</span>(source.len() == range.len());

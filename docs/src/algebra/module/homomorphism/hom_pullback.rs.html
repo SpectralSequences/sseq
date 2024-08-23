@@ -292,7 +292,7 @@
 
 <span class="kw">use </span>fp::{
     matrix::{QuasiInverse, Subspace},
-    vector::SliceMut,
+    vector::FpSliceMut,
 };
 <span class="kw">use </span>once::OnceBiVec;
 
@@ -356,7 +356,7 @@
 
     <span class="kw">fn </span>apply_to_basis_element(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="kw-2">mut </span>result: SliceMut,
+        <span class="kw-2">mut </span>result: FpSliceMut,
         coeff: u32,
         fn_degree: i32,
         fn_idx: usize,

@@ -98,7 +98,7 @@
 <a href="#73" id="73">73</a>
 <a href="#74" id="74">74</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">super</span>::Subspace;
-<span class="kw">use </span><span class="kw">crate</span>::vector::{FpVector, Slice};
+<span class="kw">use </span><span class="kw">crate</span>::vector::{FpSlice, FpVector};
 
 <span class="attr">#[derive(Debug, Clone, PartialEq, Eq)]
 </span><span class="kw">pub struct </span>AffineSubspace {
@@ -133,7 +133,7 @@
         <span class="self">Self</span>::new(offset, linear_part)
     }
 
-    <span class="kw">pub fn </span>contains(<span class="kw-2">&amp;</span><span class="self">self</span>, vector: Slice) -&gt; bool {
+    <span class="kw">pub fn </span>contains(<span class="kw-2">&amp;</span><span class="self">self</span>, vector: FpSlice) -&gt; bool {
         <span class="kw">let </span><span class="kw-2">mut </span>vector = vector.to_owned();
         vector.add(<span class="kw-2">&amp;</span><span class="self">self</span>.offset, vector.prime() - <span class="number">1</span>);
         <span class="self">self</span>.linear_part.contains(vector.as_slice())

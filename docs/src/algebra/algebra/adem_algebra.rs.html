@@ -1605,7 +1605,7 @@
         iter::{BinomialIterator, BitflagIterator},
         Prime, ValidPrime,
     },
-    vector::{FpVector, SliceMut},
+    vector::{FpSliceMut, FpVector},
 };
 <span class="kw">use </span>itertools::Itertools;
 <span class="kw">use </span>once::OnceVec;
@@ -1865,7 +1865,7 @@
 
     <span class="kw">fn </span>multiply_basis_elements(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        result: SliceMut,
+        result: FpSliceMut,
         coeff: u32,
         r_degree: i32,
         r_index: usize,
@@ -2059,7 +2059,7 @@
 
     <span class="kw">fn </span>multiply_basis_elements_unstable(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="kw-2">mut </span>result: SliceMut,
+        <span class="kw-2">mut </span>result: FpSliceMut,
         coeff: u32,
         r_degree: i32,
         r_index: usize,
@@ -2551,7 +2551,7 @@
 
     <span class="kw">pub fn </span>multiply_inner(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="kw-2">mut </span>result: SliceMut,
+        <span class="kw-2">mut </span>result: FpSliceMut,
         coeff: u32,
         r_degree: i32,
         r_index: usize,
@@ -2623,7 +2623,7 @@
 
     <span class="kw">pub fn </span>make_mono_admissible(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        result: SliceMut,
+        result: FpSliceMut,
         coeff: u32,
         monomial: <span class="kw-2">&amp;mut </span>AdemBasisElement,
         excess: i32,
@@ -2663,7 +2663,7 @@
     ///  * `leading_degree` - the degree of the squares between 0 and idx (so of length idx + 1)
     </span><span class="kw">fn </span>make_mono_admissible_2(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="kw-2">mut </span>result: SliceMut,
+        <span class="kw-2">mut </span>result: FpSliceMut,
         monomial: <span class="kw-2">&amp;mut </span>AdemBasisElement,
         <span class="kw-2">mut </span>idx: i32,
         <span class="kw-2">mut </span>leading_degree: i32,
@@ -2718,7 +2718,7 @@
 
     <span class="kw">fn </span>make_mono_admissible_generic(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="kw-2">mut </span>result: SliceMut,
+        <span class="kw-2">mut </span>result: FpSliceMut,
         coeff: u32,
         monomial: <span class="kw-2">&amp;mut </span>AdemBasisElement,
         <span class="kw-2">mut </span>idx: i32,

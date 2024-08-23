@@ -109,7 +109,7 @@
 
 </span><span class="kw">use </span>fp::{
     prime::ValidPrime,
-    vector::{Slice, SliceMut},
+    vector::{FpSlice, FpSliceMut},
 };
 
 <span class="kw">use </span><span class="kw">crate</span>::algebra::{Algebra, Bialgebra};
@@ -149,7 +149,7 @@
 
     <span class="kw">fn </span>multiply_basis_elements(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="kw-2">mut </span>result: SliceMut,
+        <span class="kw-2">mut </span>result: FpSliceMut,
         coeff: u32,
         _r_degree: i32,
         _r_idx: usize,
@@ -168,7 +168,7 @@
         <span class="string">"1"</span>.to_string()
     }
 
-    <span class="kw">fn </span>element_to_string(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32, element: Slice) -&gt; String {
+    <span class="kw">fn </span>element_to_string(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32, element: FpSlice) -&gt; String {
         <span class="macro">assert!</span>(degree == <span class="number">0</span>);
         <span class="macro">format!</span>(<span class="string">"{}"</span>, element.entry(<span class="number">0</span>))
     }

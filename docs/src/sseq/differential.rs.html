@@ -182,7 +182,7 @@
 </pre></div><pre class="rust"><code><span class="kw">use </span>fp::{
     matrix::{Matrix, Subspace},
     prime::ValidPrime,
-    vector::{FpVector, Slice, SliceMut},
+    vector::{FpSlice, FpSliceMut, FpVector},
 };
 
 <span class="kw">pub struct </span>Differential {
@@ -221,7 +221,7 @@
     ///  - `source`: The source of the differential
     ///  - `target`: The target of the differential. If `None`, the differential is zero. This
     ///     should be reduced by the known images of earlier differentials.
-    </span><span class="kw">pub fn </span>add(<span class="kw-2">&amp;mut </span><span class="self">self</span>, source: Slice, target: <span class="prelude-ty">Option</span>&lt;Slice&gt;) -&gt; bool {
+    </span><span class="kw">pub fn </span>add(<span class="kw-2">&amp;mut </span><span class="self">self</span>, source: FpSlice, target: <span class="prelude-ty">Option</span>&lt;FpSlice&gt;) -&gt; bool {
         <span class="kw">let </span>source_dim = <span class="self">self</span>.source_dim;
         <span class="kw">let </span>target_dim = <span class="self">self</span>.target_dim;
         <span class="kw">let </span>next_row = <span class="kw-2">&amp;mut </span><span class="self">self</span>.matrix[<span class="self">self</span>.first_empty_row];
@@ -286,7 +286,7 @@
     /// of the differential matrix has zero differential. This may or may not be actually true
     /// (e.g. if we only know d(a + b) = c, it might be that d(a) = c and d(b) = 0, or vice versa,
     /// or neither. Here we assume d(a) = c and d(b) = 0.
-    </span><span class="kw">pub fn </span>evaluate(<span class="kw-2">&amp;</span><span class="self">self</span>, source: Slice, <span class="kw-2">mut </span>target: SliceMut) {
+    </span><span class="kw">pub fn </span>evaluate(<span class="kw-2">&amp;</span><span class="self">self</span>, source: FpSlice, <span class="kw-2">mut </span>target: FpSliceMut) {
         <span class="kw">for </span>(i, c) <span class="kw">in </span>source.iter_nonzero() {
             <span class="kw">let </span>row = <span class="self">self</span>.matrix.pivots()[i];
             <span class="kw">if </span>row &lt; <span class="number">0 </span>{
@@ -315,7 +315,7 @@
     ///
     /// This computes the quasi-inverse from scratch and allocates two matrices, and should not be
     /// used in a hot path.
-    </span><span class="kw">pub fn </span>quasi_inverse(<span class="kw-2">&amp;</span><span class="self">self</span>, result: SliceMut, value: Slice) {
+    </span><span class="kw">pub fn </span>quasi_inverse(<span class="kw-2">&amp;</span><span class="self">self</span>, result: FpSliceMut, value: FpSlice) {
         <span class="kw">let </span><span class="kw-2">mut </span>matrix = Matrix::new(
             <span class="self">self</span>.matrix.prime(),
             <span class="self">self</span>.source_dim,

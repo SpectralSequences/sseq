@@ -238,7 +238,7 @@
 <span class="kw">use </span>auto_impl::auto_impl;
 <span class="kw">use </span>fp::{
     prime::ValidPrime,
-    vector::{Slice, SliceMut},
+    vector::{FpSlice, FpSliceMut},
 };
 <span class="kw">use </span>itertools::Itertools;
 
@@ -285,7 +285,7 @@
     </span><span class="kw">fn </span>dimension(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32) -&gt; usize;
     <span class="kw">fn </span>act_on_basis(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        result: SliceMut,
+        result: FpSliceMut,
         coeff: u32,
         op_degree: i32,
         op_index: usize,
@@ -335,12 +335,12 @@
     /// what generators will be added in degree `t` yet.
     </span><span class="kw">fn </span>act(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="kw-2">mut </span>result: SliceMut,
+        <span class="kw-2">mut </span>result: FpSliceMut,
         coeff: u32,
         op_degree: i32,
         op_index: usize,
         input_degree: i32,
-        input: Slice,
+        input: FpSlice,
     ) {
         <span class="macro">assert!</span>(input.len() &lt;= <span class="self">self</span>.dimension(input_degree));
         <span class="kw">let </span>p = <span class="self">self</span>.prime();
@@ -358,12 +358,12 @@
 
     <span class="kw">fn </span>act_by_element(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="kw-2">mut </span>result: SliceMut,
+        <span class="kw-2">mut </span>result: FpSliceMut,
         coeff: u32,
         op_degree: i32,
-        op: Slice,
+        op: FpSlice,
         input_degree: i32,
-        input: Slice,
+        input: FpSlice,
     ) {
         <span class="macro">assert_eq!</span>(input.len(), <span class="self">self</span>.dimension(input_degree));
         <span class="macro">assert_eq!</span>(op.len(), <span class="self">self</span>.algebra().dimension(op_degree));
@@ -382,10 +382,10 @@
 
     <span class="kw">fn </span>act_by_element_on_basis(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="kw-2">mut </span>result: SliceMut,
+        <span class="kw-2">mut </span>result: FpSliceMut,
         coeff: u32,
         op_degree: i32,
-        op: Slice,
+        op: FpSlice,
         input_degree: i32,
         input_index: usize,
     ) {
@@ -405,7 +405,7 @@
 
     <span class="doccomment">/// Gives the name of an element. The default implementation is derived from
     /// [`Module::basis_element_to_string`] in the obvious way.
-    </span><span class="kw">fn </span>element_to_string(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32, element: Slice) -&gt; String {
+    </span><span class="kw">fn </span>element_to_string(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32, element: FpSlice) -&gt; String {
         <span class="kw">let </span>result = element
             .iter_nonzero()
             .map(|(idx, value)| {
