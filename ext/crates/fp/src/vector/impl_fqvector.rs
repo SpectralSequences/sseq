@@ -1,8 +1,8 @@
 use itertools::Itertools;
 
 use super::{
-    inner::{FpSliceMutP, FpSliceP, FqVector},
-    iter::{FqVectorIteratorP, FqVectorNonZeroIteratorP},
+    inner::{FqSlice, FqSliceMut, FqVector},
+    iter::{FqVectorIterator, FqVectorNonZeroIterator},
 };
 use crate::{
     field::{element::FieldElement, Field},
@@ -55,9 +55,9 @@ impl<F: Field> FqVector<F> {
     }
 
     #[must_use]
-    pub fn slice(&self, start: usize, end: usize) -> FpSliceP<'_, F> {
+    pub fn slice(&self, start: usize, end: usize) -> FqSlice<'_, F> {
         assert!(start <= end && end <= self.len);
-        FpSliceP {
+        FqSlice {
             fq: self.fq,
             limbs: &self.limbs,
             start,
@@ -66,9 +66,9 @@ impl<F: Field> FqVector<F> {
     }
 
     #[must_use]
-    pub fn slice_mut(&mut self, start: usize, end: usize) -> FpSliceMutP<'_, F> {
+    pub fn slice_mut(&mut self, start: usize, end: usize) -> FqSliceMut<'_, F> {
         assert!(start <= end && end <= self.len);
-        FpSliceMutP {
+        FqSliceMut {
             fq: self.fq,
             limbs: &mut self.limbs,
             start,
@@ -78,13 +78,13 @@ impl<F: Field> FqVector<F> {
 
     #[inline]
     #[must_use]
-    pub fn as_slice(&self) -> FpSliceP<'_, F> {
+    pub fn as_slice(&self) -> FqSlice<'_, F> {
         self.into()
     }
 
     #[inline]
     #[must_use]
-    pub fn as_slice_mut(&mut self) -> FpSliceMutP<'_, F> {
+    pub fn as_slice_mut(&mut self) -> FqSliceMut<'_, F> {
         self.into()
     }
 
@@ -100,11 +100,11 @@ impl<F: Field> FqVector<F> {
         self.as_slice_mut().set_entry(index, value);
     }
 
-    pub fn iter(&self) -> FqVectorIteratorP<'_, F> {
+    pub fn iter(&self) -> FqVectorIterator<'_, F> {
         self.as_slice().iter()
     }
 
-    pub fn iter_nonzero(&self) -> FqVectorNonZeroIteratorP<'_, F> {
+    pub fn iter_nonzero(&self) -> FqVectorNonZeroIterator<'_, F> {
         self.as_slice().iter_nonzero()
     }
 

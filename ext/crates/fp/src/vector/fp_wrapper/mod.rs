@@ -21,12 +21,12 @@ use std::{
 use itertools::Itertools;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use super::iter::{FqVectorIteratorP, FqVectorNonZeroIteratorP};
+use super::iter::{FqVectorIterator, FqVectorNonZeroIterator};
 use crate::{
     field::{field_internal::FieldInternal, Fp},
     limb::Limb,
     prime::Prime,
-    vector::inner::{FpSliceMutP, FpSliceP, FqVector},
+    vector::inner::{FqSlice, FqSliceMut, FqVector},
 };
 
 mod helpers;
@@ -52,20 +52,20 @@ dispatch_struct! {
 
 dispatch_struct! {
     #[derive(Debug, Copy, Clone)]
-    pub FpSlice<'a> from FpSliceP
+    pub FpSlice<'a> from FqSlice
 }
 
 dispatch_struct! {
     #[derive(Debug)]
-    pub FpSliceMut<'a> from FpSliceMutP
+    pub FpSliceMut<'a> from FqSliceMut
 }
 
 dispatch_struct! {
-    pub FpVectorIterator<'a> from FqVectorIteratorP
+    pub FpVectorIterator<'a> from FqVectorIterator
 }
 
 dispatch_struct! {
-    pub FpVectorNonZeroIterator<'a> from FqVectorNonZeroIteratorP
+    pub FpVectorNonZeroIterator<'a> from FqVectorNonZeroIterator
 }
 
 impl FpVector {

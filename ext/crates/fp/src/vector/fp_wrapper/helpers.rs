@@ -14,7 +14,7 @@
 
 use itertools::Itertools;
 
-use super::{FpSliceMutP, FpSliceP, FqVector, FqVectorIteratorP, FqVectorNonZeroIteratorP};
+use super::{FqSlice, FqSliceMut, FqVector, FqVectorIterator, FqVectorNonZeroIterator};
 use crate::field::Field;
 
 impl<F: Field> FqVector<F> {
@@ -76,18 +76,18 @@ impl<F: Field> FqVector<F> {
     }
 }
 
-impl<'a, F: Field> FpSliceP<'a, F> {
+impl<'a, F: Field> FqSlice<'a, F> {
     pub(super) fn entry_helper(&self, index: usize) -> F::ElementContainer {
         self.entry(index).val()
     }
 }
 
-impl<'a, F: Field> FpSliceMutP<'a, F> {
+impl<'a, F: Field> FqSliceMut<'a, F> {
     pub(super) fn scale_helper(&mut self, c: F::ElementContainer) {
         self.scale(self.fq.el(c))
     }
 
-    pub(super) fn add_helper(&mut self, other: FpSliceP<F>, c: F::ElementContainer) {
+    pub(super) fn add_helper(&mut self, other: FqSlice<F>, c: F::ElementContainer) {
         self.add(other, self.fq.el(c))
     }
 
@@ -101,7 +101,7 @@ impl<'a, F: Field> FpSliceMutP<'a, F> {
 
     pub(super) fn add_masked_helper(
         &mut self,
-        other: FpSliceP<F>,
+        other: FqSlice<F>,
         c: F::ElementContainer,
         mask: &[usize],
     ) {
@@ -110,7 +110,7 @@ impl<'a, F: Field> FpSliceMutP<'a, F> {
 
     pub(super) fn add_unmasked_helper(
         &mut self,
-        other: FpSliceP<F>,
+        other: FqSlice<F>,
         c: F::ElementContainer,
         mask: &[usize],
     ) {
@@ -121,20 +121,20 @@ impl<'a, F: Field> FpSliceMutP<'a, F> {
         &mut self,
         offset: usize,
         coeff: F::ElementContainer,
-        left: FpSliceP<F>,
-        right: FpSliceP<F>,
+        left: FqSlice<F>,
+        right: FqSlice<F>,
     ) {
         self.add_tensor(offset, self.fq.el(coeff), left, right)
     }
 }
 
-impl<'a, F: Field> FqVectorIteratorP<'a, F> {
+impl<'a, F: Field> FqVectorIterator<'a, F> {
     pub(super) fn next_helper(&mut self) -> Option<F::ElementContainer> {
         self.next().map(|x| x.val())
     }
 }
 
-impl<'a, F: Field> FqVectorNonZeroIteratorP<'a, F> {
+impl<'a, F: Field> FqVectorNonZeroIterator<'a, F> {
     pub(super) fn next_helper(&mut self) -> Option<(usize, F::ElementContainer)> {
         self.next().map(|x| (x.0, x.1.val()))
     }

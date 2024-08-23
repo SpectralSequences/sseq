@@ -1,10 +1,10 @@
-use super::inner::FpSliceP;
+use super::inner::FqSlice;
 use crate::{
     field::{element::FieldElement, Field},
     limb::Limb,
 };
 
-pub struct FqVectorIteratorP<'a, F> {
+pub struct FqVectorIterator<'a, F> {
     fq: F,
     limbs: &'a [Limb],
     bit_length: usize,
@@ -16,8 +16,8 @@ pub struct FqVectorIteratorP<'a, F> {
     counter: usize,
 }
 
-impl<'a, F: Field> FqVectorIteratorP<'a, F> {
-    pub(super) fn new(vec: FpSliceP<'a, F>) -> Self {
+impl<'a, F: Field> FqVectorIterator<'a, F> {
+    pub(super) fn new(vec: FqSlice<'a, F>) -> Self {
         let counter = vec.len();
         let limbs = vec.limbs;
 
@@ -84,7 +84,7 @@ impl<'a, F: Field> FqVectorIteratorP<'a, F> {
     }
 }
 
-impl<'a, F: Field> Iterator for FqVectorIteratorP<'a, F> {
+impl<'a, F: Field> Iterator for FqVectorIterator<'a, F> {
     type Item = FieldElement<F>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -106,7 +106,7 @@ impl<'a, F: Field> Iterator for FqVectorIteratorP<'a, F> {
     }
 }
 
-impl<'a, F: Field> ExactSizeIterator for FqVectorIteratorP<'a, F> {
+impl<'a, F: Field> ExactSizeIterator for FqVectorIterator<'a, F> {
     fn len(&self) -> usize {
         self.counter
     }
@@ -114,7 +114,7 @@ impl<'a, F: Field> ExactSizeIterator for FqVectorIteratorP<'a, F> {
 
 /// Iterator over non-zero entries of an FpVector. This is monomorphized over the ground field for
 /// significant performance gains.
-pub struct FqVectorNonZeroIteratorP<'a, F> {
+pub struct FqVectorNonZeroIterator<'a, F> {
     fq: F,
     limbs: &'a [Limb],
     limb_index: usize,
@@ -124,8 +124,8 @@ pub struct FqVectorNonZeroIteratorP<'a, F> {
     dim: usize,
 }
 
-impl<'a, F: Field> FqVectorNonZeroIteratorP<'a, F> {
-    pub(super) fn new(vec: FpSliceP<'a, F>) -> Self {
+impl<'a, F: Field> FqVectorNonZeroIterator<'a, F> {
+    pub(super) fn new(vec: FqSlice<'a, F>) -> Self {
         let entries_per_limb = vec.fq.entries_per_limb();
 
         let dim = vec.len();
@@ -158,7 +158,7 @@ impl<'a, F: Field> FqVectorNonZeroIteratorP<'a, F> {
     }
 }
 
-impl<'a, F: Field> Iterator for FqVectorNonZeroIteratorP<'a, F> {
+impl<'a, F: Field> Iterator for FqVectorNonZeroIterator<'a, F> {
     type Item = (usize, FieldElement<F>);
 
     fn next(&mut self) -> Option<Self::Item> {
