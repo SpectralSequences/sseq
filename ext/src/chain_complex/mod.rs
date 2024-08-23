@@ -17,7 +17,7 @@ pub use finite_chain_complex::{FiniteAugmentedChainComplex, FiniteChainComplex};
 use fp::{
     matrix::Matrix,
     prime::ValidPrime,
-    vector::{Slice, SliceMut},
+    vector::{FpSlice, FpSliceMut},
 };
 use itertools::Itertools;
 use sseq::coordinates::{Bidegree, BidegreeElement, BidegreeGenerator};
@@ -205,8 +205,8 @@ pub trait ChainComplex: Send + Sync {
     #[must_use]
     fn apply_quasi_inverse<T, S>(&self, results: &mut [T], b: Bidegree, inputs: &[S]) -> bool
     where
-        for<'a> &'a mut T: Into<SliceMut<'a>>,
-        for<'a> &'a S: Into<Slice<'a>>,
+        for<'a> &'a mut T: Into<FpSliceMut<'a>>,
+        for<'a> &'a S: Into<FpSlice<'a>>,
     {
         assert_eq!(results.len(), inputs.len());
         if results.is_empty() {

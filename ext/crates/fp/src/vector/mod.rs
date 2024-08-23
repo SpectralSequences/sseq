@@ -1,9 +1,9 @@
 pub mod inner;
 
 mod fp_wrapper;
+mod impl_fqslice;
+mod impl_fqslicemut;
 mod impl_fqvector;
-mod impl_slicemutp;
-mod impl_slicep;
 mod iter;
 
 pub use fp_wrapper::*;

@@ -12,7 +12,7 @@ use algebra::{
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use fp::{
     matrix::Matrix,
-    vector::{FpVector, SliceMut},
+    vector::{FpSliceMut, FpVector},
 };
 use maybe_rayon::prelude::*;
 use once::OnceBiVec;
@@ -471,7 +471,7 @@ where
     /// Given a chain map $f: C \to C'$ between free chain complexes, apply
     /// $$ \Hom(f, k): \Hom(C', k) \to \Hom(C, k) $$
     /// to the specified generator of $\Hom(C', k)$.
-    pub fn act(&self, mut result: SliceMut, coef: u32, gen: BidegreeGenerator) {
+    pub fn act(&self, mut result: FpSliceMut, coef: u32, gen: BidegreeGenerator) {
         let source = gen.degree() + self.shift;
 
         assert_eq!(

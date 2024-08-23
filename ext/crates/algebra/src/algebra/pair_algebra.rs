@@ -8,7 +8,7 @@
 
 use fp::{
     prime::TWO,
-    vector::{FpVector, Slice, SliceMut},
+    vector::{FpSlice, FpSliceMut, FpVector},
 };
 use rustc_hash::FxHasher;
 
@@ -51,9 +51,9 @@ pub trait PairAlgebra: Algebra {
         result: &mut Self::Element,
         coeff: u32,
         r_degree: i32,
-        r: Slice,
+        r: FpSlice,
         s_degree: i32,
-        s: Slice,
+        s: FpSlice,
     ) {
         if coeff == 0 {
             return;
@@ -68,10 +68,10 @@ pub trait PairAlgebra: Algebra {
     /// Compute $A(r, s)$ and write the result to `result`.
     fn a_multiply(
         &self,
-        result: SliceMut,
+        result: FpSliceMut,
         coeff: u32,
         r_degree: i32,
-        r: Slice,
+        r: FpSlice,
         s_degree: i32,
         s: &Self::Element,
     );
@@ -246,10 +246,10 @@ impl PairAlgebra for MilnorAlgebra {
 
     fn a_multiply(
         &self,
-        mut result: SliceMut,
+        mut result: FpSliceMut,
         coeff: u32,
         r_degree: i32,
-        r: Slice<'_>,
+        r: FpSlice<'_>,
         s_degree: i32,
         s: &Self::Element,
     ) {

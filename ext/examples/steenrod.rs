@@ -194,7 +194,7 @@ mod sum_module {
         Module, ZeroModule,
     };
     use bivec::BiVec;
-    use fp::vector::SliceMut;
+    use fp::vector::FpSliceMut;
     use once::OnceBiVec;
 
     pub struct SumModule<M: Module> {
@@ -278,7 +278,7 @@ mod sum_module {
 
         fn act_on_basis(
             &self,
-            mut result: SliceMut,
+            mut result: FpSliceMut,
             coeff: u32,
             op_degree: i32,
             op_index: usize,
@@ -384,7 +384,7 @@ mod tensor_product_chain_complex {
     use ext::chain_complex::ChainComplex;
     use fp::{
         matrix::AugmentedMatrix,
-        vector::{FpVector, Slice, SliceMut},
+        vector::{FpSlice, FpSliceMut, FpVector},
     };
     use once::{OnceBiVec, OnceVec};
     use sseq::coordinates::Bidegree;
@@ -622,7 +622,7 @@ mod tensor_product_chain_complex {
         /// At the moment, this is off by a sign. However, we only use this for p = 2
         fn apply_to_basis_element(
             &self,
-            mut result: SliceMut,
+            mut result: FpSliceMut,
             coeff: u32,
             degree: i32,
             input_idx: usize,
@@ -689,7 +689,7 @@ mod tensor_product_chain_complex {
                 .extend(degree, |i| self.calculate_quasi_inverse(i));
         }
 
-        fn apply_quasi_inverse(&self, mut result: SliceMut, degree: i32, input: Slice) -> bool {
+        fn apply_quasi_inverse(&self, mut result: FpSliceMut, degree: i32, input: FpSlice) -> bool {
             let qis = &self.quasi_inverses[degree];
             assert_eq!(input.len(), qis.len());
 

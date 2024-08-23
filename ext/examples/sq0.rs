@@ -139,7 +139,7 @@ mod double {
         use algebra::module::{homomorphism::ModuleHomomorphism, Module};
         use fp::{
             matrix::{Matrix, MatrixSliceMut, QuasiInverse, Subspace},
-            vector::{Slice, SliceMut},
+            vector::{FpSlice, FpSliceMut},
         };
 
         use super::DoubleAlgebra;
@@ -191,7 +191,7 @@ mod double {
 
             fn act_on_basis(
                 &self,
-                result: fp::vector::SliceMut,
+                result: fp::vector::FpSliceMut,
                 coeff: u32,
                 op_degree: i32,
                 op_index: usize,
@@ -245,12 +245,12 @@ mod double {
             /// what generators will be added in degree `t` yet.
             fn act(
                 &self,
-                result: SliceMut,
+                result: FpSliceMut,
                 coeff: u32,
                 op_degree: i32,
                 op_index: usize,
                 input_degree: i32,
-                input: Slice,
+                input: FpSlice,
             ) {
                 if op_degree % 2 == 1 {
                     return;
@@ -269,7 +269,7 @@ mod double {
 
             /// Gives the name of an element. The default implementation is derived from
             /// [`Module::basis_element_to_string`] in the obvious way.
-            fn element_to_string(&self, degree: i32, element: Slice) -> String {
+            fn element_to_string(&self, degree: i32, element: FpSlice) -> String {
                 self.inner.element_to_string(degree, element)
             }
         }
@@ -322,7 +322,7 @@ mod double {
 
             fn apply_to_basis_element(
                 &self,
-                result: SliceMut,
+                result: FpSliceMut,
                 coeff: u32,
                 input_degree: i32,
                 input_idx: usize,
@@ -331,7 +331,7 @@ mod double {
                     .apply_to_basis_element(result, coeff, input_degree / 2, input_idx)
             }
 
-            fn apply(&self, result: SliceMut, coeff: u32, input_degree: i32, input: Slice) {
+            fn apply(&self, result: FpSliceMut, coeff: u32, input_degree: i32, input: FpSlice) {
                 if input_degree % 2 == 0 {
                     self.inner.apply(result, coeff, input_degree / 2, input)
                 }
@@ -385,7 +385,7 @@ mod double {
             /// Attempt to apply quasi inverse to the input. Returns whether the operation was
             /// successful. This is required to either always succeed or always fail for each degree.
             #[must_use]
-            fn apply_quasi_inverse(&self, result: SliceMut, degree: i32, input: Slice) -> bool {
+            fn apply_quasi_inverse(&self, result: FpSliceMut, degree: i32, input: FpSlice) -> bool {
                 if degree % 2 == 0 {
                     self.inner.apply_quasi_inverse(result, degree / 2, input)
                 } else {
@@ -483,8 +483,8 @@ mod double {
                 inputs: &[S],
             ) -> bool
             where
-                for<'a> &'a mut T: Into<fp::vector::SliceMut<'a>>,
-                for<'a> &'a S: Into<fp::vector::Slice<'a>>,
+                for<'a> &'a mut T: Into<fp::vector::FpSliceMut<'a>>,
+                for<'a> &'a S: Into<fp::vector::FpSlice<'a>>,
             {
                 if b.t() % 2 == 0 {
                     let halved_b = Bidegree::s_t(b.s(), b.t() / 2);

@@ -2,7 +2,7 @@ use std::fmt;
 
 use fp::{
     prime::{Prime, ValidPrime},
-    vector::{FpVector, SliceMut},
+    vector::{FpSliceMut, FpVector},
 };
 use itertools::Itertools;
 use once::OnceVec;
@@ -315,7 +315,7 @@ impl<A: PolynomialAlgebra> Algebra for A {
 
     fn multiply_basis_elements(
         &self,
-        mut result: SliceMut,
+        mut result: FpSliceMut,
         coeff: u32,
         left_degree: i32,
         left_idx: usize,

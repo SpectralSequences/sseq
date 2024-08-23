@@ -4,7 +4,7 @@ use algebra::{
     module::{Module, MuFreeModule},
     MuAlgebra,
 };
-use fp::vector::{FpVector, Slice};
+use fp::vector::{FpSlice, FpVector};
 
 use crate::coordinates::{Bidegree, BidegreeGenerator};
 
@@ -39,7 +39,7 @@ impl BidegreeElement {
         self.degree.n()
     }
 
-    pub fn vec(&self) -> Slice {
+    pub fn vec(&self) -> FpSlice {
         self.vec.as_slice()
     }
 

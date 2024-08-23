@@ -11,7 +11,7 @@ use super::{QuasiInverse, Subspace};
 use crate::{
     matrix::m4ri::M4riTable,
     prime::{self, ValidPrime},
-    vector::{FpVector, Slice, SliceMut},
+    vector::{FpSlice, FpSliceMut, FpVector},
 };
 
 /// A matrix! In particular, a matrix with values in F_p. The way we store matrices means it is
@@ -276,11 +276,11 @@ impl Matrix {
         }
     }
 
-    pub fn row(&self, row: usize) -> Slice {
+    pub fn row(&self, row: usize) -> FpSlice {
         self.vectors[row].as_slice()
     }
 
-    pub fn row_mut(&mut self, row: usize) -> SliceMut {
+    pub fn row_mut(&mut self, row: usize) -> FpSliceMut {
         self.vectors[row].as_slice_mut()
     }
 }
@@ -898,7 +898,7 @@ impl Matrix {
     /// m.apply(result.as_slice_mut(), 1, v.as_slice());
     /// assert_eq!(result, desired_result);
     /// ```
-    pub fn apply(&self, mut result: SliceMut, coeff: u32, input: Slice) {
+    pub fn apply(&self, mut result: FpSliceMut, coeff: u32, input: FpSlice) {
         debug_assert_eq!(input.len(), self.rows());
         for i in 0..input.len() {
             result.add(
@@ -1033,13 +1033,13 @@ impl<const N: usize> AugmentedMatrix<N> {
         self.slice_mut(0, rows, start, end)
     }
 
-    pub fn row_segment_mut(&mut self, i: usize, start: usize, end: usize) -> SliceMut {
+    pub fn row_segment_mut(&mut self, i: usize, start: usize, end: usize) -> FpSliceMut {
         let start_idx = self.start[start];
         let end_idx = self.end[end];
         self[i].slice_mut(start_idx, end_idx)
     }
 
-    pub fn row_segment(&self, i: usize, start: usize, end: usize) -> Slice {
+    pub fn row_segment(&self, i: usize, start: usize, end: usize) -> FpSlice {
         let start_idx = self.start[start];
         let end_idx = self.end[end];
         self[i].slice(start_idx, end_idx)
@@ -1169,13 +1169,13 @@ impl<'a> MatrixSliceMut<'a> {
         }
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = Slice> + '_ {
+    pub fn iter(&self) -> impl Iterator<Item = FpSlice> + '_ {
         let start = self.col_start;
         let end = self.col_end;
         self.vectors.iter().map(move |x| x.slice(start, end))
     }
 
-    pub fn iter_mut(&mut self) -> impl Iterator<Item = SliceMut> + '_ {
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = FpSliceMut> + '_ {
         let start = self.col_start;
         let end = self.col_end;
         self.vectors
@@ -1185,7 +1185,7 @@ impl<'a> MatrixSliceMut<'a> {
 
     pub fn maybe_par_iter_mut(
         &mut self,
-    ) -> impl MaybeIndexedParallelIterator<Item = SliceMut> + '_ {
+    ) -> impl MaybeIndexedParallelIterator<Item = FpSliceMut> + '_ {
         let start = self.col_start;
         let end = self.col_end;
         self.vectors
@@ -1193,11 +1193,11 @@ impl<'a> MatrixSliceMut<'a> {
             .map(move |x| x.slice_mut(start, end))
     }
 
-    pub fn row(&mut self, row: usize) -> Slice {
+    pub fn row(&mut self, row: usize) -> FpSlice {
         self.vectors[row].slice(self.col_start, self.col_end)
     }
 
-    pub fn row_mut(&mut self, row: usize) -> SliceMut {
+    pub fn row_mut(&mut self, row: usize) -> FpSliceMut {
         self.vectors[row].slice_mut(self.col_start, self.col_end)
     }
 

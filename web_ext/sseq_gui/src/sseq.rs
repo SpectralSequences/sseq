@@ -4,7 +4,7 @@ use bivec::BiVec;
 use fp::{
     matrix::{Matrix, Subquotient},
     prime::ValidPrime,
-    vector::{FpVector, Slice},
+    vector::{FpSlice, FpVector},
 };
 use serde::{Deserialize, Serialize};
 use sseq::{Adams, Sseq, SseqProfile};
@@ -282,7 +282,7 @@ impl<P: SseqProfile> SseqWrapper<P> {
                     .inner
                     .page_data(x, y)
                     .iter()
-                    .map(|x| x.gens().map(Slice::to_owned).collect())
+                    .map(|x| x.gens().map(FpSlice::to_owned).collect())
                     .collect::<Vec<Vec<FpVector>>>(),
             }),
         });
@@ -338,7 +338,7 @@ impl<P: SseqProfile> SseqWrapper<P> {
         r: i32,
         x: i32,
         y: i32,
-        source: Slice,
+        source: FpSlice,
         product_index: usize,
     ) {
         if self.products.is_empty() {

@@ -2,7 +2,7 @@ use super::Subspace;
 use crate::{
     matrix::Matrix,
     prime::ValidPrime,
-    vector::{FpVector, Slice, SliceMut},
+    vector::{FpSlice, FpSliceMut, FpVector},
 };
 
 #[derive(Clone)]
@@ -42,7 +42,7 @@ impl Subquotient {
     /// Given a vector `elt`, project `elt` to the complement and express
     /// as a linear combination of the basis. The result is returned as a list of coefficients.
     /// If elt is nonzero afterwards, this means the vector was not in the subspace to begin with.
-    pub fn reduce(&self, mut elt: SliceMut) -> Vec<u32> {
+    pub fn reduce(&self, mut elt: FpSliceMut) -> Vec<u32> {
         self.quotient.reduce(elt.copy());
         let mut result = Vec::with_capacity(self.gens.ambient_dimension());
         for i in 0..self.gens.ambient_dimension() {
@@ -62,7 +62,7 @@ impl Subquotient {
     }
 
     /// Project the vector onto the complement of the quotient part of the subquotient.
-    pub fn reduce_by_quotient(&self, elt: SliceMut) {
+    pub fn reduce_by_quotient(&self, elt: FpSliceMut) {
         self.quotient.reduce(elt)
     }
 
@@ -76,7 +76,7 @@ impl Subquotient {
         &self.quotient
     }
 
-    pub fn gens(&self) -> impl Iterator<Item = Slice> {
+    pub fn gens(&self) -> impl Iterator<Item = FpSlice> {
         self.gens.iter()
     }
 
@@ -90,7 +90,7 @@ impl Subquotient {
     }
 
     /// The generators of the subspace part of the subquotient.
-    pub fn subspace_gens(&self) -> impl Iterator<Item = Slice> {
+    pub fn subspace_gens(&self) -> impl Iterator<Item = FpSlice> {
         self.gens().chain(self.quotient.iter())
     }
 
@@ -102,7 +102,7 @@ impl Subquotient {
         })
     }
 
-    pub fn quotient(&mut self, elt: Slice) {
+    pub fn quotient(&mut self, elt: FpSlice) {
         self.quotient.add_vector(elt);
 
         self.gens.update_then_row_reduce(|gens_matrix| {
@@ -135,7 +135,7 @@ impl Subquotient {
         self.dimension = 0;
     }
 
-    pub fn add_gen(&mut self, gen: Slice) {
+    pub fn add_gen(&mut self, gen: FpSlice) {
         self.gens.update_then_row_reduce(|gens_matrix| {
             let mut new_row = gens_matrix.row_mut(self.dimension);
             new_row.assign(gen);

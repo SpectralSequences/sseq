@@ -3,7 +3,7 @@ use std::sync::Arc;
 use fp::{
     matrix::{AugmentedMatrix, Matrix, MatrixSliceMut, QuasiInverse, Subspace},
     prime::ValidPrime,
-    vector::{Slice, SliceMut},
+    vector::{FpSlice, FpSliceMut},
 };
 
 use crate::module::Module;
@@ -50,7 +50,7 @@ pub trait ModuleHomomorphism: Send + Sync {
     /// usually the case because of out-of-bounds errors.
     fn apply_to_basis_element(
         &self,
-        result: SliceMut,
+        result: FpSliceMut,
         coeff: u32,
         input_degree: i32,
         input_idx: usize,
@@ -74,7 +74,7 @@ pub trait ModuleHomomorphism: Send + Sync {
     #[allow(unused_variables)]
     fn compute_auxiliary_data_through_degree(&self, degree: i32) {}
 
-    fn apply(&self, mut result: SliceMut, coeff: u32, input_degree: i32, input: Slice) {
+    fn apply(&self, mut result: FpSliceMut, coeff: u32, input_degree: i32, input: FpSlice) {
         let p = self.prime();
         for (i, v) in input.iter_nonzero() {
             self.apply_to_basis_element(result.copy(), (coeff * v) % p, input_degree, i);
@@ -155,7 +155,7 @@ pub trait ModuleHomomorphism: Send + Sync {
     /// Attempt to apply quasi inverse to the input. Returns whether the operation was
     /// successful. This is required to either always succeed or always fail for each degree.
     #[must_use]
-    fn apply_quasi_inverse(&self, result: SliceMut, degree: i32, input: Slice) -> bool {
+    fn apply_quasi_inverse(&self, result: FpSliceMut, degree: i32, input: FpSlice) -> bool {
         if let Some(qi) = self.quasi_inverse(degree) {
             qi.apply(result, 1, input);
             true

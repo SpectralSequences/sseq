@@ -3,7 +3,7 @@ use std::io::{Read, Write};
 use anyhow::anyhow;
 use fp::{
     prime::ValidPrime,
-    vector::{Slice, SliceMut},
+    vector::{FpSlice, FpSliceMut},
 };
 use serde::Deserialize;
 use serde_json::Value;
@@ -250,10 +250,10 @@ impl crate::pair_algebra::PairAlgebra for AdemAlgebra {
 
     fn a_multiply(
         &self,
-        _result: SliceMut,
+        _result: FpSliceMut,
         _coeff: u32,
         _r_degree: i32,
-        _r: Slice,
+        _r: FpSlice,
         _s_degree: i32,
         _s: &Self::Element,
     ) {
@@ -284,8 +284,8 @@ impl crate::pair_algebra::PairAlgebra for SteenrodAlgebra {
         fn p_tilde(&self) -> usize;
         fn new_pair_element(&self, degree: i32) -> Self::Element;
         fn sigma_multiply_basis(&self, result: &mut Self::Element, coeff: u32, r_degree: i32, r_idx: usize, s_degree: i32, s_idx: usize);
-        fn sigma_multiply(&self, result: &mut Self::Element, coeff: u32, r_degree: i32, r: Slice, s_degree: i32, s: Slice);
-        fn a_multiply(&self, result: SliceMut, coeff: u32, r_degree: i32, r: Slice, s_degree: i32, s: &Self::Element);
+        fn sigma_multiply(&self, result: &mut Self::Element, coeff: u32, r_degree: i32, r: FpSlice, s_degree: i32, s: FpSlice);
+        fn a_multiply(&self, result: FpSliceMut, coeff: u32, r_degree: i32, r: FpSlice, s_degree: i32, s: &Self::Element);
         fn element_to_bytes(&self, elt: &Self::Element, buffer: &mut impl Write) -> std::io::Result<()>;
         fn element_from_bytes(&self, degree: i32, buffer: &mut impl Read) -> std::io::Result<Self::Element>;
     }
@@ -302,9 +302,9 @@ impl crate::pair_algebra::PairAlgebra for SteenrodAlgebra {
 impl crate::UnstableAlgebra for SteenrodAlgebra {
     dispatch_steenrod! {
         fn dimension_unstable(&self, degree: i32, excess: i32) -> usize;
-        fn multiply_basis_elements_unstable(&self, result: SliceMut, coeff: u32, r_degree: i32, r_index: usize, s_degree: i32, s_index: usize, excess: i32);
-        fn multiply_basis_element_by_element_unstable(&self, result: SliceMut, coeff: u32, r_degree: i32, r_idx: usize, s_degree: i32, s: Slice, excess: i32);
-        fn multiply_element_by_basis_element_unstable(&self, result: SliceMut, coeff: u32, r_degree: i32, r: Slice, s_degree: i32, s_idx: usize, excess: i32);
-        fn multiply_element_by_element_unstable(&self, result: SliceMut, coeff: u32, r_degree: i32, r: Slice, s_degree: i32, s: Slice, excess: i32);
+        fn multiply_basis_elements_unstable(&self, result: FpSliceMut, coeff: u32, r_degree: i32, r_index: usize, s_degree: i32, s_index: usize, excess: i32);
+        fn multiply_basis_element_by_element_unstable(&self, result: FpSliceMut, coeff: u32, r_degree: i32, r_idx: usize, s_degree: i32, s: FpSlice, excess: i32);
+        fn multiply_element_by_basis_element_unstable(&self, result: FpSliceMut, coeff: u32, r_degree: i32, r: FpSlice, s_degree: i32, s_idx: usize, excess: i32);
+        fn multiply_element_by_element_unstable(&self, result: FpSliceMut, coeff: u32, r_degree: i32, r: FpSlice, s_degree: i32, s: FpSlice, excess: i32);
     }
 }

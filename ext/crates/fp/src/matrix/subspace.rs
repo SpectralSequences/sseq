@@ -9,7 +9,7 @@ use itertools::Itertools;
 use super::Matrix;
 use crate::{
     prime::ValidPrime,
-    vector::{FpVector, Slice, SliceMut},
+    vector::{FpSlice, FpSliceMut, FpVector},
 };
 
 /// A subspace of a vector space.
@@ -95,7 +95,7 @@ impl Subspace {
     ///
     /// # Returns
     /// The new dimension of the subspace
-    pub fn add_vector(&mut self, row: Slice) -> usize {
+    pub fn add_vector(&mut self, row: FpSlice) -> usize {
         let last_row = self.matrix.rows() - 1;
         self.matrix.row_mut(last_row).assign(row);
         self.matrix.row_reduce()
@@ -104,9 +104,9 @@ impl Subspace {
     /// This adds some rows to the subspace
     ///
     /// # Arguments
-    ///  - `rows`: A function that writes the row to be added to the given SliceMut. This returns
+    ///  - `rows`: A function that writes the row to be added to the given FpSliceMut. This returns
     ///     `None` if it runs out of rows, `Some(())` otherwise.
-    pub fn add_vectors(&mut self, mut rows: impl for<'a> FnMut(SliceMut<'a>) -> Option<()>) {
+    pub fn add_vectors(&mut self, mut rows: impl for<'a> FnMut(FpSliceMut<'a>) -> Option<()>) {
         let num_rows = self.matrix.rows();
         'outer: loop {
             let first_row = self.dimension();
@@ -133,7 +133,7 @@ impl Subspace {
 
     /// Projects a vector to a complement of the subspace. The complement is the set of vectors
     /// that have a 0 in every column where there is a pivot in `matrix`
-    pub fn reduce(&self, mut vector: SliceMut) {
+    pub fn reduce(&self, mut vector: FpSliceMut) {
         assert_eq!(vector.as_slice().len(), self.ambient_dimension());
         if self.matrix.rows() == 0 {
             return;
@@ -154,7 +154,7 @@ impl Subspace {
         }
     }
 
-    pub fn contains(&self, vector: Slice) -> bool {
+    pub fn contains(&self, vector: FpSlice) -> bool {
         let mut vector: FpVector = vector.to_owned();
         self.reduce(vector.as_slice_mut());
         vector.is_zero()
@@ -203,7 +203,7 @@ impl Subspace {
         }
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = Slice> {
+    pub fn iter(&self) -> impl Iterator<Item = FpSlice> {
         self.matrix
             .iter()
             .map(FpVector::as_slice)
