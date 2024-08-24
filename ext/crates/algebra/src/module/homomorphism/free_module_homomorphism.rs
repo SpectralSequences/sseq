@@ -204,8 +204,7 @@ where
         self.outputs.push_checked(new_outputs, degree);
     }
 
-    /// A MatrixFpSlice will do but there is no applicaiton of this struct, so it doesn't exist
-    /// yet...
+    /// A MatrixSlice will do but there is no application of this struct, so it doesn't exist yet...
     pub fn add_generators_from_matrix_rows(&self, degree: i32, mut matrix: MatrixSliceMut) {
         let p = self.prime();
         let new_generators = self.source.number_of_gens_in_degree(degree);
