@@ -20,6 +20,7 @@
         ps.black
         ps.pytest
         ps.selenium
+        ps.webdriver-manager
       ]);
 
       commonPackages = [
