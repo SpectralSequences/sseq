@@ -10,32 +10,32 @@ pub use fp_wrapper::*;
 pub use inner::*;
 
 #[cfg(test)]
-mod tests {
+pub(super) mod tests {
     use itertools::Itertools;
     use proptest::prelude::*;
-    use rstest::rstest;
 
-    use super::{inner::FqVector, *};
+    use super::inner::FqVector;
     use crate::{
-        field::{field_internal::FieldInternal, fp::F2, Fp},
+        field::{element::FieldElement, fp::F2, Field},
         limb,
-        prime::{Prime, ValidPrime},
     };
 
-    pub struct VectorDiffEntry {
+    pub const MAX_TEST_VEC_LEN: usize = 10_000;
+
+    pub struct VectorDiffEntry<F: Field> {
         pub index: usize,
-        pub left: u32,
-        pub right: u32,
+        pub left: FieldElement<F>,
+        pub right: FieldElement<F>,
     }
 
-    impl FpVector {
-        pub fn diff_list(&self, other: &[u32]) -> Vec<VectorDiffEntry> {
+    impl<F: Field> FqVector<F> {
+        pub fn diff_list(&self, other: &[FieldElement<F>]) -> Vec<VectorDiffEntry<F>> {
             assert!(self.len() == other.len());
             let mut result = Vec::new();
             #[allow(clippy::needless_range_loop)]
             for index in 0..self.len() {
                 let left = self.entry(index);
-                let right = other[index];
+                let right = other[index].clone();
                 if left != right {
                     result.push(VectorDiffEntry { index, left, right });
                 }
@@ -43,7 +43,7 @@ mod tests {
             result
         }
 
-        pub fn diff_vec(&self, other: &Self) -> Vec<VectorDiffEntry> {
+        pub fn diff_vec(&self, other: &Self) -> Vec<VectorDiffEntry<F>> {
             assert!(self.len() == other.len());
             let mut result = Vec::new();
             for index in 0..self.len() {
@@ -56,7 +56,7 @@ mod tests {
             result
         }
 
-        pub fn format_diff(diff: Vec<VectorDiffEntry>) -> String {
+        pub fn format_diff(diff: Vec<VectorDiffEntry<F>>) -> String {
             let data_formatter =
                 diff.iter()
                     .format_with("\n ", |VectorDiffEntry { index, left, right }, f| {
@@ -65,7 +65,7 @@ mod tests {
             format!("{data_formatter}")
         }
 
-        pub fn assert_list_eq(&self, other: &[u32]) {
+        pub fn assert_list_eq(&self, other: &[FieldElement<F>]) {
             let diff = self.diff_list(other);
             if diff.is_empty() {
                 return;
@@ -92,14 +92,9 @@ mod tests {
         }
     }
 
-    fn random_vector(p: u32, dimension: usize) -> Vec<u32> {
-        let mut rng = rand::thread_rng();
-        (0..dimension).map(|_| rng.gen_range(0..p)).collect()
-    }
-
-    /// An arbitrary (prime, dimension) pair
-    fn arb_prime_dim() -> impl Strategy<Value = (ValidPrime, usize)> {
-        any::<ValidPrime>().prop_flat_map(|p| (Just(p), 0usize..=10_000))
+    /// An arbitrary (field, dimension) pair
+    fn arb_field_dim<F: Field>() -> impl Strategy<Value = (F, usize)> {
+        (any::<F>(), 0..=MAX_TEST_VEC_LEN)
     }
 
     /// The start and end positions of an arbitrary slice of a vector of length `dimension`
@@ -118,153 +113,211 @@ mod tests {
         }
     }
 
-    /// An arbitrary vector of length `dimension` containing values in the range `0..p`. The tests
-    /// take in a `Vec<u32>` instead of an `FpVector` directly because they will usually apply some
-    /// operation on both the `FpVector` and the original `Vec<u32>` and then compare the results.
-    fn arb_vec_u32(p: ValidPrime, dimension: usize) -> impl Strategy<Value = Vec<u32>> {
-        proptest::collection::vec(0..p.as_u32(), dimension)
+    /// An arbitrary vector of length `dimension` containing values in the field `fq`. The tests
+    /// take in a `Vec` instead of an `FqVector` directly because they will usually apply some
+    /// operation on both the `FqVector` and the original `Vec` and then compare the results.
+    fn arb_element_vec<F: Field>(
+        fq: F,
+        dimension: usize,
+    ) -> impl Strategy<Value = Vec<FieldElement<F>>> {
+        proptest::collection::vec(fq.arb_element(), dimension)
     }
 
-    /// A pair of a prime `p` and a vector containing values in the range `0..p`. In other
-    /// words, a vector over Fp.
-    fn arb_vec() -> impl Strategy<Value = (ValidPrime, Vec<u32>)> {
-        arb_prime_dim().prop_flat_map(|(p, dim)| (Just(p), arb_vec_u32(p, dim)))
+    /// A pair of a field `fq` and a vector containing values in that field. In other words, a
+    /// vector over `fq`.
+    pub fn arb_vec<F: Field>() -> impl Strategy<Value = (F, Vec<FieldElement<F>>)> {
+        arb_field_dim().prop_flat_map(|(fq, dim)| (Just(fq), arb_element_vec(fq, dim)))
     }
 
-    /// An Fp vector together with valid slice indices
-    fn arb_vec_and_slice() -> impl Strategy<Value = (ValidPrime, Vec<u32>, (usize, usize))> {
-        arb_prime_dim().prop_flat_map(|(p, dim)| (Just(p), arb_vec_u32(p, dim), arb_slice(dim)))
+    /// An Fq vector together with valid slice indices
+    fn arb_vec_and_slice<F: Field>(
+    ) -> impl Strategy<Value = (F, Vec<FieldElement<F>>, (usize, usize))> {
+        arb_field_dim()
+            .prop_flat_map(|(fq, dim)| (Just(fq), arb_element_vec(fq, dim), arb_slice(dim)))
     }
 
-    /// A pair of Fp vectors of the same length over the same prime
-    fn arb_vec_pair() -> impl Strategy<Value = (ValidPrime, Vec<u32>, Vec<u32>)> {
-        arb_prime_dim()
-            .prop_flat_map(|(p, dim)| (Just(p), arb_vec_u32(p, dim), arb_vec_u32(p, dim)))
+    /// A pair of vectors of the same length over the same field
+    fn arb_vec_pair<F: Field>(
+    ) -> impl Strategy<Value = (F, Vec<FieldElement<F>>, Vec<FieldElement<F>>)> {
+        arb_field_dim().prop_flat_map(|(fq, dim)| {
+            (Just(fq), arb_element_vec(fq, dim), arb_element_vec(fq, dim))
+        })
     }
 
-    /// A pair of Fp vectors of the same length over the same prime, together with valid slice
-    /// indices
-    fn arb_vec_pair_and_slice(
-    ) -> impl Strategy<Value = (ValidPrime, Vec<u32>, Vec<u32>, (usize, usize))> {
-        arb_prime_dim().prop_flat_map(|(p, dim)| {
+    /// A pair of vectors of the same length over the same field, together with valid slice indices
+    fn arb_vec_pair_and_slice<F: Field>() -> impl Strategy<
+        Value = (
+            F,
+            Vec<FieldElement<F>>,
+            Vec<FieldElement<F>>,
+            (usize, usize),
+        ),
+    > {
+        arb_field_dim().prop_flat_map(|(fq, dim)| {
             (
-                Just(p),
-                arb_vec_u32(p, dim),
-                arb_vec_u32(p, dim),
+                Just(fq),
+                arb_element_vec(fq, dim),
+                arb_element_vec(fq, dim),
                 arb_slice(dim),
             )
         })
     }
 
-    /// A pair of Fp vectors of the same length over the same prime, together with a mask (in
-    /// the sense of [`FpVector::add_masked`] and [`FpVector::add_unmasked`])
-    fn arb_vec_pair_and_mask() -> impl Strategy<Value = (ValidPrime, Vec<u32>, Vec<u32>, Vec<usize>)>
-    {
-        any::<ValidPrime>()
-            .prop_flat_map(|p| (Just(p), arb_slice(10_000)))
-            .prop_flat_map(|(p, (dim_small, dim_large))| {
+    /// A pair of vectors of the same length over the same field, together with a mask (in the sense
+    /// of [`FqVector::add_masked`] and [`FqVector::add_unmasked`])
+    fn arb_vec_pair_and_mask<F: Field>(
+    ) -> impl Strategy<Value = (F, Vec<FieldElement<F>>, Vec<FieldElement<F>>, Vec<usize>)> {
+        any::<F>()
+            .prop_flat_map(|fq| (Just(fq), arb_slice(MAX_TEST_VEC_LEN)))
+            .prop_flat_map(|(fq, (dim_small, dim_large))| {
                 (
-                    Just(p),
-                    arb_vec_u32(p, dim_small),
-                    arb_vec_u32(p, dim_large),
+                    Just(fq),
+                    arb_element_vec(fq, dim_small),
+                    arb_element_vec(fq, dim_large),
                     proptest::collection::vec(0..dim_large, dim_small),
                 )
             })
     }
 
+    macro_rules! vector_tests {
+        ($field:ty) => {
     proptest! {
         #![proptest_config(ProptestConfig {
-            cases: 1024,
             max_shrink_time: 30_000,
             max_shrink_iters: 1_000_000,
             .. ProptestConfig::default()
         })]
 
+        // These "incompatible_fields" tests would lend themselves nicely to a macro, but it's
+        // currently impossible to define the necessary macro inside another. See
+        // https://github.com/rust-lang/rust/issues/35853.
         #[test]
-        fn test_bit_length(p in any::<ValidPrime>()) {
-            prop_assert!(Fp::new(p).bit_length() <= 63);
-        }
-
-        #[cfg(feature = "odd-primes")]
-        #[test]
-        fn test_incompatible_primes((p1, p2) in (any::<ValidPrime>(), any::<ValidPrime>())) {
-            prop_assume!(p1 != p2);
-
-            macro_rules! assert_panic {
-                ($function:ident $(, $($args:expr),*)?) => {
-                    let panic = std::panic::catch_unwind(|| {
-                        FpVector::new(p1, 10).$function(&FpVector::new(p2, 10) $(, $($args),*)?)
-                    });
-                    prop_assert!(panic.is_err());
-                };
+        fn test_incompatible_fields_assign((fq1, fq2) in (any::<$field>(), any::<$field>())) {
+            if fq1 != fq2 {
+                let panic = std::panic::catch_unwind(|| {
+                    FqVector::new(fq1, 10).assign(&FqVector::new(fq2, 10))
+                });
+                prop_assert!(panic.is_err());
             }
-
-            assert_panic!(assign);
-            assert_panic!(assign_partial);
-            assert_panic!(add, 1);
-            assert_panic!(add_offset, 1, 5);
-            assert_panic!(add_truncate, 1);
-            assert_panic!(sign_rule);
-            assert_panic!(add_carry, 1, &mut []);
         }
 
         #[test]
-        fn test_serialize((p, v_arr) in arb_vec()) {
+        fn test_incompatible_fields_assign_partial((fq1, fq2) in (any::<$field>(), any::<$field>())) {
+            if fq1 != fq2 {
+                let panic = std::panic::catch_unwind(|| {
+                    FqVector::new(fq1, 10).assign_partial(&FqVector::new(fq2, 10))
+                });
+                prop_assert!(panic.is_err());
+            }
+        }
+
+        #[test]
+        fn test_incompatible_fields_add((fq1, fq2) in (any::<$field>(), any::<$field>())) {
+            if fq1 != fq2 {
+                let panic = std::panic::catch_unwind(|| {
+                    FqVector::new(fq1, 10).add(&FqVector::new(fq2, 10), fq2.one())
+                });
+                prop_assert!(panic.is_err());
+            }
+        }
+
+        #[test]
+        fn test_incompatible_fields_add_offset((fq1, fq2) in (any::<$field>(), any::<$field>())) {
+            if fq1 != fq2 {
+                let panic = std::panic::catch_unwind(|| {
+                    FqVector::new(fq1, 10).add_offset(&FqVector::new(fq2, 10), fq2.one(), 5)
+                });
+                prop_assert!(panic.is_err());
+            }
+        }
+
+        #[test]
+        fn test_incompatible_fields_add_truncate((fq1, fq2) in (any::<$field>(), any::<$field>())) {
+            if fq1 != fq2 {
+                let panic = std::panic::catch_unwind(|| {
+                    FqVector::new(fq1, 10).add_truncate(&FqVector::new(fq2, 10), fq2.one())
+                });
+                prop_assert!(panic.is_err());
+            }
+        }
+
+        #[test]
+        fn test_incompatible_fields_sign_rule((fq1, fq2) in (any::<$field>(), any::<$field>())) {
+            if fq1 != fq2 {
+                let panic = std::panic::catch_unwind(|| {
+                    FqVector::new(fq1, 10).sign_rule(&FqVector::new(fq2, 10))
+                });
+                prop_assert!(panic.is_err());
+            }
+        }
+
+        #[test]
+        fn test_incompatible_fields_add_carry((fq1, fq2) in (any::<$field>(), any::<$field>())) {
+            if fq1 != fq2 {
+                let panic = std::panic::catch_unwind(|| {
+                    FqVector::new(fq1, 10).add_carry::<FqVector<_>>(&FqVector::new(fq2, 10), fq2.one(), &mut [])
+                });
+                prop_assert!(panic.is_err());
+            }
+        }
+
+        #[test]
+        fn test_serialize((fq, v_arr) in arb_vec::<$field>()) {
             use std::io::{Seek, Cursor};
 
-            let v = FpVector::from_slice(p, &v_arr);
+            let v = FqVector::from_slice(fq, &v_arr);
 
             let mut cursor = Cursor::new(Vec::<u8>::new());
             v.to_bytes(&mut cursor).unwrap();
             cursor.rewind().unwrap();
 
-            let w = FpVector::from_bytes(v.prime(), v.len(), &mut cursor).unwrap();
+            let w = FqVector::from_bytes(v.fq(), v.len(), &mut cursor).unwrap();
             v.assert_vec_eq(&w);
         }
 
         #[test]
-        fn test_add((p, mut v_arr, w_arr) in arb_vec_pair()) {
-            let mut v = FpVector::from_slice(p, &v_arr);
-            let w = FpVector::from_slice(p, &w_arr);
+        fn test_add((fq, mut v_arr, w_arr) in arb_vec_pair::<$field>()) {
+            let mut v = FqVector::from_slice(fq, &v_arr);
+            let w = FqVector::from_slice(fq, &w_arr);
 
-            v.add(&w, 1);
+            v.add(&w, fq.one());
 
             for (v_element, w_element) in v_arr.iter_mut().zip(w_arr.iter()) {
-                *v_element = (*v_element + *w_element) % p;
+                *v_element += *w_element;
             }
             v.assert_list_eq(&v_arr);
         }
 
         #[test]
-        fn test_scale((p, mut v_arr, c) in arb_prime_dim().prop_flat_map(|(p, dim)| {
-            (Just(p), arb_vec_u32(p, dim), 0..p.as_u32())
+        fn test_scale((fq, mut v_arr, c) in arb_field_dim::<$field>().prop_flat_map(|(fq, dim)| {
+            (Just(fq), arb_element_vec(fq, dim), fq.arb_element())
         })) {
-            let mut v = FpVector::from_slice(p, &v_arr);
+            let mut v = FqVector::from_slice(fq, &v_arr);
             v.scale(c);
             for entry in &mut v_arr {
-                *entry = p.product(*entry, c);
+                *entry *= c;
             }
             v.assert_list_eq(&v_arr);
         }
 
         #[test]
-        fn test_scale_slice((p, mut v_arr, (slice_start, slice_end), c) in
-            arb_prime_dim().prop_flat_map(|(p, dim)| {
-                (Just(p), arb_vec_u32(p, dim), arb_slice(dim), 0..p.as_u32())
+        fn test_scale_slice((fq, mut v_arr, (slice_start, slice_end), c) in
+            arb_field_dim::<$field>().prop_flat_map(|(fq, dim)| {
+                (Just(fq), arb_element_vec(fq, dim), arb_slice(dim), fq.arb_element())
             })
         ) {
-            let mut v = FpVector::from_slice(p, &v_arr);
+            let mut v = FqVector::from_slice(fq, &v_arr);
             v.slice_mut(slice_start, slice_end).scale(c);
 
             for entry in &mut v_arr[slice_start..slice_end] {
-                *entry = p.product(*entry, c);
+                *entry *= c;
             }
             v.assert_list_eq(&v_arr);
         }
 
         #[test]
-        fn test_entry((p, v_arr) in arb_vec()) {
-            let v = FpVector::from_slice(p, &v_arr);
+        fn test_entry((fq, v_arr) in arb_vec::<$field>()) {
+            let v = FqVector::from_slice(fq, &v_arr);
 
             let mut diffs = Vec::new();
             for (i, val) in v.iter().enumerate() {
@@ -276,8 +329,8 @@ mod tests {
         }
 
         #[test]
-        fn test_entry_slice((p, v_arr, (slice_start, slice_end)) in arb_vec_and_slice()) {
-            let v = FpVector::from_slice(p, &v_arr);
+        fn test_entry_slice((fq, v_arr, (slice_start, slice_end)) in arb_vec_and_slice::<$field>()) {
+            let v = FqVector::from_slice(fq, &v_arr);
             let v = v.slice(slice_start, slice_end);
             println!(
                 "slice_start: {slice_start}, slice_end: {slice_end}, slice: {v}"
@@ -293,8 +346,8 @@ mod tests {
         }
 
         #[test]
-        fn test_set_entry((p, v_arr) in arb_vec()) {
-            let mut v = FpVector::new(p, v_arr.len());
+        fn test_set_entry((fq, v_arr) in arb_vec::<$field>()) {
+            let mut v = FqVector::new(fq, v_arr.len());
 
             for (i, &val) in v_arr.iter().enumerate() {
                 v.set_entry(i, val);
@@ -303,9 +356,9 @@ mod tests {
         }
 
         #[test]
-        fn test_set_entry_slice((p, v_arr, (slice_start, slice_end)) in arb_vec_and_slice()) {
+        fn test_set_entry_slice((fq, v_arr, (slice_start, slice_end)) in arb_vec_and_slice::<$field>()) {
             let dim = v_arr.len();
-            let mut v = FpVector::new(p, dim);
+            let mut v = FqVector::new(fq, dim);
             let mut v = v.slice_mut(slice_start, slice_end);
 
             let v_slice = &v_arr[slice_start..slice_end];
@@ -324,47 +377,47 @@ mod tests {
         }
 
         #[test]
-        fn test_set_to_zero_slice((p, mut v_arr, (slice_start, slice_end)) in arb_vec_and_slice()) {
+        fn test_set_to_zero_slice((fq, mut v_arr, (slice_start, slice_end)) in arb_vec_and_slice::<$field>()) {
             println!("slice_start : {slice_start}, slice_end : {slice_end}");
-            let mut v = FpVector::from_slice(p, &v_arr);
+            let mut v = FqVector::from_slice(fq, &v_arr);
 
             v.slice_mut(slice_start, slice_end).set_to_zero();
             prop_assert!(v.slice(slice_start, slice_end).is_zero());
 
             for entry in &mut v_arr[slice_start..slice_end] {
-                *entry = 0;
+                *entry = fq.zero();
             }
             v.assert_list_eq(&v_arr);
         }
 
         #[test]
-        fn test_add_slice_to_slice((p, mut v_arr, w_arr, (slice_start, slice_end)) in arb_vec_pair_and_slice()) {
-            let mut v = FpVector::from_slice(p, &v_arr);
-            let w = FpVector::from_slice(p, &w_arr);
+        fn test_add_slice_to_slice((fq, mut v_arr, w_arr, (slice_start, slice_end)) in arb_vec_pair_and_slice::<$field>()) {
+            let mut v = FqVector::from_slice(fq, &v_arr);
+            let w = FqVector::from_slice(fq, &w_arr);
 
             v.slice_mut(slice_start, slice_end)
-                .add(w.slice(slice_start, slice_end), 1);
+                .add(w.slice(slice_start, slice_end), fq.one());
 
             for i in slice_start..slice_end {
-                v_arr[i] = (v_arr[i] + w_arr[i]) % p;
+                v_arr[i] += w_arr[i];
             }
             v.assert_list_eq(&v_arr);
         }
 
         #[test]
-        fn test_assign((p, v_arr, w_arr) in arb_vec_pair()) {
-            let mut v = FpVector::from_slice(p, &v_arr);
-            let w = FpVector::from_slice(p, &w_arr);
+        fn test_assign((fq, v_arr, w_arr) in arb_vec_pair::<$field>()) {
+            let mut v = FqVector::from_slice(fq, &v_arr);
+            let w = FqVector::from_slice(fq, &w_arr);
 
             v.assign(&w);
             v.assert_vec_eq(&w);
         }
 
         #[test]
-        fn test_assign_partial((p, v_arr, w_arr) in arb_vec_pair()) {
+        fn test_assign_partial((fq, v_arr, w_arr) in arb_vec_pair::<$field>()) {
             let dim = v_arr.len();
-            let mut v = FpVector::from_slice(p, &v_arr);
-            let w = FpVector::from_slice(p, &w_arr[0..(dim / 2)]);
+            let mut v = FqVector::from_slice(fq, &v_arr);
+            let w = FqVector::from_slice(fq, &w_arr[0..(dim / 2)]);
 
             v.assign_partial(&w);
             prop_assert!(v.slice(dim / 2, dim).is_zero());
@@ -373,9 +426,9 @@ mod tests {
         }
 
         #[test]
-        fn test_assign_slice_to_slice((p, mut v_arr, w_arr, (slice_start, slice_end)) in arb_vec_pair_and_slice()) {
-            let mut v = FpVector::from_slice(p, &v_arr);
-            let w = FpVector::from_slice(p, &w_arr);
+        fn test_assign_slice_to_slice((fq, mut v_arr, w_arr, (slice_start, slice_end)) in arb_vec_pair_and_slice::<$field>()) {
+            let mut v = FqVector::from_slice(fq, &v_arr);
+            let w = FqVector::from_slice(fq, &w_arr);
 
             v.slice_mut(slice_start, slice_end)
                 .assign(w.slice(slice_start, slice_end));
@@ -384,62 +437,60 @@ mod tests {
         }
 
         #[test]
-        fn test_add_shift((p, mut v_arr, w_arr, [(slice1_start, slice1_end), (slice2_start, slice2_end)])
-            in arb_prime_dim().prop_flat_map(|(p, dim)| {
+        fn test_add_shift((fq, mut v_arr, w_arr, [(slice1_start, slice1_end), (slice2_start, slice2_end)])
+            in arb_field_dim::<$field>().prop_flat_map(|(fq, dim)| {
                 (
-                    Just(p),
-                    arb_vec_u32(p, dim),
-                    arb_vec_u32(p, dim),
+                    Just(fq),
+                    arb_element_vec(fq, dim),
+                    arb_element_vec(fq, dim),
                     arb_slice_pair(dim),
                 )
             })
         ) {
-            let mut v = FpVector::from_slice(p, &v_arr);
-            let w = FpVector::from_slice(p, &w_arr);
+            let mut v = FqVector::from_slice(fq, &v_arr);
+            let w = FqVector::from_slice(fq, &w_arr);
 
             v.slice_mut(slice1_start, slice1_end)
-                .add(w.slice(slice2_start, slice2_end), 1);
+                .add(w.slice(slice2_start, slice2_end), fq.one());
 
             for (v_element, w_element) in v_arr[slice1_start..slice1_end]
                 .iter_mut()
                 .zip(w_arr[slice2_start..slice2_end].iter())
             {
-                *v_element = (*v_element + *w_element) % p;
+                *v_element += *w_element;
             }
             v.assert_list_eq(&v_arr);
         }
 
         #[test]
-        fn test_add_masked((p, mut v_small, v_big, mask) in arb_vec_pair_and_mask()) {
-            let mut v = FpVector::from_slice(p, &v_small);
-            let w = FpVector::from_slice(p, &v_big);
+        fn test_add_masked((fq, mut v_small, v_big, mask) in arb_vec_pair_and_mask::<$field>()) {
+            let mut v = FqVector::from_slice(fq, &v_small);
+            let w = FqVector::from_slice(fq, &v_big);
 
-            v.as_slice_mut().add_masked(w.as_slice(), 1, &mask);
+            v.as_slice_mut().add_masked(w.as_slice(), fq.one(), &mask);
 
             for (i, x) in v_small.iter_mut().enumerate() {
                 *x += v_big[mask[i]];
-                *x %= p;
             }
 
             v.assert_list_eq(&v_small);
         }
 
         #[test]
-        fn test_add_unmasked((p, v_small, mut v_big, mask) in arb_vec_pair_and_mask()) {
-            let mut v = FpVector::from_slice(p, &v_big);
-            let w = FpVector::from_slice(p, &v_small);
+        fn test_add_unmasked((fq, v_small, mut v_big, mask) in arb_vec_pair_and_mask::<$field>()) {
+            let mut v = FqVector::from_slice(fq, &v_big);
+            let w = FqVector::from_slice(fq, &v_small);
 
-            v.as_slice_mut().add_unmasked(w.as_slice(), 1, &mask);
+            v.as_slice_mut().add_unmasked(w.as_slice(), fq.one(), &mask);
             for (i, &x) in v_small.iter().enumerate() {
                 v_big[mask[i]] += x;
-                v_big[mask[i]] %= p;
             }
             v.assert_list_eq(&v_big);
         }
 
         #[test]
-        fn test_iterator_slice((p, v_arr, (slice_start, slice_end)) in arb_vec_and_slice()) {
-            let v = FpVector::from_slice(p, &v_arr);
+        fn test_iterator_slice((p, v_arr, (slice_start, slice_end)) in arb_vec_and_slice::<$field>()) {
+            let v = FqVector::from_slice(p, &v_arr);
             let v = v.slice(slice_start, slice_end);
 
             let w = v.iter();
@@ -452,10 +503,10 @@ mod tests {
         }
 
         #[test]
-        fn test_iterator_skip((p, v_arr, num_skip) in arb_prime_dim().prop_flat_map(|(p, dim)| {
-            (Just(p), arb_vec_u32(p, dim), 0..=dim)
+        fn test_iterator_skip((p, v_arr, num_skip) in arb_field_dim::<$field>().prop_flat_map(|(p, dim)| {
+            (Just(p), arb_element_vec(p, dim), 0..=dim)
         })) {
-            let v = FpVector::from_slice(p, &v_arr);
+            let v = FqVector::from_slice(p, &v_arr);
 
             let mut w = v.iter();
             w.skip_n(num_skip);
@@ -469,8 +520,8 @@ mod tests {
         }
 
         #[test]
-        fn test_iterator((p, v_arr) in arb_vec()) {
-            let v = FpVector::from_slice(p, &v_arr);
+        fn test_iterator((p, v_arr) in arb_vec::<$field>()) {
+            let v = FqVector::from_slice(p, &v_arr);
 
             let w = v.iter();
             let mut counter = 0;
@@ -482,16 +533,16 @@ mod tests {
         }
 
         #[test]
-        fn test_iter_nonzero_empty((p, dimension) in arb_prime_dim()) {
-            let v = FpVector::new(p, dimension);
+        fn test_iter_nonzero_empty((p, dimension) in arb_field_dim::<$field>()) {
+            let v = FqVector::new(p, dimension);
             prop_assert_eq!(v.iter_nonzero().next(), None);
         }
 
         #[test]
-        fn test_iter_nonzero((p, v_arr, (slice_start, slice_end)) in arb_vec_and_slice()) {
+        fn test_iter_nonzero((fq, v_arr, (slice_start, slice_end)) in arb_vec_and_slice::<$field>()) {
             use std::fmt::Write;
 
-            let v = FpVector::from_slice(p, &v_arr);
+            let v = FqVector::from_slice(fq, &v_arr);
 
             println!("v: {v}");
             println!("v_arr: {v_arr:?}");
@@ -500,7 +551,7 @@ mod tests {
                 .iter()
                 .copied()
                 .enumerate()
-                .filter(|&(_, x)| x != 0)
+                .filter(|&(_, x)| x != fq.zero())
                 .collect();
 
             let mut i = 0;
@@ -534,84 +585,48 @@ mod tests {
             prop_assert!(diffs_str.is_empty(), "{}", diffs_str);
         }
     }
-
-    #[rstest]
-    #[trace]
-    fn test_add_carry(#[values(2)] p: u32, #[values(10, 20, 70, 100, 1000)] dim: usize) {
-        use std::fmt::Write;
-
-        let p = ValidPrime::new(p);
-        const E_MAX: usize = 4;
-        let pto_the_e_max = (p * p * p * p) * p;
-        let mut v = Vec::with_capacity(E_MAX + 1);
-        let mut w = Vec::with_capacity(E_MAX + 1);
-        for _ in 0..=E_MAX {
-            v.push(FpVector::new(p, dim));
-            w.push(FpVector::new(p, dim));
-        }
-        let v_arr = random_vector(pto_the_e_max, dim);
-        let w_arr = random_vector(pto_the_e_max, dim);
-        for i in 0..dim {
-            let mut ev = v_arr[i];
-            let mut ew = w_arr[i];
-            for e in 0..=E_MAX {
-                v[e].set_entry(i, ev % p);
-                w[e].set_entry(i, ew % p);
-                ev /= p;
-                ew /= p;
-            }
-        }
-
-        println!("in  : {v_arr:?}");
-        for (e, val) in v.iter().enumerate() {
-            println!("in {e}: {val}");
-        }
-        println!();
-
-        println!("in  : {w_arr:?}");
-        for (e, val) in w.iter().enumerate() {
-            println!("in {e}: {val}");
-        }
-        println!();
-
-        for e in 0..=E_MAX {
-            let (first, rest) = v[e..].split_at_mut(1);
-            first[0].add_carry(&w[e], 1, rest);
-        }
-
-        let mut vec_result = vec![0; dim];
-        for (i, entry) in vec_result.iter_mut().enumerate() {
-            for e in (0..=E_MAX).rev() {
-                *entry *= p;
-                *entry += v[e].entry(i);
-            }
-        }
-
-        for (e, val) in v.iter().enumerate() {
-            println!("out{e}: {val}");
-        }
-        println!();
-
-        let mut comparison_result = vec![0; dim];
-        for i in 0..dim {
-            comparison_result[i] = (v_arr[i] + w_arr[i]) % pto_the_e_max;
-        }
-        println!("out : {comparison_result:?}");
-
-        let mut diffs = Vec::new();
-        let mut diffs_str = String::new();
-        for i in 0..dim {
-            if vec_result[i] != comparison_result[i] {
-                diffs.push((i, comparison_result[i], vec_result[i]));
-                let _ = write!(
-                    diffs_str,
-                    "\nIn position {} expected {} got {}. v[i] = {}, w[i] = {}.",
-                    i, comparison_result[i], vec_result[i], v_arr[i], w_arr[i]
-                );
-            }
-        }
-        assert!(diffs.is_empty(), "{}", diffs_str);
+};
     }
+
+    /// For a given field type generic over a prime type, and a given prime type, run our tests for
+    /// vectors over that field.
+    macro_rules! test_prime {
+        ($fq:tt, $p:tt) => {
+            paste::paste! {
+                mod [<$p:lower>] {
+                    use super::*;
+                    use crate::prime::$p;
+
+                    vector_tests!($fq<$p>);
+                }
+            }
+        };
+    }
+
+    // For a given field type generic over a prime type, run our tests for it over P2, P3, P5, P7,
+    // as well as ValidPrime. Note that this macro makes assumptions about the path to the field
+    // type within the crate.
+    macro_rules! test_field {
+        ($fq:tt) => {
+            paste::paste! {
+                mod [<$fq:lower>] {
+                    use super::*;
+                    use crate::field::[<$fq:lower>]::$fq;
+
+                    test_prime!($fq, ValidPrime);
+                    test_prime!($fq, P2);
+                    cfg_if::cfg_if! { if #[cfg(feature = "odd-primes")] {
+                        test_prime!($fq, P3);
+                        test_prime!($fq, P5);
+                        test_prime!($fq, P7);
+                    }}
+                }
+            }
+        };
+    }
+
+    test_field!(Fp);
+    test_field!(SmallFq);
 
     #[test]
     fn test_sign_rule_limb() {

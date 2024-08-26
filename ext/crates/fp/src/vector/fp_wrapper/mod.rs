@@ -15,7 +15,6 @@
 use std::{
     convert::TryInto,
     io::{Read, Write},
-    mem::size_of,
 };
 
 use itertools::Itertools;
@@ -104,6 +103,10 @@ impl FpVector {
 
         pub fn new<P: Prime>(p: P, len: usize) -> (from FqVector);
         pub fn new_with_capacity<P: Prime>(p: P, len: usize, capacity: usize) -> (from FqVector);
+
+        pub fn update_from_bytes(&mut self, data: &mut impl Read) -> (std::io::Result<()>);
+        pub fn from_bytes<P: Prime>(p: P, len: usize, data: &mut impl Read) -> (from io FqVector);
+        pub fn to_bytes(&self, buffer: &mut impl Write) -> (std::io::Result<()>);
     }
 
     pub fn from_slice<P: Prime>(p: P, slice: &[u32]) -> Self {
@@ -120,53 +123,6 @@ impl FpVector {
     // Convenient for some matrix methods
     pub(crate) fn padded_len(p: ValidPrime, len: usize) -> usize {
         Self::num_limbs(p, len) * Fp::new(p).entries_per_limb()
-    }
-
-    pub fn update_from_bytes(&mut self, data: &mut impl Read) -> std::io::Result<()> {
-        let limbs = self.limbs_mut();
-
-        if cfg!(target_endian = "little") {
-            let num_bytes = std::mem::size_of_val(limbs);
-            unsafe {
-                let buf: &mut [u8] =
-                    std::slice::from_raw_parts_mut(limbs.as_mut_ptr() as *mut u8, num_bytes);
-                data.read_exact(buf).unwrap();
-            }
-        } else {
-            for entry in limbs {
-                let mut bytes: [u8; size_of::<Limb>()] = [0; size_of::<Limb>()];
-                data.read_exact(&mut bytes)?;
-                *entry = Limb::from_le_bytes(bytes);
-            }
-        };
-        Ok(())
-    }
-
-    pub fn from_bytes(p: ValidPrime, len: usize, data: &mut impl Read) -> std::io::Result<Self> {
-        let mut v = Self::new(p, len);
-        v.update_from_bytes(data)?;
-        Ok(v)
-    }
-
-    pub fn to_bytes(&self, buffer: &mut impl Write) -> std::io::Result<()> {
-        // self.limbs is allowed to have more limbs than necessary, but we only save the
-        // necessary ones.
-        let num_limbs = Self::num_limbs(self.prime(), self.len());
-
-        if cfg!(target_endian = "little") {
-            let num_bytes = num_limbs * size_of::<Limb>();
-            unsafe {
-                let buf: &[u8] =
-                    std::slice::from_raw_parts_mut(self.limbs().as_ptr() as *mut u8, num_bytes);
-                buffer.write_all(buf)?;
-            }
-        } else {
-            for limb in &self.limbs()[0..num_limbs] {
-                let bytes = limb.to_le_bytes();
-                buffer.write_all(&bytes)?;
-            }
-        }
-        Ok(())
     }
 }
 
@@ -321,5 +277,96 @@ impl<'a> From<&'a FpVector> for FpSlice<'a> {
 impl<'a> From<&'a mut FpVector> for FpSliceMut<'a> {
     fn from(v: &'a mut FpVector) -> Self {
         v.as_slice_mut()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use rand::Rng;
+    use rstest::rstest;
+
+    use crate::{prime::ValidPrime, vector::FpVector};
+
+    fn random_vector(p: u32, dimension: usize) -> Vec<u32> {
+        let mut rng = rand::thread_rng();
+        (0..dimension).map(|_| rng.gen_range(0..p)).collect()
+    }
+
+    #[rstest]
+    #[trace]
+    fn test_add_carry(#[values(2)] p: u32, #[values(10, 20, 70, 100, 1000)] dim: usize) {
+        use std::fmt::Write;
+
+        let p = ValidPrime::new(p);
+        const E_MAX: usize = 4;
+        let pto_the_e_max = (p * p * p * p) * p;
+        let mut v = Vec::with_capacity(E_MAX + 1);
+        let mut w = Vec::with_capacity(E_MAX + 1);
+        for _ in 0..=E_MAX {
+            v.push(FpVector::new(p, dim));
+            w.push(FpVector::new(p, dim));
+        }
+        let v_arr = random_vector(pto_the_e_max, dim);
+        let w_arr = random_vector(pto_the_e_max, dim);
+        for i in 0..dim {
+            let mut ev = v_arr[i];
+            let mut ew = w_arr[i];
+            for e in 0..=E_MAX {
+                v[e].set_entry(i, ev % p);
+                w[e].set_entry(i, ew % p);
+                ev /= p;
+                ew /= p;
+            }
+        }
+
+        println!("in  : {v_arr:?}");
+        for (e, val) in v.iter().enumerate() {
+            println!("in {e}: {val}");
+        }
+        println!();
+
+        println!("in  : {w_arr:?}");
+        for (e, val) in w.iter().enumerate() {
+            println!("in {e}: {val}");
+        }
+        println!();
+
+        for e in 0..=E_MAX {
+            let (first, rest) = v[e..].split_at_mut(1);
+            first[0].add_carry(&w[e], 1, rest);
+        }
+
+        let mut vec_result = vec![0; dim];
+        for (i, entry) in vec_result.iter_mut().enumerate() {
+            for e in (0..=E_MAX).rev() {
+                *entry *= p;
+                *entry += v[e].entry(i);
+            }
+        }
+
+        for (e, val) in v.iter().enumerate() {
+            println!("out{e}: {val}");
+        }
+        println!();
+
+        let mut comparison_result = vec![0; dim];
+        for i in 0..dim {
+            comparison_result[i] = (v_arr[i] + w_arr[i]) % pto_the_e_max;
+        }
+        println!("out : {comparison_result:?}");
+
+        let mut diffs = Vec::new();
+        let mut diffs_str = String::new();
+        for i in 0..dim {
+            if vec_result[i] != comparison_result[i] {
+                diffs.push((i, comparison_result[i], vec_result[i]));
+                let _ = write!(
+                    diffs_str,
+                    "\nIn position {} expected {} got {}. v[i] = {}, w[i] = {}.",
+                    i, comparison_result[i], vec_result[i], v_arr[i], w_arr[i]
+                );
+            }
+        }
+        assert!(diffs.is_empty(), "{}", diffs_str);
     }
 }

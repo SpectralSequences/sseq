@@ -40,6 +40,10 @@ impl<F: FieldInternal> FieldElement<F> {
         Self { field, value }
     }
 
+    pub fn field(&self) -> F {
+        self.field
+    }
+
     pub(crate) fn val(self) -> F::ElementContainer {
         self.value
     }

@@ -107,6 +107,13 @@ macro_rules! dispatch_vector {
             Self($fq_name::$method(F2, $($arg),*))
         }
         dispatch_vector!{$($tail)*}
+    };
+    // Special-case update_from_bytes
+    ($vis:vis fn $method:ident <P: Prime> (p: P $(, $arg:ident: $ty:ty )*) -> (from io $fq_name:tt); $($tail:tt)*) => {
+        $vis fn $method<P: Prime>(_p: P, $($arg: $ty),*) -> std::io::Result<Self> {
+            Ok(Self($fq_name::$method(F2, $($arg),*)?))
+        }
+        dispatch_vector!{$($tail)*}
     }
 }
 
