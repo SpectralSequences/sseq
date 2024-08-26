@@ -236,6 +236,8 @@
 <a href="#211" id="211">211</a>
 <a href="#212" id="212">212</a>
 <a href="#213" id="213">213</a>
+<a href="#214" id="214">214</a>
+<a href="#215" id="215">215</a>
 </pre></div><pre class="rust"><code><span class="comment">// According to
 // https://doc.rust-lang.org/stable/rustc/lints/listing/warn-by-default.html#private-interfaces:
 //
@@ -284,7 +286,9 @@
 /// that packages both a field and one of its elements, and this struct will be how we expose field
 /// operations to the outside world.
 </span><span class="attr">#[allow(private_bounds)]
-</span><span class="kw">pub trait </span>FieldInternal: Copy + PartialEq + Eq + Hash + Sized + <span class="kw">crate</span>::MaybeArbitrary&lt;()&gt; {
+</span><span class="kw">pub trait </span>FieldInternal:
+    std::fmt::Debug + Copy + PartialEq + Eq + Hash + Sized + <span class="kw">crate</span>::MaybeArbitrary&lt;()&gt;
+{
     <span class="doccomment">/// The internal representation of a field element.
     </span><span class="kw">type </span>ElementContainer: FieldElementContainer;
 

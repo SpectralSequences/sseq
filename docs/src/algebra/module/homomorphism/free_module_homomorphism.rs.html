@@ -321,7 +321,6 @@
 <a href="#296" id="296">296</a>
 <a href="#297" id="297">297</a>
 <a href="#298" id="298">298</a>
-<a href="#299" id="299">299</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>fp::{
@@ -528,8 +527,7 @@
         <span class="self">self</span>.outputs.push_checked(new_outputs, degree);
     }
 
-    <span class="doccomment">/// A MatrixFpSlice will do but there is no applicaiton of this struct, so it doesn't exist
-    /// yet...
+    <span class="doccomment">/// A MatrixSlice will do but there is no application of this struct, so it doesn't exist yet...
     </span><span class="kw">pub fn </span>add_generators_from_matrix_rows(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32, <span class="kw-2">mut </span>matrix: MatrixSliceMut) {
         <span class="kw">let </span>p = <span class="self">self</span>.prime();
         <span class="kw">let </span>new_generators = <span class="self">self</span>.source.number_of_gens_in_degree(degree);

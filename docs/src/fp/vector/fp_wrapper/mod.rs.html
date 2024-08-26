@@ -348,6 +348,53 @@
 <a href="#323" id="323">323</a>
 <a href="#324" id="324">324</a>
 <a href="#325" id="325">325</a>
+<a href="#326" id="326">326</a>
+<a href="#327" id="327">327</a>
+<a href="#328" id="328">328</a>
+<a href="#329" id="329">329</a>
+<a href="#330" id="330">330</a>
+<a href="#331" id="331">331</a>
+<a href="#332" id="332">332</a>
+<a href="#333" id="333">333</a>
+<a href="#334" id="334">334</a>
+<a href="#335" id="335">335</a>
+<a href="#336" id="336">336</a>
+<a href="#337" id="337">337</a>
+<a href="#338" id="338">338</a>
+<a href="#339" id="339">339</a>
+<a href="#340" id="340">340</a>
+<a href="#341" id="341">341</a>
+<a href="#342" id="342">342</a>
+<a href="#343" id="343">343</a>
+<a href="#344" id="344">344</a>
+<a href="#345" id="345">345</a>
+<a href="#346" id="346">346</a>
+<a href="#347" id="347">347</a>
+<a href="#348" id="348">348</a>
+<a href="#349" id="349">349</a>
+<a href="#350" id="350">350</a>
+<a href="#351" id="351">351</a>
+<a href="#352" id="352">352</a>
+<a href="#353" id="353">353</a>
+<a href="#354" id="354">354</a>
+<a href="#355" id="355">355</a>
+<a href="#356" id="356">356</a>
+<a href="#357" id="357">357</a>
+<a href="#358" id="358">358</a>
+<a href="#359" id="359">359</a>
+<a href="#360" id="360">360</a>
+<a href="#361" id="361">361</a>
+<a href="#362" id="362">362</a>
+<a href="#363" id="363">363</a>
+<a href="#364" id="364">364</a>
+<a href="#365" id="365">365</a>
+<a href="#366" id="366">366</a>
+<a href="#367" id="367">367</a>
+<a href="#368" id="368">368</a>
+<a href="#369" id="369">369</a>
+<a href="#370" id="370">370</a>
+<a href="#371" id="371">371</a>
+<a href="#372" id="372">372</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! This module provides convenience wrappers around the contents of [`crate::vector::inner`] in the
 //! special case where the field is a prime field. The main purpose is to put [`FqVector`] for
 //! different fields `Fp&lt;P&gt;` into a single enum, and to simplify scalars to just `u32`s instead of
@@ -365,7 +412,6 @@
 </span><span class="kw">use </span>std::{
     convert::TryInto,
     io::{Read, Write},
-    mem::size_of,
 };
 
 <span class="kw">use </span>itertools::Itertools;
@@ -454,6 +500,10 @@
 
         <span class="kw">pub fn </span>new&lt;P: Prime&gt;(p: P, len: usize) -&gt; (from FqVector);
         <span class="kw">pub fn </span>new_with_capacity&lt;P: Prime&gt;(p: P, len: usize, capacity: usize) -&gt; (from FqVector);
+
+        <span class="kw">pub fn </span>update_from_bytes(<span class="kw-2">&amp;mut </span><span class="self">self</span>, data: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Read) -&gt; (std::io::Result&lt;()&gt;);
+        <span class="kw">pub fn </span>from_bytes&lt;P: Prime&gt;(p: P, len: usize, data: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Read) -&gt; (from io FqVector);
+        <span class="kw">pub fn </span>to_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>, buffer: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Write) -&gt; (std::io::Result&lt;()&gt;);
     }
 
     <span class="kw">pub fn </span>from_slice&lt;P: Prime&gt;(p: P, slice: <span class="kw-2">&amp;</span>[u32]) -&gt; <span class="self">Self </span>{
@@ -470,53 +520,6 @@
     <span class="comment">// Convenient for some matrix methods
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>padded_len(p: ValidPrime, len: usize) -&gt; usize {
         <span class="self">Self</span>::num_limbs(p, len) * Fp::new(p).entries_per_limb()
-    }
-
-    <span class="kw">pub fn </span>update_from_bytes(<span class="kw-2">&amp;mut </span><span class="self">self</span>, data: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Read) -&gt; std::io::Result&lt;()&gt; {
-        <span class="kw">let </span>limbs = <span class="self">self</span>.limbs_mut();
-
-        <span class="kw">if </span><span class="macro">cfg!</span>(target_endian = <span class="string">"little"</span>) {
-            <span class="kw">let </span>num_bytes = std::mem::size_of_val(limbs);
-            <span class="kw">unsafe </span>{
-                <span class="kw">let </span>buf: <span class="kw-2">&amp;mut </span>[u8] =
-                    std::slice::from_raw_parts_mut(limbs.as_mut_ptr() <span class="kw">as </span><span class="kw-2">*mut </span>u8, num_bytes);
-                data.read_exact(buf).unwrap();
-            }
-        } <span class="kw">else </span>{
-            <span class="kw">for </span>entry <span class="kw">in </span>limbs {
-                <span class="kw">let </span><span class="kw-2">mut </span>bytes: [u8; size_of::&lt;Limb&gt;()] = [<span class="number">0</span>; size_of::&lt;Limb&gt;()];
-                data.read_exact(<span class="kw-2">&amp;mut </span>bytes)<span class="question-mark">?</span>;
-                <span class="kw-2">*</span>entry = Limb::from_le_bytes(bytes);
-            }
-        };
-        <span class="prelude-val">Ok</span>(())
-    }
-
-    <span class="kw">pub fn </span>from_bytes(p: ValidPrime, len: usize, data: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Read) -&gt; std::io::Result&lt;<span class="self">Self</span>&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>v = <span class="self">Self</span>::new(p, len);
-        v.update_from_bytes(data)<span class="question-mark">?</span>;
-        <span class="prelude-val">Ok</span>(v)
-    }
-
-    <span class="kw">pub fn </span>to_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>, buffer: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Write) -&gt; std::io::Result&lt;()&gt; {
-        <span class="comment">// self.limbs is allowed to have more limbs than necessary, but we only save the
-        // necessary ones.
-        </span><span class="kw">let </span>num_limbs = <span class="self">Self</span>::num_limbs(<span class="self">self</span>.prime(), <span class="self">self</span>.len());
-
-        <span class="kw">if </span><span class="macro">cfg!</span>(target_endian = <span class="string">"little"</span>) {
-            <span class="kw">let </span>num_bytes = num_limbs * size_of::&lt;Limb&gt;();
-            <span class="kw">unsafe </span>{
-                <span class="kw">let </span>buf: <span class="kw-2">&amp;</span>[u8] =
-                    std::slice::from_raw_parts_mut(<span class="self">self</span>.limbs().as_ptr() <span class="kw">as </span><span class="kw-2">*mut </span>u8, num_bytes);
-                buffer.write_all(buf)<span class="question-mark">?</span>;
-            }
-        } <span class="kw">else </span>{
-            <span class="kw">for </span>limb <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.limbs()[<span class="number">0</span>..num_limbs] {
-                <span class="kw">let </span>bytes = limb.to_le_bytes();
-                buffer.write_all(<span class="kw-2">&amp;</span>bytes)<span class="question-mark">?</span>;
-            }
-        }
-        <span class="prelude-val">Ok</span>(())
     }
 }
 
@@ -671,6 +674,97 @@
 <span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; From&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>FpVector&gt; <span class="kw">for </span>FpSliceMut&lt;<span class="lifetime">'a</span>&gt; {
     <span class="kw">fn </span>from(v: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>FpVector) -&gt; <span class="self">Self </span>{
         v.as_slice_mut()
+    }
+}
+
+<span class="attr">#[cfg(test)]
+</span><span class="kw">mod </span>tests {
+    <span class="kw">use </span>rand::Rng;
+    <span class="kw">use </span>rstest::rstest;
+
+    <span class="kw">use crate</span>::{prime::ValidPrime, vector::FpVector};
+
+    <span class="kw">fn </span>random_vector(p: u32, dimension: usize) -&gt; Vec&lt;u32&gt; {
+        <span class="kw">let </span><span class="kw-2">mut </span>rng = rand::thread_rng();
+        (<span class="number">0</span>..dimension).map(|<span class="kw">_</span>| rng.gen_range(<span class="number">0</span>..p)).collect()
+    }
+
+    <span class="attr">#[rstest]
+    #[trace]
+    </span><span class="kw">fn </span>test_add_carry(<span class="attr">#[values(<span class="number">2</span>)] </span>p: u32, <span class="attr">#[values(<span class="number">10</span>, <span class="number">20</span>, <span class="number">70</span>, <span class="number">100</span>, <span class="number">1000</span>)] </span>dim: usize) {
+        <span class="kw">use </span>std::fmt::Write;
+
+        <span class="kw">let </span>p = ValidPrime::new(p);
+        <span class="kw">const </span>E_MAX: usize = <span class="number">4</span>;
+        <span class="kw">let </span>pto_the_e_max = (p * p * p * p) * p;
+        <span class="kw">let </span><span class="kw-2">mut </span>v = Vec::with_capacity(E_MAX + <span class="number">1</span>);
+        <span class="kw">let </span><span class="kw-2">mut </span>w = Vec::with_capacity(E_MAX + <span class="number">1</span>);
+        <span class="kw">for _ in </span><span class="number">0</span>..=E_MAX {
+            v.push(FpVector::new(p, dim));
+            w.push(FpVector::new(p, dim));
+        }
+        <span class="kw">let </span>v_arr = random_vector(pto_the_e_max, dim);
+        <span class="kw">let </span>w_arr = random_vector(pto_the_e_max, dim);
+        <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..dim {
+            <span class="kw">let </span><span class="kw-2">mut </span>ev = v_arr[i];
+            <span class="kw">let </span><span class="kw-2">mut </span>ew = w_arr[i];
+            <span class="kw">for </span>e <span class="kw">in </span><span class="number">0</span>..=E_MAX {
+                v[e].set_entry(i, ev % p);
+                w[e].set_entry(i, ew % p);
+                ev /= p;
+                ew /= p;
+            }
+        }
+
+        <span class="macro">println!</span>(<span class="string">"in  : {v_arr:?}"</span>);
+        <span class="kw">for </span>(e, val) <span class="kw">in </span>v.iter().enumerate() {
+            <span class="macro">println!</span>(<span class="string">"in {e}: {val}"</span>);
+        }
+        <span class="macro">println!</span>();
+
+        <span class="macro">println!</span>(<span class="string">"in  : {w_arr:?}"</span>);
+        <span class="kw">for </span>(e, val) <span class="kw">in </span>w.iter().enumerate() {
+            <span class="macro">println!</span>(<span class="string">"in {e}: {val}"</span>);
+        }
+        <span class="macro">println!</span>();
+
+        <span class="kw">for </span>e <span class="kw">in </span><span class="number">0</span>..=E_MAX {
+            <span class="kw">let </span>(first, rest) = v[e..].split_at_mut(<span class="number">1</span>);
+            first[<span class="number">0</span>].add_carry(<span class="kw-2">&amp;</span>w[e], <span class="number">1</span>, rest);
+        }
+
+        <span class="kw">let </span><span class="kw-2">mut </span>vec_result = <span class="macro">vec!</span>[<span class="number">0</span>; dim];
+        <span class="kw">for </span>(i, entry) <span class="kw">in </span>vec_result.iter_mut().enumerate() {
+            <span class="kw">for </span>e <span class="kw">in </span>(<span class="number">0</span>..=E_MAX).rev() {
+                <span class="kw-2">*</span>entry <span class="kw-2">*</span>= p;
+                <span class="kw-2">*</span>entry += v[e].entry(i);
+            }
+        }
+
+        <span class="kw">for </span>(e, val) <span class="kw">in </span>v.iter().enumerate() {
+            <span class="macro">println!</span>(<span class="string">"out{e}: {val}"</span>);
+        }
+        <span class="macro">println!</span>();
+
+        <span class="kw">let </span><span class="kw-2">mut </span>comparison_result = <span class="macro">vec!</span>[<span class="number">0</span>; dim];
+        <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..dim {
+            comparison_result[i] = (v_arr[i] + w_arr[i]) % pto_the_e_max;
+        }
+        <span class="macro">println!</span>(<span class="string">"out : {comparison_result:?}"</span>);
+
+        <span class="kw">let </span><span class="kw-2">mut </span>diffs = Vec::new();
+        <span class="kw">let </span><span class="kw-2">mut </span>diffs_str = String::new();
+        <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..dim {
+            <span class="kw">if </span>vec_result[i] != comparison_result[i] {
+                diffs.push((i, comparison_result[i], vec_result[i]));
+                <span class="kw">let _ </span>= <span class="macro">write!</span>(
+                    diffs_str,
+                    <span class="string">"\nIn position {} expected {} got {}. v[i] = {}, w[i] = {}."</span>,
+                    i, comparison_result[i], vec_result[i], v_arr[i], w_arr[i]
+                );
+            }
+        }
+        <span class="macro">assert!</span>(diffs.is_empty(), <span class="string">"{}"</span>, diffs_str);
     }
 }
 </code></pre></div></section></main></body></html>

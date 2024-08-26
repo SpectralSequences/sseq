@@ -1303,9 +1303,12 @@
 <a href="#1278" id="1278">1278</a>
 <a href="#1279" id="1279">1279</a>
 <a href="#1280" id="1280">1280</a>
-</pre></div><pre class="rust"><code><span class="doccomment">//! This module implements [Nassau's algorithm](https://arxiv.org/abs/1910.04063). The main export
-//! is the [`Resolution`] object, which is a resolution of the sphere at the prime 2 using Nassau's
-//! algorithm. It aims to provide an API similar to
+<a href="#1281" id="1281">1281</a>
+<a href="#1282" id="1282">1282</a>
+</pre></div><pre class="rust"><code><span class="doccomment">//! This module implements [Nassau's algorithm](https://arxiv.org/abs/1910.04063).
+//!
+//! The main export is the [`Resolution`] object, which is a resolution of the sphere at the prime 2
+//! using Nassau's algorithm. It aims to provide an API similar to
 //! [`resolution::Resolution`](crate::resolution::Resolution). From an API point of view, the main
 //! difference between the two is that our `Resolution` is a chain complex over [`MilnorAlgebra`]
 //! over [`SteenrodAlgebra`](algebra::SteenrodAlgebra).
@@ -1313,9 +1316,8 @@
 //! To make use of this resolution in the example scripts, enable the `nassau` feature. This will
 //! cause [`utils::query_module`](crate::utils::query_module) to return the `Resolution` from this
 //! module instead of [`resolution`](crate::resolution). There is no formal polymorphism involved;
-//! the feature changes the return type of the function. While this is an incorrect use of
-//! features, we find that this the easiest way to make all scripts support both types of
-//! resolutions.
+//! the feature changes the return type of the function. While this is an incorrect use of features,
+//! we find that this the easiest way to make all scripts support both types of resolutions.
 
 </span><span class="kw">use </span>std::{
     fmt::Display,
@@ -1687,10 +1689,12 @@
     Fix = -<span class="number">3</span>,
 }
 
-<span class="doccomment">/// A resolution of `S_2` using Nassau's algorithm. This aims to have an API similar to that of
+<span class="doccomment">/// A resolution of `S_2` using Nassau's algorithm.
+///
+/// This aims to have an API similar to that of
 /// [`resolution::Resolution`](crate::resolution::Resolution). From an API point of view, the main
-/// difference between the two is that this is a chain complex over [`MilnorAlgebra`]
-/// over [`SteenrodAlgebra`](algebra::SteenrodAlgebra).
+/// difference between the two is that this is a chain complex over [`MilnorAlgebra`] over
+/// [`SteenrodAlgebra`](algebra::SteenrodAlgebra).
 </span><span class="kw">pub struct </span>Resolution&lt;M: ZeroModule&lt;Algebra = MilnorAlgebra&gt;&gt; {
     lock: Mutex&lt;()&gt;,
     name: String,

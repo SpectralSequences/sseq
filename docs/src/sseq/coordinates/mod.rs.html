@@ -122,6 +122,8 @@
 <a href="#97" id="97">97</a>
 <a href="#98" id="98">98</a>
 <a href="#99" id="99">99</a>
+<a href="#100" id="100">100</a>
+<a href="#101" id="101">101</a>
 </pre></div><pre class="rust"><code><span class="kw">pub mod </span>bidegree;
 <span class="kw">pub mod </span>element;
 <span class="kw">pub mod </span>generator;
@@ -133,7 +135,9 @@
 <span class="kw">use </span>maybe_rayon::prelude::<span class="kw-2">*</span>;
 <span class="kw">pub use </span>range::BidegreeRange;
 
-<span class="doccomment">/// Given a function `f(s, t)`, compute it for every `s` in `[min_s, max_s]` and every `t` in
+<span class="doccomment">/// Execute a function on a range of bidegrees, possibly in parallel.
+///
+/// Given a function `f(s, t)`, compute it for every `s` in `[min_s, max_s]` and every `t` in
 /// `[min_t, max_t(s)]`.  Further, we only compute `f(s, t)` when `f(s - 1, t')` has been computed
 /// for all `t' &lt; t`.
 ///

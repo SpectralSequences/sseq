@@ -1301,6 +1301,8 @@
 <a href="#1276" id="1276">1276</a>
 <a href="#1277" id="1277">1277</a>
 <a href="#1278" id="1278">1278</a>
+<a href="#1279" id="1279">1279</a>
+<a href="#1280" id="1280">1280</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     fmt,
     io::{Read, Write},
@@ -1317,9 +1319,11 @@
     vector::{FpSlice, FpSliceMut, FpVector},
 };
 
-<span class="doccomment">/// A matrix! In particular, a matrix with values in F_p. The way we store matrices means it is
-/// easier to perform row operations than column operations, and the way we use matrices means we
-/// want our matrices to act on the right. Hence we think of vectors as row vectors.
+<span class="doccomment">/// A matrix! In particular, a matrix with values in F_p.
+///
+/// The way we store matrices means it is easier to perform row operations than column operations,
+/// and the way we use matrices means we want our matrices to act on the right. Hence we think of
+/// vectors as row vectors.
 </span><span class="attr">#[derive(Clone)]
 </span><span class="kw">pub struct </span>Matrix {
     p: ValidPrime,

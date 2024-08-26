@@ -177,6 +177,8 @@
 <a href="#152" id="152">152</a>
 <a href="#153" id="153">153</a>
 <a href="#154" id="154">154</a>
+<a href="#155" id="155">155</a>
+<a href="#156" id="156">156</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>bivec::BiVec;
@@ -189,8 +191,10 @@
 };
 
 <span class="doccomment">/// Given a module N and a free module M, this is the module Hom(M, N) as a module over the ground
-/// field. This requires N to be bounded, and is graded *opposite* to the usual grading so that
-/// Hom(M, N) is bounded below.
+/// field.
+///
+/// This requires N to be bounded, and is graded *opposite* to the usual grading so that Hom(M, N)
+/// is bounded below.
 </span><span class="kw">pub struct </span>HomModule&lt;M: Module&gt; {
     algebra: Arc&lt;Field&gt;,
     source: Arc&lt;FreeModule&lt;M::Algebra&gt;&gt;,

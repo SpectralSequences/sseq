@@ -1460,6 +1460,8 @@
 <a href="#1435" id="1435">1435</a>
 <a href="#1436" id="1436">1436</a>
 <a href="#1437" id="1437">1437</a>
+<a href="#1438" id="1438">1438</a>
+<a href="#1439" id="1439">1439</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     io::{Read, Write},
     sync::Arc,
@@ -1792,7 +1794,9 @@
     }
 }
 
-<span class="doccomment">/// When lifting a thing to its secondary version, often what we have to do is to specify an
+<span class="doccomment">/// Logic that is common to all secondary lifts.
+///
+/// When lifting a thing to its secondary version, often what we have to do is to specify an
 /// explicit homotopy to witnesses that some equation holds. For example, to lift a chain complex,
 /// we need a homotopy witnessing the fact that $d^2 \simeq 0$. This homotopy in turn is required
 /// to satisfy certain recursive relations.

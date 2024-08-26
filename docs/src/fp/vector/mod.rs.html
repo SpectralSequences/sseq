@@ -1087,6 +1087,21 @@
 <a href="#1062" id="1062">1062</a>
 <a href="#1063" id="1063">1063</a>
 <a href="#1064" id="1064">1064</a>
+<a href="#1065" id="1065">1065</a>
+<a href="#1066" id="1066">1066</a>
+<a href="#1067" id="1067">1067</a>
+<a href="#1068" id="1068">1068</a>
+<a href="#1069" id="1069">1069</a>
+<a href="#1070" id="1070">1070</a>
+<a href="#1071" id="1071">1071</a>
+<a href="#1072" id="1072">1072</a>
+<a href="#1073" id="1073">1073</a>
+<a href="#1074" id="1074">1074</a>
+<a href="#1075" id="1075">1075</a>
+<a href="#1076" id="1076">1076</a>
+<a href="#1077" id="1077">1077</a>
+<a href="#1078" id="1078">1078</a>
+<a href="#1079" id="1079">1079</a>
 </pre></div><pre class="rust"><code><span class="kw">pub mod </span>inner;
 
 <span class="kw">mod </span>fp_wrapper;
@@ -1099,32 +1114,32 @@
 <span class="kw">pub use </span>inner::<span class="kw-2">*</span>;
 
 <span class="attr">#[cfg(test)]
-</span><span class="kw">mod </span>tests {
+</span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">mod </span>tests {
     <span class="kw">use </span>itertools::Itertools;
     <span class="kw">use </span>proptest::prelude::<span class="kw-2">*</span>;
-    <span class="kw">use </span>rstest::rstest;
 
-    <span class="kw">use super</span>::{inner::FqVector, <span class="kw-2">*</span>};
+    <span class="kw">use </span><span class="kw">super</span>::inner::FqVector;
     <span class="kw">use crate</span>::{
-        field::{field_internal::FieldInternal, fp::F2, Fp},
+        field::{element::FieldElement, fp::F2, Field},
         limb,
-        prime::{Prime, ValidPrime},
     };
 
-    <span class="kw">pub struct </span>VectorDiffEntry {
+    <span class="kw">pub const </span>MAX_TEST_VEC_LEN: usize = <span class="number">10_000</span>;
+
+    <span class="kw">pub struct </span>VectorDiffEntry&lt;F: Field&gt; {
         <span class="kw">pub </span>index: usize,
-        <span class="kw">pub </span>left: u32,
-        <span class="kw">pub </span>right: u32,
+        <span class="kw">pub </span>left: FieldElement&lt;F&gt;,
+        <span class="kw">pub </span>right: FieldElement&lt;F&gt;,
     }
 
-    <span class="kw">impl </span>FpVector {
-        <span class="kw">pub fn </span>diff_list(<span class="kw-2">&amp;</span><span class="self">self</span>, other: <span class="kw-2">&amp;</span>[u32]) -&gt; Vec&lt;VectorDiffEntry&gt; {
+    <span class="kw">impl</span>&lt;F: Field&gt; FqVector&lt;F&gt; {
+        <span class="kw">pub fn </span>diff_list(<span class="kw-2">&amp;</span><span class="self">self</span>, other: <span class="kw-2">&amp;</span>[FieldElement&lt;F&gt;]) -&gt; Vec&lt;VectorDiffEntry&lt;F&gt;&gt; {
             <span class="macro">assert!</span>(<span class="self">self</span>.len() == other.len());
             <span class="kw">let </span><span class="kw-2">mut </span>result = Vec::new();
             <span class="attr">#[allow(clippy::needless_range_loop)]
             </span><span class="kw">for </span>index <span class="kw">in </span><span class="number">0</span>..<span class="self">self</span>.len() {
                 <span class="kw">let </span>left = <span class="self">self</span>.entry(index);
-                <span class="kw">let </span>right = other[index];
+                <span class="kw">let </span>right = other[index].clone();
                 <span class="kw">if </span>left != right {
                     result.push(VectorDiffEntry { index, left, right });
                 }
@@ -1132,7 +1147,7 @@
             result
         }
 
-        <span class="kw">pub fn </span>diff_vec(<span class="kw-2">&amp;</span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; Vec&lt;VectorDiffEntry&gt; {
+        <span class="kw">pub fn </span>diff_vec(<span class="kw-2">&amp;</span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; Vec&lt;VectorDiffEntry&lt;F&gt;&gt; {
             <span class="macro">assert!</span>(<span class="self">self</span>.len() == other.len());
             <span class="kw">let </span><span class="kw-2">mut </span>result = Vec::new();
             <span class="kw">for </span>index <span class="kw">in </span><span class="number">0</span>..<span class="self">self</span>.len() {
@@ -1145,7 +1160,7 @@
             result
         }
 
-        <span class="kw">pub fn </span>format_diff(diff: Vec&lt;VectorDiffEntry&gt;) -&gt; String {
+        <span class="kw">pub fn </span>format_diff(diff: Vec&lt;VectorDiffEntry&lt;F&gt;&gt;) -&gt; String {
             <span class="kw">let </span>data_formatter =
                 diff.iter()
                     .format_with(<span class="string">"\n "</span>, |VectorDiffEntry { index, left, right }, f| {
@@ -1154,7 +1169,7 @@
             <span class="macro">format!</span>(<span class="string">"{data_formatter}"</span>)
         }
 
-        <span class="kw">pub fn </span>assert_list_eq(<span class="kw-2">&amp;</span><span class="self">self</span>, other: <span class="kw-2">&amp;</span>[u32]) {
+        <span class="kw">pub fn </span>assert_list_eq(<span class="kw-2">&amp;</span><span class="self">self</span>, other: <span class="kw-2">&amp;</span>[FieldElement&lt;F&gt;]) {
             <span class="kw">let </span>diff = <span class="self">self</span>.diff_list(other);
             <span class="kw">if </span>diff.is_empty() {
                 <span class="kw">return</span>;
@@ -1181,14 +1196,9 @@
         }
     }
 
-    <span class="kw">fn </span>random_vector(p: u32, dimension: usize) -&gt; Vec&lt;u32&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>rng = rand::thread_rng();
-        (<span class="number">0</span>..dimension).map(|<span class="kw">_</span>| rng.gen_range(<span class="number">0</span>..p)).collect()
-    }
-
-    <span class="doccomment">/// An arbitrary (prime, dimension) pair
-    </span><span class="kw">fn </span>arb_prime_dim() -&gt; <span class="kw">impl </span>Strategy&lt;Value = (ValidPrime, usize)&gt; {
-        any::&lt;ValidPrime&gt;().prop_flat_map(|p| (Just(p), <span class="number">0usize</span>..=<span class="number">10_000</span>))
+    <span class="doccomment">/// An arbitrary (field, dimension) pair
+    </span><span class="kw">fn </span>arb_field_dim&lt;F: Field&gt;() -&gt; <span class="kw">impl </span>Strategy&lt;Value = (F, usize)&gt; {
+        (any::&lt;F&gt;(), <span class="number">0</span>..=MAX_TEST_VEC_LEN)
     }
 
     <span class="doccomment">/// The start and end positions of an arbitrary slice of a vector of length `dimension`
@@ -1207,153 +1217,211 @@
         }
     }
 
-    <span class="doccomment">/// An arbitrary vector of length `dimension` containing values in the range `0..p`. The tests
-    /// take in a `Vec&lt;u32&gt;` instead of an `FpVector` directly because they will usually apply some
-    /// operation on both the `FpVector` and the original `Vec&lt;u32&gt;` and then compare the results.
-    </span><span class="kw">fn </span>arb_vec_u32(p: ValidPrime, dimension: usize) -&gt; <span class="kw">impl </span>Strategy&lt;Value = Vec&lt;u32&gt;&gt; {
-        proptest::collection::vec(<span class="number">0</span>..p.as_u32(), dimension)
+    <span class="doccomment">/// An arbitrary vector of length `dimension` containing values in the field `fq`. The tests
+    /// take in a `Vec` instead of an `FqVector` directly because they will usually apply some
+    /// operation on both the `FqVector` and the original `Vec` and then compare the results.
+    </span><span class="kw">fn </span>arb_element_vec&lt;F: Field&gt;(
+        fq: F,
+        dimension: usize,
+    ) -&gt; <span class="kw">impl </span>Strategy&lt;Value = Vec&lt;FieldElement&lt;F&gt;&gt;&gt; {
+        proptest::collection::vec(fq.arb_element(), dimension)
     }
 
-    <span class="doccomment">/// A pair of a prime `p` and a vector containing values in the range `0..p`. In other
-    /// words, a vector over Fp.
-    </span><span class="kw">fn </span>arb_vec() -&gt; <span class="kw">impl </span>Strategy&lt;Value = (ValidPrime, Vec&lt;u32&gt;)&gt; {
-        arb_prime_dim().prop_flat_map(|(p, dim)| (Just(p), arb_vec_u32(p, dim)))
+    <span class="doccomment">/// A pair of a field `fq` and a vector containing values in that field. In other words, a
+    /// vector over `fq`.
+    </span><span class="kw">pub fn </span>arb_vec&lt;F: Field&gt;() -&gt; <span class="kw">impl </span>Strategy&lt;Value = (F, Vec&lt;FieldElement&lt;F&gt;&gt;)&gt; {
+        arb_field_dim().prop_flat_map(|(fq, dim)| (Just(fq), arb_element_vec(fq, dim)))
     }
 
-    <span class="doccomment">/// An Fp vector together with valid slice indices
-    </span><span class="kw">fn </span>arb_vec_and_slice() -&gt; <span class="kw">impl </span>Strategy&lt;Value = (ValidPrime, Vec&lt;u32&gt;, (usize, usize))&gt; {
-        arb_prime_dim().prop_flat_map(|(p, dim)| (Just(p), arb_vec_u32(p, dim), arb_slice(dim)))
+    <span class="doccomment">/// An Fq vector together with valid slice indices
+    </span><span class="kw">fn </span>arb_vec_and_slice&lt;F: Field&gt;(
+    ) -&gt; <span class="kw">impl </span>Strategy&lt;Value = (F, Vec&lt;FieldElement&lt;F&gt;&gt;, (usize, usize))&gt; {
+        arb_field_dim()
+            .prop_flat_map(|(fq, dim)| (Just(fq), arb_element_vec(fq, dim), arb_slice(dim)))
     }
 
-    <span class="doccomment">/// A pair of Fp vectors of the same length over the same prime
-    </span><span class="kw">fn </span>arb_vec_pair() -&gt; <span class="kw">impl </span>Strategy&lt;Value = (ValidPrime, Vec&lt;u32&gt;, Vec&lt;u32&gt;)&gt; {
-        arb_prime_dim()
-            .prop_flat_map(|(p, dim)| (Just(p), arb_vec_u32(p, dim), arb_vec_u32(p, dim)))
+    <span class="doccomment">/// A pair of vectors of the same length over the same field
+    </span><span class="kw">fn </span>arb_vec_pair&lt;F: Field&gt;(
+    ) -&gt; <span class="kw">impl </span>Strategy&lt;Value = (F, Vec&lt;FieldElement&lt;F&gt;&gt;, Vec&lt;FieldElement&lt;F&gt;&gt;)&gt; {
+        arb_field_dim().prop_flat_map(|(fq, dim)| {
+            (Just(fq), arb_element_vec(fq, dim), arb_element_vec(fq, dim))
+        })
     }
 
-    <span class="doccomment">/// A pair of Fp vectors of the same length over the same prime, together with valid slice
-    /// indices
-    </span><span class="kw">fn </span>arb_vec_pair_and_slice(
-    ) -&gt; <span class="kw">impl </span>Strategy&lt;Value = (ValidPrime, Vec&lt;u32&gt;, Vec&lt;u32&gt;, (usize, usize))&gt; {
-        arb_prime_dim().prop_flat_map(|(p, dim)| {
+    <span class="doccomment">/// A pair of vectors of the same length over the same field, together with valid slice indices
+    </span><span class="kw">fn </span>arb_vec_pair_and_slice&lt;F: Field&gt;() -&gt; <span class="kw">impl </span>Strategy&lt;
+        Value = (
+            F,
+            Vec&lt;FieldElement&lt;F&gt;&gt;,
+            Vec&lt;FieldElement&lt;F&gt;&gt;,
+            (usize, usize),
+        ),
+    &gt; {
+        arb_field_dim().prop_flat_map(|(fq, dim)| {
             (
-                Just(p),
-                arb_vec_u32(p, dim),
-                arb_vec_u32(p, dim),
+                Just(fq),
+                arb_element_vec(fq, dim),
+                arb_element_vec(fq, dim),
                 arb_slice(dim),
             )
         })
     }
 
-    <span class="doccomment">/// A pair of Fp vectors of the same length over the same prime, together with a mask (in
-    /// the sense of [`FpVector::add_masked`] and [`FpVector::add_unmasked`])
-    </span><span class="kw">fn </span>arb_vec_pair_and_mask() -&gt; <span class="kw">impl </span>Strategy&lt;Value = (ValidPrime, Vec&lt;u32&gt;, Vec&lt;u32&gt;, Vec&lt;usize&gt;)&gt;
-    {
-        any::&lt;ValidPrime&gt;()
-            .prop_flat_map(|p| (Just(p), arb_slice(<span class="number">10_000</span>)))
-            .prop_flat_map(|(p, (dim_small, dim_large))| {
+    <span class="doccomment">/// A pair of vectors of the same length over the same field, together with a mask (in the sense
+    /// of [`FqVector::add_masked`] and [`FqVector::add_unmasked`])
+    </span><span class="kw">fn </span>arb_vec_pair_and_mask&lt;F: Field&gt;(
+    ) -&gt; <span class="kw">impl </span>Strategy&lt;Value = (F, Vec&lt;FieldElement&lt;F&gt;&gt;, Vec&lt;FieldElement&lt;F&gt;&gt;, Vec&lt;usize&gt;)&gt; {
+        any::&lt;F&gt;()
+            .prop_flat_map(|fq| (Just(fq), arb_slice(MAX_TEST_VEC_LEN)))
+            .prop_flat_map(|(fq, (dim_small, dim_large))| {
                 (
-                    Just(p),
-                    arb_vec_u32(p, dim_small),
-                    arb_vec_u32(p, dim_large),
+                    Just(fq),
+                    arb_element_vec(fq, dim_small),
+                    arb_element_vec(fq, dim_large),
                     proptest::collection::vec(<span class="number">0</span>..dim_large, dim_small),
                 )
             })
     }
 
+    <span class="macro">macro_rules!</span> vector_tests {
+        (<span class="macro-nonterminal">$field</span>:ty) =&gt; {
     <span class="macro">proptest!</span> {
         <span class="attr">#![proptest_config(ProptestConfig {
-            cases: <span class="number">1024</span>,
             max_shrink_time: <span class="number">30_000</span>,
             max_shrink_iters: <span class="number">1_000_000</span>,
             .. ProptestConfig::default()
         })]
 
-        #[test]
-        </span><span class="kw">fn </span>test_bit_length(p <span class="kw">in </span>any::&lt;ValidPrime&gt;()) {
-            <span class="macro">prop_assert!</span>(Fp::new(p).bit_length() &lt;= <span class="number">63</span>);
-        }
-
-        <span class="attr">#[cfg(feature = <span class="string">"odd-primes"</span>)]
-        #[test]
-        </span><span class="kw">fn </span>test_incompatible_primes((p1, p2) <span class="kw">in </span>(any::&lt;ValidPrime&gt;(), any::&lt;ValidPrime&gt;())) {
-            <span class="macro">prop_assume!</span>(p1 != p2);
-
-            <span class="macro">macro_rules!</span> assert_panic {
-                (<span class="macro-nonterminal">$function</span>:ident $(, $(<span class="macro-nonterminal">$args</span>:expr),<span class="kw-2">*</span>)<span class="question-mark">?</span>) =&gt; {
-                    <span class="kw">let </span>panic = std::panic::catch_unwind(|| {
-                        FpVector::new(p1, <span class="number">10</span>).<span class="macro-nonterminal">$function</span>(<span class="kw-2">&amp;</span>FpVector::new(p2, <span class="number">10</span>) $(, $(<span class="macro-nonterminal">$args</span>),<span class="kw-2">*</span>)<span class="question-mark">?</span>)
-                    });
-                    <span class="macro">prop_assert!</span>(panic.is_err());
-                };
+        </span><span class="comment">// These "incompatible_fields" tests would lend themselves nicely to a macro, but it's
+        // currently impossible to define the necessary macro inside another. See
+        // https://github.com/rust-lang/rust/issues/35853.
+        </span><span class="attr">#[test]
+        </span><span class="kw">fn </span>test_incompatible_fields_assign((fq1, fq2) <span class="kw">in </span>(any::&lt;<span class="macro-nonterminal">$field</span>&gt;(), any::&lt;<span class="macro-nonterminal">$field</span>&gt;())) {
+            <span class="kw">if </span>fq1 != fq2 {
+                <span class="kw">let </span>panic = std::panic::catch_unwind(|| {
+                    FqVector::new(fq1, <span class="number">10</span>).assign(<span class="kw-2">&amp;</span>FqVector::new(fq2, <span class="number">10</span>))
+                });
+                <span class="macro">prop_assert!</span>(panic.is_err());
             }
-
-            <span class="macro">assert_panic!</span>(assign);
-            <span class="macro">assert_panic!</span>(assign_partial);
-            <span class="macro">assert_panic!</span>(add, <span class="number">1</span>);
-            <span class="macro">assert_panic!</span>(add_offset, <span class="number">1</span>, <span class="number">5</span>);
-            <span class="macro">assert_panic!</span>(add_truncate, <span class="number">1</span>);
-            <span class="macro">assert_panic!</span>(sign_rule);
-            <span class="macro">assert_panic!</span>(add_carry, <span class="number">1</span>, <span class="kw-2">&amp;mut </span>[]);
         }
 
         <span class="attr">#[test]
-        </span><span class="kw">fn </span>test_serialize((p, v_arr) <span class="kw">in </span>arb_vec()) {
+        </span><span class="kw">fn </span>test_incompatible_fields_assign_partial((fq1, fq2) <span class="kw">in </span>(any::&lt;<span class="macro-nonterminal">$field</span>&gt;(), any::&lt;<span class="macro-nonterminal">$field</span>&gt;())) {
+            <span class="kw">if </span>fq1 != fq2 {
+                <span class="kw">let </span>panic = std::panic::catch_unwind(|| {
+                    FqVector::new(fq1, <span class="number">10</span>).assign_partial(<span class="kw-2">&amp;</span>FqVector::new(fq2, <span class="number">10</span>))
+                });
+                <span class="macro">prop_assert!</span>(panic.is_err());
+            }
+        }
+
+        <span class="attr">#[test]
+        </span><span class="kw">fn </span>test_incompatible_fields_add((fq1, fq2) <span class="kw">in </span>(any::&lt;<span class="macro-nonterminal">$field</span>&gt;(), any::&lt;<span class="macro-nonterminal">$field</span>&gt;())) {
+            <span class="kw">if </span>fq1 != fq2 {
+                <span class="kw">let </span>panic = std::panic::catch_unwind(|| {
+                    FqVector::new(fq1, <span class="number">10</span>).add(<span class="kw-2">&amp;</span>FqVector::new(fq2, <span class="number">10</span>), fq2.one())
+                });
+                <span class="macro">prop_assert!</span>(panic.is_err());
+            }
+        }
+
+        <span class="attr">#[test]
+        </span><span class="kw">fn </span>test_incompatible_fields_add_offset((fq1, fq2) <span class="kw">in </span>(any::&lt;<span class="macro-nonterminal">$field</span>&gt;(), any::&lt;<span class="macro-nonterminal">$field</span>&gt;())) {
+            <span class="kw">if </span>fq1 != fq2 {
+                <span class="kw">let </span>panic = std::panic::catch_unwind(|| {
+                    FqVector::new(fq1, <span class="number">10</span>).add_offset(<span class="kw-2">&amp;</span>FqVector::new(fq2, <span class="number">10</span>), fq2.one(), <span class="number">5</span>)
+                });
+                <span class="macro">prop_assert!</span>(panic.is_err());
+            }
+        }
+
+        <span class="attr">#[test]
+        </span><span class="kw">fn </span>test_incompatible_fields_add_truncate((fq1, fq2) <span class="kw">in </span>(any::&lt;<span class="macro-nonterminal">$field</span>&gt;(), any::&lt;<span class="macro-nonterminal">$field</span>&gt;())) {
+            <span class="kw">if </span>fq1 != fq2 {
+                <span class="kw">let </span>panic = std::panic::catch_unwind(|| {
+                    FqVector::new(fq1, <span class="number">10</span>).add_truncate(<span class="kw-2">&amp;</span>FqVector::new(fq2, <span class="number">10</span>), fq2.one())
+                });
+                <span class="macro">prop_assert!</span>(panic.is_err());
+            }
+        }
+
+        <span class="attr">#[test]
+        </span><span class="kw">fn </span>test_incompatible_fields_sign_rule((fq1, fq2) <span class="kw">in </span>(any::&lt;<span class="macro-nonterminal">$field</span>&gt;(), any::&lt;<span class="macro-nonterminal">$field</span>&gt;())) {
+            <span class="kw">if </span>fq1 != fq2 {
+                <span class="kw">let </span>panic = std::panic::catch_unwind(|| {
+                    FqVector::new(fq1, <span class="number">10</span>).sign_rule(<span class="kw-2">&amp;</span>FqVector::new(fq2, <span class="number">10</span>))
+                });
+                <span class="macro">prop_assert!</span>(panic.is_err());
+            }
+        }
+
+        <span class="attr">#[test]
+        </span><span class="kw">fn </span>test_incompatible_fields_add_carry((fq1, fq2) <span class="kw">in </span>(any::&lt;<span class="macro-nonterminal">$field</span>&gt;(), any::&lt;<span class="macro-nonterminal">$field</span>&gt;())) {
+            <span class="kw">if </span>fq1 != fq2 {
+                <span class="kw">let </span>panic = std::panic::catch_unwind(|| {
+                    FqVector::new(fq1, <span class="number">10</span>).add_carry::&lt;FqVector&lt;<span class="kw">_</span>&gt;&gt;(<span class="kw-2">&amp;</span>FqVector::new(fq2, <span class="number">10</span>), fq2.one(), <span class="kw-2">&amp;mut </span>[])
+                });
+                <span class="macro">prop_assert!</span>(panic.is_err());
+            }
+        }
+
+        <span class="attr">#[test]
+        </span><span class="kw">fn </span>test_serialize((fq, v_arr) <span class="kw">in </span>arb_vec::&lt;<span class="macro-nonterminal">$field</span>&gt;()) {
             <span class="kw">use </span>std::io::{Seek, Cursor};
 
-            <span class="kw">let </span>v = FpVector::from_slice(p, <span class="kw-2">&amp;</span>v_arr);
+            <span class="kw">let </span>v = FqVector::from_slice(fq, <span class="kw-2">&amp;</span>v_arr);
 
             <span class="kw">let </span><span class="kw-2">mut </span>cursor = Cursor::new(Vec::&lt;u8&gt;::new());
             v.to_bytes(<span class="kw-2">&amp;mut </span>cursor).unwrap();
             cursor.rewind().unwrap();
 
-            <span class="kw">let </span>w = FpVector::from_bytes(v.prime(), v.len(), <span class="kw-2">&amp;mut </span>cursor).unwrap();
+            <span class="kw">let </span>w = FqVector::from_bytes(v.fq(), v.len(), <span class="kw-2">&amp;mut </span>cursor).unwrap();
             v.assert_vec_eq(<span class="kw-2">&amp;</span>w);
         }
 
         <span class="attr">#[test]
-        </span><span class="kw">fn </span>test_add((p, <span class="kw-2">mut </span>v_arr, w_arr) <span class="kw">in </span>arb_vec_pair()) {
-            <span class="kw">let </span><span class="kw-2">mut </span>v = FpVector::from_slice(p, <span class="kw-2">&amp;</span>v_arr);
-            <span class="kw">let </span>w = FpVector::from_slice(p, <span class="kw-2">&amp;</span>w_arr);
+        </span><span class="kw">fn </span>test_add((fq, <span class="kw-2">mut </span>v_arr, w_arr) <span class="kw">in </span>arb_vec_pair::&lt;<span class="macro-nonterminal">$field</span>&gt;()) {
+            <span class="kw">let </span><span class="kw-2">mut </span>v = FqVector::from_slice(fq, <span class="kw-2">&amp;</span>v_arr);
+            <span class="kw">let </span>w = FqVector::from_slice(fq, <span class="kw-2">&amp;</span>w_arr);
 
-            v.add(<span class="kw-2">&amp;</span>w, <span class="number">1</span>);
+            v.add(<span class="kw-2">&amp;</span>w, fq.one());
 
             <span class="kw">for </span>(v_element, w_element) <span class="kw">in </span>v_arr.iter_mut().zip(w_arr.iter()) {
-                <span class="kw-2">*</span>v_element = (<span class="kw-2">*</span>v_element + <span class="kw-2">*</span>w_element) % p;
+                <span class="kw-2">*</span>v_element += <span class="kw-2">*</span>w_element;
             }
             v.assert_list_eq(<span class="kw-2">&amp;</span>v_arr);
         }
 
         <span class="attr">#[test]
-        </span><span class="kw">fn </span>test_scale((p, <span class="kw-2">mut </span>v_arr, c) <span class="kw">in </span>arb_prime_dim().prop_flat_map(|(p, dim)| {
-            (Just(p), arb_vec_u32(p, dim), <span class="number">0</span>..p.as_u32())
+        </span><span class="kw">fn </span>test_scale((fq, <span class="kw-2">mut </span>v_arr, c) <span class="kw">in </span>arb_field_dim::&lt;<span class="macro-nonterminal">$field</span>&gt;().prop_flat_map(|(fq, dim)| {
+            (Just(fq), arb_element_vec(fq, dim), fq.arb_element())
         })) {
-            <span class="kw">let </span><span class="kw-2">mut </span>v = FpVector::from_slice(p, <span class="kw-2">&amp;</span>v_arr);
+            <span class="kw">let </span><span class="kw-2">mut </span>v = FqVector::from_slice(fq, <span class="kw-2">&amp;</span>v_arr);
             v.scale(c);
             <span class="kw">for </span>entry <span class="kw">in </span><span class="kw-2">&amp;mut </span>v_arr {
-                <span class="kw-2">*</span>entry = p.product(<span class="kw-2">*</span>entry, c);
+                <span class="kw-2">*</span>entry <span class="kw-2">*</span>= c;
             }
             v.assert_list_eq(<span class="kw-2">&amp;</span>v_arr);
         }
 
         <span class="attr">#[test]
-        </span><span class="kw">fn </span>test_scale_slice((p, <span class="kw-2">mut </span>v_arr, (slice_start, slice_end), c) <span class="kw">in
-            </span>arb_prime_dim().prop_flat_map(|(p, dim)| {
-                (Just(p), arb_vec_u32(p, dim), arb_slice(dim), <span class="number">0</span>..p.as_u32())
+        </span><span class="kw">fn </span>test_scale_slice((fq, <span class="kw-2">mut </span>v_arr, (slice_start, slice_end), c) <span class="kw">in
+            </span>arb_field_dim::&lt;<span class="macro-nonterminal">$field</span>&gt;().prop_flat_map(|(fq, dim)| {
+                (Just(fq), arb_element_vec(fq, dim), arb_slice(dim), fq.arb_element())
             })
         ) {
-            <span class="kw">let </span><span class="kw-2">mut </span>v = FpVector::from_slice(p, <span class="kw-2">&amp;</span>v_arr);
+            <span class="kw">let </span><span class="kw-2">mut </span>v = FqVector::from_slice(fq, <span class="kw-2">&amp;</span>v_arr);
             v.slice_mut(slice_start, slice_end).scale(c);
 
             <span class="kw">for </span>entry <span class="kw">in </span><span class="kw-2">&amp;mut </span>v_arr[slice_start..slice_end] {
-                <span class="kw-2">*</span>entry = p.product(<span class="kw-2">*</span>entry, c);
+                <span class="kw-2">*</span>entry <span class="kw-2">*</span>= c;
             }
             v.assert_list_eq(<span class="kw-2">&amp;</span>v_arr);
         }
 
         <span class="attr">#[test]
-        </span><span class="kw">fn </span>test_entry((p, v_arr) <span class="kw">in </span>arb_vec()) {
-            <span class="kw">let </span>v = FpVector::from_slice(p, <span class="kw-2">&amp;</span>v_arr);
+        </span><span class="kw">fn </span>test_entry((fq, v_arr) <span class="kw">in </span>arb_vec::&lt;<span class="macro-nonterminal">$field</span>&gt;()) {
+            <span class="kw">let </span>v = FqVector::from_slice(fq, <span class="kw-2">&amp;</span>v_arr);
 
             <span class="kw">let </span><span class="kw-2">mut </span>diffs = Vec::new();
             <span class="kw">for </span>(i, val) <span class="kw">in </span>v.iter().enumerate() {
@@ -1365,8 +1433,8 @@
         }
 
         <span class="attr">#[test]
-        </span><span class="kw">fn </span>test_entry_slice((p, v_arr, (slice_start, slice_end)) <span class="kw">in </span>arb_vec_and_slice()) {
-            <span class="kw">let </span>v = FpVector::from_slice(p, <span class="kw-2">&amp;</span>v_arr);
+        </span><span class="kw">fn </span>test_entry_slice((fq, v_arr, (slice_start, slice_end)) <span class="kw">in </span>arb_vec_and_slice::&lt;<span class="macro-nonterminal">$field</span>&gt;()) {
+            <span class="kw">let </span>v = FqVector::from_slice(fq, <span class="kw-2">&amp;</span>v_arr);
             <span class="kw">let </span>v = v.slice(slice_start, slice_end);
             <span class="macro">println!</span>(
                 <span class="string">"slice_start: {slice_start}, slice_end: {slice_end}, slice: {v}"
@@ -1382,8 +1450,8 @@
         }
 
         <span class="attr">#[test]
-        </span><span class="kw">fn </span>test_set_entry((p, v_arr) <span class="kw">in </span>arb_vec()) {
-            <span class="kw">let </span><span class="kw-2">mut </span>v = FpVector::new(p, v_arr.len());
+        </span><span class="kw">fn </span>test_set_entry((fq, v_arr) <span class="kw">in </span>arb_vec::&lt;<span class="macro-nonterminal">$field</span>&gt;()) {
+            <span class="kw">let </span><span class="kw-2">mut </span>v = FqVector::new(fq, v_arr.len());
 
             <span class="kw">for </span>(i, <span class="kw-2">&amp;</span>val) <span class="kw">in </span>v_arr.iter().enumerate() {
                 v.set_entry(i, val);
@@ -1392,9 +1460,9 @@
         }
 
         <span class="attr">#[test]
-        </span><span class="kw">fn </span>test_set_entry_slice((p, v_arr, (slice_start, slice_end)) <span class="kw">in </span>arb_vec_and_slice()) {
+        </span><span class="kw">fn </span>test_set_entry_slice((fq, v_arr, (slice_start, slice_end)) <span class="kw">in </span>arb_vec_and_slice::&lt;<span class="macro-nonterminal">$field</span>&gt;()) {
             <span class="kw">let </span>dim = v_arr.len();
-            <span class="kw">let </span><span class="kw-2">mut </span>v = FpVector::new(p, dim);
+            <span class="kw">let </span><span class="kw-2">mut </span>v = FqVector::new(fq, dim);
             <span class="kw">let </span><span class="kw-2">mut </span>v = v.slice_mut(slice_start, slice_end);
 
             <span class="kw">let </span>v_slice = <span class="kw-2">&amp;</span>v_arr[slice_start..slice_end];
@@ -1413,47 +1481,47 @@
         }
 
         <span class="attr">#[test]
-        </span><span class="kw">fn </span>test_set_to_zero_slice((p, <span class="kw-2">mut </span>v_arr, (slice_start, slice_end)) <span class="kw">in </span>arb_vec_and_slice()) {
+        </span><span class="kw">fn </span>test_set_to_zero_slice((fq, <span class="kw-2">mut </span>v_arr, (slice_start, slice_end)) <span class="kw">in </span>arb_vec_and_slice::&lt;<span class="macro-nonterminal">$field</span>&gt;()) {
             <span class="macro">println!</span>(<span class="string">"slice_start : {slice_start}, slice_end : {slice_end}"</span>);
-            <span class="kw">let </span><span class="kw-2">mut </span>v = FpVector::from_slice(p, <span class="kw-2">&amp;</span>v_arr);
+            <span class="kw">let </span><span class="kw-2">mut </span>v = FqVector::from_slice(fq, <span class="kw-2">&amp;</span>v_arr);
 
             v.slice_mut(slice_start, slice_end).set_to_zero();
             <span class="macro">prop_assert!</span>(v.slice(slice_start, slice_end).is_zero());
 
             <span class="kw">for </span>entry <span class="kw">in </span><span class="kw-2">&amp;mut </span>v_arr[slice_start..slice_end] {
-                <span class="kw-2">*</span>entry = <span class="number">0</span>;
+                <span class="kw-2">*</span>entry = fq.zero();
             }
             v.assert_list_eq(<span class="kw-2">&amp;</span>v_arr);
         }
 
         <span class="attr">#[test]
-        </span><span class="kw">fn </span>test_add_slice_to_slice((p, <span class="kw-2">mut </span>v_arr, w_arr, (slice_start, slice_end)) <span class="kw">in </span>arb_vec_pair_and_slice()) {
-            <span class="kw">let </span><span class="kw-2">mut </span>v = FpVector::from_slice(p, <span class="kw-2">&amp;</span>v_arr);
-            <span class="kw">let </span>w = FpVector::from_slice(p, <span class="kw-2">&amp;</span>w_arr);
+        </span><span class="kw">fn </span>test_add_slice_to_slice((fq, <span class="kw-2">mut </span>v_arr, w_arr, (slice_start, slice_end)) <span class="kw">in </span>arb_vec_pair_and_slice::&lt;<span class="macro-nonterminal">$field</span>&gt;()) {
+            <span class="kw">let </span><span class="kw-2">mut </span>v = FqVector::from_slice(fq, <span class="kw-2">&amp;</span>v_arr);
+            <span class="kw">let </span>w = FqVector::from_slice(fq, <span class="kw-2">&amp;</span>w_arr);
 
             v.slice_mut(slice_start, slice_end)
-                .add(w.slice(slice_start, slice_end), <span class="number">1</span>);
+                .add(w.slice(slice_start, slice_end), fq.one());
 
             <span class="kw">for </span>i <span class="kw">in </span>slice_start..slice_end {
-                v_arr[i] = (v_arr[i] + w_arr[i]) % p;
+                v_arr[i] += w_arr[i];
             }
             v.assert_list_eq(<span class="kw-2">&amp;</span>v_arr);
         }
 
         <span class="attr">#[test]
-        </span><span class="kw">fn </span>test_assign((p, v_arr, w_arr) <span class="kw">in </span>arb_vec_pair()) {
-            <span class="kw">let </span><span class="kw-2">mut </span>v = FpVector::from_slice(p, <span class="kw-2">&amp;</span>v_arr);
-            <span class="kw">let </span>w = FpVector::from_slice(p, <span class="kw-2">&amp;</span>w_arr);
+        </span><span class="kw">fn </span>test_assign((fq, v_arr, w_arr) <span class="kw">in </span>arb_vec_pair::&lt;<span class="macro-nonterminal">$field</span>&gt;()) {
+            <span class="kw">let </span><span class="kw-2">mut </span>v = FqVector::from_slice(fq, <span class="kw-2">&amp;</span>v_arr);
+            <span class="kw">let </span>w = FqVector::from_slice(fq, <span class="kw-2">&amp;</span>w_arr);
 
             v.assign(<span class="kw-2">&amp;</span>w);
             v.assert_vec_eq(<span class="kw-2">&amp;</span>w);
         }
 
         <span class="attr">#[test]
-        </span><span class="kw">fn </span>test_assign_partial((p, v_arr, w_arr) <span class="kw">in </span>arb_vec_pair()) {
+        </span><span class="kw">fn </span>test_assign_partial((fq, v_arr, w_arr) <span class="kw">in </span>arb_vec_pair::&lt;<span class="macro-nonterminal">$field</span>&gt;()) {
             <span class="kw">let </span>dim = v_arr.len();
-            <span class="kw">let </span><span class="kw-2">mut </span>v = FpVector::from_slice(p, <span class="kw-2">&amp;</span>v_arr);
-            <span class="kw">let </span>w = FpVector::from_slice(p, <span class="kw-2">&amp;</span>w_arr[<span class="number">0</span>..(dim / <span class="number">2</span>)]);
+            <span class="kw">let </span><span class="kw-2">mut </span>v = FqVector::from_slice(fq, <span class="kw-2">&amp;</span>v_arr);
+            <span class="kw">let </span>w = FqVector::from_slice(fq, <span class="kw-2">&amp;</span>w_arr[<span class="number">0</span>..(dim / <span class="number">2</span>)]);
 
             v.assign_partial(<span class="kw-2">&amp;</span>w);
             <span class="macro">prop_assert!</span>(v.slice(dim / <span class="number">2</span>, dim).is_zero());
@@ -1462,9 +1530,9 @@
         }
 
         <span class="attr">#[test]
-        </span><span class="kw">fn </span>test_assign_slice_to_slice((p, <span class="kw-2">mut </span>v_arr, w_arr, (slice_start, slice_end)) <span class="kw">in </span>arb_vec_pair_and_slice()) {
-            <span class="kw">let </span><span class="kw-2">mut </span>v = FpVector::from_slice(p, <span class="kw-2">&amp;</span>v_arr);
-            <span class="kw">let </span>w = FpVector::from_slice(p, <span class="kw-2">&amp;</span>w_arr);
+        </span><span class="kw">fn </span>test_assign_slice_to_slice((fq, <span class="kw-2">mut </span>v_arr, w_arr, (slice_start, slice_end)) <span class="kw">in </span>arb_vec_pair_and_slice::&lt;<span class="macro-nonterminal">$field</span>&gt;()) {
+            <span class="kw">let </span><span class="kw-2">mut </span>v = FqVector::from_slice(fq, <span class="kw-2">&amp;</span>v_arr);
+            <span class="kw">let </span>w = FqVector::from_slice(fq, <span class="kw-2">&amp;</span>w_arr);
 
             v.slice_mut(slice_start, slice_end)
                 .assign(w.slice(slice_start, slice_end));
@@ -1473,62 +1541,60 @@
         }
 
         <span class="attr">#[test]
-        </span><span class="kw">fn </span>test_add_shift((p, <span class="kw-2">mut </span>v_arr, w_arr, [(slice1_start, slice1_end), (slice2_start, slice2_end)])
-            <span class="kw">in </span>arb_prime_dim().prop_flat_map(|(p, dim)| {
+        </span><span class="kw">fn </span>test_add_shift((fq, <span class="kw-2">mut </span>v_arr, w_arr, [(slice1_start, slice1_end), (slice2_start, slice2_end)])
+            <span class="kw">in </span>arb_field_dim::&lt;<span class="macro-nonterminal">$field</span>&gt;().prop_flat_map(|(fq, dim)| {
                 (
-                    Just(p),
-                    arb_vec_u32(p, dim),
-                    arb_vec_u32(p, dim),
+                    Just(fq),
+                    arb_element_vec(fq, dim),
+                    arb_element_vec(fq, dim),
                     arb_slice_pair(dim),
                 )
             })
         ) {
-            <span class="kw">let </span><span class="kw-2">mut </span>v = FpVector::from_slice(p, <span class="kw-2">&amp;</span>v_arr);
-            <span class="kw">let </span>w = FpVector::from_slice(p, <span class="kw-2">&amp;</span>w_arr);
+            <span class="kw">let </span><span class="kw-2">mut </span>v = FqVector::from_slice(fq, <span class="kw-2">&amp;</span>v_arr);
+            <span class="kw">let </span>w = FqVector::from_slice(fq, <span class="kw-2">&amp;</span>w_arr);
 
             v.slice_mut(slice1_start, slice1_end)
-                .add(w.slice(slice2_start, slice2_end), <span class="number">1</span>);
+                .add(w.slice(slice2_start, slice2_end), fq.one());
 
             <span class="kw">for </span>(v_element, w_element) <span class="kw">in </span>v_arr[slice1_start..slice1_end]
                 .iter_mut()
                 .zip(w_arr[slice2_start..slice2_end].iter())
             {
-                <span class="kw-2">*</span>v_element = (<span class="kw-2">*</span>v_element + <span class="kw-2">*</span>w_element) % p;
+                <span class="kw-2">*</span>v_element += <span class="kw-2">*</span>w_element;
             }
             v.assert_list_eq(<span class="kw-2">&amp;</span>v_arr);
         }
 
         <span class="attr">#[test]
-        </span><span class="kw">fn </span>test_add_masked((p, <span class="kw-2">mut </span>v_small, v_big, mask) <span class="kw">in </span>arb_vec_pair_and_mask()) {
-            <span class="kw">let </span><span class="kw-2">mut </span>v = FpVector::from_slice(p, <span class="kw-2">&amp;</span>v_small);
-            <span class="kw">let </span>w = FpVector::from_slice(p, <span class="kw-2">&amp;</span>v_big);
+        </span><span class="kw">fn </span>test_add_masked((fq, <span class="kw-2">mut </span>v_small, v_big, mask) <span class="kw">in </span>arb_vec_pair_and_mask::&lt;<span class="macro-nonterminal">$field</span>&gt;()) {
+            <span class="kw">let </span><span class="kw-2">mut </span>v = FqVector::from_slice(fq, <span class="kw-2">&amp;</span>v_small);
+            <span class="kw">let </span>w = FqVector::from_slice(fq, <span class="kw-2">&amp;</span>v_big);
 
-            v.as_slice_mut().add_masked(w.as_slice(), <span class="number">1</span>, <span class="kw-2">&amp;</span>mask);
+            v.as_slice_mut().add_masked(w.as_slice(), fq.one(), <span class="kw-2">&amp;</span>mask);
 
             <span class="kw">for </span>(i, x) <span class="kw">in </span>v_small.iter_mut().enumerate() {
                 <span class="kw-2">*</span>x += v_big[mask[i]];
-                <span class="kw-2">*</span>x %= p;
             }
 
             v.assert_list_eq(<span class="kw-2">&amp;</span>v_small);
         }
 
         <span class="attr">#[test]
-        </span><span class="kw">fn </span>test_add_unmasked((p, v_small, <span class="kw-2">mut </span>v_big, mask) <span class="kw">in </span>arb_vec_pair_and_mask()) {
-            <span class="kw">let </span><span class="kw-2">mut </span>v = FpVector::from_slice(p, <span class="kw-2">&amp;</span>v_big);
-            <span class="kw">let </span>w = FpVector::from_slice(p, <span class="kw-2">&amp;</span>v_small);
+        </span><span class="kw">fn </span>test_add_unmasked((fq, v_small, <span class="kw-2">mut </span>v_big, mask) <span class="kw">in </span>arb_vec_pair_and_mask::&lt;<span class="macro-nonterminal">$field</span>&gt;()) {
+            <span class="kw">let </span><span class="kw-2">mut </span>v = FqVector::from_slice(fq, <span class="kw-2">&amp;</span>v_big);
+            <span class="kw">let </span>w = FqVector::from_slice(fq, <span class="kw-2">&amp;</span>v_small);
 
-            v.as_slice_mut().add_unmasked(w.as_slice(), <span class="number">1</span>, <span class="kw-2">&amp;</span>mask);
+            v.as_slice_mut().add_unmasked(w.as_slice(), fq.one(), <span class="kw-2">&amp;</span>mask);
             <span class="kw">for </span>(i, <span class="kw-2">&amp;</span>x) <span class="kw">in </span>v_small.iter().enumerate() {
                 v_big[mask[i]] += x;
-                v_big[mask[i]] %= p;
             }
             v.assert_list_eq(<span class="kw-2">&amp;</span>v_big);
         }
 
         <span class="attr">#[test]
-        </span><span class="kw">fn </span>test_iterator_slice((p, v_arr, (slice_start, slice_end)) <span class="kw">in </span>arb_vec_and_slice()) {
-            <span class="kw">let </span>v = FpVector::from_slice(p, <span class="kw-2">&amp;</span>v_arr);
+        </span><span class="kw">fn </span>test_iterator_slice((p, v_arr, (slice_start, slice_end)) <span class="kw">in </span>arb_vec_and_slice::&lt;<span class="macro-nonterminal">$field</span>&gt;()) {
+            <span class="kw">let </span>v = FqVector::from_slice(p, <span class="kw-2">&amp;</span>v_arr);
             <span class="kw">let </span>v = v.slice(slice_start, slice_end);
 
             <span class="kw">let </span>w = v.iter();
@@ -1541,10 +1607,10 @@
         }
 
         <span class="attr">#[test]
-        </span><span class="kw">fn </span>test_iterator_skip((p, v_arr, num_skip) <span class="kw">in </span>arb_prime_dim().prop_flat_map(|(p, dim)| {
-            (Just(p), arb_vec_u32(p, dim), <span class="number">0</span>..=dim)
+        </span><span class="kw">fn </span>test_iterator_skip((p, v_arr, num_skip) <span class="kw">in </span>arb_field_dim::&lt;<span class="macro-nonterminal">$field</span>&gt;().prop_flat_map(|(p, dim)| {
+            (Just(p), arb_element_vec(p, dim), <span class="number">0</span>..=dim)
         })) {
-            <span class="kw">let </span>v = FpVector::from_slice(p, <span class="kw-2">&amp;</span>v_arr);
+            <span class="kw">let </span>v = FqVector::from_slice(p, <span class="kw-2">&amp;</span>v_arr);
 
             <span class="kw">let </span><span class="kw-2">mut </span>w = v.iter();
             w.skip_n(num_skip);
@@ -1558,8 +1624,8 @@
         }
 
         <span class="attr">#[test]
-        </span><span class="kw">fn </span>test_iterator((p, v_arr) <span class="kw">in </span>arb_vec()) {
-            <span class="kw">let </span>v = FpVector::from_slice(p, <span class="kw-2">&amp;</span>v_arr);
+        </span><span class="kw">fn </span>test_iterator((p, v_arr) <span class="kw">in </span>arb_vec::&lt;<span class="macro-nonterminal">$field</span>&gt;()) {
+            <span class="kw">let </span>v = FqVector::from_slice(p, <span class="kw-2">&amp;</span>v_arr);
 
             <span class="kw">let </span>w = v.iter();
             <span class="kw">let </span><span class="kw-2">mut </span>counter = <span class="number">0</span>;
@@ -1571,16 +1637,16 @@
         }
 
         <span class="attr">#[test]
-        </span><span class="kw">fn </span>test_iter_nonzero_empty((p, dimension) <span class="kw">in </span>arb_prime_dim()) {
-            <span class="kw">let </span>v = FpVector::new(p, dimension);
+        </span><span class="kw">fn </span>test_iter_nonzero_empty((p, dimension) <span class="kw">in </span>arb_field_dim::&lt;<span class="macro-nonterminal">$field</span>&gt;()) {
+            <span class="kw">let </span>v = FqVector::new(p, dimension);
             <span class="macro">prop_assert_eq!</span>(v.iter_nonzero().next(), <span class="prelude-val">None</span>);
         }
 
         <span class="attr">#[test]
-        </span><span class="kw">fn </span>test_iter_nonzero((p, v_arr, (slice_start, slice_end)) <span class="kw">in </span>arb_vec_and_slice()) {
+        </span><span class="kw">fn </span>test_iter_nonzero((fq, v_arr, (slice_start, slice_end)) <span class="kw">in </span>arb_vec_and_slice::&lt;<span class="macro-nonterminal">$field</span>&gt;()) {
             <span class="kw">use </span>std::fmt::Write;
 
-            <span class="kw">let </span>v = FpVector::from_slice(p, <span class="kw-2">&amp;</span>v_arr);
+            <span class="kw">let </span>v = FqVector::from_slice(fq, <span class="kw-2">&amp;</span>v_arr);
 
             <span class="macro">println!</span>(<span class="string">"v: {v}"</span>);
             <span class="macro">println!</span>(<span class="string">"v_arr: {v_arr:?}"</span>);
@@ -1589,7 +1655,7 @@
                 .iter()
                 .copied()
                 .enumerate()
-                .filter(|<span class="kw-2">&amp;</span>(<span class="kw">_</span>, x)| x != <span class="number">0</span>)
+                .filter(|<span class="kw-2">&amp;</span>(<span class="kw">_</span>, x)| x != fq.zero())
                 .collect();
 
             <span class="kw">let </span><span class="kw-2">mut </span>i = <span class="number">0</span>;
@@ -1623,84 +1689,48 @@
             </span><span class="macro">prop_assert!</span>(diffs_str.is_empty(), <span class="string">"{}"</span>, diffs_str);
         }
     }
-
-    <span class="attr">#[rstest]
-    #[trace]
-    </span><span class="kw">fn </span>test_add_carry(<span class="attr">#[values(<span class="number">2</span>)] </span>p: u32, <span class="attr">#[values(<span class="number">10</span>, <span class="number">20</span>, <span class="number">70</span>, <span class="number">100</span>, <span class="number">1000</span>)] </span>dim: usize) {
-        <span class="kw">use </span>std::fmt::Write;
-
-        <span class="kw">let </span>p = ValidPrime::new(p);
-        <span class="kw">const </span>E_MAX: usize = <span class="number">4</span>;
-        <span class="kw">let </span>pto_the_e_max = (p * p * p * p) * p;
-        <span class="kw">let </span><span class="kw-2">mut </span>v = Vec::with_capacity(E_MAX + <span class="number">1</span>);
-        <span class="kw">let </span><span class="kw-2">mut </span>w = Vec::with_capacity(E_MAX + <span class="number">1</span>);
-        <span class="kw">for _ in </span><span class="number">0</span>..=E_MAX {
-            v.push(FpVector::new(p, dim));
-            w.push(FpVector::new(p, dim));
-        }
-        <span class="kw">let </span>v_arr = random_vector(pto_the_e_max, dim);
-        <span class="kw">let </span>w_arr = random_vector(pto_the_e_max, dim);
-        <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..dim {
-            <span class="kw">let </span><span class="kw-2">mut </span>ev = v_arr[i];
-            <span class="kw">let </span><span class="kw-2">mut </span>ew = w_arr[i];
-            <span class="kw">for </span>e <span class="kw">in </span><span class="number">0</span>..=E_MAX {
-                v[e].set_entry(i, ev % p);
-                w[e].set_entry(i, ew % p);
-                ev /= p;
-                ew /= p;
-            }
-        }
-
-        <span class="macro">println!</span>(<span class="string">"in  : {v_arr:?}"</span>);
-        <span class="kw">for </span>(e, val) <span class="kw">in </span>v.iter().enumerate() {
-            <span class="macro">println!</span>(<span class="string">"in {e}: {val}"</span>);
-        }
-        <span class="macro">println!</span>();
-
-        <span class="macro">println!</span>(<span class="string">"in  : {w_arr:?}"</span>);
-        <span class="kw">for </span>(e, val) <span class="kw">in </span>w.iter().enumerate() {
-            <span class="macro">println!</span>(<span class="string">"in {e}: {val}"</span>);
-        }
-        <span class="macro">println!</span>();
-
-        <span class="kw">for </span>e <span class="kw">in </span><span class="number">0</span>..=E_MAX {
-            <span class="kw">let </span>(first, rest) = v[e..].split_at_mut(<span class="number">1</span>);
-            first[<span class="number">0</span>].add_carry(<span class="kw-2">&amp;</span>w[e], <span class="number">1</span>, rest);
-        }
-
-        <span class="kw">let </span><span class="kw-2">mut </span>vec_result = <span class="macro">vec!</span>[<span class="number">0</span>; dim];
-        <span class="kw">for </span>(i, entry) <span class="kw">in </span>vec_result.iter_mut().enumerate() {
-            <span class="kw">for </span>e <span class="kw">in </span>(<span class="number">0</span>..=E_MAX).rev() {
-                <span class="kw-2">*</span>entry <span class="kw-2">*</span>= p;
-                <span class="kw-2">*</span>entry += v[e].entry(i);
-            }
-        }
-
-        <span class="kw">for </span>(e, val) <span class="kw">in </span>v.iter().enumerate() {
-            <span class="macro">println!</span>(<span class="string">"out{e}: {val}"</span>);
-        }
-        <span class="macro">println!</span>();
-
-        <span class="kw">let </span><span class="kw-2">mut </span>comparison_result = <span class="macro">vec!</span>[<span class="number">0</span>; dim];
-        <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..dim {
-            comparison_result[i] = (v_arr[i] + w_arr[i]) % pto_the_e_max;
-        }
-        <span class="macro">println!</span>(<span class="string">"out : {comparison_result:?}"</span>);
-
-        <span class="kw">let </span><span class="kw-2">mut </span>diffs = Vec::new();
-        <span class="kw">let </span><span class="kw-2">mut </span>diffs_str = String::new();
-        <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..dim {
-            <span class="kw">if </span>vec_result[i] != comparison_result[i] {
-                diffs.push((i, comparison_result[i], vec_result[i]));
-                <span class="kw">let _ </span>= <span class="macro">write!</span>(
-                    diffs_str,
-                    <span class="string">"\nIn position {} expected {} got {}. v[i] = {}, w[i] = {}."</span>,
-                    i, comparison_result[i], vec_result[i], v_arr[i], w_arr[i]
-                );
-            }
-        }
-        <span class="macro">assert!</span>(diffs.is_empty(), <span class="string">"{}"</span>, diffs_str);
+};
     }
+
+    <span class="doccomment">/// For a given field type generic over a prime type, and a given prime type, run our tests for
+    /// vectors over that field.
+    </span><span class="macro">macro_rules!</span> test_prime {
+        (<span class="macro-nonterminal">$fq</span>:tt, <span class="macro-nonterminal">$p</span>:tt) =&gt; {
+            <span class="macro">paste::paste!</span> {
+                <span class="kw">mod </span>[&lt;<span class="macro-nonterminal">$p</span>:lower&gt;] {
+                    <span class="kw">use super</span>::<span class="kw-2">*</span>;
+                    <span class="kw">use </span><span class="kw">crate</span>::prime::<span class="macro-nonterminal">$p</span>;
+
+                    <span class="macro">vector_tests!</span>(<span class="macro-nonterminal">$fq</span>&lt;<span class="macro-nonterminal">$p</span>&gt;);
+                }
+            }
+        };
+    }
+
+    <span class="comment">// For a given field type generic over a prime type, run our tests for it over P2, P3, P5, P7,
+    // as well as ValidPrime. Note that this macro makes assumptions about the path to the field
+    // type within the crate.
+    </span><span class="macro">macro_rules!</span> test_field {
+        (<span class="macro-nonterminal">$fq</span>:tt) =&gt; {
+            <span class="macro">paste::paste!</span> {
+                <span class="kw">mod </span>[&lt;<span class="macro-nonterminal">$fq</span>:lower&gt;] {
+                    <span class="kw">use super</span>::<span class="kw-2">*</span>;
+                    <span class="kw">use </span><span class="kw">crate</span>::field::[&lt;<span class="macro-nonterminal">$fq</span>:lower&gt;]::<span class="macro-nonterminal">$fq</span>;
+
+                    <span class="macro">test_prime!</span>(<span class="macro-nonterminal">$fq</span>, ValidPrime);
+                    <span class="macro">test_prime!</span>(<span class="macro-nonterminal">$fq</span>, P2);
+                    <span class="macro">cfg_if::cfg_if!</span> { <span class="kw">if </span><span class="attr">#[cfg(feature = <span class="string">"odd-primes"</span>)] </span>{
+                        <span class="macro">test_prime!</span>(<span class="macro-nonterminal">$fq</span>, P3);
+                        <span class="macro">test_prime!</span>(<span class="macro-nonterminal">$fq</span>, P5);
+                        <span class="macro">test_prime!</span>(<span class="macro-nonterminal">$fq</span>, P7);
+                    }}
+                }
+            }
+        };
+    }
+
+    <span class="macro">test_field!</span>(Fp);
+    <span class="macro">test_field!</span>(SmallFq);
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_sign_rule_limb() {

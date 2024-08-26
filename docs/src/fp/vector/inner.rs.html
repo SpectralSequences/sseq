@@ -62,12 +62,14 @@
 <a href="#37" id="37">37</a>
 <a href="#38" id="38">38</a>
 <a href="#39" id="39">39</a>
+<a href="#40" id="40">40</a>
+<a href="#41" id="41">41</a>
 </pre></div><pre class="rust"><code><span class="comment">// This generates better llvm optimization
 </span><span class="attr">#![allow(clippy::int_plus_one)]
 
 </span><span class="kw">use crate</span>::{field::Field, limb::Limb};
 
-<span class="doccomment">/// An `FqVector` is a vector over a finite field.
+<span class="doccomment">/// A vector over a finite field.
 ///
 /// Interally, it packs entries of the vectors into limbs. However, this is an abstraction that must
 /// not leave the `fp` library.
@@ -78,8 +80,9 @@
     <span class="kw">pub</span>(<span class="kw">super</span>) limbs: Vec&lt;Limb&gt;,
 }
 
-<span class="doccomment">/// An `FqSlice` is a slice of an `FqVector`. This immutably borrows the vector and implements
-/// `Copy`
+<span class="doccomment">/// A slice of an `FqVector`.
+///
+/// This immutably borrows the vector and implements `Copy`.
 </span><span class="attr">#[derive(Debug, Copy, Clone)]
 </span><span class="kw">pub struct </span>FqSlice&lt;<span class="lifetime">'a</span>, F: Field&gt; {
     <span class="kw">pub</span>(<span class="kw">super</span>) fq: F,
@@ -88,10 +91,11 @@
     <span class="kw">pub</span>(<span class="kw">super</span>) end: usize,
 }
 
-<span class="doccomment">/// An `FqSliceMut` is a mutable slice of an `FqVector`. This mutably borrows the vector. Since it
-/// is a mutable borrow, it cannot implement `Copy`. However, it has a [`FqSliceMut::copy`] function
-/// that imitates the reborrowing, that mutably borrows `FqSliceMut` and returns a `FqSliceMut` with
-/// a shorter lifetime.
+<span class="doccomment">/// A mutable slice of an `FqVector`.
+///
+/// This mutably borrows the vector. Since it is a mutable borrow, it cannot implement `Copy`.
+/// However, it has a [`FqSliceMut::copy`] function that imitates the reborrowing, that mutably
+/// borrows `FqSliceMut` and returns a `FqSliceMut` with a shorter lifetime.
 </span><span class="attr">#[derive(Debug)]
 </span><span class="kw">pub struct </span>FqSliceMut&lt;<span class="lifetime">'a</span>, F: Field&gt; {
     <span class="kw">pub</span>(<span class="kw">super</span>) fq: F,

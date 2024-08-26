@@ -233,6 +233,8 @@
 <a href="#208" id="208">208</a>
 <a href="#209" id="209">209</a>
 <a href="#210" id="210">210</a>
+<a href="#211" id="211">211</a>
+<a href="#212" id="212">212</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>auto_impl::auto_impl;
@@ -244,9 +246,11 @@
 
 <span class="kw">use </span><span class="kw">crate</span>::algebra::Algebra;
 
-<span class="doccomment">/// A bounded below module over an algebra. To accommodate for infinite modules (e.g. modules in a
-/// free resolution), every module is potentially only define up to a degree. The extent to which
-/// the module is defined is kept track by two functions:
+<span class="doccomment">/// A bounded below module over an algebra.
+///
+/// To accommodate for infinite modules (e.g. modules in a free resolution), every module is
+/// potentially only define up to a degree. The extent to which the module is defined is kept track
+/// by two functions:
 ///
 ///  - [`Module::max_computed_degree`] gives the maximum degree for which the module is fully
 ///    defined. It is guaranteed that the module will never change up to this degree in the future.

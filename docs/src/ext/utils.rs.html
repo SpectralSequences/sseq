@@ -580,6 +580,13 @@
 <a href="#555" id="555">555</a>
 <a href="#556" id="556">556</a>
 <a href="#557" id="557">557</a>
+<a href="#558" id="558">558</a>
+<a href="#559" id="559">559</a>
+<a href="#560" id="560">560</a>
+<a href="#561" id="561">561</a>
+<a href="#562" id="562">562</a>
+<a href="#563" id="563">563</a>
+<a href="#564" id="564">564</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! A module containing various utility functions related to user interaction in some way.
 </span><span class="kw">use </span>std::{path::PathBuf, sync::Arc};
 
@@ -851,7 +858,9 @@
     <span class="kw">crate</span>::resolution::MuResolution::new_with_save(chain_complex, save_dir)
 }
 
-<span class="doccomment">/// Given the name of a module file (without the `.json` extension), find a json file with this
+<span class="doccomment">/// Load a module specification from a JSON file.
+///
+/// Given the name of a module file (without the `.json` extension), find a json file with this
 /// name, and return the parsed json object. The search path for this json file is described
 /// [here](../index.html#module-specification).
 </span><span class="kw">pub fn </span>load_module_json(name: <span class="kw-2">&amp;</span>str) -&gt; anyhow::Result&lt;Value&gt; {
@@ -951,9 +960,11 @@
 }
 
 <span class="doccomment">/// Query the user for a module and a bidegree, and return a resolution resolved up to said
-/// bidegree. This is mainly a wrapper around [`query_module_only`] that also asks for the bidegree
-/// to resolve up to as well. The prompt of [`query_module_only`] is always set to `"Module"` when
-/// invoked through this function.
+/// bidegree.
+///
+/// This is mainly a wrapper around [`query_module_only`] that also asks for the bidegree to resolve
+/// up to as well. The prompt of [`query_module_only`] is always set to `"Module"` when invoked
+/// through this function.
 </span><span class="kw">pub fn </span>query_module(
     algebra: <span class="prelude-ty">Option</span>&lt;AlgebraType&gt;,
     load_quasi_inverse: bool,
@@ -1002,9 +1013,10 @@
     <span class="prelude-val">Ok</span>(resolution)
 }
 
-<span class="doccomment">/// Given a resolution, return a resolution of the unit, together with a boolean indicating whether
-/// this is the original resolution was already a resolution of the unit. If the boolean is true,
-/// then the original resolution is returned.
+<span class="doccomment">/// Given a resolution, return a resolution of the unit.
+///
+/// The return value comes with a boolean indicating whether the original resolution was already a
+/// resolution of the unit. If the boolean is true, then the original resolution is returned.
 </span><span class="kw">pub fn </span>get_unit(
     resolution: Arc&lt;QueryModuleResolution&gt;,
 ) -&gt; anyhow::Result&lt;(bool, Arc&lt;QueryModuleResolution&gt;)&gt; {
@@ -1123,10 +1135,12 @@
 
 <span class="kw">pub use </span>logging::{ext_tracing_subscriber, init_logging, LogWriter};
 
-<span class="doccomment">/// The value of the SECONDARY_JOB environment variable. This is used for distributing the
-/// `secondary`. If set, only data with `s = SECONDARY_JOB` will be computed. The minimum value of
-/// `s` is the `shift_s` of the [`SecondaryLift`](crate::secondary::SecondaryLift) and the maximum
-/// value (inclusive) is the maximum `s` of the resolution.
+<span class="doccomment">/// The value of the SECONDARY_JOB environment variable.
+///
+/// This is used for distributing the `secondary`. If set, only data with `s = SECONDARY_JOB` will
+/// be computed. The minimum value of `s` is the `shift_s` of the
+/// [`SecondaryLift`](crate::secondary::SecondaryLift) and the maximum value (inclusive) is the
+/// maximum `s` of the resolution.
 </span><span class="kw">pub fn </span>secondary_job() -&gt; <span class="prelude-ty">Option</span>&lt;u32&gt; {
     <span class="kw">let </span>val = std::env::var(<span class="string">"SECONDARY_JOB"</span>).ok()<span class="question-mark">?</span>;
     <span class="kw">let </span>parsed: <span class="prelude-ty">Option</span>&lt;u32&gt; = str::parse(<span class="kw-2">&amp;</span>val).ok();

@@ -257,6 +257,19 @@
 <a href="#232" id="232">232</a>
 <a href="#233" id="233">233</a>
 <a href="#234" id="234">234</a>
+<a href="#235" id="235">235</a>
+<a href="#236" id="236">236</a>
+<a href="#237" id="237">237</a>
+<a href="#238" id="238">238</a>
+<a href="#239" id="239">239</a>
+<a href="#240" id="240">240</a>
+<a href="#241" id="241">241</a>
+<a href="#242" id="242">242</a>
+<a href="#243" id="243">243</a>
+<a href="#244" id="244">244</a>
+<a href="#245" id="245">245</a>
+<a href="#246" id="246">246</a>
+<a href="#247" id="247">247</a>
 </pre></div><pre class="rust"><code><span class="doccomment">/// Use all primes. It isn't possible to have this import when `odd-primes` is disabled because
 /// primes other than P2 and ValidPrime (which happen to be the same type) do not exist.
 </span><span class="macro">macro_rules!</span> use_primes {
@@ -457,6 +470,19 @@
                 <span class="number">7 </span>=&gt; <span class="self">Self</span>::_7(<span class="macro-nonterminal">$fq_name</span>::<span class="macro-nonterminal">$method</span>(F7, $(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>)),
                 <span class="kw">_ </span>=&gt; <span class="self">Self</span>::Big(<span class="macro-nonterminal">$fq_name</span>::<span class="macro-nonterminal">$method</span>(Fp::new(p.to_dyn()), $(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>)),
             }
+        }
+        <span class="macro">dispatch_vector!</span>{$(<span class="macro-nonterminal">$tail</span>)<span class="kw-2">*</span>}
+    };
+    <span class="comment">// Special-case update_from_bytes
+    </span>(<span class="macro-nonterminal">$vis</span>:vis <span class="kw">fn </span><span class="macro-nonterminal">$method</span>:ident &lt;P: Prime&gt; (p: P $(, <span class="macro-nonterminal">$arg</span>:ident: <span class="macro-nonterminal">$ty</span>:ty )<span class="kw-2">*</span>) -&gt; (from io <span class="macro-nonterminal">$fq_name</span>:tt); $(<span class="macro-nonterminal">$tail</span>:tt)<span class="kw-2">*</span>) =&gt; {
+        <span class="macro-nonterminal">$vis </span><span class="kw">fn </span><span class="macro-nonterminal">$method</span>&lt;P: Prime&gt;(p: P, $(<span class="macro-nonterminal">$arg</span>: <span class="macro-nonterminal">$ty</span>),<span class="kw-2">*</span>) -&gt; std::io::Result&lt;<span class="self">Self</span>&gt; {
+            <span class="prelude-val">Ok</span>(<span class="kw">match </span>p.as_u32() {
+                <span class="number">2 </span>=&gt; <span class="self">Self</span>::_2(<span class="macro-nonterminal">$fq_name</span>::<span class="macro-nonterminal">$method</span>(F2, $(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>)<span class="question-mark">?</span>),
+                <span class="number">3 </span>=&gt; <span class="self">Self</span>::_3(<span class="macro-nonterminal">$fq_name</span>::<span class="macro-nonterminal">$method</span>(F3, $(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>)<span class="question-mark">?</span>),
+                <span class="number">5 </span>=&gt; <span class="self">Self</span>::_5(<span class="macro-nonterminal">$fq_name</span>::<span class="macro-nonterminal">$method</span>(F5, $(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>)<span class="question-mark">?</span>),
+                <span class="number">7 </span>=&gt; <span class="self">Self</span>::_7(<span class="macro-nonterminal">$fq_name</span>::<span class="macro-nonterminal">$method</span>(F7, $(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>)<span class="question-mark">?</span>),
+                <span class="kw">_ </span>=&gt; <span class="self">Self</span>::Big(<span class="macro-nonterminal">$fq_name</span>::<span class="macro-nonterminal">$method</span>(Fp::new(p.to_dyn()), $(<span class="macro-nonterminal">$arg</span>),<span class="kw-2">*</span>)<span class="question-mark">?</span>),
+            })
         }
         <span class="macro">dispatch_vector!</span>{$(<span class="macro-nonterminal">$tail</span>)<span class="kw-2">*</span>}
     }

@@ -112,6 +112,8 @@
 <a href="#87" id="87">87</a>
 <a href="#88" id="88">88</a>
 <a href="#89" id="89">89</a>
+<a href="#90" id="90">90</a>
+<a href="#91" id="91">91</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::ops::Range;
 
 <span class="kw">use </span>bivec::BiVec;
@@ -124,12 +126,14 @@
     <span class="kw">pub </span>basis_index: usize,
 }
 
-<span class="doccomment">/// A block structure is a structure that makes it efficient to convert between an index
-/// into a sum of vector spaces and an index into an individual one. For instance, a FreeModule
-/// has some collection of generators in various degrees and a general element is a homogenous sum
-/// \sum Op^i x_i. The basis for the FreeModule is divided into a block for each generator x_i.
-/// The entries in the block correspond to a basis for the algebra. In order to multiply by a steenrod operation,
-/// we have to pull out each block and multiply each block separately by the steenrod operation.
+<span class="doccomment">/// A structure that makes it efficient to convert between an index into a sum of vector spaces and
+/// an index into an individual one.
+///
+/// For instance, a FreeModule has some collection of generators in various degrees and a general
+/// element is a homogenous sum \sum Op^i x_i. The basis for the FreeModule is divided into a block
+/// for each generator x_i. The entries in the block correspond to a basis for the algebra. In order
+/// to multiply by a steenrod operation, we have to pull out each block and multiply each block
+/// separately by the steenrod operation.
 </span><span class="attr">#[derive(Debug)]
 </span><span class="kw">pub struct </span>BlockStructure {
     basis_element_to_block_idx: Vec&lt;GeneratorBasisEltPair&gt;,

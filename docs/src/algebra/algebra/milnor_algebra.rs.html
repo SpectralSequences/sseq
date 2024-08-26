@@ -2113,6 +2113,8 @@
 <a href="#2088" id="2088">2088</a>
 <a href="#2089" id="2089">2089</a>
 <a href="#2090" id="2090">2090</a>
+<a href="#2091" id="2091">2091</a>
+<a href="#2092" id="2092">2092</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::cell::Cell;
 
 <span class="kw">use </span>fp::{
@@ -3320,9 +3322,11 @@
     }
 }
 
-<span class="doccomment">/// The parts of a PPartMultiplier that involve heap allocation. This lets us reuse the allocation
-/// across multiple different multipliers. Reusing the whole PPartMultiplier is finicky but doable
-/// due to lifetime issues, but it appears to be less performant.
+<span class="doccomment">/// The parts of a PPartMultiplier that involve heap allocation.
+///
+/// This lets us reuse the allocation across multiple different multipliers. Reusing the whole
+/// PPartMultiplier is finicky but doable due to lifetime issues. However, it appears to be less
+/// performant.
 </span><span class="attr">#[derive(Default)]
 </span><span class="kw">pub struct </span>PPartAllocation {
     m: Matrix2D,

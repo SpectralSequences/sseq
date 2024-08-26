@@ -616,6 +616,8 @@
 <a href="#591" id="591">591</a>
 <a href="#592" id="592">592</a>
 <a href="#593" id="593">593</a>
+<a href="#594" id="594">594</a>
+<a href="#595" id="595">595</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Write <span class="kw">as _</span>; <span class="comment">// Needed for write! macro for String
 
 </span><span class="attr">#[cfg(doc)]
@@ -908,9 +910,11 @@
     }
 }
 
-<span class="doccomment">/// An algebra that is maybe unstable. Every Algebra implements MuAlgebra&lt;false&gt; by ignoring the
-/// excess parameter, and every UnstableAlgebra implements MuAlgebra&lt;true&gt;. This makes it possible
-/// to write code that is generic over stable and unstable algebras.
+<span class="doccomment">/// An algebra that is maybe unstable.
+///
+/// Every Algebra implements MuAlgebra&lt;false&gt; by ignoring the excess parameter, and every
+/// UnstableAlgebra implements MuAlgebra&lt;true&gt;. This makes it possible to write code that is generic
+/// over stable and unstable algebras.
 </span><span class="kw">pub trait </span>MuAlgebra&lt;<span class="kw">const </span>U: bool&gt;: Algebra {
     <span class="kw">fn </span>dimension_unstable(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32, excess: i32) -&gt; usize;
 
