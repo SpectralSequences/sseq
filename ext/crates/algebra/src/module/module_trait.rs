@@ -9,9 +9,11 @@ use itertools::Itertools;
 
 use crate::algebra::Algebra;
 
-/// A bounded below module over an algebra. To accommodate for infinite modules (e.g. modules in a
-/// free resolution), every module is potentially only define up to a degree. The extent to which
-/// the module is defined is kept track by two functions:
+/// A bounded below module over an algebra.
+///
+/// To accommodate for infinite modules (e.g. modules in a free resolution), every module is
+/// potentially only define up to a degree. The extent to which the module is defined is kept track
+/// by two functions:
 ///
 ///  - [`Module::max_computed_degree`] gives the maximum degree for which the module is fully
 ///    defined. It is guaranteed that the module will never change up to this degree in the future.

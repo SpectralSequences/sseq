@@ -14,9 +14,11 @@ use crate::{
     vector::{FpSlice, FpSliceMut, FpVector},
 };
 
-/// A matrix! In particular, a matrix with values in F_p. The way we store matrices means it is
-/// easier to perform row operations than column operations, and the way we use matrices means we
-/// want our matrices to act on the right. Hence we think of vectors as row vectors.
+/// A matrix! In particular, a matrix with values in F_p.
+///
+/// The way we store matrices means it is easier to perform row operations than column operations,
+/// and the way we use matrices means we want our matrices to act on the right. Hence we think of
+/// vectors as row vectors.
 #[derive(Clone)]
 pub struct Matrix {
     p: ValidPrime,

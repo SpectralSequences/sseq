@@ -1,7 +1,8 @@
 //! This implements the notion of a split pair algebra in the sense of
-//! <https://arxiv.org/abs/2105.07628>, whose notation we will use throughout. The Steenrod algebra
-//! admits a lift to a split pair algebra, which can be used to compute d2 differentials
-//! algorithmically.
+//! <https://arxiv.org/abs/2105.07628v1>, whose notation we will use throughout.
+//!
+//! The Steenrod algebra admits a lift to a split pair algebra, which can be used to compute d2
+//! differentials algorithmically.
 //!
 //! To keep the pair algebra business contained, we put the implementation of the Milnor algebra as
 //! a pair algebra in this file instead of `milnor_algebra.rs`.

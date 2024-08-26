@@ -1205,9 +1205,11 @@ impl std::ops::IndexMut<usize> for Matrix2D {
     }
 }
 
-/// The parts of a PPartMultiplier that involve heap allocation. This lets us reuse the allocation
-/// across multiple different multipliers. Reusing the whole PPartMultiplier is finicky but doable
-/// due to lifetime issues, but it appears to be less performant.
+/// The parts of a PPartMultiplier that involve heap allocation.
+///
+/// This lets us reuse the allocation across multiple different multipliers. Reusing the whole
+/// PPartMultiplier is finicky but doable due to lifetime issues. However, it appears to be less
+/// performant.
 #[derive(Default)]
 pub struct PPartAllocation {
     m: Matrix2D,

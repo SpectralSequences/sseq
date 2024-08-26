@@ -28,9 +28,11 @@ pub use hom_pullback::HomPullback;
 use maybe_rayon::prelude::*;
 pub use quotient_homomorphism::{QuotientHomomorphism, QuotientHomomorphismSource};
 
+/// A trait that represents a homomorphism between two modules.
+///
 /// Each `ModuleHomomorphism` may come with auxiliary data, namely the kernel, image and
-/// quasi_inverse at each degree (the quasi-inverse is a map that is a right inverse when
-/// restricted to the image). These are computed via
+/// quasi_inverse at each degree (the quasi-inverse is a map that is a right inverse when restricted
+/// to the image). These are computed via
 /// [`ModuleHomomorphism::compute_auxiliary_data_through_degree`] and retrieved through
 /// [`ModuleHomomorphism::kernel`], [`ModuleHomomorphism::quasi_inverse`] and
 /// [`ModuleHomomorphism::image`].

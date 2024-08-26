@@ -12,11 +12,13 @@ pub trait FieldElementContainer:
 {
 }
 
-/// An element of a field. This contains the field itself so that it knows how to do arithmetic
-/// operations. We want this to be a _struct_ rather than a trait, which means that we want the
-/// _actual_ storage of the value to be managed by the field itself. Therefore, we have an internal
-/// field trait that knows about arithmetic operations and other implementation details, but these
-/// operations are only accessible from outside the crate using this struct.
+/// An element of a field.
+///
+/// This contains the field itself so that it knows how to do arithmetic operations. We want this to
+/// be a _struct_ rather than a trait, which means that we want the _actual_ storage of the value to
+/// be managed by the field itself. Therefore, we have an internal field trait that knows about
+/// arithmetic operations and other implementation details, but these operations are only accessible
+/// from outside the crate using this struct.
 ///
 /// It might seem wasteful to handle, say, `FieldElement<Fp<P>>`s rather than `u32` in the API for
 /// `FqVector<Fp<P>>`. However, this gives us type-level guarantees that the invariants of the

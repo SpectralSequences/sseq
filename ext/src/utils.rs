@@ -269,6 +269,8 @@ where
     crate::resolution::MuResolution::new_with_save(chain_complex, save_dir)
 }
 
+/// Load a module specification from a JSON file.
+///
 /// Given the name of a module file (without the `.json` extension), find a json file with this
 /// name, and return the parsed json object. The search path for this json file is described
 /// [here](../index.html#module-specification).
@@ -369,9 +371,11 @@ pub fn query_module_only(
 }
 
 /// Query the user for a module and a bidegree, and return a resolution resolved up to said
-/// bidegree. This is mainly a wrapper around [`query_module_only`] that also asks for the bidegree
-/// to resolve up to as well. The prompt of [`query_module_only`] is always set to `"Module"` when
-/// invoked through this function.
+/// bidegree.
+///
+/// This is mainly a wrapper around [`query_module_only`] that also asks for the bidegree to resolve
+/// up to as well. The prompt of [`query_module_only`] is always set to `"Module"` when invoked
+/// through this function.
 pub fn query_module(
     algebra: Option<AlgebraType>,
     load_quasi_inverse: bool,
@@ -420,9 +424,10 @@ pub fn query_unstable_module(load_quasi_inverse: bool) -> anyhow::Result<Unstabl
     Ok(resolution)
 }
 
-/// Given a resolution, return a resolution of the unit, together with a boolean indicating whether
-/// this is the original resolution was already a resolution of the unit. If the boolean is true,
-/// then the original resolution is returned.
+/// Given a resolution, return a resolution of the unit.
+///
+/// The return value comes with a boolean indicating whether the original resolution was already a
+/// resolution of the unit. If the boolean is true, then the original resolution is returned.
 pub fn get_unit(
     resolution: Arc<QueryModuleResolution>,
 ) -> anyhow::Result<(bool, Arc<QueryModuleResolution>)> {
@@ -541,10 +546,12 @@ mod logging {
 
 pub use logging::{ext_tracing_subscriber, init_logging, LogWriter};
 
-/// The value of the SECONDARY_JOB environment variable. This is used for distributing the
-/// `secondary`. If set, only data with `s = SECONDARY_JOB` will be computed. The minimum value of
-/// `s` is the `shift_s` of the [`SecondaryLift`](crate::secondary::SecondaryLift) and the maximum
-/// value (inclusive) is the maximum `s` of the resolution.
+/// The value of the SECONDARY_JOB environment variable.
+///
+/// This is used for distributing the `secondary`. If set, only data with `s = SECONDARY_JOB` will
+/// be computed. The minimum value of `s` is the `shift_s` of the
+/// [`SecondaryLift`](crate::secondary::SecondaryLift) and the maximum value (inclusive) is the
+/// maximum `s` of the resolution.
 pub fn secondary_job() -> Option<u32> {
     let val = std::env::var("SECONDARY_JOB").ok()?;
     let parsed: Option<u32> = str::parse(&val).ok();

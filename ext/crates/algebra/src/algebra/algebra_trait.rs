@@ -290,9 +290,11 @@ pub trait UnstableAlgebra: Algebra {
     }
 }
 
-/// An algebra that is maybe unstable. Every Algebra implements MuAlgebra<false> by ignoring the
-/// excess parameter, and every UnstableAlgebra implements MuAlgebra<true>. This makes it possible
-/// to write code that is generic over stable and unstable algebras.
+/// An algebra that is maybe unstable.
+///
+/// Every Algebra implements MuAlgebra<false> by ignoring the excess parameter, and every
+/// UnstableAlgebra implements MuAlgebra<true>. This makes it possible to write code that is generic
+/// over stable and unstable algebras.
 pub trait MuAlgebra<const U: bool>: Algebra {
     fn dimension_unstable(&self, degree: i32, excess: i32) -> usize;
 

@@ -330,6 +330,8 @@ impl<A: PairAlgebra + Send + Sync> SecondaryHomotopy<A> {
     }
 }
 
+/// Logic that is common to all secondary lifts.
+///
 /// When lifting a thing to its secondary version, often what we have to do is to specify an
 /// explicit homotopy to witnesses that some equation holds. For example, to lift a chain complex,
 /// we need a homotopy witnessing the fact that $d^2 \simeq 0$. This homotopy in turn is required

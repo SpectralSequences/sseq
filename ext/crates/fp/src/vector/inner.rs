@@ -3,7 +3,7 @@
 
 use crate::{field::Field, limb::Limb};
 
-/// An `FqVector` is a vector over a finite field.
+/// A vector over a finite field.
 ///
 /// Interally, it packs entries of the vectors into limbs. However, this is an abstraction that must
 /// not leave the `fp` library.
@@ -14,8 +14,9 @@ pub struct FqVector<F: Field> {
     pub(super) limbs: Vec<Limb>,
 }
 
-/// An `FqSlice` is a slice of an `FqVector`. This immutably borrows the vector and implements
-/// `Copy`
+/// A slice of an `FqVector`.
+///
+/// This immutably borrows the vector and implements `Copy`.
 #[derive(Debug, Copy, Clone)]
 pub struct FqSlice<'a, F: Field> {
     pub(super) fq: F,
@@ -24,10 +25,11 @@ pub struct FqSlice<'a, F: Field> {
     pub(super) end: usize,
 }
 
-/// An `FqSliceMut` is a mutable slice of an `FqVector`. This mutably borrows the vector. Since it
-/// is a mutable borrow, it cannot implement `Copy`. However, it has a [`FqSliceMut::copy`] function
-/// that imitates the reborrowing, that mutably borrows `FqSliceMut` and returns a `FqSliceMut` with
-/// a shorter lifetime.
+/// A mutable slice of an `FqVector`.
+///
+/// This mutably borrows the vector. Since it is a mutable borrow, it cannot implement `Copy`.
+/// However, it has a [`FqSliceMut::copy`] function that imitates the reborrowing, that mutably
+/// borrows `FqSliceMut` and returns a `FqSliceMut` with a shorter lifetime.
 #[derive(Debug)]
 pub struct FqSliceMut<'a, F: Field> {
     pub(super) fq: F,

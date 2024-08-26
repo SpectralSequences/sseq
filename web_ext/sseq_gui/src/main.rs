@@ -40,10 +40,12 @@ fn print_time(time: OffsetDateTime) -> String {
     format!("{}:{}:{}", time.hour(), time.minute(), time.hour())
 }
 
+/// A struct that dispatches messages to ResolutionManager and SseqManager.
+///
 /// The reason the code is structured this way is that messages sent to the WebSocket are blocked
-/// until `on_message` returned. Hence we start the ResolutionManager on a separate thread, and
-/// when we receive a message, we can let ResolutionManager handle it asynchronously and let
-/// `on_message` return as soon as possible.
+/// until `on_message` returned. Hence we start the ResolutionManager on a separate thread, and when
+/// we receive a message, we can let ResolutionManager handle it asynchronously and let `on_message`
+/// return as soon as possible.
 ///
 /// We also spawn a separate thread waiting for messages from ResolutionManager, and then relay it
 /// to the WebSocket, again, we do this because we don't want anything to be blocking.
@@ -182,7 +184,9 @@ impl Manager {
     }
 }
 
-/// The server implements the `ws::Handler` trait. It doesn't really do much. When we receive a
+/// A simple WebSocket server that serves static files and passes messages to [`Manager`].
+///
+/// The server implements the [`ws::Handler`] trait. It doesn't really do much. When we receive a
 /// request, it is either looking for some static files, as specified in `FILE_LIST`, or it is
 /// WebSocket message. If it is the former, we return the file. If it is the latter, we parse it
 /// into a string and pass it on to Manager.

@@ -1,6 +1,7 @@
-//! This module implements [Nassau's algorithm](https://arxiv.org/abs/1910.04063). The main export
-//! is the [`Resolution`] object, which is a resolution of the sphere at the prime 2 using Nassau's
-//! algorithm. It aims to provide an API similar to
+//! This module implements [Nassau's algorithm](https://arxiv.org/abs/1910.04063).
+//!
+//! The main export is the [`Resolution`] object, which is a resolution of the sphere at the prime 2
+//! using Nassau's algorithm. It aims to provide an API similar to
 //! [`resolution::Resolution`](crate::resolution::Resolution). From an API point of view, the main
 //! difference between the two is that our `Resolution` is a chain complex over [`MilnorAlgebra`]
 //! over [`SteenrodAlgebra`](algebra::SteenrodAlgebra).
@@ -8,9 +9,8 @@
 //! To make use of this resolution in the example scripts, enable the `nassau` feature. This will
 //! cause [`utils::query_module`](crate::utils::query_module) to return the `Resolution` from this
 //! module instead of [`resolution`](crate::resolution). There is no formal polymorphism involved;
-//! the feature changes the return type of the function. While this is an incorrect use of
-//! features, we find that this the easiest way to make all scripts support both types of
-//! resolutions.
+//! the feature changes the return type of the function. While this is an incorrect use of features,
+//! we find that this the easiest way to make all scripts support both types of resolutions.
 
 use std::{
     fmt::Display,
@@ -382,10 +382,12 @@ enum Magic {
     Fix = -3,
 }
 
-/// A resolution of `S_2` using Nassau's algorithm. This aims to have an API similar to that of
+/// A resolution of `S_2` using Nassau's algorithm.
+///
+/// This aims to have an API similar to that of
 /// [`resolution::Resolution`](crate::resolution::Resolution). From an API point of view, the main
-/// difference between the two is that this is a chain complex over [`MilnorAlgebra`]
-/// over [`SteenrodAlgebra`](algebra::SteenrodAlgebra).
+/// difference between the two is that this is a chain complex over [`MilnorAlgebra`] over
+/// [`SteenrodAlgebra`](algebra::SteenrodAlgebra).
 pub struct Resolution<M: ZeroModule<Algebra = MilnorAlgebra>> {
     lock: Mutex<()>,
     name: String,
