@@ -223,11 +223,11 @@ impl Matrix {
     /// let p = ValidPrime::new(7);
     /// # use fp::matrix::Matrix;
     /// # use fp::vector::FpVector;
-    /// let input  = [vec![1, 3, 6],
-    ///               vec![0, 3, 4]];
+    /// let input = [vec![1, 3, 6], vec![0, 3, 4]];
     ///
     /// let (n, m) = Matrix::augmented_from_vec(p, &input);
     /// assert!(n >= input[0].len());
+    /// ```
     pub fn augmented_from_vec(p: ValidPrime, input: &[Vec<u32>]) -> (usize, Self) {
         let rows = input.len();
         let cols = input[0].len();
