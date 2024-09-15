@@ -5,12 +5,13 @@ use algebra::{
     MuAlgebra,
 };
 use fp::vector::{FpSlice, FpVector};
+use serde::{Deserialize, Serialize};
 
 use crate::coordinates::{Bidegree, BidegreeGenerator};
 
 /// An element of a bigraded vector space. Most commonly used to index elements of spectral
 /// sequences.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct BidegreeElement {
     /// Bidegree of the element
     degree: Bidegree,
