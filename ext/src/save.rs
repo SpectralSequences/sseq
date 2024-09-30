@@ -3,7 +3,7 @@ use std::{
     fs::File,
     io::{BufRead, BufReader, BufWriter, Error, ErrorKind, Read, Write},
     path::{Path, PathBuf},
-    sync::{Arc, Mutex},
+    sync::{Arc, LazyLock, Mutex},
 };
 
 use algebra::Algebra;
@@ -67,31 +67,25 @@ impl From<Option<PathBuf>> for SaveDirectory {
 }
 
 /// A DashSet<PathBuf>> of files that are currently opened and being written to. When calling this
-/// function for the first time, we set the ctrlc handler to delete currently opened files, then
+/// function for the first time, we set the ctrlc handler to delete currently opened files then
 /// exit.
 fn open_files() -> &'static Mutex<HashSet<PathBuf>> {
-    use std::{mem::MaybeUninit, sync::Once};
-
-    static mut OPEN_FILES: MaybeUninit<Mutex<HashSet<PathBuf>>> = MaybeUninit::uninit();
-    static ONCE: Once = Once::new();
-    unsafe {
-        ONCE.call_once(|| {
-            OPEN_FILES.write(Default::default());
-            #[cfg(unix)]
-            ctrlc::set_handler(move || {
-                tracing::warn!("Ctrl-C detected. Deleting open files and exiting.");
-                let files = open_files().lock().unwrap();
-                for file in &*files {
-                    std::fs::remove_file(file)
-                        .unwrap_or_else(|_| panic!("Error when deleting {file:?}"));
-                    tracing::warn!("Deleted {}", file.to_string_lossy());
-                }
-                std::process::exit(130);
-            })
-            .expect("Error setting Ctrl-C handler");
-        });
-        OPEN_FILES.assume_init_ref()
-    }
+    static OPEN_FILES: LazyLock<Mutex<HashSet<PathBuf>>> = LazyLock::new(|| {
+        #[cfg(unix)]
+        ctrlc::set_handler(move || {
+            tracing::warn!("Ctrl-C detected. Deleting open files and exiting.");
+            let files = open_files().lock().unwrap();
+            for file in &*files {
+                std::fs::remove_file(file)
+                    .unwrap_or_else(|_| panic!("Error when deleting {file:?}"));
+                tracing::warn!("Deleted {}", file.to_string_lossy());
+            }
+            std::process::exit(130);
+        })
+        .expect("Error setting Ctrl-C handler");
+        Default::default()
+    });
+    &OPEN_FILES
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
