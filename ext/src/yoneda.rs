@@ -518,7 +518,6 @@ where
 /// followed by a list of elements that span the intersection between this subspace and `keep`.
 ///
 /// If `keep` is `None`, it is interpreted as the empty subspace.
-
 fn compute_kernel_image<M: Module, F: ModuleHomomorphism, G: ModuleHomomorphism>(
     source: &QM<M>,
     augmentation_map: Option<&F>,

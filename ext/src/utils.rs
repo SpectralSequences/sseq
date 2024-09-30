@@ -22,8 +22,8 @@ pub type QueryModuleResolution = Resolution<CCC>;
 
 /// The type returned by [`query_module`]. The value of this type depends on whether
 /// [`nassau`](crate::nassau) is enabled. In any case, it is an augmented free chain complex over
-/// either [`SteenrodAlgebra`] or [`MilnorAlgebra`](algebra::MilnorAlgebra) and supports the
-/// `compute_through_stem` function.
+/// either [`SteenrodAlgebra`] or [`MilnorAlgebra`] and supports the `compute_through_stem`
+/// function.
 #[cfg(feature = "nassau")]
 pub type QueryModuleResolution = crate::nassau::Resolution<FDModule<MilnorAlgebra>>;
 
