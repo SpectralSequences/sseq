@@ -64,8 +64,7 @@ of columns is also assumed to be zero.</p>
 A). Returns the matrix and the first column index of I.</p>
 <h5 id="example-1"><a class="doc-anchor" href="#example-1">§</a>Example</h5>
 <div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">let </span>p = ValidPrime::new(<span class="number">7</span>);
-<span class="kw">let </span>input  = [<span class="macro">vec!</span>[<span class="number">1</span>, <span class="number">3</span>, <span class="number">6</span>],
-              <span class="macro">vec!</span>[<span class="number">0</span>, <span class="number">3</span>, <span class="number">4</span>]];
+<span class="kw">let </span>input = [<span class="macro">vec!</span>[<span class="number">1</span>, <span class="number">3</span>, <span class="number">6</span>], <span class="macro">vec!</span>[<span class="number">0</span>, <span class="number">3</span>, <span class="number">4</span>]];
 
 <span class="kw">let </span>(n, m) = Matrix::augmented_from_vec(p, <span class="kw-2">&amp;</span>input);
 <span class="macro">assert!</span>(n &gt;= input[<span class="number">0</span>].len());</code></pre></div>

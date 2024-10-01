@@ -137,6 +137,7 @@
 <a href="#112" id="112">112</a>
 <a href="#113" id="113">113</a>
 <a href="#114" id="114">114</a>
+<a href="#115" id="115">115</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::{<span class="self">self</span>, Display, Formatter};
 
 <span class="kw">use </span>algebra::{
@@ -144,12 +145,13 @@
     MuAlgebra,
 };
 <span class="kw">use </span>fp::vector::{FpSlice, FpVector};
+<span class="kw">use </span>serde::{Deserialize, Serialize};
 
 <span class="kw">use </span><span class="kw">crate</span>::coordinates::{Bidegree, BidegreeGenerator};
 
 <span class="doccomment">/// An element of a bigraded vector space. Most commonly used to index elements of spectral
 /// sequences.
-</span><span class="attr">#[derive(Debug, Clone)]
+</span><span class="attr">#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 </span><span class="kw">pub struct </span>BidegreeElement {
     <span class="doccomment">/// Bidegree of the element
     </span>degree: Bidegree,

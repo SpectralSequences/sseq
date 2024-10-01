@@ -1528,11 +1528,11 @@
     /// let p = ValidPrime::new(7);
     /// # use fp::matrix::Matrix;
     /// # use fp::vector::FpVector;
-    /// let input  = [vec![1, 3, 6],
-    ///               vec![0, 3, 4]];
+    /// let input = [vec![1, 3, 6], vec![0, 3, 4]];
     ///
     /// let (n, m) = Matrix::augmented_from_vec(p, &amp;input);
     /// assert!(n &gt;= input[0].len());
+    /// ```
     </span><span class="kw">pub fn </span>augmented_from_vec(p: ValidPrime, input: <span class="kw-2">&amp;</span>[Vec&lt;u32&gt;]) -&gt; (usize, <span class="self">Self</span>) {
         <span class="kw">let </span>rows = input.len();
         <span class="kw">let </span>cols = input[<span class="number">0</span>].len();
