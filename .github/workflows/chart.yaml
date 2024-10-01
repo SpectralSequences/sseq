@@ -12,13 +12,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
-    - uses: actions/setup-python@v3
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
       with:
         python-version: "3.9"
 
     - name: Cache files
-      uses: actions/cache@v2
+      uses: actions/cache@v4
       with:
           path: |
               ~/.cargo
@@ -59,8 +59,8 @@ jobs:
         working-directory: ./chart/chart
 
     steps:
-    - uses: actions/checkout@v2
-    - uses: actions/setup-python@v3
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
       with:
         python-version: "3.9"
 
@@ -81,7 +81,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
 
     - name: Make clean does not remove commited files
       run: make clean && git diff --exit-code

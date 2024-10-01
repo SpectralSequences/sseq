@@ -16,8 +16,8 @@ jobs:
 
     continue-on-error: ${{ matrix.toolchain != 'stable' }}
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-python@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.9"
 
@@ -28,7 +28,7 @@ jobs:
           toolchain: ${{ matrix.toolchain }}
 
       - name: Cache files
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo
@@ -64,7 +64,7 @@ jobs:
       RUSTUP_TOOLCHAIN: nightly
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: Install rustup
         id: rustup
@@ -74,7 +74,7 @@ jobs:
           components: miri
 
       - name: Cache files
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo
@@ -94,7 +94,7 @@ jobs:
       RUSTUP_TOOLCHAIN: nightly
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: Install rustup
         id: rustup
@@ -103,12 +103,11 @@ jobs:
           toolchain: nightly
           components: clippy, rustfmt
 
-      # Install black from pip3 to ensure latest version
       - name: Install python dependencies
         run: sudo apt-get install black flake8
 
       - name: Cache files
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo
@@ -139,7 +138,7 @@ jobs:
 
     continue-on-error: ${{ matrix.toolchain != 'stable' }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: Install rustup
         uses: dtolnay/rust-toolchain@v1
@@ -150,7 +149,7 @@ jobs:
           components: clippy, rustfmt
 
       - name: Cache files
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo
@@ -200,7 +199,7 @@ jobs:
 
     continue-on-error: ${{ matrix.toolchain != 'stable' }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: Download webserver
         uses: actions/download-artifact@v4
@@ -218,7 +217,7 @@ jobs:
         run: sudo apt-get install --no-install-recommends python3-pytest python3-selenium
 
       - name: Cache files
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo
@@ -264,7 +263,7 @@ jobs:
 
     continue-on-error: ${{ matrix.toolchain != 'stable' }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: Install rustup
         id: rustup
@@ -275,7 +274,7 @@ jobs:
           components: clippy, rustfmt
 
       - name: Cache files
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo
@@ -318,7 +317,7 @@ jobs:
 
     continue-on-error: ${{ matrix.toolchain != 'stable' }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: Install rustup
         id: rustup
@@ -327,7 +326,7 @@ jobs:
           toolchain: ${{ matrix.toolchain }}
 
       - name: Cache files
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo
@@ -368,7 +367,7 @@ jobs:
           path: docs
 
       - name: Deploy
-        uses: peaceiris/actions-gh-pages@v3
+        uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: .
