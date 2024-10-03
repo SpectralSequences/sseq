@@ -36,16 +36,12 @@ fn main() -> anyhow::Result<()> {
     );
     hom.extend_all();
 
-    for b in res.iter_stem() {
+    for b in res.iter_nonzero_stem() {
         let doubled_b = Bidegree::s_t(b.s(), 2 * b.t());
         if !res.has_computed_bidegree(doubled_b) {
             continue;
         }
 
-        let num_gens = res.number_of_gens_in_bidegree(b);
-        if num_gens == 0 {
-            continue;
-        }
         let source_num_gens = res.number_of_gens_in_bidegree(doubled_b);
         let module = res.module(b.s());
         let offset = module.generator_offset(b.t(), b.t(), 0);

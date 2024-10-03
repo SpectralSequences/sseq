@@ -135,6 +135,12 @@ where
         self.module(b.s()).number_of_gens_in_degree(b.t())
     }
 
+    /// Iterate through all nonzero bidegrees in increasing order of stem.
+    fn iter_nonzero_stem(&self) -> impl Iterator<Item = Bidegree> + '_ {
+        self.iter_stem()
+            .filter(move |&b| self.number_of_gens_in_bidegree(b) > 0)
+    }
+
     /// Get a string representation of d(gen), where d is the differential of the resolution.
     fn boundary_string(&self, gen: BidegreeGenerator, compact: bool) -> String {
         let d = self.differential(gen.s());

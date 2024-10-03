@@ -127,17 +127,13 @@ fn main() -> anyhow::Result<()> {
 
     let name = hom_lift.name();
     // Iterate through the multiplicand
-    for b in unit.iter_stem() {
+    for b in unit.iter_nonzero_stem() {
         // The potential target has to be hit, and we need to have computed (the data need for) the
         // d2 that hits the potential target.
         if !resolution.has_computed_bidegree(b + shift + TAU_BIDEGREE) {
             continue;
         }
         if !resolution.has_computed_bidegree(b + shift - Bidegree::s_t(1, 0)) {
-            continue;
-        }
-
-        if unit.number_of_gens_in_bidegree(b) == 0 {
             continue;
         }
 

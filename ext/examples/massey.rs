@@ -66,7 +66,7 @@ fn main() -> anyhow::Result<()> {
     b_hom.extend_through_stem(shift);
 
     let offset_a = unit.module(a.s()).generator_offset(a.t(), a.t(), 0);
-    for c in resolution.iter_stem() {
+    for c in resolution.iter_nonzero_stem() {
         if !resolution.has_computed_bidegree(c + shift) {
             continue;
         }
@@ -76,7 +76,7 @@ fn main() -> anyhow::Result<()> {
         let num_gens = resolution.number_of_gens_in_bidegree(c);
         let product_num_gens = resolution.number_of_gens_in_bidegree(b + c);
         let target_num_gens = resolution.number_of_gens_in_bidegree(tot);
-        if num_gens == 0 || target_num_gens == 0 {
+        if target_num_gens == 0 {
             continue;
         }
 

@@ -71,15 +71,12 @@ fn main() -> anyhow::Result<()> {
     let d2_shift = Bidegree::n_s(-1, 2);
 
     // Iterate through target of the d2
-    for b in lift.underlying().iter_stem() {
+    for b in lift.underlying().iter_nonzero_stem() {
         if b.s() < 3 {
             continue;
         }
 
         if b.t() - 1 > resolution.module(b.s() - 2).max_computed_degree() {
-            continue;
-        }
-        if resolution.number_of_gens_in_bidegree(b) == 0 {
             continue;
         }
         let homotopy = lift.homotopy(b.s());
