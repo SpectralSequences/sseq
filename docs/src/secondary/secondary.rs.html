@@ -115,9 +115,6 @@
 <a href="#90" id="90">90</a>
 <a href="#91" id="91">91</a>
 <a href="#92" id="92">92</a>
-<a href="#93" id="93">93</a>
-<a href="#94" id="94">94</a>
-<a href="#95" id="95">95</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! This computes $d_2$ differentials in the Adams spectral sequence. This only works for fairly
 //! specific modules, but tends to cover most cases of interest.
 //!
@@ -191,15 +188,12 @@
     <span class="kw">let </span>d2_shift = Bidegree::n_s(-<span class="number">1</span>, <span class="number">2</span>);
 
     <span class="comment">// Iterate through target of the d2
-    </span><span class="kw">for </span>b <span class="kw">in </span>lift.underlying().iter_stem() {
+    </span><span class="kw">for </span>b <span class="kw">in </span>lift.underlying().iter_nonzero_stem() {
         <span class="kw">if </span>b.s() &lt; <span class="number">3 </span>{
             <span class="kw">continue</span>;
         }
 
         <span class="kw">if </span>b.t() - <span class="number">1 </span>&gt; resolution.module(b.s() - <span class="number">2</span>).max_computed_degree() {
-            <span class="kw">continue</span>;
-        }
-        <span class="kw">if </span>resolution.number_of_gens_in_bidegree(b) == <span class="number">0 </span>{
             <span class="kw">continue</span>;
         }
         <span class="kw">let </span>homotopy = lift.homotopy(b.s());

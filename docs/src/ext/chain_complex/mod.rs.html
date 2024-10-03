@@ -333,6 +333,11 @@
 <a href="#308" id="308">308</a>
 <a href="#309" id="309">309</a>
 <a href="#310" id="310">310</a>
+<a href="#311" id="311">311</a>
+<a href="#312" id="312">312</a>
+<a href="#313" id="313">313</a>
+<a href="#314" id="314">314</a>
+<a href="#315" id="315">315</a>
 </pre></div><pre class="rust"><code><span class="kw">mod </span>chain_homotopy;
 <span class="kw">mod </span>finite_chain_complex;
 
@@ -470,6 +475,12 @@
         <span class="self">self</span>.module(b.s()).number_of_gens_in_degree(b.t())
     }
 
+    <span class="doccomment">/// Iterate through all nonzero bidegrees in increasing order of stem.
+    </span><span class="kw">fn </span>iter_nonzero_stem(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = Bidegree&gt; + <span class="lifetime">'_ </span>{
+        <span class="self">self</span>.iter_stem()
+            .filter(<span class="kw">move </span>|<span class="kw-2">&amp;</span>b| <span class="self">self</span>.number_of_gens_in_bidegree(b) &gt; <span class="number">0</span>)
+    }
+
     <span class="doccomment">/// Get a string representation of d(gen), where d is the differential of the resolution.
     </span><span class="kw">fn </span>boundary_string(<span class="kw-2">&amp;</span><span class="self">self</span>, gen: BidegreeGenerator, compact: bool) -&gt; String {
         <span class="kw">let </span>d = <span class="self">self</span>.differential(gen.s());
@@ -522,8 +533,7 @@
     <span class="doccomment">/// The first s such that `self.module(s)` is not defined.
     </span><span class="kw">fn </span>next_homological_degree(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u32;
 
-    <span class="doccomment">/// Iterate through all defined bidegrees in increasing order of stem. The return values are of
-    /// the form `(s, n, t)`.
+    <span class="doccomment">/// Iterate through all defined bidegrees in increasing order of stem.
     </span><span class="kw">fn </span>iter_stem(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; StemIterator&lt;<span class="lifetime">'_</span>, <span class="self">Self</span>&gt; {
         StemIterator {
             cc: <span class="self">self</span>,

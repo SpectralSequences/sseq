@@ -239,7 +239,7 @@
     b_hom.extend_through_stem(shift);
 
     <span class="kw">let </span>offset_a = unit.module(a.s()).generator_offset(a.t(), a.t(), <span class="number">0</span>);
-    <span class="kw">for </span>c <span class="kw">in </span>resolution.iter_stem() {
+    <span class="kw">for </span>c <span class="kw">in </span>resolution.iter_nonzero_stem() {
         <span class="kw">if </span>!resolution.has_computed_bidegree(c + shift) {
             <span class="kw">continue</span>;
         }
@@ -249,7 +249,7 @@
         <span class="kw">let </span>num_gens = resolution.number_of_gens_in_bidegree(c);
         <span class="kw">let </span>product_num_gens = resolution.number_of_gens_in_bidegree(b + c);
         <span class="kw">let </span>target_num_gens = resolution.number_of_gens_in_bidegree(tot);
-        <span class="kw">if </span>num_gens == <span class="number">0 </span>|| target_num_gens == <span class="number">0 </span>{
+        <span class="kw">if </span>target_num_gens == <span class="number">0 </span>{
             <span class="kw">continue</span>;
         }
 

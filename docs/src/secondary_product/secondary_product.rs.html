@@ -205,10 +205,6 @@
 <a href="#180" id="180">180</a>
 <a href="#181" id="181">181</a>
 <a href="#182" id="182">182</a>
-<a href="#183" id="183">183</a>
-<a href="#184" id="184">184</a>
-<a href="#185" id="185">185</a>
-<a href="#186" id="186">186</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Computes products in $\Mod_{C\tau^2}$.
 //!
 //! # Usage
@@ -338,17 +334,13 @@
 
     <span class="kw">let </span>name = hom_lift.name();
     <span class="comment">// Iterate through the multiplicand
-    </span><span class="kw">for </span>b <span class="kw">in </span>unit.iter_stem() {
+    </span><span class="kw">for </span>b <span class="kw">in </span>unit.iter_nonzero_stem() {
         <span class="comment">// The potential target has to be hit, and we need to have computed (the data need for) the
         // d2 that hits the potential target.
         </span><span class="kw">if </span>!resolution.has_computed_bidegree(b + shift + TAU_BIDEGREE) {
             <span class="kw">continue</span>;
         }
         <span class="kw">if </span>!resolution.has_computed_bidegree(b + shift - Bidegree::s_t(<span class="number">1</span>, <span class="number">0</span>)) {
-            <span class="kw">continue</span>;
-        }
-
-        <span class="kw">if </span>unit.number_of_gens_in_bidegree(b) == <span class="number">0 </span>{
             <span class="kw">continue</span>;
         }
 

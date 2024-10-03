@@ -521,10 +521,6 @@
 <a href="#496" id="496">496</a>
 <a href="#497" id="497">497</a>
 <a href="#498" id="498">498</a>
-<a href="#499" id="499">499</a>
-<a href="#500" id="500">500</a>
-<a href="#501" id="501">501</a>
-<a href="#502" id="502">502</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>algebra::module::Module;
@@ -563,16 +559,12 @@
     );
     hom.extend_all();
 
-    <span class="kw">for </span>b <span class="kw">in </span>res.iter_stem() {
+    <span class="kw">for </span>b <span class="kw">in </span>res.iter_nonzero_stem() {
         <span class="kw">let </span>doubled_b = Bidegree::s_t(b.s(), <span class="number">2 </span>* b.t());
         <span class="kw">if </span>!res.has_computed_bidegree(doubled_b) {
             <span class="kw">continue</span>;
         }
 
-        <span class="kw">let </span>num_gens = res.number_of_gens_in_bidegree(b);
-        <span class="kw">if </span>num_gens == <span class="number">0 </span>{
-            <span class="kw">continue</span>;
-        }
         <span class="kw">let </span>source_num_gens = res.number_of_gens_in_bidegree(doubled_b);
         <span class="kw">let </span>module = res.module(b.s());
         <span class="kw">let </span>offset = module.generator_offset(b.t(), b.t(), <span class="number">0</span>);
