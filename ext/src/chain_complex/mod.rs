@@ -187,8 +187,7 @@ pub trait ChainComplex: Send + Sync {
     /// The first s such that `self.module(s)` is not defined.
     fn next_homological_degree(&self) -> u32;
 
-    /// Iterate through all defined bidegrees in increasing order of stem. The return values are of
-    /// the form `(s, n, t)`.
+    /// Iterate through all defined bidegrees in increasing order of stem.
     fn iter_stem(&self) -> StemIterator<'_, Self> {
         StemIterator {
             cc: self,
