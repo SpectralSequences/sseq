@@ -117,6 +117,16 @@ macro_rules! dispatch_vector {
     }
 }
 
+macro_rules! impl_from {
+    () => {
+        impl From<FqVector<Fp<P2>>> for FpVector {
+            fn from(other: FqVector<Fp<P2>>) -> Self {
+                Self(other)
+            }
+        }
+    };
+}
+
 macro_rules! impl_try_into {
     () => {
         impl<'a> TryInto<&'a mut FqVector<Fp<P2>>> for &'a mut FpVector {

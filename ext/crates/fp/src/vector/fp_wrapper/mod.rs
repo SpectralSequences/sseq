@@ -229,6 +229,7 @@ impl<'a> IntoIterator for &'a FpVector {
     }
 }
 
+impl_from!();
 impl_try_into!();
 
 impl Serialize for FpVector {

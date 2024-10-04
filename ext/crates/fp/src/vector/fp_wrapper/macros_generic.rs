@@ -216,6 +216,26 @@ macro_rules! dispatch_vector {
     }
 }
 
+macro_rules! impl_from_inner {
+    ($var:tt, $p:ty) => {
+        impl<'a> From<FqVector<Fp<$p>>> for FpVector {
+            fn from(x: FqVector<Fp<$p>>) -> Self {
+                FpVector::$var(x)
+            }
+        }
+    };
+}
+
+macro_rules! impl_from {
+    () => {
+        impl_from_inner!(_2, P2);
+        impl_from_inner!(_3, P3);
+        impl_from_inner!(_5, P5);
+        impl_from_inner!(_7, P7);
+        impl_from_inner!(Big, ValidPrime);
+    };
+}
+
 macro_rules! impl_try_into_inner {
     ($var:tt, $p:ty) => {
         impl<'a> TryInto<&'a mut FqVector<Fp<$p>>> for &'a mut FpVector {
