@@ -1,5 +1,6 @@
 use std::fmt::{self, Display, Formatter};
 
+use fp::{prime::ValidPrime, vector::FpVector};
 use serde::{Deserialize, Serialize};
 
 use super::{Bidegree, BidegreeElement};
@@ -48,6 +49,12 @@ impl BidegreeGenerator {
 
     pub fn idx(&self) -> usize {
         self.idx
+    }
+
+    pub fn into_element(self, p: ValidPrime, ambient: usize) -> BidegreeElement {
+        let mut vec = FpVector::new(p, ambient);
+        vec.set_entry(self.idx, 1);
+        BidegreeElement::new(self.degree, vec)
     }
 }
 
