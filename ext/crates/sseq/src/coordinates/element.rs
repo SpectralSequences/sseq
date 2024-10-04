@@ -110,6 +110,10 @@ impl BidegreeElement {
 
 impl Display for BidegreeElement {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "({}, {}, {})", self.n(), self.s(), self.vec())
+        if f.alternate() {
+            write!(f, "({},{}){}", self.n(), self.s(), self.vec())
+        } else {
+            write!(f, "({}, {}, {})", self.n(), self.s(), self.vec())
+        }
     }
 }
