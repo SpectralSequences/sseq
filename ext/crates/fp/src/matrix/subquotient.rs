@@ -155,14 +155,14 @@ impl Subquotient {
         result
     }
 
-    /// Given a chain of subspaces `subspace` < `space` < k^`ambient_dimension`, compute the
-    /// subquotient `space`/`subspace`. The answer is expressed as a list of basis vectors of
-    /// `space` whose image in `space`/`subspace` forms a basis, and a basis vector of `space` is
-    /// described by its index in the list of basis vectors of `space` (not the ambient space).
+    /// Given a chain of subspaces `quotient` < `sub` in some ambient space, compute the subquotient
+    /// `sub`/`quotient`. The answer is expressed as a list of basis vectors of `sub` whose image in
+    /// `sub`/`quotient` forms a basis, and a basis vector of `sub` is described by its index in the
+    /// list of basis vectors of `sub` (not the ambient space).
     ///
-    /// # Arguments
-    ///  * `space` - If this is None, it is the whole space k^`ambient_dimension`
-    ///  * `subspace` - If this is None, it is empty
+    /// Note that the `quotient` argument does not need to be a subspace of the `sub` argument, nor
+    /// do they need to be disjoint. Mathematically, this method constructs the space `(sub +
+    /// quotient) / quotient`.
     pub fn from_parts(mut sub: Subspace, quotient: Subspace) -> Self {
         let dim = sub.dimension();
 
