@@ -5,7 +5,7 @@ use crate::{
     vector::{FpSlice, FpSliceMut, FpVector},
 };
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Subquotient {
     gens: Subspace,
     quotient: Subspace,
