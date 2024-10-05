@@ -242,13 +242,13 @@
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, F: Field&gt; FqSlice&lt;<span class="lifetime">'a</span>, F&gt; {
+<span class="kw">impl</span>&lt;F: Field&gt; FqSlice&lt;<span class="lifetime">'_</span>, F&gt; {
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>entry_helper(<span class="kw-2">&amp;</span><span class="self">self</span>, index: usize) -&gt; F::ElementContainer {
         <span class="self">self</span>.entry(index).val()
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, F: Field&gt; FqSliceMut&lt;<span class="lifetime">'a</span>, F&gt; {
+<span class="kw">impl</span>&lt;F: Field&gt; FqSliceMut&lt;<span class="lifetime">'_</span>, F&gt; {
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>scale_helper(<span class="kw-2">&amp;mut </span><span class="self">self</span>, c: F::ElementContainer) {
         <span class="self">self</span>.scale(<span class="self">self</span>.fq.el(c))
     }
@@ -294,13 +294,13 @@
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, F: Field&gt; FqVectorIterator&lt;<span class="lifetime">'a</span>, F&gt; {
+<span class="kw">impl</span>&lt;F: Field&gt; FqVectorIterator&lt;<span class="lifetime">'_</span>, F&gt; {
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>next_helper(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;F::ElementContainer&gt; {
         <span class="self">self</span>.next().map(|x| x.val())
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, F: Field&gt; FqVectorNonZeroIterator&lt;<span class="lifetime">'a</span>, F&gt; {
+<span class="kw">impl</span>&lt;F: Field&gt; FqVectorNonZeroIterator&lt;<span class="lifetime">'_</span>, F&gt; {
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>next_helper(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;(usize, F::ElementContainer)&gt; {
         <span class="self">self</span>.next().map(|x| (x.<span class="number">0</span>, x.<span class="number">1</span>.val()))
     }

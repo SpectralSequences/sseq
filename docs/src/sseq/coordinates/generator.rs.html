@@ -105,8 +105,16 @@
 <a href="#80" id="80">80</a>
 <a href="#81" id="81">81</a>
 <a href="#82" id="82">82</a>
+<a href="#83" id="83">83</a>
+<a href="#84" id="84">84</a>
+<a href="#85" id="85">85</a>
+<a href="#86" id="86">86</a>
+<a href="#87" id="87">87</a>
+<a href="#88" id="88">88</a>
+<a href="#89" id="89">89</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::{<span class="self">self</span>, Display, Formatter};
 
+<span class="kw">use </span>fp::{prime::ValidPrime, vector::FpVector};
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 
 <span class="kw">use super</span>::{Bidegree, BidegreeElement};
@@ -155,6 +163,12 @@
 
     <span class="kw">pub fn </span>idx(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
         <span class="self">self</span>.idx
+    }
+
+    <span class="kw">pub fn </span>into_element(<span class="self">self</span>, p: ValidPrime, ambient: usize) -&gt; BidegreeElement {
+        <span class="kw">let </span><span class="kw-2">mut </span>vec = FpVector::new(p, ambient);
+        vec.set_entry(<span class="self">self</span>.idx, <span class="number">1</span>);
+        BidegreeElement::new(<span class="self">self</span>.degree, vec)
     }
 }
 

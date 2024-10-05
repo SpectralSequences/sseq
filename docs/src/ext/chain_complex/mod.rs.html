@@ -598,7 +598,7 @@
     max_s: u32,
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, CC: ChainComplex + <span class="question-mark">?</span>Sized&gt; Iterator <span class="kw">for </span>StemIterator&lt;<span class="lifetime">'a</span>, CC&gt; {
+<span class="kw">impl</span>&lt;CC: ChainComplex + <span class="question-mark">?</span>Sized&gt; Iterator <span class="kw">for </span>StemIterator&lt;<span class="lifetime">'_</span>, CC&gt; {
     <span class="kw">type </span>Item = Bidegree;
 
     <span class="kw">fn </span>next(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="self">Self</span>::Item&gt; {

@@ -253,7 +253,7 @@
     vector::{FpSlice, FpSliceMut, FpVector},
 };
 
-<span class="attr">#[derive(Clone)]
+<span class="attr">#[derive(Debug, Clone)]
 </span><span class="kw">pub struct </span>Subquotient {
     gens: Subspace,
     quotient: Subspace,
@@ -403,14 +403,14 @@
         result
     }
 
-    <span class="doccomment">/// Given a chain of subspaces `subspace` &lt; `space` &lt; k^`ambient_dimension`, compute the
-    /// subquotient `space`/`subspace`. The answer is expressed as a list of basis vectors of
-    /// `space` whose image in `space`/`subspace` forms a basis, and a basis vector of `space` is
-    /// described by its index in the list of basis vectors of `space` (not the ambient space).
+    <span class="doccomment">/// Given a chain of subspaces `quotient` &lt; `sub` in some ambient space, compute the subquotient
+    /// `sub`/`quotient`. The answer is expressed as a list of basis vectors of `sub` whose image in
+    /// `sub`/`quotient` forms a basis, and a basis vector of `sub` is described by its index in the
+    /// list of basis vectors of `sub` (not the ambient space).
     ///
-    /// # Arguments
-    ///  * `space` - If this is None, it is the whole space k^`ambient_dimension`
-    ///  * `subspace` - If this is None, it is empty
+    /// Note that the `quotient` argument does not need to be a subspace of the `sub` argument, nor
+    /// do they need to be disjoint. Mathematically, this method constructs the space `(sub +
+    /// quotient) / quotient`.
     </span><span class="kw">pub fn </span>from_parts(<span class="kw-2">mut </span>sub: Subspace, quotient: Subspace) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>dim = sub.dimension();
 

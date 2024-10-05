@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"macro":["dispatch_struct","dispatch_vector","dispatch_vector_inner","impl_try_into","impl_try_into_inner","use_primes"]};
+window.SIDEBAR_ITEMS = {"macro":["dispatch_struct","dispatch_vector","dispatch_vector_inner","impl_from","impl_from_inner","impl_try_into","impl_try_into_inner","use_primes"]};

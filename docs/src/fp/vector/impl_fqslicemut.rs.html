@@ -567,7 +567,7 @@
     prime::{Prime, ValidPrime},
 };
 
-<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, F: Field&gt; FqSliceMut&lt;<span class="lifetime">'a</span>, F&gt; {
+<span class="kw">impl</span>&lt;F: Field&gt; FqSliceMut&lt;<span class="lifetime">'_</span>, F&gt; {
     <span class="kw">pub fn </span>prime(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ValidPrime {
         <span class="self">self</span>.fq.characteristic().to_dyn()
     }
