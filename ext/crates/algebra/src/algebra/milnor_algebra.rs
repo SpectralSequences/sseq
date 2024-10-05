@@ -1428,7 +1428,7 @@ impl<'a, const MOD4: bool> PPartMultiplier<'a, MOD4> {
     }
 }
 
-impl<'a, const MOD4: bool> Iterator for PPartMultiplier<'a, MOD4> {
+impl<const MOD4: bool> Iterator for PPartMultiplier<'_, MOD4> {
     type Item = u32;
 
     fn next(&mut self) -> Option<u32> {

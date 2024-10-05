@@ -140,7 +140,7 @@ impl<'a> FpSlice<'a> {
     }
 }
 
-impl<'a> FpSliceMut<'a> {
+impl FpSliceMut<'_> {
     dispatch_vector! {
         pub fn prime(&self) -> ValidPrime;
         pub fn @scale(&mut self, c: u32);
@@ -158,7 +158,7 @@ impl<'a> FpSliceMut<'a> {
     }
 }
 
-impl<'a> FpVectorIterator<'a> {
+impl FpVectorIterator<'_> {
     dispatch_vector! {
         pub fn skip_n(&mut self, n: usize);
     }
@@ -170,7 +170,7 @@ impl std::fmt::Display for FpVector {
     }
 }
 
-impl<'a> std::fmt::Display for FpSlice<'a> {
+impl std::fmt::Display for FpSlice<'_> {
     /// # Example
     /// ```
     /// # use fp::vector::FpVector;
@@ -204,7 +204,7 @@ impl std::ops::AddAssign<&Self> for FpVector {
     }
 }
 
-impl<'a> Iterator for FpVectorIterator<'a> {
+impl Iterator for FpVectorIterator<'_> {
     type Item = u32;
 
     dispatch_vector! {
@@ -212,7 +212,7 @@ impl<'a> Iterator for FpVectorIterator<'a> {
     }
 }
 
-impl<'a> Iterator for FpVectorNonZeroIterator<'a> {
+impl Iterator for FpVectorNonZeroIterator<'_> {
     type Item = (usize, u32);
 
     dispatch_vector! {

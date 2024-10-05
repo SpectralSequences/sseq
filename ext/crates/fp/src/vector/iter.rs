@@ -84,7 +84,7 @@ impl<'a, F: Field> FqVectorIterator<'a, F> {
     }
 }
 
-impl<'a, F: Field> Iterator for FqVectorIterator<'a, F> {
+impl<F: Field> Iterator for FqVectorIterator<'_, F> {
     type Item = FieldElement<F>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -106,7 +106,7 @@ impl<'a, F: Field> Iterator for FqVectorIterator<'a, F> {
     }
 }
 
-impl<'a, F: Field> ExactSizeIterator for FqVectorIterator<'a, F> {
+impl<F: Field> ExactSizeIterator for FqVectorIterator<'_, F> {
     fn len(&self) -> usize {
         self.counter
     }
@@ -158,7 +158,7 @@ impl<'a, F: Field> FqVectorNonZeroIterator<'a, F> {
     }
 }
 
-impl<'a, F: Field> Iterator for FqVectorNonZeroIterator<'a, F> {
+impl<F: Field> Iterator for FqVectorNonZeroIterator<'_, F> {
     type Item = (usize, FieldElement<F>);
 
     fn next(&mut self) -> Option<Self::Item> {

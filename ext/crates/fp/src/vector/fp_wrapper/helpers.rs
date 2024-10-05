@@ -76,13 +76,13 @@ impl<F: Field> FqVector<F> {
     }
 }
 
-impl<'a, F: Field> FqSlice<'a, F> {
+impl<F: Field> FqSlice<'_, F> {
     pub(super) fn entry_helper(&self, index: usize) -> F::ElementContainer {
         self.entry(index).val()
     }
 }
 
-impl<'a, F: Field> FqSliceMut<'a, F> {
+impl<F: Field> FqSliceMut<'_, F> {
     pub(super) fn scale_helper(&mut self, c: F::ElementContainer) {
         self.scale(self.fq.el(c))
     }
@@ -128,13 +128,13 @@ impl<'a, F: Field> FqSliceMut<'a, F> {
     }
 }
 
-impl<'a, F: Field> FqVectorIterator<'a, F> {
+impl<F: Field> FqVectorIterator<'_, F> {
     pub(super) fn next_helper(&mut self) -> Option<F::ElementContainer> {
         self.next().map(|x| x.val())
     }
 }
 
-impl<'a, F: Field> FqVectorNonZeroIterator<'a, F> {
+impl<F: Field> FqVectorNonZeroIterator<'_, F> {
     pub(super) fn next_helper(&mut self) -> Option<(usize, F::ElementContainer)> {
         self.next().map(|x| (x.0, x.1.val()))
     }

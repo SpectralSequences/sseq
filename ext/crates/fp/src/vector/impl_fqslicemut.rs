@@ -10,7 +10,7 @@ use crate::{
     prime::{Prime, ValidPrime},
 };
 
-impl<'a, F: Field> FqSliceMut<'a, F> {
+impl<F: Field> FqSliceMut<'_, F> {
     pub fn prime(&self) -> ValidPrime {
         self.fq.characteristic().to_dyn()
     }

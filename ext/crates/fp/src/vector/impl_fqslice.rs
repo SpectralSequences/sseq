@@ -101,7 +101,7 @@ impl<'a, F: Field> FqSlice<'a, F> {
 }
 
 // Limb methods
-impl<'a, F: Field> FqSlice<'a, F> {
+impl<F: Field> FqSlice<'_, F> {
     #[inline]
     pub(super) fn offset(&self) -> usize {
         let bit_length = self.fq.bit_length();
@@ -156,7 +156,7 @@ impl<'a, F: Field> From<&'a FqVector<F>> for FqSlice<'a, F> {
     }
 }
 
-impl<'a, F: Field> std::fmt::Display for FqSlice<'a, F> {
+impl<F: Field> std::fmt::Display for FqSlice<'_, F> {
     /// # Example
     /// ```
     /// # use fp::field::{Field, SmallFq};

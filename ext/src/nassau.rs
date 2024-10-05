@@ -349,7 +349,7 @@ impl<'a> SignatureIterator<'a> {
     }
 }
 
-impl<'a> Iterator for SignatureIterator<'a> {
+impl Iterator for SignatureIterator<'_> {
     type Item = Vec<PPartEntry>;
 
     fn next(&mut self) -> Option<Self::Item> {

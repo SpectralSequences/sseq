@@ -258,7 +258,7 @@ pub struct StemIterator<'a, CC: ?Sized> {
     max_s: u32,
 }
 
-impl<'a, CC: ChainComplex + ?Sized> Iterator for StemIterator<'a, CC> {
+impl<CC: ChainComplex + ?Sized> Iterator for StemIterator<'_, CC> {
     type Item = Bidegree;
 
     fn next(&mut self) -> Option<Self::Item> {
