@@ -47,7 +47,7 @@ macro_rules! normal_from_assign {
 /// operations to the outside world.
 #[allow(private_bounds)]
 pub trait FieldInternal:
-    std::fmt::Debug + Copy + PartialEq + Eq + Hash + Sized + crate::MaybeArbitrary<()>
+    std::fmt::Debug + Copy + PartialEq + Eq + Hash + Sized + crate::MaybeArbitrary<()> + 'static
 {
     /// The internal representation of a field element.
     type ElementContainer: FieldElementContainer;
