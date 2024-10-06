@@ -243,6 +243,9 @@ impl Subspace {
     }
 
     pub fn sum(&self, other: &Self) -> Self {
+        assert_eq!(self.prime(), other.prime());
+        assert_eq!(self.ambient_dimension(), other.ambient_dimension());
+
         let self_rows = self.matrix.clone().into_iter();
         let other_rows = other.matrix.clone().into_iter();
         let new_rows = self_rows.chain(other_rows).collect();
