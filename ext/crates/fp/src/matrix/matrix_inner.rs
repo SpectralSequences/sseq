@@ -170,8 +170,9 @@ impl Matrix {
         &mut self.pivots
     }
 
-    pub fn from_rows(p: ValidPrime, rows: Vec<FpVector>) -> Self {
-        let columns = rows.first().map(FpVector::len).unwrap_or(0);
+    /// Produces a Matrix from a vector of FpVectors. We pass in the number of columns because all
+    /// `0 x n` matrices will have an empty Vec, and we have to distinguish between them.
+    pub fn from_rows(p: ValidPrime, rows: Vec<FpVector>, columns: usize) -> Self {
         Self {
             p,
             columns,

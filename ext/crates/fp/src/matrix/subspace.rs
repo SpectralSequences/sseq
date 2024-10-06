@@ -250,7 +250,11 @@ impl Subspace {
         let other_rows = other.matrix.clone().into_iter();
         let new_rows = self_rows.chain(other_rows).collect();
 
-        let mut ret = Self::from_matrix(Matrix::from_rows(self.prime(), new_rows));
+        let mut ret = Self::from_matrix(Matrix::from_rows(
+            self.prime(),
+            new_rows,
+            self.ambient_dimension(),
+        ));
         ret.matrix.trim(0, self.matrix.columns() + 1, 0);
         ret
     }
