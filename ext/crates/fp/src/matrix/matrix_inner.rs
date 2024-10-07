@@ -962,6 +962,63 @@ impl std::ops::AddAssign<&Self> for Matrix {
     }
 }
 
+#[cfg(feature = "proptest")]
+pub mod arbitrary {
+    use proptest::prelude::*;
+
+    use super::*;
+    use crate::{
+        field::Fp,
+        vector::{arbitrary::FqVectorArbParams, FqVector},
+    };
+
+    pub const MAX_ROWS: usize = 100;
+    pub const MAX_COLUMNS: usize = 100;
+
+    #[derive(Debug, Clone)]
+    pub struct MatrixArbParams {
+        pub p: Option<ValidPrime>,
+        pub rows: BoxedStrategy<usize>,
+        pub columns: BoxedStrategy<usize>,
+    }
+
+    impl Default for MatrixArbParams {
+        fn default() -> Self {
+            Self {
+                p: None,
+                rows: (1..=MAX_ROWS).boxed(),
+                columns: (1..=MAX_COLUMNS).boxed(),
+            }
+        }
+    }
+
+    impl Arbitrary for Matrix {
+        type Parameters = MatrixArbParams;
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
+            let p = match args.p {
+                Some(p) => Just(p).boxed(),
+                None => any::<ValidPrime>().boxed(),
+            };
+
+            (p, args.rows, args.columns)
+                .prop_flat_map(|(p, rows, columns)| {
+                    let row_strategy = any_with::<FqVector<_>>(FqVectorArbParams {
+                        fq: Some(Fp::new(p)),
+                        len: Just(columns).boxed(),
+                    })
+                    .prop_map(|v| -> FpVector { v.into() });
+
+                    let rows = proptest::collection::vec(row_strategy, rows);
+                    (Just(p), rows, Just(columns))
+                })
+                .prop_map(|(p, rows, columns)| Self::from_rows(p, rows, columns))
+                .boxed()
+        }
+    }
+}
+
 /// This models an augmented matrix.
 ///
 /// In an ideal world, this will have no public fields. The inner matrix

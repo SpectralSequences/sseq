@@ -96,10 +96,8 @@ impl Subquotient {
 
     /// The pivot columns of the complement to the subspace
     pub fn complement_pivots(&self) -> impl Iterator<Item = usize> + '_ {
-        (0..self.ambient_dimension()).filter(|&i| {
-            !self.quotient.pivots().contains(&(i as isize))
-                && !self.gens.pivots().contains(&(i as isize))
-        })
+        (0..self.ambient_dimension())
+            .filter(|&i| self.quotient.pivots()[i] < 0 && self.gens.pivots()[i] < 0)
     }
 
     pub fn quotient(&mut self, elt: FpSlice) {
@@ -184,9 +182,62 @@ impl Subquotient {
     }
 }
 
+#[cfg(feature = "proptest")]
+pub mod arbitrary {
+    use proptest::prelude::*;
+
+    use super::*;
+    use crate::matrix::subspace::arbitrary::SubspaceArbParams;
+    pub use crate::matrix::subspace::arbitrary::MAX_DIM;
+
+    #[derive(Debug, Clone)]
+    pub struct SubquotientArbParams {
+        pub p: Option<ValidPrime>,
+        pub dim: BoxedStrategy<usize>,
+    }
+
+    impl Default for SubquotientArbParams {
+        fn default() -> Self {
+            Self {
+                p: None,
+                dim: (0..=MAX_DIM).boxed(),
+            }
+        }
+    }
+
+    impl Arbitrary for Subquotient {
+        type Parameters = SubquotientArbParams;
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
+            let p = match args.p {
+                Some(p) => Just(p).boxed(),
+                None => any::<ValidPrime>().boxed(),
+            };
+
+            (p, args.dim)
+                .prop_flat_map(|(p, dim)| {
+                    let sub = Subspace::arbitrary_with(SubspaceArbParams {
+                        p: Some(p),
+                        dim: Just(dim).boxed(),
+                    });
+                    let quotient = Subspace::arbitrary_with(SubspaceArbParams {
+                        p: Some(p),
+                        dim: Just(dim).boxed(),
+                    });
+
+                    (sub, quotient)
+                })
+                .prop_map(|(sub, quotient)| Self::from_parts(sub, quotient))
+                .boxed()
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use expect_test::expect;
+    use proptest::prelude::*;
 
     use super::*;
 
@@ -219,5 +270,15 @@ mod tests {
         .assert_debug_eq(&sq.reduce(FpVector::from_slice(p, &[2, 0, 0, 0, 0]).as_slice_mut()));
 
         assert_eq!(sq.gens().count(), 1);
+    }
+
+    proptest! {
+        #[test]
+        fn test_sum_quotient_gens_complement_is_ambient(sq: Subquotient) {
+            let quotient_dim = sq.zeros().dimension();
+            let gens_dim = sq.gens().count();
+            let complement_dim = sq.complement_pivots().count();
+            assert_eq!(quotient_dim + gens_dim + complement_dim, sq.ambient_dimension());
+        }
     }
 }

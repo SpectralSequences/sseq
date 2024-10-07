@@ -298,3 +298,50 @@ impl std::fmt::Display for Subspace {
         Ok(())
     }
 }
+
+#[cfg(feature = "proptest")]
+pub mod arbitrary {
+    use proptest::prelude::*;
+
+    use super::*;
+    use crate::matrix::matrix_inner::arbitrary::MatrixArbParams;
+    pub use crate::matrix::matrix_inner::arbitrary::MAX_COLUMNS as MAX_DIM;
+
+    #[derive(Debug, Clone)]
+    pub struct SubspaceArbParams {
+        pub p: Option<ValidPrime>,
+        pub dim: BoxedStrategy<usize>,
+    }
+
+    impl Default for SubspaceArbParams {
+        fn default() -> Self {
+            Self {
+                p: None,
+                dim: (0..=MAX_DIM).boxed(),
+            }
+        }
+    }
+
+    impl Arbitrary for Subspace {
+        type Parameters = SubspaceArbParams;
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
+            let p = match args.p {
+                Some(p) => Just(p).boxed(),
+                None => any::<ValidPrime>().boxed(),
+            };
+
+            (p, args.dim)
+                .prop_flat_map(move |(p, dim)| {
+                    Matrix::arbitrary_with(MatrixArbParams {
+                        p: Some(p),
+                        rows: (0..=dim + 1).boxed(),
+                        columns: Just(dim).boxed(),
+                    })
+                })
+                .prop_map(Self::from_matrix)
+                .boxed()
+        }
+    }
+}
