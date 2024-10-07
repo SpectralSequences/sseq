@@ -239,6 +239,7 @@ pub mod arbitrary {
 #[cfg(test)]
 mod tests {
     use expect_test::expect;
+    use proptest::prelude::*;
 
     use super::*;
 
@@ -271,5 +272,15 @@ mod tests {
         .assert_debug_eq(&sq.reduce(FpVector::from_slice(p, &[2, 0, 0, 0, 0]).as_slice_mut()));
 
         assert_eq!(sq.gens().count(), 1);
+    }
+
+    proptest! {
+        #[test]
+        fn test_sum_quotient_gens_complement_is_ambient(sq: Subquotient) {
+            let quotient_dim = sq.zeros().dimension();
+            let gens_dim = sq.gens().count();
+            let complement_dim = sq.complement_pivots().count();
+            assert_eq!(quotient_dim + gens_dim + complement_dim, sq.ambient_dimension());
+        }
     }
 }
