@@ -96,10 +96,8 @@ impl Subquotient {
 
     /// The pivot columns of the complement to the subspace
     pub fn complement_pivots(&self) -> impl Iterator<Item = usize> + '_ {
-        (0..self.ambient_dimension()).filter(|&i| {
-            !self.quotient.pivots().contains(&(i as isize))
-                && !self.gens.pivots().contains(&(i as isize))
-        })
+        (0..self.ambient_dimension())
+            .filter(|&i| self.quotient.pivots()[i] < 0 && self.gens.pivots()[i] < 0)
     }
 
     pub fn quotient(&mut self, elt: FpSlice) {
