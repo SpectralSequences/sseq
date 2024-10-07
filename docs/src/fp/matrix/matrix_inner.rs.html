@@ -1303,6 +1303,7 @@
 <a href="#1278" id="1278">1278</a>
 <a href="#1279" id="1279">1279</a>
 <a href="#1280" id="1280">1280</a>
+<a href="#1281" id="1281">1281</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     fmt,
     io::{Read, Write},
@@ -1475,8 +1476,9 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>.pivots
     }
 
-    <span class="kw">pub fn </span>from_rows(p: ValidPrime, rows: Vec&lt;FpVector&gt;) -&gt; <span class="self">Self </span>{
-        <span class="kw">let </span>columns = rows.first().map(FpVector::len).unwrap_or(<span class="number">0</span>);
+    <span class="doccomment">/// Produces a Matrix from a vector of FpVectors. We pass in the number of columns because all
+    /// `0 x n` matrices will have an empty Vec, and we have to distinguish between them.
+    </span><span class="kw">pub fn </span>from_rows(p: ValidPrime, rows: Vec&lt;FpVector&gt;, columns: usize) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             p,
             columns,
