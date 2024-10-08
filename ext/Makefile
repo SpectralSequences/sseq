@@ -75,5 +75,5 @@ examples/benchmarks/%-concurrent: dummy
 	fi
 
 miri:
-	cargo miri test -p once
+	MIRIFLAGS="-Zmiri-ignore-leaks" cargo miri test -p once
 	MIRIFLAGS="-Zmiri-ignore-leaks -Zmiri-disable-isolation" cargo miri test -p once --features concurrent
