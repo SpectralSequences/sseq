@@ -185,16 +185,14 @@ impl MilnorSubalgebra {
     }
 
     fn optimal_for(b: Bidegree) -> Self {
-        let mut result = Self::zero_algebra();
-        for subalgebra in SubalgebraIterator::new() {
+        let b_is_in_vanishing_region = |subalgebra: &Self| {
             let coeff = (1 << subalgebra.profile.len()) - 1;
-            if b.t() < coeff * (b.s() as i32 + 1) + subalgebra.top_degree() {
-                // (s,t) is not in the vanishing region of `subalgebra` or any further subalgebra
-                break;
-            }
-            result = subalgebra;
-        }
-        result
+            b.t() >= coeff * (b.s() as i32 + 1) + subalgebra.top_degree()
+        };
+        SubalgebraIterator::new()
+            .take_while(b_is_in_vanishing_region)
+            .last()
+            .unwrap_or(Self::zero_algebra())
     }
 
     fn to_bytes(&self, buffer: &mut impl Write) -> std::io::Result<()> {
