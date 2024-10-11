@@ -1,5 +1,8 @@
 use fp::{
-    matrix::{Matrix, MatrixArbParams, MAX_COLUMNS, MAX_ROWS},
+    matrix::{
+        arbitrary::{MatrixArbParams, MAX_COLUMNS, MAX_ROWS},
+        Matrix,
+    },
     prime::{Prime, ValidPrime},
 };
 use proptest::prelude::*;
