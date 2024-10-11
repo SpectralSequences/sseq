@@ -334,7 +334,7 @@ pub mod arbitrary {
 
             (p, args.dim)
                 .prop_flat_map(move |(p, dim)| {
-                    Matrix::arbitrary_with(MatrixArbParams {
+                    Matrix::arbitrary_rref_with(MatrixArbParams {
                         p: Some(p),
                         rows: (0..=dim + 1).boxed(),
                         columns: Just(dim).boxed(),
