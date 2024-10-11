@@ -7,6 +7,8 @@ mod impl_fqvector;
 mod iter;
 
 pub use fp_wrapper::*;
+#[cfg(feature = "proptest")]
+pub use impl_fqvector::arbitrary;
 pub use inner::*;
 
 #[cfg(test)]
@@ -14,13 +16,11 @@ pub(super) mod tests {
     use itertools::Itertools;
     use proptest::prelude::*;
 
-    use super::inner::FqVector;
+    use super::{arbitrary::MAX_LEN as MAX_TEST_VEC_LEN, inner::FqVector};
     use crate::{
         field::{element::FieldElement, fp::F2, Field},
         limb,
     };
-
-    pub const MAX_TEST_VEC_LEN: usize = 10_000;
 
     pub struct VectorDiffEntry<F: Field> {
         pub index: usize,

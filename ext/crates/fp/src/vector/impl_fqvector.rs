@@ -408,3 +408,45 @@ impl<F: Field> std::fmt::Display for FqVector<F> {
         self.as_slice().fmt(f)
     }
 }
+
+#[cfg(feature = "proptest")]
+pub mod arbitrary {
+    use proptest::prelude::*;
+
+    use super::*;
+
+    pub const MAX_LEN: usize = 10_000;
+
+    #[derive(Debug, Clone)]
+    pub struct FqVectorArbParams<F> {
+        pub fq: Option<F>,
+        pub len: BoxedStrategy<usize>,
+    }
+
+    impl<F> Default for FqVectorArbParams<F> {
+        fn default() -> Self {
+            Self {
+                fq: None,
+                len: (0..=MAX_LEN).boxed(),
+            }
+        }
+    }
+
+    impl<F: Field> Arbitrary for FqVector<F> {
+        type Parameters = FqVectorArbParams<F>;
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
+            let fq = match args.fq {
+                Some(fq) => Just(fq).boxed(),
+                None => any::<F>().boxed(),
+            };
+            (fq, args.len)
+                .prop_flat_map(|(fq, len)| {
+                    (Just(fq), proptest::collection::vec(fq.arb_element(), len))
+                })
+                .prop_map(|(fq, v)| Self::from_slice(fq, &v))
+                .boxed()
+        }
+    }
+}

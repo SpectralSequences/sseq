@@ -962,6 +962,120 @@ impl std::ops::AddAssign<&Self> for Matrix {
     }
 }
 
+#[cfg(feature = "proptest")]
+pub mod arbitrary {
+    use proptest::prelude::*;
+
+    use super::*;
+    use crate::{
+        field::Fp,
+        vector::{arbitrary::FqVectorArbParams, FqVector},
+    };
+
+    pub const MAX_ROWS: usize = 100;
+    pub const MAX_COLUMNS: usize = 100;
+
+    #[derive(Debug, Clone)]
+    pub struct MatrixArbParams {
+        pub p: Option<ValidPrime>,
+        pub rows: BoxedStrategy<usize>,
+        pub columns: BoxedStrategy<usize>,
+    }
+
+    impl Default for MatrixArbParams {
+        fn default() -> Self {
+            Self {
+                p: None,
+                rows: (1..=MAX_ROWS).boxed(),
+                columns: (1..=MAX_COLUMNS).boxed(),
+            }
+        }
+    }
+
+    impl Arbitrary for Matrix {
+        type Parameters = MatrixArbParams;
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
+            let p = match args.p {
+                Some(p) => Just(p).boxed(),
+                None => any::<ValidPrime>().boxed(),
+            };
+
+            (p, args.rows, args.columns)
+                .prop_flat_map(|(p, rows, columns)| {
+                    let row_strategy = any_with::<FqVector<_>>(FqVectorArbParams {
+                        fq: Some(Fp::new(p)),
+                        len: Just(columns).boxed(),
+                    })
+                    .prop_map(|v| -> FpVector { v.into() });
+
+                    let rows = proptest::collection::vec(row_strategy, rows);
+                    (Just(p), rows, Just(columns))
+                })
+                .prop_map(|(p, rows, columns)| Self::from_rows(p, rows, columns))
+                .boxed()
+        }
+    }
+
+    impl Matrix {
+        /// Generate an arbitrary row-reduced matrix.
+        ///
+        /// This is more interesting than just generating an arbitrary matrix and row-reducing. If
+        /// we pick a matrix uniformly at random in the space of all $n \times m$ matrices, it has a
+        /// very high probability of having full rank with all its pivots in the first $n$ columns.
+        /// This implies that, after projecting to the space of row-reduced matrices, the output is
+        /// very likely to be an identity matrix augmented by a random matrix. If $m$ is
+        /// significantly larger than $n$, this is only a tiny subspace of the space of all
+        /// row-reduced matrices.
+        ///
+        /// While a search through *all* $n \times m$ matrices will also cover all row-reduced
+        /// matrices, in practice this space is so large that we only test a vanishingly small
+        /// fraction of it. Therefore, if a method that is sensitive to the pivot structure of the
+        /// input matrix is proptested using `arbitrary_with`, it is unlikely that the tests will
+        /// cover many matrices with interesting pivots, while those are the most likely to cause
+        /// bugs. This function attempts to generate a matrix that is chosen uniformly at random
+        /// directly in the space of all row-reduced matrices.
+        ///
+        /// In practice, this is not quite right. There is no randomness in the code; instead we
+        /// generate a `Strategy` that samples from only the space of row-reduced matrices. Also,
+        /// depending on the parameters, the strategy may output matrices that are not all of the
+        /// same size or even over the same ground field, so using the word "space" is slightly
+        /// improper, mathematically speaking.
+        pub fn arbitrary_rref_with(args: MatrixArbParams) -> impl Strategy<Value = Self> {
+            Self::arbitrary_with(args)
+                .prop_flat_map(|m| {
+                    let column_vec = (0..m.columns()).collect::<Vec<_>>();
+                    let smallest_dim = std::cmp::min(m.rows(), m.columns());
+                    let pivot_cols = proptest::sample::subsequence(column_vec, 0..=smallest_dim);
+                    (Just(m), pivot_cols)
+                })
+                .prop_map(|(mut m, pivot_cols)| {
+                    // Ensure rows start with 0s followed by a 1 in their pivot column
+                    for (row_idx, row) in m.iter_mut().enumerate() {
+                        if let Some(&col_idx) = pivot_cols.get(row_idx) {
+                            row.slice_mut(0, col_idx).set_to_zero();
+                            row.set_entry(col_idx, 1);
+                        } else {
+                            row.set_to_zero();
+                        }
+                    }
+                    // Set all other entries in the pivot columns to 0
+                    for (row_idx, &col_idx) in pivot_cols.iter().enumerate() {
+                        for row in m.iter_mut().take(row_idx) {
+                            row.set_entry(col_idx, 0);
+                        }
+                    }
+                    m
+                })
+        }
+
+        pub fn arbitrary_rref() -> impl Strategy<Value = Self> {
+            Self::arbitrary_rref_with(MatrixArbParams::default())
+        }
+    }
+}
+
 /// This models an augmented matrix.
 ///
 /// In an ideal world, this will have no public fields. The inner matrix
@@ -1223,6 +1337,8 @@ impl<'a> MatrixSliceMut<'a> {
 
 #[cfg(test)]
 mod tests {
+    use proptest::prelude::*;
+
     use super::*;
 
     #[test]
@@ -1276,6 +1392,16 @@ mod tests {
                 assert_eq!(Vec::<u32>::from(&m[i]), goal_output[i]);
             }
             assert_eq!(m.pivots(), &goal_pivots)
+        }
+    }
+
+    proptest! {
+        // Test that `arbitrary_rref` generates matrices in rref.
+        #[test]
+        fn test_arbitrary_rref(m in Matrix::arbitrary_rref()) {
+            let mut m_red = m.clone();
+            m_red.row_reduce();
+            prop_assert_eq!(m, m_red);
         }
     }
 }
