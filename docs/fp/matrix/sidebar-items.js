@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["MAX_COLUMNS","MAX_DIM","MAX_ROWS"],"mod":["affine","m4ri","matrix_inner","quasi_inverse","subquotient","subspace"],"struct":["AffineSubspace","AugmentedMatrix","Matrix","MatrixArbParams","MatrixSliceMut","QuasiInverse","Subquotient","SubquotientArbParams","Subspace","SubspaceArbParams"]};
+window.SIDEBAR_ITEMS = {"mod":["affine","arbitrary","m4ri","matrix_inner","quasi_inverse","subquotient","subspace"],"struct":["AffineSubspace","AugmentedMatrix","Matrix","MatrixSliceMut","QuasiInverse","Subquotient","Subspace"]};

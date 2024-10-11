@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["MAX_COLUMNS","MAX_DIM","MAX_ROWS"],"struct":["MatrixArbParams","SubquotientArbParams","SubspaceArbParams"]};

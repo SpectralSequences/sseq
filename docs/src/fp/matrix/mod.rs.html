@@ -40,6 +40,10 @@
 <a href="#15" id="15">15</a>
 <a href="#16" id="16">16</a>
 <a href="#17" id="17">17</a>
+<a href="#18" id="18">18</a>
+<a href="#19" id="19">19</a>
+<a href="#20" id="20">20</a>
+<a href="#21" id="21">21</a>
 </pre></div><pre class="rust"><code><span class="comment">// mod basis;
 </span><span class="kw">mod </span>affine;
 <span class="kw">mod </span>matrix_inner;
@@ -56,5 +60,9 @@
 <span class="kw">pub use </span>subquotient::Subquotient;
 <span class="kw">pub use </span>subspace::Subspace;
 <span class="attr">#[cfg(feature = <span class="string">"proptest"</span>)]
-</span><span class="kw">pub use </span>{matrix_inner::arbitrary::<span class="kw-2">*</span>, subquotient::arbitrary::<span class="kw-2">*</span>, subspace::arbitrary::<span class="kw-2">*</span>};
+</span><span class="kw">pub mod </span>arbitrary {
+    <span class="kw">pub use super</span>::{
+        matrix_inner::arbitrary::<span class="kw-2">*</span>, subquotient::arbitrary::<span class="kw-2">*</span>, subspace::arbitrary::<span class="kw-2">*</span>,
+    };
+}
 </code></pre></div></section></main></body></html>
