@@ -1,19 +1,8 @@
 use fp::{
-    matrix::Matrix,
+    matrix::{Matrix, MatrixArbParams, MAX_COLUMNS, MAX_ROWS},
     prime::{Prime, ValidPrime},
 };
 use proptest::prelude::*;
-
-/// An increasing sequence of numbers between 0 and `cols`, where the sequence has a length between
-/// 1 and the smaller of `rows` and `cols`. Similar in spirit to a Young tableau / diagram.
-///
-/// The intent is for those to be specifiers for consecutive row vectors containing a pivot. The
-/// fact that they are increasing means that the resulting matrix will be in RREF, and the bounds on
-/// the values and the length mean that they are valid to specify a matrix of size rows x cols.
-fn arb_tableau(rows: usize, cols: usize) -> impl Strategy<Value = Vec<usize>> {
-    let all_cols: Vec<usize> = (0usize..cols).collect();
-    proptest::sample::subsequence(all_cols, 1..=usize::min(rows, cols))
-}
 
 /// An arbitrary pair of distinct indices in the range `0..rows`. These will be used to select
 /// arbitrary row operations. We need them to be distinct for the row operation to be safe / not
@@ -41,45 +30,25 @@ fn arb_coeff_row_pair_seq(
     proptest::collection::vec((1..p.as_u32(), arb_row_pair(rows)), 0..1000)
 }
 
-// This is a macro used to define functions that take in values from strategies as arguments.
-// (Notice that the first set of parentheses contains ordinary arguments and the second uses the
-// proptest `in` syntax.) This is different from the previous functions that produce strategies from
-// concrete values.
-prop_compose! {
-    /// An arbitrary matrix in RREF, over the specified prime with the specified dimensions.
-    fn arb_rref_matrix(p: ValidPrime, rows: usize, columns: usize)
-        (tableau in arb_tableau(rows, columns)) -> Matrix
-    {
-        let row_vec: Vec<Vec<u32>> = tableau.iter().map(|col_idx| {
-            let mut v = vec![0; columns];
-            v[*col_idx] += 1;
-            v
-        })
-        .chain(std::iter::repeat(vec![0; columns]).take(rows - tableau.len()))
-        .collect();
-
-        Matrix::from_vec(p, &row_vec)
-    }
-}
-
-prop_compose! {
-    /// An arbitrary pair of matrices where the first is in RREF and the second is obtained from it
-    /// by applying a sequence of row operations. They are defined over an arbitrary prime and the
-    /// dimensions are in the range `2..100`. We use the triple parenthesis syntax because we need
-    /// to generate the prime and the dimensions first before getting the RREF matrix and the
-    /// sequence of row operations, which both depend on those values. The documentation for
-    /// [`prop_compose`] has more information.
-    fn arb_reduced_nonreduced_pair()
-        (p in any::<ValidPrime>(), rows in 2usize..100, cols in 2usize..100)
-        (reduced_matrix in arb_rref_matrix(p, rows, cols),
-         row_ops in arb_coeff_row_pair_seq(p, rows)) -> (Matrix, Matrix)
-    {
+/// An arbitrary pair of matrices where the first is in RREF and the second is obtained from it by
+/// applying a sequence of row operations.
+fn arb_reduced_nonreduced_pair() -> impl Strategy<Value = (Matrix, Matrix)> {
+    Matrix::arbitrary_rref_with(MatrixArbParams {
+        rows: (2..=MAX_ROWS).boxed(),
+        columns: (2..=MAX_COLUMNS).boxed(),
+        ..Default::default()
+    })
+    .prop_flat_map(|m| {
+        let row_ops = arb_coeff_row_pair_seq(m.prime(), m.rows());
+        (Just(m), row_ops)
+    })
+    .prop_map(|(reduced_matrix, row_ops)| {
         let mut matrix = reduced_matrix.clone();
         for (c, (target, source)) in row_ops.into_iter() {
-            matrix.safe_row_op(target, source, c) ;
+            matrix.safe_row_op(target, source, c);
         }
         (reduced_matrix, matrix)
-    }
+    })
 }
 
 proptest! {
