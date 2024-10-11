@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["AugmentedMatrix","Matrix","MatrixSliceMut"]};
+window.SIDEBAR_ITEMS = {"mod":["arbitrary"],"struct":["AugmentedMatrix","Matrix","MatrixSliceMut"]};

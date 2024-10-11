@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["FpSlice","FpSliceMut","FpVector","FpVectorIterator","FpVectorNonZeroIterator"],"mod":["fp_wrapper","impl_fqslice","impl_fqslicemut","impl_fqvector","inner","iter"]};
+window.SIDEBAR_ITEMS = {"enum":["FpSlice","FpSliceMut","FpVector","FpVectorIterator","FpVectorNonZeroIterator"],"mod":["arbitrary","fp_wrapper","impl_fqslice","impl_fqslicemut","impl_fqvector","inner","iter"]};

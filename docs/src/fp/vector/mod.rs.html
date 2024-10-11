@@ -1111,6 +1111,8 @@
 <span class="kw">mod </span>iter;
 
 <span class="kw">pub use </span>fp_wrapper::<span class="kw-2">*</span>;
+<span class="attr">#[cfg(feature = <span class="string">"proptest"</span>)]
+</span><span class="kw">pub use </span>impl_fqvector::arbitrary;
 <span class="kw">pub use </span>inner::<span class="kw-2">*</span>;
 
 <span class="attr">#[cfg(test)]
@@ -1118,13 +1120,11 @@
     <span class="kw">use </span>itertools::Itertools;
     <span class="kw">use </span>proptest::prelude::<span class="kw-2">*</span>;
 
-    <span class="kw">use </span><span class="kw">super</span>::inner::FqVector;
+    <span class="kw">use super</span>::{arbitrary::MAX_LEN <span class="kw">as </span>MAX_TEST_VEC_LEN, inner::FqVector};
     <span class="kw">use crate</span>::{
         field::{element::FieldElement, fp::F2, Field},
         limb,
     };
-
-    <span class="kw">pub const </span>MAX_TEST_VEC_LEN: usize = <span class="number">10_000</span>;
 
     <span class="kw">pub struct </span>VectorDiffEntry&lt;F: Field&gt; {
         <span class="kw">pub </span>index: usize,

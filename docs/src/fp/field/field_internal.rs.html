@@ -287,8 +287,8 @@
 /// operations to the outside world.
 </span><span class="attr">#[allow(private_bounds)]
 </span><span class="kw">pub trait </span>FieldInternal:
-    std::fmt::Debug + Copy + PartialEq + Eq + Hash + Sized + <span class="kw">crate</span>::MaybeArbitrary&lt;()&gt;
-{
+    std::fmt::Debug + Copy + PartialEq + Eq + Hash + Sized + <span class="kw">crate</span>::MaybeArbitrary&lt;()&gt; + <span class="lifetime">'static
+</span>{
     <span class="doccomment">/// The internal representation of a field element.
     </span><span class="kw">type </span>ElementContainer: FieldElementContainer;
 

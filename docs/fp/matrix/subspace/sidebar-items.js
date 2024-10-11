@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["Subspace"]};
+window.SIDEBAR_ITEMS = {"mod":["arbitrary"],"struct":["Subspace"]};
