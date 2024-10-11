@@ -275,8 +275,7 @@ fn test_load_secondary() {
 }
 
 #[test]
-#[should_panic(expected = "Invalid file checksum")]
-fn test_checksum() {
+fn test_checksum_early() {
     use std::{
         fs::OpenOptions,
         io::{Seek, SeekFrom, Write},
@@ -300,6 +299,73 @@ fn test_checksum() {
     file.seek(SeekFrom::Start(41)).unwrap();
     file.write_all(&[1]).unwrap();
 
+    // Differentials are checked early for integrity, and silently replaced if they are malformed
+    construct_standard::<false, _, _>("S_2", Some(tempdir.path().into()))
+        .unwrap()
+        .compute_through_bidegree(Bidegree::s_t(2, 2));
+}
+
+#[test]
+#[should_panic(expected = "Error when deleting")]
+fn test_checksum_early_locked() {
+    use std::{
+        fs::OpenOptions,
+        io::{Seek, SeekFrom, Write},
+    };
+
+    let tempdir = tempfile::TempDir::new().unwrap();
+
+    construct_standard::<false, _, _>("S_2", Some(tempdir.path().into()))
+        .unwrap()
+        .compute_through_bidegree(Bidegree::s_t(2, 2));
+
+    let mut path = tempdir.path().to_owned();
+    path.push("differentials/2_2_differential");
+
+    let mut file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(path)
+        .unwrap();
+
+    file.seek(SeekFrom::Start(41)).unwrap();
+    file.write_all(&[1]).unwrap();
+
+    lock_tempdir(tempdir.path());
+
+    // This should try to delete the file and panic
+    construct_standard::<false, _, _>("S_2", Some(tempdir.path().into()))
+        .unwrap()
+        .compute_through_bidegree(Bidegree::s_t(2, 2));
+}
+
+#[test]
+#[should_panic(expected = "Invalid file checksum")]
+fn test_checksum_late() {
+    use std::{
+        fs::OpenOptions,
+        io::{Seek, SeekFrom, Write},
+    };
+
+    let tempdir = tempfile::TempDir::new().unwrap();
+
+    construct_standard::<false, _, _>("S_2", Some(tempdir.path().into()))
+        .unwrap()
+        .compute_through_bidegree(Bidegree::s_t(2, 2));
+
+    let mut path = tempdir.path().to_owned();
+    path.push("res_qis/1_2_res_qi");
+
+    let mut file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(path)
+        .unwrap();
+
+    file.seek(SeekFrom::Start(41)).unwrap();
+    file.write_all(&[1]).unwrap();
+
+    // Quasi-inverses are checked after using them, and we panic if the check fails
     construct_standard::<false, _, _>("S_2", Some(tempdir.path().into()))
         .unwrap()
         .compute_through_bidegree(Bidegree::s_t(2, 2));
