@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="An algebra that is maybe unstable."><title>MuAlgebra in algebra::algebra::algebra_trait - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-c5d6553a23f1e5a6.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="algebra" data-themes="" data-resource-suffix="" data-rustdoc-version="1.81.0 (eeb90cda1 2024-09-04)" data-channel="1.81.0" data-search-js="search-d234aafac6c221dd.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../../static.files/storage-118b08c4c78b968e.js"></script><script defer src="sidebar-items.js"></script><script defer src="../../../static.files/main-d2fab2bf619172d3.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-df360f571f6edeae.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="An algebra that is maybe unstable."><title>MuAlgebra in algebra::algebra::algebra_trait - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-492a78a4a87dcc01.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="algebra" data-themes="" data-resource-suffix="" data-rustdoc-version="1.82.0 (f6e511eec 2024-10-15)" data-channel="1.82.0" data-search-js="search-a99f1315e7cc5121.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../../static.files/storage-118b08c4c78b968e.js"></script><script defer src="sidebar-items.js"></script><script defer src="../../../static.files/main-921df33f47b8780c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-3b12f09e550e0385.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
 <!-- The loading of KaTeX is deferred to speed up page rendering -->
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.js" integrity="sha384-Bi8OWqMXO1ta+a4EPkZv7bYGIes7C3krGSZoTGNTAnAn5eYQc7IIXrJ/7ck1drAi" crossorigin="anonymous"></script>
 <!-- To automatically render math in text elements, include the auto-render extension: -->
@@ -23,92 +23,92 @@
     });
 </script>
 
-</head><body class="rustdoc trait"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../algebra/index.html">algebra</a><span class="version">0.1.0</span></h2></div><h2 class="location"><a href="#">MuAlgebra</a></h2><div class="sidebar-elems"><section><h3><a href="#required-methods">Required Methods</a></h3><ul class="block"><li><a href="#tymethod.dimension_unstable">dimension_unstable</a></li><li><a href="#tymethod.multiply_basis_element_by_element_unstable">multiply_basis_element_by_element_unstable</a></li><li><a href="#tymethod.multiply_basis_elements_unstable">multiply_basis_elements_unstable</a></li><li><a href="#tymethod.multiply_element_by_basis_element_unstable">multiply_element_by_basis_element_unstable</a></li><li><a href="#tymethod.multiply_element_by_element_unstable">multiply_element_by_element_unstable</a></li></ul><h3><a href="#implementors">Implementors</a></h3></section><h2><a href="index.html">In algebra::algebra::algebra_trait</a></h2></div></nav><div class="sidebar-resizer"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1>Trait <a href="../../index.html">algebra</a>::<wbr><a href="../index.html">algebra</a>::<wbr><a href="index.html">algebra_trait</a>::<wbr><a class="trait" href="#">MuAlgebra</a><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><span class="out-of-band"><a class="src" href="../../../src/algebra/algebra/algebra_trait.rs.html#298-352">source</a> · <button id="toggle-all-docs" title="collapse all docs">[<span>&#x2212;</span>]</button></span></div><pre class="rust item-decl"><code>pub trait MuAlgebra&lt;const U: <a class="primitive" href="https://doc.rust-lang.org/1.81.0/std/primitive.bool.html">bool</a>&gt;: <a class="trait" href="trait.Algebra.html" title="trait algebra::algebra::algebra_trait::Algebra">Algebra</a> {
+</head><body class="rustdoc trait"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../algebra/index.html">algebra</a><span class="version">0.1.0</span></h2></div><h2 class="location"><a href="#">MuAlgebra</a></h2><div class="sidebar-elems"><section><h3><a href="#required-methods">Required Methods</a></h3><ul class="block"><li><a href="#tymethod.dimension_unstable">dimension_unstable</a></li><li><a href="#tymethod.multiply_basis_element_by_element_unstable">multiply_basis_element_by_element_unstable</a></li><li><a href="#tymethod.multiply_basis_elements_unstable">multiply_basis_elements_unstable</a></li><li><a href="#tymethod.multiply_element_by_basis_element_unstable">multiply_element_by_basis_element_unstable</a></li><li><a href="#tymethod.multiply_element_by_element_unstable">multiply_element_by_element_unstable</a></li></ul><h3><a href="#implementors">Implementors</a></h3></section><h2><a href="index.html">In algebra::<wbr>algebra::<wbr>algebra_<wbr>trait</a></h2></div></nav><div class="sidebar-resizer"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1>Trait <a href="../../index.html">algebra</a>::<wbr><a href="../index.html">algebra</a>::<wbr><a href="index.html">algebra_trait</a>::<wbr><a class="trait" href="#">MuAlgebra</a><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><span class="out-of-band"><a class="src" href="../../../src/algebra/algebra/algebra_trait.rs.html#298-352">source</a> · <button id="toggle-all-docs" title="collapse all docs">[<span>&#x2212;</span>]</button></span></div><pre class="rust item-decl"><code>pub trait MuAlgebra&lt;const U: <a class="primitive" href="https://doc.rust-lang.org/1.82.0/std/primitive.bool.html">bool</a>&gt;: <a class="trait" href="trait.Algebra.html" title="trait algebra::algebra::algebra_trait::Algebra">Algebra</a> {
     // Required methods
-    fn <a href="#tymethod.dimension_unstable" class="fn">dimension_unstable</a>(&amp;self, degree: <a class="primitive" href="https://doc.rust-lang.org/1.81.0/std/primitive.i32.html">i32</a>, excess: <a class="primitive" href="https://doc.rust-lang.org/1.81.0/std/primitive.i32.html">i32</a>) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.81.0/std/primitive.usize.html">usize</a>;
+    fn <a href="#tymethod.dimension_unstable" class="fn">dimension_unstable</a>(&amp;self, degree: <a class="primitive" href="https://doc.rust-lang.org/1.82.0/std/primitive.i32.html">i32</a>, excess: <a class="primitive" href="https://doc.rust-lang.org/1.82.0/std/primitive.i32.html">i32</a>) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.82.0/std/primitive.usize.html">usize</a>;
 <span class="item-spacer"></span>    fn <a href="#tymethod.multiply_basis_elements_unstable" class="fn">multiply_basis_elements_unstable</a>(
         &amp;self,
         result: <a class="enum" href="../../../fp/vector/fp_wrapper/enum.FpSliceMut.html" title="enum fp::vector::fp_wrapper::FpSliceMut">FpSliceMut</a>&lt;'_&gt;,
-        coeff: <a class="primitive" href="https://doc.rust-lang.org/1.81.0/std/primitive.u32.html">u32</a>,
-        r_degree: <a class="primitive" href="https://doc.rust-lang.org/1.81.0/std/primitive.i32.html">i32</a>,
-        r_index: <a class="primitive" href="https://doc.rust-lang.org/1.81.0/std/primitive.usize.html">usize</a>,
-        s_degree: <a class="primitive" href="https://doc.rust-lang.org/1.81.0/std/primitive.i32.html">i32</a>,
-        s_index: <a class="primitive" href="https://doc.rust-lang.org/1.81.0/std/primitive.usize.html">usize</a>,
-        excess: <a class="primitive" href="https://doc.rust-lang.org/1.81.0/std/primitive.i32.html">i32</a>,
+        coeff: <a class="primitive" href="https://doc.rust-lang.org/1.82.0/std/primitive.u32.html">u32</a>,
+        r_degree: <a class="primitive" href="https://doc.rust-lang.org/1.82.0/std/primitive.i32.html">i32</a>,
+        r_index: <a class="primitive" href="https://doc.rust-lang.org/1.82.0/std/primitive.usize.html">usize</a>,
+        s_degree: <a class="primitive" href="https://doc.rust-lang.org/1.82.0/std/primitive.i32.html">i32</a>,
+        s_index: <a class="primitive" href="https://doc.rust-lang.org/1.82.0/std/primitive.usize.html">usize</a>,
+        excess: <a class="primitive" href="https://doc.rust-lang.org/1.82.0/std/primitive.i32.html">i32</a>,
     );
 <span class="item-spacer"></span>    fn <a href="#tymethod.multiply_basis_element_by_element_unstable" class="fn">multiply_basis_element_by_element_unstable</a>(
         &amp;self,
         result: <a class="enum" href="../../../fp/vector/fp_wrapper/enum.FpSliceMut.html" title="enum fp::vector::fp_wrapper::FpSliceMut">FpSliceMut</a>&lt;'_&gt;,
-        coeff: <a class="primitive" href="https://doc.rust-lang.org/1.81.0/std/primitive.u32.html">u32</a>,
-        r_degree: <a class="primitive" href="https://doc.rust-lang.org/1.81.0/std/primitive.i32.html">i32</a>,
-        r_idx: <a class="primitive" href="https://doc.rust-lang.org/1.81.0/std/primitive.usize.html">usize</a>,
-        s_degree: <a class="primitive" href="https://doc.rust-lang.org/1.81.0/std/primitive.i32.html">i32</a>,
+        coeff: <a class="primitive" href="https://doc.rust-lang.org/1.82.0/std/primitive.u32.html">u32</a>,
+        r_degree: <a class="primitive" href="https://doc.rust-lang.org/1.82.0/std/primitive.i32.html">i32</a>,
+        r_idx: <a class="primitive" href="https://doc.rust-lang.org/1.82.0/std/primitive.usize.html">usize</a>,
+        s_degree: <a class="primitive" href="https://doc.rust-lang.org/1.82.0/std/primitive.i32.html">i32</a>,
         s: <a class="enum" href="../../../fp/vector/fp_wrapper/enum.FpSlice.html" title="enum fp::vector::fp_wrapper::FpSlice">FpSlice</a>&lt;'_&gt;,
-        excess: <a class="primitive" href="https://doc.rust-lang.org/1.81.0/std/primitive.i32.html">i32</a>,
+        excess: <a class="primitive" href="https://doc.rust-lang.org/1.82.0/std/primitive.i32.html">i32</a>,
     );
 <span class="item-spacer"></span>    fn <a href="#tymethod.multiply_element_by_basis_element_unstable" class="fn">multiply_element_by_basis_element_unstable</a>(
         &amp;self,
         result: <a class="enum" href="../../../fp/vector/fp_wrapper/enum.FpSliceMut.html" title="enum fp::vector::fp_wrapper::FpSliceMut">FpSliceMut</a>&lt;'_&gt;,
-        coeff: <a class="primitive" href="https://doc.rust-lang.org/1.81.0/std/primitive.u32.html">u32</a>,
-        r_degree: <a class="primitive" href="https://doc.rust-lang.org/1.81.0/std/primitive.i32.html">i32</a>,
+        coeff: <a class="primitive" href="https://doc.rust-lang.org/1.82.0/std/primitive.u32.html">u32</a>,
+        r_degree: <a class="primitive" href="https://doc.rust-lang.org/1.82.0/std/primitive.i32.html">i32</a>,
         r: <a class="enum" href="../../../fp/vector/fp_wrapper/enum.FpSlice.html" title="enum fp::vector::fp_wrapper::FpSlice">FpSlice</a>&lt;'_&gt;,
-        s_degree: <a class="primitive" href="https://doc.rust-lang.org/1.81.0/std/primitive.i32.html">i32</a>,
-        s_idx: <a class="primitive" href="https://doc.rust-lang.org/1.81.0/std/primitive.usize.html">usize</a>,
-        excess: <a class="primitive" href="https://doc.rust-lang.org/1.81.0/std/primitive.i32.html">i32</a>,
+        s_degree: <a class="primitive" href="https://doc.rust-lang.org/1.82.0/std/primitive.i32.html">i32</a>,
+        s_idx: <a class="primitive" href="https://doc.rust-lang.org/1.82.0/std/primitive.usize.html">usize</a>,
+        excess: <a class="primitive" href="https://doc.rust-lang.org/1.82.0/std/primitive.i32.html">i32</a>,
     );
 <span class="item-spacer"></span>    fn <a href="#tymethod.multiply_element_by_element_unstable" class="fn">multiply_element_by_element_unstable</a>(
         &amp;self,
         result: <a class="enum" href="../../../fp/vector/fp_wrapper/enum.FpSliceMut.html" title="enum fp::vector::fp_wrapper::FpSliceMut">FpSliceMut</a>&lt;'_&gt;,
-        coeff: <a class="primitive" href="https://doc.rust-lang.org/1.81.0/std/primitive.u32.html">u32</a>,
-        r_degree: <a class="primitive" href="https://doc.rust-lang.org/1.81.0/std/primitive.i32.html">i32</a>,
+        coeff: <a class="primitive" href="https://doc.rust-lang.org/1.82.0/std/primitive.u32.html">u32</a>,
+        r_degree: <a class="primitive" href="https://doc.rust-lang.org/1.82.0/std/primitive.i32.html">i32</a>,
         r: <a class="enum" href="../../../fp/vector/fp_wrapper/enum.FpSlice.html" title="enum fp::vector::fp_wrapper::FpSlice">FpSlice</a>&lt;'_&gt;,
-        s_degree: <a class="primitive" href="https://doc.rust-lang.org/1.81.0/std/primitive.i32.html">i32</a>,
+        s_degree: <a class="primitive" href="https://doc.rust-lang.org/1.82.0/std/primitive.i32.html">i32</a>,
         s: <a class="enum" href="../../../fp/vector/fp_wrapper/enum.FpSlice.html" title="enum fp::vector::fp_wrapper::FpSlice">FpSlice</a>&lt;'_&gt;,
-        excess: <a class="primitive" href="https://doc.rust-lang.org/1.81.0/std/primitive.i32.html">i32</a>,
+        excess: <a class="primitive" href="https://doc.rust-lang.org/1.82.0/std/primitive.i32.html">i32</a>,
     );
 }</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>An algebra that is maybe unstable.</p>
 <p>Every Algebra implements MuAlgebra<false> by ignoring the excess parameter, and every
 UnstableAlgebra implements MuAlgebra<true>. This makes it possible to write code that is generic
 over stable and unstable algebras.</p>
-</div></details><h2 id="required-methods" class="section-header">Required Methods<a href="#required-methods" class="anchor">§</a></h2><div class="methods"><section id="tymethod.dimension_unstable" class="method"><a class="src rightside" href="../../../src/algebra/algebra/algebra_trait.rs.html#299">source</a><h4 class="code-header">fn <a href="#tymethod.dimension_unstable" class="fn">dimension_unstable</a>(&amp;self, degree: <a class="primitive" href="https://doc.rust-lang.org/1.81.0/std/primitive.i32.html">i32</a>, excess: <a class="primitive" href="https://doc.rust-lang.org/1.81.0/std/primitive.i32.html">i32</a>) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.81.0/std/primitive.usize.html">usize</a></h4></section><section id="tymethod.multiply_basis_elements_unstable" class="method"><a class="src rightside" href="../../../src/algebra/algebra/algebra_trait.rs.html#301-310">source</a><h4 class="code-header">fn <a href="#tymethod.multiply_basis_elements_unstable" class="fn">multiply_basis_elements_unstable</a>(
+</div></details><h2 id="required-methods" class="section-header">Required Methods<a href="#required-methods" class="anchor">§</a></h2><div class="methods"><section id="tymethod.dimension_unstable" class="method"><a class="src rightside" href="../../../src/algebra/algebra/algebra_trait.rs.html#299">source</a><h4 class="code-header">fn <a href="#tymethod.dimension_unstable" class="fn">dimension_unstable</a>(&amp;self, degree: <a class="primitive" href="https://doc.rust-lang.org/1.82.0/std/primitive.i32.html">i32</a>, excess: <a class="primitive" href="https://doc.rust-lang.org/1.82.0/std/primitive.i32.html">i32</a>) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.82.0/std/primitive.usize.html">usize</a></h4></section><section id="tymethod.multiply_basis_elements_unstable" class="method"><a class="src rightside" href="../../../src/algebra/algebra/algebra_trait.rs.html#301-310">source</a><h4 class="code-header">fn <a href="#tymethod.multiply_basis_elements_unstable" class="fn">multiply_basis_elements_unstable</a>(
     &amp;self,
     result: <a class="enum" href="../../../fp/vector/fp_wrapper/enum.FpSliceMut.html" title="enum fp::vector::fp_wrapper::FpSliceMut">FpSliceMut</a>&lt;'_&gt;,
-    coeff: <a class="primitive" href="https://doc.rust-lang.org/1.81.0/std/primitive.u32.html">u32</a>,
-    r_degree: <a class="primitive" href="https://doc.rust-lang.org/1.81.0/std/primitive.i32.html">i32</a>,
-    r_index: <a class="primitive" href="https://doc.rust-lang.org/1.81.0/std/primitive.usize.html">usize</a>,
-    s_degree: <a class="primitive" href="https://doc.rust-lang.org/1.81.0/std/primitive.i32.html">i32</a>,
-    s_index: <a class="primitive" href="https://doc.rust-lang.org/1.81.0/std/primitive.usize.html">usize</a>,
-    excess: <a class="primitive" href="https://doc.rust-lang.org/1.81.0/std/primitive.i32.html">i32</a>,
+    coeff: <a class="primitive" href="https://doc.rust-lang.org/1.82.0/std/primitive.u32.html">u32</a>,
+    r_degree: <a class="primitive" href="https://doc.rust-lang.org/1.82.0/std/primitive.i32.html">i32</a>,
+    r_index: <a class="primitive" href="https://doc.rust-lang.org/1.82.0/std/primitive.usize.html">usize</a>,
+    s_degree: <a class="primitive" href="https://doc.rust-lang.org/1.82.0/std/primitive.i32.html">i32</a>,
+    s_index: <a class="primitive" href="https://doc.rust-lang.org/1.82.0/std/primitive.usize.html">usize</a>,
+    excess: <a class="primitive" href="https://doc.rust-lang.org/1.82.0/std/primitive.i32.html">i32</a>,
 )</h4></section><section id="tymethod.multiply_basis_element_by_element_unstable" class="method"><a class="src rightside" href="../../../src/algebra/algebra/algebra_trait.rs.html#312-321">source</a><h4 class="code-header">fn <a href="#tymethod.multiply_basis_element_by_element_unstable" class="fn">multiply_basis_element_by_element_unstable</a>(
     &amp;self,
     result: <a class="enum" href="../../../fp/vector/fp_wrapper/enum.FpSliceMut.html" title="enum fp::vector::fp_wrapper::FpSliceMut">FpSliceMut</a>&lt;'_&gt;,
-    coeff: <a class="primitive" href="https://doc.rust-lang.org/1.81.0/std/primitive.u32.html">u32</a>,
-    r_degree: <a class="primitive" href="https://doc.rust-lang.org/1.81.0/std/primitive.i32.html">i32</a>,
-    r_idx: <a class="primitive" href="https://doc.rust-lang.org/1.81.0/std/primitive.usize.html">usize</a>,
-    s_degree: <a class="primitive" href="https://doc.rust-lang.org/1.81.0/std/primitive.i32.html">i32</a>,
+    coeff: <a class="primitive" href="https://doc.rust-lang.org/1.82.0/std/primitive.u32.html">u32</a>,
+    r_degree: <a class="primitive" href="https://doc.rust-lang.org/1.82.0/std/primitive.i32.html">i32</a>,
+    r_idx: <a class="primitive" href="https://doc.rust-lang.org/1.82.0/std/primitive.usize.html">usize</a>,
+    s_degree: <a class="primitive" href="https://doc.rust-lang.org/1.82.0/std/primitive.i32.html">i32</a>,
     s: <a class="enum" href="../../../fp/vector/fp_wrapper/enum.FpSlice.html" title="enum fp::vector::fp_wrapper::FpSlice">FpSlice</a>&lt;'_&gt;,
-    excess: <a class="primitive" href="https://doc.rust-lang.org/1.81.0/std/primitive.i32.html">i32</a>,
+    excess: <a class="primitive" href="https://doc.rust-lang.org/1.82.0/std/primitive.i32.html">i32</a>,
 )</h4></section><details class="toggle method-toggle" open><summary><section id="tymethod.multiply_element_by_basis_element_unstable" class="method"><a class="src rightside" href="../../../src/algebra/algebra/algebra_trait.rs.html#327-336">source</a><h4 class="code-header">fn <a href="#tymethod.multiply_element_by_basis_element_unstable" class="fn">multiply_element_by_basis_element_unstable</a>(
     &amp;self,
     result: <a class="enum" href="../../../fp/vector/fp_wrapper/enum.FpSliceMut.html" title="enum fp::vector::fp_wrapper::FpSliceMut">FpSliceMut</a>&lt;'_&gt;,
-    coeff: <a class="primitive" href="https://doc.rust-lang.org/1.81.0/std/primitive.u32.html">u32</a>,
-    r_degree: <a class="primitive" href="https://doc.rust-lang.org/1.81.0/std/primitive.i32.html">i32</a>,
+    coeff: <a class="primitive" href="https://doc.rust-lang.org/1.82.0/std/primitive.u32.html">u32</a>,
+    r_degree: <a class="primitive" href="https://doc.rust-lang.org/1.82.0/std/primitive.i32.html">i32</a>,
     r: <a class="enum" href="../../../fp/vector/fp_wrapper/enum.FpSlice.html" title="enum fp::vector::fp_wrapper::FpSlice">FpSlice</a>&lt;'_&gt;,
-    s_degree: <a class="primitive" href="https://doc.rust-lang.org/1.81.0/std/primitive.i32.html">i32</a>,
-    s_idx: <a class="primitive" href="https://doc.rust-lang.org/1.81.0/std/primitive.usize.html">usize</a>,
-    excess: <a class="primitive" href="https://doc.rust-lang.org/1.81.0/std/primitive.i32.html">i32</a>,
+    s_degree: <a class="primitive" href="https://doc.rust-lang.org/1.82.0/std/primitive.i32.html">i32</a>,
+    s_idx: <a class="primitive" href="https://doc.rust-lang.org/1.82.0/std/primitive.usize.html">usize</a>,
+    excess: <a class="primitive" href="https://doc.rust-lang.org/1.82.0/std/primitive.i32.html">i32</a>,
 )</h4></section></summary><div class="docblock"><p>Computes the product <code>r * s</code> of a general element <code>r</code> and a basis element <code>s</code>, and adds the
 result to <code>result</code>.</p>
 <p>Neither <code>result</code> nor <code>r</code> must be aligned.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="tymethod.multiply_element_by_element_unstable" class="method"><a class="src rightside" href="../../../src/algebra/algebra/algebra_trait.rs.html#342-351">source</a><h4 class="code-header">fn <a href="#tymethod.multiply_element_by_element_unstable" class="fn">multiply_element_by_element_unstable</a>(
     &amp;self,
     result: <a class="enum" href="../../../fp/vector/fp_wrapper/enum.FpSliceMut.html" title="enum fp::vector::fp_wrapper::FpSliceMut">FpSliceMut</a>&lt;'_&gt;,
-    coeff: <a class="primitive" href="https://doc.rust-lang.org/1.81.0/std/primitive.u32.html">u32</a>,
-    r_degree: <a class="primitive" href="https://doc.rust-lang.org/1.81.0/std/primitive.i32.html">i32</a>,
+    coeff: <a class="primitive" href="https://doc.rust-lang.org/1.82.0/std/primitive.u32.html">u32</a>,
+    r_degree: <a class="primitive" href="https://doc.rust-lang.org/1.82.0/std/primitive.i32.html">i32</a>,
     r: <a class="enum" href="../../../fp/vector/fp_wrapper/enum.FpSlice.html" title="enum fp::vector::fp_wrapper::FpSlice">FpSlice</a>&lt;'_&gt;,
-    s_degree: <a class="primitive" href="https://doc.rust-lang.org/1.81.0/std/primitive.i32.html">i32</a>,
+    s_degree: <a class="primitive" href="https://doc.rust-lang.org/1.82.0/std/primitive.i32.html">i32</a>,
     s: <a class="enum" href="../../../fp/vector/fp_wrapper/enum.FpSlice.html" title="enum fp::vector::fp_wrapper::FpSlice">FpSlice</a>&lt;'_&gt;,
-    excess: <a class="primitive" href="https://doc.rust-lang.org/1.81.0/std/primitive.i32.html">i32</a>,
+    excess: <a class="primitive" href="https://doc.rust-lang.org/1.82.0/std/primitive.i32.html">i32</a>,
 )</h4></section></summary><div class="docblock"><p>Computes the product <code>r * s</code> of two general elements, and adds the
 result to <code>result</code>.</p>
 <p>Neither <code>result</code>, <code>s</code>, nor <code>r</code> must be aligned.</p>
