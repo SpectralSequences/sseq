@@ -181,6 +181,11 @@ impl Matrix {
         }
     }
 
+    /// Produces a `1 x n` matrix from a single FpVector. This is a convenience function.
+    pub fn from_row(p: ValidPrime, row: FpVector, columns: usize) -> Self {
+        Self::from_rows(p, vec![row], columns)
+    }
+
     /// Produces a Matrix from an `&[Vec<u32>]` object. If the number of rows is 0, the number
     /// of columns is also assumed to be zero.
     ///
