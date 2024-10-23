@@ -9,6 +9,8 @@
     pkgs.git
     pkgs.hyperfine
     pkgs.python3Packages.pytest
+
+    pkgs.cargo-cache
   ];
 
   # https://devenv.sh/tests/
