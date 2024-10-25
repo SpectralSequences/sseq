@@ -133,8 +133,8 @@
 //! | [resolve_through_stem](../resolve_through_stem/index.html) | Resolve a module to a fixed $(s, n)$ and potentially save the resolution. |
 //! | [save_bruner](../save_bruner/index.html) | Save the resolution in the format used by Bruner's [ext](http://www.rrb.wayne.edu/papers/index.html). |
 //! | [secondary](../secondary/index.html) | Compute $d_2$ differentials using the secondary Steenrod algebra. |
-//! | [secondary_product](../secondary_product/index.html) | Compute products in $\Mod_{C\tau^2}$ using the secondary Stennrod algebra. |
-//! | [secondary_massey](../secondary_massey/index.html) | Compute Massey products in $\Mod_{C\tau^2}$ using the secondary Stennrod algebra. |
+//! | [secondary_product](../secondary_product/index.html) | Compute products in $\Mod_{C\lambda^2}$ using the secondary Steenrod algebra. |
+//! | [secondary_massey](../secondary_massey/index.html) | Compute Massey products in $\Mod_{C\lambda^2}$ using the secondary Steenrod algebra. |
 //! | [steenrod](../steenrod/index.html) | Compute Steenrod operations in Ext. |
 //! | [tensor](../tensor/index.html) | Compute the tensor product of two modules. |
 //! | [yoneda](../yoneda/index.html) | Compute a Yoneda representative of an Ext class. |

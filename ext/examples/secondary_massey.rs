@@ -1,20 +1,19 @@
-//! Computes massey products in $\Mod_{C\tau^2}$.
+//! Computes massey products in $\Mod_{C\lambda^2}$.
 //!
 //! # Usage
-//! This computes all Massey products of the form $\langle -, b, a\rangle$, where
-//! $a \in \Ext^{\*, \*}(M, k)$ and $b, (-) \in \Ext^{\*, \*}(k, k)$. It does not verify that the
-//! Massey product is valid, i.e. $a$ and $b$ both lift to $\Mod_{C\tau^2}$ and have trivial
-//! product.
+//! This computes all Massey products of the form $\langle -, b, a\rangle$, where $a \in \Ext^{\*,
+//! \*}(M, k)$ and $b, (-) \in \Ext^{\*, \*}(k, k)$. It does not verify that the Massey product is
+//! valid, i.e. $a$ and $b$ both lift to $\Mod_{C\lambda^2}$ and have trivial product.
 //!
 //! Since we must choose $a$ and $b$ to have trivial product, it is necessary to be able to specify
-//! the $\tau$ part of them, and not insist that they are standard lifts of the $\Ext$ classes.
-//! Thus, the user is first prompted for the $\Ext$ part, then the $\tau$ part of each class. To
+//! the $\lambda$ part of them, and not insist that they are standard lifts of the $\Ext$ classes.
+//! Thus, the user is first prompted for the $\Ext$ part, then the $\lambda$ part of each class. To
 //! set a part to zero, supply an empty name. Note that if the bidegree right above the class is
-//! empty, the user is not prompted for the $\tau$ part.
+//! empty, the user is not prompted for the $\lambda$ part.
 //!
 //! # Output
 //! This computes the Massey products up to a sign. We write our output in the category
-//! $\Mod_{C\tau^2}$, so the format is $\langle a, b, -\rangle$ instead of $\langle -, b,
+//! $\Mod_{C\lambda^2}$, so the format is $\langle a, b, -\rangle$ instead of $\langle -, b,
 //! a\rangle$. Brave souls are encouraged to figure out the correct sign for the products.
 
 use std::sync::Arc;
@@ -37,7 +36,7 @@ struct HomData {
     name: String,
     class: FpVector,
     hom_lift: Arc<SecondaryResolutionHomomorphism<QueryModuleResolution, QueryModuleResolution>>,
-    tau_part: Option<Arc<ResolutionHomomorphism<QueryModuleResolution, QueryModuleResolution>>>,
+    lambda_part: Option<Arc<ResolutionHomomorphism<QueryModuleResolution, QueryModuleResolution>>>,
 }
 
 fn get_hom(
@@ -56,7 +55,7 @@ fn get_hom(
 
     source
         .underlying()
-        .compute_through_stem(shift + TAU_BIDEGREE);
+        .compute_through_stem(shift + LAMBDA_BIDEGREE);
 
     let hom = Arc::new(ResolutionHomomorphism::new(
         ext_name.clone(),
@@ -66,9 +65,11 @@ fn get_hom(
     ));
 
     let num_gens = source.underlying().number_of_gens_in_bidegree(shift);
-    let num_tau_gens = hom.source.number_of_gens_in_bidegree(shift + TAU_BIDEGREE);
+    let num_lambda_gens = hom
+        .source
+        .number_of_gens_in_bidegree(shift + LAMBDA_BIDEGREE);
 
-    let mut class = FpVector::new(p, num_gens + num_tau_gens);
+    let mut class = FpVector::new(p, num_gens + num_lambda_gens);
 
     let mut matrix = Matrix::new(p, num_gens, 1);
 
@@ -88,20 +89,20 @@ fn get_hom(
 
     let hom_lift = Arc::new(SecondaryResolutionHomomorphism::new(source, target, hom));
 
-    let tau_part = if num_tau_gens > 0 {
-        let tau_name: String = query::raw(&format!("Name of τ part of {name}"), str::parse);
-        if tau_name.is_empty() {
+    let lambda_part = if num_lambda_gens > 0 {
+        let lambda_name: String = query::raw(&format!("Name of λ part of {name}"), str::parse);
+        if lambda_name.is_empty() {
             None
         } else {
-            let v = query::vector(&format!("Input Ext class {tau_name}"), num_tau_gens);
+            let v = query::vector(&format!("Input Ext class {lambda_name}"), num_lambda_gens);
             for (i, &x) in v.iter().enumerate() {
                 class.set_entry(num_gens + i, x);
             }
             Some(Arc::new(ResolutionHomomorphism::from_class(
-                tau_name,
+                lambda_name,
                 hom_lift.source(),
                 hom_lift.target(),
-                shift + TAU_BIDEGREE,
+                shift + LAMBDA_BIDEGREE,
                 &v,
             )))
         }
@@ -109,17 +110,17 @@ fn get_hom(
         None
     };
 
-    let name = match (&*ext_name, tau_part.as_ref().map_or("", |x| x.name())) {
+    let name = match (&*ext_name, lambda_part.as_ref().map_or("", |x| x.name())) {
         ("", "") => panic!("Do not compute zero Massey product"),
-        ("", x) => format!("τ{x}"),
+        ("", x) => format!("λ{x}"),
         (x, "") => format!("[{x}]"),
-        (x, y) => format!("[{x}] + τ{y}"),
+        (x, y) => format!("[{x}] + λ{y}"),
     };
     HomData {
         name,
         class,
         hom_lift,
-        tau_part,
+        lambda_part,
     }
 }
 
@@ -149,13 +150,13 @@ fn main() -> anyhow::Result<()> {
         name: a_name,
         class: _,
         hom_lift: a,
-        tau_part: a_tau,
+        lambda_part: a_lambda,
     } = get_hom("a", Arc::clone(&res_lift), Arc::clone(&unit_lift));
     let HomData {
         name: b_name,
         class: b_class,
         hom_lift: b,
-        tau_part: b_tau,
+        lambda_part: b_lambda,
     } = get_hom("b", Arc::clone(&unit_lift), Arc::clone(&unit_lift));
 
     let shift = Bidegree::s_t(
@@ -188,11 +189,11 @@ fn main() -> anyhow::Result<()> {
             b.underlying().extend_all();
             b.extend_all();
         });
-        if let Some(a_tau) = &a_tau {
-            s.spawn(|_| a_tau.extend_all());
+        if let Some(a_lambda) = &a_lambda {
+            s.spawn(|_| a_lambda.extend_all());
         }
-        if let Some(b_tau) = &b_tau {
-            s.spawn(|_| b_tau.extend_all());
+        if let Some(b_lambda) = &b_lambda {
+            s.spawn(|_| b_lambda.extend_all());
         }
     });
 
@@ -210,7 +211,7 @@ fn main() -> anyhow::Result<()> {
 
     // Compute first homotopy
     {
-        let v = a.product_nullhomotopy(a_tau.as_deref(), &res_sseq, b_shift, b_class.as_slice());
+        let v = a.product_nullhomotopy(a_lambda.as_deref(), &res_sseq, b_shift, b_class.as_slice());
         let homotopy = chain_homotopy.homotopy(b_shift.s() + a.underlying().shift.s() - 1);
         let htpy_source = a.shift() + b_shift;
         homotopy.extend_by_zero(htpy_source.t() - 1);
@@ -227,8 +228,8 @@ fn main() -> anyhow::Result<()> {
     let ch_lift = SecondaryChainHomotopy::new(
         Arc::clone(&a),
         Arc::clone(&b),
-        a_tau.clone(),
-        b_tau.clone(),
+        a_lambda.clone(),
+        b_lambda.clone(),
         Arc::clone(&chain_homotopy),
     );
 
@@ -261,28 +262,29 @@ fn main() -> anyhow::Result<()> {
         let source = c + shift - Bidegree::s_t(1, 0);
 
         let source_num_gens = resolution.number_of_gens_in_bidegree(source);
-        let source_tau_num_gens = resolution.number_of_gens_in_bidegree(source + TAU_BIDEGREE);
+        let source_lambda_num_gens =
+            resolution.number_of_gens_in_bidegree(source + LAMBDA_BIDEGREE);
 
-        if source_num_gens + source_tau_num_gens == 0 {
+        if source_num_gens + source_lambda_num_gens == 0 {
             continue;
         }
 
         // We find the kernel of multiplication by b.
         let target_num_gens = unit.number_of_gens_in_bidegree(c);
-        let target_tau_num_gens = unit.number_of_gens_in_bidegree(c + TAU_BIDEGREE);
-        let target_all_gens = target_num_gens + target_tau_num_gens;
+        let target_lambda_num_gens = unit.number_of_gens_in_bidegree(c + LAMBDA_BIDEGREE);
+        let target_all_gens = target_num_gens + target_lambda_num_gens;
 
         let prod_num_gens = unit.number_of_gens_in_bidegree(c + b_shift);
-        let prod_tau_num_gens = unit.number_of_gens_in_bidegree(c + b_shift + TAU_BIDEGREE);
-        let prod_all_gens = prod_num_gens + prod_tau_num_gens;
+        let prod_lambda_num_gens = unit.number_of_gens_in_bidegree(c + b_shift + LAMBDA_BIDEGREE);
+        let prod_all_gens = prod_num_gens + prod_lambda_num_gens;
 
         let e3_kernel = {
             let target_page_data = get_page_data(&unit_sseq, c);
-            let target_tau_page_data = get_page_data(&unit_sseq, c + TAU_BIDEGREE);
-            let product_tau_page_data = get_page_data(&unit_sseq, c + b_shift + TAU_BIDEGREE);
+            let target_lambda_page_data = get_page_data(&unit_sseq, c + LAMBDA_BIDEGREE);
+            let product_lambda_page_data = get_page_data(&unit_sseq, c + b_shift + LAMBDA_BIDEGREE);
 
-            // We first compute elements whose product vanish mod tau, and later see what the possible
-            // lifts are. We do it this way to avoid Z/p^2 problems
+            // We first compute elements whose product vanish mod lambda, and later see what the
+            // possible lifts are. We do it this way to avoid Z/p^2 problems
 
             let e2_kernel: Subspace = {
                 let mut product_matrix = Matrix::new(
@@ -317,12 +319,12 @@ fn main() -> anyhow::Result<()> {
                 let e2_ker_dim = e2_kernel.dimension();
                 let mut product_matrix = Matrix::new(
                     p,
-                    e2_ker_dim + target_tau_page_data.quotient_dimension(),
+                    e2_ker_dim + target_lambda_page_data.quotient_dimension(),
                     target_all_gens + prod_all_gens,
                 );
 
                 b.hom_k_with(
-                    b_tau.as_deref(),
+                    b_lambda.as_deref(),
                     Some(&unit_sseq),
                     c,
                     e2_kernel.basis().iter().map(FpVector::as_slice),
@@ -335,7 +337,7 @@ fn main() -> anyhow::Result<()> {
                         .assign(v.as_slice());
                 }
 
-                // Now add the tau multiples
+                // Now add the lambda multiples
                 let m = Matrix::from_vec(
                     p,
                     &b.underlying()
@@ -344,7 +346,7 @@ fn main() -> anyhow::Result<()> {
                 );
 
                 let mut count = 0;
-                for (i, &v) in target_tau_page_data.quotient_pivots().iter().enumerate() {
+                for (i, &v) in target_lambda_page_data.quotient_pivots().iter().enumerate() {
                     if v >= 0 {
                         continue;
                     }
@@ -352,7 +354,7 @@ fn main() -> anyhow::Result<()> {
                     row.add_basis_element(prod_all_gens + target_num_gens + i, 1);
                     row.slice_mut(prod_num_gens, prod_all_gens)
                         .add(m[i].as_slice(), 1);
-                    product_tau_page_data
+                    product_lambda_page_data
                         .reduce_by_quotient(row.slice_mut(prod_num_gens, prod_all_gens));
                     count += 1;
                 }
@@ -404,16 +406,16 @@ fn main() -> anyhow::Result<()> {
                     }
                 };
 
-                let tau_part = gen.slice(target_num_gens, target_all_gens);
-                let num_entries = tau_part.iter_nonzero().count();
+                let lambda_part = gen.slice(target_num_gens, target_all_gens);
+                let num_entries = lambda_part.iter_nonzero().count();
                 if num_entries > 0 {
                     if has_ext {
                         print!(" + ");
                     }
-                    print!("τ");
+                    print!("λ");
 
                     let basis_string = BidegreeElement::new(
-                        c + TAU_BIDEGREE,
+                        c + LAMBDA_BIDEGREE,
                         gen.slice(target_num_gens, target_all_gens).to_owned(),
                     )
                     .to_basis_string();
@@ -428,7 +430,7 @@ fn main() -> anyhow::Result<()> {
 
             scratch0.clear();
             scratch0.resize(source_num_gens, 0);
-            scratch1.set_scratch_vector_size(source_tau_num_gens);
+            scratch1.set_scratch_vector_size(source_lambda_num_gens);
 
             // First deal with the null-homotopy of ab
             for (i, v) in gen.slice(0, target_num_gens).iter_nonzero() {
@@ -444,7 +446,7 @@ fn main() -> anyhow::Result<()> {
             // Now do the -1 part of the null-homotopy of bc.
             {
                 let sign = p * p - 1;
-                let out = b.product_nullhomotopy(b_tau.as_deref(), &unit_sseq, c, gen);
+                let out = b.product_nullhomotopy(b_lambda.as_deref(), &unit_sseq, c, gen);
                 for (i, v) in out.iter_nonzero() {
                     scratch0
                         .iter_mut()
@@ -460,8 +462,8 @@ fn main() -> anyhow::Result<()> {
 
             print!("[{}]", scratch0.iter().map(|x| *x % p).format(", "));
 
-            // Then deal with the rest of the null-homotopy of bc. This is just the null-homotopy
-            // of 2.
+            // Then deal with the rest of the null-homotopy of bc. This is just the null-homotopy of
+            // 2.
             scratch0.clear();
             scratch0.resize(prod_num_gens, 0);
 
@@ -476,9 +478,9 @@ fn main() -> anyhow::Result<()> {
                 if extra == 0 {
                     continue;
                 }
-                for gen_idx in 0..source_tau_num_gens {
-                    let m = a.underlying().get_map((source + TAU_BIDEGREE).s());
-                    let dx = m.output((source + TAU_BIDEGREE).t(), gen_idx);
+                for gen_idx in 0..source_lambda_num_gens {
+                    let m = a.underlying().get_map((source + LAMBDA_BIDEGREE).s());
+                    let dx = m.output((source + LAMBDA_BIDEGREE).t(), gen_idx);
                     let idx = unit.module((c + shift).s()).operation_generator_to_index(
                         1,
                         h_0,
@@ -488,7 +490,7 @@ fn main() -> anyhow::Result<()> {
                     scratch1.add_basis_element(gen_idx, dx.entry(idx));
                 }
             }
-            println!(" + τ{scratch1}");
+            println!(" + λ{scratch1}");
         }
     }
     Ok(())

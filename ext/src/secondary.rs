@@ -31,7 +31,7 @@ use crate::{
     save::{SaveDirectory, SaveFile, SaveKind},
 };
 
-pub static TAU_BIDEGREE: Bidegree = Bidegree::n_s(0, 1);
+pub static LAMBDA_BIDEGREE: Bidegree = Bidegree::n_s(0, 1);
 
 pub type CompositeData<A> = Vec<(
     u32,
@@ -345,12 +345,12 @@ impl<A: PairAlgebra + Send + Sync> SecondaryHomotopy<A> {
 /// where $f_i$ and $g_i$ are free module homomorphisms and $c_i$ are constants. This is specified
 /// by [`SecondaryLift::composite`].
 ///
-/// The next is a compatibility equation, which restricts the τ part of the null-homotopy, and is
+/// The next is a compatibility equation, which restricts the λ part of the null-homotopy, and is
 /// usually of the form
 ///
 /// $$ dh = hd + \mathrm{stuff} $$
 ///
-/// The τ part of $hd + \mathrm{stuff}$ is known as the intermediate data, and is what
+/// The λ part of $hd + \mathrm{stuff}$ is known as the intermediate data, and is what
 /// [`SecondaryLift::compute_intermediate`] returns.
 pub trait SecondaryLift: Sync + Sized {
     type Algebra: PairAlgebra;
@@ -983,7 +983,7 @@ where
 
     pub fn name(&self) -> String {
         let name = self.underlying.name();
-        if name.starts_with('[') || name.starts_with('τ') {
+        if name.starts_with('[') || name.starts_with('λ') {
             name.to_owned()
         } else {
             format!("[{name}]")
@@ -994,28 +994,28 @@ where
         &self.homotopies[s as i32]
     }
 
-    /// A version of [`hom_k`] but with a non-trivial τ part.
+    /// A version of [`hom_k`] but with a non-trivial λ part.
     pub fn hom_k_with<'a>(
         &self,
-        tau_part: Option<&ResolutionHomomorphism<CC1, CC2>>,
+        lambda_part: Option<&ResolutionHomomorphism<CC1, CC2>>,
         sseq: Option<&sseq::Sseq>,
         b: Bidegree,
         inputs: impl Iterator<Item = FpSlice<'a>>,
         outputs: impl Iterator<Item = FpSliceMut<'a>>,
     ) {
         let source = b + self.shift() - Bidegree::s_t(1, 0);
-        let tau_source = source + TAU_BIDEGREE;
+        let lambda_source = source + LAMBDA_BIDEGREE;
 
         let p = self.prime();
         let h_0 = self.algebra().p_tilde();
 
         let source_num_gens = self.source().number_of_gens_in_bidegree(source);
-        let tau_num_gens = self.source().number_of_gens_in_bidegree(tau_source);
+        let lambda_num_gens = self.source().number_of_gens_in_bidegree(lambda_source);
 
         let m0 = self.underlying.get_map(source.s()).hom_k(b.t());
-        let mut m1 = Matrix::from_vec(p, &self.homotopy(tau_source.s()).homotopies.hom_k(b.t()));
-        if let Some(tau_part) = tau_part {
-            m1 += &Matrix::from_vec(p, &tau_part.get_map(tau_source.s()).hom_k(b.t()));
+        let mut m1 = Matrix::from_vec(p, &self.homotopy(lambda_source.s()).homotopies.hom_k(b.t()));
+        if let Some(lambda_part) = lambda_part {
+            m1 += &Matrix::from_vec(p, &lambda_part.get_map(lambda_source.s()).hom_k(b.t()));
         }
 
         // The multiplication by p map
@@ -1035,7 +1035,7 @@ where
         let filtration_one_sign = if (b.t() % 2) == 1 { p - 1 } else { 1 };
 
         let page_data = sseq.map(|sseq| {
-            let d = sseq.page_data(tau_source.n(), tau_source.s() as i32);
+            let d = sseq.page_data(lambda_source.n(), lambda_source.s() as i32);
             &d[std::cmp::min(3, d.len() - 1)]
         });
 
@@ -1048,31 +1048,31 @@ where
                     .iter_mut()
                     .zip_eq(&m0[i])
                     .for_each(|(a, b)| *a += v * b * sign);
-                out.slice_mut(source_num_gens, source_num_gens + tau_num_gens)
+                out.slice_mut(source_num_gens, source_num_gens + lambda_num_gens)
                     .add(m1[i].as_slice(), (v * sign) % p);
             }
             for (i, v) in scratch0.iter().enumerate() {
                 out.add_basis_element(i, *v % p);
 
                 let extra = *v / p;
-                out.slice_mut(source_num_gens, source_num_gens + tau_num_gens)
+                out.slice_mut(source_num_gens, source_num_gens + lambda_num_gens)
                     .add(mp[i].as_slice(), (extra * filtration_one_sign) % p);
             }
             if let Some(page_data) = page_data {
                 page_data.reduce_by_quotient(
-                    out.slice_mut(source_num_gens, source_num_gens + tau_num_gens),
+                    out.slice_mut(source_num_gens, source_num_gens + lambda_num_gens),
                 );
             }
         }
     }
 
-    /// Compute the induced map on Mod_{C\tau^2} homotopy groups. This only computes it on
+    /// Compute the induced map on Mod_{C\lambda^2} homotopy groups. This only computes it on
     /// standard lifts on elements in Ext. `outputs` is an iterator of `FpSliceMut`s whose lengths
     /// are equal to the total dimension of `(s + shift_s, t + shift_t)` and `(s + shift_s + 1, t +
     /// shift_t + 1)`. The first chunk records the Ext part of the result, and the second chunk
-    /// records the τ part of the result.
+    /// records the λ part of the result.
     ///
-    /// This reduces the τ part of the result by the image of d₂.
+    /// This reduces the λ part of the result by the image of d₂.
     ///
     /// # Arguments
     /// - `sseq`: A sseq object that records the $d_2$ differentials. If present, reduce the value
@@ -1088,13 +1088,13 @@ where
     }
 
     /// Given an element b whose product with this is null, find the element whose $d_2$ hits the
-    /// τ part of the composition.
+    /// λ part of the composition.
     ///
     /// # Arguments:
     /// - `sseq`: spectral sequence object of the source
     pub fn product_nullhomotopy(
         &self,
-        tau_part: Option<&ResolutionHomomorphism<CC1, CC2>>,
+        lambda_part: Option<&ResolutionHomomorphism<CC1, CC2>>,
         sseq: &sseq::Sseq,
         b: Bidegree,
         class: FpSlice,
@@ -1106,23 +1106,25 @@ where
             .source()
             .number_of_gens_in_bidegree(shift + b - Bidegree::s_t(1, 0));
 
-        let tau_num_gens = self
+        let lambda_num_gens = self
             .source()
-            .number_of_gens_in_bidegree(b + shift + TAU_BIDEGREE);
+            .number_of_gens_in_bidegree(b + shift + LAMBDA_BIDEGREE);
 
         let lower_num_gens = self.source().number_of_gens_in_bidegree(b + shift);
 
         let target_num_gens = self.target().number_of_gens_in_bidegree(b);
-        let target_tau_num_gens = self.target().number_of_gens_in_bidegree(b + TAU_BIDEGREE);
+        let target_lambda_num_gens = self
+            .target()
+            .number_of_gens_in_bidegree(b + LAMBDA_BIDEGREE);
 
         let mut output_class = FpVector::new(p, result_num_gens);
-        if result_num_gens == 0 || tau_num_gens == 0 {
+        if result_num_gens == 0 || lambda_num_gens == 0 {
             return output_class;
         }
 
-        let mut prod_value = FpVector::new(p, lower_num_gens + tau_num_gens);
+        let mut prod_value = FpVector::new(p, lower_num_gens + lambda_num_gens);
         self.hom_k_with(
-            tau_part,
+            lambda_part,
             None,
             b,
             [class.slice(0, target_num_gens)].into_iter(),
@@ -1134,19 +1136,19 @@ where
             p,
             &self
                 .underlying
-                .get_map((b + shift + TAU_BIDEGREE).s())
-                .hom_k((b + TAU_BIDEGREE).t()),
+                .get_map((b + shift + LAMBDA_BIDEGREE).s())
+                .hom_k((b + LAMBDA_BIDEGREE).t()),
         );
         matrix.apply(
-            prod_value.slice_mut(lower_num_gens, lower_num_gens + tau_num_gens),
+            prod_value.slice_mut(lower_num_gens, lower_num_gens + lambda_num_gens),
             1,
-            class.slice(target_num_gens, target_num_gens + target_tau_num_gens),
+            class.slice(target_num_gens, target_num_gens + target_lambda_num_gens),
         );
 
         let diff_source = b + shift - Bidegree::n_s(-1, 1);
         sseq.differentials(diff_source.n(), diff_source.s() as i32)[2].quasi_inverse(
             output_class.as_slice_mut(),
-            prod_value.slice(lower_num_gens, lower_num_gens + tau_num_gens),
+            prod_value.slice(lower_num_gens, lower_num_gens + lambda_num_gens),
         );
 
         output_class
@@ -1164,8 +1166,8 @@ pub struct SecondaryChainHomotopy<
     underlying: Arc<ChainHomotopy<S, T, U>>,
     left: Arc<SecondaryResolutionHomomorphism<S, T>>,
     right: Arc<SecondaryResolutionHomomorphism<T, U>>,
-    left_tau: Option<Arc<ResolutionHomomorphism<S, T>>>,
-    right_tau: Option<Arc<ResolutionHomomorphism<T, U>>>,
+    left_lambda: Option<Arc<ResolutionHomomorphism<S, T>>>,
+    right_lambda: Option<Arc<ResolutionHomomorphism<T, U>>>,
     homotopies: OnceBiVec<SecondaryHomotopy<S::Algebra>>,
     intermediates: DashMap<BidegreeGenerator, FpVector>,
 }
@@ -1294,10 +1296,10 @@ where
             true,
         );
 
-        // This is inefficient if both right_tau and right are non-zero, but this is not needed atm
+        // This is inefficient if both right_lambda and right are non-zero, but this is not needed atm
         // and the change would not be user-facing.
-        if let Some(right_tau) = &self.right_tau {
-            right_tau.get_map(left_shifted_b.s()).apply(
+        if let Some(right_lambda) = &self.right_lambda {
+            right_lambda.get_map(left_shifted_b.s()).apply(
                 result.as_slice_mut(),
                 neg_1,
                 left_shifted_b.t(),
@@ -1319,12 +1321,12 @@ where
                 .as_slice(),
         );
 
-        if let Some(left_tau) = &self.left_tau {
+        if let Some(left_lambda) = &self.left_lambda {
             self.right.underlying.get_map(left_shifted_b.s() - 1).apply(
                 result.as_slice_mut(),
                 neg_1,
                 left_shifted_b.t() - 1,
-                left_tau
+                left_lambda
                     .get_map(gen.s())
                     .output(gen.t(), gen.idx())
                     .as_slice(),
@@ -1371,25 +1373,34 @@ where
     pub fn new(
         left: Arc<SecondaryResolutionHomomorphism<S, T>>,
         right: Arc<SecondaryResolutionHomomorphism<T, U>>,
-        left_tau: Option<Arc<ResolutionHomomorphism<S, T>>>,
-        right_tau: Option<Arc<ResolutionHomomorphism<T, U>>>,
+        left_lambda: Option<Arc<ResolutionHomomorphism<S, T>>>,
+        right_lambda: Option<Arc<ResolutionHomomorphism<T, U>>>,
         underlying: Arc<ChainHomotopy<S, T, U>>,
     ) -> Self {
         assert!(Arc::ptr_eq(&underlying.left(), &left.underlying));
         assert!(Arc::ptr_eq(&underlying.right(), &right.underlying));
 
-        if let Some(left_tau) = &left_tau {
-            assert!(Arc::ptr_eq(&left_tau.source, &underlying.left().source));
-            assert!(Arc::ptr_eq(&left_tau.target, &underlying.left().target));
+        if let Some(left_lambda) = &left_lambda {
+            assert!(Arc::ptr_eq(&left_lambda.source, &underlying.left().source));
+            assert!(Arc::ptr_eq(&left_lambda.target, &underlying.left().target));
 
-            assert_eq!(left_tau.shift, underlying.left().shift + TAU_BIDEGREE);
+            assert_eq!(left_lambda.shift, underlying.left().shift + LAMBDA_BIDEGREE);
         }
 
-        if let Some(right_tau) = &right_tau {
-            assert!(Arc::ptr_eq(&right_tau.source, &underlying.right().source));
-            assert!(Arc::ptr_eq(&right_tau.target, &underlying.right().target));
+        if let Some(right_lambda) = &right_lambda {
+            assert!(Arc::ptr_eq(
+                &right_lambda.source,
+                &underlying.right().source
+            ));
+            assert!(Arc::ptr_eq(
+                &right_lambda.target,
+                &underlying.right().target
+            ));
 
-            assert_eq!(right_tau.shift, underlying.right().shift + TAU_BIDEGREE);
+            assert_eq!(
+                right_lambda.shift,
+                underlying.right().shift + LAMBDA_BIDEGREE
+            );
         }
 
         if let Some(p) = underlying.save_dir().write() {
@@ -1401,8 +1412,8 @@ where
         Self {
             left,
             right,
-            left_tau,
-            right_tau,
+            left_lambda,
+            right_lambda,
             homotopies: OnceBiVec::new(underlying.shift().s() as i32),
             underlying,
             intermediates: DashMap::new(),
