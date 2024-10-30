@@ -144,14 +144,13 @@ unsafe fn shift_vec<T>(v: &mut Vec<T>, offset: isize) {
     let ptr = v.as_ptr();
     let len = v.len();
     let cap = v.capacity();
-    let w = std::mem::replace(
-        v,
+    let w = std::mem::replace(v, unsafe {
         Vec::from_raw_parts(
             (ptr as *mut T).offset(offset),
             (len as isize - offset) as usize,
             (cap as isize - offset) as usize,
-        ),
-    );
+        )
+    });
     std::mem::forget(w);
 }
 

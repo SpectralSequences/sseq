@@ -11,10 +11,12 @@ use crate::{
 /// apriori because k and n are obtained by reducing mod p, so it is better to expose an unsafe
 /// interface that avoids these checks.
 unsafe fn direct_binomial(p: ValidPrime, n: usize, k: usize) -> u32 {
-    *BINOMIAL_TABLE
-        .get_unchecked(PRIME_TO_INDEX_MAP[p.as_usize()])
-        .get_unchecked(n)
-        .get_unchecked(k)
+    unsafe {
+        *BINOMIAL_TABLE
+            .get_unchecked(PRIME_TO_INDEX_MAP[p.as_usize()])
+            .get_unchecked(n)
+            .get_unchecked(k)
+    }
 }
 
 /// A number satisfying the Binomial trait supports computing various binomial coefficients. This
