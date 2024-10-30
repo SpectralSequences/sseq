@@ -207,7 +207,7 @@ fn module_term(i: &str) -> IResult<&str, ModuleNode> {
     .unwrap();
 
     match space(module_generator)(i) {
-        Ok((i, gen)) => return Ok((i, vec![(prefix.unwrap_or(Scalar(1)), gen)])),
+        Ok((i, g)) => return Ok((i, vec![(prefix.unwrap_or(Scalar(1)), g)])),
         Err(nom::Err::Error(_)) => (),
         Err(e) => return Err(e),
     }

@@ -48,11 +48,11 @@ pub(crate) fn module_gens_from_json(
         gen_to_idx.insert(name.clone(), (degree, graded_dimension[degree]));
         graded_dimension[degree] += 1;
     }
-    (graded_dimension, gen_names, move |gen| {
+    (graded_dimension, gen_names, move |g| {
         gen_to_idx
-            .get(gen)
+            .get(g)
             .copied()
-            .ok_or_else(|| anyhow!("Invalid generator: {gen}"))
+            .ok_or_else(|| anyhow!("Invalid generator: {g}"))
     })
 }
 
