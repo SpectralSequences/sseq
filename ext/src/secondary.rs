@@ -1,12 +1,12 @@
 use std::{io, sync::Arc};
 
 use algebra::{
+    Algebra,
     module::{
-        homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism},
         FreeModule, Module,
+        homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism},
     },
     pair_algebra::PairAlgebra,
-    Algebra,
 };
 use bivec::BiVec;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
@@ -243,18 +243,18 @@ impl<A: PairAlgebra + Send + Sync> SecondaryHomotopy<A> {
         let tracing_span = tracing::Span::current();
         let f = |t, idx| {
             let _tracing_guard = tracing_span.enter();
-            let gen = BidegreeGenerator::s_t(s, t, idx);
+            let g = BidegreeGenerator::s_t(s, t, idx);
             let save_file = SaveFile {
                 algebra: self.target.algebra(),
                 kind: SaveKind::SecondaryComposite,
-                b: gen.degree(),
-                idx: Some(gen.idx()),
+                b: g.degree(),
+                idx: Some(g.idx()),
             };
             if let Some(dir) = dir.read() {
                 if let Some(mut f) = save_file.open_file(dir.to_owned()) {
                     return SecondaryComposite::from_bytes(
                         Arc::clone(&self.target),
-                        gen.t() - self.shift_t,
+                        g.t() - self.shift_t,
                         self.hit_generator,
                         &mut f,
                     )
@@ -264,13 +264,13 @@ impl<A: PairAlgebra + Send + Sync> SecondaryHomotopy<A> {
 
             let mut composite = SecondaryComposite::new(
                 Arc::clone(&self.target),
-                gen.t() - self.shift_t,
+                g.t() - self.shift_t,
                 self.hit_generator,
             );
 
-            tracing::info_span!("Computing composite", %gen).in_scope(|| {
+            tracing::info_span!("Computing composite", %g).in_scope(|| {
                 for (coef, d1, d0) in &maps {
-                    composite.add_composite(*coef, gen.t(), gen.idx(), d1, d0);
+                    composite.add_composite(*coef, g.t(), g.idx(), d1, d0);
                 }
                 composite.finalize();
             });
@@ -378,7 +378,7 @@ pub trait SecondaryLift: Sync + Sized {
 
     fn save_dir(&self) -> &SaveDirectory;
 
-    fn compute_intermediate(&self, gen: BidegreeGenerator) -> FpVector;
+    fn compute_intermediate(&self, g: BidegreeGenerator) -> FpVector;
     fn composite(&self, s: i32) -> CompositeData<Self::Algebra>;
 
     #[tracing::instrument(skip(self))]
@@ -412,17 +412,17 @@ pub trait SecondaryLift: Sync + Sized {
         self.homotopies().range().into_maybe_par_iter().for_each(f);
     }
 
-    #[tracing::instrument(skip(self), ret(Display, level = Level::DEBUG), fields(%gen))]
-    fn get_intermediate(&self, gen: BidegreeGenerator) -> FpVector {
-        if let Some((_, v)) = self.intermediates().remove(&gen) {
+    #[tracing::instrument(skip(self), ret(Display, level = Level::DEBUG), fields(%g))]
+    fn get_intermediate(&self, g: BidegreeGenerator) -> FpVector {
+        if let Some((_, v)) = self.intermediates().remove(&g) {
             return v;
         }
 
         let save_file = SaveFile {
             algebra: self.algebra(),
             kind: SaveKind::SecondaryIntermediate,
-            b: gen.degree(),
-            idx: Some(gen.idx()),
+            b: g.degree(),
+            idx: Some(g.idx()),
         };
 
         if let Some(dir) = self.save_dir().read() {
@@ -433,7 +433,7 @@ pub trait SecondaryLift: Sync + Sized {
             }
         }
 
-        let result = self.compute_intermediate(gen);
+        let result = self.compute_intermediate(g);
 
         if let Some(dir) = self.save_dir().write() {
             let mut f = save_file.create_file(dir.to_owned(), false);
@@ -477,11 +477,11 @@ pub trait SecondaryLift: Sync + Sized {
     #[tracing::instrument(skip(self))]
     fn compute_intermediates(&self) {
         let tracing_span = tracing::Span::current();
-        let f = |gen: BidegreeGenerator| {
+        let f = |g: BidegreeGenerator| {
             let _tracing_guard = tracing_span.enter();
 
             // If we already have homotopies, we don't need to compute intermediate
-            if self.homotopies()[gen.s()].homotopies.next_degree() >= gen.t() {
+            if self.homotopies()[g.s()].homotopies.next_degree() >= g.t() {
                 return;
             }
             // Check if we have a saved homotopy
@@ -489,7 +489,7 @@ pub trait SecondaryLift: Sync + Sized {
                 let save_file = SaveFile {
                     algebra: self.algebra(),
                     kind: SaveKind::SecondaryHomotopy,
-                    b: gen.degree(),
+                    b: g.degree(),
                     idx: None,
                 };
 
@@ -497,7 +497,7 @@ pub trait SecondaryLift: Sync + Sized {
                     return;
                 }
             }
-            self.intermediates().insert(gen, self.get_intermediate(gen));
+            self.intermediates().insert(g, self.get_intermediate(g));
         };
 
         self.homotopies()
@@ -555,14 +555,14 @@ pub trait SecondaryLift: Sync + Sized {
         let get_intermediate = |i| {
             let _tracing_guard = tracing_span.enter();
 
-            let gen = BidegreeGenerator::new(b, i);
-            let mut v = self.get_intermediate(gen);
-            if gen.s() > shift.s() + 1 {
-                self.homotopies()[gen.s() - 1].homotopies.apply(
+            let g = BidegreeGenerator::new(b, i);
+            let mut v = self.get_intermediate(g);
+            if g.s() > shift.s() + 1 {
+                self.homotopies()[g.s() - 1].homotopies.apply(
                     v.as_slice_mut(),
                     1,
-                    gen.t(),
-                    d.output(gen.t(), gen.idx()).as_slice(),
+                    g.t(),
+                    d.output(g.t(), g.idx()).as_slice(),
                 );
             }
             v
@@ -717,16 +717,16 @@ where
         vec![(1, d1, d0)]
     }
 
-    fn compute_intermediate(&self, gen: BidegreeGenerator) -> FpVector {
+    fn compute_intermediate(&self, g: BidegreeGenerator) -> FpVector {
         let p = self.prime();
-        let target = self.underlying.module(gen.s() - 3);
-        let mut result = FpVector::new(p, target.dimension(gen.t() - 1));
-        let d = self.underlying.differential(gen.s());
-        self.homotopies[gen.s() - 1].act(
+        let target = self.underlying.module(g.s() - 3);
+        let mut result = FpVector::new(p, target.dimension(g.t() - 1));
+        let d = self.underlying.differential(g.s());
+        self.homotopies[g.s() - 1].act(
             result.as_slice_mut(),
             1,
-            gen.t(),
-            d.output(gen.t(), gen.idx()).as_slice(),
+            g.t(),
+            d.output(g.t(), g.idx()).as_slice(),
             false,
         );
         result
@@ -902,20 +902,20 @@ where
         vec![(neg_1, d_source, c0), (1, c1, d_target)]
     }
 
-    fn compute_intermediate(&self, gen: BidegreeGenerator) -> FpVector {
+    fn compute_intermediate(&self, g: BidegreeGenerator) -> FpVector {
         let p = self.prime();
         let neg_1 = p - 1;
-        let shifted_b = gen.degree() - self.shift();
+        let shifted_b = g.degree() - self.shift();
         let target = self.target().module(shifted_b.s() - 1);
 
         let mut result = FpVector::new(p, target.dimension(shifted_b.t() - 1));
-        let d = self.source().differential(gen.s());
+        let d = self.source().differential(g.s());
 
-        self.homotopies[gen.s() - 1].act(
+        self.homotopies[g.s() - 1].act(
             result.as_slice_mut(),
             neg_1,
-            gen.t(),
-            d.output(gen.t(), gen.idx()).as_slice(),
+            g.t(),
+            d.output(g.t(), g.idx()).as_slice(),
             false,
         );
         self.target.homotopy(shifted_b.s() + 1).act(
@@ -923,19 +923,19 @@ where
             neg_1,
             shifted_b.t(),
             self.underlying
-                .get_map(gen.s())
-                .output(gen.t(), gen.idx())
+                .get_map(g.s())
+                .output(g.t(), g.idx())
                 .as_slice(),
             true,
         );
-        self.underlying.get_map(gen.s() - 2).apply(
+        self.underlying.get_map(g.s() - 2).apply(
             result.as_slice_mut(),
             1,
-            gen.t() - 1,
+            g.t() - 1,
             self.source
-                .homotopy(gen.s())
+                .homotopy(g.s())
                 .homotopies
-                .output(gen.t(), gen.idx())
+                .output(g.t(), g.idx())
                 .as_slice(),
         );
 
@@ -1163,10 +1163,10 @@ pub struct SecondaryChainHomotopy<
 }
 
 impl<
-        S: FreeChainComplex,
-        T: FreeChainComplex<Algebra = S::Algebra> + Sync,
-        U: FreeChainComplex<Algebra = S::Algebra> + Sync,
-    > SecondaryLift for SecondaryChainHomotopy<S, T, U>
+    S: FreeChainComplex,
+    T: FreeChainComplex<Algebra = S::Algebra> + Sync,
+    U: FreeChainComplex<Algebra = S::Algebra> + Sync,
+> SecondaryLift for SecondaryChainHomotopy<S, T, U>
 where
     S::Algebra: PairAlgebra,
 {
@@ -1232,22 +1232,22 @@ where
         self.underlying.save_dir()
     }
 
-    fn compute_intermediate(&self, gen: BidegreeGenerator) -> FpVector {
+    fn compute_intermediate(&self, g: BidegreeGenerator) -> FpVector {
         let p = self.prime();
         let neg_1 = p - 1;
-        let shifted_b = gen.degree() - self.shift();
+        let shifted_b = g.degree() - self.shift();
 
         let target = self.target().module(shifted_b.s() - 1);
 
         let mut result = FpVector::new(p, target.dimension(shifted_b.t() - 1));
 
-        self.homotopies[gen.s() - 1].act(
+        self.homotopies[g.s() - 1].act(
             result.as_slice_mut(),
             1,
-            gen.t(),
+            g.t(),
             self.source()
-                .differential(gen.s())
-                .output(gen.t(), gen.idx())
+                .differential(g.s())
+                .output(g.t(), g.idx())
                 .as_slice(),
             false,
         );
@@ -1257,31 +1257,31 @@ where
             1,
             shifted_b.t(),
             self.underlying
-                .homotopy(gen.s())
-                .output(gen.t(), gen.idx())
+                .homotopy(g.s())
+                .output(g.t(), g.idx())
                 .as_slice(),
             true,
         );
 
-        self.underlying.homotopy(gen.s() - 2).apply(
+        self.underlying.homotopy(g.s() - 2).apply(
             result.as_slice_mut(),
             neg_1,
-            gen.t() - 1,
-            self.left.source.homotopies()[gen.s()]
+            g.t() - 1,
+            self.left.source.homotopies()[g.s()]
                 .homotopies
-                .output(gen.t(), gen.idx())
+                .output(g.t(), g.idx())
                 .as_slice(),
         );
 
-        let left_shifted_b = gen.degree() - self.left.underlying.shift;
+        let left_shifted_b = g.degree() - self.left.underlying.shift;
         self.right.homotopies()[left_shifted_b.s()].act(
             result.as_slice_mut(),
             neg_1,
             left_shifted_b.t(),
             self.left
                 .underlying
-                .get_map(gen.s())
-                .output(gen.t(), gen.idx())
+                .get_map(g.s())
+                .output(g.t(), g.idx())
                 .as_slice(),
             true,
         );
@@ -1295,8 +1295,8 @@ where
                 left_shifted_b.t(),
                 self.left
                     .underlying
-                    .get_map(gen.s())
-                    .output(gen.t(), gen.idx())
+                    .get_map(g.s())
+                    .output(g.t(), g.idx())
                     .as_slice(),
             );
         }
@@ -1305,9 +1305,9 @@ where
             result.as_slice_mut(),
             neg_1,
             left_shifted_b.t() - 1,
-            self.left.homotopies()[gen.s()]
+            self.left.homotopies()[g.s()]
                 .homotopies
-                .output(gen.t(), gen.idx())
+                .output(g.t(), g.idx())
                 .as_slice(),
         );
 
@@ -1316,10 +1316,7 @@ where
                 result.as_slice_mut(),
                 neg_1,
                 left_shifted_b.t() - 1,
-                left_lambda
-                    .get_map(gen.s())
-                    .output(gen.t(), gen.idx())
-                    .as_slice(),
+                left_lambda.get_map(g.s()).output(g.t(), g.idx()).as_slice(),
             );
         }
         result
@@ -1353,10 +1350,10 @@ where
 }
 
 impl<
-        S: FreeChainComplex,
-        T: FreeChainComplex<Algebra = S::Algebra> + Sync,
-        U: FreeChainComplex<Algebra = S::Algebra> + Sync,
-    > SecondaryChainHomotopy<S, T, U>
+    S: FreeChainComplex,
+    T: FreeChainComplex<Algebra = S::Algebra> + Sync,
+    U: FreeChainComplex<Algebra = S::Algebra> + Sync,
+> SecondaryChainHomotopy<S, T, U>
 where
     S::Algebra: PairAlgebra,
 {

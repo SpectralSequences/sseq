@@ -99,7 +99,7 @@ struct PKData {
 }
 
 struct MahowaldInvariant {
-    gen: BidegreeGenerator,
+    g: BidegreeGenerator,
     output_t: i32,
     invariant: FpVector,
     indeterminacy_basis: Vec<FpVector>,
@@ -216,13 +216,13 @@ impl PKData {
 
                     let it = (0..minus_one_s_2_gens).filter_map(move |i| {
                         let mut image = FpVector::new(TWO, p_k_gens);
-                        let gen = BidegreeGenerator::new(b, i);
-                        self.minus_one_cell.act(image.as_slice_mut(), 1, gen);
+                        let g = BidegreeGenerator::new(b, i);
+                        self.minus_one_cell.act(image.as_slice_mut(), 1, g);
                         if !image.is_zero() && image_subspace.contains(image.as_slice()) {
                             let mut invariant = FpVector::new(TWO, bottom_s_2_gens);
                             quasi_inverse.apply(invariant.as_slice_mut(), 1, image.as_slice());
                             Some(MahowaldInvariant {
-                                gen,
+                                g,
                                 output_t: b_bottom.t(),
                                 invariant,
                                 indeterminacy_basis: indeterminacy_basis.clone(),
@@ -244,7 +244,7 @@ impl fmt::Display for MahowaldInvariant {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
         let output_t = self.output_t;
         let f2_vec_to_sum = |v: &FpVector| {
-            let elt = BidegreeElement::new(Bidegree::s_t(self.gen.s(), output_t), v.clone());
+            let elt = BidegreeElement::new(Bidegree::s_t(self.g.s(), output_t), v.clone());
             elt.to_basis_string()
         };
         let indeterminacy_info = if self.indeterminacy_basis.is_empty() {
@@ -261,11 +261,7 @@ impl fmt::Display for MahowaldInvariant {
             )
         };
         let invariant = f2_vec_to_sum(&self.invariant);
-        write!(
-            f,
-            "M(x_{gen}) = {invariant}{indeterminacy_info}",
-            gen = self.gen
-        )
+        write!(f, "M(x_{g}) = {invariant}{indeterminacy_info}", g = self.g)
     }
 }
 
@@ -289,11 +285,11 @@ mod tests {
         #[case] invariant: Vec<u32>,
         #[case] indeterminacy_dim: usize,
     ) {
-        let gen = BidegreeGenerator::new(Bidegree::s_t(s, input_t), input_i);
+        let g = BidegreeGenerator::new(Bidegree::s_t(s, input_t), input_i);
         let s_2_resolution = resolve_s_2(None, k).unwrap();
         let p_k = PKData::try_new(k, &None, &s_2_resolution).unwrap();
-        for mi in p_k.mahowald_invariants_for_bidegree(gen.degree()) {
-            if mi.gen.idx() == gen.idx() {
+        for mi in p_k.mahowald_invariants_for_bidegree(g.degree()) {
+            if mi.g.idx() == g.idx() {
                 assert_eq!(mi.output_t, output_t);
                 assert_eq!(Vec::from(&mi.invariant), invariant);
                 assert_eq!(mi.indeterminacy_basis.len(), indeterminacy_dim);

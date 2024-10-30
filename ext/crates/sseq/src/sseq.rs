@@ -280,8 +280,8 @@ impl<P: SseqProfile> Sseq<P> {
 
             if r > self.differentials[x][y].len() || self.page_data[tx][ty][r - 1].is_empty() {
                 let (prev, cur) = self.page_data[x][y].split_borrow_mut(r - 1, r);
-                for gen in prev.gens() {
-                    cur.add_gen(gen);
+                for g in prev.gens() {
+                    cur.add_gen(g);
                 }
                 if r - 1 < self.differentials[x][y].len() {
                     differentials.push(vec![Vec::new(); self.page_data[x][y][r].dimension()]);
@@ -302,13 +302,12 @@ impl<P: SseqProfile> Sseq<P> {
                     source_dim + target_dim,
                 );
 
-                for (row, gen) in
+                for (row, g) in
                     std::iter::zip(matrix.iter_mut(), self.page_data[x][y][r - 1].gens())
                 {
-                    row.slice_mut(target_dim, target_dim + source_dim)
-                        .assign(gen);
+                    row.slice_mut(target_dim, target_dim + source_dim).assign(g);
 
-                    d.evaluate(gen, dvec.as_slice_mut());
+                    d.evaluate(g, dvec.as_slice_mut());
                     row.slice_mut(0, target_dim).assign(dvec.as_slice());
 
                     drawn_differentials

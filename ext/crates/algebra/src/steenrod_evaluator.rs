@@ -64,13 +64,13 @@ impl SteenrodEvaluator {
         if items.is_empty() {
             return Ok(result);
         }
-        for (op, gen) in parse_module(items)? {
-            if let Some((deg, vec)) = result.get_mut(&gen) {
+        for (op, g) in parse_module(items)? {
+            if let Some((deg, vec)) = result.get_mut(&g) {
                 let (_, adem_v) = self.evaluate_algebra_node(Some(*deg), op)?;
                 vec.add(&adem_v, 1);
             } else {
                 let (deg, adem_v) = self.evaluate_algebra_node(None, op)?;
-                result.insert(gen, (deg, adem_v));
+                result.insert(g, (deg, adem_v));
             }
         }
         Ok(result)

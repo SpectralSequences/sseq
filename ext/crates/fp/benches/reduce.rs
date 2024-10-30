@@ -1,5 +1,8 @@
-use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
-use fp::{matrix::Matrix, prime::ValidPrime};
+use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
+use fp::{
+    matrix::Matrix,
+    prime::{Prime, ValidPrime},
+};
 use pprof::criterion::{Output, PProfProfiler};
 use rand::Rng;
 
@@ -34,7 +37,7 @@ fn row_reductions(c: &mut Criterion) {
 fn random_vector(p: ValidPrime, dimension: usize) -> Vec<u32> {
     let mut result = Vec::with_capacity(dimension);
     let mut rng = rand::rng();
-    result.resize_with(dimension, || rng.random::<u32>() % p);
+    result.resize_with(dimension, || rng.random_range(0..p.as_u32()));
     result
 }
 

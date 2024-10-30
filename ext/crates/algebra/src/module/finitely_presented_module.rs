@@ -130,11 +130,11 @@ impl<A: Algebra> FinitelyPresentedModule<A> {
                     let (term, coef) = opt(digits).parse(term).unwrap();
                     let coef: u32 = coef.unwrap_or(1);
 
-                    let (op, gen) = term.rsplit_once(' ').unwrap_or(("1", term));
+                    let (op, g) = term.rsplit_once(' ').unwrap_or(("1", term));
                     let (op_deg, op_idx) = algebra
                         .basis_element_from_string(op)
                         .ok_or_else(|| anyhow!("Invalid term in relation: {term}"))?;
-                    let (gen_deg, gen_idx) = gen_to_deg_idx(gen)?;
+                    let (gen_deg, gen_idx) = gen_to_deg_idx(g)?;
 
                     if v.is_empty() {
                         deg = op_deg + gen_deg;

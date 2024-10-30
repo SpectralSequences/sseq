@@ -1,10 +1,10 @@
 use std::{
-    io::{stderr, Write},
+    io::{Write, stderr},
     sync::Arc,
 };
 
 use algebra::{
-    module::FDModule, steenrod_evaluator::SteenrodEvaluator, AdemAlgebra, Algebra, GeneratedAlgebra,
+    AdemAlgebra, Algebra, GeneratedAlgebra, module::FDModule, steenrod_evaluator::SteenrodEvaluator,
 };
 use anyhow::anyhow;
 use bivec::BiVec;
@@ -13,7 +13,7 @@ use fp::{
     vector::FpVector,
 };
 use rustc_hash::FxHashMap as HashMap;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 pub fn get_gens() -> anyhow::Result<BiVec<Vec<String>>> {
     ext::utils::init_logging()?;
@@ -28,8 +28,8 @@ pub fn get_gens() -> anyhow::Result<BiVec<Vec<String>>> {
         if gen_deg.is_none() {
             eprintln!("This is the list of generators and degrees:");
             for (i, deg_i_gens) in gens.iter_enum() {
-                for gen in deg_i_gens.iter() {
-                    eprint!("({i}, {gen}) ");
+                for g in deg_i_gens.iter() {
+                    eprint!("({i}, {g}) ");
                 }
             }
             eprintln!();
@@ -78,8 +78,8 @@ pub fn get_gens() -> anyhow::Result<BiVec<Vec<String>>> {
 pub fn gens_to_json(gens: &BiVec<Vec<String>>) -> serde_json::Value {
     let mut gens_json = json!({});
     for (i, deg_i_gens) in gens.iter_enum() {
-        for gen in deg_i_gens {
-            gens_json[gen] = json!(i);
+        for g in deg_i_gens {
+            gens_json[g] = json!(i);
         }
     }
     gens_json
@@ -106,8 +106,8 @@ pub fn interactive_module_define_fdmodule(
     let mut module = FDModule::new(Arc::clone(&algebra), String::new(), graded_dim);
 
     for (i, deg_i_gens) in gens.iter_enum() {
-        for (j, gen) in deg_i_gens.iter().enumerate() {
-            module.set_basis_element_name(i, j, gen.to_string());
+        for (j, g) in deg_i_gens.iter().enumerate() {
+            module.set_basis_element_name(i, j, g.to_string());
         }
     }
 
@@ -139,19 +139,16 @@ pub fn interactive_module_define_fdmodule(
                             }
                             for term in expr.split('+') {
                                 let term = term.trim();
-                                let (coef, gen) = match term.split_once(' ') {
-                                    Some((coef, gen)) => (str::parse::<u32>(coef)?, gen),
+                                let (coef, g) = match term.split_once(' ') {
+                                    Some((coef, g)) => (str::parse::<u32>(coef)?, g),
                                     None => (1, term),
                                 };
 
-                                if let Some(gen_idx) =
-                                    gens[output_deg].iter().position(|d| d == gen)
+                                if let Some(gen_idx) = gens[output_deg].iter().position(|d| d == g)
                                 {
                                     result[gen_idx] += coef;
                                 } else {
-                                    return Err(anyhow!(
-                                        "No generator {gen} in degree {output_deg}"
-                                    ));
+                                    return Err(anyhow!("No generator {g} in degree {output_deg}"));
                                 }
                             }
 
@@ -173,8 +170,8 @@ pub fn interactive_module_define_fdmodule(
 
 /// Given a string representation of an element in an algebra together with a generator, multiply
 /// each term on the right with the generator.
-fn replace(algebra_elt: &str, gen: &str) -> String {
-    algebra_elt.replace('+', &format!("{gen} +")) + " " + gen
+fn replace(algebra_elt: &str, g: &str) -> String {
+    algebra_elt.replace('+', &format!("{g} +")) + " " + g
 }
 
 pub fn interactive_module_define_fpmodule(
@@ -203,8 +200,8 @@ pub fn interactive_module_define_fpmodule(
 
     let mut degree_lookup = HashMap::default();
     for (i, deg_i_gens) in gens.iter_enum() {
-        for gen in deg_i_gens.iter() {
-            degree_lookup.insert(gen.clone(), i);
+        for g in deg_i_gens.iter() {
+            degree_lookup.insert(g.clone(), i);
         }
     }
 
@@ -222,11 +219,11 @@ pub fn interactive_module_define_fpmodule(
             // Check that the generators exist and the terms all have the same degree
             let degrees = result
                 .iter()
-                .map(|(gen, (op_deg, _))| {
+                .map(|(g, (op_deg, _))| {
                     degree_lookup
-                        .get(gen)
+                        .get(g)
                         .map(|d| d + op_deg)
-                        .ok_or_else(|| anyhow!("Unknown generator: {gen}"))
+                        .ok_or_else(|| anyhow!("Unknown generator: {g}"))
                 })
                 .collect::<Result<Vec<_>, _>>()?;
             for window in degrees.windows(2) {
@@ -250,7 +247,7 @@ pub fn interactive_module_define_fpmodule(
         let mut milnor_relation = String::new();
 
         let mut milnor_op = FpVector::new(p, 0);
-        for (gen, (op_deg, adem_op)) in relation.iter() {
+        for (g, (op_deg, adem_op)) in relation.iter() {
             if adem_op.is_zero() {
                 continue;
             }
@@ -261,10 +258,10 @@ pub fn interactive_module_define_fpmodule(
             milnor_op.set_scratch_vector_size(adem_op.len());
             ev.adem_to_milnor(&mut milnor_op, 1, *op_deg, adem_op);
 
-            adem_relation += &replace(&ev.adem.element_to_string(*op_deg, adem_op.as_slice()), gen);
+            adem_relation += &replace(&ev.adem.element_to_string(*op_deg, adem_op.as_slice()), g);
             milnor_relation += &replace(
                 &ev.milnor.element_to_string(*op_deg, milnor_op.as_slice()),
-                gen,
+                g,
             );
         }
         if !adem_relation.is_empty() {
@@ -276,8 +273,8 @@ pub fn interactive_module_define_fpmodule(
     output_json["p"] = Value::from(p.as_u32());
     output_json["type"] = Value::String("finitely presented module".to_owned());
     for (i, deg_i_gens) in gens.iter_enum() {
-        for gen in deg_i_gens {
-            output_json["gens"][gen] = Value::from(i);
+        for g in deg_i_gens {
+            output_json["gens"][g] = Value::from(i);
         }
     }
     output_json["adem_relations"] = Value::Array(adem_relations);
