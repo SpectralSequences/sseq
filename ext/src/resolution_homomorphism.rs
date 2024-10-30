@@ -471,8 +471,8 @@ where
     /// Given a chain map $f: C \to C'$ between free chain complexes, apply
     /// $$ \Hom(f, k): \Hom(C', k) \to \Hom(C, k) $$
     /// to the specified generator of $\Hom(C', k)$.
-    pub fn act(&self, mut result: FpSliceMut, coef: u32, gen: BidegreeGenerator) {
-        let source = gen.degree() + self.shift;
+    pub fn act(&self, mut result: FpSliceMut, coef: u32, g: BidegreeGenerator) {
+        let source = g.degree() + self.shift;
 
         assert_eq!(
             result.as_slice().len(),
@@ -481,10 +481,10 @@ where
                 .number_of_gens_in_degree(source.t())
         );
 
-        let target_module = self.target.module(gen.s());
+        let target_module = self.target.module(g.s());
 
         let map = self.get_map(source.s());
-        let j = target_module.operation_generator_to_index(0, 0, gen.t(), gen.idx());
+        let j = target_module.operation_generator_to_index(0, 0, g.t(), g.idx());
         for i in 0..result.as_slice().len() {
             result.add_basis_element(i, coef * map.output(source.t(), i).entry(j));
         }

@@ -142,13 +142,12 @@ where
     }
 
     /// Get a string representation of d(gen), where d is the differential of the resolution.
-    fn boundary_string(&self, gen: BidegreeGenerator, compact: bool) -> String {
-        let d = self.differential(gen.s());
+    fn boundary_string(&self, g: BidegreeGenerator, compact: bool) -> String {
+        let d = self.differential(g.s());
         let target = d.target();
-        let result_vector = d.output(gen.t(), gen.idx());
+        let result_vector = d.output(g.t(), g.idx());
 
-        BidegreeElement::new(gen.degree(), result_vector.clone())
-            .to_string_module(&*target, compact)
+        BidegreeElement::new(g.degree(), result_vector.clone()).to_string_module(&*target, compact)
     }
 }
 

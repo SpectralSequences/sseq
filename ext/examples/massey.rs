@@ -115,8 +115,8 @@ fn main() -> anyhow::Result<()> {
 
             for (k, &v) in b_class.iter().enumerate() {
                 if v != 0 {
-                    let gen = BidegreeGenerator::new(b, k);
-                    hom.act(product[idx].slice_mut(0, product_num_gens), v, gen);
+                    let g = BidegreeGenerator::new(b, k);
+                    hom.act(product[idx].slice_mut(0, product_num_gens), v, g);
                 }
             }
         }

@@ -150,8 +150,8 @@ fn main() -> anyhow::Result<()> {
         if target_num_gens > 0 {
             let hom_k = hom.get_map((b + shift).s()).hom_k(b.t());
             for i in page_data.complement_pivots() {
-                let gen = BidegreeGenerator::new(b, i);
-                println!("{name} τ x_{gen} = τ {:?}", &hom_k[i]);
+                let g = BidegreeGenerator::new(b, i);
+                println!("{name} τ x_{g} = τ {:?}", &hom_k[i]);
             }
         }
 
@@ -169,12 +169,12 @@ fn main() -> anyhow::Result<()> {
             page_data.subspace_gens(),
             outputs.iter_mut().map(FpVector::as_slice_mut),
         );
-        for (gen, output) in page_data.subspace_gens().zip_eq(outputs) {
+        for (g, output) in page_data.subspace_gens().zip_eq(outputs) {
             println!(
                 "{name} [{basis_string}] = {} + τ {}",
                 output.slice(0, target_num_gens),
                 output.slice(target_num_gens, target_num_gens + tau_num_gens),
-                basis_string = BidegreeElement::new(b, gen.to_owned()).to_basis_string(),
+                basis_string = BidegreeElement::new(b, g.to_owned()).to_basis_string(),
             );
         }
     }
