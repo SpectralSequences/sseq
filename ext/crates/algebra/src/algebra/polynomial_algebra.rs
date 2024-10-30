@@ -282,7 +282,7 @@ impl<A: PolynomialAlgebra> Algebra for A {
         }
         let result = exp_map
             .iter()
-            .sorted_by_key(|(_, &(_, gen_deg))| gen_deg)
+            .sorted_by_key(|&(_, &(_, gen_deg))| gen_deg)
             .map(|(var, &(var_exp, gen_deg))| {
                 let pow = if var_exp > 1 {
                     format!("^{{{var_exp}}}")
