@@ -4,6 +4,18 @@
 // TODO: Write descriptions of each module therein.
 
 #![deny(clippy::use_self)]
+// Rust 2024 compatibility lints
+#![deny(rust_2024_compatibility)]
+// The `expr` fragment will change in Rust 2024
+#![allow(edition_2024_expr_fragment_specifier)]
+// Drop order will change in Rust 2024
+#![allow(tail_expr_drop_order)]
+// impl Trait will capture more lifetimes in Rust 2024
+#![allow(impl_trait_overcaptures)]
+// `if let` now drops the binding before entering the `else` block in Rust 2024. This lint is
+// currently only supported on nightly.
+#![allow(unknown_lints, if_let_rescope)]
+#![deny(unknown_lints)]
 
 pub mod module;
 pub mod steenrod_evaluator;
@@ -48,11 +60,11 @@ pub(crate) fn module_gens_from_json(
         gen_to_idx.insert(name.clone(), (degree, graded_dimension[degree]));
         graded_dimension[degree] += 1;
     }
-    (graded_dimension, gen_names, move |gen| {
+    (graded_dimension, gen_names, move |g| {
         gen_to_idx
-            .get(gen)
+            .get(g)
             .copied()
-            .ok_or_else(|| anyhow!("Invalid generator: {gen}"))
+            .ok_or_else(|| anyhow!("Invalid generator: {g}"))
     })
 }
 

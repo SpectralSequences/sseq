@@ -1,4 +1,12 @@
 #![deny(clippy::use_self)]
+// Rust 2024 compatibility lints
+#![deny(rust_2024_compatibility)]
+// The `expr` fragment will change in Rust 2024
+#![allow(edition_2024_expr_fragment_specifier)]
+// Drop order will change in Rust 2024
+#![allow(tail_expr_drop_order)]
+// impl Trait will capture more lifetimes in Rust 2024
+#![allow(impl_trait_overcaptures)]
 
 extern crate alloc;
 
@@ -80,10 +88,10 @@ impl<T> Page<T> {
                     1 << page_index
                 };
                 for idx in 0..end {
-                    std::ptr::drop_in_place(ptr.as_ptr().add(idx));
+                    unsafe { std::ptr::drop_in_place(ptr.as_ptr().add(idx)) };
                 }
             }
-            alloc::alloc::dealloc(ptr.as_ptr() as *mut u8, Self::layout(page_index));
+            unsafe { alloc::alloc::dealloc(ptr.as_ptr() as *mut u8, Self::layout(page_index)) };
         }
     }
 
@@ -104,7 +112,7 @@ impl<T> Page<T> {
             } else {
                 1 << page_index
             };
-            std::slice::from_raw_parts(self.0.unwrap().as_ptr() as *const T, len)
+            unsafe { std::slice::from_raw_parts(self.0.unwrap().as_ptr() as *const T, len) }
         }
     }
 }
@@ -335,7 +343,7 @@ impl<T> OnceVec<T> {
     /// page references should exist.
     unsafe fn entry_ptr(&self, index: usize) -> *mut T {
         let (page, idx) = inner_index(index);
-        (*self.page_raw(page)).ptr().add(idx)
+        unsafe { (*self.page_raw(page)).ptr().add(idx) }
     }
 
     /// # Returns
@@ -495,9 +503,9 @@ impl<T> OnceVec<T> {
         for i in 0..=max_page {
             let page_ptr = self.page_raw(i);
             // Safety assumption is propagated up call chain
-            if !(*page_ptr).allocated() {
+            if unsafe { !(*page_ptr).allocated() } {
                 // Only make mutable reference if the page is not allocated
-                (*page_ptr).allocate(i);
+                unsafe { (*page_ptr).allocate(i) };
             }
         }
     }
