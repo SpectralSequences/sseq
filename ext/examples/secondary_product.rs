@@ -1,20 +1,20 @@
-//! Computes products in $\Mod_{C\tau^2}$.
+//! Computes products in $\Mod_{C\lambda^2}$.
 //!
 //! # Usage
-//! The program asks for a module $M$ and an element $x \in \Ext^{\*, \*}(M, k)$. It then
-//! computes the secondary product of the standard lift of $x$ with all (standard lifts of)
-//! elements in $\Ext^{\*, \*}(M, k)$ that survive $d_2$.
+//! The program asks for a module $M$ and an element $x \in \Ext^{\*, \*}(M, k)$. It then computes
+//! the secondary product of the standard lift of $x$ with all (standard lifts of) elements in
+//! $\Ext^{\*, \*}(M, k)$ that survive $d_2$.
 //!
 //! These products are computed for all elements whose product with $x$ lies in the specified
 //! bidegree of $M$, and $k$ is resolved as far as necessary to support this computation.
 //!
 //! Running this program requires computing the secondary resolution of both $M$ and $k$, i.e. the
-//! calculations performed by [`secondary`](../secondary/index.html). The user is encouraged to
-//! make use of a save file to reuse these calculations for different products. (When $M$ is not
-//! equal to $k$, the user will be prompted for the save directory of $k$)
+//! calculations performed by [`secondary`](../secondary/index.html). The user is encouraged to make
+//! use of a save file to reuse these calculations for different products. (When $M$ is not equal to
+//! $k$, the user will be prompted for the save directory of $k$)
 //!
 //! # Output
-//! This prints the corresponding products in $\Mod_{C\tau^2}$. In particular, $x$ multiplies on
+//! This prints the corresponding products in $\Mod_{C\lambda^2}$. In particular, $x$ multiplies on
 //! the left, and the sign twist of $(-1)^{s't}$ is inserted.
 //!
 //! # Notes
@@ -130,7 +130,7 @@ fn main() -> anyhow::Result<()> {
     for b in unit.iter_nonzero_stem() {
         // The potential target has to be hit, and we need to have computed (the data need for) the
         // d2 that hits the potential target.
-        if !resolution.has_computed_bidegree(b + shift + TAU_BIDEGREE) {
+        if !resolution.has_computed_bidegree(b + shift + LAMBDA_BIDEGREE) {
             continue;
         }
         if !resolution.has_computed_bidegree(b + shift - Bidegree::s_t(1, 0)) {
@@ -140,9 +140,9 @@ fn main() -> anyhow::Result<()> {
         let page_data = get_page_data(unit_sseq.as_ref(), b);
 
         let target_num_gens = resolution.number_of_gens_in_bidegree(b + shift);
-        let tau_num_gens = resolution.number_of_gens_in_bidegree(b + shift + TAU_BIDEGREE);
+        let lambda_num_gens = resolution.number_of_gens_in_bidegree(b + shift + LAMBDA_BIDEGREE);
 
-        if target_num_gens == 0 && tau_num_gens == 0 {
+        if target_num_gens == 0 && lambda_num_gens == 0 {
             continue;
         }
 
@@ -151,7 +151,7 @@ fn main() -> anyhow::Result<()> {
             let hom_k = hom.get_map((b + shift).s()).hom_k(b.t());
             for i in page_data.complement_pivots() {
                 let gen = BidegreeGenerator::new(b, i);
-                println!("{name} τ x_{gen} = τ {:?}", &hom_k[i]);
+                println!("{name} λ x_{gen} = λ {:?}", &hom_k[i]);
             }
         }
 
@@ -160,8 +160,10 @@ fn main() -> anyhow::Result<()> {
             continue;
         }
 
-        let mut outputs =
-            vec![FpVector::new(p, target_num_gens + tau_num_gens); page_data.subspace_dimension()];
+        let mut outputs = vec![
+            FpVector::new(p, target_num_gens + lambda_num_gens);
+            page_data.subspace_dimension()
+        ];
 
         hom_lift.hom_k(
             Some(&res_sseq),
@@ -171,9 +173,9 @@ fn main() -> anyhow::Result<()> {
         );
         for (gen, output) in page_data.subspace_gens().zip_eq(outputs) {
             println!(
-                "{name} [{basis_string}] = {} + τ {}",
+                "{name} [{basis_string}] = {} + λ {}",
                 output.slice(0, target_num_gens),
-                output.slice(target_num_gens, target_num_gens + tau_num_gens),
+                output.slice(target_num_gens, target_num_gens + lambda_num_gens),
                 basis_string = BidegreeElement::new(b, gen.to_owned()).to_basis_string(),
             );
         }
