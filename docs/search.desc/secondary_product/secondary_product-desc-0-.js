@@ -1,1 +1,1 @@
-searchState.loadedDescShard("secondary_product", 0, "Computes products in $\\Mod_{C\\tau^2}$.")
+searchState.loadedDescShard("secondary_product", 0, "Computes products in $\\Mod_{C\\lambda^2}$.")

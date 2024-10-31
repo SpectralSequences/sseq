@@ -1,1 +1,1 @@
-searchState.loadedDescShard("secondary_massey", 0, "Computes massey products in $\\Mod_{C\\tau^2}$.")
+searchState.loadedDescShard("secondary_massey", 0, "Computes massey products in $\\Mod_{C\\lambda^2}$.")

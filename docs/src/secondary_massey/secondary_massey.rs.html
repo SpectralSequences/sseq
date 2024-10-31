@@ -518,23 +518,24 @@
 <a href="#493" id="493">493</a>
 <a href="#494" id="494">494</a>
 <a href="#495" id="495">495</a>
-</pre></div><pre class="rust"><code><span class="doccomment">//! Computes massey products in $\Mod_{C\tau^2}$.
+<a href="#496" id="496">496</a>
+<a href="#497" id="497">497</a>
+</pre></div><pre class="rust"><code><span class="doccomment">//! Computes massey products in $\Mod_{C\lambda^2}$.
 //!
 //! # Usage
-//! This computes all Massey products of the form $\langle -, b, a\rangle$, where
-//! $a \in \Ext^{\*, \*}(M, k)$ and $b, (-) \in \Ext^{\*, \*}(k, k)$. It does not verify that the
-//! Massey product is valid, i.e. $a$ and $b$ both lift to $\Mod_{C\tau^2}$ and have trivial
-//! product.
+//! This computes all Massey products of the form $\langle -, b, a\rangle$, where $a \in \Ext^{\*,
+//! \*}(M, k)$ and $b, (-) \in \Ext^{\*, \*}(k, k)$. It does not verify that the Massey product is
+//! valid, i.e. $a$ and $b$ both lift to $\Mod_{C\lambda^2}$ and have trivial product.
 //!
 //! Since we must choose $a$ and $b$ to have trivial product, it is necessary to be able to specify
-//! the $\tau$ part of them, and not insist that they are standard lifts of the $\Ext$ classes.
-//! Thus, the user is first prompted for the $\Ext$ part, then the $\tau$ part of each class. To
+//! the $\lambda$ part of them, and not insist that they are standard lifts of the $\Ext$ classes.
+//! Thus, the user is first prompted for the $\Ext$ part, then the $\lambda$ part of each class. To
 //! set a part to zero, supply an empty name. Note that if the bidegree right above the class is
-//! empty, the user is not prompted for the $\tau$ part.
+//! empty, the user is not prompted for the $\lambda$ part.
 //!
 //! # Output
 //! This computes the Massey products up to a sign. We write our output in the category
-//! $\Mod_{C\tau^2}$, so the format is $\langle a, b, -\rangle$ instead of $\langle -, b,
+//! $\Mod_{C\lambda^2}$, so the format is $\langle a, b, -\rangle$ instead of $\langle -, b,
 //! a\rangle$. Brave souls are encouraged to figure out the correct sign for the products.
 
 </span><span class="kw">use </span>std::sync::Arc;
@@ -557,7 +558,7 @@
     name: String,
     class: FpVector,
     hom_lift: Arc&lt;SecondaryResolutionHomomorphism&lt;QueryModuleResolution, QueryModuleResolution&gt;&gt;,
-    tau_part: <span class="prelude-ty">Option</span>&lt;Arc&lt;ResolutionHomomorphism&lt;QueryModuleResolution, QueryModuleResolution&gt;&gt;&gt;,
+    lambda_part: <span class="prelude-ty">Option</span>&lt;Arc&lt;ResolutionHomomorphism&lt;QueryModuleResolution, QueryModuleResolution&gt;&gt;&gt;,
 }
 
 <span class="kw">fn </span>get_hom(
@@ -576,7 +577,7 @@
 
     source
         .underlying()
-        .compute_through_stem(shift + TAU_BIDEGREE);
+        .compute_through_stem(shift + LAMBDA_BIDEGREE);
 
     <span class="kw">let </span>hom = Arc::new(ResolutionHomomorphism::new(
         ext_name.clone(),
@@ -586,9 +587,11 @@
     ));
 
     <span class="kw">let </span>num_gens = source.underlying().number_of_gens_in_bidegree(shift);
-    <span class="kw">let </span>num_tau_gens = hom.source.number_of_gens_in_bidegree(shift + TAU_BIDEGREE);
+    <span class="kw">let </span>num_lambda_gens = hom
+        .source
+        .number_of_gens_in_bidegree(shift + LAMBDA_BIDEGREE);
 
-    <span class="kw">let </span><span class="kw-2">mut </span>class = FpVector::new(p, num_gens + num_tau_gens);
+    <span class="kw">let </span><span class="kw-2">mut </span>class = FpVector::new(p, num_gens + num_lambda_gens);
 
     <span class="kw">let </span><span class="kw-2">mut </span>matrix = Matrix::new(p, num_gens, <span class="number">1</span>);
 
@@ -608,20 +611,20 @@
 
     <span class="kw">let </span>hom_lift = Arc::new(SecondaryResolutionHomomorphism::new(source, target, hom));
 
-    <span class="kw">let </span>tau_part = <span class="kw">if </span>num_tau_gens &gt; <span class="number">0 </span>{
-        <span class="kw">let </span>tau_name: String = query::raw(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"Name of τ part of {name}"</span>), str::parse);
-        <span class="kw">if </span>tau_name.is_empty() {
+    <span class="kw">let </span>lambda_part = <span class="kw">if </span>num_lambda_gens &gt; <span class="number">0 </span>{
+        <span class="kw">let </span>lambda_name: String = query::raw(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"Name of λ part of {name}"</span>), str::parse);
+        <span class="kw">if </span>lambda_name.is_empty() {
             <span class="prelude-val">None
         </span>} <span class="kw">else </span>{
-            <span class="kw">let </span>v = query::vector(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"Input Ext class {tau_name}"</span>), num_tau_gens);
+            <span class="kw">let </span>v = query::vector(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"Input Ext class {lambda_name}"</span>), num_lambda_gens);
             <span class="kw">for </span>(i, <span class="kw-2">&amp;</span>x) <span class="kw">in </span>v.iter().enumerate() {
                 class.set_entry(num_gens + i, x);
             }
             <span class="prelude-val">Some</span>(Arc::new(ResolutionHomomorphism::from_class(
-                tau_name,
+                lambda_name,
                 hom_lift.source(),
                 hom_lift.target(),
-                shift + TAU_BIDEGREE,
+                shift + LAMBDA_BIDEGREE,
                 <span class="kw-2">&amp;</span>v,
             )))
         }
@@ -629,17 +632,17 @@
         <span class="prelude-val">None
     </span>};
 
-    <span class="kw">let </span>name = <span class="kw">match </span>(<span class="kw-2">&amp;*</span>ext_name, tau_part.as_ref().map_or(<span class="string">""</span>, |x| x.name())) {
+    <span class="kw">let </span>name = <span class="kw">match </span>(<span class="kw-2">&amp;*</span>ext_name, lambda_part.as_ref().map_or(<span class="string">""</span>, |x| x.name())) {
         (<span class="string">""</span>, <span class="string">""</span>) =&gt; <span class="macro">panic!</span>(<span class="string">"Do not compute zero Massey product"</span>),
-        (<span class="string">""</span>, x) =&gt; <span class="macro">format!</span>(<span class="string">"τ{x}"</span>),
+        (<span class="string">""</span>, x) =&gt; <span class="macro">format!</span>(<span class="string">"λ{x}"</span>),
         (x, <span class="string">""</span>) =&gt; <span class="macro">format!</span>(<span class="string">"[{x}]"</span>),
-        (x, y) =&gt; <span class="macro">format!</span>(<span class="string">"[{x}] + τ{y}"</span>),
+        (x, y) =&gt; <span class="macro">format!</span>(<span class="string">"[{x}] + λ{y}"</span>),
     };
     HomData {
         name,
         class,
         hom_lift,
-        tau_part,
+        lambda_part,
     }
 }
 
@@ -669,13 +672,13 @@
         name: a_name,
         class: <span class="kw">_</span>,
         hom_lift: a,
-        tau_part: a_tau,
+        lambda_part: a_lambda,
     } = get_hom(<span class="string">"a"</span>, Arc::clone(<span class="kw-2">&amp;</span>res_lift), Arc::clone(<span class="kw-2">&amp;</span>unit_lift));
     <span class="kw">let </span>HomData {
         name: b_name,
         class: b_class,
         hom_lift: b,
-        tau_part: b_tau,
+        lambda_part: b_lambda,
     } = get_hom(<span class="string">"b"</span>, Arc::clone(<span class="kw-2">&amp;</span>unit_lift), Arc::clone(<span class="kw-2">&amp;</span>unit_lift));
 
     <span class="kw">let </span>shift = Bidegree::s_t(
@@ -708,11 +711,11 @@
             b.underlying().extend_all();
             b.extend_all();
         });
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(a_tau) = <span class="kw-2">&amp;</span>a_tau {
-            s.spawn(|<span class="kw">_</span>| a_tau.extend_all());
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(a_lambda) = <span class="kw-2">&amp;</span>a_lambda {
+            s.spawn(|<span class="kw">_</span>| a_lambda.extend_all());
         }
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(b_tau) = <span class="kw-2">&amp;</span>b_tau {
-            s.spawn(|<span class="kw">_</span>| b_tau.extend_all());
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(b_lambda) = <span class="kw-2">&amp;</span>b_lambda {
+            s.spawn(|<span class="kw">_</span>| b_lambda.extend_all());
         }
     });
 
@@ -730,7 +733,7 @@
 
     <span class="comment">// Compute first homotopy
     </span>{
-        <span class="kw">let </span>v = a.product_nullhomotopy(a_tau.as_deref(), <span class="kw-2">&amp;</span>res_sseq, b_shift, b_class.as_slice());
+        <span class="kw">let </span>v = a.product_nullhomotopy(a_lambda.as_deref(), <span class="kw-2">&amp;</span>res_sseq, b_shift, b_class.as_slice());
         <span class="kw">let </span>homotopy = chain_homotopy.homotopy(b_shift.s() + a.underlying().shift.s() - <span class="number">1</span>);
         <span class="kw">let </span>htpy_source = a.shift() + b_shift;
         homotopy.extend_by_zero(htpy_source.t() - <span class="number">1</span>);
@@ -747,8 +750,8 @@
     <span class="kw">let </span>ch_lift = SecondaryChainHomotopy::new(
         Arc::clone(<span class="kw-2">&amp;</span>a),
         Arc::clone(<span class="kw-2">&amp;</span>b),
-        a_tau.clone(),
-        b_tau.clone(),
+        a_lambda.clone(),
+        b_lambda.clone(),
         Arc::clone(<span class="kw-2">&amp;</span>chain_homotopy),
     );
 
@@ -781,28 +784,29 @@
         </span><span class="kw">let </span>source = c + shift - Bidegree::s_t(<span class="number">1</span>, <span class="number">0</span>);
 
         <span class="kw">let </span>source_num_gens = resolution.number_of_gens_in_bidegree(source);
-        <span class="kw">let </span>source_tau_num_gens = resolution.number_of_gens_in_bidegree(source + TAU_BIDEGREE);
+        <span class="kw">let </span>source_lambda_num_gens =
+            resolution.number_of_gens_in_bidegree(source + LAMBDA_BIDEGREE);
 
-        <span class="kw">if </span>source_num_gens + source_tau_num_gens == <span class="number">0 </span>{
+        <span class="kw">if </span>source_num_gens + source_lambda_num_gens == <span class="number">0 </span>{
             <span class="kw">continue</span>;
         }
 
         <span class="comment">// We find the kernel of multiplication by b.
         </span><span class="kw">let </span>target_num_gens = unit.number_of_gens_in_bidegree(c);
-        <span class="kw">let </span>target_tau_num_gens = unit.number_of_gens_in_bidegree(c + TAU_BIDEGREE);
-        <span class="kw">let </span>target_all_gens = target_num_gens + target_tau_num_gens;
+        <span class="kw">let </span>target_lambda_num_gens = unit.number_of_gens_in_bidegree(c + LAMBDA_BIDEGREE);
+        <span class="kw">let </span>target_all_gens = target_num_gens + target_lambda_num_gens;
 
         <span class="kw">let </span>prod_num_gens = unit.number_of_gens_in_bidegree(c + b_shift);
-        <span class="kw">let </span>prod_tau_num_gens = unit.number_of_gens_in_bidegree(c + b_shift + TAU_BIDEGREE);
-        <span class="kw">let </span>prod_all_gens = prod_num_gens + prod_tau_num_gens;
+        <span class="kw">let </span>prod_lambda_num_gens = unit.number_of_gens_in_bidegree(c + b_shift + LAMBDA_BIDEGREE);
+        <span class="kw">let </span>prod_all_gens = prod_num_gens + prod_lambda_num_gens;
 
         <span class="kw">let </span>e3_kernel = {
             <span class="kw">let </span>target_page_data = get_page_data(<span class="kw-2">&amp;</span>unit_sseq, c);
-            <span class="kw">let </span>target_tau_page_data = get_page_data(<span class="kw-2">&amp;</span>unit_sseq, c + TAU_BIDEGREE);
-            <span class="kw">let </span>product_tau_page_data = get_page_data(<span class="kw-2">&amp;</span>unit_sseq, c + b_shift + TAU_BIDEGREE);
+            <span class="kw">let </span>target_lambda_page_data = get_page_data(<span class="kw-2">&amp;</span>unit_sseq, c + LAMBDA_BIDEGREE);
+            <span class="kw">let </span>product_lambda_page_data = get_page_data(<span class="kw-2">&amp;</span>unit_sseq, c + b_shift + LAMBDA_BIDEGREE);
 
-            <span class="comment">// We first compute elements whose product vanish mod tau, and later see what the possible
-            // lifts are. We do it this way to avoid Z/p^2 problems
+            <span class="comment">// We first compute elements whose product vanish mod lambda, and later see what the
+            // possible lifts are. We do it this way to avoid Z/p^2 problems
 
             </span><span class="kw">let </span>e2_kernel: Subspace = {
                 <span class="kw">let </span><span class="kw-2">mut </span>product_matrix = Matrix::new(
@@ -837,12 +841,12 @@
                 </span><span class="kw">let </span>e2_ker_dim = e2_kernel.dimension();
                 <span class="kw">let </span><span class="kw-2">mut </span>product_matrix = Matrix::new(
                     p,
-                    e2_ker_dim + target_tau_page_data.quotient_dimension(),
+                    e2_ker_dim + target_lambda_page_data.quotient_dimension(),
                     target_all_gens + prod_all_gens,
                 );
 
                 b.hom_k_with(
-                    b_tau.as_deref(),
+                    b_lambda.as_deref(),
                     <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>unit_sseq),
                     c,
                     e2_kernel.basis().iter().map(FpVector::as_slice),
@@ -855,7 +859,7 @@
                         .assign(v.as_slice());
                 }
 
-                <span class="comment">// Now add the tau multiples
+                <span class="comment">// Now add the lambda multiples
                 </span><span class="kw">let </span>m = Matrix::from_vec(
                     p,
                     <span class="kw-2">&amp;</span>b.underlying()
@@ -864,7 +868,7 @@
                 );
 
                 <span class="kw">let </span><span class="kw-2">mut </span>count = <span class="number">0</span>;
-                <span class="kw">for </span>(i, <span class="kw-2">&amp;</span>v) <span class="kw">in </span>target_tau_page_data.quotient_pivots().iter().enumerate() {
+                <span class="kw">for </span>(i, <span class="kw-2">&amp;</span>v) <span class="kw">in </span>target_lambda_page_data.quotient_pivots().iter().enumerate() {
                     <span class="kw">if </span>v &gt;= <span class="number">0 </span>{
                         <span class="kw">continue</span>;
                     }
@@ -872,7 +876,7 @@
                     row.add_basis_element(prod_all_gens + target_num_gens + i, <span class="number">1</span>);
                     row.slice_mut(prod_num_gens, prod_all_gens)
                         .add(m[i].as_slice(), <span class="number">1</span>);
-                    product_tau_page_data
+                    product_lambda_page_data
                         .reduce_by_quotient(row.slice_mut(prod_num_gens, prod_all_gens));
                     count += <span class="number">1</span>;
                 }
@@ -924,16 +928,16 @@
                     </span>}
                 };
 
-                <span class="kw">let </span>tau_part = gen.slice(target_num_gens, target_all_gens);
-                <span class="kw">let </span>num_entries = tau_part.iter_nonzero().count();
+                <span class="kw">let </span>lambda_part = gen.slice(target_num_gens, target_all_gens);
+                <span class="kw">let </span>num_entries = lambda_part.iter_nonzero().count();
                 <span class="kw">if </span>num_entries &gt; <span class="number">0 </span>{
                     <span class="kw">if </span>has_ext {
                         <span class="macro">print!</span>(<span class="string">" + "</span>);
                     }
-                    <span class="macro">print!</span>(<span class="string">"τ"</span>);
+                    <span class="macro">print!</span>(<span class="string">"λ"</span>);
 
                     <span class="kw">let </span>basis_string = BidegreeElement::new(
-                        c + TAU_BIDEGREE,
+                        c + LAMBDA_BIDEGREE,
                         gen.slice(target_num_gens, target_all_gens).to_owned(),
                     )
                     .to_basis_string();
@@ -948,7 +952,7 @@
 
             scratch0.clear();
             scratch0.resize(source_num_gens, <span class="number">0</span>);
-            scratch1.set_scratch_vector_size(source_tau_num_gens);
+            scratch1.set_scratch_vector_size(source_lambda_num_gens);
 
             <span class="comment">// First deal with the null-homotopy of ab
             </span><span class="kw">for </span>(i, v) <span class="kw">in </span>gen.slice(<span class="number">0</span>, target_num_gens).iter_nonzero() {
@@ -964,7 +968,7 @@
             <span class="comment">// Now do the -1 part of the null-homotopy of bc.
             </span>{
                 <span class="kw">let </span>sign = p * p - <span class="number">1</span>;
-                <span class="kw">let </span>out = b.product_nullhomotopy(b_tau.as_deref(), <span class="kw-2">&amp;</span>unit_sseq, c, gen);
+                <span class="kw">let </span>out = b.product_nullhomotopy(b_lambda.as_deref(), <span class="kw-2">&amp;</span>unit_sseq, c, gen);
                 <span class="kw">for </span>(i, v) <span class="kw">in </span>out.iter_nonzero() {
                     scratch0
                         .iter_mut()
@@ -980,8 +984,8 @@
 
             <span class="macro">print!</span>(<span class="string">"[{}]"</span>, scratch0.iter().map(|x| <span class="kw-2">*</span>x % p).format(<span class="string">", "</span>));
 
-            <span class="comment">// Then deal with the rest of the null-homotopy of bc. This is just the null-homotopy
-            // of 2.
+            <span class="comment">// Then deal with the rest of the null-homotopy of bc. This is just the null-homotopy of
+            // 2.
             </span>scratch0.clear();
             scratch0.resize(prod_num_gens, <span class="number">0</span>);
 
@@ -996,9 +1000,9 @@
                 <span class="kw">if </span>extra == <span class="number">0 </span>{
                     <span class="kw">continue</span>;
                 }
-                <span class="kw">for </span>gen_idx <span class="kw">in </span><span class="number">0</span>..source_tau_num_gens {
-                    <span class="kw">let </span>m = a.underlying().get_map((source + TAU_BIDEGREE).s());
-                    <span class="kw">let </span>dx = m.output((source + TAU_BIDEGREE).t(), gen_idx);
+                <span class="kw">for </span>gen_idx <span class="kw">in </span><span class="number">0</span>..source_lambda_num_gens {
+                    <span class="kw">let </span>m = a.underlying().get_map((source + LAMBDA_BIDEGREE).s());
+                    <span class="kw">let </span>dx = m.output((source + LAMBDA_BIDEGREE).t(), gen_idx);
                     <span class="kw">let </span>idx = unit.module((c + shift).s()).operation_generator_to_index(
                         <span class="number">1</span>,
                         h_0,
@@ -1008,7 +1012,7 @@
                     scratch1.add_basis_element(gen_idx, dx.entry(idx));
                 }
             }
-            <span class="macro">println!</span>(<span class="string">" + τ{scratch1}"</span>);
+            <span class="macro">println!</span>(<span class="string">" + λ{scratch1}"</span>);
         }
     }
     <span class="prelude-val">Ok</span>(())

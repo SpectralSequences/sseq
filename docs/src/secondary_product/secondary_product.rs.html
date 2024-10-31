@@ -205,23 +205,25 @@
 <a href="#180" id="180">180</a>
 <a href="#181" id="181">181</a>
 <a href="#182" id="182">182</a>
-</pre></div><pre class="rust"><code><span class="doccomment">//! Computes products in $\Mod_{C\tau^2}$.
+<a href="#183" id="183">183</a>
+<a href="#184" id="184">184</a>
+</pre></div><pre class="rust"><code><span class="doccomment">//! Computes products in $\Mod_{C\lambda^2}$.
 //!
 //! # Usage
-//! The program asks for a module $M$ and an element $x \in \Ext^{\*, \*}(M, k)$. It then
-//! computes the secondary product of the standard lift of $x$ with all (standard lifts of)
-//! elements in $\Ext^{\*, \*}(M, k)$ that survive $d_2$.
+//! The program asks for a module $M$ and an element $x \in \Ext^{\*, \*}(M, k)$. It then computes
+//! the secondary product of the standard lift of $x$ with all (standard lifts of) elements in
+//! $\Ext^{\*, \*}(M, k)$ that survive $d_2$.
 //!
 //! These products are computed for all elements whose product with $x$ lies in the specified
 //! bidegree of $M$, and $k$ is resolved as far as necessary to support this computation.
 //!
 //! Running this program requires computing the secondary resolution of both $M$ and $k$, i.e. the
-//! calculations performed by [`secondary`](../secondary/index.html). The user is encouraged to
-//! make use of a save file to reuse these calculations for different products. (When $M$ is not
-//! equal to $k$, the user will be prompted for the save directory of $k$)
+//! calculations performed by [`secondary`](../secondary/index.html). The user is encouraged to make
+//! use of a save file to reuse these calculations for different products. (When $M$ is not equal to
+//! $k$, the user will be prompted for the save directory of $k$)
 //!
 //! # Output
-//! This prints the corresponding products in $\Mod_{C\tau^2}$. In particular, $x$ multiplies on
+//! This prints the corresponding products in $\Mod_{C\lambda^2}$. In particular, $x$ multiplies on
 //! the left, and the sign twist of $(-1)^{s't}$ is inserted.
 //!
 //! # Notes
@@ -337,7 +339,7 @@
     </span><span class="kw">for </span>b <span class="kw">in </span>unit.iter_nonzero_stem() {
         <span class="comment">// The potential target has to be hit, and we need to have computed (the data need for) the
         // d2 that hits the potential target.
-        </span><span class="kw">if </span>!resolution.has_computed_bidegree(b + shift + TAU_BIDEGREE) {
+        </span><span class="kw">if </span>!resolution.has_computed_bidegree(b + shift + LAMBDA_BIDEGREE) {
             <span class="kw">continue</span>;
         }
         <span class="kw">if </span>!resolution.has_computed_bidegree(b + shift - Bidegree::s_t(<span class="number">1</span>, <span class="number">0</span>)) {
@@ -347,9 +349,9 @@
         <span class="kw">let </span>page_data = get_page_data(unit_sseq.as_ref(), b);
 
         <span class="kw">let </span>target_num_gens = resolution.number_of_gens_in_bidegree(b + shift);
-        <span class="kw">let </span>tau_num_gens = resolution.number_of_gens_in_bidegree(b + shift + TAU_BIDEGREE);
+        <span class="kw">let </span>lambda_num_gens = resolution.number_of_gens_in_bidegree(b + shift + LAMBDA_BIDEGREE);
 
-        <span class="kw">if </span>target_num_gens == <span class="number">0 </span>&amp;&amp; tau_num_gens == <span class="number">0 </span>{
+        <span class="kw">if </span>target_num_gens == <span class="number">0 </span>&amp;&amp; lambda_num_gens == <span class="number">0 </span>{
             <span class="kw">continue</span>;
         }
 
@@ -358,7 +360,7 @@
             <span class="kw">let </span>hom_k = hom.get_map((b + shift).s()).hom_k(b.t());
             <span class="kw">for </span>i <span class="kw">in </span>page_data.complement_pivots() {
                 <span class="kw">let </span>gen = BidegreeGenerator::new(b, i);
-                <span class="macro">println!</span>(<span class="string">"{name} τ x_{gen} = τ {:?}"</span>, <span class="kw-2">&amp;</span>hom_k[i]);
+                <span class="macro">println!</span>(<span class="string">"{name} λ x_{gen} = λ {:?}"</span>, <span class="kw-2">&amp;</span>hom_k[i]);
             }
         }
 
@@ -367,8 +369,10 @@
             <span class="kw">continue</span>;
         }
 
-        <span class="kw">let </span><span class="kw-2">mut </span>outputs =
-            <span class="macro">vec!</span>[FpVector::new(p, target_num_gens + tau_num_gens); page_data.subspace_dimension()];
+        <span class="kw">let </span><span class="kw-2">mut </span>outputs = <span class="macro">vec!</span>[
+            FpVector::new(p, target_num_gens + lambda_num_gens);
+            page_data.subspace_dimension()
+        ];
 
         hom_lift.hom_k(
             <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>res_sseq),
@@ -378,9 +382,9 @@
         );
         <span class="kw">for </span>(gen, output) <span class="kw">in </span>page_data.subspace_gens().zip_eq(outputs) {
             <span class="macro">println!</span>(
-                <span class="string">"{name} [{basis_string}] = {} + τ {}"</span>,
+                <span class="string">"{name} [{basis_string}] = {} + λ {}"</span>,
                 output.slice(<span class="number">0</span>, target_num_gens),
-                output.slice(target_num_gens, target_num_gens + tau_num_gens),
+                output.slice(target_num_gens, target_num_gens + lambda_num_gens),
                 basis_string = BidegreeElement::new(b, gen.to_owned()).to_basis_string(),
             );
         }

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"static":["TAU_BIDEGREE"],"struct":["SecondaryComposite","SecondaryHomotopy","SecondaryResolution"],"trait":["SecondaryLift"],"type":["CompositeData"]};
+window.SIDEBAR_ITEMS = {"static":["LAMBDA_BIDEGREE"],"struct":["SecondaryComposite","SecondaryHomotopy","SecondaryResolution"],"trait":["SecondaryLift"],"type":["CompositeData"]};

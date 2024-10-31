@@ -1462,6 +1462,17 @@
 <a href="#1437" id="1437">1437</a>
 <a href="#1438" id="1438">1438</a>
 <a href="#1439" id="1439">1439</a>
+<a href="#1440" id="1440">1440</a>
+<a href="#1441" id="1441">1441</a>
+<a href="#1442" id="1442">1442</a>
+<a href="#1443" id="1443">1443</a>
+<a href="#1444" id="1444">1444</a>
+<a href="#1445" id="1445">1445</a>
+<a href="#1446" id="1446">1446</a>
+<a href="#1447" id="1447">1447</a>
+<a href="#1448" id="1448">1448</a>
+<a href="#1449" id="1449">1449</a>
+<a href="#1450" id="1450">1450</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     io::{Read, Write},
     sync::Arc,
@@ -1495,7 +1506,7 @@
     save::{SaveDirectory, SaveFile, SaveKind},
 };
 
-<span class="kw">pub static </span>TAU_BIDEGREE: Bidegree = Bidegree::n_s(<span class="number">0</span>, <span class="number">1</span>);
+<span class="kw">pub static </span>LAMBDA_BIDEGREE: Bidegree = Bidegree::n_s(<span class="number">0</span>, <span class="number">1</span>);
 
 <span class="kw">pub type </span>CompositeData&lt;A&gt; = Vec&lt;(
     u32,
@@ -1809,12 +1820,12 @@
 /// where $f_i$ and $g_i$ are free module homomorphisms and $c_i$ are constants. This is specified
 /// by [`SecondaryLift::composite`].
 ///
-/// The next is a compatibility equation, which restricts the τ part of the null-homotopy, and is
+/// The next is a compatibility equation, which restricts the λ part of the null-homotopy, and is
 /// usually of the form
 ///
 /// $$ dh = hd + \mathrm{stuff} $$
 ///
-/// The τ part of $hd + \mathrm{stuff}$ is known as the intermediate data, and is what
+/// The λ part of $hd + \mathrm{stuff}$ is known as the intermediate data, and is what
 /// [`SecondaryLift::compute_intermediate`] returns.
 </span><span class="kw">pub trait </span>SecondaryLift: Sync + Sized {
     <span class="kw">type </span>Algebra: PairAlgebra;
@@ -2447,7 +2458,7 @@
 
     <span class="kw">pub fn </span>name(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; String {
         <span class="kw">let </span>name = <span class="self">self</span>.underlying.name();
-        <span class="kw">if </span>name.starts_with(<span class="string">'['</span>) || name.starts_with(<span class="string">'τ'</span>) {
+        <span class="kw">if </span>name.starts_with(<span class="string">'['</span>) || name.starts_with(<span class="string">'λ'</span>) {
             name.to_owned()
         } <span class="kw">else </span>{
             <span class="macro">format!</span>(<span class="string">"[{name}]"</span>)
@@ -2458,28 +2469,28 @@
         <span class="kw-2">&amp;</span><span class="self">self</span>.homotopies[s <span class="kw">as </span>i32]
     }
 
-    <span class="doccomment">/// A version of [`hom_k`] but with a non-trivial τ part.
+    <span class="doccomment">/// A version of [`hom_k`] but with a non-trivial λ part.
     </span><span class="kw">pub fn </span>hom_k_with&lt;<span class="lifetime">'a</span>&gt;(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        tau_part: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>ResolutionHomomorphism&lt;CC1, CC2&gt;&gt;,
+        lambda_part: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>ResolutionHomomorphism&lt;CC1, CC2&gt;&gt;,
         sseq: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>sseq::Sseq&gt;,
         b: Bidegree,
         inputs: <span class="kw">impl </span>Iterator&lt;Item = FpSlice&lt;<span class="lifetime">'a</span>&gt;&gt;,
         outputs: <span class="kw">impl </span>Iterator&lt;Item = FpSliceMut&lt;<span class="lifetime">'a</span>&gt;&gt;,
     ) {
         <span class="kw">let </span>source = b + <span class="self">self</span>.shift() - Bidegree::s_t(<span class="number">1</span>, <span class="number">0</span>);
-        <span class="kw">let </span>tau_source = source + TAU_BIDEGREE;
+        <span class="kw">let </span>lambda_source = source + LAMBDA_BIDEGREE;
 
         <span class="kw">let </span>p = <span class="self">self</span>.prime();
         <span class="kw">let </span>h_0 = <span class="self">self</span>.algebra().p_tilde();
 
         <span class="kw">let </span>source_num_gens = <span class="self">self</span>.source().number_of_gens_in_bidegree(source);
-        <span class="kw">let </span>tau_num_gens = <span class="self">self</span>.source().number_of_gens_in_bidegree(tau_source);
+        <span class="kw">let </span>lambda_num_gens = <span class="self">self</span>.source().number_of_gens_in_bidegree(lambda_source);
 
         <span class="kw">let </span>m0 = <span class="self">self</span>.underlying.get_map(source.s()).hom_k(b.t());
-        <span class="kw">let </span><span class="kw-2">mut </span>m1 = Matrix::from_vec(p, <span class="kw-2">&amp;</span><span class="self">self</span>.homotopy(tau_source.s()).homotopies.hom_k(b.t()));
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(tau_part) = tau_part {
-            m1 += <span class="kw-2">&amp;</span>Matrix::from_vec(p, <span class="kw-2">&amp;</span>tau_part.get_map(tau_source.s()).hom_k(b.t()));
+        <span class="kw">let </span><span class="kw-2">mut </span>m1 = Matrix::from_vec(p, <span class="kw-2">&amp;</span><span class="self">self</span>.homotopy(lambda_source.s()).homotopies.hom_k(b.t()));
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(lambda_part) = lambda_part {
+            m1 += <span class="kw-2">&amp;</span>Matrix::from_vec(p, <span class="kw-2">&amp;</span>lambda_part.get_map(lambda_source.s()).hom_k(b.t()));
         }
 
         <span class="comment">// The multiplication by p map
@@ -2499,7 +2510,7 @@
         <span class="kw">let </span>filtration_one_sign = <span class="kw">if </span>(b.t() % <span class="number">2</span>) == <span class="number">1 </span>{ p - <span class="number">1 </span>} <span class="kw">else </span>{ <span class="number">1 </span>};
 
         <span class="kw">let </span>page_data = sseq.map(|sseq| {
-            <span class="kw">let </span>d = sseq.page_data(tau_source.n(), tau_source.s() <span class="kw">as </span>i32);
+            <span class="kw">let </span>d = sseq.page_data(lambda_source.n(), lambda_source.s() <span class="kw">as </span>i32);
             <span class="kw-2">&amp;</span>d[std::cmp::min(<span class="number">3</span>, d.len() - <span class="number">1</span>)]
         });
 
@@ -2512,31 +2523,31 @@
                     .iter_mut()
                     .zip_eq(<span class="kw-2">&amp;</span>m0[i])
                     .for_each(|(a, b)| <span class="kw-2">*</span>a += v * b * sign);
-                out.slice_mut(source_num_gens, source_num_gens + tau_num_gens)
+                out.slice_mut(source_num_gens, source_num_gens + lambda_num_gens)
                     .add(m1[i].as_slice(), (v * sign) % p);
             }
             <span class="kw">for </span>(i, v) <span class="kw">in </span>scratch0.iter().enumerate() {
                 out.add_basis_element(i, <span class="kw-2">*</span>v % p);
 
                 <span class="kw">let </span>extra = <span class="kw-2">*</span>v / p;
-                out.slice_mut(source_num_gens, source_num_gens + tau_num_gens)
+                out.slice_mut(source_num_gens, source_num_gens + lambda_num_gens)
                     .add(mp[i].as_slice(), (extra * filtration_one_sign) % p);
             }
             <span class="kw">if let </span><span class="prelude-val">Some</span>(page_data) = page_data {
                 page_data.reduce_by_quotient(
-                    out.slice_mut(source_num_gens, source_num_gens + tau_num_gens),
+                    out.slice_mut(source_num_gens, source_num_gens + lambda_num_gens),
                 );
             }
         }
     }
 
-    <span class="doccomment">/// Compute the induced map on Mod_{C\tau^2} homotopy groups. This only computes it on
+    <span class="doccomment">/// Compute the induced map on Mod_{C\lambda^2} homotopy groups. This only computes it on
     /// standard lifts on elements in Ext. `outputs` is an iterator of `FpSliceMut`s whose lengths
     /// are equal to the total dimension of `(s + shift_s, t + shift_t)` and `(s + shift_s + 1, t +
     /// shift_t + 1)`. The first chunk records the Ext part of the result, and the second chunk
-    /// records the τ part of the result.
+    /// records the λ part of the result.
     ///
-    /// This reduces the τ part of the result by the image of d₂.
+    /// This reduces the λ part of the result by the image of d₂.
     ///
     /// # Arguments
     /// - `sseq`: A sseq object that records the $d_2$ differentials. If present, reduce the value
@@ -2552,13 +2563,13 @@
     }
 
     <span class="doccomment">/// Given an element b whose product with this is null, find the element whose $d_2$ hits the
-    /// τ part of the composition.
+    /// λ part of the composition.
     ///
     /// # Arguments:
     /// - `sseq`: spectral sequence object of the source
     </span><span class="kw">pub fn </span>product_nullhomotopy(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        tau_part: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>ResolutionHomomorphism&lt;CC1, CC2&gt;&gt;,
+        lambda_part: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>ResolutionHomomorphism&lt;CC1, CC2&gt;&gt;,
         sseq: <span class="kw-2">&amp;</span>sseq::Sseq,
         b: Bidegree,
         class: FpSlice,
@@ -2570,23 +2581,25 @@
             </span>.source()
             .number_of_gens_in_bidegree(shift + b - Bidegree::s_t(<span class="number">1</span>, <span class="number">0</span>));
 
-        <span class="kw">let </span>tau_num_gens = <span class="self">self
+        <span class="kw">let </span>lambda_num_gens = <span class="self">self
             </span>.source()
-            .number_of_gens_in_bidegree(b + shift + TAU_BIDEGREE);
+            .number_of_gens_in_bidegree(b + shift + LAMBDA_BIDEGREE);
 
         <span class="kw">let </span>lower_num_gens = <span class="self">self</span>.source().number_of_gens_in_bidegree(b + shift);
 
         <span class="kw">let </span>target_num_gens = <span class="self">self</span>.target().number_of_gens_in_bidegree(b);
-        <span class="kw">let </span>target_tau_num_gens = <span class="self">self</span>.target().number_of_gens_in_bidegree(b + TAU_BIDEGREE);
+        <span class="kw">let </span>target_lambda_num_gens = <span class="self">self
+            </span>.target()
+            .number_of_gens_in_bidegree(b + LAMBDA_BIDEGREE);
 
         <span class="kw">let </span><span class="kw-2">mut </span>output_class = FpVector::new(p, result_num_gens);
-        <span class="kw">if </span>result_num_gens == <span class="number">0 </span>|| tau_num_gens == <span class="number">0 </span>{
+        <span class="kw">if </span>result_num_gens == <span class="number">0 </span>|| lambda_num_gens == <span class="number">0 </span>{
             <span class="kw">return </span>output_class;
         }
 
-        <span class="kw">let </span><span class="kw-2">mut </span>prod_value = FpVector::new(p, lower_num_gens + tau_num_gens);
+        <span class="kw">let </span><span class="kw-2">mut </span>prod_value = FpVector::new(p, lower_num_gens + lambda_num_gens);
         <span class="self">self</span>.hom_k_with(
-            tau_part,
+            lambda_part,
             <span class="prelude-val">None</span>,
             b,
             [class.slice(<span class="number">0</span>, target_num_gens)].into_iter(),
@@ -2598,19 +2611,19 @@
             p,
             <span class="kw-2">&amp;</span><span class="self">self
                 </span>.underlying
-                .get_map((b + shift + TAU_BIDEGREE).s())
-                .hom_k((b + TAU_BIDEGREE).t()),
+                .get_map((b + shift + LAMBDA_BIDEGREE).s())
+                .hom_k((b + LAMBDA_BIDEGREE).t()),
         );
         matrix.apply(
-            prod_value.slice_mut(lower_num_gens, lower_num_gens + tau_num_gens),
+            prod_value.slice_mut(lower_num_gens, lower_num_gens + lambda_num_gens),
             <span class="number">1</span>,
-            class.slice(target_num_gens, target_num_gens + target_tau_num_gens),
+            class.slice(target_num_gens, target_num_gens + target_lambda_num_gens),
         );
 
         <span class="kw">let </span>diff_source = b + shift - Bidegree::n_s(-<span class="number">1</span>, <span class="number">1</span>);
         sseq.differentials(diff_source.n(), diff_source.s() <span class="kw">as </span>i32)[<span class="number">2</span>].quasi_inverse(
             output_class.as_slice_mut(),
-            prod_value.slice(lower_num_gens, lower_num_gens + tau_num_gens),
+            prod_value.slice(lower_num_gens, lower_num_gens + lambda_num_gens),
         );
 
         output_class
@@ -2628,8 +2641,8 @@
     underlying: Arc&lt;ChainHomotopy&lt;S, T, U&gt;&gt;,
     left: Arc&lt;SecondaryResolutionHomomorphism&lt;S, T&gt;&gt;,
     right: Arc&lt;SecondaryResolutionHomomorphism&lt;T, U&gt;&gt;,
-    left_tau: <span class="prelude-ty">Option</span>&lt;Arc&lt;ResolutionHomomorphism&lt;S, T&gt;&gt;&gt;,
-    right_tau: <span class="prelude-ty">Option</span>&lt;Arc&lt;ResolutionHomomorphism&lt;T, U&gt;&gt;&gt;,
+    left_lambda: <span class="prelude-ty">Option</span>&lt;Arc&lt;ResolutionHomomorphism&lt;S, T&gt;&gt;&gt;,
+    right_lambda: <span class="prelude-ty">Option</span>&lt;Arc&lt;ResolutionHomomorphism&lt;T, U&gt;&gt;&gt;,
     homotopies: OnceBiVec&lt;SecondaryHomotopy&lt;S::Algebra&gt;&gt;,
     intermediates: DashMap&lt;BidegreeGenerator, FpVector&gt;,
 }
@@ -2758,10 +2771,10 @@
             <span class="bool-val">true</span>,
         );
 
-        <span class="comment">// This is inefficient if both right_tau and right are non-zero, but this is not needed atm
+        <span class="comment">// This is inefficient if both right_lambda and right are non-zero, but this is not needed atm
         // and the change would not be user-facing.
-        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(right_tau) = <span class="kw-2">&amp;</span><span class="self">self</span>.right_tau {
-            right_tau.get_map(left_shifted_b.s()).apply(
+        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(right_lambda) = <span class="kw-2">&amp;</span><span class="self">self</span>.right_lambda {
+            right_lambda.get_map(left_shifted_b.s()).apply(
                 result.as_slice_mut(),
                 neg_1,
                 left_shifted_b.t(),
@@ -2783,12 +2796,12 @@
                 .as_slice(),
         );
 
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(left_tau) = <span class="kw-2">&amp;</span><span class="self">self</span>.left_tau {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(left_lambda) = <span class="kw-2">&amp;</span><span class="self">self</span>.left_lambda {
             <span class="self">self</span>.right.underlying.get_map(left_shifted_b.s() - <span class="number">1</span>).apply(
                 result.as_slice_mut(),
                 neg_1,
                 left_shifted_b.t() - <span class="number">1</span>,
-                left_tau
+                left_lambda
                     .get_map(gen.s())
                     .output(gen.t(), gen.idx())
                     .as_slice(),
@@ -2835,25 +2848,34 @@
     <span class="kw">pub fn </span>new(
         left: Arc&lt;SecondaryResolutionHomomorphism&lt;S, T&gt;&gt;,
         right: Arc&lt;SecondaryResolutionHomomorphism&lt;T, U&gt;&gt;,
-        left_tau: <span class="prelude-ty">Option</span>&lt;Arc&lt;ResolutionHomomorphism&lt;S, T&gt;&gt;&gt;,
-        right_tau: <span class="prelude-ty">Option</span>&lt;Arc&lt;ResolutionHomomorphism&lt;T, U&gt;&gt;&gt;,
+        left_lambda: <span class="prelude-ty">Option</span>&lt;Arc&lt;ResolutionHomomorphism&lt;S, T&gt;&gt;&gt;,
+        right_lambda: <span class="prelude-ty">Option</span>&lt;Arc&lt;ResolutionHomomorphism&lt;T, U&gt;&gt;&gt;,
         underlying: Arc&lt;ChainHomotopy&lt;S, T, U&gt;&gt;,
     ) -&gt; <span class="self">Self </span>{
         <span class="macro">assert!</span>(Arc::ptr_eq(<span class="kw-2">&amp;</span>underlying.left(), <span class="kw-2">&amp;</span>left.underlying));
         <span class="macro">assert!</span>(Arc::ptr_eq(<span class="kw-2">&amp;</span>underlying.right(), <span class="kw-2">&amp;</span>right.underlying));
 
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(left_tau) = <span class="kw-2">&amp;</span>left_tau {
-            <span class="macro">assert!</span>(Arc::ptr_eq(<span class="kw-2">&amp;</span>left_tau.source, <span class="kw-2">&amp;</span>underlying.left().source));
-            <span class="macro">assert!</span>(Arc::ptr_eq(<span class="kw-2">&amp;</span>left_tau.target, <span class="kw-2">&amp;</span>underlying.left().target));
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(left_lambda) = <span class="kw-2">&amp;</span>left_lambda {
+            <span class="macro">assert!</span>(Arc::ptr_eq(<span class="kw-2">&amp;</span>left_lambda.source, <span class="kw-2">&amp;</span>underlying.left().source));
+            <span class="macro">assert!</span>(Arc::ptr_eq(<span class="kw-2">&amp;</span>left_lambda.target, <span class="kw-2">&amp;</span>underlying.left().target));
 
-            <span class="macro">assert_eq!</span>(left_tau.shift, underlying.left().shift + TAU_BIDEGREE);
+            <span class="macro">assert_eq!</span>(left_lambda.shift, underlying.left().shift + LAMBDA_BIDEGREE);
         }
 
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(right_tau) = <span class="kw-2">&amp;</span>right_tau {
-            <span class="macro">assert!</span>(Arc::ptr_eq(<span class="kw-2">&amp;</span>right_tau.source, <span class="kw-2">&amp;</span>underlying.right().source));
-            <span class="macro">assert!</span>(Arc::ptr_eq(<span class="kw-2">&amp;</span>right_tau.target, <span class="kw-2">&amp;</span>underlying.right().target));
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(right_lambda) = <span class="kw-2">&amp;</span>right_lambda {
+            <span class="macro">assert!</span>(Arc::ptr_eq(
+                <span class="kw-2">&amp;</span>right_lambda.source,
+                <span class="kw-2">&amp;</span>underlying.right().source
+            ));
+            <span class="macro">assert!</span>(Arc::ptr_eq(
+                <span class="kw-2">&amp;</span>right_lambda.target,
+                <span class="kw-2">&amp;</span>underlying.right().target
+            ));
 
-            <span class="macro">assert_eq!</span>(right_tau.shift, underlying.right().shift + TAU_BIDEGREE);
+            <span class="macro">assert_eq!</span>(
+                right_lambda.shift,
+                underlying.right().shift + LAMBDA_BIDEGREE
+            );
         }
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(p) = underlying.save_dir().write() {
@@ -2865,8 +2887,8 @@
         <span class="self">Self </span>{
             left,
             right,
-            left_tau,
-            right_tau,
+            left_lambda,
+            right_lambda,
             homotopies: OnceBiVec::new(underlying.shift().s() <span class="kw">as </span>i32),
             underlying,
             intermediates: DashMap::new(),
