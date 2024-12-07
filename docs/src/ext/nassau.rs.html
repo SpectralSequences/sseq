@@ -1300,10 +1300,7 @@
 <a href="#1274" id="1274">1274</a>
 <a href="#1275" id="1275">1275</a>
 <a href="#1276" id="1276">1276</a>
-<a href="#1277" id="1277">1277</a>
-<a href="#1278" id="1278">1278</a>
-<a href="#1279" id="1279">1279</a>
-<a href="#1280" id="1280">1280</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module implements [Nassau's algorithm](https://arxiv.org/abs/1910.04063).
+<a href="#1277" id="1277">1277</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module implements [Nassau's algorithm](https://arxiv.org/abs/1910.04063).
 //!
 //! The main export is the [`Resolution`] object, which is a resolution of the sphere at the prime 2
 //! using Nassau's algorithm. It aims to provide an API similar to
@@ -1319,7 +1316,7 @@
 
 </span><span class="kw">use </span>std::{
     fmt::Display,
-    io::{Read, Write},
+    io,
     sync::{mpsc, Arc, Mutex},
 };
 
@@ -1500,7 +1497,7 @@
             .unwrap_or(<span class="self">Self</span>::zero_algebra())
     }
 
-    <span class="kw">fn </span>to_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>, buffer: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Write) -&gt; std::io::Result&lt;()&gt; {
+    <span class="kw">fn </span>to_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>, buffer: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>io::Write) -&gt; io::Result&lt;()&gt; {
         buffer.write_u64::&lt;LittleEndian&gt;(<span class="self">self</span>.profile.len() <span class="kw">as </span>u64)<span class="question-mark">?</span>;
         buffer.write_all(<span class="kw-2">&amp;</span><span class="self">self</span>.profile)<span class="question-mark">?</span>;
 
@@ -1510,7 +1507,7 @@
         buffer.write_all(<span class="kw-2">&amp;</span>zeros[<span class="number">0</span>..padding])
     }
 
-    <span class="kw">fn </span>from_bytes(data: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Read) -&gt; std::io::Result&lt;<span class="self">Self</span>&gt; {
+    <span class="kw">fn </span>from_bytes(data: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>io::Read) -&gt; io::Result&lt;<span class="self">Self</span>&gt; {
         <span class="kw">let </span>len = data.read_u64::&lt;LittleEndian&gt;()<span class="question-mark">? </span><span class="kw">as </span>usize;
         <span class="kw">let </span><span class="kw-2">mut </span>profile = <span class="macro">vec!</span>[<span class="number">0</span>; len];
 
@@ -1525,10 +1522,7 @@
         <span class="prelude-val">Ok</span>(<span class="self">Self </span>{ profile })
     }
 
-    <span class="kw">fn </span>signature_to_bytes(
-        signature: <span class="kw-2">&amp;</span>[PPartEntry],
-        buffer: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Write,
-    ) -&gt; std::io::Result&lt;()&gt; {
+    <span class="kw">fn </span>signature_to_bytes(signature: <span class="kw-2">&amp;</span>[PPartEntry], buffer: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>io::Write) -&gt; io::Result&lt;()&gt; {
         <span class="kw">if </span><span class="macro">cfg!</span>(target_endian = <span class="string">"little"</span>) &amp;&amp; std::mem::size_of::&lt;PPartEntry&gt;() == <span class="number">2 </span>{
             <span class="kw">unsafe </span>{
                 <span class="kw">let </span>buf: <span class="kw-2">&amp;</span>[u8] = std::slice::from_raw_parts(
@@ -1553,7 +1547,7 @@
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">fn </span>signature_from_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>, data: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Read) -&gt; std::io::Result&lt;Vec&lt;PPartEntry&gt;&gt; {
+    <span class="kw">fn </span>signature_from_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>, data: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>io::Read) -&gt; io::Result&lt;Vec&lt;PPartEntry&gt;&gt; {
         <span class="kw">let </span>len = <span class="self">self</span>.profile.len();
         <span class="kw">let </span><span class="kw-2">mut </span>signature: Vec&lt;PPartEntry&gt; = <span class="macro">vec!</span>[<span class="number">0</span>; len];
 
@@ -1786,13 +1780,13 @@
 
     <span class="attr">#[tracing::instrument(skip_all, fields(signature = <span class="question-mark">?</span>signature, throughput))]
     </span><span class="kw">fn </span>write_qi(
-        f: <span class="kw-2">&amp;mut </span><span class="prelude-ty">Option</span>&lt;<span class="kw">impl </span>Write&gt;,
+        f: <span class="kw-2">&amp;mut </span><span class="prelude-ty">Option</span>&lt;<span class="kw">impl </span>io::Write&gt;,
         scratch: <span class="kw-2">&amp;mut </span>FpVector,
         signature: <span class="kw-2">&amp;</span>[PPartEntry],
         next_mask: <span class="kw-2">&amp;</span>[usize],
         full_matrix: <span class="kw-2">&amp;</span>Matrix,
         masked_matrix: <span class="kw-2">&amp;</span>AugmentedMatrix&lt;<span class="number">2</span>&gt;,
-    ) -&gt; std::io::Result&lt;()&gt; {
+    ) -&gt; io::Result&lt;()&gt; {
         <span class="kw">let </span>f = <span class="kw">match </span>f {
             <span class="prelude-val">Some</span>(f) =&gt; f,
             <span class="prelude-val">None </span>=&gt; <span class="kw">return </span><span class="prelude-val">Ok</span>(()),

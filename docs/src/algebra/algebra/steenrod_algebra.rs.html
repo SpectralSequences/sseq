@@ -333,7 +333,7 @@
 <a href="#307" id="307">307</a>
 <a href="#308" id="308">308</a>
 <a href="#309" id="309">309</a>
-<a href="#310" id="310">310</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::io::{Read, Write};
+<a href="#310" id="310">310</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::io;
 
 <span class="kw">use </span>anyhow::anyhow;
 <span class="kw">use </span>fp::{
@@ -598,16 +598,16 @@
     <span class="kw">fn </span>element_to_bytes(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         _elt: <span class="kw-2">&amp;</span><span class="self">Self</span>::Element,
-        _buffer: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Write,
-    ) -&gt; std::io::Result&lt;()&gt; {
+        _buffer: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>io::Write,
+    ) -&gt; io::Result&lt;()&gt; {
         <span class="macro">unimplemented!</span>()
     }
 
     <span class="kw">fn </span>element_from_bytes(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         _degree: i32,
-        _buffer: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Read,
-    ) -&gt; std::io::Result&lt;<span class="self">Self</span>::Element&gt; {
+        _buffer: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>io::Read,
+    ) -&gt; io::Result&lt;<span class="self">Self</span>::Element&gt; {
         <span class="macro">unimplemented!</span>()
     }
 }
@@ -621,8 +621,8 @@
         <span class="kw">fn </span>sigma_multiply_basis(<span class="kw-2">&amp;</span><span class="self">self</span>, result: <span class="kw-2">&amp;mut </span><span class="self">Self</span>::Element, coeff: u32, r_degree: i32, r_idx: usize, s_degree: i32, s_idx: usize);
         <span class="kw">fn </span>sigma_multiply(<span class="kw-2">&amp;</span><span class="self">self</span>, result: <span class="kw-2">&amp;mut </span><span class="self">Self</span>::Element, coeff: u32, r_degree: i32, r: FpSlice, s_degree: i32, s: FpSlice);
         <span class="kw">fn </span>a_multiply(<span class="kw-2">&amp;</span><span class="self">self</span>, result: FpSliceMut, coeff: u32, r_degree: i32, r: FpSlice, s_degree: i32, s: <span class="kw-2">&amp;</span><span class="self">Self</span>::Element);
-        <span class="kw">fn </span>element_to_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>, elt: <span class="kw-2">&amp;</span><span class="self">Self</span>::Element, buffer: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Write) -&gt; std::io::Result&lt;()&gt;;
-        <span class="kw">fn </span>element_from_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32, buffer: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Read) -&gt; std::io::Result&lt;<span class="self">Self</span>::Element&gt;;
+        <span class="kw">fn </span>element_to_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>, elt: <span class="kw-2">&amp;</span><span class="self">Self</span>::Element, buffer: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>io::Write) -&gt; io::Result&lt;()&gt;;
+        <span class="kw">fn </span>element_from_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32, buffer: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>io::Read) -&gt; io::Result&lt;<span class="self">Self</span>::Element&gt;;
     }
 
     <span class="kw">fn </span>element_is_zero(elt: <span class="kw-2">&amp;</span><span class="self">Self</span>::Element) -&gt; bool {

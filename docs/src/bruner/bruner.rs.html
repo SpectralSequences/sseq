@@ -313,7 +313,7 @@
 
 </span><span class="kw">use </span>std::{
     fs::File,
-    io::{BufRead, BufReader},
+    io,
     path::{Path, PathBuf},
     str::FromStr,
     sync::Arc,
@@ -341,7 +341,7 @@
 <span class="kw">type </span>FiniteChainComplex = FCC&lt;FreeModule, FreeModuleHomomorphism&gt;;
 
 <span class="doccomment">/// Read the first non-empty line of `data` into `buf`. Returns whether a line is read
-</span><span class="kw">fn </span>read_line(data: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>BufRead, buf: <span class="kw-2">&amp;mut </span>String) -&gt; <span class="prelude-ty">Result</span>&lt;bool&gt; {
+</span><span class="kw">fn </span>read_line(data: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>io::BufRead, buf: <span class="kw-2">&amp;mut </span>String) -&gt; <span class="prelude-ty">Result</span>&lt;bool&gt; {
     buf.clear();
     <span class="kw">while </span>buf.is_empty() {
         <span class="kw">let </span>num_bytes = data.read_line(buf)<span class="question-mark">?</span>;
@@ -402,7 +402,7 @@
 </span><span class="kw">fn </span>get_element(
     a: <span class="kw-2">&amp;</span>MilnorAlgebra,
     m: <span class="kw-2">&amp;</span>FreeModule,
-    input: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>BufRead,
+    input: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>io::BufRead,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;(i32, FpVector)&gt;&gt; {
     <span class="kw">let </span><span class="kw-2">mut </span>buf = String::new();
     <span class="kw">if </span>!read_line(input, <span class="kw-2">&amp;mut </span>buf)<span class="question-mark">? </span>{
@@ -482,7 +482,7 @@
         <span class="kw">let </span>m = cc.module(s);
         <span class="kw">let </span>d = cc.differential(s);
 
-        <span class="kw">let </span><span class="kw-2">mut </span>f = BufReader::new(
+        <span class="kw">let </span><span class="kw-2">mut </span>f = io::BufReader::new(
             File::open(data_dir.join(<span class="macro">format!</span>(<span class="string">"hDiff.{s}"</span>)))
                 .with_context(|| <span class="macro">format!</span>(<span class="string">"Failed to read hDiff.{s}"</span>))<span class="question-mark">?</span>,
         );

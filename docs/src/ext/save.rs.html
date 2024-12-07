@@ -503,10 +503,12 @@
 <a href="#477" id="477">477</a>
 <a href="#478" id="478">478</a>
 <a href="#479" id="479">479</a>
-<a href="#480" id="480">480</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#480" id="480">480</a>
+<a href="#481" id="481">481</a>
+<a href="#482" id="482">482</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     collections::HashSet,
     fs::File,
-    io::{BufRead, BufReader, BufWriter, Error, ErrorKind, Read, Write},
+    io,
     path::{Path, PathBuf},
     sync::{Arc, LazyLock, Mutex},
 };
@@ -699,13 +701,13 @@
 
 <span class="doccomment">/// In addition to checking the checksum, we also keep track of which files are open, and we delete
 /// the open files if the program is terminated halfway.
-</span><span class="kw">pub struct </span>ChecksumWriter&lt;T: Write&gt; {
+</span><span class="kw">pub struct </span>ChecksumWriter&lt;T: io::Write&gt; {
     writer: T,
     path: PathBuf,
     adler: adler::Adler32,
 }
 
-<span class="kw">impl</span>&lt;T: Write&gt; ChecksumWriter&lt;T&gt; {
+<span class="kw">impl</span>&lt;T: io::Write&gt; ChecksumWriter&lt;T&gt; {
     <span class="kw">pub fn </span>new(path: PathBuf, writer: T) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             path,
@@ -716,25 +718,25 @@
 }
 
 <span class="doccomment">/// We only implement the functions required and the ones we actually use.
-</span><span class="kw">impl</span>&lt;T: Write&gt; Write <span class="kw">for </span>ChecksumWriter&lt;T&gt; {
-    <span class="kw">fn </span>write(<span class="kw-2">&amp;mut </span><span class="self">self</span>, buf: <span class="kw-2">&amp;</span>[u8]) -&gt; std::io::Result&lt;usize&gt; {
+</span><span class="kw">impl</span>&lt;T: io::Write&gt; io::Write <span class="kw">for </span>ChecksumWriter&lt;T&gt; {
+    <span class="kw">fn </span>write(<span class="kw-2">&amp;mut </span><span class="self">self</span>, buf: <span class="kw-2">&amp;</span>[u8]) -&gt; io::Result&lt;usize&gt; {
         <span class="kw">let </span>bytes_written = <span class="self">self</span>.writer.write(buf)<span class="question-mark">?</span>;
         <span class="self">self</span>.adler.write_slice(<span class="kw-2">&amp;</span>buf[<span class="number">0</span>..bytes_written]);
         <span class="prelude-val">Ok</span>(bytes_written)
     }
 
-    <span class="kw">fn </span>flush(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; std::io::Result&lt;()&gt; {
+    <span class="kw">fn </span>flush(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; io::Result&lt;()&gt; {
         <span class="self">self</span>.writer.flush()
     }
 
-    <span class="kw">fn </span>write_all(<span class="kw-2">&amp;mut </span><span class="self">self</span>, buf: <span class="kw-2">&amp;</span>[u8]) -&gt; std::io::Result&lt;()&gt; {
+    <span class="kw">fn </span>write_all(<span class="kw-2">&amp;mut </span><span class="self">self</span>, buf: <span class="kw-2">&amp;</span>[u8]) -&gt; io::Result&lt;()&gt; {
         <span class="self">self</span>.writer.write_all(buf)<span class="question-mark">?</span>;
         <span class="self">self</span>.adler.write_slice(buf);
         <span class="prelude-val">Ok</span>(())
     }
 }
 
-<span class="kw">impl</span>&lt;T: Write&gt; std::ops::Drop <span class="kw">for </span>ChecksumWriter&lt;T&gt; {
+<span class="kw">impl</span>&lt;T: io::Write&gt; std::ops::Drop <span class="kw">for </span>ChecksumWriter&lt;T&gt; {
     <span class="kw">fn </span>drop(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="kw">if </span>!std::thread::panicking() {
             <span class="comment">// We may not have finished writing, so the data is wrong. It should not be given a
@@ -752,12 +754,12 @@
     }
 }
 
-<span class="kw">pub struct </span>ChecksumReader&lt;T: Read&gt; {
+<span class="kw">pub struct </span>ChecksumReader&lt;T: io::Read&gt; {
     reader: T,
     adler: adler::Adler32,
 }
 
-<span class="kw">impl</span>&lt;T: Read&gt; ChecksumReader&lt;T&gt; {
+<span class="kw">impl</span>&lt;T: io::Read&gt; ChecksumReader&lt;T&gt; {
     <span class="kw">pub fn </span>new(reader: T) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             reader,
@@ -767,21 +769,21 @@
 }
 
 <span class="doccomment">/// We only implement the functions required and the ones we actually use.
-</span><span class="kw">impl</span>&lt;T: Read&gt; Read <span class="kw">for </span>ChecksumReader&lt;T&gt; {
-    <span class="kw">fn </span>read(<span class="kw-2">&amp;mut </span><span class="self">self</span>, buf: <span class="kw-2">&amp;mut </span>[u8]) -&gt; std::io::Result&lt;usize&gt; {
+</span><span class="kw">impl</span>&lt;T: io::Read&gt; io::Read <span class="kw">for </span>ChecksumReader&lt;T&gt; {
+    <span class="kw">fn </span>read(<span class="kw-2">&amp;mut </span><span class="self">self</span>, buf: <span class="kw-2">&amp;mut </span>[u8]) -&gt; io::Result&lt;usize&gt; {
         <span class="kw">let </span>bytes_read = <span class="self">self</span>.reader.read(buf)<span class="question-mark">?</span>;
         <span class="self">self</span>.adler.write_slice(<span class="kw-2">&amp;</span>buf[<span class="number">0</span>..bytes_read]);
         <span class="prelude-val">Ok</span>(bytes_read)
     }
 
-    <span class="kw">fn </span>read_exact(<span class="kw-2">&amp;mut </span><span class="self">self</span>, buf: <span class="kw-2">&amp;mut </span>[u8]) -&gt; std::io::Result&lt;()&gt; {
+    <span class="kw">fn </span>read_exact(<span class="kw-2">&amp;mut </span><span class="self">self</span>, buf: <span class="kw-2">&amp;mut </span>[u8]) -&gt; io::Result&lt;()&gt; {
         <span class="self">self</span>.reader.read_exact(buf)<span class="question-mark">?</span>;
         <span class="self">self</span>.adler.write_slice(buf);
         <span class="prelude-val">Ok</span>(())
     }
 }
 
-<span class="kw">impl</span>&lt;T: Read&gt; std::ops::Drop <span class="kw">for </span>ChecksumReader&lt;T&gt; {
+<span class="kw">impl</span>&lt;T: io::Read&gt; std::ops::Drop <span class="kw">for </span>ChecksumReader&lt;T&gt; {
     <span class="kw">fn </span>drop(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="kw">if </span>!std::thread::panicking() {
             <span class="comment">// If we are panicking, we may not have read everything, and panic in panic
@@ -800,11 +802,13 @@
 
 <span class="doccomment">/// Open the file pointed to by `path` as a `Box&lt;dyn Read&gt;`. If the file does not exist, look for
 /// compressed versions.
-</span><span class="kw">fn </span>open_file(path: PathBuf) -&gt; <span class="prelude-ty">Option</span>&lt;Box&lt;<span class="kw">dyn </span>Read&gt;&gt; {
+</span><span class="kw">fn </span>open_file(path: PathBuf) -&gt; <span class="prelude-ty">Option</span>&lt;Box&lt;<span class="kw">dyn </span>io::Read&gt;&gt; {
+    <span class="kw">use </span>io::BufRead;
+
     <span class="comment">// We should try in decreasing order of access speed.
     </span><span class="kw">match </span>File::open(<span class="kw-2">&amp;</span>path) {
         <span class="prelude-val">Ok</span>(f) =&gt; {
-            <span class="kw">let </span><span class="kw-2">mut </span>reader = BufReader::new(f);
+            <span class="kw">let </span><span class="kw-2">mut </span>reader = io::BufReader::new(f);
             <span class="kw">if </span>reader
                 .fill_buf()
                 .unwrap_or_else(|e| <span class="macro">panic!</span>(<span class="string">"Error when reading from {path:?}: {e}"</span>))
@@ -818,7 +822,7 @@
             <span class="kw">return </span><span class="prelude-val">Some</span>(Box::new(ChecksumReader::new(reader)));
         }
         <span class="prelude-val">Err</span>(e) =&gt; {
-            <span class="kw">if </span>e.kind() != ErrorKind::NotFound {
+            <span class="kw">if </span>e.kind() != io::ErrorKind::NotFound {
                 <span class="macro">panic!</span>(<span class="string">"Error when opening {path:?}: {e}"</span>);
             }
         }
@@ -835,7 +839,7 @@
                 )))
             }
             <span class="prelude-val">Err</span>(e) =&gt; {
-                <span class="kw">if </span>e.kind() != ErrorKind::NotFound {
+                <span class="kw">if </span>e.kind() != io::ErrorKind::NotFound {
                     <span class="macro">panic!</span>(<span class="string">"Error when opening {path:?}"</span>);
                 }
             }
@@ -853,7 +857,7 @@
 }
 
 <span class="kw">impl</span>&lt;A: Algebra&gt; SaveFile&lt;A&gt; {
-    <span class="kw">fn </span>write_header(<span class="kw-2">&amp;</span><span class="self">self</span>, buffer: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Write) -&gt; std::io::Result&lt;()&gt; {
+    <span class="kw">fn </span>write_header(<span class="kw-2">&amp;</span><span class="self">self</span>, buffer: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>io::Write) -&gt; io::Result&lt;()&gt; {
         buffer.write_u32::&lt;LittleEndian&gt;(<span class="self">self</span>.kind.magic())<span class="question-mark">?</span>;
         buffer.write_u32::&lt;LittleEndian&gt;(<span class="self">self</span>.algebra.magic())<span class="question-mark">?</span>;
         buffer.write_u32::&lt;LittleEndian&gt;(<span class="self">self</span>.b.s())<span class="question-mark">?</span>;
@@ -864,13 +868,13 @@
         })
     }
 
-    <span class="kw">fn </span>validate_header(<span class="kw-2">&amp;</span><span class="self">self</span>, buffer: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Read) -&gt; std::io::Result&lt;()&gt; {
+    <span class="kw">fn </span>validate_header(<span class="kw-2">&amp;</span><span class="self">self</span>, buffer: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>io::Read) -&gt; io::Result&lt;()&gt; {
         <span class="macro">macro_rules!</span> check_header {
             (<span class="macro-nonterminal">$name</span>:literal, <span class="macro-nonterminal">$value</span>:expr, <span class="macro-nonterminal">$format</span>:literal) =&gt; {
                 <span class="kw">let </span>data = buffer.read_u32::&lt;LittleEndian&gt;()<span class="question-mark">?</span>;
                 <span class="kw">if </span>data != <span class="macro-nonterminal">$value </span>{
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(Error::new(
-                        ErrorKind::InvalidData,
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(io::Error::new(
+                        io::ErrorKind::InvalidData,
                         <span class="macro">format!</span>(
                             <span class="string">"Invalid header: {} was {} but expected {}"</span>,
                             <span class="macro-nonterminal">$name</span>,
@@ -918,7 +922,7 @@
         dir
     }
 
-    <span class="kw">pub fn </span>open_file(<span class="kw-2">&amp;</span><span class="self">self</span>, dir: PathBuf) -&gt; <span class="prelude-ty">Option</span>&lt;Box&lt;<span class="kw">dyn </span>Read&gt;&gt; {
+    <span class="kw">pub fn </span>open_file(<span class="kw-2">&amp;</span><span class="self">self</span>, dir: PathBuf) -&gt; <span class="prelude-ty">Option</span>&lt;Box&lt;<span class="kw">dyn </span>io::Read&gt;&gt; {
         <span class="kw">let </span>file_path = <span class="self">self</span>.get_save_path(dir);
         <span class="kw">let </span>path_string = file_path.to_string_lossy().into_owned();
         <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">mut </span>f) = open_file(file_path) {
@@ -947,18 +951,18 @@
         <span class="bool-val">false
     </span>}
 
-    <span class="kw">pub fn </span>delete_file(<span class="kw-2">&amp;</span><span class="self">self</span>, dir: PathBuf) -&gt; std::io::Result&lt;()&gt; {
+    <span class="kw">pub fn </span>delete_file(<span class="kw-2">&amp;</span><span class="self">self</span>, dir: PathBuf) -&gt; io::Result&lt;()&gt; {
         <span class="kw">let </span>p = <span class="self">self</span>.get_save_path(dir);
         <span class="kw">match </span>std::fs::remove_file(p) {
             <span class="prelude-val">Ok</span>(()) =&gt; <span class="prelude-val">Ok</span>(()),
-            <span class="prelude-val">Err</span>(e) <span class="kw">if </span>e.kind() == ErrorKind::NotFound =&gt; <span class="prelude-val">Ok</span>(()),
+            <span class="prelude-val">Err</span>(e) <span class="kw">if </span>e.kind() == io::ErrorKind::NotFound =&gt; <span class="prelude-val">Ok</span>(()),
             <span class="prelude-val">Err</span>(e) =&gt; <span class="prelude-val">Err</span>(e),
         }
     }
 
     <span class="doccomment">/// # Arguments
     ///  - `overwrite`: Whether to overwrite a file if it already exists.
-    </span><span class="kw">pub fn </span>create_file(<span class="kw-2">&amp;</span><span class="self">self</span>, dir: PathBuf, overwrite: bool) -&gt; <span class="kw">impl </span>Write {
+    </span><span class="kw">pub fn </span>create_file(<span class="kw-2">&amp;</span><span class="self">self</span>, dir: PathBuf, overwrite: bool) -&gt; <span class="kw">impl </span>io::Write {
         <span class="kw">let </span>p = <span class="self">self</span>.get_save_path(dir);
         <span class="macro">tracing::info!</span>(<span class="string">"open_write: {}"</span>, p.to_string_lossy());
 
@@ -978,7 +982,7 @@
             .open(<span class="kw-2">&amp;</span>p)
             .with_context(|| <span class="macro">format!</span>(<span class="string">"Failed to create save file {p:?}"</span>))
             .unwrap();
-        <span class="kw">let </span><span class="kw-2">mut </span>f = ChecksumWriter::new(p, BufWriter::new(f));
+        <span class="kw">let </span><span class="kw-2">mut </span>f = ChecksumWriter::new(p, io::BufWriter::new(f));
         <span class="self">self</span>.write_header(<span class="kw-2">&amp;mut </span>f).unwrap();
         f
     }

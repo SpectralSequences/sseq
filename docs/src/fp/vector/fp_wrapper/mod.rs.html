@@ -393,10 +393,7 @@
 <a href="#367" id="367">367</a>
 <a href="#368" id="368">368</a>
 <a href="#369" id="369">369</a>
-<a href="#370" id="370">370</a>
-<a href="#371" id="371">371</a>
-<a href="#372" id="372">372</a>
-<a href="#373" id="373">373</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module provides convenience wrappers around the contents of [`crate::vector::inner`] in the
+<a href="#370" id="370">370</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module provides convenience wrappers around the contents of [`crate::vector::inner`] in the
 //! special case where the field is a prime field. The main purpose is to put [`FqVector`] for
 //! different fields `Fp&lt;P&gt;` into a single enum, and to simplify scalars to just `u32`s instead of
 //! rather unwieldy `FieldElement&lt;Fp&lt;P&gt;&gt;`s. It does the same for the various slice structs.
@@ -410,10 +407,7 @@
 //! we can't simply define `type FpVector = FqVector&lt;Fp&lt;2&gt;&gt;` like we previously did: we need to use
 //! a transparent wrapper.
 
-</span><span class="kw">use </span>std::{
-    convert::TryInto,
-    io::{Read, Write},
-};
+</span><span class="kw">use </span>std::{convert::TryInto, io};
 
 <span class="kw">use </span>itertools::Itertools;
 <span class="kw">use </span>serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -502,9 +496,9 @@
         <span class="kw">pub fn </span>new&lt;P: Prime&gt;(p: P, len: usize) -&gt; (from FqVector);
         <span class="kw">pub fn </span>new_with_capacity&lt;P: Prime&gt;(p: P, len: usize, capacity: usize) -&gt; (from FqVector);
 
-        <span class="kw">pub fn </span>update_from_bytes(<span class="kw-2">&amp;mut </span><span class="self">self</span>, data: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Read) -&gt; (std::io::Result&lt;()&gt;);
-        <span class="kw">pub fn </span>from_bytes&lt;P: Prime&gt;(p: P, len: usize, data: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Read) -&gt; (from io FqVector);
-        <span class="kw">pub fn </span>to_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>, buffer: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Write) -&gt; (std::io::Result&lt;()&gt;);
+        <span class="kw">pub fn </span>update_from_bytes(<span class="kw-2">&amp;mut </span><span class="self">self</span>, data: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>io::Read) -&gt; (io::Result&lt;()&gt;);
+        <span class="kw">pub fn </span>from_bytes&lt;P: Prime&gt;(p: P, len: usize, data: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>io::Read) -&gt; (from io FqVector);
+        <span class="kw">pub fn </span>to_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>, buffer: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>io::Write) -&gt; (io::Result&lt;()&gt;);
     }
 
     <span class="kw">pub fn </span>from_slice&lt;P: Prime&gt;(p: P, slice: <span class="kw-2">&amp;</span>[u32]) -&gt; <span class="self">Self </span>{

@@ -1055,7 +1055,7 @@
 }
 
 <span class="kw">mod </span>logging {
-    <span class="kw">use </span>std::io::Write;
+    <span class="kw">use </span>std::io;
 
     <span class="kw">pub struct </span>LogWriter&lt;T&gt; {
         writer: T,
@@ -1063,14 +1063,14 @@
         start: std::time::Instant,
     }
 
-    <span class="kw">impl</span>&lt;T: Write&gt; Write <span class="kw">for </span>LogWriter&lt;T&gt; {
-        <span class="kw">fn </span>write(<span class="kw-2">&amp;mut </span><span class="self">self</span>, buf: <span class="kw-2">&amp;</span>[u8]) -&gt; std::io::Result&lt;usize&gt; {
+    <span class="kw">impl</span>&lt;T: io::Write&gt; io::Write <span class="kw">for </span>LogWriter&lt;T&gt; {
+        <span class="kw">fn </span>write(<span class="kw-2">&amp;mut </span><span class="self">self</span>, buf: <span class="kw-2">&amp;</span>[u8]) -&gt; io::Result&lt;usize&gt; {
             <span class="kw">let </span>written = <span class="self">self</span>.writer.write(buf)<span class="question-mark">?</span>;
             <span class="self">self</span>.bytes += written <span class="kw">as </span>u64;
             <span class="prelude-val">Ok</span>(written)
         }
 
-        <span class="kw">fn </span>flush(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; std::io::Result&lt;()&gt; {
+        <span class="kw">fn </span>flush(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; io::Result&lt;()&gt; {
             <span class="self">self</span>.writer.flush()
         }
     }
@@ -1093,7 +1093,7 @@
         }
     }
 
-    <span class="kw">impl</span>&lt;T: Write&gt; LogWriter&lt;T&gt; {
+    <span class="kw">impl</span>&lt;T: io::Write&gt; LogWriter&lt;T&gt; {
         <span class="doccomment">/// Return the throughput in MiB/s
         </span><span class="kw">pub fn </span>into_throughput(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; Throughput {
             <span class="self">self</span>.writer.flush().unwrap();

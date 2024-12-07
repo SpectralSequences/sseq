@@ -1470,13 +1470,7 @@
 <a href="#1444" id="1444">1444</a>
 <a href="#1445" id="1445">1445</a>
 <a href="#1446" id="1446">1446</a>
-<a href="#1447" id="1447">1447</a>
-<a href="#1448" id="1448">1448</a>
-<a href="#1449" id="1449">1449</a>
-<a href="#1450" id="1450">1450</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
-    io::{Read, Write},
-    sync::Arc,
-};
+<a href="#1447" id="1447">1447</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{io, sync::Arc};
 
 <span class="kw">use </span>algebra::{
     module::{
@@ -1549,7 +1543,7 @@
         }
     }
 
-    <span class="kw">pub fn </span>to_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>, buffer: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Write) -&gt; std::io::Result&lt;()&gt; {
+    <span class="kw">pub fn </span>to_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>, buffer: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>io::Write) -&gt; io::Result&lt;()&gt; {
         <span class="kw">let </span>algebra = <span class="self">self</span>.target.algebra();
         <span class="kw">for </span>composites <span class="kw">in </span><span class="self">self</span>.composite.iter() {
             buffer.write_u64::&lt;LittleEndian&gt;(composites.len() <span class="kw">as </span>u64)<span class="question-mark">?</span>;
@@ -1564,8 +1558,8 @@
         target: Arc&lt;FreeModule&lt;A&gt;&gt;,
         degree: i32,
         hit_generator: bool,
-        buffer: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Read,
-    ) -&gt; std::io::Result&lt;<span class="self">Self</span>&gt; {
+        buffer: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>io::Read,
+    ) -&gt; io::Result&lt;<span class="self">Self</span>&gt; {
         <span class="kw">let </span>min_degree = target.min_degree();
         <span class="kw">let </span>algebra = target.algebra();
         <span class="kw">let </span><span class="kw-2">mut </span>composite = BiVec::with_capacity(min_degree, degree);

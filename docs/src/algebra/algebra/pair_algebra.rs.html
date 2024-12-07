@@ -497,12 +497,7 @@
 <a href="#471" id="471">471</a>
 <a href="#472" id="472">472</a>
 <a href="#473" id="473">473</a>
-<a href="#474" id="474">474</a>
-<a href="#475" id="475">475</a>
-<a href="#476" id="476">476</a>
-<a href="#477" id="477">477</a>
-<a href="#478" id="478">478</a>
-<a href="#479" id="479">479</a></pre></div><pre class="rust"><code><span class="doccomment">//! This implements the notion of a split pair algebra in the sense of
+<a href="#474" id="474">474</a></pre></div><pre class="rust"><code><span class="doccomment">//! This implements the notion of a split pair algebra in the sense of
 //! &lt;https://arxiv.org/abs/2105.07628v1&gt;, whose notation we will use throughout.
 //!
 //! The Steenrod algebra admits a lift to a split pair algebra, which can be used to compute d2
@@ -521,7 +516,7 @@
 
 <span class="kw">type </span>HashMap&lt;K, V&gt; = hashbrown::HashMap&lt;K, V, std::hash::BuildHasherDefault&lt;FxHasher&gt;&gt;;
 
-<span class="kw">use </span>std::io::{Read, Write};
+<span class="kw">use </span>std::io;
 
 <span class="doccomment">/// A lift of an algebra to a split pair algebra. See module introduction for more.
 </span><span class="kw">pub trait </span>PairAlgebra: Algebra {
@@ -586,13 +581,12 @@
     /// indecomposable.
     </span><span class="kw">fn </span>p_tilde(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize;
 
-    <span class="kw">fn </span>element_to_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>, elt: <span class="kw-2">&amp;</span><span class="self">Self</span>::Element, buffer: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Write)
-        -&gt; std::io::Result&lt;()&gt;;
+    <span class="kw">fn </span>element_to_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>, elt: <span class="kw-2">&amp;</span><span class="self">Self</span>::Element, buffer: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>io::Write) -&gt; io::Result&lt;()&gt;;
     <span class="kw">fn </span>element_from_bytes(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         degree: i32,
-        buffer: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Read,
-    ) -&gt; std::io::Result&lt;<span class="self">Self</span>::Element&gt;;
+        buffer: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>io::Read,
+    ) -&gt; io::Result&lt;<span class="self">Self</span>::Element&gt;;
 }
 
 <span class="kw">use </span>std::cell::RefCell;
@@ -803,11 +797,7 @@
         }
     }
 
-    <span class="kw">fn </span>element_to_bytes(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        elt: <span class="kw-2">&amp;</span><span class="self">Self</span>::Element,
-        buffer: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Write,
-    ) -&gt; std::io::Result&lt;()&gt; {
+    <span class="kw">fn </span>element_to_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>, elt: <span class="kw-2">&amp;</span><span class="self">Self</span>::Element, buffer: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>io::Write) -&gt; io::Result&lt;()&gt; {
         elt.twos.to_bytes(buffer)<span class="question-mark">?</span>;
         <span class="kw">for </span>row <span class="kw">in </span><span class="kw-2">&amp;</span>elt.ys {
             <span class="kw">for </span>v <span class="kw">in </span>row {
@@ -820,8 +810,8 @@
     <span class="kw">fn </span>element_from_bytes(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         degree: i32,
-        buffer: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Read,
-    ) -&gt; std::io::Result&lt;<span class="self">Self</span>::Element&gt; {
+        buffer: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>io::Read,
+    ) -&gt; io::Result&lt;<span class="self">Self</span>::Element&gt; {
         <span class="kw">let </span>p = <span class="self">self</span>.prime();
         <span class="macro">assert_eq!</span>(p, TWO);
 

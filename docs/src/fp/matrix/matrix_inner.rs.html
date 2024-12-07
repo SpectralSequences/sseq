@@ -1434,10 +1434,8 @@
 <a href="#1408" id="1408">1408</a>
 <a href="#1409" id="1409">1409</a>
 <a href="#1410" id="1410">1410</a>
-<a href="#1411" id="1411">1411</a>
-<a href="#1412" id="1412">1412</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
-    fmt,
-    io::{Read, Write},
+<a href="#1411" id="1411">1411</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+    fmt, io,
     ops::{Index, IndexMut},
 };
 
@@ -1520,8 +1518,8 @@
         p: ValidPrime,
         rows: usize,
         columns: usize,
-        data: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Read,
-    ) -&gt; std::io::Result&lt;<span class="self">Self</span>&gt; {
+        data: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>io::Read,
+    ) -&gt; io::Result&lt;<span class="self">Self</span>&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>vectors: Vec&lt;FpVector&gt; = Vec::with_capacity(rows);
         <span class="kw">for _ in </span><span class="number">0</span>..rows {
             vectors.push(FpVector::from_bytes(p, columns, data)<span class="question-mark">?</span>);
@@ -1534,7 +1532,7 @@
         })
     }
 
-    <span class="kw">pub fn </span>to_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>, data: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Write) -&gt; std::io::Result&lt;()&gt; {
+    <span class="kw">pub fn </span>to_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>, data: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>io::Write) -&gt; io::Result&lt;()&gt; {
         <span class="kw">for </span>v <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.vectors {
             v.to_bytes(data)<span class="question-mark">?</span>;
         }
@@ -1542,7 +1540,7 @@
     }
 
     <span class="doccomment">/// Read a vector of `isize`
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>write_pivot(v: <span class="kw-2">&amp;</span>[isize], buffer: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Write) -&gt; std::io::Result&lt;()&gt; {
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>write_pivot(v: <span class="kw-2">&amp;</span>[isize], buffer: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>io::Write) -&gt; io::Result&lt;()&gt; {
         <span class="kw">if </span><span class="macro">cfg!</span>(all(target_endian = <span class="string">"little"</span>, target_pointer_width = <span class="string">"64"</span>)) {
             <span class="kw">unsafe </span>{
                 <span class="kw">let </span>buf: <span class="kw-2">&amp;</span>[u8] = std::slice::from_raw_parts(v.as_ptr() <span class="kw">as </span><span class="kw-2">*const </span>u8, v.len() * <span class="number">8</span>);
@@ -1558,7 +1556,7 @@
     }
 
     <span class="doccomment">/// Read a vector of `isize` of length `dim`.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>read_pivot(dim: usize, data: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Read) -&gt; std::io::Result&lt;Vec&lt;isize&gt;&gt; {
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>read_pivot(dim: usize, data: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>io::Read) -&gt; io::Result&lt;Vec&lt;isize&gt;&gt; {
         <span class="kw">if </span><span class="macro">cfg!</span>(all(target_endian = <span class="string">"little"</span>, target_pointer_width = <span class="string">"64"</span>)) {
             <span class="kw">let </span><span class="kw-2">mut </span>image = <span class="macro">vec!</span>[<span class="number">0</span>; dim];
             <span class="kw">unsafe </span>{

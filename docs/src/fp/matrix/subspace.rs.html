@@ -367,13 +367,7 @@
 <a href="#341" id="341">341</a>
 <a href="#342" id="342">342</a>
 <a href="#343" id="343">343</a>
-<a href="#344" id="344">344</a>
-<a href="#345" id="345">345</a>
-<a href="#346" id="346">346</a>
-<a href="#347" id="347">347</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
-    io::{Read, Write},
-    ops::Deref,
-};
+<a href="#344" id="344">344</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{io, ops::Deref};
 
 <span class="kw">use </span>byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 <span class="kw">use </span>itertools::Itertools;
@@ -432,7 +426,7 @@
         ret
     }
 
-    <span class="kw">pub fn </span>from_bytes(p: ValidPrime, data: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Read) -&gt; std::io::Result&lt;<span class="self">Self</span>&gt; {
+    <span class="kw">pub fn </span>from_bytes(p: ValidPrime, data: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>io::Read) -&gt; io::Result&lt;<span class="self">Self</span>&gt; {
         <span class="kw">let </span>rows = data.read_u64::&lt;LittleEndian&gt;()<span class="question-mark">? </span><span class="kw">as </span>usize;
         <span class="kw">let </span>ambient_dimension = data.read_u64::&lt;LittleEndian&gt;()<span class="question-mark">? </span><span class="kw">as </span>usize;
 
@@ -443,7 +437,7 @@
         <span class="prelude-val">Ok</span>(<span class="self">Self </span>{ matrix })
     }
 
-    <span class="kw">pub fn </span>to_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>, buffer: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Write) -&gt; std::io::Result&lt;()&gt; {
+    <span class="kw">pub fn </span>to_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>, buffer: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>io::Write) -&gt; io::Result&lt;()&gt; {
         buffer.write_u64::&lt;LittleEndian&gt;(<span class="self">self</span>.matrix.rows() <span class="kw">as </span>u64)<span class="question-mark">?</span>;
         buffer.write_u64::&lt;LittleEndian&gt;(<span class="self">self</span>.ambient_dimension() <span class="kw">as </span>u64)<span class="question-mark">?</span>;
 

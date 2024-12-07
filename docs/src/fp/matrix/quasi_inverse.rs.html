@@ -222,7 +222,7 @@
 <a href="#196" id="196">196</a>
 <a href="#197" id="197">197</a>
 <a href="#198" id="198">198</a>
-<a href="#199" id="199">199</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::io::{Read, Write};
+<a href="#199" id="199">199</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::io;
 
 <span class="kw">use </span>byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 <span class="kw">use </span>itertools::Itertools;
@@ -267,7 +267,7 @@
         }
     }
 
-    <span class="kw">pub fn </span>to_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>, buffer: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Write) -&gt; std::io::Result&lt;()&gt; {
+    <span class="kw">pub fn </span>to_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>, buffer: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>io::Write) -&gt; io::Result&lt;()&gt; {
         buffer.write_u64::&lt;LittleEndian&gt;(<span class="self">self</span>.source_dimension() <span class="kw">as </span>u64)<span class="question-mark">?</span>;
         buffer.write_u64::&lt;LittleEndian&gt;(<span class="self">self</span>.target_dimension() <span class="kw">as </span>u64)<span class="question-mark">?</span>;
         buffer.write_u64::&lt;LittleEndian&gt;(<span class="self">self</span>.image_dimension() <span class="kw">as </span>u64)<span class="question-mark">?</span>;
@@ -285,7 +285,7 @@
         <span class="self">self</span>.preimage.to_bytes(buffer)
     }
 
-    <span class="kw">pub fn </span>from_bytes(p: ValidPrime, data: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Read) -&gt; std::io::Result&lt;<span class="self">Self</span>&gt; {
+    <span class="kw">pub fn </span>from_bytes(p: ValidPrime, data: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>io::Read) -&gt; io::Result&lt;<span class="self">Self</span>&gt; {
         <span class="kw">let </span>source_dim = data.read_u64::&lt;LittleEndian&gt;()<span class="question-mark">? </span><span class="kw">as </span>usize;
         <span class="kw">let </span>target_dim = data.read_u64::&lt;LittleEndian&gt;()<span class="question-mark">? </span><span class="kw">as </span>usize;
         <span class="kw">let </span>image_dim = data.read_u64::&lt;LittleEndian&gt;()<span class="question-mark">? </span><span class="kw">as </span>usize;
@@ -303,10 +303,10 @@
     /// quasi-inverse row by row to minimize memory usage.
     </span><span class="kw">pub fn </span>stream_quasi_inverse&lt;T, S&gt;(
         p: ValidPrime,
-        data: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Read,
+        data: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>io::Read,
         results: <span class="kw-2">&amp;mut </span>[T],
         inputs: <span class="kw-2">&amp;</span>[S],
-    ) -&gt; std::io::Result&lt;()&gt;
+    ) -&gt; io::Result&lt;()&gt;
     <span class="kw">where
         for</span>&lt;<span class="lifetime">'a</span>&gt; <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>T: Into&lt;FpSliceMut&lt;<span class="lifetime">'a</span>&gt;&gt;,
         <span class="kw">for</span>&lt;<span class="lifetime">'a</span>&gt; <span class="kw-2">&amp;</span><span class="lifetime">'a </span>S: Into&lt;FpSlice&lt;<span class="lifetime">'a</span>&gt;&gt;,
@@ -397,7 +397,7 @@
         <span class="kw">let </span><span class="kw-2">mut </span>out0 = FpVector::new(p, <span class="number">4</span>);
         <span class="kw">let </span><span class="kw-2">mut </span>out1 = FpVector::new(p, <span class="number">4</span>);
 
-        <span class="kw">let </span><span class="kw-2">mut </span>cursor = std::io::Cursor::new(Vec::&lt;u8&gt;::new());
+        <span class="kw">let </span><span class="kw-2">mut </span>cursor = io::Cursor::new(Vec::&lt;u8&gt;::new());
         qi.to_bytes(<span class="kw-2">&amp;mut </span>cursor).unwrap();
         cursor.set_position(<span class="number">0</span>);
 
