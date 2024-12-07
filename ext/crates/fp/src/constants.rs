@@ -13,7 +13,7 @@ macro_rules! const_for {
     };
 }
 
-pub(crate) const INVERSE_TABLE: [[u32; MAX_PRIME]; NUM_PRIMES] = {
+pub(crate) static INVERSE_TABLE: [[u32; MAX_PRIME]; NUM_PRIMES] = const {
     let mut result = [[0; MAX_PRIME]; NUM_PRIMES];
     const_for! { i in 0 .. NUM_PRIMES {
         let p = PRIMES[i];
