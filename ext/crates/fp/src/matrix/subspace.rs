@@ -1,7 +1,4 @@
-use std::{
-    io::{Read, Write},
-    ops::Deref,
-};
+use std::{io, ops::Deref};
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use itertools::Itertools;
@@ -60,7 +57,7 @@ impl Subspace {
         ret
     }
 
-    pub fn from_bytes(p: ValidPrime, data: &mut impl Read) -> std::io::Result<Self> {
+    pub fn from_bytes(p: ValidPrime, data: &mut impl io::Read) -> io::Result<Self> {
         let rows = data.read_u64::<LittleEndian>()? as usize;
         let ambient_dimension = data.read_u64::<LittleEndian>()? as usize;
 
@@ -71,7 +68,7 @@ impl Subspace {
         Ok(Self { matrix })
     }
 
-    pub fn to_bytes(&self, buffer: &mut impl Write) -> std::io::Result<()> {
+    pub fn to_bytes(&self, buffer: &mut impl io::Write) -> io::Result<()> {
         buffer.write_u64::<LittleEndian>(self.matrix.rows() as u64)?;
         buffer.write_u64::<LittleEndian>(self.ambient_dimension() as u64)?;
 

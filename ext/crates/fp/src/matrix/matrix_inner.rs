@@ -1,6 +1,5 @@
 use std::{
-    fmt,
-    io::{Read, Write},
+    fmt, io,
     ops::{Index, IndexMut},
 };
 
@@ -83,8 +82,8 @@ impl Matrix {
         p: ValidPrime,
         rows: usize,
         columns: usize,
-        data: &mut impl Read,
-    ) -> std::io::Result<Self> {
+        data: &mut impl io::Read,
+    ) -> io::Result<Self> {
         let mut vectors: Vec<FpVector> = Vec::with_capacity(rows);
         for _ in 0..rows {
             vectors.push(FpVector::from_bytes(p, columns, data)?);
@@ -97,7 +96,7 @@ impl Matrix {
         })
     }
 
-    pub fn to_bytes(&self, data: &mut impl Write) -> std::io::Result<()> {
+    pub fn to_bytes(&self, data: &mut impl io::Write) -> io::Result<()> {
         for v in &self.vectors {
             v.to_bytes(data)?;
         }
@@ -105,7 +104,7 @@ impl Matrix {
     }
 
     /// Read a vector of `isize`
-    pub(crate) fn write_pivot(v: &[isize], buffer: &mut impl Write) -> std::io::Result<()> {
+    pub(crate) fn write_pivot(v: &[isize], buffer: &mut impl io::Write) -> io::Result<()> {
         if cfg!(all(target_endian = "little", target_pointer_width = "64")) {
             unsafe {
                 let buf: &[u8] = std::slice::from_raw_parts(v.as_ptr() as *const u8, v.len() * 8);
@@ -121,7 +120,7 @@ impl Matrix {
     }
 
     /// Read a vector of `isize` of length `dim`.
-    pub(crate) fn read_pivot(dim: usize, data: &mut impl Read) -> std::io::Result<Vec<isize>> {
+    pub(crate) fn read_pivot(dim: usize, data: &mut impl io::Read) -> io::Result<Vec<isize>> {
         if cfg!(all(target_endian = "little", target_pointer_width = "64")) {
             let mut image = vec![0; dim];
             unsafe {

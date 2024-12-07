@@ -19,7 +19,7 @@
 
 use std::{
     fs::File,
-    io::{BufRead, BufReader},
+    io,
     path::{Path, PathBuf},
     str::FromStr,
     sync::Arc,
@@ -47,7 +47,7 @@ type FreeModuleHomomorphism = FMH<FreeModule>;
 type FiniteChainComplex = FCC<FreeModule, FreeModuleHomomorphism>;
 
 /// Read the first non-empty line of `data` into `buf`. Returns whether a line is read
-fn read_line(data: &mut impl BufRead, buf: &mut String) -> Result<bool> {
+fn read_line(data: &mut impl io::BufRead, buf: &mut String) -> Result<bool> {
     buf.clear();
     while buf.is_empty() {
         let num_bytes = data.read_line(buf)?;
@@ -108,7 +108,7 @@ fn get_algebra_element<'a>(
 fn get_element(
     a: &MilnorAlgebra,
     m: &FreeModule,
-    input: &mut impl BufRead,
+    input: &mut impl io::BufRead,
 ) -> Result<Option<(i32, FpVector)>> {
     let mut buf = String::new();
     if !read_line(input, &mut buf)? {
@@ -188,7 +188,7 @@ fn read_bruner_resolution(data_dir: &Path, max_n: i32) -> Result<(u32, FiniteCha
         let m = cc.module(s);
         let d = cc.differential(s);
 
-        let mut f = BufReader::new(
+        let mut f = io::BufReader::new(
             File::open(data_dir.join(format!("hDiff.{s}")))
                 .with_context(|| format!("Failed to read hDiff.{s}"))?,
         );

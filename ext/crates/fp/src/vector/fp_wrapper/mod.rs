@@ -12,10 +12,7 @@
 //! we can't simply define `type FpVector = FqVector<Fp<2>>` like we previously did: we need to use
 //! a transparent wrapper.
 
-use std::{
-    convert::TryInto,
-    io::{Read, Write},
-};
+use std::{convert::TryInto, io};
 
 use itertools::Itertools;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -104,9 +101,9 @@ impl FpVector {
         pub fn new<P: Prime>(p: P, len: usize) -> (from FqVector);
         pub fn new_with_capacity<P: Prime>(p: P, len: usize, capacity: usize) -> (from FqVector);
 
-        pub fn update_from_bytes(&mut self, data: &mut impl Read) -> (std::io::Result<()>);
-        pub fn from_bytes<P: Prime>(p: P, len: usize, data: &mut impl Read) -> (from io FqVector);
-        pub fn to_bytes(&self, buffer: &mut impl Write) -> (std::io::Result<()>);
+        pub fn update_from_bytes(&mut self, data: &mut impl io::Read) -> (io::Result<()>);
+        pub fn from_bytes<P: Prime>(p: P, len: usize, data: &mut impl io::Read) -> (from io FqVector);
+        pub fn to_bytes(&self, buffer: &mut impl io::Write) -> (io::Result<()>);
     }
 
     pub fn from_slice<P: Prime>(p: P, slice: &[u32]) -> Self {

@@ -1,7 +1,4 @@
-use std::{
-    io::{Read, Write},
-    sync::Arc,
-};
+use std::{io, sync::Arc};
 
 use algebra::{
     module::{
@@ -74,7 +71,7 @@ impl<A: PairAlgebra> SecondaryComposite<A> {
         }
     }
 
-    pub fn to_bytes(&self, buffer: &mut impl Write) -> std::io::Result<()> {
+    pub fn to_bytes(&self, buffer: &mut impl io::Write) -> io::Result<()> {
         let algebra = self.target.algebra();
         for composites in self.composite.iter() {
             buffer.write_u64::<LittleEndian>(composites.len() as u64)?;
@@ -89,8 +86,8 @@ impl<A: PairAlgebra> SecondaryComposite<A> {
         target: Arc<FreeModule<A>>,
         degree: i32,
         hit_generator: bool,
-        buffer: &mut impl Read,
-    ) -> std::io::Result<Self> {
+        buffer: &mut impl io::Read,
+    ) -> io::Result<Self> {
         let min_degree = target.min_degree();
         let algebra = target.algebra();
         let mut composite = BiVec::with_capacity(min_degree, degree);

@@ -1,6 +1,6 @@
 #![deny(clippy::use_self)]
 
-use std::{collections::HashMap, fmt::Display, io::Write};
+use std::{collections::HashMap, fmt::Display, io};
 
 #[rustfmt::skip]
 const PATTERNS: [(f32, &[(f32, f32)]); 12] = [
@@ -105,14 +105,14 @@ pub trait Backend {
     }
 }
 
-pub struct SvgBackend<T: Write> {
+pub struct SvgBackend<T: io::Write> {
     out: T,
     max_x: i32,
     max_y: i32,
     num_nodes: HashMap<(i32, i32), usize>,
 }
 
-impl<T: Write> SvgBackend<T> {
+impl<T: io::Write> SvgBackend<T> {
     const GRID_WIDTH: i32 = 20;
     const MARGIN: i32 = 30;
     const STYLES: &'static str = r#"
@@ -200,8 +200,8 @@ impl<T: Write> SvgBackend<T> {
     }
 }
 
-impl<T: Write> Backend for SvgBackend<T> {
-    type Error = std::io::Error;
+impl<T: io::Write> Backend for SvgBackend<T> {
+    type Error = io::Error;
 
     const EXT: &'static str = "svg";
 
@@ -304,20 +304,20 @@ impl<T: Write> Backend for SvgBackend<T> {
     }
 }
 
-impl<T: Write> Drop for SvgBackend<T> {
+impl<T: io::Write> Drop for SvgBackend<T> {
     fn drop(&mut self) {
         writeln!(self.out, "</svg>").unwrap();
     }
 }
 
-pub struct TikzBackend<T: Write> {
+pub struct TikzBackend<T: io::Write> {
     out: T,
     max_x: i32,
     max_y: i32,
     num_nodes: HashMap<(i32, i32), usize>,
 }
 
-impl<T: Write> TikzBackend<T> {
+impl<T: io::Write> TikzBackend<T> {
     const HEADER: &'static str = r"\begin{tikzpicture}[
   major-grid/.style={ opacity = 0.2 },
   grid/.style={ opacity = 0.1 },
@@ -350,7 +350,7 @@ impl<T: Write> TikzBackend<T> {
     }
 }
 
-impl<T: Write> Backend for TikzBackend<T> {
+impl<T: io::Write> Backend for TikzBackend<T> {
     type Error = std::io::Error;
 
     const EXT: &'static str = "tex";
@@ -432,7 +432,7 @@ impl<T: Write> Backend for TikzBackend<T> {
     }
 }
 
-impl<T: Write> Drop for TikzBackend<T> {
+impl<T: io::Write> Drop for TikzBackend<T> {
     fn drop(&mut self) {
         writeln!(self.out, r#"\end{{tikzpicture}}"#).unwrap();
     }

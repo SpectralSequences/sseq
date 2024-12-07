@@ -14,7 +14,7 @@
 
 use std::{
     fmt::Display,
-    io::{Read, Write},
+    io,
     sync::{mpsc, Arc, Mutex},
 };
 
@@ -195,7 +195,7 @@ impl MilnorSubalgebra {
             .unwrap_or(Self::zero_algebra())
     }
 
-    fn to_bytes(&self, buffer: &mut impl Write) -> std::io::Result<()> {
+    fn to_bytes(&self, buffer: &mut impl io::Write) -> io::Result<()> {
         buffer.write_u64::<LittleEndian>(self.profile.len() as u64)?;
         buffer.write_all(&self.profile)?;
 
@@ -205,7 +205,7 @@ impl MilnorSubalgebra {
         buffer.write_all(&zeros[0..padding])
     }
 
-    fn from_bytes(data: &mut impl Read) -> std::io::Result<Self> {
+    fn from_bytes(data: &mut impl io::Read) -> io::Result<Self> {
         let len = data.read_u64::<LittleEndian>()? as usize;
         let mut profile = vec![0; len];
 
@@ -220,10 +220,7 @@ impl MilnorSubalgebra {
         Ok(Self { profile })
     }
 
-    fn signature_to_bytes(
-        signature: &[PPartEntry],
-        buffer: &mut impl Write,
-    ) -> std::io::Result<()> {
+    fn signature_to_bytes(signature: &[PPartEntry], buffer: &mut impl io::Write) -> io::Result<()> {
         if cfg!(target_endian = "little") && std::mem::size_of::<PPartEntry>() == 2 {
             unsafe {
                 let buf: &[u8] = std::slice::from_raw_parts(
@@ -248,7 +245,7 @@ impl MilnorSubalgebra {
         Ok(())
     }
 
-    fn signature_from_bytes(&self, data: &mut impl Read) -> std::io::Result<Vec<PPartEntry>> {
+    fn signature_from_bytes(&self, data: &mut impl io::Read) -> io::Result<Vec<PPartEntry>> {
         let len = self.profile.len();
         let mut signature: Vec<PPartEntry> = vec![0; len];
 
@@ -481,13 +478,13 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
 
     #[tracing::instrument(skip_all, fields(signature = ?signature, throughput))]
     fn write_qi(
-        f: &mut Option<impl Write>,
+        f: &mut Option<impl io::Write>,
         scratch: &mut FpVector,
         signature: &[PPartEntry],
         next_mask: &[usize],
         full_matrix: &Matrix,
         masked_matrix: &AugmentedMatrix<2>,
-    ) -> std::io::Result<()> {
+    ) -> io::Result<()> {
         let f = match f {
             Some(f) => f,
             None => return Ok(()),

@@ -1,4 +1,4 @@
-use std::io::{Read, Write};
+use std::io;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use itertools::Itertools;
@@ -43,7 +43,7 @@ impl QuasiInverse {
         }
     }
 
-    pub fn to_bytes(&self, buffer: &mut impl Write) -> std::io::Result<()> {
+    pub fn to_bytes(&self, buffer: &mut impl io::Write) -> io::Result<()> {
         buffer.write_u64::<LittleEndian>(self.source_dimension() as u64)?;
         buffer.write_u64::<LittleEndian>(self.target_dimension() as u64)?;
         buffer.write_u64::<LittleEndian>(self.image_dimension() as u64)?;
@@ -61,7 +61,7 @@ impl QuasiInverse {
         self.preimage.to_bytes(buffer)
     }
 
-    pub fn from_bytes(p: ValidPrime, data: &mut impl Read) -> std::io::Result<Self> {
+    pub fn from_bytes(p: ValidPrime, data: &mut impl io::Read) -> io::Result<Self> {
         let source_dim = data.read_u64::<LittleEndian>()? as usize;
         let target_dim = data.read_u64::<LittleEndian>()? as usize;
         let image_dim = data.read_u64::<LittleEndian>()? as usize;
@@ -79,10 +79,10 @@ impl QuasiInverse {
     /// quasi-inverse row by row to minimize memory usage.
     pub fn stream_quasi_inverse<T, S>(
         p: ValidPrime,
-        data: &mut impl Read,
+        data: &mut impl io::Read,
         results: &mut [T],
         inputs: &[S],
-    ) -> std::io::Result<()>
+    ) -> io::Result<()>
     where
         for<'a> &'a mut T: Into<FpSliceMut<'a>>,
         for<'a> &'a S: Into<FpSlice<'a>>,
@@ -173,7 +173,7 @@ mod tests {
         let mut out0 = FpVector::new(p, 4);
         let mut out1 = FpVector::new(p, 4);
 
-        let mut cursor = std::io::Cursor::new(Vec::<u8>::new());
+        let mut cursor = io::Cursor::new(Vec::<u8>::new());
         qi.to_bytes(&mut cursor).unwrap();
         cursor.set_position(0);
 

@@ -1,10 +1,10 @@
-use std::io::Error;
+use std::io;
 
 use build_const::ConstWriter;
 
 type Limb = u64;
 
-fn main() -> Result<(), Error> {
+fn main() -> io::Result<()> {
     // We want primes up to 2^8 - 1, because those will be the characteristics of the fields that
     // have degree at least 2 and order at most 2^16 - 1. We will use PRIME_TO_INDEX_MAP when
     // computing Zech logarithms.

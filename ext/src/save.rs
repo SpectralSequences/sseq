@@ -1,7 +1,7 @@
 use std::{
     collections::HashSet,
     fs::File,
-    io::{BufRead, BufReader, BufWriter, Error, ErrorKind, Read, Write},
+    io,
     path::{Path, PathBuf},
     sync::{Arc, LazyLock, Mutex},
 };
@@ -194,13 +194,13 @@ impl SaveKind {
 
 /// In addition to checking the checksum, we also keep track of which files are open, and we delete
 /// the open files if the program is terminated halfway.
-pub struct ChecksumWriter<T: Write> {
+pub struct ChecksumWriter<T: io::Write> {
     writer: T,
     path: PathBuf,
     adler: adler::Adler32,
 }
 
-impl<T: Write> ChecksumWriter<T> {
+impl<T: io::Write> ChecksumWriter<T> {
     pub fn new(path: PathBuf, writer: T) -> Self {
         Self {
             path,
@@ -211,25 +211,25 @@ impl<T: Write> ChecksumWriter<T> {
 }
 
 /// We only implement the functions required and the ones we actually use.
-impl<T: Write> Write for ChecksumWriter<T> {
-    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+impl<T: io::Write> io::Write for ChecksumWriter<T> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         let bytes_written = self.writer.write(buf)?;
         self.adler.write_slice(&buf[0..bytes_written]);
         Ok(bytes_written)
     }
 
-    fn flush(&mut self) -> std::io::Result<()> {
+    fn flush(&mut self) -> io::Result<()> {
         self.writer.flush()
     }
 
-    fn write_all(&mut self, buf: &[u8]) -> std::io::Result<()> {
+    fn write_all(&mut self, buf: &[u8]) -> io::Result<()> {
         self.writer.write_all(buf)?;
         self.adler.write_slice(buf);
         Ok(())
     }
 }
 
-impl<T: Write> std::ops::Drop for ChecksumWriter<T> {
+impl<T: io::Write> std::ops::Drop for ChecksumWriter<T> {
     fn drop(&mut self) {
         if !std::thread::panicking() {
             // We may not have finished writing, so the data is wrong. It should not be given a
@@ -247,12 +247,12 @@ impl<T: Write> std::ops::Drop for ChecksumWriter<T> {
     }
 }
 
-pub struct ChecksumReader<T: Read> {
+pub struct ChecksumReader<T: io::Read> {
     reader: T,
     adler: adler::Adler32,
 }
 
-impl<T: Read> ChecksumReader<T> {
+impl<T: io::Read> ChecksumReader<T> {
     pub fn new(reader: T) -> Self {
         Self {
             reader,
@@ -262,21 +262,21 @@ impl<T: Read> ChecksumReader<T> {
 }
 
 /// We only implement the functions required and the ones we actually use.
-impl<T: Read> Read for ChecksumReader<T> {
-    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+impl<T: io::Read> io::Read for ChecksumReader<T> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         let bytes_read = self.reader.read(buf)?;
         self.adler.write_slice(&buf[0..bytes_read]);
         Ok(bytes_read)
     }
 
-    fn read_exact(&mut self, buf: &mut [u8]) -> std::io::Result<()> {
+    fn read_exact(&mut self, buf: &mut [u8]) -> io::Result<()> {
         self.reader.read_exact(buf)?;
         self.adler.write_slice(buf);
         Ok(())
     }
 }
 
-impl<T: Read> std::ops::Drop for ChecksumReader<T> {
+impl<T: io::Read> std::ops::Drop for ChecksumReader<T> {
     fn drop(&mut self) {
         if !std::thread::panicking() {
             // If we are panicking, we may not have read everything, and panic in panic
@@ -295,11 +295,13 @@ impl<T: Read> std::ops::Drop for ChecksumReader<T> {
 
 /// Open the file pointed to by `path` as a `Box<dyn Read>`. If the file does not exist, look for
 /// compressed versions.
-fn open_file(path: PathBuf) -> Option<Box<dyn Read>> {
+fn open_file(path: PathBuf) -> Option<Box<dyn io::Read>> {
+    use io::BufRead;
+
     // We should try in decreasing order of access speed.
     match File::open(&path) {
         Ok(f) => {
-            let mut reader = BufReader::new(f);
+            let mut reader = io::BufReader::new(f);
             if reader
                 .fill_buf()
                 .unwrap_or_else(|e| panic!("Error when reading from {path:?}: {e}"))
@@ -313,7 +315,7 @@ fn open_file(path: PathBuf) -> Option<Box<dyn Read>> {
             return Some(Box::new(ChecksumReader::new(reader)));
         }
         Err(e) => {
-            if e.kind() != ErrorKind::NotFound {
+            if e.kind() != io::ErrorKind::NotFound {
                 panic!("Error when opening {path:?}: {e}");
             }
         }
@@ -330,7 +332,7 @@ fn open_file(path: PathBuf) -> Option<Box<dyn Read>> {
                 )))
             }
             Err(e) => {
-                if e.kind() != ErrorKind::NotFound {
+                if e.kind() != io::ErrorKind::NotFound {
                     panic!("Error when opening {path:?}");
                 }
             }
@@ -348,7 +350,7 @@ pub struct SaveFile<A: Algebra> {
 }
 
 impl<A: Algebra> SaveFile<A> {
-    fn write_header(&self, buffer: &mut impl Write) -> std::io::Result<()> {
+    fn write_header(&self, buffer: &mut impl io::Write) -> io::Result<()> {
         buffer.write_u32::<LittleEndian>(self.kind.magic())?;
         buffer.write_u32::<LittleEndian>(self.algebra.magic())?;
         buffer.write_u32::<LittleEndian>(self.b.s())?;
@@ -359,13 +361,13 @@ impl<A: Algebra> SaveFile<A> {
         })
     }
 
-    fn validate_header(&self, buffer: &mut impl Read) -> std::io::Result<()> {
+    fn validate_header(&self, buffer: &mut impl io::Read) -> io::Result<()> {
         macro_rules! check_header {
             ($name:literal, $value:expr, $format:literal) => {
                 let data = buffer.read_u32::<LittleEndian>()?;
                 if data != $value {
-                    return Err(Error::new(
-                        ErrorKind::InvalidData,
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
                         format!(
                             "Invalid header: {} was {} but expected {}",
                             $name,
@@ -413,7 +415,7 @@ impl<A: Algebra> SaveFile<A> {
         dir
     }
 
-    pub fn open_file(&self, dir: PathBuf) -> Option<Box<dyn Read>> {
+    pub fn open_file(&self, dir: PathBuf) -> Option<Box<dyn io::Read>> {
         let file_path = self.get_save_path(dir);
         let path_string = file_path.to_string_lossy().into_owned();
         if let Some(mut f) = open_file(file_path) {
@@ -442,18 +444,18 @@ impl<A: Algebra> SaveFile<A> {
         false
     }
 
-    pub fn delete_file(&self, dir: PathBuf) -> std::io::Result<()> {
+    pub fn delete_file(&self, dir: PathBuf) -> io::Result<()> {
         let p = self.get_save_path(dir);
         match std::fs::remove_file(p) {
             Ok(()) => Ok(()),
-            Err(e) if e.kind() == ErrorKind::NotFound => Ok(()),
+            Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
             Err(e) => Err(e),
         }
     }
 
     /// # Arguments
     ///  - `overwrite`: Whether to overwrite a file if it already exists.
-    pub fn create_file(&self, dir: PathBuf, overwrite: bool) -> impl Write {
+    pub fn create_file(&self, dir: PathBuf, overwrite: bool) -> impl io::Write {
         let p = self.get_save_path(dir);
         tracing::info!("open_write: {}", p.to_string_lossy());
 
@@ -473,7 +475,7 @@ impl<A: Algebra> SaveFile<A> {
             .open(&p)
             .with_context(|| format!("Failed to create save file {p:?}"))
             .unwrap();
-        let mut f = ChecksumWriter::new(p, BufWriter::new(f));
+        let mut f = ChecksumWriter::new(p, io::BufWriter::new(f));
         self.write_header(&mut f).unwrap();
         f
     }

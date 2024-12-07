@@ -1,4 +1,4 @@
-use std::io::{Read, Write};
+use std::io;
 
 use anyhow::anyhow;
 use fp::{
@@ -263,16 +263,16 @@ impl crate::pair_algebra::PairAlgebra for AdemAlgebra {
     fn element_to_bytes(
         &self,
         _elt: &Self::Element,
-        _buffer: &mut impl Write,
-    ) -> std::io::Result<()> {
+        _buffer: &mut impl io::Write,
+    ) -> io::Result<()> {
         unimplemented!()
     }
 
     fn element_from_bytes(
         &self,
         _degree: i32,
-        _buffer: &mut impl Read,
-    ) -> std::io::Result<Self::Element> {
+        _buffer: &mut impl io::Read,
+    ) -> io::Result<Self::Element> {
         unimplemented!()
     }
 }
@@ -286,8 +286,8 @@ impl crate::pair_algebra::PairAlgebra for SteenrodAlgebra {
         fn sigma_multiply_basis(&self, result: &mut Self::Element, coeff: u32, r_degree: i32, r_idx: usize, s_degree: i32, s_idx: usize);
         fn sigma_multiply(&self, result: &mut Self::Element, coeff: u32, r_degree: i32, r: FpSlice, s_degree: i32, s: FpSlice);
         fn a_multiply(&self, result: FpSliceMut, coeff: u32, r_degree: i32, r: FpSlice, s_degree: i32, s: &Self::Element);
-        fn element_to_bytes(&self, elt: &Self::Element, buffer: &mut impl Write) -> std::io::Result<()>;
-        fn element_from_bytes(&self, degree: i32, buffer: &mut impl Read) -> std::io::Result<Self::Element>;
+        fn element_to_bytes(&self, elt: &Self::Element, buffer: &mut impl io::Write) -> io::Result<()>;
+        fn element_from_bytes(&self, degree: i32, buffer: &mut impl io::Read) -> io::Result<Self::Element>;
     }
 
     fn element_is_zero(elt: &Self::Element) -> bool {

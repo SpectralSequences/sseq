@@ -17,7 +17,7 @@ use crate::{combinatorics, Algebra};
 
 type HashMap<K, V> = hashbrown::HashMap<K, V, std::hash::BuildHasherDefault<FxHasher>>;
 
-use std::io::{Read, Write};
+use std::io;
 
 /// A lift of an algebra to a split pair algebra. See module introduction for more.
 pub trait PairAlgebra: Algebra {
@@ -82,13 +82,12 @@ pub trait PairAlgebra: Algebra {
     /// indecomposable.
     fn p_tilde(&self) -> usize;
 
-    fn element_to_bytes(&self, elt: &Self::Element, buffer: &mut impl Write)
-        -> std::io::Result<()>;
+    fn element_to_bytes(&self, elt: &Self::Element, buffer: &mut impl io::Write) -> io::Result<()>;
     fn element_from_bytes(
         &self,
         degree: i32,
-        buffer: &mut impl Read,
-    ) -> std::io::Result<Self::Element>;
+        buffer: &mut impl io::Read,
+    ) -> io::Result<Self::Element>;
 }
 
 use std::cell::RefCell;
@@ -299,11 +298,7 @@ impl PairAlgebra for MilnorAlgebra {
         }
     }
 
-    fn element_to_bytes(
-        &self,
-        elt: &Self::Element,
-        buffer: &mut impl Write,
-    ) -> std::io::Result<()> {
+    fn element_to_bytes(&self, elt: &Self::Element, buffer: &mut impl io::Write) -> io::Result<()> {
         elt.twos.to_bytes(buffer)?;
         for row in &elt.ys {
             for v in row {
@@ -316,8 +311,8 @@ impl PairAlgebra for MilnorAlgebra {
     fn element_from_bytes(
         &self,
         degree: i32,
-        buffer: &mut impl Read,
-    ) -> std::io::Result<Self::Element> {
+        buffer: &mut impl io::Read,
+    ) -> io::Result<Self::Element> {
         let p = self.prime();
         assert_eq!(p, TWO);
 
