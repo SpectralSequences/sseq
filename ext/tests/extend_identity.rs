@@ -44,7 +44,7 @@ use sseq::coordinates::Bidegree;
 fn extend_identity<T: TryInto<Config>>(#[case] config: T, #[case] max_degree: i32) {
     let config: Config = config.try_into().ok().unwrap();
     let resolution = Arc::new(construct(config, None).unwrap());
-    let max = Bidegree::s_t(max_degree as u32, max_degree);
+    let max = Bidegree::s_t(max_degree, max_degree);
     resolution.compute_through_bidegree(max);
 
     let module = resolution.target().module(0);
@@ -60,7 +60,7 @@ fn extend_identity<T: TryInto<Config>>(#[case] config: T, #[case] max_degree: i3
     );
     hom.extend(max);
 
-    for s in 0..=max_degree as u32 {
+    for s in 0..=max_degree {
         let source = resolution.module(s);
         let map = hom.get_map(s);
         for t in 0..=max_degree {

@@ -10,7 +10,7 @@ use ext::{
     resolution_homomorphism::ResolutionHomomorphism as ResolutionHomomorphism_,
 };
 use fp::{matrix::Matrix, prime::ValidPrime};
-use once::{OnceBiVec, OnceVec};
+use once::OnceBiVec;
 use rustc_hash::FxHashSet as HashSet;
 use serde::Deserialize;
 use serde_json::Value;
@@ -58,7 +58,7 @@ pub struct Resolution<CC: ChainComplex> {
 
     /// s -> t -> idx -> resolution homomorphism to unit resolution. We don't populate this
     /// until we actually have a unit resolution, of course.
-    chain_maps_to_unit_resolution: OnceVec<OnceBiVec<Vec<ResolutionHomomorphism<CC>>>>,
+    chain_maps_to_unit_resolution: OnceBiVec<OnceBiVec<Vec<ResolutionHomomorphism<CC>>>>,
 
     /// A list of all self maps
     self_maps: Vec<SelfMap<CC>>,
@@ -85,14 +85,14 @@ impl Resolution<ext::CCC> {
 
             filtration_one_products: algebra.default_filtration_one_products(),
             self_maps: Vec::new(),
-            chain_maps_to_unit_resolution: OnceVec::new(),
+            chain_maps_to_unit_resolution: OnceBiVec::new(0),
         };
 
         // Add products
         if !json["products"].is_null() {
             for prod in json["products"].as_array()? {
                 let prod_deg = Bidegree::s_t(
-                    prod["hom_deg"].as_u64()? as u32,
+                    prod["hom_deg"].as_i64()? as i32,
                     prod["int_deg"].as_i64()? as i32,
                 );
                 let class: Vec<u32> = Vec::<u32>::deserialize(&prod["class"]).ok()?;
@@ -105,7 +105,7 @@ impl Resolution<ext::CCC> {
         if !json["self_maps"].is_null() {
             for self_map in json["self_maps"].as_array()? {
                 let self_map_deg = Bidegree::s_t(
-                    self_map["hom_deg"].as_u64()? as u32,
+                    self_map["hom_deg"].as_i64()? as i32,
                     self_map["int_deg"].as_i64()? as i32,
                 );
                 let name = self_map["name"].as_str()?;
@@ -145,7 +145,7 @@ impl<CC: ChainComplex> Resolution<CC> {
                 sseq: self.sseq,
                 action: Action::from(crate::actions::AddClass {
                     x: b.n(),
-                    y: b.s() as i32,
+                    y: b.s(),
                     num: self.inner.number_of_gens_in_bidegree(b),
                 }),
             })
@@ -187,9 +187,7 @@ impl<CC: ChainComplex> Resolution<CC> {
         let p = self.prime();
 
         // Product in Ext is not product in E_2
-        if (left && (mult.s() as i32) * source.t() % 2 != 0)
-            || (!left && mult.t() * (source.s() as i32) % 2 != 0)
-        {
+        if (left && mult.s() * source.t() % 2 != 0) || (!left && mult.t() * source.s() % 2 != 0) {
             for entry in product.iter_mut().flatten() {
                 *entry = ((p - 1) * *entry) % p;
             }
@@ -201,9 +199,9 @@ impl<CC: ChainComplex> Resolution<CC> {
                 sseq: self.sseq,
                 action: Action::from(crate::actions::AddProduct {
                     mult_x: mult.n(),
-                    mult_y: mult.s() as i32,
+                    mult_y: mult.s(),
                     source_x: source.n(),
-                    source_y: source.s() as i32,
+                    source_y: source.s(),
                     name: name.to_owned(),
                     product,
                     left,
@@ -331,11 +329,11 @@ impl<CC: ChainComplex> Resolution<CC> {
         }
 
         let p = self.prime();
-        let s_idx = b.s() as usize;
+        let s_idx = b.s();
 
         if s_idx == self.chain_maps_to_unit_resolution.len() {
             self.chain_maps_to_unit_resolution
-                .push_checked(OnceBiVec::new(self.min_degree() + b.s() as i32), s_idx);
+                .push_checked(OnceBiVec::new(self.min_degree() + b.s()), s_idx);
         }
 
         if b.t() < self.chain_maps_to_unit_resolution[s_idx].len() {
@@ -441,7 +439,7 @@ impl<CC: ChainComplex> Resolution<CC> {
 
     pub fn module(
         &self,
-        homological_degree: u32,
+        homological_degree: i32,
     ) -> Arc<FreeModule<<CC::Module as Module>::Algebra>> {
         self.inner.module(homological_degree)
     }
@@ -452,7 +450,7 @@ impl<CC: ChainComplex> Resolution<CC> {
 
     pub fn differential(
         &self,
-        s: u32,
+        s: i32,
     ) -> Arc<FreeModuleHomomorphism<FreeModule<<CC::Module as Module>::Algebra>>> {
         self.inner.differential(s)
     }

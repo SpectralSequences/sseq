@@ -23,15 +23,15 @@ impl BidegreeGenerator {
         }
     }
 
-    pub fn s_t(s: u32, t: i32, idx: usize) -> Self {
+    pub fn s_t(s: i32, t: i32, idx: usize) -> Self {
         Self::new(Bidegree::s_t(s, t), idx)
     }
 
-    pub fn n_s(n: i32, s: u32, idx: usize) -> Self {
+    pub fn n_s(n: i32, s: i32, idx: usize) -> Self {
         Self::new(Bidegree::n_s(n, s), idx)
     }
 
-    pub fn s(&self) -> u32 {
+    pub fn s(&self) -> i32 {
         self.degree.s()
     }
 

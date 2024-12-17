@@ -24,7 +24,7 @@ impl BidegreeElement {
         Self { degree, vec }
     }
 
-    pub fn s(&self) -> u32 {
+    pub fn s(&self) -> i32 {
         self.degree.s()
     }
 

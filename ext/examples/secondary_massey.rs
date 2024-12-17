@@ -241,7 +241,7 @@ fn main() -> anyhow::Result<()> {
     ch_lift.extend_all();
 
     fn get_page_data(sseq: &sseq::Sseq, b: Bidegree) -> &fp::matrix::Subquotient {
-        let d = sseq.page_data(b.n(), b.s() as i32);
+        let d = sseq.page_data(b.n(), b.s());
         &d[std::cmp::min(3, d.len() - 1)]
     }
 
@@ -372,9 +372,7 @@ fn main() -> anyhow::Result<()> {
         let mt = Matrix::from_vec(p, &chain_homotopy.homotopy(source.s() + 1).hom_k(c.t() + 1));
         let m1 = Matrix::from_vec(
             p,
-            &ch_lift.homotopies()[source.s() as i32 + 1]
-                .homotopies
-                .hom_k(c.t()),
+            &ch_lift.homotopies()[source.s() + 1].homotopies.hom_k(c.t()),
         );
         let mp = Matrix::from_vec(
             p,

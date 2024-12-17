@@ -8,7 +8,7 @@ fn main() -> anyhow::Result<()> {
 
     for s in (0..res.next_homological_degree()).rev() {
         let module = res.module(s);
-        for t in res.min_degree() + s as i32..=module.max_computed_degree() {
+        for t in res.min_degree() + s..=module.max_computed_degree() {
             print!("{}, ", module.dimension(t));
         }
         println!();

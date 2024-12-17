@@ -64,7 +64,7 @@ where
             name,
             source,
             target,
-            maps: OnceBiVec::new(shift.s() as i32),
+            maps: OnceBiVec::new(shift.s()),
             shift,
             save_dir,
         }
@@ -82,21 +82,21 @@ where
         self.maps.len()
     }
 
-    fn get_map_ensure_length(&self, input_s: u32) -> &MuFreeModuleHomomorphism<U, CC2::Module> {
-        self.maps.extend(input_s as i32, |input_s| {
-            let output_s = input_s as u32 - self.shift.s();
+    fn get_map_ensure_length(&self, input_s: i32) -> &MuFreeModuleHomomorphism<U, CC2::Module> {
+        self.maps.extend(input_s, |input_s| {
+            let output_s = input_s - self.shift.s();
             Arc::new(MuFreeModuleHomomorphism::new(
-                self.source.module(input_s as u32),
+                self.source.module(input_s),
                 self.target.module(output_s),
                 self.shift.t(),
             ))
         });
-        &self.maps[input_s as i32]
+        &self.maps[input_s]
     }
 
     /// Returns the chain map on the `s`th source module.
-    pub fn get_map(&self, input_s: u32) -> Arc<MuFreeModuleHomomorphism<U, CC2::Module>> {
-        Arc::clone(&self.maps[input_s as i32])
+    pub fn get_map(&self, input_s: i32) -> Arc<MuFreeModuleHomomorphism<U, CC2::Module>> {
+        Arc::clone(&self.maps[input_s])
     }
 
     pub fn save_dir(&self) -> &SaveDirectory {
@@ -130,7 +130,7 @@ where
     #[tracing::instrument(fields(self = self.name, max = %max))]
     pub fn extend_through_stem(&self, max: Bidegree) {
         self.extend_profile(BidegreeRange::new(&(), max.s() + 1, &|_, s| {
-            max.n() + s as i32 + 1
+            max.n() + s + 1
         }))
     }
 
@@ -188,7 +188,7 @@ where
         for s in self.shift.s()..max.s() {
             assert_eq!(
                 Vec::<i32>::new(),
-                self.maps[s as i32].ooo_outputs(),
+                self.maps[s].ooo_outputs(),
                 "Map {s} has out of order elements"
             );
         }

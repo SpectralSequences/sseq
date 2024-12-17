@@ -43,7 +43,7 @@ where
         for s in (0..self.next_homological_degree()).rev() {
             let module = self.module(s);
 
-            for t in min_degree + s as i32..=module.max_computed_degree() {
+            for t in min_degree + s..=module.max_computed_degree() {
                 result.push(unicode_num(module.number_of_gens_in_degree(t)));
                 result.push(' ');
             }
@@ -60,7 +60,7 @@ where
         let p = self.prime();
         let mut sseq = sseq::Sseq::new(p, self.min_degree(), 0);
         for b in self.iter_stem() {
-            sseq.set_dimension(b.n(), b.s() as i32, self.number_of_gens_in_bidegree(b));
+            sseq.set_dimension(b.n(), b.s(), self.number_of_gens_in_bidegree(b));
         }
         sseq
     }
@@ -68,7 +68,7 @@ where
     fn filtration_one_products(&self, op_deg: i32, op_idx: usize) -> sseq::Product {
         let p = self.prime();
         let mut matrices = BiVec::new(self.min_degree());
-        let max_y = self.next_homological_degree() as i32 - 1;
+        let max_y = self.next_homological_degree() - 1;
         matrices.extend_with(self.module(0).max_computed_degree() - op_deg + 2, |x| {
             let mut entries = BiVec::with_capacity(0, max_y);
             let mut b = Bidegree::n_s(x, 0);
@@ -176,10 +176,10 @@ pub trait ChainComplex: Send + Sync {
     fn algebra(&self) -> Arc<Self::Algebra>;
     fn min_degree(&self) -> i32;
     fn zero_module(&self) -> Arc<Self::Module>;
-    fn module(&self, homological_degree: u32) -> Arc<Self::Module>;
+    fn module(&self, homological_degree: i32) -> Arc<Self::Module>;
 
     /// This returns the differential starting from the sth module.
-    fn differential(&self, s: u32) -> Arc<Self::Homomorphism>;
+    fn differential(&self, s: i32) -> Arc<Self::Homomorphism>;
 
     /// If the complex has been computed at bidegree (s, t). This means the module has been
     /// computed at (s, t), and so has the differential at (s, t). In the case of a free module,
@@ -191,7 +191,7 @@ pub trait ChainComplex: Send + Sync {
     fn compute_through_bidegree(&self, b: Bidegree);
 
     /// The first s such that `self.module(s)` is not defined.
-    fn next_homological_degree(&self) -> u32;
+    fn next_homological_degree(&self) -> i32;
 
     /// Iterate through all defined bidegrees in increasing order of stem.
     fn iter_stem(&self) -> StemIterator<'_, Self> {
@@ -255,7 +255,7 @@ pub trait ChainComplex: Send + Sync {
 pub struct StemIterator<'a, CC: ?Sized> {
     cc: &'a CC,
     current: Bidegree,
-    max_s: u32,
+    max_s: i32,
 }
 
 impl<CC: ChainComplex + ?Sized> Iterator for StemIterator<'_, CC> {
@@ -294,12 +294,12 @@ pub trait AugmentedChainComplex: ChainComplex {
     >;
 
     fn target(&self) -> Arc<Self::TargetComplex>;
-    fn chain_map(&self, s: u32) -> Arc<Self::ChainMap>;
+    fn chain_map(&self, s: i32) -> Arc<Self::ChainMap>;
 }
 
 /// A bounded chain complex is a chain complex C for which C_s = 0 for all s >= max_s
 pub trait BoundedChainComplex: ChainComplex {
-    fn max_s(&self) -> u32;
+    fn max_s(&self) -> i32;
 
     fn euler_characteristic(&self, t: i32) -> isize {
         (0..self.max_s())
@@ -310,6 +310,6 @@ pub trait BoundedChainComplex: ChainComplex {
 
 /// `chain_maps` is required to be non-empty
 pub struct ChainMap<F: ModuleHomomorphism> {
-    pub s_shift: u32,
+    pub s_shift: i32,
     pub chain_maps: Vec<F>,
 }

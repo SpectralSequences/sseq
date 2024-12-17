@@ -9,29 +9,29 @@ use serde::{Deserialize, Serialize};
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Bidegree {
     /// Homological degree
-    s: u32,
+    s: i32,
     /// Internal degree
     t: i32,
 }
 
 impl Bidegree {
-    pub const fn s_t(s: u32, t: i32) -> Self {
+    pub const fn s_t(s: i32, t: i32) -> Self {
         Self { s, t }
     }
 
-    pub const fn t_s(t: i32, s: u32) -> Self {
+    pub const fn t_s(t: i32, s: i32) -> Self {
         Self::s_t(s, t)
     }
 
-    pub const fn n_s(n: i32, s: u32) -> Self {
-        Self::s_t(s, n + s as i32)
+    pub const fn n_s(n: i32, s: i32) -> Self {
+        Self::s_t(s, n + s)
     }
 
     pub const fn zero() -> Self {
         Self { s: 0, t: 0 }
     }
 
-    pub fn s(&self) -> u32 {
+    pub fn s(&self) -> i32 {
         self.s
     }
 
@@ -40,7 +40,7 @@ impl Bidegree {
     }
 
     pub fn n(&self) -> i32 {
-        self.t - self.s as i32
+        self.t - self.s
     }
 
     /// Returns difference as a bidegree if the difference in homological degrees is nonnegative,

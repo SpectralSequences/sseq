@@ -17,7 +17,7 @@ use fp::{
     vector::{FpSlice, FpSliceMut, FpVector},
 };
 use itertools::Itertools;
-use once::OnceVec;
+use once::{OnceBiVec, OnceVec};
 use sseq::coordinates::Bidegree;
 
 use crate::{
@@ -69,9 +69,9 @@ where
     name: String,
     lock: Mutex<()>,
     complex: Arc<CC>,
-    modules: OnceVec<Arc<MuFreeModule<U, CC::Algebra>>>,
+    modules: OnceBiVec<Arc<MuFreeModule<U, CC::Algebra>>>,
     zero_module: Arc<MuFreeModule<U, CC::Algebra>>,
-    chain_maps: OnceVec<Arc<MuFreeModuleHomomorphism<U, CC::Module>>>,
+    chain_maps: OnceBiVec<Arc<MuFreeModuleHomomorphism<U, CC::Module>>>,
     differentials: OnceVec<Arc<MuFreeModuleHomomorphism<U, MuFreeModule<U, CC::Algebra>>>>,
 
     ///  For each *internal* degree, store the kernel of the most recently calculated chain map as
@@ -129,8 +129,8 @@ where
             save_dir,
             lock: Mutex::new(()),
 
-            chain_maps: OnceVec::new(),
-            modules: OnceVec::new(),
+            chain_maps: OnceBiVec::new(0),
+            modules: OnceBiVec::new(0),
             differentials: OnceVec::new(),
             kernels: DashMap::new(),
             load_quasi_inverse: true,
@@ -148,10 +148,10 @@ where
     /// This function prepares the Resolution object to perform computations up to the
     /// specified s degree. It does *not* perform any computations by itself. It simply lengthens
     /// the `OnceVec`s `modules`, `chain_maps`, etc. to the right length.
-    fn extend_through_degree(&self, max_s: u32) {
+    fn extend_through_degree(&self, max_s: i32) {
         let min_degree = self.min_degree();
 
-        for i in self.modules.len() as u32..=max_s {
+        for i in self.modules.len()..=max_s {
             self.modules.push(Arc::new(MuFreeModule::new(
                 Arc::clone(&self.algebra()),
                 format!("F{i}"),
@@ -167,13 +167,13 @@ where
         if self.differentials.is_empty() {
             self.differentials
                 .push(Arc::new(MuFreeModuleHomomorphism::new(
-                    Arc::clone(&self.modules[0u32]),
+                    Arc::clone(&self.modules[0]),
                     Arc::clone(&self.zero_module),
                     0,
                 )));
         }
 
-        for i in self.differentials.len() as u32..=max_s {
+        for i in self.differentials.len() as i32..=max_s {
             self.differentials
                 .push(Arc::new(MuFreeModuleHomomorphism::new(
                     Arc::clone(&self.modules[i]),
@@ -848,8 +848,8 @@ where
         self.target().algebra()
     }
 
-    fn module(&self, s: u32) -> Arc<Self::Module> {
-        Arc::clone(&self.modules[s as usize])
+    fn module(&self, s: i32) -> Arc<Self::Module> {
+        Arc::clone(&self.modules[s])
     }
 
     fn zero_module(&self) -> Arc<Self::Module> {
@@ -864,7 +864,7 @@ where
         self.differentials.len() > b.s() as usize && self.differential(b.s()).next_degree() > b.t()
     }
 
-    fn differential(&self, s: u32) -> Arc<Self::Homomorphism> {
+    fn differential(&self, s: i32) -> Arc<Self::Homomorphism> {
         Arc::clone(&self.differentials[s as usize])
     }
 
@@ -873,8 +873,8 @@ where
         self.compute_through_bidegree_with_callback(b, |_| ())
     }
 
-    fn next_homological_degree(&self) -> u32 {
-        self.modules.len() as u32
+    fn next_homological_degree(&self) -> i32 {
+        self.modules.len()
     }
 
     fn apply_quasi_inverse<T, S>(&self, results: &mut [T], b: Bidegree, inputs: &[S]) -> bool
@@ -917,7 +917,7 @@ where
         Arc::clone(&self.complex)
     }
 
-    fn chain_map(&self, s: u32) -> Arc<Self::ChainMap> {
+    fn chain_map(&self, s: i32) -> Arc<Self::ChainMap> {
         Arc::clone(&self.chain_maps[s])
     }
 }

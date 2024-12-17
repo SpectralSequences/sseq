@@ -20,7 +20,7 @@ use sseq::coordinates::Bidegree;
 #[case("j_mod_2", 30)]
 #[case("ksp", 30)]
 fn compare(#[case] module_name: &str, #[case] max_degree: i32) {
-    let max = Bidegree::s_t(max_degree as u32, max_degree);
+    let max = Bidegree::s_t(max_degree, max_degree);
     let a = construct((module_name, "adem"), None).unwrap();
     let b = construct((module_name, "milnor"), None).unwrap();
 
@@ -40,7 +40,7 @@ fn compare(#[case] module_name: &str, #[case] max_degree: i32) {
 #[case("S_3[10]", 50)]
 #[case("Calpha[15]", 50)]
 fn compare_unstable(#[case] module_name: &str, #[case] max_degree: i32) {
-    let max = Bidegree::s_t(max_degree as u32, max_degree);
+    let max = Bidegree::s_t(max_degree, max_degree);
     let a = construct_standard::<true, _, _>((module_name, "adem"), None).unwrap();
     let b = construct_standard::<true, _, _>((module_name, "milnor"), None).unwrap();
 

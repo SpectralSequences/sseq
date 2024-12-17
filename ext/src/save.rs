@@ -357,7 +357,7 @@ impl<A: Algebra> SaveFile<A> {
     fn write_header(&self, buffer: &mut impl io::Write) -> io::Result<()> {
         buffer.write_u32::<LittleEndian>(self.kind.magic())?;
         buffer.write_u32::<LittleEndian>(self.algebra.magic())?;
-        buffer.write_u32::<LittleEndian>(self.b.s())?;
+        buffer.write_i32::<LittleEndian>(self.b.s())?;
         buffer.write_i32::<LittleEndian>(if let Some(i) = self.idx {
             self.b.t() + ((i as i32) << 16)
         } else {
@@ -385,7 +385,7 @@ impl<A: Algebra> SaveFile<A> {
 
         check_header!("magic", self.kind.magic(), "{:#010x}");
         check_header!("algebra", self.algebra.magic(), "{:#06x}");
-        check_header!("s", self.b.s(), "{}");
+        check_header!("s", self.b.s() as u32, "{}");
         check_header!(
             "t",
             if let Some(i) = self.idx {

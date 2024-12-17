@@ -44,7 +44,7 @@
 //! [mahowald--ravenel]: https://www.sciencedirect.com/science/article/pii/004093839390055Z
 //! [bruner--greenlees]: https://projecteuclid.org/journals/experimental-mathematics/volume-4/issue-4/The-Bredon-L%C3%B6ffler-conjecture/em/1047674389.full
 
-use std::{fmt, iter, num::NonZeroU32, path::PathBuf, sync::Arc};
+use std::{fmt, iter, num::NonZeroI32, path::PathBuf, sync::Arc};
 
 use algebra::{
     module::{homomorphism::ModuleHomomorphism, Module},
@@ -71,7 +71,7 @@ fn main() -> Result<()> {
     );
     // Going up to k=25 is nice because then we see an invariant that is not a basis element
     // and one that has non-trivial indeterminacy.
-    let k_max = query::with_default("Max k (positive)", "25", str::parse::<NonZeroU32>).get();
+    let k_max = query::with_default("Max k (positive)", "25", str::parse::<NonZeroI32>).get();
 
     let s_2_resolution = resolve_s_2(s_2_path, k_max)?;
 
@@ -92,7 +92,7 @@ type Resolution =
 type Homomorphism = MuResolutionHomomorphism<false, Resolution, Resolution>;
 
 struct PKData {
-    k: u32,
+    k: i32,
     resolution: Arc<Resolution>,
     bottom_cell: Homomorphism,
     minus_one_cell: Homomorphism,
@@ -106,7 +106,7 @@ struct MahowaldInvariant {
     indeterminacy_basis: Vec<FpVector>,
 }
 
-fn resolve_s_2(s_2_path: Option<PathBuf>, k_max: u32) -> Result<Arc<Resolution>> {
+fn resolve_s_2(s_2_path: Option<PathBuf>, k_max: i32) -> Result<Arc<Resolution>> {
     let s_2_resolution = Arc::new(utils::construct_standard("S_2", s_2_path)?);
     // Here are some bounds on the bidegrees in which we have should have resolutions available.
     //
@@ -121,24 +121,24 @@ fn resolve_s_2(s_2_path: Option<PathBuf>, k_max: u32) -> Result<Arc<Resolution>>
     // of filtration i that is in a positive stem.
     // As that element appears by stem 2*i, resolving RP_-k_inf up to filtration (k/2)+1 is also
     // sufficient to detect Mahowald invariants of elements in the zero stem.
-    s_2_resolution.compute_through_stem(Bidegree::n_s(2 * k_max as i32 - 2, k_max / 2 + 1));
+    s_2_resolution.compute_through_stem(Bidegree::n_s(2 * k_max - 2, k_max / 2 + 1));
     Ok(s_2_resolution)
 }
 
 impl PKData {
     fn try_new(
-        k: u32,
+        k: i32,
         p_k_prefix: &Option<PathBuf>,
         s_2_resolution: &Arc<Resolution>,
     ) -> Result<Self> {
         let p_k_config = json! ({
             "p": 2,
             "type": "real projective space",
-            "min": -(k as i32),
+            "min": -k,
         });
         let mut p_k_path = p_k_prefix.clone();
         if let Some(p) = p_k_path.as_mut() {
-            p.push(PathBuf::from(&format!("RP_-{k}_inf")))
+            p.push(PathBuf::from(&format!("RP_{minus_k}_inf", minus_k = -k)));
         };
         let resolution = Arc::new(utils::construct_standard(
             (p_k_config, AlgebraType::Milnor),
@@ -146,13 +146,13 @@ impl PKData {
         )?);
         // As mentioned before, RP_-k_inf won't detect Mahowald invariants of any classes in the
         // k-stem and beyond or of any classes of filtration higher than k/2+1.
-        resolution.compute_through_stem(Bidegree::n_s(k as i32 - 2, k / 2 + 1));
+        resolution.compute_through_stem(Bidegree::n_s(k - 2, k / 2 + 1));
 
         let bottom_cell = ResolutionHomomorphism::from_class(
             String::from("bottom_cell"),
             resolution.clone(),
             s_2_resolution.clone(),
-            Bidegree::s_t(0, -(k as i32)),
+            Bidegree::s_t(0, -k),
             &[1],
         );
         bottom_cell.extend_all();
@@ -187,7 +187,7 @@ impl PKData {
     ) -> Box<dyn Iterator<Item = MahowaldInvariant> + '_> {
         let b_p_k = b - Bidegree::s_t(0, 1);
         if self.resolution.has_computed_bidegree(b_p_k) {
-            let b_bottom = b_p_k + Bidegree::s_t(0, self.k as i32);
+            let b_bottom = b_p_k + Bidegree::s_t(0, self.k);
             let bottom_s_2_gens = self.s_2_resolution.number_of_gens_in_bidegree(b_bottom);
             let minus_one_s_2_gens = self.s_2_resolution.number_of_gens_in_bidegree(b);
             let p_k_gens = self.resolution.number_of_gens_in_bidegree(b_p_k);
@@ -282,8 +282,8 @@ mod tests {
     #[case(18, 3, 17, 0, 34, vec![0, 1], 0)]
     #[case(25, 6, 20, 0, 44, vec![1, 0], 1)]
     fn test_mahowald_invariants(
-        #[case] k: u32,
-        #[case] s: u32,
+        #[case] k: i32,
+        #[case] s: i32,
         #[case] input_t: i32,
         #[case] input_i: usize,
         #[case] output_t: i32,

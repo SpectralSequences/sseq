@@ -2,27 +2,27 @@
 /// maximum `t`.
 pub struct BidegreeRange<'a, T> {
     /// The maximal value of `s` in the range.
-    s: u32,
+    s: i32,
     /// The function that gives, for a given value of `s`, the maximum value for `t`.
-    t: &'a (dyn Fn(&T, u32) -> i32 + Sync),
+    t: &'a (dyn Fn(&T, i32) -> i32 + Sync),
     /// Auxillary data that `t` may depend on.
     aux: &'a T,
 }
 
 impl<'a, T> BidegreeRange<'a, T> {
-    pub fn new(aux: &'a T, s: u32, t: &'a (dyn Fn(&T, u32) -> i32 + Sync)) -> Self {
+    pub fn new(aux: &'a T, s: i32, t: &'a (dyn Fn(&T, i32) -> i32 + Sync)) -> Self {
         Self { s, t, aux }
     }
 
-    pub fn s(&self) -> u32 {
+    pub fn s(&self) -> i32 {
         self.s
     }
 
-    pub fn t(&self, s: u32) -> i32 {
+    pub fn t(&self, s: i32) -> i32 {
         (self.t)(self.aux, s)
     }
 
-    pub fn restrict(self, s: u32) -> Self {
+    pub fn restrict(self, s: i32) -> Self {
         assert!(s <= self.s);
         Self {
             s,

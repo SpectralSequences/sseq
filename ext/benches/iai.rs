@@ -2,15 +2,11 @@ use ext::{chain_complex::ChainComplex, utils::construct};
 use sseq::coordinates::Bidegree;
 
 fn benchmark(module_name: &str, max_degree: i32, algebra: &str, n_times: u128) {
-    let max = Bidegree::s_t(max_degree as u32, max_degree);
+    let max = Bidegree::s_t(max_degree, max_degree);
     for _ in 0..n_times {
         let res = construct((module_name, algebra), None).unwrap();
         res.compute_through_bidegree(max);
-        assert!(
-            res.module(max_degree as u32)
-                .number_of_gens_in_degree(max_degree)
-                < 1000
-        );
+        assert!(res.module(max_degree).number_of_gens_in_degree(max_degree) < 1000);
     }
 }
 

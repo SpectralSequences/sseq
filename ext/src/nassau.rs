@@ -35,7 +35,7 @@ use fp::{
     vector::{FpSlice, FpSliceMut, FpVector},
 };
 use itertools::Itertools;
-use once::OnceVec;
+use once::OnceBiVec;
 use sseq::coordinates::Bidegree;
 
 use crate::{
@@ -187,7 +187,7 @@ impl MilnorSubalgebra {
     fn optimal_for(b: Bidegree) -> Self {
         let b_is_in_vanishing_region = |subalgebra: &Self| {
             let coeff = (1 << subalgebra.profile.len()) - 1;
-            b.t() >= coeff * (b.s() as i32 + 1) + subalgebra.top_degree()
+            b.t() >= coeff * (b.s() + 1) + subalgebra.top_degree()
         };
         SubalgebraIterator::new()
             .take_while(b_is_in_vanishing_region)
@@ -387,11 +387,11 @@ pub struct Resolution<M: ZeroModule<Algebra = MilnorAlgebra>> {
     lock: Mutex<()>,
     name: String,
     max_degree: i32,
-    modules: OnceVec<Arc<FreeModule<MilnorAlgebra>>>,
+    modules: OnceBiVec<Arc<FreeModule<MilnorAlgebra>>>,
     zero_module: Arc<FreeModule<MilnorAlgebra>>,
-    differentials: OnceVec<Arc<FreeModuleHomomorphism<FreeModule<MilnorAlgebra>>>>,
+    differentials: OnceBiVec<Arc<FreeModuleHomomorphism<FreeModule<MilnorAlgebra>>>>,
     target: Arc<FiniteChainComplex<M>>,
-    chain_maps: OnceVec<Arc<FreeModuleHomomorphism<M>>>,
+    chain_maps: OnceBiVec<Arc<FreeModuleHomomorphism<M>>>,
     save_dir: SaveDirectory,
 }
 
@@ -428,9 +428,9 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             lock: Mutex::new(()),
             zero_module: Arc::new(FreeModule::new(target.algebra(), "F_{-1}".to_string(), 0)),
             name: String::new(),
-            modules: OnceVec::new(),
-            differentials: OnceVec::new(),
-            chain_maps: OnceVec::new(),
+            modules: OnceBiVec::new(0),
+            differentials: OnceBiVec::new(0),
+            chain_maps: OnceBiVec::new(0),
             target,
             max_degree,
             save_dir,
@@ -440,10 +440,10 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
     /// This function prepares the Resolution object to perform computations up to the
     /// specified s degree. It does *not* perform any computations by itself. It simply lengthens
     /// the `OnceVec`s `modules`, `chain_maps`, etc. to the right length.
-    fn extend_through_degree(&self, max_s: u32) {
+    fn extend_through_degree(&self, max_s: i32) {
         let min_degree = self.min_degree();
 
-        self.modules.extend(max_s as usize, |i| {
+        self.modules.extend(max_s, |i| {
             Arc::new(FreeModule::new(
                 Arc::clone(&self.algebra()),
                 format!("F{i}"),
@@ -453,13 +453,13 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
 
         self.differentials.extend(0, |_| {
             Arc::new(FreeModuleHomomorphism::new(
-                Arc::clone(&self.modules[0u32]),
+                Arc::clone(&self.modules[0]),
                 Arc::clone(&self.zero_module),
                 0,
             ))
         });
 
-        self.differentials.extend(max_s as usize, |i| {
+        self.differentials.extend(max_s, |i| {
             Arc::new(FreeModuleHomomorphism::new(
                 Arc::clone(&self.modules[i]),
                 Arc::clone(&self.modules[i - 1]),
@@ -467,10 +467,10 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             ))
         });
 
-        self.chain_maps.extend(max_s as usize, |i| {
+        self.chain_maps.extend(max_s, |i| {
             Arc::new(FreeModuleHomomorphism::new(
                 Arc::clone(&self.modules[i]),
-                self.target.module(i as u32),
+                self.target.module(i),
                 0,
             ))
         });
@@ -630,7 +630,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
 
         let num_new_gens = n.extend_image(0, n.columns(), &kernel, 0).len();
 
-        if b.t() < b.s() as i32 {
+        if b.t() < b.s() {
             assert_eq!(num_new_gens, 0, "Adding generators at {b}");
         }
 
@@ -719,11 +719,11 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
     fn step0(&self, t: i32) {
         self.zero_module.extend_by_zero(t);
 
-        let source_module = &self.modules[0usize];
+        let source_module = &self.modules[0];
         let target_module = self.target.module(0);
 
-        let chain_map = &self.chain_maps[0usize];
-        let d = &self.differentials[0usize];
+        let chain_map = &self.chain_maps[0];
+        let d = &self.differentials[0];
 
         let source_dim = source_module.dimension(t);
         let target_dim = target_module.dimension(t);
@@ -770,8 +770,8 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
     fn step1(&self, t: i32) -> anyhow::Result<()> {
         let p = self.prime();
 
-        let source_module = &self.modules[1usize];
-        let target_module = &self.modules[0usize];
+        let source_module = &self.modules[1];
+        let target_module = &self.modules[0];
         let cc_module = self.target.module(0);
 
         let source_dim = source_module.dimension(t);
@@ -779,7 +779,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
 
         let mut matrix =
             AugmentedMatrix::<2>::new(p, target_dim, [cc_module.dimension(t), target_dim]);
-        self.chain_maps[0usize].get_matrix(matrix.segment(0, 0), t);
+        self.chain_maps[0].get_matrix(matrix.segment(0, 0), t);
         matrix.segment(1, 1).add_identity();
         matrix.row_reduce();
         let desired_image = matrix.compute_kernel();
@@ -791,7 +791,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             source_dim + MAX_NEW_GENS,
             0,
         );
-        self.differentials[1usize].get_matrix(matrix.segment(0, 0), t);
+        self.differentials[1].get_matrix(matrix.segment(0, 0), t);
         matrix.segment(1, 1).add_identity();
         matrix.row_reduce();
 
@@ -799,7 +799,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
 
         source_module.add_generators(t, num_new_gens, None);
 
-        self.differentials[1usize].add_generators_from_matrix_rows(
+        self.differentials[1].add_generators_from_matrix_rows(
             t,
             matrix
                 .segment(0, 0)
@@ -959,8 +959,8 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
         self.zero_module.algebra()
     }
 
-    fn module(&self, s: u32) -> Arc<Self::Module> {
-        Arc::clone(&self.modules[s as usize])
+    fn module(&self, s: i32) -> Arc<Self::Module> {
+        Arc::clone(&self.modules[s])
     }
 
     fn zero_module(&self) -> Arc<Self::Module> {
@@ -972,11 +972,11 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
     }
 
     fn has_computed_bidegree(&self, b: Bidegree) -> bool {
-        self.differentials.len() > b.s() as usize && self.differential(b.s()).next_degree() > b.t()
+        self.differentials.len() > b.s() && self.differential(b.s()).next_degree() > b.t()
     }
 
-    fn differential(&self, s: u32) -> Arc<Self::Homomorphism> {
-        Arc::clone(&self.differentials[s as usize])
+    fn differential(&self, s: i32) -> Arc<Self::Homomorphism> {
+        Arc::clone(&self.differentials[s])
     }
 
     #[tracing::instrument(skip(self), fields(self = self.name, max = %max))]
@@ -997,8 +997,8 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
         }
     }
 
-    fn next_homological_degree(&self) -> u32 {
-        self.modules.len() as u32
+    fn next_homological_degree(&self) -> i32 {
+        self.modules.len()
     }
 
     fn save_dir(&self) -> &SaveDirectory {
@@ -1185,7 +1185,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> AugmentedChainComplex for Resolutio
         Arc::clone(&self.target)
     }
 
-    fn chain_map(&self, s: u32) -> Arc<Self::ChainMap> {
+    fn chain_map(&self, s: i32) -> Arc<Self::ChainMap> {
         Arc::clone(&self.chain_maps[s])
     }
 }

@@ -62,7 +62,7 @@ impl<
 
         assert!(Arc::ptr_eq(&left.target, &right.source));
         Self {
-            homotopies: OnceBiVec::new((left.shift + right.shift).s() as i32 - 1),
+            homotopies: OnceBiVec::new((left.shift + right.shift).s() - 1),
             left,
             right,
             lock: Mutex::new(()),
@@ -89,7 +89,7 @@ impl<
     /// Lift maps so that the chain *homotopy* is defined on `max_source`.
     pub fn extend(&self, max_source: Bidegree) {
         self.extend_profile(BidegreeRange::new(&(), max_source.s() + 1, &|_, s| {
-            max_source.t() - (max_source.s() - s) as i32 + 1
+            max_source.t() - max_source.s() + s + 1
         }));
     }
 
@@ -119,9 +119,8 @@ impl<
     /// Initialize self.homotopies to contain [`FreeModuleHomomorphisms`]s up to but excluding
     /// `max_source_s`, which can be returned by [`Self::homotopy`]. This does not actually lift
     /// the maps, which is done by [`Self::extend_all`] and [`Self::extend`].
-    pub fn initialize_homotopies(&self, max_source_s: u32) {
-        self.homotopies.extend(max_source_s as i32 - 1, |s| {
-            let s = s as u32;
+    pub fn initialize_homotopies(&self, max_source_s: i32) {
+        self.homotopies.extend(max_source_s - 1, |s| {
             Arc::new(FreeModuleHomomorphism::new(
                 self.left.source.module(s),
                 self.right.target.module(s + 1 - self.shift().s()),
@@ -158,7 +157,7 @@ impl<
         let shift = self.shift();
         let target = source + Bidegree::s_t(1, 0) - shift;
 
-        if self.homotopies[source.s() as i32].next_degree() > source.t() {
+        if self.homotopies[source.s()].next_degree() > source.t() {
             return source.t()..source.t() + 1;
         }
 
@@ -176,8 +175,7 @@ impl<
         // these values.
         if target.s() == 0 || target_dim == 0 || num_gens == 0 {
             let outputs = vec![FpVector::new(p, target_dim); num_gens];
-            return self.homotopies[source.s() as i32]
-                .add_generators_from_rows_ooo(source.t(), outputs);
+            return self.homotopies[source.s()].add_generators_from_rows_ooo(source.t(), outputs);
         }
 
         if let Some(dir) = self.save_dir.read() {
@@ -191,7 +189,7 @@ impl<
                 for _ in 0..num_gens {
                     outputs.push(FpVector::from_bytes(p, target_dim, &mut f).unwrap());
                 }
-                return self.homotopies[source.s() as i32]
+                return self.homotopies[source.s()]
                     .add_generators_from_rows_ooo(source.t(), outputs);
             }
         }
@@ -217,7 +215,7 @@ impl<
                     .as_slice(),
             );
 
-            self.homotopies[source.s() as i32 - 1].apply(
+            self.homotopies[source.s() - 1].apply(
                 scratch.as_slice_mut(),
                 p - 1,
                 source.t(),
@@ -277,11 +275,11 @@ impl<
                 row.to_bytes(&mut f).unwrap();
             }
         }
-        self.homotopies[source.s() as i32].add_generators_from_rows_ooo(source.t(), outputs)
+        self.homotopies[source.s()].add_generators_from_rows_ooo(source.t(), outputs)
     }
 
-    pub fn homotopy(&self, source_s: u32) -> Arc<FreeModuleHomomorphism<U::Module>> {
-        Arc::clone(&self.homotopies[source_s as i32])
+    pub fn homotopy(&self, source_s: i32) -> Arc<FreeModuleHomomorphism<U::Module>> {
+        Arc::clone(&self.homotopies[source_s])
     }
 
     pub fn save_dir(&self) -> &SaveDirectory {
