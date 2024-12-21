@@ -715,6 +715,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
     }
 
     /// Step resolution for s = 0
+    #[tracing::instrument(skip(self))]
     fn step0(&self, t: i32) {
         self.zero_module.extend_by_zero(t);
 
@@ -765,6 +766,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
     }
 
     /// Step resolution for s = 1
+    #[tracing::instrument(skip(self))]
     fn step1(&self, t: i32) -> anyhow::Result<()> {
         let p = self.prime();
 
@@ -837,6 +839,8 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
                 .save_file(SaveKind::NassauDifferential, b)
                 .open_file(dir.clone())
             {
+                tracing::info!("Loading differential at {b}");
+
                 let num_new_gens = f.read_u64::<LittleEndian>()? as usize;
                 // This need not be equal to `target_res_dimension`. If we saved a big resolution
                 // and now only want to load up to a small stem, then `target_res_dimension` will
