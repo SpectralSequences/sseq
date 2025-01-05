@@ -1043,7 +1043,7 @@ impl MilnorAlgebra {
                     // Now put everything together
                     let m = MilnorBasisElement {
                         p_part: new_p,
-                        q_part: term.q_part | 1 << (k + i as u32),
+                        q_part: term.q_part | (1 << (k + i as u32)),
                         degree: 0, // we don't really care about the degree here. The final degree of the whole calculation is known a priori
                     };
                     let c = if larger_q % 2 == 0 {
@@ -1588,7 +1588,7 @@ impl MilnorAlgebra {
             });
 
             let second_idx = self.basis_element_to_index(&MilnorBasisElement {
-                q_part: basis.q_part ^ 1 << i,
+                q_part: basis.q_part ^ (1 << i),
                 p_part: basis.p_part.clone(),
                 degree: second_degree,
             });

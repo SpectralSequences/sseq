@@ -263,7 +263,7 @@ impl<P: Prime> FieldInternal for SmallFq<P> {
 
     /// This is 2n + 1 if `element` is a^n, and 0 otherwise.
     fn encode(self, element: FieldElement<Self>) -> Limb {
-        element.value.0.map(|x| (x as Limb) << 1 | 1).unwrap_or(0)
+        element.value.0.map(|x| ((x as Limb) << 1) | 1).unwrap_or(0)
     }
 
     fn decode(self, element: Limb) -> FieldElement<Self> {
