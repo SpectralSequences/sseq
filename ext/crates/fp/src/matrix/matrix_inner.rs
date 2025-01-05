@@ -1,5 +1,6 @@
 use std::{fmt, io, ops::Range};
 
+use aligned_vec::AVec;
 use either::Either;
 use itertools::Itertools;
 use maybe_rayon::prelude::*;
@@ -22,8 +23,9 @@ use crate::{
 pub struct Matrix {
     fp: Fp<ValidPrime>,
     rows: usize,
+    physical_rows: usize,
     columns: usize,
-    data: Vec<Limb>,
+    data: AVec<Limb>,
     stride: usize,
     /// The pivot columns of the matrix. `pivots[n]` is `k` if column `n` is the `k`th pivot
     /// column, and a negative number otherwise. Said negative number is often -1 but this is not
@@ -55,14 +57,32 @@ impl Matrix {
     ) -> Self {
         let fp = Fp::new(p);
         let stride = fp.number(columns_capacity);
-        let mut data = Vec::with_capacity(rows_capacity * stride);
-        data.resize(rows * stride, 0);
+        let physical_rows = get_physical_rows(p, rows_capacity);
+        let mut data = AVec::with_capacity(0, physical_rows * stride);
+        data.resize(physical_rows * stride, 0);
 
         Self {
             fp,
             rows,
+            physical_rows,
             columns,
             data,
+            stride,
+            pivots: Vec::new(),
+        }
+    }
+
+    pub fn from_data(p: ValidPrime, rows: usize, columns: usize, mut data: Vec<Limb>) -> Self {
+        let fp = Fp::new(p);
+        let stride = fp.number(columns);
+        let physical_rows = get_physical_rows(p, rows);
+        data.resize(physical_rows * stride, 0);
+        Self {
+            fp,
+            rows,
+            physical_rows,
+            columns,
+            data: AVec::from_iter(0, data),
             stride,
             pivots: Vec::new(),
         }
@@ -82,7 +102,8 @@ impl Matrix {
     ) -> io::Result<Self> {
         let fp = Fp::new(p);
         let stride = fp.number(columns);
-        let mut data: Vec<Limb> = vec![0; stride * rows];
+        let physical_rows = get_physical_rows(p, rows);
+        let mut data: AVec<Limb> = aligned_vec::avec![0; stride * physical_rows];
         for row_idx in 0..rows {
             let limb_range = row_to_limb_range(row_idx, stride);
             crate::limb::from_bytes(&mut data[limb_range], buffer)?;
@@ -90,6 +111,7 @@ impl Matrix {
         Ok(Self {
             fp,
             rows,
+            physical_rows,
             columns,
             data,
             stride,
@@ -150,9 +172,26 @@ impl Matrix {
         self.rows
     }
 
+    /// Gets the physical number of rows allocated (for BLAS operations).
+    pub(crate) fn physical_rows(&self) -> usize {
+        self.physical_rows
+    }
+
     /// Gets the number of columns in the matrix.
     pub fn columns(&self) -> usize {
         self.columns
+    }
+
+    pub(crate) fn stride(&self) -> usize {
+        self.stride
+    }
+
+    pub(crate) fn data(&self) -> &[Limb] {
+        &self.data
+    }
+
+    pub(crate) fn data_mut(&mut self) -> &mut [Limb] {
+        &mut self.data
     }
 
     /// Set the pivots to -1 in every entry. This is called by [`Matrix::row_reduce`].
@@ -175,13 +214,17 @@ impl Matrix {
         let fp = Fp::new(p);
         let rows = input.len();
         let stride = fp.number(columns);
-        let mut data = Vec::with_capacity(rows * stride);
+        let physical_rows = get_physical_rows(p, rows);
+        let mut data = AVec::with_capacity(0, physical_rows * stride);
         for row in &input {
             data.extend_from_slice(row.limbs());
         }
+        // Pad with zeros for prime 2
+        data.resize(physical_rows * stride, 0);
         Self {
             fp,
             rows,
+            physical_rows,
             columns,
             data,
             stride,
@@ -214,15 +257,19 @@ impl Matrix {
         }
         let columns = input[0].len();
         let stride = fp.number(columns);
-        let mut data = Vec::with_capacity(rows * stride);
+        let physical_rows = get_physical_rows(p, rows);
+        let mut data = AVec::with_capacity(0, physical_rows * stride);
         for row in input {
             for chunk in row.chunks(fp.entries_per_limb()) {
                 data.push(fp.pack(chunk.iter().map(|x| fp.element(*x))));
             }
         }
+        // Pad with zeros for prime 2
+        data.resize(physical_rows * stride, 0);
         Self {
             fp,
             rows,
+            physical_rows,
             columns,
             data,
             stride,
@@ -245,7 +292,6 @@ impl Matrix {
             .into_iter()
             .map(|row| {
                 row.flat_map(|&limb| self.fp.unpack(limb).map(|x| x.val()))
-                    .take(self.columns())
                     .collect()
             })
             .collect()
@@ -331,12 +377,13 @@ impl Matrix {
 
 impl Matrix {
     pub fn iter(&self) -> impl Iterator<Item = FpSlice<'_>> {
-        (0..self.rows).map(move |row_idx| self.row(row_idx))
+        (0..self.rows()).map(move |row_idx| self.row(row_idx))
     }
 
     pub fn iter_mut(&mut self) -> impl Iterator<Item = FpSliceMut<'_>> {
         let p = self.prime();
         let columns = self.columns;
+        let logical_rows = self.rows;
 
         if self.stride == 0 {
             Either::Left(std::iter::empty())
@@ -344,6 +391,7 @@ impl Matrix {
             let rows = self
                 .data
                 .chunks_mut(self.stride)
+                .take(logical_rows) // Only iterate over logical rows
                 .map(move |row| FpSliceMut::new(p, row, 0, columns));
             Either::Right(rows)
         }
@@ -354,6 +402,7 @@ impl Matrix {
     ) -> impl MaybeIndexedParallelIterator<Item = FpSliceMut<'_>> {
         let p = self.prime();
         let columns = self.columns;
+        let logical_rows = self.rows;
 
         if self.stride == 0 {
             Either::Left(maybe_rayon::empty())
@@ -361,6 +410,7 @@ impl Matrix {
             let rows = self
                 .data
                 .maybe_par_chunks_mut(self.stride)
+                .take(logical_rows) // Only iterate over logical rows
                 .map(move |row| FpSliceMut::new(p, row, 0, columns));
             Either::Right(rows)
         }
@@ -622,7 +672,7 @@ impl Matrix {
         // Now reorder the vectors. There are O(n) in-place permutation algorithms but the way we
         // get the permutation makes the naive strategy easier.
         let old_len = self.data.len();
-        let old_data = std::mem::replace(&mut self.data, vec![0; old_len]);
+        let old_data = std::mem::replace(&mut self.data, aligned_vec::avec![0; old_len]);
 
         let mut new_row_idx = 0;
         for old_row in self.pivots.iter_mut().filter(|row| **row >= 0) {
@@ -814,9 +864,9 @@ impl Matrix {
     pub fn extend_column_capacity(&mut self, columns: usize) {
         let new_stride = self.fp.number(columns);
         if new_stride > self.stride {
-            self.data.resize(new_stride * self.rows, 0);
+            self.data.resize(new_stride * self.physical_rows, 0);
             // Shift row data backwards, starting from the end to avoid overwriting data.
-            for row_idx in (0..self.rows).rev() {
+            for row_idx in (0..self.physical_rows).rev() {
                 let old_row_start = row_idx * self.stride;
                 let new_row_start = row_idx * new_stride;
                 let new_row_zero_part =
@@ -839,7 +889,12 @@ impl Matrix {
 
     /// Add a row to the matrix and return a mutable reference to it.
     pub fn add_row(&mut self) -> FpSliceMut<'_> {
-        self.data.resize((self.rows + 1) * self.stride, 0);
+        // Check if we need to expand physical capacity
+        if self.rows + 1 > self.physical_rows {
+            let new_physical_rows = get_physical_rows(self.prime(), self.rows + 1);
+            self.data.resize(new_physical_rows * self.stride, 0);
+            self.physical_rows = new_physical_rows;
+        }
         self.rows += 1;
         self.row_mut(self.rows - 1)
     }
@@ -959,40 +1014,17 @@ impl Matrix {
     }
 
     pub fn trim(&mut self, row_start: usize, row_end: usize, col_start: usize) {
-        self.rows = row_end - row_start;
-        self.data.truncate(row_end * self.stride);
-        self.data.drain(0..row_start * self.stride);
-        for mut row in self.iter_mut() {
-            row.shl_assign(col_start);
+        let mut new = Self::new(self.prime(), row_end - row_start, self.columns - col_start);
+        for (i, mut row) in new.iter_mut().enumerate() {
+            row.assign(self.row(row_start + i).slice(col_start, self.columns));
         }
-        self.columns -= col_start;
+        std::mem::swap(self, &mut new);
     }
 
     /// Rotate the rows downwards in the range `range`.
     pub fn rotate_down(&mut self, range: Range<usize>, shift: usize) {
         let limb_range = row_range_to_limb_range(&range, self.stride);
         self.data[limb_range].rotate_right(shift * self.stride)
-    }
-}
-
-impl std::ops::Mul for &Matrix {
-    type Output = Matrix;
-
-    fn mul(self, rhs: Self) -> Matrix {
-        assert_eq!(self.prime(), rhs.prime());
-        assert_eq!(self.columns(), rhs.rows());
-
-        let mut result = Matrix::new(self.prime(), self.rows(), rhs.columns());
-        for i in 0..self.rows() {
-            for j in 0..rhs.columns() {
-                for k in 0..self.columns() {
-                    result
-                        .row_mut(i)
-                        .add_basis_element(j, self.row(i).entry(k) * rhs.row(k).entry(j));
-                }
-            }
-        }
-        result
     }
 }
 
@@ -1138,6 +1170,18 @@ fn row_to_limb_range(row: usize, stride: usize) -> Range<usize> {
 
 fn row_range_to_limb_range(row_range: &Range<usize>, stride: usize) -> Range<usize> {
     row_range.start * stride..row_range.end * stride
+}
+
+fn get_physical_rows(p: ValidPrime, rows: usize) -> usize {
+    if p == 2 && rows >= 32 {
+        // For 32+ rows, pad to next multiple of 64 for BLAS optimization
+        // This bounds the memory overhead to at most 2x (for 32 rows → 64 rows)
+        rows.next_multiple_of(64)
+    } else {
+        // For < 32 rows, don't pad (would waste too much memory)
+        // These small matrices will use scalar multiplication
+        rows
+    }
 }
 
 /// This models an augmented matrix.
