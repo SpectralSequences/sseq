@@ -667,7 +667,7 @@
 
     <span class="doccomment">/// This is 2n + 1 if `element` is a^n, and 0 otherwise.
     </span><span class="kw">fn </span>encode(<span class="self">self</span>, element: FieldElement&lt;<span class="self">Self</span>&gt;) -&gt; Limb {
-        element.value.<span class="number">0</span>.map(|x| (x <span class="kw">as </span>Limb) &lt;&lt; <span class="number">1 </span>| <span class="number">1</span>).unwrap_or(<span class="number">0</span>)
+        element.value.<span class="number">0</span>.map(|x| ((x <span class="kw">as </span>Limb) &lt;&lt; <span class="number">1</span>) | <span class="number">1</span>).unwrap_or(<span class="number">0</span>)
     }
 
     <span class="kw">fn </span>decode(<span class="self">self</span>, element: Limb) -&gt; FieldElement&lt;<span class="self">Self</span>&gt; {

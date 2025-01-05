@@ -23,89 +23,84 @@
     });
 </script>
 
-</head><body class="rustdoc mod crate"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../ext/index.html">ext</a><span class="version">0.1.0</span></h2></div><div class="sidebar-elems"><ul class="block"><li><a id="all-types" href="all.html">All Items</a></li></ul><section id="rustdoc-toc"><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#examples" title="Examples">Examples</a><ul><li><a href="#running-an-example" title="Running an example">Running an example</a></li><li><a href="#prompts-and-arguments" title="Prompts and arguments">Prompts and arguments</a></li><li><a href="#conventions" title="Conventions">Conventions</a></li></ul></li><li><a href="#list-of-examples" title="List of examples">List of examples</a></li><li><a href="#subcrates" title="Subcrates">Subcrates</a></li><li><a href="#features" title="Features">Features</a></li></ul><h3><a href="#modules">Crate Items</a></h3><ul class="block"><li><a href="#modules" title="Modules">Modules</a></li><li><a href="#types" title="Type Aliases">Type Aliases</a></li></ul></section><div id="rustdoc-modnav"></div></div></nav><div class="sidebar-resizer"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1>Crate <span>ext</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../src/ext/lib.rs.html#1-191">source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p><code>ext-rs</code> is a collection of libraries for doing homological algebra over $\F_p$. The
-main and original purpose is to compute Ext of a Steenrod module, but the library is written to
-be sufficiently generic to deal with more general applications.</p>
+</head><body class="rustdoc mod crate"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../ext/index.html">ext</a><span class="version">0.1.0</span></h2></div><div class="sidebar-elems"><ul class="block"><li><a id="all-types" href="all.html">All Items</a></li></ul><section id="rustdoc-toc"><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#examples" title="Examples">Examples</a><ul><li><a href="#running-an-example" title="Running an example">Running an example</a></li><li><a href="#prompts-and-arguments" title="Prompts and arguments">Prompts and arguments</a></li><li><a href="#conventions" title="Conventions">Conventions</a></li></ul></li><li><a href="#list-of-examples" title="List of examples">List of examples</a></li><li><a href="#subcrates" title="Subcrates">Subcrates</a></li><li><a href="#features" title="Features">Features</a></li></ul><h3><a href="#modules">Crate Items</a></h3><ul class="block"><li><a href="#modules" title="Modules">Modules</a></li><li><a href="#types" title="Type Aliases">Type Aliases</a></li></ul></section><div id="rustdoc-modnav"></div></div></nav><div class="sidebar-resizer"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1>Crate <span>ext</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../src/ext/lib.rs.html#1-189">source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p><code>ext-rs</code> is a collection of libraries for doing homological algebra over $\F_p$. The main and
+original purpose is to compute Ext of a Steenrod module, but the library is written to be
+sufficiently generic to deal with more general applications.</p>
 <h2 id="examples"><a class="doc-anchor" href="#examples">§</a>Examples</h2>
-<p>The library comes with a number of “example” binaries that use the library for various
-purposes. These can be used directly to perform specific computations, or act as actual
-examples for how to use the library.</p>
+<p>The library comes with a number of “example” binaries that use the library for various purposes.
+These can be used directly to perform specific computations, or act as actual examples for how
+to use the library.</p>
 <h3 id="running-an-example"><a class="doc-anchor" href="#running-an-example">§</a>Running an example</h3>
 <p>An example can be run by executing the command</p>
 <div class="example-wrap"><pre class="language-sh"><code> $ cargo run --example EXAMPLE_NAME</code></pre></div>
 <p>There are various flags that can be useful to supply:</p>
 <ul>
-<li><code>--release</code> compiles the code in release mode. This increases compilation
-time, but results in a much faster binary. This also disables some expensive
-run-time sanity checks.</li>
+<li><code>--release</code> compiles the code in release mode. This increases compilation time, but results
+in a much faster binary. This also disables some expensive run-time sanity checks.</li>
 <li><code>--no-default-features</code> disables support for odd primes.</li>
 <li><code>--features concurrent</code> compiles the program with multi-threading support. It defaults to
 using all CPU cores, and can be configured via <code>RAYON_NUM_THREADS</code>.</li>
 </ul>
-<p>These are supplied right after <code>cargo run</code>, in any order. In general, one
-should set all of these flags for any non-trivial calculation at the prime 2. See the
-<a href="#features">Features</a> section for other features that can be enabled.</p>
-<p>Each example runs interactively, and prompts the user for input. For example,
-the following session computes all filtration one products in $\Ext(C2, \F_2)$ and
-prints them to <code>stdout</code>:</p>
+<p>These are supplied right after <code>cargo run</code>, in any order. In general, one should set all of
+these flags for any non-trivial calculation at the prime 2. See the <a href="#features">Features</a>
+section for other features that can be enabled.</p>
+<p>Each example runs interactively, and prompts the user for input. For example, the following
+session computes all filtration one products in $\Ext(C2, \F_2)$ and prints them to <code>stdout</code>:</p>
 <div class="example-wrap"><pre class="language-sh"><code> $ cargo run --features concurrent --example filtration_one
 Module (default: S_2): C2
 Module save directory (optional):
 Max n (default: 30): 40
 Max s (default: 7): 20</code></pre></div>
 <p>In each line, the text after the final <code>:</code> is input by the user.</p>
-<p>In general, we write the output to <code>stdout</code> and the prompts to <code>stderr</code>. This
-allows the user to redirect the output to another file or program.</p>
+<p>In general, we write the output to <code>stdout</code> and the prompts to <code>stderr</code>. This allows the user to
+redirect the output to another file or program.</p>
 <h3 id="prompts-and-arguments"><a class="doc-anchor" href="#prompts-and-arguments">§</a>Prompts and arguments</h3>
-<p>Each prompt asks the user for an input, which is submitted by pressing the
-Enter/Return key. If the input is invalid, an error message is produced and the
-user is queried for the same input again. To exit the program early, one sends
-a <code>SIGTERM</code>, e.g. via <code>Ctrl-C</code>.</p>
-<p>Some prompts are optional or have default values. To select the <code>None</code> or
-default option, simply supply an empty input.</p>
-<p>To facilitate batch processing, answers to the prompt can be supplied as
-command line arguments instead; the nth command line argument is treated as the
-answer to the nth prompt. For example, the previous interaction can be called by</p>
+<p>Each prompt asks the user for an input, which is submitted by pressing the Enter/Return key. If
+the input is invalid, an error message is produced and the user is queried for the same input
+again. To exit the program early, one sends a <code>SIGTERM</code>, e.g. via <code>Ctrl-C</code>.</p>
+<p>Some prompts are optional or have default values. To select the <code>None</code> or default option, simply
+supply an empty input.</p>
+<p>To facilitate batch processing, answers to the prompt can be supplied as command line arguments
+instead; the nth command line argument is treated as the answer to the nth prompt. For example,
+the previous interaction can be called by</p>
 <div class="example-wrap"><pre class="language-sh"><code> $ cargo run --features concurrent --example filtration_one -- C2 &quot;&quot; 2 40 20</code></pre></div><h3 id="conventions"><a class="doc-anchor" href="#conventions">§</a>Conventions</h3><h4 id="module-specification"><a class="doc-anchor" href="#module-specification">§</a>Module specification</h4>
-<p>Each Steenrod module is defined in a <code>json</code> file, and a collection of such
-modules are available in the <code>steenrod_modules/</code> subdirectory. New modules can
-be defined using the <a href="../define_module/index.html"><code>define_module</code></a> example.</p>
-<p>Modules are specified using their file names, excluding the <code>.json</code> extension.
-Module files are searched in the following order:</p>
+<p>Each Steenrod module is defined in a <code>json</code> file, and a collection of such modules are available
+in the <code>steenrod_modules/</code> subdirectory. New modules can be defined using the
+<a href="../define_module/index.html"><code>define_module</code></a> example.</p>
+<p>Modules are specified using their file names, excluding the <code>.json</code> extension. Module files are
+searched in the following order:</p>
 <ol>
 <li>The current working directory</li>
 <li>The <code>steenrod_modules/</code> subdirectory of the current directory</li>
 <li>The fixed directory <code>ext/steenrod_modules/</code> relative to the repository.</li>
 </ol>
-<p>For example, the module defined by <code>steenrod_modules/Ceta.json</code> can be
-specified with the name <code>Ceta</code>. It is possible to apply a degree shift to the
-module without having to define a new one. For example, to shift <code>Ceta</code> by one,
-we supply <code>Ceta[1]</code>.</p>
-<p>When resolving a module, we have to pick a basis of the Steenrod algebra, which
-is either the Adem basis or the Milnor basis. The default choice is the Milnor
-basis. We can specify the basis by appending <code>@basis_name</code>. For example, if we
-want to resolve <code>Ceta[1]</code> with the Adem basis, we can specify it as <code>Ceta[1]@adem</code>.</p>
+<p>For example, the module defined by <code>steenrod_modules/Ceta.json</code> can be specified with the name
+<code>Ceta</code>. It is possible to apply a degree shift to the module without having to define a new one.
+For example, to shift <code>Ceta</code> by one, we supply <code>Ceta[1]</code>.</p>
+<p>When resolving a module, we have to pick a basis of the Steenrod algebra, which is either the
+Adem basis or the Milnor basis. The default choice is the Milnor basis. We can specify the basis
+by appending <code>@basis_name</code>. For example, if we want to resolve <code>Ceta[1]</code> with the Adem basis, we
+can specify it as <code>Ceta[1]@adem</code>.</p>
 <h4 id="ext-elements"><a class="doc-anchor" href="#ext-elements">§</a>Ext elements</h4>
-<p>Each Ext group comes with a basis. The ith basis element of $\Ext^{s, n + s}$ is
-denoted <code>x_(n, s, i)</code>. If we want to specify an element in a particular Ext
-group, we either write it as a linear combination of the <code>x_(n, s, i)</code>, or
-written as a vector of the form e.g. <code>[0, 1, 0]</code>. In the latter case, the bidegree is implicit.</p>
+<p>Each Ext group comes with a basis. The ith basis element of $\Ext^{s, n + s}$ is denoted <code>x_(n, s, i)</code>. If we want to specify an element in a particular Ext group, we either write it as a
+linear combination of the <code>x_(n, s, i)</code>, or written as a vector of the form e.g. <code>[0, 1, 0]</code>. In
+the latter case, the bidegree is implicit.</p>
 <h4 id="save-directory"><a class="doc-anchor" href="#save-directory">§</a>Save directory</h4>
 <p>For most scripts, one can specify a save directory for each module. All save data relating to
 the module will be saved in this directory, including resolution data, products, secondary
 Steenrod algebra computations etc. For products, the data is saved in the save directory of the
 source of the chain map.</p>
-<p>In general, the data for each bidegree (or each generator in some cases) is stored in a
-separate file in an appropriate directory. This lets us only load the data we need when doing a
+<p>In general, the data for each bidegree (or each generator in some cases) is stored in a separate
+file in an appropriate directory. This lets us only load the data we need when doing a
 computation, and protects against corruption when the program is terminated halfway through
 writing (only the data for said bidegree would be corrupted).</p>
-<p>For products, the subdirectory will be named after the name of the product. One must not reuse
-a name for different products; the script may produce and write erroneous results silently in
-such cases (though it practice it is likely to hit some error sooner or later).</p>
-<p>If the script is compiled with the <code>zstd</code> feature, then it supports reading from zstd
-compressed save files, where each save file is individually compressed. The script will first
-look for the uncompressed file. If it does not exist, it then looks for the file with the same
-name but with a <code>.zst</code> extension.</p>
+<p>For products, the subdirectory will be named after the name of the product. One must not reuse a
+name for different products; the script may produce and write erroneous results silently in such
+cases (though it practice it is likely to hit some error sooner or later).</p>
+<p>If the script is compiled with the <code>zstd</code> feature, then it supports reading from zstd compressed
+save files, where each save file is individually compressed. The script will first look for the
+uncompressed file. If it does not exist, it then looks for the file with the same name but with
+a <code>.zst</code> extension.</p>
 <p>Note that any new save file will still be written uncompressed. To compress the files, one must
 run the <code>zstd</code> program on each file in the save directory. It is safe to remove the original
 file after compression (i.e. run with the <code>--rm</code> option).</p>
@@ -149,11 +144,13 @@ is as follows:</p>
 feature offers significant improvements at the prime 2.</li>
 <li><code>concurrent</code>: Use multiple threads for computations. The number of threads used can be
 configured via the <code>RAYON_NUM_THREADS</code> environment variable.</li>
-<li><code>zstd</code>: Support reading zstd-compressed save files.</li>
+<li><code>zstd</code>: Support reading zstd-compressed save files. Note that the save files are still written
+uncompressed. If compression is desired, output files need to be compressed manually.</li>
 <li><code>cache-multiplication</code>: Precompute and cache the multiplication table under the Milnor basis.
 This is only feasible when using a small, finite subalgebra, e.g. when working with
 $\mathrm{tmf}$ modules.</li>
-<li><code>logging</code>: Print timing information of the computations to stderr.</li>
+<li><code>logging</code>: Print timing information of the computations to stderr. Note that this has no
+effect unless the <code>RUST_LOG</code> environment variable is set appropriately.</li>
 <li><code>nassau</code>: Use Nassau’s algorithm to compute the minimal resolution instead of the usual
 minimal resolution algorithm. When this feature is enabled, only finite dimensional modules
 at the prime 2 can be resolved.</li>

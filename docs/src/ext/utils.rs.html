@@ -587,7 +587,9 @@
 <a href="#561" id="561">561</a>
 <a href="#562" id="562">562</a>
 <a href="#563" id="563">563</a>
-<a href="#564" id="564">564</a></pre></div><pre class="rust"><code><span class="doccomment">//! A module containing various utility functions related to user interaction in some way.
+<a href="#564" id="564">564</a>
+<a href="#565" id="565">565</a>
+<a href="#566" id="566">566</a></pre></div><pre class="rust"><code><span class="doccomment">//! A module containing various utility functions related to user interaction in some way.
 </span><span class="kw">use </span>std::{path::PathBuf, sync::Arc};
 
 <span class="kw">use </span>algebra::{
@@ -1130,6 +1132,8 @@
     <span class="kw">pub fn </span>init_logging() {
         tracing::subscriber::set_global_default(ext_tracing_subscriber())
             .expect(<span class="string">"Failed to enable logging"</span>);
+
+        <span class="macro">tracing::info!</span>(<span class="string">"Logging initialized"</span>);
     }
 }
 

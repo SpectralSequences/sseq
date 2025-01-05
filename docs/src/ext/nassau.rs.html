@@ -1300,7 +1300,11 @@
 <a href="#1274" id="1274">1274</a>
 <a href="#1275" id="1275">1275</a>
 <a href="#1276" id="1276">1276</a>
-<a href="#1277" id="1277">1277</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module implements [Nassau's algorithm](https://arxiv.org/abs/1910.04063).
+<a href="#1277" id="1277">1277</a>
+<a href="#1278" id="1278">1278</a>
+<a href="#1279" id="1279">1279</a>
+<a href="#1280" id="1280">1280</a>
+<a href="#1281" id="1281">1281</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module implements [Nassau's algorithm](https://arxiv.org/abs/1910.04063).
 //!
 //! The main export is the [`Resolution`] object, which is a resolution of the sphere at the prime 2
 //! using Nassau's algorithm. It aims to provide an API similar to
@@ -2017,6 +2021,7 @@
     }
 
     <span class="doccomment">/// Step resolution for s = 0
+    </span><span class="attr">#[tracing::instrument(skip(<span class="self">self</span>))]
     </span><span class="kw">fn </span>step0(<span class="kw-2">&amp;</span><span class="self">self</span>, t: i32) {
         <span class="self">self</span>.zero_module.extend_by_zero(t);
 
@@ -2067,6 +2072,7 @@
     }
 
     <span class="doccomment">/// Step resolution for s = 1
+    </span><span class="attr">#[tracing::instrument(skip(<span class="self">self</span>))]
     </span><span class="kw">fn </span>step1(<span class="kw-2">&amp;</span><span class="self">self</span>, t: i32) -&gt; anyhow::Result&lt;()&gt; {
         <span class="kw">let </span>p = <span class="self">self</span>.prime();
 
@@ -2139,6 +2145,8 @@
                 </span>.save_file(SaveKind::NassauDifferential, b)
                 .open_file(dir.clone())
             {
+                <span class="macro">tracing::info!</span>(<span class="string">"Loading differential at {b}"</span>);
+
                 <span class="kw">let </span>num_new_gens = f.read_u64::&lt;LittleEndian&gt;()<span class="question-mark">? </span><span class="kw">as </span>usize;
                 <span class="comment">// This need not be equal to `target_res_dimension`. If we saved a big resolution
                 // and now only want to load up to a small stem, then `target_res_dimension` will

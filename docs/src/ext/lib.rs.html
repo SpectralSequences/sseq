@@ -212,17 +212,15 @@
 <a href="#186" id="186">186</a>
 <a href="#187" id="187">187</a>
 <a href="#188" id="188">188</a>
-<a href="#189" id="189">189</a>
-<a href="#190" id="190">190</a>
-<a href="#191" id="191">191</a></pre></div><pre class="rust"><code><span class="doccomment">//! `ext-rs` is a collection of libraries for doing homological algebra over $\F_p$. The
-//! main and original purpose is to compute Ext of a Steenrod module, but the library is written to
-//! be sufficiently generic to deal with more general applications.
+<a href="#189" id="189">189</a></pre></div><pre class="rust"><code><span class="doccomment">//! `ext-rs` is a collection of libraries for doing homological algebra over $\F_p$. The main and
+//! original purpose is to compute Ext of a Steenrod module, but the library is written to be
+//! sufficiently generic to deal with more general applications.
 //!
 //! # Examples
 //!
-//! The library comes with a number of "example" binaries that use the library for various
-//! purposes. These can be used directly to perform specific computations, or act as actual
-//! examples for how to use the library.
+//! The library comes with a number of "example" binaries that use the library for various purposes.
+//! These can be used directly to perform specific computations, or act as actual examples for how
+//! to use the library.
 //!
 //! ## Running an example
 //!
@@ -233,20 +231,18 @@
 //!
 //! There are various flags that can be useful to supply:
 //!
-//!  - `--release` compiles the code in release mode. This increases compilation
-//!    time, but results in a much faster binary. This also disables some expensive
-//!    run-time sanity checks.
+//!  - `--release` compiles the code in release mode. This increases compilation time, but results
+//!    in a much faster binary. This also disables some expensive run-time sanity checks.
 //!  - `--no-default-features` disables support for odd primes.
 //!  - `--features concurrent` compiles the program with multi-threading support. It defaults to
 //!    using all CPU cores, and can be configured via `RAYON_NUM_THREADS`.
 //!
-//! These are supplied right after `cargo run`, in any order. In general, one
-//! should set all of these flags for any non-trivial calculation at the prime 2. See the
-//! [Features](#features) section for other features that can be enabled.
+//! These are supplied right after `cargo run`, in any order. In general, one should set all of
+//! these flags for any non-trivial calculation at the prime 2. See the [Features](#features)
+//! section for other features that can be enabled.
 //!
-//! Each example runs interactively, and prompts the user for input. For example,
-//! the following session computes all filtration one products in $\Ext(C2, \F_2)$ and
-//! prints them to `stdout`:
+//! Each example runs interactively, and prompts the user for input. For example, the following
+//! session computes all filtration one products in $\Ext(C2, \F_2)$ and prints them to `stdout`:
 //!
 //! ```sh
 //!  $ cargo run --features concurrent --example filtration_one
@@ -257,21 +253,20 @@
 //! ```
 //! In each line, the text after the final `:` is input by the user.
 //!
-//! In general, we write the output to `stdout` and the prompts to `stderr`. This
-//! allows the user to redirect the output to another file or program.
+//! In general, we write the output to `stdout` and the prompts to `stderr`. This allows the user to
+//! redirect the output to another file or program.
 //!
 //! ## Prompts and arguments
-//! Each prompt asks the user for an input, which is submitted by pressing the
-//! Enter/Return key. If the input is invalid, an error message is produced and the
-//! user is queried for the same input again. To exit the program early, one sends
-//! a `SIGTERM`, e.g. via `Ctrl-C`.
+//! Each prompt asks the user for an input, which is submitted by pressing the Enter/Return key. If
+//! the input is invalid, an error message is produced and the user is queried for the same input
+//! again. To exit the program early, one sends a `SIGTERM`, e.g. via `Ctrl-C`.
 //!
-//! Some prompts are optional or have default values. To select the `None` or
-//! default option, simply supply an empty input.
+//! Some prompts are optional or have default values. To select the `None` or default option, simply
+//! supply an empty input.
 //!
-//! To facilitate batch processing, answers to the prompt can be supplied as
-//! command line arguments instead; the nth command line argument is treated as the
-//! answer to the nth prompt. For example, the previous interaction can be called by
+//! To facilitate batch processing, answers to the prompt can be supplied as command line arguments
+//! instead; the nth command line argument is treated as the answer to the nth prompt. For example,
+//! the previous interaction can be called by
 //! ```sh
 //!  $ cargo run --features concurrent --example filtration_one -- C2 "" 2 40 20
 //! ```
@@ -279,32 +274,31 @@
 //! ## Conventions
 //!
 //! ### Module specification
-//! Each Steenrod module is defined in a `json` file, and a collection of such
-//! modules are available in the `steenrod_modules/` subdirectory. New modules can
-//! be defined using the [`define_module`](../define_module/index.html) example.
+//! Each Steenrod module is defined in a `json` file, and a collection of such modules are available
+//! in the `steenrod_modules/` subdirectory. New modules can be defined using the
+//! [`define_module`](../define_module/index.html) example.
 //!
-//! Modules are specified using their file names, excluding the `.json` extension.
-//! Module files are searched in the following order:
+//! Modules are specified using their file names, excluding the `.json` extension. Module files are
+//! searched in the following order:
 //!
 //!  1. The current working directory
 //!  2. The `steenrod_modules/` subdirectory of the current directory
 //!  3. The fixed directory `ext/steenrod_modules/` relative to the repository.
 //!
-//! For example, the module defined by `steenrod_modules/Ceta.json` can be
-//! specified with the name `Ceta`. It is possible to apply a degree shift to the
-//! module without having to define a new one. For example, to shift `Ceta` by one,
-//! we supply `Ceta[1]`.
+//! For example, the module defined by `steenrod_modules/Ceta.json` can be specified with the name
+//! `Ceta`. It is possible to apply a degree shift to the module without having to define a new one.
+//! For example, to shift `Ceta` by one, we supply `Ceta[1]`.
 //!
-//! When resolving a module, we have to pick a basis of the Steenrod algebra, which
-//! is either the Adem basis or the Milnor basis. The default choice is the Milnor
-//! basis. We can specify the basis by appending `@basis_name`. For example, if we
-//! want to resolve `Ceta[1]` with the Adem basis, we can specify it as `Ceta[1]@adem`.
+//! When resolving a module, we have to pick a basis of the Steenrod algebra, which is either the
+//! Adem basis or the Milnor basis. The default choice is the Milnor basis. We can specify the basis
+//! by appending `@basis_name`. For example, if we want to resolve `Ceta[1]` with the Adem basis, we
+//! can specify it as `Ceta[1]@adem`.
 //!
 //! ### Ext elements
-//! Each Ext group comes with a basis. The ith basis element of $\Ext^{s, n + s}$ is
-//! denoted `x_(n, s, i)`. If we want to specify an element in a particular Ext
-//! group, we either write it as a linear combination of the `x_(n, s, i)`, or
-//! written as a vector of the form e.g. `[0, 1, 0]`. In the latter case, the bidegree is implicit.
+//! Each Ext group comes with a basis. The ith basis element of $\Ext^{s, n + s}$ is denoted `x_(n,
+//! s, i)`. If we want to specify an element in a particular Ext group, we either write it as a
+//! linear combination of the `x_(n, s, i)`, or written as a vector of the form e.g. `[0, 1, 0]`. In
+//! the latter case, the bidegree is implicit.
 //!
 //! ### Save directory
 //! For most scripts, one can specify a save directory for each module. All save data relating to
@@ -312,19 +306,19 @@
 //! Steenrod algebra computations etc. For products, the data is saved in the save directory of the
 //! source of the chain map.
 //!
-//! In general, the data for each bidegree (or each generator in some cases) is stored in a
-//! separate file in an appropriate directory. This lets us only load the data we need when doing a
+//! In general, the data for each bidegree (or each generator in some cases) is stored in a separate
+//! file in an appropriate directory. This lets us only load the data we need when doing a
 //! computation, and protects against corruption when the program is terminated halfway through
 //! writing (only the data for said bidegree would be corrupted).
 //!
-//! For products, the subdirectory will be named after the name of the product. One must not reuse
-//! a name for different products; the script may produce and write erroneous results silently in
-//! such cases (though it practice it is likely to hit some error sooner or later).
+//! For products, the subdirectory will be named after the name of the product. One must not reuse a
+//! name for different products; the script may produce and write erroneous results silently in such
+//! cases (though it practice it is likely to hit some error sooner or later).
 //!
-//! If the script is compiled with the `zstd` feature, then it supports reading from zstd
-//! compressed save files, where each save file is individually compressed. The script will first
-//! look for the uncompressed file. If it does not exist, it then looks for the file with the same
-//! name but with a `.zst` extension.
+//! If the script is compiled with the `zstd` feature, then it supports reading from zstd compressed
+//! save files, where each save file is individually compressed. The script will first look for the
+//! uncompressed file. If it does not exist, it then looks for the file with the same name but with
+//! a `.zst` extension.
 //!
 //! Note that any new save file will still be written uncompressed. To compress the files, one must
 //! run the `zstd` program on each file in the save directory. It is safe to remove the original
@@ -374,11 +368,13 @@
 //!   feature offers significant improvements at the prime 2.
 //! - `concurrent`: Use multiple threads for computations. The number of threads used can be
 //!   configured via the `RAYON_NUM_THREADS` environment variable.
-//! - `zstd`: Support reading zstd-compressed save files.
+//! - `zstd`: Support reading zstd-compressed save files. Note that the save files are still written
+//!   uncompressed. If compression is desired, output files need to be compressed manually.
 //! - `cache-multiplication`: Precompute and cache the multiplication table under the Milnor basis.
 //!    This is only feasible when using a small, finite subalgebra, e.g. when working with
 //!    $\mathrm{tmf}$ modules.
-//! - `logging`: Print timing information of the computations to stderr.
+//! - `logging`: Print timing information of the computations to stderr. Note that this has no
+//!   effect unless the `RUST_LOG` environment variable is set appropriately.
 //! - `nassau`: Use Nassau's algorithm to compute the minimal resolution instead of the usual
 //!    minimal resolution algorithm. When this feature is enabled, only finite dimensional modules
 //!    at the prime 2 can be resolved.
