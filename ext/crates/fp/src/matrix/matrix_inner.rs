@@ -8,6 +8,7 @@ use maybe_rayon::prelude::*;
 
 use super::{QuasiInverse, Subspace};
 use crate::{
+    field::{Field, Fp},
     matrix::m4ri::M4riTable,
     prime::{self, ValidPrime},
     vector::{FpSlice, FpSliceMut, FpVector},
@@ -20,7 +21,7 @@ use crate::{
 /// vectors as row vectors.
 #[derive(Clone)]
 pub struct Matrix {
-    p: ValidPrime,
+    fp: Fp<ValidPrime>,
     columns: usize,
     vectors: Vec<FpVector>,
     /// The pivot columns of the matrix. `pivots[n]` is `k` if column `n` is the `k`th pivot
@@ -46,7 +47,7 @@ impl Matrix {
             vectors.push(FpVector::new(p, columns));
         }
         Self {
-            p,
+            fp: Fp::new(p),
             columns,
             vectors,
             pivots: Vec::new(),
@@ -65,7 +66,7 @@ impl Matrix {
             vectors.push(FpVector::new_with_capacity(p, columns, columns_capacity));
         }
         Self {
-            p,
+            fp: Fp::new(p),
             columns,
             vectors,
             pivots: Vec::new(),
@@ -89,7 +90,7 @@ impl Matrix {
             vectors.push(FpVector::from_bytes(p, columns, data)?);
         }
         Ok(Self {
-            p,
+            fp: Fp::new(p),
             columns,
             vectors,
             pivots: Vec::new(),
@@ -142,7 +143,7 @@ impl Matrix {
 
 impl Matrix {
     pub fn prime(&self) -> ValidPrime {
-        self.p
+        self.fp.characteristic()
     }
 
     /// Gets the number of rows in the matrix.
@@ -173,7 +174,7 @@ impl Matrix {
     /// `0 x n` matrices will have an empty Vec, and we have to distinguish between them.
     pub fn from_rows(p: ValidPrime, rows: Vec<FpVector>, columns: usize) -> Self {
         Self {
-            p,
+            fp: Fp::new(p),
             columns,
             vectors: rows,
             pivots: Vec::new(),
@@ -208,7 +209,7 @@ impl Matrix {
             vectors.push(FpVector::from_slice(p, row));
         }
         Self {
-            p,
+            fp: Fp::new(p),
             columns,
             vectors,
             pivots: Vec::new(),
@@ -461,7 +462,7 @@ impl Matrix {
         &mut self,
         permutation: T,
     ) -> Vec<usize> {
-        let p = self.p;
+        let p = self.prime();
         let rows = self.rows();
         let mut pivots = Vec::with_capacity(rows);
 
@@ -535,12 +536,12 @@ impl Matrix {
     /// assert_eq!(m, Matrix::from_vec(p, &result));
     /// ```
     pub fn row_reduce(&mut self) -> usize {
-        let p = self.p;
+        let p = self.prime();
         self.initialize_pivots();
 
         let mut empty_rows = Vec::with_capacity(self.rows());
 
-        if self.p == 2 {
+        if p == 2 {
             // the m4ri C library uses a similar formula but with a hard cap of 7 instead of 8
             let k = std::cmp::min(8, crate::prime::log2(1 + self.rows()) * 3 / 4);
             let mut table = M4riTable::new(k, self.columns());
@@ -753,7 +754,7 @@ impl Matrix {
     /// assert_eq!(ker.row(0).iter().collect::<Vec<u32>>(), vec![1, 1, 2]);
     /// ```
     pub fn compute_kernel(&self, first_source_column: usize) -> Subspace {
-        let p = self.p;
+        let p = self.prime();
         let rows = self.rows();
         let columns = self.columns();
         let source_dimension = columns - first_source_column;
@@ -910,7 +911,7 @@ impl Matrix {
         for i in 0..input.len() {
             result.add(
                 self.vectors[i].as_slice(),
-                (coeff * input.entry(i)) % self.p,
+                (coeff * input.entry(i)) % self.prime(),
             );
         }
     }
@@ -947,7 +948,7 @@ impl std::ops::Mul for &Matrix {
 impl std::ops::MulAssign<u32> for Matrix {
     fn mul_assign(&mut self, rhs: u32) {
         #[allow(clippy::suspicious_op_assign_impl)]
-        let rhs = rhs % self.p;
+        let rhs = rhs % self.prime();
         for row in self.iter_mut() {
             row.scale(rhs);
         }
