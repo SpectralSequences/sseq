@@ -69,7 +69,7 @@ impl<S: Module, T: Module<Algebra = S::Algebra>> ModuleHomomorphism
     ) {
         let output_degree = input_degree - self.degree_shift;
         if let Some(matrix) = self.matrices.get(output_degree) {
-            result.add(matrix[input_idx].as_slice(), coeff);
+            result.add(matrix.row(input_idx), coeff);
         }
     }
 
@@ -224,7 +224,7 @@ impl<S: Module> IdentityHomomorphism<S> for FullModuleHomomorphism<S, S> {
             let dim = source.dimension(i);
             let mut matrix = Matrix::new(p, dim, dim);
             for k in 0..dim {
-                matrix[k].set_entry(k, 1);
+                matrix.row_mut(k).set_entry(k, 1);
             }
             matrices.push(matrix);
         }
