@@ -118,9 +118,9 @@ fn main() -> anyhow::Result<()> {
         if matrix.rows() == 0 || matrix.columns() == 0 {
             hom.extend_step(input, None);
         } else {
-            for (idx, row) in matrix.iter_mut().enumerate() {
+            for (idx, mut row) in matrix.iter_mut().enumerate() {
                 let g = BidegreeGenerator::new(input, idx);
-                let v: Vec<u32> = query::vector(&format!("f(x_{g}"), row.len());
+                let v: Vec<u32> = query::vector(&format!("f(x_{g}"), row.as_slice().len());
                 for (i, &x) in v.iter().enumerate() {
                     row.set_entry(i, x);
                 }

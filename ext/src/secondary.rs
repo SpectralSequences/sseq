@@ -1036,14 +1036,14 @@ where
                     .zip_eq(&m0[i])
                     .for_each(|(a, b)| *a += v * b * sign);
                 out.slice_mut(source_num_gens, source_num_gens + lambda_num_gens)
-                    .add(m1[i].as_slice(), (v * sign) % p);
+                    .add(m1.row(i), (v * sign) % p);
             }
             for (i, v) in scratch0.iter().enumerate() {
                 out.add_basis_element(i, *v % p);
 
                 let extra = *v / p;
                 out.slice_mut(source_num_gens, source_num_gens + lambda_num_gens)
-                    .add(mp[i].as_slice(), (extra * filtration_one_sign) % p);
+                    .add(mp.row(i), (extra * filtration_one_sign) % p);
             }
             if let Some(page_data) = page_data {
                 page_data.reduce_by_quotient(

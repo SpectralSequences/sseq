@@ -9,12 +9,6 @@ pub mod prelude {
         }
     }
 
-    pub trait MaybeIntoParallelRefMutIterator<'data> {
-        type Iter;
-
-        fn maybe_par_iter_mut(&'data mut self) -> Self::Iter;
-    }
-
     pub struct MaybeIterBridge<Iter>(Iter);
 
     pub trait MaybeParallelBridge: Sized {
@@ -39,17 +33,6 @@ pub mod prelude {
     impl<I: Iterator> MaybeIndexedParallelIterator for I {}
 
     impl<I: IntoIterator> IntoMaybeParallelIterator for I {}
-
-    impl<'data, I: 'data + ?Sized> MaybeIntoParallelRefMutIterator<'data> for I
-    where
-        &'data mut I: IntoIterator,
-    {
-        type Iter = <&'data mut I as IntoIterator>::IntoIter;
-
-        fn maybe_par_iter_mut(&'data mut self) -> Self::Iter {
-            self.into_iter()
-        }
-    }
 
     impl<Iter: Iterator> Iterator for MaybeIterBridge<Iter> {
         type Item = Iter::Item;

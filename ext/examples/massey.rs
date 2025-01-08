@@ -85,6 +85,7 @@ fn main() -> anyhow::Result<()> {
         product.segment(1, 1).add_identity();
 
         let mut matrix = Matrix::new(p, num_gens, 1);
+        #[allow(clippy::needless_range_loop)]
         for idx in 0..num_gens {
             let hom = Arc::new(ResolutionHomomorphism::new(
                 String::new(),
@@ -93,9 +94,9 @@ fn main() -> anyhow::Result<()> {
                 c,
             ));
 
-            matrix[idx].set_entry(0, 1);
+            matrix.row_mut(idx).set_entry(0, 1);
             hom.extend_step(c, Some(&matrix));
-            matrix[idx].set_entry(0, 0);
+            matrix.row_mut(idx).set_entry(0, 0);
 
             hom.extend_through_stem(tot);
 
@@ -116,7 +117,7 @@ fn main() -> anyhow::Result<()> {
             for (k, &v) in b_class.iter().enumerate() {
                 if v != 0 {
                     let g = BidegreeGenerator::new(b, k);
-                    hom.act(product[idx].slice_mut(0, product_num_gens), v, g);
+                    hom.act(product.row_mut(idx).slice_mut(0, product_num_gens), v, g);
                 }
             }
         }

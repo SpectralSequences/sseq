@@ -79,7 +79,7 @@ fn get_hom(
         } else {
             let v: Vec<u32> = query::vector(&format!("Input Ext class {ext_name}"), num_gens);
             for (i, &x) in v.iter().enumerate() {
-                matrix[i].set_entry(0, x);
+                matrix.row_mut(i).set_entry(0, x);
                 class.set_entry(i, x);
             }
         }
@@ -299,14 +299,14 @@ fn main() -> anyhow::Result<()> {
                         .get_map(c.s() + b.underlying().shift.s())
                         .hom_k(c.t()),
                 );
-                for (g, out) in target_page_data
+                for (g, mut out) in target_page_data
                     .subspace_gens()
                     .zip_eq(product_matrix.iter_mut())
                 {
                     out.slice_mut(prod_num_gens, prod_num_gens + target_num_gens)
                         .add(g, 1);
                     for (i, v) in g.iter_nonzero() {
-                        out.slice_mut(0, prod_num_gens).add(m0[i].as_slice(), v);
+                        out.slice_mut(0, prod_num_gens).add(m0.row(i), v);
                     }
                 }
                 product_matrix.row_reduce();
@@ -327,14 +327,14 @@ fn main() -> anyhow::Result<()> {
                     b_lambda.as_deref(),
                     Some(&unit_sseq),
                     c,
-                    e2_kernel.basis().iter().map(FpVector::as_slice),
-                    product_matrix[0..e2_ker_dim]
-                        .iter_mut()
-                        .map(|x| x.slice_mut(0, prod_all_gens)),
+                    e2_kernel.basis(),
+                    product_matrix
+                        .slice_mut(0, e2_ker_dim, 0, prod_all_gens)
+                        .iter_mut(),
                 );
-                for (v, t) in e2_kernel.basis().iter().zip(product_matrix.iter_mut()) {
+                for (v, mut t) in e2_kernel.basis().zip(product_matrix.iter_mut()) {
                     t.slice_mut(prod_all_gens, prod_all_gens + target_num_gens)
-                        .assign(v.as_slice());
+                        .assign(v);
                 }
 
                 // Now add the lambda multiples
@@ -350,10 +350,9 @@ fn main() -> anyhow::Result<()> {
                     if v >= 0 {
                         continue;
                     }
-                    let row = &mut product_matrix[e2_ker_dim + count as usize];
+                    let mut row = product_matrix.row_mut(e2_ker_dim + count as usize);
                     row.add_basis_element(prod_all_gens + target_num_gens + i, 1);
-                    row.slice_mut(prod_num_gens, prod_all_gens)
-                        .add(m[i].as_slice(), 1);
+                    row.slice_mut(prod_num_gens, prod_all_gens).add(m.row(i), 1);
                     product_lambda_page_data
                         .reduce_by_quotient(row.slice_mut(prod_num_gens, prod_all_gens));
                     count += 1;
@@ -436,10 +435,10 @@ fn main() -> anyhow::Result<()> {
                     .iter_mut()
                     .zip_eq(&m0[i])
                     .for_each(|(a, b)| *a += v * b);
-                scratch1.add(&m1[i], v);
+                scratch1.as_slice_mut().add(m1.row(i), v);
             }
             for (i, v) in g.slice(target_num_gens, target_all_gens).iter_nonzero() {
-                scratch1.add(&mt[i], v);
+                scratch1.as_slice_mut().add(mt.row(i), v);
             }
             // Now do the -1 part of the null-homotopy of bc.
             {
@@ -455,7 +454,7 @@ fn main() -> anyhow::Result<()> {
 
             for (i, v) in scratch0.iter().enumerate() {
                 let extra = *v / p;
-                scratch1.add(&mp[i], extra % p);
+                scratch1.as_slice_mut().add(mp.row(i), extra % p);
             }
 
             print!("[{}]", scratch0.iter().map(|x| *x % p).format(", "));

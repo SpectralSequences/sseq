@@ -356,9 +356,9 @@ impl<CC: ChainComplex> Resolution<CC> {
                     Arc::clone(&self.unit_resolution().inner),
                     b,
                 );
-                unit_vector[j].set_entry(0, 1);
+                unit_vector.row_mut(j).set_entry(0, 1);
                 f.extend_step(b, Some(&unit_vector));
-                unit_vector[j].set_to_zero();
+                unit_vector.row_mut(j).set_to_zero();
                 maps.push(f);
             }
         }

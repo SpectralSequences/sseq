@@ -155,7 +155,7 @@ fn main() -> anyhow::Result<()> {
                         m.apply(result.as_slice_mut(), 1, t, dx.as_slice());
                     }
                     assert!(d_target.apply_quasi_inverse(
-                        output_matrix[j].as_slice_mut(),
+                        output_matrix.row_mut(j),
                         t,
                         result.as_slice(),
                     ));
@@ -761,7 +761,7 @@ mod tensor_product_chain_complex {
                             .differential(self.source_s - s)
                             .apply_to_basis_element(result.as_slice_mut(), 1, right_t, ri);
                         for li in 0..source_left_dim {
-                            let row = &mut matrix[row_count + li * source_right_dim + ri];
+                            let mut row = matrix.row_mut(row_count + li * source_right_dim + ri);
                             row.slice_mut(
                                 target_offset + li * target_right_dim,
                                 target_offset + (li + 1) * target_right_dim,
@@ -799,7 +799,7 @@ mod tensor_product_chain_complex {
                             li,
                         );
                         for ri in 0..source_right_dim {
-                            let row = &mut matrix[row_count];
+                            let mut row = matrix.row_mut(row_count);
                             for (i, x) in result.iter_nonzero() {
                                 row.add_basis_element(target_offset + i * target_right_dim + ri, x);
                             }
