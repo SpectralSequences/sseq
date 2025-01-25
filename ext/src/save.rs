@@ -397,19 +397,22 @@ impl<A: Algebra> SaveFile<A> {
 
     /// This panics if there is no save dir
     fn get_save_path(&self, mut dir: PathBuf) -> PathBuf {
+        let n = if self.b.n() < 0 {
+            format!("m{}", -self.b.n())
+        } else {
+            self.b.n().to_string()
+        };
         if let Some(idx) = self.idx {
             dir.push(format!(
-                "{name}s/{s}_{t}_{idx}_{name}",
+                "{name}s/{n}_{s}_{idx}_{name}",
                 name = self.kind.name(),
                 s = self.b.s(),
-                t = self.b.t()
             ));
         } else {
             dir.push(format!(
-                "{name}s/{s}_{t}_{name}",
+                "{name}s/{n}_{s}_{name}",
                 name = self.kind.name(),
                 s = self.b.s(),
-                t = self.b.t()
             ));
         }
         dir
