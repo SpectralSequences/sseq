@@ -66,16 +66,19 @@ impl From<Option<PathBuf>> for SaveDirectory {
     }
 }
 
-/// A DashSet<PathBuf>> of files that are currently opened and being written to. When calling this
-/// function for the first time, we set the ctrlc handler to delete currently opened files then
-/// exit.
-fn open_files() -> &'static Mutex<HashSet<PathBuf>> {
+/// A `DashSet<PathBuf>>` of paths that are currently being used.
+///
+/// Suppose a path `p` is contained in this `DashSet`.
+/// - If `p` points to a file, then a (unique) thread is currently writing to that file. The ctrlc
+///   handler ensures that any such file will be deleted if the program is terminated.
+/// - If `p` points to a directory, then a thread is in the process of creating a file in `p`.
+fn paths_in_use() -> &'static Mutex<HashSet<PathBuf>> {
     static OPEN_FILES: LazyLock<Mutex<HashSet<PathBuf>>> = LazyLock::new(|| {
         #[cfg(unix)]
         ctrlc::set_handler(move || {
             tracing::warn!("Ctrl-C detected. Deleting open files and exiting.");
-            let files = open_files().lock().unwrap();
-            for file in &*files {
+            let paths = paths_in_use().lock().unwrap();
+            for file in paths.iter().filter(|p| p.is_file()) {
                 std::fs::remove_file(file)
                     .unwrap_or_else(|_| panic!("Error when deleting {file:?}"));
                 tracing::warn!(?file, "deleted");
@@ -239,7 +242,7 @@ impl<T: io::Write> std::ops::Drop for ChecksumWriter<T> {
                 .unwrap();
             self.writer.flush().unwrap();
             assert!(
-                open_files().lock().unwrap().remove(&self.path),
+                paths_in_use().lock().unwrap().remove(&self.path),
                 "File {:?} already dropped",
                 self.path
             );
@@ -472,8 +475,14 @@ impl<A: Algebra> SaveFile<A> {
                 return Err(e);
             }
         };
-        if std::fs::read_dir(&dir)?.next().is_none() {
-            std::fs::remove_dir(dir)?
+        // We only delete the directory if no thread is attempting to write to it.
+        if !paths_in_use().lock().unwrap().contains(&dir) {
+            let harmless_errors = [io::ErrorKind::DirectoryNotEmpty, io::ErrorKind::NotFound];
+            // `remove_dir` only deletes empty directories, so this is safe.
+            match std::fs::remove_dir(dir) {
+                Err(e) if harmless_errors.contains(&e.kind()) => Ok(()),
+                x => x,
+            }?;
         }
         Ok(())
     }
@@ -481,20 +490,28 @@ impl<A: Algebra> SaveFile<A> {
     /// # Arguments
     ///  - `overwrite`: Whether to overwrite a file if it already exists.
     pub fn create_file(&self, dir: PathBuf, overwrite: bool) -> impl io::Write {
-        let p = self.add_save_path(dir);
+        let dir = self.get_save_directory(dir);
+        let p = self.add_save_path(dir.clone());
         tracing::info!(file = ?p, "open for writing");
-
-        std::fs::create_dir_all(&p)
-            .with_context(|| format!("Failed to create directories containing {p:?}"))
-            .unwrap();
 
         // We need to do this before creating any file. The ctrlc handler does not block other threads
         // from running, but it does lock [`open_files()`]. So this ensures we do not open new files
         // while handling ctrlc.
         assert!(
-            open_files().lock().unwrap().insert(p.clone()),
+            paths_in_use().lock().unwrap().insert(p.clone()),
             "File {p:?} is already opened"
         );
+
+        tracing::info!("open_write: {}", p.to_string_lossy());
+
+        // We also add the directory to the set of paths in use. This is to ensure that we only
+        // delete directories when no thread is attempting to write to a file in that directory. We
+        // don't hold the mutex for the entirety of this function to guard it from getting poisoned.
+        paths_in_use().lock().unwrap().insert(dir.clone());
+
+        std::fs::create_dir_all(&dir)
+            .with_context(|| format!("Failed to create directories containing {p:?}"))
+            .unwrap();
 
         let f = std::fs::OpenOptions::new()
             .write(true)
@@ -504,6 +521,12 @@ impl<A: Algebra> SaveFile<A> {
             .open(&p)
             .with_context(|| format!("Failed to create save file {p:?}"))
             .unwrap();
+
+        // We have successfully created the file, so `dir` is nonempty, and calling
+        // `std::fs::delete_dir(dir)` will have no effect. Therefore, we can remove `dir` from the
+        // set of paths in use.
+        paths_in_use().lock().unwrap().remove(&dir);
+
         let mut f = ChecksumWriter::new(p, io::BufWriter::new(f));
         self.write_header(&mut f).unwrap();
         f
