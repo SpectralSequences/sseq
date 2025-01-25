@@ -502,8 +502,6 @@ impl<A: Algebra> SaveFile<A> {
             "File {p:?} is already opened"
         );
 
-        tracing::info!("open_write: {}", p.to_string_lossy());
-
         // We also add the directory to the set of paths in use. This is to ensure that we only
         // delete directories when no thread is attempting to write to a file in that directory. We
         // don't hold the mutex for the entirety of this function to guard it from getting poisoned.
