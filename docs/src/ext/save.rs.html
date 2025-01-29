@@ -505,7 +505,8 @@
 <a href="#479" id="479">479</a>
 <a href="#480" id="480">480</a>
 <a href="#481" id="481">481</a>
-<a href="#482" id="482">482</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#482" id="482">482</a>
+<a href="#483" id="483">483</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     collections::HashSet,
     fs::File,
     io,
@@ -751,6 +752,7 @@
                 <span class="self">self</span>.path
             );
         }
+        <span class="macro">tracing::info!</span>(<span class="string">"Closing file: {}"</span>, <span class="self">self</span>.path.to_string_lossy());
     }
 }
 
@@ -927,10 +929,10 @@
         <span class="kw">let </span>path_string = file_path.to_string_lossy().into_owned();
         <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">mut </span>f) = open_file(file_path) {
             <span class="self">self</span>.validate_header(<span class="kw-2">&amp;mut </span>f).unwrap();
-            <span class="macro">tracing::info!</span>(<span class="string">"success open_read: {}"</span>, path_string);
+            <span class="macro">tracing::info!</span>(<span class="string">"success open for reading: {}"</span>, path_string);
             <span class="prelude-val">Some</span>(f)
         } <span class="kw">else </span>{
-            <span class="macro">tracing::info!</span>(<span class="string">"failed open_read: {}"</span>, path_string);
+            <span class="macro">tracing::info!</span>(<span class="string">"failed open for reading: {}"</span>, path_string);
             <span class="prelude-val">None
         </span>}
     }
@@ -964,7 +966,7 @@
     ///  - `overwrite`: Whether to overwrite a file if it already exists.
     </span><span class="kw">pub fn </span>create_file(<span class="kw-2">&amp;</span><span class="self">self</span>, dir: PathBuf, overwrite: bool) -&gt; <span class="kw">impl </span>io::Write {
         <span class="kw">let </span>p = <span class="self">self</span>.get_save_path(dir);
-        <span class="macro">tracing::info!</span>(<span class="string">"open_write: {}"</span>, p.to_string_lossy());
+        <span class="macro">tracing::info!</span>(<span class="string">"open for writing: {}"</span>, p.to_string_lossy());
 
         <span class="comment">// We need to do this before creating any file. The ctrlc handler does not block other threads
         // from running, but it does lock [`open_files()`]. So this ensures we do not open new files
