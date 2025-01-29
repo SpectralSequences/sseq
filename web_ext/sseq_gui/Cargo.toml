@@ -14,22 +14,24 @@ fp = { path = "../../ext/crates/fp", default-features = false }
 once = { path = "../../ext/crates/once" }
 sseq = { path = "../../ext/crates/sseq", default-features = false }
 
-anyhow = "1.0.0"
+anyhow = "1"
 enum_dispatch = "0.3"
-rustc-hash = "1.1.0"
-serde_json = "1.0.0"
-serde = { version = "1.0.0", features = ["derive"] }
-itertools = { version = "0.10.0", default-features = false, features = ["use_alloc"] }
+rustc-hash = "2"
+serde_json = "1"
+serde = { version = "1", features = ["derive"] }
+itertools = { version = "0.14", default-features = false, features = [
+    "use_alloc",
+] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-time = "0.3.0"
-ws = "=0.9.1"
-textwrap = { version = "0.11.0", features = ["term_size"] }
+time = "0.3"
+ws = "0.9"
+textwrap = { version = "0.16", features = ["terminal_size"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 # Match wasm-bindgen version with wasm-bindgen-cli
-wasm-bindgen = "=0.2.78"
-js-sys = "0.3.0"
+wasm-bindgen = "0.2"
+js-sys = "0.3"
 
 [dev-dependencies]
 query = { path = "../../ext/crates/query" }

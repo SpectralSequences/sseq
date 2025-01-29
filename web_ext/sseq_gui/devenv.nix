@@ -23,7 +23,7 @@
     make lint-selenium
 
     # Webserver
-    cargo install wasm-bindgen-cli --debug --version 0.2.78
+    cargo install wasm-bindgen-cli --debug
     make lint-wasm
     make wasm
 

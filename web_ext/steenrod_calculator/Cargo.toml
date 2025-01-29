@@ -5,8 +5,10 @@ authors = ["Dexter Chua <dexter@math.harvard.edu>"]
 edition = "2021"
 
 [dependencies]
-algebra = { path = "../../ext/crates/algebra", default-features = false, features = ["odd-primes"] }
-wasm-bindgen = "=0.2.78"
+algebra = { path = "../../ext/crates/algebra", default-features = false, features = [
+    "odd-primes",
+] }
+wasm-bindgen = "0.2"
 
 [lib]
 crate-type = ["cdylib", "rlib"]

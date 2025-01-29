@@ -1,7 +1,7 @@
 use std::{fs, thread};
 
 use sseq_gui::{actions::*, managers::*, Sender};
-use textwrap::Wrapper;
+use textwrap::Options;
 use time::OffsetDateTime;
 use ws::{listen, Handler, Request, Response, Result as WsResult, Sender as WsSender};
 
@@ -68,18 +68,21 @@ impl Manager {
         thread::spawn(move || {
             let mut resolution_manager = ResolutionManager::new(sender);
 
-            let wrapper = Wrapper::with_termwidth().subsequent_indent("                    ");
+            let options = Options::with_termwidth().subsequent_indent("                    ");
 
             for msg in res_receiver {
                 let action_string = format!("{msg}");
                 let start = OffsetDateTime::now_utc();
                 println!(
                     "{}\n",
-                    wrapper.fill(&format!(
-                        "{} ResolutionManager: Processing {}",
-                        print_time(start),
-                        action_string
-                    ))
+                    textwrap::fill(
+                        &format!(
+                            "{} ResolutionManager: Processing {}",
+                            print_time(start),
+                            action_string
+                        ),
+                        &options,
+                    )
                 );
 
                 resolution_manager.process_message(msg);
@@ -88,11 +91,14 @@ impl Manager {
                 let time_diff = (end - start).whole_milliseconds();
                 println!(
                     "{}\n",
-                    wrapper.fill(&format!(
-                        "{} ResolutionManager: Completed in {}",
-                        print_time(end),
-                        ms_to_string(time_diff)
-                    ))
+                    textwrap::fill(
+                        &format!(
+                            "{} ResolutionManager: Completed in {}",
+                            print_time(end),
+                            ms_to_string(time_diff)
+                        ),
+                        &options,
+                    )
                 );
             }
         });
@@ -102,7 +108,7 @@ impl Manager {
         thread::spawn(move || {
             let mut sseq_manager = SseqManager::new(sender);
 
-            let wrapper = Wrapper::with_termwidth().subsequent_indent("                    ");
+            let options = Options::with_termwidth().subsequent_indent("                    ");
 
             for msg in sseq_receiver {
                 let action_string = format!("{msg}");
@@ -112,11 +118,14 @@ impl Manager {
                 if user {
                     println!(
                         "{}\n",
-                        wrapper.fill(&format!(
-                            "{} SseqManager: Processing {}",
-                            print_time(start),
-                            action_string
-                        ))
+                        textwrap::fill(
+                            &format!(
+                                "{} SseqManager: Processing {}",
+                                print_time(start),
+                                action_string
+                            ),
+                            &options,
+                        )
                     );
                 }
 
@@ -127,11 +136,14 @@ impl Manager {
                     let time_diff = (end - start).whole_milliseconds();
                     println!(
                         "{}\n",
-                        wrapper.fill(&format!(
-                            "{} SseqManager: Completed in {}",
-                            print_time(end),
-                            ms_to_string(time_diff)
-                        ))
+                        textwrap::fill(
+                            &format!(
+                                "{} SseqManager: Completed in {}",
+                                print_time(end),
+                                ms_to_string(time_diff)
+                            ),
+                            &options,
+                        )
                     );
                 }
             }

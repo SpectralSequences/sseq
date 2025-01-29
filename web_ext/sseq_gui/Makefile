@@ -18,7 +18,7 @@ lint-wasm:
 	cargo clippy --lib --target $(WASM_TARGET)
 
 setup-wasm:
-	cargo install wasm-bindgen-cli --debug --version 0.2.78
+	cargo install wasm-bindgen-cli --debug
 	rustup target add wasm32-unknown-unknown
 
 $(WASM_LIB): Cargo.toml $(wildcard src/*) $(EXT_SRC)
