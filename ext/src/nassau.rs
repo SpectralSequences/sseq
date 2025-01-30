@@ -839,7 +839,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
                 .save_file(SaveKind::NassauDifferential, b)
                 .open_file(dir.clone())
             {
-                tracing::info!("Loading differential at {b}");
+                tracing::info!(%b, "Loading differential");
 
                 let num_new_gens = f.read_u64::<LittleEndian>()? as usize;
                 // This need not be equal to `target_res_dimension`. If we saved a big resolution

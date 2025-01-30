@@ -78,7 +78,7 @@ fn open_files() -> &'static Mutex<HashSet<PathBuf>> {
             for file in &*files {
                 std::fs::remove_file(file)
                     .unwrap_or_else(|_| panic!("Error when deleting {file:?}"));
-                tracing::warn!("Deleted {}", file.to_string_lossy());
+                tracing::warn!(?file, "deleted");
             }
             std::process::exit(130);
         })
@@ -244,7 +244,7 @@ impl<T: io::Write> std::ops::Drop for ChecksumWriter<T> {
                 self.path
             );
         }
-        tracing::info!("Closing file: {}", self.path.to_string_lossy());
+        tracing::info!(file = ?self.path, "closing");
     }
 }
 
@@ -421,10 +421,10 @@ impl<A: Algebra> SaveFile<A> {
         let path_string = file_path.to_string_lossy().into_owned();
         if let Some(mut f) = open_file(file_path) {
             self.validate_header(&mut f).unwrap();
-            tracing::info!("success open for reading: {}", path_string);
+            tracing::info!(file = path_string, "success open for reading");
             Some(f)
         } else {
-            tracing::info!("failed open for reading: {}", path_string);
+            tracing::info!(file = path_string, "failed open for reading");
             None
         }
     }
@@ -458,7 +458,7 @@ impl<A: Algebra> SaveFile<A> {
     ///  - `overwrite`: Whether to overwrite a file if it already exists.
     pub fn create_file(&self, dir: PathBuf, overwrite: bool) -> impl io::Write {
         let p = self.get_save_path(dir);
-        tracing::info!("open for writing: {}", p.to_string_lossy());
+        tracing::info!(file = ?p, "open for writing");
 
         // We need to do this before creating any file. The ctrlc handler does not block other threads
         // from running, but it does lock [`open_files()`]. So this ensures we do not open new files

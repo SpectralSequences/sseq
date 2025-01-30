@@ -268,7 +268,7 @@ impl<A: PairAlgebra + Send + Sync> SecondaryHomotopy<A> {
                 self.hit_generator,
             );
 
-            tracing::info_span!("Computing composite", gen = %gen).in_scope(|| {
+            tracing::info_span!("Computing composite", %gen).in_scope(|| {
                 for (coef, d1, d0) in &maps {
                     composite.add_composite(*coef, gen.t(), gen.idx(), d1, d0);
                 }
