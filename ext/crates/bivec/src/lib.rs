@@ -51,7 +51,7 @@ impl<T: Clone> BiVec<T> {
             return;
         }
         self.data
-            .splice(..0, std::iter::repeat(default).take(shift as usize));
+            .splice(..0, std::iter::repeat_n(default, shift as usize));
         self.min_degree = min_degree;
     }
 }
