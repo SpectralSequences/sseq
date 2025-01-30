@@ -39,7 +39,7 @@ impl Differential {
     /// # Arguments
     ///  - `source`: The source of the differential
     ///  - `target`: The target of the differential. If `None`, the differential is zero. This
-    ///     should be reduced by the known images of earlier differentials.
+    ///    should be reduced by the known images of earlier differentials.
     pub fn add(&mut self, source: FpSlice, target: Option<FpSlice>) -> bool {
         let source_dim = self.source_dim;
         let target_dim = self.target_dim;

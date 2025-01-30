@@ -1059,9 +1059,9 @@ impl AdemAlgebra {
     ///  * `algebra` - an Adem algebra. This would be a method of class AdemAlgebra.
     ///  * `result`  - Where we put the result
     ///  * `monomial` - a not necessarily admissible Steenrod monomial which we will reduce.
-    ///                We destroy monomial->Ps.
+    ///    We destroy monomial->Ps.
     ///  * `idx` - the only index to check for inadmissibility in the input (we assume that we've gotten
-    ///           our input as a product of two admissible sequences.)
+    ///    our input as a product of two admissible sequences.)
     ///  * `leading_degree` - the degree of the squares between 0 and idx (so of length idx + 1)
     fn make_mono_admissible_2(
         &self,

@@ -102,7 +102,7 @@ impl Subspace {
     ///
     /// # Arguments
     ///  - `rows`: A function that writes the row to be added to the given FpSliceMut. This returns
-    ///     `None` if it runs out of rows, `Some(())` otherwise.
+    ///    `None` if it runs out of rows, `Some(())` otherwise.
     pub fn add_vectors(&mut self, mut rows: impl for<'a> FnMut(FpSliceMut<'a>) -> Option<()>) {
         let num_rows = self.matrix.rows();
         'outer: loop {
