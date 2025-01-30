@@ -2145,7 +2145,7 @@
                 </span>.save_file(SaveKind::NassauDifferential, b)
                 .open_file(dir.clone())
             {
-                <span class="macro">tracing::info!</span>(<span class="string">"Loading differential at {b}"</span>);
+                <span class="macro">tracing::info!</span>(%b, <span class="string">"Loading differential"</span>);
 
                 <span class="kw">let </span>num_new_gens = f.read_u64::&lt;LittleEndian&gt;()<span class="question-mark">? </span><span class="kw">as </span>usize;
                 <span class="comment">// This need not be equal to `target_res_dimension`. If we saved a big resolution

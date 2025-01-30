@@ -378,7 +378,7 @@
             <span class="kw">return</span>;
         }
         <span class="self">self</span>.data
-            .splice(..<span class="number">0</span>, std::iter::repeat(default).take(shift <span class="kw">as </span>usize));
+            .splice(..<span class="number">0</span>, std::iter::repeat_n(default, shift <span class="kw">as </span>usize));
         <span class="self">self</span>.min_degree = min_degree;
     }
 }

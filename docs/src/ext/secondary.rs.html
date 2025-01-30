@@ -1740,7 +1740,7 @@
                 <span class="self">self</span>.hit_generator,
             );
 
-            <span class="macro">tracing::info_span!</span>(<span class="string">"Computing composite"</span>, gen = %gen).in_scope(|| {
+            <span class="macro">tracing::info_span!</span>(<span class="string">"Computing composite"</span>, %gen).in_scope(|| {
                 <span class="kw">for </span>(coef, d1, d0) <span class="kw">in </span><span class="kw-2">&amp;</span>maps {
                     composite.add_composite(<span class="kw-2">*</span>coef, gen.t(), gen.idx(), d1, d0);
                 }

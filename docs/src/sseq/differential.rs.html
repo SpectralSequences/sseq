@@ -220,7 +220,7 @@
     /// # Arguments
     ///  - `source`: The source of the differential
     ///  - `target`: The target of the differential. If `None`, the differential is zero. This
-    ///     should be reduced by the known images of earlier differentials.
+    ///    should be reduced by the known images of earlier differentials.
     </span><span class="kw">pub fn </span>add(<span class="kw-2">&amp;mut </span><span class="self">self</span>, source: FpSlice, target: <span class="prelude-ty">Option</span>&lt;FpSlice&gt;) -&gt; bool {
         <span class="kw">let </span>source_dim = <span class="self">self</span>.source_dim;
         <span class="kw">let </span>target_dim = <span class="self">self</span>.target_dim;

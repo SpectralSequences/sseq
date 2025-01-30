@@ -471,7 +471,7 @@
     ///
     /// # Arguments
     ///  - `rows`: A function that writes the row to be added to the given FpSliceMut. This returns
-    ///     `None` if it runs out of rows, `Some(())` otherwise.
+    ///    `None` if it runs out of rows, `Some(())` otherwise.
     </span><span class="kw">pub fn </span>add_vectors(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw-2">mut </span>rows: <span class="kw">impl for</span>&lt;<span class="lifetime">'a</span>&gt; FnMut(FpSliceMut&lt;<span class="lifetime">'a</span>&gt;) -&gt; <span class="prelude-ty">Option</span>&lt;()&gt;) {
         <span class="kw">let </span>num_rows = <span class="self">self</span>.matrix.rows();
         <span class="lifetime">'outer</span>: <span class="kw">loop </span>{

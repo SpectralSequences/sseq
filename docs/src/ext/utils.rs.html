@@ -711,16 +711,16 @@
 ///
 /// # Arguments
 ///  - `module_spec`: A specification for the module. This is any object that implements
-///     [`TryInto&lt;Config&gt;`] (with appropriate error bounds). In practice, we can supply
-///     - A [`Config`] object itself
-///     - `(json, algebra)`: The first argument is a [`serde_json::Value`] that specifies the
-///       module; the second argument is either a string (`"milnor"` or `"adem"`) or an
-///       [`algebra::AlgebraType`] object.
-///     - `(module_name, algebra)`: The first argument is the name of the module and the second is
-///       as above. Modules are searched in the current directory, `$CWD/steenrod_modules` and
-///       `ext/steenrod_modules`. The modules can be shifted by appending e.g. `S_2[2]`.
-///     - `module_spec`, a single `&amp;str` of the form `module_name@algebra`, where `module_name` and
-///       `algebra` are as above.
+///    [`TryInto&lt;Config&gt;`] (with appropriate error bounds). In practice, we can supply
+///    - A [`Config`] object itself
+///    - `(json, algebra)`: The first argument is a [`serde_json::Value`] that specifies the
+///      module; the second argument is either a string (`"milnor"` or `"adem"`) or an
+///      [`algebra::AlgebraType`] object.
+///    - `(module_name, algebra)`: The first argument is the name of the module and the second is
+///      as above. Modules are searched in the current directory, `$CWD/steenrod_modules` and
+///      `ext/steenrod_modules`. The modules can be shifted by appending e.g. `S_2[2]`.
+///    - `module_spec`, a single `&amp;str` of the form `module_name@algebra`, where `module_name` and
+///      `algebra` are as above.
 ///  - `save_file`: The save file for the module. If it points to an invalid save file, an error is
 ///    returned.
 ///
