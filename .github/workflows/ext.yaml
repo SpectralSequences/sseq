@@ -326,6 +326,7 @@ jobs:
           toolchain: ${{ matrix.toolchain }}
 
       - name: Cache files
+        if: ${{ matrix.toolchain != 'beta' }}
         uses: actions/cache@v4
         with:
           path: |
