@@ -465,88 +465,36 @@ pub fn get_unit(
     Ok((is_unit, unit))
 }
 
-mod logging {
-    use std::io;
+#[cfg(feature = "logging")]
+pub fn ext_tracing_subscriber() -> impl tracing::Subscriber {
+    use std::io::IsTerminal;
 
-    pub struct LogWriter<T> {
-        writer: T,
-        bytes: u64,
-        start: std::time::Instant,
-    }
+    use tracing_subscriber::{
+        filter::EnvFilter,
+        fmt::{format::FmtSpan, Subscriber},
+    };
 
-    impl<T: io::Write> io::Write for LogWriter<T> {
-        fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-            let written = self.writer.write(buf)?;
-            self.bytes += written as u64;
-            Ok(written)
-        }
-
-        fn flush(&mut self) -> io::Result<()> {
-            self.writer.flush()
-        }
-    }
-
-    impl<T> LogWriter<T> {
-        pub fn new(writer: T) -> Self {
-            Self {
-                writer,
-                bytes: 0,
-                start: std::time::Instant::now(),
-            }
-        }
-    }
-
-    pub struct Throughput(f64);
-
-    impl std::fmt::Display for Throughput {
-        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            write!(f, "{:.2} MiB/s", self.0)
-        }
-    }
-
-    impl<T: io::Write> LogWriter<T> {
-        /// Return the throughput in MiB/s
-        pub fn into_throughput(mut self) -> Throughput {
-            self.writer.flush().unwrap();
-            let duration = self.start.elapsed();
-            let mib = self.bytes as f64 / (1024 * 1024) as f64;
-            Throughput(mib / duration.as_secs_f64())
-        }
-    }
-
-    #[cfg(feature = "logging")]
-    pub fn ext_tracing_subscriber() -> impl tracing::Subscriber {
-        use std::io::IsTerminal;
-
-        use tracing_subscriber::{
-            filter::EnvFilter,
-            fmt::{format::FmtSpan, Subscriber},
-        };
-
-        Subscriber::builder()
-            .with_ansi(std::io::stderr().is_terminal())
-            .with_writer(std::io::stderr)
-            .with_max_level(tracing::Level::INFO)
-            .with_span_events(FmtSpan::NEW | FmtSpan::CLOSE)
-            .with_thread_ids(true)
-            .with_env_filter(EnvFilter::try_from_default_env().unwrap_or_default())
-            .finish()
-    }
-
-    #[cfg(not(feature = "logging"))]
-    pub fn ext_tracing_subscriber() -> impl tracing::Subscriber {
-        tracing::subscriber::NoSubscriber::new()
-    }
-
-    pub fn init_logging() {
-        tracing::subscriber::set_global_default(ext_tracing_subscriber())
-            .expect("Failed to enable logging");
-
-        tracing::info!("Logging initialized");
-    }
+    Subscriber::builder()
+        .with_ansi(std::io::stderr().is_terminal())
+        .with_writer(std::io::stderr)
+        .with_max_level(tracing::Level::INFO)
+        .with_span_events(FmtSpan::NEW | FmtSpan::CLOSE)
+        .with_thread_ids(true)
+        .with_env_filter(EnvFilter::try_from_default_env().unwrap_or_default())
+        .finish()
 }
 
-pub use logging::{ext_tracing_subscriber, init_logging, LogWriter};
+#[cfg(not(feature = "logging"))]
+pub fn ext_tracing_subscriber() -> impl tracing::Subscriber {
+    tracing::subscriber::NoSubscriber::new()
+}
+
+pub fn init_logging() {
+    tracing::subscriber::set_global_default(ext_tracing_subscriber())
+        .expect("Failed to enable logging");
+
+    tracing::info!("Logging initialized");
+}
 
 /// The value of the SECONDARY_JOB environment variable.
 ///
