@@ -391,6 +391,26 @@ where
 }
 
 impl Matrix {
+    /// ```
+    /// # use fp::prime::TWO;
+    /// use fp::matrix::Matrix;
+    ///
+    /// let m = Matrix::from_vec(TWO, &[vec![0, 1, 0], vec![1, 1, 0]]);
+    /// assert_eq!(
+    ///     m.transpose(),
+    ///     Matrix::from_vec(TWO, &[vec![0, 1], vec![1, 1], vec![0, 0]])
+    /// );
+    /// ```
+    pub fn transpose(&self) -> Self {
+        let mut m = Self::new(self.p, self.columns, self.rows());
+        for i in 0..self.rows() {
+            for j in 0..self.columns() {
+                m[j].set_entry(i, self[i].entry(j));
+            }
+        }
+        m
+    }
+
     /// A no-nonsense, safe, row operation. Adds `c * self[source]` to `self[target]`.
     pub fn safe_row_op(&mut self, target: usize, source: usize, c: u32) {
         assert_ne!(target, source);
@@ -1406,6 +1426,17 @@ mod tests {
             let mut m_red = m.clone();
             m_red.row_reduce();
             prop_assert_eq!(m, m_red);
+        }
+
+        #[test]
+        fn test_transpose_dimensions(m: Matrix) {
+            prop_assert_eq!(m.transpose().rows(), m.columns());
+            prop_assert_eq!(m.transpose().columns(), m.rows());
+        }
+
+        #[test]
+        fn test_transpose_is_involution(m: Matrix) {
+            prop_assert_eq!(m.transpose().transpose(), m);
         }
     }
 }
