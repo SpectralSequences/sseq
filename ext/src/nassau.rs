@@ -41,7 +41,6 @@ use sseq::coordinates::Bidegree;
 use crate::{
     chain_complex::{AugmentedChainComplex, ChainComplex, FiniteChainComplex, FreeChainComplex},
     save::{SaveDirectory, SaveKind},
-    utils::LogWriter,
 };
 
 /// See [`resolution::SenderData`](../resolution/struct.SenderData.html). This differs by not having the `new` field.
@@ -476,7 +475,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         });
     }
 
-    #[tracing::instrument(skip_all, fields(signature = ?signature, throughput))]
+    #[tracing::instrument(skip_all, fields(?signature))]
     fn write_qi(
         f: &mut Option<impl io::Write>,
         scratch: &mut FpVector,
@@ -489,9 +488,6 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             Some(f) => f,
             None => return Ok(()),
         };
-
-        let mut own_f = LogWriter::new(f);
-        let f = &mut own_f;
 
         let pivots = &masked_matrix.pivots()[0..masked_matrix.end[0]];
         if !pivots.iter().any(|&x| x >= 0) {
@@ -522,10 +518,6 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             scratch.to_bytes(f)?;
         }
 
-        tracing::Span::current().record(
-            "throughput",
-            tracing::field::display(own_f.into_throughput()),
-        );
         Ok(())
     }
 
