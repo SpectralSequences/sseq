@@ -192,29 +192,37 @@ impl SaveKind {
     }
 }
 
-/// In addition to checking the checksum, we also keep track of which files are open, and we delete
-/// the open files if the program is terminated halfway.
-pub struct ChecksumWriter<T: io::Write> {
+/// The writer that [`SaveFile::create_file`] returns. It provides several features:
+/// - It keeps track of the amount of data written and the time taken, for logging.
+/// - It writes a checksum before closing, so that `ChecksumReader` can check the integrity.
+/// - On drop, it removes the file from the tracker returned by [`open_files`]. This ensures that
+///   the ctrlc handler only deletes files that are actively being written.
+pub struct SaveWriter<T: io::Write> {
     writer: T,
     path: PathBuf,
+    bytes_written: usize,
+    creation_time: std::time::Instant,
     adler: adler::Adler32,
 }
 
-impl<T: io::Write> ChecksumWriter<T> {
+impl<T: io::Write> SaveWriter<T> {
     pub fn new(path: PathBuf, writer: T) -> Self {
         Self {
-            path,
             writer,
+            path,
+            bytes_written: 0,
+            creation_time: std::time::Instant::now(),
             adler: adler::Adler32::new(),
         }
     }
 }
 
 /// We only implement the functions required and the ones we actually use.
-impl<T: io::Write> io::Write for ChecksumWriter<T> {
+impl<T: io::Write> io::Write for SaveWriter<T> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         let bytes_written = self.writer.write(buf)?;
         self.adler.write_slice(&buf[0..bytes_written]);
+        self.bytes_written += bytes_written;
         Ok(bytes_written)
     }
 
@@ -225,11 +233,12 @@ impl<T: io::Write> io::Write for ChecksumWriter<T> {
     fn write_all(&mut self, buf: &[u8]) -> io::Result<()> {
         self.writer.write_all(buf)?;
         self.adler.write_slice(buf);
+        self.bytes_written += buf.len();
         Ok(())
     }
 }
 
-impl<T: io::Write> std::ops::Drop for ChecksumWriter<T> {
+impl<T: io::Write> std::ops::Drop for SaveWriter<T> {
     fn drop(&mut self) {
         if !std::thread::panicking() {
             // We may not have finished writing, so the data is wrong. It should not be given a
@@ -244,7 +253,12 @@ impl<T: io::Write> std::ops::Drop for ChecksumWriter<T> {
                 self.path
             );
         }
-        tracing::info!(file = ?self.path, "closing");
+        tracing::info!(
+            file = ?self.path,
+            written = self.bytes_written,
+            elapsed = ?self.creation_time.elapsed(),
+            "closing"
+        );
     }
 }
 
@@ -479,7 +493,7 @@ impl<A: Algebra> SaveFile<A> {
             .open(&p)
             .with_context(|| format!("Failed to create save file {p:?}"))
             .unwrap();
-        let mut f = ChecksumWriter::new(p, io::BufWriter::new(f));
+        let mut f = SaveWriter::new(p, io::BufWriter::new(f));
         self.write_header(&mut f).unwrap();
         f
     }
