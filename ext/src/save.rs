@@ -14,24 +14,27 @@ use sseq::coordinates::Bidegree;
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum SaveDirectory {
     None,
-    Combined(PathBuf),
-    Split { read: PathBuf, write: PathBuf },
+    Combined(AbsolutePath),
+    Split {
+        read: AbsolutePath,
+        write: AbsolutePath,
+    },
 }
 
 impl SaveDirectory {
     pub fn read(&self) -> Option<&PathBuf> {
         match self {
             Self::None => None,
-            Self::Combined(x) => Some(x),
-            Self::Split { read, .. } => Some(read),
+            Self::Combined(x) => Some(&x.0),
+            Self::Split { read, .. } => Some(&read.0),
         }
     }
 
     pub fn write(&self) -> Option<&PathBuf> {
         match self {
             Self::None => None,
-            Self::Combined(x) => Some(x),
-            Self::Split { write, .. } => Some(write),
+            Self::Combined(x) => Some(&x.0),
+            Self::Split { write, .. } => Some(&write.0),
         }
     }
 
@@ -61,7 +64,7 @@ impl From<Option<PathBuf>> for SaveDirectory {
     fn from(x: Option<PathBuf>) -> Self {
         match x {
             None => Self::None,
-            Some(x) => Self::Combined(x),
+            Some(x) => Self::Combined(AbsolutePath::new(x)),
         }
     }
 }
@@ -479,5 +482,26 @@ impl<A: Algebra> SaveFile<A> {
         let mut f = ChecksumWriter::new(p, io::BufWriter::new(f));
         self.write_header(&mut f).unwrap();
         f
+    }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct AbsolutePath(PathBuf);
+
+impl AbsolutePath {
+    pub fn new<P: AsRef<Path>>(path: P) -> Self {
+        let p = std::path::absolute(path)
+            .unwrap_or_else(|e| panic!("Error when getting absolute path: {e}"));
+        Self(p)
+    }
+
+    pub fn push<P: AsRef<Path>>(&mut self, p: P) {
+        self.0.push(p);
+    }
+}
+
+impl<P: AsRef<Path>> From<P> for AbsolutePath {
+    fn from(p: P) -> Self {
+        Self::new(p)
     }
 }
