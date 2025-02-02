@@ -2,7 +2,7 @@ import subprocess
 
 
 def folder_pairs(folder):
-    filename_parts = (f.stem.split("_") for f in folder.glob("*"))
+    filename_parts = (f.stem.split("_") for f in folder.glob("**/*") if f.is_file())
     return (
         (int(split[0].replace("m", "-")), int(split[1])) for split in filename_parts
     )

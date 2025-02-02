@@ -289,7 +289,7 @@ fn test_checksum() {
         .compute_through_bidegree(Bidegree::s_t(2, 2));
 
     let mut path = tempdir.path().to_owned();
-    path.push("differentials/0_2_differential");
+    path.push("differentials/2/0_2_differential");
 
     let mut file = OpenOptions::new()
         .read(true)
