@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
 use algebra::module::{
-    homomorphism::{FullModuleHomomorphism, IdentityHomomorphism},
     Module,
+    homomorphism::{FullModuleHomomorphism, IdentityHomomorphism},
 };
 use ext::{
     chain_complex::{AugmentedChainComplex, ChainComplex},
     resolution_homomorphism::ResolutionHomomorphism,
-    utils::{construct, Config},
+    utils::{Config, construct},
 };
 use fp::vector::FpVector;
 use rstest::rstest;

@@ -8,7 +8,7 @@ use itertools::Itertools;
 use once::OnceVec;
 use rustc_hash::FxHashMap as HashMap;
 
-use crate::algebra::{combinatorics::TruncatedPolynomialMonomialBasis, Algebra};
+use crate::algebra::{Algebra, combinatorics::TruncatedPolynomialMonomialBasis};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PolynomialAlgebraMonomial {

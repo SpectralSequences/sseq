@@ -10,8 +10,8 @@ use std::{
     fmt,
     ptr::NonNull,
     sync::{
-        atomic::{AtomicUsize, Ordering},
         Mutex, MutexGuard,
+        atomic::{AtomicUsize, Ordering},
     },
 };
 

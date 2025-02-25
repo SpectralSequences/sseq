@@ -1,10 +1,10 @@
 use std::{
-    io::{stderr, Write},
+    io::{Write, stderr},
     sync::Arc,
 };
 
 use algebra::{
-    module::FDModule, steenrod_evaluator::SteenrodEvaluator, AdemAlgebra, Algebra, GeneratedAlgebra,
+    AdemAlgebra, Algebra, GeneratedAlgebra, module::FDModule, steenrod_evaluator::SteenrodEvaluator,
 };
 use anyhow::anyhow;
 use bivec::BiVec;
@@ -13,7 +13,7 @@ use fp::{
     vector::FpVector,
 };
 use rustc_hash::FxHashMap as HashMap;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 pub fn get_gens() -> anyhow::Result<BiVec<Vec<String>>> {
     ext::utils::init_logging();

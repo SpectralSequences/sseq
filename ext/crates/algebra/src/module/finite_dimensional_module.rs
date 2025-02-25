@@ -1,6 +1,6 @@
 use std::{fmt::Write as _, sync::Arc};
 
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use bivec::BiVec;
 use fp::vector::{FpSliceMut, FpVector};
 use serde::Deserialize;

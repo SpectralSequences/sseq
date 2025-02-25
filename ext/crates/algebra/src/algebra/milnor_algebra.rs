@@ -1,7 +1,7 @@
 use std::cell::Cell;
 
 use fp::{
-    prime::{factor_pk, iter::BitflagIterator, Binomial, Prime, ValidPrime},
+    prime::{Binomial, Prime, ValidPrime, factor_pk, iter::BitflagIterator},
     vector::{FpSlice, FpSliceMut, FpVector},
 };
 use itertools::Itertools;
@@ -9,7 +9,7 @@ use once::OnceVec;
 use rustc_hash::FxHashMap as HashMap;
 use serde::{Deserialize, Serialize};
 
-use crate::algebra::{combinatorics, Algebra, Bialgebra, GeneratedAlgebra, UnstableAlgebra};
+use crate::algebra::{Algebra, Bialgebra, GeneratedAlgebra, UnstableAlgebra, combinatorics};
 
 // This is here so that the Python bindings can use modules defined for AdemAlgebraT with their own algebra enum.
 // In order for things to work AdemAlgebraT cannot implement Algebra.
@@ -2061,32 +2061,40 @@ mod tests {
 
     #[test]
     fn test_valid_profile() {
-        assert!((MilnorProfile {
-            p_part: vec![3, 2, 1],
-            q_part: !0,
-            truncated: true
-        })
-        .is_valid());
+        assert!(
+            (MilnorProfile {
+                p_part: vec![3, 2, 1],
+                q_part: !0,
+                truncated: true
+            })
+            .is_valid()
+        );
 
-        assert!(!(MilnorProfile {
-            p_part: vec![3, 2],
-            q_part: !0,
-            truncated: true
-        })
-        .is_valid());
+        assert!(
+            !(MilnorProfile {
+                p_part: vec![3, 2],
+                q_part: !0,
+                truncated: true
+            })
+            .is_valid()
+        );
 
-        assert!((MilnorProfile {
-            p_part: vec![3, 2, 1],
-            q_part: 0b1111,
-            truncated: true
-        })
-        .is_valid());
+        assert!(
+            (MilnorProfile {
+                p_part: vec![3, 2, 1],
+                q_part: 0b1111,
+                truncated: true
+            })
+            .is_valid()
+        );
 
-        assert!(!(MilnorProfile {
-            p_part: vec![3, 2, 1],
-            q_part: 0b111,
-            truncated: true
-        })
-        .is_valid());
+        assert!(
+            !(MilnorProfile {
+                p_part: vec![3, 2, 1],
+                q_part: 0b111,
+                truncated: true
+            })
+            .is_valid()
+        );
     }
 }

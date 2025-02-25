@@ -19,8 +19,8 @@
 use std::{path::PathBuf, sync::Arc};
 
 use algebra::{
-    module::{Module, SuspensionModule},
     Algebra,
+    module::{Module, SuspensionModule},
 };
 use chart::{Backend, Orientation, TikzBackend};
 use ext::{

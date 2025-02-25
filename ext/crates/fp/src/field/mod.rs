@@ -33,7 +33,7 @@ pub trait Field: FieldInternal + Sized {
 mod tests {
     use proptest::prelude::*;
 
-    use super::{element::FieldElement, Field, SmallFq};
+    use super::{Field, SmallFq, element::FieldElement};
     use crate::prime::P2;
 
     #[test]
@@ -143,8 +143,8 @@ mod tests {
         assert_eq!(elements, expansions);
     }
 
-    pub(super) fn arb_elements<F: Field, const N: usize>(
-    ) -> impl Strategy<Value = (F, [FieldElement<F>; N])> {
+    pub(super) fn arb_elements<F: Field, const N: usize>()
+    -> impl Strategy<Value = (F, [FieldElement<F>; N])> {
         any::<F>().prop_flat_map(move |f| (Just(f), std::array::from_fn(|_| f.arb_element())))
     }
 

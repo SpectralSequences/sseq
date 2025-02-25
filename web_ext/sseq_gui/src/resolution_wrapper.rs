@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use algebra::{
-    module::{homomorphism::FreeModuleHomomorphism, FreeModule, Module},
     Algebra,
+    module::{FreeModule, Module, homomorphism::FreeModuleHomomorphism},
 };
 use ext::{
     chain_complex::{AugmentedChainComplex, ChainComplex, FreeChainComplex},

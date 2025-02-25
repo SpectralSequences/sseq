@@ -7,7 +7,7 @@ use fp::{
 };
 
 use crate::{
-    algebra::{adem_algebra::AdemBasisElement, AdemAlgebra, Algebra, MilnorAlgebra},
+    algebra::{AdemAlgebra, Algebra, MilnorAlgebra, adem_algebra::AdemBasisElement},
     milnor_algebra::{MilnorBasisElement, PPartEntry},
     steenrod_parser::*,
 };
@@ -392,7 +392,7 @@ impl SteenrodEvaluator {
 
 #[cfg(test)]
 mod tests {
-    use expect_test::{expect, Expect};
+    use expect_test::{Expect, expect};
     use rstest::rstest;
 
     use super::*;

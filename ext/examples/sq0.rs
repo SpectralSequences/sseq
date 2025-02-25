@@ -77,8 +77,8 @@ mod double {
 
     mod double_algebra {
         use algebra::{
-            adem_algebra::AdemBasisElement, milnor_algebra::MilnorBasisElement, AdemAlgebra,
-            Algebra, MilnorAlgebra, SteenrodAlgebra,
+            AdemAlgebra, Algebra, MilnorAlgebra, SteenrodAlgebra, adem_algebra::AdemBasisElement,
+            milnor_algebra::MilnorBasisElement,
         };
 
         pub trait DoubleAlgebra: Algebra {
@@ -132,7 +132,7 @@ mod double {
     pub mod double_module {
         use std::sync::Arc;
 
-        use algebra::module::{homomorphism::ModuleHomomorphism, Module};
+        use algebra::module::{Module, homomorphism::ModuleHomomorphism};
         use fp::{
             matrix::{Matrix, MatrixSliceMut, QuasiInverse, Subspace},
             vector::{FpSlice, FpSliceMut},

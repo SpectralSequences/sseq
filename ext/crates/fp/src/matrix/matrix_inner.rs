@@ -973,7 +973,7 @@ pub mod arbitrary {
     use super::*;
     use crate::{
         field::Fp,
-        vector::{arbitrary::FqVectorArbParams, FqVector},
+        vector::{FqVector, arbitrary::FqVectorArbParams},
     };
 
     pub const MAX_ROWS: usize = 100;

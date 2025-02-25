@@ -3,16 +3,16 @@
 
 use std::str::FromStr;
 
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use nom::{
+    IResult as IResultBase, Parser,
     branch::alt,
     bytes::complete::tag,
     character::complete::{alpha1, alphanumeric0, char, digit1 as digit, space0},
     combinator::{map, map_res, opt, peek},
-    error::{context, ParseError, VerboseError, VerboseErrorKind},
+    error::{ParseError, VerboseError, VerboseErrorKind, context},
     multi::{many0, separated_list1},
     sequence::{delimited, pair, preceded},
-    IResult as IResultBase, Parser,
 };
 
 use crate::{adem_algebra::AdemBasisElement, algebra::milnor_algebra::PPart};
@@ -273,7 +273,7 @@ pub fn parse_module(i: &str) -> anyhow::Result<ModuleNode> {
 
 #[cfg(test)]
 mod tests {
-    use expect_test::{expect, Expect};
+    use expect_test::{Expect, expect};
 
     use super::*;
 

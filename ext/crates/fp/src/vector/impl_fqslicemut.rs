@@ -5,7 +5,7 @@ use itertools::Itertools;
 use super::inner::{FqSlice, FqSliceMut, FqVector};
 use crate::{
     constants,
-    field::{element::FieldElement, Field},
+    field::{Field, element::FieldElement},
     limb::Limb,
     prime::{Prime, ValidPrime},
 };

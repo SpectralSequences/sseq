@@ -301,8 +301,8 @@ pub mod arbitrary {
     use proptest::prelude::*;
 
     use super::*;
-    use crate::matrix::matrix_inner::arbitrary::MatrixArbParams;
     pub use crate::matrix::matrix_inner::arbitrary::MAX_COLUMNS as MAX_DIM;
+    use crate::matrix::matrix_inner::arbitrary::MatrixArbParams;
 
     #[derive(Debug, Clone)]
     pub struct SubspaceArbParams {

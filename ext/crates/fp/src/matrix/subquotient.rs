@@ -187,8 +187,8 @@ pub mod arbitrary {
     use proptest::prelude::*;
 
     use super::*;
-    use crate::matrix::subspace::arbitrary::SubspaceArbParams;
     pub use crate::matrix::subspace::arbitrary::MAX_DIM;
+    use crate::matrix::subspace::arbitrary::SubspaceArbParams;
 
     #[derive(Debug, Clone)]
     pub struct SubquotientArbParams {

@@ -8,8 +8,8 @@ use serde_json::Value;
 use crate::{
     algebra::Algebra,
     module::{
-        homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism},
         FreeModule, Module, ZeroModule,
+        homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism},
     },
 };
 

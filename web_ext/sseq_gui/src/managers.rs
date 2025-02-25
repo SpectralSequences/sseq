@@ -1,14 +1,14 @@
-use algebra::{module::Module, Algebra};
-use anyhow::{anyhow, Context};
+use algebra::{Algebra, module::Module};
+use anyhow::{Context, anyhow};
 use ext::{
+    CCC,
     chain_complex::{BoundedChainComplex, ChainComplex},
     utils::load_module_json,
-    CCC,
 };
 use serde_json::json;
 use sseq::coordinates::Bidegree;
 
-use crate::{actions::*, resolution_wrapper::Resolution, sseq::SseqWrapper, Sender};
+use crate::{Sender, actions::*, resolution_wrapper::Resolution, sseq::SseqWrapper};
 
 /// A struct that manipulates a Resolution.
 ///

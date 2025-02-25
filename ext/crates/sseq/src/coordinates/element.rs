@@ -1,8 +1,8 @@
 use std::fmt::{self, Display, Formatter};
 
 use algebra::{
-    module::{Module, MuFreeModule},
     MuAlgebra,
+    module::{Module, MuFreeModule},
 };
 use fp::vector::{FpSlice, FpVector};
 use serde::{Deserialize, Serialize};

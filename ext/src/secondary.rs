@@ -1,12 +1,12 @@
 use std::{io, sync::Arc};
 
 use algebra::{
+    Algebra,
     module::{
-        homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism},
         FreeModule, Module,
+        homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism},
     },
     pair_algebra::PairAlgebra,
-    Algebra,
 };
 use bivec::BiVec;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
@@ -1170,10 +1170,10 @@ pub struct SecondaryChainHomotopy<
 }
 
 impl<
-        S: FreeChainComplex,
-        T: FreeChainComplex<Algebra = S::Algebra> + Sync,
-        U: FreeChainComplex<Algebra = S::Algebra> + Sync,
-    > SecondaryLift for SecondaryChainHomotopy<S, T, U>
+    S: FreeChainComplex,
+    T: FreeChainComplex<Algebra = S::Algebra> + Sync,
+    U: FreeChainComplex<Algebra = S::Algebra> + Sync,
+> SecondaryLift for SecondaryChainHomotopy<S, T, U>
 where
     S::Algebra: PairAlgebra,
 {
@@ -1357,10 +1357,10 @@ where
 }
 
 impl<
-        S: FreeChainComplex,
-        T: FreeChainComplex<Algebra = S::Algebra> + Sync,
-        U: FreeChainComplex<Algebra = S::Algebra> + Sync,
-    > SecondaryChainHomotopy<S, T, U>
+    S: FreeChainComplex,
+    T: FreeChainComplex<Algebra = S::Algebra> + Sync,
+    U: FreeChainComplex<Algebra = S::Algebra> + Sync,
+> SecondaryChainHomotopy<S, T, U>
 where
     S::Algebra: PairAlgebra,
 {

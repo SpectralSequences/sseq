@@ -1,7 +1,7 @@
 use super::{
+    Field,
     element::{FieldElement, FieldElementContainer},
     field_internal::FieldInternal,
-    Field,
 };
 // Reexport the prime fields in a more logical place
 pub use crate::prime::fp::*;

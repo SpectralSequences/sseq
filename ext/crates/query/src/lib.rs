@@ -16,7 +16,7 @@ use std::{
     cell::RefCell,
     env::Args,
     fmt::Display,
-    io::{stderr, stdin, Write},
+    io::{Write, stderr, stdin},
 };
 
 thread_local! {

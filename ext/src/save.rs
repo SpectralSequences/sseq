@@ -333,7 +333,7 @@ fn open_file(path: PathBuf) -> Option<Box<dyn io::Read>> {
             Ok(f) => {
                 return Some(Box::new(ChecksumReader::new(
                     zstd::stream::Decoder::new(f).unwrap(),
-                )))
+                )));
             }
             Err(e) => {
                 if e.kind() != io::ErrorKind::NotFound {

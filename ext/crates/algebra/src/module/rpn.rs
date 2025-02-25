@@ -9,9 +9,9 @@ use serde_json::Value;
 
 use crate::{
     algebra::{
+        AdemAlgebra, Algebra, MilnorAlgebra, SteenrodAlgebra,
         adem_algebra::AdemBasisElement,
         milnor_algebra::{MilnorBasisElement, PPartEntry},
-        AdemAlgebra, Algebra, MilnorAlgebra, SteenrodAlgebra,
     },
     module::{Module, ZeroModule},
 };

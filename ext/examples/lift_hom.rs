@@ -42,7 +42,7 @@
 use std::{path::PathBuf, sync::Arc};
 
 use algebra::module::Module;
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use ext::{
     chain_complex::{AugmentedChainComplex, ChainComplex, FreeChainComplex},
     resolution_homomorphism::ResolutionHomomorphism,

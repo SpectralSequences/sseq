@@ -3,11 +3,11 @@
 use std::{ops::Range, sync::Arc};
 
 use algebra::{
-    module::{
-        homomorphism::{ModuleHomomorphism, MuFreeModuleHomomorphism},
-        Module,
-    },
     MuAlgebra,
+    module::{
+        Module,
+        homomorphism::{ModuleHomomorphism, MuFreeModuleHomomorphism},
+    },
 };
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use fp::{
@@ -321,9 +321,10 @@ where
             .collect();
 
         if !fdx_vectors.is_empty() {
-            assert!(self
-                .target
-                .apply_quasi_inverse(&mut qi_outputs, output, &fdx_vectors));
+            assert!(
+                self.target
+                    .apply_quasi_inverse(&mut qi_outputs, output, &fdx_vectors)
+            );
         }
 
         if let Some(dir) = self.save_dir.write() {

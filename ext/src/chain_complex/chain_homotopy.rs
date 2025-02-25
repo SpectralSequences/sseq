@@ -1,8 +1,8 @@
 use std::sync::{Arc, Mutex};
 
 use algebra::module::{
-    homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism},
     Module,
+    homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism},
 };
 use fp::{prime::ValidPrime, vector::FpVector};
 use maybe_rayon::prelude::*;
@@ -35,10 +35,10 @@ pub struct ChainHomotopy<
 }
 
 impl<
-        S: FreeChainComplex,
-        T: FreeChainComplex<Algebra = S::Algebra> + Sync,
-        U: ChainComplex<Algebra = S::Algebra> + Sync,
-    > ChainHomotopy<S, T, U>
+    S: FreeChainComplex,
+    T: FreeChainComplex<Algebra = S::Algebra> + Sync,
+    U: ChainComplex<Algebra = S::Algebra> + Sync,
+> ChainHomotopy<S, T, U>
 {
     pub fn new(
         left: Arc<ResolutionHomomorphism<S, T>>,

@@ -1,6 +1,6 @@
 use super::inner::FqSlice;
 use crate::{
-    field::{element::FieldElement, Field},
+    field::{Field, element::FieldElement},
     limb::Limb,
 };
 

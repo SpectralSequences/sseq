@@ -4,11 +4,11 @@ mod finite_chain_complex;
 use std::sync::Arc;
 
 use algebra::{
-    module::{
-        homomorphism::{ModuleHomomorphism, MuFreeModuleHomomorphism},
-        Module, MuFreeModule,
-    },
     Algebra, MuAlgebra,
+    module::{
+        Module, MuFreeModule,
+        homomorphism::{ModuleHomomorphism, MuFreeModuleHomomorphism},
+    },
 };
 use bivec::BiVec;
 // pub use hom_complex::HomComplex;
@@ -31,9 +31,12 @@ pub enum ChainComplexGrading {
 
 pub trait FreeChainComplex<const U: bool = false>:
     ChainComplex<
-    Module = MuFreeModule<U, <Self as ChainComplex>::Algebra>,
-    Homomorphism = MuFreeModuleHomomorphism<U, MuFreeModule<U, <Self as ChainComplex>::Algebra>>,
->
+        Module = MuFreeModule<U, <Self as ChainComplex>::Algebra>,
+        Homomorphism = MuFreeModuleHomomorphism<
+            U,
+            MuFreeModule<U, <Self as ChainComplex>::Algebra>,
+        >,
+    >
 where
     <Self as ChainComplex>::Algebra: MuAlgebra<U>,
 {
@@ -154,9 +157,9 @@ where
 impl<const U: bool, CC> FreeChainComplex<U> for CC
 where
     CC: ChainComplex<
-        Module = MuFreeModule<U, Self::Algebra>,
-        Homomorphism = MuFreeModuleHomomorphism<U, MuFreeModule<U, Self::Algebra>>,
-    >,
+            Module = MuFreeModule<U, Self::Algebra>,
+            Homomorphism = MuFreeModuleHomomorphism<U, MuFreeModule<U, Self::Algebra>>,
+        >,
     Self::Algebra: MuAlgebra<U>,
 {
 }
@@ -288,9 +291,9 @@ impl<CC: ChainComplex + ?Sized> Iterator for StemIterator<'_, CC> {
 pub trait AugmentedChainComplex: ChainComplex {
     type TargetComplex: ChainComplex<Algebra = Self::Algebra>;
     type ChainMap: ModuleHomomorphism<
-        Source = Self::Module,
-        Target = <Self::TargetComplex as ChainComplex>::Module,
-    >;
+            Source = Self::Module,
+            Target = <Self::TargetComplex as ChainComplex>::Module,
+        >;
 
     fn target(&self) -> Arc<Self::TargetComplex>;
     fn chain_map(&self, s: u32) -> Arc<Self::ChainMap>;
