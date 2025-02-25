@@ -380,7 +380,6 @@ mod double {
 
             /// Attempt to apply quasi inverse to the input. Returns whether the operation was
             /// successful. This is required to either always succeed or always fail for each degree.
-            #[must_use]
             fn apply_quasi_inverse(&self, result: FpSliceMut, degree: i32, input: FpSlice) -> bool {
                 if degree % 2 == 0 {
                     self.inner.apply_quasi_inverse(result, degree / 2, input)
