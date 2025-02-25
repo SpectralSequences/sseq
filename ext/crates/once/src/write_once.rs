@@ -1,6 +1,6 @@
 use std::{cell::UnsafeCell, mem::MaybeUninit, sync::atomic::Ordering};
 
-use crate::std_or_loom::{sync::atomic::AtomicU8, GetMut};
+use crate::std_or_loom::{GetMut, sync::atomic::AtomicU8};
 
 /// A thread-safe, wait-free, write-once cell that allows a value to be set exactly once.
 ///

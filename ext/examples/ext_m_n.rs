@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use algebra::{module::Module, Algebra};
+use algebra::{Algebra, module::Module};
 use ext::chain_complex::ChainComplex;
 use hom_cochain_complex::HomCochainComplex;
 use sseq::coordinates::Bidegree;
@@ -52,8 +52,8 @@ mod hom_cochain_complex {
     use std::sync::Arc;
 
     use algebra::module::{
-        homomorphism::{HomPullback, ModuleHomomorphism},
         HomModule, Module,
+        homomorphism::{HomPullback, ModuleHomomorphism},
     };
     use ext::chain_complex::FreeChainComplex;
     use fp::matrix::Subquotient;

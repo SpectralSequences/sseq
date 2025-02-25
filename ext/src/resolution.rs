@@ -1,13 +1,13 @@
 //! This module exports the [`Resolution`] object, which is a chain complex resolving a module. In
 //! particular, this contains the core logic that compute minimal resolutions.
-use std::sync::{mpsc, Arc, Mutex};
+use std::sync::{Arc, Mutex, mpsc};
 
 use algebra::{
-    module::{
-        homomorphism::{ModuleHomomorphism, MuFreeModuleHomomorphism},
-        Module, MuFreeModule,
-    },
     Algebra, MuAlgebra,
+    module::{
+        Module, MuFreeModule,
+        homomorphism::{ModuleHomomorphism, MuFreeModuleHomomorphism},
+    },
 };
 use anyhow::Context;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};

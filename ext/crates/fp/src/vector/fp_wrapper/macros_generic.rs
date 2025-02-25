@@ -4,7 +4,7 @@ macro_rules! use_primes {
     () => {
         use crate::{
             field::fp::{F2, F3, F5, F7},
-            prime::{ValidPrime, P2, P3, P5, P7},
+            prime::{P2, P3, P5, P7, ValidPrime},
         };
     };
 }

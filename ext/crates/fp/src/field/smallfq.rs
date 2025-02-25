@@ -3,16 +3,16 @@ use std::sync::LazyLock;
 use dashmap::DashMap as HashMap;
 
 use super::{
+    Field, Fp,
     element::{FieldElement, FieldElementContainer},
     field_internal::FieldInternal,
-    Field, Fp,
 };
 use crate::{
+    PRIME_TO_INDEX_MAP,
     constants::BITS_PER_LIMB,
     limb::Limb,
-    prime::{log2, Prime, ValidPrime},
+    prime::{Prime, ValidPrime, log2},
     vector::inner::FqVector,
-    PRIME_TO_INDEX_MAP,
 };
 
 static SMALL_CONWAY_POLYS: [[[u32; 17]; 15]; 54] = include!("small_conway_polys.txt");

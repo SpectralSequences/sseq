@@ -1,9 +1,9 @@
 use std::{fs, path::PathBuf, thread};
 
-use sseq_gui::{actions::*, managers::*, Sender};
+use sseq_gui::{Sender, actions::*, managers::*};
 use textwrap::Options;
 use time::OffsetDateTime;
-use ws::{listen, Handler, Request, Response, Result as WsResult, Sender as WsSender};
+use ws::{Handler, Request, Response, Result as WsResult, Sender as WsSender, listen};
 
 /// List of files that our webserver will serve to the user
 const FILE_LIST: &[(&str, &str, &[u8])] = &[

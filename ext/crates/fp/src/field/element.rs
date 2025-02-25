@@ -3,7 +3,7 @@ use std::{
     ops::{Add, AddAssign, Deref, Div, Mul, MulAssign, Neg, Sub, SubAssign},
 };
 
-use super::{field_internal::FieldInternal, Field};
+use super::{Field, field_internal::FieldInternal};
 
 /// This just ensures that the containers are "nice enough", in the sense that they are cloneable,
 /// hashable, etc. We may add more custom methods in the future.

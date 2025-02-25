@@ -4,8 +4,8 @@ use std::fmt;
 
 use fp::{
     prime::{
-        iter::{BinomialIterator, BitflagIterator},
         Prime, ValidPrime,
+        iter::{BinomialIterator, BitflagIterator},
     },
     vector::{FpSliceMut, FpVector},
 };
@@ -16,8 +16,8 @@ use rustc_hash::FxHashMap as HashMap;
 #[cfg(doc)]
 use crate::algebra::SteenrodAlgebra;
 use crate::algebra::{
-    combinatorics::{self, MAX_XI_TAU},
     Algebra, Bialgebra, GeneratedAlgebra, UnstableAlgebra,
+    combinatorics::{self, MAX_XI_TAU},
 };
 
 /// An algebra that can be viewed as an Adem algebra.
@@ -288,7 +288,7 @@ impl Algebra for AdemAlgebra {
     }
 
     fn basis_element_from_string(&self, mut elt: &str) -> Option<(i32, usize)> {
-        use nom::{sequence::preceded, Parser};
+        use nom::{Parser, sequence::preceded};
 
         use crate::steenrod_parser::{digits, p_or_sq};
 

@@ -1,8 +1,8 @@
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 use fp::{
-    field::{Field, SmallFq},
-    prime::{Prime, ValidPrime, P2, P3, P5, P7},
     PRIMES,
+    field::{Field, SmallFq},
+    prime::{P2, P3, P5, P7, Prime, ValidPrime},
 };
 use pprof::criterion::{Output, PProfProfiler};
 

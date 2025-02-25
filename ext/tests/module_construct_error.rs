@@ -1,5 +1,5 @@
 use ext::utils::construct;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 #[test]
 fn module_construct_error() {

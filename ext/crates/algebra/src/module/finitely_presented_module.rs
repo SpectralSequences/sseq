@@ -8,8 +8,8 @@ use serde_json::Value;
 use crate::{
     algebra::Algebra,
     module::{
-        homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism},
         FreeModule, Module, ZeroModule,
+        homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism},
     },
 };
 
@@ -102,7 +102,7 @@ impl<A: Algebra> FinitelyPresentedModule<A> {
 impl<A: Algebra> FinitelyPresentedModule<A> {
     pub fn from_json(algebra: Arc<A>, json: &Value) -> anyhow::Result<Self> {
         use anyhow::anyhow;
-        use nom::{combinator::opt, Parser};
+        use nom::{Parser, combinator::opt};
 
         use crate::steenrod_parser::digits;
 

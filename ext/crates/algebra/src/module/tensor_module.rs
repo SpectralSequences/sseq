@@ -9,7 +9,7 @@ use once::OnceBiVec;
 
 use crate::{
     algebra::{Algebra, Bialgebra},
-    module::{block_structure::BlockStructure, Module, ZeroModule},
+    module::{Module, ZeroModule, block_structure::BlockStructure},
 };
 
 // This really only makes sense when the algebra is a bialgebra, but associated type bounds are

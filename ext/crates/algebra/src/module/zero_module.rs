@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use crate::{
-    module::{FDModule, Module, SteenrodModule},
     SteenrodAlgebra,
+    module::{FDModule, Module, SteenrodModule},
 };
 
 pub trait ZeroModule: Module {

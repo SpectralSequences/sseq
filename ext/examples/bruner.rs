@@ -24,9 +24,9 @@ use std::{
 };
 
 use algebra::{
-    milnor_algebra::MilnorBasisElement,
-    module::{homomorphism::FreeModuleHomomorphism as FMH, FreeModule as FM, Module},
     Algebra, MilnorAlgebra,
+    milnor_algebra::MilnorBasisElement,
+    module::{FreeModule as FM, Module, homomorphism::FreeModuleHomomorphism as FMH},
 };
 use anyhow::{Context, Error, Result};
 use ext::{

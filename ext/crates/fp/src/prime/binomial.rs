@@ -1,7 +1,7 @@
 use super::{Prime, ValidPrime};
 use crate::{
-    constants::{BINOMIAL4_TABLE, BINOMIAL4_TABLE_SIZE, BINOMIAL_TABLE},
     PRIME_TO_INDEX_MAP,
+    constants::{BINOMIAL_TABLE, BINOMIAL4_TABLE, BINOMIAL4_TABLE_SIZE},
 };
 
 /// This uses a lookup table for n choose k when n and k are both less than p.
@@ -85,11 +85,7 @@ macro_rules! impl_binomial {
                     sum += e;
                     bit_or |= e;
                 }
-                if bit_or == sum {
-                    1
-                } else {
-                    0
-                }
+                if bit_or == sum { 1 } else { 0 }
             }
 
             #[inline]

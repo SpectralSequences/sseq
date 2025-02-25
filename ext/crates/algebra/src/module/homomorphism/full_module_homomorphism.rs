@@ -10,8 +10,8 @@ use once::OnceBiVec;
 use crate::{
     algebra::Algebra,
     module::{
-        homomorphism::{IdentityHomomorphism, ModuleHomomorphism, ZeroHomomorphism},
         Module,
+        homomorphism::{IdentityHomomorphism, ModuleHomomorphism, ZeroHomomorphism},
     },
 };
 

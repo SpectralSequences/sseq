@@ -578,7 +578,7 @@ impl<P: SseqProfile> Sseq<P> {
 
 #[cfg(test)]
 mod tests {
-    use expect_test::{expect, Expect};
+    use expect_test::{Expect, expect};
 
     use super::*;
 

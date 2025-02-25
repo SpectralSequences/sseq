@@ -46,8 +46,8 @@
 use std::{fmt, iter, num::NonZeroI32, path::PathBuf, sync::Arc};
 
 use algebra::{
-    module::{homomorphism::ModuleHomomorphism, Module},
     AlgebraType, SteenrodAlgebra,
+    module::{Module, homomorphism::ModuleHomomorphism},
 };
 use anyhow::Result;
 use ext::{

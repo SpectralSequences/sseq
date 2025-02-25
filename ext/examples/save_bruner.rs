@@ -7,7 +7,7 @@ use std::{
     io::{BufWriter, Write as _},
 };
 
-use algebra::{module::Module, Algebra, AlgebraType, MilnorAlgebra};
+use algebra::{Algebra, AlgebraType, MilnorAlgebra, module::Module};
 use ext::{chain_complex::ChainComplex, utils::query_module};
 use itertools::Itertools;
 

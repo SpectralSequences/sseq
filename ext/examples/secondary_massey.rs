@@ -23,7 +23,7 @@ use ext::{
     chain_complex::{ChainComplex, ChainHomotopy, FreeChainComplex},
     resolution_homomorphism::ResolutionHomomorphism,
     secondary::*,
-    utils::{query_module, QueryModuleResolution},
+    utils::{QueryModuleResolution, query_module},
 };
 use fp::{
     matrix::{Matrix, Subspace},
