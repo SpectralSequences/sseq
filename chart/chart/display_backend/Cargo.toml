@@ -2,7 +2,7 @@
 name = "sseq-display-backend"
 version = "0.1.0"
 authors = ["Hood Chatham"]
-edition = "2021"
+edition = "2024"
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = ["-Os", "--enable-mutable-globals"]
@@ -21,7 +21,7 @@ derive_more = "0.99.11"
 euclid = "0.22.1"
 lyon = "0.16.2"
 footile = "0.6.0"
-fonterator = {version = "0.9.0"}
+fonterator = { version = "0.9.0" }
 pix = "0.13.1"
 console_error_panic_hook = "0.1.6"
 
@@ -37,7 +37,7 @@ features = [
   'CssStyleDeclaration',
   # 'Response', # needed for fetch
 
-# WebGL features:
+  # WebGL features:
   'WebGlActiveInfo',
   'WebGlBuffer',
   'WebGlFramebuffer',
