@@ -459,7 +459,7 @@ impl<A: Algebra> SaveFile<A> {
 
     /// # Arguments
     ///  - `overwrite`: Whether to overwrite a file if it already exists.
-    pub fn create_file(&self, dir: PathBuf, overwrite: bool) -> impl io::Write {
+    pub fn create_file(&self, dir: PathBuf, overwrite: bool) -> impl io::Write + use<A> {
         let p = self.get_save_path(dir);
         tracing::info!(file = ?p, "open for writing");
 
