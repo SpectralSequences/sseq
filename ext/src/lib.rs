@@ -166,7 +166,7 @@
 //!   at the prime 2 can be resolved.
 
 #![allow(clippy::upper_case_acronyms)]
-#![deny(clippy::use_self)]
+#![deny(clippy::use_self, unsafe_op_in_unsafe_fn)]
 
 pub mod chain_complex;
 pub mod resolution;

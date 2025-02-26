@@ -1,4 +1,4 @@
-#![deny(clippy::use_self)]
+#![deny(clippy::use_self, unsafe_op_in_unsafe_fn)]
 
 use std::{collections::HashMap, fmt::Display, io};
 
