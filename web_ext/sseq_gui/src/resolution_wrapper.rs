@@ -263,7 +263,7 @@ impl<CC: ChainComplex> Resolution<CC> {
             match &mut self.unit_resolution {
                 UnitResolution::None => panic!("No unit resolution set"),
                 UnitResolution::Own => unreachable!(),
-                UnitResolution::Some(ref mut r) => r,
+                UnitResolution::Some(r) => r,
             }
         }
     }
