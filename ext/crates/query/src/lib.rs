@@ -10,7 +10,7 @@
 //! The "normal" usage mode is to not supply any command line arguments and just use the second
 //! functionality. However, the first is useful for testing and batch processing.
 
-#![deny(clippy::use_self)]
+#![deny(clippy::use_self, unsafe_op_in_unsafe_fn)]
 
 use std::{
     cell::RefCell,
