@@ -2,18 +2,18 @@
 use std::{path::PathBuf, sync::Arc};
 
 use algebra::{
-    module::{steenrod_module, FDModule, Module, SteenrodModule},
     AlgebraType, MilnorAlgebra, SteenrodAlgebra,
+    module::{FDModule, Module, SteenrodModule, steenrod_module},
 };
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use serde_json::Value;
 use sseq::coordinates::{Bidegree, BidegreeGenerator};
 
 use crate::{
+    CCC,
     chain_complex::{AugmentedChainComplex, BoundedChainComplex, ChainComplex, FiniteChainComplex},
     resolution::{Resolution, UnstableResolution},
     save::SaveDirectory,
-    CCC,
 };
 
 // We build docs with --all-features so the docs are at the feature = "nassau" version
@@ -520,7 +520,7 @@ mod logging {
 
         use tracing_subscriber::{
             filter::EnvFilter,
-            fmt::{format::FmtSpan, Subscriber},
+            fmt::{Subscriber, format::FmtSpan},
         };
 
         Subscriber::builder()
@@ -546,7 +546,7 @@ mod logging {
     }
 }
 
-pub use logging::{ext_tracing_subscriber, init_logging, LogWriter};
+pub use logging::{LogWriter, ext_tracing_subscriber, init_logging};
 
 /// The value of the SECONDARY_JOB environment variable.
 ///

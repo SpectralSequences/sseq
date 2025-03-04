@@ -19,7 +19,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use super::iter::{FqVectorIterator, FqVectorNonZeroIterator};
 use crate::{
-    field::{field_internal::FieldInternal, Fp},
+    field::{Fp, field_internal::FieldInternal},
     limb::Limb,
     prime::Prime,
     vector::inner::{FqSlice, FqSliceMut, FqVector},

@@ -1,6 +1,6 @@
 use std::{fmt::Write as _, sync::Arc};
 
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use bivec::BiVec;
 use fp::vector::{FpSliceMut, FpVector};
 use serde::Deserialize;
@@ -480,8 +480,8 @@ impl<A: GeneratedAlgebra> FiniteDimensionalModule<A> {
         json["type"] = Value::from("finite dimensional module");
         json["gens"] = json!({});
         for (i, deg_i_gens) in self.gen_names.iter_enum() {
-            for gen in deg_i_gens {
-                json["gens"][gen] = Value::from(i);
+            for g in deg_i_gens {
+                json["gens"][g] = Value::from(i);
             }
         }
 
@@ -500,7 +500,7 @@ impl<A: GeneratedAlgebra> FiniteDimensionalModule<A> {
             .split_once(" = ")
             .ok_or_else(|| anyhow!("Invalid action: {entry}"))?;
 
-        let (action, gen) = lhs
+        let (action, g) = lhs
             .rsplit_once(' ')
             .ok_or_else(|| anyhow!("Invalid action: {entry}"))?;
 
@@ -508,7 +508,7 @@ impl<A: GeneratedAlgebra> FiniteDimensionalModule<A> {
             .basis_element_from_string(action)
             .ok_or_else(|| anyhow!("Invalid algebra element: {action}"))?;
 
-        let (input_deg, input_idx) = gen_to_idx(gen.trim())?;
+        let (input_deg, input_idx) = gen_to_idx(g.trim())?;
 
         let row = self.action_mut(op_deg, op_idx, input_deg, input_idx);
 
@@ -521,18 +521,18 @@ impl<A: GeneratedAlgebra> FiniteDimensionalModule<A> {
         }
 
         for item in rhs.split(" + ") {
-            let (coef, gen) = match item.split_once(' ') {
-                Some((coef, gen)) => (
+            let (coef, g) = match item.split_once(' ') {
+                Some((coef, g)) => (
                     str::parse(coef)
                         .map_err(|_| anyhow!("Invalid item on right-hand side: {item}"))?,
-                    gen,
+                    g,
                 ),
                 None => (1, item),
             };
-            let (deg, idx) = gen_to_idx(gen.trim())?;
+            let (deg, idx) = gen_to_idx(g.trim())?;
             if deg != input_deg + op_deg {
                 return Err(anyhow!(
-                    "Degree of {gen} is {deg} but degree of LHS is {}",
+                    "Degree of {g} is {deg} but degree of LHS is {}",
                     input_deg + op_deg
                 ));
             }

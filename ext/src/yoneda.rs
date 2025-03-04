@@ -1,14 +1,14 @@
 use std::sync::Arc;
 
 use algebra::{
+    AdemAlgebra, Algebra, GeneratedAlgebra, MilnorAlgebra, SteenrodAlgebra,
     module::{
+        FDModule, FreeModule, Module, QuotientModule as QM,
         homomorphism::{
             FreeModuleHomomorphism, FullModuleHomomorphism, IdentityHomomorphism,
             ModuleHomomorphism, QuotientHomomorphism, QuotientHomomorphismSource,
         },
-        FDModule, FreeModule, Module, QuotientModule as QM,
     },
-    AdemAlgebra, Algebra, GeneratedAlgebra, MilnorAlgebra, SteenrodAlgebra,
 };
 use bivec::BiVec;
 use fp::{

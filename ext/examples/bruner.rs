@@ -26,9 +26,9 @@ use std::{
 };
 
 use algebra::{
-    milnor_algebra::MilnorBasisElement,
-    module::{homomorphism::FreeModuleHomomorphism as FMH, FreeModule as FM, Module},
     Algebra, MilnorAlgebra,
+    milnor_algebra::MilnorBasisElement,
+    module::{FreeModule as FM, Module, homomorphism::FreeModuleHomomorphism as FMH},
 };
 use anyhow::{Context, Error, Result};
 use ext::{
@@ -198,9 +198,9 @@ fn read_bruner_resolution(data_dir: &Path, max_n: i32) -> Result<(u32, FiniteCha
         let mut entries: Vec<FpVector> = Vec::new();
         let mut cur_degree: i32 = 0;
 
-        while let Some((t, gen)) = get_element(algebra, cc.module(s - 1).as_ref(), &mut f)? {
+        while let Some((t, g)) = get_element(algebra, cc.module(s - 1).as_ref(), &mut f)? {
             if t == cur_degree {
-                entries.push(gen);
+                entries.push(g);
             } else {
                 m.add_generators(cur_degree, entries.len(), None);
                 d.add_generators_from_rows(cur_degree, entries);
@@ -208,7 +208,7 @@ fn read_bruner_resolution(data_dir: &Path, max_n: i32) -> Result<(u32, FiniteCha
                 m.extend_by_zero(t - 1);
                 d.extend_by_zero(t - 1);
 
-                entries = vec![gen];
+                entries = vec![g];
                 cur_degree = t;
             }
         }
@@ -262,8 +262,8 @@ fn main() {
         let matrix = hom.get_map(b.s()).hom_k(b.t());
 
         for (i, row) in matrix.into_iter().enumerate() {
-            let gen = BidegreeGenerator::new(b, i);
-            println!("x_{gen:#} = {row:?}");
+            let g = BidegreeGenerator::new(b, i);
+            println!("x_{g:#} = {row:?}");
         }
     }
 }

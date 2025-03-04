@@ -1,8 +1,8 @@
 use std::fmt::{self, Display, Formatter};
 
 use algebra::{
-    module::{Module, MuFreeModule},
     MuAlgebra,
+    module::{Module, MuFreeModule},
 };
 use fp::vector::{FpSlice, FpVector};
 use serde::{Deserialize, Serialize};
@@ -55,13 +55,13 @@ impl BidegreeElement {
         self.vec
             .iter_nonzero()
             .map(|(i, v)| {
-                let gen = BidegreeGenerator::new(self.degree(), i);
+                let g = BidegreeGenerator::new(self.degree(), i);
                 let coeff_str = if v != 1 {
                     format!("{v} ")
                 } else {
                     String::new()
                 };
-                format!("{coeff_str}x_{gen}")
+                format!("{coeff_str}x_{g}")
             })
             .collect::<Vec<_>>()
             .join(" + ")
@@ -91,15 +91,15 @@ impl BidegreeElement {
                 } else {
                     String::new()
                 };
-                let gen = BidegreeGenerator::s_t(
+                let g = BidegreeGenerator::s_t(
                     self.s() - 1,
                     opgen.generator_degree,
                     opgen.generator_index,
                 );
                 let gen_str = if compact {
-                    format!("x_{gen:#}")
+                    format!("x_{g:#}")
                 } else {
-                    format!("x_{gen}")
+                    format!("x_{g}")
                 };
                 format!("{coeff_str}{op_str}{gen_str}")
             })

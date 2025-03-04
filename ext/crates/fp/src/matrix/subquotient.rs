@@ -133,10 +133,10 @@ impl Subquotient {
         self.dimension = 0;
     }
 
-    pub fn add_gen(&mut self, gen: FpSlice) {
+    pub fn add_gen(&mut self, g: FpSlice) {
         self.gens.update_then_row_reduce(|gens_matrix| {
             let mut new_row = gens_matrix.row_mut(self.dimension);
-            new_row.assign(gen);
+            new_row.assign(g);
             self.quotient.reduce(new_row);
         });
         self.dimension = self.gens.dimension();
@@ -187,8 +187,8 @@ pub mod arbitrary {
     use proptest::prelude::*;
 
     use super::*;
-    use crate::matrix::subspace::arbitrary::SubspaceArbParams;
     pub use crate::matrix::subspace::arbitrary::MAX_DIM;
+    use crate::matrix::subspace::arbitrary::SubspaceArbParams;
 
     #[derive(Debug, Clone)]
     pub struct SubquotientArbParams {

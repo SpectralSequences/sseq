@@ -3,7 +3,7 @@
 
 // TODO: Write descriptions of each module therein.
 
-#![deny(clippy::use_self)]
+#![deny(clippy::use_self, unsafe_op_in_unsafe_fn)]
 
 pub mod module;
 pub mod steenrod_evaluator;
@@ -48,11 +48,11 @@ pub(crate) fn module_gens_from_json(
         gen_to_idx.insert(name.clone(), (degree, graded_dimension[degree]));
         graded_dimension[degree] += 1;
     }
-    (graded_dimension, gen_names, move |gen| {
+    (graded_dimension, gen_names, move |g| {
         gen_to_idx
-            .get(gen)
+            .get(g)
             .copied()
-            .ok_or_else(|| anyhow!("Invalid generator: {gen}"))
+            .ok_or_else(|| anyhow!("Invalid generator: {g}"))
     })
 }
 

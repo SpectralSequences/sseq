@@ -1,9 +1,9 @@
-#![deny(clippy::use_self)]
+#![deny(clippy::use_self, unsafe_op_in_unsafe_fn)]
 
 mod constants;
 mod limb;
 
-pub use constants::{MAX_MULTINOMIAL_LEN, NUM_PRIMES, PRIMES, PRIME_TO_INDEX_MAP};
+pub use constants::{MAX_MULTINOMIAL_LEN, NUM_PRIMES, PRIME_TO_INDEX_MAP, PRIMES};
 
 pub mod field;
 pub mod matrix;

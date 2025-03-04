@@ -9,9 +9,9 @@ use once::OnceBiVec;
 use crate::{
     algebra::MuAlgebra,
     module::{
+        Module, MuFreeModule,
         free_module::OperationGeneratorPair,
         homomorphism::{ModuleHomomorphism, ZeroHomomorphism},
-        Module, MuFreeModule,
     },
 };
 

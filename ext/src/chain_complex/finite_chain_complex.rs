@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use algebra::module::{
-    homomorphism::{FullModuleHomomorphism, ModuleHomomorphism, ZeroHomomorphism},
     Module, ZeroModule,
+    homomorphism::{FullModuleHomomorphism, ModuleHomomorphism, ZeroHomomorphism},
 };
 use sseq::coordinates::Bidegree;
 

@@ -1,4 +1,4 @@
-#![deny(clippy::use_self)]
+#![deny(clippy::use_self, unsafe_op_in_unsafe_fn)]
 
 #[cfg(feature = "concurrent")]
 pub mod concurrent;

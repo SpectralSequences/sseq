@@ -15,23 +15,22 @@
 use std::{
     fmt::Display,
     io,
-    sync::{mpsc, Arc, Mutex},
+    sync::{Arc, Mutex, mpsc},
 };
 
 use algebra::{
-    combinatorics,
+    Algebra, combinatorics,
     milnor_algebra::{MilnorAlgebra, PPartEntry},
     module::{
-        homomorphism::{FreeModuleHomomorphism, FullModuleHomomorphism, ModuleHomomorphism},
         FreeModule, GeneratorData, Module, ZeroModule,
+        homomorphism::{FreeModuleHomomorphism, FullModuleHomomorphism, ModuleHomomorphism},
     },
-    Algebra,
 };
 use anyhow::anyhow;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use fp::{
     matrix::{AugmentedMatrix, Matrix},
-    prime::{ValidPrime, TWO},
+    prime::{TWO, ValidPrime},
     vector::{FpSlice, FpSliceMut, FpVector},
 };
 use itertools::Itertools;

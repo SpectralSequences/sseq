@@ -8,7 +8,7 @@ use std::{
     },
 };
 
-use serde::{de::Error, Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer, de::Error};
 
 pub mod binomial;
 pub mod iter;
@@ -344,19 +344,15 @@ pub fn inverse<P: Prime>(p: P, k: u32) -> u32 {
 
 #[inline(always)]
 pub fn minus_one_to_the_n<P: Prime>(p: P, i: i32) -> u32 {
-    if i % 2 == 0 {
-        1
-    } else {
-        p - 1
-    }
+    if i % 2 == 0 { 1 } else { p - 1 }
 }
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use super::{binomial::Binomial, inverse, iter::BinomialIterator, Prime, ValidPrime};
+    use super::{Prime, ValidPrime, binomial::Binomial, inverse, iter::BinomialIterator};
     use crate::{
         constants::PRIMES,
-        prime::{is_prime, PrimeError},
+        prime::{PrimeError, is_prime},
     };
 
     #[test]

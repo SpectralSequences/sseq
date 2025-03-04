@@ -418,7 +418,7 @@ impl Matrix {
         if coef == 0 {
             return;
         }
-        let (target, source) = self.split_borrow(target, source);
+        let (target, source) = unsafe { self.split_borrow(target, source) };
         target.add_offset(source, prime - coef, pivot_column);
     }
 
@@ -438,7 +438,7 @@ impl Matrix {
         if coef == 0 {
             return;
         }
-        let (target, source) = self.split_borrow(target, source);
+        let (target, source) = unsafe { self.split_borrow(target, source) };
         target.add(source, prime - coef);
     }
 
@@ -452,7 +452,7 @@ impl Matrix {
         j: usize,
     ) -> (&mut FpVector, &mut FpVector) {
         let ptr = self.vectors.as_mut_ptr();
-        (&mut *ptr.add(i), &mut *ptr.add(j))
+        unsafe { (&mut *ptr.add(i), &mut *ptr.add(j)) }
     }
 
     /// This is very similar to row_reduce, except we only need to get to row echelon form, not
@@ -973,7 +973,7 @@ pub mod arbitrary {
     use super::*;
     use crate::{
         field::Fp,
-        vector::{arbitrary::FqVectorArbParams, FqVector},
+        vector::{FqVector, arbitrary::FqVectorArbParams},
     };
 
     pub const MAX_ROWS: usize = 100;
