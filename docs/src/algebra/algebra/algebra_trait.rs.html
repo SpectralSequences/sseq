@@ -616,16 +616,13 @@
 <a href="#590" id="590">590</a>
 <a href="#591" id="591">591</a>
 <a href="#592" id="592">592</a>
-<a href="#593" id="593">593</a>
-<a href="#594" id="594">594</a>
-<a href="#595" id="595">595</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Write <span class="kw">as _</span>; <span class="comment">// Needed for write! macro for String
-
-</span><span class="attr">#[cfg(doc)]
+<a href="#593" id="593">593</a></pre></div><pre class="rust"><code><span class="attr">#[cfg(doc)]
 </span><span class="kw">use </span>fp::vector::FpVector;
 <span class="kw">use </span>fp::{
     prime::ValidPrime,
     vector::{FpSlice, FpSliceMut},
 };
+<span class="kw">use </span>itertools::Itertools;
 
 <span class="doccomment">/// A graded algebra over $\mathbb{F}_p$.
 ///
@@ -789,25 +786,24 @@
 
     <span class="doccomment">/// Converts a general element into a string for display.
     </span><span class="kw">fn </span>element_to_string(<span class="kw-2">&amp;</span><span class="self">self</span>, degree: i32, element: FpSlice) -&gt; String {
-        <span class="kw">let </span><span class="kw-2">mut </span>result = String::new();
-        <span class="kw">let </span><span class="kw-2">mut </span>zero = <span class="bool-val">true</span>;
-        <span class="kw">for </span>(idx, value) <span class="kw">in </span>element.iter_nonzero() {
-            zero = <span class="bool-val">false</span>;
-            <span class="kw">if </span>value != <span class="number">1 </span>{
-                <span class="kw">let _ </span>= <span class="macro">write!</span>(result, <span class="string">"{value} * "</span>);
-            }
-            <span class="kw">let </span>b = <span class="self">self</span>.basis_element_to_string(degree, idx);
-            <span class="kw">let _ </span>= <span class="macro">write!</span>(result, <span class="string">"{b} + "</span>);
-        }
-        <span class="kw">if </span>zero {
-            result.push(<span class="string">'0'</span>);
+        <span class="kw">let </span>result = element
+            .iter_nonzero()
+            .map(|(idx, value)| {
+                <span class="kw">let </span>coeff_str = <span class="kw">if </span>value == <span class="number">1 </span>{
+                    String::from(<span class="string">""</span>)
+                } <span class="kw">else </span>{
+                    <span class="macro">format!</span>(<span class="string">"{} * "</span>, value)
+                };
+                <span class="kw">let </span>b = <span class="self">self</span>.basis_element_to_string(degree, idx);
+                <span class="macro">format!</span>(<span class="string">"{coeff_str}{b}"</span>)
+            })
+            .join(<span class="string">" + "</span>);
+
+        <span class="kw">if </span>result.is_empty() {
+            String::from(<span class="string">"0"</span>)
         } <span class="kw">else </span>{
-            <span class="comment">// Remove trailing " + "
-            </span>result.pop();
-            result.pop();
-            result.pop();
+            result
         }
-        result
     }
 }
 
