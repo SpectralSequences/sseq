@@ -1,11 +1,10 @@
-use std::fmt::Write as _; // Needed for write! macro for String
-
 #[cfg(doc)]
 use fp::vector::FpVector;
 use fp::{
     prime::ValidPrime,
     vector::{FpSlice, FpSliceMut},
 };
+use itertools::Itertools;
 
 /// A graded algebra over $\mathbb{F}_p$.
 ///
@@ -169,25 +168,24 @@ pub trait Algebra: std::fmt::Display + Send + Sync + 'static {
 
     /// Converts a general element into a string for display.
     fn element_to_string(&self, degree: i32, element: FpSlice) -> String {
-        let mut result = String::new();
-        let mut zero = true;
-        for (idx, value) in element.iter_nonzero() {
-            zero = false;
-            if value != 1 {
-                let _ = write!(result, "{value} * ");
-            }
-            let b = self.basis_element_to_string(degree, idx);
-            let _ = write!(result, "{b} + ");
-        }
-        if zero {
-            result.push('0');
+        let result = element
+            .iter_nonzero()
+            .map(|(idx, value)| {
+                let coeff_str = if value == 1 {
+                    String::from("")
+                } else {
+                    format!("{} * ", value)
+                };
+                let b = self.basis_element_to_string(degree, idx);
+                format!("{coeff_str}{b}")
+            })
+            .join(" + ");
+
+        if result.is_empty() {
+            String::from("0")
         } else {
-            // Remove trailing " + "
-            result.pop();
-            result.pop();
-            result.pop();
+            result
         }
-        result
     }
 }
 
