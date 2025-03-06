@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["ByHomologicalDegree","ByInternalDegree","ByReverseHomologicalDegree","ByStem","OrderedBidegree"],"trait":["BidegreeOrdering"]};
