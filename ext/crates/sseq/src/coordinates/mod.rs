@@ -1,6 +1,7 @@
 pub mod bidegree;
 pub mod element;
 pub mod generator;
+pub mod ordered;
 pub mod range;
 
 pub use bidegree::Bidegree;
