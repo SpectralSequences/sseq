@@ -137,15 +137,15 @@
         }
     }
 
-    <span class="kw">pub fn </span>s_t(s: u32, t: i32, idx: usize) -&gt; <span class="self">Self </span>{
+    <span class="kw">pub fn </span>s_t(s: i32, t: i32, idx: usize) -&gt; <span class="self">Self </span>{
         <span class="self">Self</span>::new(Bidegree::s_t(s, t), idx)
     }
 
-    <span class="kw">pub fn </span>n_s(n: i32, s: u32, idx: usize) -&gt; <span class="self">Self </span>{
+    <span class="kw">pub fn </span>n_s(n: i32, s: i32, idx: usize) -&gt; <span class="self">Self </span>{
         <span class="self">Self</span>::new(Bidegree::n_s(n, s), idx)
     }
 
-    <span class="kw">pub fn </span>s(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u32 {
+    <span class="kw">pub fn </span>s(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; i32 {
         <span class="self">self</span>.degree.s()
     }
 

@@ -383,7 +383,7 @@
         <span class="kw">for </span>s <span class="kw">in </span>(<span class="number">0</span>..<span class="self">self</span>.next_homological_degree()).rev() {
             <span class="kw">let </span>module = <span class="self">self</span>.module(s);
 
-            <span class="kw">for </span>t <span class="kw">in </span>min_degree + s <span class="kw">as </span>i32..=module.max_computed_degree() {
+            <span class="kw">for </span>t <span class="kw">in </span>min_degree + s..=module.max_computed_degree() {
                 result.push(unicode_num(module.number_of_gens_in_degree(t)));
                 result.push(<span class="string">' '</span>);
             }
@@ -400,7 +400,7 @@
         <span class="kw">let </span>p = <span class="self">self</span>.prime();
         <span class="kw">let </span><span class="kw-2">mut </span>sseq = sseq::Sseq::new(p, <span class="self">self</span>.min_degree(), <span class="number">0</span>);
         <span class="kw">for </span>b <span class="kw">in </span><span class="self">self</span>.iter_stem() {
-            sseq.set_dimension(b.n(), b.s() <span class="kw">as </span>i32, <span class="self">self</span>.number_of_gens_in_bidegree(b));
+            sseq.set_dimension(b.n(), b.s(), <span class="self">self</span>.number_of_gens_in_bidegree(b));
         }
         sseq
     }
@@ -408,7 +408,7 @@
     <span class="kw">fn </span>filtration_one_products(<span class="kw-2">&amp;</span><span class="self">self</span>, op_deg: i32, op_idx: usize) -&gt; sseq::Product {
         <span class="kw">let </span>p = <span class="self">self</span>.prime();
         <span class="kw">let </span><span class="kw-2">mut </span>matrices = BiVec::new(<span class="self">self</span>.min_degree());
-        <span class="kw">let </span>max_y = <span class="self">self</span>.next_homological_degree() <span class="kw">as </span>i32 - <span class="number">1</span>;
+        <span class="kw">let </span>max_y = <span class="self">self</span>.next_homological_degree() - <span class="number">1</span>;
         matrices.extend_with(<span class="self">self</span>.module(<span class="number">0</span>).max_computed_degree() - op_deg + <span class="number">2</span>, |x| {
             <span class="kw">let </span><span class="kw-2">mut </span>entries = BiVec::with_capacity(<span class="number">0</span>, max_y);
             <span class="kw">let </span><span class="kw-2">mut </span>b = Bidegree::n_s(x, <span class="number">0</span>);
@@ -516,10 +516,10 @@
     <span class="kw">fn </span>algebra(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Arc&lt;<span class="self">Self</span>::Algebra&gt;;
     <span class="kw">fn </span>min_degree(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; i32;
     <span class="kw">fn </span>zero_module(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Arc&lt;<span class="self">Self</span>::Module&gt;;
-    <span class="kw">fn </span>module(<span class="kw-2">&amp;</span><span class="self">self</span>, homological_degree: u32) -&gt; Arc&lt;<span class="self">Self</span>::Module&gt;;
+    <span class="kw">fn </span>module(<span class="kw-2">&amp;</span><span class="self">self</span>, homological_degree: i32) -&gt; Arc&lt;<span class="self">Self</span>::Module&gt;;
 
     <span class="doccomment">/// This returns the differential starting from the sth module.
-    </span><span class="kw">fn </span>differential(<span class="kw-2">&amp;</span><span class="self">self</span>, s: u32) -&gt; Arc&lt;<span class="self">Self</span>::Homomorphism&gt;;
+    </span><span class="kw">fn </span>differential(<span class="kw-2">&amp;</span><span class="self">self</span>, s: i32) -&gt; Arc&lt;<span class="self">Self</span>::Homomorphism&gt;;
 
     <span class="doccomment">/// If the complex has been computed at bidegree (s, t). This means the module has been
     /// computed at (s, t), and so has the differential at (s, t). In the case of a free module,
@@ -531,7 +531,7 @@
     </span><span class="kw">fn </span>compute_through_bidegree(<span class="kw-2">&amp;</span><span class="self">self</span>, b: Bidegree);
 
     <span class="doccomment">/// The first s such that `self.module(s)` is not defined.
-    </span><span class="kw">fn </span>next_homological_degree(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u32;
+    </span><span class="kw">fn </span>next_homological_degree(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; i32;
 
     <span class="doccomment">/// Iterate through all defined bidegrees in increasing order of stem.
     </span><span class="kw">fn </span>iter_stem(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; StemIterator&lt;<span class="lifetime">'_</span>, <span class="self">Self</span>&gt; {
@@ -595,7 +595,7 @@
 </span><span class="kw">pub struct </span>StemIterator&lt;<span class="lifetime">'a</span>, CC: <span class="question-mark">?</span>Sized&gt; {
     cc: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>CC,
     current: Bidegree,
-    max_s: u32,
+    max_s: i32,
 }
 
 <span class="kw">impl</span>&lt;CC: ChainComplex + <span class="question-mark">?</span>Sized&gt; Iterator <span class="kw">for </span>StemIterator&lt;<span class="lifetime">'_</span>, CC&gt; {
@@ -634,12 +634,12 @@
     &gt;;
 
     <span class="kw">fn </span>target(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Arc&lt;<span class="self">Self</span>::TargetComplex&gt;;
-    <span class="kw">fn </span>chain_map(<span class="kw-2">&amp;</span><span class="self">self</span>, s: u32) -&gt; Arc&lt;<span class="self">Self</span>::ChainMap&gt;;
+    <span class="kw">fn </span>chain_map(<span class="kw-2">&amp;</span><span class="self">self</span>, s: i32) -&gt; Arc&lt;<span class="self">Self</span>::ChainMap&gt;;
 }
 
 <span class="doccomment">/// A bounded chain complex is a chain complex C for which C_s = 0 for all s &gt;= max_s
 </span><span class="kw">pub trait </span>BoundedChainComplex: ChainComplex {
-    <span class="kw">fn </span>max_s(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u32;
+    <span class="kw">fn </span>max_s(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; i32;
 
     <span class="kw">fn </span>euler_characteristic(<span class="kw-2">&amp;</span><span class="self">self</span>, t: i32) -&gt; isize {
         (<span class="number">0</span>..<span class="self">self</span>.max_s())
@@ -650,7 +650,7 @@
 
 <span class="doccomment">/// `chain_maps` is required to be non-empty
 </span><span class="kw">pub struct </span>ChainMap&lt;F: ModuleHomomorphism&gt; {
-    <span class="kw">pub </span>s_shift: u32,
+    <span class="kw">pub </span>s_shift: i32,
     <span class="kw">pub </span>chain_maps: Vec&lt;F&gt;,
 }
 </code></pre></div></section></main></body></html>

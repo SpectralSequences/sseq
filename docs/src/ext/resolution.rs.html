@@ -1013,7 +1013,7 @@
     vector::{FpSlice, FpSliceMut, FpVector},
 };
 <span class="kw">use </span>itertools::Itertools;
-<span class="kw">use </span>once::OnceVec;
+<span class="kw">use </span>once::{OnceBiVec, OnceVec};
 <span class="kw">use </span>sseq::coordinates::Bidegree;
 
 <span class="kw">use crate</span>::{
@@ -1065,9 +1065,9 @@
     name: String,
     lock: Mutex&lt;()&gt;,
     complex: Arc&lt;CC&gt;,
-    modules: OnceVec&lt;Arc&lt;MuFreeModule&lt;U, CC::Algebra&gt;&gt;&gt;,
+    modules: OnceBiVec&lt;Arc&lt;MuFreeModule&lt;U, CC::Algebra&gt;&gt;&gt;,
     zero_module: Arc&lt;MuFreeModule&lt;U, CC::Algebra&gt;&gt;,
-    chain_maps: OnceVec&lt;Arc&lt;MuFreeModuleHomomorphism&lt;U, CC::Module&gt;&gt;&gt;,
+    chain_maps: OnceBiVec&lt;Arc&lt;MuFreeModuleHomomorphism&lt;U, CC::Module&gt;&gt;&gt;,
     differentials: OnceVec&lt;Arc&lt;MuFreeModuleHomomorphism&lt;U, MuFreeModule&lt;U, CC::Algebra&gt;&gt;&gt;&gt;,
 
     <span class="doccomment">///  For each *internal* degree, store the kernel of the most recently calculated chain map as
@@ -1125,8 +1125,8 @@
             save_dir,
             lock: Mutex::new(()),
 
-            chain_maps: OnceVec::new(),
-            modules: OnceVec::new(),
+            chain_maps: OnceBiVec::new(<span class="number">0</span>),
+            modules: OnceBiVec::new(<span class="number">0</span>),
             differentials: OnceVec::new(),
             kernels: DashMap::new(),
             load_quasi_inverse: <span class="bool-val">true</span>,
@@ -1144,10 +1144,10 @@
     <span class="doccomment">/// This function prepares the Resolution object to perform computations up to the
     /// specified s degree. It does *not* perform any computations by itself. It simply lengthens
     /// the `OnceVec`s `modules`, `chain_maps`, etc. to the right length.
-    </span><span class="kw">fn </span>extend_through_degree(<span class="kw-2">&amp;</span><span class="self">self</span>, max_s: u32) {
+    </span><span class="kw">fn </span>extend_through_degree(<span class="kw-2">&amp;</span><span class="self">self</span>, max_s: i32) {
         <span class="kw">let </span>min_degree = <span class="self">self</span>.min_degree();
 
-        <span class="kw">for </span>i <span class="kw">in </span><span class="self">self</span>.modules.len() <span class="kw">as </span>u32..=max_s {
+        <span class="kw">for </span>i <span class="kw">in </span><span class="self">self</span>.modules.len()..=max_s {
             <span class="self">self</span>.modules.push(Arc::new(MuFreeModule::new(
                 Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.algebra()),
                 <span class="macro">format!</span>(<span class="string">"F{i}"</span>),
@@ -1163,13 +1163,13 @@
         <span class="kw">if </span><span class="self">self</span>.differentials.is_empty() {
             <span class="self">self</span>.differentials
                 .push(Arc::new(MuFreeModuleHomomorphism::new(
-                    Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.modules[<span class="number">0u32</span>]),
+                    Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.modules[<span class="number">0</span>]),
                     Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.zero_module),
                     <span class="number">0</span>,
                 )));
         }
 
-        <span class="kw">for </span>i <span class="kw">in </span><span class="self">self</span>.differentials.len() <span class="kw">as </span>u32..=max_s {
+        <span class="kw">for </span>i <span class="kw">in </span><span class="self">self</span>.differentials.len() <span class="kw">as </span>i32..=max_s {
             <span class="self">self</span>.differentials
                 .push(Arc::new(MuFreeModuleHomomorphism::new(
                     Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.modules[i]),
@@ -1844,8 +1844,8 @@
         <span class="self">self</span>.target().algebra()
     }
 
-    <span class="kw">fn </span>module(<span class="kw-2">&amp;</span><span class="self">self</span>, s: u32) -&gt; Arc&lt;<span class="self">Self</span>::Module&gt; {
-        Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.modules[s <span class="kw">as </span>usize])
+    <span class="kw">fn </span>module(<span class="kw-2">&amp;</span><span class="self">self</span>, s: i32) -&gt; Arc&lt;<span class="self">Self</span>::Module&gt; {
+        Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.modules[s])
     }
 
     <span class="kw">fn </span>zero_module(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Arc&lt;<span class="self">Self</span>::Module&gt; {
@@ -1860,7 +1860,7 @@
         <span class="self">self</span>.differentials.len() &gt; b.s() <span class="kw">as </span>usize &amp;&amp; <span class="self">self</span>.differential(b.s()).next_degree() &gt; b.t()
     }
 
-    <span class="kw">fn </span>differential(<span class="kw-2">&amp;</span><span class="self">self</span>, s: u32) -&gt; Arc&lt;<span class="self">Self</span>::Homomorphism&gt; {
+    <span class="kw">fn </span>differential(<span class="kw-2">&amp;</span><span class="self">self</span>, s: i32) -&gt; Arc&lt;<span class="self">Self</span>::Homomorphism&gt; {
         Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.differentials[s <span class="kw">as </span>usize])
     }
 
@@ -1869,8 +1869,8 @@
         <span class="self">self</span>.compute_through_bidegree_with_callback(b, |<span class="kw">_</span>| ())
     }
 
-    <span class="kw">fn </span>next_homological_degree(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u32 {
-        <span class="self">self</span>.modules.len() <span class="kw">as </span>u32
+    <span class="kw">fn </span>next_homological_degree(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; i32 {
+        <span class="self">self</span>.modules.len()
     }
 
     <span class="kw">fn </span>apply_quasi_inverse&lt;T, S&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, results: <span class="kw-2">&amp;mut </span>[T], b: Bidegree, inputs: <span class="kw-2">&amp;</span>[S]) -&gt; bool
@@ -1913,7 +1913,7 @@
         Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.complex)
     }
 
-    <span class="kw">fn </span>chain_map(<span class="kw-2">&amp;</span><span class="self">self</span>, s: u32) -&gt; Arc&lt;<span class="self">Self</span>::ChainMap&gt; {
+    <span class="kw">fn </span>chain_map(<span class="kw-2">&amp;</span><span class="self">self</span>, s: i32) -&gt; Arc&lt;<span class="self">Self</span>::ChainMap&gt; {
         Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.chain_maps[s])
     }
 }

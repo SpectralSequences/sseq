@@ -71,27 +71,27 @@
 /// maximum `t`.
 </span><span class="kw">pub struct </span>BidegreeRange&lt;<span class="lifetime">'a</span>, T&gt; {
     <span class="doccomment">/// The maximal value of `s` in the range.
-    </span>s: u32,
+    </span>s: i32,
     <span class="doccomment">/// The function that gives, for a given value of `s`, the maximum value for `t`.
-    </span>t: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>(<span class="kw">dyn </span>Fn(<span class="kw-2">&amp;</span>T, u32) -&gt; i32 + Sync),
+    </span>t: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>(<span class="kw">dyn </span>Fn(<span class="kw-2">&amp;</span>T, i32) -&gt; i32 + Sync),
     <span class="doccomment">/// Auxillary data that `t` may depend on.
     </span>aux: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>T,
 }
 
 <span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, T&gt; BidegreeRange&lt;<span class="lifetime">'a</span>, T&gt; {
-    <span class="kw">pub fn </span>new(aux: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>T, s: u32, t: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>(<span class="kw">dyn </span>Fn(<span class="kw-2">&amp;</span>T, u32) -&gt; i32 + Sync)) -&gt; <span class="self">Self </span>{
+    <span class="kw">pub fn </span>new(aux: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>T, s: i32, t: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>(<span class="kw">dyn </span>Fn(<span class="kw-2">&amp;</span>T, i32) -&gt; i32 + Sync)) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{ s, t, aux }
     }
 
-    <span class="kw">pub fn </span>s(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u32 {
+    <span class="kw">pub fn </span>s(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; i32 {
         <span class="self">self</span>.s
     }
 
-    <span class="kw">pub fn </span>t(<span class="kw-2">&amp;</span><span class="self">self</span>, s: u32) -&gt; i32 {
+    <span class="kw">pub fn </span>t(<span class="kw-2">&amp;</span><span class="self">self</span>, s: i32) -&gt; i32 {
         (<span class="self">self</span>.t)(<span class="self">self</span>.aux, s)
     }
 
-    <span class="kw">pub fn </span>restrict(<span class="self">self</span>, s: u32) -&gt; <span class="self">Self </span>{
+    <span class="kw">pub fn </span>restrict(<span class="self">self</span>, s: i32) -&gt; <span class="self">Self </span>{
         <span class="macro">assert!</span>(s &lt;= <span class="self">self</span>.s);
         <span class="self">Self </span>{
             s,

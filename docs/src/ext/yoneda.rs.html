@@ -836,9 +836,9 @@
     <span class="kw">let </span>algebra = cc.algebra();
 
     <span class="kw">let </span>t_shift: i32 = map.chain_maps[<span class="number">0</span>].degree_shift();
-    <span class="kw">let </span>s_shift: u32 = map.s_shift;
+    <span class="kw">let </span>s_shift: i32 = map.s_shift;
 
-    <span class="kw">let </span>s_max = std::cmp::max(target_cc.max_s(), map.s_shift + map.chain_maps.len() <span class="kw">as </span>u32) - <span class="number">1</span>;
+    <span class="kw">let </span>s_max = std::cmp::max(target_cc.max_s(), map.s_shift + map.chain_maps.len() <span class="kw">as </span>i32) - <span class="number">1</span>;
 
     <span class="kw">let </span>t_max = {
         <span class="comment">// The maximum t required by the augmentation maps
@@ -1044,7 +1044,7 @@
 
         <span class="comment">// Now we clean up the module degree by degree from above.
         </span><span class="kw">for </span>t <span class="kw">in </span>(t_min..=t_max).rev() {
-            <span class="kw">if </span>t - (s <span class="kw">as </span>i32) &lt; cc.min_degree() {
+            <span class="kw">if </span>t - s &lt; cc.min_degree() {
                 <span class="kw">continue</span>;
             }
             <span class="kw">if </span>source.dimension(t) == <span class="number">0 </span>{

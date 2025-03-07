@@ -814,7 +814,7 @@
         <span class="kw">let </span>shift = json[<span class="string">"shift"</span>].as_i64().unwrap_or(<span class="number">0</span>) <span class="kw">as </span>i32;
 
         <span class="kw">let </span>cofiber = BidegreeGenerator::s_t(
-            cofiber[<span class="string">"s"</span>].as_u64().unwrap() <span class="kw">as </span>u32,
+            cofiber[<span class="string">"s"</span>].as_i64().unwrap() <span class="kw">as </span>i32,
             cofiber[<span class="string">"t"</span>].as_i64().unwrap() <span class="kw">as </span>i32 + shift,
             cofiber[<span class="string">"idx"</span>].as_u64().unwrap() <span class="kw">as </span>usize,
         );
@@ -1145,9 +1145,9 @@
 /// be computed. The minimum value of `s` is the `shift_s` of the
 /// [`SecondaryLift`](crate::secondary::SecondaryLift) and the maximum value (inclusive) is the
 /// maximum `s` of the resolution.
-</span><span class="kw">pub fn </span>secondary_job() -&gt; <span class="prelude-ty">Option</span>&lt;u32&gt; {
+</span><span class="kw">pub fn </span>secondary_job() -&gt; <span class="prelude-ty">Option</span>&lt;i32&gt; {
     <span class="kw">let </span>val = std::env::var(<span class="string">"SECONDARY_JOB"</span>).ok()<span class="question-mark">?</span>;
-    <span class="kw">let </span>parsed: <span class="prelude-ty">Option</span>&lt;u32&gt; = str::parse(<span class="kw-2">&amp;</span>val).ok();
+    <span class="kw">let </span>parsed: <span class="prelude-ty">Option</span>&lt;i32&gt; = str::parse(<span class="kw-2">&amp;</span>val).ok();
     <span class="kw">if </span>parsed.is_none() {
         <span class="macro">eprintln!</span>(
             <span class="string">"Invalid argument for `SECONDARY_JOB`. Expected non-negative integer but found {val}"

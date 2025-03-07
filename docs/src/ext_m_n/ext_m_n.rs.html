@@ -200,14 +200,14 @@
     };
     <span class="kw">use </span>ext::chain_complex::FreeChainComplex;
     <span class="kw">use </span>fp::matrix::Subquotient;
-    <span class="kw">use </span>once::OnceVec;
+    <span class="kw">use </span>once::OnceBiVec;
     <span class="kw">use </span>sseq::coordinates::Bidegree;
 
     <span class="kw">pub struct </span>HomCochainComplex&lt;CC: FreeChainComplex, M: Module&lt;Algebra = CC::Algebra&gt;&gt; {
         source: Arc&lt;CC&gt;,
         target: Arc&lt;M&gt;,
-        modules: OnceVec&lt;Arc&lt;HomModule&lt;M&gt;&gt;&gt;,
-        differentials: OnceVec&lt;Arc&lt;HomPullback&lt;M&gt;&gt;&gt;,
+        modules: OnceBiVec&lt;Arc&lt;HomModule&lt;M&gt;&gt;&gt;,
+        differentials: OnceBiVec&lt;Arc&lt;HomPullback&lt;M&gt;&gt;&gt;,
     }
 
     <span class="kw">impl</span>&lt;CC: FreeChainComplex, M: Module&lt;Algebra = CC::Algebra&gt;&gt; HomCochainComplex&lt;CC, M&gt; {
@@ -215,27 +215,27 @@
             <span class="self">Self </span>{
                 source,
                 target,
-                modules: OnceVec::new(),
-                differentials: OnceVec::new(),
+                modules: OnceBiVec::new(<span class="number">0</span>),
+                differentials: OnceBiVec::new(<span class="number">0</span>),
             }
         }
 
         <span class="kw">pub fn </span>min_degree(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; i32 {
-            <span class="self">self</span>.modules[<span class="number">0usize</span>].min_degree()
+            <span class="self">self</span>.modules[<span class="number">0</span>].min_degree()
         }
 
         <span class="kw">pub fn </span>compute_through_stem(<span class="kw-2">&amp;</span><span class="self">self</span>, max: Bidegree) {
-            <span class="self">self</span>.modules.extend(max.s() <span class="kw">as </span>usize + <span class="number">1</span>, |s| {
+            <span class="self">self</span>.modules.extend(max.s() + <span class="number">1</span>, |s| {
                 Arc::new(HomModule::new(
-                    <span class="self">self</span>.source.module(s <span class="kw">as </span>u32),
+                    <span class="self">self</span>.source.module(s),
                     Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.target),
                 ))
             });
-            <span class="self">self</span>.differentials.extend(max.s() <span class="kw">as </span>usize, |s| {
+            <span class="self">self</span>.differentials.extend(max.s(), |s| {
                 Arc::new(HomPullback::new(
                     Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.modules[s]),
                     Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.modules[s + <span class="number">1</span>]),
-                    <span class="self">self</span>.source.differential(s <span class="kw">as </span>u32 + <span class="number">1</span>),
+                    <span class="self">self</span>.source.differential(s + <span class="number">1</span>),
                 ))
             });
             <span class="kw">for </span>(s, module) <span class="kw">in </span><span class="self">self</span>.modules.iter().enumerate() {

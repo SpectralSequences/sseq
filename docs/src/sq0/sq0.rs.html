@@ -518,9 +518,7 @@
 <a href="#492" id="492">492</a>
 <a href="#493" id="493">493</a>
 <a href="#494" id="494">494</a>
-<a href="#495" id="495">495</a>
-<a href="#496" id="496">496</a>
-<a href="#497" id="497">497</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
+<a href="#495" id="495">495</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>algebra::module::Module;
 <span class="kw">use </span>double::DoubleChainComplex;
@@ -916,7 +914,7 @@
         <span class="kw">use </span>std::sync::Arc;
 
         <span class="kw">use </span>ext::chain_complex::ChainComplex;
-        <span class="kw">use </span>once::OnceVec;
+        <span class="kw">use </span>once::OnceBiVec;
         <span class="kw">use </span>sseq::coordinates::Bidegree;
 
         <span class="kw">use super</span>::{DoubleAlgebra, DoubleModule, DoubleModuleHomomorphism};
@@ -924,8 +922,8 @@
         <span class="kw">pub struct </span>DoubleChainComplex&lt;CC: ChainComplex&gt; {
             inner: Arc&lt;CC&gt;,
             zero_module: Arc&lt;DoubleModule&lt;CC::Module&gt;&gt;,
-            modules: OnceVec&lt;Arc&lt;DoubleModule&lt;CC::Module&gt;&gt;&gt;,
-            differentials: OnceVec&lt;Arc&lt;DoubleModuleHomomorphism&lt;CC::Homomorphism&gt;&gt;&gt;,
+            modules: OnceBiVec&lt;Arc&lt;DoubleModule&lt;CC::Module&gt;&gt;&gt;,
+            differentials: OnceBiVec&lt;Arc&lt;DoubleModuleHomomorphism&lt;CC::Homomorphism&gt;&gt;&gt;,
         }
 
         <span class="kw">impl</span>&lt;CC: ChainComplex&gt; DoubleChainComplex&lt;CC&gt;
@@ -936,8 +934,8 @@
                 <span class="self">Self </span>{
                     zero_module: Arc::new(DoubleModule::new(inner.zero_module())),
                     inner,
-                    modules: OnceVec::new(),
-                    differentials: OnceVec::new(),
+                    modules: OnceBiVec::new(<span class="number">0</span>),
+                    differentials: OnceBiVec::new(<span class="number">0</span>),
                 }
             }
         }
@@ -962,11 +960,11 @@
                 Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.zero_module)
             }
 
-            <span class="kw">fn </span>module(<span class="kw-2">&amp;</span><span class="self">self</span>, s: u32) -&gt; Arc&lt;<span class="self">Self</span>::Module&gt; {
+            <span class="kw">fn </span>module(<span class="kw-2">&amp;</span><span class="self">self</span>, s: i32) -&gt; Arc&lt;<span class="self">Self</span>::Module&gt; {
                 Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.modules[s])
             }
 
-            <span class="kw">fn </span>differential(<span class="kw-2">&amp;</span><span class="self">self</span>, s: u32) -&gt; Arc&lt;<span class="self">Self</span>::Homomorphism&gt; {
+            <span class="kw">fn </span>differential(<span class="kw-2">&amp;</span><span class="self">self</span>, s: i32) -&gt; Arc&lt;<span class="self">Self</span>::Homomorphism&gt; {
                 Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.differentials[s])
             }
 
@@ -976,11 +974,9 @@
 
             <span class="kw">fn </span>compute_through_bidegree(<span class="kw-2">&amp;</span><span class="self">self</span>, b: Bidegree) {
                 <span class="self">self</span>.inner.compute_through_bidegree(<span class="kw">super</span>::div_bidegree(b));
-                <span class="self">self</span>.modules.extend(b.s() <span class="kw">as </span>usize, |s| {
-                    Arc::new(DoubleModule::new(<span class="self">self</span>.inner.module(s <span class="kw">as </span>u32)))
-                });
-                <span class="self">self</span>.differentials.extend(b.s() <span class="kw">as </span>usize, |s| {
-                    <span class="kw">let </span>s = s <span class="kw">as </span>u32;
+                <span class="self">self</span>.modules
+                    .extend(b.s(), |s| Arc::new(DoubleModule::new(<span class="self">self</span>.inner.module(s))));
+                <span class="self">self</span>.differentials.extend(b.s(), |s| {
                     Arc::new(DoubleModuleHomomorphism::new(
                         <span class="self">self</span>.module(s),
                         <span class="kw">if </span>s == <span class="number">0 </span>{
@@ -1011,7 +1007,7 @@
                 </span>}
             }
 
-            <span class="kw">fn </span>next_homological_degree(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u32 {
+            <span class="kw">fn </span>next_homological_degree(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; i32 {
                 <span class="self">self</span>.inner.next_homological_degree()
             }
         }

@@ -518,9 +518,7 @@
 <a href="#492" id="492">492</a>
 <a href="#493" id="493">493</a>
 <a href="#494" id="494">494</a>
-<a href="#495" id="495">495</a>
-<a href="#496" id="496">496</a>
-<a href="#497" id="497">497</a></pre></div><pre class="rust"><code><span class="doccomment">//! Computes massey products in $\Mod_{C\lambda^2}$.
+<a href="#495" id="495">495</a></pre></div><pre class="rust"><code><span class="doccomment">//! Computes massey products in $\Mod_{C\lambda^2}$.
 //!
 //! # Usage
 //! This computes all Massey products of the form $\langle -, b, a\rangle$, where $a \in \Ext^{\*,
@@ -763,7 +761,7 @@
     ch_lift.extend_all();
 
     <span class="kw">fn </span>get_page_data(sseq: <span class="kw-2">&amp;</span>sseq::Sseq, b: Bidegree) -&gt; <span class="kw-2">&amp;</span>fp::matrix::Subquotient {
-        <span class="kw">let </span>d = sseq.page_data(b.n(), b.s() <span class="kw">as </span>i32);
+        <span class="kw">let </span>d = sseq.page_data(b.n(), b.s());
         <span class="kw-2">&amp;</span>d[std::cmp::min(<span class="number">3</span>, d.len() - <span class="number">1</span>)]
     }
 
@@ -894,9 +892,7 @@
         <span class="kw">let </span>mt = Matrix::from_vec(p, <span class="kw-2">&amp;</span>chain_homotopy.homotopy(source.s() + <span class="number">1</span>).hom_k(c.t() + <span class="number">1</span>));
         <span class="kw">let </span>m1 = Matrix::from_vec(
             p,
-            <span class="kw-2">&amp;</span>ch_lift.homotopies()[source.s() <span class="kw">as </span>i32 + <span class="number">1</span>]
-                .homotopies
-                .hom_k(c.t()),
+            <span class="kw-2">&amp;</span>ch_lift.homotopies()[source.s() + <span class="number">1</span>].homotopies.hom_k(c.t()),
         );
         <span class="kw">let </span>mp = Matrix::from_vec(
             p,

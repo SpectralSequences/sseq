@@ -945,9 +945,7 @@
 <a href="#919" id="919">919</a>
 <a href="#920" id="920">920</a>
 <a href="#921" id="921">921</a>
-<a href="#922" id="922">922</a>
-<a href="#923" id="923">923</a>
-<a href="#924" id="924">924</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#922" id="922">922</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     io::{stderr, stdout, Write},
     sync::Arc,
 };
@@ -1160,7 +1158,7 @@
                 <span class="macro">write!</span>(f, <span class="string">"0"</span>)
             } <span class="kw">else </span>{
                 <span class="macro">write!</span>(f, <span class="string">"{}"</span>, <span class="self">self</span>.modules[<span class="number">0</span>])<span class="question-mark">?</span>;
-                <span class="kw">for </span>m <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.modules[<span class="number">1</span>..] {
+                <span class="kw">for </span>m <span class="kw">in </span><span class="self">self</span>.modules.iter().skip(<span class="number">1</span>) {
                     <span class="macro">write!</span>(f, <span class="string">" (+) {m}"</span>)<span class="question-mark">?</span>;
                 }
                 <span class="prelude-val">Ok</span>(())
@@ -1335,7 +1333,7 @@
         matrix::AugmentedMatrix,
         vector::{FpSlice, FpSliceMut, FpVector},
     };
-    <span class="kw">use </span>once::{OnceBiVec, OnceVec};
+    <span class="kw">use </span>once::OnceBiVec;
     <span class="kw">use </span>sseq::coordinates::Bidegree;
 
     <span class="kw">use </span><span class="kw">super</span>::sum_module::SumModule;
@@ -1350,9 +1348,9 @@
     {
         left_cc: Arc&lt;CC1&gt;,
         right_cc: Arc&lt;CC2&gt;,
-        modules: OnceVec&lt;Arc&lt;Stm&lt;CC1::Module, CC2::Module&gt;&gt;&gt;,
+        modules: OnceBiVec&lt;Arc&lt;Stm&lt;CC1::Module, CC2::Module&gt;&gt;&gt;,
         zero_module: Arc&lt;Stm&lt;CC1::Module, CC2::Module&gt;&gt;,
-        differentials: OnceVec&lt;Arc&lt;TensorChainMap&lt;A, CC1, CC2&gt;&gt;&gt;,
+        differentials: OnceBiVec&lt;Arc&lt;TensorChainMap&lt;A, CC1, CC2&gt;&gt;&gt;,
     }
 
     <span class="kw">impl</span>&lt;A, CC1, CC2&gt; TensorChainComplex&lt;A, CC1, CC2&gt;
@@ -1363,8 +1361,8 @@
     {
         <span class="kw">pub fn </span>new(left_cc: Arc&lt;CC1&gt;, right_cc: Arc&lt;CC2&gt;) -&gt; <span class="self">Self </span>{
             <span class="self">Self </span>{
-                modules: OnceVec::new(),
-                differentials: OnceVec::new(),
+                modules: OnceBiVec::new(<span class="number">0</span>),
+                differentials: OnceBiVec::new(<span class="number">0</span>),
                 zero_module: Arc::new(SumModule::zero_module(
                     left_cc.algebra(),
                     left_cc.min_degree() + right_cc.min_degree(),
@@ -1399,27 +1397,27 @@
         <span class="doccomment">/// This function sends a (x) b to b (x) a. This makes sense only if left_cc and right_cc are
         /// equal, but we don't check that.
         </span><span class="kw">pub fn </span>swap(<span class="kw-2">&amp;</span><span class="self">self</span>, result: <span class="kw-2">&amp;mut </span>FpVector, vec: <span class="kw-2">&amp;</span>FpVector, b: Bidegree) {
-            <span class="kw">let </span>s = b.s() <span class="kw">as </span>usize;
-
+            <span class="kw">let </span>s = b.s();
             <span class="kw">for </span>left_s <span class="kw">in </span><span class="number">0</span>..=s {
                 <span class="kw">let </span>right_s = s - left_s;
                 <span class="kw">let </span>module = <span class="kw-2">&amp;</span><span class="self">self</span>.modules[s];
 
-                <span class="kw">let </span>source_offset = module.offset(b.t(), left_s);
-                <span class="kw">let </span>target_offset = module.offset(b.t(), right_s);
+                <span class="kw">let </span>source_offset = module.offset(b.t(), left_s <span class="kw">as </span>usize);
+                <span class="kw">let </span>target_offset = module.offset(b.t(), right_s <span class="kw">as </span>usize);
 
                 <span class="kw">for </span>left_t <span class="kw">in </span><span class="number">0</span>..=b.t() {
                     <span class="kw">let </span>right_t = b.t() - left_t;
 
-                    <span class="kw">let </span>left_dim = module.modules[left_s].left.dimension(left_t);
-                    <span class="kw">let </span>right_dim = module.modules[left_s].right.dimension(right_t);
+                    <span class="kw">let </span>left_dim = module.modules[left_s <span class="kw">as </span>usize].left.dimension(left_t);
+                    <span class="kw">let </span>right_dim = module.modules[left_s <span class="kw">as </span>usize].right.dimension(right_t);
 
                     <span class="kw">if </span>left_dim == <span class="number">0 </span>|| right_dim == <span class="number">0 </span>{
                         <span class="kw">continue</span>;
                     }
 
-                    <span class="kw">let </span>source_inner_offset = module.modules[left_s].offset(b.t(), left_t);
-                    <span class="kw">let </span>target_inner_offset = module.modules[right_s].offset(b.t(), right_t);
+                    <span class="kw">let </span>source_inner_offset = module.modules[left_s <span class="kw">as </span>usize].offset(b.t(), left_t);
+                    <span class="kw">let </span>target_inner_offset =
+                        module.modules[right_s <span class="kw">as </span>usize].offset(b.t(), right_t);
 
                     <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..left_dim {
                         <span class="kw">for </span>j <span class="kw">in </span><span class="number">0</span>..right_dim {
@@ -1466,15 +1464,15 @@
                 &amp;&amp; <span class="self">self
                     </span>.right_cc
                     .has_computed_bidegree(b - <span class="self">self</span>.left_min_shift())
-                &amp;&amp; <span class="self">self</span>.differentials.len() &gt; b.s() <span class="kw">as </span>usize
+                &amp;&amp; <span class="self">self</span>.differentials.len() &gt; b.s()
         }
 
-        <span class="kw">fn </span>module(<span class="kw-2">&amp;</span><span class="self">self</span>, s: u32) -&gt; Arc&lt;<span class="self">Self</span>::Module&gt; {
-            Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.modules[s <span class="kw">as </span>usize])
+        <span class="kw">fn </span>module(<span class="kw-2">&amp;</span><span class="self">self</span>, s: i32) -&gt; Arc&lt;<span class="self">Self</span>::Module&gt; {
+            Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.modules[s])
         }
 
-        <span class="kw">fn </span>differential(<span class="kw-2">&amp;</span><span class="self">self</span>, s: u32) -&gt; Arc&lt;<span class="self">Self</span>::Homomorphism&gt; {
-            Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.differentials[s <span class="kw">as </span>usize])
+        <span class="kw">fn </span>differential(<span class="kw-2">&amp;</span><span class="self">self</span>, s: i32) -&gt; Arc&lt;<span class="self">Self</span>::Homomorphism&gt; {
+            Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.differentials[s])
         }
 
         <span class="kw">fn </span>compute_through_bidegree(<span class="kw-2">&amp;</span><span class="self">self</span>, b: Bidegree) {
@@ -1483,8 +1481,7 @@
             <span class="self">self</span>.right_cc
                 .compute_through_bidegree(b - <span class="self">self</span>.left_min_shift());
 
-            <span class="self">self</span>.modules.extend(b.s() <span class="kw">as </span>usize, |i| {
-                <span class="kw">let </span>i = i <span class="kw">as </span>u32;
+            <span class="self">self</span>.modules.extend(b.s(), |i| {
                 <span class="kw">let </span>new_module_list: Vec&lt;Arc&lt;TensorModule&lt;CC1::Module, CC2::Module&gt;&gt;&gt; = (<span class="number">0</span>..=i)
                     .map(|j| {
                         Arc::new(TensorModule::new(
@@ -1504,8 +1501,7 @@
                 module.compute_basis(b.t());
             }
 
-            <span class="self">self</span>.differentials.extend(b.s() <span class="kw">as </span>usize, |s| {
-                <span class="kw">let </span>s = s <span class="kw">as </span>u32;
+            <span class="self">self</span>.differentials.extend(b.s(), |s| {
                 <span class="kw">if </span>s == <span class="number">0 </span>{
                     Arc::new(TensorChainMap {
                         left_cc: <span class="self">self</span>.left_cc(),
@@ -1528,8 +1524,8 @@
             });
         }
 
-        <span class="kw">fn </span>next_homological_degree(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u32 {
-            <span class="self">self</span>.modules.len() <span class="kw">as </span>u32
+        <span class="kw">fn </span>next_homological_degree(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; i32 {
+            <span class="self">self</span>.modules.len()
         }
     }
 
@@ -1541,7 +1537,7 @@
     {
         left_cc: Arc&lt;CC1&gt;,
         right_cc: Arc&lt;CC2&gt;,
-        source_s: u32,
+        source_s: i32,
         source: Arc&lt;Stm&lt;CC1::Module, CC2::Module&gt;&gt;,
         target: Arc&lt;Stm&lt;CC1::Module, CC2::Module&gt;&gt;,
         quasi_inverses: OnceBiVec&lt;Vec&lt;<span class="prelude-ty">Option</span>&lt;Vec&lt;(usize, usize, FpVector)&gt;&gt;&gt;&gt;,
@@ -1609,7 +1605,7 @@
                     target_offset + (left_index + <span class="number">1</span>) * target_right_dim,
                 );
                 <span class="self">self</span>.right_cc
-                    .differential(right_s <span class="kw">as </span>u32)
+                    .differential(right_s <span class="kw">as </span>i32)
                     .apply_to_basis_element(result, coeff, right_t, right_index);
             }
 
@@ -1622,7 +1618,7 @@
 
                 <span class="kw">let </span><span class="kw-2">mut </span>dl = FpVector::new(<span class="self">self</span>.prime(), target_module.left.dimension(left_t));
                 <span class="self">self</span>.left_cc
-                    .differential(left_s <span class="kw">as </span>u32)
+                    .differential(left_s <span class="kw">as </span>i32)
                     .apply_to_basis_element(dl.as_slice_mut(), coeff, left_t, left_index);
                 <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..dl.len() {
                     result.add_basis_element(

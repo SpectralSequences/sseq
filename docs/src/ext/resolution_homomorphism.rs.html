@@ -581,7 +581,7 @@
             name,
             source,
             target,
-            maps: OnceBiVec::new(shift.s() <span class="kw">as </span>i32),
+            maps: OnceBiVec::new(shift.s()),
             shift,
             save_dir,
         }
@@ -599,21 +599,21 @@
         <span class="self">self</span>.maps.len()
     }
 
-    <span class="kw">fn </span>get_map_ensure_length(<span class="kw-2">&amp;</span><span class="self">self</span>, input_s: u32) -&gt; <span class="kw-2">&amp;</span>MuFreeModuleHomomorphism&lt;U, CC2::Module&gt; {
-        <span class="self">self</span>.maps.extend(input_s <span class="kw">as </span>i32, |input_s| {
-            <span class="kw">let </span>output_s = input_s <span class="kw">as </span>u32 - <span class="self">self</span>.shift.s();
+    <span class="kw">fn </span>get_map_ensure_length(<span class="kw-2">&amp;</span><span class="self">self</span>, input_s: i32) -&gt; <span class="kw-2">&amp;</span>MuFreeModuleHomomorphism&lt;U, CC2::Module&gt; {
+        <span class="self">self</span>.maps.extend(input_s, |input_s| {
+            <span class="kw">let </span>output_s = input_s - <span class="self">self</span>.shift.s();
             Arc::new(MuFreeModuleHomomorphism::new(
-                <span class="self">self</span>.source.module(input_s <span class="kw">as </span>u32),
+                <span class="self">self</span>.source.module(input_s),
                 <span class="self">self</span>.target.module(output_s),
                 <span class="self">self</span>.shift.t(),
             ))
         });
-        <span class="kw-2">&amp;</span><span class="self">self</span>.maps[input_s <span class="kw">as </span>i32]
+        <span class="kw-2">&amp;</span><span class="self">self</span>.maps[input_s]
     }
 
     <span class="doccomment">/// Returns the chain map on the `s`th source module.
-    </span><span class="kw">pub fn </span>get_map(<span class="kw-2">&amp;</span><span class="self">self</span>, input_s: u32) -&gt; Arc&lt;MuFreeModuleHomomorphism&lt;U, CC2::Module&gt;&gt; {
-        Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.maps[input_s <span class="kw">as </span>i32])
+    </span><span class="kw">pub fn </span>get_map(<span class="kw-2">&amp;</span><span class="self">self</span>, input_s: i32) -&gt; Arc&lt;MuFreeModuleHomomorphism&lt;U, CC2::Module&gt;&gt; {
+        Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.maps[input_s])
     }
 
     <span class="kw">pub fn </span>save_dir(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>SaveDirectory {
@@ -647,7 +647,7 @@
     </span><span class="attr">#[tracing::instrument(fields(<span class="self">self </span>= <span class="self">self</span>.name, max = %max))]
     </span><span class="kw">pub fn </span>extend_through_stem(<span class="kw-2">&amp;</span><span class="self">self</span>, max: Bidegree) {
         <span class="self">self</span>.extend_profile(BidegreeRange::new(<span class="kw-2">&amp;</span>(), max.s() + <span class="number">1</span>, <span class="kw-2">&amp;</span>|<span class="kw">_</span>, s| {
-            max.n() + s <span class="kw">as </span>i32 + <span class="number">1
+            max.n() + s + <span class="number">1
         </span>}))
     }
 
@@ -705,7 +705,7 @@
         <span class="kw">for </span>s <span class="kw">in </span><span class="self">self</span>.shift.s()..max.s() {
             <span class="macro">assert_eq!</span>(
                 Vec::&lt;i32&gt;::new(),
-                <span class="self">self</span>.maps[s <span class="kw">as </span>i32].ooo_outputs(),
+                <span class="self">self</span>.maps[s].ooo_outputs(),
                 <span class="string">"Map {s} has out of order elements"
             </span>);
         }

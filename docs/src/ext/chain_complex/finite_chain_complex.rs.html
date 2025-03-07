@@ -501,7 +501,7 @@
         Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.zero_module)
     }
 
-    <span class="kw">fn </span>module(<span class="kw-2">&amp;</span><span class="self">self</span>, s: u32) -&gt; Arc&lt;<span class="self">Self</span>::Module&gt; {
+    <span class="kw">fn </span>module(<span class="kw-2">&amp;</span><span class="self">self</span>, s: i32) -&gt; Arc&lt;<span class="self">Self</span>::Module&gt; {
         <span class="kw">let </span>s = s <span class="kw">as </span>usize;
         <span class="kw">if </span>s &gt;= <span class="self">self</span>.modules.len() {
             <span class="self">self</span>.zero_module()
@@ -510,7 +510,7 @@
         }
     }
 
-    <span class="kw">fn </span>differential(<span class="kw-2">&amp;</span><span class="self">self</span>, s: u32) -&gt; Arc&lt;<span class="self">Self</span>::Homomorphism&gt; {
+    <span class="kw">fn </span>differential(<span class="kw-2">&amp;</span><span class="self">self</span>, s: i32) -&gt; Arc&lt;<span class="self">Self</span>::Homomorphism&gt; {
         <span class="kw">let </span>s = s <span class="kw">as </span>usize;
         <span class="kw">let </span>s = std::cmp::min(s, <span class="self">self</span>.differentials.len() - <span class="number">1</span>); <span class="comment">// The last entry is the zero homomorphism
         </span>Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.differentials[s])
@@ -523,11 +523,11 @@
     }
 
     <span class="kw">fn </span>has_computed_bidegree(<span class="kw-2">&amp;</span><span class="self">self</span>, b: Bidegree) -&gt; bool {
-        b.s() &gt; <span class="self">self</span>.modules.len() <span class="kw">as </span>u32 || b.t() &lt; <span class="self">self</span>.module(b.s()).max_computed_degree()
+        b.s() &gt; <span class="self">self</span>.modules.len() <span class="kw">as </span>i32 || b.t() &lt; <span class="self">self</span>.module(b.s()).max_computed_degree()
     }
 
-    <span class="kw">fn </span>next_homological_degree(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u32 {
-        u32::MAX
+    <span class="kw">fn </span>next_homological_degree(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; i32 {
+        i32::MAX
     }
 }
 
@@ -536,8 +536,8 @@
     </span>M: Module,
     F: ModuleHomomorphism&lt;Source = M, Target = M&gt;,
 {
-    <span class="kw">fn </span>max_s(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u32 {
-        <span class="self">self</span>.modules.len() <span class="kw">as </span>u32
+    <span class="kw">fn </span>max_s(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; i32 {
+        <span class="self">self</span>.modules.len() <span class="kw">as </span>i32
     }
 }
 
@@ -580,11 +580,11 @@
         <span class="self">self</span>.cc.zero_module()
     }
 
-    <span class="kw">fn </span>module(<span class="kw-2">&amp;</span><span class="self">self</span>, s: u32) -&gt; Arc&lt;<span class="self">Self</span>::Module&gt; {
+    <span class="kw">fn </span>module(<span class="kw-2">&amp;</span><span class="self">self</span>, s: i32) -&gt; Arc&lt;<span class="self">Self</span>::Module&gt; {
         <span class="self">self</span>.cc.module(s)
     }
 
-    <span class="kw">fn </span>differential(<span class="kw-2">&amp;</span><span class="self">self</span>, s: u32) -&gt; Arc&lt;<span class="self">Self</span>::Homomorphism&gt; {
+    <span class="kw">fn </span>differential(<span class="kw-2">&amp;</span><span class="self">self</span>, s: i32) -&gt; Arc&lt;<span class="self">Self</span>::Homomorphism&gt; {
         <span class="self">self</span>.cc.differential(s)
     }
 
@@ -592,7 +592,7 @@
         <span class="self">self</span>.cc.compute_through_bidegree(b)
     }
 
-    <span class="kw">fn </span>next_homological_degree(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u32 {
+    <span class="kw">fn </span>next_homological_degree(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; i32 {
         <span class="self">self</span>.cc.next_homological_degree()
     }
 }
@@ -644,7 +644,7 @@
     }
 
     <span class="doccomment">/// This currently crashes if `s` is greater than the s degree of the class this came from.
-    </span><span class="kw">fn </span>chain_map(<span class="kw-2">&amp;</span><span class="self">self</span>, s: u32) -&gt; Arc&lt;<span class="self">Self</span>::ChainMap&gt; {
+    </span><span class="kw">fn </span>chain_map(<span class="kw-2">&amp;</span><span class="self">self</span>, s: i32) -&gt; Arc&lt;<span class="self">Self</span>::ChainMap&gt; {
         Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.chain_maps[s <span class="kw">as </span>usize])
     }
 }
@@ -668,7 +668,7 @@
     F1: ModuleHomomorphism&lt;Source = M, Target = M&gt;,
     F2: ModuleHomomorphism&lt;Source = M, Target = CC::Module&gt;,
 {
-    <span class="kw">fn </span>max_s(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u32 {
+    <span class="kw">fn </span>max_s(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; i32 {
         <span class="self">self</span>.cc.max_s()
     }
 }

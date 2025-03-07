@@ -50,7 +50,7 @@
 
     <span class="kw">for </span>s <span class="kw">in </span>(<span class="number">0</span>..res.next_homological_degree()).rev() {
         <span class="kw">let </span>module = res.module(s);
-        <span class="kw">for </span>t <span class="kw">in </span>res.min_degree() + s <span class="kw">as </span>i32..=module.max_computed_degree() {
+        <span class="kw">for </span>t <span class="kw">in </span>res.min_degree() + s..=module.max_computed_degree() {
             <span class="macro">print!</span>(<span class="string">"{}, "</span>, module.dimension(t));
         }
         <span class="macro">println!</span>();

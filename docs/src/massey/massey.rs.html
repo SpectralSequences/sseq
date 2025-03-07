@@ -198,7 +198,7 @@
 
     <span class="kw">let </span>a = Bidegree::n_s(
         query::raw(<span class="string">"n of Ext class a"</span>, str::parse),
-        query::raw(<span class="string">"s of Ext class a"</span>, str::parse::&lt;std::num::NonZeroU32&gt;).get(),
+        query::raw(<span class="string">"s of Ext class a"</span>, str::parse::&lt;std::num::NonZeroI32&gt;).get(),
     );
 
     unit.compute_through_stem(a);
@@ -209,7 +209,7 @@
 
     <span class="kw">let </span>b = Bidegree::n_s(
         query::raw(<span class="string">"n of Ext class b"</span>, str::parse),
-        query::raw(<span class="string">"s of Ext class b"</span>, str::parse::&lt;std::num::NonZeroU32&gt;).get(),
+        query::raw(<span class="string">"s of Ext class b"</span>, str::parse::&lt;std::num::NonZeroI32&gt;).get(),
     );
 
     unit.compute_through_stem(b);

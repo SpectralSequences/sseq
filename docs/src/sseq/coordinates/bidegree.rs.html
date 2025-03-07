@@ -128,29 +128,29 @@
 </span><span class="attr">#[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 </span><span class="kw">pub struct </span>Bidegree {
     <span class="doccomment">/// Homological degree
-    </span>s: u32,
+    </span>s: i32,
     <span class="doccomment">/// Internal degree
     </span>t: i32,
 }
 
 <span class="kw">impl </span>Bidegree {
-    <span class="kw">pub const fn </span>s_t(s: u32, t: i32) -&gt; <span class="self">Self </span>{
+    <span class="kw">pub const fn </span>s_t(s: i32, t: i32) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{ s, t }
     }
 
-    <span class="kw">pub const fn </span>t_s(t: i32, s: u32) -&gt; <span class="self">Self </span>{
+    <span class="kw">pub const fn </span>t_s(t: i32, s: i32) -&gt; <span class="self">Self </span>{
         <span class="self">Self</span>::s_t(s, t)
     }
 
-    <span class="kw">pub const fn </span>n_s(n: i32, s: u32) -&gt; <span class="self">Self </span>{
-        <span class="self">Self</span>::s_t(s, n + s <span class="kw">as </span>i32)
+    <span class="kw">pub const fn </span>n_s(n: i32, s: i32) -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>::s_t(s, n + s)
     }
 
     <span class="kw">pub const fn </span>zero() -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{ s: <span class="number">0</span>, t: <span class="number">0 </span>}
     }
 
-    <span class="kw">pub fn </span>s(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u32 {
+    <span class="kw">pub fn </span>s(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; i32 {
         <span class="self">self</span>.s
     }
 
@@ -159,7 +159,7 @@
     }
 
     <span class="kw">pub fn </span>n(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; i32 {
-        <span class="self">self</span>.t - <span class="self">self</span>.s <span class="kw">as </span>i32
+        <span class="self">self</span>.t - <span class="self">self</span>.s
     }
 
     <span class="doccomment">/// Returns difference as a bidegree if the difference in homological degrees is nonnegative,

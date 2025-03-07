@@ -375,7 +375,7 @@
 //! [mahowald--ravenel]: https://www.sciencedirect.com/science/article/pii/004093839390055Z
 //! [bruner--greenlees]: https://projecteuclid.org/journals/experimental-mathematics/volume-4/issue-4/The-Bredon-L%C3%B6ffler-conjecture/em/1047674389.full
 
-</span><span class="kw">use </span>std::{fmt, iter, num::NonZeroU32, path::PathBuf, sync::Arc};
+</span><span class="kw">use </span>std::{fmt, iter, num::NonZeroI32, path::PathBuf, sync::Arc};
 
 <span class="kw">use </span>algebra::{
     module::{homomorphism::ModuleHomomorphism, Module},
@@ -402,7 +402,7 @@
     );
     <span class="comment">// Going up to k=25 is nice because then we see an invariant that is not a basis element
     // and one that has non-trivial indeterminacy.
-    </span><span class="kw">let </span>k_max = query::with_default(<span class="string">"Max k (positive)"</span>, <span class="string">"25"</span>, str::parse::&lt;NonZeroU32&gt;).get();
+    </span><span class="kw">let </span>k_max = query::with_default(<span class="string">"Max k (positive)"</span>, <span class="string">"25"</span>, str::parse::&lt;NonZeroI32&gt;).get();
 
     <span class="kw">let </span>s_2_resolution = resolve_s_2(s_2_path, k_max)<span class="question-mark">?</span>;
 
@@ -423,7 +423,7 @@
 <span class="kw">type </span>Homomorphism = MuResolutionHomomorphism&lt;<span class="bool-val">false</span>, Resolution, Resolution&gt;;
 
 <span class="kw">struct </span>PKData {
-    k: u32,
+    k: i32,
     resolution: Arc&lt;Resolution&gt;,
     bottom_cell: Homomorphism,
     minus_one_cell: Homomorphism,
@@ -437,7 +437,7 @@
     indeterminacy_basis: Vec&lt;FpVector&gt;,
 }
 
-<span class="kw">fn </span>resolve_s_2(s_2_path: <span class="prelude-ty">Option</span>&lt;PathBuf&gt;, k_max: u32) -&gt; <span class="prelude-ty">Result</span>&lt;Arc&lt;Resolution&gt;&gt; {
+<span class="kw">fn </span>resolve_s_2(s_2_path: <span class="prelude-ty">Option</span>&lt;PathBuf&gt;, k_max: i32) -&gt; <span class="prelude-ty">Result</span>&lt;Arc&lt;Resolution&gt;&gt; {
     <span class="kw">let </span>s_2_resolution = Arc::new(utils::construct_standard(<span class="string">"S_2"</span>, s_2_path)<span class="question-mark">?</span>);
     <span class="comment">// Here are some bounds on the bidegrees in which we have should have resolutions available.
     //
@@ -452,24 +452,24 @@
     // of filtration i that is in a positive stem.
     // As that element appears by stem 2*i, resolving RP_-k_inf up to filtration (k/2)+1 is also
     // sufficient to detect Mahowald invariants of elements in the zero stem.
-    </span>s_2_resolution.compute_through_stem(Bidegree::n_s(<span class="number">2 </span>* k_max <span class="kw">as </span>i32 - <span class="number">2</span>, k_max / <span class="number">2 </span>+ <span class="number">1</span>));
+    </span>s_2_resolution.compute_through_stem(Bidegree::n_s(<span class="number">2 </span>* k_max - <span class="number">2</span>, k_max / <span class="number">2 </span>+ <span class="number">1</span>));
     <span class="prelude-val">Ok</span>(s_2_resolution)
 }
 
 <span class="kw">impl </span>PKData {
     <span class="kw">fn </span>try_new(
-        k: u32,
+        k: i32,
         p_k_prefix: <span class="kw-2">&amp;</span><span class="prelude-ty">Option</span>&lt;PathBuf&gt;,
         s_2_resolution: <span class="kw-2">&amp;</span>Arc&lt;Resolution&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>&gt; {
         <span class="kw">let </span>p_k_config = <span class="macro">json!</span> ({
             <span class="string">"p"</span>: <span class="number">2</span>,
             <span class="string">"type"</span>: <span class="string">"real projective space"</span>,
-            <span class="string">"min"</span>: -(k <span class="kw">as </span>i32),
+            <span class="string">"min"</span>: -k,
         });
         <span class="kw">let </span><span class="kw-2">mut </span>p_k_path = p_k_prefix.clone();
         <span class="kw">if let </span><span class="prelude-val">Some</span>(p) = p_k_path.as_mut() {
-            p.push(PathBuf::from(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"RP_-{k}_inf"</span>)))
+            p.push(PathBuf::from(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"RP_{minus_k}_inf"</span>, minus_k = -k)));
         };
         <span class="kw">let </span>resolution = Arc::new(utils::construct_standard(
             (p_k_config, AlgebraType::Milnor),
@@ -477,13 +477,13 @@
         )<span class="question-mark">?</span>);
         <span class="comment">// As mentioned before, RP_-k_inf won't detect Mahowald invariants of any classes in the
         // k-stem and beyond or of any classes of filtration higher than k/2+1.
-        </span>resolution.compute_through_stem(Bidegree::n_s(k <span class="kw">as </span>i32 - <span class="number">2</span>, k / <span class="number">2 </span>+ <span class="number">1</span>));
+        </span>resolution.compute_through_stem(Bidegree::n_s(k - <span class="number">2</span>, k / <span class="number">2 </span>+ <span class="number">1</span>));
 
         <span class="kw">let </span>bottom_cell = ResolutionHomomorphism::from_class(
             String::from(<span class="string">"bottom_cell"</span>),
             resolution.clone(),
             s_2_resolution.clone(),
-            Bidegree::s_t(<span class="number">0</span>, -(k <span class="kw">as </span>i32)),
+            Bidegree::s_t(<span class="number">0</span>, -k),
             <span class="kw-2">&amp;</span>[<span class="number">1</span>],
         );
         bottom_cell.extend_all();
@@ -518,7 +518,7 @@
     ) -&gt; Box&lt;<span class="kw">dyn </span>Iterator&lt;Item = MahowaldInvariant&gt; + <span class="lifetime">'_</span>&gt; {
         <span class="kw">let </span>b_p_k = b - Bidegree::s_t(<span class="number">0</span>, <span class="number">1</span>);
         <span class="kw">if </span><span class="self">self</span>.resolution.has_computed_bidegree(b_p_k) {
-            <span class="kw">let </span>b_bottom = b_p_k + Bidegree::s_t(<span class="number">0</span>, <span class="self">self</span>.k <span class="kw">as </span>i32);
+            <span class="kw">let </span>b_bottom = b_p_k + Bidegree::s_t(<span class="number">0</span>, <span class="self">self</span>.k);
             <span class="kw">let </span>bottom_s_2_gens = <span class="self">self</span>.s_2_resolution.number_of_gens_in_bidegree(b_bottom);
             <span class="kw">let </span>minus_one_s_2_gens = <span class="self">self</span>.s_2_resolution.number_of_gens_in_bidegree(b);
             <span class="kw">let </span>p_k_gens = <span class="self">self</span>.resolution.number_of_gens_in_bidegree(b_p_k);
@@ -613,8 +613,8 @@
     <span class="attr">#[case(<span class="number">18</span>, <span class="number">3</span>, <span class="number">17</span>, <span class="number">0</span>, <span class="number">34</span>, <span class="macro">vec!</span>[<span class="number">0</span>, <span class="number">1</span>]</span>, <span class="number">0</span>)]
     <span class="attr">#[case(<span class="number">25</span>, <span class="number">6</span>, <span class="number">20</span>, <span class="number">0</span>, <span class="number">44</span>, <span class="macro">vec!</span>[<span class="number">1</span>, <span class="number">0</span>]</span>, <span class="number">1</span>)]
     <span class="kw">fn </span>test_mahowald_invariants(
-        <span class="attr">#[case] </span>k: u32,
-        <span class="attr">#[case] </span>s: u32,
+        <span class="attr">#[case] </span>k: i32,
+        <span class="attr">#[case] </span>s: i32,
         <span class="attr">#[case] </span>input_t: i32,
         <span class="attr">#[case] </span>input_i: usize,
         <span class="attr">#[case] </span>output_t: i32,

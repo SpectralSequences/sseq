@@ -889,7 +889,7 @@
     <span class="kw">fn </span>write_header(<span class="kw-2">&amp;</span><span class="self">self</span>, buffer: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>io::Write) -&gt; io::Result&lt;()&gt; {
         buffer.write_u32::&lt;LittleEndian&gt;(<span class="self">self</span>.kind.magic())<span class="question-mark">?</span>;
         buffer.write_u32::&lt;LittleEndian&gt;(<span class="self">self</span>.algebra.magic())<span class="question-mark">?</span>;
-        buffer.write_u32::&lt;LittleEndian&gt;(<span class="self">self</span>.b.s())<span class="question-mark">?</span>;
+        buffer.write_i32::&lt;LittleEndian&gt;(<span class="self">self</span>.b.s())<span class="question-mark">?</span>;
         buffer.write_i32::&lt;LittleEndian&gt;(<span class="kw">if let </span><span class="prelude-val">Some</span>(i) = <span class="self">self</span>.idx {
             <span class="self">self</span>.b.t() + ((i <span class="kw">as </span>i32) &lt;&lt; <span class="number">16</span>)
         } <span class="kw">else </span>{
@@ -917,7 +917,7 @@
 
         <span class="macro">check_header!</span>(<span class="string">"magic"</span>, <span class="self">self</span>.kind.magic(), <span class="string">"{:#010x}"</span>);
         <span class="macro">check_header!</span>(<span class="string">"algebra"</span>, <span class="self">self</span>.algebra.magic(), <span class="string">"{:#06x}"</span>);
-        <span class="macro">check_header!</span>(<span class="string">"s"</span>, <span class="self">self</span>.b.s(), <span class="string">"{}"</span>);
+        <span class="macro">check_header!</span>(<span class="string">"s"</span>, <span class="self">self</span>.b.s() <span class="kw">as </span>u32, <span class="string">"{}"</span>);
         <span class="macro">check_header!</span>(
             <span class="string">"t"</span>,
             <span class="kw">if let </span><span class="prelude-val">Some</span>(i) = <span class="self">self</span>.idx {

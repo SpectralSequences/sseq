@@ -330,7 +330,7 @@
     };
 
     <span class="kw">fn </span>get_page_data(sseq: <span class="kw-2">&amp;</span>sseq::Sseq&lt;sseq::Adams&gt;, b: Bidegree) -&gt; <span class="kw-2">&amp;</span>fp::matrix::Subquotient {
-        <span class="kw">let </span>d = sseq.page_data(b.n(), b.s() <span class="kw">as </span>i32);
+        <span class="kw">let </span>d = sseq.page_data(b.n(), b.s());
         <span class="kw-2">&amp;</span>d[std::cmp::min(<span class="number">3</span>, d.len() - <span class="number">1</span>)]
     }
 

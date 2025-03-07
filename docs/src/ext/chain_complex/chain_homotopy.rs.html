@@ -311,9 +311,7 @@
 <a href="#285" id="285">285</a>
 <a href="#286" id="286">286</a>
 <a href="#287" id="287">287</a>
-<a href="#288" id="288">288</a>
-<a href="#289" id="289">289</a>
-<a href="#290" id="290">290</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::{Arc, Mutex};
+<a href="#288" id="288">288</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::{Arc, Mutex};
 
 <span class="kw">use </span>algebra::module::{
     homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism},
@@ -377,7 +375,7 @@
 
         <span class="macro">assert!</span>(Arc::ptr_eq(<span class="kw-2">&amp;</span>left.target, <span class="kw-2">&amp;</span>right.source));
         <span class="self">Self </span>{
-            homotopies: OnceBiVec::new((left.shift + right.shift).s() <span class="kw">as </span>i32 - <span class="number">1</span>),
+            homotopies: OnceBiVec::new((left.shift + right.shift).s() - <span class="number">1</span>),
             left,
             right,
             lock: Mutex::new(()),
@@ -404,7 +402,7 @@
     <span class="doccomment">/// Lift maps so that the chain *homotopy* is defined on `max_source`.
     </span><span class="kw">pub fn </span>extend(<span class="kw-2">&amp;</span><span class="self">self</span>, max_source: Bidegree) {
         <span class="self">self</span>.extend_profile(BidegreeRange::new(<span class="kw-2">&amp;</span>(), max_source.s() + <span class="number">1</span>, <span class="kw-2">&amp;</span>|<span class="kw">_</span>, s| {
-            max_source.t() - (max_source.s() - s) <span class="kw">as </span>i32 + <span class="number">1
+            max_source.t() - max_source.s() + s + <span class="number">1
         </span>}));
     }
 
@@ -434,9 +432,8 @@
     <span class="doccomment">/// Initialize self.homotopies to contain [`FreeModuleHomomorphisms`]s up to but excluding
     /// `max_source_s`, which can be returned by [`Self::homotopy`]. This does not actually lift
     /// the maps, which is done by [`Self::extend_all`] and [`Self::extend`].
-    </span><span class="kw">pub fn </span>initialize_homotopies(<span class="kw-2">&amp;</span><span class="self">self</span>, max_source_s: u32) {
-        <span class="self">self</span>.homotopies.extend(max_source_s <span class="kw">as </span>i32 - <span class="number">1</span>, |s| {
-            <span class="kw">let </span>s = s <span class="kw">as </span>u32;
+    </span><span class="kw">pub fn </span>initialize_homotopies(<span class="kw-2">&amp;</span><span class="self">self</span>, max_source_s: i32) {
+        <span class="self">self</span>.homotopies.extend(max_source_s - <span class="number">1</span>, |s| {
             Arc::new(FreeModuleHomomorphism::new(
                 <span class="self">self</span>.left.source.module(s),
                 <span class="self">self</span>.right.target.module(s + <span class="number">1 </span>- <span class="self">self</span>.shift().s()),
@@ -473,7 +470,7 @@
         <span class="kw">let </span>shift = <span class="self">self</span>.shift();
         <span class="kw">let </span>target = source + Bidegree::s_t(<span class="number">1</span>, <span class="number">0</span>) - shift;
 
-        <span class="kw">if </span><span class="self">self</span>.homotopies[source.s() <span class="kw">as </span>i32].next_degree() &gt; source.t() {
+        <span class="kw">if </span><span class="self">self</span>.homotopies[source.s()].next_degree() &gt; source.t() {
             <span class="kw">return </span>source.t()..source.t() + <span class="number">1</span>;
         }
 
@@ -491,8 +488,7 @@
         // these values.
         </span><span class="kw">if </span>target.s() == <span class="number">0 </span>|| target_dim == <span class="number">0 </span>|| num_gens == <span class="number">0 </span>{
             <span class="kw">let </span>outputs = <span class="macro">vec!</span>[FpVector::new(p, target_dim); num_gens];
-            <span class="kw">return </span><span class="self">self</span>.homotopies[source.s() <span class="kw">as </span>i32]
-                .add_generators_from_rows_ooo(source.t(), outputs);
+            <span class="kw">return </span><span class="self">self</span>.homotopies[source.s()].add_generators_from_rows_ooo(source.t(), outputs);
         }
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(dir) = <span class="self">self</span>.save_dir.read() {
@@ -506,7 +502,7 @@
                 <span class="kw">for _ in </span><span class="number">0</span>..num_gens {
                     outputs.push(FpVector::from_bytes(p, target_dim, <span class="kw-2">&amp;mut </span>f).unwrap());
                 }
-                <span class="kw">return </span><span class="self">self</span>.homotopies[source.s() <span class="kw">as </span>i32]
+                <span class="kw">return </span><span class="self">self</span>.homotopies[source.s()]
                     .add_generators_from_rows_ooo(source.t(), outputs);
             }
         }
@@ -532,7 +528,7 @@
                     .as_slice(),
             );
 
-            <span class="self">self</span>.homotopies[source.s() <span class="kw">as </span>i32 - <span class="number">1</span>].apply(
+            <span class="self">self</span>.homotopies[source.s() - <span class="number">1</span>].apply(
                 scratch.as_slice_mut(),
                 p - <span class="number">1</span>,
                 source.t(),
@@ -592,11 +588,11 @@
                 row.to_bytes(<span class="kw-2">&amp;mut </span>f).unwrap();
             }
         }
-        <span class="self">self</span>.homotopies[source.s() <span class="kw">as </span>i32].add_generators_from_rows_ooo(source.t(), outputs)
+        <span class="self">self</span>.homotopies[source.s()].add_generators_from_rows_ooo(source.t(), outputs)
     }
 
-    <span class="kw">pub fn </span>homotopy(<span class="kw-2">&amp;</span><span class="self">self</span>, source_s: u32) -&gt; Arc&lt;FreeModuleHomomorphism&lt;U::Module&gt;&gt; {
-        Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.homotopies[source_s <span class="kw">as </span>i32])
+    <span class="kw">pub fn </span>homotopy(<span class="kw-2">&amp;</span><span class="self">self</span>, source_s: i32) -&gt; Arc&lt;FreeModuleHomomorphism&lt;U::Module&gt;&gt; {
+        Arc::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.homotopies[source_s])
     }
 
     <span class="kw">pub fn </span>save_dir(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>SaveDirectory {

@@ -1461,16 +1461,7 @@
 <a href="#1435" id="1435">1435</a>
 <a href="#1436" id="1436">1436</a>
 <a href="#1437" id="1437">1437</a>
-<a href="#1438" id="1438">1438</a>
-<a href="#1439" id="1439">1439</a>
-<a href="#1440" id="1440">1440</a>
-<a href="#1441" id="1441">1441</a>
-<a href="#1442" id="1442">1442</a>
-<a href="#1443" id="1443">1443</a>
-<a href="#1444" id="1444">1444</a>
-<a href="#1445" id="1445">1445</a>
-<a href="#1446" id="1446">1446</a>
-<a href="#1447" id="1447">1447</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{io, sync::Arc};
+<a href="#1438" id="1438">1438</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{io, sync::Arc};
 
 <span class="kw">use </span>algebra::{
     module::{
@@ -1705,7 +1696,7 @@
 
     <span class="doccomment">/// Add composites up to and including the specified degree
     </span><span class="attr">#[tracing::instrument(skip(<span class="self">self</span>, maps, dir), fields(source = %<span class="self">self</span>.source, target = %<span class="self">self</span>.target))]
-    </span><span class="kw">pub fn </span>add_composite(<span class="kw-2">&amp;</span><span class="self">self</span>, s: u32, degree: i32, maps: CompositeData&lt;A&gt;, dir: <span class="kw-2">&amp;</span>SaveDirectory) {
+    </span><span class="kw">pub fn </span>add_composite(<span class="kw-2">&amp;</span><span class="self">self</span>, s: i32, degree: i32, maps: CompositeData&lt;A&gt;, dir: <span class="kw-2">&amp;</span>SaveDirectory) {
         <span class="kw">for </span>(<span class="kw">_</span>, d1, d0) <span class="kw">in </span><span class="kw-2">&amp;</span>maps {
             <span class="macro">assert!</span>(Arc::ptr_eq(<span class="kw-2">&amp;</span>d1.target(), <span class="kw-2">&amp;</span>d0.source()));
             <span class="macro">assert!</span>(Arc::ptr_eq(<span class="kw-2">&amp;</span>d0.target(), <span class="kw-2">&amp;</span><span class="self">self</span>.target));
@@ -1851,15 +1842,14 @@
     <span class="kw">fn </span>save_dir(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>SaveDirectory;
 
     <span class="kw">fn </span>compute_intermediate(<span class="kw-2">&amp;</span><span class="self">self</span>, gen: BidegreeGenerator) -&gt; FpVector;
-    <span class="kw">fn </span>composite(<span class="kw-2">&amp;</span><span class="self">self</span>, s: u32) -&gt; CompositeData&lt;<span class="self">Self</span>::Algebra&gt;;
+    <span class="kw">fn </span>composite(<span class="kw-2">&amp;</span><span class="self">self</span>, s: i32) -&gt; CompositeData&lt;<span class="self">Self</span>::Algebra&gt;;
 
     <span class="attr">#[tracing::instrument(skip(<span class="self">self</span>))]
     </span><span class="kw">fn </span>initialize_homotopies(<span class="kw-2">&amp;</span><span class="self">self</span>) {
         <span class="kw">let </span>shift = <span class="self">self</span>.shift();
         <span class="kw">let </span>max = <span class="self">self</span>.max();
 
-        <span class="self">self</span>.homotopies().extend(max.s() <span class="kw">as </span>i32 - <span class="number">1</span>, |s| {
-            <span class="kw">let </span>s = s <span class="kw">as </span>u32;
+        <span class="self">self</span>.homotopies().extend(max.s() - <span class="number">1</span>, |s| {
             SecondaryHomotopy::new(
                 <span class="self">self</span>.source().module(s),
                 <span class="self">self</span>.target().module(s - shift.s()),
@@ -1874,8 +1864,7 @@
         <span class="kw">let </span>tracing_span = tracing::Span::current();
         <span class="kw">let </span>f = |s| {
             <span class="kw">let </span>_tracing_guard = tracing_span.enter();
-            <span class="kw">let </span>s = s <span class="kw">as </span>u32;
-            <span class="self">self</span>.homotopies()[s <span class="kw">as </span>i32].add_composite(
+            <span class="self">self</span>.homotopies()[s].add_composite(
                 s,
                 <span class="self">self</span>.max().t(s) - <span class="number">1</span>,
                 <span class="self">self</span>.composite(s),
@@ -1919,11 +1908,11 @@
     }
 
     <span class="attr">#[tracing::instrument(skip(<span class="self">self</span>))]
-    </span><span class="kw">fn </span>compute_partial(<span class="kw-2">&amp;</span><span class="self">self</span>, s: u32) {
+    </span><span class="kw">fn </span>compute_partial(<span class="kw-2">&amp;</span><span class="self">self</span>, s: i32) {
         <span class="self">self</span>.initialize_homotopies();
         <span class="kw">let </span>homotopies = <span class="self">self</span>.homotopies();
 
-        <span class="kw">if </span>(s <span class="kw">as </span>i32) &lt; homotopies.min_degree() {
+        <span class="kw">if </span>s &lt; homotopies.min_degree() {
             <span class="macro">eprintln!</span>(
                 <span class="string">"Computing partial for s = {s} when minimum degree is {}"</span>,
                 homotopies.min_degree()
@@ -1931,14 +1920,9 @@
             <span class="kw">return</span>;
         }
 
-        homotopies[s <span class="kw">as </span>i32].add_composite(
-            s,
-            <span class="self">self</span>.max().t(s) - <span class="number">1</span>,
-            <span class="self">self</span>.composite(s),
-            <span class="self">self</span>.save_dir(),
-        );
+        homotopies[s].add_composite(s, <span class="self">self</span>.max().t(s) - <span class="number">1</span>, <span class="self">self</span>.composite(s), <span class="self">self</span>.save_dir());
 
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(homotopy) = homotopies.get(s <span class="kw">as </span>i32 + <span class="number">1</span>) {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(homotopy) = homotopies.get(s + <span class="number">1</span>) {
             (<span class="number">0</span>..<span class="self">self</span>.max().t(s + <span class="number">1</span>))
                 .into_maybe_par_iter()
                 .for_each(|t| {
@@ -1958,7 +1942,7 @@
             <span class="kw">let </span>_tracing_guard = tracing_span.enter();
 
             <span class="comment">// If we already have homotopies, we don't need to compute intermediate
-            </span><span class="kw">if </span><span class="self">self</span>.homotopies()[gen.s() <span class="kw">as </span>i32].homotopies.next_degree() &gt;= gen.t() {
+            </span><span class="kw">if </span><span class="self">self</span>.homotopies()[gen.s()].homotopies.next_degree() &gt;= gen.t() {
                 <span class="kw">return</span>;
             }
             <span class="comment">// Check if we have a saved homotopy
@@ -1981,8 +1965,6 @@
             .maybe_par_iter_enum()
             .skip(<span class="number">1</span>)
             .for_each(|(s, homotopy)| {
-                <span class="kw">let </span>s = s <span class="kw">as </span>u32;
-
                 homotopy
                     .composites
                     .range()
@@ -1997,7 +1979,7 @@
 
     <span class="attr">#[tracing::instrument(skip(<span class="self">self</span>), fields(b = %b))]
     </span><span class="kw">fn </span>compute_homotopy_step(<span class="kw-2">&amp;</span><span class="self">self</span>, b: Bidegree) -&gt; std::ops::Range&lt;i32&gt; {
-        <span class="kw">let </span>homotopy = <span class="kw-2">&amp;</span><span class="self">self</span>.homotopies()[b.s() <span class="kw">as </span>i32];
+        <span class="kw">let </span>homotopy = <span class="kw-2">&amp;</span><span class="self">self</span>.homotopies()[b.s()];
         <span class="kw">if </span>homotopy.homotopies.next_degree() &gt; b.t() {
             <span class="kw">return </span>b.t()..b.t() + <span class="number">1</span>;
         }
@@ -2024,7 +2006,7 @@
                 <span class="kw">for _ in </span><span class="number">0</span>..num_gens {
                     results.push(FpVector::from_bytes(p, target_dim, <span class="kw-2">&amp;mut </span>f).unwrap());
                 }
-                <span class="kw">return </span><span class="self">self</span>.homotopies()[b.s() <span class="kw">as </span>i32]
+                <span class="kw">return </span><span class="self">self</span>.homotopies()[b.s()]
                     .homotopies
                     .add_generators_from_rows_ooo(b.t(), results);
             }
@@ -2037,7 +2019,7 @@
             <span class="kw">let </span>gen = BidegreeGenerator::new(b, i);
             <span class="kw">let </span><span class="kw-2">mut </span>v = <span class="self">self</span>.get_intermediate(gen);
             <span class="kw">if </span>gen.s() &gt; shift.s() + <span class="number">1 </span>{
-                <span class="self">self</span>.homotopies()[gen.s() <span class="kw">as </span>i32 - <span class="number">1</span>].homotopies.apply(
+                <span class="self">self</span>.homotopies()[gen.s() - <span class="number">1</span>].homotopies.apply(
                     v.as_slice_mut(),
                     <span class="number">1</span>,
                     gen.t(),
@@ -2106,14 +2088,14 @@
 
         <span class="comment">// When s = shift_s, the homotopies are just zero
         </span>{
-            <span class="kw">let </span>h = <span class="kw-2">&amp;</span><span class="self">self</span>.homotopies()[shift.s() <span class="kw">as </span>i32];
+            <span class="kw">let </span>h = <span class="kw-2">&amp;</span><span class="self">self</span>.homotopies()[shift.s()];
             h.homotopies.extend_by_zero(h.composites.max_degree());
         }
 
-        <span class="kw">let </span>min_t = <span class="self">self</span>.homotopies()[shift.s() <span class="kw">as </span>i32].homotopies.min_degree();
+        <span class="kw">let </span>min_t = <span class="self">self</span>.homotopies()[shift.s()].homotopies.min_degree();
         <span class="kw">let </span>s_range = <span class="self">self</span>.homotopies().range();
-        <span class="kw">let </span>min = Bidegree::s_t(s_range.start <span class="kw">as </span>u32 + <span class="number">1</span>, min_t);
-        <span class="kw">let </span>max = <span class="self">self</span>.max().restrict(s_range.end <span class="kw">as </span>u32);
+        <span class="kw">let </span>min = Bidegree::s_t(s_range.start + <span class="number">1</span>, min_t);
+        <span class="kw">let </span>max = <span class="self">self</span>.max().restrict(s_range.end);
         sseq::coordinates::iter_s_t(<span class="kw-2">&amp;</span>|b| <span class="self">self</span>.compute_homotopy_step(b), min, max);
     }
 
@@ -2190,7 +2172,7 @@
         <span class="self">self</span>.underlying.save_dir()
     }
 
-    <span class="kw">fn </span>composite(<span class="kw-2">&amp;</span><span class="self">self</span>, s: u32) -&gt; CompositeData&lt;CC::Algebra&gt; {
+    <span class="kw">fn </span>composite(<span class="kw-2">&amp;</span><span class="self">self</span>, s: i32) -&gt; CompositeData&lt;CC::Algebra&gt; {
         <span class="kw">let </span>d1 = <span class="self">self</span>.underlying.differential(s);
         <span class="kw">let </span>d0 = <span class="self">self</span>.underlying.differential(s - <span class="number">1</span>);
         <span class="macro">vec!</span>[(<span class="number">1</span>, d1, d0)]
@@ -2201,7 +2183,7 @@
         <span class="kw">let </span>target = <span class="self">self</span>.underlying.module(gen.s() - <span class="number">3</span>);
         <span class="kw">let </span><span class="kw-2">mut </span>result = FpVector::new(p, target.dimension(gen.t() - <span class="number">1</span>));
         <span class="kw">let </span>d = <span class="self">self</span>.underlying.differential(gen.s());
-        <span class="self">self</span>.homotopies[gen.s() <span class="kw">as </span>i32 - <span class="number">1</span>].act(
+        <span class="self">self</span>.homotopies[gen.s() - <span class="number">1</span>].act(
             result.as_slice_mut(),
             <span class="number">1</span>,
             gen.t(),
@@ -2230,8 +2212,8 @@
         }
     }
 
-    <span class="kw">pub fn </span>homotopy(<span class="kw-2">&amp;</span><span class="self">self</span>, s: u32) -&gt; <span class="kw-2">&amp;</span>SecondaryHomotopy&lt;CC::Algebra&gt; {
-        <span class="kw-2">&amp;</span><span class="self">self</span>.homotopies[s <span class="kw">as </span>i32]
+    <span class="kw">pub fn </span>homotopy(<span class="kw-2">&amp;</span><span class="self">self</span>, s: i32) -&gt; <span class="kw-2">&amp;</span>SecondaryHomotopy&lt;CC::Algebra&gt; {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.homotopies[s]
     }
 
     <span class="kw">pub fn </span>e3_page(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; sseq::Sseq&lt;sseq::Adams&gt; {
@@ -2264,7 +2246,7 @@
                     sseq.add_differential(
                         <span class="number">2</span>,
                         b.n(),
-                        b.s() <span class="kw">as </span>i32,
+                        b.s(),
                         source_vec.as_slice(),
                         target_vec.as_slice(),
                     );
@@ -2273,8 +2255,8 @@
         }
 
         <span class="kw">for </span>b <span class="kw">in </span><span class="self">self</span>.underlying.iter_stem() {
-            <span class="kw">if </span>sseq.invalid(b.n(), b.s() <span class="kw">as </span>i32) {
-                sseq.update_bidegree(b.n(), b.s() <span class="kw">as </span>i32);
+            <span class="kw">if </span>sseq.invalid(b.n(), b.s()) {
+                sseq.update_bidegree(b.n(), b.s());
             }
         }
         sseq
@@ -2331,16 +2313,16 @@
     <span class="kw">fn </span>max(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; BidegreeRange&lt;<span class="self">Self</span>&gt; {
         BidegreeRange::new(
             <span class="self">self</span>,
-            <span class="self">self</span>.underlying.next_homological_degree() <span class="kw">as </span>u32,
+            <span class="self">self</span>.underlying.next_homological_degree(),
             <span class="kw-2">&amp;</span>|selff, s| {
                 std::cmp::min(
                     selff.underlying.get_map(s).next_degree(),
                     std::cmp::min(
-                        selff.source.homotopies[s <span class="kw">as </span>i32].homotopies.next_degree(),
+                        selff.source.homotopies[s].homotopies.next_degree(),
                         <span class="kw">if </span>s == selff.shift().s() {
                             i32::MAX
                         } <span class="kw">else </span>{
-                            selff.target.homotopies[(s + <span class="number">1 </span>- selff.shift().s()) <span class="kw">as </span>i32]
+                            selff.target.homotopies[s + <span class="number">1 </span>- selff.shift().s()]
                                 .composites
                                 .max_degree()
                                 + selff.shift().t()
@@ -2364,7 +2346,7 @@
         <span class="self">self</span>.underlying.save_dir()
     }
 
-    <span class="kw">fn </span>composite(<span class="kw-2">&amp;</span><span class="self">self</span>, s: u32) -&gt; CompositeData&lt;<span class="self">Self</span>::Algebra&gt; {
+    <span class="kw">fn </span>composite(<span class="kw-2">&amp;</span><span class="self">self</span>, s: i32) -&gt; CompositeData&lt;<span class="self">Self</span>::Algebra&gt; {
         <span class="kw">let </span>p = <span class="self">self</span>.prime();
         <span class="comment">// This is -1 mod p^2
         </span><span class="kw">let </span>neg_1 = p * p - <span class="number">1</span>;
@@ -2390,7 +2372,7 @@
         <span class="kw">let </span><span class="kw-2">mut </span>result = FpVector::new(p, target.dimension(shifted_b.t() - <span class="number">1</span>));
         <span class="kw">let </span>d = <span class="self">self</span>.source().differential(gen.s());
 
-        <span class="self">self</span>.homotopies[gen.s() <span class="kw">as </span>i32 - <span class="number">1</span>].act(
+        <span class="self">self</span>.homotopies[gen.s() - <span class="number">1</span>].act(
             result.as_slice_mut(),
             neg_1,
             gen.t(),
@@ -2444,7 +2426,7 @@
         <span class="self">Self </span>{
             source,
             target,
-            homotopies: OnceBiVec::new(underlying.shift.s() <span class="kw">as </span>i32 + <span class="number">1</span>),
+            homotopies: OnceBiVec::new(underlying.shift.s() + <span class="number">1</span>),
             underlying,
             intermediates: DashMap::new(),
         }
@@ -2459,8 +2441,8 @@
         }
     }
 
-    <span class="kw">pub fn </span>homotopy(<span class="kw-2">&amp;</span><span class="self">self</span>, s: u32) -&gt; <span class="kw-2">&amp;</span>SecondaryHomotopy&lt;CC1::Algebra&gt; {
-        <span class="kw-2">&amp;</span><span class="self">self</span>.homotopies[s <span class="kw">as </span>i32]
+    <span class="kw">pub fn </span>homotopy(<span class="kw-2">&amp;</span><span class="self">self</span>, s: i32) -&gt; <span class="kw-2">&amp;</span>SecondaryHomotopy&lt;CC1::Algebra&gt; {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.homotopies[s]
     }
 
     <span class="doccomment">/// A version of [`hom_k`] but with a non-trivial λ part.
@@ -2496,7 +2478,7 @@
                 .unwrap(),
         );
 
-        <span class="kw">let </span>sign = <span class="kw">if </span>(<span class="self">self</span>.underlying.shift.s() <span class="kw">as </span>i32 * b.t()) % <span class="number">2 </span>== <span class="number">1 </span>{
+        <span class="kw">let </span>sign = <span class="kw">if </span>(<span class="self">self</span>.underlying.shift.s() * b.t()) % <span class="number">2 </span>== <span class="number">1 </span>{
             p * p - <span class="number">1
         </span>} <span class="kw">else </span>{
             <span class="number">1
@@ -2504,7 +2486,7 @@
         <span class="kw">let </span>filtration_one_sign = <span class="kw">if </span>(b.t() % <span class="number">2</span>) == <span class="number">1 </span>{ p - <span class="number">1 </span>} <span class="kw">else </span>{ <span class="number">1 </span>};
 
         <span class="kw">let </span>page_data = sseq.map(|sseq| {
-            <span class="kw">let </span>d = sseq.page_data(lambda_source.n(), lambda_source.s() <span class="kw">as </span>i32);
+            <span class="kw">let </span>d = sseq.page_data(lambda_source.n(), lambda_source.s());
             <span class="kw-2">&amp;</span>d[std::cmp::min(<span class="number">3</span>, d.len() - <span class="number">1</span>)]
         });
 
@@ -2615,7 +2597,7 @@
         );
 
         <span class="kw">let </span>diff_source = b + shift - Bidegree::n_s(-<span class="number">1</span>, <span class="number">1</span>);
-        sseq.differentials(diff_source.n(), diff_source.s() <span class="kw">as </span>i32)[<span class="number">2</span>].quasi_inverse(
+        sseq.differentials(diff_source.n(), diff_source.s())[<span class="number">2</span>].quasi_inverse(
             output_class.as_slice_mut(),
             prod_value.slice(lower_num_gens, lower_num_gens + lambda_num_gens),
         );
@@ -2720,7 +2702,7 @@
 
         <span class="kw">let </span><span class="kw-2">mut </span>result = FpVector::new(p, target.dimension(shifted_b.t() - <span class="number">1</span>));
 
-        <span class="self">self</span>.homotopies[gen.s() <span class="kw">as </span>i32 - <span class="number">1</span>].act(
+        <span class="self">self</span>.homotopies[gen.s() - <span class="number">1</span>].act(
             result.as_slice_mut(),
             <span class="number">1</span>,
             gen.t(),
@@ -2731,7 +2713,7 @@
             <span class="bool-val">false</span>,
         );
 
-        <span class="self">self</span>.right.target.homotopies()[(shifted_b.s() + <span class="number">1</span>) <span class="kw">as </span>i32].act(
+        <span class="self">self</span>.right.target.homotopies()[shifted_b.s() + <span class="number">1</span>].act(
             result.as_slice_mut(),
             <span class="number">1</span>,
             shifted_b.t(),
@@ -2746,14 +2728,14 @@
             result.as_slice_mut(),
             neg_1,
             gen.t() - <span class="number">1</span>,
-            <span class="self">self</span>.left.source.homotopies()[gen.s() <span class="kw">as </span>i32]
+            <span class="self">self</span>.left.source.homotopies()[gen.s()]
                 .homotopies
                 .output(gen.t(), gen.idx())
                 .as_slice(),
         );
 
         <span class="kw">let </span>left_shifted_b = gen.degree() - <span class="self">self</span>.left.underlying.shift;
-        <span class="self">self</span>.right.homotopies()[left_shifted_b.s() <span class="kw">as </span>i32].act(
+        <span class="self">self</span>.right.homotopies()[left_shifted_b.s()].act(
             result.as_slice_mut(),
             neg_1,
             left_shifted_b.t(),
@@ -2784,7 +2766,7 @@
             result.as_slice_mut(),
             neg_1,
             left_shifted_b.t() - <span class="number">1</span>,
-            <span class="self">self</span>.left.homotopies()[gen.s() <span class="kw">as </span>i32]
+            <span class="self">self</span>.left.homotopies()[gen.s()]
                 .homotopies
                 .output(gen.t(), gen.idx())
                 .as_slice(),
@@ -2804,7 +2786,7 @@
         result
     }
 
-    <span class="kw">fn </span>composite(<span class="kw-2">&amp;</span><span class="self">self</span>, s: u32) -&gt; CompositeData&lt;S::Algebra&gt; {
+    <span class="kw">fn </span>composite(<span class="kw-2">&amp;</span><span class="self">self</span>, s: i32) -&gt; CompositeData&lt;S::Algebra&gt; {
         <span class="kw">let </span>p = <span class="self">self</span>.prime();
         <span class="comment">// This is -1 mod p^2
         </span><span class="kw">let </span>neg_1 = p * p - <span class="number">1</span>;
@@ -2883,7 +2865,7 @@
             right,
             left_lambda,
             right_lambda,
-            homotopies: OnceBiVec::new(underlying.shift().s() <span class="kw">as </span>i32),
+            homotopies: OnceBiVec::new(underlying.shift().s()),
             underlying,
             intermediates: DashMap::new(),
         }

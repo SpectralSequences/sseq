@@ -458,18 +458,18 @@
 }
 
 <span class="doccomment">/// Read the Diff.$N files in `data_dir` and produce the corresponding chain complex object.
-</span><span class="kw">fn </span>read_bruner_resolution(data_dir: <span class="kw-2">&amp;</span>Path, max_n: i32) -&gt; <span class="prelude-ty">Result</span>&lt;(u32, FiniteChainComplex)&gt; {
-    <span class="kw">let </span>num_s: usize = data_dir.read_dir()<span class="question-mark">?</span>.count();
+</span><span class="kw">fn </span>read_bruner_resolution(data_dir: <span class="kw-2">&amp;</span>Path, max_n: i32) -&gt; <span class="prelude-ty">Result</span>&lt;(i32, FiniteChainComplex)&gt; {
+    <span class="kw">let </span>num_s = data_dir.read_dir()<span class="question-mark">?</span>.count() <span class="kw">as </span>i32;
 
-    <span class="kw">let </span>cc = create_chain_complex(num_s);
+    <span class="kw">let </span>cc = create_chain_complex(num_s <span class="kw">as </span>usize);
     <span class="kw">let </span>algebra = cc.algebra();
 
     <span class="kw">let </span>algebra: <span class="kw-2">&amp;</span>MilnorAlgebra = algebra.as_ref().try_into()<span class="question-mark">?</span>;
 
     <span class="kw">let </span><span class="kw-2">mut </span>buf = String::new();
-    <span class="kw">let </span>s = num_s <span class="kw">as </span>u32 - <span class="number">1</span>;
+    <span class="kw">let </span>s = num_s - <span class="number">1</span>;
 
-    algebra.compute_basis(max_n + s <span class="kw">as </span>i32 + <span class="number">1</span>);
+    algebra.compute_basis(max_n + s + <span class="number">1</span>);
     <span class="comment">// Handle s = 0
     </span>{
         <span class="comment">// TODO: actually parse file
@@ -478,7 +478,7 @@
         m.extend_by_zero(max_n + <span class="number">1</span>);
     }
 
-    <span class="kw">for </span>s <span class="kw">in </span><span class="number">1</span>..num_s <span class="kw">as </span>u32 {
+    <span class="kw">for </span>s <span class="kw">in </span><span class="number">1</span>..num_s {
         <span class="kw">let </span>m = cc.module(s);
         <span class="kw">let </span>d = cc.differential(s);
 
@@ -509,8 +509,8 @@
         m.add_generators(cur_degree, entries.len(), <span class="prelude-val">None</span>);
         d.add_generators_from_rows(cur_degree, entries);
 
-        m.extend_by_zero(max_n + s <span class="kw">as </span>i32 + <span class="number">1</span>);
-        d.extend_by_zero(max_n + s <span class="kw">as </span>i32);
+        m.extend_by_zero(max_n + s + <span class="number">1</span>);
+        d.extend_by_zero(max_n + s);
     }
 
     <span class="prelude-val">Ok</span>((s, cc))
