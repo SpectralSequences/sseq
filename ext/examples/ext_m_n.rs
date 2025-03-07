@@ -57,14 +57,14 @@ mod hom_cochain_complex {
     };
     use ext::chain_complex::FreeChainComplex;
     use fp::matrix::Subquotient;
-    use once::OnceVec;
+    use once::OnceBiVec;
     use sseq::coordinates::Bidegree;
 
     pub struct HomCochainComplex<CC: FreeChainComplex, M: Module<Algebra = CC::Algebra>> {
         source: Arc<CC>,
         target: Arc<M>,
-        modules: OnceVec<Arc<HomModule<M>>>,
-        differentials: OnceVec<Arc<HomPullback<M>>>,
+        modules: OnceBiVec<Arc<HomModule<M>>>,
+        differentials: OnceBiVec<Arc<HomPullback<M>>>,
     }
 
     impl<CC: FreeChainComplex, M: Module<Algebra = CC::Algebra>> HomCochainComplex<CC, M> {
@@ -72,27 +72,27 @@ mod hom_cochain_complex {
             Self {
                 source,
                 target,
-                modules: OnceVec::new(),
-                differentials: OnceVec::new(),
+                modules: OnceBiVec::new(0),
+                differentials: OnceBiVec::new(0),
             }
         }
 
         pub fn min_degree(&self) -> i32 {
-            self.modules[0usize].min_degree()
+            self.modules[0].min_degree()
         }
 
         pub fn compute_through_stem(&self, max: Bidegree) {
-            self.modules.extend(max.s() as usize + 1, |s| {
+            self.modules.extend(max.s() + 1, |s| {
                 Arc::new(HomModule::new(
-                    self.source.module(s as u32),
+                    self.source.module(s),
                     Arc::clone(&self.target),
                 ))
             });
-            self.differentials.extend(max.s() as usize, |s| {
+            self.differentials.extend(max.s(), |s| {
                 Arc::new(HomPullback::new(
                     Arc::clone(&self.modules[s]),
                     Arc::clone(&self.modules[s + 1]),
-                    self.source.differential(s as u32 + 1),
+                    self.source.differential(s + 1),
                 ))
             });
             for (s, module) in self.modules.iter().enumerate() {

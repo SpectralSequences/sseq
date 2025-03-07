@@ -143,7 +143,7 @@ impl ActionT for AddProductType {
     }
 
     fn act_resolution(&self, resolution: &mut Resolution<CCC>) -> Option<Message> {
-        let b = Bidegree::s_t(self.y as u32, self.x + self.y);
+        let b = Bidegree::s_t(self.y, self.x + self.y);
 
         resolution.add_product(b, self.class.clone(), &self.name);
         None

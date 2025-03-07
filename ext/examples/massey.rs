@@ -25,7 +25,7 @@ fn main() -> anyhow::Result<()> {
 
     let a = Bidegree::n_s(
         query::raw("n of Ext class a", str::parse),
-        query::raw("s of Ext class a", str::parse::<std::num::NonZeroU32>).get(),
+        query::raw("s of Ext class a", str::parse::<std::num::NonZeroI32>).get(),
     );
 
     unit.compute_through_stem(a);
@@ -36,7 +36,7 @@ fn main() -> anyhow::Result<()> {
 
     let b = Bidegree::n_s(
         query::raw("n of Ext class b", str::parse),
-        query::raw("s of Ext class b", str::parse::<std::num::NonZeroU32>).get(),
+        query::raw("s of Ext class b", str::parse::<std::num::NonZeroI32>).get(),
     );
 
     unit.compute_through_stem(b);

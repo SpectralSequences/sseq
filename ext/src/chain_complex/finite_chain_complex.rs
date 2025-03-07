@@ -141,7 +141,7 @@ where
         Arc::clone(&self.zero_module)
     }
 
-    fn module(&self, s: u32) -> Arc<Self::Module> {
+    fn module(&self, s: i32) -> Arc<Self::Module> {
         let s = s as usize;
         if s >= self.modules.len() {
             self.zero_module()
@@ -150,7 +150,7 @@ where
         }
     }
 
-    fn differential(&self, s: u32) -> Arc<Self::Homomorphism> {
+    fn differential(&self, s: i32) -> Arc<Self::Homomorphism> {
         let s = s as usize;
         let s = std::cmp::min(s, self.differentials.len() - 1); // The last entry is the zero homomorphism
         Arc::clone(&self.differentials[s])
@@ -163,11 +163,11 @@ where
     }
 
     fn has_computed_bidegree(&self, b: Bidegree) -> bool {
-        b.s() > self.modules.len() as u32 || b.t() < self.module(b.s()).max_computed_degree()
+        b.s() > self.modules.len() as i32 || b.t() < self.module(b.s()).max_computed_degree()
     }
 
-    fn next_homological_degree(&self) -> u32 {
-        u32::MAX
+    fn next_homological_degree(&self) -> i32 {
+        i32::MAX
     }
 }
 
@@ -176,8 +176,8 @@ where
     M: Module,
     F: ModuleHomomorphism<Source = M, Target = M>,
 {
-    fn max_s(&self) -> u32 {
-        self.modules.len() as u32
+    fn max_s(&self) -> i32 {
+        self.modules.len() as i32
     }
 }
 
@@ -220,11 +220,11 @@ where
         self.cc.zero_module()
     }
 
-    fn module(&self, s: u32) -> Arc<Self::Module> {
+    fn module(&self, s: i32) -> Arc<Self::Module> {
         self.cc.module(s)
     }
 
-    fn differential(&self, s: u32) -> Arc<Self::Homomorphism> {
+    fn differential(&self, s: i32) -> Arc<Self::Homomorphism> {
         self.cc.differential(s)
     }
 
@@ -232,7 +232,7 @@ where
         self.cc.compute_through_bidegree(b)
     }
 
-    fn next_homological_degree(&self) -> u32 {
+    fn next_homological_degree(&self) -> i32 {
         self.cc.next_homological_degree()
     }
 }
@@ -284,7 +284,7 @@ where
     }
 
     /// This currently crashes if `s` is greater than the s degree of the class this came from.
-    fn chain_map(&self, s: u32) -> Arc<Self::ChainMap> {
+    fn chain_map(&self, s: i32) -> Arc<Self::ChainMap> {
         Arc::clone(&self.chain_maps[s as usize])
     }
 }
@@ -308,7 +308,7 @@ where
     F1: ModuleHomomorphism<Source = M, Target = M>,
     F2: ModuleHomomorphism<Source = M, Target = CC::Module>,
 {
-    fn max_s(&self) -> u32 {
+    fn max_s(&self) -> i32 {
         self.cc.max_s()
     }
 }

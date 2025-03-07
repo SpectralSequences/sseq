@@ -223,7 +223,7 @@ where
         let shift = json["shift"].as_i64().unwrap_or(0) as i32;
 
         let cofiber = BidegreeGenerator::s_t(
-            cofiber["s"].as_u64().unwrap() as u32,
+            cofiber["s"].as_i64().unwrap() as i32,
             cofiber["t"].as_i64().unwrap() as i32 + shift,
             cofiber["idx"].as_u64().unwrap() as usize,
         );
@@ -554,9 +554,9 @@ pub use logging::{ext_tracing_subscriber, init_logging, LogWriter};
 /// be computed. The minimum value of `s` is the `shift_s` of the
 /// [`SecondaryLift`](crate::secondary::SecondaryLift) and the maximum value (inclusive) is the
 /// maximum `s` of the resolution.
-pub fn secondary_job() -> Option<u32> {
+pub fn secondary_job() -> Option<i32> {
     let val = std::env::var("SECONDARY_JOB").ok()?;
-    let parsed: Option<u32> = str::parse(&val).ok();
+    let parsed: Option<i32> = str::parse(&val).ok();
     if parsed.is_none() {
         eprintln!(
             "Invalid argument for `SECONDARY_JOB`. Expected non-negative integer but found {val}"

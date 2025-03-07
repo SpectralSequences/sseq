@@ -180,10 +180,8 @@ impl ResolutionManager {
         };
         self.sender.send(msg)?;
 
-        resolution.compute_through_stem(Bidegree::n_s(
-            action.max_degree,
-            action.max_degree as u32 / 2 + 5,
-        ));
+        resolution
+            .compute_through_stem(Bidegree::n_s(action.max_degree, action.max_degree / 2 + 5));
 
         Ok(())
     }

@@ -233,7 +233,7 @@ impl<A: PairAlgebra + Send + Sync> SecondaryHomotopy<A> {
 
     /// Add composites up to and including the specified degree
     #[tracing::instrument(skip(self, maps, dir), fields(source = %self.source, target = %self.target))]
-    pub fn add_composite(&self, s: u32, degree: i32, maps: CompositeData<A>, dir: &SaveDirectory) {
+    pub fn add_composite(&self, s: i32, degree: i32, maps: CompositeData<A>, dir: &SaveDirectory) {
         for (_, d1, d0) in &maps {
             assert!(Arc::ptr_eq(&d1.target(), &d0.source()));
             assert!(Arc::ptr_eq(&d0.target(), &self.target));
@@ -379,15 +379,14 @@ pub trait SecondaryLift: Sync + Sized {
     fn save_dir(&self) -> &SaveDirectory;
 
     fn compute_intermediate(&self, gen: BidegreeGenerator) -> FpVector;
-    fn composite(&self, s: u32) -> CompositeData<Self::Algebra>;
+    fn composite(&self, s: i32) -> CompositeData<Self::Algebra>;
 
     #[tracing::instrument(skip(self))]
     fn initialize_homotopies(&self) {
         let shift = self.shift();
         let max = self.max();
 
-        self.homotopies().extend(max.s() as i32 - 1, |s| {
-            let s = s as u32;
+        self.homotopies().extend(max.s() - 1, |s| {
             SecondaryHomotopy::new(
                 self.source().module(s),
                 self.target().module(s - shift.s()),
@@ -402,8 +401,7 @@ pub trait SecondaryLift: Sync + Sized {
         let tracing_span = tracing::Span::current();
         let f = |s| {
             let _tracing_guard = tracing_span.enter();
-            let s = s as u32;
-            self.homotopies()[s as i32].add_composite(
+            self.homotopies()[s].add_composite(
                 s,
                 self.max().t(s) - 1,
                 self.composite(s),
@@ -447,11 +445,11 @@ pub trait SecondaryLift: Sync + Sized {
     }
 
     #[tracing::instrument(skip(self))]
-    fn compute_partial(&self, s: u32) {
+    fn compute_partial(&self, s: i32) {
         self.initialize_homotopies();
         let homotopies = self.homotopies();
 
-        if (s as i32) < homotopies.min_degree() {
+        if s < homotopies.min_degree() {
             eprintln!(
                 "Computing partial for s = {s} when minimum degree is {}",
                 homotopies.min_degree()
@@ -459,14 +457,9 @@ pub trait SecondaryLift: Sync + Sized {
             return;
         }
 
-        homotopies[s as i32].add_composite(
-            s,
-            self.max().t(s) - 1,
-            self.composite(s),
-            self.save_dir(),
-        );
+        homotopies[s].add_composite(s, self.max().t(s) - 1, self.composite(s), self.save_dir());
 
-        if let Some(homotopy) = homotopies.get(s as i32 + 1) {
+        if let Some(homotopy) = homotopies.get(s + 1) {
             (0..self.max().t(s + 1))
                 .into_maybe_par_iter()
                 .for_each(|t| {
@@ -486,7 +479,7 @@ pub trait SecondaryLift: Sync + Sized {
             let _tracing_guard = tracing_span.enter();
 
             // If we already have homotopies, we don't need to compute intermediate
-            if self.homotopies()[gen.s() as i32].homotopies.next_degree() >= gen.t() {
+            if self.homotopies()[gen.s()].homotopies.next_degree() >= gen.t() {
                 return;
             }
             // Check if we have a saved homotopy
@@ -509,8 +502,6 @@ pub trait SecondaryLift: Sync + Sized {
             .maybe_par_iter_enum()
             .skip(1)
             .for_each(|(s, homotopy)| {
-                let s = s as u32;
-
                 homotopy
                     .composites
                     .range()
@@ -525,7 +516,7 @@ pub trait SecondaryLift: Sync + Sized {
 
     #[tracing::instrument(skip(self), fields(b = %b))]
     fn compute_homotopy_step(&self, b: Bidegree) -> std::ops::Range<i32> {
-        let homotopy = &self.homotopies()[b.s() as i32];
+        let homotopy = &self.homotopies()[b.s()];
         if homotopy.homotopies.next_degree() > b.t() {
             return b.t()..b.t() + 1;
         }
@@ -552,7 +543,7 @@ pub trait SecondaryLift: Sync + Sized {
                 for _ in 0..num_gens {
                     results.push(FpVector::from_bytes(p, target_dim, &mut f).unwrap());
                 }
-                return self.homotopies()[b.s() as i32]
+                return self.homotopies()[b.s()]
                     .homotopies
                     .add_generators_from_rows_ooo(b.t(), results);
             }
@@ -565,7 +556,7 @@ pub trait SecondaryLift: Sync + Sized {
             let gen = BidegreeGenerator::new(b, i);
             let mut v = self.get_intermediate(gen);
             if gen.s() > shift.s() + 1 {
-                self.homotopies()[gen.s() as i32 - 1].homotopies.apply(
+                self.homotopies()[gen.s() - 1].homotopies.apply(
                     v.as_slice_mut(),
                     1,
                     gen.t(),
@@ -634,14 +625,14 @@ pub trait SecondaryLift: Sync + Sized {
 
         // When s = shift_s, the homotopies are just zero
         {
-            let h = &self.homotopies()[shift.s() as i32];
+            let h = &self.homotopies()[shift.s()];
             h.homotopies.extend_by_zero(h.composites.max_degree());
         }
 
-        let min_t = self.homotopies()[shift.s() as i32].homotopies.min_degree();
+        let min_t = self.homotopies()[shift.s()].homotopies.min_degree();
         let s_range = self.homotopies().range();
-        let min = Bidegree::s_t(s_range.start as u32 + 1, min_t);
-        let max = self.max().restrict(s_range.end as u32);
+        let min = Bidegree::s_t(s_range.start + 1, min_t);
+        let max = self.max().restrict(s_range.end);
         sseq::coordinates::iter_s_t(&|b| self.compute_homotopy_step(b), min, max);
     }
 
@@ -718,7 +709,7 @@ where
         self.underlying.save_dir()
     }
 
-    fn composite(&self, s: u32) -> CompositeData<CC::Algebra> {
+    fn composite(&self, s: i32) -> CompositeData<CC::Algebra> {
         let d1 = self.underlying.differential(s);
         let d0 = self.underlying.differential(s - 1);
         vec![(1, d1, d0)]
@@ -729,7 +720,7 @@ where
         let target = self.underlying.module(gen.s() - 3);
         let mut result = FpVector::new(p, target.dimension(gen.t() - 1));
         let d = self.underlying.differential(gen.s());
-        self.homotopies[gen.s() as i32 - 1].act(
+        self.homotopies[gen.s() - 1].act(
             result.as_slice_mut(),
             1,
             gen.t(),
@@ -758,8 +749,8 @@ where
         }
     }
 
-    pub fn homotopy(&self, s: u32) -> &SecondaryHomotopy<CC::Algebra> {
-        &self.homotopies[s as i32]
+    pub fn homotopy(&self, s: i32) -> &SecondaryHomotopy<CC::Algebra> {
+        &self.homotopies[s]
     }
 
     pub fn e3_page(&self) -> sseq::Sseq<sseq::Adams> {
@@ -792,7 +783,7 @@ where
                     sseq.add_differential(
                         2,
                         b.n(),
-                        b.s() as i32,
+                        b.s(),
                         source_vec.as_slice(),
                         target_vec.as_slice(),
                     );
@@ -801,8 +792,8 @@ where
         }
 
         for b in self.underlying.iter_stem() {
-            if sseq.invalid(b.n(), b.s() as i32) {
-                sseq.update_bidegree(b.n(), b.s() as i32);
+            if sseq.invalid(b.n(), b.s()) {
+                sseq.update_bidegree(b.n(), b.s());
             }
         }
         sseq
@@ -859,16 +850,16 @@ where
     fn max(&self) -> BidegreeRange<Self> {
         BidegreeRange::new(
             self,
-            self.underlying.next_homological_degree() as u32,
+            self.underlying.next_homological_degree(),
             &|selff, s| {
                 std::cmp::min(
                     selff.underlying.get_map(s).next_degree(),
                     std::cmp::min(
-                        selff.source.homotopies[s as i32].homotopies.next_degree(),
+                        selff.source.homotopies[s].homotopies.next_degree(),
                         if s == selff.shift().s() {
                             i32::MAX
                         } else {
-                            selff.target.homotopies[(s + 1 - selff.shift().s()) as i32]
+                            selff.target.homotopies[s + 1 - selff.shift().s()]
                                 .composites
                                 .max_degree()
                                 + selff.shift().t()
@@ -892,7 +883,7 @@ where
         self.underlying.save_dir()
     }
 
-    fn composite(&self, s: u32) -> CompositeData<Self::Algebra> {
+    fn composite(&self, s: i32) -> CompositeData<Self::Algebra> {
         let p = self.prime();
         // This is -1 mod p^2
         let neg_1 = p * p - 1;
@@ -918,7 +909,7 @@ where
         let mut result = FpVector::new(p, target.dimension(shifted_b.t() - 1));
         let d = self.source().differential(gen.s());
 
-        self.homotopies[gen.s() as i32 - 1].act(
+        self.homotopies[gen.s() - 1].act(
             result.as_slice_mut(),
             neg_1,
             gen.t(),
@@ -972,7 +963,7 @@ where
         Self {
             source,
             target,
-            homotopies: OnceBiVec::new(underlying.shift.s() as i32 + 1),
+            homotopies: OnceBiVec::new(underlying.shift.s() + 1),
             underlying,
             intermediates: DashMap::new(),
         }
@@ -987,8 +978,8 @@ where
         }
     }
 
-    pub fn homotopy(&self, s: u32) -> &SecondaryHomotopy<CC1::Algebra> {
-        &self.homotopies[s as i32]
+    pub fn homotopy(&self, s: i32) -> &SecondaryHomotopy<CC1::Algebra> {
+        &self.homotopies[s]
     }
 
     /// A version of [`hom_k`] but with a non-trivial λ part.
@@ -1024,7 +1015,7 @@ where
                 .unwrap(),
         );
 
-        let sign = if (self.underlying.shift.s() as i32 * b.t()) % 2 == 1 {
+        let sign = if (self.underlying.shift.s() * b.t()) % 2 == 1 {
             p * p - 1
         } else {
             1
@@ -1032,7 +1023,7 @@ where
         let filtration_one_sign = if (b.t() % 2) == 1 { p - 1 } else { 1 };
 
         let page_data = sseq.map(|sseq| {
-            let d = sseq.page_data(lambda_source.n(), lambda_source.s() as i32);
+            let d = sseq.page_data(lambda_source.n(), lambda_source.s());
             &d[std::cmp::min(3, d.len() - 1)]
         });
 
@@ -1143,7 +1134,7 @@ where
         );
 
         let diff_source = b + shift - Bidegree::n_s(-1, 1);
-        sseq.differentials(diff_source.n(), diff_source.s() as i32)[2].quasi_inverse(
+        sseq.differentials(diff_source.n(), diff_source.s())[2].quasi_inverse(
             output_class.as_slice_mut(),
             prod_value.slice(lower_num_gens, lower_num_gens + lambda_num_gens),
         );
@@ -1248,7 +1239,7 @@ where
 
         let mut result = FpVector::new(p, target.dimension(shifted_b.t() - 1));
 
-        self.homotopies[gen.s() as i32 - 1].act(
+        self.homotopies[gen.s() - 1].act(
             result.as_slice_mut(),
             1,
             gen.t(),
@@ -1259,7 +1250,7 @@ where
             false,
         );
 
-        self.right.target.homotopies()[(shifted_b.s() + 1) as i32].act(
+        self.right.target.homotopies()[shifted_b.s() + 1].act(
             result.as_slice_mut(),
             1,
             shifted_b.t(),
@@ -1274,14 +1265,14 @@ where
             result.as_slice_mut(),
             neg_1,
             gen.t() - 1,
-            self.left.source.homotopies()[gen.s() as i32]
+            self.left.source.homotopies()[gen.s()]
                 .homotopies
                 .output(gen.t(), gen.idx())
                 .as_slice(),
         );
 
         let left_shifted_b = gen.degree() - self.left.underlying.shift;
-        self.right.homotopies()[left_shifted_b.s() as i32].act(
+        self.right.homotopies()[left_shifted_b.s()].act(
             result.as_slice_mut(),
             neg_1,
             left_shifted_b.t(),
@@ -1312,7 +1303,7 @@ where
             result.as_slice_mut(),
             neg_1,
             left_shifted_b.t() - 1,
-            self.left.homotopies()[gen.s() as i32]
+            self.left.homotopies()[gen.s()]
                 .homotopies
                 .output(gen.t(), gen.idx())
                 .as_slice(),
@@ -1332,7 +1323,7 @@ where
         result
     }
 
-    fn composite(&self, s: u32) -> CompositeData<S::Algebra> {
+    fn composite(&self, s: i32) -> CompositeData<S::Algebra> {
         let p = self.prime();
         // This is -1 mod p^2
         let neg_1 = p * p - 1;
@@ -1411,7 +1402,7 @@ where
             right,
             left_lambda,
             right_lambda,
-            homotopies: OnceBiVec::new(underlying.shift().s() as i32),
+            homotopies: OnceBiVec::new(underlying.shift().s()),
             underlying,
             intermediates: DashMap::new(),
         }

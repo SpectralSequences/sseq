@@ -164,18 +164,18 @@ fn create_chain_complex(num_s: usize) -> FiniteChainComplex {
 }
 
 /// Read the Diff.$N files in `data_dir` and produce the corresponding chain complex object.
-fn read_bruner_resolution(data_dir: &Path, max_n: i32) -> Result<(u32, FiniteChainComplex)> {
-    let num_s: usize = data_dir.read_dir()?.count();
+fn read_bruner_resolution(data_dir: &Path, max_n: i32) -> Result<(i32, FiniteChainComplex)> {
+    let num_s = data_dir.read_dir()?.count() as i32;
 
-    let cc = create_chain_complex(num_s);
+    let cc = create_chain_complex(num_s as usize);
     let algebra = cc.algebra();
 
     let algebra: &MilnorAlgebra = algebra.as_ref().try_into()?;
 
     let mut buf = String::new();
-    let s = num_s as u32 - 1;
+    let s = num_s - 1;
 
-    algebra.compute_basis(max_n + s as i32 + 1);
+    algebra.compute_basis(max_n + s + 1);
     // Handle s = 0
     {
         // TODO: actually parse file
@@ -184,7 +184,7 @@ fn read_bruner_resolution(data_dir: &Path, max_n: i32) -> Result<(u32, FiniteCha
         m.extend_by_zero(max_n + 1);
     }
 
-    for s in 1..num_s as u32 {
+    for s in 1..num_s {
         let m = cc.module(s);
         let d = cc.differential(s);
 
@@ -215,8 +215,8 @@ fn read_bruner_resolution(data_dir: &Path, max_n: i32) -> Result<(u32, FiniteCha
         m.add_generators(cur_degree, entries.len(), None);
         d.add_generators_from_rows(cur_degree, entries);
 
-        m.extend_by_zero(max_n + s as i32 + 1);
-        d.extend_by_zero(max_n + s as i32);
+        m.extend_by_zero(max_n + s + 1);
+        d.extend_by_zero(max_n + s);
     }
 
     Ok((s, cc))

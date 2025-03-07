@@ -7,16 +7,12 @@ fn benchmark(module_name: &str, max_degree: i32, algebra: &str, n_times: u128) {
     print!("benchmark  {algebra:6}  {module_name}  {max_degree}:    ");
     std::io::stdout().flush().unwrap();
 
-    let max = Bidegree::s_t(max_degree as u32, max_degree);
+    let max = Bidegree::s_t(max_degree, max_degree);
     let start = Instant::now();
     for _ in 0..n_times {
         let res = construct((module_name, algebra), None).unwrap();
         res.compute_through_bidegree(max);
-        assert!(
-            res.module(max_degree as u32)
-                .number_of_gens_in_degree(max_degree)
-                < 1000
-        );
+        assert!(res.module(max_degree).number_of_gens_in_degree(max_degree) < 1000);
     }
     let dur = start.elapsed();
 

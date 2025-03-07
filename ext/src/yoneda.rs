@@ -190,9 +190,9 @@ where
     let algebra = cc.algebra();
 
     let t_shift: i32 = map.chain_maps[0].degree_shift();
-    let s_shift: u32 = map.s_shift;
+    let s_shift: i32 = map.s_shift;
 
-    let s_max = std::cmp::max(target_cc.max_s(), map.s_shift + map.chain_maps.len() as u32) - 1;
+    let s_max = std::cmp::max(target_cc.max_s(), map.s_shift + map.chain_maps.len() as i32) - 1;
 
     let t_max = {
         // The maximum t required by the augmentation maps
@@ -398,7 +398,7 @@ where
 
         // Now we clean up the module degree by degree from above.
         for t in (t_min..=t_max).rev() {
-            if t - (s as i32) < cc.min_degree() {
+            if t - s < cc.min_degree() {
                 continue;
             }
             if source.dimension(t) == 0 {

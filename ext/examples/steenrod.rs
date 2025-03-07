@@ -211,7 +211,7 @@ mod sum_module {
                 write!(f, "0")
             } else {
                 write!(f, "{}", self.modules[0])?;
-                for m in &self.modules[1..] {
+                for m in self.modules.iter().skip(1) {
                     write!(f, " (+) {m}")?;
                 }
                 Ok(())
@@ -386,7 +386,7 @@ mod tensor_product_chain_complex {
         matrix::AugmentedMatrix,
         vector::{FpSlice, FpSliceMut, FpVector},
     };
-    use once::{OnceBiVec, OnceVec};
+    use once::OnceBiVec;
     use sseq::coordinates::Bidegree;
 
     use super::sum_module::SumModule;
@@ -401,9 +401,9 @@ mod tensor_product_chain_complex {
     {
         left_cc: Arc<CC1>,
         right_cc: Arc<CC2>,
-        modules: OnceVec<Arc<Stm<CC1::Module, CC2::Module>>>,
+        modules: OnceBiVec<Arc<Stm<CC1::Module, CC2::Module>>>,
         zero_module: Arc<Stm<CC1::Module, CC2::Module>>,
-        differentials: OnceVec<Arc<TensorChainMap<A, CC1, CC2>>>,
+        differentials: OnceBiVec<Arc<TensorChainMap<A, CC1, CC2>>>,
     }
 
     impl<A, CC1, CC2> TensorChainComplex<A, CC1, CC2>
@@ -414,8 +414,8 @@ mod tensor_product_chain_complex {
     {
         pub fn new(left_cc: Arc<CC1>, right_cc: Arc<CC2>) -> Self {
             Self {
-                modules: OnceVec::new(),
-                differentials: OnceVec::new(),
+                modules: OnceBiVec::new(0),
+                differentials: OnceBiVec::new(0),
                 zero_module: Arc::new(SumModule::zero_module(
                     left_cc.algebra(),
                     left_cc.min_degree() + right_cc.min_degree(),
@@ -450,27 +450,27 @@ mod tensor_product_chain_complex {
         /// This function sends a (x) b to b (x) a. This makes sense only if left_cc and right_cc are
         /// equal, but we don't check that.
         pub fn swap(&self, result: &mut FpVector, vec: &FpVector, b: Bidegree) {
-            let s = b.s() as usize;
-
+            let s = b.s();
             for left_s in 0..=s {
                 let right_s = s - left_s;
                 let module = &self.modules[s];
 
-                let source_offset = module.offset(b.t(), left_s);
-                let target_offset = module.offset(b.t(), right_s);
+                let source_offset = module.offset(b.t(), left_s as usize);
+                let target_offset = module.offset(b.t(), right_s as usize);
 
                 for left_t in 0..=b.t() {
                     let right_t = b.t() - left_t;
 
-                    let left_dim = module.modules[left_s].left.dimension(left_t);
-                    let right_dim = module.modules[left_s].right.dimension(right_t);
+                    let left_dim = module.modules[left_s as usize].left.dimension(left_t);
+                    let right_dim = module.modules[left_s as usize].right.dimension(right_t);
 
                     if left_dim == 0 || right_dim == 0 {
                         continue;
                     }
 
-                    let source_inner_offset = module.modules[left_s].offset(b.t(), left_t);
-                    let target_inner_offset = module.modules[right_s].offset(b.t(), right_t);
+                    let source_inner_offset = module.modules[left_s as usize].offset(b.t(), left_t);
+                    let target_inner_offset =
+                        module.modules[right_s as usize].offset(b.t(), right_t);
 
                     for i in 0..left_dim {
                         for j in 0..right_dim {
@@ -517,15 +517,15 @@ mod tensor_product_chain_complex {
                 && self
                     .right_cc
                     .has_computed_bidegree(b - self.left_min_shift())
-                && self.differentials.len() > b.s() as usize
+                && self.differentials.len() > b.s()
         }
 
-        fn module(&self, s: u32) -> Arc<Self::Module> {
-            Arc::clone(&self.modules[s as usize])
+        fn module(&self, s: i32) -> Arc<Self::Module> {
+            Arc::clone(&self.modules[s])
         }
 
-        fn differential(&self, s: u32) -> Arc<Self::Homomorphism> {
-            Arc::clone(&self.differentials[s as usize])
+        fn differential(&self, s: i32) -> Arc<Self::Homomorphism> {
+            Arc::clone(&self.differentials[s])
         }
 
         fn compute_through_bidegree(&self, b: Bidegree) {
@@ -534,8 +534,7 @@ mod tensor_product_chain_complex {
             self.right_cc
                 .compute_through_bidegree(b - self.left_min_shift());
 
-            self.modules.extend(b.s() as usize, |i| {
-                let i = i as u32;
+            self.modules.extend(b.s(), |i| {
                 let new_module_list: Vec<Arc<TensorModule<CC1::Module, CC2::Module>>> = (0..=i)
                     .map(|j| {
                         Arc::new(TensorModule::new(
@@ -555,8 +554,7 @@ mod tensor_product_chain_complex {
                 module.compute_basis(b.t());
             }
 
-            self.differentials.extend(b.s() as usize, |s| {
-                let s = s as u32;
+            self.differentials.extend(b.s(), |s| {
                 if s == 0 {
                     Arc::new(TensorChainMap {
                         left_cc: self.left_cc(),
@@ -579,8 +577,8 @@ mod tensor_product_chain_complex {
             });
         }
 
-        fn next_homological_degree(&self) -> u32 {
-            self.modules.len() as u32
+        fn next_homological_degree(&self) -> i32 {
+            self.modules.len()
         }
     }
 
@@ -592,7 +590,7 @@ mod tensor_product_chain_complex {
     {
         left_cc: Arc<CC1>,
         right_cc: Arc<CC2>,
-        source_s: u32,
+        source_s: i32,
         source: Arc<Stm<CC1::Module, CC2::Module>>,
         target: Arc<Stm<CC1::Module, CC2::Module>>,
         quasi_inverses: OnceBiVec<Vec<Option<Vec<(usize, usize, FpVector)>>>>,
@@ -660,7 +658,7 @@ mod tensor_product_chain_complex {
                     target_offset + (left_index + 1) * target_right_dim,
                 );
                 self.right_cc
-                    .differential(right_s as u32)
+                    .differential(right_s as i32)
                     .apply_to_basis_element(result, coeff, right_t, right_index);
             }
 
@@ -673,7 +671,7 @@ mod tensor_product_chain_complex {
 
                 let mut dl = FpVector::new(self.prime(), target_module.left.dimension(left_t));
                 self.left_cc
-                    .differential(left_s as u32)
+                    .differential(left_s as i32)
                     .apply_to_basis_element(dl.as_slice_mut(), coeff, left_t, left_index);
                 for i in 0..dl.len() {
                     result.add_basis_element(

@@ -394,7 +394,7 @@ mod double {
         use std::sync::Arc;
 
         use ext::chain_complex::ChainComplex;
-        use once::OnceVec;
+        use once::OnceBiVec;
         use sseq::coordinates::Bidegree;
 
         use super::{DoubleAlgebra, DoubleModule, DoubleModuleHomomorphism};
@@ -402,8 +402,8 @@ mod double {
         pub struct DoubleChainComplex<CC: ChainComplex> {
             inner: Arc<CC>,
             zero_module: Arc<DoubleModule<CC::Module>>,
-            modules: OnceVec<Arc<DoubleModule<CC::Module>>>,
-            differentials: OnceVec<Arc<DoubleModuleHomomorphism<CC::Homomorphism>>>,
+            modules: OnceBiVec<Arc<DoubleModule<CC::Module>>>,
+            differentials: OnceBiVec<Arc<DoubleModuleHomomorphism<CC::Homomorphism>>>,
         }
 
         impl<CC: ChainComplex> DoubleChainComplex<CC>
@@ -414,8 +414,8 @@ mod double {
                 Self {
                     zero_module: Arc::new(DoubleModule::new(inner.zero_module())),
                     inner,
-                    modules: OnceVec::new(),
-                    differentials: OnceVec::new(),
+                    modules: OnceBiVec::new(0),
+                    differentials: OnceBiVec::new(0),
                 }
             }
         }
@@ -440,11 +440,11 @@ mod double {
                 Arc::clone(&self.zero_module)
             }
 
-            fn module(&self, s: u32) -> Arc<Self::Module> {
+            fn module(&self, s: i32) -> Arc<Self::Module> {
                 Arc::clone(&self.modules[s])
             }
 
-            fn differential(&self, s: u32) -> Arc<Self::Homomorphism> {
+            fn differential(&self, s: i32) -> Arc<Self::Homomorphism> {
                 Arc::clone(&self.differentials[s])
             }
 
@@ -454,11 +454,9 @@ mod double {
 
             fn compute_through_bidegree(&self, b: Bidegree) {
                 self.inner.compute_through_bidegree(super::div_bidegree(b));
-                self.modules.extend(b.s() as usize, |s| {
-                    Arc::new(DoubleModule::new(self.inner.module(s as u32)))
-                });
-                self.differentials.extend(b.s() as usize, |s| {
-                    let s = s as u32;
+                self.modules
+                    .extend(b.s(), |s| Arc::new(DoubleModule::new(self.inner.module(s))));
+                self.differentials.extend(b.s(), |s| {
                     Arc::new(DoubleModuleHomomorphism::new(
                         self.module(s),
                         if s == 0 {
@@ -489,7 +487,7 @@ mod double {
                 }
             }
 
-            fn next_homological_degree(&self) -> u32 {
+            fn next_homological_degree(&self) -> i32 {
                 self.inner.next_homological_degree()
             }
         }

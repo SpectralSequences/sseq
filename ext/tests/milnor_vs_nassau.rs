@@ -12,7 +12,7 @@ use sseq::coordinates::Bidegree;
 #[case("Joker", 30)]
 #[case("Csigma", 30)]
 fn compare(#[case] module_name: &str, #[case] max_degree: i32) {
-    let max = Bidegree::s_t(max_degree as u32, max_degree);
+    let max = Bidegree::s_t(max_degree, max_degree);
     let a = construct_standard::<false, _, _>(module_name, None).unwrap();
     let b = construct_nassau(module_name, None).unwrap();
 
