@@ -1,14 +1,44 @@
-pub mod bidegree;
+use degree::MultiDegree;
+use element::MultiDegreeElement;
+use generator::MultiDegreeGenerator;
+use maybe_rayon::prelude::*;
+use ordered::OrderedMultiDegree;
+pub use range::BidegreeRange;
+
+pub mod degree;
 pub mod element;
 pub mod generator;
 pub mod ordered;
 pub mod range;
 
-pub use bidegree::Bidegree;
-pub use element::BidegreeElement;
-pub use generator::BidegreeGenerator;
-use maybe_rayon::prelude::*;
-pub use range::BidegreeRange;
+pub type Bidegree = MultiDegree<2>;
+pub type BidegreeElement = MultiDegreeElement<2>;
+pub type BidegreeGenerator = MultiDegreeGenerator<2>;
+pub type OrderedBidegree<O> = OrderedMultiDegree<2, O>;
+
+impl Bidegree {
+    pub const fn n_s(n: i32, s: i32) -> Self {
+        Self::new([n, s])
+    }
+
+    pub const fn s_t(s: i32, t: i32) -> Self {
+        Self::n_s(t - s, s)
+    }
+
+    pub const fn x_y(x: i32, y: i32) -> Self {
+        Self::n_s(x, y)
+    }
+}
+
+impl BidegreeGenerator {
+    pub fn s_t(s: i32, t: i32, idx: usize) -> Self {
+        Self::new(Bidegree::s_t(s, t), idx)
+    }
+
+    pub fn n_s(n: i32, s: i32, idx: usize) -> Self {
+        Self::new(Bidegree::n_s(n, s), idx)
+    }
+}
 
 /// Execute a function on a range of bidegrees, possibly in parallel.
 ///

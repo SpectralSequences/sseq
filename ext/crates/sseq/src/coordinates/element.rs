@@ -3,20 +3,22 @@ use std::fmt::{self, Display, Formatter};
 use fp::vector::{FpSlice, FpVector};
 use serde::{Deserialize, Serialize};
 
-use crate::coordinates::{Bidegree, BidegreeGenerator};
+use super::{MultiDegree, MultiDegreeGenerator};
 
-/// An element of a bigraded vector space. Most commonly used to index elements of spectral
+/// An element of a graded vector space. Most commonly used to index elements of spectral
 /// sequences.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct BidegreeElement {
-    /// Bidegree of the element
-    degree: Bidegree,
+pub struct MultiDegreeElement<const N: usize> {
+    /// Degree of the element
+    degree: MultiDegree<N>,
     /// Representing vector
     vec: FpVector,
 }
 
-impl BidegreeElement {
-    pub fn new(degree: Bidegree, vec: FpVector) -> Self {
+pub type BidegreeElement = MultiDegreeElement<2>;
+
+impl<const N: usize> MultiDegreeElement<N> {
+    pub fn new(degree: MultiDegree<N>, vec: FpVector) -> Self {
         Self { degree, vec }
     }
 
@@ -28,7 +30,7 @@ impl BidegreeElement {
         self.degree.t()
     }
 
-    pub fn degree(&self) -> Bidegree {
+    pub fn degree(&self) -> MultiDegree<N> {
         self.degree
     }
 
@@ -59,7 +61,7 @@ impl BidegreeElement {
         self.vec
             .iter_nonzero()
             .map(|(i, v)| {
-                let g = BidegreeGenerator::new(self.degree(), i);
+                let g = MultiDegreeGenerator::new(self.degree(), i);
                 let coeff_str = if v != 1 {
                     format!("{v} ")
                 } else {
