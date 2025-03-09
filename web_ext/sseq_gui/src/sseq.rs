@@ -7,7 +7,10 @@ use fp::{
     vector::{FpSlice, FpVector},
 };
 use serde::{Deserialize, Serialize};
-use sseq::{Adams, Sseq, SseqProfile};
+use sseq::{
+    coordinates::{Bidegree, BidegreeElement},
+    Adams, Sseq, SseqProfile,
+};
 
 use crate::{Sender, actions::*};
 
@@ -34,8 +37,7 @@ pub struct Product {
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct ProductItem {
     name: String,
-    mult_x: i32,
-    mult_y: i32,
+    mult_b: Bidegree,
     matrices: BiVec<Vec<Vec<u32>>>, // page -> matrix
 }
 
@@ -67,23 +69,17 @@ pub struct SseqWrapper<P: SseqProfile = Adams> {
 }
 
 impl<P: SseqProfile> SseqWrapper<P> {
-    pub fn new(
-        p: ValidPrime,
-        name: SseqChoice,
-        min_x: i32,
-        min_y: i32,
-        sender: Option<Sender>,
-    ) -> Self {
+    pub fn new(p: ValidPrime, name: SseqChoice, min: Bidegree, sender: Option<Sender>) -> Self {
         Self {
             p,
             name,
             sender,
             block_refresh: 0,
-            inner: Sseq::new(p, min_x, min_y),
+            inner: Sseq::new(p, min),
 
             products: BTreeMap::default(),
-            class_names: BiVec::new(min_x),
-            stale: BiVec::new(min_x),
+            class_names: BiVec::new(min.x()),
+            stale: BiVec::new(min.x()),
         }
     }
 
@@ -106,35 +102,35 @@ impl<P: SseqProfile> SseqWrapper<P> {
             return;
         }
 
-        for x in self.inner.min_x()..=self.inner.max_x() {
+        for x in self.inner.min().x()..=self.inner.max().x() {
             for y in self.inner.range(x) {
-                if !self.inner.invalid(x, y) {
+                let b = Bidegree::x_y(x, y);
+                if !self.inner.invalid(b) {
                     continue;
                 }
-                self.stale[x][y] |= CLASS_FLAG | EDGE_FLAG;
+                self.stale[b.x()][b.y()] |= CLASS_FLAG | EDGE_FLAG;
                 for product in self.products.values() {
-                    let prod_x = product.inner.x;
-                    let prod_y = product.inner.y;
-                    if self.inner.defined(x - prod_x, y - prod_y) {
-                        self.stale[x - prod_x][y - prod_y] |= EDGE_FLAG;
+                    let prod_origin_b = b - product.inner.b;
+                    if self.inner.defined(prod_origin_b) {
+                        self.stale[prod_origin_b.x()][prod_origin_b.y()] |= EDGE_FLAG;
                     }
                 }
-                let differentials = self.inner.update_bidegree(x, y);
+                let differentials = self.inner.update_bidegree(b);
                 if !differentials.is_empty() {
                     // `true_differentials` is a list of differentials of the form d(source) = target we know
                     // to be true. `differentials` is our best guess at what the matrix of differentials is.
                     let true_differentials = self
                         .inner
-                        .differentials(x, y)
+                        .differentials(b)
                         .iter_enum()
                         .map(|(r, d)| {
-                            let (tx, ty) = P::profile(r, x, y);
+                            let target_b = P::profile(r, b);
                             d.get_source_target_pairs()
                                 .into_iter()
                                 .map(|(mut s, mut t)| {
                                     (
-                                        self.inner.page_data(x, y)[r].reduce(s.as_slice_mut()),
-                                        self.inner.page_data(tx, ty)[r].reduce(t.as_slice_mut()),
+                                        self.inner.page_data(b)[r].reduce(s.as_slice_mut()),
+                                        self.inner.page_data(target_b)[r].reduce(t.as_slice_mut()),
                                     )
                                 })
                                 .collect::<Vec<_>>()
@@ -145,8 +141,7 @@ impl<P: SseqProfile> SseqWrapper<P> {
                         recipients: vec![],
                         sseq: self.name,
                         action: Action::from(SetDifferential {
-                            x,
-                            y,
+                            b,
                             true_differentials,
                             differentials,
                         }),
@@ -157,43 +152,45 @@ impl<P: SseqProfile> SseqWrapper<P> {
 
         for x in self.stale.range() {
             for y in self.stale[x].range() {
-                if self.stale[x][y] & CLASS_FLAG > 0 {
-                    self.send_class_data(x, y);
+                let b = Bidegree::x_y(x, y);
+                if self.stale[b.x()][b.y()] & CLASS_FLAG > 0 {
+                    self.send_class_data(b);
                 }
-                if self.stale[x][y] & EDGE_FLAG > 0 {
-                    self.send_products(x, y);
+                if self.stale[b.x()][b.y()] & EDGE_FLAG > 0 {
+                    self.send_products(b);
                 }
-                self.stale[x][y] = 0;
+                self.stale[b.x()][b.y()] = 0;
             }
         }
     }
 
-    /// Computes products whose source is at (x, y).
-    fn send_products(&self, x: i32, y: i32) {
-        if !self.inner.defined(x, y) {
+    /// Computes products whose source is at `b`.
+    fn send_products(&self, b: Bidegree) {
+        if !self.inner.defined(b) {
             return;
         }
-        if self.inner.dimension(x, y) == 0 {
+        if self.inner.dimension(b) == 0 {
             return;
         }
 
         let mut structlines: Vec<ProductItem> = Vec::with_capacity(self.products.len());
         for (name, mult) in &self.products {
-            if !(mult.inner.matrices.len() > x && mult.inner.matrices[x].len() > y) {
+            if !(mult.inner.matrices.len() > b.x() && mult.inner.matrices[b.x()].len() > b.y()) {
                 continue;
             }
-            let prod_x = mult.inner.x;
-            let prod_y = mult.inner.y;
 
-            let target_dim = self.inner.dimension(x + prod_x, y + prod_y);
+            let prod_b = mult.inner.b;
+            let prod_output_b = b + prod_b;
+
+            let target_dim = self.inner.dimension(prod_output_b);
             if target_dim == 0 {
                 continue;
             }
 
-            if let Some(matrix) = &mult.inner.matrices[x][y] {
+            if let Some(matrix) = &mult.inner.matrices[b.x()][b.y()] {
                 let max_page = max(
-                    self.inner.page_data(x, y).len(),
-                    self.inner.page_data(x + prod_x, y + prod_y).len(),
+                    self.inner.page_data(b).len(),
+                    self.inner.page_data(prod_output_b).len(),
                 );
                 let mut matrices: BiVec<Vec<Vec<u32>>> = BiVec::with_capacity(P::MIN_R, max_page);
 
@@ -202,8 +199,8 @@ impl<P: SseqProfile> SseqWrapper<P> {
 
                 // Compute the ones where something changes.
                 for r in P::MIN_R + 1..max_page {
-                    let source_data = self.inner.page_data(x, y).get_max(r);
-                    let target_data = self.inner.page_data(x + prod_x, y + prod_y).get_max(r);
+                    let source_data = self.inner.page_data(b).get_max(r);
+                    let target_data = self.inner.page_data(prod_output_b).get_max(r);
 
                     matrices.push(Subquotient::reduce_matrix(matrix, source_data, target_data));
 
@@ -216,8 +213,7 @@ impl<P: SseqProfile> SseqWrapper<P> {
 
                 structlines.push(ProductItem {
                     name: name.clone(),
-                    mult_x: prod_x,
-                    mult_y: prod_y,
+                    mult_b: prod_b,
                     matrices,
                 });
             }
@@ -226,33 +222,33 @@ impl<P: SseqProfile> SseqWrapper<P> {
         self.send(Message {
             recipients: vec![],
             sseq: self.name,
-            action: Action::from(SetStructline { x, y, structlines }),
+            action: Action::from(SetStructline { b, structlines }),
         });
     }
 
-    fn send_class_data(&self, x: i32, y: i32) {
+    fn send_class_data(&self, b: Bidegree) {
         if self.block_refresh > 0 {
             return;
         }
 
-        let state = if self.inner.inconsistent(x, y) {
+        let state = if self.inner.inconsistent(b) {
             ClassState::Error
-        } else if self.inner.complete(x, y) {
+        } else if self.inner.complete(b) {
             ClassState::Done
         } else {
             ClassState::InProgress
         };
 
-        let mut decompositions: Vec<(FpVector, String, i32, i32)> = Vec::new();
+        let mut decompositions: Vec<(FpVector, String, Bidegree)> = Vec::new();
         for (name, prod) in &self.products {
-            let prod_x = prod.inner.x;
-            let prod_y = prod.inner.y;
+            let prod_b = prod.inner.b;
+            let prod_origin_b = b - prod_b;
 
             if let Some(Some(Some(matrix))) = &prod
                 .inner
                 .matrices
-                .get(x - prod_x)
-                .map(|m| m.get(y - prod_y))
+                .get(prod_origin_b.x())
+                .map(|m| m.get(prod_origin_b.y()))
             {
                 for i in 0..matrix.rows() {
                     if matrix[i].is_zero() {
@@ -260,9 +256,11 @@ impl<P: SseqProfile> SseqWrapper<P> {
                     }
                     decompositions.push((
                         matrix[i].clone(),
-                        format!("{name} {}", self.class_names[x - prod_x][y - prod_y][i]),
-                        prod_x,
-                        prod_y,
+                        format!(
+                            "{name} {}",
+                            self.class_names[prod_origin_b.x()][prod_origin_b.y()][i]
+                        ),
+                        prod_b,
                     ));
                 }
             }
@@ -272,15 +270,14 @@ impl<P: SseqProfile> SseqWrapper<P> {
             recipients: vec![],
             sseq: self.name,
             action: Action::from(SetClass {
-                x,
-                y,
+                b,
                 state,
-                permanents: self.inner.permanent_classes(x, y).basis().to_vec(),
-                class_names: self.class_names[x][y].clone(),
+                permanents: self.inner.permanent_classes(b).basis().to_vec(),
+                class_names: self.class_names[b.x()][b.y()].clone(),
                 decompositions,
                 classes: self
                     .inner
-                    .page_data(x, y)
+                    .page_data(b)
                     .iter()
                     .map(|x| x.gens().map(FpSlice::to_owned).collect())
                     .collect::<Vec<Vec<FpVector>>>(),
@@ -299,28 +296,31 @@ impl<P: SseqProfile> SseqWrapper<P> {
 impl<P: SseqProfile> SseqWrapper<P> {
     /// This function should only be called when everything to the left and bottom of (x, y)
     /// has been defined.
-    pub fn set_dimension(&mut self, x: i32, y: i32, dim: usize) {
-        self.inner.set_dimension(x, y, dim);
-        if x == self.class_names.len() {
-            self.class_names.push(BiVec::new(self.inner.min_y()));
-            self.stale.push(BiVec::new(self.inner.min_y()));
+    pub fn set_dimension(&mut self, b: Bidegree, dim: usize) {
+        self.inner.set_dimension(b, dim);
+        if b.x() == self.class_names.len() {
+            self.class_names.push(BiVec::new(self.inner.min().y()));
+            self.stale.push(BiVec::new(self.inner.min().y()));
         }
         let mut names = Vec::with_capacity(dim);
         if dim == 1 {
-            names.push(format!("x_{{{x},{y}}}"));
+            names.push(format!("x_{{{x},{y}}}", x = b.x(), y = b.y()));
         } else {
-            names.extend((0..dim).map(|i| format!("x_{{{x}, {y}}}^{{({i})}}")));
+            names.extend(
+                (0..dim).map(|i| format!("x_{{{x}, {y}}}^{{({i})}}", x = b.x(), y = b.y())),
+            );
         }
-        self.class_names[x].push(names);
-        self.stale[x].push(CLASS_FLAG);
+        self.class_names[b.x()].push(names);
+        self.stale[b.x()].push(CLASS_FLAG);
     }
 
-    pub fn set_class_name(&mut self, x: i32, y: i32, idx: usize, name: String) {
-        self.class_names[x][y][idx] = name;
-        self.send_class_data(x, y);
+    pub fn set_class_name(&mut self, b: Bidegree, idx: usize, name: String) {
+        self.class_names[b.x()][b.y()][idx] = name;
+        self.send_class_data(b);
         for prod in self.products.values() {
-            if self.inner.defined(x + prod.inner.x, y + prod.inner.y) {
-                self.send_class_data(x + prod.inner.x, y + prod.inner.y);
+            let prod_output_b = b + prod.inner.b;
+            if self.inner.defined(prod_output_b) {
+                self.send_class_data(prod_output_b);
             }
         }
     }
@@ -336,9 +336,7 @@ impl<P: SseqProfile> SseqWrapper<P> {
     pub fn add_differential_propagate(
         &mut self,
         r: i32,
-        x: i32,
-        y: i32,
-        source: FpSlice,
+        source: &BidegreeElement,
         product_index: usize,
     ) {
         if self.products.is_empty() {
@@ -346,18 +344,18 @@ impl<P: SseqProfile> SseqWrapper<P> {
         }
         // This is useful for batch adding differentials from external sources, where not all
         // classes have been added.
-        if !self.inner.defined(x, y) {
+        if !self.inner.defined(source.degree()) {
             return;
         }
         if r != i32::MAX {
-            let (tx, ty) = P::profile(r, x, y);
-            if !self.inner.defined(tx, ty) {
+            let target_b = P::profile(r, source.degree());
+            if !self.inner.defined(target_b) {
                 return;
             }
         }
 
         if product_index + 1 < self.products.len() {
-            self.add_differential_propagate(r, x, y, source, product_index + 1);
+            self.add_differential_propagate(r, source, product_index + 1);
         }
 
         let product = self.products.values().nth(product_index).unwrap();
@@ -370,22 +368,15 @@ impl<P: SseqProfile> SseqWrapper<P> {
         };
 
         // Separate this to new line to make code easier to read.
-        let new_d = self.inner.leibniz(r, x, y, source, &product.inner, target);
+        let new_d = self.inner.leibniz(r, source, &product.inner, target);
 
-        if let Some((r, x, y, source)) = new_d {
-            self.add_differential_propagate(r, x, y, source.as_slice(), product_index);
+        if let Some((r, source)) = new_d {
+            self.add_differential_propagate(r, &source, product_index);
         }
     }
 
     /// Add a product to the list of products, but don't add any computed product
-    pub fn add_product_type(
-        &mut self,
-        name: &str,
-        mult_x: i32,
-        mult_y: i32,
-        left: bool,
-        permanent: bool,
-    ) {
+    pub fn add_product_type(&mut self, name: &str, mult_b: Bidegree, left: bool, permanent: bool) {
         if let Some(product) = self.products.get_mut(name) {
             product.user = true;
             if permanent && !product.permanent {
@@ -395,10 +386,9 @@ impl<P: SseqProfile> SseqWrapper<P> {
         } else {
             let product = Product {
                 inner: sseq::Product {
-                    x: mult_x,
-                    y: mult_y,
+                    b: mult_b,
                     left,
-                    matrices: BiVec::new(self.inner.min_x()),
+                    matrices: BiVec::new(self.inner.min().x()),
                 },
                 user: true,
                 permanent,
@@ -409,10 +399,8 @@ impl<P: SseqProfile> SseqWrapper<P> {
     }
 
     pub fn add_product_differential(&mut self, source: &str, target: &str) {
-        let r = P::differential_length(
-            self.products[target].inner.x - self.products[source].inner.x,
-            self.products[target].inner.y - self.products[source].inner.y,
-        );
+        let offset = self.products[target].inner.b - self.products[source].inner.b;
+        let r = P::differential_length(offset);
 
         self.products.get_mut(source).unwrap().differential = Some((r, true, target.to_owned()));
         self.products.get_mut(target).unwrap().differential = Some((r, false, source.to_owned()));
@@ -425,14 +413,14 @@ impl<P: SseqProfile> SseqWrapper<P> {
         // We only use this to figure out the range
         for x in self.products[name].inner.matrices.range() {
             for y in self.products[name].inner.matrices[x].range() {
-                self.propagate_product(x, y, name);
+                self.propagate_product(Bidegree::x_y(x, y), name);
             }
         }
     }
 
-    /// Propagate products by the product indexed by `idx` at (x, y). The product must either be
+    /// Propagate products by the product indexed by `idx` at `b`. The product must either be
     /// permanent or the source of a differential.
-    fn propagate_product(&mut self, x: i32, y: i32, name: &str) {
+    fn propagate_product(&mut self, b: Bidegree, name: &str) {
         let product = &self.products[name];
         let target = if product.permanent {
             None
@@ -442,40 +430,43 @@ impl<P: SseqProfile> SseqWrapper<P> {
             return;
         };
 
-        for r in self.inner.differentials(x, y).range() {
-            let pairs = self.inner.differentials(x, y)[r].get_source_target_pairs();
+        for r in self.inner.differentials(b).range() {
+            let pairs = self.inner.differentials(b)[r].get_source_target_pairs();
             for (source, _) in pairs {
                 self.inner
-                    .leibniz(r, x, y, source.as_slice(), &product.inner, target);
+                    .leibniz(r, &BidegreeElement::new(b, source), &product.inner, target);
             }
         }
 
-        let permanent_classes = self.inner.permanent_classes(x, y).basis().to_vec();
+        let permanent_classes = self.inner.permanent_classes(b).basis().to_vec();
         for class in permanent_classes {
-            self.inner
-                .leibniz(i32::MAX, x, y, class.as_slice(), &product.inner, target);
+            self.inner.leibniz(
+                i32::MAX,
+                &BidegreeElement::new(b, class),
+                &product.inner,
+                target,
+            );
         }
     }
 
     pub fn add_product(
         &mut self,
         name: &str,
-        x: i32,
-        y: i32,
-        mult_x: i32,
-        mult_y: i32,
+        b: Bidegree,
+        mult_b: Bidegree,
         left: bool,
         matrix: &[Vec<u32>],
     ) {
-        assert!(self.inner.defined(x, y));
-        assert!(self.inner.defined(x + mult_x, y + mult_y));
+        let prod_output_b = b + mult_b;
+        assert!(self.inner.defined(b));
+        assert!(self.inner.defined(prod_output_b));
+
         if !self.products.contains_key(name) {
             let product = Product {
                 inner: sseq::Product {
-                    x: mult_x,
-                    y: mult_y,
+                    b: mult_b,
                     left,
-                    matrices: BiVec::new(self.inner.min_x()),
+                    matrices: BiVec::new(self.inner.min().x()),
                 },
                 user: false,
                 permanent: true,
@@ -488,20 +479,20 @@ impl<P: SseqProfile> SseqWrapper<P> {
         product
             .inner
             .matrices
-            .extend_with(x, |_| BiVec::new(self.inner.min_y()));
-        product.inner.matrices[x].extend_with(y - 1, |_| None);
+            .extend_with(b.x(), |_| BiVec::new(self.inner.min().y()));
+        product.inner.matrices[b.x()].extend_with(b.y() - 1, |_| None);
 
         let matrix = Matrix::from_vec(self.p, matrix);
 
-        if self.inner.dimension(x, y) != 0 && self.inner.dimension(x + mult_x, y + mult_y) != 0 {
-            self.stale[x][y] |= EDGE_FLAG;
+        if self.inner.dimension(b) != 0 && self.inner.dimension(prod_output_b) != 0 {
+            self.stale[b.x()][b.y()] |= EDGE_FLAG;
             if !matrix.is_zero() {
-                self.stale[x + mult_x][y + mult_y] |= CLASS_FLAG;
+                self.stale[prod_output_b.x()][prod_output_b.y()] |= CLASS_FLAG;
             }
         }
 
-        assert_eq!(y, product.inner.matrices[x].len());
-        product.inner.matrices[x].push(Some(matrix));
+        assert_eq!(b.y(), product.inner.matrices[b.x()].len());
+        product.inner.matrices[b.x()].push(Some(matrix));
 
         let product = &*product;
 
@@ -509,18 +500,18 @@ impl<P: SseqProfile> SseqWrapper<P> {
         // source and target, and the β product on the source.
         if let Some((_, false, source_name)) = &product.differential {
             let source_name = source_name.clone();
-            self.propagate_product(x, y, &source_name);
+            self.propagate_product(b, &source_name);
         } else if matches!(product.differential, Some((_, true, _))) || product.permanent {
-            self.propagate_product(x, y, name);
+            self.propagate_product(b, name);
             let hitting: Vec<i32> = self
                 .inner
-                .differentials_hitting(x, y)
+                .differentials_hitting(b)
                 .map(|(r, _)| r)
                 .collect();
             for r in hitting {
-                let (sx, sy) = P::profile_inverse(r, x, y);
-                if self.inner.defined(sx, sy) {
-                    self.propagate_product(sx, sy, name);
+                let source_b = P::profile_inverse(r, b);
+                if self.inner.defined(source_b) {
+                    self.propagate_product(source_b, name);
                 }
             }
         }

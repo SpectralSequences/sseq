@@ -61,9 +61,9 @@ where
 
     fn to_sseq(&self) -> sseq::Sseq<sseq::Adams> {
         let p = self.prime();
-        let mut sseq = sseq::Sseq::new(p, self.min_degree(), 0);
+        let mut sseq = sseq::Sseq::new(p, Bidegree::n_s(self.min_degree(), 0));
         for b in self.iter_stem() {
-            sseq.set_dimension(b.n(), b.s(), self.number_of_gens_in_bidegree(b));
+            sseq.set_dimension(b, self.number_of_gens_in_bidegree(b));
         }
         sseq
     }
@@ -86,9 +86,8 @@ where
         });
 
         sseq::Product {
+            b: Bidegree::x_y(op_deg - 1, 1),
             left: true,
-            x: op_deg - 1,
-            y: 1,
             matrices,
         }
     }

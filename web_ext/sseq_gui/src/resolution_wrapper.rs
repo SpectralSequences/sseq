@@ -146,8 +146,7 @@ impl<CC: ChainComplex> Resolution<CC> {
                 recipients: vec![],
                 sseq: self.sseq,
                 action: Action::from(crate::actions::AddClass {
-                    x: b.n(),
-                    y: b.s(),
+                    b,
                     num: self.inner.number_of_gens_in_bidegree(b),
                 }),
             })
@@ -181,15 +180,17 @@ impl<CC: ChainComplex> Resolution<CC> {
     pub fn add_structline(
         &self,
         name: &str,
-        source: Bidegree,
-        mult: Bidegree,
+        source_b: Bidegree,
+        mult_b: Bidegree,
         left: bool,
         mut product: Vec<Vec<u32>>,
     ) {
         let p = self.prime();
 
         // Product in Ext is not product in E_2
-        if (left && mult.s() * source.t() % 2 != 0) || (!left && mult.t() * source.s() % 2 != 0) {
+        if (left && mult_b.s() * source_b.t() % 2 != 0)
+            || (!left && mult_b.t() * source_b.s() % 2 != 0)
+        {
             for entry in product.iter_mut().flatten() {
                 *entry = ((p - 1) * *entry) % p;
             }
@@ -200,10 +201,8 @@ impl<CC: ChainComplex> Resolution<CC> {
                 recipients: vec![],
                 sseq: self.sseq,
                 action: Action::from(crate::actions::AddProduct {
-                    mult_x: mult.n(),
-                    mult_y: mult.s(),
-                    source_x: source.n(),
-                    source_y: source.s(),
+                    source_b,
+                    mult_b,
                     name: name.to_owned(),
                     product,
                     left,

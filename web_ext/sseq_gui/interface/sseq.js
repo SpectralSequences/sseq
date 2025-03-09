@@ -46,6 +46,10 @@ const KEEP_LOG = new Set([
     'SetClassName',
 ]);
 
+function bidegreeToCoordinates(b) {
+    return [b.t - b.s, b.s];
+}
+
 export class BiVec {
     constructor(minDegree, data) {
         this.data = data ? data : [];
@@ -549,8 +553,7 @@ export class ExtSseq {
     }
 
     processSetClass(data) {
-        const x = data.x;
-        const y = data.y;
+        const [x, y] = bidegreeToCoordinates(data.b);
 
         const oldClasses = this.classes.get(x, y);
         // classes is a list, and each member of the list corresponds to a
@@ -677,8 +680,7 @@ export class ExtSseq {
     }
 
     processSetDifferential(data) {
-        const x = data.x;
-        const y = data.y;
+        const [x, y] = bidegreeToCoordinates(data.b);
 
         while (this.chart.pages.length <= data.differentials.length) {
             this.newPage();
@@ -709,14 +711,14 @@ export class ExtSseq {
     }
 
     processSetStructline(data) {
-        const x = data.x;
-        const y = data.y;
+        const [x, y] = bidegreeToCoordinates(data.b);
 
         for (const mult of data.structlines) {
+            const [mult_x, mult_y] = bidegreeToCoordinates(mult.mult_b);
             if (!this.products.has(mult.name)) {
                 this.products.set(mult.name, {
-                    x: mult.mult_x,
-                    y: mult.mult_y,
+                    x: mult_x,
+                    y: mult_y,
                     matrices: new BiVec(this.minDegree),
                     style: {
                         bend: 0,
@@ -752,9 +754,9 @@ export class ExtSseq {
                     for (const line of ExtSseq.drawMatrix(
                         matrix,
                         x,
-                        x + mult.mult_x,
+                        x + mult_x,
                         y,
-                        y + mult.mult_y,
+                        y + mult_y,
                         product.style.bend,
                     )) {
                         line.classList.add(`structline`);

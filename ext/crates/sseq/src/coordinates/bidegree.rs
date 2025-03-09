@@ -31,6 +31,10 @@ impl Bidegree {
         Self { n, s }
     }
 
+    pub const fn x_y(x: i32, y: i32) -> Self {
+        Self::n_s(x, y)
+    }
+
     pub const fn zero() -> Self {
         Self { n: 0, s: 0 }
     }
@@ -45,6 +49,14 @@ impl Bidegree {
 
     pub fn n(&self) -> i32 {
         self.n
+    }
+
+    pub fn x(&self) -> i32 {
+        self.n()
+    }
+
+    pub fn y(&self) -> i32 {
+        self.s()
     }
 
     /// Returns difference as a bidegree if the difference in homological degrees is nonnegative,
