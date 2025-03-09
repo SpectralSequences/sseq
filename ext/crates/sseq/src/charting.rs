@@ -1,5 +1,7 @@
 use std::{collections::HashMap, fmt::Display, io};
 
+use crate::coordinates::{Bidegree, BidegreeGenerator};
+
 #[rustfmt::skip]
 const PATTERNS: [(f32, &[(f32, f32)]); 12] = [
     (2.0, &[(0.0, 0.0)]),
@@ -29,57 +31,50 @@ pub trait Backend {
     /// If the backend writes to a file, this is the extension commonly taken by the file type
     const EXT: &'static str = "";
 
-    fn header(&mut self, max_x: i32, max_y: i32) -> Result<(), Self::Error>;
-    fn line(
-        &mut self,
-        start_x: i32,
-        end_x: i32,
-        start_y: i32,
-        end_y: i32,
-        style: &str,
-    ) -> Result<(), Self::Error>;
+    fn header(&mut self, max: Bidegree) -> Result<(), Self::Error>;
+    fn line(&mut self, start: Bidegree, end: Bidegree, style: &str) -> Result<(), Self::Error>;
 
     fn text(
         &mut self,
-        x: i32,
-        y: i32,
+        b: Bidegree,
         content: impl Display,
         orientation: Orientation,
     ) -> Result<(), Self::Error>;
-    fn node(&mut self, x: i32, y: i32, n: usize) -> Result<(), Self::Error>;
+
+    // We don't use BidegreeGenerator here because `n` represents the order of a bidegree instead of
+    // an index of an element within a bidegree
+    fn node(&mut self, b: Bidegree, n: usize) -> Result<(), Self::Error>;
 
     fn structline(
         &mut self,
-        source: (i32, i32, usize),
-        target: (i32, i32, usize),
+        source: BidegreeGenerator,
+        target: BidegreeGenerator,
         style: Option<&str>,
     ) -> Result<(), Self::Error>;
 
-    fn init(&mut self, max_x: i32, max_y: i32) -> Result<(), Self::Error> {
-        self.header(max_x, max_y)?;
+    fn init(&mut self, max: Bidegree) -> Result<(), Self::Error> {
+        self.header(max)?;
 
-        for x in 0..=max_x {
+        for x in 0..=max.x() {
+            let on_x_axis = Bidegree::x_y(x, 0);
             self.line(
-                x,
-                x,
-                0,
-                max_y,
+                on_x_axis,
+                Bidegree::x_y(x, max.y()),
                 if x % 4 == 0 { "major-grid" } else { "grid" },
             )?;
             if x % 4 == 0 {
-                self.text(x, 0, x, Orientation::Below)?;
+                self.text(on_x_axis, x, Orientation::Below)?;
             }
         }
-        for y in 0..=max_y {
+        for y in 0..=max.y() {
+            let on_y_axis = Bidegree::x_y(0, y);
             self.line(
-                0,
-                max_x,
-                y,
-                y,
+                on_y_axis,
+                Bidegree::x_y(max.x(), y),
                 if y % 4 == 0 { "major-grid" } else { "grid" },
             )?;
             if y % 4 == 0 {
-                self.text(0, y, y, Orientation::Left)?;
+                self.text(on_y_axis, y, Orientation::Left)?;
             }
         }
         Ok(())
@@ -87,15 +82,19 @@ pub trait Backend {
 
     fn structline_matrix(
         &mut self,
-        source: (i32, i32),
-        target: (i32, i32),
+        source: Bidegree,
+        target: Bidegree,
         matrix: Vec<Vec<u32>>,
         class: Option<&str>,
     ) -> Result<(), Self::Error> {
         for (k, row) in matrix.into_iter().enumerate() {
             for (l, v) in row.into_iter().enumerate() {
                 if v != 0 {
-                    self.structline((source.0, source.1, k), (target.0, target.1, l), class)?;
+                    self.structline(
+                        BidegreeGenerator::new(source, k),
+                        BidegreeGenerator::new(target, l),
+                        class,
+                    )?;
                 }
             }
         }
@@ -105,9 +104,8 @@ pub trait Backend {
 
 pub struct SvgBackend<T: io::Write> {
     out: T,
-    max_x: i32,
-    max_y: i32,
-    num_nodes: HashMap<(i32, i32), usize>,
+    max: Bidegree,
+    num_nodes: HashMap<Bidegree, usize>,
 }
 
 impl<T: io::Write> SvgBackend<T> {
@@ -175,24 +173,23 @@ impl<T: io::Write> SvgBackend<T> {
     }
 
     /// Returns r, x, y
-    fn get_coords(&self, x: i32, y: i32, i: usize) -> (f32, f32, f32) {
-        let n = *self.num_nodes.get(&(x, y)).unwrap();
+    fn get_coords(&self, g: BidegreeGenerator) -> (f32, f32, f32) {
+        let n = *self.num_nodes.get(&g.degree()).unwrap();
 
         let (radius, patterns) = PATTERNS[n - 1];
-        let offset = patterns[i];
+        let offset = patterns[g.idx()];
 
         (
             radius,
-            (x * Self::GRID_WIDTH + Self::MARGIN) as f32 + offset.0,
-            ((self.max_y - y) * Self::GRID_WIDTH + Self::MARGIN) as f32 + offset.1,
+            (g.x() * Self::GRID_WIDTH + Self::MARGIN) as f32 + offset.0,
+            ((self.max - g.degree()).y() * Self::GRID_WIDTH + Self::MARGIN) as f32 + offset.1,
         )
     }
 
     pub fn new(out: T) -> Self {
         Self {
             out,
-            max_x: 0,
-            max_y: 0,
+            max: Bidegree::zero(),
             num_nodes: HashMap::new(),
         }
     }
@@ -203,12 +200,11 @@ impl<T: io::Write> Backend for SvgBackend<T> {
 
     const EXT: &'static str = "svg";
 
-    fn header(&mut self, max_x: i32, max_y: i32) -> Result<(), Self::Error> {
-        self.max_x = max_x;
-        self.max_y = max_y;
+    fn header(&mut self, max: Bidegree) -> Result<(), Self::Error> {
+        self.max = max;
 
-        let width = self.max_x * Self::GRID_WIDTH + 2 * Self::MARGIN;
-        let height = self.max_y * Self::GRID_WIDTH + 2 * Self::MARGIN;
+        let width = self.max.x() * Self::GRID_WIDTH + 2 * Self::MARGIN;
+        let height = self.max.y() * Self::GRID_WIDTH + 2 * Self::MARGIN;
 
         writeln!(
             self.out,
@@ -217,30 +213,22 @@ impl<T: io::Write> Backend for SvgBackend<T> {
         writeln!(self.out, "<style>{}</style>", Self::STYLES)
     }
 
-    fn line(
-        &mut self,
-        start_x: i32,
-        end_x: i32,
-        start_y: i32,
-        end_y: i32,
-        style: &str,
-    ) -> Result<(), Self::Error> {
-        let height = self.max_y * Self::GRID_WIDTH + 2 * Self::MARGIN;
+    fn line(&mut self, start: Bidegree, end: Bidegree, style: &str) -> Result<(), Self::Error> {
+        let height = self.max.y() * Self::GRID_WIDTH + 2 * Self::MARGIN;
 
         writeln!(
             self.out,
             r#"<line class="{style}" x1="{start_x}" x2="{end_x}" y1="{start_y}" y2="{end_y}" />"#,
-            start_x = Self::MARGIN + start_x * Self::GRID_WIDTH,
-            end_x = Self::MARGIN + end_x * Self::GRID_WIDTH,
-            start_y = height - Self::MARGIN - start_y * Self::GRID_WIDTH,
-            end_y = height - Self::MARGIN - end_y * Self::GRID_WIDTH,
+            start_x = Self::MARGIN + start.x() * Self::GRID_WIDTH,
+            end_x = Self::MARGIN + end.x() * Self::GRID_WIDTH,
+            start_y = height - Self::MARGIN - start.y() * Self::GRID_WIDTH,
+            end_y = height - Self::MARGIN - end.y() * Self::GRID_WIDTH,
         )
     }
 
     fn text(
         &mut self,
-        x: i32,
-        y: i32,
+        b: Bidegree,
         content: impl Display,
         orientation: Orientation,
     ) -> Result<(), Self::Error> {
@@ -254,19 +242,19 @@ impl<T: io::Write> Backend for SvgBackend<T> {
         writeln!(
             self.out,
             r#"<text class="{class}" x="{x}" y="{y}">{content}</text>"#,
-            x = Self::MARGIN + x * Self::GRID_WIDTH + offset.0,
-            y = Self::MARGIN + (self.max_y - y) * Self::GRID_WIDTH + offset.1,
+            x = Self::MARGIN + b.x() * Self::GRID_WIDTH + offset.0,
+            y = Self::MARGIN + (self.max - b).y() * Self::GRID_WIDTH + offset.1,
         )
     }
 
-    fn node(&mut self, x: i32, y: i32, n: usize) -> Result<(), Self::Error> {
-        if n == 0 || x > self.max_x || y > self.max_y {
+    fn node(&mut self, b: Bidegree, n: usize) -> Result<(), Self::Error> {
+        if n == 0 || b.x() > self.max.x() || b.y() > self.max.y() {
             return Ok(());
         }
-        self.num_nodes.insert((x, y), n);
+        self.num_nodes.insert(b, n);
 
         for k in 0..n {
-            let (r, x, y) = self.get_coords(x, y, k);
+            let (r, x, y) = self.get_coords(BidegreeGenerator::new(b, k));
             writeln!(self.out, r#"<circle cx="{x}" cy="{y}" r="{r}"/>"#,)?;
         }
         Ok(())
@@ -274,20 +262,20 @@ impl<T: io::Write> Backend for SvgBackend<T> {
 
     fn structline(
         &mut self,
-        source: (i32, i32, usize),
-        target: (i32, i32, usize),
+        source: BidegreeGenerator,
+        target: BidegreeGenerator,
         style: Option<&str>,
     ) -> Result<(), Self::Error> {
-        if source.0 > self.max_x
-            || source.1 > self.max_y
-            || target.0 > self.max_x
-            || target.1 > self.max_y
+        if source.x() > self.max.x()
+            || source.y() > self.max.y()
+            || target.x() > self.max.x()
+            || target.y() > self.max.y()
         {
             return Ok(());
         }
 
-        let (_, source_x, source_y) = self.get_coords(source.0, source.1, source.2);
-        let (_, target_x, target_y) = self.get_coords(target.0, target.1, target.2);
+        let (_, source_x, source_y) = self.get_coords(source);
+        let (_, target_x, target_y) = self.get_coords(target);
 
         writeln!(
             self.out,
@@ -310,9 +298,8 @@ impl<T: io::Write> Drop for SvgBackend<T> {
 
 pub struct TikzBackend<T: io::Write> {
     out: T,
-    max_x: i32,
-    max_y: i32,
-    num_nodes: HashMap<(i32, i32), usize>,
+    max: Bidegree,
+    num_nodes: HashMap<Bidegree, usize>,
 }
 
 impl<T: io::Write> TikzBackend<T> {
@@ -325,25 +312,24 @@ impl<T: io::Write> TikzBackend<T> {
     pub fn new(out: T) -> Self {
         Self {
             out,
-            max_x: 0,
-            max_y: 0,
+            max: Bidegree::zero(),
             num_nodes: HashMap::new(),
         }
     }
 
     /// Returns r, x, y
-    fn get_coords(&self, x: i32, y: i32, i: usize) -> (f32, f32, f32) {
-        let n = *self.num_nodes.get(&(x, y)).unwrap();
+    fn get_coords(&self, g: BidegreeGenerator) -> (f32, f32, f32) {
+        let n = *self.num_nodes.get(&g.degree()).unwrap();
 
         let (radius, patterns) = PATTERNS[n - 1];
-        let offset = patterns[i];
+        let offset = patterns[g.idx()];
 
         (
             radius / 20.0,
-            x as f32 + offset.0 / 20.0,
+            g.x() as f32 + offset.0 / 20.0,
             // We subtract because in Tikz the origin is the bottom-left while in SVG it is the
             // top-left
-            y as f32 - offset.1 / 20.0,
+            g.y() as f32 - offset.1 / 20.0,
         )
     }
 }
@@ -353,30 +339,25 @@ impl<T: io::Write> Backend for TikzBackend<T> {
 
     const EXT: &'static str = "tex";
 
-    fn header(&mut self, max_x: i32, max_y: i32) -> Result<(), Self::Error> {
-        self.max_x = max_x;
-        self.max_y = max_y;
+    fn header(&mut self, max: Bidegree) -> Result<(), Self::Error> {
+        self.max = max;
         writeln!(self.out, "{}", Self::HEADER)
     }
 
-    fn line(
-        &mut self,
-        start_x: i32,
-        end_x: i32,
-        start_y: i32,
-        end_y: i32,
-        style: &str,
-    ) -> Result<(), Self::Error> {
+    fn line(&mut self, start: Bidegree, end: Bidegree, style: &str) -> Result<(), Self::Error> {
         writeln!(
             self.out,
             r#"\draw [{style}] ({start_x}, {start_y}) -- ({end_x}, {end_y});"#,
+            start_x = start.x(),
+            start_y = start.y(),
+            end_x = end.x(),
+            end_y = end.y(),
         )
     }
 
     fn text(
         &mut self,
-        x: i32,
-        y: i32,
+        b: Bidegree,
         content: impl Display,
         orientation: Orientation,
     ) -> Result<(), Self::Error> {
@@ -387,17 +368,22 @@ impl<T: io::Write> Backend for TikzBackend<T> {
             Orientation::Above => "above",
         };
 
-        writeln!(self.out, r#"\node [{offset}] at ({x}, {y}) {{{content}}};"#,)
+        writeln!(
+            self.out,
+            r#"\node [{offset}] at ({x}, {y}) {{{content}}};"#,
+            x = b.x(),
+            y = b.y()
+        )
     }
 
-    fn node(&mut self, x: i32, y: i32, n: usize) -> Result<(), Self::Error> {
-        if n == 0 || x > self.max_x || y > self.max_y {
+    fn node(&mut self, b: Bidegree, n: usize) -> Result<(), Self::Error> {
+        if n == 0 || b.x() > self.max.x() || b.y() > self.max.y() {
             return Ok(());
         }
-        self.num_nodes.insert((x, y), n);
+        self.num_nodes.insert(b, n);
 
         for k in 0..n {
-            let (r, x, y) = self.get_coords(x, y, k);
+            let (r, x, y) = self.get_coords(BidegreeGenerator::new(b, k));
             writeln!(self.out, r#"\draw [fill] ({x}, {y}) circle ({r});"#,)?;
         }
         Ok(())
@@ -405,20 +391,20 @@ impl<T: io::Write> Backend for TikzBackend<T> {
 
     fn structline(
         &mut self,
-        source: (i32, i32, usize),
-        target: (i32, i32, usize),
+        source: BidegreeGenerator,
+        target: BidegreeGenerator,
         style: Option<&str>,
     ) -> Result<(), Self::Error> {
-        if source.0 > self.max_x
-            || source.1 > self.max_y
-            || target.0 > self.max_x
-            || target.1 > self.max_y
+        if source.x() > self.max.x()
+            || source.y() > self.max.y()
+            || target.x() > self.max.x()
+            || target.y() > self.max.y()
         {
             return Ok(());
         }
 
-        let (_, source_x, source_y) = self.get_coords(source.0, source.1, source.2);
-        let (_, target_x, target_y) = self.get_coords(target.0, target.1, target.2);
+        let (_, source_x, source_y) = self.get_coords(source);
+        let (_, target_x, target_y) = self.get_coords(target);
 
         writeln!(
             self.out,

@@ -89,8 +89,7 @@ fn main() -> anyhow::Result<()> {
             products.iter(),
             |g| {
                 g.text(
-                    1,
-                    max.s() as i32 - 1,
+                    Bidegree::x_y(1, max.s() - 1),
                     disp_template.replace('%', &format!("{shift_t}")),
                     Orientation::Right,
                 )

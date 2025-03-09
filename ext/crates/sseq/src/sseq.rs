@@ -9,7 +9,7 @@ use fp::{
 
 use crate::{
     bigraded::DenseBigradedModule,
-    coordinates::{Bidegree, BidegreeElement},
+    coordinates::{Bidegree, BidegreeElement, BidegreeGenerator},
     differential::Differential,
 };
 
@@ -470,7 +470,7 @@ impl<P: SseqProfile> Sseq<P> {
 
         let max = self.max();
 
-        g.init((max - min).x(), max.y())?;
+        g.init(max - min)?;
         header(&mut g)?;
 
         for x in min.x()..=max.x() {
@@ -483,7 +483,7 @@ impl<P: SseqProfile> Sseq<P> {
                     continue;
                 }
 
-                g.node(shifted_b.x(), shifted_b.y(), data.dimension())?;
+                g.node(shifted_b, data.dimension())?;
 
                 // Now add the products hitting this bidegree
                 for (name, prod) in products.clone() {
@@ -502,12 +502,7 @@ impl<P: SseqProfile> Sseq<P> {
                     // For unstable charts this is None in low degrees.
                     if let Some(matrix) = &prod.matrices[source_b.x()][source_b.y()] {
                         let matrix = Subquotient::reduce_matrix(matrix, source_data, data);
-                        g.structline_matrix(
-                            (shifted_source.x(), shifted_source.y()),
-                            (shifted_b.x(), shifted_b.y()),
-                            matrix,
-                            Some(name),
-                        )?;
+                        g.structline_matrix(shifted_source, shifted_b, matrix, Some(name))?;
                     }
                 }
 
@@ -546,8 +541,8 @@ impl<P: SseqProfile> Sseq<P> {
                                     continue;
                                 }
                                 g.structline(
-                                    (shifted_b.x(), shifted_b.y(), i),
-                                    (shifted_target.x(), shifted_target.y(), j),
+                                    BidegreeGenerator::new(shifted_b, i),
+                                    BidegreeGenerator::new(shifted_target, j),
                                     Some(&format!("d{r}")),
                                 )?;
                             }
