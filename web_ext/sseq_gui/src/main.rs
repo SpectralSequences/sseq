@@ -1,4 +1,4 @@
-use std::{fs, thread};
+use std::{fs, path::PathBuf, thread};
 
 use sseq_gui::{actions::*, managers::*, Sender};
 use textwrap::Options;
@@ -241,10 +241,7 @@ impl Server {
     pub fn serve_files(&self, request_path: &str) -> WsResult<Response> {
         println!("Request path: {request_path}");
         let request_path = request_path.split('?').collect::<Vec<&str>>()[0]; // Ignore ?...
-        let mut dir = std::env::current_exe().unwrap();
-        dir.pop();
-        dir.pop();
-        dir.pop();
+        let mut dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         dir.push("interface");
 
         for (path, file, mime) in FILE_LIST {
