@@ -8,6 +8,7 @@ from selenium.webdriver.common.keys import Keys
 def test_differential(driver):
     driver.go("/?module=S_2&degree=20")
     driver.wait_complete()
+    driver.zoom_out()
 
     driver.click_class(15, 1)
     driver.send_keys("d")
