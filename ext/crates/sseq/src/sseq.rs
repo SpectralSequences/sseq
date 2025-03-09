@@ -457,7 +457,7 @@ impl<P: SseqProfile> Sseq<P> {
     }
 
     /// This shifts the sseq horizontally so that the minimum x is 0.
-    pub fn write_to_graph<'a, T: chart::Backend>(
+    pub fn write_to_graph<'a, T: crate::charting::Backend>(
         &self,
         mut g: T,
         r: i32,

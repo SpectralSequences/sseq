@@ -7,7 +7,6 @@ edition = "2024"
 
 [dependencies]
 bivec = { path = "../bivec/" }
-chart = { path = "../chart/" }
 fp = { path = "../fp/", default-features = false }
 maybe-rayon = { path = "../maybe-rayon" }
 once = { path = "../once/" }

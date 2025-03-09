@@ -1,11 +1,11 @@
 use std::{fs::File, sync::Arc};
 
 use algebra::Algebra;
-use chart::{Backend as _, TikzBackend as Backend};
 use ext::{
     chain_complex::{ChainComplex, FreeChainComplex},
     secondary::{SecondaryLift, SecondaryResolution},
 };
+use sseq::charting::{Backend as _, TikzBackend as Backend};
 
 fn main() -> anyhow::Result<()> {
     ext::utils::init_logging()?;
