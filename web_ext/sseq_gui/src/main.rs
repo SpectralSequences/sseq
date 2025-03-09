@@ -259,6 +259,7 @@ impl Server {
 }
 
 fn main() {
+    ext::utils::init_logging();
     let args: Vec<String> = std::env::args().collect();
     let mut port = "8080";
     if args.len() > 1 {

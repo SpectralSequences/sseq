@@ -241,7 +241,7 @@ fn main() -> anyhow::Result<()> {
     ch_lift.extend_all();
 
     fn get_page_data(sseq: &sseq::Sseq, b: Bidegree) -> &fp::matrix::Subquotient {
-        let d = sseq.page_data(b.n(), b.s());
+        let d = sseq.page_data(b);
         &d[std::cmp::min(3, d.len() - 1)]
     }
 
