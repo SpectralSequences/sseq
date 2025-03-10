@@ -651,6 +651,26 @@ impl<T> IndexMut<u32> for OnceVec<T> {
 unsafe impl<T: Send> Send for OnceVec<T> {}
 unsafe impl<T: Sync> Sync for OnceVec<T> {}
 
+impl<T> FromIterator<T> for OnceVec<T> {
+    /// ```
+    /// # use once::OnceVec;
+    /// let elements = vec![1, 2, 3];
+    ///
+    /// let v1 = OnceVec::from_vec(elements.clone());
+    /// // The `assert_eq` below lets the compiler infer that `v2` is a `OnceVec<i32>`.
+    /// let v2 = elements.into_iter().collect();
+    ///
+    /// assert_eq!(v1, v2);
+    /// ```
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+        let result = Self::new();
+        for v in iter {
+            result.push(v);
+        }
+        result
+    }
+}
+
 #[derive(Clone, PartialEq, Eq)]
 pub struct OnceBiVec<T> {
     data: OnceVec<T>,
