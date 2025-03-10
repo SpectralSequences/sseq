@@ -5,7 +5,15 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 
-/// Type synonym for (s, t) bidegrees.
+/// A pair of integers representing a bidegree.
+///
+/// When used to index a resolution of a graded module, a bidegree's `s`, `t`, and `n` are the
+/// homological degree, internal degree, and stem, respectively. The three are related by the
+/// equation `n = t - s`.
+///
+/// When used to index some arbitrary bigraded vector space, e.g. a spectral sequence, `x` and `y`
+/// are the horizontal and vertical coordinates respectively. It is always the case that `x == n`
+/// and `y == s`, but we provide both sets of names for better semantics.
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Bidegree {
     /// Homological degree
@@ -27,6 +35,10 @@ impl Bidegree {
         Self::s_t(s, n + s)
     }
 
+    pub const fn x_y(x: i32, y: i32) -> Self {
+        Self::n_s(x, y)
+    }
+
     pub const fn zero() -> Self {
         Self { s: 0, t: 0 }
     }
@@ -41,6 +53,14 @@ impl Bidegree {
 
     pub fn n(&self) -> i32 {
         self.t - self.s
+    }
+
+    pub fn x(&self) -> i32 {
+        self.n()
+    }
+
+    pub fn y(&self) -> i32 {
+        self.s()
     }
 
     /// Returns difference as a bidegree if the difference in homological degrees is nonnegative,
