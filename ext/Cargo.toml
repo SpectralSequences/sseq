@@ -41,7 +41,6 @@ ctrlc = { version = "3", features = ["termination"] }
 
 [dev-dependencies]
 expect-test = "1.1.0"
-iai = "0.1.1"
 rstest = "0.17.0"
 tempfile = "3.0.0"
 
@@ -73,10 +72,6 @@ members = [
     "crates/query",
     "crates/sseq",
 ]
-
-[[bench]]
-name = "iai"
-harness = false
 
 [[bench]]
 name = "resolve"
