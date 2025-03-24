@@ -11,6 +11,11 @@
     pkgs.python3Packages.pytest
 
     pkgs.cargo-cache
+    pkgs.cargo-criterion
+    pkgs.cargo-flamegraph
+    pkgs.cargo-nextest
+
+    pkgs.linuxKernel.packages.linux_zen.perf
   ];
 
   # https://devenv.sh/tests/
