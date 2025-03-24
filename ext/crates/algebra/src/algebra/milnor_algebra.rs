@@ -1477,12 +1477,8 @@ impl<const MOD4: bool> Iterator for PPartMultiplier<'_, MOD4> {
             } else if self.update() {
                 self.ans.p_part.reserve(self.diag_num);
                 for diag_idx in 1..=self.diag_num {
-                    let i_min = if diag_idx + 1 > self.cols {
-                        diag_idx + 1 - self.cols
-                    } else {
-                        0
-                    };
-                    let i_max = std::cmp::min(1 + diag_idx, self.rows);
+                    let i_min = (diag_idx + 1).saturating_sub(self.cols);
+                    let i_max = std::cmp::min(diag_idx + 1, self.rows);
                     let mut sum = 0;
 
                     if self.prime() == 2 {
