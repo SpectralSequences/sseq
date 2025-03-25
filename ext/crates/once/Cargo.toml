@@ -2,6 +2,7 @@
 name = "once"
 version = "0.1.0"
 authors = [
+    "Joey Beauvais-Feisthauer <joeybf@wayne.edu>",
     "Hood Chatham <hood@mit.edu>",
     "Dexter Chua <dexter@math.harvard.edu>",
 ]
@@ -13,11 +14,17 @@ bivec = { path = "../bivec" }
 maybe-rayon = { path = "../maybe-rayon" }
 
 [dev-dependencies]
-criterion = "0.3"
+criterion = "0.5"
+pprof = { version = "0.14", features = ["criterion", "flamegraph"] }
+proptest = "1.6.0"
+rand = "0.9"
 
 [features]
 default = []
 concurrent = ["maybe-rayon/concurrent"]
+
+[target.'cfg(loom)'.dependencies]
+loom = { version = "0.7", features = ["checkpoint"] }
 
 [[bench]]
 name = "criterion"
