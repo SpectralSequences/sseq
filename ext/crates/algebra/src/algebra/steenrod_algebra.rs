@@ -67,6 +67,7 @@ pub enum SteenrodAlgebraBorrow<'a> {
     BorrowMilnor(&'a MilnorAlgebra),
 }
 
+#[allow(clippy::large_enum_variant)]
 pub enum SteenrodAlgebra {
     AdemAlgebra(AdemAlgebra),
     MilnorAlgebra(MilnorAlgebra),
