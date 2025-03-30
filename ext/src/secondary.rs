@@ -448,6 +448,7 @@ pub trait SecondaryLift: Sync + Sized {
     fn compute_partial(&self, s: i32) {
         self.initialize_homotopies();
         let homotopies = self.homotopies();
+        let tracing_span = tracing::Span::current();
 
         if s < homotopies.min_degree() {
             eprintln!(
@@ -466,6 +467,7 @@ pub trait SecondaryLift: Sync + Sized {
                     (0..homotopy.source.number_of_gens_in_degree(t))
                         .into_maybe_par_iter()
                         .for_each(|i| {
+                            let _tracing_guard = tracing_span.enter();
                             self.get_intermediate(BidegreeGenerator::s_t(s + 1, t, i));
                         })
                 });
