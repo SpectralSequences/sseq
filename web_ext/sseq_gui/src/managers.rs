@@ -294,8 +294,7 @@ impl SseqManager {
                 *target = Some(SseqWrapper::new(
                     m.p,
                     msg.sseq,
-                    m.min_degree,
-                    0,
+                    Bidegree::x_y(m.min_degree, 0),
                     Some(self.sender.clone()),
                 ));
             }
