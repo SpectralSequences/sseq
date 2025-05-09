@@ -8,7 +8,6 @@ edition = "2021"
 [dependencies]
 algebra = { path = "../algebra/", default-features = false }
 bivec = { path = "../bivec/" }
-chart = { path = "../chart/" }
 fp = { path = "../fp/", default-features = false }
 maybe-rayon = { path = "../maybe-rayon" }
 once = { path = "../once/" }

@@ -47,6 +47,14 @@ impl BidegreeGenerator {
         self.degree.n()
     }
 
+    pub fn x(&self) -> i32 {
+        self.degree.x()
+    }
+
+    pub fn y(&self) -> i32 {
+        self.degree.y()
+    }
+
     pub fn idx(&self) -> usize {
         self.idx
     }

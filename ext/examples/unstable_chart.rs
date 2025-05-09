@@ -22,12 +22,14 @@ use algebra::{
     module::{Module, SuspensionModule},
     Algebra,
 };
-use chart::{Backend, Orientation, TikzBackend};
 use ext::{
     chain_complex::{FiniteChainComplex, FreeChainComplex},
     resolution::UnstableResolution,
 };
-use sseq::coordinates::Bidegree;
+use sseq::{
+    charting::{Backend, Orientation, TikzBackend},
+    coordinates::Bidegree,
+};
 
 fn main() -> anyhow::Result<()> {
     ext::utils::init_logging();
@@ -87,8 +89,7 @@ fn main() -> anyhow::Result<()> {
             products.iter(),
             |g| {
                 g.text(
-                    1,
-                    max.s() as i32 - 1,
+                    Bidegree::x_y(1, max.s() - 1),
                     disp_template.replace('%', &format!("{shift_t}")),
                     Orientation::Right,
                 )

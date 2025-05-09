@@ -19,7 +19,7 @@ use fp::{
 use itertools::Itertools;
 use maybe_rayon::prelude::*;
 use once::OnceBiVec;
-use sseq::coordinates::{Bidegree, BidegreeGenerator, BidegreeRange};
+use sseq::coordinates::{Bidegree, BidegreeElement, BidegreeGenerator, BidegreeRange};
 use tracing::Level;
 
 use crate::{
@@ -782,20 +782,17 @@ where
                     source_vec.set_entry(i, 1);
                     target_vec.copy_from_slice(&row);
 
-                    sseq.add_differential(
-                        2,
-                        b.n(),
-                        b.s(),
-                        source_vec.as_slice(),
-                        target_vec.as_slice(),
-                    );
+                    let source = BidegreeElement::new(b, source_vec);
+                    sseq.add_differential(2, &source, target_vec.as_slice());
+
+                    source_vec = source.into_vec();
                 }
             }
         }
 
         for b in self.underlying.iter_stem() {
-            if sseq.invalid(b.n(), b.s()) {
-                sseq.update_bidegree(b.n(), b.s());
+            if sseq.invalid(b) {
+                sseq.update_bidegree(b);
             }
         }
         sseq
@@ -1025,7 +1022,7 @@ where
         let filtration_one_sign = if (b.t() % 2) == 1 { p - 1 } else { 1 };
 
         let page_data = sseq.map(|sseq| {
-            let d = sseq.page_data(lambda_source.n(), lambda_source.s());
+            let d = sseq.page_data(lambda_source);
             &d[std::cmp::min(3, d.len() - 1)]
         });
 
@@ -1136,7 +1133,7 @@ where
         );
 
         let diff_source = b + shift - Bidegree::n_s(-1, 1);
-        sseq.differentials(diff_source.n(), diff_source.s())[2].quasi_inverse(
+        sseq.differentials(diff_source)[2].quasi_inverse(
             output_class.as_slice_mut(),
             prod_value.slice(lower_num_gens, lower_num_gens + lambda_num_gens),
         );

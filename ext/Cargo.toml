@@ -15,7 +15,6 @@ resolver = "2"
 [dependencies]
 algebra = { path = "crates/algebra", default-features = false }
 bivec = { path = "crates/bivec" }
-chart = { path = "crates/chart" }
 fp = { path = "crates/fp", default-features = false }
 maybe-rayon = { path = "crates/maybe-rayon" }
 once = { path = "crates/once" }
@@ -65,7 +64,6 @@ nassau = []
 members = [
     "crates/algebra",
     "crates/bivec",
-    "crates/chart",
     "crates/fp",
     "crates/maybe-rayon",
     "crates/once",
