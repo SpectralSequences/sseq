@@ -9,6 +9,8 @@ allows us to work compute in the derived category of said algebra. The primary
 purpose is to compute the classical Adams E2 page by computing Ext over the
 Steenrod algebra.
 
+** To get started computing Ext over the Steenrod algebra, read the Quickstart [here](ext/README.md).**
+
 2. `web_ext`
 Web interfaces to `ext`. There are two subprojects at the moment:
 
