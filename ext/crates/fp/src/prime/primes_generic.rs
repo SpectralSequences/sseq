@@ -36,7 +36,7 @@ pub const fn is_prime(p: u32) -> bool {
     // (2..p).all(|k| p % k != 0), but make it const
     let mut k = 2;
     while k < p {
-        if p % k == 0 {
+        if p.is_multiple_of(k) {
             return false;
         }
         k += 1;

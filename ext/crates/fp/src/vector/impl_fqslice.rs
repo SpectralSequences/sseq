@@ -86,7 +86,7 @@ impl<'a, F: Field> FqSlice<'a, F> {
     #[must_use]
     pub fn to_owned(self) -> FqVector<F> {
         let mut new = FqVector::new(self.fq, self.len());
-        if self.start % self.fq.entries_per_limb() == 0 {
+        if self.start.is_multiple_of(self.fq.entries_per_limb()) {
             let limb_range = self.limb_range();
             new.limbs[0..limb_range.len()].copy_from_slice(&self.limbs[limb_range]);
             if !new.limbs.is_empty() {

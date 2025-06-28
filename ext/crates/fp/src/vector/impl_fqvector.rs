@@ -285,7 +285,7 @@ impl<F: Field> FqVector<F> {
             let target_limb = other.limbs[target_limb_idx];
             let source_limb = self.limbs[target_limb_idx];
             result ^= crate::limb::sign_rule(target_limb, source_limb);
-            if target_limb.count_ones() % 2 == 0 {
+            if target_limb.count_ones().is_multiple_of(2) {
                 continue;
             }
             for _ in 0..target_limb_idx {

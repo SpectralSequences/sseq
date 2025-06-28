@@ -337,7 +337,7 @@ impl std::fmt::Display for SmallFqElement {
             None => write!(f, "0"),
             Some(0) => write!(f, "1"),
             Some(1) => write!(f, "a"),
-            Some(x) => write!(f, "a^{}", x),
+            Some(x) => write!(f, "a^{x}"),
         }
     }
 }

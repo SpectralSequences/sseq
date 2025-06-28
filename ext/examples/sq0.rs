@@ -92,7 +92,13 @@ mod double {
                 let p_part = elt
                     .p_part
                     .iter()
-                    .map(|&x| if x % 2 == 0 { Some(x / 2) } else { None })
+                    .map(|&x| {
+                        if x.is_multiple_of(2) {
+                            Some(x / 2)
+                        } else {
+                            None
+                        }
+                    })
                     .collect::<Option<Vec<_>>>()?;
                 Some(self.basis_element_to_index(&MilnorBasisElement {
                     degree: degree / 2,
@@ -108,7 +114,13 @@ mod double {
                 let ps = elt
                     .ps
                     .iter()
-                    .map(|&x| if x % 2 == 0 { Some(x / 2) } else { None })
+                    .map(|&x| {
+                        if x.is_multiple_of(2) {
+                            Some(x / 2)
+                        } else {
+                            None
+                        }
+                    })
                     .collect::<Option<Vec<_>>>()?;
                 Some(self.basis_element_to_index(&AdemBasisElement {
                     degree: degree / 2,

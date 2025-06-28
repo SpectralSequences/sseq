@@ -371,7 +371,7 @@ pub trait SecondaryLift: Sync + Sized {
     fn target(&self) -> Arc<Self::Target>;
     fn shift(&self) -> Bidegree;
 
-    fn max(&self) -> BidegreeRange<Self>;
+    fn max(&self) -> BidegreeRange<'_, Self>;
 
     fn homotopies(&self) -> &OnceBiVec<SecondaryHomotopy<Self::Algebra>>;
     fn intermediates(&self) -> &DashMap<BidegreeGenerator, FpVector>;
@@ -686,7 +686,7 @@ where
         Bidegree::s_t(2, 0)
     }
 
-    fn max(&self) -> BidegreeRange<Self> {
+    fn max(&self) -> BidegreeRange<'_, Self> {
         BidegreeRange::new(
             self,
             self.underlying.next_homological_degree(),
@@ -849,7 +849,7 @@ where
         self.underlying.shift + Bidegree::s_t(1, 0)
     }
 
-    fn max(&self) -> BidegreeRange<Self> {
+    fn max(&self) -> BidegreeRange<'_, Self> {
         BidegreeRange::new(
             self,
             self.underlying.next_homological_degree(),
@@ -1200,7 +1200,7 @@ where
         )
     }
 
-    fn max(&self) -> BidegreeRange<Self> {
+    fn max(&self) -> BidegreeRange<'_, Self> {
         BidegreeRange::new(
             self,
             std::cmp::min(

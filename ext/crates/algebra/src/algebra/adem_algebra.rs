@@ -356,11 +356,11 @@ impl GeneratedAlgebra for AdemAlgebra {
             }
             // Test if degree is q*p^k.
             let mut temp_degree = degree as u32;
-            if temp_degree % (2 * (p - 1)) != 0 {
+            if !temp_degree.is_multiple_of(2 * (p - 1)) {
                 return vec![];
             }
             temp_degree /= 2 * (p - 1);
-            while temp_degree % p == 0 {
+            while temp_degree.is_multiple_of(p.as_u32()) {
                 temp_degree /= p;
             }
             if temp_degree != 1 {
@@ -1290,7 +1290,7 @@ impl AdemAlgebra {
         let mut pow = 1;
         {
             let mut temp_sq = sq;
-            while temp_sq % p == 0 {
+            while temp_sq.is_multiple_of(p.as_u32()) {
                 temp_sq /= p;
                 pow *= p;
             }

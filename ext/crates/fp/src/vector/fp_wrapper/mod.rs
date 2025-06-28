@@ -77,13 +77,13 @@ impl FpVector {
         pub fn assign_partial(&mut self, other: &Self);
         pub fn @add(&mut self, other: &Self, c: u32);
         pub fn @add_offset(&mut self, other: &Self, c: u32, offset: usize);
-        pub fn slice(&self, start: usize, end: usize) -> (dispatch FpSlice);
-        pub fn as_slice(&self) -> (dispatch FpSlice);
-        pub fn slice_mut(&mut self, start: usize, end: usize) -> (dispatch FpSliceMut);
-        pub fn as_slice_mut(&mut self) -> (dispatch FpSliceMut);
+        pub fn slice(&self, start: usize, end: usize) -> (dispatch FpSlice<'_>);
+        pub fn as_slice(&self) -> (dispatch FpSlice<'_>);
+        pub fn slice_mut(&mut self, start: usize, end: usize) -> (dispatch FpSliceMut<'_>);
+        pub fn as_slice_mut(&mut self) -> (dispatch FpSliceMut<'_>);
         pub fn is_zero(&self) -> bool;
-        pub fn iter(&self) -> (dispatch FpVectorIterator);
-        pub fn iter_nonzero(&self) -> (dispatch FpVectorNonZeroIterator);
+        pub fn iter(&self) -> (dispatch FpVectorIterator<'_>);
+        pub fn iter_nonzero(&self) -> (dispatch FpVectorNonZeroIterator<'_>);
         pub fn extend_len(&mut self, dim: usize);
         pub fn set_scratch_vector_size(&mut self, dim: usize);
         pub fn @add_basis_element(&mut self, index: usize, value: u32);
@@ -129,10 +129,10 @@ impl<'a> FpSlice<'a> {
         pub fn len(&self) -> usize;
         pub fn is_empty(&self) -> bool;
         pub fn @entry(&self, index: usize) -> u32;
-        pub fn iter(self) -> (dispatch FpVectorIterator 'a);
-        pub fn iter_nonzero(self) -> (dispatch FpVectorNonZeroIterator 'a);
+        pub fn iter(self) -> (dispatch FpVectorIterator<'a>);
+        pub fn iter_nonzero(self) -> (dispatch FpVectorNonZeroIterator<'a>);
         pub fn is_zero(&self) -> bool;
-        pub fn slice(self, start: usize, end: usize) -> (dispatch FpSlice 'a);
+        pub fn slice(self, start: usize, end: usize) -> (dispatch FpSlice<'a>);
         pub fn to_owned(self) -> (dispatch FpVector);
     }
 }
@@ -145,10 +145,10 @@ impl FpSliceMut<'_> {
         pub fn @add(&mut self, other: FpSlice, c: u32);
         pub fn assign(&mut self, other: FpSlice);
         pub fn @set_entry(&mut self, index: usize, value: u32);
-        pub fn as_slice(&self) -> (dispatch FpSlice);
-        pub fn slice_mut(&mut self, start: usize, end: usize) -> (dispatch FpSliceMut);
+        pub fn as_slice(&self) -> (dispatch FpSlice<'_>);
+        pub fn slice_mut(&mut self, start: usize, end: usize) -> (dispatch FpSliceMut<'_>);
         pub fn @add_basis_element(&mut self, index: usize, value: u32);
-        pub fn copy(&mut self) -> (dispatch FpSliceMut);
+        pub fn copy(&mut self) -> (dispatch FpSliceMut<'_>);
         pub fn @add_masked(&mut self, other: FpSlice, c: u32, mask: &[usize]);
         pub fn @add_unmasked(&mut self, other: FpSlice, c: u32, mask: &[usize]);
         pub fn @add_tensor(&mut self, offset: usize, coeff: u32, @left: FpSlice, right: FpSlice);

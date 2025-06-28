@@ -40,7 +40,7 @@ impl BidegreeElement {
         self.degree.n()
     }
 
-    pub fn vec(&self) -> FpSlice {
+    pub fn vec(&self) -> FpSlice<'_> {
         self.vec.as_slice()
     }
 

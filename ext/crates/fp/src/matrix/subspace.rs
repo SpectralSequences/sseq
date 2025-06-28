@@ -200,7 +200,7 @@ impl Subspace {
         }
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = FpSlice> {
+    pub fn iter(&self) -> impl Iterator<Item = FpSlice<'_>> {
         self.matrix
             .iter()
             .map(FpVector::as_slice)
@@ -286,7 +286,7 @@ impl std::fmt::Display for Subspace {
         } else {
             rows.fold(String::new(), |mut output, row| {
                 use std::fmt::Write;
-                let _ = writeln!(output, "{}", row);
+                let _ = writeln!(output, "{row}");
                 output
             })
         };

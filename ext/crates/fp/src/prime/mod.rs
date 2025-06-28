@@ -121,8 +121,8 @@ pub enum PrimeError {
 impl std::fmt::Display for PrimeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::NotAnInteger(s) => write!(f, "Not an integer: {}", s),
-            Self::InvalidPrime(p) => write!(f, "{} is not a valid prime", p),
+            Self::NotAnInteger(s) => write!(f, "Not an integer: {s}"),
+            Self::InvalidPrime(p) => write!(f, "{p} is not a valid prime"),
         }
     }
 }
@@ -322,7 +322,7 @@ pub fn factor_pk<P: Prime>(p: P, mut n: u32) -> (u32, u32) {
         return (0, 0);
     }
     let mut k = 0;
-    while n % p.as_u32() == 0 {
+    while n.is_multiple_of(p.as_u32()) {
         n /= p.as_u32();
         k += 1;
     }

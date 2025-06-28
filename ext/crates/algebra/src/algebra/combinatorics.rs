@@ -63,7 +63,7 @@ pub fn inadmissible_pairs(p: ValidPrime, generic: bool, degree: i32) -> Vec<(u32
 
     // Since |P^i| is always a multiple of q, we have a relation only if degree = 0 or 1 mod q.
     // If it is 0, then there is no Bockstein. Otherwise, there is.
-    if degree % q == 0 {
+    if degree.is_multiple_of(q) {
         let degq = degree / q;
         // We want P^i P^j to be inadmissible, so i < p * j. This translates to
         // i < p * degq /(p + 1). Since Rust automatically rounds *down*, but we want to round

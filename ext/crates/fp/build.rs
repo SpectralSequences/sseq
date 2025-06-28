@@ -64,5 +64,5 @@ fn primes_up_to(n: impl Into<u32>) -> Vec<u32> {
 }
 
 fn is_prime(i: u32) -> bool {
-    (2..i).all(|k| i % k != 0)
+    (2..i).all(|k| !i.is_multiple_of(k))
 }

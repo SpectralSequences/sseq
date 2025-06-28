@@ -86,51 +86,39 @@ macro_rules! dispatch_vector_inner {
             }
         }
     };
-    ($vis:vis fn $method:ident $helper_method:ident(&mut self $(, $arg:ident: $ty:ty )* ) -> (dispatch $ret:tt)) => {
+    ($vis:vis fn $method:ident $helper_method:ident(&mut self $(, $arg:ident: $ty:ty )* ) -> (dispatch $ret:path)) => {
         #[must_use]
         $vis fn $method(&mut self, $($arg: $ty),* ) -> $ret {
             match self {
-                Self::_2(x) => $ret::_2(x.$helper_method($($arg),*)),
-                Self::_3(x) => $ret::_3(x.$helper_method($($arg),*)),
-                Self::_5(x) => $ret::_5(x.$helper_method($($arg),*)),
-                Self::_7(x) => $ret::_7(x.$helper_method($($arg),*)),
-                Self::Big(x) => $ret::Big(x.$helper_method($($arg),*)),
+                Self::_2(x) => <$ret>::_2(x.$helper_method($($arg),*)),
+                Self::_3(x) => <$ret>::_3(x.$helper_method($($arg),*)),
+                Self::_5(x) => <$ret>::_5(x.$helper_method($($arg),*)),
+                Self::_7(x) => <$ret>::_7(x.$helper_method($($arg),*)),
+                Self::Big(x) => <$ret>::Big(x.$helper_method($($arg),*)),
             }
         }
     };
-    ($vis:vis fn $method:ident $helper_method:ident(&self $(, $arg:ident: $ty:ty )* ) -> (dispatch $ret:tt)) => {
+    ($vis:vis fn $method:ident $helper_method:ident(&self $(, $arg:ident: $ty:ty )* ) -> (dispatch $ret:path)) => {
         #[must_use]
         $vis fn $method(&self, $($arg: $ty),* ) -> $ret {
             match self {
-                Self::_2(x) => $ret::_2(x.$helper_method($($arg),*)),
-                Self::_3(x) => $ret::_3(x.$helper_method($($arg),*)),
-                Self::_5(x) => $ret::_5(x.$helper_method($($arg),*)),
-                Self::_7(x) => $ret::_7(x.$helper_method($($arg),*)),
-                Self::Big(x) => $ret::Big(x.$helper_method($($arg),*)),
+                Self::_2(x) => <$ret>::_2(x.$helper_method($($arg),*)),
+                Self::_3(x) => <$ret>::_3(x.$helper_method($($arg),*)),
+                Self::_5(x) => <$ret>::_5(x.$helper_method($($arg),*)),
+                Self::_7(x) => <$ret>::_7(x.$helper_method($($arg),*)),
+                Self::Big(x) => <$ret>::Big(x.$helper_method($($arg),*)),
             }
         }
     };
-    ($vis:vis fn $method:ident $helper_method:ident(self $(, $arg:ident: $ty:ty )* ) -> (dispatch $ret:tt)) => {
+    ($vis:vis fn $method:ident $helper_method:ident(self $(, $arg:ident: $ty:ty )* ) -> (dispatch $ret:path)) => {
         #[must_use]
         $vis fn $method(self, $($arg: $ty),* ) -> $ret {
             match self {
-                Self::_2(x) => $ret::_2(x.$helper_method($($arg),*)),
-                Self::_3(x) => $ret::_3(x.$helper_method($($arg),*)),
-                Self::_5(x) => $ret::_5(x.$helper_method($($arg),*)),
-                Self::_7(x) => $ret::_7(x.$helper_method($($arg),*)),
-                Self::Big(x) => $ret::Big(x.$helper_method($($arg),*)),
-            }
-        }
-    };
-    ($vis:vis fn $method:ident $helper_method:ident(self $(, $arg:ident: $ty:ty )* ) -> (dispatch $ret:tt $lifetime:tt)) => {
-        #[must_use]
-        $vis fn $method(self, $($arg: $ty),* ) -> $ret<$lifetime> {
-            match self {
-                Self::_2(x) => $ret::_2(x.$helper_method($($arg),*)),
-                Self::_3(x) => $ret::_3(x.$helper_method($($arg),*)),
-                Self::_5(x) => $ret::_5(x.$helper_method($($arg),*)),
-                Self::_7(x) => $ret::_7(x.$helper_method($($arg),*)),
-                Self::Big(x) => $ret::Big(x.$helper_method($($arg),*)),
+                Self::_2(x) => <$ret>::_2(x.$helper_method($($arg),*)),
+                Self::_3(x) => <$ret>::_3(x.$helper_method($($arg),*)),
+                Self::_5(x) => <$ret>::_5(x.$helper_method($($arg),*)),
+                Self::_7(x) => <$ret>::_7(x.$helper_method($($arg),*)),
+                Self::Big(x) => <$ret>::Big(x.$helper_method($($arg),*)),
             }
         }
     };

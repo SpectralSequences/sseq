@@ -739,7 +739,7 @@ impl GeneratedAlgebra for MilnorAlgebra {
         if self.profile.is_an(self.generic()) {
             // Look for P(p^k), which has degree p^k q.
             let q = self.q() as u32;
-            if degree as u32 % q != 0 {
+            if !(degree as u32).is_multiple_of(q) {
                 return vec![];
             }
             if let (k, 1) = factor_pk(p, degree as u32 / q) {
@@ -1046,7 +1046,7 @@ impl MilnorAlgebra {
                         q_part: term.q_part | (1 << (k + i as u32)),
                         degree: 0, // we don't really care about the degree here. The final degree of the whole calculation is known a priori
                     };
-                    let c = if larger_q % 2 == 0 {
+                    let c = if larger_q.is_multiple_of(2) {
                         *coef
                     } else {
                         *coef * (self.prime() - 1)
@@ -1486,7 +1486,7 @@ impl<const MOD4: bool> Iterator for PPartMultiplier<'_, MOD4> {
                             for i in i_min..i_max {
                                 let entry = self.M[i][diag_idx - i];
                                 sum += entry;
-                                if coef % 2 == 0 {
+                                if coef.is_multiple_of(2) {
                                     coef *= PPartEntry::binomial2(sum, entry);
                                 } else {
                                     coef *= PPartEntry::binomial4(sum, entry);

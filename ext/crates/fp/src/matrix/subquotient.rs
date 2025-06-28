@@ -76,7 +76,7 @@ impl Subquotient {
         &self.quotient
     }
 
-    pub fn gens(&self) -> impl Iterator<Item = FpSlice> {
+    pub fn gens(&self) -> impl Iterator<Item = FpSlice<'_>> {
         self.gens.iter()
     }
 
@@ -90,7 +90,7 @@ impl Subquotient {
     }
 
     /// The generators of the subspace part of the subquotient.
-    pub fn subspace_gens(&self) -> impl Iterator<Item = FpSlice> {
+    pub fn subspace_gens(&self) -> impl Iterator<Item = FpSlice<'_>> {
         self.gens().chain(self.quotient.iter())
     }
 

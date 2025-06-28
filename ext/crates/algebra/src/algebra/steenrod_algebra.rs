@@ -20,7 +20,7 @@ use crate::{
 // In order for things to work SteenrodAlgebraT cannot implement Algebra.
 // Otherwise, the algebra enum for our bindings will see an implementation clash.
 pub trait SteenrodAlgebraT: Send + Sync + Algebra {
-    fn steenrod_algebra(&self) -> SteenrodAlgebraBorrow;
+    fn steenrod_algebra(&self) -> SteenrodAlgebraBorrow<'_>;
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -82,7 +82,7 @@ impl std::fmt::Display for SteenrodAlgebra {
 }
 
 impl SteenrodAlgebraT for SteenrodAlgebra {
-    fn steenrod_algebra(&self) -> SteenrodAlgebraBorrow {
+    fn steenrod_algebra(&self) -> SteenrodAlgebraBorrow<'_> {
         match self {
             Self::AdemAlgebra(a) => SteenrodAlgebraBorrow::BorrowAdem(a),
             Self::MilnorAlgebra(a) => SteenrodAlgebraBorrow::BorrowMilnor(a),

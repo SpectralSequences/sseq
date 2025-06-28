@@ -174,7 +174,7 @@ pub trait Algebra: std::fmt::Display + Send + Sync + 'static {
                 let coeff_str = if value == 1 {
                     String::from("")
                 } else {
-                    format!("{} * ", value)
+                    format!("{value} * ")
                 };
                 let b = self.basis_element_to_string(degree, idx);
                 format!("{coeff_str}{b}")

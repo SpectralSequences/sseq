@@ -265,7 +265,7 @@ impl Matrix {
         }
     }
 
-    pub fn as_slice_mut(&mut self) -> MatrixSliceMut {
+    pub fn as_slice_mut(&mut self) -> MatrixSliceMut<'_> {
         self.slice_mut(0, self.rows(), 0, self.columns())
     }
 
@@ -275,7 +275,7 @@ impl Matrix {
         row_end: usize,
         col_start: usize,
         col_end: usize,
-    ) -> MatrixSliceMut {
+    ) -> MatrixSliceMut<'_> {
         MatrixSliceMut {
             vectors: &mut self.vectors[row_start..row_end],
             col_start,
@@ -283,21 +283,21 @@ impl Matrix {
         }
     }
 
-    pub fn row(&self, row: usize) -> FpSlice {
+    pub fn row(&self, row: usize) -> FpSlice<'_> {
         self.vectors[row].as_slice()
     }
 
-    pub fn row_mut(&mut self, row: usize) -> FpSliceMut {
+    pub fn row_mut(&mut self, row: usize) -> FpSliceMut<'_> {
         self.vectors[row].as_slice_mut()
     }
 }
 
 impl Matrix {
-    pub fn iter(&self) -> std::slice::Iter<FpVector> {
+    pub fn iter(&self) -> std::slice::Iter<'_, FpVector> {
         self.vectors.iter()
     }
 
-    pub fn iter_mut(&mut self) -> std::slice::IterMut<FpVector> {
+    pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, FpVector> {
         self.vectors.iter_mut()
     }
 
@@ -1147,20 +1147,20 @@ impl<const N: usize> AugmentedMatrix<N> {
         }
     }
 
-    pub fn segment(&mut self, start: usize, end: usize) -> MatrixSliceMut {
+    pub fn segment(&mut self, start: usize, end: usize) -> MatrixSliceMut<'_> {
         let rows = self.inner.rows();
         let start = self.start[start];
         let end = self.end[end];
         self.slice_mut(0, rows, start, end)
     }
 
-    pub fn row_segment_mut(&mut self, i: usize, start: usize, end: usize) -> FpSliceMut {
+    pub fn row_segment_mut(&mut self, i: usize, start: usize, end: usize) -> FpSliceMut<'_> {
         let start_idx = self.start[start];
         let end_idx = self.end[end];
         self[i].slice_mut(start_idx, end_idx)
     }
 
-    pub fn row_segment(&self, i: usize, start: usize, end: usize) -> FpSlice {
+    pub fn row_segment(&self, i: usize, start: usize, end: usize) -> FpSlice<'_> {
         let start_idx = self.start[start];
         let end_idx = self.end[end];
         self[i].slice(start_idx, end_idx)
@@ -1290,13 +1290,13 @@ impl<'a> MatrixSliceMut<'a> {
         }
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = FpSlice> + '_ {
+    pub fn iter(&self) -> impl Iterator<Item = FpSlice<'_>> + '_ {
         let start = self.col_start;
         let end = self.col_end;
         self.vectors.iter().map(move |x| x.slice(start, end))
     }
 
-    pub fn iter_mut(&mut self) -> impl Iterator<Item = FpSliceMut> + '_ {
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = FpSliceMut<'_>> + '_ {
         let start = self.col_start;
         let end = self.col_end;
         self.vectors
@@ -1306,7 +1306,7 @@ impl<'a> MatrixSliceMut<'a> {
 
     pub fn maybe_par_iter_mut(
         &mut self,
-    ) -> impl MaybeIndexedParallelIterator<Item = FpSliceMut> + '_ {
+    ) -> impl MaybeIndexedParallelIterator<Item = FpSliceMut<'_>> + '_ {
         let start = self.col_start;
         let end = self.col_end;
         self.vectors
@@ -1314,11 +1314,11 @@ impl<'a> MatrixSliceMut<'a> {
             .map(move |x| x.slice_mut(start, end))
     }
 
-    pub fn row(&mut self, row: usize) -> FpSlice {
+    pub fn row(&mut self, row: usize) -> FpSlice<'_> {
         self.vectors[row].slice(self.col_start, self.col_end)
     }
 
-    pub fn row_mut(&mut self, row: usize) -> FpSliceMut {
+    pub fn row_mut(&mut self, row: usize) -> FpSliceMut<'_> {
         self.vectors[row].slice_mut(self.col_start, self.col_end)
     }
 
