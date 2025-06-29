@@ -126,7 +126,7 @@ jobs:
 
   webserver:
     if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository }}
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     env:
       RUST_BACKTRACE: 1
       RUSTFLAGS: "-D warnings"
@@ -180,7 +180,7 @@ jobs:
 
   selenium:
     if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository }}
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [webserver]
     env:
@@ -251,7 +251,7 @@ jobs:
 
   calculator:
     if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository }}
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     env:
       RUST_BACKTRACE: 1
       RUSTFLAGS: "-D warnings"
@@ -305,7 +305,7 @@ jobs:
 
   docs:
     if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository }}
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     env:
       RUST_BACKTRACE: 1
       RUSTFLAGS: "-D warnings"
@@ -346,7 +346,7 @@ jobs:
 
   deploy:
     needs: [test, lint, webserver, calculator, docs, selenium]
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
 
     steps:
