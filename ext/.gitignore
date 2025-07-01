@@ -8,7 +8,7 @@
 
 # Rust
 **/*.rs.bk
-**/*.lock
+**/Cargo.lock
 **/cachegrind
 **/time
 
