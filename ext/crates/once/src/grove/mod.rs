@@ -11,7 +11,7 @@ const MAX_NUM_BLOCKS: usize = 32;
 /// An insert-only sparse vector with pinned elements and geometrically growing capacity.
 ///
 /// `Grove` (a pun on "grow vec") is a specialized data structure that provides efficient storage
-/// for sparse data with the following key features:
+/// for data with the following key features:
 ///
 /// - **Thread Safety**: Safe for concurrent reads and writes from multiple threads
 /// - **Memory Efficiency**: Uses a block-based allocation strategy that grows geometrically
