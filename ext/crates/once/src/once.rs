@@ -207,6 +207,15 @@ impl<T> OnceVec<T> {
         self.data.get_mut(index)
     }
 
+    pub fn get_or_insert(&self, index: usize, to_insert: impl FnOnce() -> T) -> &T {
+        if let Some(val) = self.get(index) {
+            val
+        } else {
+            self.push_checked(to_insert(), index);
+            self.get(index).unwrap()
+        }
+    }
+
     pub fn last(&self) -> Option<&T> {
         if !self.is_empty() {
             Some(&self[self.len() - 1])
@@ -642,6 +651,11 @@ impl<T> OnceBiVec<T> {
     /// Returns whether the `OnceBiVec` has remaining out-of-order elements
     pub fn get(&self, index: i32) -> Option<&T> {
         self.data.get((index - self.min_degree).try_into().ok()?)
+    }
+
+    pub fn get_or_insert(&self, index: i32, to_insert: impl FnOnce() -> T) -> &T {
+        self.data
+            .get_or_insert((index - self.min_degree).try_into().unwrap(), to_insert)
     }
 
     pub fn range(&self) -> std::ops::Range<i32> {
