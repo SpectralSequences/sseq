@@ -17,6 +17,8 @@ lint:
 	cargo check --workspace --all-targets --all-features --profile test
 
 docs:
+	# Prevent the cached crates.js from confusing the current run
+	rm target/doc/crates.js || true
 	RUSTDOCFLAGS="--html-in-header gh-pages/katex-header.html" cargo rustdoc --examples --all-features
 	RUSTDOCFLAGS="--html-in-header gh-pages/katex-header.html" cargo doc --all --no-deps --document-private-items --all-features
 	# Prevent the examples from showing up in the sidebar
