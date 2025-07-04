@@ -29,7 +29,7 @@ Rust before using this library.
 3. **Clone the repository**  
    - Open a new terminal. (On windows: hit `Windows + r`, type `cmd`, and hit
    enter to get a command prompt.)
-   - Type `git clone https://github.com/SpectralSequences/sseq`
+   - Type `git clone --depth 1 https://github.com/SpectralSequences/sseq`
    and hit enter.
 
 4. **Navigate to the project folder**  
