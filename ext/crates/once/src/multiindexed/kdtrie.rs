@@ -161,8 +161,12 @@ impl<V> KdTrie<V> {
         self.dimensions
     }
 
-    pub fn iter(&self) -> KdTrieIterator<'_, V> {
-        KdTrieIterator::new(self)
+    pub fn iter(&self) -> impl Iterator<Item = (Vec<i32>, &V)> + '_ {
+        KdIterator::new(
+            self.dimensions,
+            &self.root,
+            Vec::with_capacity(self.dimensions),
+        )
     }
 
     pub(super) fn root(&self) -> &Node<V> {
