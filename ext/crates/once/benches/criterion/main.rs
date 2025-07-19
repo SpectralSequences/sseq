@@ -15,10 +15,12 @@ criterion_group! {
 criterion_main!(benches);
 
 fn run_benchmarks(c: &mut Criterion) {
-    run_insert_benchmarks(c, &|i| i as i32);
-    run_insert_benchmarks(c, &|i| [i; 1000]);
-    run_lookup_benchmarks(c, &|i| i as i32);
-    run_lookup_benchmarks(c, &|i| [i; 1000]);
+    // run_insert_benchmarks(c, &|i| i as i32);
+    // run_insert_benchmarks(c, &|i| [i; 1000]);
+    // run_lookup_benchmarks(c, &|i| i as i32);
+    // run_lookup_benchmarks(c, &|i| [i; 1000]);
+    run_iter_benchmarks(c, &|i| i as i32);
+    run_iter_benchmarks(c, &|i| [i; 1000]);
 }
 
 /// A trait that matches OnceBiVec's semantics for benchmarking
@@ -34,6 +36,11 @@ trait Benchable<const K: usize, T> {
 
     /// Get a value at the given coordinates if it exists and is within bounds
     fn get(&self, coords: [i32; K]) -> Option<&T>;
+
+    /// Iterate over all items in the container
+    fn iter<'a>(&'a self) -> impl Iterator<Item = ([i32; K], &T)>
+    where
+        T: 'a;
 }
 
 impl<T, const K: usize> Benchable<K, T> for MultiIndexed<K, T> {
@@ -52,6 +59,13 @@ impl<T, const K: usize> Benchable<K, T> for MultiIndexed<K, T> {
     fn get(&self, coords: [i32; K]) -> Option<&T> {
         self.get(coords)
     }
+
+    fn iter<'a>(&'a self) -> impl Iterator<Item = ([i32; K], &'a T)>
+    where
+        T: 'a,
+    {
+        self.iter()
+    }
 }
 
 impl<T> Benchable<1, T> for TwoEndedGrove<T> {
@@ -69,6 +83,13 @@ impl<T> Benchable<1, T> for TwoEndedGrove<T> {
 
     fn get(&self, coords: [i32; 1]) -> Option<&T> {
         self.get(coords[0])
+    }
+
+    fn iter<'a>(&'a self) -> impl Iterator<Item = ([i32; 1], &'a T)>
+    where
+        T: 'a,
+    {
+        self.enumerate().map(|(k, v)| ([k], v))
     }
 }
 
@@ -261,6 +282,76 @@ fn bench_lookup_k<const K: usize, T, B: Benchable<K, T>>(
             b.iter(|| {
                 for coord in coords.iter() {
                     black_box(vec.get(*coord));
+                }
+            })
+        },
+    );
+}
+
+// Iteration benchmarks
+
+fn run_iter_benchmarks<T>(c: &mut Criterion, make_value: &dyn Fn(usize) -> T) {
+    // Dim 1
+    let mut g = c.benchmark_group(format!("iter_dim1_{}", std::any::type_name::<T>()));
+    bench_iter_k::<1, _, OnceBiVec<_>>(&mut g, [0], make_value);
+    bench_iter_k::<1, _, TwoEndedGrove<_>>(&mut g, [0], make_value);
+    bench_iter_k::<1, _, MultiIndexed<1, _>>(&mut g, [0], make_value);
+    g.finish();
+
+    run_iter_benchmark::<2, _, OnceBiVec<OnceBiVec<_>>, MultiIndexed<2, _>>(c, [0, 0], make_value);
+    run_iter_benchmark::<3, _, OnceBiVec<OnceBiVec<OnceBiVec<_>>>, MultiIndexed<3, _>>(
+        c,
+        [0, 0, 0],
+        make_value,
+    );
+    run_iter_benchmark::<4, _, OnceBiVec<OnceBiVec<OnceBiVec<OnceBiVec<_>>>>, MultiIndexed<4, _>>(
+        c,
+        [0, 0, 0, 0],
+        make_value,
+    );
+    run_iter_benchmark::<
+        5,
+        _,
+        OnceBiVec<OnceBiVec<OnceBiVec<OnceBiVec<OnceBiVec<_>>>>>,
+        MultiIndexed<5, _>,
+    >(c, [0, 0, 0, 0, 0], make_value);
+
+    let mut g = c.benchmark_group(format!("iter_dim6_{}", std::any::type_name::<T>()));
+    bench_iter_k::<6, _, MultiIndexed<6, _>>(&mut g, [0, 0, 0, 0, 0, 0], make_value);
+    g.finish();
+}
+
+fn run_iter_benchmark<const K: usize, T, B1: Benchable<K, T>, B2: Benchable<K, T>>(
+    c: &mut Criterion,
+    min: [i32; K],
+    make_value: &dyn Fn(usize) -> T,
+) {
+    let mut g = c.benchmark_group(format!("iter_dim{K}_{}", std::any::type_name::<T>()));
+    bench_iter_k::<K, _, B1>(&mut g, min, make_value);
+    bench_iter_k::<K, _, B2>(&mut g, min, make_value);
+    g.finish();
+}
+
+// Benchmark iters for different dimensions
+fn bench_iter_k<const K: usize, T, B: Benchable<K, T>>(
+    c: &mut BenchmarkGroup<'_, WallTime>,
+    min: [i32; K],
+    make_value: &dyn Fn(usize) -> T,
+) {
+    let vec = B::new(min);
+    let coords = get_n_coords(NUM_ELEMENTS, min);
+
+    // Insert data
+    for (i, coord) in coords.iter().enumerate() {
+        vec.push_checked(*coord, make_value(i));
+    }
+
+    c.bench_function(
+        format!("{}_iter_k{}_{}", B::name(), K, std::any::type_name::<T>()),
+        |b| {
+            b.iter(|| {
+                for x in vec.iter() {
+                    black_box(x);
                 }
             })
         },
