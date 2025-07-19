@@ -361,7 +361,11 @@ impl<T> Grove<T> {
     /// assert_eq!(values, vec![&10, &30]);
     /// ```
     pub fn iter(&self) -> impl Iterator<Item = &T> {
-        (0..self.len()).filter_map(move |i| self.get(i))
+        self.enumerate().map(move |(_, value)| value)
+    }
+
+    pub fn enumerate(&self) -> impl Iterator<Item = (usize, &T)> {
+        (0..self.len()).filter_map(move |i| self.get(i).map(|value| (i, value)))
     }
 }
 
@@ -590,6 +594,22 @@ impl<T> TwoEndedGrove<T> {
         // the min. We have a chain of happens-before relationships:
         // load max <- acquire-load min <- release-store min <- store max
         self.min.load(Ordering::Acquire)..self.max.load(Ordering::Relaxed)
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &T> {
+        self.enumerate().map(move |(_, value)| value)
+    }
+
+    pub fn enumerate(&self) -> impl Iterator<Item = (i32, &T)> {
+        let non_negs = self
+            .non_neg
+            .enumerate()
+            .map(move |(idx, value)| (idx as i32, value));
+        let negs = self
+            .neg
+            .enumerate()
+            .map(move |(idx, value)| (-(idx as i32), value));
+        non_negs.chain(negs)
     }
 
     /// Checks if a value exists at the specified index.

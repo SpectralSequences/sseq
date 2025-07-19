@@ -1,4 +1,4 @@
-use super::node::Node;
+use super::{iter::KdTrieIterator, node::Node};
 
 /// A K-dimensional trie data structure that efficiently stores values indexed by multi-dimensional
 /// coordinates.
@@ -156,10 +156,28 @@ impl<V> KdTrie<V> {
 
         unsafe { node.try_set_value(coords[self.dimensions - 1], value) }
     }
+
+    pub fn dimensions(&self) -> usize {
+        self.dimensions
+    }
+
+    pub fn iter(&self) -> KdTrieIterator<'_, V> {
+        KdTrieIterator::new(self)
+    }
+
+    pub(super) fn root(&self) -> &Node<V> {
+        &self.root
+    }
 }
 
 impl<V> Drop for KdTrie<V> {
     fn drop(&mut self) {
         self.root.drop_level(self.dimensions, 0);
+    }
+}
+
+impl<V: std::fmt::Debug> std::fmt::Debug for KdTrie<V> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_map().entries(self.iter()).finish()
     }
 }
