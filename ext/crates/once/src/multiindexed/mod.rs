@@ -1,3 +1,4 @@
+use self::iter::KdIterator;
 pub use self::kdtrie::KdTrie;
 
 mod iter;
@@ -206,8 +207,8 @@ impl<const K: usize, V> MultiIndexed<K, V> {
 
     /// Returns an iterator over all coordinate-value pairs in the array.
     ///
-    /// The iterator yields tuples of `(Vec<i32>, &V)` where the first element
-    /// is the coordinate vector and the second is a reference to the value.
+    /// The iterator yields tuples of `([i32; K], &V)` where the first element is the coordinate
+    /// array and the second is a reference to the value.
     ///
     /// # Examples
     ///
@@ -220,12 +221,10 @@ impl<const K: usize, V> MultiIndexed<K, V> {
     ///
     /// let mut items: Vec<_> = array.iter().collect();
     ///
-    /// assert_eq!(items, vec![(vec![1, 2], &20), (vec![3, 4], &10)]);
+    /// assert_eq!(items, vec![([1, 2], &20), ([3, 4], &10)]);
     /// ```
     pub fn iter(&self) -> impl Iterator<Item = ([i32; K], &V)> {
-        self.0
-            .iter()
-            .map(|(coords, value)| (coords.try_into().unwrap(), value))
+        KdIterator::new(K, self.0.root(), [0; K])
     }
 }
 
