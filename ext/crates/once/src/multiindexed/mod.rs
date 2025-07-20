@@ -234,6 +234,45 @@ impl<const K: usize, V> Default for MultiIndexed<K, V> {
     }
 }
 
+impl<const K: usize, V: std::fmt::Debug> std::fmt::Debug for MultiIndexed<K, V> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_map().entries(self.iter()).finish()
+    }
+}
+
+impl<const K: usize, V> Clone for MultiIndexed<K, V>
+where
+    V: Clone,
+{
+    fn clone(&self) -> Self {
+        let new_mi = Self::new();
+        for (coords, value) in self.iter() {
+            new_mi.insert(coords, value.clone());
+        }
+        new_mi
+    }
+}
+
+impl<const K: usize, V> PartialEq for MultiIndexed<K, V>
+where
+    V: PartialEq,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.iter().eq(other.iter())
+    }
+}
+
+impl<const K: usize, V> Eq for MultiIndexed<K, V> where V: Eq {}
+
+impl<const K: usize, V: std::hash::Hash> std::hash::Hash for MultiIndexed<K, V> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        for (coords, value) in self.iter() {
+            coords.hash(state);
+            value.hash(state);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     #![cfg_attr(miri, allow(dead_code))]
@@ -392,7 +431,51 @@ mod tests {
         assert_eq!(ACTIVE_ALLOCS.load(Ordering::Relaxed), 0);
     }
 
-    // #[cfg(not(miri))]
+    #[test]
+    fn test_debug() {
+        let arr = MultiIndexed::<2, i32>::new();
+        arr.insert([1, 2], 10);
+        arr.insert([3, 4], 20);
+        arr.insert([3, -4], 30);
+        arr.insert([-5, 6], 40);
+
+        expect_test::expect![[r#"
+            {
+                [
+                    -5,
+                    6,
+                ]: 40,
+                [
+                    1,
+                    2,
+                ]: 10,
+                [
+                    3,
+                    -4,
+                ]: 30,
+                [
+                    3,
+                    4,
+                ]: 20,
+            }
+        "#]]
+        .assert_debug_eq(&arr);
+    }
+
+    #[test]
+    fn test_clone() {
+        let arr = MultiIndexed::<2, i32>::new();
+        arr.insert([1, 2], 10);
+        arr.insert([3, 4], 20);
+
+        let cloned_arr = arr.clone();
+
+        assert_eq!(cloned_arr.get([1, 2]), Some(&10));
+        assert_eq!(cloned_arr.get([3, 4]), Some(&20));
+        assert_eq!(cloned_arr.get([5, 6]), None);
+    }
+
+    #[cfg(not(miri))]
     mod proptests {
         use std::collections::HashMap;
 
