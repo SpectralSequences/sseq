@@ -1,4 +1,4 @@
-use super::{iter::KdTrieIterator, node::Node};
+use super::{iter::KdIterator, node::Node};
 
 /// A K-dimensional trie data structure that efficiently stores values indexed by multi-dimensional
 /// coordinates.
@@ -183,5 +183,35 @@ impl<V> Drop for KdTrie<V> {
 impl<V: std::fmt::Debug> std::fmt::Debug for KdTrie<V> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_map().entries(self.iter()).finish()
+    }
+}
+
+impl<V: Clone> Clone for KdTrie<V> {
+    fn clone(&self) -> Self {
+        let new_trie = Self::new(self.dimensions);
+        for (coords, value) in self.iter() {
+            new_trie.insert(&coords, value.clone());
+        }
+        new_trie
+    }
+}
+
+impl<V: PartialEq> PartialEq for KdTrie<V> {
+    fn eq(&self, other: &Self) -> bool {
+        if self.dimensions != other.dimensions {
+            return false;
+        }
+        self.iter().eq(other.iter())
+    }
+}
+
+impl<V: Eq> Eq for KdTrie<V> {}
+
+impl<V: std::hash::Hash> std::hash::Hash for KdTrie<V> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        for (coords, value) in self.iter() {
+            coords.hash(state);
+            value.hash(state);
+        }
     }
 }
