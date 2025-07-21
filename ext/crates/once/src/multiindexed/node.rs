@@ -41,7 +41,7 @@ use crate::grove::TwoEndedGrove;
 /// drop glue. Unions don't know what they contain, and so can't know which drop implementation to
 /// run. We delegate the responsibility of dropping the node to the `KdTrie`, using `drop_level`.
 pub(super) union Node<V> {
-    inner: ManuallyDrop<TwoEndedGrove<Node<V>>>,
+    inner: ManuallyDrop<TwoEndedGrove<Self>>,
     leaf: ManuallyDrop<TwoEndedGrove<V>>,
 }
 
