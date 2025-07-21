@@ -393,7 +393,7 @@ mod tests {
         ) -> impl Strategy<Value = Vec<Operation<K>>> {
             // This is chosen so that the max number of operations is twice the number of elements in
             // the hypercube (-max..=max)^K
-            let max = ((max_ops as f32 / 2.0).log(K as f32) / 2.0).ceil() as u32;
+            let max = ((max_ops as f32 / 2.0).powf(1.0 / K as f32) / 2.0).ceil() as u32;
             proptest::collection::vec(operation_strategy::<K>(max), 1..max_ops)
         }
 
