@@ -56,7 +56,6 @@ use crate::std_or_loom::{sync::atomic::AtomicU8, GetMut};
 ///     assert_eq!(value, "Another value".to_string());
 /// }
 /// ```
-#[derive(Debug)]
 pub struct WriteOnce<T> {
     value: UnsafeCell<MaybeUninit<T>>,
     state: AtomicU8,
@@ -81,6 +80,24 @@ impl<T> WriteOnce<T> {
         Self {
             value: UnsafeCell::new(MaybeUninit::uninit()),
             state: AtomicU8::new(WriteOnceState::Uninit as u8),
+        }
+    }
+
+    /// Creates a new `WriteOnce` with a value.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use once::write_once::WriteOnce;
+    ///
+    /// let cell = WriteOnce::new(2);
+    /// assert_eq!(cell.get(), Some(&2));
+    /// assert!(cell.is_set());
+    /// ```
+    pub fn new(value: T) -> Self {
+        Self {
+            value: UnsafeCell::new(MaybeUninit::new(value)),
+            state: AtomicU8::new(WriteOnceState::Init as u8),
         }
     }
 
@@ -265,6 +282,50 @@ impl<T> Drop for WriteOnce<T> {
             // Safety: the value is initialized
             unsafe { self.value.get_mut().assume_init_drop() };
         }
+    }
+}
+
+impl<T: Clone> Clone for WriteOnce<T> {
+    fn clone(&self) -> Self {
+        if let Some(value) = self.get() {
+            Self::new(value.clone())
+        } else {
+            Self::none()
+        }
+    }
+}
+
+// We implement the other standard traits by pretending that we are `Option<T>`.
+
+impl<T: std::fmt::Debug> std::fmt::Debug for WriteOnce<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self.get())
+    }
+}
+
+impl<T: PartialEq> PartialEq for WriteOnce<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.get() == other.get()
+    }
+}
+
+impl<T: Eq> Eq for WriteOnce<T> {}
+
+impl<T: PartialOrd> PartialOrd for WriteOnce<T> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.get().partial_cmp(&other.get())
+    }
+}
+
+impl<T: Ord> Ord for WriteOnce<T> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.get().cmp(&other.get())
+    }
+}
+
+impl<T: std::hash::Hash> std::hash::Hash for WriteOnce<T> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.get().hash(state)
     }
 }
 
