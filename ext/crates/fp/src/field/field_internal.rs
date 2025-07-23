@@ -94,7 +94,7 @@ pub trait FieldInternal:
     fn encode(self, element: FieldElement<Self>) -> Limb;
 
     /// Decode a `Limb` into a field element. The argument will always contain a single encoded
-    /// field element, padded with zeros. This is the inverse of [`encode`].
+    /// field element, padded with zeros. This is the inverse of [`encode`](FieldInternal::encode).
     fn decode(self, element: Limb) -> FieldElement<Self>;
 
     /// Return the number of bits a `Self::Element` occupies in a limb.
@@ -134,7 +134,7 @@ pub trait FieldInternal:
     }
 
     /// Check whether or not a limb is reduced. This may potentially not be faster than calling
-    /// [`reduce`] directly.
+    /// [`reduce`](FieldInternal::reduce) directly.
     fn is_reduced(self, limb: Limb) -> bool {
         limb == self.reduce(limb)
     }

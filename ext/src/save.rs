@@ -69,7 +69,7 @@ impl From<Option<PathBuf>> for SaveDirectory {
     }
 }
 
-/// A DashSet<PathBuf>> of files that are currently opened and being written to. When calling this
+/// A `DashSet<PathBuf>` of files that are currently opened and being written to. When calling this
 /// function for the first time, we set the ctrlc handler to delete currently opened files then
 /// exit.
 fn open_files() -> &'static Mutex<HashSet<PathBuf>> {

@@ -23,7 +23,7 @@ pub use range::BidegreeRange;
 /// compute something and write it to a `OnceBiVec`, and
 /// [`OnceBiVec::push_ooo`](once::OnceBiVec::push_ooo) would return this range for us.
 ///
-/// This uses [`rayon`] under the hood, and `f` should feel free to use further rayon parallelism.
+/// This uses [`maybe_rayon`] under the hood, and `f` should feel free to use further parallelism.
 ///
 /// # Arguments:
 ///  - `max_s`: This is exclusive

@@ -290,9 +290,9 @@ pub trait UnstableAlgebra: Algebra {
 
 /// An algebra that is maybe unstable.
 ///
-/// Every Algebra implements MuAlgebra<false> by ignoring the excess parameter, and every
-/// UnstableAlgebra implements MuAlgebra<true>. This makes it possible to write code that is generic
-/// over stable and unstable algebras.
+/// Every [`Algebra`] implements `MuAlgebra<false>` by ignoring the excess parameter, and every
+/// [`UnstableAlgebra`] implements `MuAlgebra<true>`. This makes it possible to write code that is
+/// generic over stable and unstable algebras.
 pub trait MuAlgebra<const U: bool>: Algebra {
     fn dimension_unstable(&self, degree: i32, excess: i32) -> usize;
 
@@ -493,8 +493,6 @@ pub trait GeneratedAlgebra: Algebra {
     ///
     /// By default, this function will forward to [`Algebra::basis_element_to_string()`], but
     /// may be overridden if more concise names are available.
-    ///
-    /// This function MUST be inverse to [`GeneratedAlgebra::string_to_generator()`].
     fn generator_to_string(&self, degree: i32, idx: usize) -> String {
         self.basis_element_to_string(degree, idx)
     }

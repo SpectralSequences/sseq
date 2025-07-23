@@ -383,7 +383,8 @@ impl<T> OnceVec<T> {
 
 impl<T: Send + Sync> OnceVec<T> {
     /// A parallel version of `extend`. If the `concurrent` feature is enabled, the function `f`
-    /// will be run for different indices simultaneously using [`rayon`].
+    /// will be run for different indices simultaneously using `rayon`, through the [`maybe_rayon`]
+    /// crate.
     ///
     /// # Example
     #[cfg_attr(miri, doc = "```ignore")]
@@ -720,7 +721,8 @@ impl<T> OnceBiVec<T> {
 
 impl<T: Send + Sync> OnceBiVec<T> {
     /// A parallel version of `extend`. If the `concurrent` feature is enabled, the function `f`
-    /// will be run for different indices simultaneously using [`rayon`].
+    /// will be run for different indices simultaneously using `rayon`, through the [`maybe_rayon`]
+    /// crate.
     ///
     /// # Example
     #[cfg_attr(miri, doc = "```ignore")]
