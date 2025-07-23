@@ -59,7 +59,7 @@ use crate::std_or_loom::{sync::atomic::AtomicU8, GetMut};
 #[derive(Debug)]
 pub struct WriteOnce<T> {
     value: UnsafeCell<MaybeUninit<T>>,
-    is_some: AtomicU8,
+    state: AtomicU8,
 }
 
 impl<T> WriteOnce<T> {
@@ -79,8 +79,8 @@ impl<T> WriteOnce<T> {
     /// ```
     pub fn none() -> Self {
         Self {
-            is_some: AtomicU8::new(WriteOnceState::Uninit as u8),
             value: UnsafeCell::new(MaybeUninit::uninit()),
+            state: AtomicU8::new(WriteOnceState::Uninit as u8),
         }
     }
 
@@ -146,7 +146,7 @@ impl<T> WriteOnce<T> {
     pub fn try_set(&self, value: T) -> Result<(), T> {
         // Initially, `is_some` is `Uninit`, so it's impossible to observe anything else without a
         // prior `set`. Therefore, we will never panic if `set` was never called.
-        match self.is_some.compare_exchange(
+        match self.state.compare_exchange(
             WriteOnceState::Uninit as u8,
             WriteOnceState::Writing as u8,
             Ordering::Relaxed,
@@ -155,7 +155,7 @@ impl<T> WriteOnce<T> {
             Ok(_) => {
                 unsafe { self.value.get().write(MaybeUninit::new(value)) }
                 // This store creates a happens-before relationship with the load in `get`
-                self.is_some
+                self.state
                     .store(WriteOnceState::Init as u8, Ordering::Release);
                 Ok(())
             }
@@ -218,7 +218,7 @@ impl<T> WriteOnce<T> {
     /// assert!(cell.is_set());
     /// ```
     pub fn is_set(&self) -> bool {
-        self.is_some.load(Ordering::Acquire) == WriteOnceState::Init as u8
+        self.state.load(Ordering::Acquire) == WriteOnceState::Init as u8
     }
 
     /// Gets a mutable reference to the value of the `WriteOnce`.
@@ -245,7 +245,7 @@ impl<T> WriteOnce<T> {
     /// assert_eq!(cell.get(), Some(&"Hello, world!".to_string()));
     /// ```
     pub fn get_mut(&mut self) -> Option<&mut T> {
-        if self.is_some.get_by_mut() == WriteOnceState::Init as u8 {
+        if self.state.get_by_mut() == WriteOnceState::Init as u8 {
             // Safety: the value is initialized
             let value = unsafe { (*self.value.get()).assume_init_mut() };
             Some(value)
@@ -261,7 +261,7 @@ impl<T> Drop for WriteOnce<T> {
         // it. Moreover, we also have a happens-before relationship with all other operations on
         // this `WriteOnce`, including a possible `set` that initialized the value. Therefore, the
         // following code will never lead to a memory leak.
-        if self.is_some.get_by_mut() == WriteOnceState::Init as u8 {
+        if self.state.get_by_mut() == WriteOnceState::Init as u8 {
             // Safety: the value is initialized
             unsafe { self.value.get_mut().assume_init_drop() };
         }
