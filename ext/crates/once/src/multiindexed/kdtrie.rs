@@ -16,7 +16,7 @@ use super::node::Node;
 ///
 /// `KdTrie` is designed to be thread-safe and wait-free, allowing concurrent insertions and
 /// retrievals from multiple threads. This is achieved through the use of atomic operations and the
-/// thread-safe properties of the underlying [`TwoEndedGrove`] data structure.
+/// thread-safe properties of the underlying [`TwoEndedGrove`](crate::TwoEndedGrove) data structure.
 ///
 /// # Memory Efficiency
 ///

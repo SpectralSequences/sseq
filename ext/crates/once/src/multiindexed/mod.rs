@@ -23,8 +23,8 @@ mod node;
 ///
 /// The underlying trie structure allocates memory only for coordinates that are actually used,
 /// making it memory-efficient for sparse data. The implementation uses a series of
-/// [`TwoEndedGrove`] instances to store the trie nodes, which themselves use a block-based
-/// allocation strategy.
+/// [`TwoEndedGrove`](crate::TwoEndedGrove) instances to store the trie nodes, which themselves use
+/// a block-based allocation strategy.
 ///
 /// # Performance Characteristics
 ///

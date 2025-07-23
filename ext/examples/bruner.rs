@@ -4,18 +4,16 @@
 //! The script performs the following procedure:
 //!
 //! 1. Compute our own resolution with the Milnor basis
-//! 2. Create Bruner's resolution as a
-//!    [`FiniteChainComplex`](ext::chain_complex::FiniteChainComplex) object
-//! 3. Use a [`ResolutionHomomorphism`](ext::resolution_homomorphism::ResolutionHomomorphism) to
-//!    lift the identity to a chain map from Bruner's resolution
+//! 2. Create Bruner's resolution as a [`FiniteChainComplex`](FCC) object
+//! 3. Use a [`ResolutionHomomorphism`] to lift the identity to a chain map from Bruner's resolution
 //!    to our resolution. We should do it in this direction because we have stored the
 //!    quasi-inverses for our resolution, but not Bruner's.
 //! 4. Read off the transformation matrix we need
 //!
 //! The main extra work to put in is step (2), where we have to parse Bruner's differentials and
 //! interpret it as a chain complex. Bruner's resolution can be found at
-//! <https://archive.sigma2.no/pages/public/datasetDetail.jsf?id=10.11582/2022.00015>
-//! while the descirption of his save file is at <https://arxiv.org/abs/2109.13117>.
+//! <https://archive.sigma2.no/pages/public/datasetDetail.jsf?id=10.11582/2022.00015> while the
+//! descirption of his save file is at <https://arxiv.org/abs/2109.13117>.
 
 use std::{
     fs::File,

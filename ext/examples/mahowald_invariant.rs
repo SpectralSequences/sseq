@@ -34,8 +34,7 @@
 //! invariant of `x`*.
 //!
 //! This script computes these lifts (and their indeterminacy) by resolving
-//! `F_2` resp. `M_k`s and constructing
-//! [`ResolutionHomomorphism`][ext::resolution_homomorphism::ResolutionHomomorphism]s
+//! `F_2` resp. `M_k`s and constructing [`ResolutionHomomorphism`]s
 //! corresponding to the bottom and (-1)-cells.
 //! Given `Max k`, it will print Mahowald invariants of the `F_2`-basis elements of
 //! `Ext^{*,*}(F_2)` that are detected in `Ext^{*,*}(M_k)` for the first time for some
