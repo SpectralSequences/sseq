@@ -309,6 +309,7 @@ jobs:
     env:
       RUST_BACKTRACE: 1
       RUSTFLAGS: "-D warnings"
+      RUSTDOCFLAGS: "-D warnings"
       RUSTUP_TOOLCHAIN: ${{ matrix.toolchain }}
 
     strategy:
