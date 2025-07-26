@@ -36,6 +36,7 @@
         pkgs.hyperfine
         pkgs.binutils
         pkgs.cargo-binutils
+        pkgs.cargo-edit
       ];
     });
   };
