@@ -1,5 +1,7 @@
+use std::hint::black_box;
+
 use criterion::{
-    black_box, criterion_group, criterion_main, measurement::WallTime, BenchmarkGroup, Criterion,
+    criterion_group, criterion_main, measurement::WallTime, BenchmarkGroup, Criterion,
 };
 use once::{MultiIndexed, OnceBiVec, TwoEndedGrove};
 use pprof::criterion::{Output, PProfProfiler};
