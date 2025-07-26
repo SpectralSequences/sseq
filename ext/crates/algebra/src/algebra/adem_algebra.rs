@@ -289,7 +289,7 @@ impl Algebra for AdemAlgebra {
     }
 
     fn basis_element_from_string(&self, mut elt: &str) -> Option<(i32, usize)> {
-        use nom::sequence::preceded;
+        use nom::{sequence::preceded, Parser};
 
         use crate::steenrod_parser::{digits, p_or_sq};
 
@@ -309,7 +309,7 @@ impl Algebra for AdemAlgebra {
             if elt.is_empty() {
                 break;
             }
-            let (rem, sqn) = preceded(p_or_sq, digits)(elt).ok()?;
+            let (rem, sqn) = preceded(p_or_sq, digits).parse(elt).ok()?;
             elt = rem;
 
             ps.push(sqn);
