@@ -18,11 +18,6 @@ pub use field::Field;
 pub mod milnor_algebra;
 pub use milnor_algebra::MilnorAlgebra;
 
-mod polynomial_algebra;
-pub use polynomial_algebra::{
-    PolynomialAlgebra, PolynomialAlgebraMonomial, PolynomialAlgebraTableEntry,
-};
-
 mod steenrod_algebra;
 pub use steenrod_algebra::{AlgebraType, SteenrodAlgebra};
 
