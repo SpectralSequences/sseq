@@ -8,20 +8,7 @@ use fp::{
 use serde::Deserialize;
 use serde_json::Value;
 
-use crate::{
-    algebra::{
-        AdemAlgebra, AdemAlgebraT, Algebra, Bialgebra, GeneratedAlgebra, MilnorAlgebra,
-        MilnorAlgebraT,
-    },
-    dispatch_algebra,
-};
-
-// This is here so that the Python bindings can use modules defined aor SteenrodAlgebraT with their own algebra enum.
-// In order for things to work SteenrodAlgebraT cannot implement Algebra.
-// Otherwise, the algebra enum for our bindings will see an implementation clash.
-pub trait SteenrodAlgebraT: Send + Sync + Algebra {
-    fn steenrod_algebra(&self) -> SteenrodAlgebraBorrow<'_>;
-}
+use crate::algebra::{AdemAlgebra, Algebra, Bialgebra, GeneratedAlgebra, MilnorAlgebra};
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum AlgebraType {
@@ -62,11 +49,6 @@ impl std::str::FromStr for AlgebraType {
     }
 }
 
-pub enum SteenrodAlgebraBorrow<'a> {
-    BorrowAdem(&'a AdemAlgebra),
-    BorrowMilnor(&'a MilnorAlgebra),
-}
-
 #[allow(clippy::large_enum_variant)]
 pub enum SteenrodAlgebra {
     AdemAlgebra(AdemAlgebra),
@@ -78,33 +60,6 @@ impl std::fmt::Display for SteenrodAlgebra {
         match self {
             Self::AdemAlgebra(a) => a.fmt(f),
             Self::MilnorAlgebra(a) => a.fmt(f),
-        }
-    }
-}
-
-impl SteenrodAlgebraT for SteenrodAlgebra {
-    fn steenrod_algebra(&self) -> SteenrodAlgebraBorrow<'_> {
-        match self {
-            Self::AdemAlgebra(a) => SteenrodAlgebraBorrow::BorrowAdem(a),
-            Self::MilnorAlgebra(a) => SteenrodAlgebraBorrow::BorrowMilnor(a),
-        }
-    }
-}
-
-impl<A: SteenrodAlgebraT> AdemAlgebraT for A {
-    fn adem_algebra(&self) -> &AdemAlgebra {
-        match self.steenrod_algebra() {
-            SteenrodAlgebraBorrow::BorrowAdem(a) => a,
-            SteenrodAlgebraBorrow::BorrowMilnor(_) => panic!(),
-        }
-    }
-}
-
-impl<A: SteenrodAlgebraT> MilnorAlgebraT for A {
-    fn milnor_algebra(&self) -> &MilnorAlgebra {
-        match self.steenrod_algebra() {
-            SteenrodAlgebraBorrow::BorrowAdem(_) => panic!(),
-            SteenrodAlgebraBorrow::BorrowMilnor(a) => a,
         }
     }
 }
