@@ -11,19 +11,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::algebra::{Algebra, Bialgebra, GeneratedAlgebra, UnstableAlgebra, combinatorics};
 
-// This is here so that the Python bindings can use modules defined for AdemAlgebraT with their own algebra enum.
-// In order for things to work AdemAlgebraT cannot implement Algebra.
-// Otherwise, the algebra enum for our bindings will see an implementation clash.
-pub trait MilnorAlgebraT: Send + Sync + Algebra {
-    fn milnor_algebra(&self) -> &MilnorAlgebra;
-}
-
-impl MilnorAlgebraT for MilnorAlgebra {
-    fn milnor_algebra(&self) -> &MilnorAlgebra {
-        self
-    }
-}
-
 fn q_part_default() -> u32 {
     !0
 }

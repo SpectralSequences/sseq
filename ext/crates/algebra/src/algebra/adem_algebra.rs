@@ -20,23 +20,6 @@ use crate::algebra::{
     combinatorics::{self, MAX_XI_TAU},
 };
 
-/// An algebra that can be viewed as an Adem algebra.
-///
-/// This is here so that the Python bindings can use modules defined for AdemAlgebraT
-/// with their version of [`SteenrodAlgebra`].
-///
-/// In order for things to work `AdemAlgebraT` cannot implement [`Algebra`].
-/// Otherwise, the algebra enum for our bindings will see an implementation clash.
-pub trait AdemAlgebraT: Send + Sync + Algebra {
-    fn adem_algebra(&self) -> &AdemAlgebra;
-}
-
-impl AdemAlgebraT for AdemAlgebra {
-    fn adem_algebra(&self) -> &AdemAlgebra {
-        self
-    }
-}
-
 /// An Adem basis element for the Steenrod algebra.
 ///
 /// To encode an element
