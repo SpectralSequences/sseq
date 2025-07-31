@@ -34,7 +34,7 @@ use itertools::Itertools;
 use sseq::coordinates::{Bidegree, BidegreeElement, BidegreeGenerator};
 
 fn main() -> anyhow::Result<()> {
-    ext::utils::init_logging();
+    ext::utils::init_logging()?;
 
     let resolution = Arc::new(query_module(Some(algebra::AlgebraType::Milnor), true)?);
 

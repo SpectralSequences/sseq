@@ -4,7 +4,7 @@ use ext::chain_complex::FreeChainComplex;
 use sseq::coordinates::Bidegree;
 
 fn main() -> anyhow::Result<()> {
-    ext::utils::init_logging();
+    ext::utils::init_logging()?;
 
     let res = ext::utils::query_unstable_module(false)?;
 

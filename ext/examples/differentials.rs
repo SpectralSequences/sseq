@@ -7,7 +7,7 @@ use ext::{
 use sseq::coordinates::BidegreeGenerator;
 
 fn main() -> anyhow::Result<()> {
-    ext::utils::init_logging();
+    ext::utils::init_logging()?;
 
     let resolution = query_module(None, false)?;
 

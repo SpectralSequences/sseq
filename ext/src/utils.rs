@@ -538,11 +538,11 @@ mod logging {
         tracing::subscriber::NoSubscriber::new()
     }
 
-    pub fn init_logging() {
-        tracing::subscriber::set_global_default(ext_tracing_subscriber())
-            .expect("Failed to enable logging");
+    pub fn init_logging() -> anyhow::Result<()> {
+        tracing::subscriber::set_global_default(ext_tracing_subscriber())?;
 
         tracing::info!("Logging initialized");
+        Ok(())
     }
 }
 

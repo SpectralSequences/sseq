@@ -10,7 +10,7 @@ use ext::{
 use sseq::coordinates::{Bidegree, BidegreeGenerator};
 
 fn main() -> anyhow::Result<()> {
-    ext::utils::init_logging();
+    ext::utils::init_logging()?;
 
     let resolution = query_module(None, false)?;
     assert_eq!(resolution.prime(), 2);

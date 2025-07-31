@@ -1,7 +1,7 @@
 use algebra::{Algebra, MilnorAlgebra};
 
 fn main() -> anyhow::Result<()> {
-    ext::utils::init_logging();
+    ext::utils::init_logging()?;
 
     let algebra = MilnorAlgebra::new(fp::prime::TWO, false);
     algebra.compute_basis(125);

@@ -18,7 +18,7 @@ use sseq::coordinates::{Bidegree, BidegreeElement};
 use tensor_product_chain_complex::TensorChainComplex;
 
 fn main() -> anyhow::Result<()> {
-    ext::utils::init_logging();
+    ext::utils::init_logging()?;
 
     let resolution = Arc::new(utils::query_module_only("Module", None, false)?);
     let module = resolution.target().module(0);

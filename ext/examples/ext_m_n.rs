@@ -6,7 +6,7 @@ use hom_cochain_complex::HomCochainComplex;
 use sseq::coordinates::Bidegree;
 
 fn main() -> anyhow::Result<()> {
-    ext::utils::init_logging();
+    ext::utils::init_logging()?;
 
     eprintln!("This script computes Ext(M, N)");
     let res = ext::utils::query_module_only("Module M", None, false)?;

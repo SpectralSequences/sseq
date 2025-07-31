@@ -125,7 +125,7 @@ fn get_hom(
 }
 
 fn main() -> anyhow::Result<()> {
-    ext::utils::init_logging();
+    ext::utils::init_logging()?;
 
     eprintln!(
         "We are going to compute <-, b, a> for all (-), where a is an element in Ext(M, k) and b \

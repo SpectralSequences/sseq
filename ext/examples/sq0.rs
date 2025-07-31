@@ -12,7 +12,7 @@ use itertools::Itertools;
 use sseq::coordinates::{Bidegree, BidegreeGenerator};
 
 fn main() -> anyhow::Result<()> {
-    ext::utils::init_logging();
+    ext::utils::init_logging()?;
 
     let res = utils::query_module(None, true)?;
     assert!(

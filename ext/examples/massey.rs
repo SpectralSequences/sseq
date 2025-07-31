@@ -13,7 +13,7 @@ use fp::matrix::{AugmentedMatrix, Matrix};
 use sseq::coordinates::{Bidegree, BidegreeElement, BidegreeGenerator};
 
 fn main() -> anyhow::Result<()> {
-    ext::utils::init_logging();
+    ext::utils::init_logging()?;
 
     let resolution = Arc::new(ext::utils::query_module(None, true)?);
     let p = resolution.prime();
