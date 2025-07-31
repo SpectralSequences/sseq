@@ -53,6 +53,8 @@ impl std::str::FromStr for AlgebraType {
 }
 
 #[allow(clippy::large_enum_variant)]
+// `PairAlgebra` is not included in the dispatch list because it has associated types,
+// which are incompatible with `enum_dispatch`. See pair_algebra.rs for more details.
 #[enum_dispatch::enum_dispatch(Algebra, Bialgebra, GeneratedAlgebra, UnstableAlgebra)]
 pub enum SteenrodAlgebra {
     AdemAlgebra(AdemAlgebra),
