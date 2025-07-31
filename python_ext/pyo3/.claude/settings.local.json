@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cargo check:*)",
+      "WebFetch(domain:pyo3.rs)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(cargo build:*)",
+      "Bash(sed:*)"
+    ],
+    "deny": []
+  }
+}

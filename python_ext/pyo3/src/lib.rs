@@ -2,14 +2,11 @@ pub mod resolution;
 pub mod resolution_homomorphism;
 
 use pyo3::prelude::*;
-use pyo3::{wrap_pymodule};//, wrap_pyfunction};
-// use pyo3::types::PyTuple;
-
-use python_utils;
+use pyo3::wrap_pymodule; //, wrap_pyfunction};
+use python_algebra::{PyInit_algebra, PyInit_module};
 use python_fp::PyInit_python_fp;
-use python_algebra::PyInit_algebra;
-use python_algebra::PyInit_module;
-
+// use pyo3::types::PyTuple;
+use python_utils;
 
 #[pymodule]
 fn rust_ext(_py: Python, m: &PyModule) -> PyResult<()> {

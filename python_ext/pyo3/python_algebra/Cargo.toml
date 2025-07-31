@@ -11,13 +11,11 @@ crate-type = ["cdylib", "rlib"]
 paste = "0.1"
 serde_json = "1.0.0"
 serde = { version = "1.0.0", features = ["derive"] }
-enum_dispatch = "0.2.0"
 nom = "5.0.0"
 parking_lot = "0.10"
 
 algebra = { path = "../../../ext/crates/algebra" }
 bivec = { path = "../../../ext/crates/bivec" }
-error = { path = "../../../ext/crates/error" }
 fp = { path = "../../../ext/crates/fp" }
 
 python_fp = { path = "../python_fp" }
