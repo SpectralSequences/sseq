@@ -1,6 +1,6 @@
 use algebra::{Algebra, MilnorAlgebra};
 
-fn main() {
+fn main() -> anyhow::Result<()> {
     ext::utils::init_logging();
 
     let algebra = MilnorAlgebra::new(fp::prime::TWO, false);
@@ -8,4 +8,5 @@ fn main() {
     for n in 0..=125 {
         println!("dim A_{n} = {}", algebra.dimension(n));
     }
+    Ok(())
 }

@@ -220,7 +220,7 @@ fn read_bruner_resolution(data_dir: &Path, max_n: i32) -> Result<(i32, FiniteCha
     Ok((s, cc))
 }
 
-fn main() {
+fn main() -> anyhow::Result<()> {
     ext::utils::init_logging();
 
     let data_dir = Path::new(file!()).parent().unwrap().join("bruner_data");
@@ -264,4 +264,6 @@ fn main() {
             println!("x_{gen:#} = {row:?}");
         }
     }
+
+    Ok(())
 }
