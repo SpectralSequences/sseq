@@ -122,6 +122,7 @@
             export UV_PYTHON="$VIRTUAL_ENV/bin/python"
             export PIP_PREFIX="$VIRTUAL_ENV"
             export PYTHONPATH="$VIRTUAL_ENV/lib/python3.11/site-packages"
+            export RUST_LOG="ext=info"
 
             echo "🦀🐍 sseq_ext development environment"
             echo "Rust: $(rustc --version)"
