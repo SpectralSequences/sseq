@@ -5,13 +5,12 @@ Python translation of algebra_dim.rs example.
 """
 
 import ext
+from ext import algebra
 
 
 def main():
-    ext.init_logging()
-
     # Create Milnor algebra over F_2
-    alg = ext.MilnorAlgebra(prime=2, truncated=False)
+    alg = algebra.MilnorAlgebra(p=2, unstable_enabled=False)
 
     # Compute basis up to degree 125
     alg.compute_basis(125)

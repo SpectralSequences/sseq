@@ -9,4 +9,10 @@ name = "ext_py"
 crate-type = ["cdylib"]
 
 [dependencies]
+algebra = { path = "../ext/crates/algebra" }
+fp = { path = "../ext/crates/fp" }
+sseq = { path = "../ext/crates/sseq" }
+
+ext = { path = "../ext", features = ["logging"] }
+
 pyo3 = "0.25.0"
