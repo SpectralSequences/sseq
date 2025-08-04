@@ -806,15 +806,19 @@ impl Matrix {
             self.data.resize(new_stride * self.rows, 0);
             // Shift row data backwards, starting from the end to avoid overwriting data.
             for row_idx in (0..self.rows).rev() {
-                let old_row_range = row_idx * self.stride..(row_idx + 1) * self.stride;
-                let new_row_range_copy_part =
-                    row_idx * new_stride..row_idx * new_stride + self.stride;
-                let new_row_range_zero_part =
+                let old_row_start = row_idx * self.stride;
+                let new_row_start = row_idx * new_stride;
+                let new_row_zero_part =
                     row_idx * new_stride + self.stride..(row_idx + 1) * new_stride;
-                for (old_limb_idx, new_limb_idx) in old_row_range.zip_eq(new_row_range_copy_part) {
-                    self.data[new_limb_idx] = self.data[old_limb_idx];
+                // Safety: we already resized the data, and limbs are always aligned.
+                unsafe {
+                    std::ptr::copy(
+                        &raw const self.data[old_row_start],
+                        &raw mut self.data[new_row_start],
+                        self.stride,
+                    );
                 }
-                for limb in &mut self.data[new_row_range_zero_part] {
+                for limb in &mut self.data[new_row_zero_part] {
                     *limb = 0;
                 }
             }
