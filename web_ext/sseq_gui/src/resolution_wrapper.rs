@@ -116,9 +116,9 @@ impl Resolution<ext::CCC> {
                 let rows = json_map_data.len();
                 let cols = json_map_data[0].len();
                 let mut map_data = Matrix::new(result.prime(), rows, cols);
-                for r in 0..rows {
-                    for c in 0..cols {
-                        map_data.row_mut(r).set_entry(c, json_map_data[r][c]);
+                for (r, row) in json_map_data.iter().enumerate() {
+                    for (c, value) in row.iter().enumerate() {
+                        map_data.row_mut(r).set_entry(c, *value);
                     }
                 }
                 result.add_self_map(self_map_deg, name, map_data);
