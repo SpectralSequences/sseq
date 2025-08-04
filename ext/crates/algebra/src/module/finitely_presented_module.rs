@@ -102,7 +102,7 @@ impl<A: Algebra> FinitelyPresentedModule<A> {
 impl<A: Algebra> FinitelyPresentedModule<A> {
     pub fn from_json(algebra: Arc<A>, json: &Value) -> anyhow::Result<Self> {
         use anyhow::anyhow;
-        use nom::combinator::opt;
+        use nom::{combinator::opt, Parser};
 
         use crate::steenrod_parser::digits;
 
@@ -127,7 +127,7 @@ impl<A: Algebra> FinitelyPresentedModule<A> {
                 let mut v = FpVector::new(p, 0);
 
                 for term in reln.as_str().unwrap().split(" + ") {
-                    let (term, coef) = opt(digits)(term).unwrap();
+                    let (term, coef) = opt(digits).parse(term).unwrap();
                     let coef: u32 = coef.unwrap_or(1);
 
                     let (op, gen) = term.rsplit_once(' ').unwrap_or(("1", term));
@@ -160,7 +160,7 @@ impl<A: Algebra> FinitelyPresentedModule<A> {
             .collect::<anyhow::Result<Vec<_>>>()?;
 
         relations.sort_unstable_by_key(|x| x.0);
-        for (degree, rels) in &relations.into_iter().group_by(|x| x.0) {
+        for (degree, rels) in &relations.into_iter().chunk_by(|x| x.0) {
             for deg in result.relations.max_computed_degree() + 1..degree {
                 result.add_relations(deg, vec![]);
             }

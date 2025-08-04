@@ -8,6 +8,6 @@ authors = [
 edition = "2021"
 
 [dependencies]
-serde = "1.0.0"
+serde = "1.0.219"
 
 [features]
