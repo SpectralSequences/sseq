@@ -1,4 +1,4 @@
-use std::{fmt, io};
+use std::{fmt, io, ops::Range};
 
 use itertools::Itertools;
 use maybe_rayon::prelude::*;
@@ -83,8 +83,8 @@ impl Matrix {
         let stride = fp.number(columns);
         let mut data: Vec<Limb> = vec![0; stride * rows];
         for row_idx in 0..rows {
-            let row_range = row_idx * stride..(row_idx + 1) * stride;
-            crate::limb::from_bytes(&mut data[row_range], buffer)?;
+            let limb_range = row_to_limb_range(row_idx, stride);
+            crate::limb::from_bytes(&mut data[limb_range], buffer)?;
         }
         Ok(Self {
             fp: Fp::new(p),
@@ -300,7 +300,7 @@ impl Matrix {
         col_end: usize,
     ) -> MatrixSliceMut<'_> {
         let row_range = row_start..row_end;
-        let limb_range = row_start * self.stride..row_end * self.stride;
+        let limb_range = row_range_to_limb_range(&row_range, self.stride);
         MatrixSliceMut {
             fp: self.fp,
             rows: row_range.len(),
@@ -312,13 +312,13 @@ impl Matrix {
     }
 
     pub fn row(&self, row: usize) -> FpSlice<'_> {
-        let row_range = row * self.stride..(row + 1) * self.stride;
-        FpSlice::new(self.prime(), &self.data[row_range], 0, self.columns)
+        let limb_range = row_to_limb_range(row, self.stride);
+        FpSlice::new(self.prime(), &self.data[limb_range], 0, self.columns)
     }
 
     pub fn row_mut(&mut self, row: usize) -> FpSliceMut<'_> {
-        let row_range = row * self.stride..(row + 1) * self.stride;
-        FpSliceMut::new(self.prime(), &mut self.data[row_range], 0, self.columns)
+        let limb_range = row_to_limb_range(row, self.stride);
+        FpSliceMut::new(self.prime(), &mut self.data[limb_range], 0, self.columns)
     }
 }
 
@@ -616,9 +616,9 @@ impl Matrix {
         let mut new_row_idx = 0;
         for old_row in self.pivots.iter_mut().filter(|row| **row >= 0) {
             let old_row_idx = *old_row as usize;
-            let old_row_range = old_row_idx * self.stride..(old_row_idx + 1) * self.stride;
-            let new_row_range = new_row_idx * self.stride..(new_row_idx + 1) * self.stride;
-            self.data[new_row_range].copy_from_slice(&old_data[old_row_range]);
+            let old_limb_range = row_to_limb_range(old_row_idx, self.stride);
+            let new_limb_range = row_to_limb_range(new_row_idx, self.stride);
+            self.data[new_limb_range].copy_from_slice(&old_data[old_limb_range]);
             *old_row = new_row_idx as isize;
             new_row_idx += 1;
         }
@@ -958,8 +958,8 @@ impl Matrix {
     }
 
     /// Rotate the rows downwards in the range `range`.
-    pub fn rotate_down(&mut self, range: std::ops::Range<usize>, shift: usize) {
-        let limb_range = range.start * self.stride..range.end * self.stride;
+    pub fn rotate_down(&mut self, range: Range<usize>, shift: usize) {
+        let limb_range = row_range_to_limb_range(&range, self.stride);
         self.data[limb_range].rotate_right(shift * self.stride)
     }
 }
@@ -1121,6 +1121,14 @@ pub mod arbitrary {
     }
 }
 
+fn row_to_limb_range(row: usize, stride: usize) -> Range<usize> {
+    row_range_to_limb_range(&(row..row + 1), stride)
+}
+
+fn row_range_to_limb_range(row_range: &Range<usize>, stride: usize) -> Range<usize> {
+    row_range.start * stride..row_range.end * stride
+}
+
 /// This models an augmented matrix.
 ///
 /// In an ideal world, this will have no public fields. The inner matrix
@@ -1198,8 +1206,8 @@ impl<const N: usize> AugmentedMatrix<N> {
     pub fn row_segment_mut(&mut self, i: usize, start: usize, end: usize) -> FpSliceMut<'_> {
         let start_idx = self.start[start];
         let end_idx = self.end[end];
-        let row_range = i * self.stride..(i + 1) * self.stride;
-        FpSliceMut::new(self.prime(), &mut self.data[row_range], start_idx, end_idx)
+        let limb_range = row_to_limb_range(i, self.stride);
+        FpSliceMut::new(self.prime(), &mut self.data[limb_range], start_idx, end_idx)
     }
 
     pub fn row_segment(&self, i: usize, start: usize, end: usize) -> FpSlice<'_> {
@@ -1334,10 +1342,10 @@ impl<'a> MatrixSliceMut<'a> {
     }
 
     pub fn row_slice<'b: 'a>(&'b mut self, row_start: usize, row_end: usize) -> MatrixSliceMut<'b> {
-        let row_range = row_start * self.stride..row_end * self.stride;
+        let limb_range = row_range_to_limb_range(&(row_start..row_end), self.stride);
         Self {
             fp: self.fp,
-            data: &mut self.data[row_range],
+            data: &mut self.data[limb_range],
             rows: self.rows,
             col_start: self.col_start,
             col_end: self.col_end,
@@ -1349,8 +1357,8 @@ impl<'a> MatrixSliceMut<'a> {
         let start = self.col_start;
         let end = self.col_end;
         (0..self.rows).map(move |row_idx| {
-            let row_range = row_idx * self.stride..(row_idx + 1) * self.stride;
-            FpSlice::new(self.prime(), &self.data[row_range], start, end)
+            let limb_range = row_to_limb_range(row_idx, self.stride);
+            FpSlice::new(self.prime(), &self.data[limb_range], start, end)
         })
     }
 
@@ -1385,20 +1393,20 @@ impl<'a> MatrixSliceMut<'a> {
     }
 
     pub fn row(&mut self, row: usize) -> FpSlice<'_> {
-        let row_range = row * self.stride..(row + 1) * self.stride;
+        let limb_range = row_to_limb_range(row, self.stride);
         FpSlice::new(
             self.prime(),
-            &self.data[row_range],
+            &self.data[limb_range],
             self.col_start,
             self.col_end,
         )
     }
 
     pub fn row_mut(&mut self, row: usize) -> FpSliceMut<'_> {
-        let row_range = row * self.stride..(row + 1) * self.stride;
+        let limb_range = row_to_limb_range(row, self.stride);
         FpSliceMut::new(
             self.prime(),
-            &mut self.data[row_range],
+            &mut self.data[limb_range],
             self.col_start,
             self.col_end,
         )
