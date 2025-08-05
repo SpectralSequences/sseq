@@ -85,8 +85,7 @@ fn main() -> anyhow::Result<()> {
         product.segment(1, 1).add_identity();
 
         let mut matrix = Matrix::new(p, num_gens, 1);
-        #[allow(clippy::needless_range_loop)]
-        for idx in 0..num_gens {
+        for (idx, answer_row) in answers.iter_mut().enumerate() {
             let hom = Arc::new(ResolutionHomomorphism::new(
                 String::new(),
                 Arc::clone(&resolution),
@@ -105,7 +104,7 @@ fn main() -> anyhow::Result<()> {
             homotopy.extend(tot);
 
             let last = homotopy.homotopy(tot.s());
-            for (i, answer) in answers[idx].iter_mut().enumerate() {
+            for (i, answer) in answer_row.iter_mut().enumerate() {
                 let output = last.output(tot.t(), i);
                 for (k, &v) in a_class.iter().enumerate() {
                     if v != 0 {
