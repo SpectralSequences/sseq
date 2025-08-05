@@ -116,9 +116,9 @@ impl Resolution<ext::CCC> {
                 let rows = json_map_data.len();
                 let cols = json_map_data[0].len();
                 let mut map_data = Matrix::new(result.prime(), rows, cols);
-                for r in 0..rows {
-                    for c in 0..cols {
-                        map_data[r].set_entry(c, json_map_data[r][c]);
+                for (r, row) in json_map_data.iter().enumerate() {
+                    for (c, value) in row.iter().enumerate() {
+                        map_data.row_mut(r).set_entry(c, *value);
                     }
                 }
                 result.add_self_map(self_map_deg, name, map_data);
@@ -355,9 +355,9 @@ impl<CC: ChainComplex> Resolution<CC> {
                     Arc::clone(&self.unit_resolution().inner),
                     b,
                 );
-                unit_vector[j].set_entry(0, 1);
+                unit_vector.row_mut(j).set_entry(0, 1);
                 f.extend_step(b, Some(&unit_vector));
-                unit_vector[j].set_to_zero();
+                unit_vector.row_mut(j).set_to_zero();
                 maps.push(f);
             }
         }
