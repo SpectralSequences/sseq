@@ -1,5 +1,6 @@
 use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
 use fp::{matrix::Matrix, prime::ValidPrime};
+use pprof::criterion::{Output, PProfProfiler};
 use rand::Rng;
 
 fn random_matrix(p: ValidPrime, dimension: usize) -> Matrix {
@@ -39,7 +40,7 @@ fn random_vector(p: ValidPrime, dimension: usize) -> Vec<u32> {
 
 criterion_group! {
     name = row_reduction;
-    config = Criterion::default();
+    config = Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
     targets = row_reductions
 }
 
