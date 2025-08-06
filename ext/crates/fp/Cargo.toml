@@ -38,7 +38,7 @@ concurrent = ["maybe-rayon/concurrent"]
 odd-primes = []
 
 [[bench]]
-name = "criterion"
+name = "reduce"
 harness = false
 
 [[bench]]
