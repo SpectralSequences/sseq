@@ -17,6 +17,7 @@ serde = "1.0.0"
 serde_json = "1.0.0"
 
 maybe-rayon = { path = "../maybe-rayon" }
+query = { path = "../query" }
 
 [dev-dependencies]
 # We use the proptest harness for our own tests
