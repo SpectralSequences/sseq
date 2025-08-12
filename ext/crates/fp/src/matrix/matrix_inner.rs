@@ -157,6 +157,18 @@ impl Matrix {
         self.columns
     }
 
+    pub(crate) fn stride(&self) -> usize {
+        self.stride
+    }
+
+    pub(super) fn data(&self) -> &[Limb] {
+        &self.data
+    }
+
+    pub(super) fn data_mut(&mut self) -> &mut [Limb] {
+        &mut self.data
+    }
+
     /// Set the pivots to -1 in every entry. This is called by [`Matrix::row_reduce`].
     pub fn initialize_pivots(&mut self) {
         self.pivots.clear();
@@ -961,27 +973,6 @@ impl Matrix {
     pub fn rotate_down(&mut self, range: Range<usize>, shift: usize) {
         let limb_range = row_range_to_limb_range(&range, self.stride);
         self.data[limb_range].rotate_right(shift * self.stride)
-    }
-}
-
-impl std::ops::Mul for &Matrix {
-    type Output = Matrix;
-
-    fn mul(self, rhs: Self) -> Matrix {
-        assert_eq!(self.prime(), rhs.prime());
-        assert_eq!(self.columns(), rhs.rows());
-
-        let mut result = Matrix::new(self.prime(), self.rows(), rhs.columns());
-        for i in 0..self.rows() {
-            for j in 0..rhs.columns() {
-                for k in 0..self.columns() {
-                    result
-                        .row_mut(i)
-                        .add_basis_element(j, self.row(i).entry(k) * rhs.row(k).entry(j));
-                }
-            }
-        }
-        result
     }
 }
 

@@ -5,6 +5,7 @@ mod quasi_inverse;
 mod subquotient;
 mod subspace;
 
+mod blas;
 mod m4ri;
 
 #[cfg(feature = "proptest")]
