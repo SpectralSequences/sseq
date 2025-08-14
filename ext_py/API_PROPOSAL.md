@@ -9,18 +9,12 @@ existing Rust examples in the `ext` crate.
 import ext
 ```
 
-## Initialization
-
-```python
-ext.init_logging()  # Initialize logging system
-```
-
 ## Algebras
 
 ### Milnor Algebra
 
 ```python
-algebra = ext.MilnorAlgebra(prime=2, truncated=False)
+algebra = algebra.MilnorAlgebra(p=2, unstable_enabled=False)
 algebra.compute_basis(max_degree)
 dim = algebra.dimension(degree)
 ```
@@ -28,7 +22,7 @@ dim = algebra.dimension(degree)
 ### Adem Algebra  
 
 ```python
-algebra = ext.AdemAlgebra(prime=2, truncated=False)
+algebra = ext.AdemAlgebra(p=2, unstable_enabled=False)
 algebra.compute_basis(max_degree)
 generators = algebra.generators(degree)
 basis_string = algebra.basis_element_to_string(degree, index)
@@ -37,8 +31,8 @@ basis_string = algebra.basis_element_to_string(degree, index)
 ### Steenrod Algebra (Union type)
 
 ```python
-algebra = ext.SteenrodAlgebra.adem_algebra(prime=2, truncated=False)
-algebra = ext.SteenrodAlgebra.milnor_algebra(prime=2, truncated=False)
+algebra = ext.SteenrodAlgebra.adem_algebra(p=2, unstable_enabled=False)
+algebra = ext.SteenrodAlgebra.milnor_algebra(p=2, unstable_enabled=False)
 ```
 
 ## Modules
