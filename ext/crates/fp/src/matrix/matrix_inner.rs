@@ -1,5 +1,6 @@
 use std::{fmt, io, ops::Range};
 
+use aligned_vec::AVec;
 use itertools::Itertools;
 use maybe_rayon::prelude::*;
 
@@ -22,7 +23,7 @@ pub struct Matrix {
     fp: Fp<ValidPrime>,
     rows: usize,
     columns: usize,
-    data: Vec<Limb>,
+    data: AVec<Limb>,
     stride: usize,
     /// The pivot columns of the matrix. `pivots[n]` is `k` if column `n` is the `k`th pivot
     /// column, and a negative number otherwise. Said negative number is often -1 but this is not
@@ -54,9 +55,22 @@ impl Matrix {
     ) -> Self {
         let fp = Fp::new(p);
         let stride = fp.number(columns_capacity);
-        let mut data = Vec::with_capacity(rows_capacity * stride);
+        let mut data = AVec::with_capacity(0, rows_capacity * stride);
         data.resize(rows * stride, 0);
 
+        Self {
+            fp,
+            rows,
+            columns,
+            data,
+            stride,
+            pivots: Vec::new(),
+        }
+    }
+
+    pub fn from_data(p: ValidPrime, rows: usize, columns: usize, data: AVec<Limb>) -> Self {
+        let fp = Fp::new(p);
+        let stride = fp.number(columns);
         Self {
             fp,
             rows,
@@ -81,7 +95,7 @@ impl Matrix {
     ) -> io::Result<Self> {
         let fp = Fp::new(p);
         let stride = fp.number(columns);
-        let mut data: Vec<Limb> = vec![0; stride * rows];
+        let mut data: AVec<Limb> = aligned_vec::avec![0; stride * rows];
         for row_idx in 0..rows {
             let limb_range = row_to_limb_range(row_idx, stride);
             crate::limb::from_bytes(&mut data[limb_range], buffer)?;
@@ -189,7 +203,7 @@ impl Matrix {
         let fp = Fp::new(p);
         let rows = input.len();
         let stride = fp.number(columns);
-        let mut data = Vec::with_capacity(rows * stride);
+        let mut data = AVec::with_capacity(0, rows * stride);
         for row in &input {
             data.extend_from_slice(row.limbs());
         }
@@ -228,7 +242,7 @@ impl Matrix {
         }
         let columns = input[0].len();
         let stride = fp.number(columns);
-        let mut data = Vec::with_capacity(rows * stride);
+        let mut data = AVec::with_capacity(0, rows * stride);
         for row in input {
             for chunk in row.chunks(fp.entries_per_limb()) {
                 data.push(fp.pack(chunk.iter().map(|x| fp.element(*x))));
@@ -623,7 +637,7 @@ impl Matrix {
         // Now reorder the vectors. There are O(n) in-place permutation algorithms but the way we
         // get the permutation makes the naive strategy easier.
         let old_len = self.data.len();
-        let old_data = std::mem::replace(&mut self.data, vec![0; old_len]);
+        let old_data = std::mem::replace(&mut self.data, aligned_vec::avec![0; old_len]);
 
         let mut new_row_idx = 0;
         for old_row in self.pivots.iter_mut().filter(|row| **row >= 0) {
@@ -960,13 +974,14 @@ impl Matrix {
     }
 
     pub fn trim(&mut self, row_start: usize, row_end: usize, col_start: usize) {
-        self.rows = row_end - row_start;
-        self.data.truncate(row_end * self.stride);
-        self.data.drain(0..row_start * self.stride);
-        for mut row in self.iter_mut() {
-            row.shl_assign(col_start);
-        }
-        self.columns -= col_start;
+        todo!()
+        // self.rows = row_end - row_start;
+        // self.data.truncate(row_end * self.stride);
+        // self.data.drain(0..row_start * self.stride);
+        // for mut row in self.iter_mut() {
+        //     row.shl_assign(col_start);
+        // }
+        // self.columns -= col_start;
     }
 
     /// Rotate the rows downwards in the range `range`.

@@ -1,4 +1,4 @@
-use super::{MatrixBlock, MatrixBlockMut};
+use super::{MatrixBlock, MatrixBlockSlice, MatrixBlockSliceMut};
 use crate::limb::Limb;
 
 pub fn gemm_block_scalar(
@@ -6,7 +6,7 @@ pub fn gemm_block_scalar(
     a: MatrixBlock,
     b: MatrixBlock,
     beta: bool,
-    c: &mut MatrixBlockMut,
+    c: &mut MatrixBlockSliceMut,
 ) {
     if !beta {
         setzero_block_scalar(c);
@@ -16,17 +16,25 @@ pub fn gemm_block_scalar(
         return;
     }
 
-    for (result_limb, a_limb) in c.iter_mut().zip(a.iter()) {
+    for (result_limb, a_limb) in c.iter_mut().zip(a.limbs.iter()) {
         let a_limb_iter = BitIterator::new(*a_limb);
-        for (b_limb, a_bit) in b.iter().zip(a_limb_iter) {
+        for (b_limb, a_bit) in b.limbs.iter().zip(a_limb_iter) {
             *result_limb ^= *b_limb * (a_bit as Limb);
         }
     }
 }
 
-pub fn setzero_block_scalar(c: &mut MatrixBlockMut) {
+pub fn gather_block_scalar(a: MatrixBlockSlice) -> MatrixBlock {
+    let mut limbs = [0; 64];
+    for (i, limb) in a.iter().enumerate() {
+        limbs[i] = *limb;
+    }
+    MatrixBlock { limbs }
+}
+
+pub fn setzero_block_scalar(c: &mut MatrixBlockSliceMut) {
     // Set all limbs to zero.
-    for limb in c.limbs.iter_mut() {
+    for limb in c.iter_mut() {
         *limb = 0;
     }
 }
