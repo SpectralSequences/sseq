@@ -3,10 +3,20 @@ pub mod prelude {
 
     pub trait MaybeIndexedParallelIterator: Iterator {}
 
-    pub trait IntoMaybeParallelIterator: IntoIterator + Sized {
+    pub trait IntoMaybeParallelIterator:
+        IntoIterator<IntoIter: Send, Item: Send> + Send + Sized
+    {
         fn into_maybe_par_iter(self) -> Self::IntoIter {
             self.into_iter()
         }
+    }
+
+    pub trait IntoMaybeParallelRefMutIterator<'data> {
+        type Iter: MaybeParallelIterator<Item = Self::Item>;
+        type Item: Send + 'data;
+
+        // Required method
+        fn maybe_par_iter_mut(&'data mut self) -> Self::Iter;
     }
 
     pub struct MaybeIterBridge<Iter>(Iter);
@@ -32,7 +42,19 @@ pub mod prelude {
 
     impl<I: Iterator> MaybeIndexedParallelIterator for I {}
 
-    impl<I: IntoIterator> IntoMaybeParallelIterator for I {}
+    impl<I: IntoIterator<Item: Send, IntoIter: Send> + Send> IntoMaybeParallelIterator for I {}
+
+    impl<'data, I: 'data + ?Sized> IntoMaybeParallelRefMutIterator<'data> for I
+    where
+        &'data mut I: IntoMaybeParallelIterator,
+    {
+        type Item = <&'data mut I as IntoIterator>::Item;
+        type Iter = <&'data mut I as IntoIterator>::IntoIter;
+
+        fn maybe_par_iter_mut(&'data mut self) -> Self::Iter {
+            self.into_maybe_par_iter()
+        }
+    }
 
     impl<Iter: Iterator> Iterator for MaybeIterBridge<Iter> {
         type Item = Iter::Item;

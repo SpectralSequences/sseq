@@ -47,7 +47,7 @@ pub mod prelude {
     impl<I: IntoParallelIterator> IntoMaybeParallelIterator for I {}
 
     impl<'data, I: 'data + ?Sized> IntoMaybeParallelRefMutIterator<'data> for I where
-        &'data mut I: IntoParallelIterator
+        &'data mut I: IntoMaybeParallelIterator
     {
     }
 
