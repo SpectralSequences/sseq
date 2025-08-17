@@ -59,6 +59,30 @@ impl Matrix {
         }
     }
 
+    pub fn as_l2_block(&self) -> MatrixL2BlockSlice<'_> {
+        assert!(self.rows().is_multiple_of(64));
+        assert!(self.columns().is_multiple_of(64));
+
+        MatrixL2BlockSlice {
+            limbs: self.data().as_ptr(),
+            dimensions: [self.rows() / 64, self.columns() / 64],
+            stride: self.stride(),
+            _marker: std::marker::PhantomData,
+        }
+    }
+
+    pub fn as_l2_block_mut(&mut self) -> MatrixL2BlockSliceMut<'_> {
+        assert!(self.rows().is_multiple_of(64));
+        assert!(self.columns().is_multiple_of(64));
+
+        MatrixL2BlockSliceMut {
+            limbs: self.data_mut().as_mut_ptr(),
+            dimensions: [self.rows() / 64, self.columns() / 64],
+            stride: self.stride(),
+            _marker: std::marker::PhantomData,
+        }
+    }
+
     pub fn fast_mul_sequential_rci(&self, other: &Self) -> Matrix {
         let mut result = Matrix::new(self.prime(), self.rows(), other.columns());
         for i in (0..self.rows()).step_by(64) {
@@ -177,6 +201,57 @@ impl Matrix {
 
         result
     }
+
+    pub fn fast_mul_concurrent_recursive(&self, other: &Self) -> Matrix {
+        assert_eq!(self.prime(), TWO);
+        assert_eq!(self.prime(), other.prime());
+        assert_eq!(self.columns(), other.rows());
+
+        assert!(self.rows().is_multiple_of(64));
+        assert!(self.columns().is_multiple_of(64));
+        assert!(other.rows().is_multiple_of(64));
+        assert!(other.columns().is_multiple_of(64));
+
+        let mut result = Matrix::new(self.prime(), self.rows(), other.columns());
+        let mut result_l2_block = result.as_l2_block_mut();
+
+        fast_mul_l2_block(
+            self.as_l2_block(),
+            other.as_l2_block(),
+            &mut result_l2_block,
+        );
+
+        result
+    }
+}
+
+fn fast_mul_l2_block(a: MatrixL2BlockSlice, b: MatrixL2BlockSlice, c: &mut MatrixL2BlockSliceMut) {
+    if c.block_rows() > 1 {
+        let (a_first, a_second) = a.split_rows_at(a.block_rows() / 2);
+        let (mut c_first, mut c_second) = c.split_rows_at_mut(c.block_rows() / 2);
+        maybe_rayon::join(
+            || fast_mul_l2_block(a_first, b, &mut c_first),
+            || fast_mul_l2_block(a_second, b, &mut c_second),
+        );
+    } else if c.block_columns() > 1 {
+        let (b_first, b_second) = b.split_columns_at(b.block_columns() / 2);
+        let (mut c_first, mut c_second) = c.split_columns_at_mut(c.block_columns() / 2);
+        maybe_rayon::join(
+            || fast_mul_l2_block(a, b_first, &mut c_first),
+            || fast_mul_l2_block(a, b_second, &mut c_second),
+        );
+    } else {
+        for i in 0..a.block_rows() {
+            for k in 0..a.block_columns() {
+                let a_block = a.block_at(i, k).gather_block();
+                for j in 0..b.block_columns() {
+                    let b_block = b.block_at(k, j).gather_block();
+                    let mut c_block = c.block_mut_at(i, j);
+                    gemm_block(true, a_block, b_block, true, &mut c_block);
+                }
+            }
+        }
+    }
 }
 
 pub struct MatrixTiling<'a> {
@@ -210,8 +285,150 @@ impl<'a> MatrixTiling<'a> {
 unsafe impl Send for MatrixTiling<'_> {}
 unsafe impl Sync for MatrixTiling<'_> {}
 
-unsafe impl Send for MatrixBlockSliceMut<'_> {}
-unsafe impl Sync for MatrixBlockSliceMut<'_> {}
+#[derive(Debug, Clone, Copy)]
+pub struct MatrixL2BlockSlice<'a> {
+    limbs: *const Limb,
+    dimensions: [usize; 2],
+    stride: usize,
+    _marker: std::marker::PhantomData<&'a ()>,
+}
+
+impl<'a> MatrixL2BlockSlice<'a> {
+    pub fn block_rows(&self) -> usize {
+        self.dimensions[0]
+    }
+
+    pub fn block_columns(&self) -> usize {
+        self.dimensions[1]
+    }
+
+    pub fn block_at(&self, block_row: usize, block_col: usize) -> MatrixBlockSlice<'_> {
+        let start_limb = 64 * block_row * self.stride + block_col;
+        let stride = self.stride;
+
+        MatrixBlockSlice {
+            limbs: unsafe { self.limbs.add(start_limb) },
+            coords: [block_row, block_col],
+            stride,
+            _marker: std::marker::PhantomData,
+        }
+    }
+
+    fn split_rows_at(&self, block_rows: usize) -> (MatrixL2BlockSlice<'_>, MatrixL2BlockSlice<'_>) {
+        let (first_rows, second_rows) = (block_rows, self.block_rows() - block_rows);
+
+        let first = MatrixL2BlockSlice {
+            limbs: self.limbs,
+            dimensions: [first_rows, self.dimensions[1]],
+            stride: self.stride,
+            _marker: std::marker::PhantomData,
+        };
+        let second = MatrixL2BlockSlice {
+            limbs: unsafe { self.limbs.add(64 * first_rows * self.stride) },
+            dimensions: [second_rows, self.dimensions[1]],
+            stride: self.stride,
+            _marker: std::marker::PhantomData,
+        };
+        (first, second)
+    }
+
+    fn split_columns_at(
+        &self,
+        block_columns: usize,
+    ) -> (MatrixL2BlockSlice<'_>, MatrixL2BlockSlice<'_>) {
+        let (first_cols, second_cols) = (block_columns, self.block_columns() - block_columns);
+
+        let first = MatrixL2BlockSlice {
+            limbs: self.limbs,
+            dimensions: [self.dimensions[0], first_cols],
+            stride: self.stride,
+            _marker: std::marker::PhantomData,
+        };
+        let second = MatrixL2BlockSlice {
+            limbs: unsafe { self.limbs.add(first_cols) },
+            dimensions: [self.dimensions[0], second_cols],
+            stride: self.stride,
+            _marker: std::marker::PhantomData,
+        };
+        (first, second)
+    }
+}
+
+unsafe impl Send for MatrixL2BlockSlice<'_> {}
+unsafe impl Sync for MatrixL2BlockSlice<'_> {}
+
+pub struct MatrixL2BlockSliceMut<'a> {
+    limbs: *mut Limb,
+    dimensions: [usize; 2],
+    stride: usize,
+    _marker: std::marker::PhantomData<&'a mut ()>,
+}
+
+impl<'a> MatrixL2BlockSliceMut<'a> {
+    pub fn block_rows(&self) -> usize {
+        self.dimensions[0]
+    }
+
+    pub fn block_columns(&self) -> usize {
+        self.dimensions[1]
+    }
+
+    pub fn block_mut_at(&mut self, block_row: usize, block_col: usize) -> MatrixBlockSliceMut<'_> {
+        let start_limb = 64 * block_row * self.stride + block_col;
+        let stride = self.stride;
+
+        MatrixBlockSliceMut {
+            limbs: unsafe { self.limbs.add(start_limb) },
+            coords: [block_row, block_col],
+            stride,
+            _marker: std::marker::PhantomData,
+        }
+    }
+
+    fn split_rows_at_mut(
+        &mut self,
+        block_rows: usize,
+    ) -> (MatrixL2BlockSliceMut<'_>, MatrixL2BlockSliceMut<'_>) {
+        let (first_rows, second_rows) = (block_rows, self.block_rows() - block_rows);
+
+        let first = MatrixL2BlockSliceMut {
+            limbs: self.limbs,
+            dimensions: [first_rows, self.dimensions[1]],
+            stride: self.stride,
+            _marker: std::marker::PhantomData,
+        };
+        let second = MatrixL2BlockSliceMut {
+            limbs: unsafe { self.limbs.add(64 * first_rows * self.stride) },
+            dimensions: [second_rows, self.dimensions[1]],
+            stride: self.stride,
+            _marker: std::marker::PhantomData,
+        };
+        (first, second)
+    }
+
+    fn split_columns_at_mut(
+        &mut self,
+        block_columns: usize,
+    ) -> (MatrixL2BlockSliceMut<'_>, MatrixL2BlockSliceMut<'_>) {
+        let (first_cols, second_cols) = (block_columns, self.block_columns() - block_columns);
+
+        let first = MatrixL2BlockSliceMut {
+            limbs: self.limbs,
+            dimensions: [self.dimensions[0], first_cols],
+            stride: self.stride,
+            _marker: std::marker::PhantomData,
+        };
+        let second = MatrixL2BlockSliceMut {
+            limbs: unsafe { self.limbs.add(first_cols) },
+            dimensions: [self.dimensions[0], second_cols],
+            stride: self.stride,
+            _marker: std::marker::PhantomData,
+        };
+        (first, second)
+    }
+}
+
+unsafe impl Send for MatrixL2BlockSliceMut<'_> {}
 
 #[repr(align(128))]
 #[derive(Debug, Clone, Copy)]
@@ -235,10 +452,6 @@ pub struct MatrixBlockSliceMut<'a> {
 }
 
 impl<'a> MatrixBlockSlice<'a> {
-    fn get(self, row: usize) -> Limb {
-        unsafe { *self.limbs.add(row * self.stride) }
-    }
-
     fn iter(self) -> impl Iterator<Item = &'a Limb> {
         (0..64).map(move |i| unsafe { &*self.limbs.add(i * self.stride) })
     }
@@ -251,18 +464,6 @@ impl<'a> MatrixBlockSlice<'a> {
         } else {
             scalar::gather_block_scalar(self)
         }
-    }
-
-    fn ptr_at(self, row: usize) -> *const Limb {
-        unsafe { self.limbs.add(row * self.stride) }
-    }
-
-    fn to_owned(self) -> MatrixBlock {
-        let mut limbs = [0; 64];
-        for (i, limb) in self.iter().enumerate() {
-            limbs[i] = *limb;
-        }
-        MatrixBlock { limbs }
     }
 
     unsafe fn make_mut(self) -> MatrixBlockSliceMut<'a> {
@@ -292,10 +493,6 @@ impl<'a> MatrixBlockSliceMut<'a> {
         (0..64).map(move |i| unsafe { &mut *self.limbs.add(i * self.stride) })
     }
 
-    fn ptr_at(&mut self, row: usize) -> *const Limb {
-        unsafe { self.limbs.add(row * self.stride) }
-    }
-
     fn as_slice(&self) -> MatrixBlockSlice<'_> {
         MatrixBlockSlice {
             limbs: self.limbs,
@@ -305,6 +502,8 @@ impl<'a> MatrixBlockSliceMut<'a> {
         }
     }
 }
+
+unsafe impl Send for MatrixBlockSliceMut<'_> {}
 
 pub fn gemm_block(
     alpha: bool,
@@ -440,79 +639,19 @@ mod tests {
             prop_assert_eq!(c, c2);
         }
 
-        // #[test]
-        // fn test_avx512_looped_is_gemm(
-        //     a in Matrix::arbitrary_with(MatrixArbParams {
-        //         p: Some(TWO),
-        //         rows: Just(64).boxed(),
-        //         columns: Just(64).boxed(),
-        //     }),
-        //     b in Matrix::arbitrary_with(MatrixArbParams {
-        //         p: Some(TWO),
-        //         rows: Just(64).boxed(),
-        //         columns: Just(64).boxed(),
-        //     }),
-        //     mut c in Matrix::arbitrary_with(MatrixArbParams {
-        //         p: Some(TWO),
-        //         rows: Just(64).boxed(),
-        //         columns: Just(64).boxed(),
-        //     }),
-        //     alpha: bool,
-        //     beta: bool,
-        // ) {
-        //     let mut c2 = c.clone();
-        //     scalar::gemm_block_scalar(
-        //         alpha,
-        //         a.block_at(0, 0),
-        //         b.block_at(0, 0),
-        //         beta,
-        //         &mut c.block_mut_at(0, 0)
-        //     );
-        //     avx512::gemm_block_avx512(
-        //         alpha,
-        //         a.block_at(0, 0),
-        //         b.block_at(0, 0),
-        //         beta,
-        //         &mut c2.block_mut_at(0, 0)
-        //     );
-        //     prop_assert_eq!(c, c2);
-        // }
+        #[test]
+        fn test_fast_mul_concurrent_is_mul((m, n) in arb_multipliable_matrices()) {
+            let prod1 = m.fast_mul_sequential(&n);
+            let prod2 = m.fast_mul_concurrent(&n);
+            prop_assert_eq!(prod1, prod2);
+        }
 
-        // #[test]
-        // fn test_avx_is_gemm(
-        //     a in Matrix::arbitrary_with(MatrixArbParams {
-        //         p: Some(TWO),
-        //         rows: Just(64).boxed(),
-        //         columns: Just(64).boxed(),
-        //     }),
-        //     b in Matrix::arbitrary_with(MatrixArbParams {
-        //         p: Some(TWO),
-        //         rows: Just(64).boxed(),
-        //         columns: Just(64).boxed(),
-        //     }),
-        //     mut c in Matrix::arbitrary_with(MatrixArbParams {
-        //         p: Some(TWO),
-        //         rows: Just(64).boxed(),
-        //         columns: Just(64).boxed(),
-        //     })
-        // ) {
-        //     let mut c2 = c.clone();
-        //     scalar::gemm_block_scalar(
-        //         true,
-        //         a.block_at(0, 0),
-        //         b.block_at(0, 0),
-        //         true,
-        //         &mut c.block_mut_at(0, 0)
-        //     );
-        //     avx::gemm_block_avx(
-        //         true,
-        //         a.block_at(0, 0),
-        //         b.block_at(0, 0),
-        //         true,
-        //         &mut c2.block_mut_at(0, 0)
-        //     );
-        //     prop_assert_eq!(c, c2);
-        // }
+        #[test]
+        fn test_fast_mul_concurrent_cache_agnostic_is_mul((m, n) in arb_multipliable_matrices()) {
+            let prod1 = m.fast_mul_concurrent(&n);
+            let prod2 = m.fast_mul_concurrent_recursive(&n);
+            prop_assert_eq!(prod1, prod2);
+        }
     }
 
     proptest! {
@@ -520,13 +659,6 @@ mod tests {
         fn test_fast_mul_sequential_is_mul((m, n) in arb_multipliable_matrices()) {
             let prod1 = (&m) * (&n);
             let prod2 = m.fast_mul_sequential(&n);
-            prop_assert_eq!(prod1, prod2);
-        }
-
-        #[test]
-        fn test_fast_mul_concurrent_is_mul((m, n) in arb_multipliable_matrices()) {
-            let prod1 = m.fast_mul_sequential(&n);
-            let prod2 = m.fast_mul_concurrent(&n);
             prop_assert_eq!(prod1, prod2);
         }
     }

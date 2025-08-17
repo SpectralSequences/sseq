@@ -68,34 +68,24 @@ fn bench_individual_gemm(
 fn bench_mkn(m: usize, k: usize, n: usize, c: &mut Criterion) {
     let mut g = c.benchmark_group(format!("{m}x{k} * {k}x{n}"));
     g.throughput(criterion::Throughput::Elements((2 * m * k * n) as u64));
-    let orderings: [(fn(&Matrix, &Matrix) -> Matrix, &str); 6] = [
-        (Matrix::fast_mul_sequential_cir, "cir"),
-        (Matrix::fast_mul_sequential_cri, "cri"),
-        (Matrix::fast_mul_sequential_icr, "icr"),
-        (Matrix::fast_mul_sequential_irc, "irc"),
-        (Matrix::fast_mul_sequential_rci, "rci"),
-        (Matrix::fast_mul_sequential_ric, "ric"),
-    ];
-    for (func, name) in orderings.iter() {
-        g.bench_function(format!("matmul_sequential_{name}"), |b| {
-            b.iter_batched(
-                || random_matrix_pair(m, k, n),
-                |(a, b)| func(&a, &b),
-                BatchSize::SmallInput,
-            );
-        });
-    }
-    // g.bench_function("matmul_sequential_", |b| {
-    //     b.iter_batched(
-    //         || random_matrix_pair(m, k, n),
-    //         |(a, b)| a.fast_mul_sequential(&b),
-    //         BatchSize::SmallInput,
-    //     );
-    // });
+    g.bench_function(format!("matmul_sequential"), |b| {
+        b.iter_batched(
+            || random_matrix_pair(m, k, n),
+            |(a, b)| a.fast_mul_sequential(&b),
+            BatchSize::SmallInput,
+        );
+    });
     g.bench_function("matmul_concurrent", |b| {
         b.iter_batched(
             || random_matrix_pair(m, k, n),
             |(a, b)| a.fast_mul_concurrent(&b),
+            BatchSize::SmallInput,
+        );
+    });
+    g.bench_function("matmul_concurrent_recursive", |b| {
+        b.iter_batched(
+            || random_matrix_pair(m, k, n),
+            |(a, b)| a.fast_mul_concurrent_recursive(&b),
             BatchSize::SmallInput,
         );
     });
@@ -119,7 +109,7 @@ fn random_matrix(rows: usize, cols: usize) -> Matrix {
 criterion_group! {
     name = mul;
     config = Criterion::default()
-        .measurement_time(std::time::Duration::from_secs(15))
+        .measurement_time(std::time::Duration::from_secs(3))
         .with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
     targets = muls
 }
