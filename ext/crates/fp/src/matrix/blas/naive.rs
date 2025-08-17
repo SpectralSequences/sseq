@@ -1,15 +1,9 @@
-use super::{MatrixBlock, MatrixBlockSliceMut};
+use super::{Block, MatrixBlockSliceMut};
 use crate::{limb::Limb, matrix::Matrix, prime::TWO};
 
-pub fn gemm_block_naive(
-    alpha: bool,
-    a: MatrixBlock,
-    b: MatrixBlock,
-    beta: bool,
-    c: &mut MatrixBlockSliceMut,
-) {
+pub fn gemm_block_naive(alpha: bool, a: Block, b: Block, beta: bool, mut c: MatrixBlockSliceMut) {
     if !beta {
-        setzero_block_naive(c);
+        setzero_block_naive(&mut c);
     }
 
     if !alpha {
@@ -26,7 +20,7 @@ pub fn gemm_block_naive(
     }
 }
 
-fn transpose_block(b: MatrixBlock) -> Matrix {
+fn transpose_block(b: Block) -> Matrix {
     let mut bt = Matrix::new(TWO, 64, 64);
     for (orig_col_idx, mut bt_row) in bt.iter_mut().enumerate() {
         for orig_row_idx in 0..64 {

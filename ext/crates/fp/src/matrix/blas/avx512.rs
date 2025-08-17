@@ -1,19 +1,19 @@
 use std::arch::x86_64;
 
-use super::{MatrixBlock, MatrixBlockSlice, MatrixBlockSliceMut};
+use super::{Block, MatrixBlockSlice, MatrixBlockSliceMut};
 
 const UNIT_OFFSETS: [i64; 8] = [0, 1, 2, 3, 4, 5, 6, 7];
 
 /// Performs C = alpha * A * B + beta * C where A, B, C are 64x64 matrices
 pub fn gemm_block_avx512_unrolled(
     alpha: bool,
-    a: MatrixBlock,
-    b: MatrixBlock,
+    a: Block,
+    b: Block,
     beta: bool,
-    c: &mut MatrixBlockSliceMut,
+    mut c: MatrixBlockSliceMut,
 ) {
     if !beta {
-        setzero_block_avx512(c);
+        setzero_block_avx512(&mut c);
     }
 
     if !alpha {
@@ -2182,7 +2182,7 @@ pub fn gemm_block_avx512_unrolled(
         )
     }
 
-    scatter_block_avx512(c, c_zmms);
+    scatter_block_avx512(&mut c, c_zmms);
 }
 
 // pub fn gemm_block_avx512(
@@ -2563,8 +2563,8 @@ pub fn gemm_block_avx512_unrolled(
 pub struct SimdBlock([x86_64::__m512i; 8]);
 
 impl SimdBlock {
-    pub fn as_matrix_block(&self) -> MatrixBlock {
-        MatrixBlock {
+    pub fn as_matrix_block(&self) -> Block {
+        Block {
             limbs: unsafe { std::mem::transmute(self.0) },
         }
     }

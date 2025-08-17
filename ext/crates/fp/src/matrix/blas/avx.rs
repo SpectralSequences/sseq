@@ -1,14 +1,8 @@
-use std::arch::x86_64;
+// use std::arch::x86_64;
 
-use crate::matrix::blas::{MatrixBlock, MatrixBlockSliceMut};
+use super::{Block, MatrixBlockSliceMut};
 
-pub fn gemm_block_avx(
-    alpha: bool,
-    a: MatrixBlock,
-    b: MatrixBlock,
-    beta: bool,
-    c: &mut MatrixBlockSliceMut,
-) {
+pub fn gemm_block_avx(_alpha: bool, _a: Block, _b: Block, _beta: bool, _c: MatrixBlockSliceMut) {
     todo!("Implement AVX GEMM block multiplication");
 
     // if !beta {
