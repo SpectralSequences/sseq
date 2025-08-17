@@ -202,7 +202,10 @@ impl Matrix {
         result
     }
 
-    pub fn fast_mul_concurrent_recursive(&self, other: &Self) -> Matrix {
+    pub fn fast_mul_concurrent_recursive<const M: usize, const N: usize>(
+        &self,
+        other: &Self,
+    ) -> Matrix {
         assert_eq!(self.prime(), TWO);
         assert_eq!(self.prime(), other.prime());
         assert_eq!(self.columns(), other.rows());
@@ -215,7 +218,7 @@ impl Matrix {
         let mut result = Matrix::new(self.prime(), self.rows(), other.columns());
         let mut result_l2_block = result.as_l2_block_mut();
 
-        fast_mul_l2_block(
+        fast_mul_l2_block::<M, N>(
             self.as_l2_block(),
             other.as_l2_block(),
             &mut result_l2_block,
@@ -225,20 +228,24 @@ impl Matrix {
     }
 }
 
-fn fast_mul_l2_block(a: MatrixL2BlockSlice, b: MatrixL2BlockSlice, c: &mut MatrixL2BlockSliceMut) {
-    if c.block_rows() > 1 {
+fn fast_mul_l2_block<const M: usize, const N: usize>(
+    a: MatrixL2BlockSlice,
+    b: MatrixL2BlockSlice,
+    c: &mut MatrixL2BlockSliceMut,
+) {
+    if c.block_rows() > M {
         let (a_first, a_second) = a.split_rows_at(a.block_rows() / 2);
         let (mut c_first, mut c_second) = c.split_rows_at_mut(c.block_rows() / 2);
         maybe_rayon::join(
-            || fast_mul_l2_block(a_first, b, &mut c_first),
-            || fast_mul_l2_block(a_second, b, &mut c_second),
+            || fast_mul_l2_block::<M, N>(a_first, b, &mut c_first),
+            || fast_mul_l2_block::<M, N>(a_second, b, &mut c_second),
         );
-    } else if c.block_columns() > 1 {
+    } else if c.block_columns() > N {
         let (b_first, b_second) = b.split_columns_at(b.block_columns() / 2);
         let (mut c_first, mut c_second) = c.split_columns_at_mut(c.block_columns() / 2);
         maybe_rayon::join(
-            || fast_mul_l2_block(a, b_first, &mut c_first),
-            || fast_mul_l2_block(a, b_second, &mut c_second),
+            || fast_mul_l2_block::<M, N>(a, b_first, &mut c_first),
+            || fast_mul_l2_block::<M, N>(a, b_second, &mut c_second),
         );
     } else {
         for i in 0..a.block_rows() {
@@ -647,9 +654,65 @@ mod tests {
         }
 
         #[test]
-        fn test_fast_mul_concurrent_cache_agnostic_is_mul((m, n) in arb_multipliable_matrices()) {
-            let prod1 = m.fast_mul_concurrent(&n);
-            let prod2 = m.fast_mul_concurrent_recursive(&n);
+        fn test_fast_mul_concurrent_recursive_1_1_is_mul((m, n) in arb_multipliable_matrices()) {
+            let prod1 = m.fast_mul_sequential(&n);
+            let prod2 = m.fast_mul_concurrent_recursive::<1, 1>(&n);
+            prop_assert_eq!(prod1, prod2);
+        }
+
+        #[test]
+        fn test_fast_mul_concurrent_recursive_1_2_is_mul((m, n) in arb_multipliable_matrices()) {
+            let prod1 = m.fast_mul_sequential(&n);
+            let prod2 = m.fast_mul_concurrent_recursive::<1, 2>(&n);
+            prop_assert_eq!(prod1, prod2);
+        }
+
+        #[test]
+        fn test_fast_mul_concurrent_recursive_1_4_is_mul((m, n) in arb_multipliable_matrices()) {
+            let prod1 = m.fast_mul_sequential(&n);
+            let prod2 = m.fast_mul_concurrent_recursive::<1, 4>(&n);
+            prop_assert_eq!(prod1, prod2);
+        }
+
+        #[test]
+        fn test_fast_mul_concurrent_recursive_2_1_is_mul((m, n) in arb_multipliable_matrices()) {
+            let prod1 = m.fast_mul_sequential(&n);
+            let prod2 = m.fast_mul_concurrent_recursive::<2, 1>(&n);
+            prop_assert_eq!(prod1, prod2);
+        }
+
+        #[test]
+        fn test_fast_mul_concurrent_recursive_2_2_is_mul((m, n) in arb_multipliable_matrices()) {
+            let prod1 = m.fast_mul_sequential(&n);
+            let prod2 = m.fast_mul_concurrent_recursive::<2, 2>(&n);
+            prop_assert_eq!(prod1, prod2);
+        }
+
+        #[test]
+        fn test_fast_mul_concurrent_recursive_2_4_is_mul((m, n) in arb_multipliable_matrices()) {
+            let prod1 = m.fast_mul_sequential(&n);
+            let prod2 = m.fast_mul_concurrent_recursive::<2, 4>(&n);
+            prop_assert_eq!(prod1, prod2);
+        }
+
+        #[test]
+        fn test_fast_mul_concurrent_recursive_4_1_is_mul((m, n) in arb_multipliable_matrices()) {
+            let prod1 = m.fast_mul_sequential(&n);
+            let prod2 = m.fast_mul_concurrent_recursive::<4, 1>(&n);
+            prop_assert_eq!(prod1, prod2);
+        }
+
+        #[test]
+        fn test_fast_mul_concurrent_recursive_4_2_is_mul((m, n) in arb_multipliable_matrices()) {
+            let prod1 = m.fast_mul_sequential(&n);
+            let prod2 = m.fast_mul_concurrent_recursive::<4, 2>(&n);
+            prop_assert_eq!(prod1, prod2);
+        }
+
+        #[test]
+        fn test_fast_mul_concurrent_recursive_4_4_is_mul((m, n) in arb_multipliable_matrices()) {
+            let prod1 = m.fast_mul_sequential(&n);
+            let prod2 = m.fast_mul_concurrent_recursive::<4, 4>(&n);
             prop_assert_eq!(prod1, prod2);
         }
     }
