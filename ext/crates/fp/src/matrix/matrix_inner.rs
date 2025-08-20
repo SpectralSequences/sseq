@@ -974,14 +974,11 @@ impl Matrix {
     }
 
     pub fn trim(&mut self, row_start: usize, row_end: usize, col_start: usize) {
-        todo!()
-        // self.rows = row_end - row_start;
-        // self.data.truncate(row_end * self.stride);
-        // self.data.drain(0..row_start * self.stride);
-        // for mut row in self.iter_mut() {
-        //     row.shl_assign(col_start);
-        // }
-        // self.columns -= col_start;
+        let mut new = Matrix::new(self.prime(), row_end - row_start, self.columns - col_start);
+        for (i, mut row) in new.iter_mut().enumerate() {
+            row.assign(self.row(row_start + i).slice(col_start, self.columns));
+        }
+        std::mem::swap(self, &mut new);
     }
 
     /// Rotate the rows downwards in the range `range`.
