@@ -2560,13 +2560,12 @@ pub fn gemm_block_avx512_unrolled(
 //     }
 // }
 
+#[derive(Clone, Copy)]
 pub struct SimdBlock([x86_64::__m512i; 8]);
 
 impl SimdBlock {
     pub fn as_matrix_block(&self) -> MatrixBlock {
-        MatrixBlock {
-            limbs: unsafe { std::mem::transmute(self.0) },
-        }
+        unsafe { std::mem::transmute::<Self, MatrixBlock>(*self) }
     }
 }
 
