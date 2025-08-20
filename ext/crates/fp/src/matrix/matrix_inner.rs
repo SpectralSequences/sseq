@@ -974,7 +974,7 @@ impl Matrix {
     }
 
     pub fn trim(&mut self, row_start: usize, row_end: usize, col_start: usize) {
-        let mut new = Matrix::new(self.prime(), row_end - row_start, self.columns - col_start);
+        let mut new = Self::new(self.prime(), row_end - row_start, self.columns - col_start);
         for (i, mut row) in new.iter_mut().enumerate() {
             row.assign(self.row(row_start + i).slice(col_start, self.columns));
         }

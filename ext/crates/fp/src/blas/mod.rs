@@ -4,21 +4,7 @@
 //! approach, where matrices are divided into tiles, and each tile is further divided into blocks of
 //! 64x64 bits.
 //!
-//! - `gemm_block_avx512` => Highly optimized microkernel
-//! - `gemm_block` => Selects the appropriate implementation based on current architecture
-//! - ...
-//!
 //! This module is laid out as follows:
-//! - `block.rs`: Defines the `MatrixBlock` and `MatrixBlockView` types, which represent a block of
-//!   a matrix.
-//! - `tiling.rs`: Defines the `MatrixTile` and `MatrixTileView` types, which represent a tile of a
-//!   matrix.
-//! - `naive.rs`: Implements a naive matrix multiplication algorithm.
-//! - `scalar.rs`: Implements a scalar matrix multiplication algorithm.
-//! - `avx.rs`: Implements an AVX-based matrix multiplication algorithm.
-//! - `avx512.rs`: Implements an AVX-512-based matrix multiplication algorithm.
-//! - `multiplication.rs`: Implements the main matrix multiplication functions, including both
-//!   sequential and concurrent versions.
 
 use tile::{orders::*, LoopOrder};
 
@@ -40,11 +26,11 @@ impl std::ops::Mul for &Matrix {
 }
 
 impl Matrix {
-    pub fn naive_mul(&self, rhs: &Self) -> Matrix {
+    pub fn naive_mul(&self, rhs: &Self) -> Self {
         assert_eq!(self.prime(), rhs.prime());
         assert_eq!(self.columns(), rhs.rows());
 
-        let mut result = Matrix::new(self.prime(), self.rows(), rhs.columns());
+        let mut result = Self::new(self.prime(), self.rows(), rhs.columns());
         for i in 0..self.rows() {
             for j in 0..rhs.columns() {
                 for k in 0..self.columns() {
@@ -57,12 +43,12 @@ impl Matrix {
         result
     }
 
-    pub fn fast_mul_sequential(&self, other: &Self) -> Matrix {
+    pub fn fast_mul_sequential(&self, other: &Self) -> Self {
         // Benchmarking shows that `RIC` is the best loop order in general
         self.fast_mul_sequential_order::<RIC>(other)
     }
 
-    pub fn fast_mul_sequential_order<L: LoopOrder>(&self, other: &Self) -> Matrix {
+    pub fn fast_mul_sequential_order<L: LoopOrder>(&self, other: &Self) -> Self {
         assert_eq!(self.prime(), crate::prime::TWO);
         assert_eq!(self.prime(), other.prime());
         assert_eq!(self.columns(), other.rows());
@@ -72,7 +58,7 @@ impl Matrix {
         assert!(other.rows().is_multiple_of(64));
         assert!(other.columns().is_multiple_of(64));
 
-        let mut result = Matrix::new(self.prime(), self.rows(), other.columns());
+        let mut result = Self::new(self.prime(), self.rows(), other.columns());
         tile::gemm::<L>(
             true,
             self.as_tile(),
@@ -84,7 +70,7 @@ impl Matrix {
         result
     }
 
-    pub fn fast_mul_concurrent(&self, other: &Self) -> Matrix {
+    pub fn fast_mul_concurrent(&self, other: &Self) -> Self {
         // Benchmarking shows that, surprisingly enough, `1x16` is the best block size for many
         // large matrices
         self.fast_mul_concurrent_blocksize::<1, 16>(other)
@@ -93,7 +79,7 @@ impl Matrix {
     pub fn fast_mul_concurrent_blocksize<const M: usize, const N: usize>(
         &self,
         other: &Self,
-    ) -> Matrix {
+    ) -> Self {
         // Benchmarking shows that `RIC` is the best loop order in general
         self.fast_mul_concurrent_blocksize_order::<M, N, RIC>(other)
     }
@@ -101,7 +87,7 @@ impl Matrix {
     pub fn fast_mul_concurrent_blocksize_order<const M: usize, const N: usize, L: LoopOrder>(
         &self,
         other: &Self,
-    ) -> Matrix {
+    ) -> Self {
         assert_eq!(self.prime(), crate::prime::TWO);
         assert_eq!(self.prime(), other.prime());
         assert_eq!(self.columns(), other.rows());
@@ -111,7 +97,7 @@ impl Matrix {
         assert!(other.rows().is_multiple_of(64));
         assert!(other.columns().is_multiple_of(64));
 
-        let mut result = Matrix::new(self.prime(), self.rows(), other.columns());
+        let mut result = Self::new(self.prime(), self.rows(), other.columns());
         tile::gemm_concurrent::<M, N, L>(
             true,
             self.as_tile(),

@@ -2,7 +2,13 @@
 
 use super::{MatrixBlock, MatrixBlockSliceMut};
 
-pub fn gemm_block_avx(_alpha: bool, _a: MatrixBlock, _b: MatrixBlock, _beta: bool, _c: MatrixBlockSliceMut) {
+pub fn gemm_block_avx(
+    _alpha: bool,
+    _a: MatrixBlock,
+    _b: MatrixBlock,
+    _beta: bool,
+    _c: MatrixBlockSliceMut,
+) {
     todo!("Implement AVX GEMM block multiplication");
 
     // if !beta {
