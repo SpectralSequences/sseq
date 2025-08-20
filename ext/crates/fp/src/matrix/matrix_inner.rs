@@ -175,11 +175,11 @@ impl Matrix {
         self.stride
     }
 
-    pub(super) fn data(&self) -> &[Limb] {
+    pub(crate) fn data(&self) -> &[Limb] {
         &self.data
     }
 
-    pub(super) fn data_mut(&mut self) -> &mut [Limb] {
+    pub(crate) fn data_mut(&mut self) -> &mut [Limb] {
         &mut self.data
     }
 

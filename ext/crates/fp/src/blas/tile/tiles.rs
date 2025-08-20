@@ -1,21 +1,25 @@
-use std::marker::PhantomData;
-
-use super::block::{BlockView, Immutable, Mutability, Mutable};
+use super::block::{MatrixBlockSlice, MatrixBlockSliceMut};
 use crate::limb::Limb;
 
 #[derive(Debug, Clone, Copy)]
-pub struct TiledView<'a, M: Mutability> {
-    pub limbs: M::Pointer<Limb>,
-    pub dimensions: [usize; 2], // dimensions in blocks, not elements
+pub struct MatrixTileSlice<'a> {
+    pub limbs: *const Limb,
+    /// Dimensions of the tile in units of blocks of 64 x 64 bits.
+    pub dimensions: [usize; 2],
     pub stride: usize,
-    pub _marker: PhantomData<&'a ()>,
+    pub _marker: std::marker::PhantomData<&'a ()>,
 }
 
-// Type aliases for convenience
-pub type MatrixL2BlockSlice<'a> = TiledView<'a, Immutable>;
-pub type MatrixL2BlockSliceMut<'a> = TiledView<'a, Mutable>;
+#[derive(Debug, Clone, Copy)]
+pub struct MatrixTileSliceMut<'a> {
+    pub limbs: *mut Limb,
+    /// Dimensions of the tile in units of blocks of 64 x 64 bits.
+    pub dimensions: [usize; 2],
+    pub stride: usize,
+    pub _marker: std::marker::PhantomData<&'a ()>,
+}
 
-impl<'a, M: Mutability> TiledView<'a, M> {
+impl<'a> MatrixTileSlice<'a> {
     pub fn block_rows(&self) -> usize {
         self.dimensions[0]
     }
@@ -23,38 +27,33 @@ impl<'a, M: Mutability> TiledView<'a, M> {
     pub fn block_columns(&self) -> usize {
         self.dimensions[1]
     }
-}
 
-impl<'a> TiledView<'a, Immutable> {
-    pub fn block_at(&self, block_row: usize, block_col: usize) -> BlockView<'_, Immutable> {
+    pub fn block_at(&self, block_row: usize, block_col: usize) -> MatrixBlockSlice<'_> {
         let start_limb = 64 * block_row * self.stride + block_col;
         let stride = self.stride;
 
-        BlockView {
+        MatrixBlockSlice {
             limbs: unsafe { self.limbs.add(start_limb) },
             coords: [block_row, block_col],
             stride,
-            _marker: PhantomData,
+            _marker: std::marker::PhantomData,
         }
     }
 
-    pub fn split_rows_at(
-        &self,
-        block_rows: usize,
-    ) -> (TiledView<'_, Immutable>, TiledView<'_, Immutable>) {
+    pub fn split_rows_at(&self, block_rows: usize) -> (MatrixTileSlice<'_>, MatrixTileSlice<'_>) {
         let (first_rows, second_rows) = (block_rows, self.block_rows() - block_rows);
 
-        let first = TiledView {
+        let first = MatrixTileSlice {
             limbs: self.limbs,
             dimensions: [first_rows, self.dimensions[1]],
             stride: self.stride,
-            _marker: PhantomData,
+            _marker: std::marker::PhantomData,
         };
-        let second = TiledView {
+        let second = MatrixTileSlice {
             limbs: unsafe { self.limbs.add(64 * first_rows * self.stride) },
             dimensions: [second_rows, self.dimensions[1]],
             stride: self.stride,
-            _marker: PhantomData,
+            _marker: std::marker::PhantomData,
         };
         (first, second)
     }
@@ -62,55 +61,63 @@ impl<'a> TiledView<'a, Immutable> {
     pub fn split_columns_at(
         &self,
         block_columns: usize,
-    ) -> (TiledView<'_, Immutable>, TiledView<'_, Immutable>) {
+    ) -> (MatrixTileSlice<'_>, MatrixTileSlice<'_>) {
         let (first_cols, second_cols) = (block_columns, self.block_columns() - block_columns);
 
-        let first = TiledView {
+        let first = MatrixTileSlice {
             limbs: self.limbs,
             dimensions: [self.dimensions[0], first_cols],
             stride: self.stride,
-            _marker: PhantomData,
+            _marker: std::marker::PhantomData,
         };
-        let second = TiledView {
+        let second = MatrixTileSlice {
             limbs: unsafe { self.limbs.add(first_cols) },
             dimensions: [self.dimensions[0], second_cols],
             stride: self.stride,
-            _marker: PhantomData,
+            _marker: std::marker::PhantomData,
         };
         (first, second)
     }
 }
 
-impl<'a> TiledView<'a, Mutable> {
-    pub fn block_mut_at(&mut self, block_row: usize, block_col: usize) -> BlockView<'_, Mutable> {
+impl<'a> MatrixTileSliceMut<'a> {
+    pub fn block_rows(&self) -> usize {
+        self.dimensions[0]
+    }
+
+    pub fn block_columns(&self) -> usize {
+        self.dimensions[1]
+    }
+
+    pub fn block_mut_at(&mut self, block_row: usize, block_col: usize) -> MatrixBlockSliceMut<'_> {
         let start_limb = 64 * block_row * self.stride + block_col;
         let stride = self.stride;
 
-        BlockView {
+        MatrixBlockSliceMut {
             limbs: unsafe { self.limbs.add(start_limb) },
             coords: [block_row, block_col],
             stride,
-            _marker: PhantomData,
+            _marker: std::marker::PhantomData,
         }
     }
 
     pub fn split_rows_at_mut(
         &mut self,
         block_rows: usize,
-    ) -> (TiledView<'_, Mutable>, TiledView<'_, Mutable>) {
+    ) -> (MatrixTileSliceMut<'_>, MatrixTileSliceMut<'_>) {
         let (first_rows, second_rows) = (block_rows, self.block_rows() - block_rows);
 
-        let first = TiledView {
+        let first = MatrixTileSliceMut {
             limbs: self.limbs,
             dimensions: [first_rows, self.dimensions[1]],
             stride: self.stride,
-            _marker: PhantomData,
+            _marker: std::marker::PhantomData,
         };
-        let second = TiledView {
+        let second = MatrixTileSliceMut {
             limbs: unsafe { self.limbs.add(64 * first_rows * self.stride) },
             dimensions: [second_rows, self.dimensions[1]],
             stride: self.stride,
-            _marker: PhantomData,
+            _marker: std::marker::PhantomData,
         };
         (first, second)
     }
@@ -118,23 +125,26 @@ impl<'a> TiledView<'a, Mutable> {
     pub fn split_columns_at_mut(
         &mut self,
         block_columns: usize,
-    ) -> (TiledView<'_, Mutable>, TiledView<'_, Mutable>) {
+    ) -> (MatrixTileSliceMut<'_>, MatrixTileSliceMut<'_>) {
         let (first_cols, second_cols) = (block_columns, self.block_columns() - block_columns);
 
-        let first = TiledView {
+        let first = MatrixTileSliceMut {
             limbs: self.limbs,
             dimensions: [self.dimensions[0], first_cols],
             stride: self.stride,
-            _marker: PhantomData,
+            _marker: std::marker::PhantomData,
         };
-        let second = TiledView {
+        let second = MatrixTileSliceMut {
             limbs: unsafe { self.limbs.add(first_cols) },
             dimensions: [self.dimensions[0], second_cols],
             stride: self.stride,
-            _marker: PhantomData,
+            _marker: std::marker::PhantomData,
         };
         (first, second)
     }
 }
 
-unsafe impl<M: Mutability> Send for TiledView<'_, M> {}
+unsafe impl Send for MatrixTileSlice<'_> {}
+unsafe impl Sync for MatrixTileSlice<'_> {}
+
+unsafe impl Send for MatrixTileSliceMut<'_> {}

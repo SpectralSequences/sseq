@@ -1,9 +1,6 @@
 use aligned_vec::AVec;
 use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
-use fp::{
-    matrix::{blas::multiplication::orders::*, Matrix},
-    prime::TWO,
-};
+use fp::{blas::tile::orders::*, matrix::Matrix, prime::TWO};
 use pprof::criterion::{Output, PProfProfiler};
 use rand::Rng;
 

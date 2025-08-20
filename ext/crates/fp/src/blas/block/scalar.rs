@@ -1,7 +1,13 @@
-use super::{Block, MatrixBlockSlice, MatrixBlockSliceMut};
+use super::{MatrixBlock, MatrixBlockSlice, MatrixBlockSliceMut};
 use crate::limb::Limb;
 
-pub fn gemm_block_scalar(alpha: bool, a: Block, b: Block, beta: bool, mut c: MatrixBlockSliceMut) {
+pub fn gemm_block_scalar(
+    alpha: bool,
+    a: MatrixBlock,
+    b: MatrixBlock,
+    beta: bool,
+    mut c: MatrixBlockSliceMut,
+) {
     if !beta {
         setzero_block_scalar(&mut c);
     }
@@ -18,12 +24,12 @@ pub fn gemm_block_scalar(alpha: bool, a: Block, b: Block, beta: bool, mut c: Mat
     }
 }
 
-pub fn gather_block_scalar(a: MatrixBlockSlice) -> Block {
+pub fn gather_block_scalar(a: MatrixBlockSlice) -> MatrixBlock {
     let mut limbs = [0; 64];
     for (i, limb) in a.iter().enumerate() {
         limbs[i] = *limb;
     }
-    Block { limbs }
+    MatrixBlock { limbs }
 }
 
 pub fn setzero_block_scalar(c: &mut MatrixBlockSliceMut) {
