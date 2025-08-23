@@ -1,5 +1,3 @@
-#![deny(clippy::use_self)]
-
 use std::{collections::HashMap, fmt::Display, io};
 
 #[rustfmt::skip]

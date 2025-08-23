@@ -22,12 +22,14 @@ use algebra::{
     module::{Module, SuspensionModule},
     Algebra,
 };
-use chart::{Backend, Orientation, TikzBackend};
 use ext::{
     chain_complex::{FiniteChainComplex, FreeChainComplex},
     resolution::UnstableResolution,
 };
-use sseq::coordinates::Bidegree;
+use sseq::{
+    charting::{Backend, Orientation, TikzBackend},
+    coordinates::Bidegree,
+};
 
 fn main() -> anyhow::Result<()> {
     ext::utils::init_logging()?;
