@@ -187,7 +187,7 @@ where
     /// we simply retrieve the value (and remove it from the cache). Otherwise, we compute the
     /// kernel. This requires the differential to be computed at $(s, t - 1)$, but not $(s, t)$
     /// itself. Indeed, the new generators added to $(s, t)$ are by construction not in the kernel.
-    #[tracing::instrument(skip(self), fields(b = %b))]
+    #[tracing::instrument(skip(self), fields(%b))]
     fn get_kernel(&self, b: Bidegree) -> Subspace {
         if let Some((_, v)) = self.kernels.remove(&b) {
             return v;
@@ -320,7 +320,7 @@ where
     /// To run `step_resolution(s, t)`, we must have already had run `step_resolution(s, t - 1)`
     /// and `step_resolution(s - 1, t - 1)`. It is more efficient if we have in fact run
     /// `step_resolution(s - 1, t)`, so try your best to arrange calls to be run in this order.
-    #[tracing::instrument(skip(self), fields(b = %b, num_new_gens, density))]
+    #[tracing::instrument(skip(self), fields(%b, num_new_gens, density))]
     fn step_resolution(&self, b: Bidegree) {
         if b.s() == 0 {
             self.zero_module.extend_by_zero(b.t());
@@ -758,7 +758,7 @@ where
     }
 
     /// This function resolves up till a fixed stem instead of a fixed t.
-    #[tracing::instrument(skip(self), fields(self = %self.name, max = %max))]
+    #[tracing::instrument(skip(self), fields(self = self.name, %max))]
     pub fn compute_through_stem(&self, max: Bidegree) {
         self.compute_through_stem_with_callback(max, |_| ());
     }
@@ -868,7 +868,7 @@ where
         Arc::clone(&self.differentials[s as usize])
     }
 
-    #[tracing::instrument(skip(self), fields(self = %self.name, b = %b))]
+    #[tracing::instrument(skip(self), fields(self = self.name, %b))]
     fn compute_through_bidegree(&self, b: Bidegree) {
         self.compute_through_bidegree_with_callback(b, |_| ())
     }

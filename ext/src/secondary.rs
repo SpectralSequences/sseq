@@ -412,7 +412,7 @@ pub trait SecondaryLift: Sync + Sized {
         self.homotopies().range().into_maybe_par_iter().for_each(f);
     }
 
-    #[tracing::instrument(skip(self), ret(Display, level = Level::DEBUG), fields(gen = %gen))]
+    #[tracing::instrument(skip(self), ret(Display, level = Level::DEBUG), fields(%gen))]
     fn get_intermediate(&self, gen: BidegreeGenerator) -> FpVector {
         if let Some((_, v)) = self.intermediates().remove(&gen) {
             return v;
@@ -516,7 +516,7 @@ pub trait SecondaryLift: Sync + Sized {
             })
     }
 
-    #[tracing::instrument(skip(self), fields(b = %b))]
+    #[tracing::instrument(skip(self), fields(%b))]
     fn compute_homotopy_step(&self, b: Bidegree) -> std::ops::Range<i32> {
         let homotopy = &self.homotopies()[b.s()];
         if homotopy.homotopies.next_degree() > b.t() {

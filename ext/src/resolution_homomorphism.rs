@@ -116,7 +116,7 @@ where
     /// This assumes in yet-uncomputed bidegrees, the homology of the source consists only of
     /// decomposables (e.g. it is trivial). More precisely, we assume
     /// [`MuResolutionHomomorphism::extend_step_raw`] can be called with `extra_images = None`.
-    #[tracing::instrument(fields(self = self.name, max = %max))]
+    #[tracing::instrument(fields(self = self.name, %max))]
     pub fn extend(&self, max: Bidegree) {
         self.extend_profile(BidegreeRange::new(&(), max.s() + 1, &|_, _| max.t() + 1))
     }
@@ -127,7 +127,7 @@ where
     /// This assumes in yet-uncomputed bidegrees, the homology of the source consists only of
     /// decomposables (e.g. it is trivial). More precisely, we assume
     /// [`MuResolutionHomomorphism::extend_step_raw`] can be called with `extra_images = None`.
-    #[tracing::instrument(fields(self = self.name, max = %max))]
+    #[tracing::instrument(fields(self = self.name, %max))]
     pub fn extend_through_stem(&self, max: Bidegree) {
         self.extend_profile(BidegreeRange::new(&(), max.s() + 1, &|_, s| {
             max.n() + s + 1

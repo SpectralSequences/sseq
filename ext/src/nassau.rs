@@ -549,7 +549,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         Ok(())
     }
 
-    #[tracing::instrument(skip(self), fields(b = %b, subalgebra = %subalgebra, num_new_gens, density))]
+    #[tracing::instrument(skip(self), fields(%b, %subalgebra, num_new_gens, density))]
     fn step_resolution_with_subalgebra(
         &self,
         b: Bidegree,
@@ -886,7 +886,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
     }
 
     /// This function resolves up till a fixed stem instead of a fixed t.
-    #[tracing::instrument(skip(self), fields(self = self.name, max = %max))]
+    #[tracing::instrument(skip(self), fields(self = self.name, %max))]
     pub fn compute_through_stem(&self, max: Bidegree) {
         let _lock = self.lock.lock();
 
@@ -979,7 +979,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> ChainComplex for Resolution<M> {
         Arc::clone(&self.differentials[s])
     }
 
-    #[tracing::instrument(skip(self), fields(self = self.name, max = %max))]
+    #[tracing::instrument(skip(self), fields(self = self.name, %max))]
     fn compute_through_bidegree(&self, max: Bidegree) {
         let _lock = self.lock.lock();
 
