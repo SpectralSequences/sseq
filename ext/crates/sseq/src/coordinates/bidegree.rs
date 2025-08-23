@@ -5,18 +5,22 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 
-/// Type synonym for (s, t) bidegrees.
+/// A pair of integers representing a bidegree.
+///
+/// When used to index a resolution of a graded module, a bidegree's `s`, `t`, and `n` are the
+/// homological degree, internal degree, and stem, respectively. The three are related by the
+/// equation `n = t - s`.
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Bidegree {
+    /// Stem
+    n: i32,
     /// Homological degree
     s: i32,
-    /// Internal degree
-    t: i32,
 }
 
 impl Bidegree {
     pub const fn s_t(s: i32, t: i32) -> Self {
-        Self { s, t }
+        Self::n_s(t - s, s)
     }
 
     pub const fn t_s(t: i32, s: i32) -> Self {
@@ -24,11 +28,11 @@ impl Bidegree {
     }
 
     pub const fn n_s(n: i32, s: i32) -> Self {
-        Self::s_t(s, n + s)
+        Self { n, s }
     }
 
     pub const fn zero() -> Self {
-        Self { s: 0, t: 0 }
+        Self { n: 0, s: 0 }
     }
 
     pub fn s(&self) -> i32 {
@@ -36,11 +40,11 @@ impl Bidegree {
     }
 
     pub fn t(&self) -> i32 {
-        self.t
+        self.n + self.s
     }
 
     pub fn n(&self) -> i32 {
-        self.t - self.s
+        self.n
     }
 
     /// Returns difference as a bidegree if the difference in homological degrees is nonnegative,
@@ -76,8 +80,8 @@ impl Add for Bidegree {
 
     fn add(self, other: Self) -> Self {
         Self {
+            n: self.n + other.n,
             s: self.s + other.s,
-            t: self.t + other.t,
         }
     }
 }
@@ -87,8 +91,8 @@ impl Sub for Bidegree {
 
     fn sub(self, other: Self) -> Self {
         Self {
+            n: self.n - other.n,
             s: self.s - other.s,
-            t: self.t - other.t,
         }
     }
 }
