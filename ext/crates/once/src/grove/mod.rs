@@ -361,13 +361,54 @@ impl<T> Grove<T> {
     /// assert_eq!(values, vec![&10, &30]);
     /// ```
     pub fn iter(&self) -> impl Iterator<Item = &T> {
-        (0..self.len()).filter_map(move |i| self.get(i))
+        self.enumerate().map(move |(_, value)| value)
+    }
+
+    pub fn enumerate(&self) -> impl Iterator<Item = (usize, &T)> {
+        (0..self.len()).filter_map(move |i| self.get(i).map(|value| (i, value)))
     }
 }
 
 impl<T> Default for Grove<T> {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl<T: std::fmt::Debug> std::fmt::Debug for Grove<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut debug_map = f.debug_map();
+        for (i, val) in self.enumerate() {
+            debug_map.entry(&i, val);
+        }
+        debug_map.finish()
+    }
+}
+
+impl<T: Clone> Clone for Grove<T> {
+    fn clone(&self) -> Self {
+        let new_grove = Self::new();
+        for (i, value) in self.enumerate() {
+            new_grove.insert(i, value.clone());
+        }
+        new_grove
+    }
+}
+
+impl<T: PartialEq> PartialEq for Grove<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.enumerate().eq(other.enumerate())
+    }
+}
+
+impl<T: Eq> Eq for Grove<T> {}
+
+impl<T: std::hash::Hash> std::hash::Hash for Grove<T> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        for (i, value) in self.enumerate() {
+            i.hash(state);
+            value.hash(state);
+        }
     }
 }
 
@@ -592,6 +633,22 @@ impl<T> TwoEndedGrove<T> {
         self.min.load(Ordering::Acquire)..self.max.load(Ordering::Relaxed)
     }
 
+    pub fn iter(&self) -> impl Iterator<Item = &T> {
+        self.enumerate().map(move |(_, value)| value)
+    }
+
+    pub fn enumerate(&self) -> impl Iterator<Item = (i32, &T)> {
+        let non_negs = self
+            .non_neg
+            .enumerate()
+            .map(move |(idx, value)| (idx as i32, value));
+        let negs = self
+            .neg
+            .enumerate()
+            .map(move |(idx, value)| (-(idx as i32), value));
+        non_negs.chain(negs)
+    }
+
     /// Checks if a value exists at the specified index.
     ///
     /// # Parameters
@@ -673,6 +730,43 @@ impl<T> Default for TwoEndedGrove<T> {
     }
 }
 
+impl<T: std::fmt::Debug> std::fmt::Debug for TwoEndedGrove<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut debug_map = f.debug_map();
+        for (i, val) in self.enumerate() {
+            debug_map.entry(&i, val);
+        }
+        debug_map.finish()
+    }
+}
+
+impl<T: Clone> Clone for TwoEndedGrove<T> {
+    fn clone(&self) -> Self {
+        let new_grove = Self::new();
+        for (i, value) in self.enumerate() {
+            new_grove.insert(i, value.clone());
+        }
+        new_grove
+    }
+}
+
+impl<T: PartialEq> PartialEq for TwoEndedGrove<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.enumerate().eq(other.enumerate())
+    }
+}
+
+impl<T: Eq> Eq for TwoEndedGrove<T> {}
+
+impl<T: std::hash::Hash> std::hash::Hash for TwoEndedGrove<T> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        for (i, value) in self.enumerate() {
+            i.hash(state);
+            value.hash(state);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::{
@@ -712,6 +806,36 @@ mod tests {
         assert!(v.get(42).is_none());
         v.insert(42, 42);
         assert_eq!(v.get(42), Some(&42));
+    }
+
+    #[test]
+    fn test_grove_debug() {
+        let v = Grove::<i32>::new();
+        v.insert(0, 1);
+        v.insert(100, 2);
+        v.insert(1000, 3);
+
+        expect_test::expect![[r#"
+            {
+                0: 1,
+                100: 2,
+                1000: 3,
+            }
+        "#]]
+        .assert_debug_eq(&v);
+    }
+
+    #[test]
+    fn test_grove_clone() {
+        let v = Grove::<i32>::new();
+        v.insert(0, 1);
+        v.insert(100, 2);
+        v.insert(1000, 3);
+
+        let v2 = v.clone();
+
+        assert_ne!(&raw const v, &raw const v2);
+        assert_eq!(v, v2);
     }
 
     #[test]
