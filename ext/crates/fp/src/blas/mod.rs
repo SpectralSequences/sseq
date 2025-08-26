@@ -20,8 +20,12 @@ impl std::ops::Mul for &Matrix {
         assert_eq!(self.prime(), rhs.prime());
         assert_eq!(self.columns(), rhs.rows());
 
-        // TODO: Use different block sizes and loop orders based on the size of the matrices
-        self.fast_mul_concurrent(rhs)
+        if self.prime() == 2 {
+            // TODO: Use different block sizes and loop orders based on the size of the matrices
+            self.fast_mul_concurrent(rhs)
+        } else {
+            self.naive_mul(rhs)
+        }
     }
 }
 
@@ -49,14 +53,9 @@ impl Matrix {
     }
 
     pub fn fast_mul_sequential_order<L: LoopOrder>(&self, other: &Self) -> Self {
-        assert_eq!(self.prime(), crate::prime::TWO);
+        assert_eq!(self.prime(), 2);
         assert_eq!(self.prime(), other.prime());
         assert_eq!(self.columns(), other.rows());
-
-        assert!(self.rows().is_multiple_of(64));
-        assert!(self.columns().is_multiple_of(64));
-        assert!(other.rows().is_multiple_of(64));
-        assert!(other.columns().is_multiple_of(64));
 
         let mut result = Self::new(self.prime(), self.rows(), other.columns());
         tile::gemm::<L>(
@@ -88,14 +87,9 @@ impl Matrix {
         &self,
         other: &Self,
     ) -> Self {
-        assert_eq!(self.prime(), crate::prime::TWO);
+        assert_eq!(self.prime(), 2);
         assert_eq!(self.prime(), other.prime());
         assert_eq!(self.columns(), other.rows());
-
-        assert!(self.rows().is_multiple_of(64));
-        assert!(self.columns().is_multiple_of(64));
-        assert!(other.rows().is_multiple_of(64));
-        assert!(other.columns().is_multiple_of(64));
 
         let mut result = Self::new(self.prime(), self.rows(), other.columns());
         tile::gemm_concurrent::<M, N, L>(
@@ -117,18 +111,29 @@ mod tests {
     use super::*;
     use crate::{matrix::arbitrary::MatrixArbParams, prime::TWO};
 
-    fn arb_multipliable_matrices() -> impl Strategy<Value = (Matrix, Matrix)> {
-        prop_oneof![Just(64), Just(128), Just(256)].prop_flat_map(|size| {
+    const DIMS: [usize; 12] = [1, 17, 63, 64, 65, 128, 129, 192, 193, 256, 320, 449];
+
+    fn arb_multipliable_matrices(max: Option<usize>) -> impl Strategy<Value = (Matrix, Matrix)> {
+        let arb_dim = if let Some(max) = max {
+            let max_idx = DIMS
+                .iter()
+                .position(|&size| size > max)
+                .unwrap_or(DIMS.len());
+            proptest::sample::select(&DIMS[0..max_idx])
+        } else {
+            proptest::sample::select(&DIMS)
+        };
+        arb_dim.clone().prop_flat_map(move |size| {
             (
                 Matrix::arbitrary_with(MatrixArbParams {
                     p: Some(TWO),
-                    rows: prop_oneof![Just(64), Just(128), Just(256)].boxed(),
+                    rows: arb_dim.clone().boxed(),
                     columns: Just(size).boxed(),
                 }),
                 Matrix::arbitrary_with(MatrixArbParams {
                     p: Some(TWO),
                     rows: Just(size).boxed(),
-                    columns: prop_oneof![Just(64), Just(128), Just(256)].boxed(),
+                    columns: arb_dim.clone().boxed(),
                 }),
             )
         })
@@ -159,7 +164,7 @@ mod tests {
                     #[test]
                     fn [<test_fast_mul_concurrent_ $m _ $n _ $loop_order:lower _ is_mul>]((
                         m, n
-                    ) in arb_multipliable_matrices()) {
+                    ) in arb_multipliable_matrices(None)) {
                         let prod1 = m.fast_mul_sequential(&n);
                         let prod2 = m.fast_mul_concurrent_blocksize_order::<$m, $n, $loop_order>(&n);
                         prop_assert_eq!(prod1, prod2);
@@ -173,7 +178,7 @@ mod tests {
 
     proptest! {
         #[test]
-        fn test_fast_mul_sequential_is_mul((m, n) in arb_multipliable_matrices()) {
+        fn test_fast_mul_sequential_is_mul((m, n) in arb_multipliable_matrices(Some(64))) {
             let prod1 = m.naive_mul(&n);
             let prod2 = m.fast_mul_sequential(&n);
             prop_assert_eq!(prod1, prod2);

@@ -22,6 +22,7 @@ use crate::{
 pub struct Matrix {
     fp: Fp<ValidPrime>,
     rows: usize,
+    physical_rows: usize,
     columns: usize,
     data: AVec<Limb>,
     stride: usize,
@@ -43,7 +44,8 @@ impl Matrix {
     /// Produces a new matrix over F_p with the specified number of rows and columns, initialized
     /// to the 0 matrix.
     pub fn new(p: ValidPrime, rows: usize, columns: usize) -> Self {
-        Self::new_with_capacity(p, rows, columns, rows, columns)
+        let physical_rows = get_physical_rows(p, rows);
+        Self::new_with_capacity(p, rows, columns, physical_rows, columns)
     }
 
     pub fn new_with_capacity(
@@ -55,12 +57,14 @@ impl Matrix {
     ) -> Self {
         let fp = Fp::new(p);
         let stride = fp.number(columns_capacity);
-        let mut data = AVec::with_capacity(0, rows_capacity * stride);
-        data.resize(rows * stride, 0);
+        let physical_rows = get_physical_rows(p, rows_capacity);
+        let mut data = AVec::with_capacity(0, physical_rows * stride);
+        data.resize(physical_rows * stride, 0);
 
         Self {
             fp,
             rows,
+            physical_rows,
             columns,
             data,
             stride,
@@ -68,14 +72,17 @@ impl Matrix {
         }
     }
 
-    pub fn from_data(p: ValidPrime, rows: usize, columns: usize, data: AVec<Limb>) -> Self {
+    pub fn from_data(p: ValidPrime, rows: usize, columns: usize, mut data: Vec<Limb>) -> Self {
         let fp = Fp::new(p);
         let stride = fp.number(columns);
+        let physical_rows = get_physical_rows(p, rows);
+        data.resize(physical_rows * stride, 0);
         Self {
             fp,
             rows,
+            physical_rows,
             columns,
-            data,
+            data: AVec::from_iter(0, data),
             stride,
             pivots: Vec::new(),
         }
@@ -95,7 +102,8 @@ impl Matrix {
     ) -> io::Result<Self> {
         let fp = Fp::new(p);
         let stride = fp.number(columns);
-        let mut data: AVec<Limb> = aligned_vec::avec![0; stride * rows];
+        let physical_rows = get_physical_rows(p, rows);
+        let mut data: AVec<Limb> = aligned_vec::avec![0; stride * physical_rows];
         for row_idx in 0..rows {
             let limb_range = row_to_limb_range(row_idx, stride);
             crate::limb::from_bytes(&mut data[limb_range], buffer)?;
@@ -103,6 +111,7 @@ impl Matrix {
         Ok(Self {
             fp: Fp::new(p),
             rows,
+            physical_rows,
             columns,
             data,
             stride,
@@ -166,6 +175,11 @@ impl Matrix {
         self.rows
     }
 
+    /// Gets the physical number of rows allocated (for BLAS operations).
+    pub(crate) fn physical_rows(&self) -> usize {
+        self.physical_rows
+    }
+
     /// Gets the number of columns in the matrix.
     pub fn columns(&self) -> usize {
         self.columns
@@ -203,13 +217,17 @@ impl Matrix {
         let fp = Fp::new(p);
         let rows = input.len();
         let stride = fp.number(columns);
-        let mut data = AVec::with_capacity(0, rows * stride);
+        let physical_rows = get_physical_rows(p, rows);
+        let mut data = AVec::with_capacity(0, physical_rows * stride);
         for row in &input {
             data.extend_from_slice(row.limbs());
         }
+        // Pad with zeros for prime 2
+        data.resize(physical_rows * stride, 0);
         Self {
             fp,
             rows,
+            physical_rows,
             columns,
             data,
             stride,
@@ -242,15 +260,19 @@ impl Matrix {
         }
         let columns = input[0].len();
         let stride = fp.number(columns);
-        let mut data = AVec::with_capacity(0, rows * stride);
+        let physical_rows = get_physical_rows(p, rows);
+        let mut data = AVec::with_capacity(0, physical_rows * stride);
         for row in input {
             for chunk in row.chunks(fp.entries_per_limb()) {
                 data.push(fp.pack(chunk.iter().map(|x| fp.element(*x))));
             }
         }
+        // Pad with zeros for prime 2
+        data.resize(physical_rows * stride, 0);
         Self {
             fp,
             rows,
+            physical_rows,
             columns,
             data,
             stride,
@@ -350,12 +372,13 @@ impl Matrix {
 
 impl Matrix {
     pub fn iter(&self) -> impl Iterator<Item = FpSlice<'_>> {
-        (0..self.rows).map(move |row_idx| self.row(row_idx))
+        (0..self.rows()).map(move |row_idx| self.row(row_idx))
     }
 
     pub fn iter_mut(&mut self) -> impl Iterator<Item = FpSliceMut<'_>> {
         let p = self.prime();
         let columns = self.columns;
+        let logical_rows = self.rows;
 
         // This is written weird because we need to handle the case where stride is 0 as a special
         // case. This is because `chunks_mut` panics if the argument is 0.
@@ -364,6 +387,7 @@ impl Matrix {
             s => Some(
                 self.data
                     .chunks_mut(s)
+                    .take(logical_rows) // Only iterate over logical rows
                     .map(move |row| FpSliceMut::new(p, row, 0, columns)),
             ),
         }
@@ -376,8 +400,10 @@ impl Matrix {
     ) -> impl MaybeIndexedParallelIterator<Item = FpSliceMut<'_>> {
         let p = self.prime();
         let columns = self.columns;
+        let logical_rows = self.rows;
         self.data
             .maybe_par_chunks_mut(self.stride)
+            .take(logical_rows) // Only iterate over logical rows
             .map(move |row| FpSliceMut::new(p, row, 0, columns))
     }
 }
@@ -829,9 +855,9 @@ impl Matrix {
     pub fn extend_column_capacity(&mut self, columns: usize) {
         let new_stride = self.fp.number(columns);
         if new_stride > self.stride {
-            self.data.resize(new_stride * self.rows, 0);
+            self.data.resize(new_stride * self.physical_rows, 0);
             // Shift row data backwards, starting from the end to avoid overwriting data.
-            for row_idx in (0..self.rows).rev() {
+            for row_idx in (0..self.physical_rows).rev() {
                 let old_row_start = row_idx * self.stride;
                 let new_row_start = row_idx * new_stride;
                 let new_row_zero_part =
@@ -854,7 +880,12 @@ impl Matrix {
 
     /// Add a row to the matrix and return a mutable reference to it.
     pub fn add_row(&mut self) -> FpSliceMut<'_> {
-        self.data.resize((self.rows + 1) * self.stride, 0);
+        // Check if we need to expand physical capacity
+        if self.rows + 1 > self.physical_rows {
+            let new_physical_rows = get_physical_rows(self.prime(), self.rows + 1);
+            self.data.resize(new_physical_rows * self.stride, 0);
+            self.physical_rows = new_physical_rows;
+        }
         self.rows += 1;
         self.row_mut(self.rows - 1)
     }
@@ -1130,6 +1161,14 @@ fn row_to_limb_range(row: usize, stride: usize) -> Range<usize> {
 
 fn row_range_to_limb_range(row_range: &Range<usize>, stride: usize) -> Range<usize> {
     row_range.start * stride..row_range.end * stride
+}
+
+fn get_physical_rows(p: ValidPrime, rows: usize) -> usize {
+    if p == 2 {
+        rows.next_multiple_of(64)
+    } else {
+        rows
+    }
 }
 
 /// This models an augmented matrix.

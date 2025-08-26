@@ -1,9 +1,19 @@
+use super::avx512::scatter_block_avx512;
 use crate::limb::Limb;
 
 #[repr(align(128))]
 #[derive(Debug, Clone, Copy)]
 pub struct MatrixBlock {
     pub limbs: [Limb; 64],
+}
+impl MatrixBlock {
+    pub fn zero() -> MatrixBlock {
+        Self { limbs: [0; 64] }
+    }
+
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Limb> {
+        self.limbs.iter_mut()
+    }
 }
 
 pub struct MatrixBlockSlice<'a> {
@@ -61,6 +71,13 @@ impl<'a> MatrixBlockSliceMut<'a> {
             stride: self.stride,
             _marker: std::marker::PhantomData,
         }
+    }
+
+    pub fn assign(&mut self, block: MatrixBlock) {
+        self.iter_mut()
+            .zip(block.limbs.iter())
+            .for_each(|(dst, &src)| *dst = src);
+        // scatter_block_avx512(self, block.as_simd_block());
     }
 }
 

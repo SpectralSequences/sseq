@@ -6,14 +6,14 @@ pub fn gemm_block_scalar(
     a: MatrixBlock,
     b: MatrixBlock,
     beta: bool,
-    mut c: MatrixBlockSliceMut,
-) {
+    mut c: MatrixBlock,
+) -> MatrixBlock {
     if !beta {
-        setzero_block_scalar(&mut c);
+        c = MatrixBlock::zero();
     }
 
     if !alpha {
-        return;
+        return c;
     }
 
     for (result_limb, a_limb) in c.iter_mut().zip(a.limbs.iter()) {
@@ -22,6 +22,8 @@ pub fn gemm_block_scalar(
             *result_limb ^= *b_limb * (a_bit as Limb);
         }
     }
+
+    c
 }
 
 pub fn gather_block_scalar(a: MatrixBlockSlice) -> MatrixBlock {

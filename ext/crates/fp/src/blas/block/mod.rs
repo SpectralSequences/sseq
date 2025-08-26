@@ -6,23 +6,28 @@ pub mod blocks;
 
 pub use blocks::{MatrixBlock, MatrixBlockSlice, MatrixBlockSliceMut};
 
-pub fn gemm_block(alpha: bool, a: MatrixBlock, b: MatrixBlock, beta: bool, c: MatrixBlockSliceMut) {
+pub fn gemm_block(
+    alpha: bool,
+    a: MatrixBlock,
+    b: MatrixBlock,
+    beta: bool,
+    c: MatrixBlock,
+) -> MatrixBlock {
     // Call the appropriate BLAS implementation based on the target architecture.
     #[cfg(not(target_arch = "x86_64"))]
     {
         // Fallback to scalar implementation if not on x86_64.
         // TODO: Implement NEON gemm for ARM.
-        scalar::gemm_block_scalar(alpha, a, b, beta, c);
-        return;
+        return scalar::gemm_block_scalar(alpha, a, b, beta, c);
     }
 
     if is_x86_feature_detected!("avx512f") {
-        avx512::gemm_block_avx512_unrolled(alpha, a, b, beta, c);
+        avx512::gemm_block_avx512(alpha, a, b, beta, c)
     // } else if is_x86_feature_detected!("avx") {
     //     avx::gemm_block_avx(alpha, a, b, beta, c);
     } else {
         // Fallback to scalar implementation if no SIMD support is detected.
-        scalar::gemm_block_scalar(alpha, a, b, beta, c);
+        scalar::gemm_block_scalar(alpha, a, b, beta, c)
     }
 }
 
@@ -63,14 +68,14 @@ mod tests {
                 a.as_tile().block_at(0, 0).gather(),
                 b.as_tile().block_at(0, 0).gather(),
                 beta,
-                c.as_tile_mut().block_mut_at(0, 0)
+                c.as_tile_mut().block_mut_at(0, 0).as_slice().gather(),
             );
-            avx512::gemm_block_avx512_unrolled(
+            avx512::gemm_block_avx512(
                 alpha,
                 a.as_tile().block_at(0, 0).gather(),
                 b.as_tile().block_at(0, 0).gather(),
                 beta,
-                c2.as_tile_mut().block_mut_at(0, 0)
+                c2.as_tile_mut().block_mut_at(0, 0).as_slice().gather(),
             );
             prop_assert_eq!(c, c2);
         }

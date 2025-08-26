@@ -6,25 +6,19 @@ use crate::matrix::Matrix;
 pub mod tiles;
 
 impl Matrix {
-    pub(crate) fn as_tile(&self) -> MatrixTileSlice<'_> {
-        assert!(self.rows().is_multiple_of(64));
-        assert!(self.columns().is_multiple_of(64));
-
+    pub fn as_tile(&self) -> MatrixTileSlice<'_> {
         MatrixTileSlice {
             limbs: self.data().as_ptr(),
-            dimensions: [self.rows() / 64, self.columns() / 64],
+            dimensions: [self.physical_rows() / 64, self.columns().div_ceil(64)],
             stride: self.stride(),
             _marker: std::marker::PhantomData,
         }
     }
 
-    pub(crate) fn as_tile_mut(&mut self) -> MatrixTileSliceMut<'_> {
-        assert!(self.rows().is_multiple_of(64));
-        assert!(self.columns().is_multiple_of(64));
-
+    pub fn as_tile_mut(&mut self) -> MatrixTileSliceMut<'_> {
         MatrixTileSliceMut {
             limbs: self.data_mut().as_mut_ptr(),
-            dimensions: [self.rows() / 64, self.columns() / 64],
+            dimensions: [self.physical_rows() / 64, self.columns().div_ceil(64)],
             stride: self.stride(),
             _marker: std::marker::PhantomData,
         }
@@ -93,12 +87,13 @@ impl LoopOrder for RCI {
     ) {
         for i in 0..a.block_rows() {
             for j in 0..b.block_columns() {
-                let mut c_block = c.block_mut_at(i, j);
+                let mut c_block = c.block_mut_at(i, j).as_slice().gather();
                 for k in 0..b.block_rows() {
                     let a_block = a.block_at(i, k).gather();
                     let b_block = b.block_at(k, j).gather();
-                    block::gemm_block(alpha, a_block, b_block, beta, c_block.copy());
+                    c_block = block::gemm_block(alpha, a_block, b_block, beta, c_block);
                 }
+                c.block_mut_at(i, j).assign(c_block);
             }
         }
     }
@@ -114,12 +109,13 @@ impl LoopOrder for CRI {
     ) {
         for j in 0..b.block_columns() {
             for i in 0..a.block_rows() {
-                let mut c_block = c.block_mut_at(i, j);
+                let mut c_block = c.block_mut_at(i, j).as_slice().gather();
                 for k in 0..b.block_rows() {
                     let a_block = a.block_at(i, k).gather();
                     let b_block = b.block_at(k, j).gather();
-                    block::gemm_block(alpha, a_block, b_block, beta, c_block.copy());
+                    c_block = block::gemm_block(alpha, a_block, b_block, beta, c_block);
                 }
+                c.block_mut_at(i, j).assign(c_block);
             }
         }
     }
@@ -138,8 +134,9 @@ impl LoopOrder for ICR {
                 let b_block = b.block_at(k, j).gather();
                 for i in 0..a.block_rows() {
                     let a_block = a.block_at(i, k).gather();
-                    let c_block = c.block_mut_at(i, j);
-                    block::gemm_block(alpha, a_block, b_block, beta, c_block);
+                    let c_block = c.block_mut_at(i, j).as_slice().gather();
+                    let new_c_block = block::gemm_block(alpha, a_block, b_block, beta, c_block);
+                    c.block_mut_at(i, j).assign(new_c_block);
                 }
             }
         }
@@ -159,8 +156,9 @@ impl LoopOrder for RIC {
                 let a_block = a.block_at(i, k).gather();
                 for j in 0..b.block_columns() {
                     let b_block = b.block_at(k, j).gather();
-                    let c_block = c.block_mut_at(i, j);
-                    block::gemm_block(alpha, a_block, b_block, beta, c_block);
+                    let c_block = c.block_mut_at(i, j).as_slice().gather();
+                    let new_c_block = block::gemm_block(alpha, a_block, b_block, beta, c_block);
+                    c.block_mut_at(i, j).assign(new_c_block);
                 }
             }
         }
@@ -180,8 +178,9 @@ impl LoopOrder for IRC {
                 let a_block = a.block_at(i, k).gather();
                 for j in 0..b.block_columns() {
                     let b_block = b.block_at(k, j).gather();
-                    let c_block = c.block_mut_at(i, j);
-                    block::gemm_block(alpha, a_block, b_block, beta, c_block);
+                    let c_block = c.block_mut_at(i, j).as_slice().gather();
+                    let new_c_block = block::gemm_block(alpha, a_block, b_block, beta, c_block);
+                    c.block_mut_at(i, j).assign(new_c_block);
                 }
             }
         }
@@ -201,8 +200,9 @@ impl LoopOrder for CIR {
                 let b_block = b.block_at(k, j).gather();
                 for i in 0..a.block_rows() {
                     let a_block = a.block_at(i, k).gather();
-                    let c_block = c.block_mut_at(i, j);
-                    block::gemm_block(alpha, a_block, b_block, beta, c_block);
+                    let c_block = c.block_mut_at(i, j).as_slice().gather();
+                    let new_c_block = block::gemm_block(alpha, a_block, b_block, beta, c_block);
+                    c.block_mut_at(i, j).assign(new_c_block);
                 }
             }
         }
