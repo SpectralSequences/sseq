@@ -41,7 +41,7 @@ impl AdemAlgebraT for AdemAlgebra {
 ///
 /// To encode an element
 /// $$
-///     \beta^{\varepsilon_0} P^{i_0}\
+///     \beta^{\varepsilon_0} P^{i_0}
 ///     \beta^{\varepsilon_1} P^{i_1}
 ///     \cdots
 ///     \beta^{\varepsilon_n} P^{i_n}
@@ -52,7 +52,6 @@ impl AdemAlgebraT for AdemAlgebra {
 /// \mathtt{ps}         &= [i_0, i_1, \ldots, i_n] \\\\
 /// \mathtt{bocksteins} &= 000\cdots0\varepsilon_{n+1} \varepsilon_n \cdots \varepsilon_0
 /// \end{aligned} $$
-// #[derive(RustcDecodable, RustcEncodable)]
 #[derive(Debug, Clone)]
 pub struct AdemBasisElement {
     /// The degree of the element.
