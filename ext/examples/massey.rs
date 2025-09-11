@@ -104,11 +104,11 @@ fn main() -> anyhow::Result<()> {
             homotopy.extend(tot);
 
             let last = homotopy.homotopy(tot.s());
-            for i in 0..target_num_gens {
+            for (i, answer) in answers[idx].iter_mut().enumerate() {
                 let output = last.output(tot.t(), i);
                 for (k, &v) in a_class.iter().enumerate() {
                     if v != 0 {
-                        answers[idx][i] += v * output.entry(offset_a + k);
+                        *answer += v * output.entry(offset_a + k);
                     }
                 }
             }
@@ -130,6 +130,7 @@ fn main() -> anyhow::Result<()> {
                 c_string = c_element.to_basis_string()
             );
 
+            #[allow(clippy::needless_range_loop)]
             for i in 0..target_num_gens {
                 let mut entry = 0;
                 for (j, v) in row.iter().enumerate() {

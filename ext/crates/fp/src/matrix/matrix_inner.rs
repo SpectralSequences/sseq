@@ -239,9 +239,9 @@ impl Matrix {
         let padded_cols = FpVector::padded_len(p, cols);
         let mut m = Self::new(p, rows, padded_cols + rows);
 
-        for i in 0..rows {
-            for j in 0..cols {
-                m[i].set_entry(j, input[i][j]);
+        for (i, row) in input.iter().enumerate() {
+            for (j, entry) in row.iter().enumerate() {
+                m[i].set_entry(j, *entry);
             }
         }
         m.slice_mut(0, rows, padded_cols, padded_cols + rows)
