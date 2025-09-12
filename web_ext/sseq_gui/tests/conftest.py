@@ -32,7 +32,14 @@ class DriverWrapper:
                 "browser.helperApps.neverAsk.saveToDisk", "text/plain"
             )
 
+            # Essential options for CI stability
+            if self.headless:
+                options.add_argument("--no-sandbox")
+                options.add_argument("--disable-dev-shm-usage")
+
             service = FirefoxService(GeckoDriverManager().install())
+            # Add log directory for debugging
+            service.log_path = "/tmp/geckodriver.log"
             self.driver = webdriver.Firefox(service=service, options=options)
         elif config.getoption("driver") == "chrome":
             options = webdriver.ChromeOptions()
@@ -40,6 +47,12 @@ class DriverWrapper:
             options.add_experimental_option(
                 "prefs", {"download.default_directory": str(tempdir)}
             )
+
+            # Essential options for CI stability
+            if self.headless:
+                options.add_argument("--no-sandbox")
+                options.add_argument("--disable-dev-shm-usage")
+                options.add_argument("--disable-gpu")
 
             service = ChromeService(ChromeDriverManager().install())
             self.driver = webdriver.Chrome(service=service, options=options)

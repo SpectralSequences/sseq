@@ -232,19 +232,19 @@ jobs:
       - name: Test wasm
         run: |
           make serve-wasm &
-          (sleep 1 && xvfb-run -a make selenium)
+          (sleep 1 && xvfb-run -a -s "-screen 0 1280x720x24" make selenium)
 
       - name: Test local
         run: |
           cargo build &&
           (target/debug/sseq_gui &
-          (sleep 1 && xvfb-run -a make selenium))
+          (sleep 1 && xvfb-run -a -s "-screen 0 1280x720x24" make selenium))
 
       - name: Test local concurrent
         run: |
           cargo build --features concurrent &&
           (target/debug/sseq_gui &
-          (sleep 1 && xvfb-run -a make selenium))
+          (sleep 1 && xvfb-run -a -s "-screen 0 1280x720x24" make selenium))
 
       - name: Upload Artifact
         if: ${{ failure() }}
