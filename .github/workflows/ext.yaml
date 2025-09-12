@@ -217,7 +217,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install --no-install-recommends python3-pytest python3-selenium python3-pip
-          sudo apt-get install chromium-browser firefox
+          sudo apt-get install chromium-browser firefox xvfb
           pip install webdriver-manager
 
       - name: Cache files
@@ -232,19 +232,19 @@ jobs:
       - name: Test wasm
         run: |
           make serve-wasm &
-          (sleep 1 && make selenium)
+          (sleep 1 && xvfb-run -a make selenium)
 
       - name: Test local
         run: |
           cargo build &&
           (target/debug/sseq_gui &
-          (sleep 1 && make selenium))
+          (sleep 1 && xvfb-run -a make selenium))
 
       - name: Test local concurrent
         run: |
           cargo build --features concurrent &&
           (target/debug/sseq_gui &
-          (sleep 1 && make selenium))
+          (sleep 1 && xvfb-run -a make selenium))
 
       - name: Upload Artifact
         if: ${{ failure() }}
