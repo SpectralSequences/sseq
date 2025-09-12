@@ -217,7 +217,12 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install --no-install-recommends python3-pytest python3-selenium python3-pip
-          sudo apt-get install chromium-browser firefox xvfb
+          sudo apt-get install chromium-browser xvfb
+          # Install Firefox from Mozilla (not snap) to avoid marionette issues
+          wget -O- "https://download.mozilla.org/?product=firefox-latest&os=linux64&lang=en-US" | sudo tar -Jx -C /opt/
+          sudo ln -sf /opt/firefox/firefox /usr/bin/firefox
+          # Create necessary directories for Firefox
+          mkdir -p $HOME/.mozilla $HOME/.cache
           pip install webdriver-manager
 
       - name: Cache files
