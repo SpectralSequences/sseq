@@ -1164,9 +1164,13 @@ fn row_range_to_limb_range(row_range: &Range<usize>, stride: usize) -> Range<usi
 }
 
 fn get_physical_rows(p: ValidPrime, rows: usize) -> usize {
-    if p == 2 {
+    if p == 2 && rows >= 32 {
+        // For 32+ rows, pad to next multiple of 64 for BLAS optimization
+        // This bounds the memory overhead to at most 2x (for 32 rows → 64 rows)
         rows.next_multiple_of(64)
     } else {
+        // For < 32 rows, don't pad (would waste too much memory)
+        // These small matrices will use scalar multiplication
         rows
     }
 }

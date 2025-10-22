@@ -38,10 +38,14 @@ impl std::ops::Mul for &Matrix {
         assert_eq!(self.prime(), rhs.prime());
         assert_eq!(self.columns(), rhs.rows());
 
-        if self.prime() == 2 {
+        if self.prime() == 2 && self.physical_rows() % 64 == 0 && rhs.physical_rows() % 64 == 0 {
+            // Can use optimized BLAS operations (matrix rows are padded to multiple of 64)
             // TODO: Use different block sizes and loop orders based on the size of the matrices
             self.fast_mul_concurrent(rhs)
         } else {
+            // Use naive multiplication for:
+            // - Matrices over fields other than F_2
+            // - Thin matrices (< 32 rows) that aren't padded
             self.naive_mul(rhs)
         }
     }
@@ -129,18 +133,15 @@ mod tests {
     use super::*;
     use crate::{matrix::arbitrary::MatrixArbParams, prime::TWO};
 
-    const DIMS: [usize; 12] = [1, 17, 63, 64, 65, 128, 129, 192, 193, 256, 320, 449];
+    // We need at least 32 rows, otherwise the matrices are not padded
+    const DIMS: [usize; 11] = [32, 63, 64, 65, 128, 129, 192, 193, 256, 320, 449];
 
     fn arb_multipliable_matrices(max: Option<usize>) -> impl Strategy<Value = (Matrix, Matrix)> {
-        let arb_dim = if let Some(max) = max {
-            let max_idx = DIMS
-                .iter()
-                .position(|&size| size > max)
-                .unwrap_or(DIMS.len());
-            proptest::sample::select(&DIMS[0..max_idx])
-        } else {
-            proptest::sample::select(&DIMS)
-        };
+        let max_idx = max
+            .map(|max| DIMS.iter().position(|&size| size > max))
+            .flatten()
+            .unwrap_or(DIMS.len());
+        let arb_dim = proptest::sample::select(&DIMS[0..max_idx]);
         arb_dim.clone().prop_flat_map(move |size| {
             (
                 Matrix::arbitrary_with(MatrixArbParams {
