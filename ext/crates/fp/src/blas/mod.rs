@@ -1,10 +1,28 @@
-//! BLAS-like operations for matrices.
+//! BLAS-like operations for F_2 matrices.
 //!
-//! We mostly just focus on general matrix multiplication (`gemm`) for now. We use a block-based
-//! approach, where matrices are divided into tiles, and each tile is further divided into blocks of
-//! 64x64 bits.
+//! This module provides highly optimized matrix multiplication kernels using a hierarchical tiling
+//! approach:
 //!
-//! This module is laid out as follows:
+//! # Architecture
+//!
+//! - **Tiles**: Matrices are divided into tiles, where each tile contains multiple 64 x 64 bit
+//!   blocks
+//! - **Blocks**: The fundamental unit of computation (64 x 64 bits = 64 rows  x  64 columns of
+//!   bits)
+//! - **SIMD kernels**: Block-level operations use AVX-512 or scalar fallbacks
+//!
+//! # Performance Strategy
+//!
+//! 1. **Loop ordering**: Six different loop orderings (CIR, CRI, ICR, IRC, RCI, RIC) to optimize
+//!    cache locality depending on matrix dimensions
+//! 2. **Parallelization**: Recursive divide-and-conquer using rayon for large matrices
+//! 3. **Vectorization**: AVX-512 intrinsics for significant speedup on supported CPUs
+//!
+//! # Implementation Notes
+//!
+//! - Only `prime = 2` is optimized; other primes fall back to naive multiplication
+//! - The optimal loop order and tile size depend on matrix dimensions (see benchmarks)
+//! - Default configuration uses RIC ordering with 1 x 16 tiles for best average performance
 
 use tile::{orders::*, LoopOrder};
 
@@ -177,6 +195,7 @@ mod tests {
     test_fast_mul!();
 
     proptest! {
+        // We limit to small-ish matrices because `naive_mul` is SLOW
         #[test]
         fn test_fast_mul_sequential_is_mul((m, n) in arb_multipliable_matrices(Some(64))) {
             let prod1 = m.naive_mul(&n);

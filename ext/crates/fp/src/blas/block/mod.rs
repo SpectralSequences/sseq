@@ -1,4 +1,3 @@
-pub mod avx;
 pub mod avx512;
 pub mod scalar;
 
@@ -6,6 +5,23 @@ pub mod blocks;
 
 pub use blocks::{MatrixBlock, MatrixBlockSlice, MatrixBlockSliceMut};
 
+/// Performs block-level GEMM: `C = alpha * A * B + beta * C` for 64 x 64 bit blocks.
+///
+/// # Arguments
+///
+/// * `alpha` - If `false`, the `A * B` term is skipped (for F_2, this is the only scaling)
+/// * `a` - Left input block (64 x 64 bits)
+/// * `b` - Right input block (64 x 64 bits)
+/// * `beta` - If `false`, C is zeroed before accumulation
+/// * `c` - Accumulator block (64 x 64 bits)
+///
+/// Returns the block `C`.
+///
+/// # Implementation Selection
+///
+/// - **x86_64 with AVX-512**: Uses optimized assembly kernel
+/// - **Other platforms**: Falls back to scalar implementation
+#[inline]
 pub fn gemm_block(
     alpha: bool,
     a: MatrixBlock,
@@ -21,10 +37,9 @@ pub fn gemm_block(
         return scalar::gemm_block_scalar(alpha, a, b, beta, c);
     }
 
+    #[cfg(target_arch = "x86_64")]
     if is_x86_feature_detected!("avx512f") {
         avx512::gemm_block_avx512(alpha, a, b, beta, c)
-    // } else if is_x86_feature_detected!("avx") {
-    //     avx::gemm_block_avx(alpha, a, b, beta, c);
     } else {
         // Fallback to scalar implementation if no SIMD support is detected.
         scalar::gemm_block_scalar(alpha, a, b, beta, c)

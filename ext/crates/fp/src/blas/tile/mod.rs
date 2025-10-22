@@ -25,18 +25,35 @@ impl Matrix {
     }
 }
 
-// Zero-cost loop ordering types
+// Zero-cost loop ordering marker types
+/// Row-Column-Inner loop order: `for i { for j { for k { ... } } }`
 pub struct RCI;
+/// Column-Row-Inner loop order: `for j { for i { for k { ... } } }`
 pub struct CRI;
+/// Inner-Column-Row loop order: `for k { for j { for i { ... } } }`
 pub struct ICR;
+/// Row-Inner-Column loop order: `for i { for k { for j { ... } } }`
 pub struct RIC;
+/// Inner-Row-Column loop order: `for k { for i { for j { ... } } }`
 pub struct IRC;
+/// Column-Inner-Row loop order: `for j { for k { for i { ... } } }`
 pub struct CIR;
 
+/// Re-exports of loop ordering types for convenience.
 pub mod orders {
     pub use super::{CIR, CRI, ICR, IRC, RCI, RIC};
 }
 
+/// Performs tile-level GEMM with a specified loop ordering.
+///
+/// This is the sequential (non-parallel) version. For large matrices, use [`gemm_concurrent`]
+/// instead.
+///
+/// # Loop Ordering
+///
+/// The choice of loop order affects cache locality and performance. Benchmarking suggests RIC is
+/// optimal for most cases, but this depends on matrix dimensions.
+#[inline]
 pub fn gemm<L: LoopOrder>(
     alpha: bool,
     a: MatrixTileSlice,
@@ -47,6 +64,22 @@ pub fn gemm<L: LoopOrder>(
     L::gemm(alpha, a, b, beta, c);
 }
 
+/// Performs tile-level GEMM with recursive parallelization.
+///
+/// The matrix is recursively split along rows (if rows > M blocks) or columns (if cols > N blocks)
+/// until tiles are small enough, then all tiles are processed in parallel using rayon.
+///
+/// # Type Parameters
+///
+/// * `M` - Minimum block rows before parallelization stops
+/// * `N` - Minimum block columns before parallelization stops
+/// * `L` - Loop ordering strategy (see [`LoopOrder`])
+///
+/// # Performance
+///
+/// For best performance, choose M and N based on your matrix sizes. The defaults used in the
+/// codebase are M=1, N=16, which work well for many workloads.
+#[inline]
 pub fn gemm_concurrent<const M: usize, const N: usize, L: LoopOrder>(
     alpha: bool,
     a: MatrixTileSlice,
@@ -73,7 +106,13 @@ pub fn gemm_concurrent<const M: usize, const N: usize, L: LoopOrder>(
     }
 }
 
+/// Trait for zero-cost loop ordering strategies.
+///
+/// Different loop orders have different cache access patterns, which can significantly impact
+/// performance. All six permutations are provided: RCI, CRI, ICR, RIC, IRC, CIR (where R=row,
+/// C=column, I=inner).
 pub trait LoopOrder {
+    /// Performs GEMM with this loop ordering strategy.
     fn gemm(alpha: bool, a: MatrixTileSlice, b: MatrixTileSlice, beta: bool, c: MatrixTileSliceMut);
 }
 
