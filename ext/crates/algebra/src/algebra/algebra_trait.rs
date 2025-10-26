@@ -1,3 +1,4 @@
+use enum_dispatch::enum_dispatch;
 #[cfg(doc)]
 use fp::vector::FpVector;
 use fp::{
@@ -19,6 +20,7 @@ use itertools::Itertools;
 /// this function before performing other operations at that degree.
 ///
 /// Algebras may have a distinguished set of generators; see [`GeneratedAlgebra`].
+#[enum_dispatch]
 pub trait Algebra: std::fmt::Display + Send + Sync + 'static {
     /// A name for the algebra to use in serialization operations. This defaults to "" for algebras
     /// that don't care about this problem.
@@ -189,6 +191,7 @@ pub trait Algebra: std::fmt::Display + Send + Sync + 'static {
     }
 }
 
+#[enum_dispatch]
 pub trait UnstableAlgebra: Algebra {
     fn dimension_unstable(&self, degree: i32, excess: i32) -> usize;
 
@@ -476,6 +479,7 @@ impl<A: UnstableAlgebra> MuAlgebra<true> for A {
 /// An [`Algebra`] equipped with a distinguished presentation.
 ///
 /// These data can be used to specify finite modules as the actions of the distinguished generators.
+#[enum_dispatch]
 pub trait GeneratedAlgebra: Algebra {
     /// Return generators in `degree`.
     ///
@@ -527,65 +531,4 @@ pub trait GeneratedAlgebra: Algebra {
     /// where $c_i$ are coefficients and $\alpha_i$ and $\beta_i$ are basis elements of
     /// arbitrary degree.
     fn generating_relations(&self, degree: i32) -> Vec<Vec<(u32, (i32, usize), (i32, usize))>>;
-}
-
-#[macro_export]
-macro_rules! dispatch_algebra {
-    ($struct:ty, $dispatch_macro:ident) => {
-        impl Algebra for $struct {
-            $dispatch_macro! {
-                fn prefix(&self) -> &str;
-                fn magic(&self) -> u32;
-                fn prime(&self) -> ValidPrime;
-                fn compute_basis(&self, degree: i32);
-                fn dimension(&self, degree: i32) -> usize;
-                fn multiply_basis_elements(
-                    &self,
-                    result: FpSliceMut,
-                    coeff: u32,
-                    r_degree: i32,
-                    r_idx: usize,
-                    s_degree: i32,
-                    s_idx: usize,
-                );
-
-                fn multiply_basis_element_by_element(
-                    &self,
-                    result: FpSliceMut,
-                    coeff: u32,
-                    r_degree: i32,
-                    r_idx: usize,
-                    s_degree: i32,
-                    s: FpSlice,
-                );
-
-                fn multiply_element_by_basis_element(
-                    &self,
-                    result: FpSliceMut,
-                    coeff: u32,
-                    r_degree: i32,
-                    r: FpSlice,
-                    s_degree: i32,
-                    s_idx: usize,
-                );
-
-                fn multiply_element_by_element(
-                    &self,
-                    result: FpSliceMut,
-                    coeff: u32,
-                    r_degree: i32,
-                    r: FpSlice,
-                    s_degree: i32,
-                    s: FpSlice,
-                );
-
-                fn default_filtration_one_products(&self) -> Vec<(String, i32, usize)>;
-
-                fn basis_element_to_string(&self, degree: i32, idx: usize) -> String;
-                fn basis_element_from_string(&self, elt: &str) -> Option<(i32, usize)>;
-
-                fn element_to_string(&self, degree: i32, element: FpSlice) -> String;
-            }
-        }
-    };
 }
