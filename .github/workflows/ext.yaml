@@ -214,7 +214,16 @@ jobs:
           toolchain: ${{ matrix.toolchain }}
 
       - name: Install dependencies
-        run: sudo apt-get install --no-install-recommends python3-pytest python3-selenium
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends python3-pytest python3-selenium python3-pip
+          sudo apt-get install chromium-browser xvfb
+          # Install Firefox from Mozilla (not snap) to avoid marionette issues
+          wget -O- "https://download.mozilla.org/?product=firefox-latest&os=linux64&lang=en-US" | sudo tar -Jx -C /opt/
+          sudo ln -sf /opt/firefox/firefox /usr/bin/firefox
+          # Create necessary directories for Firefox
+          mkdir -p $HOME/.mozilla $HOME/.cache
+          pip install webdriver-manager
 
       - name: Cache files
         uses: actions/cache@v4
@@ -228,19 +237,19 @@ jobs:
       - name: Test wasm
         run: |
           make serve-wasm &
-          (sleep 1 && make selenium)
+          (sleep 1 && xvfb-run -a -s "-screen 0 1280x720x24" make selenium)
 
       - name: Test local
         run: |
           cargo build &&
           (target/debug/sseq_gui &
-          (sleep 1 && make selenium))
+          (sleep 1 && xvfb-run -a -s "-screen 0 1280x720x24" make selenium))
 
       - name: Test local concurrent
         run: |
           cargo build --features concurrent &&
           (target/debug/sseq_gui &
-          (sleep 1 && make selenium))
+          (sleep 1 && xvfb-run -a -s "-screen 0 1280x720x24" make selenium))
 
       - name: Upload Artifact
         if: ${{ failure() }}

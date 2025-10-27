@@ -8,6 +8,10 @@ from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.service import Service as ChromeService
+from selenium.webdriver.firefox.service import Service as FirefoxService
+from webdriver_manager.chrome import ChromeDriverManager
+from webdriver_manager.firefox import GeckoDriverManager
 
 PATH: str = "http://localhost:8080"
 SVGNS: str = "http://www.w3.org/2000/svg"
@@ -28,7 +32,15 @@ class DriverWrapper:
                 "browser.helperApps.neverAsk.saveToDisk", "text/plain"
             )
 
-            self.driver = webdriver.Firefox(options=options)
+            # Essential options for CI stability
+            if self.headless:
+                options.add_argument("--no-sandbox")
+                options.add_argument("--disable-dev-shm-usage")
+
+            service = FirefoxService(GeckoDriverManager().install())
+            # Add log directory for debugging
+            service.log_path = "/tmp/geckodriver.log"
+            self.driver = webdriver.Firefox(service=service, options=options)
         elif config.getoption("driver") == "chrome":
             options = webdriver.ChromeOptions()
             options.headless = self.headless
@@ -36,7 +48,14 @@ class DriverWrapper:
                 "prefs", {"download.default_directory": str(tempdir)}
             )
 
-            self.driver = webdriver.Chrome(options=options)
+            # Essential options for CI stability
+            if self.headless:
+                options.add_argument("--no-sandbox")
+                options.add_argument("--disable-dev-shm-usage")
+                options.add_argument("--disable-gpu")
+
+            service = ChromeService(ChromeDriverManager().install())
+            self.driver = webdriver.Chrome(service=service, options=options)
 
         self.driver.set_window_size(1280, 720)
 
@@ -45,7 +64,7 @@ class DriverWrapper:
         # not have been sent out yet when we call wait_complete. Sleep for a
         # very small amount of time to ensure these callbacks have been
         # handled.
-        time.sleep(0.01)
+        time.sleep(0.1)
         WebDriverWait(self.driver, timeout).until(
             lambda driver: driver.execute_script(
                 "return window.display !== undefined && window.display.runningSign.style.display == 'none'"
