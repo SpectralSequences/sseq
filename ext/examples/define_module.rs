@@ -220,18 +220,21 @@ pub fn interactive_module_define_fpmodule(
             }
 
             // Check that the generators exist and the terms all have the same degree
-            let mut deg = None;
-            for (gen, (op_deg, _)) in result.iter() {
-                let cur_deg = op_deg
-                    + degree_lookup
+            let degrees = result
+                .iter()
+                .map(|(gen, (op_deg, _))| {
+                    degree_lookup
                         .get(gen)
-                        .ok_or_else(|| anyhow!("Unknown generator: {gen}"))?;
-                if deg.is_none() {
-                    deg = Some(cur_deg);
-                } else if deg != Some(cur_deg) {
+                        .map(|d| d + op_deg)
+                        .ok_or_else(|| anyhow!("Unknown generator: {gen}"))
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            for window in degrees.windows(2) {
+                if window[0] != window[1] {
                     return Err(anyhow!(
-                        "Relation terms have different degrees: {} and {cur_deg}",
-                        deg.unwrap()
+                        "Relation terms have different degrees: {} and {}",
+                        window[0],
+                        window[1],
                     ));
                 }
             }
