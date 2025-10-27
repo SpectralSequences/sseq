@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["kdtrie","node"],"struct":["KdTrie","MultiIndexed"]};
