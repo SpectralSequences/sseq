@@ -147,9 +147,7 @@ pub trait ModuleHomomorphism: Send + Sync {
         matrix
             .maybe_par_iter_mut()
             .enumerate()
-            .for_each(|(i, row)| {
-                self.apply_to_basis_element(row.as_slice_mut(), 1, degree, inputs[i])
-            });
+            .for_each(|(i, row)| self.apply_to_basis_element(row, 1, degree, inputs[i]));
 
         matrix
     }
