@@ -1,10 +1,10 @@
 use super::{MatrixBlock, MatrixBlockSlice, MatrixBlockSliceMut};
 use crate::limb::Limb;
 
-/// Scalar (non-SIMD) implementation of 64 x 64 block GEMM over F₂. TODO fix
+/// Scalar (non-SIMD) implementation of 64 x 64 block GEMM over F_2.
 ///
-/// Computes `C = alpha * A * B + beta * C` where all arithmetic is in F₂ (XOR for addition, AND for
-/// multiplication).
+/// Computes `C = alpha * A * B + beta * C` where all arithmetic is in F_2 (XOR for addition, AND
+/// for multiplication).
 ///
 /// # Algorithm
 ///
