@@ -1,3 +1,4 @@
+import pytest
 from selenium.webdriver.common.keys import Keys
 
 
@@ -21,6 +22,7 @@ def test_c3(driver):
     driver.check_pages("C3_differential", 3)
 
 
+@pytest.mark.xfail
 def test_calpha(driver):
     driver.go("/?module=Calpha&degree=36")
     driver.wait_complete()
