@@ -36,7 +36,7 @@ struct SenderData {
     /// around the mpsc, so that when all senders are dropped, we know the computation has
     /// completed. Compared to keeping track of calculations manually, this has the advantage of
     /// behaving correctly when a thread panicking.
-    sender: mpsc::Sender<SenderData>,
+    sender: mpsc::Sender<Self>,
 }
 
 impl SenderData {

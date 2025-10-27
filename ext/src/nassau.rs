@@ -47,7 +47,7 @@ use crate::{
 /// See [`resolution::SenderData`](../resolution/struct.SenderData.html). This differs by not having the `new` field.
 struct SenderData {
     b: Bidegree,
-    sender: mpsc::Sender<SenderData>,
+    sender: mpsc::Sender<Self>,
 }
 
 impl SenderData {

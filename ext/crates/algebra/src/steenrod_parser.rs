@@ -29,8 +29,8 @@ pub enum AlgebraBasisElt {
 
 #[derive(Debug, Clone)]
 pub enum AlgebraNode {
-    Product(Box<AlgebraNode>, Box<AlgebraNode>),
-    Sum(Box<AlgebraNode>, Box<AlgebraNode>),
+    Product(Box<Self>, Box<Self>),
+    Sum(Box<Self>, Box<Self>),
     BasisElt(AlgebraBasisElt),
     Scalar(i32),
 }

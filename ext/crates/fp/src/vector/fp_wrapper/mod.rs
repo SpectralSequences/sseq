@@ -31,12 +31,14 @@ mod helpers;
 #[macro_use]
 mod macros_generic;
 #[cfg(feature = "odd-primes")]
+#[allow(unused_imports)] // Nightly regression
 use macros_generic::{dispatch_struct, dispatch_vector, impl_try_into, use_primes};
 
 #[cfg(not(feature = "odd-primes"))]
 #[macro_use]
 mod macros_2;
 #[cfg(not(feature = "odd-primes"))]
+#[allow(unused_imports)] // Nightly regression
 use macros_2::{dispatch_struct, dispatch_vector, impl_try_into, use_primes};
 
 use_primes!();
