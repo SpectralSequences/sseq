@@ -292,6 +292,7 @@ impl Matrix {
             .into_iter()
             .map(|row| {
                 row.flat_map(|&limb| self.fp.unpack(limb).map(|x| x.val()))
+                    .take(self.columns())
                     .collect()
             })
             .collect()

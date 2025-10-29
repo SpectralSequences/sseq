@@ -35,7 +35,7 @@ rstest = "0.26.0"
 build_const = "0.2.2"
 
 [features]
-default = ["odd-primes", "concurrent"]
+default = ["odd-primes"]
 concurrent = ["maybe-rayon/concurrent"]
 odd-primes = []
 

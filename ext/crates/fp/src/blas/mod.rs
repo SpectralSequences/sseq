@@ -38,7 +38,10 @@ impl std::ops::Mul for &Matrix {
         assert_eq!(self.prime(), rhs.prime());
         assert_eq!(self.columns(), rhs.rows());
 
-        if self.prime() == 2 && self.physical_rows() % 64 == 0 && rhs.physical_rows() % 64 == 0 {
+        if self.prime() == 2
+            && self.physical_rows().is_multiple_of(64)
+            && rhs.physical_rows().is_multiple_of(64)
+        {
             // Can use optimized BLAS operations (matrix rows are padded to multiple of 64)
             // TODO: Use different block sizes and loop orders based on the size of the matrices
             self.fast_mul_concurrent(rhs)
@@ -138,8 +141,7 @@ mod tests {
 
     fn arb_multipliable_matrices(max: Option<usize>) -> impl Strategy<Value = (Matrix, Matrix)> {
         let max_idx = max
-            .map(|max| DIMS.iter().position(|&size| size > max))
-            .flatten()
+            .and_then(|max| DIMS.iter().position(|&size| size > max))
             .unwrap_or(DIMS.len());
         let arb_dim = proptest::sample::select(&DIMS[0..max_idx]);
         arb_dim.clone().prop_flat_map(move |size| {

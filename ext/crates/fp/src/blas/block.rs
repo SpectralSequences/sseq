@@ -5,22 +5,40 @@ use crate::limb::Limb;
 /// Each limb represents one row of 64 bits. The 128-byte alignment ensures efficient SIMD
 /// operations and cache line alignment.
 #[repr(align(128))]
-#[derive(Debug, Clone, Copy)]
-pub struct MatrixBlock {
-    pub limbs: [Limb; 64],
-}
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MatrixBlock([Limb; 64]);
 
 impl MatrixBlock {
+    #[inline]
+    pub fn new(limbs: [Limb; 64]) -> Self {
+        Self(limbs)
+    }
+
     /// Creates a zero-initialized block.
     #[inline]
     pub fn zero() -> Self {
-        Self { limbs: [0; 64] }
+        Self([0; 64])
+    }
+
+    #[inline]
+    pub fn iter(&self) -> impl Iterator<Item = &Limb> {
+        self.0.iter()
     }
 
     /// Returns a mutable iterator over the limbs (rows) of this block.
     #[inline]
     pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Limb> {
-        self.limbs.iter_mut()
+        self.0.iter_mut()
+    }
+
+    #[cfg_attr(not(target_feature = "avx512f"), allow(dead_code))]
+    pub(crate) fn limbs_ptr(&self) -> *const Limb {
+        self.0.as_ptr()
+    }
+
+    #[cfg_attr(not(target_feature = "avx512f"), allow(dead_code))]
+    pub(crate) fn limbs_mut_ptr(&mut self) -> *mut Limb {
+        self.0.as_mut_ptr()
     }
 }
 
@@ -73,11 +91,8 @@ impl<'a> MatrixBlockSlice<'a> {
     /// expects contiguous data.
     #[inline]
     pub fn gather(self) -> MatrixBlock {
-        if is_x86_feature_detected!("avx512f") {
-            super::avx512::gather_block_avx512(self).as_matrix_block()
-        } else {
-            super::scalar::gather_block_scalar(self)
-        }
+        // Delegate to SIMD specializations
+        crate::simd::gather_block_simd(self)
     }
 }
 
@@ -137,7 +152,7 @@ impl<'a> MatrixBlockSliceMut<'a> {
     #[inline]
     pub fn assign(&mut self, block: MatrixBlock) {
         self.iter_mut()
-            .zip(block.limbs.iter())
+            .zip(block.iter())
             .for_each(|(dst, &src)| *dst = src);
     }
 }
@@ -146,3 +161,44 @@ unsafe impl<'a> Send for MatrixBlockSlice<'a> {}
 unsafe impl<'a> Send for MatrixBlockSliceMut<'a> {}
 
 unsafe impl<'a> Sync for MatrixBlockSlice<'a> {}
+
+/// Performs block-level GEMM: `C = alpha * A * B + beta * C` for 64 x 64 bit blocks.
+///
+/// # Arguments
+///
+/// * `alpha` - If `false`, the `A * B` term is skipped (for F_2, this is the only scaling)
+/// * `a` - Left input block (64 x 64 bits)
+/// * `b` - Right input block (64 x 64 bits)
+/// * `beta` - If `false`, C is zeroed before accumulation
+/// * `c` - Accumulator block (64 x 64 bits)
+///
+/// For efficiency reasons, we mutate `C` in-place.
+///
+/// # Implementation Selection
+///
+/// - **x86_64 with AVX-512**: Uses optimized assembly kernel
+/// - **Other platforms**: Falls back to scalar implementation
+#[inline]
+pub fn gemm_block(alpha: bool, a: MatrixBlock, b: MatrixBlock, beta: bool, c: &mut MatrixBlock) {
+    // Delegate to SIMD specializations
+    crate::simd::gemm_block_simd(alpha, a, b, beta, c)
+}
+
+#[cfg(feature = "proptest")]
+mod arbitrary {
+
+    use proptest::prelude::*;
+
+    use super::*;
+
+    impl Arbitrary for MatrixBlock {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            proptest::array::uniform(any::<Limb>())
+                .prop_map(Self)
+                .boxed()
+        }
+    }
+}
