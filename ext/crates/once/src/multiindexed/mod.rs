@@ -150,6 +150,42 @@ impl<const K: usize, V> MultiIndexed<K, V> {
         self.0.get(&coords)
     }
 
+    /// Retrieves a mutable reference to the value at the specified coordinates, if it exists.
+    ///
+    /// This method can only be called if we have an exclusive reference to self. Having an
+    /// exclusive reference prevents concurrent access, so the atomic synchronization used by `get`
+    /// is unnecessary. This makes it safe to return a mutable reference to the stored value.
+    ///
+    /// # Parameters
+    ///
+    /// * `coords`: An array of K integer coordinates
+    ///
+    /// # Returns
+    ///
+    /// * `Some(&mut V)` if a value exists at the specified coordinates
+    /// * `None` if no value exists at the specified coordinates
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use once::MultiIndexed;
+    ///
+    /// let mut array = MultiIndexed::<3, Vec<i32>>::new();
+    /// array.insert([1, 2, 3], vec![1, 2, 3]);
+    /// array.insert([4, 5, 6], vec![4, 5, 6]);
+    ///
+    /// // Modify the vectors in place
+    /// if let Some(vec) = array.get_mut([1, 2, 3]) {
+    ///     vec.push(4);
+    ///     vec.push(5);
+    /// }
+    ///
+    /// assert_eq!(array.get([1, 2, 3]), Some(&vec![1, 2, 3, 4, 5]));
+    /// ```
+    pub fn get_mut(&mut self, coords: [i32; K]) -> Option<&mut V> {
+        self.0.get_mut(&coords)
+    }
+
     /// Inserts a value at the specified coordinates.
     ///
     /// This operation is thread-safe and can be called from multiple threads. However, this method
@@ -325,6 +361,34 @@ mod tests {
         assert_eq!(arr.get([1, 3, 4]), Some(&45));
     }
 
+    #[test]
+    fn test_get_mut_basic() {
+        let mut arr = MultiIndexed::<3, i32>::new();
+
+        arr.insert([1, 2, 3], 42);
+        arr.insert([4, 5, 6], 100);
+        arr.insert([-1, -2, -3], 200);
+
+        // Modify values using get_mut
+        if let Some(value) = arr.get_mut([1, 2, 3]) {
+            *value = 1000;
+        }
+        if let Some(value) = arr.get_mut([4, 5, 6]) {
+            *value += 50;
+        }
+        if let Some(value) = arr.get_mut([-1, -2, -3]) {
+            *value *= 2;
+        }
+
+        // Verify the modifications
+        assert_eq!(arr.get([1, 2, 3]), Some(&1000));
+        assert_eq!(arr.get([4, 5, 6]), Some(&150));
+        assert_eq!(arr.get([-1, -2, -3]), Some(&400));
+
+        // Verify that get_mut returns None for non-existent coordinates
+        assert_eq!(arr.get_mut([0, 0, 0]), None);
+    }
+
     // This is a bit too heavy for miri
     #[cfg_attr(not(miri), test)]
     fn test_large() {
@@ -481,21 +545,24 @@ mod tests {
         enum Operation<const K: usize> {
             Insert([i32; K], i32),
             Get([i32; K]),
+            GetMut([i32; K]),
+            Modify([i32; K], i32), // Add this value to the existing value (requires get_mut)
         }
 
-        fn insert_strategy<const K: usize>(max: u32) -> impl Strategy<Value = Operation<K>> {
-            coords_strategy::<K>(max).prop_flat_map(move |coords| {
-                any::<i32>().prop_map(move |value| Operation::Insert(coords, value))
-            })
-        }
-
-        fn get_strategy<const K: usize>(max: u32) -> impl Strategy<Value = Operation<K>> {
-            coords_strategy::<K>(max).prop_map(Operation::Get)
-        }
-
-        // Generate a strategy for a single operation (insert or get)
+        // Generate a strategy for a single operation (insert, get, get_mut, or modify)
         fn operation_strategy<const K: usize>(max: u32) -> impl Strategy<Value = Operation<K>> {
-            prop_oneof![insert_strategy(max), get_strategy(max)]
+            coords_strategy::<K>(max).prop_flat_map(move |coords| {
+                prop_oneof![
+                    any::<i32>()
+                        .prop_map(move |value| Operation::Insert(coords, value))
+                        .boxed(),
+                    Just(Operation::Get(coords)).boxed(),
+                    Just(Operation::GetMut(coords)).boxed(),
+                    any::<i32>()
+                        .prop_map(move |delta| Operation::Modify(coords, delta))
+                        .boxed(),
+                ]
+            })
         }
 
         // Generate a strategy for vectors of i32 coordinates
@@ -515,7 +582,7 @@ mod tests {
         }
 
         fn proptest_multiindexed_ops_kd<const K: usize>(ops: Vec<Operation<K>>) {
-            let arr = MultiIndexed::<K, i32>::new();
+            let mut arr = MultiIndexed::<K, i32>::new();
             let mut reference = HashMap::new();
 
             for op in ops {
@@ -538,7 +605,30 @@ mod tests {
                         let expected = reference.get(&coords);
                         assert_eq!(actual, expected);
                     }
+                    Operation::GetMut(coords) => {
+                        // Check that get_mut returns the same as our reference HashMap
+                        let actual = arr.get_mut(coords).map(|v| &*v);
+                        let expected = reference.get(&coords);
+                        assert_eq!(actual, expected);
+                    }
+                    Operation::Modify(coords, delta) => {
+                        // Try to modify the value using get_mut
+                        if let Some(value) = arr.get_mut(coords) {
+                            *value = value.wrapping_add(delta);
+                        }
+                        // Also modify in reference
+                        if let Some(value) = reference.get_mut(&coords) {
+                            *value = value.wrapping_add(delta);
+                        }
+                        // Verify they match
+                        assert_eq!(arr.get(coords), reference.get(&coords));
+                    }
                 }
+            }
+
+            // Final verification: all values should match
+            for (coords, expected_value) in &reference {
+                assert_eq!(arr.get(*coords), Some(expected_value));
             }
         }
 
