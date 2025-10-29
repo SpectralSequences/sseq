@@ -1,18 +1,9 @@
-use criterion::{criterion_group, criterion_main, BatchSize, BenchmarkGroup, Criterion};
-use fp::{
-    blas::{
-        block::{self, MatrixBlock},
-        tile::orders::*,
-    },
-    matrix::Matrix,
-    prime::TWO,
-};
+use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
+use fp::{blas::tile::orders::*, matrix::Matrix, prime::TWO};
 use pprof::criterion::{Output, PProfProfiler};
 use rand::Rng;
 
 fn muls(c: &mut Criterion) {
-    bench_gemm_block(c);
-
     for m in [64, 128, 256, 512, 1024] {
         for k in [64, 128, 256, 512, 1024] {
             for n in [64, 128, 256, 512, 1024] {
@@ -23,48 +14,6 @@ fn muls(c: &mut Criterion) {
     bench_mkn(2048, 2048, 2048, c);
     bench_mkn(4096, 4096, 4096, c);
     bench_mkn(8192, 8192, 8192, c);
-}
-
-fn bench_gemm_block(c: &mut Criterion) {
-    let mut g = c.benchmark_group("gemm_block");
-    bench_individual_gemm(
-        &mut g,
-        "gemm_block_scalar",
-        block::scalar::gemm_block_scalar,
-    );
-    bench_individual_gemm(
-        &mut g,
-        "gemm_block_avx512_unrolled",
-        block::avx512::gemm_block_avx512,
-    );
-    g.finish();
-}
-
-fn bench_individual_gemm(
-    g: &mut BenchmarkGroup<'_, criterion::measurement::WallTime>,
-    name: &str,
-    gemm_fn: fn(bool, MatrixBlock, MatrixBlock, bool, MatrixBlock) -> MatrixBlock,
-) {
-    g.bench_function(name, |b| {
-        b.iter_batched(
-            || {
-                let (a, b, mut c) = (
-                    random_matrix(64, 64),
-                    random_matrix(64, 64),
-                    random_matrix(64, 64),
-                );
-                (
-                    a.as_tile().block_at(0, 0).gather(),
-                    b.as_tile().block_at(0, 0).gather(),
-                    c.as_tile_mut().block_mut_at(0, 0).as_slice().gather(),
-                )
-            },
-            |(a, b, c)| {
-                gemm_fn(true, a, b, true, c);
-            },
-            BatchSize::SmallInput,
-        );
-    });
 }
 
 fn bench_mkn(m: usize, k: usize, n: usize, c: &mut Criterion) {
@@ -696,11 +645,11 @@ fn random_matrix_pair(rows: usize, inner: usize, cols: usize) -> (Matrix, Matrix
 }
 
 fn random_matrix(rows: usize, cols: usize) -> Matrix {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let mut data = Vec::new();
-    let data_len = rows * (cols + 63) / 64;
+    let data_len = rows * cols.next_multiple_of(64);
     for _ in 0..data_len {
-        data.push(rng.gen());
+        data.push(rng.random());
     }
     Matrix::from_data(TWO, rows, cols, data)
 }
