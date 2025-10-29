@@ -10,7 +10,16 @@ use crate::{
     prime::{Prime, ValidPrime},
 };
 
-impl<F: Field> FqSliceMut<'_, F> {
+impl<'a, F: Field> FqSliceMut<'a, F> {
+    pub(crate) fn new(fq: F, limbs: &'a mut [Limb], start: usize, end: usize) -> Self {
+        FqSliceMut {
+            fq,
+            limbs,
+            start,
+            end,
+        }
+    }
+
     pub fn prime(&self) -> ValidPrime {
         self.fq.characteristic().to_dyn()
     }
@@ -121,6 +130,11 @@ impl<F: Field> FqSliceMut<'_, F> {
         }
     }
 
+    pub fn add_offset(&mut self, other: FqSlice<'_, F>, c: FieldElement<F>, offset: usize) {
+        self.slice_mut(offset, self.end)
+            .add(other.slice(offset, other.end), c)
+    }
+
     /// Adds v otimes w to self.
     pub fn add_tensor(
         &mut self,
@@ -172,6 +186,23 @@ impl<F: Field> FqSliceMut<'_, F> {
         let result = other.limbs[source_range.end - 1] & max_mask;
         self.limbs[target_range.end - 1] &= !max_mask;
         self.limbs[target_range.end - 1] |= result;
+    }
+
+    /// Shifts the entries of `self` to the left by `shift` entries.
+    pub fn shl_assign(&mut self, shift: usize) {
+        if shift == 0 {
+            return;
+        }
+        if self.start == 0 && shift.is_multiple_of(self.fq.entries_per_limb()) {
+            let limb_shift = shift / self.fq.entries_per_limb();
+            self.end -= shift;
+            let new_num_limbs = self.fq.number(self.end);
+            for idx in 0..new_num_limbs {
+                self.limbs[idx] = self.limbs[idx + limb_shift];
+            }
+        } else {
+            unimplemented!()
+        }
     }
 
     /// Adds `c` * `other` to `self`. `other` must have the same length, offset, and prime as self.
@@ -522,6 +553,14 @@ impl<F: Field> FqSliceMut<'_, F> {
             start: self.start,
             end: self.end,
         }
+    }
+
+    pub(crate) fn limbs(&self) -> &[Limb] {
+        self.limbs
+    }
+
+    pub(crate) fn limbs_mut(&mut self) -> &mut [Limb] {
+        self.limbs
     }
 }
 
