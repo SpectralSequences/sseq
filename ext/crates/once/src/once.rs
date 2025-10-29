@@ -3,15 +3,17 @@ use std::{
     cmp::{Eq, PartialEq},
     collections::BTreeSet,
     fmt,
-    sync::{
-        atomic::{AtomicUsize, Ordering},
-        Mutex, MutexGuard,
-    },
 };
 
 use maybe_rayon::prelude::*;
 
-use crate::grove::Grove;
+use crate::{
+    grove::Grove,
+    std_or_loom::sync::{
+        atomic::{AtomicUsize, Ordering},
+        Mutex, MutexGuard,
+    },
+};
 
 /// A wrapper around a `BTreeSet` that tracks out-of-order element insertions.
 ///
@@ -258,7 +260,10 @@ impl<T> OnceVec<T> {
     /// ```
     pub fn push(&self, value: T) -> usize {
         let ooo = self.lock();
-        assert!(ooo.0.is_empty());
+        assert!(
+            ooo.0.is_empty(),
+            "Cannot push while there are out-of-order elements"
+        );
         let old_len = self.len.load(Ordering::Acquire);
 
         self.data.insert(old_len, value);
@@ -1228,34 +1233,6 @@ mod tests {
 
                 t1.join().unwrap();
                 t2.join().unwrap();
-            });
-        }
-
-        #[test]
-        fn loom_oncebivec_concurrent() {
-            loom::model(|| {
-                let vec = Arc::new(OnceBiVec::<i32>::new(-3));
-
-                // Thread 1: Push values
-                let vec1 = Arc::clone(&vec);
-                let t1 = thread::spawn(move || {
-                    vec1.push(10);
-                    vec1.push(20);
-                });
-
-                // Thread 2: Push values
-                let vec2 = Arc::clone(&vec);
-                let t2 = thread::spawn(move || {
-                    vec2.push_ooo(30, -1);
-                });
-
-                t1.join().unwrap();
-                t2.join().unwrap();
-
-                assert_eq!(vec.len(), 0); // -3 + 3 = 0
-                assert_eq!(vec[-3], 10);
-                assert_eq!(vec[-2], 20);
-                assert_eq!(vec[-1], 30);
             });
         }
 
