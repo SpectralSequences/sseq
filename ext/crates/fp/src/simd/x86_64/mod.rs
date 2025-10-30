@@ -11,7 +11,7 @@ macro_rules! add_simd_arch {
             std::mem::size_of::<SimdLimb>() / crate::constants::BYTES_PER_LIMB;
 
         #[target_feature(enable = $arch)]
-        pub(super) unsafe fn add_simd(target: &mut [Limb], source: &[Limb], min_limb: usize) {
+        pub(super) fn add_simd(target: &mut [Limb], source: &[Limb], min_limb: usize) {
             let max_limb = target.len();
             let target = target.as_mut_ptr();
             let source = source.as_ptr();
