@@ -232,6 +232,14 @@ impl Matrix {
         }
     }
 
+    /// ```
+    /// # use fp::matrix::Matrix;
+    /// # use fp::prime::TWO;
+    ///
+    /// let matrix_vec = vec![vec![1, 0], vec![0, 1]];
+    ///
+    /// assert_eq!(Matrix::from_vec(TWO, &matrix_vec).to_vec(), matrix_vec);
+    /// ```
     pub fn to_vec(&self) -> Vec<Vec<u32>> {
         self.data
             .iter()
@@ -239,6 +247,7 @@ impl Matrix {
             .into_iter()
             .map(|row| {
                 row.flat_map(|&limb| self.fp.unpack(limb).map(|x| x.val()))
+                    .take(self.columns())
                     .collect()
             })
             .collect()
