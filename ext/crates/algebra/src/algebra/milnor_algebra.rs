@@ -740,14 +740,14 @@ impl GeneratedAlgebra for MilnorAlgebra {
             if !(degree as u32).is_multiple_of(q) {
                 return vec![];
             }
-            if let (k, 1) = factor_pk(p, degree as u32 / q) {
-                if (k as PPartEntry) < self.profile.get_p_part(0) {
-                    return vec![self.basis_element_to_index(&MilnorBasisElement {
-                        degree,
-                        q_part: 0,
-                        p_part: vec![(degree as u32 / q) as PPartEntry],
-                    })];
-                }
+            if let (k, 1) = factor_pk(p, degree as u32 / q)
+                && (k as PPartEntry) < self.profile.get_p_part(0)
+            {
+                return vec![self.basis_element_to_index(&MilnorBasisElement {
+                    degree,
+                    q_part: 0,
+                    p_part: vec![(degree as u32 / q) as PPartEntry],
+                })];
             }
             vec![]
         } else {

@@ -76,10 +76,10 @@ where
         if degree < self.min {
             return 0;
         }
-        if let Some(m) = self.max {
-            if degree > m {
-                return 0;
-            }
+        if let Some(m) = self.max
+            && degree > m
+        {
+            return 0;
         }
 
         if self.clear_bottom

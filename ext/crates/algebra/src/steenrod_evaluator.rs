@@ -129,10 +129,10 @@ impl SteenrodEvaluator {
                 self.evaluate_basis_element(output_degree, basis_elt)
             }
             AlgebraNode::Scalar(x) => {
-                if let Some(degree) = output_degree {
-                    if degree != 0 {
-                        return Err(anyhow!("Mismatched Degree"));
-                    }
+                if let Some(degree) = output_degree
+                    && degree != 0
+                {
+                    return Err(anyhow!("Mismatched Degree"));
                 }
                 let mut result = FpVector::new(p, 1);
                 result.set_entry(0, x.rem_euclid(p.as_i32()) as u32);
@@ -187,10 +187,10 @@ impl SteenrodEvaluator {
                 (degree, result)
             }
         };
-        if let Some(requested_degree) = output_degree {
-            if degree != requested_degree {
-                return Err(anyhow!("Mismatched degree"));
-            }
+        if let Some(requested_degree) = output_degree
+            && degree != requested_degree
+        {
+            return Err(anyhow!("Mismatched degree"));
         }
         Ok((degree, result))
     }

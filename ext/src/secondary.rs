@@ -250,16 +250,16 @@ impl<A: PairAlgebra + Send + Sync> SecondaryHomotopy<A> {
                 b: g.degree(),
                 idx: Some(g.idx()),
             };
-            if let Some(dir) = dir.read() {
-                if let Some(mut f) = save_file.open_file(dir.to_owned()) {
-                    return SecondaryComposite::from_bytes(
-                        Arc::clone(&self.target),
-                        g.t() - self.shift_t,
-                        self.hit_generator,
-                        &mut f,
-                    )
-                    .unwrap();
-                }
+            if let Some(dir) = dir.read()
+                && let Some(mut f) = save_file.open_file(dir.to_owned())
+            {
+                return SecondaryComposite::from_bytes(
+                    Arc::clone(&self.target),
+                    g.t() - self.shift_t,
+                    self.hit_generator,
+                    &mut f,
+                )
+                .unwrap();
             }
 
             let mut composite = SecondaryComposite::new(
@@ -425,12 +425,12 @@ pub trait SecondaryLift: Sync + Sized {
             idx: Some(g.idx()),
         };
 
-        if let Some(dir) = self.save_dir().read() {
-            if let Some(mut f) = save_file.open_file(dir.to_owned()) {
-                // The target dimension can depend on whether we resolved to stem
-                let dim = f.read_u64::<LittleEndian>().unwrap() as usize;
-                return FpVector::from_bytes(self.prime(), dim, &mut f).unwrap();
-            }
+        if let Some(dir) = self.save_dir().read()
+            && let Some(mut f) = save_file.open_file(dir.to_owned())
+        {
+            // The target dimension can depend on whether we resolved to stem
+            let dim = f.read_u64::<LittleEndian>().unwrap() as usize;
+            return FpVector::from_bytes(self.prime(), dim, &mut f).unwrap();
         }
 
         let result = self.compute_intermediate(g);
