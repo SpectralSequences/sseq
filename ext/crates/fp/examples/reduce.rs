@@ -53,7 +53,7 @@ fn random_matrix(p: ValidPrime, rows: usize, cols: usize) -> Matrix {
 
 fn random_vector(p: ValidPrime, dimension: usize) -> Vec<u32> {
     let mut result = Vec::with_capacity(dimension);
-    let mut rng = rand::thread_rng();
-    result.resize_with(dimension, || rng.gen_range(0..p.as_u32()));
+    let mut rng = rand::rng();
+    result.resize_with(dimension, || rng.random_range(0..p.as_u32()));
     result
 }
