@@ -400,7 +400,7 @@ impl ActionT for QueryBoundaryString {
             return None;
         }
 
-        let string = resolution.inner.boundary_string(self.g, true);
+        let string = resolution.inner.boundary_string(self.g);
         Some(Message {
             recipients: vec![],
             sseq: SseqChoice::Main, // This will be overwritten

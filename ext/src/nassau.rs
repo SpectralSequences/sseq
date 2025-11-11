@@ -36,7 +36,7 @@ use fp::{
 };
 use itertools::Itertools;
 use once::OnceBiVec;
-use sseq::coordinates::Bidegree;
+use sseq::coordinates::{Bidegree, BidegreeGenerator};
 
 use crate::{
     chain_complex::{AugmentedChainComplex, ChainComplex, FiniteChainComplex, FreeChainComplex},
@@ -437,6 +437,14 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         })
     }
 
+    fn add_generators(&self, b: Bidegree, num_new_gens: usize) {
+        let gen_names = (0..num_new_gens)
+            .map(|idx| format!("x_{:#}", BidegreeGenerator::new(b, idx)))
+            .collect();
+        self.module(b.s())
+            .add_generators(b.t(), num_new_gens, Some(gen_names));
+    }
+
     /// This function prepares the Resolution object to perform computations up to the
     /// specified s degree. It does *not* perform any computations by itself. It simply lengthens
     /// the `OnceVec`s `modules`, `chain_maps`, etc. to the right length.
@@ -566,7 +574,6 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
         let p = self.prime();
         let mut scratch = FpVector::new(p, 0);
 
-        let source = &*self.modules[b.s()];
         let target = &*self.modules[b.s() - 1];
         let algebra = target.algebra();
 
@@ -634,7 +641,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             assert_eq!(num_new_gens, 0, "Adding generators at {b}");
         }
 
-        source.add_generators(b.t(), num_new_gens, None);
+        self.add_generators(b, num_new_gens);
 
         let mut xs = vec![FpVector::new(p, target_dim); num_new_gens];
         let mut dxs = vec![FpVector::new(p, next.dimension(b.t())); num_new_gens];
@@ -748,7 +755,8 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             matrix.row_reduce();
 
             let num_new_gens = matrix.extend_to_surjection(0, target_dim, 0).len();
-            source_module.add_generators(t, num_new_gens, None);
+
+            self.add_generators(Bidegree::s_t(0, t), num_new_gens);
 
             chain_map.add_generators_from_matrix_rows(
                 t,
@@ -797,7 +805,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
 
         let num_new_gens = matrix.extend_image(0, target_dim, &desired_image, 0).len();
 
-        source_module.add_generators(t, num_new_gens, None);
+        self.add_generators(Bidegree::s_t(1, t), num_new_gens);
 
         self.differentials[1].add_generators_from_matrix_rows(
             t,
@@ -848,7 +856,7 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
                 // want to resolve further, it will be bigger.
                 let saved_target_res_dimension = f.read_u64::<LittleEndian>()? as usize;
 
-                self.modules[b.s()].add_generators(b.t(), num_new_gens, None);
+                self.add_generators(b, num_new_gens);
 
                 let mut d_targets = Vec::with_capacity(num_new_gens);
 

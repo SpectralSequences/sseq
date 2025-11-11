@@ -1,9 +1,5 @@
 use std::fmt::{self, Display, Formatter};
 
-use algebra::{
-    module::{Module, MuFreeModule},
-    MuAlgebra,
-};
 use fp::vector::{FpSlice, FpVector};
 use serde::{Deserialize, Serialize};
 
@@ -62,46 +58,6 @@ impl BidegreeElement {
                     String::new()
                 };
                 format!("{coeff_str}x_{gen}")
-            })
-            .collect::<Vec<_>>()
-            .join(" + ")
-    }
-
-    /// An algebra-aware string representation. This assumes that the element belongs to `module`,
-    /// and uses the string representation of its underlying algebra's operations.
-    pub fn to_string_module<const U: bool, A: MuAlgebra<U>>(
-        &self,
-        module: &MuFreeModule<U, A>,
-        compact: bool,
-    ) -> String {
-        self.vec
-            .iter_nonzero()
-            .map(|(i, c)| {
-                let coeff_str = if c != 1 {
-                    format!("{c} ")
-                } else {
-                    String::new()
-                };
-                let opgen = module.index_to_op_gen(self.t(), i);
-                let mut op_str = module
-                    .algebra()
-                    .basis_element_to_string(opgen.operation_degree, opgen.operation_index);
-                op_str = if op_str != "1" {
-                    format!("{op_str} ")
-                } else {
-                    String::new()
-                };
-                let gen = BidegreeGenerator::s_t(
-                    self.s() - 1,
-                    opgen.generator_degree,
-                    opgen.generator_index,
-                );
-                let gen_str = if compact {
-                    format!("x_{gen:#}")
-                } else {
-                    format!("x_{gen}")
-                };
-                format!("{coeff_str}{op_str}{gen_str}")
             })
             .collect::<Vec<_>>()
             .join(" + ")
