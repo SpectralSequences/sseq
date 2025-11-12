@@ -18,7 +18,7 @@ use fp::{
 };
 use itertools::Itertools;
 use once::{OnceBiVec, OnceVec};
-use sseq::coordinates::Bidegree;
+use sseq::coordinates::{Bidegree, BidegreeGenerator};
 
 use crate::{
     chain_complex::{AugmentedChainComplex, ChainComplex},
@@ -143,6 +143,14 @@ where
 
     pub fn name(&self) -> &str {
         &self.name
+    }
+
+    fn add_generators(&self, b: Bidegree, num_new_gens: usize) {
+        let gen_names = (0..num_new_gens)
+            .map(|idx| format!("x_{:#}", BidegreeGenerator::new(b, idx)))
+            .collect();
+        self.module(b.s())
+            .add_generators(b.t(), num_new_gens, Some(gen_names));
     }
 
     /// This function prepares the Resolution object to perform computations up to the
@@ -387,7 +395,7 @@ where
                     "Malformed data: mismatched augmentation target dimension"
                 );
 
-                source.add_generators(b.t(), num_new_gens, None);
+                self.add_generators(b, num_new_gens);
 
                 let mut d_targets = Vec::with_capacity(num_new_gens);
                 let mut a_targets = Vec::with_capacity(num_new_gens);
@@ -536,7 +544,7 @@ where
             );
         }
         let num_new_gens = cc_new_gens.len() + res_new_gens.len();
-        source.add_generators(b.t(), num_new_gens, None);
+        self.add_generators(b, num_new_gens);
 
         let new_rows = source_dimension + num_new_gens;
 

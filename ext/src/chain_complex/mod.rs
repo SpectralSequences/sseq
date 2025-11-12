@@ -20,7 +20,7 @@ use fp::{
     vector::{FpSlice, FpSliceMut},
 };
 use itertools::Itertools;
-use sseq::coordinates::{Bidegree, BidegreeElement, BidegreeGenerator};
+use sseq::coordinates::{Bidegree, BidegreeGenerator};
 
 use crate::{save::SaveDirectory, utils::unicode_num};
 
@@ -142,13 +142,12 @@ where
     }
 
     /// Get a string representation of d(gen), where d is the differential of the resolution.
-    fn boundary_string(&self, gen: BidegreeGenerator, compact: bool) -> String {
+    fn boundary_string(&self, gen: BidegreeGenerator) -> String {
         let d = self.differential(gen.s());
         let target = d.target();
         let result_vector = d.output(gen.t(), gen.idx());
 
-        BidegreeElement::new(gen.degree(), result_vector.clone())
-            .to_string_module(&*target, compact)
+        target.element_to_string(gen.t(), result_vector.as_slice())
     }
 }
 
