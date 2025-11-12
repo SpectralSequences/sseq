@@ -255,11 +255,11 @@ impl<P: SseqProfile> SseqWrapper<P> {
                 .map(|m| m.get(y - prod_y))
             {
                 for i in 0..matrix.rows() {
-                    if matrix[i].is_zero() {
+                    if matrix.row(i).is_zero() {
                         continue;
                     }
                     decompositions.push((
-                        matrix[i].clone(),
+                        matrix.row(i).to_owned(),
                         format!("{name} {}", self.class_names[x - prod_x][y - prod_y][i]),
                         prod_x,
                         prod_y,
@@ -275,7 +275,12 @@ impl<P: SseqProfile> SseqWrapper<P> {
                 x,
                 y,
                 state,
-                permanents: self.inner.permanent_classes(x, y).basis().to_vec(),
+                permanents: self
+                    .inner
+                    .permanent_classes(x, y)
+                    .basis()
+                    .map(FpSlice::to_owned)
+                    .collect(),
                 class_names: self.class_names[x][y].clone(),
                 decompositions,
                 classes: self
@@ -450,7 +455,12 @@ impl<P: SseqProfile> SseqWrapper<P> {
             }
         }
 
-        let permanent_classes = self.inner.permanent_classes(x, y).basis().to_vec();
+        let permanent_classes = self
+            .inner
+            .permanent_classes(x, y)
+            .basis()
+            .map(FpSlice::to_owned)
+            .collect::<Vec<_>>();
         for class in permanent_classes {
             self.inner
                 .leibniz(i32::MAX, x, y, class.as_slice(), &product.inner, target);
