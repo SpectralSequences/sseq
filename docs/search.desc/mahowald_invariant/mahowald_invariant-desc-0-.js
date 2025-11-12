@@ -1,1 +1,0 @@
-searchState.loadedDescShard("mahowald_invariant", 0, "Computes algebraic Mahowald invariants (aka algebraic root …")

@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="A macro to test at runtime whether instruction sets are available on RISC-V platforms."><title>is_riscv_feature_detected in once::std_or_loom::arch - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-aa0817cf.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="once" data-themes="" data-resource-suffix="" data-rustdoc-version="1.90.0 (1159e78c4 2025-09-14)" data-channel="1.90.0" data-search-js="search-fa3e91e5.js" data-settings-js="settings-5514c975.js" ><script src="../../../static.files/storage-68b7e25d.js"></script><script defer src="sidebar-items.js"></script><script defer src="../../../static.files/main-eebb9057.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="A macro to test at runtime whether instruction sets are available on RISC-V platforms."><title>is_riscv_feature_detected in once::std_or_loom::arch - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-e56847b5.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="once" data-themes="" data-resource-suffix="" data-rustdoc-version="1.91.1 (ed61e7d7e 2025-11-07)" data-channel="1.91.1" data-search-js="search-e256b49e.js" data-stringdex-js="stringdex-c3e638e9.js" data-settings-js="settings-c38705f0.js" ><script src="../../../static.files/storage-e2aeef58.js"></script><script defer src="sidebar-items.js"></script><script defer src="../../../static.files/main-6dc2a7f3.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.css" integrity="sha384-ThssJ7YtjywV52Gj4JE/1SQEDoMEckXyhkFVwaf4nDSm5OBlXeedVYjuuUd0Yua+" crossorigin="anonymous">
 <!-- The loading of KaTeX is deferred to speed up page rendering -->
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.3/dist/katex.min.js" integrity="sha384-Bi8OWqMXO1ta+a4EPkZv7bYGIes7C3krGSZoTGNTAnAn5eYQc7IIXrJ/7ck1drAi" crossorigin="anonymous"></script>
 <!-- To automatically render math in text elements, include the auto-render extension: -->
@@ -23,7 +23,7 @@
     });
 </script>
 
-</head><body class="rustdoc macro"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../once/index.html">once</a><span class="version">0.1.0</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">is_<wbr>riscv_<wbr>feature_<wbr>detected</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#platform-specificagnostic-behavior-and-availability" title="Platform-specific/agnostic Behavior and Availability">Platform-specific/agnostic Behavior and Availability</a></li><li><a href="#unprivileged-specification" title="Unprivileged Specification">Unprivileged Specification</a></li><li><a href="#performance-hints" title="Performance Hints">Performance Hints</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="index.html">In once::<wbr>std_<wbr>or_<wbr>loom::<wbr>arch</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../index.html">once</a>::<wbr><a href="../index.html">std_or_loom</a>::<wbr><a href="index.html">arch</a></div><h1>Macro <span class="macro">is_riscv_feature_detected</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><span class="since" title="Stable since Rust version 1.78.0">1.78.0</span> · <a class="src" href="https://doc.rust-lang.org/1.90.0/src/std_detect/detect/arch/riscv.rs.html#3-347">Source</a> </span></div><pre class="rust item-decl"><code>macro_rules! is_riscv_feature_detected {
+</head><body class="rustdoc macro"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">is_riscv_feature_detected</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../once/index.html">once</a><span class="version">0.1.0</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">is_<wbr>riscv_<wbr>feature_<wbr>detected</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#platform-specificagnostic-behavior-and-availability" title="Platform-specific/agnostic Behavior and Availability">Platform-specific/agnostic Behavior and Availability</a></li><li><a href="#unprivileged-specification" title="Unprivileged Specification">Unprivileged Specification</a></li><li><a href="#performance-hints" title="Performance Hints">Performance Hints</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="index.html">In once::<wbr>std_<wbr>or_<wbr>loom::<wbr>arch</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../index.html">once</a>::<wbr><a href="../index.html">std_or_loom</a>::<wbr><a href="index.html">arch</a></div><h1>Macro <span class="macro">is_<wbr>riscv_<wbr>feature_<wbr>detected</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><span class="since" title="Stable since Rust version 1.78.0">1.78.0</span> · <a class="src" href="https://doc.rust-lang.org/1.91.1/src/std_detect/detect/arch/riscv.rs.html#3-378">Source</a> </span></div><pre class="rust item-decl"><code>macro_rules! is_riscv_feature_detected {
     (&quot;rv32i&quot;) =&gt; { ... };
     (&quot;rv32e&quot;) =&gt; { ... };
     (&quot;rv64i&quot;) =&gt; { ... };
@@ -136,124 +136,96 @@ Zalrsc and Zaamo extensions; <code>"zalrsc"</code> and <code>"zaamo"</code>) are
 Likewise, if the F extension (<code>"f"</code>) is enabled, one of its dependencies
 (the Zicsr extension <code>"zicsr"</code>) is also enabled.</p>
 <h2 id="unprivileged-specification"><a class="doc-anchor" href="#unprivileged-specification">§</a>Unprivileged Specification</h2>
-<p>The supported ratified RISC-V instruction sets are as follows:</p>
-<ul>
-<li>RV32E: <code>"rv32e"</code></li>
-<li>RV32I: <code>"rv32i"</code></li>
-<li>RV64I: <code>"rv64i"</code></li>
-<li>A: <code>"a"</code>
-<ul>
-<li>Zaamo: <code>"zaamo"</code></li>
-<li>Zalrsc: <code>"zalrsc"</code></li>
-</ul>
-</li>
-<li>B: <code>"b"</code>
-<ul>
-<li>Zba: <code>"zba"</code></li>
-<li>Zbb: <code>"zbb"</code></li>
-<li>Zbs: <code>"zbs"</code></li>
-</ul>
-</li>
-<li>C: <code>"c"</code>
-<ul>
-<li>Zca: <code>"zca"</code></li>
-<li>Zcd: <code>"zcd"</code> (if D is enabled)</li>
-<li>Zcf: <code>"zcf"</code> (if F is enabled on RV32)</li>
-</ul>
-</li>
-<li>D: <code>"d"</code></li>
-<li>F: <code>"f"</code></li>
-<li>M: <code>"m"</code></li>
-<li>Q: <code>"q"</code></li>
-<li>V: <code>"v"</code>
-<ul>
-<li>Zve32x: <code>"zve32x"</code></li>
-<li>Zve32f: <code>"zve32f"</code></li>
-<li>Zve64x: <code>"zve64x"</code></li>
-<li>Zve64f: <code>"zve64f"</code></li>
-<li>Zve64d: <code>"zve64d"</code></li>
-</ul>
-</li>
-<li>Zicbom: <code>"zicbom"</code></li>
-<li>Zicboz: <code>"zicboz"</code></li>
-<li>Zicntr: <code>"zicntr"</code></li>
-<li>Zicond: <code>"zicond"</code></li>
-<li>Zicsr: <code>"zicsr"</code></li>
-<li>Zifencei: <code>"zifencei"</code></li>
-<li>Zihintntl: <code>"zihintntl"</code></li>
-<li>Zihintpause: <code>"zihintpause"</code></li>
-<li>Zihpm: <code>"zihpm"</code></li>
-<li>Zimop: <code>"zimop"</code></li>
-<li>Zabha: <code>"zabha"</code></li>
-<li>Zacas: <code>"zacas"</code></li>
-<li>Zawrs: <code>"zawrs"</code></li>
-<li>Zfa: <code>"zfa"</code></li>
-<li>Zfbfmin: <code>"zfbfmin"</code></li>
-<li>Zfh: <code>"zfh"</code>
-<ul>
-<li>Zfhmin: <code>"zfhmin"</code></li>
-</ul>
-</li>
-<li>Zfinx: <code>"zfinx"</code></li>
-<li>Zdinx: <code>"zdinx"</code></li>
-<li>Zhinx: <code>"zhinx"</code>
-<ul>
-<li>Zhinxmin: <code>"zhinxmin"</code></li>
-</ul>
-</li>
-<li>Zcb: <code>"zcb"</code></li>
-<li>Zcmop: <code>"zcmop"</code></li>
-<li>Zbc: <code>"zbc"</code></li>
-<li>Zbkb: <code>"zbkb"</code></li>
-<li>Zbkc: <code>"zbkc"</code></li>
-<li>Zbkx: <code>"zbkx"</code></li>
-<li>Zk: <code>"zk"</code></li>
-<li>Zkn: <code>"zkn"</code>
-<ul>
-<li>Zknd: <code>"zknd"</code></li>
-<li>Zkne: <code>"zkne"</code></li>
-<li>Zknh: <code>"zknh"</code></li>
-</ul>
-</li>
-<li>Zkr: <code>"zkr"</code></li>
-<li>Zks: <code>"zks"</code>
-<ul>
-<li>Zksed: <code>"zksed"</code></li>
-<li>Zksh: <code>"zksh"</code></li>
-</ul>
-</li>
-<li>Zkt: <code>"zkt"</code></li>
-<li>Zvbb: <code>"zvbb"</code></li>
-<li>Zvbc: <code>"zvbc"</code></li>
-<li>Zvfbfmin: <code>"zvfbfmin"</code></li>
-<li>Zvfbfwma: <code>"zvfbfwma"</code></li>
-<li>Zvfh: <code>"zvfh"</code>
-<ul>
-<li>Zvfhmin: <code>"zvfhmin"</code></li>
-</ul>
-</li>
-<li>Zvkb: <code>"zvkb"</code></li>
-<li>Zvkg: <code>"zvkg"</code></li>
-<li>Zvkn: <code>"zvkn"</code>
-<ul>
-<li>Zvkned: <code>"zvkned"</code></li>
-<li>Zvknha: <code>"zvknha"</code></li>
-<li>Zvknhb: <code>"zvknhb"</code></li>
-</ul>
-</li>
-<li>Zvknc: <code>"zvknc"</code></li>
-<li>Zvkng: <code>"zvkng"</code></li>
-<li>Zvks: <code>"zvks"</code>
-<ul>
-<li>Zvksed: <code>"zvksed"</code></li>
-<li>Zvksh: <code>"zvksh"</code></li>
-</ul>
-</li>
-<li>Zvksc: <code>"zvksc"</code></li>
-<li>Zvksg: <code>"zvksg"</code></li>
-<li>Zvkt: <code>"zvkt"</code></li>
-<li>Ztso: <code>"ztso"</code></li>
-</ul>
+<p>The supported ratified RISC-V instruction sets are as follows (OS
+columns denote runtime feature detection support with or without the
+minimum supported version):</p>
+<div><table><thead><tr><th style="text-align: left">Literal</th><th style="text-align: left">Base</th><th style="text-align: left">Linux</th></tr></thead><tbody>
+<tr><td style="text-align: left"><code>"rv32e"</code></td><td style="text-align: left">RV32E</td><td style="text-align: left">No</td></tr>
+<tr><td style="text-align: left"><code>"rv32i"</code></td><td style="text-align: left">RV32I</td><td style="text-align: left">Yes <sup id="fnref1"><a href="#fn1">1</a></sup></td></tr>
+<tr><td style="text-align: left"><code>"rv64i"</code></td><td style="text-align: left">RV64I</td><td style="text-align: left">Yes <sup id="fnref1-2"><a href="#fn1">1</a></sup></td></tr>
+</tbody></table>
+</div><div><table><thead><tr><th style="text-align: left">Literal</th><th style="text-align: left">Extension</th><th style="text-align: left">Linux</th></tr></thead><tbody>
+<tr><td style="text-align: left"><code>"a"</code></td><td style="text-align: left">A</td><td style="text-align: left">Yes <sup id="fnref1-3"><a href="#fn1">1</a></sup></td></tr>
+<tr><td style="text-align: left"><code>"b"</code></td><td style="text-align: left">B</td><td style="text-align: left">6.5</td></tr>
+<tr><td style="text-align: left"><code>"c"</code></td><td style="text-align: left">C</td><td style="text-align: left">Yes</td></tr>
+<tr><td style="text-align: left"><code>"d"</code></td><td style="text-align: left">D</td><td style="text-align: left">Yes</td></tr>
+<tr><td style="text-align: left"><code>"f"</code></td><td style="text-align: left">F</td><td style="text-align: left">Yes</td></tr>
+<tr><td style="text-align: left"><code>"m"</code></td><td style="text-align: left">M</td><td style="text-align: left">Yes <sup id="fnref1-4"><a href="#fn1">1</a></sup></td></tr>
+<tr><td style="text-align: left"><code>"q"</code></td><td style="text-align: left">Q</td><td style="text-align: left">No</td></tr>
+<tr><td style="text-align: left"><code>"v"</code></td><td style="text-align: left">V</td><td style="text-align: left">6.5</td></tr>
+<tr><td style="text-align: left"><code>"zaamo"</code></td><td style="text-align: left">Zaamo</td><td style="text-align: left">6.15 <sup id="fnref1-5"><a href="#fn1">1</a></sup> <sup id="fnref2"><a href="#fn2">2</a></sup></td></tr>
+<tr><td style="text-align: left"><code>"zabha"</code></td><td style="text-align: left">Zabha</td><td style="text-align: left">6.16</td></tr>
+<tr><td style="text-align: left"><code>"zacas"</code></td><td style="text-align: left">Zacas</td><td style="text-align: left">6.8</td></tr>
+<tr><td style="text-align: left"><code>"zalrsc"</code></td><td style="text-align: left">Zalrsc</td><td style="text-align: left">6.15 <sup id="fnref1-6"><a href="#fn1">1</a></sup> <sup id="fnref2-2"><a href="#fn2">2</a></sup></td></tr>
+<tr><td style="text-align: left"><code>"zawrs"</code></td><td style="text-align: left">Zawrs</td><td style="text-align: left">6.11</td></tr>
+<tr><td style="text-align: left"><code>"zba"</code></td><td style="text-align: left">Zba</td><td style="text-align: left">6.5</td></tr>
+<tr><td style="text-align: left"><code>"zbb"</code></td><td style="text-align: left">Zbb</td><td style="text-align: left">6.5</td></tr>
+<tr><td style="text-align: left"><code>"zbc"</code></td><td style="text-align: left">Zbc</td><td style="text-align: left">6.8</td></tr>
+<tr><td style="text-align: left"><code>"zbkb"</code></td><td style="text-align: left">Zbkb</td><td style="text-align: left">6.8</td></tr>
+<tr><td style="text-align: left"><code>"zbkc"</code></td><td style="text-align: left">Zbkc</td><td style="text-align: left">6.8</td></tr>
+<tr><td style="text-align: left"><code>"zbkx"</code></td><td style="text-align: left">Zbkx</td><td style="text-align: left">6.8</td></tr>
+<tr><td style="text-align: left"><code>"zbs"</code></td><td style="text-align: left">Zbs</td><td style="text-align: left">6.5</td></tr>
+<tr><td style="text-align: left"><code>"zca"</code></td><td style="text-align: left">Zca</td><td style="text-align: left">6.11 <sup id="fnref2-3"><a href="#fn2">2</a></sup></td></tr>
+<tr><td style="text-align: left"><code>"zcb"</code></td><td style="text-align: left">Zcb</td><td style="text-align: left">6.11</td></tr>
+<tr><td style="text-align: left"><code>"zcd"</code></td><td style="text-align: left">Zcd</td><td style="text-align: left">6.11 <sup id="fnref2-4"><a href="#fn2">2</a></sup></td></tr>
+<tr><td style="text-align: left"><code>"zcf"</code></td><td style="text-align: left">Zcf</td><td style="text-align: left">6.11 <sup id="fnref2-5"><a href="#fn2">2</a></sup></td></tr>
+<tr><td style="text-align: left"><code>"zcmop"</code></td><td style="text-align: left">Zcmop</td><td style="text-align: left">6.11</td></tr>
+<tr><td style="text-align: left"><code>"zdinx"</code></td><td style="text-align: left">Zdinx</td><td style="text-align: left">No</td></tr>
+<tr><td style="text-align: left"><code>"zfa"</code></td><td style="text-align: left">Zfa</td><td style="text-align: left">6.8</td></tr>
+<tr><td style="text-align: left"><code>"zfbfmin"</code></td><td style="text-align: left">Zfbfmin</td><td style="text-align: left">6.15</td></tr>
+<tr><td style="text-align: left"><code>"zfh"</code></td><td style="text-align: left">Zfh</td><td style="text-align: left">6.8</td></tr>
+<tr><td style="text-align: left"><code>"zfhmin"</code></td><td style="text-align: left">Zfhmin</td><td style="text-align: left">6.8</td></tr>
+<tr><td style="text-align: left"><code>"zfinx"</code></td><td style="text-align: left">Zfinx</td><td style="text-align: left">No</td></tr>
+<tr><td style="text-align: left"><code>"zhinx"</code></td><td style="text-align: left">Zhinx</td><td style="text-align: left">No</td></tr>
+<tr><td style="text-align: left"><code>"zhinxmin"</code></td><td style="text-align: left">Zhinxmin</td><td style="text-align: left">No</td></tr>
+<tr><td style="text-align: left"><code>"zicbom"</code></td><td style="text-align: left">Zicbom</td><td style="text-align: left">6.15</td></tr>
+<tr><td style="text-align: left"><code>"zicboz"</code></td><td style="text-align: left">Zicboz</td><td style="text-align: left">6.7</td></tr>
+<tr><td style="text-align: left"><code>"zicntr"</code></td><td style="text-align: left">Zicntr</td><td style="text-align: left">6.15 <sup id="fnref1-7"><a href="#fn1">1</a></sup> <sup id="fnref3"><a href="#fn3">3</a></sup></td></tr>
+<tr><td style="text-align: left"><code>"zicond"</code></td><td style="text-align: left">Zicond</td><td style="text-align: left">6.8</td></tr>
+<tr><td style="text-align: left"><code>"zicsr"</code></td><td style="text-align: left">Zicsr</td><td style="text-align: left">No <sup id="fnref1-8"><a href="#fn1">1</a></sup> <sup id="fnref2-6"><a href="#fn2">2</a></sup></td></tr>
+<tr><td style="text-align: left"><code>"zifencei"</code></td><td style="text-align: left">Zifencei</td><td style="text-align: left">No <sup id="fnref1-9"><a href="#fn1">1</a></sup></td></tr>
+<tr><td style="text-align: left"><code>"zihintntl"</code></td><td style="text-align: left">Zihintntl</td><td style="text-align: left">6.8</td></tr>
+<tr><td style="text-align: left"><code>"zihintpause"</code></td><td style="text-align: left">Zihintpause</td><td style="text-align: left">6.10</td></tr>
+<tr><td style="text-align: left"><code>"zihpm"</code></td><td style="text-align: left">Zihpm</td><td style="text-align: left">6.15 <sup id="fnref3-2"><a href="#fn3">3</a></sup></td></tr>
+<tr><td style="text-align: left"><code>"zimop"</code></td><td style="text-align: left">Zimop</td><td style="text-align: left">6.11</td></tr>
+<tr><td style="text-align: left"><code>"zk"</code></td><td style="text-align: left">Zk</td><td style="text-align: left">No <sup id="fnref4"><a href="#fn4">4</a></sup></td></tr>
+<tr><td style="text-align: left"><code>"zkn"</code></td><td style="text-align: left">Zkn</td><td style="text-align: left">6.8</td></tr>
+<tr><td style="text-align: left"><code>"zknd"</code></td><td style="text-align: left">Zknd</td><td style="text-align: left">6.8</td></tr>
+<tr><td style="text-align: left"><code>"zkne"</code></td><td style="text-align: left">Zkne</td><td style="text-align: left">6.8</td></tr>
+<tr><td style="text-align: left"><code>"zknh"</code></td><td style="text-align: left">Zknh</td><td style="text-align: left">6.8</td></tr>
+<tr><td style="text-align: left"><code>"zkr"</code></td><td style="text-align: left">Zkr</td><td style="text-align: left">No <sup id="fnref4-2"><a href="#fn4">4</a></sup></td></tr>
+<tr><td style="text-align: left"><code>"zks"</code></td><td style="text-align: left">Zks</td><td style="text-align: left">6.8</td></tr>
+<tr><td style="text-align: left"><code>"zksed"</code></td><td style="text-align: left">Zksed</td><td style="text-align: left">6.8</td></tr>
+<tr><td style="text-align: left"><code>"zksh"</code></td><td style="text-align: left">Zksh</td><td style="text-align: left">6.8</td></tr>
+<tr><td style="text-align: left"><code>"zkt"</code></td><td style="text-align: left">Zkt</td><td style="text-align: left">6.8</td></tr>
+<tr><td style="text-align: left"><code>"ztso"</code></td><td style="text-align: left">Ztso</td><td style="text-align: left">6.8</td></tr>
+<tr><td style="text-align: left"><code>"zvbb"</code></td><td style="text-align: left">Zvbb</td><td style="text-align: left">6.8</td></tr>
+<tr><td style="text-align: left"><code>"zvbc"</code></td><td style="text-align: left">Zvbc</td><td style="text-align: left">6.8</td></tr>
+<tr><td style="text-align: left"><code>"zve32f"</code></td><td style="text-align: left">Zve32f</td><td style="text-align: left">6.11 <sup id="fnref2-7"><a href="#fn2">2</a></sup></td></tr>
+<tr><td style="text-align: left"><code>"zve32x"</code></td><td style="text-align: left">Zve32x</td><td style="text-align: left">6.11 <sup id="fnref2-8"><a href="#fn2">2</a></sup></td></tr>
+<tr><td style="text-align: left"><code>"zve64d"</code></td><td style="text-align: left">Zve64d</td><td style="text-align: left">6.11 <sup id="fnref2-9"><a href="#fn2">2</a></sup></td></tr>
+<tr><td style="text-align: left"><code>"zve64f"</code></td><td style="text-align: left">Zve64f</td><td style="text-align: left">6.11 <sup id="fnref2-10"><a href="#fn2">2</a></sup></td></tr>
+<tr><td style="text-align: left"><code>"zve64x"</code></td><td style="text-align: left">Zve64x</td><td style="text-align: left">6.11 <sup id="fnref2-11"><a href="#fn2">2</a></sup></td></tr>
+<tr><td style="text-align: left"><code>"zvfbfmin"</code></td><td style="text-align: left">Zvfbfmin</td><td style="text-align: left">6.15</td></tr>
+<tr><td style="text-align: left"><code>"zvfbfwma"</code></td><td style="text-align: left">Zvfbfwma</td><td style="text-align: left">6.15</td></tr>
+<tr><td style="text-align: left"><code>"zvfh"</code></td><td style="text-align: left">Zvfh</td><td style="text-align: left">6.8</td></tr>
+<tr><td style="text-align: left"><code>"zvfhmin"</code></td><td style="text-align: left">Zvfhmin</td><td style="text-align: left">6.8</td></tr>
+<tr><td style="text-align: left"><code>"zvkb"</code></td><td style="text-align: left">Zvkb</td><td style="text-align: left">6.8</td></tr>
+<tr><td style="text-align: left"><code>"zvkg"</code></td><td style="text-align: left">Zvkg</td><td style="text-align: left">6.8</td></tr>
+<tr><td style="text-align: left"><code>"zvkn"</code></td><td style="text-align: left">Zvkn</td><td style="text-align: left">6.8</td></tr>
+<tr><td style="text-align: left"><code>"zvknc"</code></td><td style="text-align: left">Zvknc</td><td style="text-align: left">6.8</td></tr>
+<tr><td style="text-align: left"><code>"zvkned"</code></td><td style="text-align: left">Zvkned</td><td style="text-align: left">6.8</td></tr>
+<tr><td style="text-align: left"><code>"zvkng"</code></td><td style="text-align: left">Zvkng</td><td style="text-align: left">6.8</td></tr>
+<tr><td style="text-align: left"><code>"zvknha"</code></td><td style="text-align: left">Zvknha</td><td style="text-align: left">6.8</td></tr>
+<tr><td style="text-align: left"><code>"zvknhb"</code></td><td style="text-align: left">Zvknhb</td><td style="text-align: left">6.8</td></tr>
+<tr><td style="text-align: left"><code>"zvks"</code></td><td style="text-align: left">Zvks</td><td style="text-align: left">6.8</td></tr>
+<tr><td style="text-align: left"><code>"zvksc"</code></td><td style="text-align: left">Zvksc</td><td style="text-align: left">6.8</td></tr>
+<tr><td style="text-align: left"><code>"zvksed"</code></td><td style="text-align: left">Zvksed</td><td style="text-align: left">6.8</td></tr>
+<tr><td style="text-align: left"><code>"zvksg"</code></td><td style="text-align: left">Zvksg</td><td style="text-align: left">6.8</td></tr>
+<tr><td style="text-align: left"><code>"zvksh"</code></td><td style="text-align: left">Zvksh</td><td style="text-align: left">6.8</td></tr>
+<tr><td style="text-align: left"><code>"zvkt"</code></td><td style="text-align: left">Zvkt</td><td style="text-align: left">6.8</td></tr>
+</tbody></table>
+</div>
 <p>There’s also bases and extensions marked as standard instruction set,
 but they are in frozen or draft state. These instruction sets are also
 reserved by this macro and can be detected in the future platforms.</p>
@@ -280,4 +252,20 @@ corresponding unaligned memory access is reasonably fast.</p>
 </ul>
 </li>
 </ul>
-</div></details></section></div></main></body></html>
+<div class="footnotes"><hr><ol><li id="fn1"><p>Or enabled when the IMA base behavior is detected on the Linux
+kernel version 6.4 or later (for bases, the only matching one – either
+<code>"rv32i"</code> or <code>"rv64i"</code> – is enabled).&nbsp;<a href="#fnref1">↩&nbsp;<sup>1</sup></a>&nbsp;<sup><a href="#fnref1-2">2</a></sup>&nbsp;<sup><a href="#fnref1-3">3</a></sup>&nbsp;<sup><a href="#fnref1-4">4</a></sup>&nbsp;<sup><a href="#fnref1-5">5</a></sup>&nbsp;<sup><a href="#fnref1-6">6</a></sup>&nbsp;<sup><a href="#fnref1-7">7</a></sup>&nbsp;<sup><a href="#fnref1-8">8</a></sup>&nbsp;<sup><a href="#fnref1-9">9</a></sup></p></li><li id="fn2"><p>Or enabled as a dependency of another extension (a superset)
+even if runtime detection of this feature itself is not supported (as
+long as the runtime detection of the superset is supported).&nbsp;<a href="#fnref2">↩&nbsp;<sup>1</sup></a>&nbsp;<sup><a href="#fnref2-2">2</a></sup>&nbsp;<sup><a href="#fnref2-3">3</a></sup>&nbsp;<sup><a href="#fnref2-4">4</a></sup>&nbsp;<sup><a href="#fnref2-5">5</a></sup>&nbsp;<sup><a href="#fnref2-6">6</a></sup>&nbsp;<sup><a href="#fnref2-7">7</a></sup>&nbsp;<sup><a href="#fnref2-8">8</a></sup>&nbsp;<sup><a href="#fnref2-9">9</a></sup>&nbsp;<sup><a href="#fnref2-10">10</a></sup>&nbsp;<sup><a href="#fnref2-11">11</a></sup></p></li><li id="fn3"><p>Even if this extension is available, it does not necessarily
+mean all performance counters are accessible.
+For example, accesses to all performance counters except <code>time</code>
+(wall-clock) are blocked by default on the Linux kernel
+version 6.6 or later.
+Also beware that, even if performance counters like <code>cycle</code> and
+<code>instret</code> are accessible, their value can be unreliable (e.g. returning
+the constant value) under certain circumstances.&nbsp;<a href="#fnref3">↩&nbsp;<sup>1</sup></a>&nbsp;<sup><a href="#fnref3-2">2</a></sup></p></li><li id="fn4"><p>Linux does not report existence of this extension even if
+supported by the hardware mainly because the <code>seed</code> CSR on the Zkr
+extension (which provides hardware-based randomness) is normally
+inaccessible from the user mode.
+For the Zk extension features except this CSR, check existence of both
+<code>"zkn"</code> and <code>"zkt"</code> features instead.&nbsp;<a href="#fnref4">↩&nbsp;<sup>1</sup></a>&nbsp;<sup><a href="#fnref4-2">2</a></sup></p></li></ol></div></div></details></section></div></main></body></html>

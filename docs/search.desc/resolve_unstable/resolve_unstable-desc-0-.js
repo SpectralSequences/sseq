@@ -1,1 +1,0 @@
-searchState.loadedDescShard("resolve_unstable", 0, "Resolves an unstable module up to an $(n, s)$ and prints …")

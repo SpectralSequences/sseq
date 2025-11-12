@@ -1,1 +1,0 @@
-searchState.loadedDescShard("query", 0, "This library gives various functions that are used to …")

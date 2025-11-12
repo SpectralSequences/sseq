@@ -1,1 +1,0 @@
-searchState.loadedDescShard("d2_charts", 0, "")

@@ -115,14 +115,6 @@ let wasm_bindgen;
             wasm.__wbg_steenrodcalculator_free(ptr, 0);
         }
         /**
-         * @param {number} p
-         * @returns {SteenrodCalculator | undefined}
-         */
-        static new(p) {
-            const ret = wasm.steenrodcalculator_new(p);
-            return ret === 0 ? undefined : SteenrodCalculator.__wrap(ret);
-        }
-        /**
          * @param {string} input
          * @returns {string}
          */
@@ -169,6 +161,14 @@ let wasm_bindgen;
             } finally {
                 wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
             }
+        }
+        /**
+         * @param {number} p
+         * @returns {SteenrodCalculator | undefined}
+         */
+        static new(p) {
+            const ret = wasm.steenrodcalculator_new(p);
+            return ret === 0 ? undefined : SteenrodCalculator.__wrap(ret);
         }
     }
     if (Symbol.dispose) SteenrodCalculator.prototype[Symbol.dispose] = SteenrodCalculator.prototype.free;

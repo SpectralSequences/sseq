@@ -1,1 +1,0 @@
-searchState.loadedDescShard("differentials", 0, "This prints all the differentials in the resolution.")

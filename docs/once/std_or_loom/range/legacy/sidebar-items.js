@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["Range","RangeFrom","RangeInclusive"]};
+window.SIDEBAR_ITEMS = {"struct":["Range","RangeFrom","RangeInclusive","RangeToInclusive"]};

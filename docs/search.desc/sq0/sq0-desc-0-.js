@@ -1,1 +1,0 @@
-searchState.loadedDescShard("sq0", 0, "")

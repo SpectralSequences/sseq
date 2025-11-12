@@ -1,1 +1,0 @@
-searchState.loadedDescShard("resolution_size", 0, "")
