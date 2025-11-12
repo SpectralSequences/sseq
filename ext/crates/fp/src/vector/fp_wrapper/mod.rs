@@ -288,8 +288,8 @@ mod tests {
     use crate::{prime::ValidPrime, vector::FpVector};
 
     fn random_vector(p: u32, dimension: usize) -> Vec<u32> {
-        let mut rng = rand::thread_rng();
-        (0..dimension).map(|_| rng.gen_range(0..p)).collect()
+        let mut rng = rand::rng();
+        (0..dimension).map(|_| rng.random_range(0..p)).collect()
     }
 
     #[rstest]

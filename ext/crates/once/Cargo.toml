@@ -15,8 +15,8 @@ maybe-rayon = { path = "../maybe-rayon" }
 
 [dev-dependencies]
 criterion = "0.5"
-pprof = { version = "0.14", features = ["criterion", "flamegraph"] }
-proptest = "1.6.0"
+pprof = { version = "0.15", features = ["criterion", "flamegraph"] }
+proptest = "1.7.0"
 rand = "0.9"
 
 [features]

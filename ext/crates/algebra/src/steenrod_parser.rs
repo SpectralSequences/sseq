@@ -9,7 +9,7 @@ use nom::{
     bytes::complete::tag,
     character::complete::{alpha1, alphanumeric0, char, digit1 as digit, space0},
     combinator::{map, map_res, opt, peek},
-    error::{context, ParseError, VerboseError, VerboseErrorKind},
+    error::{context, ErrorKind, ParseError},
     multi::{many0, separated_list1},
     sequence::{delimited, pair, preceded},
     IResult as IResultBase, Parser,
@@ -17,7 +17,7 @@ use nom::{
 
 use crate::{adem_algebra::AdemBasisElement, algebra::milnor_algebra::PPart};
 
-type IResult<I, O> = IResultBase<I, O, VerboseError<I>>;
+type IResult<I, O> = IResultBase<I, O, nom::error::Error<I>>;
 
 #[derive(Debug, Clone)]
 pub enum AlgebraBasisElt {
@@ -38,30 +38,30 @@ pub enum AlgebraNode {
 pub type ModuleNode = Vec<(AlgebraNode, String)>;
 
 /// Pad both ends with whitespace
-pub(crate) fn space<'a, O, E: ParseError<&'a str>, F: Parser<&'a str, O, E>>(
+pub(crate) fn space<'a, O, E: ParseError<&'a str>, F: Parser<&'a str, Output = O, Error = E>>(
     f: F,
-) -> impl FnMut(&'a str) -> IResultBase<&'a str, O, E> {
+) -> impl Parser<&'a str, Output = O, Error = E> {
     delimited(space0, f, space0)
 }
 
 /// Surround with brackets
-pub(crate) fn brackets<'a, O, E: ParseError<&'a str>, F: Parser<&'a str, O, E>>(
+pub(crate) fn brackets<'a, O, E: ParseError<&'a str>, F: Parser<&'a str, Output = O, Error = E>>(
     f: F,
-) -> impl FnMut(&'a str) -> IResultBase<&'a str, O, E> {
+) -> impl Parser<&'a str, Output = O, Error = E> {
     delimited(char('('), f, char(')'))
 }
 
 pub(crate) fn digits<T: FromStr + Copy>(i: &str) -> IResult<&str, T> {
-    map_res(space(digit), FromStr::from_str)(i)
+    map_res(space(digit), FromStr::from_str).parse(i)
 }
 
 pub(crate) fn p_or_sq(i: &str) -> IResult<&str, &str> {
-    alt((tag("P"), tag("Sq")))(i)
+    alt((tag("P"), tag("Sq"))).parse(i)
 }
 
 fn fold_separated<I: Clone, OS, O, E>(
-    mut sep: impl Parser<I, OS, E>,
-    mut f: impl Parser<I, O, E>,
+    mut sep: impl Parser<I, Output = OS, Error = E>,
+    mut f: impl Parser<I, Output = O, Error = E>,
     mut acc: impl FnMut(O, O) -> O,
 ) -> impl FnMut(I) -> IResultBase<I, O, E> {
     move |i: I| {
@@ -141,7 +141,8 @@ fn algebra_generator(i: &str) -> IResult<&str, AlgebraBasisElt> {
             ),
             AlgebraBasisElt::AList,
         ),
-    ))(i)
+    ))
+    .parse(i)
 }
 
 fn scalar(i: &str) -> IResult<&str, i32> {
@@ -149,7 +150,8 @@ fn scalar(i: &str) -> IResult<&str, i32> {
         digits,
         preceded(char('+'), digits),
         map(preceded(char('-'), digits), |x: i32| -x),
-    ))(i)
+    ))
+    .parse(i)
 }
 
 fn algebra_factor(i: &str) -> IResult<&str, AlgebraNode> {
@@ -157,11 +159,12 @@ fn algebra_factor(i: &str) -> IResult<&str, AlgebraNode> {
         map(algebra_generator, AlgebraNode::BasisElt),
         map(scalar, AlgebraNode::Scalar),
         brackets(algebra_expr),
-    )))(i)
+    )))
+    .parse(i)
 }
 
 fn algebra_term(i: &str) -> IResult<&str, AlgebraNode> {
-    let (i, sign) = opt(alt((char('+'), char('-'))))(i)?;
+    let (i, sign) = opt(alt((char('+'), char('-')))).parse(i)?;
 
     let (i, mut res) = fold_separated(char('*'), algebra_factor, |acc, val| {
         AlgebraNode::Product(Box::new(acc), Box::new(val))
@@ -182,16 +185,12 @@ fn algebra_expr(i: &str) -> IResult<&str, AlgebraNode> {
 }
 
 fn module_generator(i: &str) -> IResult<&str, String> {
-    let (rest, (a, more_str)) = pair(alpha1, alphanumeric0)(i)?;
+    let (rest, (a, more_str)) = pair(alpha1, alphanumeric0).parse(i)?;
     if a.starts_with("Sq") || a.starts_with('P') || a.starts_with('Q') {
-        return Err(nom::Err::Failure(VerboseError {
-            errors: vec![(
-                &i[0..a.len()],
-                VerboseErrorKind::Context(
-                    "Module generators are not allowed to start with P, Q, or Sq",
-                ),
-            )],
-        }));
+        return Err(nom::Err::Failure(nom::error::Error::new(
+            &i[0..a.len()],
+            ErrorKind::Verify,
+        )));
     }
     Ok((rest, a.to_string() + more_str))
 }
@@ -203,16 +202,17 @@ fn module_term(i: &str) -> IResult<&str, ModuleNode> {
         map(pair(space(algebra_term), char('*')), |(a, _)| a),
         map(char('-'), |_| Scalar(-1)),
         map(char('+'), |_| Scalar(1)),
-    )))(i)
-    .unwrap();
+    )))
+    .parse(i)?;
 
-    match space(module_generator)(i) {
+    match space(module_generator).parse(i) {
         Ok((i, gen)) => return Ok((i, vec![(prefix.unwrap_or(Scalar(1)), gen)])),
         Err(nom::Err::Error(_)) => (),
         Err(e) => return Err(e),
     }
 
-    let (i, expr) = context("Parsing bracketed expression", space(brackets(module_expr)))(i)?;
+    let (i, expr) =
+        context("Parsing bracketed expression", space(brackets(module_expr))).parse(i)?;
     Ok((
         i,
         match prefix {
@@ -236,10 +236,14 @@ fn module_expr(i: &str) -> IResult<&str, ModuleNode> {
     )(i)
 }
 
-fn convert_error(i: &str) -> impl FnOnce(nom::Err<VerboseError<&str>>) -> anyhow::Error + '_ {
+fn convert_error(i: &str) -> impl FnOnce(nom::Err<nom::error::Error<&str>>) -> anyhow::Error + '_ {
     move |err| {
         anyhow!(match err {
-            nom::Err::Error(e) | nom::Err::Failure(e) => nom::error::convert_error(i, e),
+            nom::Err::Error(e) | nom::Err::Failure(e) => format!(
+                "Parse error at position {}: {:?}",
+                i.len() - e.input.len(),
+                e.code
+            ),
             _ => format!("{err:#}"),
         })
     }

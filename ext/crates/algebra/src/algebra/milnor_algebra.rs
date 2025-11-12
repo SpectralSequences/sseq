@@ -587,7 +587,8 @@ impl Algebra for MilnorAlgebra {
             character::complete::char,
             combinator::{map, opt},
             multi::{many0, separated_list1},
-            sequence::{preceded, tuple},
+            sequence::preceded,
+            Parser,
         };
 
         use crate::steenrod_parser::{brackets, digits, p_or_sq};
@@ -598,29 +599,26 @@ impl Algebra for MilnorAlgebra {
             map(char('1'), |_| (0, 0)),
             map(char('b'), |_| (1, 0)),
             map(preceded(p_or_sq, digits), |i| self.beps_pn(0, i)),
+            map((tag("P^"), digits, char('_'), digits), |(_, s, _, t)| {
+                let entry = p.pow(s);
+                let degree = entry as i32 * self.q() * combinatorics::xi_degrees(p)[t];
+                let mut elt = MilnorBasisElement {
+                    degree,
+                    q_part: 0,
+                    p_part: vec![0; t],
+                };
+                elt.p_part[t - 1] = entry as PPartEntry;
+                self.compute_basis(degree);
+                (degree, self.basis_element_to_index(&elt))
+            }),
             map(
-                tuple((tag("P^"), digits, char('_'), digits)),
-                |(_, s, _, t)| {
-                    let entry = p.pow(s);
-                    let degree = entry as i32 * self.q() * combinatorics::xi_degrees(p)[t];
-                    let mut elt = MilnorBasisElement {
-                        degree,
-                        q_part: 0,
-                        p_part: vec![0; t],
-                    };
-                    elt.p_part[t - 1] = entry as PPartEntry;
-                    self.compute_basis(degree);
-                    (degree, self.basis_element_to_index(&elt))
-                },
-            ),
-            map(
-                tuple((
+                (
                     many0(preceded(tag("Q_"), digits::<u32>)),
                     opt(preceded(
                         char('P'),
                         brackets(separated_list1(char(','), digits)),
                     )),
-                )),
+                ),
                 |(q_list, p_list)| {
                     let q_part = q_list.into_iter().fold(0, |acc, q| acc + (1 << q));
                     let mut elt = MilnorBasisElement {
@@ -636,7 +634,7 @@ impl Algebra for MilnorAlgebra {
             ),
         ));
 
-        if let Ok(("", res)) = parser(elt) {
+        if let Ok(("", res)) = parser.parse(elt) {
             Some(res)
         } else {
             None
