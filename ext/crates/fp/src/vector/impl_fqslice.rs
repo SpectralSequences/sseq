@@ -14,6 +14,15 @@ use crate::{
 // Public methods
 
 impl<'a, F: Field> FqSlice<'a, F> {
+    pub(crate) fn new(fq: F, limbs: &'a [Limb], start: usize, end: usize) -> Self {
+        FqSlice {
+            fq,
+            limbs,
+            start,
+            end,
+        }
+    }
+
     pub fn prime(&self) -> ValidPrime {
         self.fq.characteristic().to_dyn()
     }
@@ -48,6 +57,10 @@ impl<'a, F: Field> FqSlice<'a, F> {
 
     pub fn iter_nonzero(self) -> FqVectorNonZeroIterator<'a, F> {
         FqVectorNonZeroIterator::new(self)
+    }
+
+    pub fn first_nonzero(&self) -> Option<(usize, FieldElement<F>)> {
+        self.iter_nonzero().next()
     }
 
     pub fn is_zero(&self) -> bool {
@@ -102,6 +115,10 @@ impl<'a, F: Field> FqSlice<'a, F> {
 
 // Limb methods
 impl<F: Field> FqSlice<'_, F> {
+    pub(crate) fn limbs(&self) -> &[Limb] {
+        self.limbs
+    }
+
     #[inline]
     pub(super) fn offset(&self) -> usize {
         let bit_length = self.fq.bit_length();

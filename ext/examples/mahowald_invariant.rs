@@ -56,7 +56,11 @@ use ext::{
     resolution_homomorphism::{MuResolutionHomomorphism, ResolutionHomomorphism},
     utils,
 };
-use fp::{matrix::Matrix, prime::TWO, vector::FpVector};
+use fp::{
+    matrix::Matrix,
+    prime::TWO,
+    vector::{FpSlice, FpVector},
+};
 use serde_json::json;
 use sseq::coordinates::{Bidegree, BidegreeElement, BidegreeGenerator};
 
@@ -210,7 +214,8 @@ impl PKData {
 
                 if rank > 0 {
                     let kernel_subspace = matrix.compute_kernel(padded_columns);
-                    let indeterminacy_basis = kernel_subspace.basis().to_vec();
+                    let indeterminacy_basis: Vec<FpVector> =
+                        kernel_subspace.basis().map(FpSlice::to_owned).collect();
                     let image_subspace = matrix.compute_image(p_k_gens, padded_columns);
                     let quasi_inverse = matrix.compute_quasi_inverse(p_k_gens, padded_columns);
 

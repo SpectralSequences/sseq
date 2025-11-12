@@ -18,6 +18,7 @@ serde_json = "1.0.141"
 
 maybe-rayon = { path = "../maybe-rayon" }
 query = { path = "../query" }
+aligned-vec = "0.6.4"
 
 [dev-dependencies]
 # We use the proptest harness for our own tests
@@ -36,6 +37,10 @@ build_const = "0.2.2"
 default = ["odd-primes"]
 concurrent = ["maybe-rayon/concurrent"]
 odd-primes = []
+
+[[bench]]
+name = "mul"
+harness = false
 
 [[bench]]
 name = "reduce"
