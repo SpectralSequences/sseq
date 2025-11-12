@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["load","store","xor"],"type":["SimdLimb"]};
+window.SIDEBAR_ITEMS = {"fn":["add_simd"],"macro":["add_simd_arch"],"mod":["avx","avx2","avx512","sse2"]};
