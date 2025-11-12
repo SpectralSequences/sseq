@@ -29,8 +29,6 @@ fn main() -> io::Result<()> {
     writer.add_value("NUM_PRIMES", "usize", num_primes);
     writer.add_raw("/// The `NUM_PRIMES`th prime number.");
     writer.add_value("MAX_PRIME", "usize", max_prime);
-    // `NOT_A_PRIME` is never used if odd-primes is disabled.
-    writer.add_raw("#[allow(dead_code)]");
     writer.add_raw(
         "/// A sentinel value. `PRIME_TO_INDEX_MAP[i] == NOT_A_PRIME` if and only if `i` is not",
     );

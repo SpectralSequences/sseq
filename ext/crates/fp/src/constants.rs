@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use build_const::build_const;
 
 build_const!("constants");
