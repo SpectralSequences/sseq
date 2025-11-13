@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use algebra::{
-    module::{steenrod_module, FDModule, TensorModule},
     AdemAlgebra, SteenrodAlgebra,
+    module::{FDModule, TensorModule, steenrod_module},
 };
 use anyhow::anyhow;
 use ext::utils::parse_module_name;

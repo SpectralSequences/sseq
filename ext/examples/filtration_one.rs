@@ -21,9 +21,9 @@ fn main() -> anyhow::Result<()> {
             // TODO: This doesn't work with the reordered Adams basis
             let products = resolution.filtration_one_product(1 << i, 0, b).unwrap();
             for (idx, row) in products.into_iter().enumerate() {
-                let gen = BidegreeGenerator::new(b, idx);
+                let g = BidegreeGenerator::new(b, idx);
                 if !row.is_empty() {
-                    println!("h_{i} x_{gen} = {row:?}");
+                    println!("h_{i} x_{g} = {row:?}");
                 }
             }
             i += 1;

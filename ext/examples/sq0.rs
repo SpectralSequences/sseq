@@ -48,9 +48,9 @@ fn main() -> anyhow::Result<()> {
         let map = hom.get_map(b.s());
 
         for i in 0..res.number_of_gens_in_bidegree(b) {
-            let gen = BidegreeGenerator::new(b, i);
+            let g = BidegreeGenerator::new(b, i);
             println!(
-                "Sq^0 x_{gen} = [{}]",
+                "Sq^0 x_{g} = [{}]",
                 (0..source_num_gens)
                     .map(|j| map.output(doubled_b.t(), j).entry(offset + i))
                     .format(", ")
@@ -77,8 +77,8 @@ mod double {
 
     mod double_algebra {
         use algebra::{
-            adem_algebra::AdemBasisElement, milnor_algebra::MilnorBasisElement, AdemAlgebra,
-            Algebra, MilnorAlgebra, SteenrodAlgebra,
+            AdemAlgebra, Algebra, MilnorAlgebra, SteenrodAlgebra, adem_algebra::AdemBasisElement,
+            milnor_algebra::MilnorBasisElement,
         };
 
         pub trait DoubleAlgebra: Algebra {
@@ -144,7 +144,7 @@ mod double {
     pub mod double_module {
         use std::sync::Arc;
 
-        use algebra::module::{homomorphism::ModuleHomomorphism, Module};
+        use algebra::module::{Module, homomorphism::ModuleHomomorphism};
         use fp::{
             matrix::{Matrix, MatrixSliceMut, QuasiInverse, Subspace},
             vector::{FpSlice, FpSliceMut},

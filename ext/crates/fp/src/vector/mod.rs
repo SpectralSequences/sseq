@@ -18,7 +18,7 @@ pub(super) mod tests {
 
     use super::{arbitrary::MAX_LEN as MAX_TEST_VEC_LEN, inner::FqVector};
     use crate::{
-        field::{element::FieldElement, fp::F2, Field},
+        field::{Field, element::FieldElement, fp::F2},
         limb,
     };
 
@@ -130,15 +130,15 @@ pub(super) mod tests {
     }
 
     /// An Fq vector together with valid slice indices
-    fn arb_vec_and_slice<F: Field>(
-    ) -> impl Strategy<Value = (F, Vec<FieldElement<F>>, (usize, usize))> {
+    fn arb_vec_and_slice<F: Field>()
+    -> impl Strategy<Value = (F, Vec<FieldElement<F>>, (usize, usize))> {
         arb_field_dim()
             .prop_flat_map(|(fq, dim)| (Just(fq), arb_element_vec(fq, dim), arb_slice(dim)))
     }
 
     /// A pair of vectors of the same length over the same field
-    fn arb_vec_pair<F: Field>(
-    ) -> impl Strategy<Value = (F, Vec<FieldElement<F>>, Vec<FieldElement<F>>)> {
+    fn arb_vec_pair<F: Field>()
+    -> impl Strategy<Value = (F, Vec<FieldElement<F>>, Vec<FieldElement<F>>)> {
         arb_field_dim().prop_flat_map(|(fq, dim)| {
             (Just(fq), arb_element_vec(fq, dim), arb_element_vec(fq, dim))
         })
@@ -165,8 +165,8 @@ pub(super) mod tests {
 
     /// A pair of vectors of the same length over the same field, together with a mask (in the sense
     /// of [`FqVector::add_masked`] and [`FqVector::add_unmasked`])
-    fn arb_vec_pair_and_mask<F: Field>(
-    ) -> impl Strategy<Value = (F, Vec<FieldElement<F>>, Vec<FieldElement<F>>, Vec<usize>)> {
+    fn arb_vec_pair_and_mask<F: Field>()
+    -> impl Strategy<Value = (F, Vec<FieldElement<F>>, Vec<FieldElement<F>>, Vec<usize>)> {
         any::<F>()
             .prop_flat_map(|fq| (Just(fq), arb_slice(MAX_TEST_VEC_LEN)))
             .prop_flat_map(|(fq, (dim_small, dim_large))| {

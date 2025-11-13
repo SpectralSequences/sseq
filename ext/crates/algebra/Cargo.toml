@@ -5,7 +5,7 @@ authors = [
     "Hood Chatham <hood@mit.edu>",
     "Dexter Chua <dexter@math.harvard.edu>",
 ]
-edition = "2021"
+edition = "2024"
 
 [lib]
 crate-type = ["cdylib", "rlib"]

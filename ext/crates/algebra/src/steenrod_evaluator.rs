@@ -7,7 +7,7 @@ use fp::{
 };
 
 use crate::{
-    algebra::{adem_algebra::AdemBasisElement, AdemAlgebra, Algebra, MilnorAlgebra},
+    algebra::{AdemAlgebra, Algebra, MilnorAlgebra, adem_algebra::AdemBasisElement},
     milnor_algebra::{MilnorBasisElement, PPartEntry},
     steenrod_parser::*,
 };
@@ -64,13 +64,13 @@ impl SteenrodEvaluator {
         if items.is_empty() {
             return Ok(result);
         }
-        for (op, gen) in parse_module(items)? {
-            if let Some((deg, vec)) = result.get_mut(&gen) {
+        for (op, g) in parse_module(items)? {
+            if let Some((deg, vec)) = result.get_mut(&g) {
                 let (_, adem_v) = self.evaluate_algebra_node(Some(*deg), op)?;
                 vec.add(&adem_v, 1);
             } else {
                 let (deg, adem_v) = self.evaluate_algebra_node(None, op)?;
-                result.insert(gen, (deg, adem_v));
+                result.insert(g, (deg, adem_v));
             }
         }
         Ok(result)
@@ -129,10 +129,10 @@ impl SteenrodEvaluator {
                 self.evaluate_basis_element(output_degree, basis_elt)
             }
             AlgebraNode::Scalar(x) => {
-                if let Some(degree) = output_degree {
-                    if degree != 0 {
-                        return Err(anyhow!("Mismatched Degree"));
-                    }
+                if let Some(degree) = output_degree
+                    && degree != 0
+                {
+                    return Err(anyhow!("Mismatched Degree"));
                 }
                 let mut result = FpVector::new(p, 1);
                 result.set_entry(0, x.rem_euclid(p.as_i32()) as u32);
@@ -187,10 +187,10 @@ impl SteenrodEvaluator {
                 (degree, result)
             }
         };
-        if let Some(requested_degree) = output_degree {
-            if degree != requested_degree {
-                return Err(anyhow!("Mismatched degree"));
-            }
+        if let Some(requested_degree) = output_degree
+            && degree != requested_degree
+        {
+            return Err(anyhow!("Mismatched degree"));
         }
         Ok((degree, result))
     }
@@ -392,7 +392,7 @@ impl SteenrodEvaluator {
 
 #[cfg(test)]
 mod tests {
-    use expect_test::{expect, Expect};
+    use expect_test::{Expect, expect};
     use rstest::rstest;
 
     use super::*;

@@ -2,8 +2,8 @@ use std::{mem::ManuallyDrop, num::NonZero, sync::atomic::Ordering};
 
 use crate::{
     std_or_loom::{
-        sync::atomic::{AtomicPtr, AtomicUsize},
         GetMut,
+        sync::atomic::{AtomicPtr, AtomicUsize},
     },
     write_once::WriteOnce,
 };

@@ -135,10 +135,10 @@ impl QuasiInverse {
         let p = self.prime();
         let mut row = 0;
         for (i, c) in input.iter().enumerate() {
-            if let Some(pivots) = self.pivots() {
-                if i >= pivots.len() || pivots[i] < 0 {
-                    continue;
-                }
+            if let Some(pivots) = self.pivots()
+                && (i >= pivots.len() || pivots[i] < 0)
+            {
+                continue;
             }
             if c != 0 {
                 target.add(self.preimage[row].as_slice(), (coeff * c) % p);

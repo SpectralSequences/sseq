@@ -6,7 +6,7 @@ use once::OnceBiVec;
 
 use crate::{
     algebra::Field,
-    module::{block_structure::BlockStructure, FreeModule, Module},
+    module::{FreeModule, Module, block_structure::BlockStructure},
 };
 
 /// Given a module N and a free module M, this is the module Hom(M, N) as a module over the ground
@@ -124,7 +124,7 @@ impl<M: Module> Module for HomModule<M> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{module::FDModule, MilnorAlgebra};
+    use crate::{MilnorAlgebra, module::FDModule};
 
     #[test]
     fn test_hom_dim() {

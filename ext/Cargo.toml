@@ -6,7 +6,7 @@ authors = [
     "Dexter Chua <dexter@math.harvard.edu>",
     "Joey Beauvais-Feisthauer <joeybf@wayne.edu>",
 ]
-edition = "2021"
+edition = "2024"
 description = "Compute Ext over the Steenrod algebra"
 repository = "https://github.com/SpectralSequences/ext/"
 license = "(MIT OR Apache-2.0)"

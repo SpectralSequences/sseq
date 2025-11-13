@@ -1,13 +1,13 @@
 //! This module exports the [`Resolution`] object, which is a chain complex resolving a module. In
 //! particular, this contains the core logic that compute minimal resolutions.
-use std::sync::{mpsc, Arc, Mutex};
+use std::sync::{Arc, Mutex, mpsc};
 
 use algebra::{
-    module::{
-        homomorphism::{ModuleHomomorphism, MuFreeModuleHomomorphism},
-        Module, MuFreeModule,
-    },
     Algebra, MuAlgebra,
+    module::{
+        Module, MuFreeModule,
+        homomorphism::{ModuleHomomorphism, MuFreeModuleHomomorphism},
+    },
 };
 use anyhow::Context;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
@@ -207,12 +207,12 @@ where
 
         let p = self.prime();
 
-        if let Some(dir) = self.save_dir.read() {
-            if let Some(mut f) = self.save_file(SaveKind::Kernel, b).open_file(dir.clone()) {
-                return Subspace::from_bytes(p, &mut f)
-                    .with_context(|| format!("Failed to read kernel at {b}"))
-                    .unwrap();
-            }
+        if let Some(dir) = self.save_dir.read()
+            && let Some(mut f) = self.save_file(SaveKind::Kernel, b).open_file(dir.clone())
+        {
+            return Subspace::from_bytes(p, &mut f)
+                .with_context(|| format!("Failed to read kernel at {b}"))
+                .unwrap();
         }
 
         let complex = self.target();
@@ -245,16 +245,16 @@ where
 
         let kernel = matrix.compute_kernel();
 
-        if self.should_save {
-            if let Some(dir) = self.save_dir.write() {
-                let mut f = self
-                    .save_file(SaveKind::Kernel, b)
-                    .create_file(dir.clone(), true);
-                kernel
-                    .to_bytes(&mut f)
-                    .with_context(|| format!("Failed to write kernel at {b}"))
-                    .unwrap();
-            }
+        if self.should_save
+            && let Some(dir) = self.save_dir.write()
+        {
+            let mut f = self
+                .save_file(SaveKind::Kernel, b)
+                .create_file(dir.clone(), true);
+            kernel
+                .to_bytes(&mut f)
+                .with_context(|| format!("Failed to write kernel at {b}"))
+                .unwrap();
         }
         kernel
     }
@@ -378,87 +378,86 @@ where
         target_res.compute_basis(b.t());
         let target_res_dimension = target_res.dimension(b.t());
 
-        if let Some(dir) = self.save_dir.read() {
-            if let Some(mut f) = self
+        if let Some(dir) = self.save_dir.read()
+            && let Some(mut f) = self
                 .save_file(SaveKind::Differential, b)
                 .open_file(dir.clone())
-            {
-                let num_new_gens = f.read_u64::<LittleEndian>().unwrap() as usize;
-                // This need not be equal to `target_res_dimension`. If we saved a big resolution
-                // and now only want to load up to a small stem, then `target_res_dimension` will
-                // be smaller. If we have previously saved a small resolution up to a stem and now
-                // want to resolve further, it will be bigger.
-                let saved_target_res_dimension = f.read_u64::<LittleEndian>().unwrap() as usize;
-                assert_eq!(
-                    target_cc_dimension,
-                    f.read_u64::<LittleEndian>().unwrap() as usize,
-                    "Malformed data: mismatched augmentation target dimension"
-                );
+        {
+            let num_new_gens = f.read_u64::<LittleEndian>().unwrap() as usize;
+            // This need not be equal to `target_res_dimension`. If we saved a big resolution
+            // and now only want to load up to a small stem, then `target_res_dimension` will
+            // be smaller. If we have previously saved a small resolution up to a stem and now
+            // want to resolve further, it will be bigger.
+            let saved_target_res_dimension = f.read_u64::<LittleEndian>().unwrap() as usize;
+            assert_eq!(
+                target_cc_dimension,
+                f.read_u64::<LittleEndian>().unwrap() as usize,
+                "Malformed data: mismatched augmentation target dimension"
+            );
 
-                self.add_generators(b, num_new_gens);
+            self.add_generators(b, num_new_gens);
 
-                let mut d_targets = Vec::with_capacity(num_new_gens);
-                let mut a_targets = Vec::with_capacity(num_new_gens);
+            let mut d_targets = Vec::with_capacity(num_new_gens);
+            let mut a_targets = Vec::with_capacity(num_new_gens);
 
-                for _ in 0..num_new_gens {
-                    d_targets
-                        .push(FpVector::from_bytes(p, saved_target_res_dimension, &mut f).unwrap());
-                }
-                for _ in 0..num_new_gens {
-                    a_targets.push(FpVector::from_bytes(p, target_cc_dimension, &mut f).unwrap());
-                }
-                drop(f);
-                current_differential.add_generators_from_rows(b.t(), d_targets);
-                current_chain_map.add_generators_from_rows(b.t(), a_targets);
+            for _ in 0..num_new_gens {
+                d_targets
+                    .push(FpVector::from_bytes(p, saved_target_res_dimension, &mut f).unwrap());
+            }
+            for _ in 0..num_new_gens {
+                a_targets.push(FpVector::from_bytes(p, target_cc_dimension, &mut f).unwrap());
+            }
+            drop(f);
+            current_differential.add_generators_from_rows(b.t(), d_targets);
+            current_chain_map.add_generators_from_rows(b.t(), a_targets);
 
-                // res qi
-                if self.load_quasi_inverse {
-                    if let Some(mut f) = self.save_file(SaveKind::ResQi, b).open_file(dir.clone()) {
-                        let res_qi = QuasiInverse::from_bytes(p, &mut f).unwrap();
+            // res qi
+            if self.load_quasi_inverse {
+                if let Some(mut f) = self.save_file(SaveKind::ResQi, b).open_file(dir.clone()) {
+                    let res_qi = QuasiInverse::from_bytes(p, &mut f).unwrap();
 
-                        assert_eq!(
-                            res_qi.source_dimension(),
-                            source_dimension + num_new_gens,
-                            "Malformed data: mismatched source dimension in resolution qi at {b}"
-                        );
+                    assert_eq!(
+                        res_qi.source_dimension(),
+                        source_dimension + num_new_gens,
+                        "Malformed data: mismatched source dimension in resolution qi at {b}"
+                    );
 
-                        current_differential.set_quasi_inverse(b.t(), Some(res_qi));
-                    } else {
-                        current_differential.set_quasi_inverse(b.t(), None);
-                    }
+                    current_differential.set_quasi_inverse(b.t(), Some(res_qi));
                 } else {
                     current_differential.set_quasi_inverse(b.t(), None);
                 }
-
-                if let Some(mut f) = self
-                    .save_file(SaveKind::AugmentationQi, b)
-                    .open_file(dir.clone())
-                {
-                    let cm_qi = QuasiInverse::from_bytes(p, &mut f).unwrap();
-
-                    assert_eq!(
-                        cm_qi.target_dimension(),
-                        target_cc_dimension,
-                        "Malformed data: mismatched augmentation target dimension in qi at {b}"
-                    );
-                    assert_eq!(
-                        cm_qi.source_dimension(),
-                        source_dimension + num_new_gens,
-                        "Malformed data: mismatched source dimension in augmentation qi at {b}"
-                    );
-
-                    current_chain_map.set_quasi_inverse(b.t(), Some(cm_qi));
-                } else {
-                    current_chain_map.set_quasi_inverse(b.t(), None);
-                }
-
-                current_differential.set_kernel(b.t(), None);
-                current_differential.set_image(b.t(), None);
-
-                current_chain_map.set_kernel(b.t(), None);
-                current_chain_map.set_image(b.t(), None);
-                return;
+            } else {
+                current_differential.set_quasi_inverse(b.t(), None);
             }
+
+            if let Some(mut f) = self
+                .save_file(SaveKind::AugmentationQi, b)
+                .open_file(dir.clone())
+            {
+                let cm_qi = QuasiInverse::from_bytes(p, &mut f).unwrap();
+
+                assert_eq!(
+                    cm_qi.target_dimension(),
+                    target_cc_dimension,
+                    "Malformed data: mismatched augmentation target dimension in qi at {b}"
+                );
+                assert_eq!(
+                    cm_qi.source_dimension(),
+                    source_dimension + num_new_gens,
+                    "Malformed data: mismatched source dimension in augmentation qi at {b}"
+                );
+
+                current_chain_map.set_quasi_inverse(b.t(), Some(cm_qi));
+            } else {
+                current_chain_map.set_quasi_inverse(b.t(), None);
+            }
+
+            current_differential.set_kernel(b.t(), None);
+            current_differential.set_image(b.t(), None);
+
+            current_chain_map.set_kernel(b.t(), None);
+            current_chain_map.set_image(b.t(), None);
+            return;
         }
 
         let mut matrix = AugmentedMatrix::<3>::new_with_capacity(
@@ -478,17 +477,17 @@ where
 
         if !self.has_computed_bidegree(b + Bidegree::s_t(1, 0)) {
             let kernel = matrix.compute_kernel();
-            if self.should_save {
-                if let Some(dir) = self.save_dir.write() {
-                    let mut f = self
-                        .save_file(SaveKind::Kernel, b)
-                        .create_file(dir.clone(), true);
+            if self.should_save
+                && let Some(dir) = self.save_dir.write()
+            {
+                let mut f = self
+                    .save_file(SaveKind::Kernel, b)
+                    .create_file(dir.clone(), true);
 
-                    kernel
-                        .to_bytes(&mut f)
-                        .with_context(|| format!("Failed to write kernel at {b}"))
-                        .unwrap();
-                }
+                kernel
+                    .to_bytes(&mut f)
+                    .with_context(|| format!("Failed to write kernel at {b}"))
+                    .unwrap();
             }
 
             self.kernels.insert(b, kernel);
@@ -637,59 +636,59 @@ where
             current_differential.differential_density(b.t()) * 100.0,
         );
 
-        if self.should_save {
-            if let Some(dir) = self.save_dir.write() {
-                // Write differentials last, because if we were terminated halfway, we want the
-                // differentials to exist iff everything has been written. However, we start by
-                // opening the differentials first to make sure we are not overwriting anything.
+        if self.should_save
+            && let Some(dir) = self.save_dir.write()
+        {
+            // Write differentials last, because if we were terminated halfway, we want the
+            // differentials to exist iff everything has been written. However, we start by
+            // opening the differentials first to make sure we are not overwriting anything.
 
-                // Open differentials file
-                let mut f = self
-                    .save_file(SaveKind::Differential, b)
-                    .create_file(dir.clone(), false);
+            // Open differentials file
+            let mut f = self
+                .save_file(SaveKind::Differential, b)
+                .create_file(dir.clone(), false);
 
-                // Write resolution qi
-                res_qi
-                    .to_bytes(
-                        &mut self
-                            .save_file(SaveKind::ResQi, b)
-                            .create_file(dir.clone(), true),
-                    )
+            // Write resolution qi
+            res_qi
+                .to_bytes(
+                    &mut self
+                        .save_file(SaveKind::ResQi, b)
+                        .create_file(dir.clone(), true),
+                )
+                .unwrap();
+
+            // Write augmentation qi
+            cm_qi
+                .to_bytes(
+                    &mut self
+                        .save_file(SaveKind::AugmentationQi, b)
+                        .create_file(dir.clone(), true),
+                )
+                .unwrap();
+
+            // Write differentials
+            f.write_u64::<LittleEndian>(num_new_gens as u64).unwrap();
+            f.write_u64::<LittleEndian>(target_res_dimension as u64)
+                .unwrap();
+            f.write_u64::<LittleEndian>(target_cc_dimension as u64)
+                .unwrap();
+
+            for n in 0..num_new_gens {
+                current_differential
+                    .output(b.t(), n)
+                    .to_bytes(&mut f)
                     .unwrap();
+            }
+            for n in 0..num_new_gens {
+                current_chain_map.output(b.t(), n).to_bytes(&mut f).unwrap();
+            }
+            drop(f);
 
-                // Write augmentation qi
-                cm_qi
-                    .to_bytes(
-                        &mut self
-                            .save_file(SaveKind::AugmentationQi, b)
-                            .create_file(dir.clone(), true),
-                    )
+            // Delete kernel
+            if b.s() > 0 {
+                self.save_file(SaveKind::Kernel, b - Bidegree::s_t(1, 0))
+                    .delete_file(dir.clone())
                     .unwrap();
-
-                // Write differentials
-                f.write_u64::<LittleEndian>(num_new_gens as u64).unwrap();
-                f.write_u64::<LittleEndian>(target_res_dimension as u64)
-                    .unwrap();
-                f.write_u64::<LittleEndian>(target_cc_dimension as u64)
-                    .unwrap();
-
-                for n in 0..num_new_gens {
-                    current_differential
-                        .output(b.t(), n)
-                        .to_bytes(&mut f)
-                        .unwrap();
-                }
-                for n in 0..num_new_gens {
-                    current_chain_map.output(b.t(), n).to_bytes(&mut f).unwrap();
-                }
-                drop(f);
-
-                // Delete kernel
-                if b.s() > 0 {
-                    self.save_file(SaveKind::Kernel, b - Bidegree::s_t(1, 0))
-                        .delete_file(dir.clone())
-                        .unwrap();
-                }
             }
         }
 

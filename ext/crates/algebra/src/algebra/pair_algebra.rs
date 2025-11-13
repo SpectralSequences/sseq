@@ -13,7 +13,7 @@ use fp::{
 };
 use rustc_hash::FxHasher;
 
-use crate::{combinatorics, Algebra};
+use crate::{Algebra, combinatorics};
 
 type HashMap<K, V> = hashbrown::HashMap<K, V, std::hash::BuildHasherDefault<FxHasher>>;
 
@@ -93,8 +93,8 @@ pub trait PairAlgebra: Algebra {
 use std::cell::RefCell;
 
 use crate::{
-    milnor_algebra::{MilnorBasisElement as MilnorElt, PPartAllocation, PPartMultiplier},
     MilnorAlgebra,
+    milnor_algebra::{MilnorBasisElement as MilnorElt, PPartAllocation, PPartMultiplier},
 };
 
 macro_rules! sub {
@@ -430,7 +430,7 @@ fn a_y_inner(algebra: &MilnorAlgebra, a: &MilnorElt, k: usize, l: usize) -> FpVe
 
 #[cfg(test)]
 mod tests {
-    use expect_test::{expect, Expect};
+    use expect_test::{Expect, expect};
 
     use super::*;
     use crate::milnor_algebra::PPartEntry;

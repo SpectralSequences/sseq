@@ -1,11 +1,11 @@
 use std::{
-    io::{stderr, stdout, Write},
+    io::{Write, stderr, stdout},
     sync::Arc,
 };
 
 use algebra::module::{
-    homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism},
     Module,
+    homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism},
 };
 use ext::{
     chain_complex::{AugmentedChainComplex, BoundedChainComplex, ChainComplex, FreeChainComplex},
@@ -190,8 +190,8 @@ mod sum_module {
     use std::sync::Arc;
 
     use algebra::module::{
-        block_structure::{BlockStructure, GeneratorBasisEltPair},
         Module, ZeroModule,
+        block_structure::{BlockStructure, GeneratorBasisEltPair},
     };
     use bivec::BiVec;
     use fp::vector::FpSliceMut;
@@ -331,7 +331,7 @@ mod sum_module {
 
     #[cfg(test)]
     mod tests {
-        use algebra::{module::FDModule, AdemAlgebra};
+        use algebra::{AdemAlgebra, module::FDModule};
 
         use super::*;
 
@@ -378,8 +378,8 @@ mod tensor_product_chain_complex {
     use std::sync::Arc;
 
     use algebra::{
-        module::{homomorphism::ModuleHomomorphism, Module, TensorModule, ZeroModule},
         Algebra, Bialgebra,
+        module::{Module, TensorModule, ZeroModule, homomorphism::ModuleHomomorphism},
     };
     use ext::chain_complex::ChainComplex;
     use fp::{

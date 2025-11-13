@@ -9,7 +9,7 @@ use fp::{
 use serde::{Deserialize, Serialize};
 use sseq::{Adams, Sseq, SseqProfile};
 
-use crate::{actions::*, Sender};
+use crate::{Sender, actions::*};
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub enum ClassState {

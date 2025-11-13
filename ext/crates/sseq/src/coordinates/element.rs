@@ -51,13 +51,13 @@ impl BidegreeElement {
         self.vec
             .iter_nonzero()
             .map(|(i, v)| {
-                let gen = BidegreeGenerator::new(self.degree(), i);
+                let g = BidegreeGenerator::new(self.degree(), i);
                 let coeff_str = if v != 1 {
                     format!("{v} ")
                 } else {
                     String::new()
                 };
-                format!("{coeff_str}x_{gen}")
+                format!("{coeff_str}x_{g}")
             })
             .collect::<Vec<_>>()
             .join(" + ")

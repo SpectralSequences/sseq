@@ -1,7 +1,7 @@
 use super::{Prime, ValidPrime};
 use crate::{
-    constants::{BINOMIAL4_TABLE, BINOMIAL4_TABLE_SIZE, BINOMIAL_TABLE},
     PRIME_TO_INDEX_MAP,
+    constants::{BINOMIAL_TABLE, BINOMIAL4_TABLE, BINOMIAL4_TABLE_SIZE},
 };
 
 /// This uses a lookup table for n choose k when n and k are both less than p.
@@ -11,10 +11,12 @@ use crate::{
 /// apriori because k and n are obtained by reducing mod p, so it is better to expose an unsafe
 /// interface that avoids these checks.
 unsafe fn direct_binomial(p: ValidPrime, n: usize, k: usize) -> u32 {
-    *BINOMIAL_TABLE
-        .get_unchecked(PRIME_TO_INDEX_MAP[p.as_usize()])
-        .get_unchecked(n)
-        .get_unchecked(k)
+    unsafe {
+        *BINOMIAL_TABLE
+            .get_unchecked(PRIME_TO_INDEX_MAP[p.as_usize()])
+            .get_unchecked(n)
+            .get_unchecked(k)
+    }
 }
 
 /// A number satisfying the Binomial trait supports computing various binomial coefficients. This
@@ -83,11 +85,7 @@ macro_rules! impl_binomial {
                     sum += e;
                     bit_or |= e;
                 }
-                if bit_or == sum {
-                    1
-                } else {
-                    0
-                }
+                if bit_or == sum { 1 } else { 0 }
             }
 
             #[inline]

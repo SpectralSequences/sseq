@@ -1,5 +1,5 @@
 use algebra::milnor_algebra::{PPartAllocation, PPartEntry, PPartMultiplier};
-use bencher::{benchmark_group, benchmark_main, Bencher};
+use bencher::{Bencher, benchmark_group, benchmark_main};
 use fp::prime::{Prime, ValidPrime};
 
 fn ppart_inner<const MOD4: bool>(

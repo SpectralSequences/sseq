@@ -1,14 +1,14 @@
 use std::sync::Arc;
 
 use algebra::{
+    AdemAlgebra, Algebra, GeneratedAlgebra, MilnorAlgebra, SteenrodAlgebra,
     module::{
+        FDModule, FreeModule, Module, QuotientModule as QM,
         homomorphism::{
             FreeModuleHomomorphism, FullModuleHomomorphism, IdentityHomomorphism,
             ModuleHomomorphism, QuotientHomomorphism, QuotientHomomorphismSource,
         },
-        FDModule, FreeModule, Module, QuotientModule as QM,
     },
-    AdemAlgebra, Algebra, GeneratedAlgebra, MilnorAlgebra, SteenrodAlgebra,
 };
 use bivec::BiVec;
 use fp::{
@@ -202,13 +202,11 @@ where
                 if s < target_cc.max_s() {
                     t_max = std::cmp::max(t_max, target_cc.module(s).max_degree().unwrap())
                 }
-                if s >= map.s_shift {
-                    if let Some(f) = map.chain_maps.get((s - map.s_shift) as usize) {
-                        t_max = std::cmp::max(
-                            t_max,
-                            f.degree_shift() + f.target().max_degree().unwrap(),
-                        );
-                    }
+                if s >= map.s_shift
+                    && let Some(f) = map.chain_maps.get((s - map.s_shift) as usize)
+                {
+                    t_max =
+                        std::cmp::max(t_max, f.degree_shift() + f.target().max_degree().unwrap());
                 }
                 t_max
             })
@@ -319,14 +317,13 @@ where
                 }
 
                 // Check if preserve map is non-zero on the generator
-                if s >= s_shift && gen_deg >= t_shift {
-                    if let Some(m) = map.chain_maps.get((s - s_shift) as usize) {
-                        if m.target().dimension(gen_deg - t_shift) > 0
-                            && !m.output(gen_deg, gen_idx).is_zero()
-                        {
-                            continue 'gen_loop;
-                        }
-                    }
+                if s >= s_shift
+                    && gen_deg >= t_shift
+                    && let Some(m) = map.chain_maps.get((s - s_shift) as usize)
+                    && m.target().dimension(gen_deg - t_shift) > 0
+                    && !m.output(gen_deg, gen_idx).is_zero()
+                {
+                    continue 'gen_loop;
                 }
 
                 for t in gen_deg..=t_max {

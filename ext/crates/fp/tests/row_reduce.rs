@@ -1,7 +1,7 @@
 use fp::{
     matrix::{
-        arbitrary::{MatrixArbParams, MAX_COLUMNS, MAX_ROWS},
         Matrix,
+        arbitrary::{MAX_COLUMNS, MAX_ROWS, MatrixArbParams},
     },
     prime::{Prime, ValidPrime},
 };

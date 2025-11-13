@@ -4,8 +4,8 @@ use std::fmt;
 
 use fp::{
     prime::{
-        iter::{BinomialIterator, BitflagIterator},
         Prime, ValidPrime,
+        iter::{BinomialIterator, BitflagIterator},
     },
     vector::{FpSliceMut, FpVector},
 };
@@ -16,8 +16,8 @@ use rustc_hash::FxHashMap as HashMap;
 #[cfg(doc)]
 use crate::algebra::SteenrodAlgebra;
 use crate::algebra::{
-    combinatorics::{self, MAX_XI_TAU},
     Algebra, Bialgebra, GeneratedAlgebra, UnstableAlgebra,
+    combinatorics::{self, MAX_XI_TAU},
 };
 
 /// An algebra that can be viewed as an Adem algebra.
@@ -144,14 +144,13 @@ unsafe fn shift_vec<T>(v: &mut Vec<T>, offset: isize) {
     let ptr = v.as_ptr();
     let len = v.len();
     let cap = v.capacity();
-    let w = std::mem::replace(
-        v,
+    let w = std::mem::replace(v, unsafe {
         Vec::from_raw_parts(
             (ptr as *mut T).offset(offset),
             (len as isize - offset) as usize,
             (cap as isize - offset) as usize,
-        ),
-    );
+        )
+    });
     std::mem::forget(w);
 }
 
@@ -289,7 +288,7 @@ impl Algebra for AdemAlgebra {
     }
 
     fn basis_element_from_string(&self, mut elt: &str) -> Option<(i32, usize)> {
-        use nom::{sequence::preceded, Parser};
+        use nom::{Parser, sequence::preceded};
 
         use crate::steenrod_parser::{digits, p_or_sq};
 

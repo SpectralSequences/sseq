@@ -15,23 +15,22 @@
 use std::{
     fmt::Display,
     io,
-    sync::{mpsc, Arc, Mutex},
+    sync::{Arc, Mutex, mpsc},
 };
 
 use algebra::{
-    combinatorics,
+    Algebra, combinatorics,
     milnor_algebra::{MilnorAlgebra, PPartEntry},
     module::{
-        homomorphism::{FreeModuleHomomorphism, FullModuleHomomorphism, ModuleHomomorphism},
         FreeModule, GeneratorData, Module, ZeroModule,
+        homomorphism::{FreeModuleHomomorphism, FullModuleHomomorphism, ModuleHomomorphism},
     },
-    Algebra,
 };
 use anyhow::anyhow;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use fp::{
     matrix::{AugmentedMatrix, Matrix},
-    prime::{ValidPrime, TWO},
+    prime::{TWO, ValidPrime},
     vector::{FpSlice, FpSliceMut, FpVector},
 };
 use itertools::Itertools;
@@ -624,10 +623,10 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             &masked_matrix,
         )?;
 
-        if let Some(f) = &mut f {
-            if target.max_computed_degree() < b.t() {
-                f.write_u64::<LittleEndian>(Magic::Fix as u64)?;
-            }
+        if let Some(f) = &mut f
+            && target.max_computed_degree() < b.t()
+        {
+            f.write_u64::<LittleEndian>(Magic::Fix as u64)?;
         }
 
         // Compute image
@@ -842,34 +841,33 @@ impl<M: ZeroModule<Algebra = MilnorAlgebra>> Resolution<M> {
             return Ok(());
         }
 
-        if let Some(dir) = self.save_dir.read() {
-            if let Some(mut f) = self
+        if let Some(dir) = self.save_dir.read()
+            && let Some(mut f) = self
                 .save_file(SaveKind::NassauDifferential, b)
                 .open_file(dir.clone())
-            {
-                tracing::info!(%b, "Loading differential");
+        {
+            tracing::info!(%b, "Loading differential");
 
-                let num_new_gens = f.read_u64::<LittleEndian>()? as usize;
-                // This need not be equal to `target_res_dimension`. If we saved a big resolution
-                // and now only want to load up to a small stem, then `target_res_dimension` will
-                // be smaller. If we have previously saved a small resolution up to a stem and now
-                // want to resolve further, it will be bigger.
-                let saved_target_res_dimension = f.read_u64::<LittleEndian>()? as usize;
+            let num_new_gens = f.read_u64::<LittleEndian>()? as usize;
+            // This need not be equal to `target_res_dimension`. If we saved a big resolution
+            // and now only want to load up to a small stem, then `target_res_dimension` will
+            // be smaller. If we have previously saved a small resolution up to a stem and now
+            // want to resolve further, it will be bigger.
+            let saved_target_res_dimension = f.read_u64::<LittleEndian>()? as usize;
 
-                self.add_generators(b, num_new_gens);
+            self.add_generators(b, num_new_gens);
 
-                let mut d_targets = Vec::with_capacity(num_new_gens);
+            let mut d_targets = Vec::with_capacity(num_new_gens);
 
-                for _ in 0..num_new_gens {
-                    d_targets.push(FpVector::from_bytes(p, saved_target_res_dimension, &mut f)?);
-                }
-
-                self.differentials[b.s()].add_generators_from_rows(b.t(), d_targets);
-
-                set_data();
-
-                return Ok(());
+            for _ in 0..num_new_gens {
+                d_targets.push(FpVector::from_bytes(p, saved_target_res_dimension, &mut f)?);
             }
+
+            self.differentials[b.s()].add_generators_from_rows(b.t(), d_targets);
+
+            set_data();
+
+            return Ok(());
         }
 
         if b.s() == 1 {

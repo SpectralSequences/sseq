@@ -7,7 +7,7 @@ use super::{
     iter::{FqVectorIterator, FqVectorNonZeroIterator},
 };
 use crate::{
-    field::{element::FieldElement, Field},
+    field::{Field, element::FieldElement},
     limb::Limb,
     prime::{Prime, ValidPrime},
 };

@@ -10,8 +10,8 @@ use maybe_rayon::prelude::*;
 use crate::{
     grove::Grove,
     std_or_loom::sync::{
-        atomic::{AtomicUsize, Ordering},
         Mutex, MutexGuard,
+        atomic::{AtomicUsize, Ordering},
     },
 };
 

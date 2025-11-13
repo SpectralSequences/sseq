@@ -9,9 +9,9 @@ use serde_json::Value;
 
 use crate::{
     algebra::{
+        AdemAlgebra, Algebra, MilnorAlgebra, SteenrodAlgebra,
         adem_algebra::AdemBasisElement,
         milnor_algebra::{MilnorBasisElement, PPartEntry},
-        AdemAlgebra, Algebra, MilnorAlgebra, SteenrodAlgebra,
     },
     module::{Module, ZeroModule},
 };
@@ -76,10 +76,10 @@ where
         if degree < self.min {
             return 0;
         }
-        if let Some(m) = self.max {
-            if degree > m {
-                return 0;
-            }
+        if let Some(m) = self.max
+            && degree > m
+        {
+            return 0;
         }
 
         if self.clear_bottom

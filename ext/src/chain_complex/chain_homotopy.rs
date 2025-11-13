@@ -1,8 +1,8 @@
 use std::sync::{Arc, Mutex};
 
 use algebra::module::{
-    homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism},
     Module,
+    homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism},
 };
 use fp::{prime::ValidPrime, vector::FpVector};
 use maybe_rayon::prelude::*;
@@ -35,10 +35,10 @@ pub struct ChainHomotopy<
 }
 
 impl<
-        S: FreeChainComplex,
-        T: FreeChainComplex<Algebra = S::Algebra> + Sync,
-        U: ChainComplex<Algebra = S::Algebra> + Sync,
-    > ChainHomotopy<S, T, U>
+    S: FreeChainComplex,
+    T: FreeChainComplex<Algebra = S::Algebra> + Sync,
+    U: ChainComplex<Algebra = S::Algebra> + Sync,
+> ChainHomotopy<S, T, U>
 {
     pub fn new(
         left: Arc<ResolutionHomomorphism<S, T>>,
@@ -178,20 +178,18 @@ impl<
             return self.homotopies[source.s()].add_generators_from_rows_ooo(source.t(), outputs);
         }
 
-        if let Some(dir) = self.save_dir.read() {
-            if let Some(mut f) = self
+        if let Some(dir) = self.save_dir.read()
+            && let Some(mut f) = self
                 .left
                 .source
                 .save_file(SaveKind::ChainHomotopy, source)
                 .open_file(dir.to_owned())
-            {
-                let mut outputs = Vec::with_capacity(num_gens);
-                for _ in 0..num_gens {
-                    outputs.push(FpVector::from_bytes(p, target_dim, &mut f).unwrap());
-                }
-                return self.homotopies[source.s()]
-                    .add_generators_from_rows_ooo(source.t(), outputs);
+        {
+            let mut outputs = Vec::with_capacity(num_gens);
+            for _ in 0..num_gens {
+                outputs.push(FpVector::from_bytes(p, target_dim, &mut f).unwrap());
             }
+            return self.homotopies[source.s()].add_generators_from_rows_ooo(source.t(), outputs);
         }
 
         let mut outputs = vec![FpVector::new(p, target_dim); num_gens];

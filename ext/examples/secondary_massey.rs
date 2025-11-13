@@ -23,7 +23,7 @@ use ext::{
     chain_complex::{ChainComplex, ChainHomotopy, FreeChainComplex},
     resolution_homomorphism::ResolutionHomomorphism,
     secondary::*,
-    utils::{query_module, QueryModuleResolution},
+    utils::{QueryModuleResolution, query_module},
 };
 use fp::{
     matrix::{Matrix, Subspace},
@@ -299,13 +299,13 @@ fn main() -> anyhow::Result<()> {
                         .get_map(c.s() + b.underlying().shift.s())
                         .hom_k(c.t()),
                 );
-                for (gen, out) in target_page_data
+                for (g, out) in target_page_data
                     .subspace_gens()
                     .zip_eq(product_matrix.iter_mut())
                 {
                     out.slice_mut(prod_num_gens, prod_num_gens + target_num_gens)
-                        .add(gen, 1);
-                    for (i, v) in gen.iter_nonzero() {
+                        .add(g, 1);
+                    for (i, v) in g.iter_nonzero() {
                         out.slice_mut(0, prod_num_gens).add(m0[i].as_slice(), v);
                     }
                 }
@@ -386,12 +386,12 @@ fn main() -> anyhow::Result<()> {
             .hom_k(c.t() + b_shift.t());
         let mb = b.underlying().get_map(c.s() + b_shift.s()).hom_k(c.t());
 
-        for gen in e3_kernel.iter() {
+        for g in e3_kernel.iter() {
             // Print name
             {
                 print!("<{a_name}, {b_name}, ");
                 let has_ext = {
-                    let ext_part = gen.slice(0, target_num_gens);
+                    let ext_part = g.slice(0, target_num_gens);
                     if ext_part.iter_nonzero().count() > 0 {
                         print!(
                             "[{basis_string}]",
@@ -404,7 +404,7 @@ fn main() -> anyhow::Result<()> {
                     }
                 };
 
-                let lambda_part = gen.slice(target_num_gens, target_all_gens);
+                let lambda_part = g.slice(target_num_gens, target_all_gens);
                 let num_entries = lambda_part.iter_nonzero().count();
                 if num_entries > 0 {
                     if has_ext {
@@ -414,7 +414,7 @@ fn main() -> anyhow::Result<()> {
 
                     let basis_string = BidegreeElement::new(
                         c + LAMBDA_BIDEGREE,
-                        gen.slice(target_num_gens, target_all_gens).to_owned(),
+                        g.slice(target_num_gens, target_all_gens).to_owned(),
                     )
                     .to_basis_string();
                     if num_entries == 1 {
@@ -431,20 +431,20 @@ fn main() -> anyhow::Result<()> {
             scratch1.set_scratch_vector_size(source_lambda_num_gens);
 
             // First deal with the null-homotopy of ab
-            for (i, v) in gen.slice(0, target_num_gens).iter_nonzero() {
+            for (i, v) in g.slice(0, target_num_gens).iter_nonzero() {
                 scratch0
                     .iter_mut()
                     .zip_eq(&m0[i])
                     .for_each(|(a, b)| *a += v * b);
                 scratch1.add(&m1[i], v);
             }
-            for (i, v) in gen.slice(target_num_gens, target_all_gens).iter_nonzero() {
+            for (i, v) in g.slice(target_num_gens, target_all_gens).iter_nonzero() {
                 scratch1.add(&mt[i], v);
             }
             // Now do the -1 part of the null-homotopy of bc.
             {
                 let sign = p * p - 1;
-                let out = b.product_nullhomotopy(b_lambda.as_deref(), &unit_sseq, c, gen);
+                let out = b.product_nullhomotopy(b_lambda.as_deref(), &unit_sseq, c, g);
                 for (i, v) in out.iter_nonzero() {
                     scratch0
                         .iter_mut()
@@ -465,7 +465,7 @@ fn main() -> anyhow::Result<()> {
             scratch0.clear();
             scratch0.resize(prod_num_gens, 0);
 
-            for (i, v) in gen.slice(0, target_num_gens).iter_nonzero() {
+            for (i, v) in g.slice(0, target_num_gens).iter_nonzero() {
                 scratch0
                     .iter_mut()
                     .zip_eq(&mb[i])

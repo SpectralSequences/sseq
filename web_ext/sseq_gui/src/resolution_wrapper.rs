@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use algebra::{
-    module::{homomorphism::FreeModuleHomomorphism, FreeModule, Module},
     Algebra,
+    module::{FreeModule, Module, homomorphism::FreeModuleHomomorphism},
 };
 use ext::{
     chain_complex::{AugmentedChainComplex, ChainComplex, FreeChainComplex},
@@ -263,7 +263,7 @@ impl<CC: ChainComplex> Resolution<CC> {
             match &mut self.unit_resolution {
                 UnitResolution::None => panic!("No unit resolution set"),
                 UnitResolution::Own => unreachable!(),
-                UnitResolution::Some(ref mut r) => r,
+                UnitResolution::Some(r) => r,
             }
         }
     }

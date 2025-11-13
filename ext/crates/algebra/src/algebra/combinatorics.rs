@@ -1,8 +1,7 @@
 use fp::{
-    const_for,
-    prime::{minus_one_to_the_n, Binomial, Prime, ValidPrime},
+    MAX_MULTINOMIAL_LEN, NUM_PRIMES, PRIME_TO_INDEX_MAP, PRIMES, const_for,
+    prime::{Binomial, Prime, ValidPrime, minus_one_to_the_n},
     vector::FpVector,
-    MAX_MULTINOMIAL_LEN, NUM_PRIMES, PRIMES, PRIME_TO_INDEX_MAP,
 };
 use once::OnceVec;
 
@@ -73,9 +72,9 @@ pub fn inadmissible_pairs(p: ValidPrime, generic: bool, degree: i32) -> Vec<(u32
         }
     } else if degree % q == 1 {
         let degq = degree / q; // Since we round down, this is actually (degree - 1)/q
-                               // We want P^i b P^j to be inadmissible, so i < p * j + 1. This translates to
-                               // i < (p * degq + 1)/(p + 1). Since Rust automatically rounds *down*, but we want to round
-                               // up instead, we use i < (p * degq + p + 1)/(p + 1).
+        // We want P^i b P^j to be inadmissible, so i < p * j + 1. This translates to
+        // i < (p * degq + 1)/(p + 1). Since Rust automatically rounds *down*, but we want to round
+        // up instead, we use i < (p * degq + p + 1)/(p + 1).
         for i in 1..(p * degq + p + 1) / (p + 1) {
             inadmissible_pairs.push((i, 1, degq - i));
         }

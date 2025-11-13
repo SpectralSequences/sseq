@@ -30,7 +30,7 @@
 // The loom tests require `--cfg loom` to be passed to `rustc`. However, this is a nonstandard cfg
 // flag that we need to explicitly allow.
 #![allow(unexpected_cfgs)]
-#![deny(clippy::use_self)]
+#![deny(clippy::use_self, unsafe_op_in_unsafe_fn)]
 
 pub mod grove;
 pub mod multiindexed;

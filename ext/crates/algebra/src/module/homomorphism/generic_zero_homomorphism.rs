@@ -3,8 +3,8 @@ use std::sync::Arc;
 use fp::vector::FpSliceMut;
 
 use crate::module::{
-    homomorphism::{ModuleHomomorphism, ZeroHomomorphism},
     Module,
+    homomorphism::{ModuleHomomorphism, ZeroHomomorphism},
 };
 
 pub struct GenericZeroHomomorphism<S: Module, T: Module<Algebra = S::Algebra>> {

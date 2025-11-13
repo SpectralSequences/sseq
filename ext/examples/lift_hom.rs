@@ -42,7 +42,7 @@
 use std::{path::PathBuf, sync::Arc};
 
 use algebra::module::Module;
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use ext::{
     chain_complex::{AugmentedChainComplex, ChainComplex, FreeChainComplex},
     resolution_homomorphism::ResolutionHomomorphism,
@@ -119,8 +119,8 @@ fn main() -> anyhow::Result<()> {
             hom.extend_step(input, None);
         } else {
             for (idx, row) in matrix.iter_mut().enumerate() {
-                let gen = BidegreeGenerator::new(input, idx);
-                let v: Vec<u32> = query::vector(&format!("f(x_{gen}"), row.len());
+                let g = BidegreeGenerator::new(input, idx);
+                let v: Vec<u32> = query::vector(&format!("f(x_{g}"), row.len());
                 for (i, &x) in v.iter().enumerate() {
                     row.set_entry(i, x);
                 }
@@ -140,8 +140,8 @@ fn main() -> anyhow::Result<()> {
         }
         let matrix = hom.get_map(shifted_b2.s()).hom_k(b2.t());
         for (i, r) in matrix.iter().enumerate() {
-            let gen = BidegreeGenerator::new(b2, i);
-            println!("{name} x_{gen} = {r:?}");
+            let g = BidegreeGenerator::new(b2, i);
+            println!("{name} x_{g} = {r:?}");
         }
     }
     Ok(())

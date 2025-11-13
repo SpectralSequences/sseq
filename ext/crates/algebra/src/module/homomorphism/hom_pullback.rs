@@ -7,9 +7,9 @@ use fp::{
 use once::OnceBiVec;
 
 use crate::module::{
+    FreeModule, HomModule, Module,
     block_structure::GeneratorBasisEltPair,
     homomorphism::{FreeModuleHomomorphism, ModuleHomomorphism},
-    FreeModule, HomModule, Module,
 };
 
 /// Given a map $\mathtt{map}: A \to B$ and hom modules $\mathtt{source} = \Hom(B, X)$, $\mathtt{target} = \Hom(A, X)$, produce the induced pullback map $\Hom(B, X) \to \Hom(A, X)$.
@@ -145,7 +145,7 @@ mod tests {
     use fp::{matrix::Matrix, vector::FpVector};
 
     use super::*;
-    use crate::{module::FDModule, MilnorAlgebra};
+    use crate::{MilnorAlgebra, module::FDModule};
 
     #[test]
     fn test_pullback_id() {
