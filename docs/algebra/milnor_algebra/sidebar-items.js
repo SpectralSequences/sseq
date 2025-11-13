@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["MilnorAlgebra","MilnorBasisElement","MilnorProfile","PPartAllocation","PPartMultiplier"],"trait":["MilnorAlgebraT"],"type":["PPart","PPartEntry"]};
+window.SIDEBAR_ITEMS = {"struct":["MilnorAlgebra","MilnorBasisElement","MilnorProfile","PPartAllocation","PPartMultiplier"],"type":["PPart","PPartEntry"]};

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["adem_algebra","algebra_trait","bialgebra_trait","combinatorics","field","milnor_algebra","pair_algebra","polynomial_algebra","steenrod_algebra"]};
+window.SIDEBAR_ITEMS = {"mod":["adem_algebra","algebra_trait","bialgebra_trait","combinatorics","field","milnor_algebra","pair_algebra","steenrod_algebra"]};

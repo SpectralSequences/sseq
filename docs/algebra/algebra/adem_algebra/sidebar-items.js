@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["PorBockstein"],"fn":["shift_vec"],"struct":["AdemAlgebra","AdemBasisElement"],"trait":["AdemAlgebraT"]};
+window.SIDEBAR_ITEMS = {"enum":["PorBockstein"],"fn":["shift_vec"],"struct":["AdemAlgebra","AdemBasisElement"]};
