@@ -1,9 +1,9 @@
 use algebra::Algebra;
-use chart::SvgBackend;
 use ext::{
     chain_complex::{ChainComplex, FreeChainComplex},
     utils::query_module,
 };
+use sseq::charting::SvgBackend;
 
 fn main() -> anyhow::Result<()> {
     ext::utils::init_logging()?;
