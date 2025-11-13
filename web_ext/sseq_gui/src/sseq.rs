@@ -8,8 +8,8 @@ use fp::{
 };
 use serde::{Deserialize, Serialize};
 use sseq::{
-    coordinates::{Bidegree, BidegreeElement},
     Adams, Sseq, SseqProfile,
+    coordinates::{Bidegree, BidegreeElement},
 };
 
 use crate::{Sender, actions::*};
