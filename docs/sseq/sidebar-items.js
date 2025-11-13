@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["bigraded","coordinates","differential","sseq"],"struct":["Adams","DenseBigradedModule","Differential","Product","Sseq"],"trait":["SseqProfile"]};
+window.SIDEBAR_ITEMS = {"mod":["bigraded","charting","coordinates","differential","sseq"],"struct":["Adams","DenseBigradedModule","Differential","Product","Sseq"],"trait":["SseqProfile"]};

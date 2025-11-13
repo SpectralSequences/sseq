@@ -168,47 +168,46 @@
 <a href=#143 id=143 data-nosnippet>143</a>//! | --- | --- |
 <a href=#144 id=144 data-nosnippet>144</a>//! | [algebra] | This defines algebras, modules and module homomorphisms |
 <a href=#145 id=145 data-nosnippet>145</a>//! | [bivec] | This is a small crate that provides [`BiVec`](`bivec::BiVec`) - a variant of [`Vec`] indexed by an `i32` whose starting index may be non-zero. |
-<a href=#146 id=146 data-nosnippet>146</a>//! | [chart] | This provides some APIs for generating charts |
-<a href=#147 id=147 data-nosnippet>147</a>//! | [fp] | This implements linear algebra over $\mathbb{F}_p$, as well as general helper functions about primes. |
-<a href=#148 id=148 data-nosnippet>148</a>//! | [once] | This provides `OnceVec` and `OnceBiVec`, a push-only vector with non-blocking reads. This models some partially computed infinite data structure, and we think of pushing as simply finding out more of this infinite data structure instead of genuinely mutating it. |
-<a href=#149 id=149 data-nosnippet>149</a>//! | [query] | This contains some helper functions for a command line interface. |
-<a href=#150 id=150 data-nosnippet>150</a>//!
-<a href=#151 id=151 data-nosnippet>151</a>//! # Features
-<a href=#152 id=152 data-nosnippet>152</a>//!
-<a href=#153 id=153 data-nosnippet>153</a>//! - `odd-primes`: This enables support for odd primes, and is enabled by default. Disabling this
-<a href=#154 id=154 data-nosnippet>154</a>//!   feature offers significant improvements at the prime 2.
-<a href=#155 id=155 data-nosnippet>155</a>//! - `concurrent`: Use multiple threads for computations. The number of threads used can be
-<a href=#156 id=156 data-nosnippet>156</a>//!   configured via the `RAYON_NUM_THREADS` environment variable.
-<a href=#157 id=157 data-nosnippet>157</a>//! - `zstd`: Support reading zstd-compressed save files. Note that the save files are still written
-<a href=#158 id=158 data-nosnippet>158</a>//!   uncompressed. If compression is desired, output files need to be compressed manually.
-<a href=#159 id=159 data-nosnippet>159</a>//! - `cache-multiplication`: Precompute and cache the multiplication table under the Milnor basis.
-<a href=#160 id=160 data-nosnippet>160</a>//!   This is only feasible when using a small, finite subalgebra, e.g. when working with
-<a href=#161 id=161 data-nosnippet>161</a>//!   $\mathrm{tmf}$ modules.
-<a href=#162 id=162 data-nosnippet>162</a>//! - `logging`: Print timing information of the computations to stderr. Note that this has no
-<a href=#163 id=163 data-nosnippet>163</a>//!   effect unless the `RUST_LOG` environment variable is set appropriately.
-<a href=#164 id=164 data-nosnippet>164</a>//! - `nassau`: Use Nassau's algorithm to compute the minimal resolution instead of the usual
-<a href=#165 id=165 data-nosnippet>165</a>//!   minimal resolution algorithm. When this feature is enabled, only finite dimensional modules
-<a href=#166 id=166 data-nosnippet>166</a>//!   at the prime 2 can be resolved.
-<a href=#167 id=167 data-nosnippet>167</a>
-<a href=#168 id=168 data-nosnippet>168</a></span><span class="attr">#![allow(clippy::upper_case_acronyms)]
-<a href=#169 id=169 data-nosnippet>169</a>#![deny(clippy::use_self, unsafe_op_in_unsafe_fn)]
-<a href=#170 id=170 data-nosnippet>170</a>
-<a href=#171 id=171 data-nosnippet>171</a></span><span class="kw">pub mod </span>chain_complex;
-<a href=#172 id=172 data-nosnippet>172</a><span class="kw">pub mod </span>resolution;
-<a href=#173 id=173 data-nosnippet>173</a><span class="kw">pub mod </span>resolution_homomorphism;
-<a href=#174 id=174 data-nosnippet>174</a><span class="kw">pub mod </span>save;
-<a href=#175 id=175 data-nosnippet>175</a>
-<a href=#176 id=176 data-nosnippet>176</a><span class="kw">pub mod </span>yoneda;
-<a href=#177 id=177 data-nosnippet>177</a>
-<a href=#178 id=178 data-nosnippet>178</a><span class="kw">use </span>algebra::module::SteenrodModule;
-<a href=#179 id=179 data-nosnippet>179</a>
-<a href=#180 id=180 data-nosnippet>180</a><span class="kw">use </span><span class="kw">crate</span>::chain_complex::FiniteChainComplex;
-<a href=#181 id=181 data-nosnippet>181</a><span class="kw">pub type </span>CCC = FiniteChainComplex&lt;SteenrodModule&gt;;
-<a href=#182 id=182 data-nosnippet>182</a>
-<a href=#183 id=183 data-nosnippet>183</a><span class="kw">pub mod </span>nassau;
-<a href=#184 id=184 data-nosnippet>184</a><span class="kw">pub mod </span>secondary;
-<a href=#185 id=185 data-nosnippet>185</a><span class="kw">pub mod </span>utils;
-<a href=#186 id=186 data-nosnippet>186</a>
-<a href=#187 id=187 data-nosnippet>187</a><span class="comment">// Ensure dependencies don't accidentally activate odd primes
-<a href=#188 id=188 data-nosnippet>188</a></span><span class="attr">#[cfg(not(feature = <span class="string">"odd-primes"</span>))]
-<a href=#189 id=189 data-nosnippet>189</a></span><span class="kw">const _</span>: () = <span class="macro">assert!</span>(!fp::ODD_PRIMES);</code></pre></div></section></main></body></html>
+<a href=#146 id=146 data-nosnippet>146</a>//! | [fp] | This implements linear algebra over $\mathbb{F}_p$, as well as general helper functions about primes. |
+<a href=#147 id=147 data-nosnippet>147</a>//! | [once] | This provides `OnceVec` and `OnceBiVec`, a push-only vector with non-blocking reads. This models some partially computed infinite data structure, and we think of pushing as simply finding out more of this infinite data structure instead of genuinely mutating it. |
+<a href=#148 id=148 data-nosnippet>148</a>//! | [query] | This contains some helper functions for a command line interface. |
+<a href=#149 id=149 data-nosnippet>149</a>//!
+<a href=#150 id=150 data-nosnippet>150</a>//! # Features
+<a href=#151 id=151 data-nosnippet>151</a>//!
+<a href=#152 id=152 data-nosnippet>152</a>//! - `odd-primes`: This enables support for odd primes, and is enabled by default. Disabling this
+<a href=#153 id=153 data-nosnippet>153</a>//!   feature offers significant improvements at the prime 2.
+<a href=#154 id=154 data-nosnippet>154</a>//! - `concurrent`: Use multiple threads for computations. The number of threads used can be
+<a href=#155 id=155 data-nosnippet>155</a>//!   configured via the `RAYON_NUM_THREADS` environment variable.
+<a href=#156 id=156 data-nosnippet>156</a>//! - `zstd`: Support reading zstd-compressed save files. Note that the save files are still written
+<a href=#157 id=157 data-nosnippet>157</a>//!   uncompressed. If compression is desired, output files need to be compressed manually.
+<a href=#158 id=158 data-nosnippet>158</a>//! - `cache-multiplication`: Precompute and cache the multiplication table under the Milnor basis.
+<a href=#159 id=159 data-nosnippet>159</a>//!   This is only feasible when using a small, finite subalgebra, e.g. when working with
+<a href=#160 id=160 data-nosnippet>160</a>//!   $\mathrm{tmf}$ modules.
+<a href=#161 id=161 data-nosnippet>161</a>//! - `logging`: Print timing information of the computations to stderr. Note that this has no
+<a href=#162 id=162 data-nosnippet>162</a>//!   effect unless the `RUST_LOG` environment variable is set appropriately.
+<a href=#163 id=163 data-nosnippet>163</a>//! - `nassau`: Use Nassau's algorithm to compute the minimal resolution instead of the usual
+<a href=#164 id=164 data-nosnippet>164</a>//!   minimal resolution algorithm. When this feature is enabled, only finite dimensional modules
+<a href=#165 id=165 data-nosnippet>165</a>//!   at the prime 2 can be resolved.
+<a href=#166 id=166 data-nosnippet>166</a>
+<a href=#167 id=167 data-nosnippet>167</a></span><span class="attr">#![allow(clippy::upper_case_acronyms)]
+<a href=#168 id=168 data-nosnippet>168</a>#![deny(clippy::use_self, unsafe_op_in_unsafe_fn)]
+<a href=#169 id=169 data-nosnippet>169</a>
+<a href=#170 id=170 data-nosnippet>170</a></span><span class="kw">pub mod </span>chain_complex;
+<a href=#171 id=171 data-nosnippet>171</a><span class="kw">pub mod </span>resolution;
+<a href=#172 id=172 data-nosnippet>172</a><span class="kw">pub mod </span>resolution_homomorphism;
+<a href=#173 id=173 data-nosnippet>173</a><span class="kw">pub mod </span>save;
+<a href=#174 id=174 data-nosnippet>174</a>
+<a href=#175 id=175 data-nosnippet>175</a><span class="kw">pub mod </span>yoneda;
+<a href=#176 id=176 data-nosnippet>176</a>
+<a href=#177 id=177 data-nosnippet>177</a><span class="kw">use </span>algebra::module::SteenrodModule;
+<a href=#178 id=178 data-nosnippet>178</a>
+<a href=#179 id=179 data-nosnippet>179</a><span class="kw">use </span><span class="kw">crate</span>::chain_complex::FiniteChainComplex;
+<a href=#180 id=180 data-nosnippet>180</a><span class="kw">pub type </span>CCC = FiniteChainComplex&lt;SteenrodModule&gt;;
+<a href=#181 id=181 data-nosnippet>181</a>
+<a href=#182 id=182 data-nosnippet>182</a><span class="kw">pub mod </span>nassau;
+<a href=#183 id=183 data-nosnippet>183</a><span class="kw">pub mod </span>secondary;
+<a href=#184 id=184 data-nosnippet>184</a><span class="kw">pub mod </span>utils;
+<a href=#185 id=185 data-nosnippet>185</a>
+<a href=#186 id=186 data-nosnippet>186</a><span class="comment">// Ensure dependencies don't accidentally activate odd primes
+<a href=#187 id=187 data-nosnippet>187</a></span><span class="attr">#[cfg(not(feature = <span class="string">"odd-primes"</span>))]
+<a href=#188 id=188 data-nosnippet>188</a></span><span class="kw">const _</span>: () = <span class="macro">assert!</span>(!fp::ODD_PRIMES);</code></pre></div></section></main></body></html>

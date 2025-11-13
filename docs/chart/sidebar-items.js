@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["PATTERNS"],"enum":["Orientation"],"struct":["SvgBackend","TikzBackend"],"trait":["Backend"]};
+window.SIDEBAR_ITEMS = {};
