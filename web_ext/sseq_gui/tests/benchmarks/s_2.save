@@ -1,14 +1,14 @@
 {"recipients":["Resolver"],"sseq":"Main","action":{"Construct":{"algebra_name":"milnor","module_name":"S_2"}}}
 {"recipients":["Resolver"],"sseq":"Main","action":{"Resolve":{"max_degree":36}}}
-{"recipients":["Sseq"],"action":{"AddDifferential":{"r":2,"b":{"s":1,"t":16},"source":[1],"target":[1]}},"sseq":"Main"}
-{"recipients":["Sseq"],"action":{"AddDifferential":{"r":3,"b":{"s":2,"t":17},"source":[1],"target":[1]}},"sseq":"Main"}
-{"recipients":["Sseq"],"action":{"AddDifferential":{"r":2,"b":{"s":4,"t":21},"source":[1],"target":[1]}},"sseq":"Main"}
-{"recipients":["Sseq"],"action":{"AddDifferential":{"r":2,"b":{"s":4,"t":22},"source":[0,1],"target":[1]}},"sseq":"Main"}
-{"recipients":["Sseq"],"action":{"AddPermanentClass":{"b":{"s":0,"t":0},"class":[1]}},"sseq":"Main"}
-{"recipients":["Sseq"],"action":{"AddPermanentClass":{"b":{"s":3,"t":11},"class":[1]}},"sseq":"Main"}
-{"recipients":["Sseq","Resolver"],"action":{"AddProductType":{"permanent":true,"b":{"s":3,"t":11},"class":[1],"name":"c_0"}},"sseq":"Main"}
-{"recipients":["Sseq","Resolver"],"action":{"AddProductType":{"permanent":true,"b":{"s":5,"t":14},"class":[1],"name":"Ph_1"}},"sseq":"Main"}
-{"recipients":["Sseq","Resolver"],"action":{"AddProductType":{"permanent":true,"b":{"s":4,"t":18},"class":[1],"name":"d_0"}},"sseq":"Main"}
-{"recipients":["Sseq","Resolver"],"action":{"AddProductType":{"permanent":true,"b":{"s":4,"t":24},"class":[1],"name":"g"}},"sseq":"Main"}
-{"recipients":["Sseq","Resolver"],"action":{"AddProductDifferential":{"source":{"permanent":false,"b":{"s":4,"t":21},"class":[1],"name":"e_0"},"target":{"permanent":false,"b":{"s":6,"t":22},"class":[1],"name":"h_1^2 d_0"}}},"sseq":"Main"}
-{"recipients":["Sseq","Resolver"],"action":{"AddProductDifferential":{"source":{"permanent":false,"b":{"s":4,"t":22},"class":[0,1],"name":"f_0"},"target":{"permanent":false,"b":{"s":6,"t":23},"class":[1],"name":"h_0^2 e_0"}}},"sseq":"Main"}
+{"recipients":["Sseq"],"action":{"AddDifferential":{"r":2,"b":{"n":15,"s":1},"source":[1],"target":[1]}},"sseq":"Main"}
+{"recipients":["Sseq"],"action":{"AddDifferential":{"r":3,"b":{"n":15,"s":2},"source":[1],"target":[1]}},"sseq":"Main"}
+{"recipients":["Sseq"],"action":{"AddDifferential":{"r":2,"b":{"n":17,"s":4},"source":[1],"target":[1]}},"sseq":"Main"}
+{"recipients":["Sseq"],"action":{"AddDifferential":{"r":2,"b":{"n":18,"s":4},"source":[0,1],"target":[1]}},"sseq":"Main"}
+{"recipients":["Sseq"],"action":{"AddPermanentClass":{"b":{"n":0,"s":0},"class":[1]}},"sseq":"Main"}
+{"recipients":["Sseq"],"action":{"AddPermanentClass":{"b":{"n":8,"s":3},"class":[1]}},"sseq":"Main"}
+{"recipients":["Sseq","Resolver"],"action":{"AddProductType":{"permanent":true,"b":{"n":8,"s":3},"class":[1],"name":"c_0"}},"sseq":"Main"}
+{"recipients":["Sseq","Resolver"],"action":{"AddProductType":{"permanent":true,"b":{"n":9,"s":5},"class":[1],"name":"Ph_1"}},"sseq":"Main"}
+{"recipients":["Sseq","Resolver"],"action":{"AddProductType":{"permanent":true,"b":{"n":14,"s":4},"class":[1],"name":"d_0"}},"sseq":"Main"}
+{"recipients":["Sseq","Resolver"],"action":{"AddProductType":{"permanent":true,"b":{"n":20,"s":4},"class":[1],"name":"g"}},"sseq":"Main"}
+{"recipients":["Sseq","Resolver"],"action":{"AddProductDifferential":{"source":{"permanent":false,"b":{"n":17,"s":4},"class":[1],"name":"e_0"},"target":{"permanent":false,"b":{"n":16,"s":6},"class":[1],"name":"h_1^2 d_0"}}},"sseq":"Main"}
+{"recipients":["Sseq","Resolver"],"action":{"AddProductDifferential":{"source":{"permanent":false,"b":{"n":18,"s":4},"class":[0,1],"name":"f_0"},"target":{"permanent":false,"b":{"n":17,"s":6},"class":[1],"name":"h_0^2 e_0"}}},"sseq":"Main"}
