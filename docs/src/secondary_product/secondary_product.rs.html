@@ -146,7 +146,7 @@
 <a href=#121 id=121 data-nosnippet>121</a>    };
 <a href=#122 id=122 data-nosnippet>122</a>
 <a href=#123 id=123 data-nosnippet>123</a>    <span class="kw">fn </span>get_page_data(sseq: <span class="kw-2">&amp;</span>sseq::Sseq&lt;sseq::Adams&gt;, b: Bidegree) -&gt; <span class="kw-2">&amp;</span>fp::matrix::Subquotient {
-<a href=#124 id=124 data-nosnippet>124</a>        <span class="kw">let </span>d = sseq.page_data(b.n(), b.s());
+<a href=#124 id=124 data-nosnippet>124</a>        <span class="kw">let </span>d = sseq.page_data(b);
 <a href=#125 id=125 data-nosnippet>125</a>        <span class="kw-2">&amp;</span>d[std::cmp::min(<span class="number">3</span>, d.len() - <span class="number">1</span>)]
 <a href=#126 id=126 data-nosnippet>126</a>    }
 <a href=#127 id=127 data-nosnippet>127</a>
